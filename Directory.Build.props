@@ -1,0 +1,40 @@
+<Project>
+
+  <!-- Build policy for every project. Every warning is an error, from the first commit:
+       analyzers turned on later become baselines that never go away.
+       Companions: Directory.Packages.props (versions), Thermi.globalconfig (severities, and why
+       each disabled rule is off), SonarLint.xml (size limits), BannedSymbols.txt (banned APIs). -->
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- IDE0005 (unused usings) only runs in build with this on. XML docs stay optional (CS1591 off). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Pinned, not "latest": an SDK update must not add errors on its own. -->
+    <AnalysisLevel>10-recommended</AnalysisLevel>
+
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" Visible="false" />
+    <!-- Sonar reads its limits only from this file; limits in .editorconfig are ignored. -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)SonarLint.xml" Visible="false" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)Thermi.globalconfig" />
+  </ItemGroup>
+
+</Project>

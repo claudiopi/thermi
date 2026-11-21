@@ -1,0 +1,19 @@
+P:System.DateTime.Now ; Inject TimeProvider: tests control time and nothing waits on the real clock
+P:System.DateTime.UtcNow ; Inject TimeProvider
+P:System.DateTime.Today ; Inject TimeProvider
+P:System.DateTimeOffset.Now ; Inject TimeProvider
+P:System.DateTimeOffset.UtcNow ; Inject TimeProvider
+M:System.Threading.Thread.Sleep(System.Int32) ; Use a timer from TimeProvider.CreateTimer
+M:System.Threading.Thread.Sleep(System.TimeSpan) ; Use a timer from TimeProvider.CreateTimer
+M:System.Threading.Tasks.Task.Delay(System.Int32) ; Use Task.Delay(TimeSpan, TimeProvider)
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan) ; Use Task.Delay(TimeSpan, TimeProvider)
+M:System.Threading.Tasks.Task.Delay(System.Int32,System.Threading.CancellationToken) ; Use Task.Delay(TimeSpan, TimeProvider, CancellationToken)
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan,System.Threading.CancellationToken) ; Use Task.Delay(TimeSpan, TimeProvider, CancellationToken)
+T:System.Threading.Timer ; Use TimeProvider.CreateTimer
+T:System.Timers.Timer ; Use TimeProvider.CreateTimer
+M:System.Threading.PeriodicTimer.#ctor(System.TimeSpan) ; Use new PeriodicTimer(period, timeProvider)
+M:System.Diagnostics.Stopwatch.#ctor ; Use TimeProvider.GetTimestamp and GetElapsedTime
+M:System.Diagnostics.Stopwatch.StartNew ; Use TimeProvider.GetTimestamp and GetElapsedTime
+M:System.Diagnostics.Stopwatch.GetTimestamp ; Use TimeProvider.GetTimestamp
+M:System.Environment.Exit(System.Int32) ; Return from Main so windows and the driver are released cleanly
+M:System.Environment.FailFast(System.String) ; Return from Main so windows and the driver are released cleanly

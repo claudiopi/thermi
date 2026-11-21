@@ -1,0 +1,18 @@
+bin/
+obj/
+TestResults/
+artifacts/
+*.user
+.vs/
+.idea/
+
+# Personal agent and editor state never goes to the repo.
+.claude/settings.local.json
+.claude/worktrees/
+.claude/memory/
+CLAUDE.local.md
+*.local.*
+.scratch/
+
+# Raw sensor dumps can hold machine names and serial numbers. Only anonymized ones are committed.
+*.raw.json

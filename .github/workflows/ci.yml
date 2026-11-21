@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+    # "edited" re-checks the title after it changes.
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to a PR cancels its previous run. On main every run has its own group,
+# because GitHub cancels a pending run in the same group even without cancel-in-progress.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: 1
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci
+
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # The title becomes the squash commit, so it follows Conventional Commits.
+      # It is read from env, never interpolated into the script.
+      - shell: pwsh
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if ($env:TITLE -notmatch '^(feat|fix|perf|refactor|docs|test|build|ci|chore|revert)(\([\w-]+\))?!?: \S') {
+            Write-Output "::error::PR title '$env:TITLE' must look like 'fix: short summary' (Conventional Commits)."
+            exit 1
+          }
+
+  # The only required check on main. Jobs can change without touching branch protection.
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs: [check, pr-title]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - if: needs.check.result != 'success' || (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
+        run: exit 1

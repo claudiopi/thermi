@@ -1,0 +1,9 @@
+# One line ending everywhere: mixed CRLF and LF breaks format checks between machines and CI.
+* text=auto eol=crlf
+
+*.png binary
+*.ico binary
+*.gif binary
+*.jpg binary
+*.exe binary
+*.dll binary

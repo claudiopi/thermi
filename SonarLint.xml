@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Size and complexity limits, as build errors from the first commit.
+     Giant files and methods are the debt that is hardest to pay back later. -->
+<AnalysisInput>
+  <Rules>
+    <Rule>
+      <Key>S107</Key>
+      <Parameters><Parameter><Key>max</Key><Value>7</Value></Parameter></Parameters>
+    </Rule>
+    <Rule>
+      <Key>S134</Key>
+      <Parameters><Parameter><Key>max</Key><Value>3</Value></Parameter></Parameters>
+    </Rule>
+    <Rule>
+      <Key>S138</Key>
+      <Parameters><Parameter><Key>max</Key><Value>40</Value></Parameter></Parameters>
+    </Rule>
+    <Rule>
+      <Key>S1479</Key>
+      <Parameters><Parameter><Key>maximum</Key><Value>15</Value></Parameter></Parameters>
+    </Rule>
+    <Rule>
+      <Key>S3776</Key>
+      <Parameters><Parameter><Key>threshold</Key><Value>15</Value></Parameter></Parameters>
+    </Rule>
+  </Rules>
+</AnalysisInput>

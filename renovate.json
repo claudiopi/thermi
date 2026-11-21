@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "schedule": ["before 6am on monday"],
+  "minimumReleaseAge": "7 days",
+  "osvVulnerabilityAlerts": true,
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Runtime packages: one weekly PR for minor and patch updates, merged by a person after testing on real hardware. Sensor libraries reach a kernel driver, which the CI cannot test.",
+      "matchManagers": ["nuget"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "nuget minor and patch"
+    },
+    {
+      "description": "Build-only packages (analyzers, test tools) never ship to users: their minor and patch updates merge themselves once the CI gate is green.",
+      "matchManagers": ["nuget"],
+      "matchPackageNames": ["/Analyzer/", "xunit*", "coverlet*"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "build tools",
+      "automerge": true
+    },
+    {
+      "description": "GitHub Actions in their own PR, merged automatically once the CI gate is green.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "github actions",
+      "automerge": true
+    },
+    {
+      "description": "Major updates: one PR each, outside the weekly schedule once the 7-day wait is over, reviewed by a person.",
+      "matchUpdateTypes": ["major"],
+      "schedule": ["at any time"],
+      "labels": ["dependencies", "major"]
+    }
+  ]
+}

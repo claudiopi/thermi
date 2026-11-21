@@ -1,0 +1,137 @@
+# Analyzer severities: the single place for them. Formatting lives in .editorconfig.
+# Warnings are errors (Directory.Build.props), so "warning" here also breaks the build.
+# Every rule turned off has its reason on the line above (checked by RepoRulesTests).
+is_global = true
+global_level = 200
+
+# Style and naming: enforced in build, not just shown in the editor.
+dotnet_analyzer_diagnostic.category-Style.severity = error
+dotnet_naming_rule.interfaces_should_begin_with_i.severity = error
+dotnet_naming_rule.constants_should_be_pascal.severity = error
+dotnet_naming_rule.static_readonly_should_be_pascal.severity = error
+dotnet_naming_rule.private_fields_should_be_underscore_camel.severity = error
+dotnet_diagnostic.IDE0005.severity = error
+dotnet_diagnostic.IDE0051.severity = error
+dotnet_diagnostic.IDE0058.severity = suggestion
+# var or explicit type: both are fine.
+dotnet_diagnostic.IDE0007.severity = none
+# var or explicit type: both are fine.
+dotnet_diagnostic.IDE0008.severity = none
+# "this." qualification: not wanted, not enforced.
+dotnet_diagnostic.IDE0002.severity = none
+# Initializer simplification: style taste.
+dotnet_diagnostic.IDE0017.severity = none
+# Expression-bodied methods: block bodies are fine.
+dotnet_diagnostic.IDE0022.severity = none
+# Collection initializer simplification: style taste.
+dotnet_diagnostic.IDE0028.severity = none
+# if to ternary: often less readable.
+dotnet_diagnostic.IDE0046.severity = none
+# Index operator: minor.
+dotnet_diagnostic.IDE0056.severity = none
+# Range operator: minor.
+dotnet_diagnostic.IDE0057.severity = none
+# Pattern matching: not always clearer.
+dotnet_diagnostic.IDE0078.severity = none
+
+# Nullable reference types already guard arguments.
+dotnet_diagnostic.CA1062.severity = none
+# Names matching VB keywords: irrelevant in C#.
+dotnet_diagnostic.CA1716.severity = none
+# Type names matching namespaces: naming trivia.
+dotnet_diagnostic.CA1724.severity = none
+# Static readonly arrays for constant arguments: tiny gain, worse readability.
+dotnet_diagnostic.CA1861.severity = none
+# ConfigureAwait: a desktop app wants the UI context back; Core has no async.
+dotnet_diagnostic.CA2007.severity = none
+# XML comment placement: allows file-level comments.
+dotnet_diagnostic.CS1587.severity = none
+# XML docs are optional.
+dotnet_diagnostic.CS1591.severity = none
+
+# Culture: what the overlay shows depends on the user's culture, so it is always explicit.
+dotnet_diagnostic.CA1305.severity = error
+dotnet_diagnostic.CA1307.severity = error
+dotnet_diagnostic.CA1309.severity = error
+dotnet_diagnostic.CA1310.severity = error
+dotnet_diagnostic.CA1311.severity = error
+
+# Correctness.
+dotnet_diagnostic.CA1031.severity = error
+dotnet_diagnostic.CA1508.severity = error
+dotnet_diagnostic.CA1707.severity = error
+dotnet_diagnostic.CA1851.severity = error
+dotnet_diagnostic.CA2201.severity = error
+dotnet_diagnostic.CA2208.severity = error
+
+# Meziantou.
+# TODOs go to GitHub Issues, not to code comments.
+dotnet_diagnostic.MA0026.severity = error
+# Comparer on collections: ordinal default is fine for our keys.
+dotnet_diagnostic.MA0002.severity = none
+# Name boolean arguments: too strict.
+dotnet_diagnostic.MA0003.severity = none
+# ConfigureAwait: same reason as CA2007.
+dotnet_diagnostic.MA0004.severity = none
+# string.Equals over ==: == on strings is ordinal.
+dotnet_diagnostic.MA0006.severity = none
+# StructLayout on structs: only interop structs need it, and they get it by hand.
+dotnet_diagnostic.MA0008.severity = none
+# Format provider: CA1305 covers it.
+dotnet_diagnostic.MA0011.severity = none
+# Abstractions in signatures: concrete lists are fine inside the app.
+dotnet_diagnostic.MA0016.severity = none
+# File name equals type name: small records may live next to their only user.
+dotnet_diagnostic.MA0048.severity = none
+# Method length: Sonar S138 owns it.
+dotnet_diagnostic.MA0051.severity = none
+# String comparison: CA1307 covers it.
+dotnet_diagnostic.MA0074.severity = none
+# langword in XML docs: cosmetic.
+dotnet_diagnostic.MA0154.severity = none
+
+# Size and complexity (limits in SonarLint.xml).
+dotnet_diagnostic.S107.severity = error
+dotnet_diagnostic.S134.severity = error
+dotnet_diagnostic.S138.severity = error
+dotnet_diagnostic.S1479.severity = error
+dotnet_diagnostic.S3776.severity = error
+# Merge nested ifs: often less readable.
+dotnet_diagnostic.S1066.severity = none
+# Unused private members: IDE0051 covers it without false positives.
+dotnet_diagnostic.S1144.severity = none
+# Loops to LINQ: an explicit loop is sometimes clearer.
+dotnet_diagnostic.S3267.severity = none
+# Nested ternary: a simple one is fine.
+dotnet_diagnostic.S3358.severity = none
+
+# Async. Blocking on a task (.Wait(), .Result, GetResult()) deadlocks the UI thread.
+# async void stays an error: a WPF event handler suppresses it on its own line, with the reason.
+dotnet_diagnostic.VSTHRD002.severity = error
+dotnet_diagnostic.VSTHRD100.severity = error
+dotnet_diagnostic.VSTHRD103.severity = error
+dotnet_diagnostic.VSTHRD110.severity = error
+dotnet_diagnostic.CA2012.severity = error
+dotnet_diagnostic.CA2016.severity = error
+# Async suffix on names: naming taste, and test names would need it too.
+dotnet_diagnostic.VSTHRD200.severity = none
+# ConfigureAwait(true): same reason as CA2007.
+dotnet_diagnostic.VSTHRD111.severity = none
+# Async overloads where a sync one exists: VSTHRD103 covers it.
+dotnet_diagnostic.CA1849.severity = none
+
+# Handles: GDI objects and windows leak silently, so disposal is strict.
+dotnet_diagnostic.CA1063.severity = error
+dotnet_diagnostic.CA1816.severity = error
+dotnet_diagnostic.CA2000.severity = error
+dotnet_diagnostic.CA2213.severity = error
+
+# Interop: P/Invoke goes through source-generated LibraryImport, which needs AllowUnsafeBlocks
+# in the project that declares it.
+dotnet_diagnostic.CA1401.severity = error
+dotnet_diagnostic.CA1838.severity = error
+dotnet_diagnostic.CA2101.severity = error
+dotnet_diagnostic.SYSLIB1054.severity = error
+
+# Banned APIs (BannedSymbols.txt).
+dotnet_diagnostic.RS0030.severity = error

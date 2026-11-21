@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A sensor is missing or wrong on my hardware
+    url: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/issues
+    about: thermi reads sensors through LibreHardwareMonitor. If LibreHardwareMonitor shows the same problem, report it there.
+  - name: Security vulnerability
+    url: https://github.com/claudiopi/thermi/security/advisories/new
+    about: Report it privately, never in a public issue.
