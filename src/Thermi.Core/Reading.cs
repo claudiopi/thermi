@@ -1,6 +1,6 @@
 namespace Thermi.Core;
 
-/// <summary>What a sensor measures, and the unit its value comes in.</summary>
+/// <summary>What a sensor measures, and the unit its value comes in. Each name is the sensor type a snapshot reports.</summary>
 public enum SensorKind
 {
     /// <summary>Degrees Celsius.</summary>
@@ -17,6 +17,12 @@ public enum SensorKind
 
     /// <summary>Revolutions per minute.</summary>
     Fan,
+
+    /// <summary>Percent of full speed a fan is driven at, 0 to 100.</summary>
+    Control,
+
+    /// <summary>Gigabytes.</summary>
+    Data,
 }
 
 /// <summary>

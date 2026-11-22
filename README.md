@@ -20,9 +20,15 @@ Requires Windows, PowerShell 7 and the .NET SDK version in `global.json`.
 pwsh scripts/check.ps1
 ```
 
+To run it, install the [PawnIO](https://pawnio.eu) driver, then run this as yourself (not as administrator). It asks for admin rights once, to register the `thermi-sensors` service:
+
+```
+pwsh scripts/install.ps1
+```
+
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md). The rules fit on one page: [AGENTS.md](AGENTS.md).
+Start with [thermi in ten minutes](docs/QUICKSTART.md) and the [architecture](docs/ARCHITECTURE.md), then read [CONTRIBUTING.md](CONTRIBUTING.md). The rules fit on one page: [AGENTS.md](AGENTS.md).
 
 ## Built with AI, in the open
 
@@ -30,4 +36,4 @@ thermi is built by one person with AI coding agents. [How this was built](docs/h
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE). The libraries thermi ships and their licenses are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

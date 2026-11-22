@@ -1,0 +1,190 @@
+{
+  "spec": "001-overlay",
+  "steps": [
+    {
+      "id": "A1",
+      "covers": [
+        "R2"
+      ],
+      "description": "Given a desktop with an integrated and a discrete GPU, when the overlay reads its sensors, then it shows fan, CPU, GPU and RAM, with the discrete GPU.",
+      "check": "ShowsTheDefaultOverlayFromARecording",
+      "passes": true
+    },
+    {
+      "id": "A2",
+      "covers": [
+        "R6"
+      ],
+      "description": "Given sensors read without admin rights, when the overlay shows them, then the CPU temperature and power show as missing, not 0, and RAM is the real one, not virtual memory.",
+      "check": "WithoutAdminRightsTheCpuShowsAsMissingNotAsZero",
+      "passes": true
+    },
+    {
+      "id": "A3",
+      "covers": [
+        "R3"
+      ],
+      "description": "Given a value past its thresholds, when it is shown, then its meter turns yellow or red.",
+      "check": "TheMeterColorsByItsOwnThreshold",
+      "passes": true
+    },
+    {
+      "id": "A4",
+      "covers": [
+        "R2"
+      ],
+      "description": "Given the config names a sensor for a metric, when the overlay reads, then it uses that sensor.",
+      "check": "TheConfigCanNameTheSensorBehindAMetric",
+      "passes": true
+    },
+    {
+      "id": "A5",
+      "covers": [
+        "R6"
+      ],
+      "description": "Given the service is not running, when the overlay paints, then every value shows as missing.",
+      "check": "WithoutTheSensorHostEveryValueIsMissingAndNoMeterIsLit",
+      "passes": true
+    },
+    {
+      "id": "A6",
+      "covers": [
+        "R6"
+      ],
+      "description": "Given the service stays connected but stops sending, when 3 seconds pass, then the values show as missing.",
+      "check": "AHostThatGoesQuietStopsShowingNumbers",
+      "passes": true
+    },
+    {
+      "id": "A7",
+      "covers": [
+        "R7"
+      ],
+      "description": "Given a broken or newer config file, when it is read, then the defaults apply and the problem is reported.",
+      "check": "ABrokenOrNewerConfigGivesTheDefaultsAndSaysWhy",
+      "passes": true
+    },
+    {
+      "id": "A8",
+      "covers": [
+        "R8"
+      ],
+      "description": "Given garbage on the sensor pipe, when the overlay reads it, then nothing is shown from it and nothing crashes.",
+      "check": "AMalformedLineIsNotASnapshot",
+      "passes": true
+    },
+    {
+      "id": "A9",
+      "covers": [
+        "R1"
+      ],
+      "description": "Given a sensor read that fails, when the service ticks, then the service ends with the error so Windows restarts it.",
+      "check": "ASensorReadThatFailsEndsTheServerWithTheError",
+      "passes": true
+    },
+    {
+      "id": "A10",
+      "covers": [
+        "R1",
+        "R8"
+      ],
+      "description": "Given a client that stops reading, when the service writes, then that client is dropped and the others keep getting data.",
+      "check": "AClientThatStopsReadingIsDroppedWithoutHoldingBackTheOthers",
+      "passes": true
+    },
+    {
+      "id": "A11",
+      "covers": [
+        "R8"
+      ],
+      "description": "Given another program created the pipe first, when the service starts, then it refuses to join it.",
+      "check": "APipeSomeoneElseCreatedFirstIsNeverJoined",
+      "passes": true
+    },
+    {
+      "id": "A12",
+      "covers": [
+        "R1",
+        "R4"
+      ],
+      "description": "Given thermi was installed, when the PC restarts and the author signs in, then the overlay is on the taskbar with live values and no UAC prompt.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A13",
+      "covers": [
+        "R4"
+      ],
+      "description": "Given the overlay on the taskbar, when the author clicks the taskbar, opens Start and searches, then the overlay stays visible on top.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A14",
+      "covers": [
+        "R5"
+      ],
+      "description": "Given the overlay was dragged somewhere, when the PC restarts, then it is in the same place.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A15",
+      "covers": [
+        "R2",
+        "R3"
+      ],
+      "description": "Given Cleanmeter and the fan widget side by side with thermi, when the author compares them for a minute, then the values agree and thermi looks the same: one pill per group, the same units, the same meter colors at the same values.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A16",
+      "covers": [
+        "R3",
+        "R7"
+      ],
+      "description": "Given the settings are open from the right-click menu, when the author changes a threshold and saves, then the overlay applies it; with a typo, it shows CONFIG error and the file keeps the author's text.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A17",
+      "covers": [
+        "R1"
+      ],
+      "description": "Given the service process is killed from Task Manager, when 10 seconds pass, then the values are back.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A18",
+      "covers": [
+        "R4",
+        "R5"
+      ],
+      "description": "Given the PC sleeps and wakes, or a monitor is turned off and on, then the overlay is still on screen and on top.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A19",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given the overlay running for a minute at rest, when Task Manager is checked, then it is under 0.5 % CPU and 40 MB.",
+      "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A20",
+      "covers": [
+        "R1"
+      ],
+      "description": "Given `install.ps1 -Uninstall`, when it finishes, then the service, the files and the sign-in entry are gone, and the config stays.",
+      "check": "by hand",
+      "passes": true
+    }
+  ]
+}

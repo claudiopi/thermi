@@ -1,0 +1,1100 @@
+{
+  "sensors": [
+    {
+      "id": "/amdcpu/0/load/2",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #1",
+      "value": 9.09000015258789
+    },
+    {
+      "id": "/amdcpu/0/load/3",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #2",
+      "value": 4.550000190734863
+    },
+    {
+      "id": "/amdcpu/0/load/4",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #3",
+      "value": 18.18000030517578
+    },
+    {
+      "id": "/amdcpu/0/load/5",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #4",
+      "value": 13.640000343322754
+    },
+    {
+      "id": "/amdcpu/0/load/6",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #5",
+      "value": 18.18000030517578
+    },
+    {
+      "id": "/amdcpu/0/load/7",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #6",
+      "value": 81.81999969482422
+    },
+    {
+      "id": "/amdcpu/0/load/8",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #7",
+      "value": 4.550000190734863
+    },
+    {
+      "id": "/amdcpu/0/load/9",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #8",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/10",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #9",
+      "value": 36.36000061035156
+    },
+    {
+      "id": "/amdcpu/0/load/11",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #10",
+      "value": 27.270000457763672
+    },
+    {
+      "id": "/amdcpu/0/load/12",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #11",
+      "value": 13.640000343322754
+    },
+    {
+      "id": "/amdcpu/0/load/13",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #12",
+      "value": 77.2699966430664
+    },
+    {
+      "id": "/amdcpu/0/load/14",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #13",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/15",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #14",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/16",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #15",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/17",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #16",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/18",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #17",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/19",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #18",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/20",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #19",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/21",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #20",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/22",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #21",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/23",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #22",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/24",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #23",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/25",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #24",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/26",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #25",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/27",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #26",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/28",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #27",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/29",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #28",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/30",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #29",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/31",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #30",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/load/32",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #31",
+      "value": 4.550000190734863
+    },
+    {
+      "id": "/amdcpu/0/load/33",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core #32",
+      "value": 4.550000190734863
+    },
+    {
+      "id": "/amdcpu/0/load/0",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Total",
+      "value": 9.800000190734863
+    },
+    {
+      "id": "/amdcpu/0/load/1",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Load",
+      "name": "CPU Core Max",
+      "value": 81.81999969482422
+    },
+    {
+      "id": "/amdcpu/0/power/0",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Package",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/1",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Cores (Average)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/2",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Cores (Average Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/3",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #1",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/4",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #1 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/1",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #1 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/5",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #2",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/6",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #2 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/2",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #2 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/7",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #3",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/8",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #3 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/3",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #3 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/9",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #4",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/10",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #4 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/4",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #4 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/11",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #5",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/12",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #5 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/5",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #5 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/13",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #6",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/14",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #6 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/6",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #6 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/15",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #7",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/16",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #7 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/7",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #7 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/17",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #8",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/18",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #8 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/8",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #8 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/19",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #9",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/20",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #9 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/9",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #9 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/21",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #10",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/22",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #10 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/10",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #10 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/23",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #11",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/24",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #11 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/11",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #11 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/25",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #12",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/26",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #12 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/12",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #12 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/27",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #13",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/28",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #13 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/13",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #13 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/29",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #14",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/30",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #14 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/14",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #14 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/31",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #15",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/32",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #15 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/15",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #15 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/clock/33",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #16",
+      "value": null
+    },
+    {
+      "id": "/amdcpu/0/clock/34",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Clock",
+      "name": "Core #16 (Effective)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/power/16",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Power",
+      "name": "Core #16 (SMU)",
+      "value": 0
+    },
+    {
+      "id": "/amdcpu/0/temperature/2",
+      "hardwareType": "Cpu",
+      "hardware": "AMD Ryzen 9 9950X",
+      "type": "Temperature",
+      "name": "Core (Tctl/Tdie)",
+      "value": 0
+    },
+    {
+      "id": "/vram/data/2",
+      "hardwareType": "Memory",
+      "hardware": "Virtual Memory",
+      "type": "Data",
+      "name": "Memory Used",
+      "value": 42.64723587036133
+    },
+    {
+      "id": "/vram/data/3",
+      "hardwareType": "Memory",
+      "hardware": "Virtual Memory",
+      "type": "Data",
+      "name": "Memory Available",
+      "value": 26.246112823486328
+    },
+    {
+      "id": "/vram/load/1",
+      "hardwareType": "Memory",
+      "hardware": "Virtual Memory",
+      "type": "Load",
+      "name": "Memory",
+      "value": 61.90327072143555
+    },
+    {
+      "id": "/ram/data/0",
+      "hardwareType": "Memory",
+      "hardware": "Total Memory",
+      "type": "Data",
+      "name": "Memory Used",
+      "value": 27.152141571044922
+    },
+    {
+      "id": "/ram/data/1",
+      "hardwareType": "Memory",
+      "hardware": "Total Memory",
+      "type": "Data",
+      "name": "Memory Available",
+      "value": 34.491207122802734
+    },
+    {
+      "id": "/ram/load/0",
+      "hardwareType": "Memory",
+      "hardware": "Total Memory",
+      "type": "Load",
+      "name": "Memory",
+      "value": 44.047157287597656
+    },
+    {
+      "id": "/gpu-amd/0/load/2",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D 3D",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/5",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Copy",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/3",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Compute 0",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/4",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Compute 1",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/9",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Timer 0",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/8",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Security 1",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/7",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D High Priority Compute",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/6",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D High Priority 3D",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/12",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Video JPEG 0",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/11",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Video Decode 1",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/load/10",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "D3D Video Codec 0",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/clock/0",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Clock",
+      "name": "GPU Core",
+      "value": 600
+    },
+    {
+      "id": "/gpu-amd/0/clock/1",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Clock",
+      "name": "GPU SoC",
+      "value": 1200
+    },
+    {
+      "id": "/gpu-amd/0/clock/2",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Clock",
+      "name": "GPU Memory",
+      "value": 3000
+    },
+    {
+      "id": "/gpu-amd/0/temperature/4",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Temperature",
+      "name": "GPU VR SoC",
+      "value": 61
+    },
+    {
+      "id": "/gpu-amd/0/load/0",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Load",
+      "name": "GPU Core",
+      "value": 0
+    },
+    {
+      "id": "/gpu-amd/0/power/0",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Power",
+      "name": "GPU Core",
+      "value": 1
+    },
+    {
+      "id": "/gpu-amd/0/power/2",
+      "hardwareType": "GpuAmd",
+      "hardware": "AMD Radeon(TM) Graphics",
+      "type": "Power",
+      "name": "GPU SoC",
+      "value": 15
+    },
+    {
+      "id": "/gpu-nvidia/0/temperature/0",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Temperature",
+      "name": "GPU Core",
+      "value": 42.01171875
+    },
+    {
+      "id": "/gpu-nvidia/0/clock/0",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Clock",
+      "name": "GPU Core",
+      "value": 2670
+    },
+    {
+      "id": "/gpu-nvidia/0/clock/4",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Clock",
+      "name": "GPU Memory",
+      "value": 14201
+    },
+    {
+      "id": "/gpu-nvidia/0/fan/1",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Fan",
+      "name": "GPU Fan",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/control/1",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Control",
+      "name": "GPU Fan",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/0",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "GPU Core",
+      "value": 3
+    },
+    {
+      "id": "/gpu-nvidia/0/load/1",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "GPU Memory Controller",
+      "value": 2
+    },
+    {
+      "id": "/gpu-nvidia/0/load/2",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "GPU Video Engine",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/3",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "GPU Bus",
+      "value": 100
+    },
+    {
+      "id": "/gpu-nvidia/0/load/4",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "GPU Power",
+      "value": 12.965999603271484
+    },
+    {
+      "id": "/gpu-nvidia/0/load/5",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "GPU Board Power",
+      "value": 12.520999908447266
+    },
+    {
+      "id": "/gpu-nvidia/0/load/7",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D 3D",
+      "value": 2.3268144130706787
+    },
+    {
+      "id": "/gpu-nvidia/0/load/17",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Video Decode",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/8",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Copy",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/9",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Copy",
+      "value": 0.25315621495246887
+    },
+    {
+      "id": "/gpu-nvidia/0/load/16",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Security",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/18",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Video Encode",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/15",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Optical Flow Accelerator 0",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/14",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D JPEG Decode 0",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/19",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D VR",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/10",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Copy",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/11",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Copy",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/12",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Copy",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/load/13",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "D3D Copy",
+      "value": 0
+    },
+    {
+      "id": "/gpu-nvidia/0/temperature/3",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Temperature",
+      "name": "GPU Memory Junction",
+      "value": 52
+    },
+    {
+      "id": "/gpu-nvidia/0/load/3",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Load",
+      "name": "GPU Memory",
+      "value": 20.08534812927246
+    },
+    {
+      "id": "/gpu-nvidia/0/power/0",
+      "hardwareType": "GpuNvidia",
+      "hardware": "NVIDIA GeForce RTX 5060 Ti",
+      "type": "Power",
+      "name": "GPU Package",
+      "value": 22.534000396728516
+    }
+  ]
+}

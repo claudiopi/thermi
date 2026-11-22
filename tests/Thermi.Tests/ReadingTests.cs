@@ -10,11 +10,13 @@ public sealed class ReadingTests
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-UY");
 
     [Theory]
-    [InlineData(SensorKind.Temperature, 61.6, "62°")]
-    [InlineData(SensorKind.Load, 7.2, "7%")]
+    [InlineData(SensorKind.Temperature, 61.6, "62 °C")]
+    [InlineData(SensorKind.Load, 7.2, "7 %")]
     [InlineData(SensorKind.Clock, 4845.0, "4.8 GHz")]
     [InlineData(SensorKind.Power, 88.4, "88 W")]
-    [InlineData(SensorKind.Fan, 1450.0, "1450 rpm")]
+    [InlineData(SensorKind.Fan, 1450.0, "1,450 RPM")]
+    [InlineData(SensorKind.Control, 42.4, "42 %")]
+    [InlineData(SensorKind.Data, 26.94, "26.9 GB")]
     [InlineData(SensorKind.Temperature, null, ReadingFormatter.Missing)]
     [InlineData(SensorKind.Fan, double.NaN, ReadingFormatter.Missing)]
     [InlineData(SensorKind.Power, double.PositiveInfinity, ReadingFormatter.Missing)]

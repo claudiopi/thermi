@@ -13,6 +13,3 @@ artifacts/
 CLAUDE.local.md
 *.local.*
 .scratch/
-
-# Raw sensor dumps can hold machine names and serial numbers. Only anonymized ones are committed.
-*.raw.json

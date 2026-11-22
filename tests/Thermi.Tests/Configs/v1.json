@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "position": {
+    "x": 1665,
+    "y": 1402
+  },
+  "items": [
+    {
+      "metric": "fan.cpu",
+      "meter": "fan.cpu.duty",
+      "threshold": {
+        "warning": 60,
+        "critical": 85
+      }
+    },
+    {
+      "metric": "cpu.temperature",
+      "meter": "cpu.temperature",
+      "threshold": {
+        "warning": 70,
+        "critical": 90
+      }
+    },
+    {
+      "metric": "ram.load"
+    }
+  ],
+  "sources": {
+    "fan.cpu": "/lpc/it8689e/0/fan/0"
+  }
+}

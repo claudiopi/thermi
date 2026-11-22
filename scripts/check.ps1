@@ -77,8 +77,10 @@ Remove-Item $results -Recurse -Force -ErrorAction SilentlyContinue
 Invoke-Step 'restore' { dotnet restore thermi.slnx $(if ($Ci) { '--locked-mode' }) }
 Invoke-Step 'format' { dotnet format whitespace thermi.slnx --verify-no-changes } -Explain { Write-Host '  Fix it with: dotnet format whitespace thermi.slnx' }
 Invoke-Step 'build Release' { dotnet build thermi.slnx -c Release --no-restore }
+# Coverage counts only Core's own tests: the Windows tests touch Core in passing and would dilute it.
 Invoke-Step 'tests and coverage' {
-    dotnet test --solution thermi.slnx -c Release --no-build --results-directory $results -- `
+    dotnet test --project tests/Thermi.Tests -c Release --no-build --results-directory $results -- `
         --coverlet --coverlet-include '[Thermi.Core]*' --coverlet-output-format cobertura `
         --coverlet-threshold $minCoverage --coverlet-threshold-type line,branch
 } -Explain { Show-Coverage }
+Invoke-Step 'Windows tests' { dotnet test --project tests/Thermi.Windows.Tests -c Release --no-build }

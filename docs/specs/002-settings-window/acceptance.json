@@ -1,0 +1,1238 @@
+{
+  "spec": "002-settings-window",
+  "steps": [
+    {
+      "id": "A1",
+      "covers": [
+        "R1"
+      ],
+      "description": "Given the overlay, when the author opens its menu and picks \"Settings…\", then the window opens, and the menu has no \"Edit settings\".",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A2",
+      "covers": [
+        "R2"
+      ],
+      "description": "Given the overlay, when the author double-clicks it, then the window opens.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A3",
+      "covers": [
+        "R3"
+      ],
+      "description": "Given a terminal, when the author runs `thermi settings`, then the window opens.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A4",
+      "covers": [
+        "R4"
+      ],
+      "description": "Given the window open behind others, when the author asks for it again in any of the three ways, then the same window comes to the front and no second one opens.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A5",
+      "covers": [
+        "R5"
+      ],
+      "description": "Given the window's own log line from request to first frame, when it is opened cold after sign-in and then again, then it reads under 2 s and under 1 s.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A6",
+      "covers": [
+        "R6"
+      ],
+      "description": "Given the overlay closed, when the window opens, then it works with live values and offers to start the overlay, which then starts.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A7",
+      "covers": [
+        "R7"
+      ],
+      "description": "Given changes faster than one every 100 ms, when they go through the throttle on a fake clock, then at most one goes out every 100 ms and the last one always does.",
+      "check": "AThrottleLetsOneChangeOutEveryHundredMillisecondsAndAlwaysTheLast",
+      "passes": false
+    },
+    {
+      "id": "A8",
+      "covers": [
+        "R7"
+      ],
+      "description": "Given the window and the overlay started with --trace, when the author drags a threshold slider back and forth, then the traces show every paint within 300 ms of its input, while the slider moves.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A9",
+      "covers": [
+        "R8"
+      ],
+      "description": "Given a series of edits, when each is undone and then redone, then the settings go back through exactly the same states.",
+      "check": "EveryEditCanBeUndoneAndRedone",
+      "passes": false
+    },
+    {
+      "id": "A10",
+      "covers": [
+        "R8"
+      ],
+      "description": "Given a slider dragged through many values in one gesture, when it is undone once, then the value before the gesture is back.",
+      "check": "OneGestureIsOneUndoStep",
+      "passes": false
+    },
+    {
+      "id": "A11",
+      "covers": [
+        "R8"
+      ],
+      "description": "Given an edit, when the author undoes and redoes it with Ctrl+Z, Ctrl+Y and the title bar buttons, then each works.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A12",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given a warning set from 70 to 75 by the window and then to 80 by hand, when the window's edit is undone, then 80 stays and the step is reported as skipped.",
+      "check": "UndoNeverRevertsAHandEditOfTheSameField",
+      "passes": false
+    },
+    {
+      "id": "A13",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given a snap set by the window and then a drag of the overlay, when the snap is undone, then the dragged position stays.",
+      "check": "UndoAfterADragKeepsTheDrag",
+      "passes": false
+    },
+    {
+      "id": "A14",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given an item edited by the window and then deleted by hand, when the edit is undone, then nothing changes and the step is reported as skipped.",
+      "check": "UndoOfAnItemDeletedByHandIsSkipped",
+      "passes": false
+    },
+    {
+      "id": "A15",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given an item deleted by the window and an item with its id added by hand, when the delete is undone and an undone edit is redone over a hand change, then neither applies and both are reported as skipped.",
+      "check": "UndoAndRedoNeverDuplicateOrOverwrite",
+      "passes": false
+    },
+    {
+      "id": "A16",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given an item added, one deleted and one moved by the window, and the added one then edited by hand, when all three are undone, then the deleted item is back in place, the move is reverted, and the hand-edited item stays with a skipped step.",
+      "check": "UndoOfAddDeleteAndMoveRespectsHandEdits",
+      "passes": false
+    },
+    {
+      "id": "A17",
+      "covers": [
+        "R10"
+      ],
+      "description": "Given the window open, when the sensor values change, then the stage shows the same values and colors as the overlay.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A18",
+      "covers": [
+        "R11"
+      ],
+      "description": "Given the default settings, when the RAM item moves before the GPU, then the overlay's groups follow the new order.",
+      "check": "MovingAnItemReordersTheOverlay",
+      "passes": false
+    },
+    {
+      "id": "A19",
+      "covers": [
+        "R11"
+      ],
+      "description": "Given the stage, when the author selects, drags, moves with Alt+arrows, deletes and adds items, then the stage and the overlay match after each step.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A20",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given the stage, when the author double-clicks a value, then the catalog opens on that value's sensor.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A21",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given the recording with admin rights, when the catalog is built, then every sensor appears once, under its device.",
+      "check": "TheCatalogGroupsEverySensorByDevice",
+      "passes": false
+    },
+    {
+      "id": "A22",
+      "covers": [
+        "R14"
+      ],
+      "description": "Given the catalog, when it is searched for \"fan\" and filtered by Temperature, then the search finds the motherboard's fans and the GPU's, and the filter shows only temperatures.",
+      "check": "TheCatalogFindsSensorsByNameDeviceOrType",
+      "passes": false
+    },
+    {
+      "id": "A23",
+      "covers": [
+        "R15"
+      ],
+      "description": "Given readings over two minutes on a fake clock, when a sparkline is read, then it holds the last minute and nothing older.",
+      "check": "TheSparklineKeepsTheLastMinute",
+      "passes": false
+    },
+    {
+      "id": "A24",
+      "covers": [
+        "R16"
+      ],
+      "description": "Given the recording without admin rights, when the catalog is built, then the CPU temperature, power and clocks reading zero say the driver may be missing, and the clocks with no value say they read nothing.",
+      "check": "WithoutTheDriverTheCatalogSaysWhyTheCpuReadsNothing",
+      "passes": false
+    },
+    {
+      "id": "A25",
+      "covers": [
+        "R16"
+      ],
+      "description": "Given the recording with admin rights, when the catalog is built, then the empty fan headers say stopped or not connected, and a memory sensor at 0 °C shows 0 °C in the catalog and as an item on the overlay.",
+      "check": "TheCatalogSaysWhyAFanReadsZeroAndKeepsOtherZeros",
+      "passes": false
+    },
+    {
+      "id": "A26",
+      "covers": [
+        "R17"
+      ],
+      "description": "Given every sensor of the admin recording, when each is added as an item, then each shows in the unit of its type, as its own pill with a label made from its name in capitals, never longer than 8 characters, and two GPU Core items added one after the other get GPU CORE and GPU COR2 and still make two pills.",
+      "check": "AnyRecordedSensorCanBeAnItemInItsOwnUnit",
+      "passes": false
+    },
+    {
+      "id": "A27",
+      "covers": [
+        "R18"
+      ],
+      "description": "Given a temperature item, when its sensor is changed to a fan, then the change is refused with the reason and the settings stay as they were.",
+      "check": "AnItemsSensorCanOnlyChangeToOneOfTheSameType",
+      "passes": false
+    },
+    {
+      "id": "A28",
+      "covers": [
+        "R18"
+      ],
+      "description": "Given the fan item metered by the fan duty, when its sensor is changed by hand to Fan #2, then its meter becomes Fan #2's own duty.",
+      "check": "ChangingTheFanFollowsItsOwnDuty",
+      "passes": false
+    },
+    {
+      "id": "A29",
+      "covers": [
+        "R18"
+      ],
+      "description": "Given the fan item metered by the fan duty, when its sensor is changed to a fan with no duty sensor, then its meter shows as missing.",
+      "check": "AFanWithoutADutySensorShowsItsMeterAsMissing",
+      "passes": false
+    },
+    {
+      "id": "A30",
+      "covers": [
+        "R18"
+      ],
+      "description": "Given the fan item after the finder named a fan and its duty, when it goes back to Auto, then the item and its meter follow their metrics again.",
+      "check": "AnItemAndItsMeterGoBackToAuto",
+      "passes": false
+    },
+    {
+      "id": "A31",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given Task Manager open, when the finder runs, then every logical core is loaded at below-normal priority, and the load ends by 30 s.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A32",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given the recorded series, when the finder replays it, then it starts the load only after 3 s of readings, runs at least 8 s, and stops 3 s after a fan meets the rule or at 8 s if that is later.",
+      "check": "TheFinderWaitsForABaselineAndStopsWhenTheResultIsClear",
+      "passes": false
+    },
+    {
+      "id": "A33",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given the recorded series with a gap cut into the run, when the finder replays it, then it stops at the gap and says the readings stopped.",
+      "check": "AGapInTheReadingsStopsTheFinder",
+      "passes": false
+    },
+    {
+      "id": "A34",
+      "covers": [
+        "R20"
+      ],
+      "description": "Given the finder running, when the author cancels it, then the CPU load drops within a second and nothing changes.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A35",
+      "covers": [
+        "R21"
+      ],
+      "description": "Given a series recorded on the author's PC with `thermi-sensors --dump --seconds` around a CPU load, as the design says, when the finder replays it, then it picks the fan that cools the CPU, and the fan item names it with its own duty as the meter.",
+      "check": "TheFanThatSpeedsUpUnderLoadIsTheCpuFan",
+      "passes": false
+    },
+    {
+      "id": "A36",
+      "covers": [
+        "R21"
+      ],
+      "description": "Given settings without a fan item, when the finder picks a fan, then a fan item naming it is added at the start.",
+      "check": "WithoutAFanItemTheFinderAddsOne",
+      "passes": false
+    },
+    {
+      "id": "A37",
+      "covers": [
+        "R22"
+      ],
+      "description": "Given fans that barely rise, or two that rise alike, when the finder compares them, then it picks nothing and says which.",
+      "check": "WhenNoFanSpeedsUpClearlyNothingIsChosen",
+      "passes": false
+    },
+    {
+      "id": "A38",
+      "covers": [
+        "R22"
+      ],
+      "description": "Given a run whose CPU load stayed under 80 % after its first 2 s, when the finder compares the fans, then it picks nothing and says the load did not reach the CPU.",
+      "check": "WhenTheLoadNeverReachesTheCpuNothingIsChosen",
+      "passes": false
+    },
+    {
+      "id": "A39",
+      "covers": [
+        "R23"
+      ],
+      "description": "Given the recording without admin rights, which has only the GPU's fan, when the finder is asked to start, then it refuses and says the driver may be missing.",
+      "check": "WithoutTheDriverTheFinderSaysSoInsteadOfLoadingTheCpu",
+      "passes": false
+    },
+    {
+      "id": "A40",
+      "covers": [
+        "R24"
+      ],
+      "description": "Given an item with a threshold, when the author drags its handles, then the zones and the live value on the track match the overlay's colors.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A41",
+      "covers": [
+        "R25"
+      ],
+      "description": "Given twelve minutes of readings on a fake clock with a gap in the middle, when the histogram is built, then it holds the last ten minutes, and the gap adds nothing.",
+      "check": "TheHistoryKeepsTenMinutesAndLeavesGapsEmpty",
+      "passes": false
+    },
+    {
+      "id": "A42",
+      "covers": [
+        "R26"
+      ],
+      "description": "Given a threshold, when the warning is set above the critical, then the edit is refused with the reason and the settings stay as they were.",
+      "check": "TheWarningCanNeverBeAboveTheCritical",
+      "passes": false
+    },
+    {
+      "id": "A43",
+      "covers": [
+        "R27"
+      ],
+      "description": "Given changed thresholds on a temperature, a load and a duty item, and the fan item metered by its duty, when each goes back to its default, then they are 70/85, 60/80, 60/85 and 60/85.",
+      "check": "AThresholdCanGoBackToItsDefault",
+      "passes": false
+    },
+    {
+      "id": "A44",
+      "covers": [
+        "R28"
+      ],
+      "description": "Given items of each type, when meters are set off, to themselves and to a fan's duty, then only 0 to 100 types are accepted, the overlay shows each level, and an item without a meter is never colored.",
+      "check": "OnlyZeroToHundredValuesCanBeMeters",
+      "passes": false
+    },
+    {
+      "id": "A45",
+      "covers": [
+        "R29"
+      ],
+      "description": "Given the CPU pill, and then the CPU group split in two pills, when the label of the first pill changes to \"CHIP\", then every item of that pill shows \"CHIP\", and the second pill keeps \"CPU\".",
+      "check": "RenamingAPillRenamesEveryItemInItAndNoOther",
+      "passes": false
+    },
+    {
+      "id": "A46",
+      "covers": [
+        "R30"
+      ],
+      "description": "Given two monitors where only one has a taskbar, when snap spots are listed, then taskbar spots are offered only on that one, and corners on both.",
+      "check": "TaskbarSnapsAreOfferedOnlyWhereThereIsATaskbar",
+      "passes": false
+    },
+    {
+      "id": "A47",
+      "covers": [
+        "R30"
+      ],
+      "description": "Given a taskbar with its notification area, when the overlay snaps right, then its right edge ends a margin before the notification area.",
+      "check": "ARightSnapEndsBeforeTheNotificationArea",
+      "passes": false
+    },
+    {
+      "id": "A48",
+      "covers": [
+        "R30"
+      ],
+      "description": "Given a taskbar whose notification area cannot be found, when the overlay snaps right, then it keeps a reserve of 220 px times the scale.",
+      "check": "WithoutTheNotificationAreaTheRightSnapKeepsAFixedReserve",
+      "passes": false
+    },
+    {
+      "id": "A49",
+      "covers": [
+        "R31"
+      ],
+      "description": "Given a monitor's work area, when the overlay snaps to each corner, then it sits fully inside the work area.",
+      "check": "ACornerSnapSitsInsideTheWorkArea",
+      "passes": false
+    },
+    {
+      "id": "A50",
+      "covers": [
+        "R32"
+      ],
+      "description": "Given an overlay snapped to the right of a taskbar, when its width grows, then its right edge stays where it was.",
+      "check": "ASnappedOverlayStaysAlignedWhenItGrows",
+      "passes": false
+    },
+    {
+      "id": "A51",
+      "covers": [
+        "R32"
+      ],
+      "description": "Given a vertical overlay snapped to a bottom corner, when it gets taller, then its bottom edge stays where it was.",
+      "check": "ASnappedVerticalOverlayKeepsItsBottomEdge",
+      "passes": false
+    },
+    {
+      "id": "A52",
+      "covers": [
+        "R32"
+      ],
+      "description": "Given a snapped overlay, when its position is computed again, then the settings file is not written.",
+      "check": "ASnappedOverlayNeverWritesItsPosition",
+      "passes": false
+    },
+    {
+      "id": "A53",
+      "covers": [
+        "R33"
+      ],
+      "description": "Given a snapped overlay, when it is moved further than the drag distance and dropped, then the snap is gone and the dropped position is saved.",
+      "check": "DraggingASnappedOverlayUnsnapsIt",
+      "passes": false
+    },
+    {
+      "id": "A54",
+      "covers": [
+        "R33"
+      ],
+      "description": "Given a snapped overlay, when it is clicked, or moved less than the drag distance, then the snap stays and nothing is written.",
+      "check": "AClickKeepsTheSnap",
+      "passes": false
+    },
+    {
+      "id": "A55",
+      "covers": [
+        "R34"
+      ],
+      "description": "Given a snap to a monitor that is gone, when the position is computed, then it goes to the same spot on the primary monitor, and back when the monitor returns.",
+      "check": "ASnapToAMonitorThatIsGoneFallsBackToThePrimaryAndComesBack",
+      "passes": false
+    },
+    {
+      "id": "A56",
+      "covers": [
+        "R35"
+      ],
+      "description": "Given the overlay snapped to the second monitor, when the PC restarts, and when that monitor is unplugged and plugged into another port, then the snap still finds it.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A57",
+      "covers": [
+        "R36"
+      ],
+      "description": "Given sizes of 0.5, 1.5 and 3, when they are set, then 1.5 is kept and the others are refused with the reason.",
+      "check": "TheSizeIsBetween75And200Percent",
+      "passes": false
+    },
+    {
+      "id": "A58",
+      "covers": [
+        "R37"
+      ],
+      "description": "Given every edit that would leave the settings invalid, when it is applied, then the settings are unchanged and the reason is returned.",
+      "check": "TheWindowCannotSaveAnInvalidConfig",
+      "passes": false
+    },
+    {
+      "id": "A59",
+      "covers": [
+        "R38"
+      ],
+      "description": "Given two writers that read the file at the same moment, when both write, then the file holds both changes.",
+      "check": "TwoWritersAtOnceNeverLoseAChange",
+      "passes": false
+    },
+    {
+      "id": "A60",
+      "covers": [
+        "R39"
+      ],
+      "description": "Given a file held open by another writer and then released, when it is read within 500 ms, then the read succeeds and reports no problem.",
+      "check": "AReadDuringAWriteIsRetriedNotReportedAsBroken",
+      "passes": false
+    },
+    {
+      "id": "A61",
+      "covers": [
+        "R39"
+      ],
+      "description": "Given a file emptied and then written again, and one removed and then put back, as editors save, when each is read meanwhile, then the overlay never shows the defaults and the file is not recreated.",
+      "check": "AnEditorsSaveNeverShowsAsDefaults",
+      "passes": false
+    },
+    {
+      "id": "A62",
+      "covers": [
+        "R38"
+      ],
+      "description": "Given a writer that died holding the file's mutex, when another writes, then it acquires the mutex, the write lands, and the temporary file it left is gone.",
+      "check": "AMutexLeftByADeadWriterIsAcquired",
+      "passes": false
+    },
+    {
+      "id": "A63",
+      "covers": [
+        "R39"
+      ],
+      "description": "Given a file cut short, and one missing, when the re-read under the mutex finds it so and the file comes back within 500 ms, then the write lands on the file as it came back.",
+      "check": "AWriterWaitsOutAnEditorsSave",
+      "passes": false
+    },
+    {
+      "id": "A64",
+      "covers": [
+        "R38"
+      ],
+      "description": "Given a reader with the file open, when a writer moves its write into place, then the move succeeds.",
+      "check": "AReaderNeverBlocksAWrite",
+      "passes": false
+    },
+    {
+      "id": "A65",
+      "covers": [
+        "R38"
+      ],
+      "description": "Given a file found broken by the re-read under the mutex, when a writer applies its change, then nothing is written and the change is reported.",
+      "check": "AWriterNeverOverwritesABrokenFile",
+      "passes": false
+    },
+    {
+      "id": "A66",
+      "covers": [
+        "R38"
+      ],
+      "description": "Given a move into place that fails, when the file is free again, then the write lands, as after a timeout.",
+      "check": "AFailedMoveIsRetriedLikeATimeout",
+      "passes": false
+    },
+    {
+      "id": "A67",
+      "covers": [
+        "R38"
+      ],
+      "description": "Given a write that times out waiting for the mutex, when the mutex is released, then the write lands without another change.",
+      "check": "AWriteThatTimesOutIsRetriedUntilItLands",
+      "passes": false
+    },
+    {
+      "id": "A68",
+      "covers": [
+        "R40"
+      ],
+      "description": "Given the window open, when the author breaks the file by hand, then the window shows the line and reason, offers to open the file, and allows no other change.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A69",
+      "covers": [
+        "R41"
+      ],
+      "description": "Given a broken file, when the settings are restored, then the broken file is kept under a dated name and the last good settings are written.",
+      "check": "RestoringKeepsTheBrokenFile",
+      "passes": false
+    },
+    {
+      "id": "A70",
+      "covers": [
+        "R42"
+      ],
+      "description": "Given the window open, when the author changes a threshold by hand in the file, then the window shows the new value at once.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A71",
+      "covers": [
+        "R42"
+      ],
+      "description": "Given the window's own write, when its watcher event arrives, then it is not taken as an outside change.",
+      "check": "TheWindowsOwnWriteIsNotAnOutsideChange",
+      "passes": false
+    },
+    {
+      "id": "A72",
+      "covers": [
+        "R43"
+      ],
+      "description": "Given the version 1 file of spec 001 with sources, when it is read, then it becomes version 2 with each source applied to its items and meters, and shows the same overlay, a wrong-type source still showing as missing.",
+      "check": "AVersionOneFileMigratesToVersionTwo",
+      "passes": false
+    },
+    {
+      "id": "A73",
+      "covers": [
+        "R43"
+      ],
+      "description": "Given a version 1 file with no position, and one with a position, when each is read, then the first snaps to the right of the primary taskbar and the second keeps its position.",
+      "check": "AVersionOneFileKeepsItsPlace",
+      "passes": false
+    },
+    {
+      "id": "A74",
+      "covers": [
+        "R44"
+      ],
+      "description": "Given a file with items without ids and one with a repeated id, when it is read twice, then both reads give the same unique ids, the first holder keeps each repeated id, and a write stores them.",
+      "check": "ItemIdsAreUniqueAndTheSameOnEveryRead",
+      "passes": false
+    },
+    {
+      "id": "A75",
+      "covers": [
+        "R44"
+      ],
+      "description": "Given an item without an id placed above an item whose id is cpu.temperature, and a cpu.temperature-2 id placed above a cpu.temperature item without one, when the file is read, then ids in the file are kept and the others get the first free suffix.",
+      "check": "IdsInTheFileAreReservedBeforeAnyIsMade",
+      "passes": false
+    },
+    {
+      "id": "A76",
+      "covers": [
+        "R43"
+      ],
+      "description": "Given the recorded version 2 file, when it is read and written back, then nothing changes.",
+      "check": "AVersionTwoFileRoundTrips",
+      "passes": false
+    },
+    {
+      "id": "A77",
+      "covers": [
+        "R45"
+      ],
+      "description": "Given the window open, when the sensor service is stopped and then started, then the window says what happened and what to do, and recovers on its own.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A78",
+      "covers": [
+        "R46"
+      ],
+      "description": "Given the window open, when the service process is suspended in Resource Monitor and then resumed, then the window says the data is stale, shows no live values, and recovers.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A79",
+      "covers": [
+        "R47"
+      ],
+      "description": "Given only the keyboard, when the author changes a threshold, a sensor, a label and the snap spot, then every control is reached and usable.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A80",
+      "covers": [
+        "R48"
+      ],
+      "description": "Given Narrator, when the author moves through the window, then every control is read with a name and a role.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A81",
+      "covers": [
+        "R49"
+      ],
+      "description": "Given Windows in light, dark, another accent and high contrast, when the window opens in each, then it follows each and reads well.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A82",
+      "covers": [
+        "R50"
+      ],
+      "description": "Given animation effects off in Windows, when the author uses the window, then nothing animates.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A83",
+      "covers": [
+        "R51"
+      ],
+      "description": "Given the overlay's CPU time and private memory, when the window stays open and idle for a minute, then the overlay used under 0.3 s of CPU and stayed under 40 MB.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A84",
+      "covers": [
+        "R51"
+      ],
+      "description": "Given the overlay's CPU time and --trace, when the author drags a slider for a minute and then closes the window, then the overlay painted at most 10 times a second, used under 1.2 s of CPU, and no window process is left.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A85",
+      "covers": [
+        "R52"
+      ],
+      "description": "Given the switch turned off, when thermi is reinstalled and the author signs out and in, then the overlay does not start, and Ctrl+Z never touched the switch.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A86",
+      "covers": [
+        "R53"
+      ],
+      "description": "Given edited settings, when they are reset to defaults, one field is changed by hand, and the reset is undone, then every other item and field is back and the hand change stays.",
+      "check": "UndoingAResetKeepsLaterHandEdits",
+      "passes": false
+    },
+    {
+      "id": "A87",
+      "covers": [
+        "R53"
+      ],
+      "description": "Given a language, a visibility and hotkeys set, when the settings are reset to defaults, then those stay.",
+      "check": "AResetKeepsLanguageVisibilityAndHotkeys",
+      "passes": false
+    },
+    {
+      "id": "A88",
+      "covers": [
+        "R54"
+      ],
+      "description": "Given the CPU run, when its power item starts a pill of its own, then the overlay shows CPU with temperature and load, and CPU with power, as two pills.",
+      "check": "AnItemCanStartItsOwnPillAndShowsItsLabel",
+      "passes": false
+    },
+    {
+      "id": "A89",
+      "covers": [
+        "R54"
+      ],
+      "description": "Given the stage, when the author drags the power item out of the CPU pill and back, then the overlay splits it and joins it again.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A90",
+      "covers": [
+        "R55"
+      ],
+      "description": "Given the default items with power starting its own pill, when the layout is pills, each and one, then the overlay shows 5 pills, 6 pills each with its label, and 1 bar with the labels FAN, CPU, GPU and RAM; back to pills, power is on its own again.",
+      "check": "EachLayoutMakesItsPills",
+      "passes": false
+    },
+    {
+      "id": "A91",
+      "covers": [
+        "R56"
+      ],
+      "description": "Given the default items, when the overlay is painted vertical, then it is as wide as its widest pill and as tall as all of them stacked.",
+      "check": "AVerticalOverlayStacksItsPills",
+      "passes": false
+    },
+    {
+      "id": "A92",
+      "covers": [
+        "R56"
+      ],
+      "description": "Given an overlay snapped to the left, center and right of a taskbar, when it turns vertical, then it shows at the bottom-left, bottom-right and bottom-right of the work area, and the window offers no taskbar spot.",
+      "check": "AVerticalOverlayLeavesTheTaskbarForItsCorner",
+      "passes": false
+    },
+    {
+      "id": "A93",
+      "covers": [
+        "R57"
+      ],
+      "description": "Given each preset, when it is chosen, then the sizes and weights take its values, Standard's being today's; when one size then changes, the style becomes custom and keeps the rest; when the opacity changes, the preset stays.",
+      "check": "APresetSetsTheTextAndCustomizingKeepsTheRest",
+      "passes": false
+    },
+    {
+      "id": "A94",
+      "covers": [
+        "R58"
+      ],
+      "description": "Given text sizes of 8.5, 9, 12.25, 20 and 20.5 px with each weight, when they are set, then 9 and 20 are kept, and 8.5, 12.25 and 20.5 are refused with the reason.",
+      "check": "TextSizesStayBetweenNineAndTwentyInHalfSteps",
+      "passes": false
+    },
+    {
+      "id": "A95",
+      "covers": [
+        "R59"
+      ],
+      "description": "Given opacities of 0, 0.29, 0.3 and 1, when the overlay is laid out, then the text has a shadow at 0 and 0.29 and none at 0.3 and 1.",
+      "check": "BelowThirtyPercentTheTextGetsAShadow",
+      "passes": false
+    },
+    {
+      "id": "A96",
+      "covers": [
+        "R59"
+      ],
+      "description": "Given overlay opacities of 0.19, 0.2 and 1, when they are set, then 0.2 and 1 are kept and the painted overlay takes them, and 0.19 is refused with the reason.",
+      "check": "TheWholeOverlayFadesButNeverVanishes",
+      "passes": false
+    },
+    {
+      "id": "A97",
+      "covers": [
+        "R59"
+      ],
+      "description": "Given a light and a dark wallpaper, when the opacity is 0 %, then every value on the overlay reads well on both.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A98",
+      "covers": [
+        "R60"
+      ],
+      "description": "Given Windows in light and dark mode, when the pills are dark, light and follow Windows, then each looks as chosen, and the third follows within a second when the mode changes.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A99",
+      "covers": [
+        "R61"
+      ],
+      "description": "Given new meter colors, when they are set and then reset, then the overlay uses them and then the defaults.",
+      "check": "MeterColorsCanChangeAndGoBack",
+      "passes": false
+    },
+    {
+      "id": "A100",
+      "covers": [
+        "R62"
+      ],
+      "description": "Given Auto text on dark and light pills, a custom gray label, and a white value on light pills, when the overlay is laid out, then Auto gives today's colors and the dark ones, the gray is kept, and the white is drawn in its Auto color and flagged.",
+      "check": "TextIsAlwaysReadableOnItsPills",
+      "passes": false
+    },
+    {
+      "id": "A101",
+      "covers": [
+        "R63"
+      ],
+      "description": "Given settings with items, placement, language and a style, when the style is read from them, then it holds the layout, orientation, sizes, weights, opacity, pills and colors, and nothing else.",
+      "check": "AStyleIsTheLookAlone",
+      "passes": false
+    },
+    {
+      "id": "A102",
+      "covers": [
+        "R64"
+      ],
+      "description": "Given a custom style, when it is saved with an empty name, with a 41-character name, as Night, again as night, renamed to Dusk, and deleted while chosen, then the first two and the fourth are refused, Dusk is listed and then gone, the overlay is unchanged, and the window shows custom.",
+      "check": "SavedStylesCanBeRenamedAndDeletedWithoutChangingTheOverlay",
+      "passes": false
+    },
+    {
+      "id": "A103",
+      "covers": [
+        "R64"
+      ],
+      "description": "Given a saved style chosen in the window, when the author presses Ctrl+Z, then the style before it comes back; saving and deleting are not undone.",
+      "check": "ChoosingASavedStyleIsUndoneButSavingIsNot",
+      "passes": false
+    },
+    {
+      "id": "A104",
+      "covers": [
+        "R64"
+      ],
+      "description": "Given names with characters Windows refuses in file names, and two that make the same file name, when they are saved, then each gets a file and keeps its name.",
+      "check": "AnyNameMakesAFile",
+      "passes": false
+    },
+    {
+      "id": "A105",
+      "covers": [
+        "R65"
+      ],
+      "description": "Given the user's settings, when the style is exported, then the file holds the style and its name, and no sensor, item, placement, language or path.",
+      "check": "AnExportedStyleHoldsOnlyTheLook",
+      "passes": false
+    },
+    {
+      "id": "A106",
+      "covers": [
+        "R65"
+      ],
+      "description": "Given a style exported on one PC, when it is imported on a PC with other hardware, then the overlay takes the look and keeps its own items.",
+      "check": "AStyleWorksOnAnyHardware",
+      "passes": false
+    },
+    {
+      "id": "A107",
+      "covers": [
+        "R66"
+      ],
+      "description": "Given a style file and the same style as pasted text, when each is imported and then undone, then the overlay shows it at once and undo brings back the style before; saved as my style, it is listed, and under a taken name it asks for another.",
+      "check": "AnImportedStyleAppliesAtOnceAndUndoesInOneStep",
+      "passes": false
+    },
+    {
+      "id": "A108",
+      "covers": [
+        "R66"
+      ],
+      "description": "Given a style file in Explorer, and then its text copied with the focus out of any text field, when the author drops it on the window, and then presses Ctrl+V, then the overlay takes it each time, with Undo and Save as my style.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A109",
+      "covers": [
+        "R67"
+      ],
+      "description": "Given a broken style file, one with thermiStyle 2, one with a size of 30, one with a background opacity of 5, one with an overlay opacity of 0.1, and one with the color red, when they are imported, then each is refused with its reason naming the field, and nothing changes.",
+      "check": "ABrokenNewerOrOutOfRangeStyleIsRefused",
+      "passes": false
+    },
+    {
+      "id": "A110",
+      "covers": [
+        "R67"
+      ],
+      "description": "Given a style file with an unknown field and one missing the opacity, when they are imported, then the first ignores the field and the second takes the default opacity.",
+      "check": "UnknownFieldsAreIgnoredAndMissingOnesTakeTheirDefault",
+      "passes": false
+    },
+    {
+      "id": "A111",
+      "covers": [
+        "R68"
+      ],
+      "description": "Given each visibility, and a full-screen app on the overlay's monitor that comes and goes on a fake clock, when the overlay decides whether to show, then always shows, hide-in-fullscreen hides only while it is there, and only-in-fullscreen shows only while it is there, each within a second.",
+      "check": "TheOverlayShowsByItsVisibility",
+      "passes": false
+    },
+    {
+      "id": "A112",
+      "covers": [
+        "R68"
+      ],
+      "description": "Given a video full screen and a borderless game, when visibility is hide-in-fullscreen and then only-in-fullscreen, then the overlay hides and shows as chosen over each.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A113",
+      "covers": [
+        "R69"
+      ],
+      "description": "Given the two hotkeys set, when the author presses them, then the overlay hides and shows, and the next saved style applies; and a combination another app holds is refused with the reason.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A114",
+      "covers": [
+        "R69"
+      ],
+      "description": "Given saved styles A, B and C with B chosen, when the next style is asked for three times, then the style is C, A and B.",
+      "check": "TheNextStyleGoesRoundTheSavedOnes",
+      "passes": false
+    },
+    {
+      "id": "A115",
+      "covers": [
+        "R70"
+      ],
+      "description": "Given the overlay hidden by its hotkey, when the author presses it, then opens the window, then starts thermi again, and then restarts, then it shows each time.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A116",
+      "covers": [
+        "R71"
+      ],
+      "description": "Given Windows in Spanish, when the author opens the overlay's menu, the window, every tab and the catalog, then every text thermi writes is in Spanish, and sensor names and units are as they come.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A117",
+      "covers": [
+        "R72"
+      ],
+      "description": "Given Windows in Spanish, in French and in English, and then Spanish chosen in the window on an English Windows, when the language is picked, then it is Spanish, English, English and Spanish.",
+      "check": "TheLanguageFollowsWindowsUnlessChosen",
+      "passes": false
+    },
+    {
+      "id": "A118",
+      "covers": [
+        "R72"
+      ],
+      "description": "Given English, when Spanish is chosen in the window and then undone, then the window and the overlay's menu turn Spanish and then English, without restarting.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A119",
+      "covers": [
+        "R73"
+      ],
+      "description": "Given English as the language on a Windows set to Spanish regional format, when values are formatted, then they read 1.087 RPM and 27,2 GB.",
+      "check": "NumbersFollowTheRegionalFormatWhateverTheLanguage",
+      "passes": false
+    },
+    {
+      "id": "A120",
+      "covers": [
+        "R74"
+      ],
+      "description": "Given the English texts and every translation, when their keys are compared, then each translation has every key and no others.",
+      "check": "EveryTranslationHasEveryText",
+      "passes": false
+    },
+    {
+      "id": "A121",
+      "covers": [
+        "R75"
+      ],
+      "description": "Given `thermi settings --pseudo`, when the author goes through every tab, then nothing is cut or overlaps.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A122",
+      "covers": [
+        "R54"
+      ],
+      "description": "Given CPU temperature, load and power, when load starts a new pill, then CPU shows temperature in one pill, and load with power in another.",
+      "check": "AnItemStartsAPillForItselfAndTheItemsAfterIt",
+      "passes": false
+    },
+    {
+      "id": "A123",
+      "covers": [
+        "R60"
+      ],
+      "description": "Given pills that follow Windows, when the taskbar's mode turns light and the app mode stays dark, then the pills turn light.",
+      "check": "PillsFollowTheTaskbarsMode",
+      "passes": false
+    },
+    {
+      "id": "A124",
+      "covers": [
+        "R63"
+      ],
+      "description": "Given a saved style chosen, when a size, a color or a preset changes, then the style forgets its name and the window shows custom.",
+      "check": "AStyleForgetsItsNameWhenTheLookChanges",
+      "passes": false
+    },
+    {
+      "id": "A125",
+      "covers": [
+        "R64"
+      ],
+      "description": "Given the chosen saved style Night, when it is renamed to Dusk, then the settings name Dusk and Ctrl+Z does not rename it back.",
+      "check": "RenamingTheChosenStyleRenamesItInTheSettings",
+      "passes": false
+    },
+    {
+      "id": "A126",
+      "covers": [
+        "R68"
+      ],
+      "description": "Given only-in-fullscreen with no full-screen app, when the window opens and closes, then the overlay shows while it is open and hides after.",
+      "check": "TheOverlayShowsWhileTheWindowIsOpen",
+      "passes": false
+    },
+    {
+      "id": "A127",
+      "covers": [
+        "R69"
+      ],
+      "description": "Given no saved styles, and then a custom style with saved styles A and B, when the next style is asked for, then nothing changes, and then A is chosen.",
+      "check": "TheNextStyleStartsFromTheFirstAndNeedsOne",
+      "passes": false
+    },
+    {
+      "id": "A128",
+      "covers": [
+        "R69"
+      ],
+      "description": "Given a hotkey written by hand that another app holds, when the overlay reads the file and the window opens, then the window shows that hotkey as refused, with the reason.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A129",
+      "covers": [
+        "R70"
+      ],
+      "description": "Given hide-in-fullscreen with a full-screen app, when the hide hotkey shows the overlay and the app then closes, then the override is cleared and the visibility rules again.",
+      "check": "TheHideHotkeyOverridesUntilFullScreenChanges",
+      "passes": false
+    },
+    {
+      "id": "A130",
+      "covers": [
+        "R76"
+      ],
+      "description": "Given each way to show, when thermi starts, then there is the overlay, the thermi tray icon, or both.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A131",
+      "covers": [
+        "R76"
+      ],
+      "description": "Given the default items, when the tooltip is made, then it reads one line per pill, as FAN 1,087 RPM, CPU 62 °C 12 % 88 W, GPU 3 % and RAM 27.3 GB; with more pills than fit in 127 characters, it ends at a whole line with an ellipsis.",
+      "check": "TheTrayTooltipGivesEveryPillOnItsLine",
+      "passes": false
+    },
+    {
+      "id": "A132",
+      "covers": [
+        "R76"
+      ],
+      "description": "Given the thermi tray icon, when the author right-clicks and double-clicks it, then the overlay's menu opens, and then the window.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A133",
+      "covers": [
+        "R77"
+      ],
+      "description": "Given 62 °C, 12.6 %, 1,087 RPM, 12,345 RPM, 27.3 GB and a missing value, when each becomes a tray icon's text, then it reads 62, 12, 1087, 12k, 27 and –.",
+      "check": "ATrayIconFitsItsValueInFourCharacters",
+      "passes": false
+    },
+    {
+      "id": "A134",
+      "covers": [
+        "R77"
+      ],
+      "description": "Given a fan item with a duty meter at warning, and a power item with no meter, when their tray icons are drawn, then the first is yellow and the second takes the taskbar's text color.",
+      "check": "ATrayIconTakesItsMetersColor",
+      "passes": false
+    },
+    {
+      "id": "A135",
+      "covers": [
+        "R78"
+      ],
+      "description": "Given tray icons, when the monitor's scale changes from 100 % to 150 %, the taskbar turns light, and Explorer restarts, then the icons stay sharp, turn dark, and come back.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A136",
+      "covers": [
+        "R79"
+      ],
+      "description": "Given an item's tray icon pinned to the taskbar, when the PC restarts, then it is still pinned; and the window's tray hint opens the taskbar settings.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A137",
+      "covers": [
+        "R79"
+      ],
+      "description": "Given the same settings read twice, when the tray icons' ids are made, then each item's id is the same both times and differs from every other item's.",
+      "check": "TrayIconsKeepTheirIdentity",
+      "passes": false
+    }
+  ]
+}
