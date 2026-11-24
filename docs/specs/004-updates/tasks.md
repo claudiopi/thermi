@@ -1,6 +1,6 @@
 # 004-updates: Tasks
 
-> Progress: 20 / 28
+> Progress: 21 / 28
 > Current block: B7
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -49,7 +49,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 ## B7: Installer and release
 
-- [ ] **T22** Covers R1, R3: the WiX MSI and its uninstall.
+- [x] **T22** Covers R1, R3: the WiX MSI and its uninstall.
 - [ ] **T23** Covers R2: the release workflow: approval, SignPath, the signed manifest, the MSIs, provenance.
 - [ ] **T24** What the owner must create: the list, with each step.
 - [ ] **T25** The docs: `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/QUICKSTART.md`, the READMEs and the privacy note.
@@ -80,3 +80,8 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - A service that cannot make its pipe because another program holds the name writes `update\pipe-held`, where no user writes, and the watchdog reads it before it fails a version: a user who squats the pipe, keeps it busy or denies SYSTEM it makes a switch be tried again later, never a version be failed. The lock the watchdog holds is made with access for SYSTEM and administrators alone, so no user can hold one a power cut left behind.
 - A revocation sets the sequence back only when the backup key signed it, it names this build's release key, and that key is not revoked here yet; `revoke` takes the release key's public file and the backup's private one, and computes the hash PCs compare.
 - A release's catalog is the one PowerShell's `New-FileCatalog` makes, which lists each file under its path with the hash Windows computes for its kind, and which the release signs with thermi's Authenticode key; the service reads it through Windows' own catalog calls, takes its SHA-256 members, and needs every file of the version listed as it is. A release build names the publisher whose signature it accepts, `ThermiUpdatesPublisher`; a test build names none and needs no catalog.
+- The MSI is built with WiX 5, under the MS-RL with no fee: WiX 6 and later need their maintenance fee's EULA accepted, which is the owner's call. It is built outside `thermi.slnx`, from a version already published, by `scripts/updates.ps1 pack --msi`.
+- The services are registered by the service's own code, `thermi-sensors --adopt`, through Windows' `sc.exe` by its full path, and `scripts/install.ps1` runs that too, so the MSI, the script and an update register them with the same code. The script's tests of its own registration moved to `InstallationTests`, on a faked service manager.
+- An MSI installed, repaired or upgraded to while an update runs a later version keeps the later one, and Installed apps shows it: the MSI's own entry is hidden, and thermi's is written by `--adopt` and each finished switch.
+- `--adopt` sets aside what a build from before the version folders left at the top, so `scripts/install.ps1` over one leaves only the layout.
+- Windows Installer takes only a version of numbers, so a prerelease's MSI carries its numbers alone. Major upgrades refuse the same version, so two builds of one version are not both installed; a silent install, as Intune's, starts no overlay, and one by hand starts it for the person who ran it.

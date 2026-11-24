@@ -33,3 +33,5 @@ pwsh scripts/updates.ps1 publish --folder <channels> --key <keys>/release.key.pe
 ```
 
 The service writes each step to the Application event log under `thermi-sensors`.
+
+`pack --msi <msi>` also builds the version's MSI, which installs what `scripts/install.ps1` does, for every user; `msiexec /i <msi> /qn` installs it silently, and Installed apps uninstalls it.
