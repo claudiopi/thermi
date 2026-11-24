@@ -204,6 +204,8 @@ internal sealed class SensorService : ServiceBase
         _report = report ?? (error => Report(EventLog, error));
         ServiceName = Name;
         CanHandlePowerEvent = resumed is not null;
+        // Each quiet code would log a line a minute; the service says what it does itself, and Windows logs its starts and stops.
+        AutoLog = false;
         // A shutdown is a stop asked for: without it, a restart soon after an update would count as a crash of the new version.
         CanShutdown = true;
     }

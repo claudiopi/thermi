@@ -97,7 +97,7 @@ internal sealed class Switcher(
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException
             or System.ServiceProcess.TimeoutException)
         {
-            say($"Switching to {to} failed, so the PC stays on {pending.From}: {ex.Message}", EventLogEntryType.Warning);
+            say($"Switching to {to} failed, so the PC stays on {pending.From}: {ex.Message} {ex.InnerException?.Message}", EventLogEntryType.Warning);
         }
 
         GoBack(services, pending, Outcome(started, timedOut));
