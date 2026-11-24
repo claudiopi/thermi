@@ -54,6 +54,11 @@ test.each([
   { key: '1', code: 'Numpad1', keys: { ctrl: true }, means: null },
   { key: 'a', code: 'KeyAB', keys: { ctrl: true }, means: null },
   { key: 'F1', code: 'F123', keys: {}, means: null },
-] satisfies { key: string; code: string; keys: Keys; means: Pressed }[])('a hotkey box reads $key on $code with $keys as $means', ({ key, code, keys, means }) => {
+] satisfies {
+  key: string;
+  code: string;
+  keys: Keys;
+  means: Pressed;
+}[])('a hotkey box reads $key on $code with $keys as $means', ({ key, code, keys, means }) => {
   expect(pressed(press(key, code, keys))).toEqual(means);
 });

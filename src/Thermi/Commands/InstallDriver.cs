@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.Extensions.Logging;
 
 namespace Thermi.Commands;
 
@@ -9,7 +10,7 @@ namespace Thermi.Commands;
 internal sealed record DriverSetup(Uri Url, long Size, string Sha256, IReadOnlyList<string> Arguments)
 {
     public static DriverSetup Pinned { get; } = new(
-#pragma warning disable S1075 // The pinned release is the point: a URL from anywhere else could be steered (docs/adr/0010-driver-and-service-from-the-window.md).
+#pragma warning disable S1075 // Pinned on purpose: a URL from anywhere else could be steered (docs/adr/0010-driver-and-service-from-the-window.md).
         new Uri("https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe"),
 #pragma warning restore S1075
         3_410_960,
@@ -33,16 +34,21 @@ internal interface IDriverInstaller
     Task<int?> RunAsync(string path, IReadOnlyList<string> arguments, TimeSpan wait, TimeProvider time);
 }
 
-/// <summary>What the driver's install reaches: the pinned setup, the folder only administrators can write, the download, the installer and the sensor service.</summary>
-internal sealed record DriverParts(DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services)
+/// <summary>
+/// What the driver's install reaches: the pinned setup, a new folder only administrators can write, or null, the
+/// download, the installer and the sensor service.
+/// </summary>
+internal sealed record DriverParts(
+    DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services)
 {
-    public static DriverParts Windows(IServiceManager services) => new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(), new WindowsInstaller(), services);
+    public static DriverParts Windows(IServiceManager services, ILogger log) =>
+        new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(log), new WindowsInstaller(), services);
 }
 
 /// <summary>
-/// "Install driver", as administrator: the pinned installer, downloaded into a folder only administrators can write,
-/// checked for its size, then its SHA-256, then its signature, run unattended and deleted, and then the sensor service
-/// started again so it opens the driver. Trust rests on the hash, never on the connection.
+/// "Install driver", as administrator: the pinned installer, downloaded into a new folder only administrators can write,
+/// alone there, checked for its size, then its SHA-256, then its signature, run unattended and deleted with its folder,
+/// and then the sensor service started again so it opens the driver. Trust rests on the hash, never on the connection.
 /// </summary>
 internal static class InstallDriver
 {
@@ -65,8 +71,14 @@ internal static class InstallDriver
     /// <summary>The exit code when the installer failed or did not end within <see cref="InstallWait"/>.</summary>
     public const int NotInstalled = 6;
 
-    /// <summary>The exit code when the folder is a link, or someone other than an administrator owns it or may write it.</summary>
+    /// <summary>
+    /// The exit code when a folder is a link, someone other than an administrator owns it or may write it, or the
+    /// installer's holds anything else.
+    /// </summary>
     public const int FolderUnsafe = 7;
+
+    /// <summary>The exit code when the driver installed but loads only once Windows restarts.</summary>
+    public const int RestartNeeded = 8;
 
     public const string FileName = "driver-setup.exe";
 
@@ -92,9 +104,10 @@ internal static class InstallDriver
         }
         finally
         {
-            Delete(path);
+            Delete(folder);
         }
 
+        // A driver that loads only once Windows restarts gives the service nothing to open yet, so it is left alone.
         return code == Installed ? await StartSensors.RestartAsync(parts.Services, time).ConfigureAwait(false) : code;
     }
 
@@ -107,22 +120,31 @@ internal static class InstallDriver
 
         // Held open, shared only for reading, from the checks to the installer's end, so what runs is what was checked.
         using var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        // Windows loads DLLs from the installer's own folder first, as administrator, so it runs alone there.
+        if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(path)!).SequenceEqual([path], StringComparer.OrdinalIgnoreCase))
+        {
+            return FolderUnsafe;
+        }
+
         if (held.Length != parts.Setup.Size || !Matches(held, parts.Setup.Sha256) || !parts.Installer.Signed(held))
         {
             return NotTrusted;
         }
 
-        var exit = await parts.Installer.RunAsync(path, parts.Setup.Arguments, InstallWait, time).ConfigureAwait(false);
-        return exit is 0 or RebootRequired ? Installed : NotInstalled;
+        return await parts.Installer.RunAsync(path, parts.Setup.Arguments, InstallWait, time).ConfigureAwait(false) switch
+        {
+            0 => Installed,
+            RebootRequired => RestartNeeded,
+            _ => NotInstalled,
+        };
     }
 
-    // A file left there before is deleted first, so a link in its place is never written through.
     private static async Task<bool> DownloadAsync(DriverParts parts, string path, TimeProvider time)
     {
         using var cancel = new CancellationTokenSource(DownloadWait, time);
         try
         {
-            File.Delete(path);
             // Unbuffered: the download writes whole chunks, and closing then has nothing left to write.
             await using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 0);
             return await parts.Download.DownloadAsync(parts.Setup.Url, file, parts.Setup.Size, cancel.Token).ConfigureAwait(false);
@@ -141,15 +163,15 @@ internal static class InstallDriver
         return string.Equals(Convert.ToHexString(hash), sha256, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void Delete(string path)
+    private static void Delete(string folder)
     {
         try
         {
-            File.Delete(path);
+            Directory.Delete(folder, recursive: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // An installer still running past its wait keeps its file, which the next install deletes first.
+            // What an installer's own children still hold stays, harmless where only administrators write.
         }
     }
 }

@@ -102,7 +102,8 @@ public sealed class OverlayHostTests : IDisposable
             var overlay = host.Overlays[0];
             bool Caught()
             {
-                return PInvoke.GetWindowRect(overlay.Hwnd, out var rect) && TestWindows.WindowAt(new Position((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2)) == overlay.Hwnd;
+                return PInvoke.GetWindowRect(overlay.Hwnd, out var rect)
+                    && TestWindows.WindowAt(new Position((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2)) == overlay.Hwnd;
             }
 
             caught.Add(Caught());
@@ -136,7 +137,10 @@ public sealed class OverlayHostTests : IDisposable
     [Fact]
     public async Task WhileTheWindowIsOpenEveryItemShows()
     {
-        var alerts = new ThermiConfig { Overlays = [new OverlayConfig { Items = [.. OverlayConfig.DefaultItems.Select(item => item with { AlertOnly = item.Meter is not null })] }] };
+        var alerts = new ThermiConfig
+        {
+            Overlays = [new OverlayConfig { Items = [.. OverlayConfig.DefaultItems.Select(item => item with { AlertOnly = item.Meter is not null })] }],
+        };
         var settings = await _folder.LoadedAsync(alerts);
         var widths = new List<int>();
 
@@ -174,7 +178,13 @@ public sealed class OverlayHostTests : IDisposable
 
         TestWindows.OnOwnDesktop(() =>
         {
-            using var host = new OverlayHost(settings, () => HostRun.Recorded, English, _folder.Clock, _folder.Log, _tray.Environment(_windowMutex, opened.Add));
+            using var host = new OverlayHost(
+                settings,
+                () => HostRun.Recorded,
+                English,
+                _folder.Clock,
+                _folder.Log,
+                _tray.Environment(_windowMutex, opened.Add));
             host.Start();
             HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 2);
             menus.Add(HostMenus.Entries(host, 1));
@@ -224,7 +234,11 @@ public sealed class OverlayHostTests : IDisposable
 
             var callback = _tray.Calls.First(call => call.Id == thermi && call.Message == NOTIFY_ICON_MESSAGE.NIM_ADD).Callback;
             PInvoke.PostMessage(host.Hwnd, callback, 0, (nint)PInvoke.NIN_BALLOONUSERCLICK);
-            undone = HostRun.Until(host, _folder.Clock, () => !settings.Config.Overlays[0].ClickThrough && _folder.Written()?.Contains("\"clickThrough\"", StringComparison.Ordinal) == false);
+            undone = HostRun.Until(
+                host,
+                _folder.Clock,
+                () => !settings.Config.Overlays[0].ClickThrough
+                    && _folder.Written()?.Contains("\"clickThrough\"", StringComparison.Ordinal) == false);
         });
 
         var en = Texts.English;
@@ -244,10 +258,13 @@ public sealed class OverlayHostTests : IDisposable
         await using var settings = new Settings(store, _folder.Clock, _folder.Log);
         var log = new ListLogger();
 
-        using (new OverlayHost(settings, () => HostRun.Recorded, English, _folder.Clock, log, _tray.Environment(_windowMutex)))
+        TestWindows.OnOwnDesktop(() =>
         {
-            Assert.Single(log.Entries);
-        }
+            using (new OverlayHost(settings, () => HostRun.Recorded, English, _folder.Clock, log, _tray.Environment(_windowMutex)))
+            {
+                Assert.Single(log.Entries);
+            }
+        });
     }
 
     private static ThermiConfig WithTrayItems(ThermiConfig config) => config with

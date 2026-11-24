@@ -1,5 +1,24 @@
 import { type Page } from '@playwright/test';
-import { axeViolations, expect, fakeOf, fakeState, focusFault, layoutFaults, list, openWindow, pseudo, recording, select, selectedRow, setFake, test, text, texts, windowWith, type FakeState } from './fakeBridge';
+import {
+  axeViolations,
+  expect,
+  fakeOf,
+  fakeState,
+  focusFault,
+  layoutFaults,
+  list,
+  openWindow,
+  pseudo,
+  recording,
+  select,
+  selectedRow,
+  setFake,
+  test,
+  text,
+  texts,
+  windowWith,
+  type FakeState,
+} from './fakeBridge';
 import { focusContract, type Act } from './focusContract';
 
 /** A text by its key, in the language the window shows. */
@@ -19,6 +38,7 @@ const pages: View[] = [
   // The overlay's row names it in its own text, in the long language too.
   { name: 'an overlay', open: (page) => list(page).getByRole('treeitem', { name: /^\[?Taskbar/ }).first().click() },
   { name: 'an item', open: () => Promise.resolve() },
+  { name: "an item's more options", open: (page, say) => page.getByRole('button', { name: say('UiText.MoreOptions') }).click() },
   { name: 'Settings', open: (page) => page.keyboard.press('Control+Comma') },
 ];
 
@@ -53,7 +73,11 @@ const barsAndToasts: View[] = [
   { name: 'stale data', state: { service: 'stale' }, open: () => Promise.resolve() },
   { name: 'a broken file', state: { problem: 'broken' }, open: () => Promise.resolve() },
   { name: 'the driver', state: { sensors: recording('no-admin') }, open: () => Promise.resolve() },
-  { name: "the driver's dialog", state: { sensors: recording('no-admin') }, open: (page, say) => page.getByRole('button', { name: say('WindowText.WhatIsThis') }).click() },
+  {
+    name: "the driver's dialog",
+    state: { sensors: recording('no-admin') },
+    open: (page, say) => page.getByRole('button', { name: say('WindowText.WhatIsThis') }).click(),
+  },
   { name: 'a toast', open: async (page) => {
     await selectedRow(page).focus();
     await page.keyboard.press('Delete');
@@ -72,9 +96,10 @@ async function openOn(page: Page, view: View, say: Say = text): Promise<void> {
 
 // A212: every page, dialog and menu at every size, at 100 % and 200 % text, in English and the long pseudo-language.
 test('EveryPageFitsAtEverySize', async ({ context }) => {
-  // Fifteen views, in two text sizes and two languages, at six sizes each.
-  test.setTimeout(240_000);
+  // Sixteen views, in two text sizes and two languages, at seven sizes each.
+  test.setTimeout(360_000);
   const sizes: { width: number; height: number; folds: boolean }[] = [
+    { width: 2560, height: 1440, folds: false },
     { width: 1920, height: 1080, folds: false },
     { width: 1500, height: 900, folds: false },
     { width: 1200, height: 800, folds: false },
@@ -116,7 +141,10 @@ async function perform(page: Page, act: Act): Promise<void> {
     await page.keyboard.press(act);
   } else if ('key' in act) {
     // A key Playwright's keyboard does not have, as Windows sends it to the focused control.
-    await page.evaluate((code) => document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: code, code, bubbles: true, cancelable: true })), act.key);
+    await page.evaluate(
+      (code) => document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: code, code, bubbles: true, cancelable: true })),
+      act.key,
+    );
   } else if ('type' in act) {
     await page.keyboard.type(typeof act.type === 'string' ? act.type : act.type());
   } else if ('focus' in act) {
@@ -124,7 +152,10 @@ async function perform(page: Page, act: Act): Promise<void> {
   } else if ('click' in act) {
     const target = act.click(page);
     const box = act.low === true ? await target.boundingBox() : null;
-    await target.click({ ...(box === null ? {} : { position: { x: Math.min(100, box.width / 2), y: box.height - 14 } }), ...(act.right === true ? { button: 'right' as const } : {}) });
+    await target.click({
+      ...(box === null ? {} : { position: { x: Math.min(100, box.width / 2), y: box.height - 14 } }),
+      ...(act.right === true ? { button: 'right' as const } : {}),
+    });
   } else if ('fill' in act) {
     await act.fill(page).fill(act.value);
   } else if ('size' in act) {

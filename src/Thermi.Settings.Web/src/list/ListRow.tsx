@@ -47,7 +47,17 @@ function RenameBox({ row, label, onRename }: { row: Row; label: string; onRename
       finish(null);
     }
   };
-  return <input ref={box} className="t-rename" aria-label={label} defaultValue={row.name} onKeyDown={keyDown} onBlur={(event) => finish(event.currentTarget.value)} onClick={(event) => event.stopPropagation()} />;
+  return (
+    <input
+      ref={box}
+      className="t-rename"
+      aria-label={label}
+      defaultValue={row.name}
+      onKeyDown={keyDown}
+      onBlur={(event) => finish(event.currentTarget.value)}
+      onClick={(event) => event.stopPropagation()}
+    />
+  );
 }
 
 /** The level an item's row shows, when it is past a line. */
@@ -58,12 +68,29 @@ function alertOf(row: Row): 'warning' | 'critical' | null {
 /** What a screen reader hears after an item's name: its value and, past a line, the level. */
 function describe(row: Row, say: (key: TextKey) => string): string | undefined {
   const alert = alertOf(row);
-  const parts = [row.value ?? '', alert === null ? '' : say(alert === 'warning' ? 'ChangedField.Warning' : 'ChangedField.Critical')].filter((part) => part !== '');
+  const parts = [row.value ?? '', alert === null ? '' : say(alert === 'warning' ? 'ChangedField.Warning' : 'ChangedField.Critical')].filter(
+    (part) => part !== '',
+  );
   return row.kind !== 'pill' && parts.length > 0 ? parts.join(', ') : undefined;
 }
 
 /** A row of the list: an overlay, a pill or an item, as the prototype draws each. */
-function ListRowDrawn({ row, selected, tabStop, renaming, onClick, onMenu, onPoint, pointed, onKeyDown, onFold, onRename, onStartRename, onDragStart, onDrop }: ListRowProps) {
+function ListRowDrawn({
+  row,
+  selected,
+  tabStop,
+  renaming,
+  onClick,
+  onMenu,
+  onPoint,
+  pointed,
+  onKeyDown,
+  onFold,
+  onRename,
+  onStartRename,
+  onDragStart,
+  onDrop,
+}: ListRowProps) {
   const t = useText();
   const fold = (event: MouseEvent): void => {
     event.stopPropagation();

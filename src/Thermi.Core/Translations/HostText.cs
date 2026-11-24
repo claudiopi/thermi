@@ -1,6 +1,9 @@
 namespace Thermi.Core.Translations;
 
-/// <summary>The texts of the overlay's process beside its overlays: its menus' entries that depend on where they are, the notices from thermi's icon, and the ghost of the overlay being edited.</summary>
+/// <summary>
+/// The texts of the overlay's process beside its overlays: its menus' entries that depend on where they are,
+/// the notices from thermi's icon, and the ghost of the overlay being edited.
+/// </summary>
 [Translated]
 public enum HostText
 {

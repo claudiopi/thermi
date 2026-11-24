@@ -4,6 +4,7 @@ using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Logging;
+using Thermi.SettingsFile;
 
 namespace Thermi.Overlay;
 
@@ -28,10 +29,7 @@ internal sealed class Settings : IAsyncDisposable
     private readonly Throttle<bool> _syncs;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Lock _lock = new();
-    // Each drag that waits, by its overlay's first item, since another process can delete or merge overlays before it
-    // is written, which moves the others' places.
-    private readonly Dictionary<string, Position> _unsaved = new(StringComparer.Ordinal);
-    private readonly List<Func<ThermiConfig, ThermiConfig>> _edits = [];
+    private readonly PendingWrites _pending = new();
     private readonly ITimer _later;
     private State? _state;
 
@@ -55,7 +53,10 @@ internal sealed class Settings : IAsyncDisposable
         _later = time.CreateTimer(_ => Again(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
-    /// <summary>Raised on any thread once the settings or their problem changed, the first read included; a read that finds what the overlay last wrote or read, or the file broken in the same way again, raises nothing.</summary>
+    /// <summary>
+    /// Raised on any thread once the settings or their problem changed, the first read included; a read that finds what
+    /// the overlay last wrote or read, or the file broken in the same way again, raises nothing.
+    /// </summary>
     public event EventHandler? Changed;
 
     public string FilePath => _store.FilePath;
@@ -73,37 +74,15 @@ internal sealed class Settings : IAsyncDisposable
 
     /// <summary>
     /// Reads the file again whenever it changes, until the watcher is disposed. Without access to its folder the overlay
-    /// still runs, with the defaults, and the config problem says why; on a first run the folder is made here, since the
-    /// file is made only once a read has found it missing.
+    /// still runs, with the defaults, and the config problem says why.
     /// </summary>
-    public FileSystemWatcher? Watch(ILogger log)
-    {
-        var watcher = new FileSystemWatcher();
-        try
-        {
-            watcher.Path = Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!).FullName;
-            watcher.Filter = Path.GetFileName(FilePath);
-
-            // Editors save in different ways: in place, or by writing another file and renaming it over this one.
-            watcher.Changed += (_, _) => FileChanged();
-            watcher.Created += (_, _) => FileChanged();
-            watcher.Renamed += (_, _) => FileChanged();
-            watcher.Error += (_, e) => Rewatch(watcher, log, e.GetException());
-            watcher.EnableRaisingEvents = true;
-            return watcher;
-        }
-        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
-        {
-            watcher.Dispose();
-            log.WatchFailed(ex);
-            return null;
-        }
-    }
+    public FileSystemWatcher? Watch(ILogger log) => SettingsWatcher.Watch(FilePath, FileChanged, log);
 
     /// <summary>
     /// A press on an overlay, found by its place in the settings, let go at <paramref name="released"/>: a drag past
     /// <paramref name="distance"/> moves it off its snap at once, and is written through the throttle. A click, or any
-    /// press on a locked overlay, changes and writes nothing. Returns the settings with that drop, or null when there was none.
+    /// press on a locked overlay, changes and writes nothing. Returns the settings with that drop, or null when there was
+    /// none.
     /// </summary>
     public ThermiConfig? Release(Press press, Position released, DragDistance distance, int overlay = 0)
     {
@@ -117,8 +96,8 @@ internal sealed class Settings : IAsyncDisposable
             }
 
             after = dropped.Config;
-            _unsaved[first.Id] = after.Overlays[overlay].Position!;
-            _state = new State(Moved(_read, _unsaved, _edits), Problem);
+            _pending.Drop(first.Id, after.Overlays[overlay].Position!);
+            _state = new State(_pending.Over(_read), Problem);
             _unannounced = true;
         }
 
@@ -134,8 +113,8 @@ internal sealed class Settings : IAsyncDisposable
     {
         lock (_lock)
         {
-            _edits.Add(edit);
-            _state = new State(Moved(_read, _unsaved, _edits), Problem);
+            _pending.Add(edit);
+            _state = new State(_pending.Over(_read), Problem);
             _unannounced = true;
         }
 
@@ -157,16 +136,18 @@ internal sealed class Settings : IAsyncDisposable
         _syncs.Post(true);
     }
 
-    /// <summary>Restores, or writes the drags and edits that wait, which re-reads the file under its mutex, or else reads the file.</summary>
+    /// <summary>
+    /// Restores, or writes the drags and edits that wait, which re-reads the file under its mutex, or else reads the file.
+    /// </summary>
     public async Task SyncAsync()
     {
         await _gate.WaitAsync().ConfigureAwait(false);
         TimeSpan? again = null;
         try
         {
-            var unsaved = Unsaved();
+            var waiting = Waiting();
             again = Restoring() is { } good ? await RestoreAsync(good).ConfigureAwait(false)
-                : Waits(unsaved) ? await SaveAsync(unsaved.Drops, unsaved.Edits).ConfigureAwait(false)
+                : waiting.Any ? await SaveAsync(waiting).ConfigureAwait(false)
                 : await LoadAsync().ConfigureAwait(false);
         }
         finally
@@ -198,35 +179,6 @@ internal sealed class Settings : IAsyncDisposable
         _gate.Dispose();
     }
 
-    // A drag of an overlay the file no longer has, or no longer starts with the same item, is dropped with it.
-    private static ThermiConfig Moved(ThermiConfig config, IReadOnlyDictionary<string, Position> drops, IReadOnlyList<Func<ThermiConfig, ThermiConfig>> edits) =>
-        edits.Aggregate(drops.Aggregate(config, Drop), (edited, edit) => edit(edited));
-
-    private static ThermiConfig Drop(ThermiConfig config, KeyValuePair<string, Position> drop)
-    {
-        var overlay = config.Overlays.ToList().FindIndex(each => each.Items is [var first, ..] && first.Id == drop.Key);
-        return overlay < 0 ? config : OverlayEdits.Drop(config, overlay, drop.Value).Config;
-    }
-
-    // Windows drops a watcher's events when they come faster than it is read, and stops one whose folder failed, saying
-    // so only here: it watches again and the file is read again, since a change may have been lost.
-    private void Rewatch(FileSystemWatcher watcher, ILogger log, Exception error)
-    {
-        log.WatchFailed(error);
-        try
-        {
-            watcher.EnableRaisingEvents = false;
-            Directory.CreateDirectory(watcher.Path);
-            watcher.EnableRaisingEvents = true;
-        }
-        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
-        {
-            log.WatchFailed(ex);
-        }
-
-        FileChanged();
-    }
-
     private async Task SyncGuardedAsync()
     {
         try
@@ -241,8 +193,6 @@ internal sealed class Settings : IAsyncDisposable
         }
     }
 
-    private static bool Waits((Dictionary<string, Position> Drops, List<Func<ThermiConfig, ThermiConfig>> Edits) unsaved) => unsaved.Drops.Count > 0 || unsaved.Edits.Count > 0;
-
     private ThermiConfig? Restoring()
     {
         lock (_lock)
@@ -251,11 +201,11 @@ internal sealed class Settings : IAsyncDisposable
         }
     }
 
-    private (Dictionary<string, Position> Drops, List<Func<ThermiConfig, ThermiConfig>> Edits) Unsaved()
+    private PendingWrites.Waiting Waiting()
     {
         lock (_lock)
         {
-            return (new Dictionary<string, Position>(_unsaved, StringComparer.Ordinal), [.. _edits]);
+            return _pending.Now();
         }
     }
 
@@ -298,14 +248,14 @@ internal sealed class Settings : IAsyncDisposable
     }
 
     // How long until the write is tried again, or null when it is done with.
-    private async Task<TimeSpan?> SaveAsync(Dictionary<string, Position> drops, List<Func<ThermiConfig, ThermiConfig>> edits)
+    private async Task<TimeSpan?> SaveAsync(PendingWrites.Waiting waiting)
     {
-        var write = await _store.WriteAsync(config => Moved(config, drops, edits)).ConfigureAwait(false);
+        var write = await _store.WriteAsync(waiting.Over).ConfigureAwait(false);
         switch (write.Outcome)
         {
             case WriteOutcome.Written:
                 _failures = 0;
-                Show(null, write.Config, (drops, edits.Count));
+                Show(null, write.Config, waiting);
                 return null;
             case WriteOutcome.Broken:
                 Show(write.Problem);
@@ -333,7 +283,7 @@ internal sealed class Settings : IAsyncDisposable
 
         _failures = 0;
         Show(null, write.Config);
-        return Waits(Unsaved()) ? TimeSpan.Zero : null;
+        return Waiting().Any ? TimeSpan.Zero : null;
     }
 
     // A write Windows refuses, as on a read-only file or a folder without access, may never land: the first failure is
@@ -355,36 +305,22 @@ internal sealed class Settings : IAsyncDisposable
         return _failures > QuickTries ? Backoff : TimeSpan.Zero;
     }
 
-    // The edits written are the first that waited, since only a sync, one at a time, takes them out: counted, not
-    // compared, as two presses of the same hotkey are equal delegates.
-    private void Forget(Dictionary<string, Position> drops, int edits)
-    {
-        _edits.RemoveRange(0, edits);
-        foreach (var (first, position) in drops)
-        {
-            if (_unsaved.GetValueOrDefault(first) == position)
-            {
-                _unsaved.Remove(first);
-            }
-        }
-    }
-
     // A drag or an edit still waiting to be written stays on screen over what the file held when it was last good. What
     // was just written is forgotten in the same step, so a drag or an edit meanwhile never shows the settings without it.
-    private void Show(ConfigProblem? problem, ThermiConfig? read = null, (Dictionary<string, Position> Drops, int Edits)? written = null)
+    private void Show(ConfigProblem? problem, ThermiConfig? read = null, PendingWrites.Waiting? written = null)
     {
         bool changed;
         lock (_lock)
         {
-            if (written is { } done)
+            if (written is not null)
             {
-                Forget(done.Drops, done.Edits);
+                _pending.Written(written);
             }
 
             changed = read is not null || _unannounced || !Loaded || Problem != problem;
             _unannounced = false;
             _read = read ?? _read;
-            _state = new State(Moved(_read, _unsaved, _edits), problem);
+            _state = new State(_pending.Over(_read), problem);
         }
 
         if (changed)

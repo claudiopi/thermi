@@ -44,3 +44,16 @@ test.each([
 
   await expect(call).resolves.toStrictEqual(answered);
 });
+
+// A listener taken back, as a component that unmounts takes its own, hears no event after, and the others still do.
+test('a listener taken back hears nothing more', () => {
+  const { bridge, answer } = connect();
+  const heard: string[] = [];
+
+  const stop = bridge.changed(() => heard.push('gone'));
+  bridge.changed(() => heard.push('kept'));
+  stop();
+  answer({ event: 'changed', value: null });
+
+  expect(heard).toStrictEqual(['kept']);
+});

@@ -1,9 +1,27 @@
-import { expect, fakeOf, fakeState, itemOf, list, openWindow, recording, select, settingsOf, setFake, test, text, toast, windowWith, type FakeState } from './fakeBridge';
+import {
+  expect,
+  fakeOf,
+  fakeState,
+  itemOf,
+  list,
+  openWindow,
+  recording,
+  select,
+  settingsOf,
+  setFake,
+  test,
+  text,
+  toast,
+  windowWith,
+  type FakeState,
+} from './fakeBridge';
 
 // A201: each state that keeps the window from working offers its fix, and the state moves on as the C# side answers.
 test('TheWindowSaysWhatIsWrongAndOffersTheFix', async ({ context }) => {
-  const cpuReadsZero = (state: FakeState): boolean => state.sensors.some((sensor) => sensor.hardwareType === 'Cpu' && sensor.type === 'Temperature' && sensor.value === 0);
-  const rows: { name: string; state: Partial<FakeState>; fixes: { fix: string; answer?: Partial<FakeState>; then: (state: FakeState) => boolean }[] }[] = [
+  const cpuReadsZero = (state: FakeState): boolean =>
+    state.sensors.some((sensor) => sensor.hardwareType === 'Cpu' && sensor.type === 'Temperature' && sensor.value === 0);
+  type Fix = { fix: string; answer?: Partial<FakeState>; then: (state: FakeState) => boolean; shows?: string };
+  const rows: { name: string; state: Partial<FakeState>; fixes: Fix[] }[] = [
     { name: 'no overlay', state: { overlayRunning: false }, fixes: [{ fix: 'UiText.StartOverlay', then: (state) => state.overlayRunning }] },
     { name: 'the service stopped', state: { service: 'stopped' }, fixes: [{ fix: 'WindowText.StartIt', then: (state) => state.service === 'running' }] },
     { name: 'the service refused, then started', state: { service: 'stopped', serviceAnswer: 'refused' }, fixes: [
@@ -11,7 +29,11 @@ test('TheWindowSaysWhatIsWrongAndOffersTheFix', async ({ context }) => {
       { fix: 'WindowText.StartIt', answer: { serviceAnswer: 'accepted' }, then: (state) => state.service === 'running' },
     ] },
     { name: 'a broken file', state: { problem: 'broken' }, fixes: [{ fix: 'UiText.RestoreSettings', then: (state) => state.problem === null }] },
-    { name: 'a CPU sensor needing the driver', state: { sensors: recording('no-admin') }, fixes: [{ fix: 'WindowText.InstallDriver', then: (state) => !cpuReadsZero(state) }] },
+    {
+      name: 'a CPU sensor needing the driver',
+      state: { sensors: recording('no-admin') },
+      fixes: [{ fix: 'WindowText.InstallDriver', then: (state) => !cpuReadsZero(state) }],
+    },
     { name: 'the driver refused, then installed', state: { sensors: recording('no-admin'), driverAnswer: 'refused' }, fixes: [
       { fix: 'WindowText.InstallDriver', then: cpuReadsZero },
       { fix: 'WindowText.TryAgain', answer: { driverAnswer: 'accepted' }, then: (state) => !cpuReadsZero(state) },
@@ -19,6 +41,10 @@ test('TheWindowSaysWhatIsWrongAndOffersTheFix', async ({ context }) => {
     { name: 'the driver failed, then installed', state: { sensors: recording('no-admin'), driverAnswer: 'failed' }, fixes: [
       { fix: 'WindowText.InstallDriver', then: cpuReadsZero },
       { fix: 'WindowText.TryAgain', answer: { driverAnswer: 'accepted' }, then: (state) => !cpuReadsZero(state) },
+    ] },
+    // Installed, but it loads only once Windows restarts: the bar says so.
+    { name: 'the driver needs Windows restarted', state: { sensors: recording('no-admin'), driverAnswer: 'restart' }, fixes: [
+      { fix: 'WindowText.InstallDriver', then: cpuReadsZero, shows: 'WindowText.DriverRestart' },
     ] },
   ];
 
@@ -37,6 +63,9 @@ test('TheWindowSaysWhatIsWrongAndOffersTheFix', async ({ context }) => {
         }
         await page.getByRole('button', { name: text(step.fix) }).click();
         await expect.poll(async () => step.then(await fakeOf(page))).toBe(true);
+        if (step.shows !== undefined) {
+          await expect(page.getByText(text(step.shows))).toBeVisible();
+        }
       }
       await page.close();
     });

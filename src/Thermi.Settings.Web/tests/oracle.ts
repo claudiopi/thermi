@@ -52,7 +52,14 @@ function languageOf(shown: Record<string, string>): OracleStart['texts'] {
 function startOf(state: FakeState): OracleStart {
   const sensors = canonical(state.sensors);
   const named = recordings.find((name) => canonical(recording(name)) === sensors);
-  return { settings: state.settings, looks: state.looks, sensors: named ?? (state.sensors as Sensor[]), service: state.service, texts: languageOf(state.texts), problem: state.problem };
+  return {
+    settings: state.settings,
+    looks: state.looks,
+    sensors: named ?? (state.sensors as Sensor[]),
+    service: state.service,
+    texts: languageOf(state.texts),
+    problem: state.problem,
+  };
 }
 
 function record(file: string, line: unknown): void {
@@ -76,7 +83,11 @@ export async function askOracle(page: Page, state: FakeState): Promise<FakeState
   const id = createHash('sha256').update(canonical(start)).digest('hex').slice(0, 16);
   const shown = golden.starts[id]?.shown;
   starts.add(id);
-  const cases = golden.cases.flatMap((one, index) => (one.start === id ? [{ index, keys: one.calls.map((call) => canonical({ method: call.method, args: call.args })), calls: one.calls }] : []));
+  const cases = golden.cases.flatMap((one, index) =>
+    one.start === id
+      ? [{ index, keys: one.calls.map((call) => canonical({ method: call.method, args: call.args })), calls: one.calls }]
+      : [],
+  );
   const info = base.info();
   const log: OracleCall[] = [];
   const keys: string[] = [];

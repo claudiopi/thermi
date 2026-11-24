@@ -16,7 +16,12 @@ public sealed class UndoRulesTests
     /// The settings the window starts from, its edit, the change made by hand over it, what must hold after the undo, and
     /// how many of the undo's changes are skipped, when that is part of the rule.
     /// </summary>
-    private sealed record HandEdit(Func<ThermiConfig> Start, Func<ThermiConfig, EditResult> Edit, Func<ThermiConfig, ThermiConfig> Hand, Action<ThermiConfig, UndoResult> Holds, int? Skipped = 1);
+    private sealed record HandEdit(
+        Func<ThermiConfig> Start,
+        Func<ThermiConfig, EditResult> Edit,
+        Func<ThermiConfig, ThermiConfig> Hand,
+        Action<ThermiConfig, UndoResult> Holds,
+        int? Skipped = 1);
 
     private static readonly Dictionary<string, HandEdit> HandEdits = new(StringComparer.Ordinal)
     {
@@ -38,7 +43,10 @@ public sealed class UndoRulesTests
         ["the item moved again"] = new(
             () => new ThermiConfig(),
             config => ItemEdits.Move(config, Metrics.CpuFan.Id, 4),
-            config => WithOverlay(config, 0, overlay => overlay with { Items = [.. overlay.Items.Where(item => item.Id != Metrics.CpuFan.Id), Item(config, Metrics.CpuFan.Id)] }),
+            config => WithOverlay(
+                config,
+                0,
+                overlay => overlay with { Items = [.. overlay.Items.Where(item => item.Id != Metrics.CpuFan.Id), Item(config, Metrics.CpuFan.Id)] }),
             (_, undone) => Assert.Equal(Metrics.CpuFan.Id, undone.Config.Overlays[0].Items[^1].Id)),
         ["the overlay of a deleted item deleted"] = new(
             () => TwoOverlays,
@@ -47,10 +55,16 @@ public sealed class UndoRulesTests
             (_, undone) => Assert.Equal([.. Ids(TwoOverlays.Overlays[0]), "gpu.load-2"], Ids(Assert.Single(undone.Config.Overlays))),
             Skipped: null),
         ["an item of an overlay reset that shares none"] = new(
-            () => Done(ItemEdits.AddSensor(new ThermiConfig { Overlays = [new OverlayConfig { Size = 1.25, Items = [] }] }, 0, Desktop, "/amdcpu/0/temperature/3")),
+            () => Done(ItemEdits.AddSensor(
+                new ThermiConfig { Overlays = [new OverlayConfig { Size = 1.25, Items = [] }] },
+                0,
+                Desktop,
+                "/amdcpu/0/temperature/3")),
             OverlayEdits.Reset,
             config => WithItem(config, Metrics.CpuLoad.Id, item => item with { Label = "LOAD" }),
-            (_, undone) => Assert.Equal((1.25, "/amdcpu/0/temperature/3," + Metrics.CpuLoad.Id), (undone.Config.Overlays[0].Size, string.Join(',', Ids(undone.Config.Overlays[0]))))),
+            (_, undone) => Assert.Equal(
+                (1.25, "/amdcpu/0/temperature/3," + Metrics.CpuLoad.Id),
+                (undone.Config.Overlays[0].Size, string.Join(',', Ids(undone.Config.Overlays[0]))))),
         ["an added overlay resized"] = new(
             () => new ThermiConfig(),
             OverlayEdits.Add,
@@ -59,7 +73,10 @@ public sealed class UndoRulesTests
         ["a deleted overlay made again"] = new(
             () => ByHand(TwoOverlays, config => WithOverlay(config, 1, overlay => overlay with { Size = 1.5 })),
             config => OverlayEdits.Delete(config, 1),
-            config => WithOverlay(config, 0, overlay => overlay with { Items = [.. overlay.Items, new ItemConfig { Id = "ram.used-2", Metric = Metrics.RamLoad.Id }] }),
+            config => WithOverlay(
+                config,
+                0,
+                overlay => overlay with { Items = [.. overlay.Items, new ItemConfig { Id = "ram.used-2", Metric = Metrics.RamLoad.Id }] }),
             (_, undone) => Assert.Single(undone.Config.Overlays)),
     };
 
@@ -89,7 +106,7 @@ public sealed class UndoRulesTests
     [Fact]
     public void EverySettingCanBeUndone()
     {
-        var everything = ThermiConfigJson.Read(TestFiles.Config("v2.json")).Config;
+        var everything = ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config;
         var item = new ItemConfig { Id = "item", Metric = Metrics.CpuLoad.Id };
         var full = new ItemConfig
         {
@@ -118,7 +135,11 @@ public sealed class UndoRulesTests
 
         AssertNone(
             Untracked(new ThermiConfig { Overlays = [overlay] }, everything, config => config, ["Version", "Overlays"])
-            .Concat(Untracked(overlay, everything.Overlays[0] with { Position = everything.Overlays[1].Position }, each => new ThermiConfig { Overlays = [each] }, ["Items"]))
+            .Concat(Untracked(
+                overlay,
+                everything.Overlays[0] with { Position = everything.Overlays[1].Position },
+                each => new ThermiConfig { Overlays = [each] },
+                ["Items"]))
             .Concat(Untracked(overlay.Style, everything.Overlays[0].Style, style => new ThermiConfig { Overlays = [overlay with { Style = style }] }, []))
             .Concat(Untracked(item, full, each => new ThermiConfig { Overlays = [overlay with { Items = [each] }] }, ["Id"])));
     }

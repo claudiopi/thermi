@@ -51,6 +51,9 @@ public enum Refusal
 
     LastOverlay,
 
+    /// <summary>Alt+arrows move a floating overlay; a snapped one sits where its place puts it, so it moves by a drag or another place.</summary>
+    Snapped,
+
     /// <summary>thermi has no translation for the language.</summary>
     UnknownLanguage,
 
@@ -130,7 +133,11 @@ public static class ConfigEdits
     public static Func<ThermiConfig, ThermiConfig>? Replay(ThermiConfig before, ThermiConfig after)
     {
         var operations = ConfigDiff.Between(before, after);
-        return operations.Count == 0 ? null : config => operations.Aggregate(config, (current, operation) => operation.Redo(current) is { } changed && ConfigRules.Problem(changed) is null ? changed : current);
+        return operations.Count == 0
+            ? null
+            : config => operations.Aggregate(
+                config,
+                (current, operation) => operation.Redo(current) is { } changed && ConfigRules.Problem(changed) is null ? changed : current);
     }
 
     internal static EditResult Refuse(ThermiConfig config, Refusal refusal) => new(config, refusal);

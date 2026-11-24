@@ -56,7 +56,7 @@ export interface ChartView {
   title: string | null;
   fromText: string;
   toText: string;
-  fires: boolean;
+  fires: string | null;
 }
 
 export interface ColorStop {
@@ -75,6 +75,8 @@ export interface DesktopPick {
 }
 
 export type DeviceKind = 'cpu' | 'gpu' | 'ram' | 'board' | 'ssd' | 'network' | 'battery' | 'system';
+
+export type DriverInstall = 'installed' | 'not-installed' | 'restart-windows';
 
 export type Edit =
   | { kind: 'thermi'; field: string; value: Value }
@@ -152,6 +154,7 @@ export interface ItemView {
   auto?: string;
   meters: MeterChoice[];
   meterName: string | null;
+  bits: boolean;
 }
 
 export interface Language {
@@ -334,6 +337,10 @@ export interface Undone {
 
 export type Visibility = 'always' | 'hide-in-fullscreen' | 'only-in-fullscreen';
 
+export interface WindowChange {
+  sensors: boolean;
+}
+
 export interface WindowStatus {
   overlay: boolean;
   driver: boolean;
@@ -373,7 +380,7 @@ export interface Bridge {
   looks(): Promise<Record<string, Style>>;
   saveLook(overlay: number, name: string): Promise<string | null>;
   renameLook(name: string, to: string): Promise<string | null>;
-  deleteLook(name: string): Promise<void>;
+  deleteLook(name: string): Promise<string | null>;
   exportLook(overlay: number): Promise<void>;
   exportSavedLook(name: string): Promise<void>;
   importLook(overlay: number, text: string | null): Promise<string | null>;
@@ -381,7 +388,7 @@ export interface Bridge {
   findCpuFan(): Promise<void>;
   cancelFind(): Promise<void>;
   finder(): Promise<FinderView>;
-  installDriver(): Promise<boolean>;
+  installDriver(): Promise<DriverInstall>;
   startService(): Promise<boolean>;
   startOverlay(): Promise<void>;
   restore(): Promise<void>;
@@ -391,9 +398,9 @@ export interface Bridge {
   restHotkeys(rest: boolean): Promise<void>;
   editing(overlay: number | null, selected: string | null, pointed: string | null): Promise<void>;
   start(): Promise<DesktopPick | null>;
-  changed(listener: () => void): void;
-  readings(listener: () => void): void;
-  picked(listener: (value: DesktopPick) => void): void;
+  changed(listener: (value: WindowChange) => void): () => void;
+  readings(listener: () => void): () => void;
+  picked(listener: (value: DesktopPick) => void): () => void;
 }
 
 declare global {

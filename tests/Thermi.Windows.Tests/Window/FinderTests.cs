@@ -39,7 +39,15 @@ public sealed class FinderTests : IAsyncDisposable
         Assert.True(_folder.Settled(_settings.SyncAsync).IsCompletedSuccessfully);
         _editor = new WindowEditor(_settings, _turn.Enqueue, _folder.Log, _folder.Clock);
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", _folder.File, "thermi.exe", _folder.Log, _folder.Clock.GetUtcNow(), _feed, startup) { Screens = () => [] };
+        var environment = new WindowEnvironment(
+            "thermi-tests",
+            _folder.File,
+            "thermi.exe",
+            _folder.Log,
+            _folder.Clock.GetUtcNow(),
+            _feed,
+            startup)
+        { Screens = () => [], ReadsTaskbar = false };
         var start = new WindowStart(1, _settings, Texts.English, environment, _folder.Clock) { Load = _loads.Add };
         _bridge = new WindowBridge(start, _editor, new ChartHistory(_folder.Clock), _turn.Enqueue);
     }
@@ -71,9 +79,14 @@ public sealed class FinderTests : IAsyncDisposable
         Assert.Equal(new FinderView(FinderPhase.Running, null, 0, Texts.English.Of(CatalogText.FanFinderWaiting)), waiting);
         Assert.Equal((1, false), loading);
         Assert.Equal(FinderPhase.Running, rising.Phase);
-        Assert.Equal($"{Texts.English.Of(CatalogText.FanFinderLoading)} · {Texts.English.Format(English, CatalogText.FanRising, "CPU fan · ITE IT8689E", 2174, 200)}", rising.Text);
+        Assert.Equal(
+            $"{Texts.English.Of(CatalogText.FanFinderLoading)} · "
+            + Texts.English.Format(English, CatalogText.FanRising, "CPU fan · ITE IT8689E", 2174, 200),
+            rising.Text);
         Assert.Equal(2.0 / 30, rising.Progress!.Value, 3);
-        Assert.Equal((FinderPhase.Done, BoardFan, Texts.English.Format(English, FanFinderOutcome.Found, "CPU fan · ITE IT8689E")), (done.Phase, done.Pick, done.Text));
+        Assert.Equal(
+            (FinderPhase.Done, BoardFan, Texts.English.Format(English, FanFinderOutcome.Found, "CPU fan · ITE IT8689E")),
+            (done.Phase, done.Pick, done.Text));
         Assert.True(_loads[0].IsCancellationRequested);
         Assert.Equal(before, ThermiConfigJson.Write(_editor.Config));
         Assert.False(_editor.CanUndo);
@@ -127,7 +140,11 @@ public sealed class FinderTests : IAsyncDisposable
     public async Task WithoutBoardFansFindItCannotStartAndSaysWhy()
     {
         var noBoardFans = new Snapshot([.. Recorded.Sensors.Where(sensor => !(sensor.HardwareType == "SuperIO" && sensor.Type == "Fan"))]);
-        var noDriver = new Snapshot([.. noBoardFans.Sensors.Select(sensor => sensor.HardwareType == "Cpu" && sensor.Type == "Temperature" ? sensor with { Value = 0 } : sensor)]);
+        var noDriver = new Snapshot(
+        [
+            .. noBoardFans.Sensors.Select(sensor =>
+                sensor.HardwareType == "Cpu" && sensor.Type == "Temperature" ? sensor with { Value = 0 } : sensor),
+        ]);
         var refusals = new List<FanFinderRefusal?>();
 
         foreach (var snapshot in new[] { noBoardFans, noDriver, null, Recorded })

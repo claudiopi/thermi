@@ -54,7 +54,12 @@ public static class StyleEdits
     public static EditResult UseColorblindSafe(ThermiConfig config, int overlay) =>
         Restyle(config, overlay, style => style with
         {
-            Colors = (style.Colors ?? new StyleColors()) with { Normal = StyleColors.ColorblindSafe.Normal, Warning = StyleColors.ColorblindSafe.Warning, Critical = StyleColors.ColorblindSafe.Critical },
+            Colors = (style.Colors ?? new StyleColors()) with
+            {
+                Normal = StyleColors.ColorblindSafe.Normal,
+                Warning = StyleColors.ColorblindSafe.Warning,
+                Critical = StyleColors.ColorblindSafe.Critical,
+            },
         });
 
     /// <summary>A preset sets the text, so the sizes it ignores leave the file; custom starts from the text shown now.</summary>

@@ -25,30 +25,100 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
     await page.getByRole('menuitem', { name: text(entry) }).press('Enter');
   };
   const rows: { name: string; act: () => Promise<void>; read: (state: FakeState) => unknown; expected: unknown }[] = [
-    { name: 'a Look tile', act: () => pressOn(control('radio', 'OverlayPageText.LookTile', 'Night'), 'Space'), read: (state) => overlayOf(state.settings, 0).style?.name, expected: 'Night' },
-    { name: 'Size', act: () => pressOn(control('slider', 'UiText.SizeField'), 'ArrowRight'), read: (state) => overlayOf(state.settings, 0).size, expected: 1.05 },
-    { name: 'Theme', act: () => pressOn(control('radio', 'PillTheme.Light'), 'Space'), read: (state) => overlayOf(state.settings, 0).style?.pills, expected: 'light' },
-    { name: 'Use on all overlays', act: () => pressOn(control('button', 'OverlayPageText.UseOnAllOverlays'), 'Enter'), read: (state) => overlayOf(state.settings, 1).style?.pills, expected: 'light' },
-    { name: 'Layout', act: () => chooseByKeys(page, control('combobox', 'UiText.LayoutField'), text('PillLayout.Each')), read: (state) => overlayOf(state.settings, 0).style?.layout, expected: 'each' },
-    { name: 'Direction', act: () => pressOn(control('radio', 'Orientation.Vertical'), 'Space'), read: (state) => overlayOf(state.settings, 0).style?.orientation, expected: 'vertical' },
-    { name: 'Background opacity', act: () => pressOn(control('slider', 'UiText.BackgroundField'), 'Home'), read: (state) => overlayOf(state.settings, 0).style?.opacity?.background, expected: 0 },
+    {
+      name: 'a Look tile',
+      act: () => pressOn(control('radio', 'OverlayPageText.LookTile', 'Night'), 'Space'),
+      read: (state) => overlayOf(state.settings, 0).style?.name,
+      expected: 'Night',
+    },
+    {
+      name: 'Size',
+      act: () => pressOn(control('slider', 'UiText.SizeField'), 'ArrowRight'),
+      read: (state) => overlayOf(state.settings, 0).size,
+      expected: 1.05,
+    },
+    {
+      name: 'Theme',
+      act: () => pressOn(control('radio', 'PillTheme.Light'), 'Space'),
+      read: (state) => overlayOf(state.settings, 0).style?.pills,
+      expected: 'light',
+    },
+    {
+      name: 'Use on all overlays',
+      act: () => pressOn(control('button', 'OverlayPageText.UseOnAllOverlays'), 'Enter'),
+      read: (state) => overlayOf(state.settings, 1).style?.pills,
+      expected: 'light',
+    },
+    {
+      name: 'Layout',
+      act: () => chooseByKeys(page, control('combobox', 'UiText.LayoutField'), text('PillLayout.Each')),
+      read: (state) => overlayOf(state.settings, 0).style?.layout,
+      expected: 'each',
+    },
+    {
+      name: 'Direction',
+      act: () => pressOn(control('radio', 'Orientation.Vertical'), 'Space'),
+      read: (state) => overlayOf(state.settings, 0).style?.orientation,
+      expected: 'vertical',
+    },
+    {
+      name: 'Background opacity',
+      act: () => pressOn(control('slider', 'UiText.BackgroundField'), 'Home'),
+      read: (state) => overlayOf(state.settings, 0).style?.opacity?.background,
+      expected: 0,
+    },
     { name: 'Text size', act: async () => {
       await pressOn(control('button', 'OverlayPageText.TextAndShape'), 'Enter');
       await chooseByKeys(page, control('combobox', 'UiText.LabelsField'), '14 px');
     }, read: (state) => [overlayOf(state.settings, 0).style?.preset, overlayOf(state.settings, 0).style?.label?.size], expected: ['custom', 14] },
-    { name: 'Font', act: () => chooseByKeys(page, control('combobox', 'OverlayPageText.FontField'), text('StyleFont.Bahnschrift')), read: (state) => overlayOf(state.settings, 0).style?.font, expected: 'bahnschrift' },
-    { name: 'Corners', act: () => pressOn(control('radio', 'CornerStyle.Soft'), 'Space'), read: (state) => overlayOf(state.settings, 0).style?.corners, expected: 'soft' },
-    { name: 'Gap', act: () => pressOn(control('slider', 'OverlayPageText.GapField'), 'ArrowLeft'), read: (state) => overlayOf(state.settings, 0).style?.gap, expected: 7 },
-    { name: 'Text effect', act: () => chooseByKeys(page, control('combobox', 'OverlayPageText.EffectField'), text('TextEffect.Outline')), read: (state) => overlayOf(state.settings, 0).style?.effect, expected: 'outline' },
-    { name: 'Show units', act: () => pressOn(control('switch', 'UiText.UnitsField'), 'Space'), read: (state) => overlayOf(state.settings, 0).style?.units, expected: false },
-    { name: 'Show labels', act: () => pressOn(control('switch', 'OverlayPageText.ShowLabels'), 'Space'), read: (state) => overlayOf(state.settings, 0).style?.noLabels, expected: true },
+    {
+      name: 'Font',
+      act: () => chooseByKeys(page, control('combobox', 'OverlayPageText.FontField'), text('StyleFont.Bahnschrift')),
+      read: (state) => overlayOf(state.settings, 0).style?.font,
+      expected: 'bahnschrift',
+    },
+    {
+      name: 'Corners',
+      act: () => pressOn(control('radio', 'CornerStyle.Soft'), 'Space'),
+      read: (state) => overlayOf(state.settings, 0).style?.corners,
+      expected: 'soft',
+    },
+    {
+      name: 'Gap',
+      act: () => pressOn(control('slider', 'OverlayPageText.GapField'), 'ArrowLeft'),
+      read: (state) => overlayOf(state.settings, 0).style?.gap,
+      expected: 7,
+    },
+    {
+      name: 'Text effect',
+      act: () => chooseByKeys(page, control('combobox', 'OverlayPageText.EffectField'), text('TextEffect.Outline')),
+      read: (state) => overlayOf(state.settings, 0).style?.effect,
+      expected: 'outline',
+    },
+    {
+      name: 'Show units',
+      act: () => pressOn(control('switch', 'UiText.UnitsField'), 'Space'),
+      read: (state) => overlayOf(state.settings, 0).style?.units,
+      expected: false,
+    },
+    {
+      name: 'Show labels',
+      act: () => pressOn(control('switch', 'OverlayPageText.ShowLabels'), 'Space'),
+      read: (state) => overlayOf(state.settings, 0).style?.noLabels,
+      expected: true,
+    },
     { name: 'a color', act: async () => {
       await pressOn(control('button', 'OverlayPageText.ColorsField'), 'Enter');
       await pressOn(control('button', 'StyleColor.Warning'), 'Enter');
       await page.getByRole('textbox', { name: text('UiText.HexColor') }).fill('#FFC000');
       await page.keyboard.press('Enter');
     }, read: (state) => overlayOf(state.settings, 0).style?.colors?.warning, expected: '#FFC000' },
-    { name: 'Colorblind-safe', act: () => pressOn(control('switch', 'OverlayPageText.ColorblindSafe'), 'Space'), read: (state) => overlayOf(state.settings, 0).style?.colors?.normal, expected: '#0072B2' },
+    {
+      name: 'Colorblind-safe',
+      act: () => pressOn(control('switch', 'OverlayPageText.ColorblindSafe'), 'Space'),
+      read: (state) => overlayOf(state.settings, 0).style?.colors?.normal,
+      expected: '#0072B2',
+    },
     { name: 'Save as my look', act: async () => {
       await pressOn(control('button', 'OverlayPageText.SaveAsMyLook'), 'Enter');
       await nameAndEnter(page, 'Mine');
@@ -57,8 +127,21 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       await lookMenu('Mine', 'UiText.RenameStyle');
       await nameAndEnter(page, 'Evening');
     }, read: (state) => Object.keys(state.looks).sort(), expected: ['Evening', 'Night'] },
-    { name: 'a look\'s Use on all overlays', act: () => lookMenu('Night', 'OverlayPageText.UseOnAllOverlays'), read: (state) => state.settings.overlays.map((overlay) => overlay.style?.name), expected: ['Night', 'Night'] },
-    { name: 'a look\'s Export', act: () => lookMenu('Night', 'UiText.ExportStyle'), read: (state) => Object.keys((JSON.parse(state.exported ?? '{}') as { style?: object }).style ?? {}).some((field) => field === 'layout' || field === 'orientation'), expected: false },
+    {
+      name: 'a look\'s Use on all overlays',
+      act: () => lookMenu('Night', 'OverlayPageText.UseOnAllOverlays'),
+      read: (state) => state.settings.overlays.map((overlay) => overlay.style?.name),
+      expected: ['Night', 'Night'],
+    },
+    {
+      name: 'a look\'s Export',
+      act: () => lookMenu('Night', 'UiText.ExportStyle'),
+      read: (state) =>
+        Object.keys((JSON.parse(state.exported ?? '{}') as { style?: object }).style ?? {}).some(
+          (field) => field === 'layout' || field === 'orientation',
+        ),
+      expected: false,
+    },
     { name: 'a look\'s Delete', act: () => lookMenu('Evening', 'UiText.DeleteStyle'), read: (state) => Object.keys(state.looks), expected: ['Night'] },
   ];
 
@@ -78,7 +161,15 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
   };
   const mapSpot = (page: Page, key: string, monitor: number): Locator =>
     page.getByRole('radiogroup', { name: text('UiText.MonitorMap') }).getByRole('radio', { name: text('OverlayPageText.SpotOnMonitor', text(key), monitor) });
-  const spots = ['SnapSpot.TaskbarLeft', 'SnapSpot.TaskbarCenter', 'SnapSpot.TaskbarRight', 'SnapSpot.TopLeft', 'SnapSpot.TopRight', 'SnapSpot.BottomLeft', 'SnapSpot.BottomRight'];
+  const spots = [
+    'SnapSpot.TaskbarLeft',
+    'SnapSpot.TaskbarCenter',
+    'SnapSpot.TaskbarRight',
+    'SnapSpot.TopLeft',
+    'SnapSpot.TopRight',
+    'SnapSpot.BottomLeft',
+    'SnapSpot.BottomRight',
+  ];
 
   await test.step('each spot of the map, on each monitor', async () => {
     const page = await windowWith(context, fakeState());
@@ -117,12 +208,41 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
     const pane = page.getByRole('main');
     await pressOn(pane.getByRole('button', { name: text('OverlayPageText.LockGroup') }), 'Enter');
     const rows: { act: () => Promise<void>; read: (state: FakeState) => unknown; expected: unknown }[] = [
-      { act: () => chooseByKeys(page, pane.getByRole('combobox', { name: text('OverlayPageText.WhenToShowField') }), text('Visibility.HideInFullscreen')), read: (state) => overlayOf(state.settings, 0).visibility, expected: 'hide-in-fullscreen' },
-      { act: () => pressOn(pane.getByRole('switch', { name: text('UiText.LockPosition') }), 'Space'), read: (state) => overlayOf(state.settings, 0).locked, expected: true },
-      { act: () => pressOn(pane.getByRole('switch', { name: text('UiText.ClickThrough') }), 'Space'), read: (state) => overlayOf(state.settings, 0).clickThrough, expected: true },
-      { act: () => pressOn(pane.getByRole('switch', { name: text('OverlayPageText.OledCare') }), 'Space'), read: (state) => overlayOf(state.settings, 0).oled, expected: true },
-      { act: () => pressOn(pane.getByRole('switch', { name: text('OverlayPageText.Fade') }), 'Space'), read: (state) => overlayOf(state.settings, 0).fade, expected: true },
-      { act: () => pressOn(pane.getByRole('button', { name: text('FitText.HideLabels') }), 'Enter'), read: (state) => overlayOf(state.settings, 0).style?.noLabels, expected: true },
+      {
+        act: () =>
+          chooseByKeys(
+            page,
+            pane.getByRole('combobox', { name: text('OverlayPageText.WhenToShowField') }),
+            text('Visibility.HideInFullscreen'),
+          ),
+        read: (state) => overlayOf(state.settings, 0).visibility,
+        expected: 'hide-in-fullscreen',
+      },
+      {
+        act: () => pressOn(pane.getByRole('switch', { name: text('UiText.LockPosition') }), 'Space'),
+        read: (state) => overlayOf(state.settings, 0).locked,
+        expected: true,
+      },
+      {
+        act: () => pressOn(pane.getByRole('switch', { name: text('UiText.ClickThrough') }), 'Space'),
+        read: (state) => overlayOf(state.settings, 0).clickThrough,
+        expected: true,
+      },
+      {
+        act: () => pressOn(pane.getByRole('switch', { name: text('OverlayPageText.OledCare') }), 'Space'),
+        read: (state) => overlayOf(state.settings, 0).oled,
+        expected: true,
+      },
+      {
+        act: () => pressOn(pane.getByRole('switch', { name: text('OverlayPageText.Fade') }), 'Space'),
+        read: (state) => overlayOf(state.settings, 0).fade,
+        expected: true,
+      },
+      {
+        act: () => pressOn(pane.getByRole('button', { name: text('FitText.HideLabels') }), 'Enter'),
+        read: (state) => overlayOf(state.settings, 0).style?.noLabels,
+        expected: true,
+      },
     ];
     for (const row of rows) {
       await row.act();

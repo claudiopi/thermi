@@ -2,7 +2,10 @@ using Thermi.Core.Settings;
 
 namespace Thermi.Core.Editing;
 
-/// <summary>One field of a part of the settings, read and written as a value, so undo can compare what it holds, and the name a step that changes it takes.</summary>
+/// <summary>
+/// One field of a part of the settings, read and written as a value, so undo can compare what it holds,
+/// and the name a step that changes it takes.
+/// </summary>
 internal sealed record Field<T>(ChangedField Name, Func<T, object?> Get, Func<T, object?, T> Set);
 
 /// <summary>
@@ -14,7 +17,8 @@ internal static class ConfigFields
     private static readonly IReadOnlyList<ItemConfig> NoItems = [];
 
     /// <summary>The saved style a style came from, which a rename changes in the undo steps too.</summary>
-    public static Field<OverlayConfig> StyleName { get; } = Style(ChangedField.Look, style => style.Name, (style, value) => style with { Name = (string?)value });
+    public static Field<OverlayConfig> StyleName { get; } =
+        Style(ChangedField.Look, style => style.Name, (style, value) => style with { Name = (string?)value });
 
     /// <summary>An item's meter with what needs it, which a step names by what of it changed.</summary>
     public static Field<ItemConfig> ItemMetering { get; } = new(ChangedField.Meter, Metering.Of, (item, value) => ((Metering)value!).On(item));
@@ -24,7 +28,10 @@ internal static class ConfigFields
         new(ChangedField.Hotkeys, config => config.Hotkeys, (config, value) => config with { Hotkeys = (HotkeysConfig?)value }),
         new(ChangedField.Language, config => config.Language, (config, value) => config with { Language = (string?)value }),
         new(ChangedField.TemperatureUnit, config => config.Temperature, (config, value) => config with { Temperature = (TemperatureUnit)value! }),
-        new(ChangedField.SensorName, config => config.SensorNames, (config, value) => config with { SensorNames = (IReadOnlyDictionary<string, string>?)value }),
+        new(
+            ChangedField.SensorName,
+            config => config.SensorNames,
+            (config, value) => config with { SensorNames = (IReadOnlyDictionary<string, string>?)value }),
     ];
 
     // Where an overlay sits is one choice, a snap or a free position: undoing one half after a drag set the other would move it.

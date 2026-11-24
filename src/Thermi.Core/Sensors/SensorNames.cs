@@ -63,9 +63,13 @@ public static class SensorNames
         var input = InputOf(sensor);
         var chip = input is null ? null : sensor.Hardware;
         return own?.GetValueOrDefault(id) is { } name ? new SensorName(name, NameFrom.Own, sensor.Name, chip, input)
-            : input is { } number && Likely(sensor, number) is { } likely ? new SensorName(LikelyOf(sensor, likely, texts ?? Texts.English), NameFrom.Likely, sensor.Name, chip, number)
-            : new SensorName(sensor.Name, NameFrom.Library, sensor.Name, chip, input);
+            : input is { } number && Likely(sensor, number) is { } likely
+                ? new SensorName(LikelyOf(sensor, likely, texts ?? Texts.English), NameFrom.Likely, sensor.Name, chip, number)
+            : new SensorName(DutyOf(sensor, sensor.Name, texts ?? Texts.English), NameFrom.Library, sensor.Name, chip, input);
     }
+
+    /// <summary>The probable name of a board's input, or null where the chip's usual wiring does not say it.</summary>
+    public static LikelyName? LikelyOf(RawSensor sensor) => InputOf(sensor) is { } input ? Likely(sensor, input) : null;
 
     /// <summary>
     /// What the window writes under a name it did not take from the library: "Likely" with the library's for a probable
@@ -79,11 +83,12 @@ public static class SensorNames
         _ => null,
     };
 
-    // The library names a fan's duty as the fan, so its probable name says it is the duty.
-    private static string LikelyOf(RawSensor sensor, LikelyName likely, Texts texts) =>
-        SensorMap.KindOf(sensor) == SensorKind.Control
-            ? texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, texts.Of(likely))
-            : texts.Of(likely);
+    // The library names a fan's duty as the fan, so its name says it is the duty, never reading as the fan itself.
+    private static string LikelyOf(RawSensor sensor, LikelyName likely, Texts texts) => DutyOf(sensor, texts.Of(likely), texts);
+
+    private static string DutyOf(RawSensor sensor, string name, Texts texts) =>
+        SensorMap.KindOf(sensor) == SensorKind.Control && !name.Contains("Control", StringComparison.OrdinalIgnoreCase)
+            ? texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, name) : name;
 
     /// <summary>The snapshot's sensors as the window names them everywhere: the user's name, else the probable one, else the library's.</summary>
     public static IEnumerable<RawSensor> Named(Snapshot snapshot, IReadOnlyDictionary<string, string>? own, Texts texts) =>

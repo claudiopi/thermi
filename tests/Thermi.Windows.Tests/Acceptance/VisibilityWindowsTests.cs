@@ -16,7 +16,8 @@ public sealed class VisibilityWindowsTests : IDisposable
     private static readonly HotkeysConfig First = new() { Toggle = "Ctrl+Alt+Shift+F21" };
     // The four hotkeys, read from the file, since click-through's and reset min/max's are fields of its new version.
     private static readonly HotkeysConfig Second = ThermiConfigJson.Read(
-        "{'version':2,'hotkeys':{'toggle':'Ctrl+Alt+Shift+F21','nextStyle':'Ctrl+Alt+Shift+F22','clickThrough':'Ctrl+Alt+Shift+F23','resetMinMax':'Ctrl+Alt+Shift+F24'}}".Replace('\'', '"')).Config.Hotkeys!;
+        ("{'version':2,'hotkeys':{'toggle':'Ctrl+Alt+Shift+F21','nextStyle':'Ctrl+Alt+Shift+F22',"
+            + "'clickThrough':'Ctrl+Alt+Shift+F23','resetMinMax':'Ctrl+Alt+Shift+F24'}}").Replace('\'', '"')).Config.Hotkeys!;
 
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
 
@@ -173,5 +174,6 @@ public sealed class VisibilityWindowsTests : IDisposable
         Assert.Equal([false, true, false, true, false, true], held);
     }
 
-    private OverlayHost Host(Settings settings) => new(settings, () => HostRun.Recorded, English, _folder.Clock, _folder.Log, new FakeTray().Environment(_windowMutex));
+    private OverlayHost Host(Settings settings) =>
+        new(settings, () => HostRun.Recorded, English, _folder.Clock, _folder.Log, new FakeTray().Environment(_windowMutex));
 }

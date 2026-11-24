@@ -31,17 +31,26 @@ export function bridge(): Bridge | null {
   return window.thermi ?? null;
 }
 
-async function readAll(from: Bridge): Promise<Read> {
-  const [settings, view, sensors, texts, status, steps, problem, startWithWindows, crowded] = await Promise.all([
+/**
+ * All the window shows, after a change. The texts, thousands of them, are read again only when the language changed,
+ * and the sensors only when C# says they may have, or their names or the language changed: an edit, as each step of a
+ * slider, changes neither.
+ */
+async function readAll(from: Bridge, before: Read | null, sensorsChanged: boolean): Promise<Read> {
+  const [settings, view, status, steps, problem, startWithWindows, crowded] = await Promise.all([
     from.settings(),
     from.view(),
-    from.snapshot(),
-    from.texts(),
     from.status(),
     from.steps(),
     from.problem(),
     from.startWithWindows(),
     from.crowded(),
+  ]);
+  const language = before !== null && before.settings.language === settings.language;
+  const names = language && same(before.settings.sensorNames, settings.sensorNames);
+  const [texts, sensors] = await Promise.all([
+    language ? before.texts : from.texts(),
+    names && !sensorsChanged ? before.sensors : from.snapshot(),
   ]);
   return { settings, view, sensors, texts, status, steps, problem, startWithWindows, crowded };
 }
@@ -88,11 +97,19 @@ export function useWindowData(): WindowData | null {
     let ticks = 0;
     let missed = false;
     let live = true;
-    const refresh = (): void => {
+    // What the page shows, and whether the sensors may have changed since: a refresh that gave way to a later one read
+    // them for nothing, so the later one reads them again.
+    let showing: Read | null = null;
+    let sensorsChanged = true;
+    const refresh = (sensors: boolean): void => {
       changes += 1;
+      sensorsChanged ||= sensors;
       const mine = changes;
-      void readAll(from).then((next) => {
+      const readsSensors = sensorsChanged;
+      void readAll(from, showing, readsSensors).then((next) => {
         if (live && mine === changes) {
+          showing = next;
+          sensorsChanged &&= !readsSensors;
           setData((before) => ({ ...next, version: (before?.version ?? 0) + 1, changes: mine }));
         }
       });
@@ -120,12 +137,14 @@ export function useWindowData(): WindowData | null {
         tick();
       }
     };
-    from.changed(refresh);
-    from.readings(tick);
+    const stopChanges = from.changed((change) => refresh(change.sensors));
+    const stopReadings = from.readings(tick);
     document.addEventListener('visibilitychange', shown);
-    refresh();
+    refresh(true);
     return () => {
       live = false;
+      stopChanges();
+      stopReadings();
       document.removeEventListener('visibilitychange', shown);
     };
   }, []);

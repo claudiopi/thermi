@@ -10,9 +10,9 @@ const pad = 12;
 /** The least distance between two knobs' centers, so they never cover each other. */
 const knobsApart = 26;
 
-/** The chart's height: 40 % of the pane, at most half its width, between 140 and 420 px. */
+/** The chart's height: 40 % of the pane, at most half its width, between 140 and 640 px, so a large pane is not left half empty. */
 export function chartHeight(width: number, paneHeight: number): number {
-  return Math.round(Math.max(140, Math.min(paneHeight * 0.4, width / 2, 420)));
+  return Math.round(Math.max(140, Math.min(paneHeight * 0.4, width / 2, 640)));
 }
 
 export interface Plot {

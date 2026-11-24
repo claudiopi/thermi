@@ -15,7 +15,10 @@ public sealed class BusiestDrive(TimeProvider time)
     /// <summary>The device id of the drive followed now, as <see cref="SensorMap"/> takes it; null without drives.</summary>
     public string? Current { get; private set; }
 
-    /// <summary>Takes a fresh snapshot, and gives the drive followed from now: the busiest of the last minute once a minute has passed since the last choice, or at once when the one followed is gone.</summary>
+    /// <summary>
+    /// Takes a fresh snapshot, and gives the drive followed from now: the busiest of the last minute once a minute has passed
+    /// since the last choice, or at once when the one followed is gone.
+    /// </summary>
     public string? Add(Snapshot snapshot)
     {
         var now = time.GetTimestamp();

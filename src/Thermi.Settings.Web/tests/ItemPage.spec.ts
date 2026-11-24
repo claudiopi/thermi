@@ -1,35 +1,82 @@
 import { type Locator, type Page } from '@playwright/test';
-import { chooseByKeys, expect, fakeOf, fakeState, itemOf, openWindow, recording, select, settingsOf, setFake, test, text, type FakeState, type Item } from './fakeBridge';
+import {
+  chooseByKeys,
+  expect,
+  fakeOf,
+  fakeState,
+  itemOf,
+  openWindow,
+  recording,
+  select,
+  settingsOf,
+  setFake,
+  test,
+  text,
+  type FakeState,
+  type Item,
+} from './fakeBridge';
 
 const itemIn = async (page: Page, id: string): Promise<Item> => itemOf(await settingsOf(page), id);
 
 // Edge draws its scrollbars here as the window does, where headless Edge would hide them.
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
 
-const cpuTemperatures = recording('admin').filter((sensor) => sensor.hardwareType === 'Cpu' && sensor.type === 'Temperature' && sensor.value !== null);
+const cpuTemperatures = recording('admin').filter(
+  (sensor) => sensor.hardwareType === 'Cpu' && sensor.type === 'Temperature' && sensor.value !== null,
+);
 const [ccd1, ccd2] = cpuTemperatures.slice(-2);
 if (ccd1 === undefined || ccd2 === undefined) {
   throw new Error('The recording has fewer than two CPU temperatures.');
 }
 
-const fieldOf = (page: Page, role: 'combobox' | 'switch' | 'textbox' | 'spinbutton' | 'button', key: string): Locator => page.getByRole('main').getByRole(role, { name: text(key) });
+const fieldOf = (page: Page, role: 'combobox' | 'switch' | 'textbox' | 'spinbutton' | 'button', key: string): Locator =>
+  page.getByRole('main').getByRole(role, { name: text(key) });
 
 // A205: each row of the item page, changed by keys, lands in the settings; a row that cannot apply is off with its reason.
 test.describe('TheItemPageEditsTheItem', () => {
   // Each from the CPU temperature as it starts; a row behind More options opens it first.
   const rows: { name: string; more?: boolean; act: (page: Page) => Promise<void>; read: (item: Item) => unknown; expected: unknown }[] = [
-    { name: 'Sensor', act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.SensorField'), ccd1.name), read: (item) => item.sensor, expected: ccd1.id },
+    {
+      name: 'Sensor',
+      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.SensorField'), ccd1.name),
+      read: (item) => item.sensor,
+      expected: ccd1.id,
+    },
     { name: 'Label', act: async (page) => {
       await fieldOf(page, 'textbox', 'UiText.LabelField').fill('CORE');
       await page.keyboard.press('Enter');
     }, read: (item) => item.label, expected: 'CORE' },
     { name: 'Notify me', act: (page) => fieldOf(page, 'switch', 'UiText.NotifyMe').press('Space'), read: (item) => item.notify, expected: true },
     { name: 'Tray icon', act: (page) => fieldOf(page, 'switch', 'UiText.OwnTrayIcon').press('Space'), read: (item) => item.tray, expected: true },
-    { name: 'What it shows', more: true, act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.StatField'), text('ItemStat.Max')), read: (item) => item.stat, expected: 'max' },
-    { name: 'Smoothing', more: true, act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.SmoothField'), text('UiText.SmoothSeconds', 3)), read: (item) => item.smooth, expected: 3 },
-    { name: 'Decimals', more: true, act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.DecimalsField'), '1'), read: (item) => item.decimals, expected: 1 },
+    {
+      name: 'What it shows',
+      more: true,
+      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.StatField'), text('ItemStat.Max')),
+      read: (item) => item.stat,
+      expected: 'max',
+    },
+    {
+      name: 'Smoothing',
+      more: true,
+      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.SmoothField'), text('UiText.SmoothSeconds', 3)),
+      read: (item) => item.smooth,
+      expected: 3,
+    },
+    {
+      name: 'Decimals',
+      more: true,
+      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.DecimalsField'), '1'),
+      read: (item) => item.decimals,
+      expected: 1,
+    },
     { name: 'Graph', more: true, act: (page) => fieldOf(page, 'switch', 'UiText.MeterGraph').press('Space'), read: (item) => item.graph, expected: true },
-    { name: 'Only on alert', more: true, act: (page) => fieldOf(page, 'switch', 'UiText.AlertOnly').press('Space'), read: (item) => item.alertOnly, expected: true },
+    {
+      name: 'Only on alert',
+      more: true,
+      act: (page) => fieldOf(page, 'switch', 'UiText.AlertOnly').press('Space'),
+      read: (item) => item.alertOnly,
+      expected: true,
+    },
     { name: 'Offset', more: true, act: async (page) => {
       await fieldOf(page, 'spinbutton', 'UiText.OffsetField').fill('-5');
       await page.keyboard.press('Enter');
@@ -47,7 +94,12 @@ test.describe('TheItemPageEditsTheItem', () => {
       await chooseByKeys(page, dialog.getByRole('combobox', { name: text('UiText.CombineField') }), text('Combine.Max'));
       await dialog.getByRole('button', { name: text('UiText.CombineAdd') }).press('Enter');
     }, read: (item) => [item.sensors, item.combine], expected: [[ccd1.id, ccd2.id], 'max'] },
-    { name: 'Meter off', act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.MeterField'), text('UiText.MeterNone')), read: (item) => item.meter, expected: undefined },
+    {
+      name: 'Meter off',
+      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.MeterField'), text('UiText.MeterNone')),
+      read: (item) => item.meter,
+      expected: undefined,
+    },
   ];
   for (const row of rows) {
     test(row.name, async ({ page }) => {
@@ -62,7 +114,12 @@ test.describe('TheItemPageEditsTheItem', () => {
   }
 
   const off: { name: string; state: () => FakeState; control: (page: Page) => Locator; reason: string }[] = [
-    { name: 'Separate pill on a pill\'s first item', state: () => fakeState(), control: (page) => fieldOf(page, 'switch', 'UiText.OwnPill'), reason: 'UiText.AlreadyOwnPill' },
+    {
+      name: 'Separate pill on a pill\'s first item',
+      state: () => fakeState(),
+      control: (page) => fieldOf(page, 'switch', 'UiText.OwnPill'),
+      reason: 'UiText.AlreadyOwnPill',
+    },
     { name: 'Only on alert without a meter', state: () => {
       const state = fakeState();
       const temperature = state.settings.overlays[0]?.items.find((item) => item.id === 'cpu.temperature');
@@ -86,7 +143,14 @@ test.describe('TheItemPageEditsTheItem', () => {
   // have no meter is offered no graph and no only on alert.
   const meters: { name: string; item: string; id: string; offered: number; pick?: string; expected?: unknown }[] = [
     { name: 'A temperature meters only itself', item: text('MetricName.CpuTemperature'), id: 'cpu.temperature', offered: 2 },
-    { name: 'A fan meters its speed or its duty', item: text('MetricName.CpuFan'), id: 'fan.cpu', offered: 3, pick: text('SensorKind.Control'), expected: { metric: 'fan.cpu.duty' } },
+    {
+      name: 'A fan meters its speed or its duty',
+      item: text('MetricName.CpuFan'),
+      id: 'fan.cpu',
+      offered: 3,
+      pick: text('SensorKind.Control'),
+      expected: { metric: 'fan.cpu.duty' },
+    },
     { name: 'Power has nothing to meter', item: text('MetricName.CpuPower'), id: 'cpu.power', offered: 1 },
   ];
   for (const row of meters) {
@@ -95,9 +159,13 @@ test.describe('TheItemPageEditsTheItem', () => {
       await select(page, row.item);
       await fieldOf(page, 'button', 'UiText.MoreOptions').press('Enter');
       const box = fieldOf(page, 'combobox', 'UiText.MeterField');
-      await box.press('Alt+ArrowDown');
-      await expect(page.getByRole('option')).toHaveCount(row.offered);
-      await page.keyboard.press('Escape');
+      // A Meter row that would offer only Off is not shown.
+      await expect(box).toHaveCount(row.offered > 1 ? 1 : 0);
+      if (row.offered > 1) {
+        await box.press('Alt+ArrowDown');
+        await expect(page.getByRole('option')).toHaveCount(row.offered);
+        await page.keyboard.press('Escape');
+      }
       await expect(fieldOf(page, 'switch', 'UiText.AlertOnly')).toHaveCount(row.offered > 1 ? 1 : 0);
       if (row.pick !== undefined) {
         await chooseByKeys(page, box, row.pick);
@@ -139,7 +207,14 @@ test.describe('TheItemPageEditsTheItem', () => {
     for (const sensor of windows) {
       await select(page, sensor.name);
       await expect(main.getByRole('button', { name: text('UiText.ValueColor') })).toBeVisible();
-      for (const [role, key] of [['combobox', 'UiText.StatField'], ['combobox', 'UiText.SmoothField'], ['combobox', 'UiText.DecimalsField'], ['switch', 'UiText.MeterGraph'], ['spinbutton', 'UiText.OffsetField']] as const) {
+      const numberTools = [
+        ['combobox', 'UiText.StatField'],
+        ['combobox', 'UiText.SmoothField'],
+        ['combobox', 'UiText.DecimalsField'],
+        ['switch', 'UiText.MeterGraph'],
+        ['spinbutton', 'UiText.OffsetField'],
+      ] as const;
+      for (const [role, key] of numberTools) {
         await expect(main.getByRole(role, { name: text(key) }), `${sensor.name}: ${key}`).toHaveCount(0);
       }
     }

@@ -126,7 +126,14 @@ export interface ToggleChipProps {
 function ToggleChipDrawn({ text, pressed, onChange }: ToggleChipProps) {
   const styles = useToggleStyles();
   return (
-    <ToggleButton className={styles.chip} size="small" shape="circular" appearance={pressed ? 'primary' : 'outline'} checked={pressed} onClick={() => onChange(!pressed)}>
+    <ToggleButton
+      className={styles.chip}
+      size="small"
+      shape="circular"
+      appearance={pressed ? 'primary' : 'outline'}
+      checked={pressed}
+      onClick={() => onChange(!pressed)}
+    >
       {text}
     </ToggleButton>
   );

@@ -46,6 +46,17 @@ internal static class MadeUpHardware
         VirtualAdapters = [Wsl],
     };
 
+    /// <summary>
+    /// An Intel laptop, as the library reports one: its bus clock first among the CPU's clocks, and its fan on the embedded
+    /// controller rather than a board chip.
+    /// </summary>
+    public static Snapshot IntelLaptop() => new([
+        new RawSensor("/intelcpu/0/clock/0", "Cpu", "Intel Core i7-1360P", "Clock", "Bus Speed", 100),
+        new RawSensor("/intelcpu/0/clock/1", "Cpu", "Intel Core i7-1360P", "Clock", "P-Core #1", 4_600),
+        new RawSensor("/intelcpu/0/clock/5", "Cpu", "Intel Core i7-1360P", "Clock", "E-Core #1", 3_400),
+        new RawSensor("/lpc/ec/0/fan/0", "EmbeddedController", "Embedded Controller", "Fan", "CPU Fan", 2_400),
+    ]);
+
     private static RawSensor[] Adapter(string id, string name, double downloaded, double uploaded, double download, double upload) =>
     [
         new($"{id}/load/1", "Network", name, "Load", "Network Utilization", 3.2),

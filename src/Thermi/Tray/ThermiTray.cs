@@ -16,11 +16,21 @@ using OverlayScene = Thermi.Overlay.OverlayScene;
 
 namespace Thermi.Tray;
 
-/// <summary>What the tray refreshes from besides the host's own state: the scene painted, whether the window is open, and whether it has not opened since thermi's first start.</summary>
+/// <summary>
+/// What the tray refreshes from besides the host's own state: the scene painted, whether the window is open, and whether it
+/// has not opened since thermi's first start.
+/// </summary>
 internal sealed record TrayState(OverlayScene Scene, bool WindowOpen, bool FirstStart);
 
 /// <summary>What the tray reaches in the host: its window, settings, visibility, overlays and actions, and the sensor service's state.</summary>
-internal sealed record TrayParts(HWND Hwnd, Settings Settings, OverlayVisibility Visibility, IReadOnlyList<OverlayWindow> Overlays, OverlayActions Actions, HostEnvironment Environment, Func<ServiceState> Service);
+internal sealed record TrayParts(
+    HWND Hwnd,
+    Settings Settings,
+    OverlayVisibility Visibility,
+    IReadOnlyList<OverlayWindow> Overlays,
+    OverlayActions Actions,
+    HostEnvironment Environment,
+    Func<ServiceState> Service);
 
 /// <summary>
 /// thermi's icon and the items' icons, in the host's process: their refresh with thermi's mark, the notices from
@@ -59,7 +69,9 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         };
         var primary = scene.Screens.FirstOrDefault(screen => screen.Primary) ?? (scene.Screens.Count > 0 ? scene.Screens[0] : null);
         // Under high contrast the mark is the glyph in the system's text color, which only Windows knows.
-        var icons = TrayScene.Of(scene.Config, input).Select(icon => icon.Mark == MarkState.HighContrast && scene.HighContrast is { } system ? icon with { Color = system.WindowText } : icon).ToList();
+        var icons = TrayScene.Of(scene.Config, input)
+            .Select(icon => icon.Mark == MarkState.HighContrast && scene.HighContrast is { } system ? icon with { Color = system.WindowText } : icon)
+            .ToList();
         _icons.Refresh(icons, TrayIcons.SizeAt((uint)Math.Round((primary?.Scale ?? 1) * 96)));
 
         // A change while the window is open is taken as the window's, whose list already says what is hidden.
@@ -79,13 +91,18 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         var numbers = Actions.Culture;
         foreach (var (item, reading, notice) in _notifyMe.Add(config, snapshot, fullScreen))
         {
-            var name = item.Name ?? OverlayLayout.LabelOf(item, texts) ?? item.Id;
+            var name = item.Name
+                ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? texts.Of(metric.Name) : null)
+                ?? OverlayLayout.LabelOf(item, texts)
+                ?? item.Id;
             var value = ReadingFormatter.Format(reading with { Value = notice.Value }, numbers, units: true, config.Temperature, item.Decimals, texts);
             var length = LengthOf(notice.Length, texts, numbers);
             _icons.Notify(
                 ThermiId,
                 texts.Format(numbers, notice.WhilePlaying ? HostText.CriticalWhilePlayingTitle : HostText.CriticalTitle, name),
-                notice.WhilePlaying ? texts.Format(numbers, HostText.CriticalWhilePlaying, name, value, length) : texts.Format(numbers, HostText.Critical, value, length));
+                notice.WhilePlaying
+                    ? texts.Format(numbers, HostText.CriticalWhilePlaying, name, value, length)
+                    : texts.Format(numbers, HostText.Critical, value, length));
         }
     }
 
@@ -111,7 +128,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         }
         else if (what == PInvoke.WM_CONTEXTMENU)
         {
-            Menu(icon.ItemId is null ? null : TrayScene.OverlayOf(config, icon.ItemId));
+            Menu(icon.ItemId is null ? null : TrayScene.OverlayOf(config, icon.ItemId), fromTray: true);
         }
         else if (what == PInvoke.WM_LBUTTONDBLCLK && icon.ItemId is not null)
         {
@@ -123,15 +140,18 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         }
     }
 
-    /// <summary>Shows thermi's menu, or with <paramref name="overlay"/> that overlay's, and does what is chosen.</summary>
-    public void Menu(int? overlay)
+    /// <summary>
+    /// Shows thermi's menu, or with <paramref name="overlay"/> that overlay's, from the overlay or, <paramref name="fromTray"/>,
+    /// from one of its items' icons, and does what is chosen.
+    /// </summary>
+    public void Menu(int? overlay, bool fromTray = false)
     {
         if (overlay >= Math.Min(Settings.Config.Overlays.Count, parts.Overlays.Count))
         {
             return;
         }
 
-        var (rows, place) = RowsOf(overlay);
+        var (rows, place) = RowsOf(overlay, fromTray);
         if (ThermiMenus.Show(rows, place, overlay is { } owner ? parts.Overlays[owner].Hwnd : parts.Hwnd) is { } chosen)
         {
             Choose(chosen, overlay);
@@ -141,7 +161,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     public void Dispose() => _icons.Dispose();
 
     /// <summary>The rows of thermi's menu, or with <paramref name="overlay"/> that overlay's, and where they show.</summary>
-    internal (IReadOnlyList<MenuRow> Rows, MenuPlace Place) RowsOf(int? overlay)
+    internal (IReadOnlyList<MenuRow> Rows, MenuPlace Place) RowsOf(int? overlay, bool fromTray = false)
     {
         var config = Settings.Config;
         var undo = Actions.Gestures?.Offered;
@@ -153,7 +173,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
             [.. Looks().Select(style => style.Name).OfType<string>()],
             UpdateReady: false);
         var texts = Translations;
-        var rows = overlay is { } shown ? Menus.OfOverlay(config, shown, state) : Menus.Thermis(config, state);
+        var rows = overlay is { } shown ? Menus.OfOverlay(config, shown, state, fromTray) : Menus.Thermis(config, state);
         return (rows, new MenuPlace(config, texts, Actions.Culture, overlay) { UndoText = undo is { } offered ? texts.Of(offered) : null });
     }
 
@@ -174,7 +194,8 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
                 parts.Visibility.HideOverlays = row.Entry == MenuEntry.HideOverlays;
                 break;
             case MenuEntry.ShowHiddenOverlays or MenuEntry.ShowOverlay or MenuEntry.HideThisOverlay:
-                Settings.Edit(config => on.Aggregate(config, (current, at) => OverlayEdits.SetHidden(current, at, row.Entry == MenuEntry.HideThisOverlay).Config));
+                Settings.Edit(config => on.Aggregate(config, (current, at) =>
+                    OverlayEdits.SetHidden(current, at, row.Entry == MenuEntry.HideThisOverlay).Config));
                 break;
             case MenuEntry.UndoGesture:
                 parts.Overlays[target ?? 0].UndoGesture();
@@ -226,7 +247,8 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     {
         if (row.Entry == MenuEntry.Vertical)
         {
-            Settings.Edit(config => StyleEdits.Restyle(config, at, style => style with { Orientation = row.Checked ? Orientation.Horizontal : Orientation.Vertical }).Config);
+            var orientation = row.Checked ? Orientation.Horizontal : Orientation.Vertical;
+            Settings.Edit(config => StyleEdits.Restyle(config, at, style => style with { Orientation = orientation }).Config);
         }
         else if ((row.Look is null ? new StyleConfig() : Looks().FirstOrDefault(look => look.Name == row.Look)) is { } look)
         {

@@ -21,33 +21,45 @@ internal sealed class PageWatch : IDisposable
 
     private static readonly TimeSpan FirstPoll = TimeSpan.FromMilliseconds(250);
 
+    // A second's snapshot late by half a second: the service stopped, or its pipe went quiet, and no snapshot says so.
+    private static readonly TimeSpan QuietAfter = TimeSpan.FromMilliseconds(1500);
+
     private readonly WindowEnvironment _environment;
     private readonly TimeProvider _time;
     private readonly Action<Action> _onTurn;
     private readonly Action _changed;
+    private readonly Action _quiet;
     private readonly List<Action> _afterFirst = [];
     private readonly ITimer _waiting;
+    private readonly ITimer _quietCheck;
     private readonly long _opened;
+    private long _arrived;
     private bool _first;
     private int? _sensors;
     private long? _hotkeysDue;
     private bool _overlay;
+    private bool _answered;
 
     /// <param name="environment">The sensors, and how the overlay is asked for its hotkeys.</param>
     /// <param name="time">The clock of the first readings' wait and of asking after a change.</param>
     /// <param name="onTurn">Runs an action on the window's thread.</param>
     /// <param name="changed">Tells the page, on the window's thread, that the hotkey status changed.</param>
-    public PageWatch(WindowEnvironment environment, TimeProvider time, Action<Action> onTurn, Action changed)
+    /// <param name="quiet">Runs on the window's thread each second no snapshot came, as one coming would.</param>
+    public PageWatch(WindowEnvironment environment, TimeProvider time, Action<Action> onTurn, Action changed, Action quiet)
     {
         _environment = environment;
         _time = time;
         _onTurn = onTurn;
         _changed = changed;
-        _opened = time.GetTimestamp();
+        _quiet = quiet;
+        _opened = _arrived = time.GetTimestamp();
         _sensors = Signature(environment.Sensors.Latest, environment.Sensors.State);
-        Hotkeys = environment.HotkeyStatus();
-        _overlay = Hotkeys is not null;
         _waiting = time.CreateTimer(_ => onTurn(Waited), null, TimeSpan.Zero, FirstPoll);
+        _quietCheck = time.CreateTimer(_ => onTurn(Quieted), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+
+        // Off the window's thread from the start too: an overlay that is slow to answer would hold the window's first
+        // frame for as long. The answer comes while the page loads, long before it reads.
+        AskHotkeys();
     }
 
     /// <summary>What <paramref name="read"/> answers once the first readings came, or none will soon: at once when they have.</summary>
@@ -86,6 +98,7 @@ internal sealed class PageWatch : IDisposable
     /// <summary>A snapshot came: true when it holds other sensors than the last one did.</summary>
     public bool Arrived(Snapshot? snapshot)
     {
+        _arrived = _time.GetTimestamp();
         Waited();
         var running = OverlayHost.Running();
         if (running != _overlay || (_hotkeysDue is { } due && _time.GetTimestamp() >= due))
@@ -114,7 +127,11 @@ internal sealed class PageWatch : IDisposable
         });
     }
 
-    public void Dispose() => _waiting.Dispose();
+    public void Dispose()
+    {
+        _waiting.Dispose();
+        _quietCheck.Dispose();
+    }
 
     // Sensors by their ids, as a snapshot names them, and the service's state, which the page reads with them; null for none.
     private static int? Signature(Snapshot? snapshot, ServiceState state)
@@ -136,10 +153,23 @@ internal sealed class PageWatch : IDisposable
 
     private void Answered(long? answer)
     {
+        if (!_answered)
+        {
+            (_answered, _overlay) = (true, answer is not null);
+        }
+
         if (answer != Hotkeys)
         {
             Hotkeys = answer;
             _changed();
+        }
+    }
+
+    private void Quieted()
+    {
+        if (_time.GetElapsedTime(_arrived) >= QuietAfter)
+        {
+            _quiet();
         }
     }
 

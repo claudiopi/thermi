@@ -69,7 +69,10 @@ public sealed class PowerItemTests
         Assert.Equal((Combine.Max, null, Metrics.CpuPower.Id), (power.Combine, power.Metric, power.Auto));
 
         // A file is held to the same range, -20 to 20 for a load: past it the whole file is broken.
-        Assert.Equal<ConfigProblemKind?>([null, ConfigProblemKind.Broken], new[] { 20, 30 }.Select(offset => ThermiConfigJson.Read(File(WithItem(new ThermiConfig(), Metrics.CpuLoad.Id, item => item with { Offset = offset }))).Problem?.Kind));
+        Assert.Equal<ConfigProblemKind?>(
+            [null, ConfigProblemKind.Broken],
+            new[] { 20, 30 }.Select(offset => ThermiConfigJson
+                .Read(File(WithItem(new ThermiConfig(), Metrics.CpuLoad.Id, item => item with { Offset = offset }))).Problem?.Kind));
     }
 
     // Each edit of a combined item, named, with what it is refused for, or null when it passes; a failure names its row.
@@ -87,7 +90,10 @@ public sealed class PowerItemTests
             ("a sensor that is gone", PowerEdits.AddCombined(empty, 0, Desktop, [Ccds[0], "/gone/0"], Combine.Max), Refusal.SensorNotFound),
             ("an overlay that is not there", PowerEdits.AddCombined(empty, 1, Desktop, Ccds, Combine.Max), Refusal.NotFound),
             ("sensors set to one", PowerEdits.SetSensors(new ThermiConfig(), Metrics.CpuPower.Id, Desktop, [cores[0]]), Refusal.CombineNeedsTwo),
-            ("sensors set to a power and a temperature", PowerEdits.SetSensors(new ThermiConfig(), Metrics.CpuPower.Id, Desktop, [cores[0], Ccds[0]]), Refusal.SensorOfAnotherType),
+            (
+                "sensors set to a power and a temperature",
+                PowerEdits.SetSensors(new ThermiConfig(), Metrics.CpuPower.Id, Desktop, [cores[0], Ccds[0]]),
+                Refusal.SensorOfAnotherType),
             ("sensors set on an item that is gone", PowerEdits.SetSensors(new ThermiConfig(), "gone", Desktop, [cores[0], cores[1]]), Refusal.NotFound),
             ("a temperature's offset under -20", PowerEdits.SetOffset(three, ids[0], Desktop, -21), Refusal.OffsetOutOfRange),
             ("a power's offset over 500", PowerEdits.SetOffset(three, ids[2], Desktop, 501), Refusal.OffsetOutOfRange),
@@ -108,7 +114,10 @@ public sealed class PowerItemTests
 
         // The item now behind another overlay, as after a merge or a move: its maximum goes with it, and only its own reset clears it.
         var other = new OverlayConfig { Items = [new ItemConfig { Id = Metrics.GpuLoad.Id, Metric = Metrics.GpuLoad.Id }] };
-        var cooler = new Dictionary<string, Reading>(TrayTextTests.Quiet, StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 65) };
+        var cooler = new Dictionary<string, Reading>(TrayTextTests.Quiet, StringComparer.Ordinal)
+        {
+            [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 65),
+        };
         history.Add([(other, TrayTextTests.Quiet), (overlay, cooler)]);
         history.Reset(other);
         var moved = OverlayLayout.Build(overlay, cooler, English, history: history).Single().Value;
@@ -129,7 +138,11 @@ public sealed class PowerItemTests
     {
         var time = new FakeTimeProvider();
 
-        var shown = Feed(new ItemHistory(time), time, Temperature(item => item with { Smooth = 3 }), [.. values.Split(' ').Select(value => double.Parse(value, CultureInfo.InvariantCulture))]);
+        var shown = Feed(
+            new ItemHistory(time),
+            time,
+            Temperature(item => item with { Smooth = 3 }),
+            [.. values.Split(' ').Select(value => double.Parse(value, CultureInfo.InvariantCulture))]);
 
         Assert.Equal(expected, string.Join('|', shown));
         Assert.Equal(Refusal.Invalid, PowerEdits.SetSmooth(new ThermiConfig(), Metrics.CpuLoad.Id, 1).Refused);
@@ -148,7 +161,10 @@ public sealed class PowerItemTests
 
         for (var second = 0; second < 70; second++)
         {
-            var readings = new Dictionary<string, Reading>(TrayTextTests.Quiet, StringComparer.Ordinal) { [Metrics.GpuLoad.Id] = new(SensorKind.Load, second % 7 == 0 ? double.NaN : second % 10 * 10) };
+            var readings = new Dictionary<string, Reading>(TrayTextTests.Quiet, StringComparer.Ordinal)
+            {
+                [Metrics.GpuLoad.Id] = new(SensorKind.Load, second % 7 == 0 ? double.NaN : second % 10 * 10),
+            };
             history.Add(overlay, readings);
             shown = OverlayLayout.Build(overlay, readings, English, history: history);
             time.Advance(TimeSpan.FromSeconds(1));
@@ -161,7 +177,9 @@ public sealed class PowerItemTests
         Assert.Equal(new GraphPoint(0.9, Level.Critical), graph[9]);
         Assert.Equal([4, 11, 18, 25, 32, 39, 46, 53], graph.Select((point, at) => (point, at)).Where(each => each.point is null).Select(each => each.at));
         Assert.Null(shown.Single(item => item.Id == Metrics.CpuFan.Id).Graph);
-        Assert.Equal([new GraphPoint(0.03, Level.Normal)], OverlayLayout.Build(overlay, TrayTextTests.Quiet, English).Single(item => item.Label == "GPU").Graph);
+        Assert.Equal(
+            [new GraphPoint(0.03, Level.Normal)],
+            OverlayLayout.Build(overlay, TrayTextTests.Quiet, English).Single(item => item.Label == "GPU").Graph);
         Assert.Equal(Refusal.MeterNeeded, PowerEdits.SetGraph(config, Metrics.CpuPower.Id, true).Refused);
         Assert.False(Item(Done(ItemEdits.SetMeter(config, Metrics.GpuLoad.Id, Desktop, null)), Metrics.GpuLoad.Id).Graph);
 
@@ -178,10 +196,15 @@ public sealed class PowerItemTests
         var shown = OverlayLayout.Build(config.Overlays[0], TrayTextTests.Quiet, English).Single(item => item.Label == "RAM");
 
         Assert.Equal(["27 GB", "27.3 GB", "27.34 GB"], new[] { 0, 1, 2 }.Select(decimals => ReadingFormatter.Format(ram, English, decimals: decimals)));
-        Assert.Equal(["889 GB", "888.8 GB", "888.80 GB"], new[] { 0, 1, 2 }.Select(decimals => ReadingFormatter.Widest(SensorKind.Data, English, decimals: decimals)));
+        Assert.Equal(
+            ["889 GB", "888.8 GB", "888.80 GB"],
+            new[] { 0, 1, 2 }.Select(decimals => ReadingFormatter.Widest(SensorKind.Data, English, decimals: decimals)));
         Assert.Equal(("27.30 GB", "888.80 GB"), (shown.Value, shown.Room));
         Assert.Equal("1,087.0 RPM", ReadingFormatter.Format(new Reading(SensorKind.Fan, 1087), English, decimals: 1));
-        Assert.Equal(["27.3", "62.0", "62"], new[] { (27.34, 2), (62, 1), (62, 0) }.Select(each => TrayTexts.IconText(new Reading(SensorKind.Data, each.Item1), English, decimals: each.Item2)));
+        Assert.Equal(
+            ["27.3", "62.0", "62"],
+            new[] { (27.34, 2), (62, 1), (62, 0) }
+                .Select(each => TrayTexts.IconText(new Reading(SensorKind.Data, each.Item1), English, decimals: each.Item2)));
         Assert.Equal(Refusal.Invalid, PowerEdits.SetDecimals(config, Metrics.RamUsed.Id, 3).Refused);
         Assert.Null(Item(Done(PowerEdits.SetDecimals(config, Metrics.RamUsed.Id, null)), Metrics.RamUsed.Id).Decimals);
     }
@@ -207,7 +230,10 @@ public sealed class PowerItemTests
         Assert.True(Item(Done(PowerEdits.SetNotify(lined, Metrics.GpuLoad.Id, true)), Metrics.GpuLoad.Id).Notify);
         Assert.False(Item(Done(PowerEdits.SetAlertOnly(new ThermiConfig(), Metrics.CpuPower.Id, false)), Metrics.CpuPower.Id).AlertOnly);
         Assert.False(Item(Done(ItemEdits.SetMeter(config, Metrics.GpuLoad.Id, Desktop, null)), Metrics.GpuLoad.Id).AlertOnly);
-        Assert.Contains("alertOnly goes only with a meter", ThermiConfigJson.Read(File(WithItem(new ThermiConfig(), Metrics.CpuPower.Id, item => item with { AlertOnly = true }))).Problem?.Reason, StringComparison.Ordinal);
+        Assert.Contains(
+            "alertOnly goes only with a meter",
+            ThermiConfigJson.Read(File(WithItem(new ThermiConfig(), Metrics.CpuPower.Id, item => item with { AlertOnly = true }))).Problem?.Reason,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -225,7 +251,9 @@ public sealed class PowerItemTests
         Assert.Equal([10, 5, 0], corners.Select(config => Look(config).Radius(20)));
         Assert.Equal([100, 132], gaps.Select(config => Look(config).Arrange([50, 50], 20, 2).Width));
         Assert.Equal([TextEffect.None, TextEffect.Shadow, TextEffect.Outline, TextEffect.None], effects.Select(config => Look(config).Effect));
-        Assert.Equal((TextEffect.Shadow, TextEffect.Outline), (Look(faded).Effect, OverlayLook.Of(faded.Overlays[0].Style with { Effect = TextEffect.Outline }, false).Effect));
+        Assert.Equal(
+            (TextEffect.Shadow, TextEffect.Outline),
+            (Look(faded).Effect, OverlayLook.Of(faded.Overlays[0].Style with { Effect = TextEffect.Outline }, false).Effect));
         Assert.Equal((1.0, PillColors.Dark.Outer), (OverlayLook.OutlineWidth, Look(effects[2]).OutlineColor));
         Assert.All([.. fonts, .. corners, .. gaps, .. effects, faded], config => Assert.Equal(StylePreset.Large, config.Overlays[0].Style.Preset));
         Assert.Equal(Refusal.Invalid, StyleEdits.Restyle(large, 0, style => style with { Gap = 17 }).Refused);
@@ -234,7 +262,7 @@ public sealed class PowerItemTests
     [Fact]
     public void AFileHoldsUpToFourOverlays()
     {
-        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v2.json"));
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v3.json"));
         var twoAlike = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {} ] }").Config;
         var (_, fiveProblem) = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {}, {}, {}, {} ] }");
 
@@ -261,7 +289,9 @@ public sealed class PowerItemTests
     [InlineData(null)]
     public void OledCareMovesTheOverlayAroundASmallSquare(SnapSpot? spot)
     {
-        var overlay = spot is { } snapped ? new OverlayConfig { Oled = true, Snap = new SnapConfig(snapped) } : new OverlayConfig { Oled = true, Position = new Position(100, 200) };
+        var overlay = spot is { } snapped
+            ? new OverlayConfig { Oled = true, Snap = new SnapConfig(snapped) }
+            : new OverlayConfig { Oled = true, Position = new Position(100, 200) };
         var written = ThermiConfigJson.Write(new ThermiConfig { Overlays = [overlay] });
         var home = Snaps.Locate(overlay with { Oled = false }, [SnapTests.Main], 300, 54)!;
 
@@ -275,7 +305,8 @@ public sealed class PowerItemTests
         Assert.Equal(written, ThermiConfigJson.Write(new ThermiConfig { Overlays = [overlay] }));
         Assert.Equal(
             [(1, 1), (-1, 1), (1, -1), (1, -1), (-1, -1)],
-            new SnapSpot[] { SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.TaskbarLeft, SnapSpot.TaskbarRight }.Select(each => OledCare.Shift(each, OledCare.Step * 2)));
+            new SnapSpot[] { SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.TaskbarLeft, SnapSpot.TaskbarRight }
+                .Select(each => OledCare.Shift(each, OledCare.Step * 2)));
     }
 
     [Fact]
@@ -291,7 +322,13 @@ public sealed class PowerItemTests
         Assert.Equal(new StyleColors { Normal = "#0072B2", Warning = "#E69F00", Critical = "#D55E00", Label = "#C0C0C0" }, style.Colors);
         Assert.Equal(["#0072B2", "#E69F00", "#D55E00"], levels.Select(level => look.MeterColor(level).ToString()));
         Assert.Equal((system.Window, system.WindowText), (contrast.Pills.Outer, contrast.Pills.Border));
-        Assert.Equal([system.WindowText, system.WindowText, system.WindowText], [contrast.LabelColor.Color, contrast.ValueColor.Color, contrast.ValueColorOf(new OverlayItem("CPU", "62 °C", Level.Normal, "100 °C") { Color = "#FF0000" }).Color]);
+        Assert.Equal(
+            [system.WindowText, system.WindowText, system.WindowText],
+            [
+                contrast.LabelColor.Color,
+                contrast.ValueColor.Color,
+                contrast.ValueColorOf(new OverlayItem("CPU", "62 °C", Level.Normal, "100 °C") { Color = "#FF0000" }).Color,
+            ]);
         Assert.Equal([system.WindowText, system.Highlight, system.HotTrack], levels.Select(contrast.MeterColor));
         Assert.True(contrast.HighContrast);
         Assert.False(look.HighContrast);
@@ -317,13 +354,15 @@ public sealed class PowerItemTests
         Assert.Equal(stat, Item(Done(PowerEdits.SetStat(new ThermiConfig(), Metrics.CpuLoad.Id, stat)), Metrics.CpuLoad.Id).Stat);
     }
 
-    private static Dictionary<string, Reading> WithGpu(double load) => new(TrayTextTests.Quiet, StringComparer.Ordinal) { [Metrics.GpuLoad.Id] = new(SensorKind.Load, load) };
+    private static Dictionary<string, Reading> WithGpu(double load) =>
+        new(TrayTextTests.Quiet, StringComparer.Ordinal) { [Metrics.GpuLoad.Id] = new(SensorKind.Load, load) };
 
     // Pills of 60 px an item, 36 px tall at 150 %.
     private static int Width(OverlayConfig overlay, IReadOnlyList<OverlayItem> shown) =>
         (int)OverlayLook.Of(overlay.Style, lightTaskbar: false).Arrange([.. OverlayLayout.Groups(shown).Select(pill => 60.0 * pill.Count)], 36, 1.5).Width;
 
-    private static int RightEdge(OverlayConfig overlay, IReadOnlyList<OverlayItem> shown) => Snaps.Locate(overlay, [SnapTests.Main], Width(overlay, shown), 54)!.X + Width(overlay, shown);
+    private static int RightEdge(OverlayConfig overlay, IReadOnlyList<OverlayItem> shown) =>
+        Snaps.Locate(overlay, [SnapTests.Main], Width(overlay, shown), 54)!.X + Width(overlay, shown);
 
     private static ThermiConfig Restyled(ThermiConfig config, Func<StyleConfig, StyleConfig> change) => Done(StyleEdits.Restyle(config, 0, change));
 

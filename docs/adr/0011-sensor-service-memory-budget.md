@@ -15,7 +15,7 @@ Published ReadyToRun as installed, for 25 minutes from minute 10: as it is, 72 M
 
 ## Decision
 
-- **Budget**: the sensor service stays under 80 MB of private memory at rest, with a 1 second refresh, network and drives read.
+- **Budget**: the sensor service stays under 80 MB of private memory at rest, with a 1 second refresh, network and drives read, and under 3 % of one core, averaged over a minute. Measured on the same PC from the performance counters, 60 samples 2 s apart with the overlay and no window open, the installed service took 2.1 % of one core on average and 3.9 % at most; ADR 0001 had set no CPU target for it. `scripts/measure.ps1` fails past either.
 - **The GC**: the service runs with a 2 MB young generation, `DOTNET_GCgen0size=200000` (hex). `scripts/install.ps1` writes it as the service's own environment, the `Environment` value of its key under `HKLM\SYSTEM\CurrentControlSet\Services`, as it registers the service; deleting the service deletes it. Nothing else on the PC sees it, and the GC still grows the heap as far as it needs.
 - **Drives** are updated every 5 s and send their last values between (`LhmSensorSource.StorageEvery`), for the CPU and the disk requests each update makes.
 
@@ -34,4 +34,4 @@ Published ReadyToRun as installed, for 25 minutes from minute 10: as it is, 72 M
 
 ## What it replaces in earlier ADRs
 
-- `docs/adr/0001-architecture.md`, Budget: "the sensor host under 30 MB" becomes "the sensor host under 80 MB", with the young generation above.
+- `docs/adr/0001-architecture.md`, Budget: "the sensor host under 30 MB" becomes "the sensor host under 80 MB and 3 % of one core", with the young generation above.

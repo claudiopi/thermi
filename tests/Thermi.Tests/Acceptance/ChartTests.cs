@@ -42,15 +42,22 @@ public sealed class ChartTests
     [InlineData("/amdcpu/0/load/0", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=")]
     [InlineData("/lpc/it8689e/0/control/0", SensorKind.Control, 85.0, null, 1.0, 5.0, "0 100|0|100 %#= /lpc/it8689e/0/fan/0")]
     [InlineData("/lpc/it8689e/0/fan/0", SensorKind.Fan, null, null, 50.0, 100.0, "0 1500|0|10,000 RPM#= /lpc/it8689e/0/control/0")]
-    [InlineData("/amdcpu/0/power/0", null, null, null, 0.0, 0.0, "0 0|#")]
-    [InlineData("/amdcpu/0/clock/1", null, null, null, 0.0, 0.0, "0 0|#")]
-    [InlineData("/ram/data/0", null, null, null, 0.0, 0.0, "0 0|#")]
+    [InlineData("/amdcpu/0/power/0", null, null, null, 0.0, 0.0, "0 100|#")]
+    [InlineData("/amdcpu/0/clock/1", null, null, null, 0.0, 0.0, "0 10000|#")]
+    [InlineData("/ram/data/0", null, null, null, 0.0, 0.0, "0 50|#")]
     [InlineData($"{MadeUpHardware.Samsung}/temperature/0", SensorKind.Temperature, 70.0, 80.0, 1.0, 5.0, "40 85|0|100 °C#=")]
     [InlineData($"{MadeUpHardware.Ethernet}/throughput/8", SensorKind.Throughput, null, null, 100e3, 1e6, "0 100000000|0|100 GB/s#=")]
     [InlineData($"{MadeUpHardware.Samsung}/load/53", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=")]
     [InlineData($"{MadeUpHardware.Battery}/level/0", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=")]
     [InlineData($"{MadeUpHardware.Battery}/timespan/0", null, null, null, 0.0, 0.0, "0 0|#")]
-    public void ThresholdsAndTheChartFollowTheMetersType(string sensor, SensorKind? kind, double? warning, double? critical, double step, double push, string chart)
+    public void ThresholdsAndTheChartFollowTheMetersType(
+        string sensor,
+        SensorKind? kind,
+        double? warning,
+        double? critical,
+        double step,
+        double push,
+        string chart)
     {
         var (lines, meters) = (chart.Split('#')[0], chart.Split('#')[1]);
         var (range, ends) = (lines.Split('|')[0], lines.Split('|')[1..]);
@@ -69,8 +76,20 @@ public sealed class ChartTests
             Assert.Equal(Metrics.CpuFan.Id, Offered(new ItemConfig { Metric = Metrics.CpuFan.Id, Sensors = [sensor, sensor] }, snapshot));
         }
 
+        if (sensor == SensorMap.Chosen(snapshot, new OverlayConfig())[Metrics.RamUsed.Id]?.Id)
+        {
+            // The RAM in use, made from its metric, has no lines in GB that suit every PC, so it is judged by the RAM's load.
+            Assert.Equal(Metrics.RamLoad.Id, Offered(new ItemConfig { Metric = Metrics.RamUsed.Id }, snapshot));
+        }
+
         if (scale is null)
         {
+            // An item that cannot be metered still charts its own reading, without lines, from 0 to its highest plus 15 %,
+            // up to a 1-2-5 step; a reading that is no number, as a time, charts nothing.
+            var reading = MeterChart.OfReading(sensor, snapshot);
+            var (start, end) = reading is null ? default : MeterChart.Range(reading, [value]);
+            Assert.Equal(range, string.Create(CultureInfo.InvariantCulture, $"{start} {end}"));
+            Assert.True(reading is null or { Warning: null, Critical: null });
             return;
         }
 
@@ -90,7 +109,9 @@ public sealed class ChartTests
             var pushedDown = MeterChart.Pushed(scale, low, low - 1, ChartLine.Critical);
             Assert.Equal(pushedUp, MeterChart.Pushed(scale, past, high, ChartLine.Warning));
             Assert.Equal(new MovedLines(low - 1 - push, low - 1, ChartLine.Warning), pushedDown);
-            Assert.Equal(Format(ChartText.WarningPushed, ReadingFormatter.Format(new Reading(scale.Kind, low - 1 - push), English)), MeterChart.PushText(scale, pushedDown, InEnglish));
+            Assert.Equal(
+                Format(ChartText.WarningPushed, ReadingFormatter.Format(new Reading(scale.Kind, low - 1 - push), English)),
+                MeterChart.PushText(scale, pushedDown, InEnglish));
             Assert.Null(MeterChart.PushText(scale, MeterChart.Pushed(scale, low, high, ChartLine.Warning), InEnglish));
         }
 
@@ -99,14 +120,18 @@ public sealed class ChartTests
         {
             Assert.Equal(
                 (false, true),
-                (MeterChart.FiresMostly([.. Enumerable.Repeat<double?>(lowest, 300), null, lowest - 1], warning, critical), MeterChart.FiresMostly([.. Enumerable.Repeat<double?>(lowest, 301), null], warning, critical)));
+                (
+                    MeterChart.FiresMostly([.. Enumerable.Repeat<double?>(lowest, 300), null, lowest - 1], warning, critical),
+                    MeterChart.FiresMostly([.. Enumerable.Repeat<double?>(lowest, 301), null], warning, critical)));
         }
 
         if (kind == SensorKind.Temperature)
         {
             // In °F the box takes 32 to 212, and a pushed line says where it went in °F.
             var fahrenheit = InEnglish with { Temperature = TemperatureUnit.Fahrenheit };
-            Assert.Equal([null, Format(ChartText.OutOfRange, "32", "212 °F")], new[] { "212", "213" }.Select(typed => MeterChart.Check(scale, typed, fahrenheit)));
+            Assert.Equal(
+                [null, Format(ChartText.OutOfRange, "32", "212 °F")],
+                new[] { "212", "213" }.Select(typed => MeterChart.Check(scale, typed, fahrenheit)));
             Assert.Equal(Format(ChartText.CriticalPushed, "212 °F"), MeterChart.PushText(scale, new MovedLines(97, 100, ChartLine.Critical), fahrenheit));
         }
     }

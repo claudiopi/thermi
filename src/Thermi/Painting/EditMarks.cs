@@ -35,7 +35,11 @@ internal sealed record EditMarks(Fade Fade, string? Selected, string? Pointed, R
 
     private const int PointedAlpha = 128;
 
-    public OverlayLook Applied(OverlayLook look) => Fade switch
+    /// <summary>
+    /// The look with its fade, or, <paramref name="held"/> in a drag over other overlays and the window's fades, with a
+    /// background of its own whatever the look's opacity.
+    /// </summary>
+    public OverlayLook Applied(OverlayLook look, bool held = false) => held ? look with { Background = 1, Opacity = 1 } : Fade switch
     {
         Fade.Frame => look with { Background = look.Background * FrameFade },
         Fade.Whole => look with { Opacity = look.Opacity * WholeFade },

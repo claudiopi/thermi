@@ -16,7 +16,9 @@ public sealed class TrayRefresh
 
     public TrayUpdate Next(IReadOnlyList<TrayIcon> icons)
     {
-        var redrawn = icons.Where(icon => !_shown.TryGetValue(icon.Id, out var was) || was.Text != icon.Text || was.Color != icon.Color || was.Mark != icon.Mark).ToList();
+        var redrawn = icons
+            .Where(icon => !_shown.TryGetValue(icon.Id, out var was) || was.Text != icon.Text || was.Color != icon.Color || was.Mark != icon.Mark)
+            .ToList();
         var retipped = icons.Where(icon => _shown.TryGetValue(icon.Id, out var was) && was.Tooltip != icon.Tooltip && !redrawn.Contains(icon)).ToList();
         var removed = _shown.Keys.Where(id => icons.All(icon => icon.Id != id)).ToList();
         _shown = icons.ToDictionary(icon => icon.Id);

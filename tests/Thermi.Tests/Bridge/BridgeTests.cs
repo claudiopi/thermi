@@ -17,9 +17,13 @@ public sealed class BridgeTests
     // error of "*" is one whose words are the bridge's, which only a log reads: that it fails is the behavior, and an
     // exception's own message crosses as it is.
     [Theory]
-    [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":2,"temperature":"f","overlays":[]}}""")]
-    [InlineData("""{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""", """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]
-    [InlineData("""{"id":3,"method":"edit","args":[{"kind":"line","item":"cpu.temperature","line":"critical","value":95}]}""", """{"id":3,"result":"LineEdit { Item = cpu.temperature, Line = Critical, Value = 95 }"}""")]
+    [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":3,"temperature":"f","overlays":[]}}""")]
+    [InlineData(
+        """{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""",
+        """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]
+    [InlineData(
+        """{"id":3,"method":"edit","args":[{"kind":"line","item":"cpu.temperature","line":"critical","value":95}]}""",
+        """{"id":3,"result":"LineEdit { Item = cpu.temperature, Line = Critical, Value = 95 }"}""")]
     [InlineData("""{"id":4,"method":"history","args":["cpu.load"]}""", """{"id":4,"result":[1.5,null]}""")]
     [InlineData("""{"id":5,"method":"editing","args":[null,"cpu.load",null]}""", """{"id":5,"result":null}""")]
     [InlineData("""{"id":6,"method":"undo","args":[]}""", """{"id":6,"error":"Boom"}""")]

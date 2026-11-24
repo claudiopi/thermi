@@ -29,13 +29,29 @@ internal sealed unsafe class LayeredPicture : IDisposable
     public void Show(HWND window, Bitmap picture, Position position, byte alpha = 255)
     {
         Fit(picture.Size);
-        var copy = new BitmapData { Width = _size.Width, Height = _size.Height, Stride = _size.Width * 4, PixelFormat = PixelFormat.Format32bppPArgb, Scan0 = (nint)_bits };
+        var copy = new BitmapData
+        {
+            Width = _size.Width,
+            Height = _size.Height,
+            Stride = _size.Width * 4,
+            PixelFormat = PixelFormat.Format32bppPArgb,
+            Scan0 = (nint)_bits,
+        };
         // Into the buffer given, Windows' bitmap, converted on the way: ImageLockMode's values are flags, though not marked so.
         var into = (ImageLockMode)((int)ImageLockMode.ReadOnly | (int)ImageLockMode.UserInputBuffer);
         picture.LockBits(new Rectangle(Point.Empty, _size), into, PixelFormat.Format32bppPArgb, copy);
         picture.UnlockBits(copy);
         var blend = new BLENDFUNCTION { SourceConstantAlpha = alpha, AlphaFormat = (byte)PInvoke.AC_SRC_ALPHA };
-        PInvoke.UpdateLayeredWindow(window, default, new Point(position.X, position.Y), new SIZE(_size.Width, _size.Height), _memory, new Point(0, 0), default, blend, UPDATE_LAYERED_WINDOW_FLAGS.ULW_ALPHA);
+        PInvoke.UpdateLayeredWindow(
+            window,
+            default,
+            new Point(position.X, position.Y),
+            new SIZE(_size.Width, _size.Height),
+            _memory,
+            new Point(0, 0),
+            default,
+            blend,
+            UPDATE_LAYERED_WINDOW_FLAGS.ULW_ALPHA);
     }
 
     public void Dispose() => Release();

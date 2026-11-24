@@ -16,7 +16,10 @@ using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows;
 
-/// <summary>What the snap math, the look and the visibility need from Windows: the monitors, their taskbars and notification areas, the taskbar's mode, high contrast, the window in front, what Windows says the user is doing, and the cursor.</summary>
+/// <summary>
+/// What the snap math, the look and the visibility need from Windows: the monitors, their taskbars and notification areas,
+/// the taskbar's mode, high contrast, the window in front, what Windows says the user is doing, and the cursor.
+/// </summary>
 internal static class Desktop
 {
     private const string Personalize = @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
@@ -42,8 +45,13 @@ internal static class Desktop
     public static unsafe HighContrastColors? HighContrast()
     {
         var info = new HIGHCONTRASTW { cbSize = (uint)sizeof(HIGHCONTRASTW) };
-        return PInvoke.SystemParametersInfo(SYSTEM_PARAMETERS_INFO_ACTION.SPI_GETHIGHCONTRAST, info.cbSize, &info, default) && info.dwFlags.HasFlag(HIGHCONTRASTW_FLAGS.HCF_HIGHCONTRASTON)
-            ? new HighContrastColors(SystemColor(SYS_COLOR_INDEX.COLOR_WINDOW), SystemColor(SYS_COLOR_INDEX.COLOR_WINDOWTEXT), SystemColor(SYS_COLOR_INDEX.COLOR_HIGHLIGHT), SystemColor(SYS_COLOR_INDEX.COLOR_HOTLIGHT))
+        return PInvoke.SystemParametersInfo(SYSTEM_PARAMETERS_INFO_ACTION.SPI_GETHIGHCONTRAST, info.cbSize, &info, default)
+            && info.dwFlags.HasFlag(HIGHCONTRASTW_FLAGS.HCF_HIGHCONTRASTON)
+            ? new HighContrastColors(
+                SystemColor(SYS_COLOR_INDEX.COLOR_WINDOW),
+                SystemColor(SYS_COLOR_INDEX.COLOR_WINDOWTEXT),
+                SystemColor(SYS_COLOR_INDEX.COLOR_HIGHLIGHT),
+                SystemColor(SYS_COLOR_INDEX.COLOR_HOTLIGHT))
             : null;
     }
 
@@ -67,7 +75,9 @@ internal static class Desktop
         var length = PInvoke.GetClassName(window, name);
         return new ForegroundWindow(new string(name[..Math.Max(0, length)]), Pixels(rect), PInvoke.IsZoomed(window), PInvoke.IsIconic(window))
         {
-            Monitor = MonitorInfo(PInvoke.MonitorFromWindow(window, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONULL)) is { } monitor ? Pixels(monitor.monitorInfo.rcMonitor) : null,
+            Monitor = MonitorInfo(PInvoke.MonitorFromWindow(window, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONULL)) is { } monitor
+                ? Pixels(monitor.monitorInfo.rcMonitor)
+                : null,
         };
     }
 
@@ -143,7 +153,13 @@ internal static class Desktop
             stale |= gone;
             var taskbar = taskbars.FirstOrDefault(each => each.Monitor == monitor.Handle);
             var work = info is { } now ? Pixels(now.monitorInfo.rcWork) : monitor.Screen.Work;
-            screens.Add(monitor.Screen with { Scale = (gone ? 96 : dpi) / 96.0, Work = work, Taskbar = taskbar.Monitor.IsNull ? null : taskbar.Bar, Tray = taskbar.Tray });
+            screens.Add(monitor.Screen with
+            {
+                Scale = (gone ? 96 : dpi) / 96.0,
+                Work = work,
+                Taskbar = taskbar.Monitor.IsNull ? null : taskbar.Bar,
+                Tray = taskbar.Tray,
+            });
         }
 
         return screens;
@@ -171,7 +187,12 @@ internal static class Desktop
         }
 
         var (id, connection) = Identify(info.szDevice.ToString());
-        var screen = new Screen(id, (info.monitorInfo.dwFlags & PInvoke.MONITORINFOF_PRIMARY) != 0, Pixels(info.monitorInfo.rcMonitor), Pixels(info.monitorInfo.rcWork), 1);
+        var screen = new Screen(
+            id,
+            (info.monitorInfo.dwFlags & PInvoke.MONITORINFOF_PRIMARY) != 0,
+            Pixels(info.monitorInfo.rcMonitor),
+            Pixels(info.monitorInfo.rcWork),
+            1);
         return (new ListedMonitor(monitor, screen), connection);
     }
 
@@ -217,7 +238,10 @@ internal static class Desktop
     {
         foreach (var (taskbarClass, trayClass) in new[] { (MainTaskbar, "TrayNotifyWnd"), (OtherTaskbar, "ClockButton") })
         {
-            for (var bar = PInvoke.FindWindowEx(HWND.Null, HWND.Null, taskbarClass, null); !bar.IsNull; bar = PInvoke.FindWindowEx(HWND.Null, bar, taskbarClass, null))
+            for (
+                var bar = PInvoke.FindWindowEx(HWND.Null, HWND.Null, taskbarClass, null);
+                !bar.IsNull;
+                bar = PInvoke.FindWindowEx(HWND.Null, bar, taskbarClass, null))
             {
                 PInvoke.GetWindowRect(bar, out var rect);
                 var tray = PInvoke.FindWindowEx(bar, HWND.Null, trayClass, null);
@@ -227,7 +251,8 @@ internal static class Desktop
     }
 
     private static List<(HMONITOR Monitor, PixelRect Bar, PixelRect? Tray)> Taskbars() =>
-        [.. TaskbarWindows().Select(each => (PInvoke.MonitorFromRect(Rect(each.Bounds), MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST), each.Bounds, each.Tray))];
+        [.. TaskbarWindows().Select(each =>
+            (PInvoke.MonitorFromRect(Rect(each.Bounds), MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST), each.Bounds, each.Tray))];
 
     private static RECT Rect(PixelRect pixels) => new() { left = pixels.Left, top = pixels.Top, right = pixels.Right, bottom = pixels.Bottom };
 

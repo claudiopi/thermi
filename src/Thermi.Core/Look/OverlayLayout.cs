@@ -18,7 +18,10 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     /// <summary>The value's own color as #RRGGBB, or null for the style's.</summary>
     public string? Color { get; init; }
 
-    /// <summary>A graph meter's last minute, a value a second and oldest first, null where one was missing; null without a graph, as a pill draws no other meter.</summary>
+    /// <summary>
+    /// A graph meter's last minute, a value a second and oldest first, null where one was missing;
+    /// null without a graph, as a pill draws no other meter.
+    /// </summary>
     public IReadOnlyList<GraphPoint?>? Graph { get; init; }
 
     /// <summary>What <see cref="Value"/> is: the value now, or a minimum, maximum or average, which the stage marks as since the window opened.</summary>
@@ -84,7 +87,10 @@ public static class OverlayLayout
         return items;
     }
 
-    /// <summary>The label an item shows: its own, or its metric's in the language of <paramref name="texts"/>. A sensor item without one joins the pill before it.</summary>
+    /// <summary>
+    /// The label an item shows: its own, or its metric's in the language of <paramref name="texts"/>.
+    /// A sensor item without one joins the pill before it.
+    /// </summary>
     public static string? LabelOf(ItemConfig item, Texts? texts = null) =>
         item.Label ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? (texts ?? Texts.English).Of(metric.Label) : null);
 
@@ -107,7 +113,9 @@ public static class OverlayLayout
     /// A combined item leaves out its sensors without a value, and is missing when none is left.
     /// </summary>
     internal static Reading? ReadingOf(ItemConfig item, IReadOnlyDictionary<string, Reading> readings) =>
-        SourceOf(item, readings) is { } reading ? reading with { Value = reading.Usable + item.Offset, Bits = item.Bits && reading.Kind == SensorKind.Throughput } : null;
+        SourceOf(item, readings) is { } reading
+            ? reading with { Value = reading.Usable + item.Offset, Bits = item.Bits && reading.Kind == SensorKind.Throughput }
+            : null;
 
     /// <summary>
     /// What an item's meter reads, or null when it has none or its sensor is gone. An item metered by itself meters the
@@ -123,9 +131,14 @@ public static class OverlayLayout
     public static bool MetersItself(ItemConfig item) =>
         item.Meter is { } meter && ((meter.Metric is not null && meter.Metric == item.Metric) || (meter.Sensor is not null && meter.Sensor == item.Sensor));
 
-    /// <summary>The level its thresholds give its meter: normal without a meter, thresholds or a value.</summary>
+    /// <summary>
+    /// The level its thresholds give its meter: normal without a meter, thresholds or a value. An item metered by itself
+    /// is judged as it shows, with its own decimals.
+    /// </summary>
     internal static Level LevelOf(ItemConfig item, Reading? meter) =>
-        item is { Meter: not null, Threshold: { } threshold } && meter is { } reading ? threshold.LevelOf(reading) : Level.Normal;
+        item is { Meter: not null, Threshold: { } threshold } && meter is { } reading
+            ? threshold.LevelOf(reading, MetersItself(item) ? item.Decimals : null)
+            : Level.Normal;
 
     /// <summary>
     /// The groups the overlay paints as separate pills. With pills, each label starts one, and the unlabeled items after
@@ -199,7 +212,13 @@ public static class OverlayLayout
     // A sensor the snapshot lacks has no known unit, so it keeps only the room of the missing mark. A network's speed shows
     // which way it goes by an arrow before it, the same in every language, so a pill reads "NET ↓ 12.4 MB/s ↑ 1.2 MB/s".
     // An address changes only with the network, so it keeps the room of the one it shows, not of 255.255.255.255.
-    private static (string Value, string Room)? Text(ItemConfig item, Reading? reading, IFormatProvider culture, bool units, TemperatureUnit temperature, Texts? texts)
+    private static (string Value, string Room)? Text(
+        ItemConfig item,
+        Reading? reading,
+        IFormatProvider culture,
+        bool units,
+        TemperatureUnit temperature,
+        Texts? texts)
     {
         if (reading is not { } read)
         {
@@ -208,6 +227,10 @@ public static class OverlayLayout
 
         var arrow = read.Direction == Direction.Down ? "↓ " : read.Direction == Direction.Up ? "↑ " : "";
         var value = arrow + ReadingFormatter.Format(read, culture, units, temperature, item.Decimals, texts);
-        return (value, read.Kind == SensorKind.Address ? value : arrow + ReadingFormatter.Widest(read.Kind, culture, units, temperature, item.Decimals, texts));
+        return (
+            value,
+            read.Kind == SensorKind.Address
+                ? value
+                : arrow + ReadingFormatter.Widest(read.Kind, culture, units, temperature, item.Decimals, texts));
     }
 }

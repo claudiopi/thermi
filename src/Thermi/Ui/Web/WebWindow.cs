@@ -49,6 +49,7 @@ internal sealed class WebWindow : IDisposable
         _mica = WindowFrame.Dress(Hwnd);
         _place.Restore(Hwnd, start.Settings.Config, start.Environment.Screens());
         _page.Loaded += (_, _) => Show();
+        _page.Ended += (_, _) => PageEnded();
     }
 
     public HWND Hwnd { get; }
@@ -95,7 +96,12 @@ internal sealed class WebWindow : IDisposable
     {
         try
         {
-            await _page.OpenAsync(Hwnd, _start.Environment.BrowserFolder, Path.Combine(_start.Environment.DataFolder, "WebView2"), _start.Environment.Log.IsEnabled(LogLevel.Debug), _mica);
+            await _page.OpenAsync(
+                Hwnd,
+                _start.Environment.BrowserFolder,
+                Path.Combine(_start.Environment.DataFolder, "WebView2"),
+                _start.Environment.Log.IsEnabled(LogLevel.Debug),
+                _mica);
             Fit();
         }
         catch (WebView2RuntimeNotFoundException ex)
@@ -122,6 +128,15 @@ internal sealed class WebWindow : IDisposable
         {
             Process.Start(new ProcessStartInfo(RuntimePage) { UseShellExecute = true })?.Dispose();
         }
+    }
+
+    // WebView2's browser ended, and the page's controller with it: the window says so and closes, instead of staying
+    // blank, and opens anew from the overlay's menu.
+    private void PageEnded()
+    {
+        const MESSAGEBOX_STYLE Style = MESSAGEBOX_STYLE.MB_OK | MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_SETFOREGROUND;
+        PInvoke.MessageBox(Hwnd, _start.Texts.Of(WindowText.PageEnded), _start.Texts.Of(WindowText.PageEndedTitle), Style);
+        PInvoke.DestroyWindow(Hwnd);
     }
 
     private static unsafe WNDCLASSEXW Class(WNDPROC procedure, PCWSTR name) => HiddenWindow.Plain(procedure, name) with
@@ -249,7 +264,14 @@ internal sealed class WebWindow : IDisposable
     private bool Resized(LPARAM lParam)
     {
         var suggested = Marshal.PtrToStructure<RECT>(lParam);
-        PInvoke.SetWindowPos(Hwnd, HWND.Null, suggested.left, suggested.top, suggested.right - suggested.left, suggested.bottom - suggested.top, SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+        PInvoke.SetWindowPos(
+            Hwnd,
+            HWND.Null,
+            suggested.left,
+            suggested.top,
+            suggested.right - suggested.left,
+            suggested.bottom - suggested.top,
+            SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         return true;
     }
 }

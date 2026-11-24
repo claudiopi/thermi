@@ -53,18 +53,54 @@ export function rowsOf(settings: Settings, view: WindowView, folded: ReadonlySet
     const label = count === 1 ? say('UiText.OverlayOneItem', name) : say('UiText.OverlayItems', name, count);
     // A hidden overlay shows only here, so its row says it where an item's says its value.
     const hidden = overlay.hidden === true ? { value: say('UiText.OverlayHidden') } : {};
-    rows.push({ key, kind: 'overlay', level: 1, name, label, overlay: index, parent: null, branch: true, expanded: !folded.has(key), items: overlay.items.map((item) => item.id), ...hidden });
+    rows.push({
+      key,
+      kind: 'overlay',
+      level: 1,
+      name,
+      label,
+      overlay: index,
+      parent: null,
+      branch: true,
+      expanded: !folded.has(key),
+      items: overlay.items.map((item) => item.id),
+      ...hidden,
+    });
     const byId = new Map(overlay.items.map((item) => [item.id, item]));
     for (const pill of view.pills[index] ?? []) {
       const first = pill.items[0] ?? '';
       const pkey = pillKey(index, first);
       const pillLabel = pill.items.length === 1 ? say('UiText.PillOneItem', pill.label) : say('UiText.PillItems', pill.label, pill.items.length);
-      rows.push({ key: pkey, kind: 'pill', level: 2, name: pill.label, label: pillLabel, overlay: index, parent: key, branch: true, expanded: !folded.has(pkey), items: pill.items });
+      rows.push({
+        key: pkey,
+        kind: 'pill',
+        level: 2,
+        name: pill.label,
+        label: pillLabel,
+        overlay: index,
+        parent: key,
+        branch: true,
+        expanded: !folded.has(pkey),
+        items: pill.items,
+      });
       for (const id of pill.items) {
         const item = byId.get(id);
         const shows = view.items[id];
         const name = item === undefined ? id : itemName(item);
-        rows.push({ key: itemKey(id), kind: 'item', level: 3, name, label: name, overlay: index, parent: pkey, branch: false, expanded: false, items: [id], value: shows?.value ?? null, alert: shows?.level ?? null });
+        rows.push({
+          key: itemKey(id),
+          kind: 'item',
+          level: 3,
+          name,
+          label: name,
+          overlay: index,
+          parent: pkey,
+          branch: false,
+          expanded: false,
+          items: [id],
+          value: shows?.value ?? null,
+          alert: shows?.level ?? null,
+        });
       }
     }
   });

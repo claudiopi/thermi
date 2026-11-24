@@ -32,6 +32,9 @@ internal sealed class FakeTray(bool record = true)
 
     public bool Refusing { get; set; }
 
+    /// <summary>How many changes to come fail without changing anything, as when a busy Explorer lets the call time out.</summary>
+    public int Busy { get; set; }
+
     /// <summary>Every icon it showed is gone, as when Explorer restarts.</summary>
     public void Restart() => _shown.Clear();
 
@@ -65,7 +68,7 @@ internal sealed class FakeTray(bool record = true)
     // A change of an icon it lacks fails; one without a tooltip keeps the one it had.
     private bool Modified(Guid id, string? tip)
     {
-        if (!_shown.TryGetValue(id, out var kept))
+        if (!_shown.TryGetValue(id, out var kept) || (Busy > 0 && Busy-- > 0))
         {
             return false;
         }

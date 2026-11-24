@@ -1,4 +1,14 @@
-import { Menu as FluentMenu, MenuDivider, MenuItem, MenuItemCheckbox, MenuItemRadio, MenuList, MenuPopover, MenuTrigger, makeStyles } from '@fluentui/react-components';
+import {
+  Menu as FluentMenu,
+  MenuDivider,
+  MenuItem,
+  MenuItemCheckbox,
+  MenuItemRadio,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
+  makeStyles,
+} from '@fluentui/react-components';
 import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
 import { useFocusOnOpen } from './focus';
 import { fluentRef } from '../fluentRef';
@@ -48,7 +58,11 @@ const checkedOf = (entries: readonly MenuEntry[]): string[] => entries.flatMap((
 function Submenu({ text, icon, entries }: { text: string; icon: IconName | undefined; entries: readonly MenuEntry[] }) {
   const chosen = useRef<HTMLDivElement>(null);
   return (
-    <FluentMenu checkedValues={{ [choices]: chosenOf(entries), [checks]: checkedOf(entries) }} inline positioning={{ ...floating, position: 'after', align: 'top' }}>
+    <FluentMenu
+      checkedValues={{ [choices]: chosenOf(entries), [checks]: checkedOf(entries) }}
+      inline
+      positioning={{ ...floating, position: 'after', align: 'top' }}
+    >
       <MenuTrigger disableButtonEnhancement>
         <MenuItem icon={iconOf(icon)}>{text}</MenuItem>
       </MenuTrigger>
@@ -141,7 +155,12 @@ export function Menu({ trigger, entries, context = false, at, open: placed = fal
       </MenuList>
     </MenuPopover>
   );
-  const props = { open, onOpenChange: (_: unknown, data: { open: boolean }) => change(data.open), checkedValues: { [choices]: chosenOnes, [checks]: checkedOnes }, inline: true };
+  const props = {
+    open,
+    onOpenChange: (_: unknown, data: { open: boolean }) => change(data.open),
+    checkedValues: { [choices]: chosenOnes, [checks]: checkedOnes },
+    inline: true,
+  };
   return trigger === undefined ? (
     // As wide as the row it opens under, as the prototype's row menus are.
     <FluentMenu {...props} positioning={{ ...floating, target: at ?? null, position: 'below', align: 'start', matchTargetSize: 'width' }}>

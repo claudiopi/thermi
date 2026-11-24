@@ -72,7 +72,7 @@ public sealed class LatestSnapshot(TimeProvider time)
     private volatile bool _lost;
 
     public Snapshot? Current =>
-        Volatile.Read(ref _entry) is { } entry && time.GetUtcNow() - entry.At <= MaxAge ? entry.Snapshot : null;
+        Volatile.Read(ref _entry) is { } entry && time.GetElapsedTime(entry.At) <= MaxAge ? entry.Snapshot : null;
 
     /// <summary>Running while snapshots are fresh, or awaited for less than <see cref="MaxAge"/>; else stopped or stale.</summary>
     public ServiceState State =>
@@ -83,7 +83,7 @@ public sealed class LatestSnapshot(TimeProvider time)
 
     public void Set(Snapshot snapshot)
     {
-        Volatile.Write(ref _entry, new Entry(snapshot, time.GetUtcNow()));
+        Volatile.Write(ref _entry, new Entry(snapshot, time.GetTimestamp()));
         Connected();
     }
 
@@ -101,5 +101,6 @@ public sealed class LatestSnapshot(TimeProvider time)
         _lost = true;
     }
 
-    private sealed record Entry(Snapshot Snapshot, DateTimeOffset At);
+    // On the counter, never the wall clock: one set back would keep frozen numbers looking live.
+    private sealed record Entry(Snapshot Snapshot, long At);
 }

@@ -1,8 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Thermi.Core;
-using Thermi.Core.Editing;
-using Thermi.Core.Look;
 using Thermi.Core.Messages;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -42,6 +40,7 @@ internal sealed class OverlayHost : IDisposable
     private readonly ILogger _log;
     private readonly FileSystemWatcher? _watcher;
     private readonly List<OverlayWindow> _overlays = [];
+    private int?[] _rowWidths = [];
     private readonly OverlayActions _actions;
     private readonly HostEnvironment _environment;
     private readonly OverlayVisibility _visibility = new();
@@ -91,7 +90,10 @@ internal sealed class OverlayHost : IDisposable
     /// <summary>The tray icons, their notices and both menus, once started.</summary>
     internal ThermiTray? Tray { get; private set; }
 
-    /// <summary>Whether this is thermi's first start, which lasts until the window first opens: its notice shows, and the values' tooltips offer to set thermi up.</summary>
+    /// <summary>
+    /// Whether this is thermi's first start, which lasts until the window first opens: its notice shows, and the values'
+    /// tooltips offer to set thermi up.
+    /// </summary>
     internal bool FirstStart { get; init; }
 
     /// <summary>Windows woke from sleep or hibernation: the sensors are read again at once.</summary>
@@ -292,25 +294,7 @@ internal sealed class OverlayHost : IDisposable
 
     private void Pressed(int id)
     {
-        switch (HotkeyRegistry.RoleOf(id))
-        {
-            case HotkeyRole.Toggle:
-                _visibility.PressHotkey();
-                break;
-            case HotkeyRole.NextStyle:
-                var saved = new SavedStyles(ConfigStore.StylesFolder(_settings.FilePath)).List();
-                _settings.Edit(config => OverlayEdits.NextStyle(config, saved));
-                break;
-            case HotkeyRole.ClickThrough:
-                _settings.Edit(config => ThermiEdits.ToggleClickThrough(config).Config);
-                break;
-            case HotkeyRole.ResetMinMax:
-                _actions.History.Reset();
-                break;
-            default:
-                break;
-        }
-
+        HotkeyPresses.Pressed(id, _settings, _visibility, _actions.History);
         RequestPaint();
     }
 
@@ -341,7 +325,8 @@ internal sealed class OverlayHost : IDisposable
         _cpu.Sample(ValueTooltips.WantsBusiest(config, snapshot));
 
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation.
-        var fullScreen = OverlayVisibility.FullScreen(config, _desktop.Screens(), Desktop.Foreground(), Desktop.UserState()).Any(full => full);
+        var fullScreen = OverlayVisibility.FullScreen(config, _desktop.Screens(), Desktop.Foreground(), Desktop.UserState())
+            .Any(full => full);
         Tray?.Critical(config, snapshot, fullScreen);
     }
 
@@ -353,28 +338,15 @@ internal sealed class OverlayHost : IDisposable
         }
 
         var config = _settings.Config;
-        while (_overlays.Count < config.Overlays.Count)
-        {
-            _overlays.Add(new OverlayWindow(_overlays.Count, _settings, _actions));
-        }
+        OnePerOverlay(config);
 
-        while (_overlays.Count > config.Overlays.Count)
-        {
-            _overlays[^1].Dispose();
-            _overlays.RemoveAt(_overlays.Count - 1);
-        }
-
-        var screens = _desktop.Screens(config.Overlays.Any(overlay => overlay.Snapped?.Spot is Core.Settings.SnapSpot.TaskbarLeft or Core.Settings.SnapSpot.TaskbarRight));
-        var scene = new OverlayScene(config, _settings.Problem, _latest(), screens, _desktop.LightTaskbar(), Desktop.HighContrast(), _link.WindowOpen)
-        {
-            Service = Service(),
-            Animate = Desktop.Animations(),
-            LightApps = _desktop.LightApps(),
-            OpenedOnce = _link.OpenedOnce,
-            Cpu = _cpu,
-        };
+        // A horizontal overlay may sit, or be dropped, on a taskbar, whose row the app buttons narrow.
+        var screens = _desktop.Screens(config.Overlays.Any(overlay => overlay.Style.Orientation == Core.Settings.Orientation.Horizontal));
+        Array.Resize(ref _rowWidths, config.Overlays.Count);
+        var scene = Scene(config, screens);
         var editing = _link.Editing(config.Overlays.Count);
-        var shown = _visibility.Decide(config, OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState()));
+        var fullScreen = OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState());
+        var shown = _visibility.Decide(config, fullScreen);
         var accent = scene.HighContrast?.Highlight ?? _desktop.Accent();
         for (var at = 0; at < _overlays.Count; at++)
         {
@@ -385,6 +357,7 @@ internal sealed class OverlayHost : IDisposable
             }
             else
             {
+                _rowWidths[at] = null;
                 _overlays[at].Hide();
             }
         }
@@ -392,4 +365,29 @@ internal sealed class OverlayHost : IDisposable
         Tray?.Refresh(new TrayState(scene, _link.WindowOpen, !_link.OpenedOnce));
         _log.Painted();
     }
+
+    private void OnePerOverlay(Core.Settings.ThermiConfig config)
+    {
+        while (_overlays.Count < config.Overlays.Count)
+        {
+            _overlays.Add(new OverlayWindow(_overlays.Count, _settings, _actions));
+        }
+
+        while (_overlays.Count > config.Overlays.Count)
+        {
+            _overlays[^1].Dispose();
+            _overlays.RemoveAt(_overlays.Count - 1);
+        }
+    }
+
+    private OverlayScene Scene(Core.Settings.ThermiConfig config, IReadOnlyList<Screen> screens) =>
+        new(config, _settings.Problem, _latest(), screens, _desktop.LightTaskbar(), Desktop.HighContrast(), _link.WindowOpen)
+        {
+            RowWidths = _rowWidths,
+            Service = Service(),
+            Animate = Desktop.Animations(),
+            LightApps = _desktop.LightApps(),
+            OpenedOnce = _link.OpenedOnce,
+            Cpu = _cpu,
+        };
 }

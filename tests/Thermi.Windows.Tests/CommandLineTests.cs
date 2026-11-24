@@ -1,9 +1,9 @@
 extern alias sensors;
 
-using System.Diagnostics;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost;
 using Thermi.Commands;
+using Thermi.Windows.Tests.Processes;
 
 namespace Thermi.Windows.Tests;
 
@@ -169,35 +169,43 @@ public sealed class CommandLineTests : IDisposable
         Assert.Contains(expected, said, StringComparison.Ordinal);
     }
 
+    // An elevated thermi.exe keeps the user's environment, which any program of the user's can set: no code may load from
+    // it before Main. Here the hook is not there, which stops a thermi that honors hooks before it reads its arguments.
+    // The .NET it runs on comes only from where Windows installed it, which only the published thermi.exe is built for.
+    [Fact]
+    public async Task TheUsersEnvironmentLoadsNoCodeIntoThermi()
+    {
+        var steering = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["DOTNET_STARTUP_HOOKS"] = Path.Combine(Path.GetDirectoryName(_folder.File)!, "hook.dll"),
+        };
+
+        var (code, said) = await RunAsync(["settings", "--overlay", "0"], steering);
+
+        Assert.Equal((2, true), (code, said.Contains("--overlay takes a whole number from 1 up.", StringComparison.Ordinal)));
+    }
+
     // The test's own files stand in for the words that name them: its settings, a file that is no snapshot, and a picture
     // in a folder that is not there.
-    private async Task<(int Code, string Said)> RunAsync(string[] args)
+    private async Task<(int Code, string Said)> RunAsync(string[] args, Dictionary<string, string>? environment = null)
     {
         var folder = Path.GetDirectoryName(_folder.File)!;
         var junk = Path.Combine(folder, "junk.json");
         await File.WriteAllTextAsync(junk, "{ \"not\": \"a snapshot\" }", TestContext.Current.CancellationToken);
-        var start = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "thermi.exe"))
-        {
-            UseShellExecute = false,
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            WorkingDirectory = Path.GetDirectoryName(Snapshot),
-        };
-        foreach (var argument in args)
-        {
-            start.ArgumentList.Add(argument switch
+        string[] words =
+        [
+            .. args.Select(argument => argument switch
             {
                 "own-settings.json" => _folder.File,
                 "own-junk.json" => junk,
                 "own-missing-folder" => Path.Combine(folder, "not-there", "o.png"),
+                TestRecordings.Admin => Snapshot,
                 _ => argument,
-            });
-        }
+            }),
+        ];
 
-        using var thermi = Process.Start(start)!;
-        var said = await thermi.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
-        await thermi.WaitForExitAsync(TestContext.Current.CancellationToken);
-        return (thermi.ExitCode, said);
+        // On a desktop of its own and bounded, since a thermi.exe that finds no .NET waits on a message box nobody sees.
+        return await DesktopProcess.RunAsync(Path.Combine(AppContext.BaseDirectory, "thermi.exe"), words, TimeSpan.FromSeconds(30), environment);
     }
 
     // The fans' answer is recorded under a load of whole seconds, up to ten minutes, so a typo never loads the PC for hours.

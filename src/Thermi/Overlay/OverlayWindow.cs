@@ -24,7 +24,8 @@ namespace Thermi.Overlay;
 internal sealed class OverlayWindow : IDisposable
 {
     internal const string ClassName = "thermi-overlay";
-    internal const WINDOW_EX_STYLE ExStyle = WINDOW_EX_STYLE.WS_EX_LAYERED | WINDOW_EX_STYLE.WS_EX_TOPMOST | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_NOACTIVATE;
+    internal const WINDOW_EX_STYLE ExStyle =
+        WINDOW_EX_STYLE.WS_EX_LAYERED | WINDOW_EX_STYLE.WS_EX_TOPMOST | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_NOACTIVATE;
 
     // A glow's frames come about 30 times a second, from a timer of the overlay's own, only while it glows.
     private const nuint GlowTimer = 1;
@@ -94,7 +95,7 @@ internal sealed class OverlayWindow : IDisposable
     internal static float ScaleOf(uint dpi, OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
         (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * overlay.Size);
 
-    /// <summary>Puts a picture shown once, as a dragged pill's, on screen at <paramref name="position"/>, as <see cref="LayeredPicture.Show"/> does.</summary>
+    /// <summary>Puts a picture shown once, as a dragged pill's, on screen at <paramref name="position"/>.</summary>
     internal static void Show(HWND hwnd, Bitmap bitmap, Position position)
     {
         using var picture = new LayeredPicture();
@@ -171,11 +172,11 @@ internal sealed class OverlayWindow : IDisposable
         var overlay = _gestures.Drag?.Shown(scene.Config.Overlays[_index]) ?? scene.Config.Overlays[_index];
         var heldAt = _gestures.HeldAt(_mouse.Dragged);
         var texts = Texts.For(scene.Config.Language, CultureInfo.CurrentUICulture);
-        var input = new TrayInput(scene.Snapshot, scene.Service, _actions.Culture, texts, scene.LightTaskbar, "") { History = _actions.History, WindowOpen = scene.WindowOpen, BaseClock = scene.Cpu?.BaseClock, Busiest = scene.Cpu?.Busiest };
+        var input = InputOf(scene, texts);
         var shown = ThermiMark.Overlay(scene.Config, _index, input, scene.OpenedOnce);
         var marks = Marks;
         ClickThrough(overlay.ClickThrough);
-        var look = marks.Applied(OverlayLook.Of(overlay.Style, scene.LightTaskbar, scene.HighContrast));
+        var look = marks.Applied(OverlayLook.Of(overlay.Style, scene.LightTaskbar, scene.HighContrast), held: heldAt is not null);
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
         var scale = ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, heldAt is null ? scene.Screens : []);
         var items = Extras(scene, texts, shown.Items);
@@ -190,15 +191,28 @@ internal sealed class OverlayWindow : IDisposable
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size);
         var running = _actions.Time.GetElapsedTime(_started);
-        var crowded = !shown.SensorsStopped && TaskbarRoom.Crowded(_painter, items, look, scale, overlay, scene.Screens);
-        _picture.Show(Hwnd, bitmap, heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, crowded) ?? WindowPosition(), _fade.Alpha);
+        var row = scene.Row(_index, () => shown.SensorsStopped ? bitmap.Width : TaskbarRoom.Width(_painter, items, look, scale, bitmap.Width),
+            _actions.RequestPaint);
+        var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, row) ?? WindowPosition();
+        _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown);
         if (!_shown)
         {
-            PInvoke.SetWindowPos(Hwnd, HWND.HWND_TOPMOST, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
+            const SET_WINDOW_POS_FLAGS Shown = SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE
+                | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW;
+            PInvoke.SetWindowPos(Hwnd, HWND.HWND_TOPMOST, 0, 0, 0, 0, Shown);
             _shown = true;
         }
     }
+
+    private TrayInput InputOf(OverlayScene scene, Texts texts) =>
+        new(scene.Snapshot, scene.Service, _actions.Culture, texts, scene.LightTaskbar, "")
+        {
+            History = _actions.History,
+            WindowOpen = scene.WindowOpen,
+            BaseClock = scene.Cpu?.BaseClock,
+            Busiest = scene.Cpu?.Busiest,
+        };
 
     // After the items, the settings' error.
     private static IReadOnlyList<OverlayItem> Extras(OverlayScene scene, Texts texts, IReadOnlyList<OverlayItem> items)
@@ -274,7 +288,7 @@ internal sealed class OverlayWindow : IDisposable
         {
             var item = ItemAt(_actions.Cursor());
             var box = item is null ? RectangleF.Empty : _painter.Places.First(place => place.Id == item).Pill;
-            _gestures.Press(overlay, painted, scene.Screens, (item, box), WindowPosition());
+            _gestures.Press(overlay, painted, scene.Screens, (item, box), WindowPosition(), scene.RowWidths);
         }
     }
 

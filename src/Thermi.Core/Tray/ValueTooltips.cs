@@ -5,9 +5,14 @@ using Thermi.Core.Translations;
 
 namespace Thermi.Core.Tray;
 
-/// <summary>What pointing at a value says: the item's name, value and level, its minimum and maximum, and how to edit it; or why it is missing and what to do.</summary>
+/// <summary>
+/// What pointing at a value says: the item's name, value and level, its minimum and maximum, and how to edit it;
+/// or why it is missing and what to do.
+/// </summary>
 public static class ValueTooltips
 {
+    private const string MemoryAvailable = "Memory Available";
+
     private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
 
     /// <summary>The tooltip's lines, one per line break, of a tooltip <see cref="ThermiMark.Overlay"/> gave for the overlay.</summary>
@@ -31,12 +36,14 @@ public static class ValueTooltips
         var readings = snapshot is null ? NoReadings : SensorMap.Read(snapshot, shown);
         var now = OverlayLayout.ReadingOf(item, readings);
         var history = input.History;
-        string Value(ItemStat stat)
+        string Value(ItemStat stat, bool units = true)
         {
-            return Formatted(history is null ? now : history.Shown(item with { Stat = stat }, now), item, config, input);
+            return Formatted(history is null ? now : history.Shown(item with { Stat = stat }, now), item, config, input, units);
         }
 
-        var value = texts.Format(input.Numbers, OverlayText.NameAndValue, name, Value(item.Stat));
+        var total = RamTotal(item, shown, snapshot, config, input);
+        var shownValue = total is null ? Value(item.Stat) : texts.Format(input.Numbers, OverlayText.OfTotal, Value(item.Stat, units: false), total);
+        var value = texts.Format(input.Numbers, OverlayText.NameAndValue, name, shownValue);
         var first = tooltip.Level == Level.Normal ? value
             : texts.Format(input.Numbers, TrayText.AtLevel, value, texts.Of(tooltip.Level == Level.Critical ? TrayText.Critical : TrayText.Warning));
         var minMax = texts.Format(input.Numbers, OverlayText.MinAndMax, Value(ItemStat.Min), Value(ItemStat.Max));
@@ -46,7 +53,13 @@ public static class ValueTooltips
     }
 
     // The value, the model of the CPU or GPU it is read from, its minimum and maximum, and why it may be high.
-    private static List<string> About(ItemConfig item, (OverlayConfig Overlay, Snapshot Snapshot) read, (string Value, string MinMax) lines, Level level, ThermiConfig config, TrayInput input)
+    private static List<string> About(
+        ItemConfig item,
+        (OverlayConfig Overlay, Snapshot Snapshot) read,
+        (string Value, string MinMax) lines,
+        Level level,
+        ThermiConfig config,
+        TrayInput input)
     {
         var sensor = SensorOf(item, read.Overlay, read.Snapshot);
         var device = sensor is null ? null : SensorMap.DeviceOf(sensor);
@@ -61,7 +74,10 @@ public static class ValueTooltips
         return about;
     }
 
-    /// <summary>Whether a value of the CPU or the GPU is critical on any overlay, while which its tooltip names what is busiest, so only then is it read.</summary>
+    /// <summary>
+    /// Whether a value of the CPU or the GPU is critical on any overlay, while which its tooltip names what is busiest,
+    /// so only then is it read.
+    /// </summary>
     public static bool WantsBusiest(ThermiConfig config, Snapshot snapshot) =>
         config.Overlays.Any(overlay =>
         {
@@ -77,7 +93,13 @@ public static class ValueTooltips
         : null;
 
     // Why a CPU value may be high: the CPU throttling, and at critical what is busiest on its device now.
-    private static List<string> Why(ItemConfig item, (OverlayConfig Overlay, Snapshot Snapshot) read, DeviceKind? device, Level level, ThermiConfig config, TrayInput input)
+    private static List<string> Why(
+        ItemConfig item,
+        (OverlayConfig Overlay, Snapshot Snapshot) read,
+        DeviceKind? device,
+        Level level,
+        ThermiConfig config,
+        TrayInput input)
     {
         var (texts, numbers) = (input.Texts, input.Numbers);
         string Shown(SensorKind kind, double value)
@@ -88,13 +110,22 @@ public static class ValueTooltips
         var why = new List<string>();
         if (Throttling.Shows(item, read.Snapshot) && Throttling.Of(read.Snapshot, read.Overlay, input.BaseClock) is { } throttled)
         {
-            why.Add(texts.Format(numbers, OverlayText.Throttling, Shown(SensorKind.Clock, throttled.Clock), Shown(SensorKind.Clock, throttled.BaseClock), Shown(SensorKind.Temperature, throttled.Temperature)));
+            why.Add(texts.Format(
+                numbers,
+                OverlayText.Throttling,
+                Shown(SensorKind.Clock, throttled.Clock),
+                Shown(SensorKind.Clock, throttled.BaseClock),
+                Shown(SensorKind.Temperature, throttled.Temperature)));
         }
 
         var busy = level != Level.Critical ? null : device == DeviceKind.Cpu ? input.Busiest?.Cpu : device == DeviceKind.Gpu ? input.Busiest?.Gpu : null;
         if (busy is not null)
         {
-            why.Add(texts.Format(numbers, device == DeviceKind.Cpu ? OverlayText.BusiestCpu : OverlayText.BusiestGpu, busy.Name, Shown(SensorKind.Load, busy.Share)));
+            why.Add(texts.Format(
+                numbers,
+                device == DeviceKind.Cpu ? OverlayText.BusiestCpu : OverlayText.BusiestGpu,
+                busy.Name,
+                Shown(SensorKind.Load, busy.Share)));
         }
 
         return why;
@@ -102,9 +133,23 @@ public static class ValueTooltips
 
     // A metric's item under its default name is named in the language shown; any other by its own name.
     private static string NameOf(ItemConfig item, Texts texts) =>
-        Metrics.Find(item.Metric) is { } metric && (item.Name is null || item.Name == Texts.English.Of(metric.Name)) ? texts.Of(metric.Name)
+        Metrics.Find(item.Metric ?? item.Auto) is { } metric && (item.Name is null || item.Name == Texts.English.Of(metric.Name)) ? texts.Of(metric.Name)
         : item.Name ?? OverlayLayout.LabelOf(item, texts) ?? item.Id;
 
-    private static string Formatted(Reading? reading, ItemConfig item, ThermiConfig config, TrayInput input) =>
-        reading is { } read ? ReadingFormatter.Format(read, input.Numbers, units: true, config.Temperature, item.Decimals, input.Texts) : ReadingFormatter.Missing;
+    // The RAM in use says how much there is, which is what it is in use and what is free, read on the same memory.
+    private static string? RamTotal(ItemConfig item, OverlayConfig overlay, Snapshot? snapshot, ThermiConfig config, TrayInput input) =>
+        snapshot is not null
+            && item.Sensors is null
+            && SensorOf(item, overlay, snapshot) is { Value: { } used } sensor
+            && SensorMap.MetricOf(sensor) == Metrics.RamUsed
+            && snapshot.Sensors.FirstOrDefault(each => each.Hardware == sensor.Hardware && each.Type == sensor.Type && each.Name == MemoryAvailable)
+                is { Value: { } free }
+            && double.IsFinite(used + free)
+            ? Formatted(new Reading(SensorKind.Data, used + free), item, config, input, units: true)
+            : null;
+
+    private static string Formatted(Reading? reading, ItemConfig item, ThermiConfig config, TrayInput input, bool units) =>
+        reading is { } read
+            ? ReadingFormatter.Format(read, input.Numbers, units, config.Temperature, item.Decimals, input.Texts)
+            : ReadingFormatter.Missing;
 }

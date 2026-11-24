@@ -14,8 +14,8 @@ public enum FitText
 }
 
 /// <summary>
-/// Whether an overlay fits beside the taskbar's app buttons. It only decides the window's notice: the overlay keeps its
-/// labels and items whatever the room, since labels follow the user's setting alone.
+/// How much of a taskbar's row an overlay keeps, which <see cref="TaskbarRow"/> lays out beside the app buttons. The
+/// overlay keeps its labels and items whatever the room, since labels follow the user's setting alone.
 /// </summary>
 public static class TaskbarFit
 {
@@ -23,9 +23,9 @@ public static class TaskbarFit
     public const double Spare = 8;
 
     /// <summary>
-    /// True when the items, as they show, fit <paramref name="room"/> with <paramref name="gap"/> between them. Each value
-    /// is measured at its widest form, so the answer holds while the values change.
+    /// The room the items, as they show, keep on a taskbar with <paramref name="gap"/> between them. Each value is
+    /// measured at its widest form, so the room holds while the values change.
     /// </summary>
-    public static bool Fits(IReadOnlyList<FitItem> items, double gap, double room) =>
-        items.Sum(item => item.Label + item.Widest + Spare) + (gap * Math.Max(0, items.Count - 1)) <= room;
+    public static double Width(IReadOnlyList<FitItem> items, double gap) =>
+        items.Sum(item => item.Label + item.Widest + Spare) + (gap * Math.Max(0, items.Count - 1));
 }

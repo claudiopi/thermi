@@ -30,7 +30,14 @@ internal sealed class LhmSensorSource(TimeProvider time) : ISensorSource
     private readonly Lock _lock = new();
     private readonly ReadPace _reads = new(time, TimeSpan.Zero);
     private readonly ReadPace _drives = new(time, StorageEvery);
+    private readonly ReadPace _rescans = new(time, RescanEvery);
     private bool _open;
+
+    /// <summary>
+    /// How often the kinds of hardware that come and go while Windows runs are looked for again: an external GPU, a USB
+    /// drive or a USB fan or pump controller would otherwise appear only once the service restarts.
+    /// </summary>
+    public static TimeSpan RescanEvery { get; } = TimeSpan.FromMinutes(10);
 
     public Snapshot Read()
     {
@@ -40,11 +47,21 @@ internal sealed class LhmSensorSource(TimeProvider time) : ISensorSource
             {
                 _computer.Open();
                 _open = true;
+                _rescans.Updated();
+            }
+            var rescanned = _rescans.Due;
+            if (rescanned)
+            {
+                Rescan();
             }
 
-            var adapters = _adapters.Of([.. _computer.Hardware.Where(hardware => hardware.HardwareType == HardwareType.Network).Select(hardware => hardware.Identifier.ToString())]);
+            var adapters = _adapters.Of([.. _computer.Hardware
+                .Where(hardware => hardware.HardwareType == HardwareType.Network)
+                .Select(hardware => hardware.Identifier.ToString())]);
             var sensors = new List<RawSensor>();
-            var drivesDue = _drives.Due;
+
+            // Drives found again have no values until they are updated.
+            var drivesDue = _drives.Due || rescanned;
             _reads.Updated();
             if (drivesDue)
             {
@@ -73,6 +90,19 @@ internal sealed class LhmSensorSource(TimeProvider time) : ISensorSource
                 _open = false;
             }
         }
+    }
+
+    // The library looks for a kind of hardware again when it is turned off and on, and only for it: the CPU, the board's
+    // chip and the memory, which never come or go, keep their state, and the pipe sends the new catalog if it changed.
+    private void Rescan()
+    {
+        _rescans.Updated();
+        _computer.IsGpuEnabled = false;
+        _computer.IsControllerEnabled = false;
+        _computer.IsStorageEnabled = false;
+        _computer.IsGpuEnabled = true;
+        _computer.IsControllerEnabled = true;
+        _computer.IsStorageEnabled = true;
     }
 
     // A hardware not updated now sends its last values; with speeds that do not hold, it sends no speed.

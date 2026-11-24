@@ -256,11 +256,23 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
     {
         using var host = WindowsIdentity.GetCurrent();
         var security = new PipeSecurity();
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(
+            new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+            PipeAccessRights.FullControl,
+            AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(
+            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
+            PipeAccessRights.FullControl,
+            AccessControlType.Allow));
         security.AddAccessRule(new PipeAccessRule(host.User!, PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.InteractiveSid, null), PipeAccessRights.Read | PipeAccessRights.Synchronize, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null), PipeAccessRights.FullControl, AccessControlType.Deny));
+        security.AddAccessRule(new PipeAccessRule(
+            new SecurityIdentifier(WellKnownSidType.InteractiveSid, null),
+            PipeAccessRights.Read | PipeAccessRights.Synchronize,
+            AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(
+            new SecurityIdentifier(WellKnownSidType.NetworkSid, null),
+            PipeAccessRights.FullControl,
+            AccessControlType.Deny));
         return security;
     }
 

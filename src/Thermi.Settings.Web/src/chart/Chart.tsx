@@ -13,6 +13,8 @@ export interface ChartProps {
   name: string;
   chart: ChartView;
   edit: (edit: Edit) => Promise<string | null>;
+  /** Whether the item has a meter, whose lines the chart sets; without one it draws the reading alone. */
+  metered: boolean;
 }
 
 const lines: Line[] = ['warning', 'critical'];
@@ -95,7 +97,7 @@ function EmptyNote({ why, width }: { why: ChartEmpty; width: number }) {
 }
 
 /** An item's chart: its meter's last ten minutes, the lines with their knobs, and what the minutes held. */
-export function Chart({ item, name, chart, edit }: ChartProps) {
+export function Chart({ item, name, chart, edit, metered }: ChartProps) {
   const t = useText();
   const [box, size] = useSize();
   const plot: Plot = { width: Math.max(0, size.width - knobColumn), height: size.height, chart };
@@ -148,7 +150,7 @@ export function Chart({ item, name, chart, edit }: ChartProps) {
     // The press would otherwise drop the focus on the page, after the knob took it.
     event.preventDefault();
     const y = event.clientY - event.currentTarget.getBoundingClientRect().top;
-    const line = nearestLine(plot, y);
+    const line = metered ? nearestLine(plot, y) : null;
     if (line !== null) {
       focus.after(`knob-${line}`);
       later(() => edit({ kind: 'line', item, line, value: valueAt(plot, y) }));
@@ -162,7 +164,15 @@ export function Chart({ item, name, chart, edit }: ChartProps) {
     <section className="t-chart" ref={box}>
       {chart.title !== null && <div className="t-chart-title">{chart.title}</div>}
       <div className="t-chart-row" style={{ height: `${size.height}px` }}>
-        <svg className="t-plot" role="img" aria-label={t('UiText.ChartOf', name)} aria-description={chart.summary} width={plot.width} height={plot.height} onMouseDown={pressPlot}>
+        <svg
+          className="t-plot"
+          role="img"
+          aria-label={t('UiText.ChartOf', name)}
+          aria-description={chart.summary}
+          width={plot.width}
+          height={plot.height}
+          onMouseDown={pressPlot}
+        >
           <defs>
             <linearGradient id={`t-line-${item}`} gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={yOf(plot, chart.from)} y2={yOf(plot, chart.to)}>
               {stopsOf(chart).map((stop) => (
@@ -184,7 +194,9 @@ export function Chart({ item, name, chart, edit }: ChartProps) {
           )}
           {lines.map((one) => {
             const value = chart[one];
-            return value === null ? null : <line key={one} className={`t-threshold t-${one}`} x1="0" x2={plot.width} y1={yOf(plot, value)} y2={yOf(plot, value)} />;
+            return value === null ? null : (
+              <line key={one} className={`t-threshold t-${one}`} x1="0" x2={plot.width} y1={yOf(plot, value)} y2={yOf(plot, value)} />
+            );
           })}
         </svg>
         {chart.empty !== null && <EmptyNote why={chart.empty} width={plot.width} />}
@@ -231,7 +243,7 @@ export function Chart({ item, name, chart, edit }: ChartProps) {
           </div>
         )}
         {chart.stats !== null && <div className="t-stats">{chart.stats}</div>}
-        {chart.fires && (
+        {chart.fires !== null && (
           <div className="t-fires">
             <span>{t('UiText.FiresMostly')}</span>
             <Button
@@ -241,14 +253,14 @@ export function Chart({ item, name, chart, edit }: ChartProps) {
                 later(() => edit({ kind: 'resetLines', item }));
               }}
             >
-              {t('UiText.ResetThreshold')}
+              {chart.fires}
             </Button>
           </div>
         )}
         <div className="t-pushed" aria-live="polite">
           {chart.pushed ?? ''}
         </div>
-        {lines.some((one) => chart[one] === null) && (
+        {metered && lines.some((one) => chart[one] === null) && (
           <div className="t-adds">
             {lines.map((one) =>
               chart[one] !== null ? null : (

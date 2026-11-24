@@ -55,7 +55,13 @@ public sealed class LeakTests : IDisposable
 
         TestWindows.OnOwnDesktop(() =>
         {
-            using var host = new OverlayHost(settings, () => _warmer ? HostRun.Warmer : HostRun.Recorded, CultureInfo.GetCultureInfo("en-US"), _folder.Clock, _folder.Log, _tray.Environment(_windowMutex))
+            using var host = new OverlayHost(
+                settings,
+                () => _warmer ? HostRun.Warmer : HostRun.Recorded,
+                CultureInfo.GetCultureInfo("en-US"),
+                _folder.Clock,
+                _folder.Log,
+                _tray.Environment(_windowMutex))
             {
                 Service = () => _stopped ? ServiceState.Stopped : ServiceState.Running,
             };
@@ -120,7 +126,15 @@ public sealed class LeakTests : IDisposable
                 .. config.Overlays.Skip(1),
             ],
         };
-        return StyleEdits.Restyle(config, 1, style => style with { Opacity = new OpacityConfig(0.5, 0.2), Effect = TextEffect.Outline, Orientation = Orientation.Vertical }).Config;
+        return StyleEdits.Restyle(
+            config,
+            1,
+            style => style with
+            {
+                Opacity = new OpacityConfig(0.5, 0.2),
+                Effect = TextEffect.Outline,
+                Orientation = Orientation.Vertical,
+            }).Config;
     }
 
     // Clients one after another; past the service's four, each waits for a slot, which frees at the service's next write.

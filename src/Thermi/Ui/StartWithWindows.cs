@@ -21,14 +21,17 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
 
     public static StartWithWindows Of(string exePath) => new(RunKey, ApprovedKey, exePath);
 
+    // A value of another path, as a thermi installed elsewhere left, starts nothing that is this one: it shows off.
     public bool On => Written && !TurnedOff;
+
+    private string Value => $"\"{exePath}\"";
 
     private bool Written
     {
         get
         {
             using var run = Registry.CurrentUser.OpenSubKey(key);
-            return run?.GetValue(ValueName) is string;
+            return run?.GetValue(ValueName) is string value && string.Equals(value, Value, StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -42,7 +45,7 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
     }
 
     /// <summary>
-    /// Writes the value, quoted as the installer writes it, or deletes it; one already there is left as it is. Turning it
+    /// Writes the value, quoted as the installer writes it, over one of another path, or deletes it. Turning it
     /// on clears Task Manager's off too, since deleting that entry is how Windows reads a value it never saw turned off.
     /// </summary>
     public void Set(bool on)
@@ -53,7 +56,7 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
             approved?.DeleteValue(ValueName, throwOnMissingValue: false);
         }
 
-        if (on == Written)
+        if (on && Written)
         {
             return;
         }
@@ -61,7 +64,7 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
         using var run = Registry.CurrentUser.CreateSubKey(key);
         if (on)
         {
-            run.SetValue(ValueName, $"\"{exePath}\"");
+            run.SetValue(ValueName, Value);
         }
         else
         {

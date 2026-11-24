@@ -210,9 +210,13 @@ public sealed class FanFinderTests
     /// Derived from the real series, since fan-control software holds the fan where it left it even when closed: the board's fan spins
     /// three times as fast, so it answers the load as clearly as a fan the board drives.
     /// </summary>
-    private static List<Snapshot> ThreeTimesFaster(IReadOnlyList<Snapshot> series) => Derived(series, BoardFan, (snapshot, _) => 3 * Value(snapshot, BoardFan));
+    private static List<Snapshot> ThreeTimesFaster(IReadOnlyList<Snapshot> series) =>
+        Derived(series, BoardFan, (snapshot, _) => 3 * Value(snapshot, BoardFan));
 
-    /// <summary>Derived as <see cref="ThreeTimesFaster"/>, but during the load it keeps its speed from before it until the reading <paramref name="from"/>, and then jumps to its last loaded speed.</summary>
+    /// <summary>
+    /// Derived as <see cref="ThreeTimesFaster"/>, but during the load it keeps its speed from before it until the reading
+    /// <paramref name="from"/>, and then jumps to its last loaded speed.
+    /// </summary>
     private static List<Snapshot> AnsweringAt(IReadOnlyList<Snapshot> series, int from)
     {
         var loadEnd = LoadStart + 29;
@@ -222,7 +226,12 @@ public sealed class FanFinderTests
     }
 
     private static List<Snapshot> Derived(IReadOnlyList<Snapshot> series, string id, Func<Snapshot, int, double?> value) =>
-        [.. series.Select((snapshot, index) => new Snapshot([.. snapshot.Sensors.Select(sensor => sensor.Id == id ? sensor with { Value = value(snapshot, index) } : sensor)]))];
+        [
+            .. series.Select((snapshot, index) => new Snapshot(
+            [
+                .. snapshot.Sensors.Select(sensor => sensor.Id == id ? sensor with { Value = value(snapshot, index) } : sensor),
+            ])),
+        ];
 
     private static double? Value(Snapshot snapshot, string id) => snapshot.Sensors.Single(sensor => sensor.Id == id).Value;
 }

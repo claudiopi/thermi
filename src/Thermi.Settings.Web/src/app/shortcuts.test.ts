@@ -5,7 +5,15 @@ const names = ['undo', 'redo', 'add', 'find', 'settings', 'sheet', 'paste', 'esc
 const run = Object.fromEntries(names.map((name) => [name, () => name])) as unknown as Shortcuts;
 const nameOf = (shortcut: (() => void) | null): string | null => (shortcut === null ? null : String((shortcut as () => string)()));
 
-const press = (key: string, held: Partial<Press> = {}): Press => ({ key, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, defaultPrevented: false, ...held });
+const press = (key: string, held: Partial<Press> = {}): Press => ({
+  key,
+  ctrlKey: false,
+  altKey: false,
+  shiftKey: false,
+  metaKey: false,
+  defaultPrevented: false,
+  ...held,
+});
 const ctrl = { ctrlKey: true };
 
 describe("the window's shortcuts", () => {

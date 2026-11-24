@@ -4,7 +4,7 @@ import { asOneStep, bridge, useEdit, type WindowData } from '../bridge/useWindow
 import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
-import { useText } from '../texts/Texts';
+import { useText, type TextKey } from '../texts/Texts';
 import { fontFamilies, levelDefaults, pillSizes, shownStyle, weights } from './lookModel';
 import { useLooks } from './useOverlayReads';
 
@@ -22,13 +22,22 @@ function Sample({ look, label, value }: { look: Style; label: string; value: str
   const sizes = pillSizes(shown);
   const warning = shown.colors.warning;
   const ownWarning = warning !== undefined && warning.toLowerCase() !== levelDefaults.warning.toLowerCase();
-  const pill: CSSProperties = { height: sizes.height, borderRadius: sizes.radius, paddingInline: sizes.padding, gap: sizes.gap, fontFamily: fontFamilies[shown.font] };
+  const pill: CSSProperties = {
+    height: sizes.height,
+    borderRadius: sizes.radius,
+    paddingInline: sizes.padding,
+    gap: sizes.gap,
+    fontFamily: fontFamilies[shown.font],
+  };
   return (
     <span className={`t-pill t-pill-${shown.pills}`} style={pill} aria-hidden="true">
       <span className="t-pill-label" style={{ fontSize: shown.label.size, fontWeight: weights[shown.label.weight], color: shown.colors.label }}>
         {label}
       </span>
-      <span className="t-pill-value" style={{ fontSize: shown.value.size, fontWeight: weights[shown.value.weight], color: ownWarning ? warning : shown.colors.value }}>
+      <span
+        className="t-pill-value"
+        style={{ fontSize: shown.value.size, fontWeight: weights[shown.value.weight], color: ownWarning ? warning : shown.colors.value }}
+      >
         {value}
       </span>
     </span>
@@ -55,7 +64,12 @@ export function LookCard({ data, overlay }: LookCardProps) {
 
   const choose = (name: string | null): void => {
     if (name === null) {
-      void asOneStep(() => lookFields.reduce<Promise<unknown>>((done, field) => done.then(() => edit({ kind: 'style', overlay, field, value: null })), Promise.resolve()));
+      void asOneStep(() =>
+        lookFields.reduce<Promise<unknown>>(
+          (done, field) => done.then(() => edit({ kind: 'style', overlay, field, value: null })),
+          Promise.resolve(),
+        ),
+      );
     } else {
       void edit({ kind: 'look', overlay, name });
     }
@@ -71,12 +85,28 @@ export function LookCard({ data, overlay }: LookCardProps) {
     choose(next);
     tiles.current?.querySelectorAll<HTMLElement>('[role="radio"]')[all.indexOf(next)]?.focus();
   };
+  // A look another program deleted or holds open is refused, and the toast says why.
+  const deleteLook = async (name: string): Promise<void> => {
+    const refusal = (await bridge()?.deleteLook(name)) ?? null;
+    if (refusal !== null) {
+      news.show({ message: t(refusal as TextKey) });
+    }
+  };
   const lookMenu = (name: string): MenuEntry[] => [
-    ...(many ? [{ kind: 'action' as const, id: 'all', text: t('OverlayPageText.UseOnAllOverlays'), onRun: () => void edit({ kind: 'look', overlay: null, name }) }] : []),
+    ...(many
+      ? [
+          {
+            kind: 'action' as const,
+            id: 'all',
+            text: t('OverlayPageText.UseOnAllOverlays'),
+            onRun: () => void edit({ kind: 'look', overlay: null, name }),
+          },
+        ]
+      : []),
     { kind: 'action', id: 'rename', text: t('UiText.RenameStyle'), onRun: () => setAsking({ kind: 'rename', name }) },
     { kind: 'action', id: 'export', text: t('UiText.ExportStyle'), onRun: () => void bridge()?.exportSavedLook(name) },
     { kind: 'divider', id: 'end' },
-    { kind: 'action', id: 'delete', text: t('UiText.DeleteStyle'), onRun: () => void bridge()?.deleteLook(name) },
+    { kind: 'action', id: 'delete', text: t('UiText.DeleteStyle'), onRun: () => void deleteLook(name) },
   ];
   const copyToAll = (): Promise<void> =>
     asOneStep(async () => {
@@ -88,7 +118,12 @@ export function LookCard({ data, overlay }: LookCardProps) {
       }
     });
   const fileMenu: MenuEntry[] = [
-    ...(many ? [{ kind: 'action' as const, id: 'all', text: t('WindowText.CopyLookToAll'), onRun: () => void copyToAll() }, { kind: 'divider' as const, id: 'files' }] : []),
+    ...(many
+      ? [
+          { kind: 'action' as const, id: 'all', text: t('WindowText.CopyLookToAll'), onRun: () => void copyToAll() },
+          { kind: 'divider' as const, id: 'files' },
+        ]
+      : []),
     { kind: 'action', id: 'import', text: t('UiText.ImportStyle'), onRun: () => void news.importLook(overlay, null) },
     { kind: 'action', id: 'export', text: t('UiText.ExportStyle'), onRun: () => void bridge()?.exportLook(overlay) },
   ];
@@ -96,7 +131,15 @@ export function LookCard({ data, overlay }: LookCardProps) {
     const on = name === chosen;
     const shown = name === null ? t('OverlayPageText.DefaultLook') : name;
     return (
-      <button type="button" role="radio" aria-checked={on} aria-label={t('OverlayPageText.LookTile', shown)} tabIndex={on ? 0 : -1} className={`t-look${on ? ' t-on' : ''}`} onClick={() => choose(name)}>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={on}
+        aria-label={t('OverlayPageText.LookTile', shown)}
+        tabIndex={on ? 0 : -1}
+        className={`t-look${on ? ' t-on' : ''}`}
+        onClick={() => choose(name)}
+      >
         <Sample look={name === null ? {} : (looks[name] ?? {})} label={label} value={value} />
         <span className="t-look-name">{shown}</span>
       </button>
@@ -109,20 +152,43 @@ export function LookCard({ data, overlay }: LookCardProps) {
         <Button onClick={() => setAsking({ kind: 'save' })}>{t('OverlayPageText.SaveAsMyLook')}</Button>
         <Menu trigger={<Button kind="subtle" label={t('OverlayPageText.LookFileActions')} icon={<Icon name="more" />} />} entries={fileMenu} />
       </div>
-      <div ref={tiles} className="t-looks" role="radiogroup" aria-label={t('UiText.LookField')} style={{ gridTemplateColumns: `repeat(${Math.max(4, names.length + 1)}, minmax(0, 1fr))` }} onKeyDown={tileKeys}>
+      <div
+        ref={tiles}
+        className="t-looks"
+        role="radiogroup"
+        aria-label={t('UiText.LookField')}
+        style={{ gridTemplateColumns: `repeat(${Math.max(4, names.length + 1)}, minmax(0, 1fr))` }}
+        onKeyDown={tileKeys}
+      >
         {tile(null)}
         {names.map((name) => (
           <span key={name} className="t-look-wrap">
             {tile(name)}
-            <Menu trigger={<Button kind="subtle" className="t-look-more" label={t('OverlayPageText.LookActions', name)} icon={<Icon name="more" />} />} entries={lookMenu(name)} />
+            <Menu
+              trigger={<Button kind="subtle" className="t-look-more" label={t('OverlayPageText.LookActions', name)} icon={<Icon name="more" />} />}
+              entries={lookMenu(name)}
+            />
           </span>
         ))}
       </div>
       {asking?.kind === 'save' && (
-        <NameDialog title={t('UiText.SaveAsMyStyle')} main={t('UiText.Save')} start={t('OverlayPageText.MyLook')} hint={t('OverlayPageText.LookKeeps')} onName={async (name) => (await bridge()?.saveLook(overlay, name)) ?? null} onClose={() => setAsking(null)} />
+        <NameDialog
+          title={t('UiText.SaveAsMyStyle')}
+          main={t('UiText.Save')}
+          start={t('OverlayPageText.MyLook')}
+          hint={t('OverlayPageText.LookKeeps')}
+          onName={async (name) => (await bridge()?.saveLook(overlay, name)) ?? null}
+          onClose={() => setAsking(null)}
+        />
       )}
       {asking?.kind === 'rename' && (
-        <NameDialog title={t('OverlayPageText.RenameLook')} main={t('UiText.Rename')} start={asking.name} onName={async (name) => (await bridge()?.renameLook(asking.name, name)) ?? null} onClose={() => setAsking(null)} />
+        <NameDialog
+          title={t('OverlayPageText.RenameLook')}
+          main={t('UiText.Rename')}
+          start={asking.name}
+          onName={async (name) => (await bridge()?.renameLook(asking.name, name)) ?? null}
+          onClose={() => setAsking(null)}
+        />
       )}
     </div>
   );

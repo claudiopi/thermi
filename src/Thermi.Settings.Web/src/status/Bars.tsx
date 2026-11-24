@@ -4,8 +4,11 @@ import { Button, Dialog, Icon, InfoBar, LinkButton, Progress } from '../kit';
 import { useText } from '../texts/Texts';
 import './status.css';
 
-/** Where the driver's install is: offered, asked of Windows, refused, or done for a moment. */
-type DriverStep = 'offered' | 'installing' | 'refused' | 'installed';
+/**
+ * Where the driver's install is: offered, asked of Windows, refused, done for a moment, or waiting for Windows to
+ * restart, which stays, since nothing reads until then.
+ */
+type DriverStep = 'offered' | 'installing' | 'refused' | 'installed' | 'restart';
 
 /** How long "Driver installed" stays before its bar goes. */
 const installedFor = 8_000;
@@ -14,7 +17,15 @@ const installedFor = 8_000;
 function DriverDialog({ open, onInstall, onClose }: { open: boolean; onInstall: () => void; onClose: () => void }) {
   const t = useText();
   return (
-    <Dialog open={open} title={t('WindowText.DriverTitle')} main={t('WindowText.InstallDriver')} onMain={onInstall} cancel={t('UiText.Close')} onCancel={onClose} shield>
+    <Dialog
+      open={open}
+      title={t('WindowText.DriverTitle')}
+      main={t('WindowText.InstallDriver')}
+      onMain={onInstall}
+      cancel={t('UiText.Close')}
+      onCancel={onClose}
+      shield
+    >
       <p className="t-dialog-text">{t('WindowText.DriverReads')}</p>
       <p className="t-dialog-text">
         <b>{t('WindowText.DriverInstallLead')}</b> {t('WindowText.DriverInstallText')}
@@ -48,9 +59,9 @@ function DriverBar({ needed, onInstalled }: { needed: boolean; onInstalled: () =
     // The button goes while Windows asks, so the focus waits on the bar.
     bar.current?.focus();
     // A call that fails installed nothing either, so it is refused too, and Try again stays offered.
-    const installed = (await bridge()?.installDriver().catch(() => false)) === true;
-    setStep(installed ? 'installed' : 'refused');
-    if (installed) {
+    const ended = (await bridge()?.installDriver().catch(() => undefined)) ?? 'not-installed';
+    setStep(ended === 'installed' ? 'installed' : ended === 'restart-windows' ? 'restart' : 'refused');
+    if (ended === 'installed') {
       onInstalled();
     }
   };
@@ -74,7 +85,20 @@ function DriverBar({ needed, onInstalled }: { needed: boolean; onInstalled: () =
           }
         />
       )}
-      {step === 'installing' && <InfoBar intent="info" title={t('WindowText.DriverInstalling')} actions={<span className="t-bar-progress"><Progress label={t('WindowText.DriverInstalling')} /></span>} />}
+      {step === 'installing' && (
+        <InfoBar
+          intent="info"
+          title={t('WindowText.DriverInstalling')}
+          actions={
+            <span className="t-bar-progress">
+              <Progress label={t('WindowText.DriverInstalling')} />
+            </span>
+          }
+        />
+      )}
+      {step === 'restart' && (
+        <InfoBar intent="warning" title={t('WindowText.DriverRestart')} message={t('WindowText.DriverRestartMore')} />
+      )}
       {step === 'refused' && (
         <InfoBar
           intent="error"

@@ -83,7 +83,8 @@ function Show-Coverage {
     if (-not $report) { return }
     $coverage = ([xml](Get-Content $report.FullName)).coverage
     if ([Math]::Min([double]$coverage.'line-rate', [double]$coverage.'branch-rate') * 100 -ge $minCoverage) { return }
-    Write-Host ('  Thermi.Core coverage: lines {0:p0}, branches {1:p0}. The gate is {2} %: add behavior tests for the new code.' -f [double]$coverage.'line-rate', [double]$coverage.'branch-rate', $minCoverage)
+    Write-Host ('  Thermi.Core coverage: lines {0:p0}, branches {1:p0}. The gate is {2} %: add behavior tests for the new code.' -f
+        [double]$coverage.'line-rate', [double]$coverage.'branch-rate', $minCoverage)
 }
 
 # Shown, not gated: what the tests' windows run depends on the PC's monitors, DPI and theme, and a little on timing.
@@ -98,7 +99,8 @@ function Show-AppCoverage {
         foreach ($module in $measured.GetEnumerator()) { $names[[IO.Path]::GetFileNameWithoutExtension($module.Key)] = $module.Value }
         foreach ($name in $appReports[$tests]) {
             if (-not $names[$name]) {
-                Write-Host "FAIL app coverage: $tests did not measure $name. Coverlet leaves out an assembly the test process loaded before the tests, as a [ModuleInitializer] that uses its types does."
+                Write-Host ("FAIL app coverage: $tests did not measure $name. Coverlet leaves out an assembly the test process loaded " +
+                    'before the tests, as a [ModuleInitializer] that uses its types does.')
                 exit 1
             }
         }
@@ -137,7 +139,9 @@ function Get-Rate([hashtable]$Hits) {
 
 function Invoke-DotNet {
     Invoke-Step 'restore' { dotnet restore thermi.slnx $(if ($Ci) { '--locked-mode' }) }
-    Invoke-Step 'format' { dotnet format whitespace thermi.slnx --verify-no-changes } -Explain { Write-Host '  Fix it with: dotnet format whitespace thermi.slnx' }
+    Invoke-Step 'format' { dotnet format whitespace thermi.slnx --verify-no-changes } -Explain {
+        Write-Host '  Fix it with: dotnet format whitespace thermi.slnx'
+    }
     # From the lock files and the packages the restore just downloaded, the page's too.
     Invoke-Step 'third-party notices' { pwsh -NoProfile -File scripts/notices.ps1 -Check }
     Invoke-Step 'build Release' { dotnet build thermi.slnx -c Release --no-restore }
@@ -148,7 +152,9 @@ function Invoke-DotNet {
             --coverlet --coverlet-include '[Thermi.Core]*' --coverlet-output-format cobertura `
             --coverlet-threshold $minCoverage --coverlet-threshold-type line,branch
     } -Explain { Show-Coverage }
-    Invoke-Step 'Windows tests' { dotnet test --project tests/Thermi.Windows.Tests -c Release --no-build @appCoverage --coverlet-file-prefix Thermi.Windows.Tests }
+    Invoke-Step 'Windows tests' {
+        dotnet test --project tests/Thermi.Windows.Tests -c Release --no-build @appCoverage --coverlet-file-prefix Thermi.Windows.Tests
+    }
     Show-AppCoverage
     if ($Mutation) {
         pwsh -NoProfile -File scripts/mutation.ps1

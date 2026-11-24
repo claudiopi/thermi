@@ -78,7 +78,12 @@ public sealed class SettingsTests : IDisposable
     [Fact]
     public async Task AnEditWhileTheFileIsBrokenIsAppliedOnce()
     {
-        StyleConfig[] saved = [new() { Name = "Big", Preset = StylePreset.Large }, new() { Name = "Daylight", Pills = PillTheme.Light }, new() { Name = "Small", Preset = StylePreset.Compact }];
+        StyleConfig[] saved =
+        [
+            new() { Name = "Big", Preset = StylePreset.Large },
+            new() { Name = "Daylight", Pills = PillTheme.Light },
+            new() { Name = "Small", Preset = StylePreset.Compact },
+        ];
         var settings = await _folder.LoadedAsync();
         _folder.Write("{ \"version\": 2, broken }");
         await _folder.Settled(settings.SyncAsync);
@@ -301,7 +306,8 @@ public sealed class SettingsTests : IDisposable
         _folder.Write(SettingsFolder.Sized(1.5));
         using var watcher = settings.Watch(_folder.Log)!;
 
-        typeof(FileSystemWatcher).GetMethod("OnError", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(watcher, [new ErrorEventArgs(new InternalBufferOverflowException())]);
+        typeof(FileSystemWatcher).GetMethod("OnError", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(watcher, [new ErrorEventArgs(new InternalBufferOverflowException())]);
 
         Assert.Equal((1.5, true), (settings.Config.Overlays[0].Size, watcher.EnableRaisingEvents));
     }

@@ -24,7 +24,11 @@ public sealed class FileFormatTests
     [Fact]
     public void BrokenSensorValuesTravelAndShowAsMissing()
     {
-        var snapshot = new Snapshot([new RawSensor("/a", "Cpu", "CPU", "Load", "CPU Total", double.NaN), new RawSensor("/b", "Cpu", "CPU", "Power", "Package", double.PositiveInfinity)]);
+        var snapshot = new Snapshot(
+        [
+            new RawSensor("/a", "Cpu", "CPU", "Load", "CPU Total", double.NaN),
+            new RawSensor("/b", "Cpu", "CPU", "Power", "Package", double.PositiveInfinity),
+        ]);
 
         var back = SnapshotJson.Read(SnapshotJson.Write(snapshot))!;
 
@@ -93,7 +97,7 @@ public sealed class FileFormatTests
     [InlineData("{ broken", null)]
     [InlineData("[1,2,3]", null)]
     [InlineData("{\"items\":[{\"metric\":\"cpu.load\",\"threshold\":{\"warning\":90,\"critical\":80}}]}", null)]
-    [InlineData("{\"version\":3}", null)]
+    [InlineData("{\"version\":4}", null)]
     [InlineData("{\"version\":0}", null)]
     [InlineData("{\"version\":\"two\"}", null)]
     [InlineData("{\"version\":2,\"overlays\":[]}", "overlays holds 0")]
@@ -109,8 +113,12 @@ public sealed class FileFormatTests
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"smooth\":1}]}]}", "items[0].smooth")]
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"decimals\":3}]}]}", "items[0].decimals")]
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"color\":\"red\"}]}]}", "items[0].color")]
-    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"cpu.load\",\"sensor\":\"/a\"}}]}]}", "items[0].meter must name one")]
-    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"cpu.load\",\"auto\":\"cpu.load\"}}]}]}", "items[0].meter.auto")]
+    [InlineData(
+        "{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"cpu.load\",\"sensor\":\"/a\"}}]}]}",
+        "items[0].meter must name one")]
+    [InlineData(
+        "{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"cpu.load\",\"auto\":\"cpu.load\"}}]}]}",
+        "items[0].meter.auto")]
     [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"name\":\"\"}}]}", "style.name")]
     [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"label\":{\"size\":21,\"weight\":\"bold\"}}}]}", "style.label.size")]
     [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"value\":{\"size\":13.25,\"weight\":\"bold\"}}}]}", "style.value.size")]
@@ -138,14 +146,18 @@ public sealed class FileFormatTests
     [InlineData("{\"sources\":{\"fan.cpu\":null,\"cpu.load\":null},\"items\":[{\"metric\":\"fan.cpu\"},{\"metric\":\"cpu.load\",\"meter\":\"cpu.load\"}]}", 2)]
     [InlineData("{\"version\":2,\"overlays\":null}", 6)]
     [InlineData("{\"version\":2,\"overlays\":[null,{\"style\":null,\"items\":null}]}", 6)]
-    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"opacity\":null},\"items\":[null,{\"metric\":null},{\"sensors\":[null]},{\"metric\":\"ram.load\"}]}]}", 1)]
+    [InlineData(
+        "{\"version\":2,\"overlays\":[{\"style\":{\"opacity\":null},\"items\":[null,{\"metric\":null},{\"sensors\":[null]},{\"metric\":\"ram.load\"}]}]}",
+        1)]
     public void NoConfigOrNullsWrittenByHandMeanTheDefaults(string? json, int items)
     {
         var (config, problem) = ThermiConfigJson.Read(json);
 
         Assert.Null(problem);
         Assert.Equal(items, Assert.Single(config.Overlays).Items.Count);
-        Assert.True(items != OverlayConfig.DefaultItems.Count || config.Overlays[0].Items.SequenceEqual(OverlayConfig.DefaultItems), "Some items, but not the defaults.");
+        Assert.True(
+            items != OverlayConfig.DefaultItems.Count || config.Overlays[0].Items.SequenceEqual(OverlayConfig.DefaultItems),
+            "Some items, but not the defaults.");
         Assert.All(config.Overlays[0].Items, item => Assert.Null(item.Sensor));
         Assert.Equal(new StyleConfig(), config.Overlays[0].Style);
         Assert.Null(config.Overlays[0].Position);
@@ -180,10 +192,14 @@ public sealed class FileFormatTests
 
         Assert.Equal((ConfigProblemKind.Broken, 3L), (syntax!.Kind, syntax.Line));
         Assert.DoesNotContain("LineNumber", syntax.Reason, StringComparison.Ordinal);
-        Assert.Equal(OneLine(english, ConfigProblemKind.Broken, english.Format(numbers, ConfigProblemText.AtLine, 3, syntax.Reason)), syntax.OneLine(english, numbers));
+        Assert.Equal(
+            OneLine(english, ConfigProblemKind.Broken, english.Format(numbers, ConfigProblemText.AtLine, 3, syntax.Reason)),
+            syntax.OneLine(english, numbers));
         Assert.Equal((ConfigProblemKind.Broken, 4L), (kind!.Kind, kind.Line));
         Assert.Equal(english.Format(numbers, ConfigProblemText.Newer, 99, ThermiConfig.CurrentVersion), newer!.Detail(english, numbers));
-        Assert.Equal(OneLine(spanish, ConfigProblemKind.Newer, spanish.Format(numbers, ConfigProblemText.Newer, 99, ThermiConfig.CurrentVersion)), newer.OneLine(spanish, numbers));
+        Assert.Equal(
+            OneLine(spanish, ConfigProblemKind.Newer, spanish.Format(numbers, ConfigProblemText.Newer, 99, ThermiConfig.CurrentVersion)),
+            newer.OneLine(spanish, numbers));
         Assert.Equal(OneLine(english, ConfigProblemKind.Locked, "in use"), ConfigProblem.Locked("in use").OneLine(english, numbers));
         Assert.Equal(english.Of(ConfigProblemKind.Missing), ConfigProblem.Missing.OneLine(english, numbers));
     }

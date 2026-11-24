@@ -37,7 +37,8 @@ internal sealed class SettingsBeacon : IDisposable
     /// select, and lets it take the front, which this process may give away while it came from a click or a terminal;
     /// false when no window answers.
     /// </summary>
-    public static bool AskToRaise(int overlay, string? item = null) => HiddenWindow.Send(HiddenWindow.WindowClass, new Raise(overlay, item), HiddenWindow.LetTakeTheFront);
+    public static bool AskToRaise(int overlay, string? item = null) =>
+        HiddenWindow.Send(HiddenWindow.WindowClass, new Raise(overlay, item), HiddenWindow.LetTakeTheFront);
 
     public void Dispose()
     {

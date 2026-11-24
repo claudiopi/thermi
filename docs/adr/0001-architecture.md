@@ -1,6 +1,6 @@
 # 0001. Core, an unelevated app, an elevated sensor host
 
-**Status**: Accepted
+**Status**: Accepted; amended by `docs/adr/0005-settings-window-process.md` and `docs/adr/0007-settings-window-in-webview2-and-react.md` (the settings window), `docs/adr/0010-driver-and-service-from-the-window.md` (the elevated mode) and `docs/adr/0011-sensor-service-memory-budget.md` (the budget). Each says what it replaces here.
 
 ## Context
 
@@ -20,7 +20,7 @@ Three projects, two processes:
 Inside the app:
 
 - **The overlay** is a Win32 layered window (topmost, no activation, no taskbar button). It paints the layout from Core with GDI+ into a 32-bit bitmap and shows it with `UpdateLayeredWindow`. The same painting code writes PNGs for `thermi preview` and for tests.
-- **The settings window** is WPF, loaded only when it opens. It gets its own ADR when it is built.
+- **The settings window** is WPF, loaded only when it opens. It gets its own ADR when it is built. (Replaced: it is a process of its own, ADR 0005, showing a page in WebView2, ADR 0007; no process of thermi's loads WPF.)
 - Contracts between processes and projects are typed. A change that breaks one fails the build.
 - The saved config has a version number. Each version has a migration and a round-trip test with a real file from that version. No automatic polymorphic JSON in anything saved to disk: it breaks silently between versions.
 
@@ -29,6 +29,8 @@ How the sensor host starts elevated without a prompt at every sign-in gets its o
 ## Budget
 
 "Light" is a number, measured from 0.1 on and shown in the stats dashboard. Starting targets, with a 1 second refresh: the overlay under 40 MB of private memory and under 0.5 % of one CPU core when idle, and the sensor host under 30 MB. Raising a target needs a note in the PR that explains why.
+
+Amended with version 0.9: the overlay's memory target is 48 MB. The installed overlay of spec 002, read with no window open on the author's PC, held 42 MB private through two minutes of 5 s samples, 45 minutes after it started, 42.7 MB at 50 minutes and 42.2 MB at 70, with 581 handles, 17 threads and 103 modules: flat, so nothing it keeps grows with time. Spec 002 added what the overlay loads on every start (the tray's menus and notices, the window's hotkeys and gestures, Serilog, System.CommandLine), and the .NET runtime with GDI+ is most of the rest. `scripts/measure.ps1` fails past 48 MB, which leaves room for a bigger PC's sensors.
 
 ## Rejected
 

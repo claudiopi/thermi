@@ -17,7 +17,14 @@ export function SwitchLine({ label, description, checked, disabled = false, onCh
   const described = description === undefined ? {} : { description, descriptionId: id };
   return (
     <CardRow label={label} {...described}>
-      <Switch label={label} stateText={t(checked ? 'UndoText.On' : 'UndoText.Off')} checked={checked} disabled={disabled} {...(description === undefined ? {} : { describedBy: id })} onChange={onChange} />
+      <Switch
+        label={label}
+        stateText={t(checked ? 'UndoText.On' : 'UndoText.Off')}
+        checked={checked}
+        disabled={disabled}
+        {...(description === undefined ? {} : { describedBy: id })}
+        onChange={onChange}
+      />
     </CardRow>
   );
 }

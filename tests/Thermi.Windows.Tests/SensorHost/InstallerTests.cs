@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Thermi.Windows.Tests.Processes;
 
 namespace Thermi.Windows.Tests.SensorHost;
 
@@ -36,7 +36,10 @@ public sealed class InstallerTests : IDisposable
             "changed" => ("", $"Set-Content '{build}\\thermi-sensors.exe' 'planted'; "),
             "added" => ("", $"Set-Content '{build}\\runtimes\\version.dll' 'planted'; "),
             "removed" => ("", $"Remove-Item '{build}\\runtimes\\thermi.dll'; "),
-            "junction" => ($"New-Item '{elsewhere}' -ItemType Directory | Out-Null; Set-Content '{elsewhere}\\version.dll' 'planted'; New-Item '{build}\\plugins' -ItemType Junction -Target '{elsewhere}' | Out-Null; ", ""),
+            "junction" => (
+                $"New-Item '{elsewhere}' -ItemType Directory | Out-Null; Set-Content '{elsewhere}\\version.dll' 'planted'; "
+                    + $"New-Item '{build}\\plugins' -ItemType Junction -Target '{elsewhere}' | Out-Null; ",
+                ""),
             _ => ("", ""),
         };
 
@@ -45,26 +48,37 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal((exitCode, installed), (exit, Directory.Exists(incoming)));
     }
 
-    // The old thermi is set aside, not deleted, until the new one's service is registered: an install that fails there
-    // puts the old files back and registers them again, and leaves nothing beside them. The service manager is faked,
-    // refusing the new build's files, so no service on this PC is touched.
+    // The old thermi is set aside, not deleted, until the new one's service is registered: an install that fails there,
+    // or an old folder held open that cannot be set aside, puts the old files back and registers them again, and leaves
+    // nothing beside them. The service manager is faked, refusing the new build's files, so no service on this PC is
+    // touched; a service registered last is one it took.
     [Theory]
-    [InlineData(true, 0, "built")]
-    [InlineData(false, 1, "old")]
-    public async Task AnInstallThatFailsPutsTheOldThermiBack(bool registers, int exitCode, string left)
+    [InlineData(true, false, 0, "built")]
+    [InlineData(false, false, 1, "old")]
+    [InlineData(true, true, 1, "old")]
+    public async Task AnInstallThatFailsPutsTheOldThermiBack(bool registers, bool held, int exitCode, string left)
     {
         var build = Path.Combine(_folder, "build");
         var target = Path.Combine(_folder, "thermi");
+        var registered = Path.Combine(_folder, "registered");
         Directory.CreateDirectory(target);
         await File.WriteAllTextAsync(Path.Combine(target, "thermi-sensors.exe"), "old", TestContext.Current.CancellationToken);
         var refuse = registers ? "" : "if ((Get-Content \"$target\\thermi-sensors.exe\") -eq 'built') { throw 'Windows refused the service.' }";
 
-        var exit = await PwshAsync($"$target = '{target}'; $service = 'thermi-tests-none'; function Remove-Service {{ }}; function Register-Service {{ {refuse} }}; "
-            + $"Install-Elevated '{build}' (Get-TreeHash '{build}') $true");
+        int exit;
+        using (held ? new FileStream(Path.Combine(target, "thermi-sensors.exe"), FileMode.Open, FileAccess.Read, FileShare.Read) : null)
+        {
+            exit = await PwshAsync(
+                $"$target = '{target}'; $service = 'thermi-tests-none'; function Remove-Service {{ }}; "
+                + $"function Register-Service {{ {refuse}; Set-Content '{registered}' 'yes' }}; "
+                + $"Install-Elevated '{build}' (Get-TreeHash '{build}') $true");
+        }
 
         var beside = new[] { ".old", ".new" }.Any(end => Directory.Exists(target + end));
-        var installed = File.Exists(Path.Combine(target, "thermi-sensors.exe")) ? await File.ReadAllTextAsync(Path.Combine(target, "thermi-sensors.exe"), TestContext.Current.CancellationToken) : "nothing";
-        Assert.Equal((exitCode, left, false), (exit, installed.Trim(), beside));
+        var installed = File.Exists(Path.Combine(target, "thermi-sensors.exe"))
+            ? await File.ReadAllTextAsync(Path.Combine(target, "thermi-sensors.exe"), TestContext.Current.CancellationToken)
+            : "nothing";
+        Assert.Equal((exitCode, left, false, true), (exit, installed.Trim(), beside, File.Exists(registered)));
     }
 
     // The elevated half runs as administrator from the PowerShell that started the installer, so only one where only
@@ -85,7 +99,9 @@ public sealed class InstallerTests : IDisposable
     public void Dispose()
     {
         // A recursive delete refuses a junction, so the links go first, on their own.
-        foreach (var link in Directory.GetDirectories(_folder, "*", SearchOption.AllDirectories).Where(folder => File.GetAttributes(folder).HasFlag(FileAttributes.ReparsePoint)))
+        var links = Directory.GetDirectories(_folder, "*", SearchOption.AllDirectories)
+            .Where(folder => File.GetAttributes(folder).HasFlag(FileAttributes.ReparsePoint));
+        foreach (var link in links)
         {
             Directory.Delete(link);
         }
@@ -98,10 +114,9 @@ public sealed class InstallerTests : IDisposable
     {
         var script = Path.Combine(TestRecordings.RepoRoot(), "scripts", "install.ps1");
         var load = $"$ErrorActionPreference = 'Stop'; $ast = [System.Management.Automation.Language.Parser]::ParseFile('{script}', [ref]$null, [ref]$null); "
-            + "foreach ($function in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) { . ([scriptblock]::Create($function.Extent.Text)) }; ";
-        var start = new ProcessStartInfo("pwsh") { ArgumentList = { "-NoProfile", "-NonInteractive", "-Command", load + command }, UseShellExecute = false, CreateNoWindow = true };
-        using var pwsh = Process.Start(start)!;
-        await pwsh.WaitForExitAsync(TestContext.Current.CancellationToken);
-        return pwsh.ExitCode;
+            + "foreach ($function in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) "
+            + "{ . ([scriptblock]::Create($function.Extent.Text)) }; ";
+        var (code, _) = await DesktopProcess.RunAsync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", load + command], TimeSpan.FromMinutes(2));
+        return code;
     }
 }

@@ -33,8 +33,18 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     /// <summary>Where the overlay goes while a press holds it: where the drag has it, unless it carries a pill off or holds the corner.</summary>
     public Position? HeldAt(Position? dragged) => Drag?.Moves == false ? null : dragged;
 
-    /// <summary>A press on <paramref name="overlay"/> at <paramref name="at"/>: on its corner, its edge, or the pill of the item it is on, in its box.</summary>
-    public void Press(OverlayConfig overlay, PaintedOverlay painted, IReadOnlyList<Screen> screens, (string? Item, RectangleF Box) on, Position at)
+    /// <summary>
+    /// A press on <paramref name="overlay"/> at <paramref name="at"/>: on its corner, its edge, or the pill of the item it is
+    /// on, in its box. <paramref name="rowWidths"/> are the widths the overlays keep on the taskbars, which this one's
+    /// joins wherever it sits, so its taskbar spots are offered only where they have room.
+    /// </summary>
+    public void Press(
+        OverlayConfig overlay,
+        PaintedOverlay painted,
+        IReadOnlyList<Screen> screens,
+        (string? Item, RectangleF Box) on,
+        Position at,
+        IReadOnlyList<int?> rowWidths)
     {
         Let();
         var item = on.Item;
@@ -42,7 +52,14 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         // The key's state as it was when the press was sent, which a posted press without a keyboard reads as up.
         var ctrl = PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_CONTROL) < 0;
         var start = new DragStart(held, item, ctrl, on.Box, at, painted.Size, painted.Scale, item is null ? null : () => PillPicture(item, painted));
-        Drag = new DesktopDrag(index, settings, start, screens, hwnd);
+        using var painter = new Painter();
+        var widths = rowWidths.ToArray();
+        if (index < widths.Length)
+        {
+            widths[index] = TaskbarRoom.Width(painter, painted.Items, painted.Look, painted.Scale, painted.Size.Width);
+        }
+
+        Drag = new DesktopDrag(index, settings, start, screens, hwnd, widths);
     }
 
     /// <summary>The pointer dragged to <paramref name="to"/>: the overlay follows unless the press carries a pill or holds the corner.</summary>
@@ -50,7 +67,14 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     {
         if (Drag?.Moves != false)
         {
-            PInvoke.SetWindowPos(hwnd, HWND.Null, to.X, to.Y, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+            PInvoke.SetWindowPos(
+                hwnd,
+                HWND.Null,
+                to.X,
+                to.Y,
+                0,
+                0,
+                SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
         if (Drag?.Moved(dragged) == true)
@@ -121,6 +145,9 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         var ids = DesktopGestures.PillItems(settings.Config, item);
         // Carried over other pills, it keeps a background of its own whatever the look's opacity or the window's fade.
         using var painter = new Painter();
-        return painter.Paint([.. painted.Items.Where(each => ids.Contains(each.Id))], painted.Look with { Orientation = Orientation.Horizontal, Background = 1, Opacity = 1 }, painted.Scale);
+        return painter.Paint(
+            [.. painted.Items.Where(each => ids.Contains(each.Id))],
+            painted.Look with { Orientation = Orientation.Horizontal, Background = 1, Opacity = 1 },
+            painted.Scale);
     }
 }

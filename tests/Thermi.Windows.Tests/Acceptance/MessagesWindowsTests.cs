@@ -49,7 +49,14 @@ public sealed class MessagesWindowsTests : IDisposable
         TestWindows.OnOwnDesktop(() =>
         {
             using var window = MutexHolder.Holding(_windowMutex);
-            using var host = new OverlayHost(settings, () => HostRun.Recorded, HostRun.English, _folder.Clock, _folder.Log, new FakeTray().Environment(_windowMutex)) { Received = received.Add };
+            using var host = new OverlayHost(
+                settings,
+                () => HostRun.Recorded,
+                HostRun.English,
+                _folder.Clock,
+                _folder.Log,
+                new FakeTray().Environment(_windowMutex))
+            { Received = received.Add };
             using var beacon = new SettingsBeacon(_ => { }) { Received = received.Add };
             host.Start();
 
@@ -75,7 +82,14 @@ public sealed class MessagesWindowsTests : IDisposable
         TestWindows.OnOwnDesktop(desktop =>
         {
             using var window = MutexHolder.Holding(_windowMutex);
-            using var host = new OverlayHost(settings, () => HostRun.Recorded, HostRun.English, _folder.Clock, _folder.Log, new FakeTray().Environment(_windowMutex)) { Received = received.Add };
+            using var host = new OverlayHost(
+                settings,
+                () => HostRun.Recorded,
+                HostRun.English,
+                _folder.Clock,
+                _folder.Log,
+                new FakeTray().Environment(_windowMutex))
+            { Received = received.Add };
             host.Start();
             using var other = new OtherProcess(desktop, "thermi-other.exe");
 
@@ -93,8 +107,20 @@ public sealed class MessagesWindowsTests : IDisposable
         var payload = WindowMessages.Encode(message);
         fixed (byte* data = payload)
         {
-            var copy = new COPYDATASTRUCT { dwData = PInvoke.RegisterWindowMessage(WindowMessages.NameOf(message)), cbData = (uint)payload.Length, lpData = data };
-            return PInvoke.SendMessageTimeout(to, PInvoke.WM_COPYDATA, (nuint)(nint)sender, (nint)(&copy), SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG, 500, out _) != 0;
+            var copy = new COPYDATASTRUCT
+            {
+                dwData = PInvoke.RegisterWindowMessage(WindowMessages.NameOf(message)),
+                cbData = (uint)payload.Length,
+                lpData = data,
+            };
+            return PInvoke.SendMessageTimeout(
+                to,
+                PInvoke.WM_COPYDATA,
+                (nuint)(nint)sender,
+                (nint)(&copy),
+                SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG,
+                500,
+                out _) != 0;
         }
     }
 
@@ -107,7 +133,13 @@ public sealed class MessagesWindowsTests : IDisposable
         "edge" => new Select(2, null, SelectHow.Click),
         "point" => new Select(1, Metrics.RamUsed.Id, SelectHow.PointIn),
         "edited" => new Edited(1, Metrics.CpuTemperature.Id, Metrics.RamUsed.Id),
-        "gesture" => new Gesture(GestureKind.Move, ThermiConfigJson.Write(config), ThermiConfigJson.Write(config with { Overlays = [config.Overlays[0] with { Position = new Position(400, 300), Snap = null }, config.Overlays[1]] })),
+        "gesture" => new Gesture(
+            GestureKind.Move,
+            ThermiConfigJson.Write(config),
+            ThermiConfigJson.Write(config with
+            {
+                Overlays = [config.Overlays[0] with { Position = new Position(400, 300), Snap = null }, config.Overlays[1]],
+            })),
         _ => new Raise(2, Metrics.CpuFan.Id),
     };
 

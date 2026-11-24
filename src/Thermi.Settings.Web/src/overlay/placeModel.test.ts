@@ -50,7 +50,11 @@ describe('where an overlay sits', () => {
   });
 
   test('writes a spot of the map without the display when it is the main one or none', () => {
-    expect([snapAt('top-left', undefined), snapAt('top-left', main), snapAt('top-left', second)]).toEqual([{ spot: 'top-left' }, { spot: 'top-left' }, { spot: 'top-left', monitor: 'm2' }]);
+    expect([snapAt('top-left', undefined), snapAt('top-left', main), snapAt('top-left', second)]).toEqual([
+      { spot: 'top-left' },
+      { spot: 'top-left' },
+      { spot: 'top-left', monitor: 'm2' },
+    ]);
   });
 
   test.each([

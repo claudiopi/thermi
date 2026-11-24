@@ -95,7 +95,9 @@ public sealed class StyleTests
         Assert.Equal(SnapTests.Placed(Snapped(SnapSpot.BottomLeft, Orientation.Vertical), [SnapTests.Main], 200, 228), left);
         Assert.Equal(SnapTests.Placed(Snapped(SnapSpot.BottomRight, Orientation.Vertical), [SnapTests.Main], 200, 228), center);
         Assert.Equal(center, right);
-        Assert.DoesNotContain(Snaps.Spots(SnapTests.Main, Orientation.Vertical), spot => spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight);
+        Assert.DoesNotContain(
+            Snaps.Spots(SnapTests.Main, Orientation.Vertical),
+            spot => spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight);
     }
 
     [Fact]
@@ -124,7 +126,10 @@ public sealed class StyleTests
 
         Assert.Equal(StylePresets.Of(StylePreset.Standard), StylePresets.Text(new StyleConfig()));
         Assert.Equal(StylePresets.Of(StylePreset.Standard), StylePresets.Text(new StyleConfig { Preset = StylePreset.Custom }));
-        var large = Done(StyleEdits.SetPreset(Done(StyleEdits.SetText(new ThermiConfig(), 0, TextPart.Value, new TextStyle(20, TextWeight.Bold))), 0, StylePreset.Large));
+        var large = Done(StyleEdits.SetPreset(
+            Done(StyleEdits.SetText(new ThermiConfig(), 0, TextPart.Value, new TextStyle(20, TextWeight.Bold))),
+            0,
+            StylePreset.Large));
         Assert.Null(large.Overlays[0].Style.Value);
         Assert.Equal(Refusal.NotFound, StyleEdits.SetPreset(large, 1, StylePreset.Compact).Refused);
     }
@@ -138,14 +143,21 @@ public sealed class StyleTests
             {
                 foreach (var size in new[] { 9, 20 })
                 {
-                    var (label, value) = StylePresets.Text(Done(StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(size, weight))).Overlays[0].Style);
+                    var (label, value) = StylePresets.Text(
+                        Done(StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(size, weight))).Overlays[0].Style);
                     Assert.Equal(new TextStyle(size, weight), part == TextPart.Label ? label : value);
                 }
 
                 var field = part == TextPart.Label ? "label" : "value";
-                Assert.Equal($"overlays[0].style.{field}.size is 8.5, not 9 to 20", StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(8.5, weight)).Problem);
-                Assert.Equal($"overlays[0].style.{field}.size is 12.25, not a step of 0.5", StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(12.25, weight)).Problem);
-                Assert.Equal($"overlays[0].style.{field}.size is 20.5, not 9 to 20", StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(20.5, weight)).Problem);
+                Assert.Equal(
+                    $"overlays[0].style.{field}.size is 8.5, not 9 to 20",
+                    StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(8.5, weight)).Problem);
+                Assert.Equal(
+                    $"overlays[0].style.{field}.size is 12.25, not a step of 0.5",
+                    StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(12.25, weight)).Problem);
+                Assert.Equal(
+                    $"overlays[0].style.{field}.size is 20.5, not 9 to 20",
+                    StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(20.5, weight)).Problem);
             }
         }
     }
@@ -153,7 +165,9 @@ public sealed class StyleTests
     [Fact]
     public void BelowThirtyPercentTheTextGetsAShadow()
     {
-        var effects = new[] { 0, 0.29, 0.3, 1 }.Select(background => Look(Done(StyleEdits.SetOpacity(new ThermiConfig(), 0, new OpacityConfig(background))))).Select(look => look.Effect);
+        var effects = new[] { 0, 0.29, 0.3, 1 }
+            .Select(background => Look(Done(StyleEdits.SetOpacity(new ThermiConfig(), 0, new OpacityConfig(background)))))
+            .Select(look => look.Effect);
         var outlined = Done(StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Effect = TextEffect.Outline, Opacity = new OpacityConfig(0) }));
 
         Assert.Equal([TextEffect.Shadow, TextEffect.Shadow, TextEffect.None, TextEffect.None], effects);
@@ -175,8 +189,12 @@ public sealed class StyleTests
             reset = Done(StyleEdits.SetColor(reset, 0, level, null));
         }
 
-        Assert.Equal(["#0072B2", "#E69F00", "#D55E00"], new[] { Level.Normal, Level.Warning, Level.Critical }.Select(level => Look(changed).MeterColor(level).ToString()));
-        Assert.Equal([Look(new ThermiConfig()).Normal, OverlayLook.DefaultWarning, OverlayLook.DefaultCritical], new[] { Level.Normal, Level.Warning, Level.Critical }.Select(Look(reset).MeterColor));
+        Assert.Equal(
+            ["#0072B2", "#E69F00", "#D55E00"],
+            new[] { Level.Normal, Level.Warning, Level.Critical }.Select(level => Look(changed).MeterColor(level).ToString()));
+        Assert.Equal(
+            [Look(new ThermiConfig()).Normal, OverlayLook.DefaultWarning, OverlayLook.DefaultCritical],
+            new[] { Level.Normal, Level.Warning, Level.Critical }.Select(Look(reset).MeterColor));
         Assert.Null(reset.Overlays[0].Style.Colors);
         Assert.Equal("overlays[0].style.colors.normal is \"red\", not a color like #RRGGBB", StyleEdits.SetColor(reset, 0, StyleColor.Normal, "red").Problem);
     }
@@ -189,7 +207,9 @@ public sealed class StyleTests
         var grayOnLight = Done(StyleEdits.SetColor(light, 0, StyleColor.Label, "#808080"));
         var white = Done(StyleEdits.SetColor(light, 0, StyleColor.Value, "#FFFFFF"));
 
-        Assert.Equal((new TextColor(Rgb.Parse("#A9A9A7")), new TextColor(Rgb.Parse("#EFEFEE"))), (Look(new ThermiConfig()).LabelColor, Look(new ThermiConfig()).ValueColor));
+        Assert.Equal(
+            (new TextColor(Rgb.Parse("#A9A9A7")), new TextColor(Rgb.Parse("#EFEFEE"))),
+            (Look(new ThermiConfig()).LabelColor, Look(new ThermiConfig()).ValueColor));
         Assert.Equal((new TextColor(Rgb.Parse("#5C5C5A")), new TextColor(Rgb.Parse("#1A1A1A"))), (Look(light).LabelColor, Look(light).ValueColor));
         Assert.Equal(new TextColor(Rgb.Parse("#808080")), Look(gray).LabelColor);
         Assert.Equal(new TextColor(Rgb.Parse("#808080")), Look(grayOnLight).LabelColor);
@@ -248,7 +268,13 @@ public sealed class StyleTests
 
         var shown = OverlayLayout.Build(graphed.Overlays[0], readings, English);
 
-        Assert.All(marks, row => Assert.Equal(row.Mark, LevelMarks.Of(OverlayLook.Of(new StyleConfig { Pills = row.Light ? PillTheme.Light : PillTheme.Dark }, row.Light, row.HighContrast), row.Level)));
+        Assert.All(
+            marks,
+            row => Assert.Equal(
+                row.Mark,
+                LevelMarks.Of(
+                    OverlayLook.Of(new StyleConfig { Pills = row.Light ? PillTheme.Light : PillTheme.Dark }, row.Light, row.HighContrast),
+                    row.Level)));
         Assert.Equal(
             [ReadingFormatter.Format(new Reading(SensorKind.Load, 0), English), ReadingFormatter.Format(new Reading(SensorKind.Load, 100), English)],
             shown.Where((_, at) => at is 2 or 4).Select(item => item.Value));
@@ -290,5 +316,6 @@ public sealed class StyleTests
     private static Rgb Blend(Rgb color, Rgb under, double alpha) =>
         new(Channel(color.R, under.R, alpha), Channel(color.G, under.G, alpha), Channel(color.B, under.B, alpha));
 
-    private static byte Channel(byte color, byte under, double alpha) => (byte)Math.Round((color * alpha) + (under * (1 - alpha)), MidpointRounding.AwayFromZero);
+    private static byte Channel(byte color, byte under, double alpha) =>
+        (byte)Math.Round((color * alpha) + (under * (1 - alpha)), MidpointRounding.AwayFromZero);
 }

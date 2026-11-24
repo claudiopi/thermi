@@ -16,7 +16,7 @@ Planned: a command line and an MCP server so AI agents can configure it, FPS, an
 
 ## Install from source
 
-Requires Windows 10 22H2 or Windows 11, x64 or Arm64, with PowerShell 7, the .NET SDK version in `global.json`, and Node.js 22.12 or later for the settings window's page.
+Requires Windows 11 on x64, with PowerShell 7, the .NET SDK version in `global.json`, and Node.js 22.12 or later for the settings window's page. Windows 10 22H2 and Arm64 PCs should work but are untested.
 
 Run this as yourself, not as administrator:
 

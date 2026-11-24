@@ -54,7 +54,21 @@ function Shield({ className }: { className: string }) {
  * A button. A disabled one keeps the focus it has, so a button that disables itself, like Undo when nothing is left
  * to undo, never drops the focus to the page.
  */
-function ButtonDrawn({ kind = 'standard', children, icon, shield = false, label, keys, disabled = false, type = 'button', onClick, describedBy, className, ref, ...trigger }: ButtonProps) {
+function ButtonDrawn({
+  kind = 'standard',
+  children,
+  icon,
+  shield = false,
+  label,
+  keys,
+  disabled = false,
+  type = 'button',
+  onClick,
+  describedBy,
+  className,
+  ref,
+  ...trigger
+}: ButtonProps) {
   const styles = useStyles();
   const shown = shield ? <Shield className={styles.shield} /> : icon;
   return (
@@ -110,7 +124,15 @@ export interface LinkButtonProps {
 function LinkButtonDrawn({ children, icon, onClick, label, keys, className, ref }: LinkButtonProps) {
   const styles = useLinkStyles();
   return (
-    <Link ref={fluentRef(ref)} as="button" type="button" className={mergeClasses(styles.link, className)} aria-label={label} aria-keyshortcuts={keys} onClick={onClick}>
+    <Link
+      ref={fluentRef(ref)}
+      as="button"
+      type="button"
+      className={mergeClasses(styles.link, className)}
+      aria-label={label}
+      aria-keyshortcuts={keys}
+      onClick={onClick}
+    >
       {icon}
       {children}
     </Link>

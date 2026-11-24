@@ -88,10 +88,23 @@ public static class TrayTexts
     /// An item icon's tooltip: its label, then its value with its unit, which it keeps when the overlay hides units. Without
     /// fresh readings it gives the label and says why, as the window does.
     /// </summary>
-    public static string ItemTooltip(string? label, Reading? reading, ServiceState service, Texts texts, IFormatProvider culture, TemperatureUnit temperature, int? decimals = null)
+    public static string ItemTooltip(
+        string? label,
+        Reading? reading,
+        ServiceState service,
+        Texts texts,
+        IFormatProvider culture,
+        TemperatureUnit temperature,
+        int? decimals = null)
     {
         string[] parts = service == ServiceState.Running
-            ? [string.Join(' ', new[] { label, reading is { } read ? ReadingFormatter.Format(read, culture, units: true, temperature, decimals, texts) : ReadingFormatter.Missing }.OfType<string>())]
+            ? [string.Join(
+                ' ',
+                new[]
+                {
+                    label,
+                    reading is { } read ? ReadingFormatter.Format(read, culture, units: true, temperature, decimals, texts) : ReadingFormatter.Missing,
+                }.OfType<string>())]
             : [.. new[] { label, texts.Of(service) }.OfType<string>()];
         return Fit(parts);
     }

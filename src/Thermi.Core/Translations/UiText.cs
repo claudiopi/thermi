@@ -68,6 +68,12 @@ public enum UiText
     /// <summary>Gives the item's value the style's color back.</summary>
     StyleColor,
 
+    /// <summary>The value color's button while the value wears the style's color.</summary>
+    StyleColorShown,
+
+    /// <summary>The button of the Combine row, which opens the sensors to combine.</summary>
+    CombineChoose,
+
     CatalogLive,
 
     Close,

@@ -43,7 +43,12 @@ public sealed class MoreControlTests
         Assert.Equal((32.0, 212.0, 1.0), Temperatures.Track(unit));
         Assert.Equal((0.0, 100.0, 1.0), Temperatures.Track(TemperatureUnit.Celsius));
         Assert.Equal((-9.0, -5.0), (Temperatures.ShownDifference(-5, unit), Temperatures.KeptDifference(-9, unit)));
-        Assert.Equal((-5.0, -5.0, 62.0), (Temperatures.ShownDifference(-5, TemperatureUnit.Celsius), Temperatures.KeptDifference(-5, TemperatureUnit.Celsius), Temperatures.Kept(62, TemperatureUnit.Celsius)));
+        Assert.Equal(
+            (-5.0, -5.0, 62.0),
+            (
+                Temperatures.ShownDifference(-5, TemperatureUnit.Celsius),
+                Temperatures.KeptDifference(-5, TemperatureUnit.Celsius),
+                Temperatures.Kept(62, TemperatureUnit.Celsius)));
     }
 
     // thermi's tooltip gives the hottest value as the overlay shows it, so without its unit; an item's icon keeps its own.
@@ -51,7 +56,10 @@ public sealed class MoreControlTests
     [Fact]
     public void UnitsAndLabelsCanBeHidden()
     {
-        var bare = WithOverlay(TrayTextTests.InTray(new ThermiConfig(), Metrics.CpuFan.Id), 0, overlay => overlay with { Style = overlay.Style with { Units = false } });
+        var bare = WithOverlay(
+            TrayTextTests.InTray(new ThermiConfig(), Metrics.CpuFan.Id),
+            0,
+            overlay => overlay with { Style = overlay.Style with { Units = false } });
         var readings = SensorMap.Read(Desktop, bare.Overlays[0]);
 
         var shown = OverlayLayout.Build(bare.Overlays[0], TrayTextTests.Quiet, English);
@@ -86,6 +94,8 @@ public sealed class MoreControlTests
         Assert.All(colors.Where((_, at) => at is not (0 or 4)), color => Assert.Equal(new TextColor(Rgb.Parse("#E0E0E0")), color));
         Assert.Equal(new TextColor(PillColors.Dark.Value, Unreadable: true), colors[4]);
         Assert.Equal(new TextColor(Rgb.Parse("#E0E0E0")), ValueColors(back)[0]);
-        Assert.Equal("overlays[0].items[0].color is \"orange\", not a color like #RRGGBB", ItemEdits.SetColor(back, Metrics.CpuTemperature.Id, "orange").Problem);
+        Assert.Equal(
+            "overlays[0].items[0].color is \"orange\", not a color like #RRGGBB",
+            ItemEdits.SetColor(back, Metrics.CpuTemperature.Id, "orange").Problem);
     }
 }

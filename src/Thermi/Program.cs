@@ -37,7 +37,7 @@ internal static class Program
             SettingsRequest window => await RunWindowAsync(window, time),
             PreviewRequest preview => await Preview.RunAsync(preview, time),
             CpuLoadRequest load => await CpuLoad.RunAsync(load.Seconds, time),
-            ElevatedRequest elevated => await Elevated.RunAsync(elevated.Verb, ElevatedParts.Windows, time),
+            ElevatedRequest elevated => await RunElevatedAsync(elevated.Verb, time),
             BuiltInRequest builtIn => await AnswerAsync(builtIn),
             _ => 2,
         };
@@ -71,9 +71,15 @@ internal static class Program
 
         using (single)
         {
-            using var logs = ThermiLog.Create(ThermiLog.DefaultPath, time, trace);
+            using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, trace);
             return await ThermiLog.RunLoggedAsync(logs.CreateLogger("Thermi.Overlay"), () => RunHostAsync(logs, time));
         }
+    }
+
+    private static Task<int> RunElevatedAsync(string verb, TimeProvider time)
+    {
+        var log = new EventLogger(StartSensors.Service);
+        return ThermiLog.RunLoggedAsync(log, () => Elevated.RunAsync(verb, ElevatedParts.Windows(log), time));
     }
 
     private static Task<int> AnswerAsync(BuiltInRequest builtIn)
@@ -93,7 +99,12 @@ internal static class Program
         using var store = new ConfigStore(ConfigStore.DefaultPath, time);
         await using (var settings = new Settings(store, time, logs.CreateLogger<Settings>()))
         {
-            using var host = new OverlayHost(settings, () => feed.Latest, CultureInfo.CurrentCulture, time, logs.CreateLogger<OverlayHost>()) { Service = () => sensors.State, FirstStart = firstStart, Resumed = sensors.Resume };
+            using var host = new OverlayHost(settings, () => feed.Latest, CultureInfo.CurrentCulture, time, logs.CreateLogger<OverlayHost>())
+            {
+                Service = () => sensors.State,
+                FirstStart = firstStart,
+                Resumed = sensors.Resume,
+            };
             sensors.Received += (_, _) => host.Arrived();
             host.Run();
         }
@@ -105,7 +116,9 @@ internal static class Program
 
     private static async Task<int> RunWindowAsync(SettingsRequest request, TimeProvider time)
     {
-        using var logs = ThermiLog.Create(ThermiLog.DefaultPath, time, request.Trace);
-        return await ThermiLog.RunLoggedAsync(logs.CreateLogger("Thermi.Ui"), () => WindowProcess.RunAsync(request.Overlay, WindowEnvironment.Of(logs, time), request.Pseudo, time, request.Item));
+        using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);
+        return await ThermiLog.RunLoggedAsync(
+            logs.CreateLogger("Thermi.Ui"),
+            () => WindowProcess.RunAsync(request.Overlay, WindowEnvironment.Of(logs, time), request.Pseudo, time, request.Item));
     }
 }

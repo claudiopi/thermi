@@ -1,6 +1,6 @@
 /* The item page, as the design prototype lays it out: one column of at most 720 px, two from 864 px of pane, the
-   chart beside the rows, growing with the pane up to 880 px each, as the pages of cards do (R119). The doubled
-   classes outweigh Fluent's own, which it adds after this sheet. */
+   chart beside the rows, sharing the pane's width as the pages of cards do (R119), the chart kept in view while the
+   rows scroll. The doubled classes outweigh Fluent's own, which it adds after this sheet. */
 
 .t-item {
   display: grid;
@@ -16,7 +16,7 @@
 
 @container (min-width: 864px) {
   .t-item {
-    grid-template-columns: repeat(2, minmax(0, 880px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .t-item-head,
@@ -25,6 +25,8 @@
   }
 
   .t-item > .t-chart {
+    position: sticky;
+    top: 8px;
     margin-bottom: 16px;
   }
 

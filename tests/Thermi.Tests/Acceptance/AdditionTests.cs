@@ -29,8 +29,24 @@ public sealed class AdditionTests
             TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(29),
             address == "none" ? null : SystemSensors.AddressOf(System.Net.IPAddress.Parse(address).GetAddressBytes()),
             new DateTimeOffset(new DateOnly(2026, 11, 23).ToDateTime(at), TimeSpan.FromHours(-3)));
-        var config = new ThermiConfig { Overlays = [new OverlayConfig { Items = [.. new[] { Metrics.Uptime, Metrics.LocalIp, Metrics.Clock }.Select(metric => new ItemConfig { Id = metric.Id, Metric = metric.Id })] }] };
-        var input = new TrayInput(SystemSensors.With(Desktop, facts), ServiceState.Running, CultureInfo.GetCultureInfo(culture), Texts.English, LightTaskbar: false, "");
+        var config = new ThermiConfig
+        {
+            Overlays =
+            [
+                new OverlayConfig
+                {
+                    Items = [.. new[] { Metrics.Uptime, Metrics.LocalIp, Metrics.Clock }
+                        .Select(metric => new ItemConfig { Id = metric.Id, Metric = metric.Id })],
+                },
+            ],
+        };
+        var input = new TrayInput(
+            SystemSensors.With(Desktop, facts),
+            ServiceState.Running,
+            CultureInfo.GetCultureInfo(culture),
+            Texts.English,
+            LightTaskbar: false,
+            "");
 
         var scene = ThermiMark.Overlay(config, 0, input, windowOpenedOnce: true);
 
@@ -46,6 +62,7 @@ public sealed class AdditionTests
     [InlineData("cpu.temperature", "admin", "", "AMD Ryzen 9 9950X")]
     [InlineData("gpu.load", "admin", "", "NVIDIA GeForce RTX 5060 Ti")]
     [InlineData("ram.load", "admin", "", "")]
+    [InlineData("ram.used", "admin", "", "=27.2|61.6 GB")]
     [InlineData("cpu.load", "admin critical", "chrome 23", "AMD Ryzen 9 9950X|chrome 23 %")]
     [InlineData("gpu.load", "admin critical", "chrome 23", "NVIDIA GeForce RTX 5060 Ti|game 61 %")]
     [InlineData("cpu.load", "admin warning", "chrome 23", "AMD Ryzen 9 9950X")]
@@ -73,6 +90,13 @@ public sealed class AdditionTests
         {
             Assert.Equal(Texts.English.Of(OverlayText.Driver), scene.Items[0].Value);
             Assert.Equal(ValueHint.NeedsDriver, scene.Tooltips[0].Hint);
+            return;
+        }
+
+        // After an equals sign, the value and the total the first line ends with.
+        if (adds.StartsWith('='))
+        {
+            Assert.EndsWith(Texts.English.Format(English, OverlayText.OfTotal, adds[1..].Split('|')), lines[0], StringComparison.Ordinal);
             return;
         }
 
@@ -113,7 +137,10 @@ public sealed class AdditionTests
             new() { Id = "load", Sensor = "/amdcpu/0/load/2" },
             new() { Id = "gone", Sensor = "/amdcpu/9/clock/1" },
         ];
-        var config = new ThermiConfig { Overlays = [new OverlayConfig { Items = [.. ids.Select(id => new ItemConfig { Id = id, Metric = id }), .. bySensor] }] };
+        var config = new ThermiConfig
+        {
+            Overlays = [new OverlayConfig { Items = [.. ids.Select(id => new ItemConfig { Id = id, Metric = id }), .. bySensor] }],
+        };
         var known = baseClock == "unknown" ? (double?)null : double.Parse(baseClock, CultureInfo.InvariantCulture);
         var input = new TrayInput(snapshot, ServiceState.Running, English, Texts.English, LightTaskbar: false, "") { BaseClock = known };
 
@@ -121,7 +148,11 @@ public sealed class AdditionTests
         var tooltip = ValueTooltips.Text(config, 0, input, scene.Tooltips[1]);
 
         Assert.Equal([throttles, throttles, false, false, throttles, throttles, false, false, false], scene.Items.Select(item => item.Throttled));
-        Assert.Equal(throttles, tooltip.Contains("3.1 GHz", StringComparison.Ordinal) && tooltip.Contains("4.3 GHz", StringComparison.Ordinal) && tooltip.Contains(string.Create(English, $"{temperature:0} °C"), StringComparison.Ordinal));
+        Assert.Equal(
+            throttles,
+            tooltip.Contains("3.1 GHz", StringComparison.Ordinal)
+                && tooltip.Contains("4.3 GHz", StringComparison.Ordinal)
+                && tooltip.Contains(string.Create(English, $"{temperature:0} °C"), StringComparison.Ordinal));
     }
 
     // The pointer's distance from a 200 × 40 overlay, right of it and below it, at a scale; the switch, the window, a drag and

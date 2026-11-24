@@ -16,7 +16,18 @@ export function installFakeCatalog(): void {
 
   const kinds: SensorKind[] = ['temperature', 'load', 'clock', 'power', 'fan', 'control', 'data', 'throughput', 'duration'];
   const libraryTypes: Record<string, SensorKind> = { Level: 'load', TimeSpan: 'duration' };
-  const devices: Record<string, DeviceKind> = { Cpu: 'cpu', GpuNvidia: 'gpu', GpuAmd: 'gpu', GpuIntel: 'gpu', Memory: 'ram', Motherboard: 'board', SuperIO: 'board', Storage: 'ssd', Network: 'network', Battery: 'battery' };
+  const devices: Record<string, DeviceKind> = {
+    Cpu: 'cpu',
+    GpuNvidia: 'gpu',
+    GpuAmd: 'gpu',
+    GpuIntel: 'gpu',
+    Memory: 'ram',
+    Motherboard: 'board',
+    SuperIO: 'board',
+    Storage: 'ssd',
+    Network: 'network',
+    Battery: 'battery',
+  };
   const capital = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1);
   const kindOf = (sensor: Sensor): SensorKind | undefined => libraryTypes[sensor.type] ?? kinds.find((kind) => capital(kind) === sensor.type);
   const deviceOf = (sensor: Sensor): string => sensor.id.split('/').slice(0, -2).join('/');
@@ -38,7 +49,16 @@ export function installFakeCatalog(): void {
   };
 
   // Gigabyte's ITE wiring, the user's names, and the rows nobody would add, as Core has them.
-  const likely: Record<string, string> = { 'Temperature #1': 'System', 'Temperature #2': 'Chipset', 'Temperature #3': 'Cpu', 'Temperature #4': 'PcieSlot', 'Temperature #5': 'Vrm', 'Fan #1': 'CpuFan', 'Fan #2': 'SystemFan1', 'Fan #3': 'SystemFan2' };
+  const likely: Record<string, string> = {
+    'Temperature #1': 'System',
+    'Temperature #2': 'Chipset',
+    'Temperature #3': 'Cpu',
+    'Temperature #4': 'PcieSlot',
+    'Temperature #5': 'Vrm',
+    'Fan #1': 'CpuFan',
+    'Fan #2': 'SystemFan1',
+    'Fan #3': 'SystemFan2',
+  };
   const nameOf = (sensor: Sensor, id: string): Pick<CatalogRow, 'name' | 'from' | 'note' | 'tip'> => {
     const own = state.settings.sensorNames?.[id];
     const probable = sensor.hardwareType === 'SuperIO' && /IT86(86|88|89|96)E$/.test(sensor.hardware) ? likely[sensor.name] : undefined;
@@ -47,10 +67,24 @@ export function installFakeCatalog(): void {
     }
     const input = sensor.hardwareType === 'SuperIO' ? /#(\d+)$/.exec(sensor.name)?.[1] : undefined;
     return probable === undefined
-      ? { name: sensor.name, from: 'library', note: input === undefined ? null : say('CatalogText.InputNote').replace('{0}', sensor.hardware).replace('{1}', input), tip: null }
-      : { name: say(`LikelyName.${probable}`), from: 'likely', note: say('CatalogText.LikelyNote').replace('{0}', sensor.name), tip: say('CatalogText.LikelyTip').replace('{0}', sensor.hardware).replace('{1}', sensor.name).replace('{2}', say(`LikelyName.${probable}`)) };
+      ? {
+          name: sensor.name,
+          from: 'library',
+          note: input === undefined ? null : say('CatalogText.InputNote').replace('{0}', sensor.hardware).replace('{1}', input),
+          tip: null,
+        }
+      : {
+          name: say(`LikelyName.${probable}`),
+          from: 'likely',
+          note: say('CatalogText.LikelyNote').replace('{0}', sensor.name),
+          tip: say('CatalogText.LikelyTip')
+            .replace('{0}', sensor.hardware)
+            .replace('{1}', sensor.name)
+            .replace('{2}', say(`LikelyName.${probable}`)),
+        };
   };
-  const hides = (sensor: Sensor, row: CatalogRow): boolean => row.why === 'reads-nothing' || row.why === 'stopped' || (devices[sensor.hardwareType] === 'gpu' && sensor.name.startsWith('D3D '));
+  const hides = (sensor: Sensor, row: CatalogRow): boolean =>
+    row.why === 'reads-nothing' || row.why === 'stopped' || (devices[sensor.hardwareType] === 'gpu' && sensor.name.startsWith('D3D '));
 
   bridge.catalog = async (search: string, chosen: SensorKind[], all: boolean): Promise<CatalogView> => {
     const values = (await bridge.view()).values;

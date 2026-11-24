@@ -28,8 +28,16 @@ public static class SensorMap
 
     // OnlyPreferred: a "Data" sensor is any size (used, available, a stick's capacity), so a guess would be a wrong number;
     // a network's, a drive's and a battery's sensors of one type mean different things, so only the named one is the metric.
-    // Device: which adapter or drive the metric follows, when a machine has several.
-    private sealed record Rule(string[] HardwareTypes, string Type, string[] PreferredNames, string? SkipHardware = null, bool OnlyPreferred = false, Follow Device = Follow.Any);
+    // Device: which adapter or drive the metric follows, when a machine has several. SkipName: a sensor of the type that
+    // measures something else.
+    private sealed record Rule(
+        string[] HardwareTypes,
+        string Type,
+        string[] PreferredNames,
+        string? SkipHardware = null,
+        bool OnlyPreferred = false,
+        Follow Device = Follow.Any,
+        string? SkipName = null);
 
     private enum Follow
     {
@@ -43,14 +51,16 @@ public static class SensorMap
         [Metrics.CpuTemperature.Id] = new(["Cpu"], "Temperature", ["Core (Tctl/Tdie)", "Core (Tctl)", "CPU Package", "Core Average"]),
         [Metrics.CpuLoad.Id] = new(["Cpu"], "Load", ["CPU Total"]),
         [Metrics.CpuPower.Id] = new(["Cpu"], "Power", ["Package", "CPU Package"]),
-        [Metrics.CpuClock.Id] = new(["Cpu"], "Clock", ["Cores (Average)", "Core #1"]),
+        // An Intel CPU reports its bus's clock first, at about 100 MHz: never a core's.
+        [Metrics.CpuClock.Id] = new(["Cpu"], "Clock", ["Cores (Average)", "Core #1", "P-Core #1", "CPU Core #1"], SkipName: "Bus Speed"),
         [Metrics.GpuTemperature.Id] = new(Gpus, "Temperature", ["GPU Core"]),
         [Metrics.GpuLoad.Id] = new(Gpus, "Load", ["GPU Core"]),
         [Metrics.GpuPower.Id] = new(Gpus, "Power", ["GPU Package", "GPU Power"]),
         // Virtual memory reports a load named "Memory" too, and it comes first.
         [Metrics.RamLoad.Id] = new(["Memory"], "Load", ["Memory"], SkipHardware: "Virtual Memory"),
         [Metrics.RamUsed.Id] = new(["Memory"], "Data", ["Memory Used"], SkipHardware: "Virtual Memory", OnlyPreferred: true),
-        [Metrics.CpuFan.Id] = new(["SuperIO"], "Fan", ["CPU Fan", "Fan #1"]),
+        // A laptop reports its fans on its embedded controller, with no board chip.
+        [Metrics.CpuFan.Id] = new(["SuperIO", "EmbeddedController"], "Fan", ["CPU Fan", "Fan #1"]),
         [Metrics.NetDownload.Id] = new([Network], "Throughput", ["Download Speed"], OnlyPreferred: true, Device: Follow.Adapter),
         [Metrics.NetUpload.Id] = new([Network], "Throughput", ["Upload Speed"], OnlyPreferred: true, Device: Follow.Adapter),
         [Metrics.DiskActivity.Id] = new([Storage], "Load", ["Total Activity"], OnlyPreferred: true, Device: Follow.Drive),
@@ -64,13 +74,18 @@ public static class SensorMap
         [Metrics.Clock.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Time), [SystemSensors.Clock], OnlyPreferred: true),
     };
 
-    /// <summary>Every metric's reading; the disk metrics follow <paramref name="drive"/>, the device id <see cref="BusiestDrive"/> gives, or the busiest drive now without one.</summary>
+    /// <summary>
+    /// Every metric's reading; the disk metrics follow <paramref name="drive"/>, the device id <see cref="BusiestDrive"/> gives,
+    /// or the busiest drive now without one.
+    /// </summary>
     public static IReadOnlyDictionary<string, Reading> Read(Snapshot snapshot, IReadOnlyDictionary<string, string> sources, string? drive = null)
     {
         var chosen = Chosen(snapshot, sources, drive);
         return Metrics.All.ToDictionary(
             metric => metric.Id,
-            metric => chosen[metric.Id] is { } sensor && ReadingOf(sensor) is { } reading ? reading : new Reading(metric.Kind, null) { Direction = DirectionOf(metric) },
+            metric => chosen[metric.Id] is { } sensor && ReadingOf(sensor) is { } reading
+                ? reading
+                : new Reading(metric.Kind, null) { Direction = DirectionOf(metric) },
             StringComparer.Ordinal);
     }
 
@@ -93,7 +108,8 @@ public static class SensorMap
     }
 
     /// <summary>The sensor each metric reads for an overlay, by the metric's id, or null where none is found; the window names it beside "Auto".</summary>
-    public static IReadOnlyDictionary<string, RawSensor?> Chosen(Snapshot snapshot, OverlayConfig overlay, string? drive = null) => Chosen(snapshot, SourcesOf(overlay), drive);
+    public static IReadOnlyDictionary<string, RawSensor?> Chosen(Snapshot snapshot, OverlayConfig overlay, string? drive = null) =>
+        Chosen(snapshot, SourcesOf(overlay), drive);
 
     /// <summary>
     /// Every sensor under the id an item names it by. The library reports some sensors under an id it already gave
@@ -179,18 +195,33 @@ public static class SensorMap
     }
 
     /// <summary>
-    /// The metric a sensor is one of, on its kind of device: the one whose rule names it, else one whose rule takes any
-    /// sensor of its type there; null when none does. A new item from the sensor is named and labeled like it.
+    /// The metric a sensor is one of: the one whose rule picks it by name, as the board's first fan is the CPU fan's,
+    /// else, on its kind of device, one whose rule takes any sensor of its type there; null when none does. A new item
+    /// from the sensor is named and labeled like it.
     /// </summary>
     public static Metric? MetricOf(RawSensor sensor)
     {
         var device = DeviceOf(sensor);
         var alike = Metrics.All
-            .Where(metric => device is not null && Metrics.DeviceOf(metric) == device && Rules.TryGetValue(metric.Id, out var rule) && rule.HardwareTypes.Contains(sensor.HardwareType, StringComparer.Ordinal) && rule.Type == sensor.Type)
+            .Where(metric => Rules.TryGetValue(metric.Id, out var rule)
+                && rule.HardwareTypes.Contains(sensor.HardwareType, StringComparer.Ordinal)
+                && rule.Type == sensor.Type
+                && sensor.Hardware != rule.SkipHardware)
             .ToList();
-        return alike.Find(metric => Rules[metric.Id].PreferredNames.Contains(sensor.Name, StringComparer.Ordinal))
-            ?? alike.Find(metric => !Rules[metric.Id].OnlyPreferred);
+        return PickedBy(sensor)
+            ?? alike.Find(metric => device is not null && Metrics.DeviceOf(metric) == device && !Rules[metric.Id].OnlyPreferred);
     }
+
+    /// <summary>
+    /// The metric whose rule picks the sensor by its name wherever it is found, so on any machine; a fan's duty named as
+    /// the CPU fan is, the CPU fan's duty. Null when none does.
+    /// </summary>
+    public static Metric? PickedBy(RawSensor sensor) =>
+        sensor.Type == nameof(SensorKind.Control)
+            ? (PickedBy(sensor with { Type = nameof(SensorKind.Fan) }) == Metrics.CpuFan ? Metrics.CpuFanDuty : null)
+            : Metrics.All.FirstOrDefault(metric => Rules.TryGetValue(metric.Id, out var rule)
+                && Picks(rule, sensor)
+                && rule.PreferredNames.Contains(sensor.Name, StringComparer.Ordinal));
 
     /// <summary>A fan's own duty is the control with the same index on the same chip: ".../fan/0" goes with ".../control/0".</summary>
     public static string? OwnDuty(string fanId)
@@ -289,7 +320,8 @@ public static class SensorMap
         var rule = Rules[metric.Id];
         var device = devices.GetValueOrDefault(rule.Device);
         var candidates = rule.HardwareTypes
-            .SelectMany(type => snapshot.Sensors.Where(sensor => sensor.HardwareType == type && Picks(rule, sensor) && (device is null || DeviceIdOf(sensor) == device)))
+            .SelectMany(type => snapshot.Sensors.Where(sensor =>
+                sensor.HardwareType == type && Picks(rule, sensor) && (device is null || DeviceIdOf(sensor) == device)))
             .ToList();
         return rule.PreferredNames.Select(name => candidates.FirstOrDefault(sensor => sensor.Name == name)).FirstOrDefault(sensor => sensor is not null)
             ?? (rule.OnlyPreferred ? null : candidates.FirstOrDefault());
@@ -297,6 +329,7 @@ public static class SensorMap
 
     private static bool Picks(Rule rule, RawSensor sensor) =>
         rule.HardwareTypes.Contains(sensor.HardwareType, StringComparer.Ordinal) && sensor.Type == rule.Type && sensor.Hardware != rule.SkipHardware
+        && sensor.Name != rule.SkipName
         && (!rule.OnlyPreferred || rule.PreferredNames.Contains(sensor.Name, StringComparer.Ordinal));
 
     // The adapter that has moved the most data, as the library counts it: a physical one while any moves data, so a VPN

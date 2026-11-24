@@ -2,7 +2,10 @@ using System.Globalization;
 
 namespace Thermi.Core.Sensors;
 
-/// <summary>What Windows itself says, with no sensor: how long it has run, the IPv4 address its default route goes out from, if any, and the local time now.</summary>
+/// <summary>
+/// What Windows itself says, with no sensor: how long it has run, the IPv4 address its default route goes out from, if any,
+/// and the local time now.
+/// </summary>
 public sealed record WindowsFacts(TimeSpan Uptime, uint? Address, DateTimeOffset LocalNow);
 
 /// <summary>

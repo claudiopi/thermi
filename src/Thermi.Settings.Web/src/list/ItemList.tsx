@@ -4,7 +4,7 @@ import { asOneStep, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Icon, Menu } from '../kit';
 import { displays } from '../overlay/placeModel';
 import { useMonitors } from '../overlay/useOverlayReads';
-import { useText } from '../texts/Texts';
+import { useText, type TextKey } from '../texts/Texts';
 import { ListRow } from './ListRow';
 import { rowKey, type ListMoves } from './listKeys';
 import { rowMenu } from './rowMenus';
@@ -76,7 +76,21 @@ function dropOf(data: WindowData, dragged: string, row: Row, event: DragEvent<HT
   return apart ? [...moved, { kind: 'item', item: dragged, field: 'own', value: true }] : moved;
 }
 
-export function ItemList({ data, selected, onSelect, onEnter, folded, onFold, onEditLabel, onAddItem, announce, onRemoved, onOverlayEdit, pointed, onPoint }: ItemListProps) {
+export function ItemList({
+  data,
+  selected,
+  onSelect,
+  onEnter,
+  folded,
+  onFold,
+  onEditLabel,
+  onAddItem,
+  announce,
+  onRemoved,
+  onOverlayEdit,
+  pointed,
+  onPoint,
+}: ItemListProps) {
   const t = useText();
   const edit = useEdit();
   const shownDisplays = displays(useMonitors(data.changes));
@@ -147,7 +161,12 @@ export function ItemList({ data, selected, onSelect, onEnter, folded, onFold, on
     },
     nudge: (row, dx, dy) => {
       focusRow(row.key, true);
-      void edit({ kind: 'nudgeOverlay', overlay: row.overlay, dx, dy });
+      // A snapped overlay stays on its place, and the list says why instead of doing nothing.
+      void edit({ kind: 'nudgeOverlay', overlay: row.overlay, dx, dy }).then((refusal) => {
+        if (refusal !== null) {
+          announce(t(refusal as TextKey));
+        }
+      });
     },
     menu: (row, at) => setMenu({ row, at }),
   };
@@ -161,7 +180,11 @@ export function ItemList({ data, selected, onSelect, onEnter, folded, onFold, on
     setRenaming(null);
     focusRow(row.key);
     if (name !== null && name.trim() !== '' && name !== row.name) {
-      void edit(row.kind === 'item' ? { kind: 'item', item: row.items[0] ?? '', field: 'name', value: name.trim() } : { kind: 'overlay', overlay: row.overlay, field: 'name', value: name.trim() });
+      void edit(
+        row.kind === 'item'
+          ? { kind: 'item', item: row.items[0] ?? '', field: 'name', value: name.trim() }
+          : { kind: 'overlay', overlay: row.overlay, field: 'name', value: name.trim() },
+      );
     }
   };
   const drop = (row: Row, event: DragEvent<HTMLDivElement>): void => {
@@ -171,7 +194,9 @@ export function ItemList({ data, selected, onSelect, onEnter, folded, onFold, on
     const edits = id === null ? [] : dropOf(data, id, row, event);
     if (id !== null && edits.length > 0) {
       // In order: the item moves before it gets its own pill.
-      void asOneStep(() => edits.reduce<Promise<unknown>>((done, one) => done.then(() => edit(one)), Promise.resolve())).then(() => focusRow(itemKey(id), true));
+      void asOneStep(() => edits.reduce<Promise<unknown>>((done, one) => done.then(() => edit(one)), Promise.resolve())).then(() =>
+        focusRow(itemKey(id), true),
+      );
     }
   };
 
@@ -231,7 +256,20 @@ export function ItemList({ data, selected, onSelect, onEnter, folded, onFold, on
           <span className="t-name">{t('UiText.SettingsPage')}</span>
         </div>
       </div>
-      {menu !== null && <Menu open at={menu.at} entries={rowMenu(menu.row, data.settings, t, { rename: (row) => setRenaming(row.key), editLabel: onEditLabel, fold: (row, open) => onFold(row.key, open), edit: (one) => run(one, menu.row), displays: shownDisplays })} onClose={() => setMenu(null)} />}
+      {menu !== null && (
+        <Menu
+          open
+          at={menu.at}
+          entries={rowMenu(menu.row, data.settings, t, {
+            rename: (row) => setRenaming(row.key),
+            editLabel: onEditLabel,
+            fold: (row, open) => onFold(row.key, open),
+            edit: (one) => run(one, menu.row),
+            displays: shownDisplays,
+          })}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </div>
   );
 }

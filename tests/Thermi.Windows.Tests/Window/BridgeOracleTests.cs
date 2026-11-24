@@ -54,6 +54,9 @@ public sealed class BridgeOracleTests
             table.Write();
         }
 
-        Assert.True(writes || stale.Count == 0, $"{stale.Count} answers of the oracle are not what the real bridge answers now, the first: {stale.FirstOrDefault()}. Run pwsh scripts/oracle.ps1, and check the answers it writes.");
+        Assert.True(
+            writes || stale.Count == 0,
+            $"{stale.Count} answers of the oracle are not what the real bridge answers now, the first: {stale.FirstOrDefault()}. "
+            + "Run pwsh scripts/oracle.ps1, and check the answers it writes.");
     }
 }

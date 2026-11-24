@@ -101,12 +101,17 @@ internal static class ThermiCommands
 
     private static Func<ArgumentResult, int> Whole(int min, int max) => result =>
     {
-        if (result.Tokens is [var token] && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value >= min && value <= max)
+        if (result.Tokens is [var token]
+            && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
+            && value >= min
+            && value <= max)
         {
             return value;
         }
 
-        var range = max == int.MaxValue ? string.Create(CultureInfo.InvariantCulture, $"{min} up") : string.Create(CultureInfo.InvariantCulture, $"{min} to {max}");
+        var range = max == int.MaxValue
+            ? string.Create(CultureInfo.InvariantCulture, $"{min} up")
+            : string.Create(CultureInfo.InvariantCulture, $"{min} to {max}");
         result.AddError(string.Create(CultureInfo.InvariantCulture, $"{result.Argument.Name} takes a whole number from {range}."));
         return 0;
     };
@@ -119,7 +124,10 @@ internal static class ThermiCommands
         }
 
         // The range also leaves out NaN and the infinities, which every comparison with them refuses.
-        if (result.Tokens is [var token] && float.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value >= MinScale && value <= MaxScale)
+        if (result.Tokens is [var token]
+            && float.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            && value >= MinScale
+            && value <= MaxScale)
         {
             return value;
         }

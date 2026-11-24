@@ -231,7 +231,11 @@ public sealed class SettingsFileWindowsTests : IDisposable
         Assert.Equal(WriteOutcome.Written, restored.Outcome);
         Assert.Equal(SettingsFolder.Sized(1.5), _folder.Text());
         Assert.Equal(["config.broken-2026-11-22-153045.json", "config.json"], _folder.Files.Order(StringComparer.Ordinal));
-        Assert.Equal("{ \"version\": 2, broken }", await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(_folder.File)!, "config.broken-2026-11-22-153045.json"), TestContext.Current.CancellationToken));
+        Assert.Equal(
+            "{ \"version\": 2, broken }",
+            await File.ReadAllTextAsync(
+                Path.Combine(Path.GetDirectoryName(_folder.File)!, "config.broken-2026-11-22-153045.json"),
+                TestContext.Current.CancellationToken));
     }
 
     // A read-only file takes no restore, retried once a second: each try that fails takes its copy back, so only the one

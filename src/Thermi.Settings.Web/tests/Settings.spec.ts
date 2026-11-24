@@ -14,7 +14,11 @@ test('TheSettingsPageChangesThermi', async ({ page }) => {
   await test.step('language', async () => {
     await chooseByKeys(page, pane.getByRole('combobox', { name: text('UiText.LanguageField') }), texts('es')['UiText.LanguageName'] ?? '');
     await expect.poll(async () => (await settingsOf(page)).language).toBe('es');
-    await chooseByKeys(page, pane.getByRole('combobox', { name: text('UiText.LanguageField') }), text('UiText.LanguageFromWindows', text('UiText.LanguageName')));
+    await chooseByKeys(
+      page,
+      pane.getByRole('combobox', { name: text('UiText.LanguageField') }),
+      text('UiText.LanguageFromWindows', text('UiText.LanguageName')),
+    );
     await expect.poll(async () => (await settingsOf(page)).language).toBeUndefined();
   });
 

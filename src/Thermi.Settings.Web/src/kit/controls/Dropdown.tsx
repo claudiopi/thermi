@@ -43,7 +43,14 @@ const useStyles = makeStyles({
   detail: { color: text.secondary },
   // Fluent's box keeps the width of twenty letters, which would push the chevron out of a narrow dropdown.
   input: { minWidth: '0', width: '100%', boxSizing: 'border-box' },
-  inline: { minWidth: '0', font: 'inherit', color: tokens.colorBrandForegroundLink, borderBottomColor: 'transparent', backgroundColor: 'transparent', ':hover': { backgroundColor: tokens.colorSubtleBackgroundHover, borderBottomColor: 'transparent' } },
+  inline: {
+    minWidth: '0',
+    font: 'inherit',
+    color: tokens.colorBrandForegroundLink,
+    borderBottomColor: 'transparent',
+    backgroundColor: 'transparent',
+    ':hover': { backgroundColor: tokens.colorSubtleBackgroundHover, borderBottomColor: 'transparent' },
+  },
   inlineInput: { fieldSizing: 'content', font: 'inherit', color: 'inherit', padding: '0' },
 });
 
@@ -59,7 +66,12 @@ export function Dropdown(props: DropdownProps) {
   return <DropdownBox {...props} choices={listed} typed={typed} onTyped={setTyped} />;
 }
 
-const withoutAside = ({ value, text, shown, detail }: Choice): Choice => ({ value, text, ...(shown === undefined ? {} : { shown }), ...(detail === undefined ? {} : { detail }) });
+const withoutAside = ({ value, text, shown, detail }: Choice): Choice => ({
+  value,
+  text,
+  ...(shown === undefined ? {} : { shown }),
+  ...(detail === undefined ? {} : { detail }),
+});
 
 interface DropdownBoxProps extends DropdownProps {
   /** What is typed in it while it is open; null while it is closed. */
@@ -67,7 +79,21 @@ interface DropdownBoxProps extends DropdownProps {
   onTyped: (typed: string | null) => void;
 }
 
-function DropdownBoxDrawn({ label, choices, value, onChange, filter, disabled = false, describedBy, inline = false, wide = false, className, ref, typed, onTyped: setTyped }: DropdownBoxProps) {
+function DropdownBoxDrawn({
+  label,
+  choices,
+  value,
+  onChange,
+  filter,
+  disabled = false,
+  describedBy,
+  inline = false,
+  wide = false,
+  className,
+  ref,
+  typed,
+  onTyped: setTyped,
+}: DropdownBoxProps) {
   const styles = useStyles();
   const current = choices.find((choice) => choice.value === value);
   const shown = filter === undefined || typed === null ? choices : choices.filter((choice) => choice.text.toLowerCase().includes(typed.trim().toLowerCase()));

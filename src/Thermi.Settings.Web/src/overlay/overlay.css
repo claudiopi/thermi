@@ -321,8 +321,25 @@
 /* The map: the displays drawn to scale, each spot a radio. */
 .t-map-block {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding: 0 16px 16px;
+}
+
+/* The spot's name in words, under the map: the one pointed at, else the overlay's. Its line stays when it is empty, so
+   the card does not jump. */
+.t-map-said {
+  min-height: 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+  text-align: center;
+}
+
+/* The spot's name is written to go inside a sentence; alone on its line it starts with a capital. */
+.t-map-said::first-letter {
+  text-transform: uppercase;
 }
 
 .t-map {

@@ -10,7 +10,13 @@ using Select = Thermi.Core.Messages.Select;
 
 namespace Thermi.Overlay;
 
-internal sealed record OverlayActions(CultureInfo Culture, TimeProvider Time, Action RequestPaint, Action<int, string?> OpenSettings, Action Exit, Func<Position> Cursor)
+internal sealed record OverlayActions(
+    CultureInfo Culture,
+    TimeProvider Time,
+    Action RequestPaint,
+    Action<int, string?> OpenSettings,
+    Action Exit,
+    Func<Position> Cursor)
 {
     /// <summary>A value or an edge clicked or pointed at, which the open window selects or marks.</summary>
     public Action<Select> Select { get; init; } = _ => { };
@@ -28,7 +34,14 @@ internal sealed record OverlayActions(CultureInfo Culture, TimeProvider Time, Ac
     public ItemHistory History { get; init; } = new(Time);
 }
 
-internal sealed record OverlayScene(ThermiConfig Config, ConfigProblem? Problem, Snapshot? Snapshot, IReadOnlyList<Screen> Screens, bool LightTaskbar, HighContrastColors? HighContrast, bool WindowOpen)
+internal sealed record OverlayScene(
+    ThermiConfig Config,
+    ConfigProblem? Problem,
+    Snapshot? Snapshot,
+    IReadOnlyList<Screen> Screens,
+    bool LightTaskbar,
+    HighContrastColors? HighContrast,
+    bool WindowOpen)
 {
     public ServiceState Service { get; init; } = ServiceState.Running;
 
@@ -43,4 +56,32 @@ internal sealed record OverlayScene(ThermiConfig Config, ConfigProblem? Problem,
 
     /// <summary>The CPU's base clock, read once, and what is busiest now, read only while a CPU or GPU value is critical.</summary>
     public CpuWatch? Cpu { get; init; }
+
+    /// <summary>
+    /// The width each overlay keeps on a taskbar, by its place, null for one hidden or off the taskbars: each overlay
+    /// writes its own as it paints, and lays itself out among the others' last.
+    /// </summary>
+    public int?[] RowWidths { get; init; } = [];
+
+    /// <summary>
+    /// The place of the overlay at <paramref name="index"/> in its taskbar's row, keeping the <paramref name="width"/> it
+    /// measures there, or null off the taskbars, where nothing is measured. A width that changed has the others
+    /// <paramref name="relay"/> themselves out again.
+    /// </summary>
+    public RowPlace? Row(int index, Func<int> width, Action relay)
+    {
+        if (index >= RowWidths.Length)
+        {
+            return null;
+        }
+
+        int? kept = TaskbarRow.Holds(Config.Overlays[index], Screens) ? width() : null;
+        if (RowWidths[index] != kept)
+        {
+            RowWidths[index] = kept;
+            relay();
+        }
+
+        return TaskbarRow.Place(Config.Overlays, index, Screens, RowWidths);
+    }
 }

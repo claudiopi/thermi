@@ -10,6 +10,9 @@ public enum OverlayText
     /// <summary>A value's tooltip's first line: the item's name, then its value.</summary>
     NameAndValue,
 
+    /// <summary>The RAM in use in its tooltip: how much, then the RAM there is, with its unit.</summary>
+    OfTotal,
+
     /// <summary>A value's tooltip: the item's minimum, then its maximum.</summary>
     MinAndMax,
 

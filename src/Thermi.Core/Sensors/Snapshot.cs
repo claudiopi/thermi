@@ -12,7 +12,13 @@ namespace Thermi.Core.Sensors;
 /// sensor type name, like "Temperature" or "Fan". A <see cref="Value"/> of null, a sensor that reads nothing, is always
 /// written, as the recordings and the window's page read it.
 /// </summary>
-public sealed record RawSensor(string Id, string HardwareType, string Hardware, string Type, string Name, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] double? Value);
+public sealed record RawSensor(
+    string Id,
+    string HardwareType,
+    string Hardware,
+    string Type,
+    string Name,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] double? Value);
 
 /// <summary>Every sensor read at one moment.</summary>
 public sealed record Snapshot(IReadOnlyList<RawSensor> Sensors)

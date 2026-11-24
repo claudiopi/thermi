@@ -53,39 +53,60 @@ public sealed class EditTests
 
             var item = Assert.Single(shown, each => each.Id == sensor.Id);
             Assert.EndsWith(units[sensor.Type], item.Room, StringComparison.Ordinal);
-            Assert.True(item.Value == ReadingFormatter.Missing ? sensor.Value is null : item.Value.EndsWith(units[sensor.Type], StringComparison.Ordinal), $"{sensor.Id} shows {item.Value}");
+            Assert.True(
+                item.Value == ReadingFormatter.Missing ? sensor.Value is null : item.Value.EndsWith(units[sensor.Type], StringComparison.Ordinal),
+                $"{sensor.Id} shows {item.Value}");
         }
 
         // A GPU's sensor joins the GPU pill after its last item; the board's, whose kind has no pill, goes at the end.
         var gpu = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, "/gpu-nvidia/0/temperature/0"));
         var board = Done(ItemEdits.AddSensor(gpu, 0, Desktop, "/lpc/it8689e/0/temperature/0"));
         var again = Done(ItemEdits.AddSensor(board, 0, Desktop, "/gpu-nvidia/0/temperature/0"));
-        Assert.Equal(["cpu.temperature", "fan.cpu", "cpu.load", "cpu.power", "gpu.load", "/gpu-nvidia/0/temperature/0", "ram.used", "/lpc/it8689e/0/temperature/0"], Ids(board.Overlays[0]));
+        Assert.Equal(
+            [
+                "cpu.temperature",
+                "fan.cpu",
+                "cpu.load",
+                "cpu.power",
+                "gpu.load",
+                "/gpu-nvidia/0/temperature/0",
+                "ram.used",
+                "/lpc/it8689e/0/temperature/0",
+            ],
+            Ids(board.Overlays[0]));
 
-        // Named like the defaults; the same sensor added again takes a number, so no two names are alike.
+        // Named as its metric, while the defaults store no name, so they read in the window"s language; the same sensor
+        // added again takes a number, so no two names are alike.
         var names = JsonNode.Parse(File(again))!["overlays"]![0]!["items"]!.AsArray().Select(each => each!["name"]?.GetValue<string>()).ToList();
         Assert.Equal(Texts.English.Of(MetricName.GpuTemperature), names[5]);
-        Assert.Equal(names.Count, names.Distinct(StringComparer.Ordinal).Count());
+        var stored = names.OfType<string>().ToList();
+        Assert.Equal(new ThermiConfig().Overlays[0].Items.Count, names.Count - stored.Count);
+        Assert.Equal(stored.Count, stored.Distinct(StringComparer.Ordinal).Count());
         NetworkDiskAndBatteryItemsTakeTheirLabels();
     }
 
-    // Download and upload share one NET pill, each value after its arrow; read and write take labels of their own; a
+    // Download and upload share one NET pill, each value after its arrow; read and write share the drive's pill; a
     // battery's items take BAT and start with no lines, its rate signed and in tenths. The default overlay has none of them.
     private static void NetworkDiskAndBatteryItemsTakeTheirLabels()
     {
-        var snapshot = new Snapshot([.. MadeUpHardware.Desktop().Sensors, .. MadeUpHardware.Laptop().Sensors.Where(sensor => sensor.HardwareType == "Battery")]);
+        var snapshot = new Snapshot(
+        [
+            .. MadeUpHardware.Desktop().Sensors,
+            .. MadeUpHardware.Laptop().Sensors.Where(sensor => sensor.HardwareType == "Battery"),
+        ]);
         string[] added =
         [
             $"{MadeUpHardware.Ethernet}/throughput/8", $"{MadeUpHardware.Samsung}/throughput/54", $"{MadeUpHardware.Ethernet}/throughput/7",
-            $"{MadeUpHardware.Samsung}/throughput/55", $"{MadeUpHardware.Battery}/level/0", $"{MadeUpHardware.Battery}/power/0", $"{MadeUpHardware.Battery}/timespan/0",
+            $"{MadeUpHardware.Samsung}/throughput/55", $"{MadeUpHardware.Battery}/level/0", $"{MadeUpHardware.Battery}/power/0",
+            $"{MadeUpHardware.Battery}/timespan/0",
         ];
 
         var config = added.Aggregate(new ThermiConfig(), (current, id) => Done(ItemEdits.AddSensor(current, 0, snapshot, id)));
         var charge = Item(Done(ItemEdits.MeterItself(config, added[4], snapshot)), added[4]);
 
-        var (net, read, write, bat) = (Texts.English.Of(MetricLabel.Net), Texts.English.Of(MetricLabel.Read), Texts.English.Of(MetricLabel.Write), Texts.English.Of(MetricLabel.Bat));
+        var (net, ssd, bat) = (Texts.English.Of(MetricLabel.Net), Texts.English.Of(MetricLabel.Ssd), Texts.English.Of(MetricLabel.Bat));
         Assert.Equal(
-            [$"{net} ↓ 74.0 MB/s ↑ 1.45 MB/s", $"{read} 880 KB/s", $"{write} 54.9 MB/s", $"{bat} 88 % -12.4 W 2 h 14 min"],
+            [$"{net} ↓ 74.0 MB/s ↑ 1.45 MB/s", $"{ssd} 880 KB/s 54.9 MB/s", $"{bat} 88 % -12.4 W 2 h 14 min"],
             TrayTextTests.Lines(Shown(config, snapshot)).Skip(3));
         Assert.Equal(new MeterConfig { Sensor = added[4] }, charge.Meter);
         Assert.Null(charge.Threshold);
@@ -110,7 +131,11 @@ public sealed class EditTests
         Assert.Equal(Refusal.TypeUnknown, ItemEdits.ChangeSensor(ccd, "/amdcpu/0/temperature/3", ccdGone, "/amdcpu/0/temperature/4").Refused);
         Assert.Equal(
             Refusal.SensorOfAnotherType,
-            ItemEdits.ChangeSensor(Done(PowerEdits.AddCombined(config, 0, Desktop, ["/amdcpu/0/temperature/3", "/amdcpu/0/temperature/4"], Combine.Max)), "/amdcpu/0/temperature/3", ccdGone, "/lpc/it8689e/0/fan/0").Refused);
+            ItemEdits.ChangeSensor(
+                Done(PowerEdits.AddCombined(config, 0, Desktop, ["/amdcpu/0/temperature/3", "/amdcpu/0/temperature/4"], Combine.Max)),
+                "/amdcpu/0/temperature/3",
+                ccdGone,
+                "/lpc/it8689e/0/fan/0").Refused);
         Assert.Equal(
             Item(config, Metrics.CpuTemperature.Id) with { Metric = null, Sensor = "/amdcpu/0/temperature/3", Auto = Metrics.CpuTemperature.Id },
             Item(Done(toAnotherTemperature), Metrics.CpuTemperature.Id));
@@ -121,7 +146,10 @@ public sealed class EditTests
     public void ChangingTheFanFollowsItsOwnDuty()
     {
         var desktop = new Snapshot([.. Desktop.Sensors.Select(sensor => sensor.Id == FanTwoDuty ? sensor with { Value = 40 } : sensor)]);
-        var byDuty = WithItem(new ThermiConfig(), Metrics.CpuFan.Id, item => item with { Meter = new MeterConfig { Metric = Metrics.CpuFanDuty.Id }, Threshold = new Threshold(85, null) });
+        var byDuty = WithItem(
+            new ThermiConfig(),
+            Metrics.CpuFan.Id,
+            item => item with { Meter = new MeterConfig { Metric = Metrics.CpuFanDuty.Id }, Threshold = new Threshold(85, null) });
         var itself = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, desktop, "/lpc/it8689e/0/fan/0"));
         itself = Done(ItemEdits.MeterItself(itself, "/lpc/it8689e/0/fan/0", desktop));
 
@@ -137,7 +165,9 @@ public sealed class EditTests
         var noDuty = new Snapshot([.. Desktop.Sensors.Where(sensor => sensor.Id != FanTwoDuty)]);
         var withoutDuty = Done(ItemEdits.ChangeSensor(byDuty, Metrics.CpuFan.Id, noDuty, FanTwo));
         Assert.Equal(new OverlayItem(null, "0 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id }, Shown(withoutDuty, noDuty)[1]);
-        Assert.Equal(new MeterConfig { Sensor = FanTwo }, Item(Done(ItemEdits.ChangeSensor(itself, "/lpc/it8689e/0/fan/0", desktop, FanTwo)), "/lpc/it8689e/0/fan/0").Meter);
+        Assert.Equal(
+            new MeterConfig { Sensor = FanTwo },
+            Item(Done(ItemEdits.ChangeSensor(itself, "/lpc/it8689e/0/fan/0", desktop, FanTwo)), "/lpc/it8689e/0/fan/0").Meter);
     }
 
     [Fact]
@@ -183,10 +213,21 @@ public sealed class EditTests
     [Fact]
     public void OnlyTemperaturesLoadsDutiesAndFanSpeedsCanBeMeters()
     {
-        string[] sensors = ["/gpu-nvidia/0/temperature/0", "/gpu-nvidia/0/load/0", "/lpc/it8689e/0/control/0", "/gpu-nvidia/0/clock/0", "/gpu-nvidia/0/power/0", "/lpc/it8689e/0/fan/0", "/ram/data/0"];
+        string[] sensors =
+        [
+            "/gpu-nvidia/0/temperature/0",
+            "/gpu-nvidia/0/load/0",
+            "/lpc/it8689e/0/control/0",
+            "/gpu-nvidia/0/clock/0",
+            "/gpu-nvidia/0/power/0",
+            "/lpc/it8689e/0/fan/0",
+            "/ram/data/0",
+        ];
         var dutyMeter = new MeterConfig { Sensor = "/lpc/it8689e/0/control/0" };
 
-        var config = sensors.Aggregate(new ThermiConfig { Overlays = [new OverlayConfig { Items = [] }] }, (current, id) => Done(ItemEdits.AddSensor(current, 0, Desktop, id)));
+        var config = sensors.Aggregate(
+            new ThermiConfig { Overlays = [new OverlayConfig { Items = [] }] },
+            (current, id) => Done(ItemEdits.AddSensor(current, 0, Desktop, id)));
         var itself = sensors.Select(id => ItemEdits.MeterItself(config, id, Desktop)).ToList();
         var byDuty = sensors.Aggregate(config, (current, id) => Done(ItemEdits.SetMeter(current, id, Desktop, dutyMeter)));
         var off = sensors.Aggregate(byDuty, (current, id) => Done(ItemEdits.SetMeter(current, id, Desktop, null)));
@@ -218,7 +259,10 @@ public sealed class EditTests
         var renamedSplit = Done(ItemEdits.RenamePill(split, Metrics.CpuTemperature.Id, "CHIP"));
         var renamedEach = Done(ItemEdits.RenamePill(each, Metrics.CpuLoad.Id, "CHIP"));
         var renamedOne = Done(ItemEdits.RenamePill(Laid(split, PillLayout.One), Metrics.CpuTemperature.Id, "CHIP"));
-        var renamedFollowed = Done(ItemEdits.RenamePill(WithOverlay(each, 0, overlay => overlay with { Items = [overlay.Items[0], follower] }), Metrics.CpuTemperature.Id, "CHIP"));
+        var renamedFollowed = Done(ItemEdits.RenamePill(
+            WithOverlay(each, 0, overlay => overlay with { Items = [overlay.Items[0], follower] }),
+            Metrics.CpuTemperature.Id,
+            "CHIP"));
 
         Assert.Equal(["CHIP", "GPU", "RAM"], OverlayLayout.Groups(Shown(renamed, Desktop)).Select(group => group[0].Label));
         Assert.Equal(["CHIP", "CHIP", "CHIP", "CHIP", null, null], renamed.Overlays[0].Items.Select(item => item.Label));
@@ -265,14 +309,19 @@ public sealed class EditTests
         Assert.All(refused, entry => Assert.Equal(((Refusal?)entry.Refusal, true), (entry.Result.Refused, ReferenceEquals(entry.Given, entry.Result.Config))));
         Assert.Contains("overlays[0].style.gap is 17", refused.Single(entry => entry.Refusal == Refusal.Invalid).Result.Problem, StringComparison.Ordinal);
         Assert.All(refused.Where(entry => entry.Refusal != Refusal.Invalid), entry => Assert.Null(entry.Result.Problem));
-        Assert.Equal(new Threshold(85, 85), Item(Done(ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, 85, 85)), Metrics.CpuTemperature.Id).Threshold);
+        Assert.Equal(
+            new Threshold(85, 85),
+            Item(Done(ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, 85, 85)), Metrics.CpuTemperature.Id).Threshold);
         Assert.Equal(1.5, Done(OverlayEdits.SetSize(config, 0, 1.5)).Overlays[0].Size);
     }
 
     private static (EditResult Result, ThermiConfig Given, Refusal Refusal)[] RefusedEdits(ThermiConfig config)
     {
         var full = new ThermiConfig { Overlays = [new OverlayConfig(), new OverlayConfig(), new OverlayConfig(), new OverlayConfig()] };
-        var combined = WithItem(config, Metrics.CpuTemperature.Id, item => item with { Metric = null, Sensors = ["/amdcpu/0/temperature/3", "/amdcpu/0/temperature/4"], Combine = Combine.Max });
+        var combined = WithItem(
+            config,
+            Metrics.CpuTemperature.Id,
+            item => item with { Metric = null, Sensors = ["/amdcpu/0/temperature/3", "/amdcpu/0/temperature/4"], Combine = Combine.Max });
         var power = Metrics.CpuPower.Id;
         var meterGone = WithItem(config, power, item => item with { Meter = new MeterConfig { Sensor = "/amdcpu/9/load/9" } });
 
@@ -305,7 +354,12 @@ public sealed class EditTests
             (OverlayEdits.Duplicate(config, 1), config, Refusal.NotFound),
             (OverlayEdits.Delete(config, 0), config, Refusal.LastOverlay),
             (OverlayEdits.Delete(config, 1), config, Refusal.NotFound),
-            (ConfigEdits.Apply(config, current => WithOverlay(current, 0, overlay => overlay with { Style = overlay.Style with { Gap = 17 } })), config, Refusal.Invalid),
+            (
+                ConfigEdits.Apply(
+                    config,
+                    current => WithOverlay(current, 0, overlay => overlay with { Style = overlay.Style with { Gap = 17 } })),
+                config,
+                Refusal.Invalid),
         ];
     }
 
@@ -315,5 +369,8 @@ public sealed class EditTests
     // What an item's meter reads now, 0 to 1, as its graph shows it, the only meter a pill draws; null without a meter.
     // Sensors report single-precision values, so it is rounded.
     private static double? MeterNow(ThermiConfig config, string id, Snapshot snapshot) =>
-        Shown(WithItem(config, id, item => item with { Graph = true }), snapshot).Single(item => item.Id == id).Graph?[^1]?.Fill is { } fill ? Math.Round(fill, 4) : null;
+        Shown(WithItem(config, id, item => item with { Graph = true }), snapshot)
+            .Single(item => item.Id == id).Graph?[^1]?.Fill is { } fill
+            ? Math.Round(fill, 4)
+            : null;
 }

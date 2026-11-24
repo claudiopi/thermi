@@ -11,8 +11,11 @@ namespace Thermi.Core.Bridge;
 /// </summary>
 public interface IWindowBridge
 {
-    /// <summary>Raised when anything the page reads may have changed: the settings, the service, the finder, the desktop.</summary>
-    event EventHandler? Changed;
+    /// <summary>
+    /// Raised when anything the page reads may have changed: the settings, the service, the finder, the desktop; with
+    /// <see cref="WindowChangeEventArgs.Sensors"/> when the sensors or the service may have.
+    /// </summary>
+    event EventHandler<WindowChangeEventArgs>? Changed;
 
     /// <summary>
     /// Raised for each second's new readings that changed nothing else, so the page reads again only what readings change:
@@ -84,7 +87,7 @@ public interface IWindowBridge
 
     Task<string?> RenameLook(string name, string to);
 
-    Task DeleteLook(string name);
+    Task<string?> DeleteLook(string name);
 
     Task ExportLook(int overlay);
 
@@ -111,8 +114,8 @@ public interface IWindowBridge
 
     Task<FinderView> Finder();
 
-    /// <summary>Installs thermi's driver behind Windows' prompt: false when the prompt was refused.</summary>
-    Task<bool> InstallDriver();
+    /// <summary>Installs thermi's driver behind Windows' prompt, and says how it ended.</summary>
+    Task<DriverInstall> InstallDriver();
 
     /// <summary>Starts the sensor service behind Windows' prompt: false when the prompt was refused.</summary>
     Task<bool> StartService();

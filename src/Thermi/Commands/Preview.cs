@@ -36,7 +36,10 @@ internal static class Preview
 
         var overlay = config.Overlays[0];
         using var painter = new Painter();
-        using var bitmap = painter.Paint(Shown(config, snapshot, CpuWatch.ReadBaseClock()), OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast()), request.Scale * (float)overlay.Size);
+        using var bitmap = painter.Paint(
+            Shown(config, snapshot, CpuWatch.ReadBaseClock()),
+            OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast()),
+            request.Scale * (float)overlay.Size);
         return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
     }
 

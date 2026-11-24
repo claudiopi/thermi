@@ -165,6 +165,9 @@ WinVerifyTrust
 WINTRUST_DATA
 WINTRUST_FILE_INFO
 WINTRUST_ACTION_GENERIC_VERIFY_V2
+// The installer's own folder, made with administrators' access from the start, and never one that was there before
+CreateDirectory
+SECURITY_ATTRIBUTES
 // The sender of a message, checked as the same thermi.exe as the receiver (docs/adr/0009-overlay-and-window-messages.md)
 OpenProcess
 QueryFullProcessImageName
@@ -189,6 +192,7 @@ DwmDefWindowProc
 WM_NCMOUSEMOVE
 DWMWINDOWATTRIBUTE
 DWM_SYSTEMBACKDROP_TYPE
+DWM_WINDOW_CORNER_PREFERENCE
 GetWindowPlacement
 SetWindowPlacement
 HWND_NOTOPMOST

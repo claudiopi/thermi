@@ -10,7 +10,7 @@ using Thermi.Core.Translations;
 namespace Thermi.Tests.Acceptance;
 
 /// <summary>
-/// Version 2 settings: ids and migration. The file shared by two processes is the Windows tests' own.
+/// The settings file: ids and migration. The file shared by two processes is the Windows tests' own.
 /// </summary>
 public sealed class SettingsFileTests
 {
@@ -40,21 +40,35 @@ public sealed class SettingsFileTests
                 new ItemConfig
                 {
                     Id = Metrics.CpuFan.Id,
-                    Name = Texts.English.Of(Metrics.CpuFan.Name),
                     Sensor = "/lpc/it8689e/0/fan/0",
                     Auto = Metrics.CpuFan.Id,
                     Meter = new MeterConfig { Sensor = "/lpc/it8689e/0/control/0", Auto = Metrics.CpuFanDuty.Id },
                     Threshold = new Threshold(65, 85),
                 },
-                new ItemConfig { Id = Metrics.CpuTemperature.Id, Name = Texts.English.Of(Metrics.CpuTemperature.Name), Metric = Metrics.CpuTemperature.Id, Meter = new MeterConfig { Metric = Metrics.CpuTemperature.Id }, Threshold = new Threshold(70, 90) },
-                new ItemConfig { Id = Metrics.RamLoad.Id, Name = Texts.English.Of(Metrics.RamLoad.Name), Metric = Metrics.RamLoad.Id },
+                new ItemConfig
+                {
+                    Id = Metrics.CpuTemperature.Id,
+                    Metric = Metrics.CpuTemperature.Id,
+                    Meter = new MeterConfig { Metric = Metrics.CpuTemperature.Id },
+                    Threshold = new Threshold(70, 90),
+                },
+                new ItemConfig { Id = Metrics.RamLoad.Id, Metric = Metrics.RamLoad.Id },
             ],
             overlay.Items);
         Assert.Equal(ShownByVersionOne(overlay, new() { [Metrics.CpuFan.Id] = "/lpc/it8689e/0/fan/0" }), Shown(overlay));
+        // Its items store no name, so a Spanish window names them in Spanish.
+        Assert.Equal(Texts.Of("es").Of(MetricName.CpuTemperature), ItemNames(PageSettings.Of(config, Texts.Of("es"), Desktop))[1]);
         Assert.Equal(
-            [new OverlayItem("CPU", ReadingFormatter.Missing, Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id }, new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id }],
+            [
+                new OverlayItem("CPU", ReadingFormatter.Missing, Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id },
+                new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id },
+            ],
             Shown(wrongType));
-        Assert.Equal(ShownByVersionOne(wrongType, new() { [Metrics.CpuFan.Id] = "/lpc/it8689e/0/control/0", [Metrics.CpuTemperature.Id] = "/lpc/it8689e/0/fan/0" }), Shown(wrongType));
+        Assert.Equal(
+            ShownByVersionOne(
+                wrongType,
+                new() { [Metrics.CpuFan.Id] = "/lpc/it8689e/0/control/0", [Metrics.CpuTemperature.Id] = "/lpc/it8689e/0/fan/0" }),
+            Shown(wrongType));
 
         // 0.1's own defaults, which listed the fan first, become this version's; a sensor chosen for one of their meters keeps
         // the item, and its lines, 0.1's defaults, become this version's calm ones, while lines the user moved stay, as above.
@@ -65,7 +79,6 @@ public sealed class SettingsFileTests
             new ItemConfig
             {
                 Id = Metrics.CpuFan.Id,
-                Name = Texts.English.Of(Metrics.CpuFan.Name),
                 Metric = Metrics.CpuFan.Id,
                 Meter = new MeterConfig { Sensor = "/lpc/it8689e/0/control/1", Auto = Metrics.CpuFanDuty.Id },
                 Threshold = Threshold.Default(Metrics.CpuFanDuty),
@@ -118,9 +131,11 @@ public sealed class SettingsFileTests
         Assert.Same(named, PageSettings.Of(named, Texts.English, Desktop));
 
         // A copied overlay's items take the next free number of their ids; an id made from a sensor is its sensor again.
-        var two = ThermiConfigJson.Read(TestFiles.Config("v2.json")).Config;
+        var two = ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config;
         var copied = OverlayEdits.Duplicate(OverlayEdits.Add(two).Config, 0).Config;
-        Assert.Equal(["fan.cpu-3", "cpu.temperature-4", "/amdcpu/0/temperature/3", "/gpu-nvidia/0/power/0-2"], copied.Overlays[1].Items.Select(item => item.Id));
+        Assert.Equal(
+            ["fan.cpu-3", "cpu.temperature-4", "/amdcpu/0/temperature/3", "/gpu-nvidia/0/power/0-2"],
+            copied.Overlays[1].Items.Select(item => item.Id));
     }
 
     [Fact]
@@ -130,17 +145,49 @@ public sealed class SettingsFileTests
             { "version": 2, "overlays": [ { "items": [ { "metric": "cpu.temperature" }, { "id": "cpu.temperature", "metric": "cpu.temperature" } ] } ] }
             """;
         const string Taken = """
-            { "version": 2, "overlays": [ { "items": [ { "id": "cpu.temperature-2", "metric": "cpu.load" }, { "metric": "cpu.temperature" }, { "metric": "cpu.temperature" } ] } ] }
+            { "version": 2, "overlays": [ { "items": [
+              { "id": "cpu.temperature-2", "metric": "cpu.load" }, { "metric": "cpu.temperature" }, { "metric": "cpu.temperature" } ] } ] }
             """;
 
         Assert.Equal(["cpu.temperature-2", "cpu.temperature"], Ids(ThermiConfigJson.Read(Above).Config));
         Assert.Equal(["cpu.temperature-2", "cpu.temperature", "cpu.temperature-3"], Ids(ThermiConfigJson.Read(Taken).Config));
     }
 
+    // What earlier builds wrote unchosen takes this version's: 0.1's default lines its lines, thermi's names in any
+    // language no name, so they read in the window's, and a custom look's 10 px labels Standard's.
     [Fact]
-    public void AVersionTwoFileRoundTrips()
+    public void AVersionTwoFileMigratesToVersionThree()
     {
-        var file = TestFiles.Config("v2.json");
+        var spanish = Texts.Of("es");
+        var file = $$"""
+            { "version": 2, "overlays": [
+              { "name": "{{spanish.Of(NameText.Taskbar)}} 2", "style": { "preset": "custom", "label": { "size": 10, "weight": "regular" } },
+                "items": [ { "name": "{{spanish.Of(MetricName.CpuTemperature)}}", "metric": "cpu.temperature" } ] },
+              { "name": "{{Texts.English.Of(SnapSpot.TaskbarRight)}}",
+                "style": { "preset": "custom", "label": { "size": 10, "weight": "regular" }, "value": { "size": 16, "weight": "bold" } } } ] }
+            """;
+
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v2.json"));
+        var other = ThermiConfigJson.Read(file).Config;
+
+        Assert.Null(problem);
+        Assert.Equal(ThermiConfig.CurrentVersion, config.Version);
+        Assert.Equal(["Night desk", null], config.Overlays.Select(overlay => overlay.Name));
+        Assert.Equal([null, null, "CCDs", "GPU power", "CPU temperature 2", null], ItemNames(config));
+        Assert.Equal(
+            [new Threshold(85), Threshold.Default(Metrics.CpuTemperature), new Threshold(70, 90), null, null, null],
+            config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Threshold));
+        Assert.Equal(spanish.Of(MetricName.CpuTemperature), ItemNames(PageSettings.Of(config, spanish, Desktop))[1]);
+        Assert.Equal([null, null], other.Overlays.Select(overlay => overlay.Name));
+        Assert.All(ItemNames(other), Assert.Null);
+        Assert.Equal([StylePreset.Standard, StylePreset.Custom], other.Overlays.Select(overlay => overlay.Style.Preset));
+        Assert.Equal(StylePresets.Of(StylePreset.Standard).Label, StylePresets.Text(other.Overlays[1].Style).Label);
+    }
+
+    [Fact]
+    public void AVersionThreeFileRoundTrips()
+    {
+        var file = TestFiles.Config("v3.json");
 
         var (config, problem) = ThermiConfigJson.Read(file);
 

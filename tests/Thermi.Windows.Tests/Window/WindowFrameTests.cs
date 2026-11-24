@@ -32,7 +32,16 @@ public sealed class WindowFrameTests
             try
             {
                 WindowFrame.Dress(window);
-                PInvoke.SetWindowPos(window, HWND.Null, 100, 100, 900, 600, SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
+                PInvoke.SetWindowPos(
+                    window,
+                    HWND.Null,
+                    100,
+                    100,
+                    900,
+                    600,
+                    SET_WINDOW_POS_FLAGS.SWP_NOZORDER
+                        | SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED
+                        | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
                 if (maximized)
                 {
                     PInvoke.ShowWindow(window, SHOW_WINDOW_CMD.SW_MAXIMIZE);

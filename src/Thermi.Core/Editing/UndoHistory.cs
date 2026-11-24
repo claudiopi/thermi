@@ -89,6 +89,15 @@ public enum UndoText
     /// <summary>After an undo of a step that has no value to name.</summary>
     Undone,
 
+    /// <summary>After a redo, a field that holds its value again.</summary>
+    RedoneTo,
+
+    /// <summary>After a redo, a switch that is on or off again.</summary>
+    RedoneAgain,
+
+    /// <summary>After a redo of a step that has no value to name.</summary>
+    Redone,
+
     /// <summary>A switch that is on, in <see cref="Again"/>.</summary>
     On,
 
@@ -161,7 +170,12 @@ public sealed class UndoHistory
 
         _redo.Clear();
         var now = _time?.GetTimestamp() ?? 0;
-        if (!gesture && _time is not null && _undo.TryPeek(out var last) && !last.Gesture && _time.GetElapsedTime(last.At, now) <= Repeat && Merged(last.Operations, operations) is { } merged)
+        if (!gesture
+            && _time is not null
+            && _undo.TryPeek(out var last)
+            && !last.Gesture
+            && _time.GetElapsedTime(last.At, now) <= Repeat
+            && Merged(last.Operations, operations) is { } merged)
         {
             _undo.Pop();
             if (merged.Count > 0)
@@ -234,7 +248,9 @@ public sealed class UndoHistory
     // A stack enumerates from its top, so its steps are pushed back from the bottom.
     private static void Rename(Stack<Step> steps, string from, string to)
     {
-        var renamed = steps.Reverse().Select(step => step with { Operations = [.. step.Operations.Select(operation => operation.Renamed(from, to))] }).ToList();
+        var renamed = steps.Reverse()
+            .Select(step => step with { Operations = [.. step.Operations.Select(operation => operation.Renamed(from, to))] })
+            .ToList();
         steps.Clear();
         foreach (var step in renamed)
         {

@@ -21,7 +21,9 @@ public sealed class DesktopTests
         Assert.DoesNotContain(screens, screen => screen.Id.StartsWith(@"\\.\", StringComparison.Ordinal));
 
         // A listing kept from before the taskbar moved to another edge, or began to hide, still gives the work area of now.
-        var before = Desktop.Monitors().Select(monitor => monitor with { Screen = monitor.Screen with { Work = new Core.Placement.PixelRect(0, 0, 1, 1) } }).ToList();
+        var before = Desktop.Monitors()
+            .Select(monitor => monitor with { Screen = monitor.Screen with { Work = new Core.Placement.PixelRect(0, 0, 1, 1) } })
+            .ToList();
         Assert.Equal(screens.Select(screen => screen.Work), Desktop.OnTaskbars(before, out _).Select(screen => screen.Work));
     }
 }

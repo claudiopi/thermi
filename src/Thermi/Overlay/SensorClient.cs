@@ -26,7 +26,11 @@ internal interface ISensorFeed
 /// Reads the sensor host's pipe, <paramref name="pipeName"/>, and waits 2 s between tries while it is gone. Only a pipe whose
 /// owner is <paramref name="trusted"/>, <see cref="IsTrustedOwner"/> unless a test trusts a pipe it made itself, is read.
 /// </summary>
-internal sealed class SensorClient(TimeProvider time, ILogger log, string pipeName = SnapshotJson.PipeName, Func<SecurityIdentifier?, bool>? trusted = null) : ISensorFeed
+internal sealed class SensorClient(
+    TimeProvider time,
+    ILogger log,
+    string pipeName = SnapshotJson.PipeName,
+    Func<SecurityIdentifier?, bool>? trusted = null) : ISensorFeed
 {
     private static readonly TimeSpan Retry = TimeSpan.FromSeconds(2);
 

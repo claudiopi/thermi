@@ -21,7 +21,15 @@ export function PageTitle({ name, onRename }: { name: string; onRename: (name: s
           {name}
         </button>
       ) : (
-        <input className="t-title-box" aria-label={t('UiText.Rename')} value={typed} autoFocus onChange={(event) => setTyped(event.target.value)} onKeyDown={keyDown} onBlur={() => setTyped(null)} />
+        <input
+          className="t-title-box"
+          aria-label={t('UiText.Rename')}
+          value={typed}
+          autoFocus
+          onChange={(event) => setTyped(event.target.value)}
+          onKeyDown={keyDown}
+          onBlur={() => setTyped(null)}
+        />
       )}
     </h2>
   );

@@ -21,16 +21,24 @@ export * from './pageChecks';
 // bridge's answer to the same call from the same start, and takes the settings, looks and undo steps it then showed.
 function installFake(initial: FakeState): void {
   const state = initial;
-  const listeners: (() => void)[] = [];
+  const listeners: ((change: { sensors: boolean }) => void)[] = [];
   const readingListeners: (() => void)[] = [];
   const pickers: ((pick: DesktopPick) => void)[] = [];
+  // A listener, kept until the page takes it back, as the host's script keeps it.
+  const listen = <T>(list: T[], listener: T): (() => void) => {
+    list.push(listener);
+    return () => {
+      list.splice(list.indexOf(listener), list.includes(listener) ? 1 : 0);
+    };
+  };
   let steps: UndoSteps = { undo: null, redo: null };
   // The settings' changes, and the last of them the page has read: a test reads the settings only once the page has.
   let changes = 0;
   let read = 0;
-  const changed = (): void => {
+  // As C# tells it, with whether the sensors or the service may have changed.
+  const changed = (sensors = false): void => {
     changes += 1;
-    listeners.forEach((listener) => listener());
+    listeners.forEach((listener) => listener({ sensors }));
   };
 
   // As the real bridge's wire, a missing argument goes as null; a call the oracle lacks rejects, as one C# fails.
@@ -59,7 +67,7 @@ function installFake(initial: FakeState): void {
       if (readings) {
         readingListeners.forEach((listener) => listener());
       } else {
-        changed();
+        changed('sensors' in change || 'service' in change);
       }
     },
     pick: (pick) => pickers.forEach((picker) => picker(pick)),
@@ -89,7 +97,13 @@ function installFake(initial: FakeState): void {
     open: notInstalled,
     // Windows' clipboard, held by another app, fails the paste before C# reads any look.
     pasteLook: async (overlay) => (state.clipboard === null ? 'Refusal.PasteFailed' : ((await ask('importLook', overlay, state.clipboard)) as string | null)),
-    snapshot: async () => ({ service: state.service, sensors: state.service === 'stopped' ? [] : state.sensors.map((sensor) => ({ ...sensor, name: state.settings.sensorNames?.[sensor.id] ?? sensor.name })) }),
+    snapshot: async () => ({
+      service: state.service,
+      sensors:
+        state.service === 'stopped'
+          ? []
+          : state.sensors.map((sensor) => ({ ...sensor, name: state.settings.sensorNames?.[sensor.id] ?? sensor.name })),
+    }),
     history: async (id) => {
       const value = state.service === 'running' ? (state.sensors.find((sensor) => sensor.id === id)?.value ?? null) : null;
       return Array.from({ length: 600 }, () => value);
@@ -98,13 +112,13 @@ function installFake(initial: FakeState): void {
     monitors: async () => state.monitors,
     report: async () => undefined,
     crowded: async () =>
-      state.settings.overlays.flatMap((one, overlay) => (state.crowdedWithoutLabels.includes(overlay) || (state.crowded.includes(overlay) && one.style?.noLabels !== true) ? [overlay] : [])),
+      state.settings.overlays.flatMap((one, overlay) =>
+        state.crowdedWithoutLabels.includes(overlay) || (state.crowded.includes(overlay) && one.style?.noLabels !== true) ? [overlay] : [],
+      ),
     looks: async () => state.looks,
     saveLook: async (overlay, name) => (await ask('saveLook', overlay, name)) as string | null,
     renameLook: async (name, to) => (await ask('renameLook', name, to)) as string | null,
-    deleteLook: async (name) => {
-      await ask('deleteLook', name);
-    },
+    deleteLook: async (name) => (await ask('deleteLook', name)) as string | null,
     exportLook: notInstalled,
     exportSavedLook: notInstalled,
     // Windows' file dialog, cancelled, gives C# no look to read.
@@ -121,18 +135,21 @@ function installFake(initial: FakeState): void {
         throw new Error('The install failed.');
       }
       if (state.driverAnswer === 'refused') {
-        return false;
+        return 'not-installed';
+      }
+      if (state.driverAnswer === 'restart') {
+        return 'restart-windows';
       }
       state.sensors = state.sensors.map((sensor) => (sensor.hardwareType === 'Cpu' && sensor.value === 0 ? { ...sensor, value: 50 } : sensor));
-      changed();
-      return true;
+      changed(true);
+      return 'installed';
     },
     startService: async () => {
       if (state.serviceAnswer === 'refused') {
         return false;
       }
       state.service = 'running';
-      changed();
+      changed(true);
       return true;
     },
     startOverlay: async () => {
@@ -158,19 +175,13 @@ function installFake(initial: FakeState): void {
       state.hotkeysResting = rest;
       changed();
     },
-    changed: (listener) => {
-      listeners.push(listener);
-    },
-    readings: (listener) => {
-      readingListeners.push(listener);
-    },
+    changed: (listener) => listen(listeners, listener),
+    readings: (listener) => listen(readingListeners, listener),
     // The real overlays are the fake's: what the page tells them it edits is kept, and a test picks on them.
     editing: async (overlay, selected, pointed) => {
       state.editing = { overlay, selected, pointed };
     },
-    picked: (listener) => {
-      pickers.push(listener);
-    },
+    picked: (listener) => listen(pickers, listener),
     start: async () => state.start,
   };
 }

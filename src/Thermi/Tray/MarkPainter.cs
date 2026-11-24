@@ -81,9 +81,17 @@ internal static class MarkPainter
         using var body = Body();
         if (look.Stops is { } stops)
         {
-            using var fill = new LinearGradientBrush(new RectangleF(6, 10, 36, 23), PainterShapes.Drawn(stops[0].Color), PainterShapes.Drawn(stops[^1].Color), LinearGradientMode.Horizontal)
+            using var fill = new LinearGradientBrush(
+                new RectangleF(6, 10, 36, 23),
+                PainterShapes.Drawn(stops[0].Color),
+                PainterShapes.Drawn(stops[^1].Color),
+                LinearGradientMode.Horizontal)
             {
-                InterpolationColors = new ColorBlend { Colors = [.. stops.Select(stop => PainterShapes.Drawn(stop.Color))], Positions = [.. stops.Select(stop => stop.At)] },
+                InterpolationColors = new ColorBlend
+                {
+                    Colors = [.. stops.Select(stop => PainterShapes.Drawn(stop.Color))],
+                    Positions = [.. stops.Select(stop => stop.At)],
+                },
                 // Flipped rather than repeated, so an edge pixel past the gradient's box takes its own end's color.
                 WrapMode = WrapMode.TileFlipX,
             };

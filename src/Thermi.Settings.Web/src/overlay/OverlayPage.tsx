@@ -54,10 +54,20 @@ export function OverlayPage({ data, overlay, onOverlayEdit }: OverlayPageProps) 
     <div className="t-ov t-page">
       <div className="t-page-head t-ov-head">
         <div className="t-head-text">
-          <PageTitle name={name} onRename={(next) => next.trim() !== '' && next !== name && void edit({ kind: 'overlay', overlay, field: 'name', value: next.trim() })} />
-          <div className="t-subtitle">{count === 1 ? t('OverlayPageText.OverlayHeadOneItem', place) : t('OverlayPageText.OverlayHeadItems', count, place)}</div>
+          <PageTitle
+            name={name}
+            onRename={(next) =>
+              next.trim() !== '' && next !== name && void edit({ kind: 'overlay', overlay, field: 'name', value: next.trim() })
+            }
+          />
+          <div className="t-subtitle">
+            {count === 1 ? t('OverlayPageText.OverlayHeadOneItem', place) : t('OverlayPageText.OverlayHeadItems', count, place)}
+          </div>
         </div>
-        <Button icon={<Icon name={one.hidden === true ? 'show' : 'hide'} />} onClick={() => onOverlayEdit({ kind: 'overlay', overlay, field: 'hidden', value: one.hidden === true ? null : true })}>
+        <Button
+          icon={<Icon name={one.hidden === true ? 'show' : 'hide'} />}
+          onClick={() => onOverlayEdit({ kind: 'overlay', overlay, field: 'hidden', value: one.hidden === true ? null : true })}
+        >
           {t(one.hidden === true ? 'UiText.ShowThisOverlay' : 'UiText.HideThisOverlay')}
         </Button>
       </div>

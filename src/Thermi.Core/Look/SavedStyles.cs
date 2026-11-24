@@ -85,7 +85,9 @@ public sealed class SavedStyles(string folder)
     /// A style imported under a saved one's name, but of another look, is not that style.
     /// </summary>
     public static StyleConfig? Chosen(StyleConfig style, IEnumerable<StyleConfig> saved) =>
-        style.Name is null ? null : saved.FirstOrDefault(each => Same(each.Name, style.Name) && each.WornOn(style) with { Name = null } == style with { Name = null });
+        style.Name is null
+            ? null
+            : saved.FirstOrDefault(each => Same(each.Name, style.Name) && each.WornOn(style) with { Name = null } == style with { Name = null });
 
     /// <summary>
     /// The file name a style's name makes before a number is added for a taken one: the characters Windows refuses and
@@ -140,12 +142,13 @@ public sealed class SavedStyles(string folder)
         }
     }
 
-    // A file being written or locked by another program is left out until the next look.
+    // A file being written or locked by another program is left out until the next look. One past a style file's size is
+    // left out unread, as the style file would refuse it: every look at the folder would read it whole.
     private static string? Text(string file)
     {
         try
         {
-            return File.ReadAllText(file);
+            return new FileInfo(file).Length > StyleFile.MaxLength ? null : File.ReadAllText(file);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

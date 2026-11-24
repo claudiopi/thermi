@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Dwm;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.Controls;
 using Windows.Win32.UI.Shell;
@@ -41,7 +42,19 @@ internal sealed class ValueTips : IDisposable
         PInvoke.InitCommonControlsEx(controls);
         fixed (char* name = "tooltips_class32")
         {
-            _tips = PInvoke.CreateWindowEx(WINDOW_EX_STYLE.WS_EX_TOPMOST, name, null, WINDOW_STYLE.WS_POPUP | (WINDOW_STYLE)(PInvoke.TTS_ALWAYSTIP | PInvoke.TTS_NOPREFIX), 0, 0, 0, 0, owner, HMENU.Null, HiddenWindow.Instance, null);
+            _tips = PInvoke.CreateWindowEx(
+                WINDOW_EX_STYLE.WS_EX_TOPMOST,
+                name,
+                null,
+                WINDOW_STYLE.WS_POPUP | (WINDOW_STYLE)(PInvoke.TTS_ALWAYSTIP | PInvoke.TTS_NOPREFIX),
+                0,
+                0,
+                0,
+                0,
+                owner,
+                HMENU.Null,
+                HiddenWindow.Instance,
+                null);
         }
 
         PInvoke.SendMessage(_tips, PInvoke.TTM_SETMAXTIPWIDTH, 0, MaxWidth);
@@ -49,6 +62,10 @@ internal sealed class ValueTips : IDisposable
         if (!_tips.IsNull)
         {
             PInvoke.SetWindowSubclass(_tips, _placed, 0, 0);
+
+            // Rounded as Windows 11's own tooltips are; Windows 10 refuses the attribute and keeps its square corners.
+            var corners = DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_ROUNDSMALL;
+            _ = PInvoke.DwmSetWindowAttribute(_tips, DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
         }
     }
 
@@ -122,9 +139,14 @@ internal sealed class ValueTips : IDisposable
     // goes whole above the overlay instead, or below it where the screen has no room above, as on a taskbar at the top.
     private unsafe LRESULT Placed(HWND window, uint message, WPARAM wParam, LPARAM lParam, nuint id, nuint data)
     {
-        if (message == PInvoke.WM_WINDOWPOSCHANGING && (WINDOWPOS*)lParam.Value is var pos && (pos->flags & SET_WINDOW_POS_FLAGS.SWP_NOMOVE) != SET_WINDOW_POS_FLAGS.SWP_NOMOVE && PInvoke.GetWindowRect(_owner, out var overlay))
+        if (message == PInvoke.WM_WINDOWPOSCHANGING
+            && (WINDOWPOS*)lParam.Value is var pos
+            && (pos->flags & SET_WINDOW_POS_FLAGS.SWP_NOMOVE) != SET_WINDOW_POS_FLAGS.SWP_NOMOVE
+            && PInvoke.GetWindowRect(_owner, out var overlay))
         {
-            var height = (pos->flags & SET_WINDOW_POS_FLAGS.SWP_NOSIZE) != SET_WINDOW_POS_FLAGS.SWP_NOSIZE ? pos->cy : (PInvoke.GetWindowRect(window, out var tip) ? tip.bottom - tip.top : 0);
+            var height = (pos->flags & SET_WINDOW_POS_FLAGS.SWP_NOSIZE) != SET_WINDOW_POS_FLAGS.SWP_NOSIZE
+                ? pos->cy
+                : (PInvoke.GetWindowRect(window, out var tip) ? tip.bottom - tip.top : 0);
             var above = overlay.top - Gap - height;
             pos->y = above >= ScreenTop(overlay) ? above : overlay.bottom + Gap;
         }
@@ -135,7 +157,8 @@ internal sealed class ValueTips : IDisposable
     private static int ScreenTop(RECT overlay)
     {
         var info = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
-        return PInvoke.GetMonitorInfo(PInvoke.MonitorFromRect(overlay, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST), ref info) ? info.rcMonitor.top : int.MinValue;
+        var monitor = PInvoke.MonitorFromRect(overlay, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST);
+        return PInvoke.GetMonitorInfo(monitor, ref info) ? info.rcMonitor.top : int.MinValue;
     }
 
     // The control copies the text, so it is pinned only for the call.

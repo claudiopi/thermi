@@ -1,15 +1,24 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Thermi.Logging;
 
 namespace Thermi.Commands;
 
-/// <summary><c>thermi elevated &lt;verb&gt;</c>: one fix that needs administrator rights, behind one UAC prompt (docs/adr/0010-driver-and-service-from-the-window.md).</summary>
+/// <summary>
+/// <c>thermi elevated &lt;verb&gt;</c>: one fix that needs administrator rights, behind one UAC prompt
+/// (docs/adr/0010-driver-and-service-from-the-window.md).
+/// </summary>
 internal sealed record ElevatedRequest(string Verb) : IThermiRequest;
 
-/// <summary>What the elevated mode reaches, which tests replace: the sensor service, and the driver's install.</summary>
+/// <summary>What the elevated mode reaches, which tests replace: the sensor service, the driver's install, and its log.</summary>
 internal sealed record ElevatedParts(IServiceManager Services, Func<IServiceManager, DriverParts> Driver)
 {
-    public static ElevatedParts Windows { get; } = new(new WindowsServices(StartSensors.Service), DriverParts.Windows);
+    public ILogger Log { get; init; } = NullLogger.Instance;
+
+    public static ElevatedParts Windows(ILogger log) =>
+        new(new WindowsServices(StartSensors.Service), services => DriverParts.Windows(services, log)) { Log = log };
 }
 
 /// <summary>
@@ -27,12 +36,17 @@ internal static class Elevated
 
     private const int Cancelled = 1223;
 
-    public static Task<int> RunAsync(string verb, ElevatedParts parts, TimeProvider time) => verb switch
+    public static async Task<int> RunAsync(string verb, ElevatedParts parts, TimeProvider time)
     {
-        StartSensors.Verb => StartSensors.RunAsync(parts.Services, time),
-        InstallDriver.Verb => InstallDriver.RunAsync(parts.Driver(parts.Services), time),
-        _ => Task.FromResult(Unknown),
-    };
+        var code = await (verb switch
+        {
+            StartSensors.Verb => StartSensors.RunAsync(parts.Services, time),
+            InstallDriver.Verb => InstallDriver.RunAsync(parts.Driver(parts.Services), time),
+            _ => Task.FromResult(Unknown),
+        }).ConfigureAwait(false);
+        parts.Log.ElevatedModeEnded(verb, code);
+        return code;
+    }
 
     /// <summary>
     /// Runs the mode's <paramref name="verb"/> from <paramref name="exePath"/> behind one UAC prompt and waits for its exit

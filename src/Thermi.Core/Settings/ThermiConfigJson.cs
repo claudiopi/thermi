@@ -14,7 +14,8 @@ public static class ThermiConfigJson
 {
     // People edit this file by hand: hotkeys like Ctrl+Alt+T and labels in any language stay readable.
     // It is never put in a web page, where those characters would need escaping.
-    private static readonly ConfigJson Context = new(new JsonSerializerOptions(ConfigJson.Default.Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+    private static readonly ConfigJson Context =
+        new(new JsonSerializerOptions(ConfigJson.Default.Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
     public static string Write(ThermiConfig config) => JsonSerializer.Serialize(config, Context.ThermiConfig);
 
@@ -91,6 +92,7 @@ public static class ThermiConfigJson
         var read = version switch
         {
             1 => ConfigMigration.FromVersion1(root.Deserialize(Version1Json.Default.Version1Config)),
+            2 => ConfigMigration.FromVersion2(Complete(root.Deserialize(Context.ThermiConfig))),
             ThermiConfig.CurrentVersion => Complete(root.Deserialize(Context.ThermiConfig)),
             _ => null,
         };
@@ -133,6 +135,10 @@ public static class ThermiConfigJson
     private static bool NamesASensor(ItemConfig item) => item.Metric is not null || item.Sensor is not null || item.Sensors is not null;
 }
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, RespectRequiredConstructorParameters = true)]
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    WriteIndented = true,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    RespectRequiredConstructorParameters = true)]
 [JsonSerializable(typeof(ThermiConfig))]
 internal sealed partial class ConfigJson : JsonSerializerContext;

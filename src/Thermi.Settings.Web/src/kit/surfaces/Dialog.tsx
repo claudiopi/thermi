@@ -4,7 +4,7 @@ import { Button } from '../controls/Button';
 import { useFocusBack, useFocusOnOpen } from './focus';
 import { useKitRoot } from './root';
 import { fluentRef } from '../fluentRef';
-import { surface as surfaces } from '../theme/look';
+import { space, surface as surfaces } from '../theme/look';
 
 export interface DialogProps {
   open: boolean;
@@ -26,9 +26,10 @@ export interface DialogProps {
 // WinUI's content dialog, as the prototype draws it: its words on the dialog's layer, its buttons sharing the width in a
 // darker band under a divider.
 const useStyles = makeStyles({
-  // Above the folded list (10) and the toasts (20).
-  surface: { zIndex: 30, width: '448px', maxWidth: 'calc(100vw - 32px)', padding: '0', borderRadius: '8px', background: surfaces.dialog },
-  backdrop: { zIndex: 30, backgroundColor: 'rgba(0, 0, 0, 0.3)' },
+  // Above the folded list (10), and under the title row, as everything that covers the page, since Windows' caption
+  // buttons beside it cannot be dimmed.
+  surface: { zIndex: 30, top: space.titleRow, width: '448px', maxWidth: 'calc(100vw - 32px)', padding: '0', borderRadius: '8px', background: surfaces.dialog },
+  backdrop: { zIndex: 30, top: space.titleRow, backgroundColor: 'rgba(0, 0, 0, 0.3)' },
   body: { padding: '24px' },
   title: { marginBottom: '12px' },
   foot: {
@@ -71,7 +72,7 @@ export function Dialog({ open, title, children, main, onMain, cancel, onCancel, 
             }
           }}
         >
-          <DialogSurface ref={fluentRef(surface)} mountNode={host} className={styles.surface} backdrop={{ className: styles.backdrop }}>
+          <DialogSurface ref={fluentRef(surface)} mountNode={host} className={styles.surface} backdrop={{ className: styles.backdrop }} data-modal="">
             <form onSubmit={submit}>
               <div className={styles.body}>
                 <DialogTitle className={styles.title}>{title}</DialogTitle>

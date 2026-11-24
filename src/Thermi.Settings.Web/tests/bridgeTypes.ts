@@ -12,8 +12,8 @@ export interface FakeState {
   service: Service;
   overlayRunning: boolean;
   problem: Problem | null;
-  /** Failed is the call itself failing, as an exception on the C# side rejects it. */
-  driverAnswer: 'accepted' | 'refused' | 'failed';
+  /** Failed is the call itself failing, as an exception on the C# side rejects it; restart, a driver that loads only once Windows restarts. */
+  driverAnswer: 'accepted' | 'refused' | 'failed' | 'restart';
   serviceAnswer: 'accepted' | 'refused';
   monitors: Monitor[];
   looks: Record<string, Style>;

@@ -39,10 +39,14 @@ public sealed record PillColors(Rgb Outer, Rgb Border, Rgb MeterOff, Rgb Label, 
 {
     public static PillColors Dark { get; } = new(Rgb.Parse("#20201E"), Rgb.Parse("#31312F"), Rgb.Parse("#2E2E2C"), Rgb.Parse("#A9A9A7"), Rgb.Parse("#EFEFEE"));
 
-    public static PillColors Light { get; } = new(Rgb.Parse("#F3F3F1"), Rgb.Parse("#DADAD8"), Rgb.Parse("#D5D5D3"), Rgb.Parse("#5C5C5A"), Rgb.Parse("#1A1A1A"));
+    public static PillColors Light { get; } =
+        new(Rgb.Parse("#F3F3F1"), Rgb.Parse("#DADAD8"), Rgb.Parse("#D5D5D3"), Rgb.Parse("#5C5C5A"), Rgb.Parse("#1A1A1A"));
 }
 
-/// <summary>A text color as drawn. <see cref="Unreadable"/> is true when it is the Auto color drawn instead of one too close to its pill, which the window points out.</summary>
+/// <summary>
+/// A text color as drawn. <see cref="Unreadable"/> is true when it is the Auto color drawn instead of one too close to its pill,
+/// which the window points out.
+/// </summary>
 public readonly record struct TextColor(Rgb Color, bool Unreadable = false);
 
 /// <summary>
@@ -211,7 +215,10 @@ public sealed record OverlayLook
         if (Orientation == Orientation.Vertical)
         {
             var widest = widths.DefaultIfEmpty(0).Max();
-            return new Arrangement([.. widths.Select((_, at) => new PillBox(0, at * (height + gap), widest, height))], widest, (height * widths.Count) + across);
+            return new Arrangement(
+                [.. widths.Select((_, at) => new PillBox(0, at * (height + gap), widest, height))],
+                widest,
+                (height * widths.Count) + across);
         }
 
         var boxes = new List<PillBox>(widths.Count);

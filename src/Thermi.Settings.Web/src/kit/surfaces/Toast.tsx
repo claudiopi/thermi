@@ -1,5 +1,5 @@
-import { makeStyles, tokens } from '@fluentui/react-components';
-import type { ReactNode } from 'react';
+import { makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import { useLayoutEffect, type ReactNode } from 'react';
 import { space, surface } from '../theme/look';
 
 export interface ToastProps {
@@ -9,10 +9,12 @@ export interface ToastProps {
   actions?: ReactNode;
   /** Whether the pointer or the focus is on it, which holds it there until they leave. */
   onHold?: (held: boolean) => void;
+  /** Where its room is, which the page around it gives up while it shows. */
+  className?: string;
 }
 
 const useStyles = makeStyles({
-  region: { position: 'absolute', zIndex: 20, insetInline: '0', bottom: '20px', display: 'flex', justifyContent: 'center', pointerEvents: 'none' },
+  region: { display: 'flex', justifyContent: 'center' },
   toast: {
     pointerEvents: 'auto',
     display: 'flex',
@@ -35,11 +37,20 @@ const useStyles = makeStyles({
   actions: { display: 'flex', alignItems: 'center', gap: '8px', paddingInlineStart: '8px' },
 });
 
-/** Passing news at the foot of the window, under any dialog, which moves nothing and takes no focus. */
-export function Toast({ message, actions, onHold }: ToastProps) {
+/**
+ * Passing news in a room of its own at the foot of the window, under any dialog, which covers nothing and takes no
+ * focus; the control that has it stays in view as the room opens.
+ */
+export function Toast({ message, actions, onHold, className }: ToastProps) {
   const styles = useStyles();
+  const shown = message !== undefined;
+  useLayoutEffect(() => {
+    if (shown && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+      document.activeElement.scrollIntoView({ block: 'nearest' });
+    }
+  }, [shown, message]);
   return (
-    <div role="status" className={styles.region}>
+    <div role="status" className={mergeClasses(styles.region, className)}>
       {message !== undefined && (
         <div
           className={styles.toast}

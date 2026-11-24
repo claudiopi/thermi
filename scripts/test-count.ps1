@@ -27,7 +27,10 @@ function Get-DotNetCases {
     $total = 0
     foreach ($project in Get-ChildItem (Join-Path $root 'tests') -Directory | Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") }) {
         $exe = if ($ArtifactsPath) { Join-Path $ArtifactsPath 'bin' $project.Name $Configuration.ToLowerInvariant() "$($project.Name).exe" }
-            else { Join-Path $project.FullName 'bin' $Configuration '*' "$($project.Name).exe" | Resolve-Path -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Path }
+            else {
+                Join-Path $project.FullName 'bin' $Configuration '*' "$($project.Name).exe" |
+                    Resolve-Path -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Path
+            }
         if (-not $exe -or -not (Test-Path $exe)) { throw "$($project.Name) is not built: build $Configuration first." }
         $listed = & $exe -list full/json -preEnumerateTheories | Out-String
         if ($LASTEXITCODE -ne 0) { throw "$exe could not list its tests." }
@@ -99,7 +102,8 @@ if ($raised) {
 
 foreach ($half in $halves.Keys) {
     if ($halves[$half] -lt $baseline.$half) {
-        Write-Host "note: $($halves[$half]) $half test cases, below the baseline of $($baseline.$half): lower it in $baselineFile so the ratchet holds what was won."
+        Write-Host ("note: $($halves[$half]) $half test cases, below the baseline of $($baseline.$half): " +
+            "lower it in $baselineFile so the ratchet holds what was won.")
     }
 }
 exit 0

@@ -2,7 +2,10 @@ import { useEffect, useRef } from 'react';
 import { shortcutOf, type Shortcuts } from './shortcuts';
 
 const typing = (target: EventTarget | null): boolean =>
-  target instanceof HTMLElement && (target.isContentEditable || (target instanceof HTMLInputElement && target.type !== 'checkbox' && target.getAttribute('role') !== 'switch') || target instanceof HTMLTextAreaElement);
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    (target instanceof HTMLInputElement && target.type !== 'checkbox' && target.getAttribute('role') !== 'switch') ||
+    target instanceof HTMLTextAreaElement);
 
 /**
  * The window's shortcuts, wherever the focus is. Ctrl+Z undoes thermi's last step even in a text box, since a box

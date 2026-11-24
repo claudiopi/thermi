@@ -21,8 +21,26 @@ export interface ItemPageProps {
 function chartMenu(chart: ChartView, item: string, edit: (edit: Edit) => void, say: ReturnType<typeof useText>): MenuEntry[] {
   return [
     { kind: 'action', id: 'reset', text: say('UiText.ResetThreshold'), onRun: () => edit({ kind: 'resetLines', item }) },
-    ...(chart.warning === null ? [{ kind: 'action' as const, id: 'warning', text: say('UiText.AddWarningLine'), onRun: () => edit({ kind: 'addLine', item, line: 'warning' }) }] : []),
-    ...(chart.critical === null ? [{ kind: 'action' as const, id: 'critical', text: say('UiText.AddCriticalLine'), onRun: () => edit({ kind: 'addLine', item, line: 'critical' }) }] : []),
+    ...(chart.warning === null
+      ? [
+          {
+            kind: 'action' as const,
+            id: 'warning',
+            text: say('UiText.AddWarningLine'),
+            onRun: () => edit({ kind: 'addLine', item, line: 'warning' }),
+          },
+        ]
+      : []),
+    ...(chart.critical === null
+      ? [
+          {
+            kind: 'action' as const,
+            id: 'critical',
+            text: say('UiText.AddCriticalLine'),
+            onRun: () => edit({ kind: 'addLine', item, line: 'critical' }),
+          },
+        ]
+      : []),
   ];
 }
 
@@ -43,12 +61,27 @@ export function ItemPage({ data, id, labelAsked, moreOpen, onMoreOpen }: ItemPag
     <div className={`t-item${chart === null ? ' t-no-chart' : ''}`}>
       <div className="t-page-head t-item-head">
         <div className="t-head-text">
-          <PageTitle name={name} onRename={(next) => next.trim() !== '' && next !== name && run({ kind: 'item', item: id, field: 'name', value: next.trim() })} />
-          <div className="t-subtitle">{t('UiText.OverlayPlace', where === undefined ? '' : overlayName(where, overlay, t), t('UiText.PillName', placed.pill))}</div>
+          <PageTitle
+            name={name}
+            onRename={(next) => next.trim() !== '' && next !== name && run({ kind: 'item', item: id, field: 'name', value: next.trim() })}
+          />
+          <div className="t-subtitle">
+            {t('UiText.OverlayPlace', where === undefined ? '' : overlayName(where, overlay, t), t('UiText.PillName', placed.pill))}
+          </div>
         </div>
-        {chart !== null && <Menu trigger={<Button kind="subtle" label={t('UiText.ChartActions')} icon={<Icon name="more" />} />} entries={chartMenu(chart, id, run, t)} />}
+        {chart !== null && item.meter !== undefined && (
+          <Menu
+            // In words, so it never reads as the title row's "…" just above it.
+            trigger={
+              <Button kind="subtle" icon={<Icon name="more" />}>
+                {t('UiText.ChartActions')}
+              </Button>
+            }
+            entries={chartMenu(chart, id, run, t)}
+          />
+        )}
       </div>
-      {chart !== null && <Chart item={id} name={name} chart={chart} edit={edit} />}
+      {chart !== null && <Chart item={id} name={name} chart={chart} edit={edit} metered={item.meter !== undefined} />}
       <div className="t-item-rows">
         <CardStack>
           <ItemRows data={data} placed={placed} edit={run} labelAsked={labelAsked} />

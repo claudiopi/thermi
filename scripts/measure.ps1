@@ -5,9 +5,9 @@ Measures what thermi's processes cost for a while: CPU as a percent of one core 
 the settings window with its WebView2 processes, and the sensor service, then checks each against its budget.
 
 .DESCRIPTION
-Budgets: the overlay under 0.5 % of one core, the window open and idle under 1 % with its page's renderer (spec 002's
-R191; WebView2's browser, GPU and helper processes are reported apart), the service under 80 MB private
-(docs/adr/0011-sensor-service-memory-budget.md; its CPU is reported, not checked). It measures what runs; with -Window it
+Budgets: the overlay under 48 MB private and 0.5 % of one core (docs/adr/0001-architecture.md), the window open and
+idle under 1 % with its page's renderer (spec 002's R191; WebView2's browser, GPU and helper processes are reported apart), the service under 80 MB private
+and 3 % of one core (docs/adr/0011-sensor-service-memory-budget.md). It measures what runs; with -Window it
 opens the window of -Exe first, waits for it to settle and closes it after, if it opened it. Nothing is edited, and the
 window reads the real settings as smoke-window.ps1's does. The service runs as LocalSystem, so its CPU is read from the
 performance counters, which need no administrator; the others from their processes. Exits 1 when a budget is broken.
@@ -25,7 +25,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $percent = 100.0
 $budgets = @{ Overlay = 0.5; Window = 1.0 }
+$megabytes = @{ Overlay = 48 }
 $serviceMegabytes = 80
+$serviceCpu = 3.0
 
 function Get-Thermi {
     $all = Get-CimInstance Win32_Process
@@ -100,12 +102,22 @@ try {
         if ($found.$part.Count -eq 0) { continue }
         $cpu = ($after.$part - $before.$part).TotalSeconds / $elapsed * $percent
         $budget = $budgets[$part]
-        [pscustomobject]@{ Part = $part; Processes = $found.$part.Count; CpuPercent = [Math]::Round($cpu, 2); PrivateMB = [Math]::Round((Get-Private $found.$part), 1); Budget = if ($budget) { "$budget % CPU" } else { '-' }; Within = -not $budget -or $cpu -lt $budget }
+        $memory = $megabytes[$part]
+        $private = Get-Private $found.$part
+        [pscustomobject]@{
+            Part = $part; Processes = $found.$part.Count; CpuPercent = [Math]::Round($cpu, 2)
+            PrivateMB = [Math]::Round($private, 1)
+            Budget = (@($(if ($memory) { "$memory MB" }), $(if ($budget) { "$budget % CPU" })) | Where-Object { $_ }) -join ', '
+            Within = (-not $budget -or $cpu -lt $budget) -and (-not $memory -or $private -lt $memory)
+        }
     }
     if ($instance) {
         $cpu = ($samples | Where-Object Path -like '*% processor time' | Measure-Object CookedValue -Average).Average
         $private = ($samples | Where-Object Path -like '*private bytes' | Measure-Object CookedValue -Average).Average / 1MB
-        $rows = @($rows) + [pscustomobject]@{ Part = 'Service'; Processes = 1; CpuPercent = [Math]::Round($cpu, 2); PrivateMB = [Math]::Round($private, 1); Budget = "$serviceMegabytes MB"; Within = $private -lt $serviceMegabytes }
+        $rows = @($rows) + [pscustomobject]@{
+            Part = 'Service'; Processes = 1; CpuPercent = [Math]::Round($cpu, 2); PrivateMB = [Math]::Round($private, 1)
+            Budget = "$serviceMegabytes MB, $serviceCpu % CPU"; Within = $private -lt $serviceMegabytes -and $cpu -lt $serviceCpu
+        }
     }
     Write-Host "thermi over $([Math]::Round($elapsed)) s, CPU as a percent of one core, from $Exe"
     $rows | Format-Table -AutoSize | Out-Host

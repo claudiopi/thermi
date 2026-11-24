@@ -16,16 +16,32 @@ internal static class Names
     // The longest label a sensor of no known kind of device gets from its name; one typed by hand can be longer.
     private const int SensorLabelLength = 8;
 
+    private const string RamWord = "Memory";
+
     private static readonly SnapSpot[] Corners = [SnapSpot.TopRight, SnapSpot.BottomRight, SnapSpot.BottomLeft, SnapSpot.TopLeft];
 
-    /// <summary>The name of a new item that shows <paramref name="sensor"/>, under <paramref name="sensorId"/>.</summary>
+    /// <summary>
+    /// The name of a new item that shows <paramref name="sensor"/>, under <paramref name="sensorId"/>. An item of the metric
+    /// that picks that very sensor by name shows the same sensor, so the new one is numbered, not told apart by its sensor.
+    /// </summary>
     public static string OfItem(ThermiConfig config, RawSensor sensor, string sensorId, Texts texts)
     {
-        var taken = config.Overlays.SelectMany(overlay => overlay.Items).Where(item => item.Name is not null).ToList();
+        var picked = SensorMap.PickedBy(sensor)?.Id;
+        var taken = config.Overlays.SelectMany(overlay => overlay.Items)
+            .Select(item => item with { Name = item.Name ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? texts.Of(metric.Name) : null) })
+            .Where(item => item.Name is not null)
+            .ToList();
         var name = Base(config, sensor, sensorId, texts);
-        if (taken.Exists(item => item.Name == name) && !taken.Exists(item => item.Name == name && item.Sensor == sensorId))
+        bool Same(ItemConfig item)
         {
-            name = texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Name);
+            return item.Sensor == sensorId || (item is { Sensor: null, Sensors: null } && picked is not null && (item.Metric ?? item.Auto) == picked);
+        }
+
+        if (taken.Exists(item => item.Name == name) && !taken.Exists(item => item.Name == name && Same(item)))
+        {
+            // A name that already says the sensor's own is told apart by its device instead.
+            var apart = name.Contains(sensor.Name, StringComparison.OrdinalIgnoreCase) ? sensor.Hardware : sensor.Name;
+            name = texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, apart);
         }
 
         return Numbered(name, [.. taken.Select(item => item.Name)], texts);
@@ -40,11 +56,18 @@ internal static class Names
     {
         var count = before.Overlays.Sum(overlay => overlay.Items.Count) + 1;
         var old = Base(before, sensor, sensorId, texts);
-        var given = new[] { old, texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, old, sensor.Name) }
-            .SelectMany(form => Enumerable.Range(2, count).Select(number => texts.Format(CultureInfo.InvariantCulture, NameText.Numbered, form, number)).Prepend(form))
+        var given = new[] { sensor.Name, sensor.Hardware }
+            .Select(apart => texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, old, apart))
+            .Prepend(old)
+            .SelectMany(form => Enumerable.Range(2, count)
+                .Select(number => texts.Format(CultureInfo.InvariantCulture, NameText.Numbered, form, number))
+                .Prepend(form))
             .ToHashSet(StringComparer.Ordinal);
         var ours = before.Overlays.SelectMany(overlay => overlay.Items)
-            .Where(item => item is { Metric: null, Auto: null, Sensors: null } && item.Sensor == sensorId && item.Name is { } itemName && given.Contains(itemName))
+            .Where(item => item is { Metric: null, Auto: null, Sensors: null }
+                && item.Sensor == sensorId
+                && item.Name is { } itemName
+                && given.Contains(itemName))
             .Select(item => item.Id)
             .ToList();
         var name = Base(renamed, sensor, sensorId, texts);
@@ -64,7 +87,9 @@ internal static class Names
     /// </summary>
     public static string OfUnnamed(ItemConfig item, Snapshot? known, Texts texts) =>
         Metrics.Find(item.Metric ?? item.Auto) is { } metric ? texts.Of(metric.Name)
-        : (item.Sensor ?? (item.Sensors is [var first, ..] ? first : null)) is { } id && known is not null && SensorMap.Find(known, id) is { } sensor ? Base(sensor, texts)
+        : (item.Sensor ?? (item.Sensors is [var first, ..] ? first : null)) is { } id
+            && known is not null
+            && SensorMap.Find(known, id) is { } sensor ? Base(sensor, texts)
         : item.Id;
 
     /// <summary>
@@ -99,8 +124,9 @@ internal static class Names
 
     /// <summary>
     /// Where a sensor's item goes in an overlay, and its label: after the last item of the pill of its device's kind, taking
-    /// that pill's label, or at the end with its kind's label; a sensor of a metric whose label is its own, as a drive's
-    /// read and write rates, does the same by that label. A sensor of no kind thermi knows is labeled from its name, cut short.
+    /// that pill's label, or at the end with its kind's label; a sensor of a metric does the same by its metric's label, as
+    /// the board's CPU fan and its duty join the CPU's pill, and Windows' uptime takes UP. A drive's read and write rates
+    /// join that drive's pill. A sensor of no kind thermi knows is labeled from its name, cut short.
     /// </summary>
     public static (int At, string Label) PlaceOf(OverlayConfig overlay, RawSensor sensor, Texts texts)
     {
@@ -122,21 +148,54 @@ internal static class Names
     private static string Base(ThermiConfig config, RawSensor sensor, string sensorId, Texts texts) =>
         config.SensorNames?.GetValueOrDefault(sensorId) ?? Base(sensor, texts);
 
+    // Named as its metric, else by its device and kind where the kind says what it reads, as "SSD temperature", else by the
+    // name the catalog gives it, after its device unless that name says it: "SSD free space", "GPU Fan duty", "CPU fan".
     private static string Base(RawSensor sensor, Texts texts)
     {
-        if (SensorMap.DeviceOf(sensor) is not { } device || SensorMap.KindOf(sensor) is not { } kind)
-        {
-            return sensor.Name;
-        }
-
         if (SensorMap.MetricOf(sensor) is { } like)
         {
             return texts.Of(like.Name);
         }
 
-        var name = texts.Format(CultureInfo.InvariantCulture, NameText.OfSensor, texts.Of(device), texts.Of(kind).ToLowerInvariant());
-        return string.Concat(name[..1].ToUpperInvariant(), name[1..]);
+        var shown = SensorNames.Of(sensor, "", texts: texts).Shown;
+        if (SensorMap.DeviceOf(sensor) is not { } device || SensorMap.KindOf(sensor) is not { } kind)
+        {
+            return shown;
+        }
+
+        var kindName = texts.Of(kind).ToLowerInvariant();
+        if (SensorNames.LikelyOf(sensor) is not null || device == DeviceKind.Board)
+        {
+            return kind == SensorKind.Temperature && SensorNames.LikelyOf(sensor) is not null ? Of(shown, kindName, texts) : shown;
+        }
+
+        var deviceName = texts.Of(device);
+        return Says(kind, device) ? Capital(Of(deviceName, kindName, texts))
+            : shown.StartsWith(deviceName, StringComparison.OrdinalIgnoreCase) ? shown
+            : OfMemory(sensor, shown, device) ?? Of(deviceName, Lowercase(shown), texts);
     }
+
+    // The library calls each of its memories "Memory", which the memory's own name says better: "Virtual memory used".
+    private static string? OfMemory(RawSensor sensor, string shown, DeviceKind device) =>
+        device == DeviceKind.Ram && (shown == RamWord || shown.StartsWith(RamWord + " ", StringComparison.Ordinal))
+            ? Capital(Lowercase(sensor.Hardware + shown[RamWord.Length..]))
+            : null;
+
+    private static string Lowercase(string name) => string.Join(' ', name.Split(' ').Select(Lowered));
+
+    // A temperature, power, frequency or fan speed is what it reads wherever it is; a load only on a CPU or a GPU, since a
+    // drive's "load" is its used space or its activity.
+    private static bool Says(SensorKind kind, DeviceKind device) =>
+        kind is SensorKind.Temperature or SensorKind.Power or SensorKind.Clock or SensorKind.Fan
+        || (kind == SensorKind.Load && device is DeviceKind.Cpu or DeviceKind.Gpu);
+
+    private static string Of(string device, string what, Texts texts) => texts.Format(CultureInfo.InvariantCulture, NameText.OfSensor, device, what);
+
+    private static string Capital(string name) => string.Concat(name[..1].ToUpperInvariant(), name[1..]);
+
+    // A word written as a title, as "Space", reads in lower case in the middle of a name; one in capitals, as "PCIe", stays.
+    private static string Lowered(string word) =>
+        word.Length > 2 && char.IsUpper(word[0]) && word[1..].All(char.IsLower) ? word.ToLowerInvariant() : word;
 
     private static string Numbered(string name, IReadOnlyCollection<string?> taken, Texts texts)
     {

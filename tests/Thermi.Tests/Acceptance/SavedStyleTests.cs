@@ -13,20 +13,23 @@ namespace Thermi.Tests.Acceptance;
 /// </summary>
 public sealed class SavedStyleTests
 {
-    private static StyleConfig Night => ThermiConfigJson.Read(TestFiles.Config("v2.json")).Config.Overlays[0].Style;
+    private static StyleConfig Night => ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config.Overlays[0].Style;
 
     private static List<string?> Names(SavedStyles styles) => [.. styles.List().Select(style => style.Name)];
 
     [Fact]
     public void AStyleIsTheLookAlone()
     {
-        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v2.json"));
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v3.json"));
 
         var style = config.Overlays[0].Style;
 
         Assert.Null(problem);
         Assert.Equal(
-            ["Colors", "Corners", "Effect", "Font", "Gap", "Label", "Layout", "Name", "NoLabels", "Opacity", "Orientation", "Pills", "Preset", "Units", "Value"],
+            [
+                "Colors", "Corners", "Effect", "Font", "Gap", "Label", "Layout", "Name",
+                "NoLabels", "Opacity", "Orientation", "Pills", "Preset", "Units", "Value",
+            ],
             typeof(StyleConfig).GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal(
             new StyleConfig(Gap: 4, Units: false)
@@ -50,7 +53,10 @@ public sealed class SavedStyleTests
         // Worn on another overlay, the look keeps that overlay's layout, direction and labels, which change no look and keep its name.
         var worn = Done(StyleEdits.Choose(new ThermiConfig(), 0, style));
         Assert.Equal(style with { Layout = PillLayout.Pills, Orientation = Orientation.Horizontal, NoLabels = false }, worn.Overlays[0].Style);
-        Assert.Equal("Night", Done(StyleEdits.Restyle(worn, 0, each => each with { Layout = PillLayout.One, Orientation = Orientation.Vertical, NoLabels = true })).Overlays[0].Style.Name);
+        Assert.Equal(
+            "Night",
+            Done(StyleEdits.Restyle(worn, 0, each => each with { Layout = PillLayout.One, Orientation = Orientation.Vertical, NoLabels = true }))
+                .Overlays[0].Style.Name);
         Assert.Equal("Night", SavedStyles.Chosen(worn.Overlays[0].Style, [style])?.Name);
 
         // Saved or exported, the look holds no layout, direction or labels, and one written with them before reads without them.
@@ -69,6 +75,8 @@ public sealed class SavedStyleTests
         var look = custom.Overlays[0].Style;
 
         Refusal?[] saved = [styles.Save(look, " "), styles.Save(look, new string('n', 41)), styles.Save(look, " Night "), styles.Save(look, "night")];
+        // One past a style file's size, as an import would refuse it, is never listed.
+        System.IO.File.WriteAllText(System.IO.Path.Combine(folder.Path, "Huge.thermi-style"), new string(' ', StyleFile.MaxLength + 1));
         var renamed = Done(styles.Rename(custom, new UndoHistory(), "night", "Dusk"));
         var listed = Names(styles);
         var chosen = Done(StyleEdits.Choose(renamed, 0, styles.List()[0]));
@@ -130,7 +138,16 @@ public sealed class SavedStyleTests
         Assert.Equal(names.Order(StringComparer.OrdinalIgnoreCase), Names(styles));
         Assert.Equal(names.Length, files.Count);
         Assert.Equal(
-            ["Night_.thermi-style", "_CON.thermi-style", "_com1.old.thermi-style", "a_b 2.thermi-style", "a_b.thermi-style", "a_b_c_d_e_f_g_h_i_.thermi-style", "tab_here.thermi-style", "Ñandú ☾.thermi-style"],
+            [
+                "Night_.thermi-style",
+                "_CON.thermi-style",
+                "_com1.old.thermi-style",
+                "a_b 2.thermi-style",
+                "a_b.thermi-style",
+                "a_b_c_d_e_f_g_h_i_.thermi-style",
+                "tab_here.thermi-style",
+                "Ñandú ☾.thermi-style",
+            ],
             files);
         Assert.Equal("COM10.thermi-style", SavedStyles.FileNameOf("COM10"));
     }
@@ -145,7 +162,9 @@ public sealed class SavedStyleTests
         Assert.Equal(["thermiStyle", "style"], file.RootElement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(1, file.RootElement.GetProperty("thermiStyle").GetInt32());
         Assert.Equal("Night", file.RootElement.GetProperty("style").GetProperty("name").GetString());
-        Assert.All(["items", "sensor", "metric", "snap", "position", "monitor", "language", "/amdcpu", "/lpc", ":\\"], word => Assert.DoesNotContain(word, exported, StringComparison.OrdinalIgnoreCase));
+        Assert.All(
+            ["items", "sensor", "metric", "snap", "position", "monitor", "language", "/amdcpu", "/lpc", ":\\"],
+            word => Assert.DoesNotContain(word, exported, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(Night.WornOn(new StyleConfig()), StyleFile.Read(exported).Style);
     }
 
@@ -169,7 +188,12 @@ public sealed class SavedStyleTests
             Assert.False(history.CanUndo);
             Assert.Equal(Night.WornOn(before.Overlays[0].Style), imported.Overlays[0].Style);
             Assert.Equal(Ids(before.Overlays[0]), Ids(imported.Overlays[0]));
-            Assert.Equal(before.Overlays[0].Items.Count, OverlayLayout.Build(imported.Overlays[0], SensorMap.Read(TestRecordings.Read(TestRecordings.NoAdmin), imported.Overlays[0]), CultureInfo.InvariantCulture).Count);
+            Assert.Equal(
+                before.Overlays[0].Items.Count,
+                OverlayLayout.Build(
+                    imported.Overlays[0],
+                    SensorMap.Read(TestRecordings.Read(TestRecordings.NoAdmin), imported.Overlays[0]),
+                    CultureInfo.InvariantCulture).Count);
         }
 
         Assert.Null(styles.Save(Night, Night.Name!));
@@ -197,10 +221,24 @@ public sealed class SavedStyleTests
 
         var results = files.Select(text => StyleEdits.Import(before, 0, text)).ToList();
 
-        Assert.Equal([Refusal.BrokenStyle, Refusal.BrokenStyle, Refusal.NewerStyle, .. Enumerable.Repeat(Refusal.BrokenStyle, 6), Refusal.StyleTooLarge], results.Select(result => result.Refused));
+        Assert.Equal(
+            [Refusal.BrokenStyle, Refusal.BrokenStyle, Refusal.NewerStyle, .. Enumerable.Repeat(Refusal.BrokenStyle, 6), Refusal.StyleTooLarge],
+            results.Select(result => result.Refused));
         Assert.All(results, result => Assert.Same(before, result.Config));
         Assert.All(
-            results.Zip(["LineNumber: 0", "$.style.gap", "thermiStyle is 2", "style.label.size", "style.opacity.background", "style.opacity.overlay", "style.colors.normal", "thermiStyle", "not a JSON object", "more than 1048576"]),
+            results.Zip(
+            [
+                "LineNumber: 0",
+                "$.style.gap",
+                "thermiStyle is 2",
+                "style.label.size",
+                "style.opacity.background",
+                "style.opacity.overlay",
+                "style.colors.normal",
+                "thermiStyle",
+                "not a JSON object",
+                "more than 1048576",
+            ]),
             pair => Assert.Contains(pair.Second, pair.First.Problem ?? "", StringComparison.Ordinal));
     }
 

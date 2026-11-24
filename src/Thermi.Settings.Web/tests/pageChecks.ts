@@ -24,7 +24,12 @@ export function recording(name: 'admin' | 'no-admin' | 'admin-net-disk'): Sensor
 export function withDrivesAndBattery(laptop: boolean): Sensor[] {
   const sensors = recording('admin-net-disk');
   const drive = sensors.filter((sensor) => sensor.hardwareType === 'Storage');
-  const second = drive.map((sensor) => ({ ...sensor, id: sensor.id.replace(/^\/(\w+)\/\d+/, '/$1/9'), hardware: 'Samsung SSD 870 EVO 1TB', value: sensor.value === null ? null : sensor.value / 3 }));
+  const second = drive.map((sensor) => ({
+    ...sensor,
+    id: sensor.id.replace(/^\/(\w+)\/\d+/, '/$1/9'),
+    hardware: 'Samsung SSD 870 EVO 1TB',
+    value: sensor.value === null ? null : sensor.value / 3,
+  }));
   const battery: Sensor[] = [
     { id: '/battery/bat0/level/0', hardwareType: 'Battery', hardware: 'LGC 5B10W51867', type: 'Level', name: 'Charge Level', value: 64 },
     { id: '/battery/bat0/power/0', hardwareType: 'Battery', hardware: 'LGC 5B10W51867', type: 'Power', name: 'Discharge Rate', value: -12.4 },
@@ -109,7 +114,9 @@ export async function layoutFaults(page: Page): Promise<string[]> {
       faults.push('the page scrolls sideways');
     }
     // A control that shows only under the pointer or the focus, like a look's "…" in its tile's corner, is not seen.
-    const shown = [...document.querySelectorAll<HTMLElement>('body *')].filter((element) => element.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && element.getClientRects().length > 0);
+    const shown = [...document.querySelectorAll<HTMLElement>('body *')].filter(
+      (element) => element.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && element.getClientRects().length > 0,
+    );
     for (const element of shown) {
       const overflow = getComputedStyle(element).overflowX;
       const scrolls = overflow === 'auto' || overflow === 'scroll';
@@ -117,7 +124,12 @@ export async function layoutFaults(page: Page): Promise<string[]> {
         faults.push(`cut: ${named(element)}`);
       }
     }
-    const controls = shown.filter((element) => element.matches('button, input, select, textarea, a[href], [role="button"], [role="switch"], [role="slider"], [role="combobox"], [role="radio"], [role="menuitem"], [role="treeitem"]'));
+    const controls = shown.filter((element) =>
+      element.matches(
+        'button, input, select, textarea, a[href], [role="button"], [role="switch"], [role="slider"], ' +
+          '[role="combobox"], [role="radio"], [role="menuitem"], [role="treeitem"]',
+      ),
+    );
     // What shows of a control: its box, less what the boxes that scroll or clip around it hide.
     const seen = (element: HTMLElement): { left: number; top: number; right: number; bottom: number } => {
       const box = element.getBoundingClientRect();
@@ -126,7 +138,12 @@ export async function layoutFaults(page: Page): Promise<string[]> {
         const style = getComputedStyle(around);
         if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
           const clip = around.getBoundingClientRect();
-          seenBox = { left: Math.max(seenBox.left, clip.left), top: Math.max(seenBox.top, clip.top), right: Math.min(seenBox.right, clip.right), bottom: Math.min(seenBox.bottom, clip.bottom) };
+          seenBox = {
+            left: Math.max(seenBox.left, clip.left),
+            top: Math.max(seenBox.top, clip.top),
+            right: Math.min(seenBox.right, clip.right),
+            bottom: Math.min(seenBox.bottom, clip.bottom),
+          };
         }
       }
       return seenBox;
@@ -147,7 +164,9 @@ export async function layoutFaults(page: Page): Promise<string[]> {
       return pane !== undefined && nav.checkVisibility() && box.right > pane.left + 1 && box.left < pane.right - 1 && box.bottom > pane.top + 1;
     });
     // A dialog, a panel, a menu or the open narrow list covers the page: nothing of the page shows above it or through it.
-    const covers = [...document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], [role="menu"]')].filter((layer) => layer.checkVisibility()).concat(overPane);
+    const covers = [...document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], [role="menu"]')]
+      .filter((layer) => layer.checkVisibility())
+      .concat(overPane);
     const alphaOf = (color: string): number => {
       const match = /^rgba?\(.*[,/]\s*([\d.]+)\)$/.exec(color);
       return match === null || !color.includes('a(') ? 1 : Number(match[1]);
@@ -173,16 +192,76 @@ export async function layoutFaults(page: Page): Promise<string[]> {
       const over = layer.getBoundingClientRect();
       for (const control of controls.filter((one) => !covers.some((other) => other.contains(one)))) {
         const part = seen(control);
-        const [left, right, top, bottom] = [Math.max(part.left, over.left), Math.min(part.right, over.right), Math.max(part.top, over.top), Math.min(part.bottom, over.bottom)];
+        const [left, right, top, bottom] = [
+          Math.max(part.left, over.left),
+          Math.min(part.right, over.right),
+          Math.max(part.top, over.top),
+          Math.min(part.bottom, over.bottom),
+        ];
         const hit = right - left > 2 && bottom - top > 2 ? document.elementFromPoint((left + right) / 2, (top + bottom) / 2) : null;
         if (hit !== null && (control.contains(hit) || stackOf(control) > stackOf(layer))) {
           faults.push(`shows through: ${named(control)}`);
         }
       }
     }
-    // A dialog, a panel, a menu, a list that opens or a toast covers what is under it on purpose: only controls of one
-    // layer clash.
-    const layerOf = (element: HTMLElement): Element | null => element.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [role="status"]') ?? overPane.find((nav) => nav.contains(element)) ?? null;
+    // A button says something of its own, never its row's name again. Its words only: an icon is a glyph of Windows' font.
+    const wordsOf = (element: Element): string => (element.textContent ?? '').replace(/\p{Co}/gu, '').trim();
+    for (const button of controls.filter((one) => one.matches('button'))) {
+      const own = wordsOf(button);
+      let row = button.parentElement;
+      for (let up = 0; up < 3 && row !== null && own !== ''; up += 1, row = row.parentElement) {
+        const around = row;
+        if (texts.some((one) => !button.contains(one) && around.contains(one) && wordsOf(one) === own)) {
+          faults.push(`said twice: ${own}`);
+          break;
+        }
+      }
+    }
+    // A choice drawn without words, as a spot on the map, shows its name in words once chosen.
+    const words = new Set(texts.map((element) => (element.textContent ?? '').trim()));
+    for (const chosen of controls.filter((one) => one.matches('[role="radio"][aria-checked="true"]') && (one.textContent ?? '').trim() === '')) {
+      if (!words.has(chosen.getAttribute('aria-label') ?? '')) {
+        faults.push(`unnamed on screen: ${named(chosen)}`);
+      }
+    }
+    // A wide pane leaves no empty strip at its end beyond what it leaves at its start, and the item's chart beside its
+    // rows stays in view as they scroll.
+    const main = document.querySelector('main');
+    if (main !== null && main.clientWidth >= 864) {
+      const inMain = controls.filter((control) => main.contains(control)).map(seen);
+      const pane = main.getBoundingClientRect();
+      const [start, reach] = [Math.min(...inMain.map((box) => box.left)), Math.max(...inMain.map((box) => box.right))];
+      if (pane.right - reach - (start - pane.left) > 120) {
+        faults.push('a strip of the pane stays empty');
+      }
+      const plot = main.querySelector<SVGElement>('svg[role="img"]');
+      const before = main.scrollTop;
+      main.scrollTop = main.scrollHeight;
+      await new Promise((drawn) => requestAnimationFrame(drawn));
+      if (plot !== null && plot.getBoundingClientRect().top < main.getBoundingClientRect().top - 1) {
+        faults.push('the chart scrolls away');
+      }
+      main.scrollTop = before;
+    }
+    // Passing news never covers a control: the window's toast, outside the pane, makes its own room.
+    const toasts = [...document.querySelectorAll<HTMLElement>('[role="status"] > *')].filter((one) => one.closest('main') === null && one.checkVisibility());
+    for (const toast of toasts) {
+      const over = toast.getBoundingClientRect();
+      const page = controls.filter(
+        (one) => !toast.contains(one) && one.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') === null,
+      );
+      for (const control of page) {
+        const part = seen(control);
+        if (Math.min(part.right, over.right) - Math.max(part.left, over.left) > 1 && Math.min(part.bottom, over.bottom) - Math.max(part.top, over.top) > 1) {
+          faults.push(`under the toast: ${named(control)}`);
+        }
+      }
+    }
+    // A dialog, a panel, a menu or a list that opens covers what is under it on purpose: only controls of one layer clash.
+    const layerOf = (element: HTMLElement): Element | null =>
+      element.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [role="status"]') ??
+      overPane.find((nav) => nav.contains(element)) ??
+      null;
     controls.forEach((one, index) => {
       const a = seen(one);
       for (const other of controls.slice(index + 1)) {
@@ -210,7 +289,9 @@ export async function focusFault(page: Page): Promise<string | null> {
     if (box.bottom <= 0 || box.right <= 0 || box.top >= innerHeight || box.left >= innerWidth) {
       return 'the focus is out of view';
     }
-    const dialogs = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')].filter((dialog) => (dialog as HTMLElement).checkVisibility());
+    const dialogs = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')].filter((dialog) =>
+      (dialog as HTMLElement).checkVisibility(),
+    );
     const top = dialogs.at(-1);
     if (top !== undefined && !top.contains(active)) {
       return 'the focus left an open dialog';

@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
-using Thermi.Commands;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -25,18 +24,14 @@ namespace Thermi.Ui.Web;
 /// <summary>
 /// The C# side of the bridge, on the window's thread: the settings through the window's editor, the readings from the
 /// pipe, the views, charts, catalog, finder and looks of <see cref="Views"/>, the texts in the window's language or the
-/// long pseudo-language, and the desktop's picks. The driver and the service go through the elevated mode, behind one
-/// UAC prompt each, and the hotkeys through Windows and the overlay.
+/// long pseudo-language, and the desktop's picks. The driver and the service go through <see cref="WindowFixes"/>, and
+/// the hotkeys through Windows and the overlay.
 /// </summary>
 internal sealed class WindowBridge : IWindowBridge, IDisposable
 {
-    // The sensor service restarts after the driver's install, and its pipe comes back within a few reads.
-    private static readonly TimeSpan DriverReadsWithin = TimeSpan.FromSeconds(30);
-
-    private static readonly TimeSpan DriverPoll = TimeSpan.FromMilliseconds(500);
-
     // The version the build stamps, from Directory.Build.props.
-    private static readonly string Version = typeof(WindowBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
+    private static readonly string Version =
+        typeof(WindowBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
 
     private readonly WindowStart _start;
     private readonly WindowEditor _editor;
@@ -47,6 +42,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly Painter _painter = new();
     private readonly TaskbarApps _apps;
     private readonly PageWatch _watch;
+    private readonly WindowFixes _fixes;
     private Texts _texts;
     private IReadOnlyList<int> _crowded = [];
 
@@ -60,12 +56,13 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _charts = new WindowCharts(editor, chart, start.Environment.Sensors, readings, start.Time);
         _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
-        _apps = new TaskbarApps(start.Time, onTurn, AppsMoved);
-        _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell);
+        _apps = new TaskbarApps(start.Time, onTurn, AppsMoved, start.Environment.ReadsTaskbar);
+        _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);
+        _fixes = new WindowFixes(start.Environment, start.Time);
         editor.Changed += (_, _) => Edited();
     }
 
-    public event EventHandler? Changed;
+    public event EventHandler<WindowChangeEventArgs>? Changed;
 
     public event EventHandler? Readings;
 
@@ -97,7 +94,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
         if (_watch.Arrived(snapshot))
         {
-            DesktopChanged();
+            Recrowd();
+            Changed?.Invoke(this, new WindowChangeEventArgs(sensors: true));
         }
         else
         {
@@ -105,7 +103,10 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         }
     }
 
-    /// <summary>The monitors, the taskbars or a setting of Windows changed: which overlays fit is decided again, and the page reads all again.</summary>
+    /// <summary>
+    /// The monitors, the taskbars or a setting of Windows changed: which overlays fit is decided again, and the page reads
+    /// all again.
+    /// </summary>
     public void DesktopChanged()
     {
         Recrowd();
@@ -117,7 +118,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public Task<DesktopPickEventArgs?> Start() =>
         Task.FromResult(_start.Overlay > 0 ? new DesktopPickEventArgs(_start.Overlay - 1, _start.Item, SelectHow.DoubleClick) : null);
 
-    public void Tell() => Changed?.Invoke(this, EventArgs.Empty);
+    public void Tell() => Changed?.Invoke(this, new WindowChangeEventArgs(sensors: false));
 
     public Task<ThermiConfig> Settings() => Ready(() => PageSettings.Of(_editor.Config, _texts, _start.Environment.Sensors.Latest));
 
@@ -168,10 +169,16 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<Undone?> Undo() => Task.FromResult(TakeBack(_editor.UndoName, _editor.Undo));
 
-    public Task<Undone?> Redo() => Task.FromResult(TakeBack(_editor.RedoName, _editor.Redo));
+    public Task<Undone?> Redo() => Task.FromResult(TakeBack(_editor.RedoName, _editor.Redo, redo: true));
 
-    public Task<WindowStatus> Status() =>
-        Ready(() => WindowFacts.Status(_editor.Config, _start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _looks.AnySaved, _watch.Hotkeys, _editor.Problem, _views.Format(_texts)));
+    public Task<WindowStatus> Status() => Ready(() => WindowFacts.Status(
+        _editor.Config,
+        _start.Environment.Sensors.State,
+        _start.Environment.Sensors.Latest,
+        _looks.AnySaved,
+        _watch.Hotkeys,
+        _editor.Problem,
+        _views.Format(_texts)));
 
     public Task<UndoSteps> Steps() => Task.FromResult(WindowFacts.Steps(_editor.UndoName, _editor.RedoName, _views.Format(_texts)));
 
@@ -187,17 +194,27 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public async Task<string?> PasteLook(int overlay)
     {
         await Task.Yield();
-        return ClipboardText.Read(Window) is { } text ? _looks.Import(overlay, text, _texts) : Core.Translations.Texts.Key(Refusal.PasteFailed);
+        return ClipboardText.Read(Window) is { } text
+            ? _looks.Import(overlay, text, _texts)
+            : Core.Translations.Texts.Key(Refusal.PasteFailed);
     }
 
-    public Task<SensorView> Snapshot() => Ready(() => SensorView.Of(_start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _editor.Config.SensorNames, _texts));
+    public Task<SensorView> Snapshot() =>
+        Ready(() => SensorView.Of(_start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _editor.Config.SensorNames, _texts));
 
     public Task<IReadOnlyList<double?>> History(string id) => Task.FromResult(_charts.History(id));
 
     public Task<IReadOnlyDictionary<string, string>> Texts() => Task.FromResult(_texts.All);
 
     public Task<IReadOnlyList<MonitorView>> Monitors() =>
-        Task.FromResult<IReadOnlyList<MonitorView>>([.. _start.Environment.Screens().Select(screen => new MonitorView(screen.Id, screen.Primary, RectOf(screen.Bounds), RectOf(screen.Work), screen.Scale, screen.Taskbar is not null, Snaps.Floats(screen)))]);
+        Task.FromResult<IReadOnlyList<MonitorView>>([.. _start.Environment.Screens().Select(screen => new MonitorView(
+            screen.Id,
+            screen.Primary,
+            RectOf(screen.Bounds),
+            RectOf(screen.Work),
+            screen.Scale,
+            screen.Taskbar is not null,
+            Snaps.Floats(screen)))]);
 
     public Task<IReadOnlyList<int>> Crowded() => Ready(() => _crowded);
 
@@ -213,11 +230,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<string?> RenameLook(string name, string to) => Task.FromResult(_looks.Rename(name, to));
 
-    public Task DeleteLook(string name)
-    {
-        _looks.Delete(name);
-        return Task.CompletedTask;
-    }
+    public Task<string?> DeleteLook(string name) => Task.FromResult(_looks.Delete(name));
 
     // A dialog runs once the page's message has been answered, never inside WebView2's own event.
     public async Task ExportLook(int overlay)
@@ -238,7 +251,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         return _looks.Import(overlay, text, _texts);
     }
 
-    public Task<CatalogView> Catalog(string search, IReadOnlyList<SensorKind> kinds, bool all) => Task.FromResult(_views.Catalog(search, kinds, all, _texts));
+    public Task<CatalogView> Catalog(string search, IReadOnlyList<SensorKind> kinds, bool all) =>
+        Task.FromResult(_views.Catalog(search, kinds, all, _texts));
 
     public Task FindCpuFan()
     {
@@ -252,7 +266,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task<FinderView> Finder() => Task.FromResult(_finder.View(_start.Environment.Sensors.Latest, _texts, CultureInfo.CurrentCulture, _editor.Config.SensorNames));
+    public Task<FinderView> Finder() =>
+        Task.FromResult(_finder.View(_start.Environment.Sensors.Latest, _texts, CultureInfo.CurrentCulture, _editor.Config.SensorNames));
 
     public Task StartOverlay()
     {
@@ -289,27 +304,9 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         return Task.CompletedTask;
     }
 
-    /// <summary>True only once a CPU temperature, power or clock reads, after the sensor service opened the new driver.</summary>
-    public async Task<bool> InstallDriver()
-    {
-        if (await ElevateAsync(Commands.InstallDriver.Verb) is not Commands.InstallDriver.Installed)
-        {
-            return false;
-        }
+    public Task<DriverInstall> InstallDriver() => _fixes.InstallDriver();
 
-        for (var start = _start.Time.GetTimestamp(); _start.Time.GetElapsedTime(start) < DriverReadsWithin; await Task.Delay(DriverPoll, _start.Time))
-        {
-            if (_start.Environment.Sensors.Latest is { } snapshot && !SensorMap.DriverMayBeMissing(snapshot))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // The window recovers by seeing the pipe come back, whatever the answer.
-    public async Task<bool> StartService() => await ElevateAsync(StartSensors.Verb) is StartSensors.Started;
+    public Task<bool> StartService() => _fixes.StartService();
 
     public Task<bool> HotkeyHeld(string combination) => Task.FromResult(HotkeyRegistry.HeldElsewhere(combination, _editor.Config.Hotkeys));
 
@@ -334,31 +331,12 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);
 
     // An undo or a redo, named before it runs, and what it changed back once it did; null when it changed nothing.
-    private Undone? TakeBack(StepName? name, Func<UndoResult?> take)
+    private Undone? TakeBack(StepName? name, Func<UndoResult?> take, bool redo = false)
     {
         var before = _editor.Config;
-        return name is not null && take() is { Applied: > 0 } ? WindowFacts.UndoneOf(name, before, _editor.Config, _views.Format(_texts)) : null;
-    }
-
-    // Starting a process behind UAC blocks its caller until the prompt closes, so it runs off the window's thread. Null
-    // when the prompt was refused or the mode could not start.
-    private async Task<int?> ElevateAsync(string verb)
-    {
-        try
-        {
-            var code = await Task.Run(() => _start.Environment.Elevate(_start.Environment.ExePath, verb));
-            if (code is { } ended and not 0)
-            {
-                _start.Environment.Log.ElevatedEnded(verb, ended);
-            }
-
-            return code;
-        }
-        catch (Win32Exception ex)
-        {
-            _start.Environment.Log.ElevatedFailed(verb, ex);
-            return null;
-        }
+        return name is not null && take() is { Applied: > 0 }
+            ? WindowFacts.UndoneOf(name, before, _editor.Config, _views.Format(_texts), redo)
+            : null;
     }
 
     // A language chosen or undone takes every text at once; the pseudo-language stays as it was asked for.
@@ -388,7 +366,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         var config = _editor.Config;
         var screens = _start.Environment.Screens();
         var snapshot = _start.Environment.Sensors.Latest;
-        IReadOnlyList<int> crowded = [.. Enumerable.Range(0, config.Overlays.Count).Where(overlay => TaskbarRoom.Crowded(_painter, _apps, config, overlay, snapshot, screens))];
+        var crowded = TaskbarRoom.Crowded(_painter, _apps, config, snapshot, screens);
         var changed = !crowded.SequenceEqual(_crowded);
         _crowded = crowded;
         return changed;

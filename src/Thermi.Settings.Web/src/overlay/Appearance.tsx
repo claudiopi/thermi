@@ -29,7 +29,13 @@ export function Appearance({ data, overlay, textOpen, onTextOpen, colorsOpen, on
   const shown = shownStyle(one.style);
   const style = (field: string, value: Value): void => void edit({ kind: 'style', overlay, field, value });
   const size = one.size ?? 1;
-  const themeOnAll = (): void => void asOneStep(() => overlays.reduce<Promise<unknown>>((done, _, index) => done.then(() => edit({ kind: 'style', overlay: index, field: 'pills', value: shown.pills })), Promise.resolve()));
+  const themeOnAll = (): void =>
+    void asOneStep(() =>
+      overlays.reduce<Promise<unknown>>(
+        (done, _, index) => done.then(() => edit({ kind: 'style', overlay: index, field: 'pills', value: shown.pills })),
+        Promise.resolve(),
+      ),
+    );
   return (
     <section className="t-col" aria-label={t('OverlayPageText.AppearanceSection')}>
       <h3 className="t-pane-h">{t('OverlayPageText.AppearanceSection')}</h3>
@@ -37,12 +43,26 @@ export function Appearance({ data, overlay, textOpen, onTextOpen, colorsOpen, on
       <CardStack>
         <Card>
           <CardRow label={t('UiText.SizeField')}>
-            <Slider className="t-slider" label={t('UiText.SizeField')} min={0.75} max={2} step={0.05} value={size} valueText={percent(size)} onChange={(value) => void edit({ kind: 'overlay', overlay, field: 'size', value: Math.round(value * 100) / 100 })} />
+            <Slider
+              className="t-slider"
+              label={t('UiText.SizeField')}
+              min={0.75}
+              max={2}
+              step={0.05}
+              value={size}
+              valueText={percent(size)}
+              onChange={(value) => void edit({ kind: 'overlay', overlay, field: 'size', value: Math.round(value * 100) / 100 })}
+            />
           </CardRow>
         </Card>
         <Card>
           <CardRow label={t('OverlayPageText.ThemeField')} wraps>
-            <Segmented label={t('OverlayPageText.ThemeField')} choices={choicesOf(t, 'PillTheme', ['dark', 'light', 'system'])} value={shown.pills} onChange={(value) => style('pills', value)} />
+            <Segmented
+              label={t('OverlayPageText.ThemeField')}
+              choices={choicesOf(t, 'PillTheme', ['dark', 'light', 'system'])}
+              value={shown.pills}
+              onChange={(value) => style('pills', value)}
+            />
             {overlays.length > 1 && (
               <Button kind="subtle" onClick={themeOnAll}>
                 {t('OverlayPageText.UseOnAllOverlays')}
@@ -52,8 +72,19 @@ export function Appearance({ data, overlay, textOpen, onTextOpen, colorsOpen, on
         </Card>
         <Card>
           <CardRow label={t('UiText.LayoutField')} wraps>
-            <Dropdown className="t-layout-box" label={t('UiText.LayoutField')} choices={choicesOf(t, 'PillLayout', ['pills', 'each', 'one'])} value={shown.layout} onChange={(value) => style('layout', value)} />
-            <Segmented label={t('UiText.DirectionField')} choices={choicesOf(t, 'Orientation', ['horizontal', 'vertical'])} value={shown.orientation} onChange={(value) => style('orientation', value)} />
+            <Dropdown
+              className="t-layout-box"
+              label={t('UiText.LayoutField')}
+              choices={choicesOf(t, 'PillLayout', ['pills', 'each', 'one'])}
+              value={shown.layout}
+              onChange={(value) => style('layout', value)}
+            />
+            <Segmented
+              label={t('UiText.DirectionField')}
+              choices={choicesOf(t, 'Orientation', ['horizontal', 'vertical'])}
+              value={shown.orientation}
+              onChange={(value) => style('orientation', value)}
+            />
           </CardRow>
         </Card>
         <Card>
@@ -66,7 +97,14 @@ export function Appearance({ data, overlay, textOpen, onTextOpen, colorsOpen, on
               step={0.05}
               value={shown.background}
               valueText={percent(shown.background)}
-              onChange={(value) => style('opacity', shown.overlay === 1 ? { background: Math.round(value * 100) / 100 } : { background: Math.round(value * 100) / 100, overlay: shown.overlay })}
+              onChange={(value) =>
+                style(
+                  'opacity',
+                  shown.overlay === 1
+                    ? { background: Math.round(value * 100) / 100 }
+                    : { background: Math.round(value * 100) / 100, overlay: shown.overlay },
+                )
+              }
             />
           </CardRow>
         </Card>

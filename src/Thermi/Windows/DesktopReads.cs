@@ -7,7 +7,7 @@ namespace Thermi.Windows;
 /// What the overlay reads from Windows at every paint that changes only when Windows says so, kept until it does: the
 /// monitors, the taskbar's and the apps' modes and the accent color. The scale, the work areas and the taskbars are read each time, and
 /// a monitor gone or a taskbar on one it does not hold lists the monitors again. The taskbar's buttons are read, through
-/// UI Automation off the window's thread, only while an overlay sits on a taskbar's left or right, which they may crowd.
+/// UI Automation off the window's thread, only while an overlay may go on a taskbar, where they leave its row's room.
 /// Disposed on the window's thread.
 /// </summary>
 /// <param name="time">The clock the buttons' answers are kept by.</param>
@@ -45,7 +45,7 @@ internal sealed class DesktopReads(TimeProvider time, Action changed) : IDisposa
         lock (_gate)
         {
             _apps ??= new TaskbarApps(time, Guarded, changed);
-            return screen with { Buttons = _apps.LeftButtons(bar), Apps = _apps.Extent(bar) };
+            return screen with { Apps = _apps.Extent(bar) };
         }
     }
 

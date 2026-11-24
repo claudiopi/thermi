@@ -73,7 +73,17 @@ function NameBox({ row, onDone }: { row: CatalogRow; onDone: (name: string | nul
       finish(null);
     }
   };
-  return <input ref={box} className="t-rename t-cat-rename-box" aria-label={t('CatalogText.SensorNameBox', row.name)} defaultValue={row.name} maxLength={40} onKeyDown={handleKeyDown} onBlur={(event) => finish(event.currentTarget.value)} />;
+  return (
+    <input
+      ref={box}
+      className="t-rename t-cat-rename-box"
+      aria-label={t('CatalogText.SensorNameBox', row.name)}
+      defaultValue={row.name}
+      maxLength={40}
+      onKeyDown={handleKeyDown}
+      onBlur={(event) => finish(event.currentTarget.value)}
+    />
+  );
 }
 
 /**
@@ -156,7 +166,12 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
                   <Sparkline minute={row.minute} kind={row.kind} />
                   <span className={`t-cat-v${row.value === null || row.why !== null ? ' t-cat-off' : ''}`}>{row.value}</span>
                   {/* For the pointer alone: the keyboard has F2, which the row names, so the option holds no control of its own. */}
-                  <span className="t-cat-pencil" aria-hidden="true" title={t('CatalogText.RenameSensor', row.name)} onClick={(event) => handlePencil(event, row.id)}>
+                  <span
+                    className="t-cat-pencil"
+                    aria-hidden="true"
+                    title={t('CatalogText.RenameSensor', row.name)}
+                    onClick={(event) => handlePencil(event, row.id)}
+                  >
                     <Icon name="edit" />
                   </span>
                 </div>

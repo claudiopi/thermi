@@ -47,13 +47,21 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Error, Message = "The sensors could not be started")]
     public static partial void StartSensorsFailed(this ILogger logger, Exception error);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "The sensors did not start: exit code {Code}, 1 when the service did not run in time or Windows refused, 3 when it is not installed, which reinstalling thermi fixes")]
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "The sensors did not start: exit code {Code}, 1 when the service did not run in time or Windows refused, "
+            + "3 when it is not installed, which reinstalling thermi fixes")]
     public static partial void StartSensorsEnded(this ILogger logger, int code);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "thermi elevated {Verb} could not be started")]
     public static partial void ElevatedFailed(this ILogger logger, string verb, Exception error);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "thermi elevated {Verb} ended with exit code {Code}: 1 when the sensor service did not run in time, 3 when it is not installed, which reinstalling thermi fixes, 4 when the driver's installer could not be downloaded, 5 when it was not the pinned file, 6 when it failed or did not end in time, 7 when its folder was not safe")]
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "thermi elevated {Verb} ended with exit code {Code}: 1 when the sensor service did not run in time, "
+            + "3 when it is not installed, which reinstalling thermi fixes, 4 when the driver's installer could not be downloaded, "
+            + "5 when it was not the pinned file, 6 when it failed or did not end in time, 7 when its folder was not safe, "
+            + "8 when it installed and Windows must restart for it to load")]
     public static partial void ElevatedEnded(this ILogger logger, string verb, int code);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "The process ended on an error")]
@@ -70,6 +78,18 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The window's size and place could not be read or kept")]
     public static partial void WindowPlaceFailed(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "As administrator, {Verb} ended with exit code {Code}")]
+    public static partial void ElevatedModeEnded(this ILogger logger, string verb, int code);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The driver's download was answered with HTTP {Status}")]
+    public static partial void DriverDownloadRefused(this ILogger logger, int status);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The driver's download failed: {Reason}")]
+    public static partial void DriverDownloadFailed(this ILogger logger, string reason, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The driver's download ran past the pinned {Bytes} bytes")]
+    public static partial void DriverDownloadTooLong(this ILogger logger, long bytes);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "paint")]
     public static partial void Painted(this ILogger logger);

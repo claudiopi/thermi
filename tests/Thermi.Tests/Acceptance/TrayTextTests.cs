@@ -43,7 +43,8 @@ public sealed class TrayTextTests
 
     /// <summary>An overlay as it shows, in lines: one per pill of its layout, which in a single bar is one per label.</summary>
     internal static IEnumerable<string> Lines(IReadOnlyList<OverlayItem> shown) =>
-        OverlayLayout.Groups(shown).Select(pill => string.Join(' ', pill.Select(item => item.Label is null ? item.Value : string.Concat(item.Label, " ", item.Value))));
+        OverlayLayout.Groups(shown)
+            .Select(pill => string.Join(' ', pill.Select(item => item.Label is null ? item.Value : string.Concat(item.Label, " ", item.Value))));
 
     private static string Pills(OverlayConfig overlay) => string.Join('\n', Lines(OverlayLayout.Build(overlay, Quiet, English)));
 
@@ -56,7 +57,9 @@ public sealed class TrayTextTests
 
         Assert.Equal("CPU 62 °C 1,087 RPM 13 % 88 W\nGPU 3 %\nRAM 27.3 GB", Pills(new OverlayConfig()));
         Assert.Equal("CPU 62 °C 1,087 RPM 13 %\nCPU 88 W\nGPU 3 %\nRAM 27.3 GB", Pills(split));
-        Assert.Equal("CPU 62 °C\nCPU 1,087 RPM\nCPU 13 %\nCPU 88 W\nGPU 3 %\nRAM 27.3 GB", Pills(split with { Style = new StyleConfig { Layout = PillLayout.Each } }));
+        Assert.Equal(
+            "CPU 62 °C\nCPU 1,087 RPM\nCPU 13 %\nCPU 88 W\nGPU 3 %\nRAM 27.3 GB",
+            Pills(split with { Style = new StyleConfig { Layout = PillLayout.Each } }));
         Assert.Equal("CPU 62 °C 1,087 RPM 13 % 88 W\nGPU 3 %\nRAM 27.3 GB", Pills(split with { Style = new StyleConfig { Layout = PillLayout.One } }));
     }
 
@@ -99,7 +102,10 @@ public sealed class TrayTextTests
     {
         var time = new FakeTimeProvider();
         var history = new ItemHistory(time);
-        var overlay = new OverlayConfig { Items = [new ItemConfig { Id = Metrics.CpuTemperature.Id, Metric = Metrics.CpuTemperature.Id, Stat = ItemStat.Max, Tray = true }] };
+        var overlay = new OverlayConfig
+        {
+            Items = [new ItemConfig { Id = Metrics.CpuTemperature.Id, Metric = Metrics.CpuTemperature.Id, Stat = ItemStat.Max, Tray = true }],
+        };
         foreach (var value in values)
         {
             history.Add(overlay, new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, value) });
@@ -143,7 +149,22 @@ public sealed class TrayTextTests
         var thermis = "thermi · " + Texts.English.Of(TrayText.SensorsStopped);
         var gone = new ThermiConfig
         {
-            Overlays = [new OverlayConfig { Items = [new ItemConfig { Id = "gone", Sensor = "/nowhere/0/fan/9", Tray = true, Meter = new MeterConfig { Sensor = "/nowhere/0/control/9" } }] }],
+            Overlays =
+            [
+                new OverlayConfig
+                {
+                    Items =
+                    [
+                        new ItemConfig
+                        {
+                            Id = "gone",
+                            Sensor = "/nowhere/0/fan/9",
+                            Tray = true,
+                            Meter = new MeterConfig { Sensor = "/nowhere/0/control/9" },
+                        },
+                    ],
+                },
+            ],
         };
 
         Assert.All(stopped.Concat(stale).Where(icon => icon.ItemId is not null), icon => Assert.Equal(("–", Taskbar.Dark.Text), (icon.Text, icon.Color)));
@@ -160,7 +181,7 @@ public sealed class TrayTextTests
     public void TrayIconsKeepTheirIdentityPerInstall()
     {
         const string Elsewhere = @"C:\Program Files\thermi-build\thermi.exe";
-        var ids = ThermiConfigJson.Read(TestFiles.Config("v2.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
+        var ids = ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
 
         List<Guid> Made(string path)
         {
@@ -234,7 +255,9 @@ public sealed class TrayTextTests
         Assert.InRange(thermi.Tooltip.Length, 1, TrayTexts.MaxTooltip);
         Assert.Equal(stoppedPill, scene.SensorsStopped);
         Assert.True(!stoppedPill || scene.Items.Count == 0, "While sensors are stopped, the one pill stands in for every item.");
-        Assert.True(hint != ValueHint.SensorsStopped || scene.Items.All(item => item.Value == ReadingFormatter.Missing), "No value from before the gap shows as live.");
+        Assert.True(
+            hint != ValueHint.SensorsStopped || scene.Items.All(item => item.Value == ReadingFormatter.Missing),
+            "No value from before the gap shows as live.");
         Assert.Equal(hint, scene.Tooltips.Select(tooltip => tooltip.Hint).FirstOrDefault(each => each != ValueHint.None));
         Assert.All(scene.Tooltips, tooltip => Assert.Equal(TooltipLines(hint, tooltip), ValueTooltips.Text(config, 0, input, tooltip).Split('\n').Length));
     }
@@ -281,7 +304,9 @@ public sealed class TrayTextTests
         var empty = words.Contains("empty");
         IReadOnlyList<ItemConfig> Items(OverlayConfig overlay)
         {
-            return empty ? [] : [.. overlay.Items.Select(item => item.Id != Metrics.CpuTemperature.Id || threshold is null ? item : item with { Threshold = threshold })];
+            return empty
+                ? []
+                : [.. overlay.Items.Select(item => item.Id != Metrics.CpuTemperature.Id || threshold is null ? item : item with { Threshold = threshold })];
         }
 
         return config with { Overlays = [.. config.Overlays.Select(each => each with { Items = Items(each) })] };
@@ -289,6 +314,10 @@ public sealed class TrayTextTests
 
     private static Snapshot SnapshotOf(string[] words) =>
         words.Contains("no-driver") ? TestRecordings.Read(TestRecordings.NoAdmin)
-        : words.Contains("reads-nothing") ? Desktop with { Sensors = [.. Desktop.Sensors.Select(sensor => sensor.Id == "/lpc/it8689e/0/fan/0" ? sensor with { Value = null } : sensor)] }
+        : words.Contains("reads-nothing")
+            ? Desktop with
+            {
+                Sensors = [.. Desktop.Sensors.Select(sensor => sensor.Id == "/lpc/it8689e/0/fan/0" ? sensor with { Value = null } : sensor)],
+            }
         : Desktop;
 }

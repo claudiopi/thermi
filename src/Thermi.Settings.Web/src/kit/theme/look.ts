@@ -126,6 +126,11 @@ export const space = {
   row: '16px',
   page: '24px',
   control: '32px',
+  /**
+   * The window's title row, around Windows' caption buttons, which the page cannot dim: what covers the page starts
+   * under it, so the row and the buttons stay one band.
+   */
+  titleRow: '48px',
 } as const;
 
 export const radius = {

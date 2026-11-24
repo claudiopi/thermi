@@ -75,7 +75,8 @@ public sealed class Notices
     private static bool Ended(Notice notice, NoticeInput input) => notice.Kind switch
     {
         NoticeKind.FirstRun => !input.FirstStart,
-        NoticeKind.ClickThrough or NoticeKind.ClickThroughAll => !notice.Overlays.Any(overlay => overlay < input.Config.Overlays.Count && input.Config.Overlays[overlay].ClickThrough),
+        NoticeKind.ClickThrough or NoticeKind.ClickThroughAll =>
+            !notice.Overlays.Any(overlay => overlay < input.Config.Overlays.Count && input.Config.Overlays[overlay].ClickThrough),
         NoticeKind.OverlaysHidden or NoticeKind.OverlayHidden => !input.HideOverlays && !input.Config.Overlays.Any(overlay => overlay.Hidden),
         _ => true,
     };
@@ -116,8 +117,12 @@ public sealed class Notices
 
         var overlays = input.Config.Overlays;
         var notice = input.HideOverlays && before?.HideOverlays != true
-            ? new Notice(NoticeKind.OverlaysHidden, (overlays.Count == 1 ? NoticeButtons.ShowIt : NoticeButtons.ShowThem) | NoticeButtons.GotIt) { Overlays = [.. Enumerable.Range(0, overlays.Count)] }
-            : Turned(overlays, before?.Config.Overlays, overlay => overlay.Hidden) is { Count: > 0 } hidden ? new Notice(NoticeKind.OverlayHidden, NoticeButtons.ShowIt | NoticeButtons.GotIt) { Overlays = hidden }
+            ? new Notice(NoticeKind.OverlaysHidden, (overlays.Count == 1 ? NoticeButtons.ShowIt : NoticeButtons.ShowThem) | NoticeButtons.GotIt)
+            {
+                Overlays = [.. Enumerable.Range(0, overlays.Count)],
+            }
+            : Turned(overlays, before?.Config.Overlays, overlay => overlay.Hidden) is { Count: > 0 } hidden
+                ? new Notice(NoticeKind.OverlayHidden, NoticeButtons.ShowIt | NoticeButtons.GotIt) { Overlays = hidden }
             : null;
         _hiddenTold = notice is not null;
         return notice;

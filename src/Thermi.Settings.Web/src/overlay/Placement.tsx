@@ -56,19 +56,46 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen, onOverla
       <div className="t-place-rows">
         <div className="t-card t-map-card">
           <CardRow label={t('UiText.MonitorMap')} {...(said === '' ? {} : { description: said })} />
-          <MonitorMap shown={shown} placed={placed} vertical={vertical} hidden={hidden} onSnap={(spot: SnapSpot, display: Monitor) => set('snap', snapAt(spot, display))} />
+          <MonitorMap
+            shown={shown}
+            placed={placed}
+            vertical={vertical}
+            hidden={hidden}
+            onSnap={(spot: SnapSpot, display: Monitor) => set('snap', snapAt(spot, display))}
+          />
         </div>
         <Card>
           <CardRow label={t('OverlayPageText.WhenToShowField')}>
-            <Dropdown className="t-when-box" label={t('OverlayPageText.WhenToShowField')} choices={visibilities.map(([value, text]) => ({ value, text: t(text) }))} value={one.visibility ?? 'always'} onChange={(value) => set('visibility', value === 'always' ? null : value)} />
+            <Dropdown
+              className="t-when-box"
+              label={t('OverlayPageText.WhenToShowField')}
+              choices={visibilities.map(([value, text]) => ({ value, text: t(text) }))}
+              value={one.visibility ?? 'always'}
+              onChange={(value) => set('visibility', value === 'always' ? null : value)}
+            />
           </CardRow>
         </Card>
       </div>
       <Expander label={t('OverlayPageText.LockGroup')} hint={lockSummary(one, t)} hintWhenOpen open={lockOpen} onOpen={onLockOpen}>
         <SwitchLine label={t('UiText.LockPosition')} checked={one.locked === true} onChange={(value) => set('locked', value ? true : null)} />
-        <SwitchLine label={t('UiText.ClickThrough')} description={t('OverlayPageText.ClickThroughHint')} checked={one.clickThrough === true} onChange={(value) => set('clickThrough', value ? true : null)} />
-        <SwitchLine label={t('OverlayPageText.OledCare')} description={t('OverlayPageText.OledHint')} checked={one.oled === true} onChange={(value) => set('oled', value ? true : null)} />
-        <SwitchLine label={t('OverlayPageText.Fade')} description={t('OverlayPageText.FadeHint')} checked={one.fade === true} onChange={(value) => set('fade', value ? true : null)} />
+        <SwitchLine
+          label={t('UiText.ClickThrough')}
+          description={t('OverlayPageText.ClickThroughHint')}
+          checked={one.clickThrough === true}
+          onChange={(value) => set('clickThrough', value ? true : null)}
+        />
+        <SwitchLine
+          label={t('OverlayPageText.OledCare')}
+          description={t('OverlayPageText.OledHint')}
+          checked={one.oled === true}
+          onChange={(value) => set('oled', value ? true : null)}
+        />
+        <SwitchLine
+          label={t('OverlayPageText.Fade')}
+          description={t('OverlayPageText.FadeHint')}
+          checked={one.fade === true}
+          onChange={(value) => set('fade', value ? true : null)}
+        />
       </Expander>
       {data.settings.overlays.length > 1 && (
         <div className="t-pane-foot">

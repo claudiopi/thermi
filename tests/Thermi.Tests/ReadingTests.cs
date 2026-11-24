@@ -72,7 +72,8 @@ public sealed class ReadingTests
     }
 
     [Theory]
-    [InlineData(79.9, Level.Normal)]
+    [InlineData(79.4, Level.Normal)]
+    [InlineData(79.5, Level.Warning)]
     [InlineData(80.0, Level.Warning)]
     [InlineData(95.0, Level.Critical)]
     [InlineData(null, Level.Normal)]

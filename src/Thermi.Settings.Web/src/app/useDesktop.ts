@@ -21,17 +21,13 @@ export function useDesktop(editing: Editing, onPick: (pick: DesktopPick) => void
     picked.current = onPick;
   });
 
-  // The bridge keeps its listeners for the page's life, so one that a remount left behind ignores what comes.
   useEffect(() => {
     const from = bridge();
     if (from === null) {
       return;
     }
     let live = true;
-    from.picked((pick) => {
-      if (!live) {
-        return;
-      }
+    const stopPicks = from.picked((pick) => {
       if (pick.how === 'point-in' || pick.how === 'point-out') {
         setPointed(pick.how === 'point-in' ? pick.item : null);
       } else {
@@ -46,6 +42,7 @@ export function useDesktop(editing: Editing, onPick: (pick: DesktopPick) => void
     });
     return () => {
       live = false;
+      stopPicks();
     };
   }, []);
 

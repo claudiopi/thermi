@@ -18,7 +18,9 @@ public static partial class ConfigRules
 
     private static IEnumerable<string?> Problems(ThermiConfig config) =>
     [
-        config.Overlays.Count is >= 1 and <= ThermiConfig.MaxOverlays ? null : Say($"overlays holds {config.Overlays.Count}, not 1 to {ThermiConfig.MaxOverlays}"),
+        config.Overlays.Count is >= 1 and <= ThermiConfig.MaxOverlays
+            ? null
+            : Say($"overlays holds {config.Overlays.Count}, not 1 to {ThermiConfig.MaxOverlays}"),
         .. (config.SensorNames ?? new Dictionary<string, string>()).Select(pair => OwnName(pair.Key, pair.Value)),
         .. config.Overlays.SelectMany((overlay, index) => Overlay(overlay, Say($"overlays[{index}]"))),
     ];
@@ -32,7 +34,9 @@ public static partial class ConfigRules
 
     private static IEnumerable<string?> Style(StyleConfig style, string at) =>
     [
-        style.Name is null or { Length: >= 1 and <= StyleConfig.MaxNameLength } ? null : Say($"{at}.name has {style.Name.Length} characters, not 1 to {StyleConfig.MaxNameLength}"),
+        style.Name is null or { Length: >= 1 and <= StyleConfig.MaxNameLength }
+            ? null
+            : Say($"{at}.name has {style.Name.Length} characters, not 1 to {StyleConfig.MaxNameLength}"),
         TextSize($"{at}.label.size", style.Label),
         TextSize($"{at}.value.size", style.Value),
         Range($"{at}.opacity.background", style.Opacity.Background, 0, 1),
@@ -47,7 +51,9 @@ public static partial class ConfigRules
 
     private static IEnumerable<string?> Item(ItemConfig item, string at) =>
     [
-        new[] { item.Metric is not null, item.Sensor is not null, item.Sensors is not null }.Count(named => named) == 1 ? null : $"{at} must name one of metric, sensor or sensors",
+        new[] { item.Metric is not null, item.Sensor is not null, item.Sensors is not null }.Count(named => named) == 1
+            ? null
+            : $"{at} must name one of metric, sensor or sensors",
         item.Auto is not null && item.Metric is not null ? $"{at}.auto goes only with sensor or sensors" : null,
         (item.Sensors is null) == (item.Combine is null) ? null : $"{at}.combine goes with sensors, and only with them",
         item.Smooth is 0 or (>= 2 and <= 10) ? null : Say($"{at}.smooth is {item.Smooth}, not 0 or 2 to 10"),
@@ -74,7 +80,9 @@ public static partial class ConfigRules
 
     // A name of spaces alone would show as no name at all.
     private static string? OwnName(string id, string? name) =>
-        name is { Length: <= SensorNames.MaxLength } && !string.IsNullOrWhiteSpace(name) ? null : Say($"sensorNames[\"{id}\"] is blank or longer than {SensorNames.MaxLength} characters");
+        name is { Length: <= SensorNames.MaxLength } && !string.IsNullOrWhiteSpace(name)
+            ? null
+            : Say($"sensorNames[\"{id}\"] is blank or longer than {SensorNames.MaxLength} characters");
 
     private static string? TextSize(string field, TextStyle? text) =>
         text is null ? null : Range(field, text.Size, 9, 20) ?? (double.IsInteger(text.Size * 2) ? null : Say($"{field} is {text.Size}, not a step of 0.5"));

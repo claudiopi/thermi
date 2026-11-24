@@ -63,6 +63,8 @@ public enum WindowText
     DriverInstalling,
     DriverInstalled,
     DriverReading,
+    DriverRestart,
+    DriverRestartMore,
     DriverRefused,
     DriverRefusedMore,
     TryAgain,
@@ -101,4 +103,6 @@ public enum WindowText
     /// <summary>The message box that shows in place of the window where WebView2's runtime is missing: its title, and what to do, asked as Yes or No.</summary>
     WebViewMissingTitle,
     WebViewMissing,
+    PageEndedTitle,
+    PageEnded,
 }

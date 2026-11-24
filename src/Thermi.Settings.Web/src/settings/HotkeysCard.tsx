@@ -74,7 +74,15 @@ function HotkeyRow({ role, combination, refusal, capturing, onCapture, onSet }: 
   // A set hotkey's × sits in its field, where the pen was, so every field ends where the other rows' controls do.
   const clearable = combination !== undefined && !capturing;
   return (
-    <CardRow label={name} {...(description === undefined ? {} : { description: <span className={refusal === null ? undefined : 't-hk-error'}>{description}</span>, descriptionId: hintId })}>
+    <CardRow
+      label={name}
+      {...(description === undefined
+        ? {}
+        : {
+            description: <span className={refusal === null ? undefined : 't-hk-error'}>{description}</span>,
+            descriptionId: hintId,
+          })}
+    >
       <span className="t-hk-field">
         <button
           ref={main}

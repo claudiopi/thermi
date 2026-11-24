@@ -26,7 +26,12 @@ function alike(one: unknown, other: unknown, depth: number): boolean {
     return false;
   }
   const keys = Object.keys(one);
-  return keys.length === Object.keys(other).length && keys.every((key) => (key === 'ref' ? Object.is((one as Props)[key], (other as Props)[key]) : alike((one as Props)[key], (other as Props)[key], depth + 1)));
+  return (
+    keys.length === Object.keys(other).length &&
+    keys.every((key) =>
+      key === 'ref' ? Object.is((one as Props)[key], (other as Props)[key]) : alike((one as Props)[key], (other as Props)[key], depth + 1),
+    )
+  );
 }
 
 /** The props a component was last drawn with, and a stand-in for each of its functions that calls the latest one. */

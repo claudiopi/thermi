@@ -43,8 +43,15 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         foreach (var overlay in config.Overlays)
         {
             var now = snapshot is null ? NoReadings : SensorMap.Read(snapshot, overlay);
-            var shown = OverlayLayout.Build(overlay with { Style = overlay.Style with { Units = true } }, now, CultureInfo.CurrentCulture, texts, config.Temperature, windowOpen: true);
-            pills.Add([.. OverlayLayout.Groups(shown, overlay.Style.Layout).Select(pill => new PillView(pill[0].Label ?? "", [.. pill.Select(item => item.Id)]))]);
+            var shown = OverlayLayout.Build(
+                overlay with { Style = overlay.Style with { Units = true } },
+                now,
+                CultureInfo.CurrentCulture,
+                texts,
+                config.Temperature,
+                windowOpen: true);
+            pills.Add([.. OverlayLayout.Groups(shown, overlay.Style.Layout)
+                .Select(pill => new PillView(pill[0].Label ?? "", [.. pill.Select(item => item.Id)]))]);
             var chosen = SensorMap.Chosen(known, overlay);
             foreach (var item in overlay.Items)
             {
@@ -65,7 +72,9 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         var found = SensorCatalog.Filter(devices, search, kinds, texts);
         var (shown, hidden) = all ? (found, 0) : SensorCatalog.Hide(found, readings.Seen);
         var format = Format(texts);
-        var groups = shown.Select(device => new CatalogGroup(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(sensor => Row(sensor, format))])).ToList();
+        var groups = shown
+            .Select(device => new CatalogGroup(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(sensor => Row(sensor, format))]))
+            .ToList();
         var count = groups.Sum(group => group.Sensors.Count);
         return new CatalogView(groups, count, hidden, count + hidden == 0 ? SensorCatalog.Suggest(devices, search, texts) : null);
     }
@@ -79,7 +88,10 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
 
     // The tray's mark, decided as the tray decides it; the taskbar's mode and thermi's path only shape the item icons.
     private MarkState Mark(ThermiConfig config, Snapshot? snapshot, Texts texts) =>
-        ThermiMark.Of(config, new TrayInput(snapshot, sensors.State, CultureInfo.CurrentCulture, texts, LightTaskbar: false, ExePath: ""), Desktop.HighContrast() is not null);
+        ThermiMark.Of(
+            config,
+            new TrayInput(snapshot, sensors.State, CultureInfo.CurrentCulture, texts, LightTaskbar: false, ExePath: ""),
+            Desktop.HighContrast() is not null);
 
     private CatalogRow Row(CatalogSensor sensor, ValueFormat format) => new(
         sensor.Id,
@@ -106,24 +118,44 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             .ToDictionary(sensor => sensor.Id, sensor => Text(sensor.Reading, format), StringComparer.Ordinal);
 
     // A value of the dash alone, an arrow before it or not, reads nothing; a level needs a meter and a value.
-    private static ItemView ItemOf(ItemConfig item, OverlayItem? shown, Snapshot known, IReadOnlyDictionary<string, RawSensor?> chosen, (Texts Texts, IReadOnlyDictionary<string, string>? Own) names)
+    private static ItemView ItemOf(
+        ItemConfig item,
+        OverlayItem? shown,
+        Snapshot known,
+        IReadOnlyDictionary<string, RawSensor?> chosen,
+        (Texts Texts, IReadOnlyDictionary<string, string>? Own) names)
     {
         var value = shown is { Value: var text } && !text.EndsWith(ReadingFormatter.Missing, StringComparison.Ordinal) ? text : null;
         var auto = (item.Metric ?? item.Auto) is { } metric ? chosen.GetValueOrDefault(metric)?.Id : null;
         var kind = ItemEdits.KindOf(item, known);
         var read = item.Sensor ?? (item.Sensors is [var first, ..] ? first : auto);
-        var type = (read is null ? null : SensorMap.Find(known, read)?.Type) ?? (kind is { } some ? TypeOf(some) : "");
+        var sensor = read is null ? null : SensorMap.Find(known, read);
+        var type = sensor?.Type ?? (kind is { } some ? TypeOf(some) : "");
         // A meter is a reading of the item itself, so each is named by what it reads: a fan's speed or its duty, else its type.
         IReadOnlyList<MeterChoice> meters = [.. Threshold.MetersOf(item, kind, known).Select((meter, at) =>
-            new MeterChoice(meter, MeterKindName(at == 0 ? kind!.Value : kind == SensorKind.Fan ? SensorKind.Control : SensorKind.Fan, names.Texts)))];
-        return new ItemView(value, item.Meter is null || value is null ? null : shown!.Level, type, auto, meters, MeterName(item.Meter, known, names.Texts, names.Own));
+            new MeterChoice(
+                meter,
+                MeterKindName(
+                    Metrics.Find(meter.Metric)?.Kind ?? (at == 0 ? kind!.Value : kind == SensorKind.Fan ? SensorKind.Control : SensorKind.Fan),
+                    names.Texts)))];
+        Level? level = item.Meter is null || value is null ? null : shown!.Level;
+        return new ItemView(value, level, type, auto, meters, MeterName(item.Meter, known, names.Texts, names.Own))
+        {
+            Bits = kind == SensorKind.Throughput
+                && (sensor?.HardwareType == "Network"
+                    || (item.Metric ?? item.Auto) == Metrics.NetDownload.Id
+                    || (item.Metric ?? item.Auto) == Metrics.NetUpload.Id),
+        };
     }
 
     // A sensor of its own is named as the catalog names it, one the service no longer reads by the user's name or its id;
     // else its metric's name.
     private static string? MeterName(MeterConfig? meter, Snapshot known, Texts texts, IReadOnlyDictionary<string, string>? own) =>
         meter is null ? null
-        : meter.Sensor is { } sensor ? (SensorMap.Find(known, sensor) is { } found ? SensorNames.Of(found, sensor, own, texts).Shown : own?.GetValueOrDefault(sensor) ?? sensor)
+        : meter.Sensor is { } sensor
+            ? (SensorMap.Find(known, sensor) is { } found
+                ? SensorNames.Of(found, sensor, own, texts).Shown
+                : own?.GetValueOrDefault(sensor) ?? sensor)
         : Metrics.Find(meter.Metric ?? meter.Auto) is { } metric ? texts.Of(metric.Name)
         : meter.Metric;
 

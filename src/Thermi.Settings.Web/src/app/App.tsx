@@ -34,7 +34,11 @@ function useSelection(data: WindowData | null): [string, (key: string) => void] 
   }
   const { overlays } = data.settings;
   const exists = (key: string): boolean =>
-    key === settingsKey || overlays.some((overlay, index) => key === overlayKey(index) || overlay.items.some((item) => key === itemKey(item.id) || key === `p:${index}:${item.id}`));
+    key === settingsKey ||
+    overlays.some(
+      (overlay, index) =>
+        key === overlayKey(index) || overlay.items.some((item) => key === itemKey(item.id) || key === `p:${index}:${item.id}`),
+    );
   const first = overlays[0]?.items[0];
   const fallback = first === undefined ? overlayKey(0) : itemKey(first.id);
   return [chosen !== null && exists(chosen) ? chosen : fallback, setChosen];
@@ -197,7 +201,11 @@ function Window({ data }: { data: WindowData }) {
     focusTo(narrow ? 'pane' : key);
   };
   const pointedValue = useDesktop(
-    { overlay: selected === settingsKey ? null : overlayOfRow(data, selected), selected: selected.startsWith(itemKey('')) ? selected.slice(itemKey('').length) : null, pointed: pointedRow },
+    {
+      overlay: selected === settingsKey ? null : overlayOfRow(data, selected),
+      selected: selected.startsWith(itemKey('')) ? selected.slice(itemKey('').length) : null,
+      pointed: pointedRow,
+    },
     (pick) => pickOnDesktop(pick.overlay, pick.item),
   );
   useShortcuts({

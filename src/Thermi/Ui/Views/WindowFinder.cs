@@ -131,7 +131,12 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
         var text = texts.Of(CatalogText.FanFinderLoading);
         if (_finder?.Rising is { } rising)
         {
-            text += " · " + texts.Format(numbers, CatalogText.FanRising, NameOf(rising.Fan, own, texts), Math.Round(rising.Rpm), Math.Round(rising.Share * 100));
+            text += " · " + texts.Format(
+                numbers,
+                CatalogText.FanRising,
+                NameOf(rising.Fan, own, texts),
+                Math.Round(rising.Rpm),
+                Math.Round(rising.Share * 100));
         }
 
         return new FinderView(FinderPhase.Running, null, Progress: Math.Min(1, time.GetElapsedTime(_loadedAt) / FanFinder.MaxRun), Text: text);
@@ -139,5 +144,7 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
 
     // The fan as the catalog and the Sensor dropdown name it, so one fan never reads by two names.
     private string NameOf(string fan, IReadOnlyDictionary<string, string>? own, Texts texts) =>
-        _last is { } snapshot && SensorMap.Find(snapshot, fan) is { } sensor ? string.Create(CultureInfo.InvariantCulture, $"{SensorNames.Of(sensor, fan, own, texts).Shown} · {sensor.Hardware}") : fan;
+        _last is { } snapshot && SensorMap.Find(snapshot, fan) is { } sensor
+            ? string.Create(CultureInfo.InvariantCulture, $"{SensorNames.Of(sensor, fan, own, texts).Shown} · {sensor.Hardware}")
+            : fan;
 }

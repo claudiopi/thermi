@@ -26,14 +26,22 @@ internal sealed class WindowPlace(string folder, ILogger log)
     public void Restore(HWND window, ThermiConfig config, IReadOnlyList<Screen> screens)
     {
         var place = Remembered(screens) ?? First(config, screens);
-        PInvoke.SetWindowPos(window, HWND.Null, place.Left, place.Top, place.Width, place.Height, SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+        PInvoke.SetWindowPos(
+            window,
+            HWND.Null,
+            place.Left,
+            place.Top,
+            place.Width,
+            place.Height,
+            SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
     }
 
     /// <summary>The smallest the window may be on the monitor it is on, or that monitor's work area when smaller.</summary>
     public static unsafe void Limit(HWND window, LPARAM lParam, IReadOnlyList<Screen> screens)
     {
         PInvoke.GetWindowRect(window, out var frame);
-        var screen = screens.FirstOrDefault(each => each.Bounds.Overlaps(new PixelRect(frame.left, frame.top, frame.right, frame.bottom))) ?? screens.FirstOrDefault(each => each.Primary);
+        var screen = screens.FirstOrDefault(each => each.Bounds.Overlaps(new PixelRect(frame.left, frame.top, frame.right, frame.bottom)))
+            ?? screens.FirstOrDefault(each => each.Primary);
         if (screen is null)
         {
             return;
@@ -57,7 +65,12 @@ internal sealed class WindowPlace(string folder, ILogger log)
         try
         {
             var all = Read() ?? [];
-            all[WindowRoom.Setup(screens)] = new JsonArray(normal.left, normal.top, normal.right, normal.bottom, placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED);
+            all[WindowRoom.Setup(screens)] = new JsonArray(
+                normal.left,
+                normal.top,
+                normal.right,
+                normal.bottom,
+                placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED);
             Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
             File.WriteAllText(_file, all.ToJsonString());
         }
@@ -68,7 +81,11 @@ internal sealed class WindowPlace(string folder, ILogger log)
     }
 
     private static PixelRect Scaled(PixelRect rect, double scale) =>
-        new((int)Math.Round(rect.Left * scale), (int)Math.Round(rect.Top * scale), (int)Math.Round(rect.Right * scale), (int)Math.Round(rect.Bottom * scale));
+        new(
+            (int)Math.Round(rect.Left * scale),
+            (int)Math.Round(rect.Top * scale),
+            (int)Math.Round(rect.Right * scale),
+            (int)Math.Round(rect.Bottom * scale));
 
     // Core's geometry at 100 %, on the first overlay's monitor's scale.
     private static PixelRect First(ThermiConfig config, IReadOnlyList<Screen> screens)
@@ -82,7 +99,10 @@ internal sealed class WindowPlace(string folder, ILogger log)
     private static List<PixelRect> FreeOverlays(IReadOnlyList<Screen> screens)
     {
         var free = new List<PixelRect>();
-        for (var overlay = PInvoke.FindWindowEx(HWND.Null, HWND.Null, OverlayWindow.ClassName, null); !overlay.IsNull; overlay = PInvoke.FindWindowEx(HWND.Null, overlay, OverlayWindow.ClassName, null))
+        for (
+            var overlay = PInvoke.FindWindowEx(HWND.Null, HWND.Null, OverlayWindow.ClassName, null);
+            !overlay.IsNull;
+            overlay = PInvoke.FindWindowEx(HWND.Null, overlay, OverlayWindow.ClassName, null))
         {
             if (PInvoke.IsWindowVisible(overlay) && PInvoke.GetWindowRect(overlay, out var rect))
             {

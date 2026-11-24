@@ -12,10 +12,22 @@ namespace Thermi.Core.Tray;
 public sealed record Taskbar(Rgb Background, Rgb Text, Rgb Gray, Rgb Normal, Rgb Warning, Rgb Critical)
 {
     /// <summary>Windows' dark taskbar, which an accent-colored one counts as; its level colors are the overlay's.</summary>
-    public static Taskbar Dark { get; } = new(Rgb.Parse("#1C1C1C"), Rgb.Parse("#FFFFFF"), Rgb.Parse("#8A8A8A"), OverlayLook.DefaultNormal, OverlayLook.DefaultWarning, OverlayLook.DefaultCritical);
+    public static Taskbar Dark { get; } = new(
+        Rgb.Parse("#1C1C1C"),
+        Rgb.Parse("#FFFFFF"),
+        Rgb.Parse("#8A8A8A"),
+        OverlayLook.DefaultNormal,
+        OverlayLook.DefaultWarning,
+        OverlayLook.DefaultCritical);
 
     /// <summary>Windows' light taskbar, with darker level colors that read on it.</summary>
-    public static Taskbar Light { get; } = new(Rgb.Parse("#EEEEEE"), Rgb.Parse("#1A1A1A"), Rgb.Parse("#6E6E6E"), Rgb.Parse("#1E7F3E"), Rgb.Parse("#8A5A00"), Rgb.Parse("#B42318"));
+    public static Taskbar Light { get; } = new(
+        Rgb.Parse("#EEEEEE"),
+        Rgb.Parse("#1A1A1A"),
+        Rgb.Parse("#6E6E6E"),
+        Rgb.Parse("#1E7F3E"),
+        Rgb.Parse("#8A5A00"),
+        Rgb.Parse("#B42318"));
 
     public static Taskbar Of(bool light) => light ? Light : Dark;
 
@@ -82,7 +94,11 @@ public static class TrayScene
     {
         var snapshot = input.Service == ServiceState.Running ? input.Snapshot : null;
         var readings = config.Overlays.Select(overlay => snapshot is null ? NoReadings : SensorMap.Read(snapshot, overlay)).ToList();
-        var scene = new Scene(config, input with { Service = snapshot is null ? StateWithout(input.Service) : ServiceState.Running }, Taskbar.Of(input.LightTaskbar), readings);
+        var scene = new Scene(
+            config,
+            input with { Service = snapshot is null ? StateWithout(input.Service) : ServiceState.Running },
+            Taskbar.Of(input.LightTaskbar),
+            readings);
         var icons = new List<TrayIcon> { ThermiIcon(scene) };
         for (var overlay = 0; overlay < config.Overlays.Count; overlay++)
         {

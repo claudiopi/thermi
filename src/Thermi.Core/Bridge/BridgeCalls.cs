@@ -25,12 +25,14 @@ public static class BridgeCalls
     public static IReadOnlyList<string> Methods { get; } = [.. ByName.Keys.Order(StringComparer.Ordinal)];
 
     /// <summary>Every event the page may listen to, by its name on the wire.</summary>
-    public static IReadOnlyList<string> Events { get; } = [.. typeof(IWindowBridge).GetEvents().Select(each => NameOf(each.Name)).Order(StringComparer.Ordinal)];
+    public static IReadOnlyList<string> Events { get; } =
+        [.. typeof(IWindowBridge).GetEvents().Select(each => NameOf(each.Name)).Order(StringComparer.Ordinal)];
 
     /// <summary>
     /// The page's side of the wire, run before the page's own code: <c>window.thermi</c> as the page's generated types
     /// describe it, a promise per call answered by its id, with the result exactly as C# sent it, null included, and
-    /// listeners per event; and every error the page leaves unhandled, reported.
+    /// listeners per event, each given back a function that takes it away; and every error the page leaves unhandled,
+    /// reported.
     /// </summary>
     public static string Client { get; } = $$"""
         (() => {
@@ -56,7 +58,10 @@ public static class BridgeCalls
             });
           }
           for (const name of listeners.keys()) {
-            bridge[name] = (listener) => { listeners.get(name).push(listener); };
+            bridge[name] = (listener) => {
+              listeners.get(name).push(listener);
+              return () => listeners.set(name, listeners.get(name).filter((each) => each !== listener));
+            };
           }
           window.thermi = Object.freeze(bridge);
           // What the page throws and does not handle goes to thermi's log, which a window that went blank can show.
@@ -66,12 +71,17 @@ public static class BridgeCalls
         })();
         """;
 
-    /// <summary>The options every value crosses the bridge with: camel case, nulls left out of objects, choices as kebab-case words.</summary>
+    /// <summary>
+    /// The options every value crosses the bridge with: camel case, nulls left out of objects, choices as kebab-case words.
+    /// </summary>
     public static JsonSerializerOptions Options => BridgeJson.Default.Options;
 
     public static string NameOf(string member) => JsonNamingPolicy.CamelCase.ConvertName(member);
 
-    /// <summary>Runs the call a message names on <paramref name="bridge"/> and gives the answer to post back; a call that fails answers its error.</summary>
+    /// <summary>
+    /// Runs the call a message names on <paramref name="bridge"/> and gives the answer to post back; a call that fails answers
+    /// its error.
+    /// </summary>
     public static async Task<string> AnswerAsync(IWindowBridge bridge, string message)
     {
         JsonNode? id = null;
@@ -79,11 +89,14 @@ public static class BridgeCalls
         {
             var call = JsonNode.Parse(message) as JsonObject ?? throw new BridgeCallException("A call is a JSON object.");
             id = call["id"]?.DeepClone();
-            var method = call["method"]?.GetValue<string>() is { } name && ByName.TryGetValue(name, out var found) ? found : throw new BridgeCallException("No such method.");
+            var method = call["method"]?.GetValue<string>() is { } name && ByName.TryGetValue(name, out var found)
+                ? found
+                : throw new BridgeCallException("No such method.");
             var result = await InvokeAsync(bridge, method, ArgumentsOf(method, call["args"] as JsonArray ?? []));
             return new JsonObject { ["id"] = id, ["result"] = result }.ToJsonString();
         }
-        catch (Exception ex) when (ex is JsonException or BridgeCallException or InvalidOperationException or FormatException or ArgumentException or KeyNotFoundException)
+        catch (Exception ex) when (ex is JsonException or BridgeCallException or InvalidOperationException or FormatException
+            or ArgumentException or KeyNotFoundException)
         {
             return new JsonObject { ["id"] = id, ["error"] = ex.Message }.ToJsonString();
         }
@@ -107,7 +120,11 @@ public static class BridgeCalls
 
     /// <summary>The message that raises an event on the page, with its value.</summary>
     public static string EventOf(string name, object? value) =>
-        new JsonObject { ["event"] = NameOf(name), ["value"] = value is null ? null : JsonSerializer.SerializeToNode(value, value.GetType(), BridgeJson.Default) }.ToJsonString();
+        new JsonObject
+        {
+            ["event"] = NameOf(name),
+            ["value"] = value is null ? null : JsonSerializer.SerializeToNode(value, value.GetType(), BridgeJson.Default),
+        }.ToJsonString();
 
     private static string Quoted(IReadOnlyList<string> names) => $"[{string.Join(", ", names.Select(name => $"'{name}'"))}]";
 
@@ -136,7 +153,9 @@ public static class BridgeCalls
 
         await task;
         var type = method.ReturnType;
-        return type.IsGenericType ? JsonSerializer.SerializeToNode(type.GetProperty("Result")!.GetValue(task), type.GetGenericArguments()[0], BridgeJson.Default) : null;
+        return type.IsGenericType
+            ? JsonSerializer.SerializeToNode(type.GetProperty("Result")!.GetValue(task), type.GetGenericArguments()[0], BridgeJson.Default)
+            : null;
     }
 }
 
@@ -146,10 +165,16 @@ internal sealed class BridgeEnums : JsonConverterFactory
     public override bool CanConvert(Type typeToConvert) => typeToConvert.IsEnum;
 
     public override JsonConverter? CreateConverter(Type typeToConvert, JsonSerializerOptions options) =>
-        ((JsonConverterFactory)Activator.CreateInstance(typeof(JsonStringEnumConverter<>).MakeGenericType(typeToConvert), JsonNamingPolicy.KebabCaseLower, false)!).CreateConverter(typeToConvert, options);
+        ((JsonConverterFactory)Activator.CreateInstance(
+            typeof(JsonStringEnumConverter<>).MakeGenericType(typeToConvert),
+            JsonNamingPolicy.KebabCaseLower,
+            false)!).CreateConverter(typeToConvert, options);
 }
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, Converters = [typeof(BridgeEnums)])]
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    Converters = [typeof(BridgeEnums)])]
 [JsonSerializable(typeof(ThermiConfig))]
 [JsonSerializable(typeof(ConfigProblemKind?))]
 [JsonSerializable(typeof(PageEdit))]
@@ -166,6 +191,8 @@ internal sealed class BridgeEnums : JsonConverterFactory
 [JsonSerializable(typeof(WindowView))]
 [JsonSerializable(typeof(ChartView))]
 [JsonSerializable(typeof(DesktopPickEventArgs))]
+[JsonSerializable(typeof(WindowChangeEventArgs))]
+[JsonSerializable(typeof(DriverInstall))]
 [JsonSerializable(typeof(Undone))]
 [JsonSerializable(typeof(WindowStatus))]
 [JsonSerializable(typeof(UndoSteps))]

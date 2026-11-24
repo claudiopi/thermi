@@ -41,21 +41,31 @@ public sealed record Threshold
     public double? Critical { get; }
 
     /// <summary>Whether a meter can read that type: a temperature, a load, a duty, a fan's speed or a throughput, the values lines can judge.</summary>
-    public static bool CanMeter(SensorKind kind) => kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Fan or SensorKind.Throughput;
+    public static bool CanMeter(SensorKind kind) =>
+        kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Fan or SensorKind.Throughput;
 
     /// <summary>
     /// The meters an item of <paramref name="kind"/> is offered: readings of the item itself, never of another device or
     /// another kind. Its own metric or sensor when that type can be a meter, then its other form: a fan's own duty, or a
-    /// duty's own fan, where the service reads it; a combined item only itself, and one whose type cannot be a meter none.
+    /// duty's own fan, where the service reads it; a combined item only itself, and one whose type cannot be a meter none,
+    /// but the RAM in use, judged by the RAM's load.
     /// </summary>
     public static IReadOnlyList<MeterConfig> MetersOf(ItemConfig item, SensorKind? kind, Snapshot known)
     {
+        // The memory in use has no lines that suit every PC in GB, so it is judged as the share of the memory it is.
+        if (item is { Sensors: null } && (item.Metric ?? item.Auto) == Metrics.RamUsed.Id)
+        {
+            return [new MeterConfig { Metric = Metrics.RamLoad.Id }];
+        }
+
         if (kind is not { } type || !CanMeter(type))
         {
             return [];
         }
 
-        MeterConfig? self = item.Metric is { } metric ? new MeterConfig { Metric = metric } : item.Sensor is { } sensor ? new MeterConfig { Sensor = sensor } : null;
+        MeterConfig? self = item.Metric is { } metric
+            ? new MeterConfig { Metric = metric }
+            : item.Sensor is { } sensor ? new MeterConfig { Sensor = sensor } : null;
         var other = (type, item.Metric) switch
         {
             _ when item.Sensors is not null => null,
@@ -95,14 +105,23 @@ public sealed record Threshold
         return kind is { } known ? Default(known, device, CpuLimit(sensor, snapshot)) : null;
     }
 
-    /// <summary>A missing reading is never alarming: the overlay shows it as missing instead.</summary>
-    public Level LevelOf(Reading reading) => reading.Usable switch
+    /// <summary>
+    /// A missing reading is never alarming: the overlay shows it as missing instead. A reading is judged as it shows,
+    /// rounded to its type's decimals or to <paramref name="decimals"/>, so a value that reads as its line is at it.
+    /// </summary>
+    public Level LevelOf(Reading reading, int? decimals = null) => Shown(reading, decimals) switch
     {
         null => Level.Normal,
         var value when value >= Critical => Level.Critical,
         var value when value >= Warning => Level.Warning,
         _ => Level.Normal,
     };
+
+    // Only the types that show in the unit their lines are kept in, a temperature in °C, round here as they show.
+    private static double? Shown(Reading reading, int? decimals) =>
+        reading.Usable is { } value && reading.Kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Power or SensorKind.Fan
+            ? Math.Round(value, decimals ?? 0, MidpointRounding.AwayFromZero)
+            : reading.Usable;
 
     // A line warns above a value, and a battery's trouble is below one, which Windows warns of itself.
     private static Threshold? Default(SensorKind kind, DeviceKind? device, double cpuLimit) => (kind, device) switch
@@ -124,7 +143,9 @@ public sealed record Threshold
             return DefaultCpuLimit;
         }
 
-        var distances = snapshot.Sensors.Where(each => each.Hardware == sensor.Hardware && each.Name.EndsWith(DistanceToTjMax, StringComparison.Ordinal) && each.Value is not null).ToList();
+        var distances = snapshot.Sensors
+            .Where(each => each.Hardware == sensor.Hardware && each.Name.EndsWith(DistanceToTjMax, StringComparison.Ordinal) && each.Value is not null)
+            .ToList();
         var distance = distances.FirstOrDefault(each => each.Name == $"{sensor.Name} {DistanceToTjMax}") ?? distances.FirstOrDefault();
         return distance?.Value is { } below ? Math.Round(value + below) : DefaultCpuLimit;
     }

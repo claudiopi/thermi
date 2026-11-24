@@ -82,7 +82,10 @@ function useSaidCount(typed: string, view: CatalogView | null, announce: (text: 
   const count = view?.count ?? 0;
   const counted = count === 1 ? t('CatalogText.OneSensor') : t('CatalogText.SensorCount', count);
   const suggestion = view?.suggestion ?? null;
-  const said = count > 0 ? t('CatalogText.CountSaid', counted) : `${t('CatalogText.NoMatchFor', typed)} ${suggestion === null ? '' : t('CatalogText.TryOneWord', suggestion)}`;
+  const said =
+    count > 0
+      ? t('CatalogText.CountSaid', counted)
+      : `${t('CatalogText.NoMatchFor', typed)} ${suggestion === null ? '' : t('CatalogText.TryOneWord', suggestion)}`;
   useEffect(() => {
     if (typed === '') {
       return;
@@ -106,12 +109,14 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
   const view = useLastCatalog(typed, chip === 'all' ? [] : [chip as SensorKind], showAll, data.changes);
   const counted = useSaidCount(typed, view, announce);
   const hidden = view?.hidden ?? 0;
+  const kinds = [{ value: 'all', text: t('CatalogText.AllKinds') }, ...chipKinds.map((kind) => ({ value: kind, text: t(kindKey(kind)) }))];
 
   useEffect(() => {
     queueMicrotask(() => search.current?.focus());
   }, []);
 
-  const shownBy = (sensor: string): string[] => items.filter((item) => item.sensor === sensor || data.view.items[item.id]?.auto === sensor).map((item) => item.name ?? item.id);
+  const shownBy = (sensor: string): string[] =>
+    items.filter((item) => item.sensor === sensor || data.view.items[item.id]?.auto === sensor).map((item) => item.name ?? item.id);
   const handlePick = (sensor: string, keep: boolean): void => {
     void onAdd(sensor, to, keep);
     if (keep) {
@@ -143,8 +148,23 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
         </div>
         <Button kind="subtle" label={t('UiText.Close')} icon={<Icon name="close" className="t-cat-close" />} onClick={onClose} />
       </div>
-      <SearchField ref={search} label={t('UiText.CatalogSearch')} placeholder={t('UiText.CatalogSearch')} clearLabel={t('CatalogText.ClearSearch')} describedBy={countId} value={typed} onChange={setTyped} onKeyDown={handleSearchKey} />
-      <Chips label={t('CatalogText.KindField')} value={chip} onChange={setChip} choices={[{ value: 'all', text: t('CatalogText.AllKinds') }, ...chipKinds.map((kind) => ({ value: kind, text: t(kindKey(kind)) }))]} />
+      <SearchField
+        ref={search}
+        label={t('UiText.CatalogSearch')}
+        placeholder={t('UiText.CatalogSearch')}
+        clearLabel={t('CatalogText.ClearSearch')}
+        describedBy={countId}
+        value={typed}
+        onChange={setTyped}
+        onKeyDown={handleSearchKey}
+      />
+      {/* The chips, or in a panel too short for them and some rows, a dropdown of the same choices; the sheet picks one. */}
+      <div className="t-cat-chips">
+        <Chips label={t('CatalogText.KindField')} value={chip} onChange={setChip} choices={kinds} />
+      </div>
+      <div className="t-cat-kinds">
+        <Dropdown label={t('CatalogText.KindField')} value={chip} onChange={setChip} choices={kinds} />
+      </div>
       <div className="t-cat-count-row">
         <div className="t-cat-count" id={countId}>
           {hidden > 0 ? t('CatalogText.HiddenCount', counted, hidden) : counted}
@@ -154,7 +174,14 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
       {view !== null && view.count === 0 ? (
         <CatalogNone typed={typed} suggestion={view.suggestion} />
       ) : (
-        <CatalogRows ref={results} groups={view?.groups ?? []} shownBy={shownBy} onPick={handlePick} onRename={handleRename} onLeaveUp={() => search.current?.focus()} />
+        <CatalogRows
+          ref={results}
+          groups={view?.groups ?? []}
+          shownBy={shownBy}
+          onPick={handlePick}
+          onRename={handleRename}
+          onLeaveUp={() => search.current?.focus()}
+        />
       )}
     </>
   );

@@ -284,7 +284,9 @@ internal sealed class ConfigStore : IDisposable
     {
         try
         {
-            foreach (var file in Directory.EnumerateFiles(Folder, $"{Path.GetFileName(FilePath)}.*{Temporary}").Where(file => file.EndsWith(Temporary, StringComparison.OrdinalIgnoreCase)))
+            foreach (var file in Directory
+                .EnumerateFiles(Folder, $"{Path.GetFileName(FilePath)}.*{Temporary}")
+                .Where(file => file.EndsWith(Temporary, StringComparison.OrdinalIgnoreCase)))
             {
                 Delete(file);
             }
@@ -309,7 +311,8 @@ internal sealed class ConfigStore : IDisposable
 
     private string KeptName()
     {
-        var stem = Path.Combine(Folder, $"{Path.GetFileNameWithoutExtension(FilePath)}.broken-{_time.GetLocalNow().ToString("yyyy-MM-dd-HHmmss", CultureInfo.InvariantCulture)}");
+        var stamp = _time.GetLocalNow().ToString("yyyy-MM-dd-HHmmss", CultureInfo.InvariantCulture);
+        var stem = Path.Combine(Folder, $"{Path.GetFileNameWithoutExtension(FilePath)}.broken-{stamp}");
         var extension = Path.GetExtension(FilePath);
         var name = stem + extension;
         var repeat = 1;

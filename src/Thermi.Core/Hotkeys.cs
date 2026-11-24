@@ -152,7 +152,9 @@ public static class Hotkeys
     /// Null for off, the empty string included, and for anything else, which is reported as a hotkey that failed.
     /// </summary>
     public static Hotkey? Parse(string? combination) =>
-        Split(combination, NamedKeys) is var (modifiers, key) && ((modifiers & NotTyping) != KeyModifiers.None || key is >= F13 and <= F24) ? new Hotkey(modifiers, key) : null;
+        Split(combination, NamedKeys) is var (modifiers, key) && ((modifiers & NotTyping) != KeyModifiers.None || key is >= F13 and <= F24)
+            ? new Hotkey(modifiers, key)
+            : null;
 
     /// <summary>
     /// A combination pressed, as the file writes it: modifiers in the order Ctrl, Alt, Shift, Win, then the key, as
@@ -295,7 +297,10 @@ public static class Hotkeys
             return char.ToUpperInvariant(key[0]);
         }
 
-        if (key.Length is 2 or 3 && key[0] is 'F' or 'f' && int.TryParse(key.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out var number) && number is >= 1 and <= 24)
+        if (key.Length is 2 or 3
+            && key[0] is 'F' or 'f'
+            && int.TryParse(key.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+            && number is >= 1 and <= 24)
         {
             return 0x6F + number;
         }

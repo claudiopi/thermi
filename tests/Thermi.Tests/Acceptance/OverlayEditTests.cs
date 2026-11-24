@@ -19,7 +19,8 @@ public sealed class OverlayEditTests
 
     private static ThermiConfig Two => Done(OverlayEdits.Snap(Done(OverlayEdits.Add(One)), 1, new SnapConfig(SnapSpot.TopRight)));
 
-    private static ThermiConfig Solo => WithOverlay(Two, 1, overlay => overlay with { Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] });
+    private static ThermiConfig Solo =>
+        WithOverlay(Two, 1, overlay => overlay with { Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] });
 
     private static ThermiConfig Free => WithOverlay(One, 0, overlay => overlay with { Position = new Position(400, 300) });
 
@@ -58,6 +59,7 @@ public sealed class OverlayEditTests
     [InlineData("four", "drag cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("one", "drag none 400 300", nameof(Refusal.NotFound), "same")]
     [InlineData("free", "resize 0 3 vertical", nameof(Refusal.SizeOutOfRange), "same")]
+    [InlineData("one", "nudge 0 8 0", nameof(Refusal.Snapped), "same")]
     [InlineData("solo", "desk 1 solo 400 300 0", "TaskbarRight:7", "same")]
     [InlineData("solo", "desk 1 solo 20 1306", "TaskbarRight:6 BottomLeft:1", "same")]
     [InlineData("solo", "desk 1 solo 400 300", "TaskbarRight:6 400,300:1", "same")]
@@ -95,7 +97,8 @@ public sealed class OverlayEditTests
         {
             "same" => Names(after).All(Names(before).Contains),
             "" => true,
-            _ => Names(after)[named[0] - '0'] is null && OverlayNames.Of(after, named[0] - '0', Texts.English) == Texts.English.Of(Enum.Parse<NameText>(named[2..])),
+            _ => Names(after)[named[0] - '0'] is null
+                && OverlayNames.Of(after, named[0] - '0', Texts.English) == Texts.English.Of(Enum.Parse<NameText>(named[2..])),
         });
     }
 
@@ -116,7 +119,11 @@ public sealed class OverlayEditTests
             "rename" => OverlayEdits.Rename(config, At(1), words[2]),
             "move" => OverlayEdits.MoveItem(config, words[1], words[2] == "new" ? null : At(2)),
             "drag" => OverlayEdits.DragOff(config, words[1], new Position(At(2), At(3))),
-            "resize" => OverlayEdits.Resize(config, At(1), double.Parse(words[2], CultureInfo.InvariantCulture), Enum.Parse<Orientation>(words[3], ignoreCase: true)),
+            "resize" => OverlayEdits.Resize(
+                config,
+                At(1),
+                double.Parse(words[2], CultureInfo.InvariantCulture),
+                Enum.Parse<Orientation>(words[3], ignoreCase: true)),
             "desk" => Desk(config, words),
             "corner" => Corner(config, DesktopGestures.Corner(1, At(1), At(2), At(3), At(4))),
             _ => OverlayEdits.Nudge(config, At(1), At(2), At(3)),
@@ -124,7 +131,8 @@ public sealed class OverlayEditTests
     }
 
     // The first overlay's corner dragged on the desktop, at 100 %.
-    private static EditResult Corner(ThermiConfig config, (double Size, Orientation Orientation) dragged) => OverlayEdits.Resize(config, 0, dragged.Size, dragged.Orientation);
+    private static EditResult Corner(ThermiConfig config, (double Size, Orientation Orientation) dragged) =>
+        OverlayEdits.Resize(config, 0, dragged.Size, dragged.Orientation);
 
     // A pill, held with Ctrl when its word says "ctrl+", or the edge, of an overlay as the main monitor shows it, dropped
     // where the words say, near a snap mark or onto the overlay they name.

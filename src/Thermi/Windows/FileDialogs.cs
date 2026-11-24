@@ -13,11 +13,23 @@ internal static class FileDialogs
 
     /// <summary>The file picked to open, or null when the dialog was cancelled.</summary>
     public static string? Open(HWND owner, string kind, string extension) =>
-        Pick(owner, kind, extension, "", OPEN_FILENAME_FLAGS.OFN_FILEMUSTEXIST | OPEN_FILENAME_FLAGS.OFN_PATHMUSTEXIST | OPEN_FILENAME_FLAGS.OFN_NOCHANGEDIR, save: false);
+        Pick(
+            owner,
+            kind,
+            extension,
+            "",
+            OPEN_FILENAME_FLAGS.OFN_FILEMUSTEXIST | OPEN_FILENAME_FLAGS.OFN_PATHMUSTEXIST | OPEN_FILENAME_FLAGS.OFN_NOCHANGEDIR,
+            save: false);
 
     /// <summary>The file to save to, starting as <paramref name="name"/>, or null when the dialog was cancelled.</summary>
     public static string? Save(HWND owner, string kind, string extension, string name) =>
-        Pick(owner, kind, extension, name, OPEN_FILENAME_FLAGS.OFN_OVERWRITEPROMPT | OPEN_FILENAME_FLAGS.OFN_PATHMUSTEXIST | OPEN_FILENAME_FLAGS.OFN_NOCHANGEDIR, save: true);
+        Pick(
+            owner,
+            kind,
+            extension,
+            name,
+            OPEN_FILENAME_FLAGS.OFN_OVERWRITEPROMPT | OPEN_FILENAME_FLAGS.OFN_PATHMUSTEXIST | OPEN_FILENAME_FLAGS.OFN_NOCHANGEDIR,
+            save: true);
 
     // The filter is the kind's name and its pattern, each ended by a null, and the list by another.
     private static unsafe string? Pick(HWND owner, string kind, string extension, string name, OPEN_FILENAME_FLAGS flags, bool save)

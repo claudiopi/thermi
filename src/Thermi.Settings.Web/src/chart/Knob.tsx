@@ -32,7 +32,19 @@ function moved(event: KeyboardEvent, value: number, step: number, max: number): 
   return event.key === 'Home' ? 0 : event.key === 'End' ? max : null;
 }
 
-function Box({ label, first, typedFirst, onDone, onTyped }: { label: string; first: string; typedFirst: boolean; onDone: (back: 'knob' | 'none') => void; onTyped: (typed: string) => Promise<string | null> }) {
+function Box({
+  label,
+  first,
+  typedFirst,
+  onDone,
+  onTyped,
+}: {
+  label: string;
+  first: string;
+  typedFirst: boolean;
+  onDone: (back: 'knob' | 'none') => void;
+  onTyped: (typed: string) => Promise<string | null>;
+}) {
   const [typed, setTyped] = useState(first);
   const [refused, setRefused] = useState<string | null>(null);
   const reason = useId();

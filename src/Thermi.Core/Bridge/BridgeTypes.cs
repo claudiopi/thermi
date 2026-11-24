@@ -87,15 +87,24 @@ public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> S
 {
     /// <summary>
     /// The snapshot's sensors with the names the catalog shows, the user's <paramref name="own"/> or a probable one, so a
-    /// sensor has one name everywhere; a value that is no number as null, since the page's JSON has no NaN.
+    /// sensor has one name everywhere; a value that is no number as null, since the page's JSON has no NaN. A constant, as
+    /// a memory module's limits, is no sensor to pick, so it is left out.
     /// </summary>
     public static SensorView Of(ServiceState service, Snapshot? snapshot, IReadOnlyDictionary<string, string>? own, Texts texts) =>
-        new(service, service == ServiceState.Stopped || snapshot is null ? [] : [.. SensorNames.Named(snapshot, own, texts).Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)]);
+        new(
+            service,
+            service == ServiceState.Stopped || snapshot is null
+                ? []
+                : [.. SensorNames.Named(snapshot, own, texts).Where(sensor => !SensorCatalog.Constant(sensor))
+                    .Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)]);
 }
 
 public sealed record Rect(int X, int Y, int Width, int Height);
 
-/// <summary>A monitor by its EDID id, its whole area and the part windows take, whether a taskbar sits on it, and why its taskbar spots float, if they do.</summary>
+/// <summary>
+/// A monitor by its EDID id, its whole area and the part windows take, whether a taskbar sits on it,
+/// and why its taskbar spots float, if they do.
+/// </summary>
 public sealed record MonitorView(string Id, bool Primary, Rect Bounds, Rect WorkArea, double Scale, bool Taskbar, TaskbarFloat? Floats = null);
 
 public enum FinderPhase
@@ -128,6 +137,15 @@ public sealed class DesktopPickEventArgs(int overlay, string? item, SelectHow ho
     public string? Item { get; } = item;
 
     public SelectHow How { get; } = how;
+}
+
+/// <summary>
+/// What a change may have touched: the sensors, which the page reads again only then, when they came or went or the
+/// service started or stopped, or when it sees their names or the language change in the settings.
+/// </summary>
+public sealed class WindowChangeEventArgs(bool sensors) : EventArgs
+{
+    public bool Sensors { get; } = sensors;
 }
 
 /// <summary>The settings as the page reads them.</summary>

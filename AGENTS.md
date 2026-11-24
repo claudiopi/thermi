@@ -27,7 +27,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 - `pwsh scripts/check.ps1`: restore, format, the third-party notices, the test count, Release build, tests and coverage, then the settings page's type check, lint, react-doctor, unit tests, dead code (knip) and Playwright tests with axe. The CI runs the same script, each half in a job of its own (`-Part DotNet`, `-Part Web`). Run it before every PR.
 - `pwsh scripts/check.ps1 -Mutation`: the same, then Stryker.NET's mutation score of `Thermi.Core`'s tests and StrykerJS's of the page's logic, which measure them better than coverage. Slow: run it when you change Core, the page's logic or their tests. `pwsh scripts/mutation.ps1 --disable-bail` runs Stryker.NET alone and lists every test that kills each mutant.
 - `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]`: open the real settings window (the installed one by default) with WebView2's debugging port, click through every screen, and fail on any error the page shows or logs. Run it before a person gets a build; close any open settings window first.
-- `pwsh scripts/measure.ps1 [-Window] [-Exe <thermi.exe>] [-Seconds <n>]`: measure for 60 s what the overlay, the settings window with its WebView2 processes (`-Window` opens it and closes it after) and the sensor service cost, CPU as a percent of one core and private memory, and fail past their budgets: the overlay 0.5 %, the idle window with its page's renderer 1 %, the service 80 MB. Run it on the installed build after a change to what runs each second; a plain build compiles its code as it runs, so it measures high.
+- `pwsh scripts/measure.ps1 [-Window] [-Exe <thermi.exe>] [-Seconds <n>]`: measure for 60 s what the overlay, the settings window with its WebView2 processes (`-Window` opens it and closes it after) and the sensor service cost, CPU as a percent of one core and private memory, and fail past their budgets: the overlay 48 MB and 0.5 %, the idle window with its page's renderer 1 %, the service 80 MB and 3 %. Run it on the installed build after a change to what runs each second; a plain build compiles its code as it runs, so it measures high.
 - `pwsh scripts/oracle.ps1`: after a change to what C# answers the page's edits, undos or looks, or to a page test's calls, run them through the real bridge into the fake's table, `src/Thermi.Settings.Web/tests/oracle/edits.json`; `-Prune` drops what no test asks any longer. A page test that asks the table for what it lacks fails, and so does `BridgeOracleTests` when an answer is stale.
 - `pwsh scripts/mark-icon.ps1`: draw the program's icon, `src/Thermi/thermi.ico`, from thermi's mark again, after changing the mark.
 - `pwsh scripts/notices.ps1`: write `THIRD-PARTY-NOTICES.md` again from the lock files, after adding, removing or updating a package.
@@ -37,7 +37,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 - `thermi-sensors --dump <file>`: save what the sensors read now, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case.
 - `thermi-sensors --dump <file> --seconds <n>`: record a series, one snapshot per second. For the fans' answer to a CPU load, run `thermi-sensors --dump <file> --seconds 45` as administrator, wait 5 s, run `Start-Process -Wait thermi -ArgumentList cpu-load,30` (a windowed program, like `preview`), and let the recording finish.
 - `thermi preview <snapshot> <png> [scale] [settings]`: paint the first overlay for a saved snapshot without showing it, at a scale from 0.25 to 8, with your settings or those of the file given. It is a windowed program: in PowerShell, wrap it in `Start-Process -Wait`; what it refuses shows in the terminal.
-- `thermi settings [--overlay <n>]`: open the settings window on overlay n, counted from 1, or bring the open one to the front. `--pseudo` makes its texts 40 % longer, to see what a long translation does; `--trace`, on the window or the overlay, adds each paint, input and the window's first frame to `%LOCALAPPDATA%\thermi\thermi.log`, where errors always go.
+- `thermi settings [--overlay <n>]`: open the settings window on overlay n, counted from 1, or bring the open one to the front. `--pseudo` makes its texts 40 % longer, to see what a long translation does; `--trace`, on the window or the overlay, adds each paint, input and the window's first frame to its log, `%LOCALAPPDATA%\thermi\thermi.log` for the overlay and `thermi-window.log` for the window, where errors always go.
 
 ## Rules and what enforces them
 
@@ -48,6 +48,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Warnings are errors, nullable is on, analyzers are strict. | `Directory.Build.props`, `Thermi.globalconfig` |
 | Methods up to 40 lines, cognitive complexity up to 15, nesting up to 3, up to 7 parameters. | Sonar, `SonarLint.xml` |
 | Code files up to 400 lines. | `RepoRulesTests` |
+| Code lines up to 160 characters (generated `.g.ts` aside). | `RepoRulesTests` |
 | Code lives in folders by topic, at most 12 C# files directly in any folder, and a namespace follows its folder. | `RepoRulesTests`, IDE0130 |
 | `Thermi.Core` depends on nothing, Windows included. | its target framework, `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
@@ -57,6 +58,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
 | Every class logs through an injected `ILogger`, each event a `[LoggerMessage]`; no static log, `Trace` or `Debug`. | `BannedSymbols.txt`, CA1848, CA2254 |
 | Win32 calls are generated by CsWin32 from `NativeMethods.txt`, never declared by hand. | `RepoRulesTests` |
+| No test shows a window or starts a process on the user's desktop: windows are made under `TestWindows.OnOwnDesktop`, processes start through `DesktopProcess`, both on a desktop of the tests' own. | `RepoRulesTests` |
 | No TODOs in code: open an issue. | MA0026 |
 | Comments say why, never what. No process history (issue numbers, "for now") in production code. | `RepoRulesTests`, comment-trimmer |
 | Docs only cite paths that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |

@@ -24,6 +24,19 @@ public sealed class StartWithWindowsTests
         Assert.Null(run.Value);
     }
 
+    // A value left by a thermi installed elsewhere starts nothing: the switch shows off, and turning it on writes this one.
+    [Fact]
+    public void AnEntryOfAnotherPathShowsOffAndTurningItOnWritesThisOne()
+    {
+        using var run = new TestRunKey();
+        run.Write(@"""C:\Program Files\thermi 0.1\thermi.exe""");
+
+        var before = run.Startup.On;
+        run.Startup.Set(on: true);
+
+        Assert.Equal((false, true, $"\"{TestRunKey.Exe}\""), (before, run.Startup.On, run.Value));
+    }
+
     // Task Manager's Startup tab turns an app off beside the Run key, in StartupApproved, whose first byte is odd while
     // off: the switch shows it off then, and turning it on clears that, leaving the Run value as it was.
     [Fact]
@@ -87,6 +100,12 @@ internal sealed class TestRunKey : IDisposable
             using var key = Registry.CurrentUser.OpenSubKey(_parent + @"\StartupApproved");
             return key?.GetValue(StartWithWindows.ValueName) is byte[] { Length: > 0 } bytes ? bytes[0] : null;
         }
+    }
+
+    public void Write(string value)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(_parent + @"\Run");
+        key.SetValue(StartWithWindows.ValueName, value);
     }
 
     /// <summary>Writes the entry as Task Manager does: its state, then the time it changed.</summary>

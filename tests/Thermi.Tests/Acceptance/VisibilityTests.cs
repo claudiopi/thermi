@@ -18,7 +18,13 @@ public sealed class VisibilityTests
     // off every monitor, which shows at the default snap.
     private static readonly ThermiConfig FourOverlays = new()
     {
-        Overlays = [new OverlayConfig(), new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopLeft, Right.Id) }, new OverlayConfig { Position = new Position(3000, 500) }, new OverlayConfig { Position = new Position(-900, 500) }],
+        Overlays =
+        [
+            new OverlayConfig(),
+            new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopLeft, Right.Id) },
+            new OverlayConfig { Position = new Position(3000, 500) },
+            new OverlayConfig { Position = new Position(-900, 500) },
+        ],
     };
 
     private static readonly ForegroundWindow InFront = App(new PixelRect(3000, 200, 3400, 600)) with { ClassName = "WorkerW", Monitor = Right.Bounds };
@@ -86,7 +92,9 @@ public sealed class VisibilityTests
         }
 
         Assert.Equal(pressed, string.Join(',', names));
-        Assert.True(styles.Length > 0 || ReferenceEquals(config, OverlayEdits.NextStyle(config, styles)), "With no saved style, the next style changes nothing.");
+        Assert.True(
+            styles.Length > 0 || ReferenceEquals(config, OverlayEdits.NextStyle(config, styles)),
+            "With no saved style, the next style changes nothing.");
     }
 
     // Overlays as their visibility, with +hidden for one hidden on its own; steps of D (decide), H ("Hide overlays" from a
@@ -101,7 +109,8 @@ public sealed class VisibilityTests
     [InlineData("Always,OnlyInFullscreen", "D=10 H=00 K=10 Da=11")]
     public void HideOverlaysIsAFlagThatIsNeverSaved(string overlays, string steps)
     {
-        var parts = overlays.Split(',').Select(overlay => overlay.Split('+')).Select(part => $"{{'visibility':'{JsonNamingPolicy.KebabCaseLower.ConvertName(part[0])}','hidden':{(part.Length > 1 ? "true" : "false")}}}");
+        var parts = overlays.Split(',').Select(overlay => overlay.Split('+')).Select(part =>
+            $"{{'visibility':'{JsonNamingPolicy.KebabCaseLower.ConvertName(part[0])}','hidden':{(part.Length > 1 ? "true" : "false")}}}");
         var file = $"{{'version':2,'overlays':[{string.Join(',', parts)}]}}".Replace('\'', '"');
         var config = ThermiConfigJson.Read(file).Config;
         var visibility = new OverlayVisibility();

@@ -35,7 +35,13 @@ public static class PowerEdits
     /// Adds an item that combines sensors of one type, as their highest, average or sum, placed and named from the first
     /// sensor as a sensor's item is. A sum of temperatures means nothing, so it is refused.
     /// </summary>
-    public static EditResult AddCombined(ThermiConfig config, int overlay, Snapshot snapshot, IReadOnlyList<string> sensorIds, Combine combine, Texts? texts = null) =>
+    public static EditResult AddCombined(
+        ThermiConfig config,
+        int overlay,
+        Snapshot snapshot,
+        IReadOnlyList<string> sensorIds,
+        Combine combine,
+        Texts? texts = null) =>
         ConfigEdits.OnOverlay(config, overlay, () =>
         {
             var ids = sensorIds.Distinct(StringComparer.Ordinal).ToList();
@@ -47,7 +53,8 @@ public static class PowerEdits
 
             var language = texts ?? Texts.English;
             var first = sensors[0]!;
-            return ItemEdits.Insert(config, overlay, first, new ItemConfig { Sensors = ids, Combine = combine, Name = Names.OfItem(config, first, ids[0], language) }, language);
+            var item = new ItemConfig { Sensors = ids, Combine = combine, Name = Names.OfItem(config, first, ids[0], language) };
+            return ItemEdits.Insert(config, overlay, first, item, language);
         });
 
     /// <summary>
@@ -66,7 +73,10 @@ public static class PowerEdits
         var kinds = ids.Select(sensor => SensorMap.Find(snapshot, sensor) is { } read ? SensorMap.KindOf(read) : null).Distinct().ToList();
         return Refused(ids.Count, kinds, combine) is { } refused
             ? ConfigEdits.Refuse(config, refused)
-            : ConfigEdits.Edit(config, id, each => each with { Metric = null, Sensor = null, Sensors = ids, Combine = combine, Auto = each.Metric ?? each.Auto });
+            : ConfigEdits.Edit(
+                config,
+                id,
+                each => each with { Metric = null, Sensor = null, Sensors = ids, Combine = combine, Auto = each.Metric ?? each.Auto });
     }
 
     /// <summary>Changes how a combined item joins its sensors; never into a sum of temperatures, nor of sensors whose type is not known now.</summary>
@@ -86,7 +96,10 @@ public static class PowerEdits
         return refusal is { } refused ? ConfigEdits.Refuse(config, refused) : ConfigEdits.Edit(config, id, each => each with { Combine = combine });
     }
 
-    /// <summary>Sets the fixed offset added to the item's value, within its type's range; a temperature's in °C, as <see cref="Temperatures.KeptDifference"/> gives it.</summary>
+    /// <summary>
+    /// Sets the fixed offset added to the item's value, within its type's range;
+    /// a temperature's in °C, as <see cref="Temperatures.KeptDifference"/> gives it.
+    /// </summary>
     public static EditResult SetOffset(ThermiConfig config, string id, Snapshot snapshot, double offset)
     {
         if (ConfigEdits.Item(config, id) is not { } item)
@@ -112,7 +125,8 @@ public static class PowerEdits
     public static EditResult SetSmooth(ThermiConfig config, string id, int seconds) => ConfigEdits.Edit(config, id, item => item with { Smooth = seconds });
 
     /// <summary>Shows 0, 1 or 2 decimals, or with null its type's own; the room the item keeps follows.</summary>
-    public static EditResult SetDecimals(ThermiConfig config, string id, int? decimals) => ConfigEdits.Edit(config, id, item => item with { Decimals = decimals });
+    public static EditResult SetDecimals(ThermiConfig config, string id, int? decimals) =>
+        ConfigEdits.Edit(config, id, item => item with { Decimals = decimals });
 
     /// <summary>Shows a throughput in bits per second, or back in bytes; its lines and the file stay in bytes.</summary>
     public static EditResult SetBits(ThermiConfig config, string id, bool bits) => ConfigEdits.Edit(config, id, item => item with { Bits = bits });
@@ -121,7 +135,8 @@ public static class PowerEdits
     public static EditResult SetGraph(ThermiConfig config, string id, bool graph) => Metered(config, id, graph, item => item with { Graph = graph });
 
     /// <summary>Shows the item only while its meter is at warning or critical; an item without a meter never would.</summary>
-    public static EditResult SetAlertOnly(ThermiConfig config, string id, bool alertOnly) => Metered(config, id, alertOnly, item => item with { AlertOnly = alertOnly });
+    public static EditResult SetAlertOnly(ThermiConfig config, string id, bool alertOnly) =>
+        Metered(config, id, alertOnly, item => item with { AlertOnly = alertOnly });
 
     /// <summary>Notifies once the item has been critical a while; only an item with a meter can be.</summary>
     public static EditResult SetNotify(ThermiConfig config, string id, bool notify) => Metered(config, id, notify, item => item with { Notify = notify });

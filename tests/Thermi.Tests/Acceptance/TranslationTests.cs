@@ -24,7 +24,9 @@ public sealed class TranslationTests
         var history = new UndoHistory();
         var chosen = Done(history, new ThermiConfig(), config => ThermiEdits.SetLanguage(config, "es"));
 
-        var picked = new[] { CultureInfo.GetCultureInfo("es-UY"), CultureInfo.GetCultureInfo("fr-FR"), English }.Select(windows => Texts.Pick(null, windows)).Append(Texts.Pick(chosen.Language, English));
+        var picked = new[] { CultureInfo.GetCultureInfo("es-UY"), CultureInfo.GetCultureInfo("fr-FR"), English }
+            .Select(windows => Texts.Pick(null, windows))
+            .Append(Texts.Pick(chosen.Language, English));
 
         Assert.Equal(["es", "en", "en", "es"], picked);
         Assert.Equal(("RED", "Salir"), (Texts.Of("es").Of(MetricLabel.Net), Texts.For(chosen.Language, English).Of(UiText.Exit)));
@@ -43,10 +45,16 @@ public sealed class TranslationTests
         var englishOnSpanishFormat = OverlayLayout.Build(overlay, readings, CultureInfo.GetCultureInfo("es-ES"), Texts.English);
         var spanishOnEnglishFormat = OverlayLayout.Build(overlay, readings, English, Texts.Of("es"));
 
-        Assert.Equal([(null, "1.087 RPM"), ("RAM", "27,2 GB")], new[] { englishOnSpanishFormat[1], englishOnSpanishFormat[^1] }.Select(item => (item.Label, item.Value)));
-        Assert.Equal([(null, "1,087 RPM"), ("RAM", "27.2 GB")], new[] { spanishOnEnglishFormat[1], spanishOnEnglishFormat[^1] }.Select(item => (item.Label, item.Value)));
+        Assert.Equal(
+            [(null, "1.087 RPM"), ("RAM", "27,2 GB")],
+            new[] { englishOnSpanishFormat[1], englishOnSpanishFormat[^1] }.Select(item => (item.Label, item.Value)));
+        Assert.Equal(
+            [(null, "1,087 RPM"), ("RAM", "27.2 GB")],
+            new[] { spanishOnEnglishFormat[1], spanishOnEnglishFormat[^1] }.Select(item => (item.Label, item.Value)));
         Assert.EndsWith(" 1,5", Texts.English.Format(CultureInfo.GetCultureInfo("es-ES"), UiText.OverlayName, 1.5), StringComparison.Ordinal);
-        Assert.Equal(Texts.Of("es").Of(Refusal.Invalid).Replace("{0}", "size", StringComparison.Ordinal), Texts.Of("es-UY").Format(English, Refusal.Invalid, "size"));
+        Assert.Equal(
+            Texts.Of("es").Of(Refusal.Invalid).Replace("{0}", "size", StringComparison.Ordinal),
+            Texts.Of("es-UY").Format(English, Refusal.Invalid, "size"));
         Assert.Equal("Refusal.NoMeter", Texts.Key(Refusal.NoMeter));
     }
 }

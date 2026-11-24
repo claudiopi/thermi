@@ -5,7 +5,10 @@ using Thermi.Core.Translations;
 
 namespace Thermi.Core.Look;
 
-/// <summary>The chart line's color at a value, by the meter's lines: from cool, through the middle color, to warm at the warning and hot at the critical.</summary>
+/// <summary>
+/// The chart line's color at a value, by the meter's lines:
+/// from cool, through the middle color, to warm at the warning and hot at the critical.
+/// </summary>
 public enum ChartColor
 {
     Cool,
@@ -45,6 +48,18 @@ public enum ChartText
 
     /// <summary>Above a duty's chart, which reads in % where its item reads in RPM.</summary>
     DutyTitle,
+
+    /// <summary>Above the chart of the RAM in use, which reads in % where its item reads in GB.</summary>
+    RamTitle,
+
+    /// <summary>The button of lines that fire most of the time, which puts back the defaults: the warning, then the critical with its unit.</summary>
+    UseLines,
+
+    /// <summary>The same button when the default is a warning alone, with its unit.</summary>
+    UseLine,
+
+    /// <summary>The same button when the default is no lines.</summary>
+    UseNoLines,
 }
 
 /// <summary>
@@ -94,10 +109,20 @@ public static class MeterChart
     }
 
     /// <summary>
+    /// The scale of the chart of an item's own reading, for an item that has no meter: no lines, and null for a reading
+    /// that is no number to draw, as a time of day, an address or a time since start.
+    /// </summary>
+    public static MeterScale? OfReading(string sensor, Snapshot snapshot)
+    {
+        var kind = Metrics.Find(sensor)?.Kind ?? (SensorMap.Find(snapshot, sensor) is { } read ? SensorMap.KindOf(read) : null);
+        return kind is { } known and not (SensorKind.Time or SensorKind.Address or SensorKind.Duration) ? new MeterScale(known, null, null, 1, 5) : null;
+    }
+
+    /// <summary>
     /// The chart's range over <paramref name="readings"/> and the lines. A percentage's runs from 0 to 100; a temperature's
     /// from the lowest less 6, down to tens and never under 0, to the highest plus 3, up to fives and never over 100 °C; a
-    /// fan's from 0 to the highest, at least 500, plus 15 %, up to 500 RPM; a throughput's from 0 to the highest plus 15 %,
-    /// up to a 1-2-5 step.
+    /// fan's from 0 to the highest, at least 500, plus 15 %, up to 500 RPM; a throughput's, and any other reading's, from 0
+    /// to the highest plus 15 %, up to a 1-2-5 step.
     /// </summary>
     public static (double From, double To) Range(MeterScale scale, IReadOnlyList<double> readings)
     {
@@ -110,7 +135,8 @@ public static class MeterChart
 
         return scale.Kind == SensorKind.Fan ? (0, Math.Ceiling(Math.Max(highest, FanChartStep) * Headroom / FanChartStep) * FanChartStep)
             : scale.Kind == SensorKind.Throughput ? (0, OneTwoFive(Math.Max(highest * Headroom, SmallestThroughputTop)))
-            : (0, 100);
+            : scale.Kind is SensorKind.Load or SensorKind.Control ? (0, 100)
+            : (0, OneTwoFive(Math.Max(highest * Headroom, 1)));
     }
 
     /// <summary>
@@ -177,19 +203,28 @@ public static class MeterChart
 
         if (!double.TryParse(typed, NumberStyles.Float, format.Numbers, out var shown))
         {
-            return format.Texts.Format(format.Numbers, ChartText.NotANumber, ReadingFormatter.Format(scale.Kind, scale.Critical ?? scale.Warning ?? scale.Max, format, units: false));
+            return format.Texts.Format(
+                format.Numbers,
+                ChartText.NotANumber,
+                ReadingFormatter.Format(scale.Kind, scale.Critical ?? scale.Warning ?? scale.Max, format, units: false));
         }
 
         var kept = scale.Kind == SensorKind.Temperature ? Temperatures.Kept(shown, format.Temperature) : shown;
         return kept >= 0 && kept <= scale.Max ? null
-            : format.Texts.Format(format.Numbers, ChartText.OutOfRange, ReadingFormatter.Format(scale.Kind, 0, format, units: false), ReadingFormatter.Format(scale.Kind, scale.Max, format));
+            : format.Texts.Format(
+                format.Numbers,
+                ChartText.OutOfRange,
+                ReadingFormatter.Format(scale.Kind, 0, format, units: false),
+                ReadingFormatter.Format(scale.Kind, scale.Max, format));
     }
 
     /// <summary>What the chart says when the line moved pushed the other out of its way, or null when it did not.</summary>
     public static string? PushText(MeterScale scale, MovedLines lines, ValueFormat format) => lines switch
     {
-        { Pushed: ChartLine.Warning, Warning: { } warning } => format.Texts.Format(format.Numbers, ChartText.WarningPushed, ReadingFormatter.Format(scale.Kind, warning, format)),
-        { Pushed: ChartLine.Critical, Critical: { } critical } => format.Texts.Format(format.Numbers, ChartText.CriticalPushed, ReadingFormatter.Format(scale.Kind, critical, format)),
+        { Pushed: ChartLine.Warning, Warning: { } warning } =>
+            format.Texts.Format(format.Numbers, ChartText.WarningPushed, ReadingFormatter.Format(scale.Kind, warning, format)),
+        { Pushed: ChartLine.Critical, Critical: { } critical } =>
+            format.Texts.Format(format.Numbers, ChartText.CriticalPushed, ReadingFormatter.Format(scale.Kind, critical, format)),
         _ => null,
     };
 

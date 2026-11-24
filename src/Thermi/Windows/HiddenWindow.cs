@@ -79,7 +79,14 @@ internal static class HiddenWindow
         }
 
         found?.Invoke(window);
-        var answered = PInvoke.SendMessageTimeout(window, message, wParam, 0, SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG, (uint)AnswerTimeout.TotalMilliseconds, out var answer);
+        var answered = PInvoke.SendMessageTimeout(
+            window,
+            message,
+            wParam,
+            0,
+            SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG,
+            (uint)AnswerTimeout.TotalMilliseconds,
+            out var answer);
         return answered != 0 ? (nint)answer : null;
     }
 
@@ -101,7 +108,14 @@ internal static class HiddenWindow
         var id = PInvoke.RegisterWindowMessage(WindowMessages.NameOf(message));
         if (message is HistoryAsked)
         {
-            return PInvoke.SendMessageTimeout(window, id, 0, 0, SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG, (uint)AnswerTimeout.TotalMilliseconds, out _) != 0;
+            return PInvoke.SendMessageTimeout(
+                window,
+                id,
+                0,
+                0,
+                SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG,
+                (uint)AnswerTimeout.TotalMilliseconds,
+                out _) != 0;
         }
 
         var payload = WindowMessages.Encode(message);
@@ -114,7 +128,14 @@ internal static class HiddenWindow
         fixed (byte* data = payload)
         {
             var copy = new COPYDATASTRUCT { dwData = id, cbData = (uint)payload.Length, lpData = data };
-            return PInvoke.SendMessageTimeout(window, PInvoke.WM_COPYDATA, (nuint)(nint)sender, (nint)(&copy), SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG, (uint)AnswerTimeout.TotalMilliseconds, out _) != 0;
+            return PInvoke.SendMessageTimeout(
+                window,
+                PInvoke.WM_COPYDATA,
+                (nuint)(nint)sender,
+                (nint)(&copy),
+                SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG,
+                (uint)AnswerTimeout.TotalMilliseconds,
+                out _) != 0;
         }
     }
 
@@ -143,12 +164,19 @@ internal static class HiddenWindow
             return null;
         }
 
-        var decoded = copy->cbData <= WindowMessages.MaxLength ? WindowMessages.Decode(new ReadOnlySpan<byte>(copy->lpData, (int)copy->cbData)) : null;
-        dropped = decoded is null || PInvoke.RegisterWindowMessage(WindowMessages.NameOf(decoded)) != copy->dwData || (decoded is not Raise && !Peer((HWND)(nint)wParam, from));
+        var decoded = copy->cbData <= WindowMessages.MaxLength
+            ? WindowMessages.Decode(new ReadOnlySpan<byte>(copy->lpData, (int)copy->cbData))
+            : null;
+        dropped = decoded is null
+            || PInvoke.RegisterWindowMessage(WindowMessages.NameOf(decoded)) != copy->dwData
+            || (decoded is not Raise && !Peer((HWND)(nint)wParam, from));
         return dropped ? null : decoded;
     }
 
-    /// <summary>Lets the process of <paramref name="window"/> take the front, which this one may give away while a click or a terminal gave it the right.</summary>
+    /// <summary>
+    /// Lets the process of <paramref name="window"/> take the front, which this one may give away while a click or a
+    /// terminal gave it the right.
+    /// </summary>
     public static void LetTakeTheFront(HWND window)
     {
         PInvoke.GetWindowThreadProcessId(window, out var process);
@@ -158,7 +186,10 @@ internal static class HiddenWindow
     // This process's hidden window of that class, which names the sender of a message; none in a second thermi.
     private static HWND OwnWindow(string className)
     {
-        for (var window = PInvoke.FindWindowEx(HWND.Null, HWND.Null, className, null); !window.IsNull; window = PInvoke.FindWindowEx(HWND.Null, window, className, null))
+        for (
+            var window = PInvoke.FindWindowEx(HWND.Null, HWND.Null, className, null);
+            !window.IsNull;
+            window = PInvoke.FindWindowEx(HWND.Null, window, className, null))
         {
             PInvoke.GetWindowThreadProcessId(window, out var process);
             if (process == (uint)Environment.ProcessId)

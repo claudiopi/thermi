@@ -41,7 +41,17 @@ function LabelRow({ placed, edit, labelAsked }: Pick<ItemRowsProps, 'placed' | '
   return (
     <Card>
       <CardRow label={t('UiText.LabelField')}>
-        <TextField ref={box} className="t-label-box" label={t('UiText.LabelField')} labelShown={false} value={typed ?? item.label ?? ''} placeholder={placed.pill} onChange={setTyped} onCommit={commit} onCancel={() => setTyped(null)} />
+        <TextField
+          ref={box}
+          className="t-label-box"
+          label={t('UiText.LabelField')}
+          labelShown={false}
+          value={typed ?? item.label ?? ''}
+          placeholder={placed.pill}
+          onChange={setTyped}
+          onCommit={commit}
+          onCancel={() => setTyped(null)}
+        />
       </CardRow>
     </Card>
   );
@@ -120,14 +130,24 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
         </div>
       </Card>
       <LabelRow placed={placed} edit={edit} labelAsked={labelAsked} />
-      <Card>
-        <CardRow label={t('UiText.MeterField')}>
-          <Dropdown className="t-meter-box" label={t('UiText.MeterField')} choices={metered.choices} value={metered.value} onChange={meter} />
-        </CardRow>
-      </Card>
-      {item.threshold?.critical !== undefined && <SwitchRow label={t('UiText.NotifyMe')} checked={item.notify === true} onChange={(on) => set('notify', on ? true : null)} />}
+      {metered.row && (
+        <Card>
+          <CardRow label={t('UiText.MeterField')}>
+            <Dropdown className="t-meter-box" label={t('UiText.MeterField')} choices={metered.choices} value={metered.value} onChange={meter} />
+          </CardRow>
+        </Card>
+      )}
+      {item.threshold?.critical !== undefined && (
+        <SwitchRow label={t('UiText.NotifyMe')} checked={item.notify === true} onChange={(on) => set('notify', on ? true : null)} />
+      )}
       {/* The first item of a pill already starts one, so its switch shows On, locked. */}
-      <SwitchRow label={t('UiText.OwnPill')} {...(ownOff ? { description: t('UiText.AlreadyOwnPill') } : {})} checked={item.own === true || ownOff} disabled={ownOff} onChange={(on) => set('own', on ? true : null)} />
+      <SwitchRow
+        label={t('UiText.OwnPill')}
+        {...(ownOff ? { description: t('UiText.AlreadyOwnPill') } : {})}
+        checked={item.own === true || ownOff}
+        disabled={ownOff}
+        onChange={(on) => set('own', on ? true : null)}
+      />
       <SwitchRow label={t('UiText.OwnTrayIcon')} checked={item.tray === true} onChange={(on) => set('tray', on ? true : null)} />
     </>
   );

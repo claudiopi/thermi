@@ -39,7 +39,9 @@ internal sealed class NetworkAdapters
             }
         }
 
-        return adapters.Distinct(StringComparer.Ordinal).ToDictionary(adapter => adapter, adapter => _kinds.GetValueOrDefault(adapter), StringComparer.Ordinal);
+        return adapters
+            .Distinct(StringComparer.Ordinal)
+            .ToDictionary(adapter => adapter, adapter => _kinds.GetValueOrDefault(adapter), StringComparer.Ordinal);
     }
 
     private static Guid? GuidOf(string adapter) =>
@@ -72,6 +74,7 @@ internal sealed class NetworkAdapters
 
     internal static AdapterKind KindOf(in MIB_IF_ROW2 row) =>
         row.InterfaceAndOperStatusFlags.FilterInterface ? AdapterKind.Layer
-        : row.InterfaceAndOperStatusFlags.HardwareInterface && row.Type is not SensorPInvoke.IF_TYPE_SOFTWARE_LOOPBACK and not SensorPInvoke.IF_TYPE_TUNNEL ? AdapterKind.Physical
+        : row.InterfaceAndOperStatusFlags.HardwareInterface
+            && row.Type is not SensorPInvoke.IF_TYPE_SOFTWARE_LOOPBACK and not SensorPInvoke.IF_TYPE_TUNNEL ? AdapterKind.Physical
         : AdapterKind.Virtual;
 }

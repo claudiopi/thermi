@@ -2,7 +2,10 @@ using Thermi.Core.Translations;
 
 namespace Thermi.Core.Sensors;
 
-/// <summary>A value the overlay can show. <see cref="Id"/> never changes between thermi versions: configs name it. <see cref="Name"/> is what the window calls it.</summary>
+/// <summary>
+/// A value the overlay can show. <see cref="Id"/> never changes between thermi versions: configs name it.
+/// <see cref="Name"/> is what the window calls it.
+/// </summary>
 public sealed record Metric(string Id, MetricLabel Label, SensorKind Kind, MetricName Name);
 
 /// <summary>The label a metric's item shows when it has none of its own, in the language of the translations.</summary>
@@ -14,8 +17,6 @@ public enum MetricLabel
     Ram,
     Net,
     Ssd,
-    Read,
-    Write,
     Bat,
     Up,
     Ip,
@@ -82,8 +83,8 @@ public static class Metrics
     public static readonly Metric NetDownload = new("net.download", MetricLabel.Net, SensorKind.Throughput, MetricName.NetDownload);
     public static readonly Metric NetUpload = new("net.upload", MetricLabel.Net, SensorKind.Throughput, MetricName.NetUpload);
     public static readonly Metric DiskActivity = new("disk.activity", MetricLabel.Ssd, SensorKind.Load, MetricName.DiskActivity);
-    public static readonly Metric DiskRead = new("disk.read", MetricLabel.Read, SensorKind.Throughput, MetricName.DiskRead);
-    public static readonly Metric DiskWrite = new("disk.write", MetricLabel.Write, SensorKind.Throughput, MetricName.DiskWrite);
+    public static readonly Metric DiskRead = new("disk.read", MetricLabel.Ssd, SensorKind.Throughput, MetricName.DiskRead);
+    public static readonly Metric DiskWrite = new("disk.write", MetricLabel.Ssd, SensorKind.Throughput, MetricName.DiskWrite);
     public static readonly Metric BatteryCharge = new("battery.charge", MetricLabel.Bat, SensorKind.Load, MetricName.BatteryCharge);
     public static readonly Metric BatteryRate = new("battery.rate", MetricLabel.Bat, SensorKind.Power, MetricName.BatteryRate);
     public static readonly Metric BatteryTime = new("battery.time", MetricLabel.Bat, SensorKind.Duration, MetricName.BatteryTime);
@@ -106,7 +107,7 @@ public static class Metrics
         MetricLabel.Gpu => DeviceKind.Gpu,
         MetricLabel.Ram => DeviceKind.Ram,
         MetricLabel.Net => DeviceKind.Network,
-        MetricLabel.Ssd or MetricLabel.Read or MetricLabel.Write => DeviceKind.Ssd,
+        MetricLabel.Ssd => DeviceKind.Ssd,
         MetricLabel.Bat => DeviceKind.Battery,
         MetricLabel.Up or MetricLabel.Ip or MetricLabel.Time => DeviceKind.System,
         _ => throw new ArgumentOutOfRangeException(nameof(metric), metric.Label, "Unknown metric label."),

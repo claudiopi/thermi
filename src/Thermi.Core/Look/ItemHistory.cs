@@ -34,7 +34,8 @@ public sealed class ItemHistory(TimeProvider time)
             foreach (var item in overlay.Items)
             {
                 values[item.Id] = OverlayLayout.ReadingOf(item, readings) ?? Nothing;
-                meters[item.Id] = OverlayLayout.MeterOf(item, readings) ?? Nothing;
+                // An item without a meter charts its own reading.
+                meters[item.Id] = (item.Meter is null ? values[item.Id] : OverlayLayout.MeterOf(item, readings)) ?? Nothing;
             }
         }
 
@@ -101,9 +102,14 @@ public sealed class ItemHistory(TimeProvider time)
 
     /// <summary>The meter's last minute, a value a second and oldest first, each colored by the item's thresholds; null where it was missing.</summary>
     public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) =>
-        [.. _meters.LastMinute(item.Id).Select(value => value is { } read ? new GraphPoint(OverlayLayout.FillOf(read), item.Threshold?.LevelOf(new Reading(SensorKind.Load, read)) ?? Level.Normal) : (GraphPoint?)null)];
+        [.. _meters.LastMinute(item.Id).Select(value => value is { } read
+            ? new GraphPoint(OverlayLayout.FillOf(read), item.Threshold?.LevelOf(new Reading(SensorKind.Load, read)) ?? Level.Normal)
+            : (GraphPoint?)null)];
 
-    /// <summary>An item's meter over the last ten minutes, a value a second and oldest first, from its first reading on; null where it was missing.</summary>
+    /// <summary>
+    /// An item's meter over the last ten minutes, or its own reading where it has no meter, a value a second and oldest
+    /// first, from its first reading on; null where it was missing.
+    /// </summary>
     public IReadOnlyList<double?> TenMinutes(string itemId) => _meters.Last(itemId, (int)SensorHistory.Kept.TotalSeconds);
 
     private double? Smoothed(ItemConfig item)

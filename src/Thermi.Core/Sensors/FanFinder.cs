@@ -20,7 +20,10 @@ public enum FanFinderOutcome
     /// <summary>One fan rose clearly, and <see cref="FanFinderResult.Fan"/> names it.</summary>
     Found,
 
-    /// <summary>No fan rose enough. The window adds that the fans may follow a curve set by fan-control software, and that the fan can be picked by hand in the catalog.</summary>
+    /// <summary>
+    /// No fan rose enough. The window adds that the fans may follow a curve set by fan-control software,
+    /// and that the fan can be picked by hand in the catalog.
+    /// </summary>
     NoFanRose,
 
     /// <summary>A fan rose enough, but another rose more than half as much.</summary>
@@ -56,7 +59,10 @@ public sealed class FanFinder
 
     public static readonly TimeSpan MaxRun = TimeSpan.FromSeconds(30);
 
-    /// <summary>One lost reading still leaves two in each 3 s average; two in a row is a gap. Halfway between whole seconds, so jitter never decides.</summary>
+    /// <summary>
+    /// One lost reading still leaves two in each 3 s average; two in a row is a gap.
+    /// Halfway between whole seconds, so jitter never decides.
+    /// </summary>
     public static readonly TimeSpan MaxGap = TimeSpan.FromSeconds(2.5);
 
     // Each average spans 3 s, and a fan meets the rule for as long before it is picked.
@@ -116,7 +122,9 @@ public sealed class FanFinder
         _samples.Add(Sample.Of(snapshot, now));
         if (_loadAt is { } loadAt)
         {
-            Rising = Rises(loadAt, now).Where(rise => rise.Rpm > 0).MaxBy(rise => rise.Rpm) is { } most ? new FanRise(most.Fan, most.Rpm, most.Before > 0 ? most.Rpm / most.Before : 0) : null;
+            Rising = Rises(loadAt, now).Where(rise => rise.Rpm > 0).MaxBy(rise => rise.Rpm) is { } most
+                ? new FanRise(most.Fan, most.Rpm, most.Before > 0 ? most.Rpm / most.Before : 0)
+                : null;
             Follow(loadAt, now);
         }
         else if (Since(_startedAt, now) >= Baseline)

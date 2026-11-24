@@ -94,7 +94,9 @@ $text = @(
     Format-Table 'thermi-sensors' 'The sensor service.' (Get-NuGetRows 'Thermi.SensorHost')
     Format-Table 'thermi' 'The overlay and the settings window.' (Get-NuGetRows 'Thermi')
     Format-Table 'The settings window''s page' 'Built into thermi.exe; only what the page imports ends up in it.' (Get-NpmRows)
-    'thermi does not ship the PawnIO driver that LibreHardwareMonitor uses, nor the WebView2 runtime: the driver comes from its own release when the window installs it (`docs/adr/0010-driver-and-service-from-the-window.md`), and the runtime with Windows or from Microsoft (`scripts/install.ps1`).'
+    ('thermi does not ship the PawnIO driver that LibreHardwareMonitor uses, nor the WebView2 runtime: the driver comes from its own release ' +
+        'when the window installs it (`docs/adr/0010-driver-and-service-from-the-window.md`), ' +
+        'and the runtime with Windows or from Microsoft (`scripts/install.ps1`).')
 ) -join "`r`n"
 $text += "`r`n"
 

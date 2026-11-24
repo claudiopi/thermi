@@ -47,7 +47,11 @@ public sealed class PipeTests
     [Fact]
     public void SeveralLinesInOneReadAllArrive()
     {
-        var bytes = Encoding.UTF8.GetBytes("[953]\n").Concat(Line(Fan)).Concat(Line(Accented)).Concat(Encoding.UTF8.GetBytes("garbage\n[1,2]\n[8]\n")).ToArray();
+        var bytes = Encoding.UTF8.GetBytes("[953]\n")
+            .Concat(Line(Fan))
+            .Concat(Line(Accented))
+            .Concat(Encoding.UTF8.GetBytes("garbage\n[1,2]\n[8]\n"))
+            .ToArray();
 
         var snapshots = new SnapshotLines().Add(bytes);
 
@@ -61,10 +65,26 @@ public sealed class PipeTests
     {
         var series = TestFiles.Series("ryzen-9950x-rtx-5060-ti-cpu-load-fan-software.jsonl");
         var last = series[^1];
-        var renamed = last with { Sensors = [.. last.Sensors.Select((sensor, at) => at switch { 0 => sensor with { Name = "Renamed" }, 1 => sensor with { Value = null }, 2 => sensor with { Value = double.NaN }, _ => sensor })] };
+        var renamed = last with
+        {
+            Sensors =
+            [
+                .. last.Sensors.Select((sensor, at) => at switch
+                {
+                    0 => sensor with { Name = "Renamed" },
+                    1 => sensor with { Value = null },
+                    2 => sensor with { Value = double.NaN },
+                    _ => sensor,
+                }),
+            ],
+        };
         List<Snapshot> sent = [.. series, renamed, renamed];
         var writer = new SnapshotWriter();
-        var clients = new[] { (From: 0, Lines: new SnapshotLines(), Had: 0, Got: new List<Snapshot>(), Bytes: new List<int>()), (From: series.Count / 2, Lines: new SnapshotLines(), Had: 0, Got: [], Bytes: []) };
+        var clients = new[]
+        {
+            (From: 0, Lines: new SnapshotLines(), Had: 0, Got: new List<Snapshot>(), Bytes: new List<int>()),
+            (From: series.Count / 2, Lines: new SnapshotLines(), Had: 0, Got: [], Bytes: []),
+        };
 
         for (var second = 0; second < sent.Count; second++)
         {
@@ -104,18 +124,37 @@ public sealed class PipeTests
         });
     }
 
-    [Fact]
-    public void AHostThatGoesQuietStopsShowingNumbers()
+    // Whatever the wall clock does meanwhile: set back an hour, as by a person or a time sync, frozen numbers would look
+    // live for that hour.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-60)]
+    public void AHostThatGoesQuietStopsShowingNumbers(int wallMinutes)
     {
-        var clock = new FakeTimeProvider();
+        var clock = new WallShifted(new FakeTimeProvider());
         var latest = new LatestSnapshot(clock);
 
         latest.Set(Fan);
-        clock.Advance(LatestSnapshot.MaxAge);
+        clock.Shift = TimeSpan.FromMinutes(wallMinutes);
+        clock.Fake.Advance(LatestSnapshot.MaxAge);
         Assert.Same(Fan, latest.Current);
 
-        clock.Advance(TimeSpan.FromMilliseconds(1));
+        clock.Fake.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Null(latest.Current);
+    }
+
+    /// <summary>A fake clock whose wall time is moved by <see cref="Shift"/>, while its counter runs on.</summary>
+    private sealed class WallShifted(FakeTimeProvider fake) : TimeProvider
+    {
+        public FakeTimeProvider Fake => fake;
+
+        public TimeSpan Shift { get; set; }
+
+        public override DateTimeOffset GetUtcNow() => fake.GetUtcNow() + Shift;
+
+        public override long GetTimestamp() => fake.GetTimestamp();
+
+        public override long TimestampFrequency => fake.TimestampFrequency;
     }
 
     // R45, R46: readings awaited count as running for as long as a snapshot may take; then the service is stale while its
@@ -147,7 +186,17 @@ public sealed class PipeTests
         states.Add(latest.State);
 
         Assert.Equal(
-            [ServiceState.Running, ServiceState.Stale, ServiceState.Running, ServiceState.Stale, ServiceState.Stopped, ServiceState.Stopped, ServiceState.Running, ServiceState.Running, ServiceState.Stopped],
+            [
+                ServiceState.Running,
+                ServiceState.Stale,
+                ServiceState.Running,
+                ServiceState.Stale,
+                ServiceState.Stopped,
+                ServiceState.Stopped,
+                ServiceState.Running,
+                ServiceState.Running,
+                ServiceState.Stopped,
+            ],
             states);
         Assert.Same(Fan, fresh);
         Assert.Null(latest.Current);

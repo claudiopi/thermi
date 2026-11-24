@@ -90,7 +90,7 @@ export function useWindowNews(onUndo: () => void): { api: NewsApi; toast: ReactN
     ) : undefined;
   const toast = (
     <>
-      <Toast message={news?.message} actions={actions} onHold={setHeld} />
+      <Toast className="t-toast-room" message={news?.message} actions={actions} onHold={setHeld} />
       {saving != null && (
         <NameDialog
           title={t('UiText.SaveAsMyStyle')}

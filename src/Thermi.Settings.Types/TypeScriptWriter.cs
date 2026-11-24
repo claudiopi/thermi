@@ -60,7 +60,7 @@ internal sealed class TypeScriptWriter
         {
             var type = handler.EventHandlerType!;
             var listener = type.IsGenericType ? $"(value: {Of(type.GetGenericArguments()[0], null)}) => void" : "() => void";
-            members.Add($"  {Camel(handler.Name)}(listener: {listener}): void;");
+            members.Add($"  {Camel(handler.Name)}(listener: {listener}): () => void;");
         }
 
         while (_pending.TryDequeue(out var type))
@@ -159,7 +159,11 @@ internal sealed class TypeScriptWriter
         var derived = type.GetCustomAttributes<JsonDerivedTypeAttribute>().ToList();
         if (type.GetCustomAttribute<JsonPolymorphicAttribute>() is { } polymorphic)
         {
-            var kinds = derived.Select(each => $"  | {{ {string.Join("; ", Fields(each.DerivedType).Prepend($"{polymorphic.TypeDiscriminatorPropertyName}: '{each.TypeDiscriminator}'"))} }}");
+            var kinds = derived.Select(each =>
+            {
+                var tag = $"{polymorphic.TypeDiscriminatorPropertyName}: '{each.TypeDiscriminator}'";
+                return $"  | {{ {string.Join("; ", Fields(each.DerivedType).Prepend(tag))} }}";
+            });
             return $"export type {NameOf(type)} =\n{string.Join("\n", kinds)};\n";
         }
 
@@ -183,8 +187,11 @@ internal sealed class TypeScriptWriter
 
             var info = _nullability.Create(property);
             var nullable = info.ReadState == NullabilityState.Nullable;
-            var optional = ignore != JsonIgnoreCondition.Never && !Filled.Contains($"{type.Name}.{property.Name}") && (ignore == JsonIgnoreCondition.WhenWritingDefault || nullable
-                || (parameters.TryGetValue(property.Name, out var parameter) ? parameter.HasDefaultValue : Completed(property.PropertyType)));
+            var optional = ignore != JsonIgnoreCondition.Never
+                && !Filled.Contains($"{type.Name}.{property.Name}")
+                && (ignore == JsonIgnoreCondition.WhenWritingDefault
+                    || nullable
+                    || (parameters.TryGetValue(property.Name, out var parameter) ? parameter.HasDefaultValue : Completed(property.PropertyType)));
             var name = property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? Camel(property.Name);
             var shown = Plain(Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType, info);
             yield return optional ? $"{name}?: {shown}" : nullable && ignore == JsonIgnoreCondition.Never ? $"{name}: {shown} | null" : $"{name}: {shown}";

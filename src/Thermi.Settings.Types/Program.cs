@@ -14,7 +14,8 @@ Directory.CreateDirectory(folder);
 await WriteAsync(Path.Combine(folder, "bridge.g.ts"), new TypeScriptWriter().Bridge(typeof(IWindowBridge)));
 await WriteAsync(Path.Combine(folder, "texts.g.ts"), TextKeys.Write());
 // The script the host runs before the page, so the page's tests hold the wire the real window uses.
-await WriteAsync(Path.Combine(folder, "client.g.ts"), $"{TypeScriptWriter.Header}export const client = {System.Text.Json.JsonSerializer.Serialize(BridgeCalls.Client)};\n");
+var client = System.Text.Json.JsonSerializer.Serialize(BridgeCalls.Client);
+await WriteAsync(Path.Combine(folder, "client.g.ts"), $"{TypeScriptWriter.Header}export const client = {client};\n");
 return 0;
 
 static async Task WriteAsync(string path, string text)

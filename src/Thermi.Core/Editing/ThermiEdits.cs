@@ -29,7 +29,10 @@ public static class ThermiEdits
         return ConfigEdits.Apply(config, current => current with { Hotkeys = hotkeys == new HotkeysConfig() ? null : hotkeys });
     }
 
-    /// <summary>"Click-through on all overlays", as thermi's menu and its hotkey have it: on for every overlay, or off for every one once all have it.</summary>
+    /// <summary>
+    /// "Click-through on all overlays", as thermi's menu and its hotkey have it:
+    /// on for every overlay, or off for every one once all have it.
+    /// </summary>
     public static EditResult ToggleClickThrough(ThermiConfig config)
     {
         var on = !config.Overlays.All(overlay => overlay.ClickThrough);

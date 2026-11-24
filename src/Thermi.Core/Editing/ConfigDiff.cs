@@ -1,3 +1,4 @@
+using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Editing;
@@ -30,11 +31,14 @@ internal static class ConfigDiff
         }
 
         var matched = pairs.Select(pair => pair.After).ToHashSet();
-        operations.AddRange(Enumerable.Range(0, after.Overlays.Count).Where(index => !matched.Contains(index)).Select(index => new OverlayPresence(index, after.Overlays[index], Added: true)));
+        operations.AddRange(Enumerable.Range(0, after.Overlays.Count)
+            .Where(index => !matched.Contains(index))
+            .Select(index => new OverlayPresence(index, after.Overlays[index], Added: true)));
         foreach (var (was, now) in pairs)
         {
             var (first, second) = (before.Overlays[was], after.Overlays[now]);
-            operations.AddRange(Changes(ConfigFields.Overlay, first, second).Select(change => new OverlayChange(now, change.Field, change.Found, change.Wrote)));
+            operations.AddRange(Changes(ConfigFields.Overlay, first, second)
+                .Select(change => new OverlayChange(now, change.Field, change.Found, change.Wrote)));
             operations.AddRange(ItemChanges(first, second));
             operations.AddRange(Placed(now, first, second));
         }
@@ -110,7 +114,11 @@ internal static class ConfigDiff
     {
         var was = before.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
         return after.Items.Where(item => was.ContainsKey(item.Id)).SelectMany(item =>
-            Changes(ConfigFields.Item, was[item.Id], item).Select(change => new ItemChange(item.Id, change.Field, change.Found, change.Wrote, StepNames.KindOf(item))));
+            Changes(ConfigFields.Item, was[item.Id], item)
+                .Select(change => new ItemChange(item.Id, change.Field, change.Found, change.Wrote, StepNames.KindOf(item))
+                {
+                    Unnamed = Metrics.Find(was[item.Id].Metric ?? was[item.Id].Auto)?.Name,
+                }));
     }
 
     // The longest run of items that kept their order stays put; each other item moves, or is added, right

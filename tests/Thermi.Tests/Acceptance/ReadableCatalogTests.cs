@@ -44,19 +44,49 @@ public sealed class ReadableCatalogTests
                 ("/control/2", Duty(LikelyName.SystemFan2), "Fan #3"),
             ],
             rows.Where(row => row.Name.From == NameFrom.Likely).Select(row => (row.Id[Ite.Length..], row.Name.Shown, row.Name.Library)));
-        Assert.All(rows.Where(row => row.Name.From == NameFrom.Likely), row => Assert.Equal(("ITE IT8689E", int.Parse(row.Name.Library.Split('#')[1], CultureInfo.InvariantCulture)), (row.Name.Chip, row.Name.Input)));
+        Assert.All(
+            rows.Where(row => row.Name.From == NameFrom.Likely),
+            row => Assert.Equal(
+                ("ITE IT8689E", int.Parse(row.Name.Library.Split('#')[1], CultureInfo.InvariantCulture)),
+                (row.Name.Chip, row.Name.Input)));
         Assert.Equal(
-            [($"{Ite}/temperature/5", 6), ($"{Ite}/fan/3", 4), ($"{Ite}/fan/4", 5), ($"{Ite}/control/3", 4), ($"{Ite}/control/4", 5), ($"{Ite}/control/5", 6), (Nuvoton, 1)],
+            [
+                ($"{Ite}/temperature/5", 6),
+                ($"{Ite}/fan/3", 4),
+                ($"{Ite}/fan/4", 5),
+                ($"{Ite}/control/3", 4),
+                ($"{Ite}/control/4", 5),
+                ($"{Ite}/control/5", 6),
+                (Nuvoton, 1),
+            ],
             rows.Where(row => row.Name is { From: NameFrom.Library, Chip: not null }).Select(row => (row.Id, row.Name.Input!.Value)));
         Assert.All(rows.Where(row => row.Name.Chip is not null), row => Assert.Equal(row.Sensor.Hardware, row.Name.Chip));
-        Assert.All(rows.Where(row => !row.Id.StartsWith("/lpc/", StringComparison.Ordinal)), row => Assert.Equal(new SensorName(row.Sensor.Name, NameFrom.Library, row.Sensor.Name), row.Name));
+        // Any other sensor keeps the library's name, but a duty, which the library names as its fan, says it is the duty.
+        Assert.All(
+            rows.Where(row => !row.Id.StartsWith("/lpc/", StringComparison.Ordinal)),
+            row => Assert.Equal(
+                new SensorName(
+                    row.Reading.Kind == SensorKind.Control
+                        ? Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, row.Sensor.Name)
+                        : row.Sensor.Name,
+                    NameFrom.Library,
+                    row.Sensor.Name),
+                row.Name));
+        Assert.All(
+            rows.Where(row => row is { Name.From: NameFrom.Library, Reading.Kind: SensorKind.Control }),
+            row => Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, row.Sensor.Name), row.Name.Shown));
 
         var cpu = SensorCatalog.Build(Desktop, texts: spanish).SelectMany(device => device.Sensors).Single(row => row.Id == $"{Ite}/temperature/2");
         Assert.Equal(spanish.Of(LikelyName.Cpu), cpu.Name.Shown);
-        Assert.Equal([$"{Ite}/temperature/4"], SensorCatalog.Filter(devices, Texts.English.Of(LikelyName.Vrm).ToLowerInvariant(), []).SelectMany(device => device.Sensors).Select(row => row.Id));
+        Assert.Equal(
+            [$"{Ite}/temperature/4"],
+            SensorCatalog.Filter(devices, Texts.English.Of(LikelyName.Vrm).ToLowerInvariant(), [])
+                .SelectMany(device => device.Sensors).Select(row => row.Id));
         // The word its note starts with finds every probable name, as the row reads it.
         var likelyWord = Texts.English.Of(CatalogText.LikelyNote).Split(' ')[0];
-        Assert.Equal(rows.Where(row => row.Name.From == NameFrom.Likely).Select(row => row.Id), SensorCatalog.Filter(devices, likelyWord, []).SelectMany(device => device.Sensors).Select(row => row.Id));
+        Assert.Equal(
+            rows.Where(row => row.Name.From == NameFrom.Likely).Select(row => row.Id),
+            SensorCatalog.Filter(devices, likelyWord, []).SelectMany(device => device.Sensors).Select(row => row.Id));
     }
 
     [Fact]
@@ -64,40 +94,58 @@ public sealed class ReadableCatalogTests
     {
         var devices = SensorCatalog.Build(Desktop);
         var rows = devices.SelectMany(device => device.Sensors).ToList();
-        var layers = rows.Where(row => row.Sensor.HardwareType.StartsWith("Gpu", StringComparison.Ordinal) && row.Sensor.Name.StartsWith("D3D ", StringComparison.Ordinal)).Select(row => row.Id).ToList();
+        var layers = rows
+            .Where(row => row.Sensor.HardwareType.StartsWith("Gpu", StringComparison.Ordinal)
+                && row.Sensor.Name.StartsWith("D3D ", StringComparison.Ordinal))
+            .Select(row => row.Id).ToList();
 
-        const string LowLimit = "/memory/dimm/1/temperature/2";
         var (shown, hidden) = SensorCatalog.Hide(devices, new HashSet<string>(StringComparer.Ordinal));
-        var seen = SensorCatalog.Hide(devices, new HashSet<string>([$"{Ite}/fan/1", LowLimit], StringComparer.Ordinal)).Shown.SelectMany(device => device.Sensors);
+        var seen = SensorCatalog.Hide(devices, new HashSet<string>([$"{Ite}/fan/1"], StringComparer.Ordinal))
+            .Shown.SelectMany(device => device.Sensors);
         var (searched, searchHidden) = SensorCatalog.Hide(SensorCatalog.Filter(devices, "d3d", []), new HashSet<string>(StringComparer.Ordinal));
-        var noAdmin = SensorCatalog.Hide(SensorCatalog.Build(NoAdmin), new HashSet<string>(StringComparer.Ordinal)).Shown.SelectMany(device => device.Sensors).ToList();
+        var noAdmin = SensorCatalog.Hide(SensorCatalog.Build(NoAdmin), new HashSet<string>(StringComparer.Ordinal))
+            .Shown.SelectMany(device => device.Sensors).ToList();
 
         string[] nothing = [.. Enumerable.Range(1, 5).Select(index => $"{Ite}/control/{index}")];
         string[] stopped = [.. Enumerable.Range(1, 4).Select(index => $"{Ite}/fan/{index}"), "/gpu-nvidia/0/fan/1"];
-        // A memory module's resolution and low limits, which read 0 °C for good.
-        string[] zeros = [.. new[] { 1, 3 }.SelectMany(dimm => new[] { 1, 2, 4 }.Select(index => $"/memory/dimm/{dimm}/temperature/{index}"))];
-        // Each of the 16 cores' effective clock, which the cores' average effective clock says once.
-        string[] effective = [.. Enumerable.Range(0, 16).Select(core => $"/amdcpu/0/clock/{4 + (2 * core)}")];
+        // The CPU's bus speed, which never moves, and its effective clocks, the time its cores ran: each core's and their average.
+        string[] effective = ["/amdcpu/0/clock/0", "/amdcpu/0/clock/2", .. Enumerable.Range(0, 16).Select(core => $"/amdcpu/0/clock/{4 + (2 * core)}")];
         Assert.Equal(24, layers.Count);
         Assert.Equal(
-            nothing.Concat(stopped).Concat(layers).Concat(zeros).Concat(effective).Order(StringComparer.Ordinal),
-            rows.Select(row => row.Id).Except(shown.SelectMany(device => device.Sensors).Select(row => row.Id), StringComparer.Ordinal).Order(StringComparer.Ordinal));
-        Assert.Equal(nothing.Length + stopped.Length + layers.Count + zeros.Length + effective.Length, hidden);
+            nothing.Concat(stopped).Concat(layers).Concat(effective).Order(StringComparer.Ordinal),
+            rows.Select(row => row.Id)
+                .Except(shown.SelectMany(device => device.Sensors).Select(row => row.Id), StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(nothing.Length + stopped.Length + layers.Count + effective.Length, hidden);
         Assert.DoesNotContain(shown, device => device.Sensors.Count == 0);
         Assert.Contains(seen, row => row is { Id: $"{Ite}/fan/1", Why: NoValue.Stopped });
-        Assert.Contains(seen, row => row.Id == LowLimit);
+        // A memory module's limits, resolution and size never move, so of a module the catalog lists its temperature alone.
+        Assert.Equal(
+            ["/memory/dimm/1/temperature/0", "/memory/dimm/3/temperature/0"],
+            rows.Where(row => row.Id.StartsWith("/memory/dimm/", StringComparison.Ordinal)).Select(row => row.Id));
 
         // Of the recorded adapters only the Ethernet one moves data; the idle ones show once they have moved any.
         Assert.Equal([MadeUpHardware.Ethernet], Adapters(new HashSet<string>(StringComparer.Ordinal)));
-        Assert.Equal([MadeUpHardware.Ethernet, MadeUpHardware.WiFi], Adapters(new HashSet<string>([$"{MadeUpHardware.WiFi}/throughput/8"], StringComparer.Ordinal)));
+        Assert.Equal(
+            [MadeUpHardware.Ethernet, MadeUpHardware.WiFi],
+            Adapters(new HashSet<string>([$"{MadeUpHardware.WiFi}/throughput/8"], StringComparer.Ordinal)));
 
         // A drive's fixed limits and wear counters never move, so the catalog lists only its temperatures, load and rates.
         Assert.Equal(
-            ["/nvme/0/temperature/0", "/nvme/0/temperature/1", "/nvme/0/temperature/2", "/nvme/0/load/30", "/nvme/0/load/51", "/nvme/0/load/52", "/nvme/0/load/53"],
-            SensorCatalog.Build(TestRecordings.Read(TestRecordings.NetDisk)).Single(device => device.Id == "/nvme/0").Sensors.Where(row => row.Reading.Kind is SensorKind.Temperature or SensorKind.Load).Select(row => row.Id));
+            [
+                "/nvme/0/temperature/0",
+                "/nvme/0/temperature/1",
+                "/nvme/0/temperature/2",
+                "/nvme/0/load/30",
+                "/nvme/0/load/51",
+                "/nvme/0/load/52",
+                "/nvme/0/load/53",
+            ],
+            SensorCatalog.Build(TestRecordings.Read(TestRecordings.NetDisk)).Single(device => device.Id == "/nvme/0")
+                .Sensors.Where(row => row.Reading.Kind is SensorKind.Temperature or SensorKind.Load).Select(row => row.Id));
         Assert.Equal((0, layers.Count), (searched.Count, searchHidden));
         // Without the driver the cores' clocks say how to fix it; their effective twins stay hidden.
-        Assert.Equal(20, noAdmin.Count(row => row.Why == NoValue.DriverMayBeMissing));
+        Assert.Equal(19, noAdmin.Count(row => row.Why == NoValue.DriverMayBeMissing));
         Assert.DoesNotContain(noAdmin, row => row.Why == NoValue.ReadsNothing);
     }
 
@@ -106,7 +154,40 @@ public sealed class ReadableCatalogTests
 
     // The recorded adapters the catalog shows, given the sensors seen moving since it opened.
     private static string[] Adapters(IReadOnlySet<string> moved) =>
-        [.. SensorCatalog.Hide(SensorCatalog.Build(TestRecordings.Read(TestRecordings.NetDisk)), moved).Shown.Where(device => device.Kind == DeviceKind.Network).Select(device => device.Id)];
+        [
+            .. SensorCatalog.Hide(SensorCatalog.Build(TestRecordings.Read(TestRecordings.NetDisk)), moved)
+                .Shown.Where(device => device.Kind == DeviceKind.Network).Select(device => device.Id),
+        ];
+
+    // A new item is named for what its sensor reads, added to the default overlay: as its metric, after an equals sign;
+    // else by its device and the sensor's readable name, or that name alone; a duty says it is one, and a sensor a
+    // default item already shows takes a number.
+    [Theory]
+    [InlineData("/nvme/0/data/31", DeviceKind.Ssd, "free space", "")]
+    [InlineData("/nvme/0/load/30", DeviceKind.Ssd, "used space", "")]
+    [InlineData("/nvme/0/temperature/0", DeviceKind.Ssd, "temperature", "")]
+    [InlineData("/vram/data/2", null, "Virtual memory used", "")]
+    [InlineData("/gpu-nvidia/0/control/1", null, "GPU Fan", "duty")]
+    [InlineData("/lpc/it8689e/0/control/3", null, "Fan #4", "duty")]
+    [InlineData("/lpc/it8689e/0/control/0", null, "=fan.cpu.duty", "")]
+    [InlineData("/amdcpu/0/power/0", null, "=cpu.power", "2")]
+    public void ANewItemIsNamedForWhatItsSensorReads(string sensor, DeviceKind? device, string name, string form)
+    {
+        var texts = Texts.English;
+        var read = Metrics.Find(name.TrimStart('=')) is { } metric && name[0] == '=' ? texts.Of(metric.Name) : name;
+        var plain = device is { } kind ? texts.Format(CultureInfo.InvariantCulture, NameText.OfSensor, texts.Of(kind), read) : read;
+        var expected = form switch
+        {
+            "duty" => texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, plain),
+            "" => plain,
+            _ => texts.Format(CultureInfo.InvariantCulture, NameText.Numbered, plain, form),
+        };
+        var snapshot = TestRecordings.Read(TestRecordings.NetDisk);
+
+        var added = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, snapshot, sensor));
+
+        Assert.Equal(expected, added.Overlays[0].Items.Single(item => item.Sensor == sensor).Name);
+    }
 
     // Two items of one board sensor, the second renamed by hand, beside the CPU fan item, whose metric picks the board's first fan.
     [Fact]
@@ -127,8 +208,11 @@ public sealed class ReadableCatalogTests
         Assert.Equal(new Dictionary<string, string>(StringComparer.Ordinal) { [Chipset] = "Fan hub" }, renamed.SensorNames);
         Assert.Equal(("Fan hub", "Desk"), (Item(renamed, ids[0]).Name, Item(renamed, ids[1]).Name));
         Assert.Equal(new SensorName("Fan hub", NameFrom.Own, "Temperature #2", "ITE IT8689E", 2), row.Name);
-        Assert.Equal([Chipset], SensorCatalog.Filter(SensorCatalog.Build(Desktop, renamed.SensorNames), "hub", []).SelectMany(device => device.Sensors).Select(each => each.Id));
-        Assert.Equal(Texts.English.Of(Metrics.CpuFan.Name), Item(fan, Metrics.CpuFan.Id).Name);
+        Assert.Equal(
+            [Chipset],
+            SensorCatalog.Filter(SensorCatalog.Build(Desktop, renamed.SensorNames), "hub", [])
+                .SelectMany(device => device.Sensors).Select(each => each.Id));
+        Assert.Null(Item(fan, Metrics.CpuFan.Id).Name);
         Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, NameText.Numbered, "Fan hub", 2), added.Name);
         Assert.Equal((null, Item(start, ids[0]).Name), (cleared.SensorNames, Item(cleared, ids[0]).Name));
         Assert.Equal(Refusal.SensorNameTooLong, ThermiEdits.RenameSensor(renamed, Desktop, Chipset, new string('x', SensorNames.MaxLength + 1)).Refused);

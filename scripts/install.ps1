@@ -9,7 +9,7 @@ the files to Program Files and register the thermi-sensors service and its event
 docs/adr/0003-sensor-service.md), and to install the WebView2 runtime the settings window needs, only where it is missing.
 A first install starts the overlay at your sign-in; a reinstall keeps "Start with Windows" as the settings window
 left it. Your config in %APPDATA%\thermi is never touched. -Uninstall removes the rest: the files, the service, the
-driver installer's folder in %ProgramData%\thermi and the window's data in %LOCALAPPDATA%\thermi. It leaves the sensor
+folder earlier builds kept the driver's installer in, %ProgramData%\thermi, and the window's data in %LOCALAPPDATA%\thermi. It leaves the sensor
 driver, which other programs may use.
 #>
 param([switch]$Uninstall)
@@ -58,7 +58,8 @@ function Register-Service {
     # A 2 MB young generation (the value is hex) keeps the service in its memory budget
     # (docs/adr/0011-sensor-service-memory-budget.md). .NET reads it only from the environment; this one is the
     # service's alone, and goes when its key is deleted.
-    New-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\$service" -Name Environment -PropertyType MultiString -Value @('DOTNET_GCgen0size=200000') | Out-Null
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$service"
+    New-ItemProperty $serviceKey -Name Environment -PropertyType MultiString -Value @('DOTNET_GCgen0size=200000') | Out-Null
     [System.Diagnostics.EventLog]::CreateEventSource($service, 'Application')
     Start-Service $service
 }
@@ -69,30 +70,38 @@ function Install-Service([string]$From) {
     Remove-Service
     $old = "$target.old"
     if (Test-Path $old) { Remove-Item $old -Recurse -Force }
-    if (Test-Path $target) { Move-Item $target $old }
-    if ($From) {
-        try {
+    # Setting the old files aside fails too, when something holds one open: the service, deleted by then, comes back.
+    try {
+        if (Test-Path $target) { Move-Item $target $old }
+        if ($From) {
             Move-Item $From $target
             Register-Service
         }
-        catch {
-            $failure = $_
-            Restore-Service $old
-            throw $failure
-        }
+    }
+    catch {
+        $failure = $_
+        Restore-Service $old
+        throw $failure
     }
     if (Test-Path $old) { Remove-Item $old -Recurse -Force }
 }
 
-# What failed is what the installer tells, so a restore that fails too only warns.
+# What failed is what the installer tells, so a restore that fails too only warns. Old files never set aside are still
+# in place, and only registered again.
 function Restore-Service([string]$Old) {
     try {
         Remove-Service
-        if (Test-Path $target) { Remove-Item $target -Recurse -Force }
         if (Test-Path $Old) {
-            Move-Item $Old $target
-            Register-Service
+            Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path $target) {
+                # A file held open keeps the folder, as it kept a move aside that copied the rest: what went comes back
+                # from the old files, and the held one is the same old file.
+                Get-ChildItem $Old -Force | Copy-Item -Destination $target -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item $Old -Recurse -Force
+            }
+            else { Move-Item $Old $target }
         }
+        if (Test-Path (Join-Path $target 'thermi-sensors.exe')) { Register-Service }
     }
     catch {
         Write-Warning "The thermi installed before could not be put back: $($_.Exception.Message)"
@@ -156,8 +165,8 @@ function Copy-Verified([string]$From, [string]$Hash, [string]$To) {
 }
 
 # The elevated half. Takes the folder to install from, or nothing to uninstall, the hash of its files, and whether the
-# user has the WebView2 runtime. Uninstalling also removes the folder the driver's installer waits in
-# (docs/adr/0010-driver-and-service-from-the-window.md). Its error is said in its own window, which waits to be read:
+# user has the WebView2 runtime. Uninstalling also removes %ProgramData%\thermi, where earlier builds kept the
+# driver's installer (docs/adr/0010-driver-and-service-from-the-window.md). Its error is said in its own window, which waits to be read:
 # nothing it writes may land where the user writes, where a link could send it anywhere.
 function Install-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
     try {
@@ -165,7 +174,10 @@ function Install-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
         if ($From) { $From = Copy-Verified $From $Hash "$target.new" }
         Install-Service $From
         if (-not $From) { Remove-Item (Join-Path $env:ProgramData 'thermi') -Recurse -Force -ErrorAction SilentlyContinue }
-        elseif (-not $HasWebView2) { Install-WebView2 }
+        elseif (-not $HasWebView2) {
+            # thermi is installed by then, and the overlay works without the runtime: only the settings window needs it.
+            try { Install-WebView2 } catch { exit 3 }
+        }
     }
     catch {
         Remove-Item "$target.new" -Recurse -Force -ErrorAction SilentlyContinue
@@ -181,7 +193,8 @@ function Install-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
 function Get-TrustedPwsh([string]$Path) {
     $full = [IO.Path]::GetFullPath($Path)
     if (-not $full.StartsWith("$env:ProgramFiles\", [StringComparison]::OrdinalIgnoreCase) -or (Get-AuthenticodeSignature $full).Status -ne 'Valid') {
-        throw "$full is not a PowerShell installed for every user, so it cannot run the administrator step. Install PowerShell 7 from Microsoft and run this from it."
+        throw "$full is not a PowerShell installed for every user, so it cannot run the administrator step. " +
+            'Install PowerShell 7 from Microsoft and run this from it.'
     }
     $full
 }
@@ -190,7 +203,8 @@ function Get-TrustedPwsh([string]$Path) {
 # handed over whole, as text taken before the prompt, with its arguments in it, and loads modules only from PowerShell's own.
 function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2) {
     $quoted = { param([string]$Text) "'$($Text -replace "'", "''")'" }
-    $names = 'Stop-Overlay', 'Remove-Service', 'Register-Service', 'Install-Service', 'Restore-Service', 'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Install-Elevated'
+    $names = 'Stop-Overlay', 'Remove-Service', 'Register-Service', 'Install-Service', 'Restore-Service',
+        'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Install-Elevated'
     $functions = foreach ($name in $names) {
         "function $name {$((Get-Command $name -CommandType Function).Definition)}"
     }
@@ -210,7 +224,11 @@ function Invoke-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
     $pwsh = Get-TrustedPwsh (Join-Path $PSHOME 'pwsh.exe')
     $arguments = @('-NoProfile', '-EncodedCommand', (Get-ElevatedCommand $From $Hash $HasWebView2))
     $elevated = Start-Process $pwsh -Verb RunAs -Wait -PassThru -ArgumentList $arguments
-    if ($elevated.ExitCode -ne 0) { throw "The administrator step failed (exit code $($elevated.ExitCode)); its window said why." }
+    if ($elevated.ExitCode -eq 3) {
+        Write-Warning ('thermi is installed, but the WebView2 runtime could not be: the settings window needs it. ' +
+            'Install it from https://developer.microsoft.com/microsoft-edge/webview2/ and run thermi settings.')
+    }
+    elseif ($elevated.ExitCode -ne 0) { throw "The administrator step failed (exit code $($elevated.ExitCode)); its window said why." }
 }
 
 $firstInstall = -not (Test-Path (Join-Path $target 'thermi.exe'))

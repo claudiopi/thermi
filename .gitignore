@@ -13,3 +13,6 @@ artifacts/
 CLAUDE.local.md
 *.local.*
 .scratch/
+
+# What TypeScript keeps between its own builds.
+*.tsbuildinfo

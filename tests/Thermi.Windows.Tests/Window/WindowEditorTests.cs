@@ -120,7 +120,9 @@ public sealed class WindowEditorTests : IAsyncDisposable
         Assert.Equal(new EditNote(null, null, Skipped: true), skipped);
         Assert.Null(_editor.Note);
         Assert.Equal(order, _folder.Read().Overlays[0].Items.Select(item => item.Id));
-        Assert.Equal(("CARD", new Threshold(80, 95)), (Item(_folder.Read(), Metrics.GpuLoad.Id).Label, Item(_folder.Read(), Metrics.CpuTemperature.Id).Threshold));
+        Assert.Equal(
+            ("CARD", new Threshold(80, 95)),
+            (Item(_folder.Read(), Metrics.GpuLoad.Id).Label, Item(_folder.Read(), Metrics.CpuTemperature.Id).Threshold));
     }
 
     [Fact]

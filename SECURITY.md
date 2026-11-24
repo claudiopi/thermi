@@ -14,6 +14,6 @@ Only the latest release gets security fixes.
 
 ## Scope
 
-In scope: anything that lets a user, a program or an AI agent gain admin rights through thermi; the pipe between the overlay and the sensor host; how thermi reads its config, CLI arguments and MCP requests; the installer and updates.
+In scope: anything that lets a user or a program gain admin rights through thermi, as through its elevated mode, which starts the sensor service or installs the driver; the pipe between the overlay and the sensor service; how thermi reads its settings, look files and command line; the window's page and its bridge; and `scripts/install.ps1`. thermi has no MCP server and no updater yet; they come into scope when they ship.
 
 Out of scope, please report upstream: bugs in [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) and in the [PawnIO](https://github.com/namazso/PawnIO) driver.

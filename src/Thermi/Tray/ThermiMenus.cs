@@ -35,7 +35,10 @@ internal static class ThermiMenus
         return choice > 0 && (int)choice <= all.Count ? all[(int)choice - 1] : null;
     }
 
-    /// <summary>The popup menu of <paramref name="rows"/>, which the caller destroys, its submenus with it; <paramref name="all"/> gets each row at its id less one.</summary>
+    /// <summary>
+    /// The popup menu of <paramref name="rows"/>, which the caller destroys, its submenus with it;
+    /// <paramref name="all"/> gets each row at its id less one.
+    /// </summary>
     internal static DestroyMenuSafeHandle Build(IReadOnlyList<MenuRow> rows, MenuPlace place, List<MenuRow> all)
     {
         var menu = PInvoke.CreatePopupMenu_SafeHandle();
@@ -43,13 +46,22 @@ internal static class ThermiMenus
         return menu;
     }
 
+    // "Settings…", the overlays' submenus and "Exit thermi" each start a group, as Windows' own menus group entries.
+    private static bool StartsAGroup(MenuRow row, MenuRow? previous) =>
+        previous is not null
+        && (row.Entry is MenuEntry.Settings or MenuEntry.Exit || (row.Entry == MenuEntry.Overlay && previous.Entry != MenuEntry.Overlay));
+
+    // A heading names what the menu is about and does nothing, so it shows grayed.
+    private static MENU_ITEM_FLAGS StateOf(MenuRow row) =>
+        (row.Checked ? MENU_ITEM_FLAGS.MF_CHECKED : MENU_ITEM_FLAGS.MF_UNCHECKED)
+        | (row.Heading ? MENU_ITEM_FLAGS.MF_GRAYED : MENU_ITEM_FLAGS.MF_ENABLED);
+
     private static void Fill(SafeHandle menu, IReadOnlyList<MenuRow> rows, MenuPlace place, List<MenuRow> all, bool submenu)
     {
         MenuRow? previous = null;
         foreach (var row in rows)
         {
-            // "Settings…", the overlays' submenus and "Exit thermi" each start a group, as Windows' own menus group entries.
-            if (!submenu && previous is not null && (row.Entry is MenuEntry.Settings or MenuEntry.Exit || (row.Entry == MenuEntry.Overlay && previous.Entry != MenuEntry.Overlay)))
+            if (!submenu && StartsAGroup(row, previous))
             {
                 PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, null);
             }
@@ -65,7 +77,7 @@ internal static class ThermiMenus
                 continue;
             }
 
-            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | (row.Checked ? MENU_ITEM_FLAGS.MF_CHECKED : MENU_ITEM_FLAGS.MF_UNCHECKED), id, text);
+            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | StateOf(row), id, text);
             if (row.Default)
             {
                 PInvoke.SetMenuDefaultItem(menu, (uint)id, 0);

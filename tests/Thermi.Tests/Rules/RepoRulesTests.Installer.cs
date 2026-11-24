@@ -20,7 +20,11 @@ public sealed partial class RepoRulesTests
         Assert.Contains($"$service = '{name}'", script, StringComparison.Ordinal);
         Assert.Contains("[System.Diagnostics.EventLog]::CreateEventSource($service, 'Application')", script, StringComparison.Ordinal);
         Assert.Contains("[System.Diagnostics.EventLog]::DeleteEventSource($service)", script, StringComparison.Ordinal);
-        Assert.Contains("New-ItemProperty \"HKLM:\\SYSTEM\\CurrentControlSet\\Services\\$service\" -Name Environment -PropertyType MultiString -Value @('DOTNET_GCgen0size=200000')", script, StringComparison.Ordinal);
+        Assert.Contains("$serviceKey = \"HKLM:\\SYSTEM\\CurrentControlSet\\Services\\$service\"", script, StringComparison.Ordinal);
+        Assert.Contains(
+            "New-ItemProperty $serviceKey -Name Environment -PropertyType MultiString -Value @('DOTNET_GCgen0size=200000')",
+            script,
+            StringComparison.Ordinal);
         Assert.Contains("sc.exe delete $service", script, StringComparison.Ordinal);
         Assert.Contains("$servicePrivileges = 'SeChangeNotifyPrivilege'", script, StringComparison.Ordinal);
         Assert.Contains("sc.exe privs $service $servicePrivileges", script, StringComparison.Ordinal);

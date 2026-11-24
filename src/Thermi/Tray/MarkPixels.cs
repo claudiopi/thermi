@@ -21,7 +21,10 @@ internal sealed class MarkPixels
 
     private static readonly MarkPixels Large = new(
         24,
-        [(7, 8, 15), (8, 6, 17), (9, 4, 19), (10, 3, 20), (11, 3, 20), (12, 2, 21), (13, 2, 21), (14, 2, 21), (15, 2, 21), (16, 2, 21), (17, 2, 21), (18, 2, 21)],
+        [
+            (7, 8, 15), (8, 6, 17), (9, 4, 19), (10, 3, 20), (11, 3, 20), (12, 2, 21),
+            (13, 2, 21), (14, 2, 21), (15, 2, 21), (16, 2, 21), (17, 2, 21), (18, 2, 21),
+        ],
         (20, 4, 19),
         Eyes((10, 10), (16, 10), ".##.", "####", "####", ".##."),
         Eyes((10, 10), (16, 10), ".##.", "####", "####", "####", ".##."),
@@ -32,7 +35,13 @@ internal sealed class MarkPixels
     private readonly (int Y, int From, int To) _line;
     private readonly Dictionary<MarkEyes, HashSet<Point>> _eyes;
 
-    private MarkPixels(int size, (int Y, int From, int To)[] body, (int Y, int From, int To) line, HashSet<Point> open, HashSet<Point> wide, HashSet<Point> closed)
+    private MarkPixels(
+        int size,
+        (int Y, int From, int To)[] body,
+        (int Y, int From, int To) line,
+        HashSet<Point> open,
+        HashSet<Point> wide,
+        HashSet<Point> closed)
     {
         (_size, _body, _line) = (size, body, line);
         _eyes = new() { [MarkEyes.Open] = open, [MarkEyes.Wide] = wide, [MarkEyes.Closed] = closed };
@@ -68,7 +77,9 @@ internal sealed class MarkPixels
                     continue;
                 }
 
-                using var brush = look.Stops is null ? null : new SolidBrush(PainterShapes.Drawn(eye ? MarkLook.EyeInk : look.At((x + 0.5 - 1) / (_size - 1))));
+                using var brush = look.Stops is null
+                    ? null
+                    : new SolidBrush(PainterShapes.Drawn(eye ? MarkLook.EyeInk : look.At((x + 0.5 - 1) / (_size - 1))));
                 g.FillRectangle(brush ?? inked, offset.X + x, offset.Y + y, 1, 1);
             }
         }
@@ -80,6 +91,9 @@ internal sealed class MarkPixels
     // Each eye's cells, the same pattern placed at each eye's top left corner.
     private static HashSet<Point> Eyes((int X, int Y) left, (int X, int Y) right, params string[] pattern) =>
     [
-        .. new[] { left, right }.SelectMany(corner => pattern.SelectMany((row, dy) => row.Select((cell, dx) => (cell, dx)).Where(each => each.cell == '#').Select(each => new Point(corner.X + each.dx, corner.Y + dy)))),
+        .. new[] { left, right }.SelectMany(corner => pattern.SelectMany((row, dy) => row
+            .Select((cell, dx) => (cell, dx))
+            .Where(each => each.cell == '#')
+            .Select(each => new Point(corner.X + each.dx, corner.Y + dy)))),
     ];
 }

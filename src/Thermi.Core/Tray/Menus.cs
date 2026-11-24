@@ -42,14 +42,26 @@ public sealed record MenuRow(MenuEntry Entry, bool Checked = false, bool Default
 
     public string? Look { get; init; }
 
+    /// <summary>True for a row that only says what the menu acts on, shown grayed, which nothing chooses.</summary>
+    public bool Heading { get; init; }
+
     /// <summary>The hotkey shown beside the entry, as the file writes it, or null.</summary>
     public string? Hotkey { get; init; }
 
     public IReadOnlyList<MenuRow> Entries { get; init; } = [];
 }
 
-/// <summary>What the menus show besides the settings: the hide flag, the file's and the service's state, the last desktop gesture's age, the saved looks and an update.</summary>
-public sealed record MenuState(bool HideOverlays, bool FileBroken, ServiceState Service, TimeSpan? SinceGesture, IReadOnlyList<string> SavedLooks, bool UpdateReady);
+/// <summary>
+/// What the menus show besides the settings: the hide flag, the file's and the service's state, the last desktop gesture's age,
+/// the saved looks and an update.
+/// </summary>
+public sealed record MenuState(
+    bool HideOverlays,
+    bool FileBroken,
+    ServiceState Service,
+    TimeSpan? SinceGesture,
+    IReadOnlyList<string> SavedLooks,
+    bool UpdateReady);
 
 /// <summary>
 /// thermi's menu and each overlay's, as data in their order, so both are built in one place. thermi's default entry is the
@@ -75,6 +87,11 @@ public static class Menus
 
         rows.Add(new MenuRow(MenuEntry.Settings, Default: back is null));
         rows.Add(new MenuRow(MenuEntry.TaskManager));
+        if (overlays.Count == 1)
+        {
+            rows.AddRange(Shape(overlays[0], 0));
+        }
+
         if (!state.HideOverlays)
         {
             rows.Add(new MenuRow(MenuEntry.HideOverlays) { Hotkey = hotkeys?.Toggle });
@@ -101,10 +118,20 @@ public static class Menus
         return rows;
     }
 
-    public static IReadOnlyList<MenuRow> OfOverlay(ThermiConfig config, int overlay, MenuState state)
+    /// <summary>
+    /// An overlay's menu, from the overlay itself or, <paramref name="fromTray"/>, from one of its items' tray icons: there,
+    /// away from the overlay, it starts by naming the overlay and offers click-through, which on the overlay itself would
+    /// let the very click that turns it back off pass through.
+    /// </summary>
+    public static IReadOnlyList<MenuRow> OfOverlay(ThermiConfig config, int overlay, MenuState state, bool fromTray = false)
     {
         var shown = config.Overlays[overlay];
         var rows = Problems(state, startSensors: false);
+        if (fromTray)
+        {
+            rows.Insert(0, new MenuRow(MenuEntry.Overlay) { Overlay = overlay, Heading = true });
+        }
+
         if (state.SinceGesture < GestureUndo)
         {
             rows.Add(new MenuRow(MenuEntry.UndoGesture));
@@ -113,14 +140,13 @@ public static class Menus
         rows.Add(new MenuRow(MenuEntry.Settings, Default: true));
         rows.Add(new MenuRow(MenuEntry.TaskManager));
         rows.Add(new MenuRow(MenuEntry.CopyImage) { Overlay = overlay });
-        if (state.SavedLooks.Count > 0)
+        rows.AddRange(LooksOf(shown, state));
+        rows.Add(new MenuRow(MenuEntry.Vertical, shown.Style.Orientation == Orientation.Vertical));
+        if (fromTray)
         {
-            var worn = state.SavedLooks.FirstOrDefault(look => string.Equals(look, shown.Style.Name, StringComparison.OrdinalIgnoreCase));
-            rows.Add(new MenuRow(MenuEntry.Look, worn is null && shown.Style.WornOn(new StyleConfig()) == new StyleConfig()));
-            rows.AddRange(state.SavedLooks.Select(look => new MenuRow(MenuEntry.Look, look == worn) { Look = look }));
+            rows.Add(new MenuRow(MenuEntry.ClickThrough, shown.ClickThrough) { Overlay = overlay });
         }
 
-        rows.Add(new MenuRow(MenuEntry.Vertical, shown.Style.Orientation == Orientation.Vertical));
         rows.Add(new MenuRow(MenuEntry.Lock, shown.Locked));
         if (ShowsMinOrMax(shown))
         {
@@ -130,8 +156,31 @@ public static class Menus
         rows.Add(config.Overlays.Count == 1
             ? new MenuRow(MenuEntry.HideOverlays) { Hotkey = config.Hotkeys?.Toggle }
             : new MenuRow(MenuEntry.HideThisOverlay) { Overlay = overlay });
+        rows.Add(new MenuRow(MenuEntry.Exit));
         return rows;
     }
+
+    private static IEnumerable<MenuRow> LooksOf(OverlayConfig shown, MenuState state)
+    {
+        if (state.SavedLooks.Count == 0)
+        {
+            return [];
+        }
+
+        var worn = state.SavedLooks.FirstOrDefault(look => string.Equals(look, shown.Style.Name, StringComparison.OrdinalIgnoreCase));
+        return
+        [
+            new MenuRow(MenuEntry.Look, worn is null && shown.Style.WornOn(new StyleConfig()) == new StyleConfig()),
+            .. state.SavedLooks.Select(look => new MenuRow(MenuEntry.Look, look == worn) { Look = look }),
+        ];
+    }
+
+    // What an overlay's own menu does to its picture and shape, which thermi's menu offers too, for it or in its submenu.
+    private static MenuRow[] Shape(OverlayConfig overlay, int at) =>
+    [
+        new MenuRow(MenuEntry.CopyImage) { Overlay = at },
+        new MenuRow(MenuEntry.Vertical, overlay.Style.Orientation == Orientation.Vertical) { Overlay = at },
+    ];
 
     private static List<MenuRow> Problems(MenuState state, bool startSensors)
     {
@@ -164,5 +213,6 @@ public static class Menus
         overlay.Hidden ? new MenuRow(MenuEntry.ShowOverlay) { Overlay = at } : new MenuRow(MenuEntry.HideThisOverlay) { Overlay = at },
         new MenuRow(MenuEntry.ClickThrough, overlay.ClickThrough) { Overlay = at },
         new MenuRow(MenuEntry.Lock, overlay.Locked) { Overlay = at },
+        .. Shape(overlay, at),
     ];
 }

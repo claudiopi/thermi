@@ -5,7 +5,13 @@ import { recording, text, texts } from '../pageChecks';
 
 function defaultItems(): Item[] {
   return [
-    { id: 'cpu.temperature', name: text('MetricName.CpuTemperature'), metric: 'cpu.temperature', meter: { metric: 'cpu.temperature' }, threshold: { warning: 90, critical: 95 } },
+    {
+      id: 'cpu.temperature',
+      name: text('MetricName.CpuTemperature'),
+      metric: 'cpu.temperature',
+      meter: { metric: 'cpu.temperature' },
+      threshold: { warning: 90, critical: 95 },
+    },
     { id: 'fan.cpu', name: text('MetricName.CpuFan'), metric: 'fan.cpu', meter: { metric: 'fan.cpu' } },
     { id: 'cpu.load', name: text('MetricName.CpuLoad'), metric: 'cpu.load', meter: { metric: 'cpu.load' } },
     { id: 'cpu.power', name: text('MetricName.CpuPower'), metric: 'cpu.power' },
@@ -23,7 +29,15 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
   const topRight: Overlay = {
     name: 'Top right',
     snap: { spot: 'top-right' },
-    items: [{ id: 'gpu.temperature', name: text('MetricName.GpuTemperature'), metric: 'gpu.temperature', meter: { metric: 'gpu.temperature' }, threshold: { warning: 80, critical: 88 } }],
+    items: [
+      {
+        id: 'gpu.temperature',
+        name: text('MetricName.GpuTemperature'),
+        metric: 'gpu.temperature',
+        meter: { metric: 'gpu.temperature' },
+        threshold: { warning: 80, critical: 88 },
+      },
+    ],
   };
   return {
     settings: { version: 2, overlays: [taskbar, topRight] },
@@ -35,8 +49,22 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     driverAnswer: 'accepted',
     serviceAnswer: 'accepted',
     monitors: [
-      { id: 'SAM-7F0A-H4ZR900123', primary: true, bounds: { x: 0, y: 0, width: 2560, height: 1440 }, workArea: { x: 0, y: 0, width: 2560, height: 1392 }, scale: 1.5, taskbar: true },
-      { id: secondMonitor, primary: false, bounds: { x: 2560, y: 0, width: 1920, height: 1080 }, workArea: { x: 2560, y: 0, width: 1920, height: 1032 }, scale: 1, taskbar: true },
+      {
+        id: 'SAM-7F0A-H4ZR900123',
+        primary: true,
+        bounds: { x: 0, y: 0, width: 2560, height: 1440 },
+        workArea: { x: 0, y: 0, width: 2560, height: 1392 },
+        scale: 1.5,
+        taskbar: true,
+      },
+      {
+        id: secondMonitor,
+        primary: false,
+        bounds: { x: 2560, y: 0, width: 1920, height: 1080 },
+        workArea: { x: 2560, y: 0, width: 1920, height: 1032 },
+        scale: 1,
+        taskbar: true,
+      },
     ],
     looks: { Night: { pills: 'dark', opacity: { background: 0.4 }, font: 'bahnschrift', corners: 'soft' } },
     exported: null,

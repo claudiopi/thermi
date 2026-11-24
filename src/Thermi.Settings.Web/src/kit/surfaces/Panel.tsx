@@ -2,7 +2,7 @@ import { OverlayDrawer, makeStyles, tokens } from '@fluentui/react-components';
 import { useRef, useState, type ReactNode } from 'react';
 import { useFocusBack } from './focus';
 import { fluentRef } from '../fluentRef';
-import { surface, text } from '../theme/look';
+import { space, surface, text } from '../theme/look';
 
 export interface PanelProps {
   open: boolean;
@@ -14,8 +14,8 @@ export interface PanelProps {
 }
 
 // The prototype's catalog: 440 px from the window's right edge, under the title row, which stays in reach, over a
-// light smoke. The title row's 48 px are the window's own.
-const below = '48px';
+// light smoke.
+const below = space.titleRow;
 // Above what a page raises, as the map's spots and the chart's knobs, as a dialog is.
 const useStyles = makeStyles({
   surface: {
@@ -34,6 +34,9 @@ const useStyles = makeStyles({
     borderLeft: `1px solid ${tokens.colorNeutralStroke3}`,
     borderTopLeftRadius: '8px',
     boxShadow: '-16px 0 32px rgba(0, 0, 0, 0.18)',
+    // Its size is the window's, so what is inside can ask how short it is, as the catalog's chips do.
+    containerType: 'size',
+    containerName: 'panel',
     '@media (forced-colors: active)': { backgroundColor: 'Canvas', border: '1px solid CanvasText' },
   },
   smoke: { zIndex: 30, top: below, backgroundColor: 'rgba(0, 0, 0, 0.18)' },

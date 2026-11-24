@@ -24,13 +24,20 @@ public static class Throttling
 
         var readings = SensorMap.Read(snapshot, overlay);
         var hot = Threshold.Default(new MeterConfig { Metric = Metrics.CpuTemperature.Id }, snapshot)?.Warning;
-        return readings[Metrics.CpuClock.Id].Usable is { } clock && readings[Metrics.CpuTemperature.Id].Usable is { } temperature && clock < nominal && temperature >= hot
+        return readings[Metrics.CpuClock.Id].Usable is { } clock
+            && readings[Metrics.CpuTemperature.Id].Usable is { } temperature
+            && clock < nominal
+            && temperature >= hot
             ? new Throttled(clock, nominal, temperature)
             : null;
     }
 
-    /// <summary>Whether an item reads the CPU's temperature or its clock, by its metric or by a CPU sensor of those types, and so shows the CPU's throttling.</summary>
+    /// <summary>
+    /// Whether an item reads the CPU's temperature or its clock, by its metric or by a CPU sensor of those types,
+    /// and so shows the CPU's throttling.
+    /// </summary>
     public static bool Shows(ItemConfig item, Snapshot snapshot) =>
         ((item.Metric ?? item.Auto) is { } metric && (metric == Metrics.CpuTemperature.Id || metric == Metrics.CpuClock.Id))
-        || (item.Sensor is { } id && SensorMap.Find(snapshot, id) is { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) or nameof(SensorKind.Clock) });
+        || (item.Sensor is { } id
+            && SensorMap.Find(snapshot, id) is { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) or nameof(SensorKind.Clock) });
 }

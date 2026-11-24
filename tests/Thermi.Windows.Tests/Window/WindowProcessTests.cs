@@ -8,7 +8,10 @@ using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Tests.Window;
 
-/// <summary><c>thermi settings</c> before its window shows: a second request, and a failure on the window's thread, with a mutex and a settings file of the test's own.</summary>
+/// <summary>
+/// <c>thermi settings</c> before its window shows: a second request, and a failure on the window's thread, with a mutex and
+/// a settings file of the test's own.
+/// </summary>
 public sealed class WindowProcessTests : IDisposable
 {
     private readonly SettingsFolder _folder = new();
@@ -98,5 +101,12 @@ public sealed class WindowProcessTests : IDisposable
     }
 
     private WindowEnvironment Environment() =>
-        new(_mutex, _folder.File, Path.Combine(AppContext.BaseDirectory, "thermi-under-test.exe"), _folder.Log, _folder.Clock.GetUtcNow(), new TestFeed(), new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi-under-test.exe"));
+        new(
+            _mutex,
+            _folder.File,
+            Path.Combine(AppContext.BaseDirectory, "thermi-under-test.exe"),
+            _folder.Log,
+            _folder.Clock.GetUtcNow(),
+            new TestFeed(),
+            new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi-under-test.exe"));
 }

@@ -1,5 +1,24 @@
 import { type Page } from '@playwright/test';
-import { chooseByKeys, expect, fakeState, itemOf, list, openWindow, overlayOf, recording, select, selectedRow, setFake, settingsOf, startingWith, test, text, withDrivesAndBattery, type Overlay, type Settings } from './fakeBridge';
+import {
+  chooseByKeys,
+  expect,
+  fakeState,
+  itemOf,
+  list,
+  openWindow,
+  overlayOf,
+  recording,
+  select,
+  selectedRow,
+  setFake,
+  settingsOf,
+  startingWith,
+  test,
+  text,
+  withDrivesAndBattery,
+  type Overlay,
+  type Settings,
+} from './fakeBridge';
 
 const ids = (settings: Settings, overlay: number): string[] => overlayOf(settings, overlay).items.map((item) => item.id);
 
@@ -7,12 +26,28 @@ const ids = (settings: Settings, overlay: number): string[] => overlayOf(setting
 test('TheListWorksWithTheKeyboard', async ({ page }) => {
   await openWindow(page);
   const cpuLoad = text('MetricName.CpuLoad');
-  const steps: { name: string; keys: string[]; type?: string; selected?: string; check?: (settings: Settings) => unknown; expected?: unknown; then?: (page: Page) => Promise<void> }[] = [
+  const steps: {
+    name: string;
+    keys: string[];
+    type?: string;
+    selected?: string;
+    check?: (settings: Settings) => unknown;
+    expected?: unknown;
+    then?: (page: Page) => Promise<void>;
+  }[] = [
     { name: 'Home goes to the first row', keys: ['Home'], selected: 'Taskbar' },
     { name: 'End goes to the last row', keys: ['End'], selected: text('MetricName.GpuTemperature') },
     { name: 'the arrows never leave the list', keys: ['ArrowDown'], selected: text('MetricName.GpuTemperature') },
-    { name: 'Left goes to the parent', keys: ['Home', 'ArrowLeft'], then: async (on) => expect(on.getByRole('treeitem', { selected: true, expanded: false })).toBeVisible() },
-    { name: 'Right unfolds, then goes to the first child', keys: ['ArrowRight', 'ArrowRight'], then: async (on) => expect(selectedRow(on)).not.toHaveAccessibleName(startingWith('Taskbar')) },
+    {
+      name: 'Left goes to the parent',
+      keys: ['Home', 'ArrowLeft'],
+      then: async (on) => expect(on.getByRole('treeitem', { selected: true, expanded: false })).toBeVisible(),
+    },
+    {
+      name: 'Right unfolds, then goes to the first child',
+      keys: ['ArrowRight', 'ArrowRight'],
+      then: async (on) => expect(selectedRow(on)).not.toHaveAccessibleName(startingWith('Taskbar')),
+    },
     { name: 'letters go to the next row they start', keys: [], type: cpuLoad.slice(0, 5), selected: cpuLoad },
     { name: 'F2 renames and Enter keeps it', keys: ['F2'], type: 'Cores', check: (settings) => itemOf(settings, 'cpu.load').name, expected: 'Cores' },
     { name: 'Esc puts the name back', keys: ['F2'], type: 'Other', check: (settings) => itemOf(settings, 'cpu.load').name, expected: 'Cores' },
@@ -23,13 +58,23 @@ test('TheListWorksWithTheKeyboard', async ({ page }) => {
       await on.keyboard.press('Escape');
       await expect(selectedRow(on)).toBeFocused();
     } },
-    { name: 'Delete removes the item and selects the next row', keys: ['Delete'], selected: text('MetricName.CpuPower'), check: (settings) => ids(settings, 0).includes('cpu.load'), expected: false },
+    {
+      name: 'Delete removes the item and selects the next row',
+      keys: ['Delete'],
+      selected: text('MetricName.CpuPower'),
+      check: (settings) => ids(settings, 0).includes('cpu.load'),
+      expected: false,
+    },
     { name: 'Ctrl+N opens the catalog', keys: ['Control+N'], then: async (on) => {
       await expect(on.getByRole('dialog', { name: text('UiText.Catalog') })).toBeVisible();
       await on.keyboard.press('Escape');
       await expect(on.getByRole('dialog')).toBeHidden();
     } },
-    { name: 'Ctrl+, opens Settings', keys: ['Control+Comma'], then: async (on) => expect(on.getByRole('heading', { name: text('UiText.SettingsPage') })).toBeVisible() },
+    {
+      name: 'Ctrl+, opens Settings',
+      keys: ['Control+Comma'],
+      then: async (on) => expect(on.getByRole('heading', { name: text('UiText.SettingsPage') })).toBeVisible(),
+    },
     { name: 'Ctrl+F goes back to the list', keys: ['Control+F'], then: async (on) => expect(selectedRow(on)).toBeFocused() },
     { name: 'F1 shows the shortcuts', keys: ['F1'], then: async (on) => {
       await expect(on.getByRole('dialog', { name: text('UiText.KeyboardShortcuts') })).toBeVisible();
@@ -83,19 +128,26 @@ test.describe('TheCatalogAddsWithTheKeyboard', () => {
   if (first === undefined || second === undefined) {
     throw new Error('The recording has fewer than two temperatures.');
   }
-  const rows: { from: Overlay['name']; pick?: string; lands: number }[] = [
+  // The smallest window at 200 % text is half as large to the page, as WebView2 draws everything twice as large.
+  const rows: { from: Overlay['name']; pick?: string; lands: number; small?: boolean }[] = [
     { from: 'Taskbar', lands: 0 },
     { from: 'Top right', lands: 1 },
     { from: 'Taskbar', pick: 'Top right', lands: 1 },
+    { from: 'Taskbar', lands: 0, small: true },
   ];
 
   for (const row of rows) {
-    test(`from ${row.from} to ${row.lands}`, async ({ page }) => {
+    test(`from ${row.from} to ${row.lands}${row.small === true ? ' in the smallest window at 200 % text' : ''}`, async ({ page }) => {
       await openWindow(page);
       await select(page, row.from);
+      if (row.small === true) {
+        await page.setViewportSize({ width: 380, height: 280 });
+      }
       await page.keyboard.press('Control+N');
       const catalog = page.getByRole('dialog', { name: text('UiText.Catalog') });
       const search = catalog.getByRole('searchbox');
+      // Whatever the window's size, the catalog shows a sensor under its search and types.
+      await expect(catalog.getByRole('listbox', { name: text('UiText.Catalog') }).getByRole('option').first()).toBeInViewport({ ratio: 0.75 });
       if (row.pick !== undefined) {
         await chooseByKeys(page, catalog.getByRole('combobox', { name: text('CatalogText.CatalogOverlay') }), row.pick);
       }
@@ -104,6 +156,10 @@ test.describe('TheCatalogAddsWithTheKeyboard', () => {
       await search.press('Enter');
       await expect(catalog).toBeHidden();
       await expect.poll(async () => ids(await settingsOf(page), row.lands)).toContain(first.id);
+      // A small window folds its list, so the row added is seen once the window is large again.
+      if (row.small === true) {
+        await page.setViewportSize({ width: 1920, height: 1080 });
+      }
       await expect(selectedRow(page)).toBeInViewport();
 
       await page.keyboard.press('Control+N');
@@ -179,7 +235,9 @@ test.describe('TheCatalogAddsWithTheKeyboard', () => {
       await expect(catalog.getByRole('group', { name: grouped('CatalogText.GroupBattery') })).toHaveCount(laptop ? 1 : 0);
 
       await catalog.getByRole('radio', { name: text('SensorKind.Throughput') }).check();
-      await expect(catalog.getByRole('listbox', { name: text('UiText.Catalog') }).getByRole('option')).toHaveCount(sensors.filter((sensor) => sensor.type === 'Throughput').length);
+      await expect(catalog.getByRole('listbox', { name: text('UiText.Catalog') }).getByRole('option')).toHaveCount(
+        sensors.filter((sensor) => sensor.type === 'Throughput').length,
+      );
     });
   }
 });
@@ -187,7 +245,11 @@ test.describe('TheCatalogAddsWithTheKeyboard', () => {
 // A210: overlays made, duplicated, merged, hidden, shown and deleted from the list and the overlay's page, and where the focus lands.
 test('OverlaysAreManagedFromTheList', async ({ page }) => {
   const three = fakeState();
-  three.settings.overlays.push({ name: 'Bottom left', snap: { spot: 'bottom-left' }, items: [{ id: 'cpu.clock', name: text('MetricName.CpuClock'), metric: 'cpu.clock' }] });
+  three.settings.overlays.push({
+    name: 'Bottom left',
+    snap: { spot: 'bottom-left' },
+    items: [{ id: 'cpu.clock', name: text('MetricName.CpuClock'), metric: 'cpu.clock' }],
+  });
   await openWindow(page, three);
   const names = async (): Promise<string[]> => (await settingsOf(page)).overlays.map((overlay) => overlay.name);
   const row = (name: string) => list(page).getByRole('treeitem', { name: startingWith(name) });
@@ -225,7 +287,9 @@ test('OverlaysAreManagedFromTheList', async ({ page }) => {
     // Hidden, it shows only in the window: its row and its spot on the map say so.
     await expect(row('Top right').first()).toHaveAccessibleDescription(text('UiText.OverlayHidden'));
     await select(page, 'Top right');
-    await expect(page.getByRole('radiogroup', { name: text('UiText.MonitorMap') }).getByRole('radio', { checked: true })).toHaveAccessibleDescription(text('UiText.OverlayHidden'));
+    await expect(
+      page.getByRole('radiogroup', { name: text('UiText.MonitorMap') }).getByRole('radio', { checked: true }),
+    ).toHaveAccessibleDescription(text('UiText.OverlayHidden'));
     await page.getByRole('button', { name: text('UiText.ShowThisOverlay') }).press('Enter');
     await expect.poll(async () => overlayOf(await settingsOf(page), 1).hidden ?? false).toBe(false);
     await expect(page.getByRole('button', { name: text('UiText.HideThisOverlay') })).toBeFocused();

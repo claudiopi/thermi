@@ -49,8 +49,20 @@ public sealed class BridgeContractTests
         var turn = new Queue<Action>();
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), new TestFeed { Latest = Recorded }, startup) { Screens = () => [] };
-        using var bridge = new WindowBridge(new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id }, editor, new ChartHistory(folder.Clock), turn.Enqueue);
+        var environment = new WindowEnvironment(
+            "thermi-tests",
+            folder.File,
+            "thermi.exe",
+            folder.Log,
+            folder.Clock.GetUtcNow(),
+            new TestFeed { Latest = Recorded },
+            startup)
+        { Screens = () => [], ReadsTaskbar = false };
+        using var bridge = new WindowBridge(
+            new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id },
+            editor,
+            new ChartHistory(folder.Clock),
+            turn.Enqueue);
         for (var second = 0; second < 3; second++)
         {
             folder.Clock.Advance(TimeSpan.FromSeconds(1));
@@ -63,14 +75,25 @@ public sealed class BridgeContractTests
 
         Assert.All(config.Overlays, overlay => Assert.False(string.IsNullOrWhiteSpace(overlay.Name)));
         Assert.All(items, item => Assert.Equal(Texts.English.Of(Metrics.Find(item.Metric ?? item.Auto)!.Name), item.Name));
-        Assert.Equal(config.Overlays.Select(overlay => overlay.Items.Select(item => item.Id)), view.Pills.Select(pills => pills.SelectMany(pill => pill.Items)));
+        Assert.Equal(
+            config.Overlays.Select(overlay => overlay.Items.Select(item => item.Id)),
+            view.Pills.Select(pills => pills.SelectMany(pill => pill.Items)));
         Assert.All(view.Pills.SelectMany(pills => pills), pill => Assert.False(string.IsNullOrWhiteSpace(pill.Label)));
-        Assert.All(items, item => Assert.True(view.Items[item.Id] is { Value: not null, Type.Length: > 0 } shown && (item.Meter is null) == (shown.Level is null), item.Id));
-        Assert.All(items, item => Assert.Equal(item.Meter?.Metric is { } metric ? Texts.English.Of(Metrics.Find(metric)!.Name) : null, view.Items[item.Id].MeterName));
-        foreach (var item in items.Where(item => item.Meter is not null))
+        Assert.All(
+            items,
+            item => Assert.True(
+                view.Items[item.Id] is { Value: not null, Type.Length: > 0 } shown && (item.Meter is null) == (shown.Level is null),
+                item.Id));
+        Assert.All(
+            items,
+            item => Assert.Equal(
+                item.Meter?.Metric is { } metric ? Texts.English.Of(Metrics.Find(metric)!.Name) : null,
+                view.Items[item.Id].MeterName));
+        // Every numeric item charts, one without a meter its own reading with no lines.
+        foreach (var item in items)
         {
             var chart = await bridge.Chart(item.Id);
-            Assert.True(chart is { Empty: null, Stats: not null }, item.Id);
+            Assert.True(chart is { Empty: null, Stats: not null } && (item.Meter is not null || chart is { Warning: null, Critical: null }), item.Id);
             var unit = chart.Stats.Split(' ')[^1];
             Assert.All(new[] { chart.WarningText, chart.CriticalText }.OfType<string>(), line => Assert.EndsWith($" {unit}", line, StringComparison.Ordinal));
             if (item.Id == Metrics.CpuFan.Id)
@@ -82,10 +105,16 @@ public sealed class BridgeContractTests
         var catalog = await bridge.Catalog("", [], all: true);
         Assert.True(catalog.Count > 0);
         Assert.All(catalog.Groups, group => Assert.False(string.IsNullOrWhiteSpace(group.Name)));
-        Assert.All(catalog.Groups.SelectMany(group => group.Sensors), row => Assert.True(row is { Name.Length: > 0, Minute.Count: > 0 } && (row.Value ?? row.Why?.ToString()) is not null, row.Id));
+        Assert.All(
+            catalog.Groups.SelectMany(group => group.Sensors),
+            row => Assert.True(
+                row is { Name.Length: > 0, Minute.Count: > 0 } && (row.Value ?? row.Why?.ToString()) is not null,
+                row.Id));
         Assert.Equal(new FinderView(FinderPhase.Idle, null), await bridge.Finder());
         Assert.Null((await bridge.Status()).Problem);
         Assert.Equal(new UndoSteps(null, null), await bridge.Steps());
+        // A look another program deleted first is refused, as a rename of it is, so the page can say so.
+        Assert.Equal(Texts.Key(Core.Editing.Refusal.StyleNotFound), await bridge.DeleteLook("Gone"));
         // The version lives in Directory.Build.props alone, and About shows it as it stands there.
         var version = System.Xml.Linq.XDocument.Load(Path.Combine(TestRecordings.RepoRoot(), "Directory.Build.props")).Descendants("Version").Single().Value;
         Assert.True((await bridge.About()) is { Languages.Count: > 1, Windows.Length: > 0 } about && about.Version == version, version);
@@ -106,8 +135,20 @@ public sealed class BridgeContractTests
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
         var feed = new TestFeed();
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup) { Screens = () => [], HotkeyStatus = () => null };
-        using var bridge = new WindowBridge(new WindowStart(0, settings, Texts.English, environment, folder.Clock), editor, new ChartHistory(folder.Clock), turn.Enqueue);
+        var environment = new WindowEnvironment(
+            "thermi-tests",
+            folder.File,
+            "thermi.exe",
+            folder.Log,
+            folder.Clock.GetUtcNow(),
+            feed,
+            startup)
+        { Screens = () => [], HotkeyStatus = () => null, ReadsTaskbar = false };
+        using var bridge = new WindowBridge(
+            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
+            editor,
+            new ChartHistory(folder.Clock),
+            turn.Enqueue);
         var heard = new List<string>();
         bridge.Changed += (_, _) => heard.Add(nameof(bridge.Changed));
         bridge.Readings += (_, _) => heard.Add(nameof(bridge.Readings));
@@ -129,5 +170,47 @@ public sealed class BridgeContractTests
         feed.State = ServiceState.Stale;
         bridge.Arrived();
         Assert.Equal([nameof(bridge.Readings), nameof(bridge.Readings), nameof(bridge.Readings), nameof(bridge.Changed)], heard);
+    }
+
+    // A service that stops sends nothing more, so no snapshot tells the window: within two seconds of the last one
+    // the page hears of it anyway, to show the bar that starts it again instead of numbers that look live.
+    [Fact]
+    public async Task AServiceThatGoesSilentReachesThePageWithoutASnapshot()
+    {
+        using var folder = new SettingsFolder();
+        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+        await using var settings = folder.Settings();
+        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
+        // The overlay's hotkeys are asked off the window's thread, which then queues the answer.
+        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        var feed = new TestFeed { Latest = Recorded };
+        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
+        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
+        {
+            Screens = () => [],
+            HotkeyStatus = () => null,
+            ReadsTaskbar = false,
+        };
+        using var bridge = new WindowBridge(
+            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
+            editor,
+            new ChartHistory(folder.Clock),
+            turn.Enqueue);
+        bridge.Arrived();
+        var told = new List<bool>();
+        bridge.Changed += (_, change) => told.Add(change.Sensors);
+
+        (feed.Latest, feed.State) = (null, ServiceState.Stopped);
+        for (var tick = 0; tick < 12; tick++)
+        {
+            folder.Clock.Advance(TimeSpan.FromMilliseconds(250));
+            while (turn.TryDequeue(out var action))
+            {
+                action();
+            }
+        }
+
+        Assert.Equal([true], told);
     }
 }

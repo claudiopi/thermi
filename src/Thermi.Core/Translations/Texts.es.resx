@@ -129,6 +129,12 @@
   <data name="UiText.StyleColor" xml:space="preserve">
     <value>Usar el del estilo</value>
   </data>
+  <data name="UiText.StyleColorShown" xml:space="preserve">
+    <value>El del estilo</value>
+  </data>
+  <data name="UiText.CombineChoose" xml:space="preserve">
+    <value>Elegir sensores…</value>
+  </data>
   <data name="UiText.CatalogLive" xml:space="preserve">
     <value>Todo lo que lee el servicio de sensores, en vivo</value>
   </data>
@@ -706,7 +712,7 @@
     <value>Superposición nueva</value>
   </data>
   <data name="UiText.ExitThermi" xml:space="preserve">
-    <value>Salir de thermi</value>
+    <value>Salir de thermi y cerrar sus superposiciones</value>
   </data>
   <data name="UiText.PillName" xml:space="preserve">
     <value>píldora {0}</value>
@@ -941,6 +947,18 @@
   </data>
   <data name="ChartText.DutyTitle" xml:space="preserve">
     <value>Ciclo del ventilador, % de su velocidad máxima</value>
+  </data>
+  <data name="ChartText.RamTitle" xml:space="preserve">
+    <value>Memoria en uso, % de toda la RAM</value>
+  </data>
+  <data name="ChartText.UseLines" xml:space="preserve">
+    <value>Usar {0}/{1}</value>
+  </data>
+  <data name="ChartText.UseLine" xml:space="preserve">
+    <value>Usar {0}</value>
+  </data>
+  <data name="ChartText.UseNoLines" xml:space="preserve">
+    <value>Quitar las líneas</value>
   </data>
   <data name="Combine.Max" xml:space="preserve">
     <value>Máximo</value>
@@ -1194,12 +1212,6 @@
   <data name="MetricLabel.Ssd" xml:space="preserve">
     <value>SSD</value>
   </data>
-  <data name="MetricLabel.Read" xml:space="preserve">
-    <value>LECT</value>
-  </data>
-  <data name="MetricLabel.Write" xml:space="preserve">
-    <value>ESCR</value>
-  </data>
   <data name="MetricLabel.Bat" xml:space="preserve">
     <value>BAT</value>
   </data>
@@ -1308,6 +1320,9 @@
   <data name="OverlayText.NameAndValue" xml:space="preserve">
     <value>{0}: {1}</value>
   </data>
+  <data name="OverlayText.OfTotal" xml:space="preserve">
+    <value>{0} de {1}</value>
+  </data>
   <data name="OverlayText.MinAndMax" xml:space="preserve">
     <value>Mín {0} · máx {1}</value>
   </data>
@@ -1401,6 +1416,9 @@
   <data name="Refusal.LastOverlay" xml:space="preserve">
     <value>La última superposición no se puede eliminar.</value>
   </data>
+  <data name="Refusal.Snapped" xml:space="preserve">
+    <value>Alt+flechas mueven una superposición flotante. Arrastra esta fuera de su lugar para moverla libremente.</value>
+  </data>
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi no tiene traducción a ese idioma.</value>
   </data>
@@ -1474,7 +1492,7 @@
     <value>Ciclo de trabajo</value>
   </data>
   <data name="SensorKind.Data" xml:space="preserve">
-    <value>Memoria</value>
+    <value>Datos</value>
   </data>
   <data name="SensorKind.Throughput" xml:space="preserve">
     <value>Velocidad de datos</value>
@@ -1656,6 +1674,15 @@
   <data name="UndoText.Undone" xml:space="preserve">
     <value>Deshecho: {0}.</value>
   </data>
+  <data name="UndoText.RedoneTo" xml:space="preserve">
+    <value>Rehecho: {0} vuelve a {1}.</value>
+  </data>
+  <data name="UndoText.RedoneAgain" xml:space="preserve">
+    <value>Rehecho: {0} vuelve a estar en {1}.</value>
+  </data>
+  <data name="UndoText.Redone" xml:space="preserve">
+    <value>Rehecho: {0}.</value>
+  </data>
   <data name="UndoText.On" xml:space="preserve">
     <value>Activado</value>
   </data>
@@ -1803,6 +1830,12 @@
   <data name="WindowText.DriverReading" xml:space="preserve">
     <value>La temperatura de la CPU ya se lee.</value>
   </data>
+  <data name="WindowText.DriverRestart" xml:space="preserve">
+    <value>Reiniciá Windows para terminar de instalar el driver.</value>
+  </data>
+  <data name="WindowText.DriverRestartMore" xml:space="preserve">
+    <value>La temperatura, el consumo y las frecuencias de la CPU se leen cuando Windows vuelva a arrancar.</value>
+  </data>
   <data name="WindowText.DriverRefused" xml:space="preserve">
     <value>El driver no se instaló.</value>
   </data>
@@ -1862,6 +1895,12 @@
   </data>
   <data name="WindowText.WebViewMissing" xml:space="preserve">
     <value>Necesita Microsoft Edge WebView2 Runtime, que Windows suele traer y a este PC le falta. La superposición sigue funcionando. ¿Abrir su página de descarga?</value>
+  </data>
+  <data name="WindowText.PageEndedTitle" xml:space="preserve">
+    <value>La ventana de configuración se detuvo</value>
+  </data>
+  <data name="WindowText.PageEnded" xml:space="preserve">
+    <value>Su página terminó de forma inesperada, así que la ventana se cierra. La superposición sigue funcionando; abrí la configuración de nuevo desde su menú.</value>
   </data>
   <data name="SheetText.AnywhereInWindows" xml:space="preserve">
     <value>En cualquier parte de Windows · se eligen en Configuración</value>

@@ -8,10 +8,11 @@ using Serilog.Extensions.Logging;
 namespace Thermi.Logging;
 
 /// <summary>
-/// The one log of the overlay and the window, <c>%LOCALAPPDATA%\thermi\thermi.log</c>, which both processes write at once:
-/// rolled at 1 MB into numbered files, the three newest kept, so a burst of errors never wipes what came before. Errors
-/// and warnings always; with <c>--trace</c>, the debug events too. Writing never throws: Serilog keeps a sink's failure
-/// to itself, and the overlay matters more than its log.
+/// The logs of the overlay and the window in <c>%LOCALAPPDATA%\thermi</c>, one file each: <c>thermi.log</c> and
+/// <c>thermi-window.log</c>. The elevated mode writes none there (<see cref="EventLogger"/>). Each rolls at 1 MB into
+/// numbered files, the three newest kept, so a burst of errors never wipes what came before. Errors and warnings always;
+/// with <c>--trace</c>, the debug events too. Writing never throws: Serilog keeps a sink's failure to itself, and the
+/// overlay matters more than its log.
 /// </summary>
 internal static class ThermiLog
 {
@@ -21,10 +22,15 @@ internal static class ThermiLog
 
     // Time from the injected clock, then its counter in seconds to the microsecond: Windows' performance counter, the
     // same in every process, so the time from an input in the window to the overlay's paint reads from their lines.
-    private const string Line = "{Time:yyyy-MM-dd HH:mm:ss.fff zzz} {Counter:l} {ProcessId} {Level:u3} {SourceContext:l}: {Message:lj}{NewLine}{Exception}";
+    private const string Line =
+        "{Time:yyyy-MM-dd HH:mm:ss.fff zzz} {Counter:l} {ProcessId} {Level:u3} {SourceContext:l}: {Message:lj}{NewLine}{Exception}";
 
-    public static string DefaultPath { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "thermi", "thermi.log");
+    public static string Folder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "thermi");
+
+    // A file per process: two processes rolling one shared file by its size race to rename it, and lose lines or files.
+    public static string OverlayPath { get; } = Path.Combine(Folder, "thermi.log");
+
+    public static string WindowPath { get; } = Path.Combine(Folder, "thermi-window.log");
 
     public static ILoggerFactory Create(string path, TimeProvider time, bool trace)
     {
@@ -38,6 +44,7 @@ internal static class ThermiLog
                 fileSizeLimitBytes: FileBytes,
                 rollOnFileSizeLimit: true,
                 retainedFileCountLimit: Files,
+                // Still shared: a second thermi that only brings the open window to the front writes a line or two.
                 shared: true)
             .CreateLogger();
         return new SerilogLoggerFactory(logger, dispose: true);
@@ -81,7 +88,10 @@ internal static class ThermiLog
         }
     }
 
-    /// <summary>The counter's seconds to the microsecond, in whole numbers: a double loses the microseconds of a counter that has run for long.</summary>
+    /// <summary>
+    /// The counter's seconds to the microsecond, in whole numbers: a double loses the microseconds of a counter that has
+    /// run for long.
+    /// </summary>
     internal static string Counter(TimeProvider time)
     {
         var (ticks, frequency) = (time.GetTimestamp(), time.TimestampFrequency);

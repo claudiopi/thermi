@@ -27,7 +27,8 @@ public static class ItemEdits
             // A battery's rate is a few watts, so whole watts would hide most of its change.
             var language = texts ?? Texts.English;
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
-            return Insert(config, overlay, sensor, new ItemConfig { Sensor = sensorId, Name = Names.OfItem(config, sensor, sensorId, language), Decimals = decimals }, language);
+            var item = new ItemConfig { Sensor = sensorId, Name = Names.OfItem(config, sensor, sensorId, language), Decimals = decimals };
+            return Insert(config, overlay, sensor, item, language);
         });
 
     /// <summary>Puts a new item in its device's pill, with that pill's label.</summary>
@@ -35,7 +36,9 @@ public static class ItemEdits
     {
         var items = config.Overlays[overlay].Items;
         var (at, label) = Names.PlaceOf(config.Overlays[overlay], sensor, texts);
-        return ConfigEdits.Apply(config, current => ConfigEdits.WithItems(current, overlay, [.. items.Take(at), item with { Label = label }, .. items.Skip(at)]));
+        return ConfigEdits.Apply(
+            config,
+            current => ConfigEdits.WithItems(current, overlay, [.. items.Take(at), item with { Label = label }, .. items.Skip(at)]));
     }
 
     /// <summary>Gives the item a name of its own, as the window calls it; the label its pill shows stays.</summary>
@@ -298,7 +301,9 @@ public static class ItemEdits
     }
 
     private static bool MeteredByItsDuty(ItemConfig item) => item.Meter is { } meter
-        && (meter.Metric == Metrics.CpuFanDuty.Id || meter.Auto == Metrics.CpuFanDuty.Id || (item.Sensor is { } fan && meter.Sensor == SensorMap.OwnDuty(fan)));
+        && (meter.Metric == Metrics.CpuFanDuty.Id
+            || meter.Auto == Metrics.CpuFanDuty.Id
+            || (item.Sensor is { } fan && meter.Sensor == SensorMap.OwnDuty(fan)));
 
     // An item made from a metric keeps it as auto, so it can go back to it.
     private static ItemConfig Named(ItemConfig item, string sensor) =>
@@ -313,7 +318,8 @@ public static class ItemEdits
 
     /// <summary>The type of what an item shows, or null when none of its sensors is among those the service reads.</summary>
     public static SensorKind? KindOf(ItemConfig item, Snapshot snapshot) =>
-        Metrics.Find(item.Metric ?? item.Auto)?.Kind ?? SensorsOf(item).Select(sensor => KindOf(metric: null, sensor, snapshot)).FirstOrDefault(kind => kind is not null);
+        Metrics.Find(item.Metric ?? item.Auto)?.Kind
+        ?? SensorsOf(item).Select(sensor => KindOf(metric: null, sensor, snapshot)).FirstOrDefault(kind => kind is not null);
 
     private static IReadOnlyList<string> SensorsOf(ItemConfig item) => item.Sensors ?? (item.Sensor is { } sensor ? [sensor] : []);
 

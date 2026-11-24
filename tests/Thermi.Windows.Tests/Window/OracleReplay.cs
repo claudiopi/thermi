@@ -49,14 +49,31 @@ internal sealed class OracleReplay : IAsyncDisposable
         _settings = _folder.Settings();
         Assert.True(_folder.Settled(_settings.SyncAsync).IsCompletedSuccessfully);
         var language = start["texts"]?.GetValue<string>() ?? "en";
-        var service = start["service"]?.GetValue<string>() switch { "stopped" => ServiceState.Stopped, "stale" => ServiceState.Stale, _ => ServiceState.Running };
+        var service = start["service"]?.GetValue<string>() switch
+        {
+            "stopped" => ServiceState.Stopped,
+            "stale" => ServiceState.Stale,
+            _ => ServiceState.Running,
+        };
         var feed = new TestFeed { Latest = service == ServiceState.Stopped ? null : SnapshotOf(start["sensors"]), State = service };
         var turn = new Queue<Action>();
         var editor = new WindowEditor(_settings, turn.Enqueue, _folder.Log, _folder.Clock);
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", _folder.File, "thermi.exe", _folder.Log, _folder.Clock.GetUtcNow(), feed, startup) { Screens = () => [], HotkeyStatus = () => null, AltGrKeys = () => UsKeyboard };
+        var environment = new WindowEnvironment(
+            "thermi-tests",
+            _folder.File,
+            "thermi.exe",
+            _folder.Log,
+            _folder.Clock.GetUtcNow(),
+            feed,
+            startup)
+        { Screens = () => [], HotkeyStatus = () => null, AltGrKeys = () => UsKeyboard, ReadsTaskbar = false };
         var texts = language == "pseudo" ? Texts.Pseudo() : Texts.Of(language);
-        _bridge = new WindowBridge(new WindowStart(0, _settings, texts, environment, _folder.Clock) { Pseudo = language == "pseudo" }, editor, new ChartHistory(_folder.Clock), turn.Enqueue);
+        _bridge = new WindowBridge(
+            new WindowStart(0, _settings, texts, environment, _folder.Clock) { Pseudo = language == "pseudo" },
+            editor,
+            new ChartHistory(_folder.Clock),
+            turn.Enqueue);
         _bridge.Arrived();
     }
 
@@ -77,7 +94,9 @@ internal sealed class OracleReplay : IAsyncDisposable
 
             last = call;
             var reply = await replay.AnswerOf(call["method"]?.GetValue<string>() ?? "", call["args"]?.AsArray() ?? []);
-            var answer = reply["error"] is { } error ? new JsonObject { ["error"] = error.DeepClone() } : new JsonObject { ["result"] = reply["result"]?.DeepClone() };
+            var answer = reply["error"] is { } error
+                ? new JsonObject { ["error"] = error.DeepClone() }
+                : new JsonObject { ["result"] = reply["result"]?.DeepClone() };
             var (now, nowLooks) = (await replay.ResultOf("settings"), await replay.ResultOf("looks"));
             if (!JsonNode.DeepEquals(now, shown))
             {
@@ -134,7 +153,8 @@ internal sealed class OracleReplay : IAsyncDisposable
     {
         var message = new JsonObject { ["id"] = 0, ["method"] = method, ["args"] = args.DeepClone() };
         // The real clock only bounds a call that never answers, which fails the replay with its name instead of hanging.
-        var answer = await BridgeCalls.AnswerAsync(_bridge, message.ToJsonString()).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        var answer = await BridgeCalls.AnswerAsync(_bridge, message.ToJsonString())
+            .WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
         return JsonNode.Parse(answer)?.AsObject() ?? [];
     }
 }

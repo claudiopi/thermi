@@ -15,7 +15,8 @@ export interface FinderRowProps {
 type Shown = 'idle' | 'running' | 'done';
 
 const shownOf = (finder: FinderView | null): Shown => (finder?.phase === 'running' ? 'running' : finder?.phase === 'done' ? 'done' : 'idle');
-const refusalKey = (refusal: FanFinderRefusal): TextKey => `FanFinderRefusal.${refusal.replace(/(^|-)(\w)/g, (_, _dash: string, letter: string) => letter.toUpperCase())}`;
+const refusalKey = (refusal: FanFinderRefusal): TextKey =>
+  `FanFinderRefusal.${refusal.replace(/(^|-)(\w)/g, (_, _dash: string, letter: string) => letter.toUpperCase())}`;
 const putAway = (): void => void bridge()?.cancelFind();
 
 /**

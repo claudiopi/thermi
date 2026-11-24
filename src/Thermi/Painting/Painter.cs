@@ -45,11 +45,16 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
-        var pills = OverlayLayout.Groups(items, look.Layout, look.Labels).Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale)).ToList();
+        var pills = OverlayLayout.Groups(items, look.Layout, look.Labels)
+            .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale))
+            .ToList();
         return Painted(pills, look, scale, glow, mark: false);
     }
 
-    /// <summary>The one pill that stands in for every item while the sensor service is stopped: thermi's mark, then <paramref name="text"/>.</summary>
+    /// <summary>
+    /// The one pill that stands in for every item while the sensor service is stopped: thermi's mark, then
+    /// <paramref name="text"/>.
+    /// </summary>
     public Bitmap PaintStopped(string text, OverlayLook look, float scale)
     {
         var fonts = FontsFor(look, scale);
@@ -179,21 +184,26 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
-        return [.. items.Select(item => new FitItem(look.Labels ? LabelWidth(measure, fonts, item, scale) * scale : 0, ValueWidth(measure, fonts, item, scale) * scale))];
+        return [.. items.Select(item => new FitItem(
+            look.Labels ? LabelWidth(measure, fonts, item, scale) * scale : 0,
+            ValueWidth(measure, fonts, item, scale) * scale))];
     }
 
     /// <summary>What a pill adds around its items, and what lies between two items, in pixels at <paramref name="scale"/>.</summary>
     public static (double Padding, double Gap) Spacing(float scale) => ((PainterShapes.OuterPadding + InnerPadding) * 2 * scale, ItemGap * scale);
 
     // In unscaled pixels.
-    private static float ItemWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale) => LabelWidth(g, fonts, item, scale) + ValueWidth(g, fonts, item, scale);
+    private static float ItemWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale) =>
+        LabelWidth(g, fonts, item, scale) + ValueWidth(g, fonts, item, scale);
 
     private static float LabelWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale) =>
         item.Label is null ? 0 : (g.MeasureString(item.Label, fonts.Label, 0, PainterFonts.Typographic).Width / scale) + LabelGap;
 
     private static float ValueWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale)
     {
-        var width = Math.Max(g.MeasureString(item.Value, fonts.Value, 0, PainterFonts.Typographic).Width, g.MeasureString(item.Room, fonts.Value, 0, PainterFonts.Typographic).Width) / scale;
+        var width = Math.Max(
+            g.MeasureString(item.Value, fonts.Value, 0, PainterFonts.Typographic).Width,
+            g.MeasureString(item.Room, fonts.Value, 0, PainterFonts.Typographic).Width) / scale;
         return item.Graph is null ? width : width + PainterShapes.GraphWidth + MeterGap;
     }
 
@@ -294,7 +304,9 @@ internal sealed class Painter(bool reuse = false) : IDisposable
 
     private sealed record Pill(IReadOnlyList<OverlayItem> Items, List<float> ItemWidths, float Scale)
     {
-        public float Width { get; } = ((PainterShapes.OuterPadding + InnerPadding) * 2 * Scale) + ItemWidths.Sum() + (ItemGap * Scale * Math.Max(0, ItemWidths.Count - 1));
+        public float Width { get; } = ((PainterShapes.OuterPadding + InnerPadding) * 2 * Scale)
+            + ItemWidths.Sum()
+            + (ItemGap * Scale * Math.Max(0, ItemWidths.Count - 1));
     }
 }
 

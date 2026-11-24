@@ -35,7 +35,9 @@ public sealed class ThrottleTests
         throttle.Dispose();
 
         Assert.Equal((TimeSpan.Zero, 1), sent[0]);
-        Assert.All(beforeClosing.Zip(beforeClosing.Skip(1)), pair => Assert.True(pair.Second.At - pair.First.At >= TimeSpan.FromMilliseconds(100), $"{pair.First} then {pair.Second}"));
+        Assert.All(
+            beforeClosing.Zip(beforeClosing.Skip(1)),
+            pair => Assert.True(pair.Second.At - pair.First.At >= TimeSpan.FromMilliseconds(100), $"{pair.First} then {pair.Second}"));
         Assert.Equal([(quiet, 21), (quiet, 22), (quiet, 23), (quiet, 24)], sent[^4..]);
         Assert.Contains(20, sent.Select(change => change.Value));
     }

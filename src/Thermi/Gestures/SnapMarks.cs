@@ -13,7 +13,7 @@ namespace Thermi.Gestures;
 
 /// <summary>
 /// While an overlay is dragged, the spots it can snap to: each the overlay's own outline where it would go, on the
-/// taskbars and in the corners of every monitor, the one it would drop onto filled. They let every click through, and
+/// taskbars where their rows have room for it and in the corners of every monitor, the one it would drop onto filled. They let every click through, and
 /// sit under the overlay dragged.
 /// </summary>
 internal sealed class SnapMarks : IDisposable
@@ -27,10 +27,10 @@ internal sealed class SnapMarks : IDisposable
     private readonly float _scale;
     private SnapConfig? _lit;
 
-    public SnapMarks(IReadOnlyList<Screen> screens, Orientation orientation, Size size, float scale, HWND dragged)
+    public SnapMarks(IReadOnlyList<Screen> screens, Orientation orientation, Size size, float scale, HWND dragged, RowContext rows)
     {
         (_size, _scale) = (size, scale);
-        foreach (var (snap, at) in Snaps.Marks(screens, orientation, size.Width, size.Height))
+        foreach (var (snap, at) in Snaps.Marks(screens, orientation, size.Width, size.Height, rows))
         {
             var window = HiddenWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT);
             _marks.Add((snap, at, window));
@@ -38,7 +38,14 @@ internal sealed class SnapMarks : IDisposable
             PInvoke.ShowWindow(window, SHOW_WINDOW_CMD.SW_SHOWNA);
         }
 
-        PInvoke.SetWindowPos(dragged, HWND.HWND_TOPMOST, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+        PInvoke.SetWindowPos(
+            dragged,
+            HWND.HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
     }
 
     /// <summary>Fills the mark the overlay would drop onto, or none.</summary>

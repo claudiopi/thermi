@@ -47,20 +47,26 @@ internal sealed class TaskbarApps : IDisposable
     private readonly WNDPROC _procedure;
     private readonly HWND _events;
     private readonly ITimer _settled;
+    private readonly bool _reads;
 
     /// <param name="time">The clock the answers are kept by.</param>
     /// <param name="onTurn">Runs an action where the answers are kept: on the window's thread, or under its lock.</param>
     /// <param name="changed">Told there when a taskbar's answer changed.</param>
-    public TaskbarApps(TimeProvider time, Action<Action> onTurn, Action changed)
+    /// <param name="reads">False for one that never reads a taskbar nor makes its window, every answer unknown, as in tests.</param>
+    public TaskbarApps(TimeProvider time, Action<Action> onTurn, Action changed, bool reads = true)
     {
         _time = time;
         _onTurn = onTurn;
         _changed = changed;
+        _reads = reads;
         _settled = time.CreateTimer(_ => onTurn(ReadAll), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _procedure = WndProc;
-        HiddenWindow.Register(_className, name => HiddenWindow.Plain(_procedure, name));
-        _events = HiddenWindow.Create(_className);
-        PInvoke.RegisterShellHookWindow(_events);
+        if (reads)
+        {
+            HiddenWindow.Register(_className, name => HiddenWindow.Plain(_procedure, name));
+            _events = HiddenWindow.Create(_className);
+            PInvoke.RegisterShellHookWindow(_events);
+        }
     }
 
     /// <summary>
@@ -69,19 +75,24 @@ internal sealed class TaskbarApps : IDisposable
     /// </summary>
     public PixelRect? Extent(PixelRect bar) => Known(bar)?.Extent;
 
-    /// <summary>The buttons' extent when they begin at the taskbar's left end, Start first, as <see cref="Snaps.LeftButtons"/> tells; null otherwise or unread.</summary>
-    public PixelRect? LeftButtons(PixelRect bar) => Known(bar) is { } found ? Snaps.LeftButtons(bar, found.Extent, found.Start) : null;
-
     public void Dispose()
     {
         _settled.Dispose();
-        PInvoke.DeregisterShellHookWindow(_events);
-        PInvoke.DestroyWindow(_events);
-        HiddenWindow.Unregister(_className);
+        if (_reads)
+        {
+            PInvoke.DeregisterShellHookWindow(_events);
+            PInvoke.DestroyWindow(_events);
+            HiddenWindow.Unregister(_className);
+        }
     }
 
     private TaskbarButtons? Known(PixelRect bar)
     {
+        if (!_reads)
+        {
+            return null;
+        }
+
         var known = _read.TryGetValue(bar, out var read);
         if (!known || _time.GetElapsedTime(read.At) >= Kept)
         {
@@ -155,7 +166,8 @@ internal sealed class TaskbarApps : IDisposable
     // top-level window when a setting changes, as the taskbar's alignment, or Explorer builds a new taskbar.
     private LRESULT WndProc(HWND hwnd, uint message, WPARAM wParam, LPARAM lParam)
     {
-        var shell = message == ShellHook && (uint)wParam.Value is PInvoke.HSHELL_WINDOWCREATED or PInvoke.HSHELL_WINDOWDESTROYED or PInvoke.HSHELL_WINDOWREPLACED;
+        var shell = message == ShellHook
+            && (uint)wParam.Value is PInvoke.HSHELL_WINDOWCREATED or PInvoke.HSHELL_WINDOWDESTROYED or PInvoke.HSHELL_WINDOWREPLACED;
         if (shell || message == PInvoke.WM_SETTINGCHANGE || message == Topmost.TaskbarCreated)
         {
             _settled.Change(Settle, Timeout.InfiniteTimeSpan);
@@ -181,8 +193,14 @@ internal sealed class TaskbarApps : IDisposable
             cache.AddProperty(UIA_PROPERTY_ID.UIA_ClassNamePropertyId);
             cache.AddProperty(UIA_PROPERTY_ID.UIA_AutomationIdPropertyId);
             cache.AutomationElementMode = AutomationElementMode.AutomationElementMode_None;
-            var start = automation.CreateOrCondition(automation.CreatePropertyCondition(UIA_PROPERTY_ID.UIA_AutomationIdPropertyId, "StartButton"), automation.CreatePropertyCondition(UIA_PROPERTY_ID.UIA_ClassNamePropertyId, "Start"));
-            var buttons = automation.CreateOrCondition(automation.CreatePropertyCondition(UIA_PROPERTY_ID.UIA_ControlTypePropertyId, (int)UIA_CONTROLTYPE_ID.UIA_ButtonControlTypeId), start);
+            var start = automation.CreateOrCondition(
+                automation.CreatePropertyCondition(UIA_PROPERTY_ID.UIA_AutomationIdPropertyId, "StartButton"),
+                automation.CreatePropertyCondition(UIA_PROPERTY_ID.UIA_ClassNamePropertyId, "Start"));
+            var buttons = automation.CreateOrCondition(
+                automation.CreatePropertyCondition(
+                    UIA_PROPERTY_ID.UIA_ControlTypePropertyId,
+                    (int)UIA_CONTROLTYPE_ID.UIA_ButtonControlTypeId),
+                start);
             return new Client(automation, buttons, cache);
         }
 
@@ -195,7 +213,11 @@ internal sealed class TaskbarApps : IDisposable
                 var element = found.GetElement(at);
                 var rect = element.CachedBoundingRectangle;
                 var box = new PixelRect(rect.left, rect.top, rect.right, rect.bottom);
-                elements[at] = new TaskbarElement(box, element.CachedControlType == UIA_CONTROLTYPE_ID.UIA_ButtonControlTypeId, Text(element.CachedClassName), Text(element.CachedAutomationId));
+                elements[at] = new TaskbarElement(
+                    box,
+                    element.CachedControlType == UIA_CONTROLTYPE_ID.UIA_ButtonControlTypeId,
+                    Text(element.CachedClassName),
+                    Text(element.CachedAutomationId));
             }
 
             return elements;

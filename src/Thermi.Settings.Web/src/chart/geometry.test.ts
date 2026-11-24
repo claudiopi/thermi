@@ -22,7 +22,7 @@ function plot(chart: Partial<ChartView> = {}): Plot {
     title: null,
     fromText: '',
     toText: '',
-    fires: false,
+    fires: null,
     ...chart,
   };
   return { width: 300, height: 124, chart: view };
@@ -31,7 +31,8 @@ function plot(chart: Partial<ChartView> = {}): Plot {
 describe('the chart', () => {
   test.each([
     [1000, 1000, 400],
-    [1000, 2000, 420],
+    [1000, 2000, 500],
+    [1600, 2000, 640],
     [300, 1000, 150],
     [100, 100, 140],
     [1000, 1001.25, 401],
@@ -87,7 +88,12 @@ describe('the chart', () => {
     { from: 0, to: 100, colors: [{ at: -10, color: 'cool' }, { at: 50, color: 'warm' }, { at: 150, color: 'hot' }], offsets: [0, 0.5, 1] },
     { from: 20, to: 100, colors: [{ at: 40, color: 'cool' }], offsets: [0.25] },
     { from: 50, to: 50, colors: [{ at: 50, color: 'cool' }, { at: 51, color: 'hot' }], offsets: [0, 1] },
-  ] satisfies { from: number; to: number; colors: ColorStop[]; offsets: number[] }[])('places the color stops from $from to $to', ({ from, to, colors, offsets }) => {
+  ] satisfies {
+    from: number;
+    to: number;
+    colors: ColorStop[];
+    offsets: number[];
+  }[])('places the color stops from $from to $to', ({ from, to, colors, offsets }) => {
     const stops = stopsOf(plot({ from, to, colors }).chart);
     expect(stops).toEqual(colors.map((stop, index) => ({ offset: offsets[index], color: stop.color })));
   });

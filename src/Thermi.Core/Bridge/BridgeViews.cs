@@ -24,13 +24,21 @@ public sealed record CatalogRow(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Tip);
 
 /// <summary>A device of the catalog, by the library's id, with its name, the group it lists under, and its sensors that match.</summary>
-public sealed record CatalogGroup(string Id, string Name, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] DeviceKind? Kind, IReadOnlyList<CatalogRow> Sensors);
+public sealed record CatalogGroup(
+    string Id,
+    string Name,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] DeviceKind? Kind,
+    IReadOnlyList<CatalogRow> Sensors);
 
 /// <summary>
 /// The catalog for a search: its devices, how many sensors they list, how many more it hides, and when it lists and hides
 /// none, the one word to try instead.
 /// </summary>
-public sealed record CatalogView(IReadOnlyList<CatalogGroup> Groups, int Count, int Hidden, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Suggestion);
+public sealed record CatalogView(
+    IReadOnlyList<CatalogGroup> Groups,
+    int Count,
+    int Hidden,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Suggestion);
 
 /// <summary>A pill of an overlay: its label and its items' ids, in order.</summary>
 public sealed record PillView(string Label, IReadOnlyList<string> Items);
@@ -46,13 +54,21 @@ public sealed record ItemView(
     string Type,
     string? Auto,
     IReadOnlyList<MeterChoice> Meters,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? MeterName);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? MeterName)
+{
+    /// <summary>Whether it can show its speed in bits per second: a network's, as its plans are sold, never a drive's.</summary>
+    public bool Bits { get; init; }
+}
 
 /// <summary>A meter an item is offered, with the name its Meter dropdown shows.</summary>
 public sealed record MeterChoice(MeterConfig Meter, string Name);
 
 /// <summary>Every overlay's pills, every item by its id, every sensor's value as text, by the sensor's id, and thermi's mark as the tray shows it.</summary>
-public sealed record WindowView(IReadOnlyList<IReadOnlyList<PillView>> Pills, IReadOnlyDictionary<string, ItemView> Items, IReadOnlyDictionary<string, string> Values, MarkState Mark);
+public sealed record WindowView(
+    IReadOnlyList<IReadOnlyList<PillView>> Pills,
+    IReadOnlyDictionary<string, ItemView> Items,
+    IReadOnlyDictionary<string, string> Values,
+    MarkState Mark);
 
 /// <summary>Why a chart has no readings to draw: the service stopped, a CPU sensor needs thermi's driver, or none yet.</summary>
 public enum ChartEmpty
@@ -68,8 +84,9 @@ public sealed record ColorStop(double At, ChartColor Color);
 /// <summary>
 /// An item's chart: its track, from 0 to <see cref="Max"/> by <see cref="Step"/>, the span it shows, its ten minutes, its
 /// lines and their texts, the colors along it, its Min · Avg · Max and its summary for Narrator, why it is empty, the
-/// message of a line pushed by the other, its title, the ends of its span as its scale says them, and whether its lines
-/// are not the defaults and the lowest was reached for most of the ten minutes, which the page offers to reset.
+/// message of a line pushed by the other, its title, the ends of its span as its scale says them, and, when its lines are
+/// not the defaults and the lowest was reached for most of the ten minutes, what the button that puts the defaults back
+/// says, as "Use 90/95 °C"; else null.
 /// </summary>
 public sealed record ChartView(
     double Max,
@@ -89,4 +106,4 @@ public sealed record ChartView(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Title,
     string FromText,
     string ToText,
-    bool Fires);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Fires);

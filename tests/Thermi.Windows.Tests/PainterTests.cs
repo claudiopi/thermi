@@ -7,7 +7,10 @@ using Thermi.Painting;
 
 namespace Thermi.Windows.Tests;
 
-/// <summary>The overlay keeps its size while the numbers change, so it never jitters on the taskbar, and draws the meters, fonts and corners its look gives.</summary>
+/// <summary>
+/// The overlay keeps its size while the numbers change, so it never jitters on the taskbar, and draws the meters, fonts and
+/// corners its look gives.
+/// </summary>
 public sealed class PainterTests
 {
     private static readonly OverlayLook Look = OverlayLook.Of(new StyleConfig(), lightTaskbar: false);
@@ -31,11 +34,16 @@ public sealed class PainterTests
     {
         using var painter = new Painter();
         var plain = Layout(9);
-        var graphed = OverlayLayout.Build(PowerEdits.SetGraph(new ThermiConfig(), "cpu.load", graph: true).Config.Overlays[0], Readings(9), CultureInfo.GetCultureInfo("en-US"));
+        var graphed = OverlayLayout.Build(
+            PowerEdits.SetGraph(new ThermiConfig(), "cpu.load", graph: true).Config.Overlays[0],
+            Readings(9),
+            CultureInfo.GetCultureInfo("en-US"));
 
         using var withoutGraph = painter.Paint(plain, Look, 1);
         using var withGraph = painter.Paint(graphed, Look, 1);
-        var widths = new[] { StyleFont.Segoe, StyleFont.Bahnschrift, StyleFont.Consolas }.Select(font => Width(painter, plain, OverlayLook.Of(new StyleConfig { Font = font }, lightTaskbar: false))).ToList();
+        var widths = new[] { StyleFont.Segoe, StyleFont.Bahnschrift, StyleFont.Consolas }
+            .Select(font => Width(painter, plain, OverlayLook.Of(new StyleConfig { Font = font }, lightTaskbar: false)))
+            .ToList();
 
         Assert.InRange(withGraph.Width - withoutGraph.Width, 38, 40);
         Assert.Equal(3, widths.Distinct().Count());

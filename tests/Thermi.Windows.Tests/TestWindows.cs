@@ -81,7 +81,9 @@ internal static class TestWindows
     public static (uint Gdi, uint User) Handles()
     {
         using var process = Process.GetCurrentProcess();
-        return (TestPInvoke.GetGuiResources(process.SafeHandle, GET_GUI_RESOURCES_FLAGS.GR_GDIOBJECTS), TestPInvoke.GetGuiResources(process.SafeHandle, GET_GUI_RESOURCES_FLAGS.GR_USEROBJECTS));
+        return (
+            TestPInvoke.GetGuiResources(process.SafeHandle, GET_GUI_RESOURCES_FLAGS.GR_GDIOBJECTS),
+            TestPInvoke.GetGuiResources(process.SafeHandle, GET_GUI_RESOURCES_FLAGS.GR_USEROBJECTS));
     }
 
     /// <summary>A menu's entries, top to bottom: each one's id, text and whether it is checked; a separator has no text.</summary>
@@ -113,7 +115,17 @@ internal sealed class LayeredTestWindow : IDisposable
         HiddenWindow.Register(_className, className => OverlayWindow.WindowClass(TestWindows.DefaultProcedure, className));
         Hwnd = HiddenWindow.Create(_className, OverlayWindow.ExStyle);
         OverlayWindow.Show(Hwnd, bitmap, position);
-        PInvoke.SetWindowPos(Hwnd, HWND.HWND_TOPMOST, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
+        PInvoke.SetWindowPos(
+            Hwnd,
+            HWND.HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SET_WINDOW_POS_FLAGS.SWP_NOMOVE
+                | SET_WINDOW_POS_FLAGS.SWP_NOSIZE
+                | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE
+                | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
     }
 
     public HWND Hwnd { get; }

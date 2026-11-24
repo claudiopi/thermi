@@ -15,7 +15,7 @@ namespace Thermi.Core.Settings;
 /// </summary>
 public sealed record ThermiConfig
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     public const int MaxOverlays = 4;
 
@@ -42,7 +42,7 @@ public sealed record OverlayConfig(double Size = 1)
 
     public const double MaxSize = 2;
 
-    // Named in English, as the default overlay is.
+    // Left unnamed, so each takes its metric's name in the window's language.
     public static IReadOnlyList<ItemConfig> DefaultItems { get; } =
     [
         Default(Metrics.CpuTemperature, Metrics.CpuTemperature),
@@ -86,14 +86,16 @@ public sealed record OverlayConfig(double Size = 1)
 
     public IReadOnlyList<ItemConfig> Items { get; init; } = DefaultItems;
 
-    /// <summary>Where the overlay is snapped, or null when it sits at its free <see cref="Position"/>. With neither, it snaps to the right of the primary monitor's taskbar.</summary>
+    /// <summary>
+    /// Where the overlay is snapped, or null when it sits at its free <see cref="Position"/>.
+    /// With neither, it snaps to the right of the primary monitor's taskbar.
+    /// </summary>
     [JsonIgnore]
     public SnapConfig? Snapped => Snap ?? (Position is null ? new SnapConfig(SnapSpot.TaskbarRight) : null);
 
     private static ItemConfig Default(Metric metric, Metric? meter = null) => new()
     {
         Id = metric.Id,
-        Name = Texts.English.Of(metric.Name),
         Metric = metric.Id,
         Meter = meter is null ? null : new MeterConfig { Metric = meter.Id },
         Threshold = meter is null ? null : Threshold.Default(meter),

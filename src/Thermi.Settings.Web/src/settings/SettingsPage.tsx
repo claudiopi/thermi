@@ -23,7 +23,10 @@ const readAbout = (from: NonNullable<ReturnType<typeof bridge>>): Promise<About>
 function General({ data, about }: { data: WindowData; about: About | null }) {
   const t = useText();
   const edit = useEdit();
-  const languages = [{ value: fromWindows, text: t('UiText.LanguageFromWindows', about?.windows ?? '') }, ...(about?.languages ?? []).map((one) => ({ value: one.code, text: one.name }))];
+  const languages = [
+    { value: fromWindows, text: t('UiText.LanguageFromWindows', about?.windows ?? '') },
+    ...(about?.languages ?? []).map((one) => ({ value: one.code, text: one.name })),
+  ];
   return (
     <CardStack>
       <Card>
@@ -39,7 +42,12 @@ function General({ data, about }: { data: WindowData; about: About | null }) {
       </Card>
       <Card>
         <CardRow label={t('UiText.TemperatureField')}>
-          <Segmented label={t('UiText.TemperatureField')} choices={units} value={data.settings.temperature ?? 'c'} onChange={(value) => void edit({ kind: 'thermi', field: 'temperature', value })} />
+          <Segmented
+            label={t('UiText.TemperatureField')}
+            choices={units}
+            value={data.settings.temperature ?? 'c'}
+            onChange={(value) => void edit({ kind: 'thermi', field: 'temperature', value })}
+          />
         </CardRow>
       </Card>
       <Card>
@@ -70,7 +78,15 @@ function FileCard({ open, onOpen }: { open: boolean; onOpen: (open: boolean) => 
           {t('WindowText.ResetAsk')}
         </Button>
       </CardRow>
-      <Dialog open={asking} title={t('WindowText.ResetTitle')} main={t('WindowText.Reset')} onMain={reset} cancel={t('UiText.Cancel')} onCancel={() => setAsking(false)} destroys>
+      <Dialog
+        open={asking}
+        title={t('WindowText.ResetTitle')}
+        main={t('WindowText.Reset')}
+        onMain={reset}
+        cancel={t('UiText.Cancel')}
+        onCancel={() => setAsking(false)}
+        destroys
+      >
         <p className="t-dialog-text">{t('WindowText.ResetBody')}</p>
       </Dialog>
     </Expander>
@@ -80,7 +96,14 @@ function FileCard({ open, onOpen }: { open: boolean; onOpen: (open: boolean) => 
 function AboutCard({ about, open, onOpen }: { about: About | null; open: boolean; onOpen: (open: boolean) => void }) {
   const t = useText();
   return (
-    <Expander label={t('WindowText.AboutThermi')} icon={<Creature state="app" className="t-about-mark" />} hint={t('WindowText.AboutVersion', about?.version ?? '')} hintWhenOpen open={open} onOpen={onOpen}>
+    <Expander
+      label={t('WindowText.AboutThermi')}
+      icon={<Creature state="app" className="t-about-mark" />}
+      hint={t('WindowText.AboutVersion', about?.version ?? '')}
+      hintWhenOpen
+      open={open}
+      onOpen={onOpen}
+    >
       <div className="t-about">
         <div className="t-about-links">
           <LinkButton onClick={() => void bridge()?.open('source')}>{t('WindowText.SourceCode')}</LinkButton>

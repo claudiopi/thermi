@@ -46,7 +46,9 @@ public static class OverlayEdits
     /// <summary>Leaves the overlay where a drag dropped it, which takes it off its snap.</summary>
     public static EditResult Drop(ThermiConfig config, int overlay, Position position) =>
         ConfigEdits.OnOverlay(config, overlay, () =>
-            ConfigEdits.Apply(config, current => ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Snap = null, Position = position })));
+            ConfigEdits.Apply(
+                config,
+                current => ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Snap = null, Position = position })));
 
     /// <summary>
     /// A press on the overlay let go at <paramref name="released"/>: past the drag distance, the overlay is dropped where the
@@ -66,7 +68,11 @@ public static class OverlayEdits
             ? ConfigEdits.Refuse(config, Refusal.TooManyOverlays)
             : ConfigEdits.Apply(config, current => current with
             {
-                Overlays = [.. current.Overlays, Cornered(current, new OverlayConfig { Items = InOrderOf(OverlayConfig.DefaultItems, current.Overlays[0].Items) })],
+                Overlays =
+                [
+                    .. current.Overlays,
+                    Cornered(current, new OverlayConfig { Items = InOrderOf(OverlayConfig.DefaultItems, current.Overlays[0].Items) }),
+                ],
             });
 
     /// <summary>A copy of an overlay right after it, at the first free corner, its items with ids of their own; a name the user typed is not copied.</summary>
@@ -78,8 +84,12 @@ public static class OverlayEdits
                 return ConfigEdits.Refuse(config, Refusal.TooManyOverlays);
             }
 
-            var copy = Cornered(config, config.Overlays[overlay] with { Name = null, Items = [.. config.Overlays[overlay].Items.Select(item => item with { Id = "" })] });
-            return ConfigEdits.Apply(config, current => current with { Overlays = [.. current.Overlays.Take(overlay + 1), copy, .. current.Overlays.Skip(overlay + 1)] });
+            var copy = Cornered(
+                config,
+                config.Overlays[overlay] with { Name = null, Items = [.. config.Overlays[overlay].Items.Select(item => item with { Id = "" })] });
+            return ConfigEdits.Apply(
+                config,
+                current => current with { Overlays = [.. current.Overlays.Take(overlay + 1), copy, .. current.Overlays.Skip(overlay + 1)] });
         });
 
     public static EditResult Delete(ThermiConfig config, int overlay) =>
@@ -123,7 +133,10 @@ public static class OverlayEdits
         });
     }
 
-    /// <summary>Moves an item to the end of another overlay, or of a new one when <paramref name="overlay"/> is null; an overlay it leaves empty goes.</summary>
+    /// <summary>
+    /// Moves an item to the end of another overlay, or of a new one when <paramref name="overlay"/> is null;
+    /// an overlay it leaves empty goes.
+    /// </summary>
     public static EditResult MoveItem(ThermiConfig config, string id, int? overlay)
     {
         if (ConfigEdits.Find(config, id) is not var (from, index) || (overlay is { } to && !ConfigEdits.HasOverlay(config, to)))
@@ -183,11 +196,14 @@ public static class OverlayEdits
             }))
             : ConfigEdits.Refuse(config, Refusal.SizeOutOfRange));
 
-    /// <summary>Alt+arrows on a floating overlay's row: it moves by the pixels given. A snapped overlay stays on its snap.</summary>
+    /// <summary>
+    /// Alt+arrows on a floating overlay's row: it moves by the pixels given. A snapped overlay stays on its snap, and the
+    /// window says why, since where it shows is the overlay's to work out.
+    /// </summary>
     public static EditResult Nudge(ThermiConfig config, int overlay, int dx, int dy) =>
         ConfigEdits.OnOverlay(config, overlay, () => config.Overlays[overlay].Position is { } position && config.Overlays[overlay].Snap is null
             ? Drop(config, overlay, new Position(position.X + dx, position.Y + dy))
-            : new EditResult(config));
+            : ConfigEdits.Refuse(config, Refusal.Snapped));
 
     // Items first to last of one overlay go to the end of another, or to a new one, at a free corner or where it was dropped,
     // with the look and size they had; the overlay they leave empty goes.

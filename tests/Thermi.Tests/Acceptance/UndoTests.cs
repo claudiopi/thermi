@@ -18,7 +18,7 @@ public sealed class UndoTests
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
-    private static ThermiConfig Everything => ThermiConfigJson.Read(TestFiles.Config("v2.json")).Config;
+    private static ThermiConfig Everything => ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config;
 
     // Each kind of edit, from the file with every field set; the overlay snapped is a copy, made first, so its row
     // undoes two steps.
@@ -37,7 +37,12 @@ public sealed class UndoTests
         ["Size"] = [config => OverlayEdits.SetSize(config, 1, 1.5)],
         ["Duplicate"] = [config => OverlayEdits.Duplicate(config, 1)],
         ["SnapTheCopy"] = [config => OverlayEdits.Duplicate(config, 1), config => OverlayEdits.Snap(config, 2, new SnapConfig(SnapSpot.TopLeft))],
-        ["ThermiAndOverlayAtOnce"] = [config => ConfigEdits.Apply(config, current => WithOverlay(current with { Language = null }, 0, overlay => overlay with { Style = overlay.Style with { Gap = 12 } }))],
+        ["ThermiAndOverlayAtOnce"] =
+        [
+            config => ConfigEdits.Apply(
+                config,
+                current => WithOverlay(current with { Language = null }, 0, overlay => overlay with { Style = overlay.Style with { Gap = 12 } })),
+        ],
         ["DeleteOverlay"] = [config => OverlayEdits.Delete(config, 0)],
         ["Reset"] = [OverlayEdits.Reset],
         ["AddOverlay"] = [OverlayEdits.Add],
@@ -72,7 +77,7 @@ public sealed class UndoTests
         Assert.Equal([.. states.SkipLast(1).Reverse().Select(File)], undone.Select(result => File(result.Config)));
         Assert.Equal([.. states.Skip(1).Select(File)], redone.Select(result => File(result.Config)));
         Assert.All(undone.Concat(redone), result => Assert.Equal(0, result.Skipped));
-        Assert.Equal(TestFiles.Config("v2.json").ReplaceLineEndings().TrimEnd(), File(undone[^1].Config).ReplaceLineEndings());
+        Assert.Equal(TestFiles.Config("v3.json").ReplaceLineEndings().TrimEnd(), File(undone[^1].Config).ReplaceLineEndings());
         Assert.Null(history.Redo(redone[^1].Config));
     }
 
@@ -102,7 +107,12 @@ public sealed class UndoTests
     {
         var history = new UndoHistory();
         var deleted = Done(history, new ThermiConfig(), config => ItemEdits.Delete(config, "gpu.load"));
-        var sameId = ByHand(deleted, config => WithOverlay(config, 0, overlay => overlay with { Items = [.. overlay.Items, new ItemConfig { Id = "gpu.load", Metric = Metrics.GpuTemperature.Id }] }));
+        var sameId = ByHand(
+            deleted,
+            config => WithOverlay(
+                config,
+                0,
+                overlay => overlay with { Items = [.. overlay.Items, new ItemConfig { Id = "gpu.load", Metric = Metrics.GpuTemperature.Id }] }));
         var resized = Done(history, sameId, config => OverlayEdits.SetSize(config, 0, 1.5));
         var sizeUndone = history.Undo(resized)!;
         var resizedByHand = ByHand(sizeUndone.Config, config => WithOverlay(config, 0, overlay => overlay with { Size = 1.25 }));
@@ -171,7 +181,12 @@ public sealed class UndoTests
             (config => ItemEdits.SetMeter(config, Metrics.CpuTemperature.Id, Desktop, null), ChangedField.Meter, null, null, null),
             (config => PowerEdits.SetGraph(config, Metrics.CpuTemperature.Id, true), ChangedField.Graph, null, null, UndoText.Off),
             (config => PowerEdits.SetAlertOnly(config, Metrics.CpuTemperature.Id, true), ChangedField.AlertOnly, null, null, UndoText.Off),
-            (config => new EditResult(WithItem(config, Metrics.CpuTemperature.Id, item => item with { Notify = true })), ChangedField.NotifyMe, null, null, UndoText.Off),
+            (
+                config => new EditResult(WithItem(config, Metrics.CpuTemperature.Id, item => item with { Notify = true })),
+                ChangedField.NotifyMe,
+                null,
+                null,
+                UndoText.Off),
             (config => PowerEdits.SetOffset(config, Metrics.CpuTemperature.Id, Desktop, -5), ChangedField.Offset, "0", "-5 °C", "0 °C"),
             (config => PowerEdits.SetSmooth(config, Metrics.CpuLoad.Id, 10), ChangedField.Smoothing, "0", "10", "0"),
             (config => ItemEdits.Rename(config, Metrics.CpuPower.Id, " Package "), ChangedField.ItemName, cpuPower, "Package", cpuPower),
@@ -202,10 +217,28 @@ public sealed class UndoTests
             Assert.True(shown.Item is null || shown.Overlay is null);
             Assert.Equal(StepTexts.Undone(undoName, InEnglish), shown.Said);
             Assert.Equal(undoName, history.RedoName);
-            Assert.Equal(Say(UndoText.Undo, before is null ? Say(field) : Say(UndoText.Change, Say(field), before, after!)), StepTexts.Button(UndoText.Undo, undoName, InEnglish));
             Assert.Equal(
-                undone switch { UndoText state => Say(UndoText.Again, Say(field), Say(state)), string value => Say(UndoText.BackTo, Say(field), value), _ => Say(UndoText.Undone, Say(field)) },
+                Say(UndoText.Undo, before is null ? Say(field) : Say(UndoText.Change, Say(field), before, after!)),
+                StepTexts.Button(UndoText.Undo, undoName, InEnglish));
+            Assert.Equal(
+                undone switch
+                {
+                    UndoText state => Say(UndoText.Again, Say(field), Say(state)),
+                    string value => Say(UndoText.BackTo, Say(field), value),
+                    _ => Say(UndoText.Undone, Say(field)),
+                },
                 StepTexts.Undone(undoName, InEnglish));
+
+            // A redo says what it did again, the switch's other state or the value after.
+            var redone = history.Redo(restored)!.Config;
+            Assert.Equal(
+                undone switch
+                {
+                    UndoText state => Say(UndoText.RedoneAgain, Say(field), Say(state == UndoText.On ? UndoText.Off : UndoText.On)),
+                    string => Say(UndoText.RedoneTo, Say(field), after!),
+                    _ => Say(UndoText.Redone, Say(field)),
+                },
+                WindowFacts.UndoneOf(undoName, restored, redone, InEnglish, redo: true).Said);
         }
 
         // Hiding is an action, so showing the overlay again is named by its own button.
@@ -237,7 +270,11 @@ public sealed class UndoTests
         dragged.EndGesture();
         var keyedAgain = Done(dragged, held, current => ItemEdits.SetThreshold(current, Metrics.CpuTemperature.Id, 90, 100));
         var afterKey = dragged.Undo(keyedAgain)!.Config;
-        Assert.Equal((99, 96), (Item(afterKey, Metrics.CpuTemperature.Id).Threshold!.Critical, Item(dragged.Undo(afterKey)!.Config, Metrics.CpuTemperature.Id).Threshold!.Critical));
+        Assert.Equal(
+            (99, 96),
+            (
+                Item(afterKey, Metrics.CpuTemperature.Id).Threshold!.Critical,
+                Item(dragged.Undo(afterKey)!.Config, Metrics.CpuTemperature.Id).Threshold!.Critical));
 
         // A field changed back within a second leaves no step; another field between them keeps both.
         var back = new UndoHistory(time);

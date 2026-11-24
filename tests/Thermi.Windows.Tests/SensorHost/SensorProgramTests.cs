@@ -135,7 +135,12 @@ public sealed class SensorProgramTests : IAsyncDisposable
     private Task<int> RunAsync(string[] args)
     {
         var environment = new SensorHostEnvironment(_sensors.Open, _clock, _out, _error) { PipeName = _pipeName };
-        var run = Task.Run(() => sensors::Thermi.SensorHost.Program.RunAsync([.. args.Select(arg => arg == "dump.json" ? File : arg)], environment, _stop.Token), CancellationToken.None);
+        var run = Task.Run(
+            () => sensors::Thermi.SensorHost.Program.RunAsync(
+                [.. args.Select(arg => arg == "dump.json" ? File : arg)],
+                environment,
+                _stop.Token),
+            CancellationToken.None);
         _runs.Add(run);
         return run;
     }

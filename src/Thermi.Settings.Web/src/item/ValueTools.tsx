@@ -23,18 +23,26 @@ export function ValueColor({ item, edit }: { item: Item; edit: (field: string, v
     void edit('color', value).then((refusal) => (refusal === null ? close() : setRefused(/^\w+\.\w+$/.test(refusal) ? t(refusal as TextKey) : refusal)));
   };
   const swatch = <span className="t-swatch" style={{ background: item.color ?? 'currentColor' }} />;
+  const shownColor = item.color ?? t('UiText.StyleColorShown');
   return (
     <Popover
       open={open}
       onOpenChange={(next) => (next ? setOpen(true) : close())}
       label={t('UiText.ValueColor')}
       trigger={
-        <Button className="t-color-button" icon={swatch}>
-          {t('UiText.ValueColor')}
+        // The row names it; the button shows the color it holds, and Narrator reads both.
+        <Button className="t-color-button" icon={swatch} label={`${t('UiText.ValueColor')}, ${shownColor}`}>
+          {shownColor}
         </Button>
       }
     >
-      <TextField label={t('UiText.HexColor')} value={typed ?? item.color ?? ''} onChange={setTyped} onCommit={commit} {...(refused === null ? {} : { error: refused })} />
+      <TextField
+        label={t('UiText.HexColor')}
+        value={typed ?? item.color ?? ''}
+        onChange={setTyped}
+        onCommit={commit}
+        {...(refused === null ? {} : { error: refused })}
+      />
       <Button
         kind="subtle"
         onClick={() => {
@@ -56,7 +64,7 @@ export interface CombineProps {
   set: (field: string, value: string | string[] | null) => Promise<unknown>;
 }
 
-/** "Combine…": several sensors of one type as their highest, average or sum, added as one undo step. */
+/** "Choose sensors…" in the Combine row: several sensors of one type as their highest, average or sum, added as one undo step. */
 export function CombineButton({ item, sensors, type, set }: CombineProps) {
   const t = useText();
   const [open, setOpen] = useState(false);
@@ -75,12 +83,13 @@ export function CombineButton({ item, sensors, type, set }: CombineProps) {
   return (
     <>
       <Button
+        label={`${t('UiText.Combine')}, ${t('UiText.CombineChoose')}`}
         onClick={() => {
           setChosen(item.sensors ?? []);
           setOpen(true);
         }}
       >
-        {t('UiText.Combine')}
+        {t('UiText.CombineChoose')}
       </Button>
       <Dialog open={open} title={t('UiText.Combine')} main={t('UiText.CombineAdd')} onMain={add} cancel={t('UiText.Cancel')} onCancel={() => setOpen(false)}>
         <div className="t-combine">

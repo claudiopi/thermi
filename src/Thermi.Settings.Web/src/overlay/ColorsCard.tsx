@@ -16,7 +16,13 @@ export interface ColorsCardProps {
 
 const levelKeys = ['normal', 'warning', 'critical'] as const;
 const textKeys = ['label', 'value'] as const;
-const names = { normal: 'StyleColor.Normal', warning: 'StyleColor.Warning', critical: 'StyleColor.Critical', label: 'StyleColor.Label', value: 'StyleColor.Value' } as const;
+const names = {
+  normal: 'StyleColor.Normal',
+  warning: 'StyleColor.Warning',
+  critical: 'StyleColor.Critical',
+  label: 'StyleColor.Label',
+  value: 'StyleColor.Value',
+} as const;
 
 /** The color a swatch shows while the look leaves it out: neutral, the level's default, or the pills' text. */
 function fallbackOf(key: ColorKey, pills: PillTheme): string | null {
@@ -140,9 +146,17 @@ export function ColorsCard({ overlay, style, open, onOpen }: ColorsCardProps) {
   const edit = useEdit();
   const colors = style?.colors ?? {};
   const pills = style?.pills ?? 'system';
-  const setColors = (next: { [key in ColorKey]?: string | undefined }): void => void edit({ kind: 'style', overlay, field: 'colors', value: colorsValue(next) });
+  const setColors = (next: { [key in ColorKey]?: string | undefined }): void =>
+    void edit({ kind: 'style', overlay, field: 'colors', value: colorsValue(next) });
   const swatch = (key: ColorKey) => (
-    <Swatch key={key} name={t(names[key])} color={colors[key]} fallback={fallbackOf(key, pills)} choices={colorChoices[key]} onColor={(color) => setColors({ ...colors, [key]: color ?? undefined })} />
+    <Swatch
+      key={key}
+      name={t(names[key])}
+      color={colors[key]}
+      fallback={fallbackOf(key, pills)}
+      choices={colorChoices[key]}
+      onColor={(color) => setColors({ ...colors, [key]: color ?? undefined })}
+    />
   );
   const safe = isColorblindSafe(colors);
   const levels = (
@@ -156,8 +170,18 @@ export function ColorsCard({ overlay, style, open, onOpen }: ColorsCardProps) {
   return (
     <Expander label={t('OverlayPageText.ColorsField')} aside={levels} open={open} onOpen={onOpen}>
       <CardRow label={t('UiText.MeterColorsField')}>{levelKeys.map(swatch)}</CardRow>
-      <SwitchLine label={t('OverlayPageText.ColorblindSafe')} description={t('OverlayPageText.ColorblindHint')} checked={safe} onChange={(on) => setColors(on ? { ...colors, ...colorblindSafe } : { label: colors.label, value: colors.value })} />
-      <CardRow label={t('UiText.TextColorsField')} description={t(colors.label === undefined && colors.value === undefined ? 'OverlayPageText.TextColorsAuto' : 'OverlayPageText.TextColorsOwn')}>
+      <SwitchLine
+        label={t('OverlayPageText.ColorblindSafe')}
+        description={t('OverlayPageText.ColorblindHint')}
+        checked={safe}
+        onChange={(on) => setColors(on ? { ...colors, ...colorblindSafe } : { label: colors.label, value: colors.value })}
+      />
+      <CardRow
+        label={t('UiText.TextColorsField')}
+        description={t(
+          colors.label === undefined && colors.value === undefined ? 'OverlayPageText.TextColorsAuto' : 'OverlayPageText.TextColorsOwn',
+        )}
+      >
         {textKeys.map(swatch)}
       </CardRow>
       <div className="t-reset-row">

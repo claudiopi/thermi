@@ -95,6 +95,10 @@ export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorM
   const all = drawn.flatMap((box) => spotsOf(box.index, box.w, box.h, box.one.taskbar ? bar : 0, box.one.taskbar && !vertical));
   const isOn = (spot: Spot): boolean => placed !== null && placed.spot === spot.spot && placed.display === spot.display;
   const tabStop = all.find(isOn) ?? all[0];
+  // The spots are dots: the one pointed at or focused, else the overlay's, names itself in words under the map.
+  const [pointed, setPointed] = useState<Spot | null>(null);
+  const nameOf = (spot: Spot): string => t('OverlayPageText.SpotOnMonitor', t(spotKey(spot.spot)), spot.display + 1);
+  const said = pointed ?? all.find(isOn);
   const keyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
     const at = all.findIndex((spot) => spot === tabStop);
@@ -107,7 +111,10 @@ export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorM
     }
   };
   const label = (one: Monitor, index: number): string => {
-    const size = one.scale === 1 ? t('OverlayPageText.DisplaySize', one.bounds.width, one.bounds.height) : t('OverlayPageText.DisplayScaled', one.bounds.width, one.bounds.height, Math.round(one.scale * 100));
+    const size =
+      one.scale === 1
+        ? t('OverlayPageText.DisplaySize', one.bounds.width, one.bounds.height)
+        : t('OverlayPageText.DisplayScaled', one.bounds.width, one.bounds.height, Math.round(one.scale * 100));
     return `${displayName(one, index, t)}\n${size}`;
   };
   return (
@@ -128,18 +135,28 @@ export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorM
                     type="button"
                     role="radio"
                     aria-checked={isOn(spot)}
-                    aria-label={t('OverlayPageText.SpotOnMonitor', t(spotKey(spot.spot)), box.index + 1)}
+                    aria-label={nameOf(spot)}
                     aria-description={hidden && isOn(spot) ? t('UiText.OverlayHidden') : undefined}
                     title={spot.spot.startsWith('top') ? `${t(spotKey(spot.spot))}\n${t('OverlayPageText.TopSpotHint')}` : t(spotKey(spot.spot))}
                     tabIndex={spot === tabStop ? 0 : -1}
-                    className={`t-spot${spot.spot.startsWith('taskbar') ? ' t-spot-bar' : ''}${isOn(spot) ? ' t-on' : ''}${hidden && isOn(spot) ? ' t-hidden' : ''}`}
+                    className={
+                      `t-spot${spot.spot.startsWith('taskbar') ? ' t-spot-bar' : ''}` +
+                      `${isOn(spot) ? ' t-on' : ''}${hidden && isOn(spot) ? ' t-hidden' : ''}`
+                    }
                     style={{ left: spot.x, top: spot.y }}
                     onClick={() => onSnap(spot.spot, box.one)}
+                    onPointerEnter={() => setPointed(spot)}
+                    onPointerLeave={() => setPointed(null)}
+                    onFocus={() => setPointed(spot)}
+                    onBlur={() => setPointed(null)}
                   />
                 ))}
             </div>
           );
         })}
+      </div>
+      <div className="t-map-said" aria-hidden="true">
+        {said === undefined ? '' : nameOf(said)}
       </div>
     </div>
   );

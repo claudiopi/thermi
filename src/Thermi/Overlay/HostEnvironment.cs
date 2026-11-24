@@ -20,14 +20,20 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     /// <summary>The window's single-instance mutex, which exists while the window is open.</summary>
     public const string WindowMutexName = @"Local\thermi-window";
 
-    public static HostEnvironment Default { get; } = new(WindowMutexName, Environment.ProcessPath ?? "thermi.exe", (message, in data) => PInvoke.Shell_NotifyIcon(message, data));
+    public static HostEnvironment Default { get; } = new(
+        WindowMutexName,
+        Environment.ProcessPath ?? "thermi.exe",
+        (message, in data) => PInvoke.Shell_NotifyIcon(message, data));
 
     /// <summary>Opens the window on an overlay, by its place; null starts it as <see cref="StartWindow"/> does.</summary>
     public Action<int>? OpenSettings { get; init; }
 
     public Func<Position> Cursor { get; init; } = Desktop.Cursor;
 
-    /// <summary>"Start sensors" from the executable's path, behind its UAC prompt: the elevated mode's exit code, or null when the prompt was refused.</summary>
+    /// <summary>
+    /// "Start sensors" from the executable's path, behind its UAC prompt: the elevated mode's exit code, or null when the
+    /// prompt was refused.
+    /// </summary>
     public Func<string, Task<int?>> StartSensors { get; init; } = Commands.StartSensors.AskAsync;
 
     /// <summary>Puts an overlay's picture on the clipboard, for the window that owns it; tests keep it, and never touch the real one.</summary>
@@ -37,10 +43,13 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     /// Opens Windows' Task Manager, which shows what keeps the PC busy, as the user: started directly rather than through
     /// the shell, whose reading of its manifest would raise it to administrator without asking.
     /// </summary>
-    public Action TaskManager { get; init; } = () => Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "taskmgr.exe")) { UseShellExecute = false })?.Dispose();
+    public Action TaskManager { get; init; } = () =>
+        Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "taskmgr.exe")) { UseShellExecute = false })?.Dispose();
 
     // The window holds its mutex while it is open. The overlay only looks for it, never holds it, so a window that closes
-    // or crashes takes it away.
+    // or crashes takes it away. Any program in the session can make one of the name too: the overlay then believes the
+    // window open, which only changes how it looks and rests its hotkeys, and such a program could already do worse as
+    // the user.
     public bool WindowOpen()
     {
         try

@@ -26,7 +26,10 @@ public enum UnitText
     Minutes,
 }
 
-/// <summary>How values and their words show: in the language of <see cref="Texts"/>, numbers in the regional format, temperatures in the chosen unit.</summary>
+/// <summary>
+/// How values and their words show: in the language of <see cref="Texts"/>, numbers in the regional format,
+/// temperatures in the chosen unit.
+/// </summary>
 public sealed record ValueFormat(Texts Texts, IFormatProvider Numbers, TemperatureUnit Temperature = TemperatureUnit.Celsius);
 
 /// <summary>Turns a reading into the short text the overlay shows.</summary>
@@ -55,7 +58,13 @@ public static class ReadingFormatter
     /// letter; a temperature in the chosen unit, with <paramref name="decimals"/> in place of its type's own when an item
     /// asks for them, and words of units in the language of <paramref name="texts"/>, English when there are none.
     /// </summary>
-    public static string Format(Reading reading, IFormatProvider culture, bool units = true, TemperatureUnit temperature = TemperatureUnit.Celsius, int? decimals = null, Texts? texts = null)
+    public static string Format(
+        Reading reading,
+        IFormatProvider culture,
+        bool units = true,
+        TemperatureUnit temperature = TemperatureUnit.Celsius,
+        int? decimals = null,
+        Texts? texts = null)
     {
         if (reading.Usable is not { } value)
         {
@@ -95,7 +104,13 @@ public static class ReadingFormatter
     /// does not grow and shrink on the taskbar as the numbers change. Digits are all one width in the fonts
     /// it uses, so eights stand for any digits.
     /// </summary>
-    public static string Widest(SensorKind kind, IFormatProvider culture, bool units = true, TemperatureUnit temperature = TemperatureUnit.Celsius, int? decimals = null, Texts? texts = null) => Format(
+    public static string Widest(
+        SensorKind kind,
+        IFormatProvider culture,
+        bool units = true,
+        TemperatureUnit temperature = TemperatureUnit.Celsius,
+        int? decimals = null,
+        Texts? texts = null) => Format(
         new Reading(kind, kind switch
         {
             SensorKind.Fan or SensorKind.Clock => 8888,
@@ -115,24 +130,33 @@ public static class ReadingFormatter
         texts);
 
     /// <summary>The unit a type shows in, a temperature in the chosen one; a throughput's smallest.</summary>
-    public static string UnitOf(SensorKind kind, TemperatureUnit temperature = TemperatureUnit.Celsius, Texts? texts = null) => Parts(kind, 0, temperature, texts ?? Texts.English).Unit;
+    public static string UnitOf(SensorKind kind, TemperatureUnit temperature = TemperatureUnit.Celsius, Texts? texts = null) =>
+        Parts(kind, 0, temperature, texts ?? Texts.English).Unit;
 
-    /// <summary>The number a value shows as, how many decimals it shows, its unit, and the letter it keeps without units; a throughput in <paramref name="bits"/> per second when asked.</summary>
-    internal static (double Number, int Decimals, string Unit, string Letter) Parts(SensorKind kind, double value, TemperatureUnit temperature, Texts texts, bool bits = false) => kind switch
-    {
-        SensorKind.Temperature when temperature == TemperatureUnit.Fahrenheit => (Temperatures.Shown(value, temperature), 0, "°F", ""),
-        SensorKind.Temperature => (value, 0, "°C", ""),
-        SensorKind.Load or SensorKind.Control => (value, 0, "%", ""),
-        SensorKind.Clock => (value / 1000, 1, "GHz", ""),
-        SensorKind.Power => (value, 0, "W", ""),
-        SensorKind.Fan => (value, 0, "RPM", ""),
-        SensorKind.Data => (value, 1, "GB", ""),
-        SensorKind.Throughput when bits => Rate(value * 8, texts, BitRates, UnitText.BitsPerSecond),
-        SensorKind.Throughput => Rate(value, texts, Rates, UnitText.BytesPerSecond),
-        SensorKind.Duration => (value / 3600, 1, texts.Of(UnitText.Hours), ""),
-        SensorKind.Time or SensorKind.Address => (value, 0, "", ""),
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
-    };
+    /// <summary>
+    /// The number a value shows as, how many decimals it shows, its unit, and the letter it keeps without units;
+    /// a throughput in <paramref name="bits"/> per second when asked.
+    /// </summary>
+    internal static (double Number, int Decimals, string Unit, string Letter) Parts(
+        SensorKind kind,
+        double value,
+        TemperatureUnit temperature,
+        Texts texts,
+        bool bits = false) => kind switch
+        {
+            SensorKind.Temperature when temperature == TemperatureUnit.Fahrenheit => (Temperatures.Shown(value, temperature), 0, "°F", ""),
+            SensorKind.Temperature => (value, 0, "°C", ""),
+            SensorKind.Load or SensorKind.Control => (value, 0, "%", ""),
+            SensorKind.Clock => (value / 1000, 1, "GHz", ""),
+            SensorKind.Power => (value, 0, "W", ""),
+            SensorKind.Fan => (value, 0, "RPM", ""),
+            SensorKind.Data => (value, 1, "GB", ""),
+            SensorKind.Throughput when bits => Rate(value * 8, texts, BitRates, UnitText.BitsPerSecond),
+            SensorKind.Throughput => Rate(value, texts, Rates, UnitText.BytesPerSecond),
+            SensorKind.Duration => (value / 3600, 1, texts.Of(UnitText.Hours), ""),
+            SensorKind.Time or SensorKind.Address => (value, 0, "", ""),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
+        };
 
     /// <summary>A number's format without thousands separators.</summary>
     internal static string Digits(int decimals) => decimals == 0 ? "0" : "0." + new string('0', decimals);
@@ -148,7 +172,11 @@ public static class ReadingFormatter
     private static string Grouped(int decimals) => "N" + decimals.ToString(CultureInfo.InvariantCulture);
 
     // The largest scale that keeps three significant digits, rounded first, so 999,999 B/s reads 1.00 MB/s and never 1000 KB/s.
-    private static (double Number, int Decimals, string Unit, string Letter) Rate(double units, Texts texts, (double Size, string Letter, UnitText Unit)[] scales, UnitText smallest)
+    private static (double Number, int Decimals, string Unit, string Letter) Rate(
+        double units,
+        Texts texts,
+        (double Size, string Letter, UnitText Unit)[] scales,
+        UnitText smallest)
     {
         var digit = units == 0 ? 1 : Math.Pow(10, Math.Floor(Math.Log10(Math.Abs(units))) - 2);
         var rounded = Math.Round(units / digit, MidpointRounding.AwayFromZero) * digit;

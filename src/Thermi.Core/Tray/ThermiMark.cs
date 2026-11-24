@@ -97,7 +97,9 @@ public static class ThermiMark
 
     /// <summary>Whether an item reads one of the CPU's temperatures, powers or clocks, which read zero without thermi's driver.</summary>
     internal static bool ReadsWithTheDriver(ItemConfig item, Snapshot snapshot) =>
-        (Metrics.Find(item.Metric ?? item.Auto) is { } metric && Metrics.DeviceOf(metric) == DeviceKind.Cpu && metric.Kind is SensorKind.Temperature or SensorKind.Power or SensorKind.Clock)
+        (Metrics.Find(item.Metric ?? item.Auto) is { } metric
+            && Metrics.DeviceOf(metric) == DeviceKind.Cpu
+            && metric.Kind is SensorKind.Temperature or SensorKind.Power or SensorKind.Clock)
         || (item.Sensor is { } id && SensorMap.Find(snapshot, id) is { } sensor && SensorMap.ZeroIsMissing(sensor));
 
     // A CPU value the driver would read says so in its place, and the CPU's temperature and clock show it throttling.
@@ -136,7 +138,10 @@ public static class ThermiMark
         else
         {
             var names = Names.OfOverlays(config, texts);
-            parts.AddRange(config.Overlays.Select((overlay, at) => (overlay, at)).Where(each => each.overlay.Hidden).Select(each => texts.Format(input.Numbers, TrayText.OverlayHidden, names[each.at])));
+            parts.AddRange(config.Overlays
+                .Select((overlay, at) => (overlay, at))
+                .Where(each => each.overlay.Hidden)
+                .Select(each => texts.Format(input.Numbers, TrayText.OverlayHidden, names[each.at])));
         }
 
         if (config.Overlays.Any(overlay => overlay.ClickThrough))
@@ -178,7 +183,10 @@ public static class ThermiMark
             if (OverlayLayout.ReadingOf(item, readings) is { Usable: { } value } reading && drawn.FirstOrDefault(each => each.Id == item.Id) is { } shown)
             {
                 var heat = reading.Kind == SensorKind.Temperature ? value : double.MinValue;
-                yield return (OverlayLayout.LevelOf(item, OverlayLayout.MeterOf(item, readings)), heat, labels[at] is { } label ? string.Join(' ', label, shown.Value) : shown.Value);
+                yield return (
+                    OverlayLayout.LevelOf(item, OverlayLayout.MeterOf(item, readings)),
+                    heat,
+                    labels[at] is { } label ? string.Join(' ', label, shown.Value) : shown.Value);
             }
         }
     }

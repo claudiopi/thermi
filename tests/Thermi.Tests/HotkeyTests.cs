@@ -69,8 +69,12 @@ public sealed class HotkeyTests
         Assert.Equal(HotkeyFailures.None, Hotkeys.Trusted(Hotkeys.Status(null, HotkeyFailures.None), new HotkeysConfig()));
         Assert.Null(Hotkeys.Trusted(status, tried with { NextStyle = "Ctrl+Alt+N" }));
         Assert.Null(Hotkeys.Trusted(status, tried with { Toggle = "ctrl+alt+t" }));
-        Assert.Null(Hotkeys.Trusted(Hotkeys.Status(new HotkeysConfig { Toggle = "Ctrl+Alt+T" }, HotkeyFailures.None), new HotkeysConfig { NextStyle = "Ctrl+Alt+T" }));
-        Assert.Equal(HotkeyFailures.Toggle | HotkeyFailures.NextStyle | HotkeyFailures.ClickThrough | HotkeyFailures.ResetMinMax, Hotkeys.Trusted(Hotkeys.Status(tried, (HotkeyFailures)0xFF), tried));
+        Assert.Null(Hotkeys.Trusted(
+            Hotkeys.Status(new HotkeysConfig { Toggle = "Ctrl+Alt+T" }, HotkeyFailures.None),
+            new HotkeysConfig { NextStyle = "Ctrl+Alt+T" }));
+        Assert.Equal(
+            HotkeyFailures.Toggle | HotkeyFailures.NextStyle | HotkeyFailures.ClickThrough | HotkeyFailures.ResetMinMax,
+            Hotkeys.Trusted(Hotkeys.Status(tried, (HotkeyFailures)0xFF), tried));
 
         // The window says a hotkey failed only on a status it trusts, and that the overlay runs only on one it got.
         Assert.Equal([HotkeyRole.NextStyle], Shown(tried, status).Failed);
@@ -80,5 +84,12 @@ public sealed class HotkeyTests
     }
 
     private static WindowStatus Shown(HotkeysConfig hotkeys, long? answer) =>
-        WindowFacts.Status(new ThermiConfig { Hotkeys = hotkeys }, ServiceState.Running, null, lookSaved: true, answer, null, new ValueFormat(Texts.English, CultureInfo.InvariantCulture));
+        WindowFacts.Status(
+            new ThermiConfig { Hotkeys = hotkeys },
+            ServiceState.Running,
+            null,
+            lookSaved: true,
+            answer,
+            null,
+            new ValueFormat(Texts.English, CultureInfo.InvariantCulture));
 }

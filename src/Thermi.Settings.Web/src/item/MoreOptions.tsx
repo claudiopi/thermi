@@ -28,7 +28,13 @@ function NumberTools({ item, set }: { item: Item; set: SetField }) {
   return (
     <>
       <CardRow label={t('UiText.StatField')}>
-        <Dropdown className="t-option-box" label={t('UiText.StatField')} choices={stats.map((stat) => ({ value: stat, text: t(statKeys[stat]) }))} value={item.stat ?? 'now'} onChange={(value) => void set('stat', value === 'now' ? null : value)} />
+        <Dropdown
+          className="t-option-box"
+          label={t('UiText.StatField')}
+          choices={stats.map((stat) => ({ value: stat, text: t(statKeys[stat]) }))}
+          value={item.stat ?? 'now'}
+          onChange={(value) => void set('stat', value === 'now' ? null : value)}
+        />
       </CardRow>
       <CardRow label={t('UiText.SmoothField')} description={t('UiText.SmoothHint')}>
         <Dropdown
@@ -65,12 +71,35 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
   return (
     <>
       {range !== null && <NumberTools item={item} set={set} />}
-      {type === 'Throughput' && <SwitchLine label={t('UiText.Bits')} description={t('UiText.BitsHint')} checked={item.bits === true} onChange={(on) => void set('bits', on ? true : null)} />}
-      {range !== null && meterable && <SwitchLine label={t('UiText.MeterGraph')} checked={item.graph === true} onChange={(on) => void set('graph', on ? true : null)} />}
-      {meterable && <SwitchLine label={t('UiText.AlertOnly')} description={t(metered ? 'UiText.AlertOnlyHint' : 'UiText.AlertOnlyNeedsMeter')} checked={item.alertOnly === true} disabled={!metered} onChange={(on) => void set('alertOnly', on ? true : null)} />}
+      {data.view.items[item.id]?.bits === true && (
+        <SwitchLine
+          label={t('UiText.Bits')}
+          description={t('UiText.BitsHint')}
+          checked={item.bits === true}
+          onChange={(on) => void set('bits', on ? true : null)}
+        />
+      )}
+      {range !== null && meterable && (
+        <SwitchLine label={t('UiText.MeterGraph')} checked={item.graph === true} onChange={(on) => void set('graph', on ? true : null)} />
+      )}
+      {meterable && (
+        <SwitchLine
+          label={t('UiText.AlertOnly')}
+          description={t(metered ? 'UiText.AlertOnlyHint' : 'UiText.AlertOnlyNeedsMeter')}
+          checked={item.alertOnly === true}
+          disabled={!metered}
+          onChange={(on) => void set('alertOnly', on ? true : null)}
+        />
+      )}
       {range !== null && (
         <CardRow label={t('UiText.OffsetField')}>
-          <NumberField label={t('UiText.OffsetField')} value={item.offset ?? 0} min={-range} max={range} onCommit={(value) => void set('offset', value === 0 ? null : value)} />
+          <NumberField
+            label={t('UiText.OffsetField')}
+            value={item.offset ?? 0}
+            min={-range}
+            max={range}
+            onCommit={(value) => void set('offset', value === 0 ? null : value)}
+          />
         </CardRow>
       )}
       <CardRow label={t('UiText.ValueColor')}>
@@ -78,7 +107,12 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
       </CardRow>
       {range !== null && (
         <CardRow label={t('UiText.Combine')}>
-          <CombineButton item={item} type={type} sensors={data.sensors.sensors.filter((sensor) => sensor.type === type && data.view.values[sensor.id] !== undefined)} set={(field, value) => set(field, value)} />
+          <CombineButton
+            item={item}
+            type={type}
+            sensors={data.sensors.sensors.filter((sensor) => sensor.type === type && data.view.values[sensor.id] !== undefined)}
+            set={(field, value) => set(field, value)}
+          />
         </CardRow>
       )}
     </>

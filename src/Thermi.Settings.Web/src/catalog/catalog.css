@@ -56,6 +56,24 @@
   margin: -4px 0;
 }
 
+/* The type chips wrap in rows; in a panel too short for them and some sensors, as at 200 % text in a small window, a
+   dropdown of the same choices stands in their place, and the line under the title goes. In rem, so the text's size
+   counts. */
+.t-cat-kinds {
+  display: none;
+}
+
+@container panel (max-height: 28rem) {
+  .t-cat-chips,
+  .t-cat-sub {
+    display: none;
+  }
+
+  .t-cat-kinds {
+    display: block;
+  }
+}
+
 .t-cat-list {
   flex: 1;
   min-height: 0;

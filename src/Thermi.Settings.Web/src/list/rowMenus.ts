@@ -24,15 +24,47 @@ function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): M
   const item = settings.overlays[row.overlay]?.items.find((one) => one.id === id);
   const firstOfPill = row.parent === pillKey(row.overlay, id);
   const moves: MenuEntry[] = settings.overlays.flatMap((overlay, index) =>
-    index === row.overlay ? [] : [{ kind: 'action' as const, id: `move-${index}`, text: say('UiText.MoveToOverlay', overlayName(overlay, index, say)), onRun: () => run.edit({ kind: 'moveItem', item: id, overlay: index, index: overlay.items.length }) }],
+    index === row.overlay
+      ? []
+      : [
+          {
+            kind: 'action' as const,
+            id: `move-${index}`,
+            text: say('UiText.MoveToOverlay', overlayName(overlay, index, say)),
+            onRun: () => run.edit({ kind: 'moveItem', item: id, overlay: index, index: overlay.items.length }),
+          },
+        ],
   );
-  const fresh: MenuEntry[] = settings.overlays.length < mostOverlays ? [{ kind: 'action', id: 'move-new', text: say('UiText.MoveToNewOverlay'), onRun: () => run.edit({ kind: 'moveItem', item: id, overlay: null, index: 0 }) }] : [];
+  const fresh: MenuEntry[] =
+    settings.overlays.length < mostOverlays
+      ? [
+          {
+            kind: 'action',
+            id: 'move-new',
+            text: say('UiText.MoveToNewOverlay'),
+            onRun: () => run.edit({ kind: 'moveItem', item: id, overlay: null, index: 0 }),
+          },
+        ]
+      : [];
   return [
     { kind: 'action', id: 'rename', text: say('UiText.Rename'), keys: 'F2', onRun: () => run.rename(row) },
     { kind: 'action', id: 'label', text: say('UiText.EditPillLabel'), onRun: () => run.editLabel(id) },
     // The first item of a pill already starts one, as its page's switch shows: On, locked.
-    { kind: 'check', id: 'own', text: say('UiText.OwnPill'), checked: item?.own === true || firstOfPill, disabled: firstOfPill && item?.own !== true, onRun: () => run.edit({ kind: 'item', item: id, field: 'own', value: item?.own === true ? null : true }) },
-    { kind: 'check', id: 'tray', text: say('UiText.OwnTrayIcon'), checked: item?.tray === true, onRun: () => run.edit({ kind: 'item', item: id, field: 'tray', value: item?.tray === true ? null : true }) },
+    {
+      kind: 'check',
+      id: 'own',
+      text: say('UiText.OwnPill'),
+      checked: item?.own === true || firstOfPill,
+      disabled: firstOfPill && item?.own !== true,
+      onRun: () => run.edit({ kind: 'item', item: id, field: 'own', value: item?.own === true ? null : true }),
+    },
+    {
+      kind: 'check',
+      id: 'tray',
+      text: say('UiText.OwnTrayIcon'),
+      checked: item?.tray === true,
+      onRun: () => run.edit({ kind: 'item', item: id, field: 'tray', value: item?.tray === true ? null : true }),
+    },
     { kind: 'divider', id: 'moves' },
     ...moves,
     ...fresh,
@@ -63,20 +95,61 @@ function overlayEntries(row: Row, settings: Settings, say: Say, run: RowActions)
   }
   const here = placedOf(overlay, run.displays)?.display ?? -1;
   const toDisplays: MenuEntry[] = run.displays.flatMap((display, index) =>
-    index === here ? [] : [{ kind: 'action' as const, id: `display-${index}`, text: displayName(display, index, say), onRun: () => run.edit({ kind: 'overlay', overlay: row.overlay, field: 'snap', value: moveToDisplay(overlay, display) }) }],
+    index === here
+      ? []
+      : [
+          {
+            kind: 'action' as const,
+            id: `display-${index}`,
+            text: displayName(display, index, say),
+            onRun: () => run.edit({ kind: 'overlay', overlay: row.overlay, field: 'snap', value: moveToDisplay(overlay, display) }),
+          },
+        ],
   );
   const into: MenuEntry[] = overlays.flatMap((other, index) =>
-    index === row.overlay ? [] : [{ kind: 'action' as const, id: `into-${index}`, text: overlayName(other, index, say), onRun: () => run.edit({ kind: 'mergeOverlay', overlay: row.overlay, into: index }) }],
+    index === row.overlay
+      ? []
+      : [
+          {
+            kind: 'action' as const,
+            id: `into-${index}`,
+            text: overlayName(other, index, say),
+            onRun: () => run.edit({ kind: 'mergeOverlay', overlay: row.overlay, into: index }),
+          },
+        ],
   );
   const hidden = overlay.hidden === true;
   return [
     { kind: 'action', id: 'rename', text: say('UiText.Rename'), keys: 'F2', icon: 'edit', onRun: () => run.rename(row) },
-    { kind: 'action', id: 'duplicate', text: say('UiText.DuplicateOverlay'), icon: 'copy', disabled: overlays.length >= mostOverlays, onRun: () => run.edit({ kind: 'duplicateOverlay', overlay: row.overlay }) },
-    ...(toDisplays.length > 0 ? [{ kind: 'submenu' as const, id: 'display', text: say('UiText.MoveToDisplay'), icon: 'monitor' as const, entries: toDisplays }] : []),
+    {
+      kind: 'action',
+      id: 'duplicate',
+      text: say('UiText.DuplicateOverlay'),
+      icon: 'copy',
+      disabled: overlays.length >= mostOverlays,
+      onRun: () => run.edit({ kind: 'duplicateOverlay', overlay: row.overlay }),
+    },
+    ...(toDisplays.length > 0
+      ? [{ kind: 'submenu' as const, id: 'display', text: say('UiText.MoveToDisplay'), icon: 'monitor' as const, entries: toDisplays }]
+      : []),
     ...(into.length > 0 ? [{ kind: 'submenu' as const, id: 'merge', text: say('UiText.MergeInto'), icon: 'merge' as const, entries: into }] : []),
-    { kind: 'action', id: 'hide', text: say(hidden ? 'UiText.ShowThisOverlay' : 'UiText.HideThisOverlay'), icon: hidden ? 'show' : 'hide', onRun: () => run.edit({ kind: 'overlay', overlay: row.overlay, field: 'hidden', value: hidden ? null : true }) },
+    {
+      kind: 'action',
+      id: 'hide',
+      text: say(hidden ? 'UiText.ShowThisOverlay' : 'UiText.HideThisOverlay'),
+      icon: hidden ? 'show' : 'hide',
+      onRun: () => run.edit({ kind: 'overlay', overlay: row.overlay, field: 'hidden', value: hidden ? null : true }),
+    },
     { kind: 'divider', id: 'end' },
     // The last overlay stays, so its Delete shows disabled, telling that it cannot go.
-    { kind: 'action', id: 'delete', text: say('UiText.Delete'), keys: 'Delete', icon: 'delete', disabled: overlays.length < 2, onRun: () => run.edit({ kind: 'deleteOverlay', overlay: row.overlay }) },
+    {
+      kind: 'action',
+      id: 'delete',
+      text: say('UiText.Delete'),
+      keys: 'Delete',
+      icon: 'delete',
+      disabled: overlays.length < 2,
+      onRun: () => run.edit({ kind: 'deleteOverlay', overlay: row.overlay }),
+    },
   ];
 }

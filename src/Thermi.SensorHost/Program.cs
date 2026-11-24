@@ -167,7 +167,8 @@ internal sealed class SensorService : ServiceBase
         {
             EventLog.WriteEntry(error.ToString(), EventLogEntryType.Error);
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception or System.Security.SecurityException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException
+            or System.ComponentModel.Win32Exception or System.Security.SecurityException)
         {
             // Nowhere else to report it.
         }

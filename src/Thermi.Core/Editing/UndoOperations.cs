@@ -58,7 +58,9 @@ internal sealed record OverlayChange(int Overlay, Field<OverlayConfig> Field, ob
         Field == ConfigFields.StyleName ? this with { Found = Renamed(Found, from, to), Wrote = Renamed(Wrote, from, to) } : this;
 
     public IOperation? Then(IOperation next) =>
-        next is OverlayChange change && change.Overlay == Overlay && change.Field == Field && ConfigFields.Same(change.Found, Wrote) ? this with { Wrote = change.Wrote } : null;
+        next is OverlayChange change && change.Overlay == Overlay && change.Field == Field && ConfigFields.Same(change.Found, Wrote)
+            ? this with { Wrote = change.Wrote }
+            : null;
 
     private static object? Renamed(object? name, string from, string to) => SavedStyles.Same((string?)name, from) ? to : name;
 
@@ -71,9 +73,12 @@ internal sealed record OverlayChange(int Overlay, Field<OverlayConfig> Field, ob
 /// <summary>A field of an item changed; <see cref="Kind"/> is what the item reads, the unit its offset is named in.</summary>
 internal sealed record ItemChange(string Id, Field<ItemConfig> Field, object? Found, object? Wrote, SensorKind? Kind = null) : IOperation
 {
+    /// <summary>The name of the metric the item was made from, which it shows while it stores no name of its own.</summary>
+    public MetricName? Unnamed { get; init; }
+
     public StepName Name => Field == ConfigFields.ItemMetering
         ? StepNames.OfMetering((ConfigFields.Metering)Found!, (ConfigFields.Metering)Wrote!)
-        : StepNames.Of(Field.Name, Found, Wrote, Kind);
+        : StepNames.Of(Field.Name, Shown(Found), Shown(Wrote), Kind);
 
     public bool ChangesNothing => ConfigFields.Same(Found, Wrote);
 
@@ -81,8 +86,12 @@ internal sealed record ItemChange(string Id, Field<ItemConfig> Field, object? Fo
 
     public ThermiConfig? Redo(ThermiConfig config) => Swap(config, Found, Wrote);
 
+    private object? Shown(object? value) => value is null && Field.Name == ChangedField.ItemName ? Unnamed : value;
+
     public IOperation? Then(IOperation next) =>
-        next is ItemChange change && change.Id == Id && change.Field == Field && ConfigFields.Same(change.Found, Wrote) ? this with { Wrote = change.Wrote } : null;
+        next is ItemChange change && change.Id == Id && change.Field == Field && ConfigFields.Same(change.Found, Wrote)
+            ? this with { Wrote = change.Wrote }
+            : null;
 
     private ThermiConfig? Swap(ThermiConfig config, object? from, object? to) =>
         ConfigEdits.Item(config, Id) is { } item && ConfigFields.Same(Field.Get(item), from)
@@ -93,11 +102,13 @@ internal sealed record ItemChange(string Id, Field<ItemConfig> Field, object? Fo
 /// <summary>An item the window added, or deleted when not <see cref="Added"/>, at its place in an overlay.</summary>
 internal sealed record ItemPresence(int Overlay, int Index, ItemConfig Item, bool Added) : IOperation
 {
-    public StepName Name => Added ? new(ChangedField.ItemAdded, null, Item.Name) : new(ChangedField.ItemRemoved, Item.Name, null);
+    public StepName Name => Added ? StepNames.Of(ChangedField.ItemAdded, null, NameOf(Item)) : StepNames.Of(ChangedField.ItemRemoved, NameOf(Item), null);
 
     public ThermiConfig? Undo(ThermiConfig config) => Added ? Remove(config) : Insert(config);
 
     public ThermiConfig? Redo(ThermiConfig config) => Added ? Insert(config) : Remove(config);
+
+    private static object? NameOf(ItemConfig item) => item.Name ?? (object?)Metrics.Find(item.Metric ?? item.Auto)?.Name;
 
     private ThermiConfig? Remove(ThermiConfig config)
     {

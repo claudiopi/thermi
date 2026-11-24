@@ -7,6 +7,14 @@ using Windows.Win32.Foundation;
 
 namespace Thermi.Ui.Web;
 
+/// <summary>What the window does when a process of WebView2's failed: nothing, load the page again, or close.</summary>
+internal enum PageRecovery
+{
+    None,
+    Reload,
+    Close,
+}
+
 /// <summary>
 /// The page in WebView2: its files, embedded in thermi.exe, served from a host name that never resolves, under a policy
 /// that loads nothing from anywhere else; no navigation away, no new window, no browser keys or menus. The page reaches
@@ -19,10 +27,14 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
 
     // A second line of defense behind the page's own policy in index.html, which keeps the only style it allows, the
     // empty element Fluent fills: this one, sent with every file, forbids any other origin even if that one changed.
-    private const string Policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'";
+    private const string Policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'none'; " +
+        "form-action 'none'; frame-ancestors 'none'; object-src 'none'";
 
     /// <summary>Raised once the page has loaded, before its first frame shows.</summary>
     public event EventHandler? Loaded;
+
+    /// <summary>Raised when WebView2's browser process ended, which leaves the page no way back.</summary>
+    public event EventHandler? Ended;
 
     private bool _shown;
     private bool _minimized;
@@ -50,16 +62,17 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
         view.NavigationStarting += (_, e) => e.Cancel = !e.Uri.StartsWith($"{Origin}/", StringComparison.Ordinal);
         view.NewWindowRequested += (_, e) => e.Handled = true;
         view.NavigationCompleted += (_, _) => Loaded?.Invoke(this, EventArgs.Empty);
-        view.ProcessFailed += (_, e) => log.PageFailed(e.ProcessFailedKind.ToString());
+        view.ProcessFailed += (_, e) => Failed(view, e.ProcessFailedKind);
         view.WebMessageReceived += Received;
-        bridge.Changed += (_, _) => Raise(nameof(IWindowBridge.Changed), null);
+        bridge.Changed += (_, change) => Raise(nameof(IWindowBridge.Changed), change);
         bridge.Readings += (_, _) => Raise(nameof(IWindowBridge.Readings), null);
         bridge.Picked += (_, pick) => Raise(nameof(IWindowBridge.Picked), pick);
         await view.AddScriptToExecuteOnDocumentCreatedAsync(BridgeCalls.Client);
         // The document has no element yet when this runs; it has one, styled before the window shows, once parsed. Over
         // Mica the page lets it show, as it does around the caption buttons; without it, it paints Windows' solid one.
         var backdrop = mica ? "mica" : "solid";
-        await view.AddScriptToExecuteOnDocumentCreatedAsync($"addEventListener('DOMContentLoaded', () => {{ document.documentElement.dataset.backdrop = '{backdrop}'; }});");
+        await view.AddScriptToExecuteOnDocumentCreatedAsync(
+            $"addEventListener('DOMContentLoaded', () => {{ document.documentElement.dataset.backdrop = '{backdrop}'; }});");
 
         view.Navigate($"{Origin}/index.html");
     }
@@ -92,7 +105,10 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
     /// <summary>Tells the page where Windows' caption buttons are, in CSS pixels, so its title row leaves them room.</summary>
     public void Caption(double width, double height)
     {
-        var script = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"document.documentElement.style.setProperty('--thermi-caption-width','{width}px');document.documentElement.style.setProperty('--thermi-caption-height','{height}px');");
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var script =
+            string.Create(culture, $"document.documentElement.style.setProperty('--thermi-caption-width','{width}px');") +
+            string.Create(culture, $"document.documentElement.style.setProperty('--thermi-caption-height','{height}px');");
         _ = Controller?.CoreWebView2.ExecuteScriptAsync(script);
     }
 
@@ -121,26 +137,53 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
     private static CoreWebView2WebResourceResponse Serve(CoreWebView2Environment environment, string uri)
     {
         var path = Uri.TryCreate(uri, UriKind.Absolute, out var parsed) ? parsed.AbsolutePath.TrimStart('/') : "";
-        var file = typeof(WebPage).Assembly.GetManifestResourceStream($"web/{(path.Length == 0 ? "index.html" : path)}");
-        if (file is null)
+        path = path.Length == 0 ? "index.html" : path;
+        if (TypeOf(path) is not { } type || typeof(WebPage).Assembly.GetManifestResourceStream($"web/{path}") is not { } file)
         {
             return environment.CreateWebResourceResponse(null, 404, "Not Found", "");
         }
 
-        var headers = $"Content-Type: {TypeOf(path)}\r\nContent-Security-Policy: {Policy}\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store";
+        var headers = $"Content-Type: {type}\r\nContent-Security-Policy: {Policy}\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store";
         return environment.CreateWebResourceResponse(file, 200, "OK", headers);
     }
 
-    private static string TypeOf(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    // A renderer that ended or hangs leaves the page blank for good until it loads again; a browser that ended takes the
+    // controller with it. WebView2 starts its other processes again itself.
+    internal static PageRecovery Recovery(CoreWebView2ProcessFailedKind kind) =>
+        kind is CoreWebView2ProcessFailedKind.RenderProcessExited
+            or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive
+            or CoreWebView2ProcessFailedKind.FrameRenderProcessExited ? PageRecovery.Reload
+        : kind is CoreWebView2ProcessFailedKind.BrowserProcessExited ? PageRecovery.Close
+        : PageRecovery.None;
+
+    /// <summary>The type a file of the page is served as, or null for one the host does not know, which it does not serve.</summary>
+    internal static string? TypeOf(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
+        ".html" => "text/html; charset=utf-8",
         ".js" => "text/javascript",
         ".css" => "text/css",
         ".svg" => "image/svg+xml",
         ".png" => "image/png",
+        ".ico" => "image/x-icon",
+        ".woff" => "font/woff",
         ".woff2" => "font/woff2",
         ".json" => "application/json",
-        _ => "text/html; charset=utf-8",
+        _ => null,
     };
+
+    private void Failed(CoreWebView2 view, CoreWebView2ProcessFailedKind kind)
+    {
+        log.PageFailed(kind.ToString());
+        var recovery = Recovery(kind);
+        if (recovery == PageRecovery.Reload)
+        {
+            view.Reload();
+        }
+        else if (recovery == PageRecovery.Close)
+        {
+            Ended?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     private void Received(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {

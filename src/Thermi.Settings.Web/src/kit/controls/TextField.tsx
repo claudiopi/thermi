@@ -78,7 +78,15 @@ function SearchFieldDrawn({ label, value, onChange, onKeyDown, placeholder, desc
         <>
           {value !== '' && (
             // Esc clears it from the keys, so the pointer's button stays out of Tab and leaves the focus in the box.
-            <button type="button" className={styles.clear} tabIndex={-1} aria-label={clearLabel} title={clearLabel} onMouseDown={(event) => event.preventDefault()} onClick={() => onChange('')}>
+            <button
+              type="button"
+              className={styles.clear}
+              tabIndex={-1}
+              aria-label={clearLabel}
+              title={clearLabel}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onChange('')}
+            >
               <Icon name="close" />
             </button>
           )}
@@ -92,7 +100,20 @@ function SearchFieldDrawn({ label, value, onChange, onKeyDown, placeholder, desc
 }
 
 /** A text box in a field: its label, a hint, and the reason a value is refused. */
-function TextFieldDrawn({ label, labelShown = true, value, onChange, onCommit, onCancel, hint, error, type = 'text', placeholder, className, ref }: TextFieldProps) {
+function TextFieldDrawn({
+  label,
+  labelShown = true,
+  value,
+  onChange,
+  onCommit,
+  onCancel,
+  hint,
+  error,
+  type = 'text',
+  placeholder,
+  className,
+  ref,
+}: TextFieldProps) {
   const keyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === 'Enter') {
       onCommit?.(value);

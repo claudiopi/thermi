@@ -11,15 +11,23 @@ export function installFakeWindow(): void {
     throw new Error('The fake bridge is not installed.');
   }
   const state = fake.state;
-  const say = (key: string, ...blanks: string[]): string => (state.texts[key] ?? key).replace(/\{(\d+)\}/g, (blank, index: string) => blanks[Number(index)] ?? blank);
+  const say = (key: string, ...blanks: string[]): string =>
+    (state.texts[key] ?? key).replace(/\{(\d+)\}/g, (blank, index: string) => blanks[Number(index)] ?? blank);
   const roles: HotkeyRole[] = ['toggle', 'nextStyle', 'clickThrough', 'resetMinMax'];
 
   const showsMinOrMax = (): boolean => state.settings.overlays.some((overlay) => overlay.items.some((item) => item.stat === 'min' || item.stat === 'max'));
-  const cpuReadsZero = (): boolean => state.sensors.some((sensor) => sensor.hardwareType === 'Cpu' && ['Temperature', 'Power', 'Clock'].includes(sensor.type) && sensor.value === 0);
+  const cpuReadsZero = (): boolean =>
+    state.sensors.some(
+      (sensor) => sensor.hardwareType === 'Cpu' && ['Temperature', 'Power', 'Clock'].includes(sensor.type) && sensor.value === 0,
+    );
   const status = (): WindowStatus => ({
     overlay: state.overlayRunning,
     driver: state.service !== 'stopped' && cpuReadsZero(),
-    hotkeys: roles.filter((role) => state.settings.hotkeys?.[role] !== undefined || (role === 'nextStyle' ? Object.keys(state.looks).length > 0 : role !== 'resetMinMax' || showsMinOrMax())),
+    hotkeys: roles.filter(
+      (role) =>
+        state.settings.hotkeys?.[role] !== undefined ||
+        (role === 'nextStyle' ? Object.keys(state.looks).length > 0 : role !== 'resetMinMax' || showsMinOrMax()),
+    ),
     failed: [],
     problem: state.problem === null ? null : say('ConfigProblemText.AtLine', '12', 'a comma is missing after "size": 1'),
   });

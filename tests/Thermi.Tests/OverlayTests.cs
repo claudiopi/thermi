@@ -73,6 +73,17 @@ public sealed class OverlayTests
         Assert.All(metric is null ? Metrics.All.Select(each => each.Id) : [metric], id => Assert.Null(readings[id].Value));
     }
 
+    // A clock of the CPU's cores, never its bus's, and a fan wherever the PC reports one, as a laptop does on its controller.
+    [Theory]
+    [InlineData("cpu.clock", 4_600)]
+    [InlineData("fan.cpu", 2_400)]
+    public void AnIntelLaptopShowsItsCoresClockAndItsFan(string metric, double value)
+    {
+        var readings = SensorMap.Read(MadeUpHardware.IntelLaptop(), NoSources);
+
+        Assert.Equal(value, readings[metric].Value);
+    }
+
     [Fact]
     public void PrefersTheDiscreteGpuOverTheIntegratedOne()
     {
@@ -111,7 +122,15 @@ public sealed class OverlayTests
             Items =
             [
                 new ItemConfig { Id = "ccd1", Sensor = Ccd1, Auto = Metrics.CpuTemperature.Id, Label = "CCD1" },
-                new ItemConfig { Id = "ccd2", Sensor = Ccd2, Auto = Metrics.CpuTemperature.Id, Label = "CCD2", Meter = ccd2Meter, Threshold = new Threshold(40, 60) },
+                new ItemConfig
+                {
+                    Id = "ccd2",
+                    Sensor = Ccd2,
+                    Auto = Metrics.CpuTemperature.Id,
+                    Label = "CCD2",
+                    Meter = ccd2Meter,
+                    Threshold = new Threshold(40, 60),
+                },
                 new ItemConfig { Id = "load", Metric = Metrics.CpuLoad.Id, Label = "LOAD", Meter = ccd2Meter, Threshold = new Threshold(40, 60) },
             ],
         };

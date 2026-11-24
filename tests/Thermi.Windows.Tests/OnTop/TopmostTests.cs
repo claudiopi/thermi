@@ -51,7 +51,14 @@ public sealed class TopmostTests
         {
             var reorders = 0;
             WINEVENTPROC counted = (_, _, _, _, _, _, _) => reorders++;
-            using var hook = PInvoke.SetWinEventHook(PInvoke.EVENT_OBJECT_REORDER, PInvoke.EVENT_OBJECT_REORDER, null, counted, (uint)other.Id, 0, PInvoke.WINEVENT_OUTOFCONTEXT);
+            using var hook = PInvoke.SetWinEventHook(
+                PInvoke.EVENT_OBJECT_REORDER,
+                PInvoke.EVENT_OBJECT_REORDER,
+                null,
+                counted,
+                (uint)other.Id,
+                0,
+                PInvoke.WINEVENT_OUTOFCONTEXT);
             var window = other.Raise("app");
             covered = Above(window, overlay);
             reached = Pump(overlay, () => reorders > 0);

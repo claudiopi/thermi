@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json.Serialization;
+using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
 
@@ -19,10 +21,20 @@ internal sealed record Version1Item(string? Metric, string? Meter, Threshold? Th
 /// thermi 0.1 made it by default becomes this version's default of its metric, since 0.1 wrote its defaults to the file
 /// the first time it saved anything, so nobody chose them, unless a source names a sensor for its meter; lines equal to
 /// 0.1's defaults for their metric take this version's defaults of their meter, so only lines the user moved stay. Items
-/// are named in English, as the defaults are; the overlay keeps no name, so it is named from where it sits.
+/// and the overlay keep no name, so they are named in the window's language.
+/// <para>
+/// A version 2 file, which earlier builds of this version wrote, becomes version 3: what those builds wrote without the
+/// user choosing it takes what this one gives. Lines equal to 0.1's defaults for their meter take this version's; a name
+/// an overlay or a metric's item was given as thermi named it then, in any language, is dropped, so it is named in the
+/// window's language; and a custom look's labels at the 10 px those builds gave them take Standard's, the look itself
+/// Standard when its values are Standard's too. Lines and names the user typed keep, unless they read as thermi's own.
+/// </para>
 /// </summary>
 internal static class ConfigMigration
 {
+    // The label size earlier builds of version 2 gave a custom look.
+    private const double Version2LabelSize = 10;
+
     private static readonly Version1Item[] Version1Defaults =
     [
         new(Metrics.CpuFan.Id, Metrics.CpuFanDuty.Id, new Threshold(60, 85)),
@@ -54,18 +66,69 @@ internal static class ConfigMigration
     {
         // Lines just as 0.1's defaults for the metric were never chosen either, so they take this version's calm ones.
         var calm = Array.Find(Version1Defaults, made => made.Metric == item.Metric) is { } old && item.Threshold == old.Threshold;
-        if (Array.IndexOf(Version1Defaults, item) >= 0 && (item.Meter is null || !sources.ContainsKey(item.Meter)) && OverlayConfig.DefaultItems.FirstOrDefault(made => made.Metric == item.Metric) is { } made)
+        if (Array.IndexOf(Version1Defaults, item) >= 0
+            && (item.Meter is null || !sources.ContainsKey(item.Meter))
+            && OverlayConfig.DefaultItems.FirstOrDefault(made => made.Metric == item.Metric) is { } made)
         {
             return made;
         }
 
         return new ItemConfig
         {
-            Name = Metrics.Find(item.Metric) is { } metric ? Texts.English.Of(metric.Name) : null,
             Metric = item.Metric,
             Meter = item.Meter is null ? null : new MeterConfig { Metric = item.Meter },
             Threshold = calm && Metrics.Find(item.Meter) is { } metered ? Threshold.Default(metered) : item.Threshold,
         };
+    }
+
+    public static ThermiConfig FromVersion2(ThermiConfig config) => config with
+    {
+        Overlays = [.. config.Overlays.Select(overlay => overlay with
+        {
+            Name = overlay.Name is { } name && OverlayNamesThermiGave.Contains(Unnumbered(name)) ? null : overlay.Name,
+            Style = StyleOf(overlay.Style),
+            Items = [.. overlay.Items.Select(Version2ItemOf)],
+        })],
+    };
+
+    // Every name earlier builds gave an overlay from where it sat, in every language thermi ships.
+    private static readonly HashSet<string> OverlayNamesThermiGave = [.. Texts.Languages.Select(Texts.Of).SelectMany(texts => new[]
+    {
+        texts.Of(NameText.Taskbar), texts.Of(NameText.Floating), texts.Of(NameText.TopLeft), texts.Of(NameText.TopRight),
+        texts.Of(NameText.BottomLeft), texts.Of(NameText.BottomRight),
+    }.Concat(Enum.GetValues<SnapSpot>().Select(spot => texts.Of(spot))))];
+
+    // A name with a number after it, as a second overlay on the taskbar was named, reads as the name alone.
+    private static string Unnumbered(string name) =>
+        name.LastIndexOf(' ') is var space and > 0 && int.TryParse(name.AsSpan(space + 1), NumberStyles.None, CultureInfo.InvariantCulture, out _)
+            ? name[..space]
+            : name;
+
+    private static ItemConfig Version2ItemOf(ItemConfig item)
+    {
+        var metric = Metrics.Find(item.Metric ?? item.Auto);
+        var meter = Metrics.Find(item.Meter?.Metric ?? item.Meter?.Auto);
+        var calm = meter is not null && Array.Exists(Version1Defaults, made => made.Meter == meter.Id && made.Threshold == item.Threshold);
+        var given = metric is not null && item.Sensors is null && item.Name is { } name
+            && Texts.Languages.Any(language => Texts.Of(language).Of(metric.Name) == name);
+        return item with
+        {
+            Name = given ? null : item.Name,
+            Threshold = calm ? Threshold.Default(meter!) : item.Threshold,
+        };
+    }
+
+    private static StyleConfig StyleOf(StyleConfig style)
+    {
+        if (style is not { Preset: StylePreset.Custom, Label.Size: Version2LabelSize })
+        {
+            return style;
+        }
+
+        var (label, value) = StylePresets.Of(StylePreset.Standard);
+        return (style.Value ?? value) == value
+            ? style with { Preset = StylePreset.Standard, Label = null, Value = null }
+            : style with { Label = label };
     }
 
     private static ItemConfig Named(ItemConfig item, Dictionary<string, string> sources)

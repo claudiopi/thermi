@@ -38,7 +38,16 @@ public sealed class OverlayVisibility
 {
     // The desktop, the taskbars, Start, search, Task View and Alt+Tab, some of which cover a whole monitor.
     private static readonly string[] Shell =
-        ["Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Windows.UI.Core.CoreWindow", "XamlExplorerHostIslandWindow", "MultitaskingViewFrame", "ForegroundStaging"];
+        [
+            "Progman",
+            "WorkerW",
+            "Shell_TrayWnd",
+            "Shell_SecondaryTrayWnd",
+            "Windows.UI.Core.CoreWindow",
+            "XamlExplorerHostIslandWindow",
+            "MultitaskingViewFrame",
+            "ForegroundStaging",
+        ];
 
     /// <summary>"Hide overlays": a flag in memory, never saved, that hides every overlay until showing clears it.</summary>
     public bool HideOverlays { get; set; }
@@ -73,7 +82,9 @@ public sealed class OverlayVisibility
     /// <summary>How each overlay shows, given whether a full-screen app covers its monitor: as its Hide, the flag and its "When to show" say.</summary>
     public IReadOnlyList<OverlayShown> Decide(ThermiConfig config, IReadOnlyList<bool> fullScreen) =>
         [.. config.Overlays.Select((overlay, at) =>
-            !overlay.Hidden && !HideOverlays && ByVisibility(overlay.Visibility, at < fullScreen.Count && fullScreen[at]) ? OverlayShown.Shown : OverlayShown.Hidden)];
+            !overlay.Hidden && !HideOverlays && ByVisibility(overlay.Visibility, at < fullScreen.Count && fullScreen[at])
+                ? OverlayShown.Shown
+                : OverlayShown.Hidden)];
 
     private static bool ByVisibility(Visibility visibility, bool fullScreen) =>
         visibility == Visibility.HideInFullscreen ? !fullScreen : visibility != Visibility.OnlyInFullscreen || fullScreen;

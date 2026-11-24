@@ -37,7 +37,10 @@ internal static class PainterShapes
         g.DrawPath(border, outerPath);
     }
 
-    /// <summary>The once-only glow of a pill whose item first went critical: its border and a tint in the critical color, at <paramref name="strength"/>, 0 to 1.</summary>
+    /// <summary>
+    /// The once-only glow of a pill whose item first went critical: its border and a tint in the critical color, at
+    /// <paramref name="strength"/>, 0 to 1.
+    /// </summary>
     public static void Glow(Graphics g, OverlayLook look, RectangleF box, float scale, double strength)
     {
         var inside = new RectangleF(box.Left + scale, box.Top + scale, box.Width - (2 * scale), box.Height - (2 * scale));

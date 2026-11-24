@@ -27,4 +27,5 @@ if ($failed -or -not $score) {
     exit 1
 }
 Write-Host "ok   mutation: $($score.Line.Trim())"
-Write-Host "     report: $(Get-ChildItem $output -Recurse -Filter 'mutation-report.html' | Sort-Object LastWriteTime | Select-Object -Last 1 -ExpandProperty FullName)"
+$report = Get-ChildItem $output -Recurse -Filter 'mutation-report.html' | Sort-Object LastWriteTime | Select-Object -Last 1 -ExpandProperty FullName
+Write-Host "     report: $report"

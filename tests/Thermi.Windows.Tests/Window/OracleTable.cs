@@ -31,7 +31,8 @@ internal sealed class OracleTable
 
     private string Results => Path.Combine(_web, "test-results", "oracle-misses");
 
-    public JsonObject StartOf(JsonNode? one) => Starts[one?["start"]?.GetValue<string>() ?? ""]?.AsObject() ?? throw new InvalidDataException("A case of the oracle names no start it has.");
+    public JsonObject StartOf(JsonNode? one) => Starts[one?["start"]?.GetValue<string>() ?? ""]?.AsObject()
+        ?? throw new InvalidDataException("A case of the oracle names no start it has.");
 
     /// <summary>
     /// Takes in what the page's tests asked and the table lacked: a start it had not, and calls from a start, which extend
@@ -52,7 +53,14 @@ internal sealed class OracleTable
             }
 
             var extended = same.FirstOrDefault(one => Leads(one["calls"]?.AsArray() ?? [], calls));
-            var asked = new JsonArray([.. calls.Select(call => new JsonObject { ["method"] = call?["method"]?.DeepClone(), ["args"] = call?["args"]?.DeepClone() })]);
+            var asked = new JsonArray(
+            [
+                .. calls.Select(call => new JsonObject
+                {
+                    ["method"] = call?["method"]?.DeepClone(),
+                    ["args"] = call?["args"]?.DeepClone(),
+                }),
+            ]);
             if (extended is null)
             {
                 Cases.Add(new JsonObject { ["start"] = id, ["calls"] = asked });
@@ -97,7 +105,12 @@ internal sealed class OracleTable
         var text = new StringBuilder("{\n  \"starts\": {\n");
         text.AppendJoin(",\n", Starts.Select(pair => $"    {JsonSerializer.Serialize(pair.Key)}: {pair.Value?.ToJsonString(Written)}"));
         text.Append("\n  },\n  \"cases\": [\n");
-        text.AppendJoin(",\n", Cases.Select(one => $"    {{ \"start\": {one?["start"]?.ToJsonString()}, \"calls\": [\n{string.Join(",\n", (one?["calls"]?.AsArray() ?? []).Select(call => $"      {call?.ToJsonString(Written)}"))}\n    ] }}"));
+        text.AppendJoin(
+            ",\n",
+            Cases.Select(one =>
+                $"    {{ \"start\": {one?["start"]?.ToJsonString()}, \"calls\": [\n"
+                + string.Join(",\n", (one?["calls"]?.AsArray() ?? []).Select(call => $"      {call?.ToJsonString(Written)}"))
+                + "\n    ] }"));
         text.Append("\n  ]\n}\n");
         File.WriteAllText(FilePath, text.ToString());
         if (Directory.Exists(Results))
@@ -108,9 +121,16 @@ internal sealed class OracleTable
 
     // Whether the first calls of the longer are the shorter's, method and arguments alike.
     private static bool Leads(JsonArray shorter, JsonArray longer) =>
-        shorter.Count <= longer.Count && shorter.Select((call, at) => JsonNode.DeepEquals(call?["method"], longer[at]?["method"]) && JsonNode.DeepEquals(call?["args"], longer[at]?["args"])).All(same => same);
+        shorter.Count <= longer.Count
+        && shorter
+            .Select((call, at) => JsonNode.DeepEquals(call?["method"], longer[at]?["method"])
+                && JsonNode.DeepEquals(call?["args"], longer[at]?["args"]))
+            .All(same => same);
 
     private IEnumerable<JsonNode?> Lines(string kind) => Directory.Exists(Results)
-        ? Directory.EnumerateFiles(Results, $"{kind}-*.jsonl").SelectMany(File.ReadAllLines).Where(line => line.Length > 0).Select(line => JsonNode.Parse(line))
+        ? Directory.EnumerateFiles(Results, $"{kind}-*.jsonl")
+            .SelectMany(File.ReadAllLines)
+            .Where(line => line.Length > 0)
+            .Select(line => JsonNode.Parse(line))
         : [];
 }

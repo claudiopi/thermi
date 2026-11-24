@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 
@@ -38,8 +39,11 @@ public sealed class NoticeTests
 
             var (what, expected) = (step[..step.IndexOf('=', StringComparison.Ordinal)], step[(step.IndexOf('=', StringComparison.Ordinal) + 1)..]);
             desktop.Apply(what);
-            var shown = notices.Update(new NoticeInput(Config(desktop.Hidden, desktop.Through), desktop.Flag, desktop.FromWindow, FirstStart: what == "first"));
-            var now = shown is not null ? $"{shown.Kind}:{shown.Buttons.ToString().Replace(", ", "+", StringComparison.Ordinal)}" : notices.Showing is null ? "~" : ".";
+            var shown = notices.Update(
+                new NoticeInput(Config(desktop.Hidden, desktop.Through), desktop.Flag, desktop.FromWindow, FirstStart: what == "first"));
+            var now = shown is not null
+                ? $"{shown.Kind}:{shown.Buttons.ToString().Replace(", ", "+", StringComparison.Ordinal)}"
+                : notices.Showing is null ? "~" : ".";
             Assert.Equal((step, expected), (step, now));
             desktop.FromWindow = false;
         }
@@ -69,11 +73,44 @@ public sealed class NoticeTests
             if (notify.Add(ItemId, level, value, fullScreen: char.IsUpper(at)) is { } notice)
             {
                 Assert.Equal(ItemId, notice.ItemId);
-                told.Add(notice.WhilePlaying ? string.Create(CultureInfo.InvariantCulture, $"{second}w{notice.Value}/{notice.Length.TotalSeconds}") : second.ToString(CultureInfo.InvariantCulture));
+                told.Add(notice.WhilePlaying
+                    ? string.Create(CultureInfo.InvariantCulture, $"{second}w{notice.Value}/{notice.Length.TotalSeconds}")
+                    : second.ToString(CultureInfo.InvariantCulture));
             }
         }
 
         Assert.Equal(expected, string.Join(',', told));
+    }
+
+    // From a recorded desktop: the CPU past its own critical line is told at its eleventh second, with its reading; an item
+    // that does not ask is not, nor one whose sensor the desktop lacks, a battery.
+    [Fact]
+    public void AnItemThatAsksIsToldFromTheSnapshot()
+    {
+        var time = new FakeTimeProvider();
+        var notify = new NotifyMe(time);
+        var hot = new ItemConfig
+        {
+            Id = ItemId,
+            Metric = Metrics.CpuTemperature.Id,
+            Meter = new MeterConfig { Metric = Metrics.CpuTemperature.Id },
+            Threshold = new Threshold(critical: 1),
+            Notify = true,
+        };
+        Metric[] others = [Metrics.CpuLoad, Metrics.BatteryCharge];
+        var items = others.Select(metric => hot with { Id = metric.Id, Metric = metric.Id, Meter = new MeterConfig { Metric = metric.Id } });
+        var config = new ThermiConfig { Overlays = [new OverlayConfig { Items = [hot, .. items.Select((item, at) => item with { Notify = at == 1 })] }] };
+        var snapshot = TestRecordings.Read(TestRecordings.Admin);
+        var told = new List<ItemNotice>();
+
+        for (var second = 1; second <= 11; second++)
+        {
+            time.Advance(TimeSpan.FromSeconds(1));
+            told.AddRange(notify.Add(config, snapshot, fullScreen: false));
+        }
+
+        var notice = Assert.Single(told);
+        Assert.Equal((ItemId, SensorMap.Read(snapshot, config.Overlays[0])[ItemId].Value), (notice.Item.Id, (double?)notice.Notice.Value));
     }
 
     /// <summary>What the desktop holds between the steps: overlays hidden on their own, click-through, and "Hide overlays".</summary>

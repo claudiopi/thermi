@@ -16,7 +16,10 @@ using Windows.Win32.UI.Shell;
 
 namespace Thermi.Windows.Tests;
 
-/// <summary>The tray icons in a notification area of the test's own: their ids, retries, Explorer's restarts, redraws, language, clicks and pictures.</summary>
+/// <summary>
+/// The tray icons in a notification area of the test's own: their ids, retries, Explorer's restarts, redraws, language,
+/// clicks and pictures.
+/// </summary>
 [Collection(nameof(HostRun))]
 public sealed class TrayIconsTests : IDisposable
 {
@@ -166,6 +169,32 @@ public sealed class TrayIconsTests : IDisposable
         Assert.Equal([[icons[0].Id], [icons[0].Id]], shown);
     }
 
+    // A change a busy Explorer lets time out is tried again, the icon kept where it was, never taken off and added anew; and
+    // every call keeps Windows' own tooltip on, which a call without it, as a notice's, would turn off.
+    [Fact]
+    public void AChangeExplorerDropsIsTriedAgainAndTheTooltipStays()
+    {
+        TrayIcon[] warm = [Icon("62", Taskbar.Dark.Normal) with { Tooltip = "CPU 62 °C" }];
+        TrayIcon[] hot = [warm[0] with { Text = "91", Color = Taskbar.Dark.Critical, Tooltip = "CPU 91 °C, critical" }];
+        var tips = new List<string>();
+
+        using (var tray = new TrayIcons(HWND.Null, _tray.Environment(HostRun.WindowMutex()).Shell, _folder.Clock, _folder.Log))
+        {
+            tray.Refresh(warm, 16);
+            tray.Notify(warm[0].Id, "title", "text");
+            _tray.Busy = 1;
+            tray.Refresh(hot, 16);
+            tray.Refresh(hot, 16);
+            tips.Add(_tray.Shown[warm[0].Id]);
+        }
+
+        Assert.Equal([hot[0].Tooltip], tips);
+        Assert.Single(_tray.Calls, call => call.Message == NOTIFY_ICON_MESSAGE.NIM_ADD);
+        Assert.All(
+            _tray.Calls.Where(call => call.Message != NOTIFY_ICON_MESSAGE.NIM_DELETE),
+            call => Assert.True(call.Flags.HasFlag(NOTIFY_ICON_DATA_FLAGS.NIF_TIP | NOTIFY_ICON_DATA_FLAGS.NIF_SHOWTIP), call.ToString()));
+    }
+
     [Theory]
     [InlineData(96, 16)]
     [InlineData(144, 24)]
@@ -179,7 +208,15 @@ public sealed class TrayIconsTests : IDisposable
     {
         foreach (var (name, taskbar) in new[] { ("dark", Taskbar.Dark), ("light", Taskbar.Light) })
         {
-            TrayIcon[] icons = [Icon("62", taskbar.Normal), Icon("1087", taskbar.Warning), Icon("27.3", taskbar.Critical), Icon("12k", taskbar.Text), Icon(ReadingFormatter.Missing, taskbar.Text), Icon(null, taskbar.Text) with { Mark = MarkState.Stopped }];
+            TrayIcon[] icons =
+            [
+                Icon("62", taskbar.Normal),
+                Icon("1087", taskbar.Warning),
+                Icon("27.3", taskbar.Critical),
+                Icon("12k", taskbar.Text),
+                Icon(ReadingFormatter.Missing, taskbar.Text),
+                Icon(null, taskbar.Text) with { Mark = MarkState.Stopped },
+            ];
             foreach (var scale in new[] { 100, 150, 200 })
             {
                 var size = TrayIcons.SizeAt((uint)(96 * scale / 100));
@@ -189,8 +226,13 @@ public sealed class TrayIconsTests : IDisposable
                 {
                     var ink = Ink(picture);
                     Assert.NotEmpty(ink);
-                    Assert.All(ink.Where(pixel => pixel.Color.A == 255), pixel => Assert.Equal(icon.Color, new Rgb(pixel.Color.R, pixel.Color.G, pixel.Color.B)));
-                    Assert.True(icon.Text is null or ReadingFormatter.Missing || Math.Max(Span(ink, pixel => pixel.X), Span(ink, pixel => pixel.Y)) >= size - 1, $"{icon.Text} at {size} px");
+                    Assert.All(
+                        ink.Where(pixel => pixel.Color.A == 255),
+                        pixel => Assert.Equal(icon.Color, new Rgb(pixel.Color.R, pixel.Color.G, pixel.Color.B)));
+                    Assert.True(
+                        icon.Text is null or ReadingFormatter.Missing
+                            || Math.Max(Span(ink, pixel => pixel.X), Span(ink, pixel => pixel.Y)) >= size - 1,
+                        $"{icon.Text} at {size} px");
                 }
 
                 pictures.ForEach(picture => picture.Dispose());
@@ -205,7 +247,9 @@ public sealed class TrayIconsTests : IDisposable
     public void TheProgramsIconIsTheMark()
     {
         var file = Path.Combine(TestRecordings.RepoRoot(), "src", "Thermi", "thermi.ico");
-        var painted = ProgramIconSizes.Select(size => TrayPainter.Paint(new TrayIcon(Guid.Empty, null, null, ProgramIconInk, "") { Mark = MarkState.App }, size)).ToList();
+        var painted = ProgramIconSizes
+            .Select(size => TrayPainter.Paint(new TrayIcon(Guid.Empty, null, null, ProgramIconInk, "") { Mark = MarkState.App }, size))
+            .ToList();
         if (Environment.GetEnvironmentVariable(IconWriting) == "1")
         {
             File.WriteAllBytes(file, IconFile(painted));
@@ -219,7 +263,9 @@ public sealed class TrayIconsTests : IDisposable
             using var stream = new MemoryStream(icon, BitConverter.ToInt32(icon, entry + 12), BitConverter.ToInt32(icon, entry + 8));
             using var frame = new Bitmap(stream);
             Assert.Equal(picture.Size, frame.Size);
-            var far = Enumerable.Range(0, frame.Height).SelectMany(y => Enumerable.Range(0, frame.Width).Where(x => Differs(picture.GetPixel(x, y), frame.GetPixel(x, y)))).Count();
+            var far = Enumerable.Range(0, frame.Height)
+                .SelectMany(y => Enumerable.Range(0, frame.Width).Where(x => Differs(picture.GetPixel(x, y), frame.GetPixel(x, y))))
+                .Count();
             Assert.True(far == 0, $"{far} pixels of the {picture.Width} px icon are not the mark's");
         }
 
@@ -270,7 +316,9 @@ public sealed class TrayIconsTests : IDisposable
     private static TrayIcon Icon(string? text, Rgb color) => new(Guid.NewGuid(), text is null ? null : "item", text, color, "");
 
     private static List<(int X, int Y, Color Color)> Ink(Bitmap picture) =>
-        [.. Enumerable.Range(0, picture.Height).SelectMany(y => Enumerable.Range(0, picture.Width).Select(x => (x, y, picture.GetPixel(x, y)))).Where(pixel => pixel.Item3.A > 0)];
+        [.. Enumerable.Range(0, picture.Height)
+            .SelectMany(y => Enumerable.Range(0, picture.Width).Select(x => (x, y, picture.GetPixel(x, y))))
+            .Where(pixel => pixel.Item3.A > 0)];
 
     private static int Span(List<(int X, int Y, Color Color)> ink, Func<(int X, int Y, Color Color), int> axis) => ink.Max(axis) - ink.Min(axis) + 1;
 
@@ -301,7 +349,12 @@ public sealed class TrayIconsTests : IDisposable
 
     private static ThermiConfig WithTray(ThermiConfig config, int overlay, params int[] items) => config with
     {
-        Overlays = [.. config.Overlays.Select((each, at) => at != overlay ? each : each with { Items = [.. each.Items.Select((item, index) => item with { Tray = items.Contains(index) })] })],
+        Overlays =
+        [
+            .. config.Overlays.Select((each, at) => at != overlay
+                ? each
+                : each with { Items = [.. each.Items.Select((item, index) => item with { Tray = items.Contains(index) })] }),
+        ],
     };
 
     private Task<Settings> LoadedAsync(ThermiConfig config)
@@ -323,7 +376,13 @@ public sealed class TrayIconsTests : IDisposable
 
     private void Run(Settings settings, Action<OverlayHost> body) => TestWindows.OnOwnDesktop(() =>
     {
-        using var host = new OverlayHost(settings, () => HostRun.Recorded, English, _folder.Clock, _folder.Log, _tray.Environment(HostRun.WindowMutex(), _opened.Add));
+        using var host = new OverlayHost(
+            settings,
+            () => HostRun.Recorded,
+            English,
+            _folder.Clock,
+            _folder.Log,
+            _tray.Environment(HostRun.WindowMutex(), _opened.Add));
         host.Start();
         HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == settings.Config.Overlays.Count);
         body(host);

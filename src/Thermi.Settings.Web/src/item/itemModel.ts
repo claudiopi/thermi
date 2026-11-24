@@ -28,32 +28,63 @@ export function placeOf(settings: Settings, view: WindowView, id: string): Place
 
 const followsDevice = ['Network', 'Storage'];
 
-/** The Sensor dropdown's choices: Auto first for an item made from a metric, then every sensor of its type. */
+/** The Sensor dropdown's choices: Auto first for an item made from a metric, then every sensor of its type, its own device's first. */
 export function sensorChoices(item: Item, view: WindowView, sensors: readonly Sensor[], say: Say): Choice[] {
   const shows = view.items[item.id];
   const named = (sensor: Sensor): string => say('UiText.SensorOn', sensor.name, sensor.hardware);
   const auto = sensors.find((sensor) => sensor.id === shows?.auto);
   // An adapter's or a drive's metric follows a device, not a sensor, so Auto names the device it follows now.
   const follows = auto !== undefined && followsDevice.includes(auto.hardwareType) ? auto.hardware : auto?.name;
-  const autoChoice: Choice[] = item.metric === undefined ? [] : [{ value: '', text: say('UiText.AutoFollows', follows ?? say('UiText.Auto')), shown: follows ?? say('UiText.Auto'), ...(auto === undefined ? {} : { aside: view.values[auto.id] ?? '' }) }];
-  const ofType = sensors.filter((sensor) => sensor.type === shows?.type);
-  return [...autoChoice, ...ofType.map((sensor) => ({ value: sensor.id, text: named(sensor), aside: view.values[sensor.id] ?? '', shown: sensor.name, detail: sensor.hardware }))];
+  const autoChoice: Choice[] =
+    item.metric === undefined
+      ? []
+      : [
+          {
+            value: '',
+            text: say('UiText.AutoFollows', follows ?? say('UiText.Auto')),
+            shown: follows ?? say('UiText.Auto'),
+            ...(auto === undefined ? {} : { aside: view.values[auto.id] ?? '' }),
+          },
+        ];
+  // The device the item reads first, as a GPU's load lists the GPU's sensors before the CPU's cores.
+  const read = item.sensor ?? item.sensors?.[0] ?? shows?.auto;
+  const own = sensors.find((sensor) => sensor.id === read)?.hardware;
+  const ofType = sensors
+    .filter((sensor) => sensor.type === shows?.type)
+    .sort((one, other) => Number(other.hardware === own) - Number(one.hardware === own));
+  return [
+    ...autoChoice,
+    ...ofType.map((sensor) => ({
+      value: sensor.id,
+      text: named(sensor),
+      aside: view.values[sensor.id] ?? '',
+      shown: sensor.name,
+      detail: sensor.hardware,
+    })),
+  ];
 }
 
 const sameMeter = (one: Meter, other: Meter): boolean => one.metric === other.metric && one.sensor === other.sensor;
 
 /**
  * The Meter dropdown: Off, then the meters the item is offered, readings of itself alone, each by its place; a meter
- * written by hand that is none of them shows as itself, chosen, and is offered no more once left.
+ * written by hand that is none of them shows as itself, chosen, and is offered no more once left. With Off its only
+ * choice, the row is not shown at all.
  */
-export function meterChoices(item: Item, shows: ItemView | undefined, say: Say): { choices: Choice[]; value: string; meters: Meter[] } {
+export function meterChoices(
+  item: Item,
+  shows: ItemView | undefined,
+  say: Say,
+): { choices: Choice[]; value: string; meters: Meter[]; row: boolean } {
   const offered = shows?.meters ?? [];
   const at = item.meter === undefined ? -1 : offered.findIndex((choice) => sameMeter(choice.meter, item.meter!));
   const kept = item.meter !== undefined && at < 0 ? [{ value: 'kept', text: shows?.meterName ?? '' }] : [];
+  const choices = [{ value: 'off', text: say('UiText.MeterNone') }, ...offered.map((choice, index) => ({ value: String(index), text: choice.name })), ...kept];
   return {
-    choices: [{ value: 'off', text: say('UiText.MeterNone') }, ...offered.map((choice, index) => ({ value: String(index), text: choice.name })), ...kept],
+    choices,
     value: item.meter === undefined ? 'off' : at < 0 ? 'kept' : String(at),
     meters: offered.map((choice) => choice.meter),
+    row: choices.length > 1,
   };
 }
 

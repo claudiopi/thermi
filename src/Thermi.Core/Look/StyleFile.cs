@@ -31,7 +31,8 @@ public static class StyleFile
     private const string VersionField = "thermiStyle";
 
     // Plain JSON people paste in a chat: names in any language stay readable, and it is never put in a web page.
-    private static readonly StyleJson Context = new(new JsonSerializerOptions(StyleJson.Default.Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+    private static readonly StyleJson Context =
+        new(new JsonSerializerOptions(StyleJson.Default.Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
     /// <summary>The look alone: the layout and the direction are the overlay's, so a look written with them leaves them out.</summary>
     public static string Write(StyleConfig style) => JsonSerializer.Serialize(new StyleFileShape(CurrentVersion, Bare(style)), Context.StyleFileShape);
@@ -41,7 +42,10 @@ public static class StyleFile
     {
         if (text.Length > MaxLength)
         {
-            return new StyleRead(null, Refusal.StyleTooLarge, string.Create(CultureInfo.InvariantCulture, $"it is {text.Length} characters, more than {MaxLength}"));
+            return new StyleRead(
+                null,
+                Refusal.StyleTooLarge,
+                string.Create(CultureInfo.InvariantCulture, $"it is {text.Length} characters, more than {MaxLength}"));
         }
 
         try
@@ -66,14 +70,20 @@ public static class StyleFile
             return Broken("it is not a JSON object");
         }
 
-        if (!root.TryGetProperty(VersionField, out var version) || version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number) || number < 1)
+        if (!root.TryGetProperty(VersionField, out var version)
+            || version.ValueKind != JsonValueKind.Number
+            || !version.TryGetInt32(out var number)
+            || number < 1)
         {
             return Broken($"{VersionField} is not a version thermi knows");
         }
 
         if (number > CurrentVersion)
         {
-            return new StyleRead(null, Refusal.NewerStyle, string.Create(CultureInfo.InvariantCulture, $"{VersionField} is {number}, newer than {CurrentVersion}"));
+            return new StyleRead(
+                null,
+                Refusal.NewerStyle,
+                string.Create(CultureInfo.InvariantCulture, $"{VersionField} is {number}, newer than {CurrentVersion}"));
         }
 
         var style = Bare(Complete(root.Deserialize(Context.StyleFileShape)?.Style));
@@ -89,6 +99,10 @@ public static class StyleFile
 /// <summary>A style file as written: its version first, so a person sees at once which thermi it is for.</summary>
 internal sealed record StyleFileShape(int ThermiStyle = StyleFile.CurrentVersion, StyleConfig? Style = null);
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, RespectRequiredConstructorParameters = true)]
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    WriteIndented = true,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    RespectRequiredConstructorParameters = true)]
 [JsonSerializable(typeof(StyleFileShape))]
 internal sealed partial class StyleJson : JsonSerializerContext;

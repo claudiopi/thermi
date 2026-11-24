@@ -52,7 +52,13 @@ public static class WindowRoom
 
     /// <summary>What a remembered size is kept under: the same for the same monitors, wherever they are listed.</summary>
     public static string Setup(IReadOnlyList<Screen> screens) =>
-        string.Join(';', screens.Select(screen => string.Create(CultureInfo.InvariantCulture, $"{screen.Id}@{screen.Bounds.Left},{screen.Bounds.Top},{screen.Bounds.Width}x{screen.Bounds.Height}")).Order(StringComparer.Ordinal));
+        string.Join(
+            ';',
+            screens
+                .Select(screen => string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{screen.Id}@{screen.Bounds.Left},{screen.Bounds.Top},{screen.Bounds.Width}x{screen.Bounds.Height}"))
+                .Order(StringComparer.Ordinal));
 
     public static ListLayout List(int windowWidth) =>
         windowWidth >= WideWindow ? new ListLayout(WideList, false)

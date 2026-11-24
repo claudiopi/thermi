@@ -21,7 +21,8 @@ internal static class StepNames
         return names.Count == 1 ? names[0]
             : names.Find(name => name.Field == ChangedField.SensorName) is { } renamed ? renamed
             : fields.Count == 1 ? new StepName(names[0].Field, null, null)
-            : fields is [ChangedField.Size, ChangedField.Direction] or [ChangedField.Direction, ChangedField.Size] ? new StepName(ChangedField.Size, null, null)
+            : fields is [ChangedField.Size, ChangedField.Direction] or [ChangedField.Direction, ChangedField.Size]
+                ? new StepName(ChangedField.Size, null, null)
             : Moved(operations) ?? new StepName(ChangedField.Changes, null, null);
     }
 
@@ -84,7 +85,8 @@ internal static class StepNames
     private static (double? Warning, double? Critical) Lines(Threshold? threshold) => threshold is null ? default : (threshold.Warning, threshold.Critical);
 
     // A value is named as the file holds it; a choice or a group of fields has no single value to name.
-    private static object? Value(object? value) => value is double or int or bool or string ? value : null;
+    // A metric's name stands for an item that stores none, named in the window's language when the step is told.
+    private static object? Value(object? value) => value is double or int or bool or string or MetricName ? value : null;
 }
 
 /// <summary>
@@ -104,9 +106,19 @@ public static class StepTexts
 
     /// <summary>What an undo of the step says it changed back.</summary>
     public static string Undone(StepName step, ValueFormat format) =>
-        step.Before is bool on && step.Field != ChangedField.Hidden ? format.Texts.Format(format.Numbers, UndoText.Again, Field(step, format), format.Texts.Of(on ? UndoText.On : UndoText.Off))
-        : Shown(step, step.After, format, units: true) is not null && Shown(step, step.Before, format, units: true) is { } back ? format.Texts.Format(format.Numbers, UndoText.BackTo, Field(step, format), back)
-        : format.Texts.Format(format.Numbers, UndoText.Undone, Field(step, format));
+        Told(step, step.Before, step.After, format, (UndoText.Again, UndoText.BackTo, UndoText.Undone));
+
+    /// <summary>What a redo of the step says it did again.</summary>
+    public static string Redone(StepName step, ValueFormat format) =>
+        Told(step, step.After, step.Before, format, (UndoText.RedoneAgain, UndoText.RedoneTo, UndoText.Redone));
+
+    // The value the step leaves now, against the one it leaves behind, told in the undo's or the redo's words.
+    private static string Told(StepName step, object? now, object? left, ValueFormat format, (UndoText Again, UndoText To, UndoText Plain) words) =>
+        now is bool on && step.Field != ChangedField.Hidden
+            ? format.Texts.Format(format.Numbers, words.Again, Field(step, format), format.Texts.Of(on ? UndoText.On : UndoText.Off))
+        : Shown(step, left, format, units: true) is not null && Shown(step, now, format, units: true) is { } back
+            ? format.Texts.Format(format.Numbers, words.To, Field(step, format), back)
+        : format.Texts.Format(format.Numbers, words.Plain, Field(step, format));
 
     // Hiding an overlay is named as its button does it, an action and not a switch, so showing it again is the other button.
     private static string Field(StepName step, ValueFormat format) =>
@@ -121,6 +133,7 @@ public static class StepTexts
         double number => number.ToString(format.Numbers),
         int number => number.ToString(format.Numbers),
         string text => text,
+        MetricName name => format.Texts.Of(name),
         _ => null,
     };
 }

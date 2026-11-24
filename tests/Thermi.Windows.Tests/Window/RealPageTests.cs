@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -9,10 +8,10 @@ using Thermi.Core.Translations;
 using Thermi.Overlay;
 using Thermi.Ui;
 using Thermi.Ui.Web;
+using Thermi.Windows.Tests.Processes;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Com;
-using Windows.Win32.System.Threading;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Tests.Window;
@@ -28,7 +27,7 @@ namespace Thermi.Windows.Tests.Window;
 public sealed class RealPageTests
 {
     private const string WalkVariable = "THERMI_TEST_REAL_PAGE";
-    private const uint MostWait = 120_000;
+    private static readonly TimeSpan MostWait = TimeSpan.FromMinutes(2);
 
     [Fact]
     public void TheBuiltPageTakesEachMessageInARealWebView2()
@@ -44,40 +43,14 @@ public sealed class RealPageTests
     }
 
     // The test assembly again, on the desktop, told where to write how its walk went.
-    private static unsafe uint RunOn(string desktop, string told)
+    private static uint RunOn(string desktop, string told)
     {
         var exe = Path.Combine(AppContext.BaseDirectory, "Thermi.Windows.Tests.exe");
-        var line = $"\"{exe}\"\0".ToCharArray();
-        Environment.SetEnvironmentVariable(WalkVariable, told);
-        try
-        {
-            fixed (char* place = desktop)
-            fixed (char* command = line)
-            {
-                var startup = new STARTUPINFOW { cb = (uint)sizeof(STARTUPINFOW), lpDesktop = place };
-                PROCESS_INFORMATION process;
-                if (!TestPInvoke.CreateProcess(null, command, null, null, false, default, null, null, &startup, &process))
-                {
-                    throw new Win32Exception();
-                }
+        using var walk = DesktopProcess.Start(exe, [], new Dictionary<string, string>(StringComparer.Ordinal) { [WalkVariable] = told }, desktop);
+        walk.Input.Close();
 
-                // The real clock only bounds a walk that hangs, which is then ended.
-                if (TestPInvoke.WaitForSingleObject(process.hProcess, MostWait) != WAIT_EVENT.WAIT_OBJECT_0)
-                {
-                    TestPInvoke.TerminateProcess(process.hProcess, 2);
-                }
-
-                uint code;
-                TestPInvoke.GetExitCodeProcess(process.hProcess, &code);
-                TestPInvoke.CloseHandle(process.hThread);
-                TestPInvoke.CloseHandle(process.hProcess);
-                return code;
-            }
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(WalkVariable, null);
-        }
+        // The real clock only bounds a walk that hangs, which is then ended.
+        return walk.WaitForExit(MostWait) ? (uint)walk.ExitCode : 2;
     }
 
 #pragma warning disable CA2255 // The one way to run before xunit's entry point, in the test assembly's own process only.
@@ -152,7 +125,10 @@ public sealed class RealPageTests
             }
         }
 
-        /// <summary>Walks a window of settings of its own; empty when every step was answered and nothing was logged as a warning, else what went wrong.</summary>
+        /// <summary>
+        /// Walks a window of settings of its own; empty when every step was answered and nothing was logged as a warning, else
+        /// what went wrong.
+        /// </summary>
         public static string Run()
         {
             using var folder = new SettingsFolder();
@@ -167,7 +143,14 @@ public sealed class RealPageTests
             var walk = new PageWalk(Steps(config), folder.Clock);
             var mutex = HostRun.WindowMutex();
             using (MutexHolder.Holding(mutex))
-            using (var host = new OverlayHost(settings, () => HostRun.Recorded, HostRun.English, folder.Clock, folder.Log, new FakeTray().Environment(mutex)) { Received = walk.Told })
+            using (var host = new OverlayHost(
+                settings,
+                () => HostRun.Recorded,
+                HostRun.English,
+                folder.Clock,
+                folder.Log,
+                new FakeTray().Environment(mutex))
+            { Received = walk.Told })
             {
                 host.Start();
                 TIMERPROC tick = (_, _, _, _) => walk.Tick();
@@ -178,7 +161,10 @@ public sealed class RealPageTests
             }
 
             var warned = folder.Log.Entries.Where(entry => entry.Level >= LogLevel.Warning).Select(entry => entry.Message).ToList();
-            return walk.Done && warned.Count == 0 ? "" : $"Answered {walk.Reached} of {walk.Count} steps; told the overlay {string.Join(", ", walk.Edits)}; logged {string.Join(" | ", warned)}";
+            return walk.Done && warned.Count == 0
+                ? ""
+                : $"Answered {walk.Reached} of {walk.Count} steps; told the overlay {string.Join(", ", walk.Edits)}; "
+                    + $"logged {string.Join(" | ", warned)}";
         }
 
         public void Told(WindowMessage message)
@@ -198,11 +184,24 @@ public sealed class RealPageTests
         private static List<(WindowMessage Sent, Edited? Then)> Steps(ThermiConfig config) =>
         [
             (new Select(1, Metrics.RamUsed.Id, SelectHow.DoubleClick), new Edited(1, Metrics.RamUsed.Id, null)),
-            (new History([new ItemHistory(Metrics.CpuTemperature.Id, 1_000_000, [.. Enumerable.Range(0, 600).Select(second => 40f + (second % 20))])]), null),
+            (
+                new History(
+                [
+                    new ItemHistory(Metrics.CpuTemperature.Id, 1_000_000, [.. Enumerable.Range(0, 600).Select(second => 40f + (second % 20))]),
+                ]),
+                null),
             (new Select(1, Metrics.GpuLoad.Id, SelectHow.Click), new Edited(1, Metrics.GpuLoad.Id, null)),
             (new Select(1, Metrics.RamUsed.Id, SelectHow.PointIn), null),
             (new Select(1, Metrics.RamUsed.Id, SelectHow.PointOut), null),
-            (new Gesture(GestureKind.Move, ThermiConfigJson.Write(config), ThermiConfigJson.Write(config with { Overlays = [config.Overlays[0] with { Position = new Position(400, 300), Snap = null }, config.Overlays[1]] })), null),
+            (
+                new Gesture(
+                    GestureKind.Move,
+                    ThermiConfigJson.Write(config),
+                    ThermiConfigJson.Write(config with
+                    {
+                        Overlays = [config.Overlays[0] with { Position = new Position(400, 300), Snap = null }, config.Overlays[1]],
+                    })),
+                null),
             (new Select(2, null, SelectHow.Click), new Edited(2, null, null)),
             (new Raise(1, Metrics.CpuFan.Id), new Edited(1, Metrics.CpuFan.Id, null)),
         ];

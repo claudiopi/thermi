@@ -41,7 +41,11 @@ internal static class EndingChild
         {
             _ = ThermiLog.RunLoggedAsync(log, () =>
             {
-                using var timer = TimeProvider.System.CreateTimer(_ => throw new InvalidOperationException("the timer's failure"), null, TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+                using var timer = TimeProvider.System.CreateTimer(
+                    _ => throw new InvalidOperationException("the timer's failure"),
+                    null,
+                    TimeSpan.Zero,
+                    Timeout.InfiniteTimeSpan);
                 using var never = new ManualResetEventSlim();
                 never.Wait();
                 return Task.FromResult(0);

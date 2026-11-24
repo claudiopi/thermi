@@ -24,6 +24,9 @@ internal sealed class TrayIcons(HWND hwnd, NotifyShell shell, TimeProvider time,
 
     public const int MaxIcons = 0x100;
 
+    // Refreshes in a row whose change of an icon failed before it counts as gone.
+    private const int GivesUpAfter = 3;
+
     public static readonly TimeSpan Retry = TimeSpan.FromSeconds(5);
 
     private readonly Dictionary<Guid, Slot> _slots = [];
@@ -66,6 +69,11 @@ internal sealed class TrayIcons(HWND hwnd, NotifyShell shell, TimeProvider time,
         foreach (var icon in update.Retipped)
         {
             Retip(icon);
+        }
+
+        foreach (var slot in _slots.Values.Where(slot => slot.Added && slot.Pending != default).ToList())
+        {
+            Modify(slot, slot.Pending);
         }
 
         foreach (var slot in _slots.Values.Where(slot => !slot.Added && (slot.Tried is not { } tried || time.GetElapsedTime(tried) >= Retry)))
@@ -142,13 +150,26 @@ internal sealed class TrayIcons(HWND hwnd, NotifyShell shell, TimeProvider time,
         }
     }
 
-    // An icon Windows no longer knows is added again on this refresh.
+    // A change that fails is tried again at the next refresh: Explorer, busy, lets the call time out while it keeps the
+    // icon, so taking the icon off and adding it anew would only make it blink and lose its place. Only a change that
+    // keeps failing means Windows no longer knows the icon, which is then added again.
     private void Modify(Slot slot, NOTIFY_ICON_DATA_FLAGS flags)
     {
-        if (slot.Added && !shell(NOTIFY_ICON_MESSAGE.NIM_MODIFY, Data(slot, flags)))
+        if (!slot.Added)
         {
-            slot.Added = false;
-            slot.Tried = null;
+            return;
+        }
+
+        if (shell(NOTIFY_ICON_MESSAGE.NIM_MODIFY, Data(slot, flags | slot.Pending)))
+        {
+            (slot.Pending, slot.Failed) = (default, 0);
+            return;
+        }
+
+        slot.Pending |= flags;
+        if (++slot.Failed >= GivesUpAfter)
+        {
+            (slot.Added, slot.Tried, slot.Pending, slot.Failed) = (false, null, default, 0);
         }
     }
 
@@ -172,7 +193,12 @@ internal sealed class TrayIcons(HWND hwnd, NotifyShell shell, TimeProvider time,
     {
         slot.Tried = time.GetTimestamp();
         shell(NOTIFY_ICON_MESSAGE.NIM_DELETE, Data(slot, default));
-        if (shell(NOTIFY_ICON_MESSAGE.NIM_ADD, Data(slot, NOTIFY_ICON_DATA_FLAGS.NIF_MESSAGE | NOTIFY_ICON_DATA_FLAGS.NIF_ICON | NOTIFY_ICON_DATA_FLAGS.NIF_TIP | NOTIFY_ICON_DATA_FLAGS.NIF_SHOWTIP)))
+        var flags = NOTIFY_ICON_DATA_FLAGS.NIF_MESSAGE
+            | NOTIFY_ICON_DATA_FLAGS.NIF_ICON
+            | NOTIFY_ICON_DATA_FLAGS.NIF_TIP
+            | NOTIFY_ICON_DATA_FLAGS.NIF_SHOWTIP;
+        // An add that timed out may have taken the icon all the same, which a change then finds.
+        if (shell(NOTIFY_ICON_MESSAGE.NIM_ADD, Data(slot, flags)) || shell(NOTIFY_ICON_MESSAGE.NIM_MODIFY, Data(slot, flags)))
         {
             var version = Data(slot, default);
             version.uVersion = PInvoke.NOTIFYICON_VERSION_4;
@@ -207,7 +233,9 @@ internal sealed class TrayIcons(HWND hwnd, NotifyShell shell, TimeProvider time,
         {
             cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATAW>(),
             hWnd = hwnd,
-            uFlags = flags | NOTIFY_ICON_DATA_FLAGS.NIF_GUID,
+            // Every call says the tooltip again and keeps Windows' own on: a call without NIF_SHOWTIP, as a notice's, turns
+            // it off for an icon of version 4.
+            uFlags = flags | NOTIFY_ICON_DATA_FLAGS.NIF_GUID | NOTIFY_ICON_DATA_FLAGS.NIF_TIP | NOTIFY_ICON_DATA_FLAGS.NIF_SHOWTIP,
             uCallbackMessage = slot.Message,
             hIcon = slot.Handle,
             guidItem = slot.Icon!.Id,
@@ -232,5 +260,10 @@ internal sealed class TrayIcons(HWND hwnd, NotifyShell shell, TimeProvider time,
         public long? Tried { get; set; }
 
         public bool Logged { get; set; }
+
+        /// <summary>What a change that failed was to change, tried again at the next refresh.</summary>
+        public NOTIFY_ICON_DATA_FLAGS Pending { get; set; }
+
+        public int Failed { get; set; }
     }
 }

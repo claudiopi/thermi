@@ -17,10 +17,12 @@ public sealed class InstallDriverTests : IDisposable
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
     // Each row: what the download gives, whether it is signed, what the installer exits with (none when it never ends),
-    // the service's states as the manager gives them, one a poll, and the mode's exit code.
+    // the service's states as the manager gives them, one a poll, and the mode's exit code. A planted file is one an
+    // attacker left in the folder, which Windows would load beside the installer as administrator.
     [Theory]
     [InlineData("pinned", true, 0, "RSSR", InstallDriver.Installed)]
-    [InlineData("pinned", true, 3010, "RSSR", InstallDriver.Installed)]
+    [InlineData("pinned", true, 3010, "RSSR", InstallDriver.RestartNeeded)]
+    [InlineData("planted", true, 0, "RSSR", InstallDriver.FolderUnsafe)]
     [InlineData("pinned", true, 0, "M", InstallDriver.ServiceMissing)]
     [InlineData("pinned", true, 0, "RSS", InstallDriver.SensorsFailed)]
     [InlineData("pinned", true, 0, "RC", InstallDriver.SensorsFailed)]
@@ -34,9 +36,12 @@ public sealed class InstallDriverTests : IDisposable
     public async Task OnlyThePinnedInstallerRunsAndTheSensorsStartAgain(string download, bool trusted, int? installer, string states, int exit)
     {
         var time = new FakeTimeProvider();
-        var setup = new DriverSetup(new Uri("https://example.invalid/setup.exe"), Pinned.Length, Convert.ToHexString(SHA256.HashData(Pinned)), ["-install", "-silent"]);
+        var setup = new DriverSetup(
+            new Uri("https://example.invalid/setup.exe"), Pinned.Length, Convert.ToHexString(SHA256.HashData(Pinned)), ["-install", "-silent"]);
         var ran = new FakeInstaller(trusted, installer);
-        var parts = new DriverParts(setup, () => download == "unsafe folder" ? null : _folder, new FakeDownload(download), ran, new CommandLineTests.FakeServices(states, starts: true));
+        var fresh = Path.Combine(_folder, "fresh");
+        var services = new CommandLineTests.FakeServices(states, starts: true);
+        var parts = new DriverParts(setup, () => download == "unsafe folder" ? null : Fresh(fresh, download), new FakeDownload(download), ran, services);
 
         var run = InstallDriver.RunAsync(parts, time);
         for (var waited = TimeSpan.Zero; !run.IsCompleted && waited <= TimeSpan.FromSeconds(30); waited += StartSensors.Poll)
@@ -45,11 +50,27 @@ public sealed class InstallDriverTests : IDisposable
         }
 
         Assert.True(run.IsCompleted);
-        Assert.Equal((exit, exit is InstallDriver.Installed or InstallDriver.ServiceMissing or InstallDriver.SensorsFailed or InstallDriver.NotInstalled), (await run, ran.Ran));
-        Assert.Empty(Directory.GetFiles(_folder));
+        var runs = exit is InstallDriver.Installed or InstallDriver.ServiceMissing or InstallDriver.SensorsFailed
+            or InstallDriver.NotInstalled or InstallDriver.RestartNeeded;
+        Assert.Equal((exit, runs), (await run, ran.Ran));
+        Assert.False(Directory.Exists(fresh));
     }
 
-    /// <summary>The file at the URL as each row has it: the pinned one, one byte longer, changed in its last byte, or a failed download.</summary>
+    private static string Fresh(string folder, string download)
+    {
+        Directory.CreateDirectory(folder);
+        if (download == "planted")
+        {
+            File.WriteAllBytes(Path.Combine(folder, "version.dll"), [0x4D, 0x5A]);
+        }
+
+        return folder;
+    }
+
+    /// <summary>
+    /// The file at the URL as each row has it: the pinned one, one byte longer, changed in its last byte, or a failed
+    /// download.
+    /// </summary>
     // Written at once, so the run moves only as the test's clock does.
     private sealed class FakeDownload(string kind) : IDriverDownload
     {
@@ -73,7 +94,10 @@ public sealed class InstallDriverTests : IDisposable
         }
     }
 
-    /// <summary>The installer: signed or not, and its exit code, or none when it never ends; it runs only from the folder, with the file still there.</summary>
+    /// <summary>
+    /// The installer: signed or not, and its exit code, or none when it never ends; it runs only from the folder, with the
+    /// file still there.
+    /// </summary>
     private sealed class FakeInstaller(bool trusted, int? exit) : IDriverInstaller
     {
         public bool Ran { get; private set; }

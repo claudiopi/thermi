@@ -76,7 +76,12 @@ internal static class WindowFrame
     /// <summary>Asks Windows to say when the pointer leaves the frame, as for the page, which DWM's buttons need to leave their hover.</summary>
     public static unsafe void TrackLeave(HWND window)
     {
-        var track = new TRACKMOUSEEVENT { cbSize = (uint)sizeof(TRACKMOUSEEVENT), dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE | TRACKMOUSEEVENT_FLAGS.TME_NONCLIENT, hwndTrack = window };
+        var track = new TRACKMOUSEEVENT
+        {
+            cbSize = (uint)sizeof(TRACKMOUSEEVENT),
+            dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE | TRACKMOUSEEVENT_FLAGS.TME_NONCLIENT,
+            hwndTrack = window,
+        };
         PInvoke.TrackMouseEvent(ref track);
     }
 
@@ -84,7 +89,9 @@ internal static class WindowFrame
     public static unsafe RECT Buttons(HWND window)
     {
         RECT buttons;
-        return PInvoke.DwmGetWindowAttribute(window, DWMWINDOWATTRIBUTE.DWMWA_CAPTION_BUTTON_BOUNDS, &buttons, (uint)sizeof(RECT)).Succeeded ? buttons : default;
+        return PInvoke.DwmGetWindowAttribute(window, DWMWINDOWATTRIBUTE.DWMWA_CAPTION_BUTTON_BOUNDS, &buttons, (uint)sizeof(RECT)).Succeeded
+            ? buttons
+            : default;
     }
 
     /// <summary>Where the page goes: the client area, under the top edge to resize from, which a maximized window has past the screen's edge.</summary>
@@ -128,12 +135,20 @@ internal static class WindowFrame
     public static int Border(HWND window)
     {
         var dpi = PInvoke.GetDpiForWindow(window);
-        return PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYFRAME, dpi) + PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, dpi);
+        return PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYFRAME, dpi)
+            + PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, dpi);
     }
 
     /// <summary>Above thermi's overlays, which are topmost, while the window is active; among other windows while it is not.</summary>
     public static void Above(HWND window, bool active) =>
-        PInvoke.SetWindowPos(window, active ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+        PInvoke.SetWindowPos(
+            window,
+            active ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
 
     /// <summary>The first child window, where WebView2 shows the page.</summary>
     public static HWND PageWindow(HWND window) => PInvoke.GetWindow(window, GET_WINDOW_CMD.GW_CHILD);

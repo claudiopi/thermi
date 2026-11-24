@@ -18,10 +18,17 @@ namespace Thermi.Ui;
 /// its process started, the sensors, read from the pipe as the overlay reads them, the start-up entry that "Start with
 /// Windows" switches, the overlay's "hotkey status" and its hotkeys' rest, the elevated mode and the monitors.
 /// </summary>
-internal sealed record WindowEnvironment(string Mutex, string SettingsPath, string ExePath, ILogger Log, DateTimeOffset Requested, ISensorFeed Sensors, StartWithWindows Startup)
+internal sealed record WindowEnvironment(
+    string Mutex,
+    string SettingsPath,
+    string ExePath,
+    ILogger Log,
+    DateTimeOffset Requested,
+    ISensorFeed Sensors,
+    StartWithWindows Startup)
 {
     /// <summary>Where the window keeps WebView2's profile and its size and place: beside the log.</summary>
-    public string DataFolder { get; init; } = Path.GetDirectoryName(ThermiLog.DefaultPath)!;
+    public string DataFolder { get; init; } = ThermiLog.Folder;
 
     /// <summary>Where WebView2's runtime is looked for: null for the one installed, wherever Windows has it.</summary>
     public string? BrowserFolder { get; init; }
@@ -41,11 +48,21 @@ internal sealed record WindowEnvironment(string Mutex, string SettingsPath, stri
     /// <summary>The monitors, their taskbars and notification areas, as Windows has them now.</summary>
     public Func<IReadOnlyList<Screen>> Screens { get; init; } = Desktop.Screens;
 
+    /// <summary>Whether the taskbars' buttons are read through UI Automation, which tests turn off, so they never read the user's taskbar.</summary>
+    public bool ReadsTaskbar { get; init; } = true;
+
     public static WindowEnvironment Of(ILoggerFactory logs, TimeProvider time)
     {
         using var process = Process.GetCurrentProcess();
         var exe = Environment.ProcessPath ?? "thermi.exe";
-        return new(HostEnvironment.WindowMutexName, ConfigStore.DefaultPath, exe, logs.CreateLogger("Thermi.Ui"), new DateTimeOffset(process.StartTime), new SystemFeed(new SensorClient(time, logs.CreateLogger<SensorClient>()), time), StartWithWindows.Of(exe));
+        return new(
+            HostEnvironment.WindowMutexName,
+            ConfigStore.DefaultPath,
+            exe,
+            logs.CreateLogger("Thermi.Ui"),
+            new DateTimeOffset(process.StartTime),
+            new SystemFeed(new SensorClient(time, logs.CreateLogger<SensorClient>()), time),
+            StartWithWindows.Of(exe));
     }
 }
 
@@ -110,7 +127,9 @@ internal static class WindowProcess
         {
             try
             {
-                opened = Open(new WindowStart(overlay, settings, texts, environment, time) { Pseudo = pseudo, Item = item }, () => reading = Task.Run(() => environment.Sensors.RunAsync(stop.Token), stop.Token));
+                opened = Open(
+                    new WindowStart(overlay, settings, texts, environment, time) { Pseudo = pseudo, Item = item },
+                    () => reading = Task.Run(() => environment.Sensors.RunAsync(stop.Token), stop.Token));
             }
 #pragma warning disable CA1031 // Not handled: thrown again on the caller's thread, which a thread's own failure would never reach.
             catch (Exception ex)

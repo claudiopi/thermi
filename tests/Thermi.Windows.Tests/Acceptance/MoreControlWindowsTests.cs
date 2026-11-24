@@ -48,7 +48,9 @@ public sealed class MoreControlWindowsTests
     {
         var y = bitmap.Height / 2;
         var drawn = Enumerable.Range(0, bitmap.Width).Where(x => bitmap.GetPixel(x, y).A > 1).ToList();
-        var (first, second) = drawn.Zip(drawn.Skip(1)).Where(pair => Enumerable.Range(pair.First + 1, pair.Second - pair.First - 1).All(x => bitmap.GetPixel(x, y).A == 1)).MaxBy(pair => pair.Second - pair.First);
+        var (first, second) = drawn.Zip(drawn.Skip(1))
+            .Where(pair => Enumerable.Range(pair.First + 1, pair.Second - pair.First - 1).All(x => bitmap.GetPixel(x, y).A == 1))
+            .MaxBy(pair => pair.Second - pair.First);
         return new Point((first + second) / 2, y);
     }
 }

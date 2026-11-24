@@ -124,7 +124,9 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
     }
 
     private StyleConfig StyleOf(int overlay) =>
-        overlay >= 0 && overlay < editor.Config.Overlays.Count ? editor.Config.Overlays[overlay].Style : throw new ArgumentOutOfRangeException(nameof(overlay), overlay, "No such overlay.");
+        overlay >= 0 && overlay < editor.Config.Overlays.Count
+            ? editor.Config.Overlays[overlay].Style
+            : throw new ArgumentOutOfRangeException(nameof(overlay), overlay, "No such overlay.");
 
     // A file Windows refused to write, read or delete changes nothing, and says why; the page reads the looks again.
     private string? Files(Func<Refusal?> change)

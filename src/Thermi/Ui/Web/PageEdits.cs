@@ -95,7 +95,11 @@ internal static class PageEdits
             "color" => ItemEdits.SetColor(config, id, Text(value)),
             "notify" => PowerEdits.SetNotify(config, id, Flag(value)),
             "offset" => PowerEdits.SetOffset(config, id, snapshot, value.ValueKind == JsonValueKind.Null ? 0 : value.GetDouble()),
-            "sensors" => PowerEdits.SetSensors(config, id, snapshot, value.ValueKind == JsonValueKind.Null ? [] : value.Deserialize<IReadOnlyList<string>>(BridgeCalls.Options) ?? []),
+            "sensors" => PowerEdits.SetSensors(
+                config,
+                id,
+                snapshot,
+                value.ValueKind == JsonValueKind.Null ? [] : value.Deserialize<IReadOnlyList<string>>(BridgeCalls.Options) ?? []),
             "combine" => PowerEdits.SetCombine(config, id, snapshot, Read<Combine>(value)),
             _ => Power(field, id, config, value),
         };
@@ -117,7 +121,9 @@ internal static class PageEdits
     {
         var meter = value.ValueKind == JsonValueKind.Null ? null : value.Deserialize<MeterConfig>(BridgeCalls.Options);
         var item = config.Overlays.SelectMany(overlay => overlay.Items).FirstOrDefault(each => each.Id == id);
-        var itself = meter is not null && item is not null && ((meter.Metric is not null && meter.Metric == item.Metric) || (meter.Sensor is not null && meter.Sensor == item.Sensor));
+        var itself = meter is not null
+            && item is not null
+            && ((meter.Metric is not null && meter.Metric == item.Metric) || (meter.Sensor is not null && meter.Sensor == item.Sensor));
         return itself ? ItemEdits.MeterItself(config, id, snapshot) : ItemEdits.SetMeter(config, id, snapshot, meter);
     }
 

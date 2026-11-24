@@ -3,7 +3,9 @@ import { useEffect, useRef, type RefObject } from 'react';
 /** The first thing the pane can focus, for Enter on a row. */
 export function focusPane(): void {
   // A page without a control yet takes the focus on its heading, so it never falls to the page.
-  const target = document.querySelector<HTMLElement>('main :is(button, input, [tabindex="0"], [role="slider"]):not([disabled])') ?? document.querySelector<HTMLElement>('main h2');
+  const target =
+    document.querySelector<HTMLElement>('main :is(button, input, [tabindex="0"], [role="slider"]):not([disabled])') ??
+    document.querySelector<HTMLElement>('main h2');
   target?.focus();
 }
 

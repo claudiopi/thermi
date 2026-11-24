@@ -24,7 +24,8 @@ public sealed class WindowRoomTests
             (new ThermiConfig(), [At(1000, 800)], [new PixelRect(900, 100, 1000, 140)], new PixelRect(50, 40, 900, 760)),
             (onSide, [At(2560, 1392), side], [], new PixelRect(2610, 40, 3510, 760)),
         ];
-        (int Window, ListLayout List)[] lists = [(1500, new(344, false)), (1200, new(296, false)), (860, new(275, false)), (800, new(320, true)), (360, new(306, true))];
+        (int Window, ListLayout List)[] lists =
+            [(1500, new(344, false)), (1200, new(296, false)), (860, new(275, false)), (800, new(320, true)), (360, new(306, true))];
         (int Pane, PaneColumns Columns)[] panes = [(863, new(1, 720)), (864, new(2, 720)), (2001, new(2, 880))];
 
         Assert.All(places, row => Assert.Equal(row.First, WindowRoom.First(row.Config, row.Screens, row.Free)));

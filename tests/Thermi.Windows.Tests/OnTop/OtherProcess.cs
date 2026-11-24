@@ -1,7 +1,7 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using Thermi.Windows.Tests.Processes;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -21,7 +21,7 @@ internal sealed class OtherProcess : IDisposable
 
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
-    private readonly Process _process;
+    private readonly DesktopProcess _process;
 
     /// <param name="desktop">The test's desktop, which it joins.</param>
     /// <param name="program">A copy of the test assembly's program to run under this name, so it is another program to Windows, not this one again.</param>
@@ -35,15 +35,8 @@ internal sealed class OtherProcess : IDisposable
             exe = copy;
         }
 
-        var start = new ProcessStartInfo(exe)
-        {
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        start.Environment[DesktopVariable] = desktop;
-        _process = Process.Start(start) ?? throw new InvalidOperationException("The other process did not start.");
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal) { [DesktopVariable] = desktop };
+        _process = DesktopProcess.Start(exe, [], variables, desktop, talks: true);
     }
 
     public int Id => _process.Id;
@@ -51,15 +44,14 @@ internal sealed class OtherProcess : IDisposable
     /// <summary>Raises the window of <paramref name="kind"/> above every other, made the first time, and gives it once raised.</summary>
     public HWND Raise(string kind)
     {
-        _process.StandardInput.WriteLine(kind);
-        _process.StandardInput.Flush();
+        _process.Input.WriteLine(kind);
 
         // A plain read, which handles none of the thread's messages, so the overlay cannot answer the raise before the test
         // looks; a line that never comes ends the other process, and the read with it.
         var late = false;
         using (TimeProvider.System.CreateTimer(_ => { late = true; _process.Kill(); }, null, Patience, Timeout.InfiniteTimeSpan))
         {
-            if (_process.StandardOutput.ReadLine() is { } line)
+            if (_process.Output.ReadLine() is { } line)
             {
                 return (HWND)nint.Parse(line, CultureInfo.InvariantCulture);
             }
@@ -72,12 +64,8 @@ internal sealed class OtherProcess : IDisposable
 
     public void Dispose()
     {
-        _process.StandardInput.Close();
-        if (!_process.WaitForExit(Patience))
-        {
-            _process.Kill();
-        }
-
+        _process.Input.Close();
+        _process.WaitForExit(Patience);
         _process.Dispose();
     }
 
@@ -123,7 +111,14 @@ internal sealed class OtherProcess : IDisposable
                 PInvoke.SetWindowPos(window, HWND.HWND_TOPMOST, 0, 0, 200, 40, SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
             }
 
-            PInvoke.SetWindowPos(window, HWND.HWND_TOPMOST, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+            PInvoke.SetWindowPos(
+                window,
+                HWND.HWND_TOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
             Console.WriteLine(((nint)window).ToString(CultureInfo.InvariantCulture));
         }
     }

@@ -42,19 +42,23 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
 
     public IReadOnlyList<double?> History(string id) => chart.Of(id, _own.TenMinutes(id));
 
-    /// <summary>The item's chart, or null when it has no meter or its meter is of a type that has none.</summary>
+    /// <summary>
+    /// The item's chart: its meter's, or without a meter its own reading's with no lines; null for a reading that is no
+    /// number to draw, or a meter of a type that has no chart.
+    /// </summary>
     public ChartView? Chart(string id, ValueFormat format)
     {
-        if (ItemOf(editor.Config, id) is not { Meter: { } meter } item || ScaleOf(meter) is not { } scale)
+        if (ItemOf(editor.Config, id) is not { } item || Charted(item) is not var (meter, scale))
         {
             return null;
         }
 
         var history = History(id);
         var values = history.OfType<double>().ToList();
-        var (warning, critical) = (item.Threshold?.Warning, item.Threshold?.Critical);
+        var (warning, critical) = item.Meter is null ? default : (item.Threshold?.Warning, item.Threshold?.Critical);
         var (from, to) = MeterChart.Range(scale with { Warning = warning, Critical = critical }, values);
         var summary = MeterChart.Summary(history);
+        var defaults = item.Meter is null ? null : Threshold.Default(meter, readings.Known(sensors.Latest));
         string Said(double value, bool units = true)
         {
             return ReadingFormatter.Format(scale.Kind, value, format, units);
@@ -71,15 +75,37 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             warning is { } low ? Said(low) : null,
             critical is { } high ? Said(high) : null,
             Colors(scale, from, to, warning, critical),
-            summary is (var min, var average, var max) ? format.Texts.Format(format.Numbers, ChartText.Stats, Said(min, units: false), Said(average, units: false), Said(max)) : null,
+            summary is (var min, var average, var max)
+                ? format.Texts.Format(format.Numbers, ChartText.Stats, Said(min, units: false), Said(average, units: false), Said(max))
+                : null,
             summary is (var least, _, var most) ? format.Texts.Format(format.Numbers, ChartText.Summary, Said(least), Said(most), Said(values[^1])) : "",
             EmptyOf(meter, values.Count),
             _pushed.GetValueOrDefault(id),
-            scale.Kind == SensorKind.Control ? format.Texts.Of(ChartText.DutyTitle) : null,
+            TitleOf(item, meter, scale, format.Texts),
             Said(from),
             Said(to),
-            MeterChart.FiresMostly(history, warning, critical) && item.Threshold != Threshold.Default(meter, readings.Known(sensors.Latest)));
+            MeterChart.FiresMostly(history, warning, critical) && item.Threshold != defaults ? DefaultsText(defaults, scale.Kind, format) : null);
     }
+
+    // The button of lines that fire most of the time says the defaults it puts back.
+    private static string DefaultsText(Threshold? defaults, SensorKind kind, ValueFormat format) =>
+        (defaults?.Warning, defaults?.Critical) switch
+        {
+            ({ } warning, { } critical) => format.Texts.Format(
+                format.Numbers,
+                ChartText.UseLines,
+                ReadingFormatter.Format(kind, warning, format, units: false),
+                ReadingFormatter.Format(kind, critical, format)),
+            (null, null) => format.Texts.Of(ChartText.UseNoLines),
+            var (warning, critical) =>
+                format.Texts.Format(format.Numbers, ChartText.UseLine, ReadingFormatter.Format(kind, (warning ?? critical)!.Value, format)),
+        };
+
+    // A chart in another unit than its item's value says what it reads: a fan's duty, or the RAM in use as its load.
+    private static string? TitleOf(ItemConfig item, MeterConfig meter, MeterScale scale, Texts texts) =>
+        scale.Kind == SensorKind.Control ? texts.Of(ChartText.DutyTitle)
+        : (meter.Metric ?? meter.Auto) == Metrics.RamLoad.Id && (item.Metric ?? item.Auto) == Metrics.RamUsed.Id ? texts.Of(ChartText.RamTitle)
+        : null;
 
     /// <summary>
     /// Moves, types or adds one of the item's lines as one step, the other pushed out of its way: null when made, else the
@@ -110,7 +136,11 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             TypedLineEdit typed => Typed(scale, typed.Typed, format),
             _ => Added(scale, item.Threshold, line),
         };
-        var lines = MeterChart.Pushed(scale, line == ChartLine.Warning ? value : item.Threshold?.Warning, line == ChartLine.Critical ? value : item.Threshold?.Critical, line);
+        var lines = MeterChart.Pushed(
+            scale,
+            line == ChartLine.Warning ? value : item.Threshold?.Warning,
+            line == ChartLine.Critical ? value : item.Threshold?.Critical,
+            line);
         var result = editor.Edit("line", config => ItemEdits.SetThreshold(config, id, lines.Warning, lines.Critical));
         if (result.Refused is { } refused)
         {
@@ -126,10 +156,23 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         return null;
     }
 
-    private static ItemConfig? ItemOf(ThermiConfig config, string id) => config.Overlays.SelectMany(overlay => overlay.Items).FirstOrDefault(item => item.Id == id);
+    private static ItemConfig? ItemOf(ThermiConfig config, string id) =>
+        config.Overlays.SelectMany(overlay => overlay.Items).FirstOrDefault(item => item.Id == id);
 
     // A sensor the service no longer reads is known by the last snapshot the window had.
     private MeterScale? ScaleOf(MeterConfig meter) => MeterChart.Of(meter.Sensor ?? meter.Metric ?? meter.Auto ?? "", readings.Known(sensors.Latest));
+
+    // What the chart draws: the meter, or the item's own reading, which has no lines.
+    private (MeterConfig Meter, MeterScale Scale)? Charted(ItemConfig item)
+    {
+        if (item.Meter is { } meter)
+        {
+            return ScaleOf(meter) is { } scale ? (meter, scale) : null;
+        }
+
+        var itself = new MeterConfig { Metric = item.Metric, Sensor = item.Sensor ?? (item.Sensors is [var first, ..] ? first : null), Auto = item.Auto };
+        return MeterChart.OfReading(itself.Sensor ?? itself.Metric ?? itself.Auto ?? "", readings.Known(sensors.Latest)) is { } own ? (itself, own) : null;
+    }
 
     // Empty text turns the line off; a number is typed in the unit shown, and kept in the meter's own.
     private static double? Typed(MeterScale scale, string typed, ValueFormat format)

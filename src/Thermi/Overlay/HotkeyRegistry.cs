@@ -65,7 +65,8 @@ internal sealed class HotkeyRegistry(HWND hwnd) : IDisposable
     /// </summary>
     public static bool HeldElsewhere(string combination, HotkeysConfig? own)
     {
-        if (Hotkeys.Roles.Any(role => string.Equals(Hotkeys.Of(own, role), combination, StringComparison.OrdinalIgnoreCase)) || Hotkeys.Parse(combination) is not { } hotkey)
+        if (Hotkeys.Roles.Any(role => string.Equals(Hotkeys.Of(own, role), combination, StringComparison.OrdinalIgnoreCase))
+            || Hotkeys.Parse(combination) is not { } hotkey)
         {
             return false;
         }
@@ -129,6 +130,7 @@ internal sealed class HotkeyRegistry(HWND hwnd) : IDisposable
             return true;
         }
 
-        return Hotkeys.Parse(combination) is { } hotkey && PInvoke.RegisterHotKey(hwnd, id, (HOT_KEY_MODIFIERS)hotkey.Modifiers | HOT_KEY_MODIFIERS.MOD_NOREPEAT, (uint)hotkey.Key);
+        return Hotkeys.Parse(combination) is { } hotkey
+            && PInvoke.RegisterHotKey(hwnd, id, (HOT_KEY_MODIFIERS)hotkey.Modifiers | HOT_KEY_MODIFIERS.MOD_NOREPEAT, (uint)hotkey.Key);
     }
 }

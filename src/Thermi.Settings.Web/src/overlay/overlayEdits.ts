@@ -26,7 +26,12 @@ export function overlayOutcome(edit: Edit, overlays: readonly Overlay[], say: Sa
     case 'deleteOverlay':
       return { select: Math.max(0, Math.min(edit.overlay, overlays.length - 2)), say: say('OverlayPageText.OverlayDeleted', name(edit.overlay)) };
     case 'overlay':
-      return edit.field === 'hidden' ? { select: null, say: say(edit.value === true ? 'OverlayPageText.OverlayHiddenSaid' : 'OverlayPageText.OverlayShownSaid', name(edit.overlay)) } : { select: null, say: '' };
+      return edit.field === 'hidden'
+        ? {
+            select: null,
+            say: say(edit.value === true ? 'OverlayPageText.OverlayHiddenSaid' : 'OverlayPageText.OverlayShownSaid', name(edit.overlay)),
+          }
+        : { select: null, say: '' };
     default:
       return { select: null, say: '' };
   }
