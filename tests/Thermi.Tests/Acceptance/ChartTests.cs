@@ -96,7 +96,7 @@ public sealed class ChartTests
         Assert.Equal((warning, critical, step, push), (scale.Warning, scale.Critical, scale.Step, scale.Push));
         var (from, to) = MeterChart.Range(scale, [value]);
         Assert.Equal(range, string.Create(CultureInfo.InvariantCulture, $"{from} {to}"));
-        Assert.Equal(ColorsWithLines(warning, critical), Bands(scale));
+        Assert.Equal(LevelsWithLines(warning, critical), Bands(scale));
         Assert.Equal((value, value, value), MeterChart.Summary([value, null, double.NaN]));
 
         // Cold review 4 (Q16): the chart spans from its first reading, a gap after it kept, and says how long ago that was.
@@ -153,19 +153,14 @@ public sealed class ChartTests
 
     private static string Number(MeterScale scale, double value) => ReadingFormatter.Format(new Reading(scale.Kind, value), English, units: false);
 
-    // Cool 20 under the warning, the middle color 8 under it, warm at it and hot at the critical, or 10 above the warning
-    // without one. A meter without lines has no bands.
-    private static ChartColor[] ColorsWithLines(double? warning, double? critical) =>
-        warning is null && critical is null ? [] : [ChartColor.Cool, ChartColor.Middle, ChartColor.Warm, ChartColor.Hot];
+    // Normal from 0, warning from the warning and critical from the critical, each line's own value included, over the
+    // whole track; a meter without lines is normal all along.
+    private static (double At, Level Level)[] LevelsWithLines(double? warning, double? critical) =>
+    [
+        (0, Level.Normal),
+        .. warning is { } low ? new[] { (low, Level.Warning) } : [],
+        .. critical is { } high ? new[] { (high, Level.Critical) } : [],
+    ];
 
-    private static ChartColor[] Bands(MeterScale scale)
-    {
-        if (scale.Warning is not { } warning)
-        {
-            return [];
-        }
-
-        var hot = scale.Critical ?? (warning + 10);
-        return [.. new[] { warning - 20, warning - 8, warning, hot }.Select(at => MeterChart.ColorAt(at, scale.Warning, scale.Critical))];
-    }
+    private static (double At, Level Level)[] Bands(MeterScale scale) => [.. MeterChart.Stops(0, scale.Max, scale.Warning, scale.Critical)];
 }

@@ -469,7 +469,7 @@
         "R57",
         "R61"
       ],
-      "description": "Given the default settings, when the look is read and one size then changes, then it is Standard text on pills that match the taskbar with neutral meters and the darker level colors on light pills, and then it becomes the overlay's own, keeping the rest.",
+      "description": "Given the default settings, when the look is read and one size then changes, then it is Standard text on pills that match the taskbar with green meters at normal and the darker level colors on light pills, each at 3:1 against its pill and a graph's unlit track, and then it becomes the overlay's own, keeping the rest.",
       "check": "TheDefaultLookIsStandardTextOnPillsThatMatchTheTaskbar",
       "passes": true
     },
@@ -1335,6 +1335,16 @@
       ],
       "description": "Given a free overlay, when it is dropped on the taskbar near the mark beside the notification area, then it keeps no offset, so it follows the notification area as it grows.",
       "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
+      "passes": true
+    },
+    {
+      "id": "A313",
+      "covers": [
+        "R61",
+        "R90"
+      ],
+      "description": "Given the recorded CPU load series replayed as `thermi preview` replays it, on dark and on light pills, when the overlay is painted at a scale where a second is a pixel, then the CPU load's graph draws every second it read in the normal level's green, with no seam of its track between columns.",
+      "check": "AGraphDrawsEachSecondInItsLevelsColor",
       "passes": true
     }
   ]

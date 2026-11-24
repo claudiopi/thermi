@@ -1,4 +1,4 @@
-import type { ChartColor, ChartView, Item, ItemView, MarkState, Meter, MeterChoice, PillView, Sensor, Threshold, WindowView } from '../bridgeTypes';
+import type { ChartView, ColorStop, Item, ItemView, MarkState, Meter, MeterChoice, PillView, Sensor, Threshold, WindowView } from '../bridgeTypes';
 
 // The C# side's views of the settings and the readings, as the fake gives them: the pills, each item's value and
 // level, and its chart. Core decides these for real and tests them; the fake follows the same rules in rough form,
@@ -177,14 +177,12 @@ export function installFakeViews(): void {
         ? null
         : Math.max(0, Math.min(max, value + 4 * Math.sin(index / 17) + 2.5 * Math.sin(index / 5.3) - 3 * Math.cos(index / 61))),
     );
-  const colorsOf = (from: number, to: number, warning?: number, critical?: number): { at: number; color: ChartColor }[] => {
-    const warm = warning ?? critical;
-    if (warm === undefined) {
-      return [{ at: from, color: 'cool' }, { at: to, color: 'middle' }];
-    }
-    const hot = warning !== undefined && critical !== undefined ? critical : warm + 10;
-    return [{ at: warm - 20, color: 'cool' }, { at: warm - 8, color: 'middle' }, { at: warm, color: 'warm' }, { at: hot, color: 'hot' }];
-  };
+  // As Core's MeterChart.Stops: normal from the bottom, then each line that changes the level within the span.
+  const colorsOf = (from: number, to: number, warning?: number, critical?: number): ColorStop[] => [
+    { at: from, level: 'normal' },
+    ...(warning !== undefined && warning > from && warning <= to ? [{ at: warning, level: 'warning' as const }] : []),
+    ...(critical !== undefined && critical > from && critical <= to ? [{ at: critical, level: 'critical' as const }] : []),
+  ];
 
   // The smallest 1, 2 or 5 times a power of ten at or over the value, as Core's chart tops.
   const oneTwoFive = (value: number): number => {

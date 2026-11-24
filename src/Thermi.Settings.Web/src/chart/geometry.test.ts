@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ChartView, ColorStop } from '../bridge/bridge.g';
-import { chartHeight, colorAt, knobTops, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
 
 // A plot 300 wide and 124 high draws 0 to 100 on the 100 px between its 12 px pads: value v sits at y = 112 - v.
 function plot(chart: Partial<ChartView> = {}): Plot {
@@ -89,10 +89,16 @@ describe('the chart', () => {
     expect(plotPaths(plot({ readings })).fill).toBe(fill);
   });
 
+  // Each level holds from its stop up to the next one's, sharply, the first from the bottom and the last to the top.
   test.each([
-    { from: 0, to: 100, colors: [{ at: -10, color: 'cool' }, { at: 50, color: 'warm' }, { at: 150, color: 'hot' }], offsets: [0, 0.5, 1] },
-    { from: 20, to: 100, colors: [{ at: 40, color: 'cool' }], offsets: [0.25] },
-    { from: 50, to: 50, colors: [{ at: 50, color: 'cool' }, { at: 51, color: 'hot' }], offsets: [0, 1] },
+    {
+      from: 0,
+      to: 100,
+      colors: [{ at: 0, level: 'normal' }, { at: 50, level: 'warning' }, { at: 150, level: 'critical' }],
+      offsets: [0, 0.5, 0.5, 1, 1, 1],
+    },
+    { from: 20, to: 100, colors: [{ at: 20, level: 'normal' }], offsets: [0, 1] },
+    { from: 50, to: 50, colors: [{ at: 50, level: 'normal' }, { at: 51, level: 'critical' }], offsets: [0, 1, 1, 1] },
   ] satisfies {
     from: number;
     to: number;
@@ -100,22 +106,22 @@ describe('the chart', () => {
     offsets: number[];
   }[])('places the color stops from $from to $to', ({ from, to, colors, offsets }) => {
     const stops = stopsOf(plot({ from, to, colors }).chart);
-    expect(stops).toEqual(colors.map((stop, index) => ({ offset: offsets[index], color: stop.color })));
+    expect(stops).toEqual(colors.flatMap((stop) => [stop.level, stop.level]).map((level, index) => ({ offset: offsets[index], level })));
   });
 
   const stops: ColorStop[] = [
-    { at: 0, color: 'middle' },
-    { at: 60, color: 'warm' },
-    { at: 90, color: 'hot' },
+    { at: 0, level: 'normal' },
+    { at: 60, level: 'warning' },
+    { at: 90, level: 'critical' },
   ];
   test.each([
-    { value: -5, colors: stops, color: 'middle' },
-    { value: 59, colors: stops, color: 'middle' },
-    { value: 60, colors: stops, color: 'warm' },
-    { value: 95, colors: stops, color: 'hot' },
-    { value: 50, colors: [], color: 'cool' },
-  ])('colors the dot at $value $color', ({ value, colors, color }) => {
-    expect(colorAt(plot({ colors }).chart, value)).toBe(color);
+    { value: -5, colors: stops, level: 'normal' },
+    { value: 59, colors: stops, level: 'normal' },
+    { value: 60, colors: stops, level: 'warning' },
+    { value: 95, colors: stops, level: 'critical' },
+    { value: 50, colors: [], level: 'normal' },
+  ])('colors the dot at $value $level', ({ value, colors, level }) => {
+    expect(levelAt(plot({ colors }).chart, value)).toBe(level);
   });
 
   test.each([

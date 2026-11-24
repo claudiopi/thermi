@@ -35,8 +35,8 @@ export const text = {
 // show through it.
 // Windows draws Mica under the title row and the list; outside the host, a tint close to it, so contrast holds. Where
 // Windows refused Mica, as Windows 10 does, page.css gives `--thermi-solid`, Windows' own solid window background.
-// The chart's colors are the mark's, shaded per mode so the line keeps 3:1 against the window, and its lines take
-// the meter colors, darker on light.
+// The levels' colors are the overlay's default meter colors, Core's `OverlayLook`, darker on light so a chart's line
+// keeps 3:1 against the window: normal is Windows' success green.
 const surfaces = {
   light: {
     '--thermi-mica': 'var(--thermi-solid, linear-gradient(160deg, #eef1f8 0%, #f2f2f4 45%, #f4f0f4 100%), #f3f3f3)',
@@ -52,10 +52,7 @@ const surfaces = {
     '--thermi-text': 'rgba(0, 0, 0, 0.894)',
     '--thermi-text2': 'rgba(0, 0, 0, 0.608)',
     '--thermi-text3': 'rgba(0, 0, 0, 0.62)',
-    '--thermi-cool': '#3D5BFF',
-    '--thermi-middle': '#7A3DF0',
-    '--thermi-warm': '#C25200',
-    '--thermi-hot': '#D92D20',
+    '--thermi-normal': '#0F7B0F',
     '--thermi-warning': '#9D5D00',
     '--thermi-critical': '#C42B1C',
     '--thermi-on-level': '#ffffff',
@@ -90,10 +87,7 @@ const surfaces = {
     '--thermi-text': '#ffffff',
     '--thermi-text2': 'rgba(255, 255, 255, 0.784)',
     '--thermi-text3': 'rgba(255, 255, 255, 0.64)',
-    '--thermi-cool': '#7088FF',
-    '--thermi-middle': '#A57BFF',
-    '--thermi-warm': '#FF8A3D',
-    '--thermi-hot': '#FF5A4F',
+    '--thermi-normal': '#6CCB5F',
     '--thermi-warning': '#FEC84B',
     '--thermi-critical': '#F05A50',
     '--thermi-on-level': '#000000',

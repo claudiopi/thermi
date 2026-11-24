@@ -18,11 +18,6 @@ public readonly record struct Rgb(byte R, byte G, byte B)
 
     public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"#{R:X2}{G:X2}{B:X2}");
 
-    /// <summary>This color drawn at <paramref name="alpha"/>, 0 to 1, over <paramref name="under"/>.</summary>
-    public Rgb Over(Rgb under, double alpha) => new(Mix(R, under.R, alpha), Mix(G, under.G, alpha), Mix(B, under.B, alpha));
-
-    private static byte Mix(byte color, byte under, double alpha) => (byte)Math.Round((color * alpha) + (under * (1 - alpha)), MidpointRounding.AwayFromZero);
-
     private double Luminance => (0.2126 * Linear(R)) + (0.7152 * Linear(G)) + (0.0722 * Linear(B));
 
     private static double Linear(byte channel)
@@ -77,10 +72,14 @@ public sealed record OverlayLook
     /// <summary>The outline's width in pixels at 100 %, drawn in the pill's color.</summary>
     public const double OutlineWidth = 1;
 
-    /// <summary>How much of the value's color a neutral meter takes over its pill, so normal draws no eye.</summary>
-    public const double Neutral = 0.35;
+    /// <summary>
+    /// The default normal color, Windows' success green, as CleanMeter's meters read below their limit; it keeps 3:1
+    /// against dark pills and their graphs' unlit track.
+    /// </summary>
+    public static Rgb DefaultNormal { get; } = Rgb.Parse("#6CCB5F");
 
-    public static Rgb DefaultNormal { get; } = Rgb.Parse("#3DC86A");
+    /// <summary>The default normal color on light pills, Windows' darker success green, so it stands out from them.</summary>
+    public static Rgb LightNormal { get; } = Rgb.Parse("#0F7B0F");
 
     public static Rgb DefaultWarning { get; } = Rgb.Parse("#FEC84B");
 
@@ -184,7 +183,7 @@ public sealed record OverlayLook
             Pills = pills,
             LabelColor = Readable(style.Colors?.Label, pills, pills.Label),
             ValueColor = valueColor,
-            Normal = Color(style.Colors?.Normal, valueColor.Color.Over(pills.Outer, Neutral)),
+            Normal = Color(style.Colors?.Normal, light ? LightNormal : DefaultNormal),
             Warning = Color(style.Colors?.Warning, light ? LightWarning : DefaultWarning),
             Critical = Color(style.Colors?.Critical, light ? LightCritical : DefaultCritical),
             Background = style.Opacity.Background,

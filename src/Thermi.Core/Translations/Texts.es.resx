@@ -543,8 +543,8 @@
   <data name="OverlayPageText.HexFormat" xml:space="preserve">
     <value>Usa #RRGGBB</value>
   </data>
-  <data name="OverlayPageText.ColorNeutral" xml:space="preserve">
-    <value>Neutro</value>
+  <data name="OverlayPageText.ColorGreen" xml:space="preserve">
+    <value>Verde</value>
   </data>
   <data name="OverlayPageText.SwatchNormal" xml:space="preserve">
     <value>Normal</value>

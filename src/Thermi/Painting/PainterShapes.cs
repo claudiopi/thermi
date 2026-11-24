@@ -1,7 +1,6 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using Thermi.Core.Look;
-using Thermi.Core.Settings;
 
 namespace Thermi.Painting;
 
@@ -94,24 +93,35 @@ internal static class PainterShapes
     /// </summary>
     public static void Graph(Graphics g, IReadOnlyList<GraphPoint?> points, OverlayLook look, PointF at, float scale)
     {
-        var height = MeterHeight * scale;
-        var top = at.Y - (height / 2);
-        var column = GraphWidth * scale / Seconds;
+        var box = new RectangleF(at.X, at.Y - (MeterHeight * scale / 2), GraphWidth * scale, MeterHeight * scale);
         using var off = new SolidBrush(Drawn(look.Pills.MeterOff));
-        using var normal = new SolidBrush(Drawn(look.Normal));
-        using var warning = new SolidBrush(Drawn(look.Warning));
-        using var critical = new SolidBrush(Drawn(look.Critical));
-        g.FillRectangle(off, at.X, top, GraphWidth * scale, height);
+        g.FillRectangle(off, box);
         var first = Seconds - points.Count;
-        for (var second = Math.Max(0, -first); second < points.Count; second++)
+        var second = Math.Max(0, -first);
+        while (second < points.Count)
         {
-            if (points[second] is { } point)
-            {
-                var lit = Math.Max(scale, (float)point.Fill * height);
-                var brush = point.Level switch { Level.Critical => critical, Level.Warning => warning, Level.Normal => normal, _ => normal };
-                g.FillRectangle(brush, at.X + ((first + second) * column), top + height - lit, column, lit);
-            }
+            second = points[second] is { } point ? Run(g, points, second, first, look.MeterColor(point.Level), box, scale) : second + 1;
         }
+    }
+
+    // A column is under a pixel wide, so the seconds of one level are filled as one shape: columns filled one by one
+    // blend at their shared edges into seams of the track's color. Gives the second after the run.
+    private static int Run(Graphics g, IReadOnlyList<GraphPoint?> points, int start, int first, Rgb color, RectangleF box, float scale)
+    {
+        var column = box.Width / Seconds;
+        var outline = new List<PointF> { new(box.Left + ((first + start) * column), box.Bottom) };
+        var second = start;
+        for (; second < points.Count && points[second] is { } point && point.Level == points[start]!.Value.Level; second++)
+        {
+            var (left, top) = (box.Left + ((first + second) * column), box.Bottom - Math.Max(scale, (float)point.Fill * box.Height));
+            outline.Add(new PointF(left, top));
+            outline.Add(new PointF(left + column, top));
+        }
+
+        outline.Add(new PointF(outline[^1].X, box.Bottom));
+        using var brush = new SolidBrush(Drawn(color));
+        g.FillPolygon(brush, [.. outline]);
+        return second;
     }
 
     /// <summary>A radius of half the height is the round pill, two half circles; none is a plain rectangle.</summary>

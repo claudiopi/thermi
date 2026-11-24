@@ -16,7 +16,10 @@ internal sealed record SettingsRequest(int Overlay, bool Trace, bool Pseudo) : I
     public string? Item { get; init; }
 }
 
-/// <summary><c>thermi preview &lt;snapshot&gt; &lt;png&gt; [scale] [settings]</c>: the overlay painted from a saved snapshot, never shown.</summary>
+/// <summary>
+/// <c>thermi preview &lt;snapshot&gt; &lt;png&gt; [scale] [settings]</c>: the overlay painted from a saved snapshot, or the
+/// last of a series with its graphs, never shown.
+/// </summary>
 internal sealed record PreviewRequest(string Snapshot, string Png, float Scale, string? SettingsPath) : IThermiRequest;
 
 /// <summary><c>thermi cpu-load &lt;seconds&gt;</c>: every core loaded, to record how the fans answer.</summary>
@@ -55,7 +58,10 @@ internal static class ThermiCommands
         var overlay = new Option<int>(OverlayOption) { Description = "The overlay to edit, counted from 1.", CustomParser = Whole(1, int.MaxValue) };
         var item = new Option<string?>(ItemOption) { Description = "The id of the item to select." };
         var settings = new Command("settings", "Opens the settings window.") { overlay, item };
-        var snapshot = new Argument<FileInfo>("snapshot") { Description = "A snapshot saved with thermi-sensors --dump." }.AcceptExistingOnly();
+        var snapshot = new Argument<FileInfo>("snapshot")
+        {
+            Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds.",
+        }.AcceptExistingOnly();
         var png = new Argument<string>("png") { Description = "Where the picture goes." };
         var scale = new Argument<float>("scale") { Arity = ArgumentArity.ZeroOrOne, CustomParser = Scale, DefaultValueFactory = _ => 1 };
         // A settings file that is not there paints the defaults, and is not created.

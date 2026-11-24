@@ -1,4 +1,4 @@
-import type { ChartColor, ChartView, Line } from '../bridge/bridge.g';
+import type { ChartView, Level, Line } from '../bridge/bridge.g';
 
 // Where the chart draws what the C# side gave it: its size from the pane, each value's height, the smooth line and
 // where the knobs sit. The values, the range and the colors are the C# side's; this only places them.
@@ -79,7 +79,7 @@ function stretches(plot: Plot): Stretch[] {
 
 /**
  * The line as smooth curves through the readings, broken where a reading is missing, and the area under it for its soft
- * fill, each stretch closed straight down to the bottom at its own ends. Both from one pass, as the chart redraws each second.
+ * fill, each stretch closed straight down to the bottom at its own ends. Both from one pass: the chart redraws each second.
  */
 export function plotPaths(plot: Plot): { line: string; fill: string } {
   const bottom = plot.height.toFixed(1);
@@ -90,16 +90,25 @@ export function plotPaths(plot: Plot): { line: string; fill: string } {
   };
 }
 
-/** Each color stop as an offset of the gradient, bottom up, as the line's gradient takes it. */
-export function stopsOf(chart: ChartView): { offset: number; color: ChartColor }[] {
+/**
+ * The gradient's stops, bottom up, as offsets of the span: each level ends where the next begins, so the color changes sharply.
+ */
+export function stopsOf(chart: ChartView): { offset: number; level: Level }[] {
   const span = chart.to - chart.from || 1;
-  return chart.colors.map((stop) => ({ offset: Math.min(1, Math.max(0, (stop.at - chart.from) / span)), color: stop.color }));
+  const offset = (at: number): number => Math.min(1, Math.max(0, (at - chart.from) / span));
+  return chart.colors.flatMap((stop, index) => {
+    const next = chart.colors[index + 1];
+    return [
+      { offset: index === 0 ? 0 : offset(stop.at), level: stop.level },
+      { offset: next === undefined ? 1 : offset(next.at), level: stop.level },
+    ];
+  });
 }
 
-/** The color the line has at a value, for the dot at its end. */
-export function colorAt(chart: ChartView, value: number): ChartColor {
+/** The level the line's color says at a value, for the dot at its end. */
+export function levelAt(chart: ChartView, value: number): Level {
   const below = chart.colors.filter((stop) => stop.at <= value);
-  return (below.at(-1) ?? chart.colors[0])?.color ?? 'cool';
+  return (below.at(-1) ?? chart.colors[0])?.level ?? 'normal';
 }
 
 /** Where each knob sits: at its line, kept inside the plot and apart from the other knob. */

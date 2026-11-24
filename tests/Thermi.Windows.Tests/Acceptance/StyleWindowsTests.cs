@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
@@ -23,6 +24,30 @@ public sealed class StyleWindowsTests
             .Select(overlay => OpaquestPixel(painter, overlay));
 
         Assert.Equal([51, 255], painted);
+    }
+
+    // The recorded CPU load, replayed as `thermi preview` replays a series: the CPU load's graph, which has no lines, draws
+    // every second it read in the normal color, unbroken by the track between columns, at a scale where a second is a
+    // pixel, on dark and on light pills.
+    [Fact]
+    public void AGraphDrawsEachSecondInItsLevelsColor()
+    {
+        const float scale = 2;
+        var series = TestRecordings.Series(TestRecordings.CpuLoad);
+        using var painter = new Painter();
+
+        var lit = new[] { PillTheme.Dark, PillTheme.Light }.Select(pills =>
+        {
+            var config = StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills }).Config;
+            var look = OverlayLook.Of(config.Overlays[0].Style, lightTaskbar: false);
+            using var bitmap = painter.Paint(Preview.Shown(config, series, baseClock: null), look, scale);
+            var load = painter.Places.Single(place => place.Id == Metrics.CpuLoad.Id);
+            var normal = PainterShapes.Drawn(look.Normal).ToArgb();
+            return Enumerable.Range((int)load.Item.Left, (int)(load.Value.Left - load.Item.Left))
+                .Count(x => Enumerable.Range(0, bitmap.Height).Any(y => bitmap.GetPixel(x, y).ToArgb() == normal));
+        });
+
+        Assert.All(lit, columns => Assert.InRange(columns, series.Count - 1, series.Count));
     }
 
     private static int OpaquestPixel(Painter painter, OverlayConfig overlay)

@@ -4,7 +4,7 @@ import { bridge } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
 import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
-import { chartHeight, colorAt, knobColumn, knobTops, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
 import { Knob } from './Knob';
 import './chart.css';
 
@@ -180,22 +180,27 @@ export function Chart({ item, name, chart, edit, metered, options }: ChartProps)
           onMouseDown={pressPlot}
         >
           <defs>
+            {/* By height, so each part of the line and its fill takes the level of the values it draws. */}
             <linearGradient id={`t-line-${item}`} gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={yOf(plot, chart.from)} y2={yOf(plot, chart.to)}>
-              {stopsOf(chart).map((stop) => (
-                <stop key={`${stop.color}-${stop.offset}`} offset={stop.offset} style={{ stopColor: `var(--thermi-${stop.color})` }} />
+              {stopsOf(chart).map((stop, index) => (
+                <stop key={`${stop.level}-${index % 2 === 0 ? 'from' : 'to'}`} offset={stop.offset} style={{ stopColor: `var(--thermi-${stop.level})` }} />
               ))}
             </linearGradient>
-            <linearGradient id={`t-fill-${item}`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" style={{ stopColor: 'var(--thermi-middle)', stopOpacity: 0.18 }} />
-              <stop offset="1" style={{ stopColor: 'var(--thermi-cool)', stopOpacity: 0 }} />
+            {/* The fill fades from the line down to nothing, over its own height whatever the values. */}
+            <linearGradient id={`t-fade-${item}`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor="#ffffff" stopOpacity="0.22" />
+              <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
             </linearGradient>
+            <mask id={`t-fill-${item}`} maskContentUnits="objectBoundingBox">
+              <rect width="1" height="1" fill={`url(#t-fade-${item})`} />
+            </mask>
           </defs>
           {chart.empty === null && (
             <>
               <Tints plot={plot} />
-              <path d={paths.fill} fill={`url(#t-fill-${item})`} />
+              <path d={paths.fill} fill={`url(#t-line-${item})`} mask={`url(#t-fill-${item})`} />
               <path className="t-line" d={paths.line} stroke={`url(#t-line-${item})`} />
-              {now !== undefined && <circle cx={plot.width} cy={yOf(plot, now)} r="3.5" style={{ fill: `var(--thermi-${colorAt(chart, now)})` }} />}
+              {now !== undefined && <circle cx={plot.width} cy={yOf(plot, now)} r="3.5" style={{ fill: `var(--thermi-${levelAt(chart, now)})` }} />}
             </>
           )}
           {lines.map((one) => {

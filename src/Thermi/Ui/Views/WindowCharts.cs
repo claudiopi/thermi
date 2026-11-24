@@ -24,9 +24,6 @@ namespace Thermi.Ui.Views;
 /// <param name="time">The clock of the window's own ten minutes.</param>
 internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISensorFeed sensors, Readings readings, TimeProvider time)
 {
-    // The color stops are found by walking the chart; this many steps at most, so a wide one is walked quickly.
-    private const int Walk = 1000;
-
     // By item, so an item's chart goes with it when overlays are deleted, merged or moved.
     private readonly ItemHistory _own = new(time);
     private readonly Dictionary<string, string> _pushed = new(StringComparer.Ordinal);
@@ -75,7 +72,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             critical,
             warning is { } low ? Said(low) : null,
             critical is { } high ? Said(high) : null,
-            Colors(scale, from, to, warning, critical),
+            [.. MeterChart.Stops(from, to, warning, critical).Select(stop => new ColorStop(stop.At, stop.Level))],
             summary is (var min, var average, var max)
                 ? format.Texts.Format(format.Numbers, ChartText.Stats, Said(min, units: false), Said(average, units: false), Said(max))
                 : null,
@@ -192,22 +189,6 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     private static double Added(MeterScale scale, Threshold? lines, ChartLine line) => line == ChartLine.Warning
         ? scale.Warning ?? (lines?.Critical is { } critical ? Math.Max(critical - scale.Push, 0) : scale.Max * 0.8)
         : scale.Critical ?? (lines?.Warning is { } warning ? Math.Min(warning + scale.Push, scale.Max) : scale.Max * 0.9);
-
-    // Where the color changes along the chart, by Core's rule; with no line, the window blends from cool to the middle color.
-    private static List<ColorStop> Colors(MeterScale scale, double from, double to, double? warning, double? critical)
-    {
-        var stops = new List<ColorStop> { new(from, MeterChart.ColorAt(from, warning, critical)) };
-        var step = Math.Max(scale.Step, (to - from) / Walk);
-        for (var at = from + step; at <= to; at += step)
-        {
-            if (MeterChart.ColorAt(at, warning, critical) is var color && color != stops[^1].Color)
-            {
-                stops.Add(new ColorStop(at, color));
-            }
-        }
-
-        return warning is null && critical is null ? [.. stops, new ColorStop(to, ChartColor.Middle)] : stops;
-    }
 
     private ChartEmpty? EmptyOf(MeterConfig meter, int values) =>
         sensors.State == ServiceState.Stopped ? ChartEmpty.Stopped

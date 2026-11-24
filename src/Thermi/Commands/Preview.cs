@@ -29,7 +29,7 @@ internal static class Preview
             config = (await store.ReadOnlyAsync()).Config;
         }
 
-        if (await ReadAsync(request.Snapshot) is not { } snapshot)
+        if (await ReadAsync(request.Snapshot) is not { Count: > 0 } series)
         {
             return 2;
         }
@@ -37,17 +37,32 @@ internal static class Preview
         var overlay = config.Overlays[0];
         using var painter = new Painter();
         using var bitmap = painter.Paint(
-            Shown(config, snapshot, CpuWatch.ReadBaseClock()),
+            Shown(config, series, CpuWatch.ReadBaseClock()),
             OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast()),
             request.Scale * (float)overlay.Size);
         return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
     }
 
-    /// <summary>The first overlay's items for the snapshot, as the overlay shows them, the driver's marker and throttling included.</summary>
-    internal static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, Snapshot snapshot, double? baseClock)
+    /// <summary>
+    /// The first overlay's items for the last snapshot of a series, a second each, as the overlay shows them after it read
+    /// them all: its graphs drawing the series, the driver's marker and throttling included.
+    /// </summary>
+    internal static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock)
     {
+        var clock = new SecondsClock();
+        var history = new ItemHistory(clock);
+        for (var second = 0; second < series.Count; second++)
+        {
+            clock.Second = second;
+            history.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(series[second], overlay)))]);
+        }
+
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);
-        var input = new TrayInput(snapshot, ServiceState.Running, CultureInfo.CurrentCulture, texts, Desktop.LightTaskbar(), "") { BaseClock = baseClock };
+        var input = new TrayInput(series[^1], ServiceState.Running, CultureInfo.CurrentCulture, texts, Desktop.LightTaskbar(), "")
+        {
+            BaseClock = baseClock,
+            History = history,
+        };
         return ThermiMark.Overlay(config, 0, input, windowOpenedOnce: true).Items;
     }
 
@@ -89,13 +104,20 @@ internal static class Preview
         }
     }
 
-    private static async Task<Snapshot?> ReadAsync(string path)
+    private static async Task<IReadOnlyList<Snapshot>?> ReadAsync(string path)
     {
         try
         {
-            if (SnapshotJson.Read((await File.ReadAllTextAsync(path)).ReplaceLineEndings("")) is { } snapshot)
+            var text = await File.ReadAllTextAsync(path);
+            if (SnapshotJson.Read(text.ReplaceLineEndings("")) is { } snapshot)
             {
-                return snapshot;
+                return [snapshot];
+            }
+
+            var series = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(SnapshotJson.Read).ToList();
+            if (series.Count > 0 && series.All(each => each is not null))
+            {
+                return [.. series.OfType<Snapshot>()];
             }
 
             await SayAsync($"{path} is not a snapshot saved with thermi-sensors --dump.");
@@ -112,5 +134,15 @@ internal static class Preview
     {
         CommandLineOutput.Borrow(STD_HANDLE.STD_ERROR_HANDLE);
         return Console.Error.WriteLineAsync(reason);
+    }
+
+    // A saved series is read a second a snapshot, however fast it is replayed.
+    private sealed class SecondsClock : TimeProvider
+    {
+        public int Second { get; set; }
+
+        public override long TimestampFrequency => 1;
+
+        public override long GetTimestamp() => Second;
     }
 }

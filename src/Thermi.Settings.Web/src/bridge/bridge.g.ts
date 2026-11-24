@@ -39,8 +39,6 @@ export interface CatalogView {
   suggestion: string | null;
 }
 
-export type ChartColor = 'cool' | 'middle' | 'warm' | 'hot';
-
 export type ChartEmpty = 'stopped' | 'driver' | 'none';
 
 export interface ChartView {
@@ -67,7 +65,7 @@ export interface ChartView {
 
 export interface ColorStop {
   at: number;
-  color: ChartColor;
+  level: Level;
 }
 
 export type Combine = 'max' | 'average' | 'sum';

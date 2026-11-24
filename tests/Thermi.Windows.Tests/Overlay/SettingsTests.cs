@@ -291,7 +291,7 @@ public sealed class SettingsTests : IDisposable
         Assert.True(File.Exists(png));
         Assert.False(File.Exists(_folder.File));
         var driver = Texts.For(null, CultureInfo.CurrentUICulture).Of(OverlayText.Driver);
-        Assert.Contains(Preview.Shown(new ThermiConfig(), TestRecordings.Read(TestRecordings.NoAdmin), baseClock: null), item => item.Value == driver);
+        Assert.Contains(Preview.Shown(new ThermiConfig(), [TestRecordings.Read(TestRecordings.NoAdmin)], baseClock: null), item => item.Value == driver);
     }
 
     [Fact]

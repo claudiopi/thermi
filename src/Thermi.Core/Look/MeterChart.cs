@@ -5,18 +5,6 @@ using Thermi.Core.Translations;
 
 namespace Thermi.Core.Look;
 
-/// <summary>
-/// The chart line's color at a value, by the meter's lines:
-/// from cool, through the middle color, to warm at the warning and hot at the critical.
-/// </summary>
-public enum ChartColor
-{
-    Cool,
-    Middle,
-    Warm,
-    Hot,
-}
-
 /// <summary>One of a meter's two lines.</summary>
 public enum ChartLine
 {
@@ -146,23 +134,22 @@ public static class MeterChart
     }
 
     /// <summary>
-    /// The color at a value: cool up to 20 under the warning, the middle color from 8 under it, warm from it and hot from
-    /// the critical, or from 10 over the warning without one; without a warning the critical takes its place, and without
-    /// lines the line is cool, which the window blends to the middle color at the top.
+    /// Where the chart's color changes over its range, bottom up, as the overlay's meters color their levels: normal below
+    /// the lines or without them, warning from the warning and critical from the critical. Each stop's level holds up to
+    /// the next, so the line and its fill change color where they cross a line.
     /// </summary>
-    public static ChartColor ColorAt(double value, double? warning, double? critical)
+    public static IReadOnlyList<(double At, Level Level)> Stops(double from, double to, double? warning, double? critical)
     {
-        var (warm, hot) = (warning, critical) switch
+        var stops = new List<(double At, Level Level)> { (from, LevelAt(from, warning, critical)) };
+        foreach (var line in new[] { warning, critical }.OfType<double>().Where(line => line > from && line <= to).Order())
         {
-            ({ } line, { } top) => (line, top),
-            ({ } line, null) => (line, line + 10),
-            (null, { } line) => (line, line + 10),
-            _ => (double.PositiveInfinity, double.PositiveInfinity),
-        };
-        return value >= hot ? ChartColor.Hot
-            : value >= warm ? ChartColor.Warm
-            : value >= warm - 8 ? ChartColor.Middle
-            : ChartColor.Cool;
+            if (LevelAt(line, warning, critical) is var level && level != stops[^1].Level)
+            {
+                stops.Add((line, level));
+            }
+        }
+
+        return stops;
     }
 
     /// <summary>
@@ -247,6 +234,11 @@ public static class MeterChart
             format.Texts.Format(format.Numbers, ChartText.CriticalPushed, ReadingFormatter.Format(scale.Kind, critical, format)),
         _ => null,
     };
+
+    private static Level LevelAt(double value, double? warning, double? critical) =>
+        value >= critical ? Level.Critical
+        : value >= warning ? Level.Warning
+        : Level.Normal;
 
     private static double OneTwoFive(double value)
     {

@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Thermi.Core.Look;
 using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -94,8 +93,8 @@ public enum ChartEmpty
     None,
 }
 
-/// <summary>Where the chart's line takes a color, in the meter's unit.</summary>
-public sealed record ColorStop(double At, ChartColor Color);
+/// <summary>Where the chart's line takes its level's color, in the meter's unit, the level holding up to the next stop.</summary>
+public sealed record ColorStop(double At, Level Level);
 
 /// <summary>
 /// An item's chart: its track, from 0 to <see cref="Max"/> by <see cref="Step"/>, the span it shows, its ten minutes from

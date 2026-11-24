@@ -31,12 +31,12 @@ const words = {
   value: 'OverlayPageText.SwatchValues',
 } as const;
 
-/** The color a swatch shows while the look leaves it out: neutral, the level's default, or the pills' text. */
-function fallbackOf(key: ColorKey, pills: PillTheme): string | null {
+/** The color a swatch shows while the look leaves it out: the level's default, or the pills' text. */
+function fallbackOf(key: ColorKey, pills: PillTheme): string {
   const light = pills === 'light';
   switch (key) {
     case 'normal':
-      return null;
+      return light ? '#0F7B0F' : levelDefaults.normal;
     case 'warning':
       return light ? '#9D5D00' : levelDefaults.warning;
     case 'critical':
@@ -57,13 +57,15 @@ function colorsValue(colors: { [key in ColorKey]?: string | undefined }): Value 
 interface SwatchProps {
   name: string;
   color: string | undefined;
-  fallback: string | null;
+  fallback: string;
+  /** Whether the default choice shows its color, as a level's does, or an empty ring, as Auto text does. */
+  filledDefault: boolean;
   choices: (typeof colorChoices)[ColorKey];
   onColor: (color: string | null) => void;
 }
 
 /** A color's swatch, which opens a hex box over its named choices; a hex that is not #RRGGBB stays, saying so. */
-function Swatch({ name, color, fallback, choices, onColor }: SwatchProps) {
+function Swatch({ name, color, fallback, filledDefault, choices, onColor }: SwatchProps) {
   const t = useText();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState<string | null>(null);
@@ -90,8 +92,8 @@ function Swatch({ name, color, fallback, choices, onColor }: SwatchProps) {
   };
   const shown = color ?? fallback;
   const trigger = (
-    <button type="button" className="t-color-swatch" aria-label={name} aria-description={shown ?? t('OverlayPageText.ColorNeutral')}>
-      <i className={shown === null ? 't-neutral' : undefined} style={shown === null ? undefined : { background: shown }} />
+    <button type="button" className="t-color-swatch" aria-label={name} aria-description={shown}>
+      <i style={{ background: shown }} />
     </button>
   );
   const at = Math.max(0, choices.findIndex((choice) => (choice.color ?? '').toUpperCase() === (color ?? '').toUpperCase()));
@@ -108,21 +110,24 @@ function Swatch({ name, color, fallback, choices, onColor }: SwatchProps) {
   return (
     <Popover open={open} onOpenChange={(next) => (next ? setOpen(true) : close())} label={name} trigger={trigger} initialFocus={current}>
       <div className="t-color-choices" role="radiogroup" aria-label={name} onKeyDown={arrows}>
-        {choices.map((choice, index) => (
-          <button
-            key={choice.text}
-            ref={index === at ? current : undefined}
-            type="button"
-            role="radio"
-            tabIndex={index === at ? 0 : -1}
-            aria-checked={(choice.color ?? '').toUpperCase() === (color ?? '').toUpperCase()}
-            className="t-color-choice"
-            onClick={() => choose(choice.color)}
-          >
-            <i className={choice.color === null ? 't-neutral' : undefined} style={choice.color === null ? undefined : { background: choice.color }} />
-            {t(choice.text)}
-          </button>
-        ))}
+        {choices.map((choice, index) => {
+          const swatch = choice.color ?? (filledDefault ? fallback : null);
+          return (
+            <button
+              key={choice.text}
+              ref={index === at ? current : undefined}
+              type="button"
+              role="radio"
+              tabIndex={index === at ? 0 : -1}
+              aria-checked={(choice.color ?? '').toUpperCase() === (color ?? '').toUpperCase()}
+              className="t-color-choice"
+              onClick={() => choose(choice.color)}
+            >
+              <i className={swatch === null ? 't-neutral' : undefined} style={swatch === null ? undefined : { background: swatch }} />
+              {t(choice.text)}
+            </button>
+          );
+        })}
       </div>
       {/* Enter submits, which comes after the key's own handlers, so the key never lands on the swatch the focus goes back to. */}
       <form
@@ -162,6 +167,7 @@ export function ColorsCard({ overlay, style, open, onOpen }: ColorsCardProps) {
         name={t(names[key])}
         color={colors[key]}
         fallback={fallbackOf(key, pills)}
+        filledDefault={key === 'normal'}
         choices={colorChoices[key]}
         onColor={(color) => setColors({ ...colors, [key]: color ?? undefined })}
       />
@@ -172,8 +178,7 @@ export function ColorsCard({ overlay, style, open, onOpen }: ColorsCardProps) {
   const levels = (
     <span className="t-color-row" aria-hidden="true">
       {levelKeys.map((key) => {
-        const shown = colors[key] ?? fallbackOf(key, pills);
-        return <i key={key} className={shown === null ? 't-neutral' : undefined} style={shown === null ? undefined : { background: shown }} />;
+        return <i key={key} style={{ background: colors[key] ?? fallbackOf(key, pills) }} />;
       })}
     </span>
   );

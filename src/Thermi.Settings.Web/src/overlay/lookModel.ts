@@ -55,14 +55,14 @@ export function isColorblindSafe(colors: StyleColors): boolean {
 }
 
 /** The default meter colors, as the overlay draws them on dark pills. */
-export const levelDefaults = { warning: '#FEC84B', critical: '#F05A50' } as const;
+export const levelDefaults = { normal: '#6CCB5F', warning: '#FEC84B', critical: '#F05A50' } as const;
 
 export type ColorKey = keyof StyleColors;
 
-/** The prototype's choices for each color, a null one being its default: neutral, or Auto for text. */
+/** The prototype's choices for each color, a null one being its default: green for normal, or Auto for text. */
 export const colorChoices: Record<ColorKey, { text: TextKey; color: string | null }[]> = {
   normal: [
-    { text: 'OverlayPageText.ColorNeutral', color: null },
+    { text: 'OverlayPageText.ColorGreen', color: null },
     { text: 'OverlayPageText.ColorSky', color: '#4CC2FF' },
     { text: 'OverlayPageText.ColorBlue', color: '#0072B2' },
   ],

@@ -78,7 +78,7 @@ public enum OverlayPageText
     SwatchLabels,
     SwatchValues,
 
-    ColorNeutral,
+    ColorGreen,
     ColorSky,
     ColorBlue,
     ColorYellow,

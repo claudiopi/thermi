@@ -217,7 +217,6 @@ public sealed class StyleTests
     [Theory]
     [InlineData(null, false, false)]
     [InlineData(null, true, true)]
-    [InlineData(PillTheme.System, true, true)]
     [InlineData(PillTheme.Dark, true, false)]
     [InlineData(PillTheme.Light, false, true)]
     public void TheDefaultLookIsStandardTextOnPillsThatMatchTheTaskbar(PillTheme? pills, bool lightTaskbar, bool lightPills)
@@ -230,10 +229,14 @@ public sealed class StyleTests
 
         Assert.Equal((new TextStyle(13, TextWeight.Semibold), new TextStyle(13.5, TextWeight.Bold)), (look.Label, look.Value));
         Assert.Equal(lightPills ? PillColors.Light : PillColors.Dark, look.Pills);
-        Assert.Equal(Blend(look.ValueColor.Color, look.Pills.Outer, 0.35), look.MeterColor(Level.Normal));
+        Level[] levels = [Level.Normal, Level.Warning, Level.Critical];
         Assert.Equal(
-            lightPills ? (Rgb.Parse("#9D5D00"), Rgb.Parse("#C42B1C")) : (OverlayLook.DefaultWarning, OverlayLook.DefaultCritical),
-            (look.MeterColor(Level.Warning), look.MeterColor(Level.Critical)));
+            lightPills ? ["#0F7B0F", "#9D5D00", "#C42B1C"] : ["#6CCB5F", OverlayLook.DefaultWarning.ToString(), OverlayLook.DefaultCritical.ToString()],
+            levels.Select(level => look.MeterColor(level).ToString()));
+        // Each level's color is a mark of its own on the pill and on a graph's unlit track.
+        Assert.All(
+            levels.SelectMany(level => new[] { look.Pills.Outer, look.Pills.MeterOff }.Select(under => look.MeterColor(level).ContrastWith(under))),
+            contrast => Assert.True(contrast >= OverlayLook.MinContrast, $"{contrast:0.00}:1"));
         Assert.Equal((StylePreset.Custom, new TextStyle(15, TextWeight.Bold)), (resized.Preset, StylePresets.Text(resized).Value));
         Assert.Equal(style, resized with { Preset = style.Preset, Label = style.Label, Value = style.Value });
     }
@@ -313,9 +316,4 @@ public sealed class StyleTests
         Assert.Equal(animate, glow.Glowing);
     }
 
-    private static Rgb Blend(Rgb color, Rgb under, double alpha) =>
-        new(Channel(color.R, under.R, alpha), Channel(color.G, under.G, alpha), Channel(color.B, under.B, alpha));
-
-    private static byte Channel(byte color, byte under, double alpha) =>
-        (byte)Math.Round((color * alpha) + (under * (1 - alpha)), MidpointRounding.AwayFromZero);
 }
