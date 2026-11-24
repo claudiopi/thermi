@@ -1,0 +1,31 @@
+<Project>
+
+  <!-- The launcher at the top of the install folder (docs/adr/0008-updates.md): .NET's own app host, as the SDK makes it
+       for this program with its resources (icon, manifest, version), but written to start the program in the version's
+       folder beside it, <version>\<program>.dll. Published into the version's own launchers\ folder, from which a switch
+       copies it to the top; so the path people, Windows and the tray icons know never changes. -->
+
+  <Target Name="CreateLauncher" AfterTargets="_CreateAppHost"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(UseAppHost)' != 'false' and Exists('$(AppHostSourcePath)') and Exists('@(IntermediateAssembly)')"
+          Inputs="@(IntermediateAssembly);$(AppHostSourcePath)" Outputs="$(IntermediateOutputPath)launcher\$(AssemblyName)$(_NativeExecutableExtension)">
+    <MakeDir Directories="$(IntermediateOutputPath)launcher" />
+    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
+                   AppHostDestinationPath="$(IntermediateOutputPath)launcher\$(AssemblyName)$(_NativeExecutableExtension)"
+                   AppBinaryName="$(Version)\$(AssemblyName)$(TargetExt)"
+                   IntermediateAssembly="@(IntermediateAssembly->'%(FullPath)')"
+                   WindowsGraphicalUserInterface="$(_UseWindowsGraphicalUserInterface)"
+                   Retries="$(CopyRetryCount)"
+                   RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+                   DisableCetCompat="$(_DisableCetCompat)" />
+  </Target>
+
+  <Target Name="PublishLauncher" BeforeTargets="ComputeResolvedFilesToPublishList" DependsOnTargets="CreateLauncher"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(UseAppHost)' != 'false'">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(IntermediateOutputPath)launcher\$(AssemblyName)$(_NativeExecutableExtension)"
+                             RelativePath="launchers\$(AssemblyName)$(_NativeExecutableExtension)"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+</Project>

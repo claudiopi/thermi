@@ -50,5 +50,6 @@
   </ItemGroup>
 
   <Import Project="SettingsPage.targets" />
+  <Import Project="..\Launchers.targets" />
 
 </Project>

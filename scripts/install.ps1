@@ -12,8 +12,12 @@ A first install starts the overlay at your sign-in; a reinstall keeps "Start wit
 left it. Your config in %APPDATA%\thermi is never touched. -Uninstall removes the rest: the files, the service, the
 folder earlier builds kept the driver's installer in, %ProgramData%\thermi, and the window's data in %LOCALAPPDATA%\thermi. It leaves the sensor
 driver, which other programs may use.
+thermi is laid out as updates keep it (docs/adr/0008-updates.md): each version self-contained in a folder of its own, the
+service run from it, and launchers at the top that start it. A build never updates itself, unless -UpdatesFrom gives it a
+channel's address, as `scripts/updates.ps1 serve` answers, and -UpdatesKeys the folder whose release.pub.pem and
+backup.pub.pem it trusts.
 #>
-param([switch]$Uninstall)
+param([switch]$Uninstall, [string]$UpdatesFrom, [string]$UpdatesKeys)
 
 $ErrorActionPreference = 'Stop'
 $target = Join-Path $env:ProgramFiles 'thermi'
@@ -79,8 +83,10 @@ function Remove-Service {
     if ([System.Diagnostics.EventLog]::SourceExists($service)) { [System.Diagnostics.EventLog]::DeleteEventSource($service) }
 }
 
+# The service runs from its version's folder; a restore of files an update had switched runs it through the launcher.
 function Register-Service {
-    $sensors = Join-Path $target 'thermi-sensors.exe'
+    $sensors = Join-Path $target "$release\thermi-sensors.exe"
+    if (-not (Test-Path $sensors)) { $sensors = Join-Path $target 'thermi-sensors.exe' }
     New-Service $service -BinaryPathName "`"$sensors`"" -DisplayName 'thermi sensors' -StartupType Automatic `
         -Description 'Reads hardware sensors for the thermi overlay.' | Out-Null
     sc.exe failure $service reset= 86400 actions= restart/5000/restart/5000/restart/60000 | Out-Null
@@ -271,6 +277,7 @@ function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [
         "`$servicePrivileges = $(& $quoted $servicePrivileges)"
         "`$elevatedService = $(& $quoted $elevatedService)"
         "`$elevatedRights = $(& $quoted $elevatedRights)"
+        "`$release = $(& $quoted $release)"
         $functions
         "Install-Elevated $(& $quoted $From) $(& $quoted $Hash) `$$HasWebView2"
     ) -join "`n"
@@ -319,9 +326,23 @@ if ($Uninstall) {
     return
 }
 
-$staging = Join-Path (Split-Path $PSScriptRoot -Parent) 'artifacts/publish'
+$root = Split-Path $PSScriptRoot -Parent
+$staging = Join-Path $root 'artifacts/publish'
 Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
-# ReadyToRun for this PC's processor, so both start without compiling their code first; the .NET runtime stays shared.
+$release = @(([xml](Get-Content (Join-Path $root 'Directory.Build.props') -Raw)).Project.PropertyGroup.Version | Where-Object { $_ })[0]
+# A public key's PEM holds its SubjectPublicKeyInfo in base64, which the service takes as it is.
+function Get-PublicKey([string]$Name) {
+    $pem = Get-Content (Join-Path $UpdatesKeys $Name) -Raw
+    if ($pem -notmatch '-----BEGIN PUBLIC KEY-----([A-Za-z0-9+/=\s]+)-----END PUBLIC KEY-----') { throw "$Name holds no public key." }
+    $Matches[1] -replace '\s', ''
+}
+$updates = @()
+if ($UpdatesFrom) {
+    if (-not $UpdatesKeys) { throw '-UpdatesFrom needs -UpdatesKeys, the folder with the channel''s public keys.' }
+    $updates = "-p:ThermiUpdatesFrom=$UpdatesFrom", "-p:ThermiUpdatesKey=$(Get-PublicKey release.pub.pem)",
+        "-p:ThermiUpdatesBackupKey=$(Get-PublicKey backup.pub.pem)"
+}
+# Self-contained, with ReadyToRun for this PC's processor, so both start without compiling their code first.
 $arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
     'X64' { 'x64' }
     'Arm64' { 'arm64' }
@@ -332,13 +353,14 @@ foreach ($project in 'src/Thermi.SensorHost', 'src/Thermi') {
     # Restored apart, for both processors the project lists and with the ReadyToRun compiler, which only a restore that
     # asks for ReadyToRun downloads: a publish's own restore would put its processor on Thermi.Core too, and rewrite
     # Core's lock file.
-    dotnet restore $path --locked-mode -p:PublishReadyToRun=true --nologo -v quiet
+    dotnet restore $path --locked-mode -p:PublishReadyToRun=true -p:SelfContained=true --nologo -v quiet
     if ($LASTEXITCODE -ne 0) { throw "Restoring $project failed." }
     # Without symbols or API docs, which nothing installed reads.
-    dotnet publish $path -c Release -r "win-$arch" --self-contained false --no-restore -o $staging --nologo -v quiet `
-        -p:DebugType=none -p:PublishDocumentationFile=false -p:PublishReferencesDocumentationFiles=false
+    dotnet publish $path -c Release -r "win-$arch" --self-contained true --no-restore -o (Join-Path $staging $release) --nologo -v quiet `
+        -p:DebugType=none -p:PublishDocumentationFile=false -p:PublishReferencesDocumentationFiles=false @updates
     if ($LASTEXITCODE -ne 0) { throw "Publishing $project failed." }
 }
+Copy-Item (Join-Path $staging "$release\launchers\*") $staging
 
 # Only now, so a build that fails leaves the running thermi alone.
 Stop-Overlay

@@ -4,7 +4,7 @@
     {
       "id": "A1",
       "covers": ["R1", "R2"],
-      "description": "Given a published release, when the author runs its MSI on a clean Windows 11 PC, x64 and then Arm64, then thermi, both services, the Start menu entry and the start at sign-in are installed with one UAC prompt and nothing downloaded, every executable and library under C:\\Program Files\\thermi is Valid for Get-AuthenticodeSignature, and uninstalling removes the folder whole and leaves %APPDATA%\\thermi.",
+      "description": "Given a published release, when the author runs its MSI on a clean Windows 11 PC, x64 and then Arm64, then thermi, both services, the Start menu entry and the start at sign-in are installed with one UAC prompt and nothing downloaded, every executable and library under %ProgramFiles%\\thermi is Valid for Get-AuthenticodeSignature, and uninstalling removes the folder whole and leaves %APPDATA%\\thermi.",
       "check": "by hand",
       "passes": false
     },

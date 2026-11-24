@@ -4,6 +4,7 @@ using System.Globalization;
 using Thermi.Commands;
 using Thermi.Core.Settings;
 using Thermi.Tray;
+using Thermi.Updates;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -22,8 +23,11 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
 
     public static HostEnvironment Default { get; } = new(
         WindowMutexName,
-        Environment.ProcessPath ?? "thermi.exe",
+        ThermiPaths.Launcher,
         (message, in data) => PInvoke.Shell_NotifyIcon(message, data));
+
+    /// <summary>The executable the window starts from: this version's own, so the window runs the overlay's version.</summary>
+    public string WindowExe { get; init; } = ThermiPaths.Own;
 
     /// <summary>Opens the window on an overlay, by its place; null starts it as <see cref="StartWindow"/> does.</summary>
     public Action<int>? OpenSettings { get; init; }
@@ -76,6 +80,6 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     {
         PInvoke.AllowSetForegroundWindow(PInvoke.ASFW_ANY);
         string[] arguments = ["settings", ThermiCommands.OverlayOption, (overlay + 1).ToString(CultureInfo.InvariantCulture)];
-        Program.Start(ExePath, trace, item is null ? arguments : [.. arguments, ThermiCommands.ItemOption, item]);
+        Program.Start(WindowExe, trace, item is null ? arguments : [.. arguments, ThermiCommands.ItemOption, item]);
     }
 }

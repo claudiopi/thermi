@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Thermi.Core.Messages;
+using Thermi.Updates;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.DataExchange;
@@ -220,7 +221,7 @@ internal static class HiddenWindow
         var length = (uint)path.Length;
         return !process.IsInvalid
             && PInvoke.QueryFullProcessImageName(process, PROCESS_NAME_FORMAT.PROCESS_NAME_WIN32, path, ref length)
-            && string.Equals(new string(path[..(int)length]), Environment.ProcessPath, StringComparison.OrdinalIgnoreCase);
+            && ThermiPaths.IsThermi(new string(path[..(int)length]));
     }
 
     private static string ClassOf(HWND window)
