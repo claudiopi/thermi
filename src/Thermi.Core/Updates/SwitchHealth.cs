@@ -125,11 +125,11 @@ public static class SwitchHealth
         (cut ? Cut(state) : state with { Switch = null }) with { SwitchAfter = now + UpdateSchedule.Every };
 
     /// <summary>
-    /// Whether a switch forward to the version ready may begin now: a hold further ahead than one interval was set by a
+    /// Whether a switch forward to the version ready may begin now: a hold further ahead than one interval and a day was set by a
     /// clock that ran ahead, and holds nothing.
     /// </summary>
     public static bool MaySwitch(UpdateState state, DateTimeOffset now) =>
-        state.SwitchAfter is not { } after || after <= now || after - now > UpdateSchedule.Every;
+        state.SwitchAfter is not { } after || after <= now || after - now > UpdateSchedule.Every + UpdatePlan.ClockSlack;
 
     private static UpdateState Cut(UpdateState state) => Cut(state, state.Switch ?? throw new InvalidOperationException("No switch was written down."));
 

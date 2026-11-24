@@ -16,7 +16,8 @@ public sealed class SwitchHoldTests
         var held = SwitchHealth.HeldBack(switching, cut: false, Now);
         var cut = SwitchHealth.HeldBack(switching, cut: true, Now);
 
-        Assert.Equal((false, true), (SwitchHealth.MaySwitch(held, Now.AddHours(1)), SwitchHealth.MaySwitch(held, Now + UpdateSchedule.Every)));
+        Assert.Equal((false, false, true), (SwitchHealth.MaySwitch(held, Now), SwitchHealth.MaySwitch(held, Now.AddHours(-20)),
+            SwitchHealth.MaySwitch(held, Now + UpdateSchedule.Every)));
         Assert.Equal((Parse("1.3.0"), null, 1), (held.Ready, held.Switch, cut.Switch!.Cuts));
         Assert.Equal("1.3.0", Assert.Single(SwitchHealth.HeldBack(SwitchHealth.Begin(cut, Parse("1.3.0")), cut: true, Now).Failed).ToString());
         Assert.True(SwitchHealth.MaySwitch(SwitchHealth.Done(SwitchHealth.Begin(held, Parse("1.3.0")), Now), Now));

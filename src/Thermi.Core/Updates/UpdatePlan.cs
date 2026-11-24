@@ -32,7 +32,8 @@ public sealed record Plan(PlanKind Kind, ReleaseVersion? Version = null, Package
 public static class UpdatePlan
 {
     // A PC's clock a day behind still takes a manifest signed today.
-    private static readonly TimeSpan ClockSlack = TimeSpan.FromDays(1);
+    /// <summary>How far a PC's clock may be off before a time it wrote, or a server's, is taken for a wrong clock's.</summary>
+    public static readonly TimeSpan ClockSlack = TimeSpan.FromDays(1);
 
     /// <summary>
     /// What to do with <paramref name="read"/>'s manifest at <paramref name="now"/>, on a build whose release key's SHA-256
