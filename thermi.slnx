@@ -2,8 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/Thermi.Core/Thermi.Core.csproj" />
     <Project Path="src/Thermi/Thermi.csproj" />
+    <Project Path="src/Thermi.Releases/Thermi.Releases.csproj" />
     <Project Path="src/Thermi.SensorHost/Thermi.SensorHost.csproj" />
     <Project Path="src/Thermi.Settings.Types/Thermi.Settings.Types.csproj" />
+    <Project Path="src/Thermi.Trust/Thermi.Trust.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Thermi.Tests/Thermi.Tests.csproj" />

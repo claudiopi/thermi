@@ -52,8 +52,11 @@ public sealed record UpdateState
 
     public PendingSwitch? Switch { get; init; }
 
-    /// <summary>A manifest signed by the backup key revoked the release key, so only the backup key is trusted.</summary>
-    public bool Revoked { get; init; }
+    /// <summary>
+    /// The SHA-256 of the release key a manifest signed by the backup key revoked: only the backup key is trusted until a
+    /// version built with another release key runs.
+    /// </summary>
+    public string? RevokedKey { get; init; }
 
     /// <summary>The state <paramref name="text"/> holds; a file broken or missing is a PC that knows nothing yet. Never throws.</summary>
     public static UpdateState Read(string? text)

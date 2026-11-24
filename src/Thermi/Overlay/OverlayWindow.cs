@@ -45,7 +45,8 @@ internal sealed class OverlayWindow : IDisposable
 
     // OLED care moves the overlay by how long it has run.
     private readonly long _started;
-    private bool _shown;
+    /// <summary>Whether the overlay is on the screen now.</summary>
+    public bool OnScreen { get; private set; }
 
     // The last scene painted, which the glow's frames paint again, and what it drew.
     private OverlayScene? _scene;
@@ -109,7 +110,7 @@ internal sealed class OverlayWindow : IDisposable
 
     public void Raise()
     {
-        if (_shown)
+        if (OnScreen)
         {
             _topmost.Raise();
         }
@@ -118,10 +119,10 @@ internal sealed class OverlayWindow : IDisposable
     /// <summary>Takes the overlay off the screen until a paint shows it again; it keeps its history meanwhile.</summary>
     public void Hide()
     {
-        if (_shown)
+        if (OnScreen)
         {
             PInvoke.ShowWindow(Hwnd, SHOW_WINDOW_CMD.SW_HIDE);
-            _shown = false;
+            OnScreen = false;
         }
     }
 
@@ -150,7 +151,7 @@ internal sealed class OverlayWindow : IDisposable
             case PInvoke.WM_SETCURSOR:
                 return _gestures.CornerCursor(overlay, _painted, WindowPosition());
             case PInvoke.WM_TIMER when wParam == OverlayFade.TimerId:
-                _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Holds, _shown);
+                _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Holds, OnScreen);
                 return true;
             case PInvoke.WM_TIMER when wParam == OverlayGestures.HoldTimer:
                 _gestures.Hold();
@@ -161,7 +162,7 @@ internal sealed class OverlayWindow : IDisposable
             case PInvoke.WM_HOTKEY when wParam == OverlayGestures.EscapeKey:
                 Cancel();
                 return true;
-            case PInvoke.WM_TIMER when _shown && _scene is { } scene && _index < scene.Config.Overlays.Count:
+            case PInvoke.WM_TIMER when OnScreen && _scene is { } scene && _index < scene.Config.Overlays.Count:
                 Repaint(scene);
                 return true;
             default:
@@ -197,13 +198,13 @@ internal sealed class OverlayWindow : IDisposable
         Tips(scene, input, shown);
         var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
-        _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, _shown);
-        if (!_shown)
+        _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, OnScreen);
+        if (!OnScreen)
         {
             const SET_WINDOW_POS_FLAGS Shown = SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE
                 | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW;
             PInvoke.SetWindowPos(Hwnd, HWND.HWND_TOPMOST, 0, 0, 0, 0, Shown);
-            _shown = true;
+            OnScreen = true;
         }
     }
 

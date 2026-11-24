@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Updates;
 
 namespace Thermi.Logging;
 
@@ -102,4 +103,16 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "first frame {Milliseconds} ms")]
     public static partial void FirstFrame(this ILogger logger, long milliseconds);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "thermi {From} hands over to {To}, which the service installed")]
+    public static partial void HandingOver(this ILogger logger, ReleaseVersion from, ReleaseVersion to);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "thermi {To} came up, so this overlay exits")]
+    public static partial void HandedOver(this ILogger logger, ReleaseVersion to);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "thermi {To} could not take over, so this overlay stays and leaves it alone: {Why}")]
+    public static partial void HandoverFailed(this ILogger logger, ReleaseVersion to, string why);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The service could not be told this session is quiet: {Why}")]
+    public static partial void QuietNotTold(this ILogger logger, string why);
 }

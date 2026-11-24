@@ -103,13 +103,11 @@ public sealed class UpdateTests
         Assert.Equal(("1.2.0", "1.3.0"), (failed.Installed!.ToString(), Assert.Single(failed.Failed).ToString()));
         Assert.Null(failed.Ready);
 
-        // Once done, two runs of the new service that never stopped, within ten minutes, send the PC back.
+        // Once done, the new service runs; two of its runs that end without stopping, within ten minutes, send the PC back.
         var done = SwitchHealth.Done(SwitchHealth.Begin(ready, V("1.3.0")), Now);
-        var (first, step) = SwitchHealth.Started(done, V("1.3.0"), Now.AddSeconds(5));
+        var (second, step) = SwitchHealth.Started(done, V("1.3.0"), Now.AddSeconds(5));
         Assert.Equal(StartStep.Serve, step);
-        var (second, again) = SwitchHealth.Started(first, V("1.3.0"), Now.AddMinutes(1));
-        Assert.Equal(StartStep.Serve, again);
-        Assert.Equal(StartStep.RollBack, SwitchHealth.Started(second, V("1.3.0"), Now.AddMinutes(2)).Step);
+        Assert.Equal(StartStep.RollBack, SwitchHealth.Started(second, V("1.3.0"), Now.AddMinutes(1)).Step);
 
         // A run that ends past the window, as when the PC slept, fails nothing; a stop asked for is never a crash.
         Assert.Equal(StartStep.Serve, SwitchHealth.Started(second, V("1.3.0"), Now.AddHours(9)).Step);

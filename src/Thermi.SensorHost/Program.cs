@@ -2,6 +2,8 @@ using System.CommandLine;
 using System.Diagnostics;
 using System.ServiceProcess;
 using Thermi.Core.Sensors;
+using Thermi.Core.Updates;
+using Thermi.SensorHost.Updates;
 
 namespace Thermi.SensorHost;
 
@@ -38,6 +40,11 @@ internal static class Program
             return RunElevated(environment.Time);
         }
 
+        if (request is SensorSwitch watch)
+        {
+            return await WatchAsync(watch.To, environment, stop);
+        }
+
         using var source = environment.Open();
         if (request is SensorDump dump)
         {
@@ -48,21 +55,57 @@ internal static class Program
         using var events = new EventLog("Application") { Source = SensorService.Name };
         using var server = new SensorPipeServer(source.Read, environment.Time, environment.PipeName)
         {
-            Squatted = () => SensorService.Say(
-                events,
-                $"Another program holds the {environment.PipeName} pipe, so thermi's overlay and window get no readings. "
-                    + "The service tries again every 5 s until that program closes it.",
-                EventLogEntryType.Warning),
+            Squatted = () => Squatted(events, environment.PipeName),
         };
         if (request is not SensorServe { Console: true })
         {
-            using var service = new SensorService(server.RunAsync, resumed: () => _ = source.Read());
-            ServiceBase.Run(service);
-            return service.ExitCode;
+            return RunService(server, source, environment.Time, events);
         }
 
         await ServeAsync(server, environment.Out, stop);
         return 0;
+    }
+
+    // The updater runs beside the server and only in an installed layout; it never stops the service, whatever it meets.
+    private static int RunService(SensorPipeServer server, ISensorSource source, TimeProvider time, EventLog events)
+    {
+        var build = UpdateBuild.Of(typeof(Program).Assembly);
+        var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version);
+        using var client = new ManifestClient();
+        using var updater = folder is null ? null : new Updater(build, folder, client, time, (message, type) => SensorService.Say(events, message, type));
+        using var service = new SensorService(
+            stop =>
+            {
+                _ = updater?.RunAsync(stop);
+                return server.RunAsync(stop);
+            },
+            resumed: () =>
+            {
+                _ = source.Read();
+                updater?.Resumed();
+            })
+        {
+            Updates = updater,
+        };
+        ServiceBase.Run(service);
+        return service.ExitCode;
+    }
+
+    private static void Squatted(EventLog events, string pipe) => SensorService.Say(
+        events,
+        $"Another program holds the {pipe} pipe, so thermi's overlay and window get no readings. "
+            + "The service tries again every 5 s until that program closes it.",
+        EventLogEntryType.Warning);
+
+    private static async Task<int> WatchAsync(ReleaseVersion to, SensorHostEnvironment environment, CancellationToken stop)
+    {
+        using var events = new EventLog("Application") { Source = SensorService.Name };
+        var build = UpdateBuild.Of(typeof(Program).Assembly);
+        var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version);
+        return folder is null
+            ? 2
+            : await new Switcher(folder, environment.Time, (message, type) => SensorService.Say(events, message, type))
+                .WatchAsync(to, environment.PipeName, stop);
     }
 
     // Before the sensors are opened: the fixes read none.
@@ -131,7 +174,12 @@ internal sealed class SensorService : ServiceBase
         _report = report ?? (error => Report(EventLog, error));
         ServiceName = Name;
         CanHandlePowerEvent = resumed is not null;
+        // A shutdown is a stop asked for: without it, a restart soon after an update would count as a crash of the new version.
+        CanShutdown = true;
     }
+
+    /// <summary>The updater, told of the service's start, stop and the overlay's code; none outside an installed layout.</summary>
+    public Updater? Updates { get; init; }
 
     /// <summary>
     /// Runs the server. A failure stops the service with an error code, so the recovery actions restart it.
@@ -170,7 +218,38 @@ internal sealed class SensorService : ServiceBase
         }
     }
 
-    protected override void OnStart(string[] args) => _running = RunAsync();
+    protected override void OnStart(string[] args)
+    {
+        Update(updates => updates.Started());
+        _running = RunAsync();
+    }
+
+    // Code 128 from an overlay whose session is quiet: Windows waits on this answer, so the switch runs apart.
+    protected override void OnCustomCommand(int command)
+    {
+        if (command == Updater.QuietCode && Updates is { } updates)
+        {
+            _ = Task.Run(() => Update(_ => updates.Quiet()), CancellationToken.None);
+        }
+    }
+
+    protected override void OnShutdown() => OnStop();
+
+    // What the updater meets is written to the log and never stops the service.
+    private void Update(Action<Updater> step)
+    {
+        try
+        {
+            if (Updates is { } updates)
+            {
+                step(updates);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            _report(ex);
+        }
+    }
 
     // Windows waits on this answer, and the library may take a while to read, so the read on waking runs apart.
     protected override bool OnPowerEvent(PowerBroadcastStatus powerStatus)
@@ -185,6 +264,7 @@ internal sealed class SensorService : ServiceBase
 
     protected override void OnStop()
     {
+        Update(updates => updates.Stopped());
         _stop.Cancel();
 #pragma warning disable VSTHRD002 // OnStop is synchronous: Windows expects the service to have stopped when it returns.
         _running.Wait(5000, CancellationToken.None);

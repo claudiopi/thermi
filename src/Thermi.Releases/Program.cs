@@ -1,0 +1,155 @@
+using System.CommandLine;
+using System.Globalization;
+using System.Security.Cryptography;
+using Thermi.Core.Updates;
+
+namespace Thermi.Releases;
+
+/// <summary>
+/// <c>thermi-releases</c>: the owner's levers on the update channels, each writing the channel's next signed manifest into
+/// a channels folder, and <c>serve</c>, which answers that folder on this PC. The private key comes from <c>--key</c>, a PEM
+/// file, or the <c>THERMI_UPDATES_KEY</c> variable holding the PEM itself, as the release workflow gives it.
+/// </summary>
+internal static class Program
+{
+    private static readonly Option<DirectoryInfo> Folder = new("--folder") { Description = "The channels folder.", Required = true };
+    private static readonly Option<FileInfo?> Key = new("--key") { Description = "The private key's PEM; else THERMI_UPDATES_KEY." };
+    private static readonly Option<string> Channel = new("--channel") { Description = "stable or beta.", DefaultValueFactory = _ => Manifest.Stable };
+    private static readonly Option<int> Rollout = new("--rollout") { Description = "The percentage of PCs that take it.", DefaultValueFactory = _ => 100 };
+    private static readonly Option<bool> Urgent = new("--urgent") { Description = "Switches without waiting for a quiet moment." };
+
+    private static int Main(string[] args) => Root().Parse(args).Invoke();
+
+    private static RootCommand Root()
+    {
+        var root = new RootCommand("thermi-releases: the levers on thermi's update channels (docs/adr/0008-updates.md).");
+        root.Subcommands.Add(Keys());
+        root.Subcommands.Add(Publish());
+        root.Subcommands.Add(Promote());
+        root.Subcommands.Add(Lever("rollback", "Withdraws the channel's version and offers the one before it.", Levers.RollBack));
+        root.Subcommands.Add(Lever("disable", "Keeps every PC on the channel where it is.", Levers.Disable));
+        root.Subcommands.Add(Lever("refresh", "Signs the channel's manifest again before it expires.", Levers.Refresh));
+        root.Subcommands.Add(Status());
+        root.Subcommands.Add(Serve());
+        return root;
+    }
+
+    private static Command Keys()
+    {
+        var output = new Option<DirectoryInfo>("--out") { Description = "Where the two key pairs go.", Required = true };
+        var command = new Command("keys", "Makes the release and backup key pairs, each a private and a public PEM.") { output };
+        command.SetAction(parsed =>
+        {
+            var folder = parsed.GetValue(output)!;
+            folder.Create();
+            foreach (var name in new[] { "release", "backup" })
+            {
+                using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+                File.WriteAllText(Path.Combine(folder.FullName, name + ".key.pem"), key.ExportPkcs8PrivateKeyPem());
+                File.WriteAllText(Path.Combine(folder.FullName, name + ".pub.pem"), key.ExportSubjectPublicKeyInfoPem());
+            }
+
+            Console.WriteLine($"Wrote release and backup keys to {folder.FullName}. Keep the backup's private key offline.");
+            return 0;
+        });
+        return command;
+    }
+
+    private static Command Publish()
+    {
+        var version = new Option<string>("--version") { Description = "The build's version.", Required = true };
+        var zips = new Option<string[]>("--zip")
+        {
+            Description = "processor=path of each zip, x64 and arm64.",
+            Required = true,
+            AllowMultipleArgumentsPerToken = true,
+        };
+        var baseUrl = new Option<Uri>("--base-url") { Description = "Where the folder is served, ending in /v1/.", Required = true };
+        var command = new Command("publish", "Puts a build on a channel.") { Folder, Key, Channel, version, zips, baseUrl, Rollout, Urgent };
+        command.SetAction(parsed => Run(parsed, (channels, folder, now) =>
+        {
+            var release = ReleaseVersion.Parse(parsed.GetValue(version)) ?? throw new InvalidOperationException("--version is not a release version.");
+            var packages = parsed.GetValue(zips)!.Select(zip => zip.Split('=', 2)).ToDictionary(
+                pair => pair[0],
+                pair => folder.Add(release, pair[0], pair[1], parsed.GetValue(baseUrl)!),
+                StringComparer.Ordinal);
+            return Levers.Publish(channels, parsed.GetValue(Channel)!, release, packages, parsed.GetValue(Rollout), parsed.GetValue(Urgent), now);
+        }));
+        return command;
+    }
+
+    private static Command Promote()
+    {
+        var from = new Option<string>("--from") { DefaultValueFactory = _ => Manifest.Beta };
+        var to = new Option<string>("--to") { DefaultValueFactory = _ => Manifest.Stable };
+        var command = new Command("promote", "Takes one channel's version, files and all, to another.") { Folder, Key, from, to, Rollout, Urgent };
+        command.SetAction(parsed => Run(parsed, (channels, _, now) => Levers.Promote(
+            channels, parsed.GetValue(from)!, parsed.GetValue(to)!, parsed.GetValue(Rollout), parsed.GetValue(Urgent) ? true : null, now)));
+        return command;
+    }
+
+    private static Command Lever(string name, string description, Func<IReadOnlyDictionary<string, ChannelHistory>, string, DateTimeOffset, LeverResult> lever)
+    {
+        var command = new Command(name, description) { Folder, Key, Channel };
+        command.SetAction(parsed => Run(parsed, (channels, _, now) => lever(channels, parsed.GetValue(Channel)!, now)));
+        return command;
+    }
+
+    private static Command Status()
+    {
+        var command = new Command("status", "Shows what each channel serves.") { Folder };
+        command.SetAction(parsed =>
+        {
+            foreach (var (channel, history) in new ChannelFolder(parsed.GetValue(Folder)!.FullName).Read())
+            {
+                Console.WriteLine(history.Current is { } current ? Describe(channel, current) : $"{channel}: nothing published");
+            }
+
+            return 0;
+        });
+        return command;
+    }
+
+    private static Command Serve()
+    {
+        var port = new Option<int>("--port") { DefaultValueFactory = _ => 8765 };
+        var command = new Command("serve", "Answers the channels folder on this PC, for a test build.") { Folder, port };
+        command.SetAction((parsed, stop) => Server.RunAsync(parsed.GetValue(Folder)!.FullName, parsed.GetValue(port), Console.Out, stop));
+        return command;
+    }
+
+    private static int Run(ParseResult parsed, Func<IReadOnlyDictionary<string, ChannelHistory>, ChannelFolder, DateTimeOffset, LeverResult> lever)
+    {
+        var folder = new ChannelFolder(parsed.GetValue(Folder)!.FullName);
+        using var key = SigningKey(parsed.GetValue(Key));
+        var before = folder.Read();
+        var result = lever(before, folder, TimeProvider.System.GetUtcNow());
+        if (result.Refused is { } refused)
+        {
+            Console.Error.WriteLine(refused);
+            return 1;
+        }
+
+        foreach (var manifest in folder.Write(before, result.Channels, key))
+        {
+            Console.WriteLine(Describe(manifest.Channel, manifest));
+        }
+
+        return 0;
+    }
+
+    private static ECDsa SigningKey(FileInfo? file)
+    {
+        var pem = file is not null ? File.ReadAllText(file.FullName) : Environment.GetEnvironmentVariable("THERMI_UPDATES_KEY")
+            ?? throw new InvalidOperationException("Give --key or THERMI_UPDATES_KEY.");
+        var key = ECDsa.Create();
+        key.ImportFromPem(pem);
+        return key;
+    }
+
+    private static string Describe(string channel, Manifest manifest) => string.Create(
+        CultureInfo.InvariantCulture,
+        $"{channel}: {manifest.Version?.ToString() ?? "nothing"} to {manifest.Rollout} %"
+            + $"{(manifest.Urgent ? ", urgent" : "")}{(manifest.Disabled ? ", turned off" : "")}, "
+            + $"sequence {manifest.Sequence}, expires {manifest.Expires:yyyy-MM-dd}, withdrawn [{string.Join(", ", manifest.Withdrawn)}]");
+}

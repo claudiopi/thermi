@@ -36,11 +36,13 @@
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" />
     <PackageReference Include="Microsoft.Web.WebView2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+    <ProjectReference Include="..\Thermi.Trust\Thermi.Trust.csproj" />
   </ItemGroup>
 
   <!-- GDI+, which paints the overlay and the tray, from the Windows Desktop runtime the installer already needs: its

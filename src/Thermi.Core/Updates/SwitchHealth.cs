@@ -50,7 +50,7 @@ public static class SwitchHealth
         Switch = new PendingSwitch(state.Installed ?? to, to, state.Switch is { } cut && cut.To == to ? cut.Cuts : 0, Running: true),
     };
 
-    /// <summary>The state once the PC runs <paramref name="state"/>'s switch for good.</summary>
+    /// <summary>The state once the PC runs <paramref name="state"/>'s switch for good, its new service running.</summary>
     public static UpdateState Done(UpdateState state, DateTimeOffset now)
     {
         var pending = state.Switch ?? throw new InvalidOperationException("No switch was written down.");
@@ -63,7 +63,7 @@ public static class SwitchHealth
             ReadyUrgent = state.Ready != pending.To && state.ReadyUrgent,
             Failed = rollback ? [.. state.Failed.Append(pending.From).Distinct()] : state.Failed,
             Switch = null,
-            Probation = rollback ? null : new Probation(pending.From, now),
+            Probation = rollback ? null : new Probation(pending.From, now, Stopped: false),
         };
     }
 
@@ -91,8 +91,7 @@ public static class SwitchHealth
         {
             if (pending.To == self)
             {
-                var done = Done(state, now);
-                return (done with { Probation = done.Probation is { } running ? running with { Stopped = false } : null }, StartStep.Serve);
+                return (Done(state, now), StartStep.Serve);
             }
 
             state = Cut(state, pending);
