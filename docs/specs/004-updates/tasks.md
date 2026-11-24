@@ -1,6 +1,6 @@
 # 004-updates: Tasks
 
-> Progress: 24 / 28
+> Progress: 25 / 28
 > Current block: B7
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -52,7 +52,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - [x] **T22** Covers R1, R3: the WiX MSI and its uninstall.
 - [x] **T23** Covers R2: the release workflow: approval, SignPath, the signed manifest, the MSIs, provenance.
 - [x] **T24** What the owner must create: the list, with each step.
-- [ ] **T25** The docs: `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/QUICKSTART.md`, the READMEs and the privacy note.
+- [x] **T25** The docs: `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/QUICKSTART.md`, the READMEs and the privacy note.
 
 ## B8: Review and proof
 
