@@ -39,6 +39,8 @@ public static class BridgeCalls
           const webview = window.chrome.webview;
           const waiting = new Map();
           const listeners = new Map({{Quoted(Events)}}.map((name) => [name, []]));
+          // Each load numbers its calls apart: C# may still owe a page loaded before this one an answer, which answers nothing here.
+          const load = crypto.randomUUID();
           let next = 0;
           webview.addEventListener('message', ({ data }) => {
             if (data.event !== undefined) {
@@ -52,7 +54,7 @@ public static class BridgeCalls
           const bridge = {};
           for (const method of {{Quoted(Methods)}}) {
             bridge[method] = (...args) => new Promise((resolve, reject) => {
-              const id = next++;
+              const id = `${load}:${next++}`;
               waiting.set(id, { resolve, reject });
               webview.postMessage({ id, method, args: args.map((arg) => arg ?? null) });
             });

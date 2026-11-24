@@ -3,7 +3,7 @@ import type { Bridge } from './bridge.g';
 import { client } from './client.g';
 
 interface Sent {
-  id: number;
+  id: unknown;
   method: string;
 }
 
@@ -56,4 +56,18 @@ test('a listener taken back hears nothing more', () => {
   answer({ event: 'changed', value: null });
 
   expect(heard).toStrictEqual(['kept']);
+});
+
+// R4 smoke: the page loaded again while C# still owed its last load answers, and an answer to the old page's call resolved the
+// new page's call of the same number with another method's value. A call is answered only by the answer to that call.
+test('an answer to the page before a reload answers nothing of the page after it', async () => {
+  const before = connect();
+  void before.bridge.view();
+  const after = connect();
+
+  const call = after.bridge.snapshot();
+  after.answer({ id: before.sent[0]?.id, result: { items: {} } });
+  after.answer({ id: after.sent[0]?.id, result: { service: 'running', sensors: [] } });
+
+  await expect(call).resolves.toStrictEqual({ service: 'running', sensors: [] });
 });
