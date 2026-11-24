@@ -43,7 +43,9 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         folder.Write(state);
         if (step == StartStep.RollBack)
         {
-            say($"thermi {build.Version} ended without stopping twice since it was installed, so the PC goes back to {state.Previous}.", EventLogEntryType.Warning);
+            say(
+                $"thermi {build.Version} ended without stopping twice since it was installed, so the PC goes back to {state.Previous}.",
+                EventLogEntryType.Warning);
         }
 
         _goBack = step == StartStep.RollBack;
@@ -130,7 +132,7 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
                 await CheckAsync(policy.Channel, stop);
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested) // A check never ends the updater: what it met is logged, and the next check tries again.
+        catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested) // Logged; the next check tries again.
         {
             say($"thermi could not check for updates: {ex.Message}", EventLogEntryType.Warning);
         }

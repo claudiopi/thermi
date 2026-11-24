@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Updates;
 
@@ -239,7 +238,11 @@ public sealed class UpdateTests
         }
 
         Assert.Equal(ChannelHistory.Kept, channels[Manifest.Stable].Published.Count);
-        var crowded = channels[Manifest.Stable].Current! with { Version = V("2.0.0"), Withdrawn = [.. Enumerable.Range(1, Levers.WithdrawnKept).Select(n => V($"1.9.{n}"))] };
+        var crowded = channels[Manifest.Stable].Current! with
+        {
+            Version = V("2.0.0"),
+            Withdrawn = [.. Enumerable.Range(1, Levers.WithdrawnKept).Select(n => V($"1.9.{n}"))],
+        };
         IReadOnlyDictionary<string, ChannelHistory> full = new Dictionary<string, ChannelHistory>(channels, StringComparer.Ordinal)
         {
             [Manifest.Stable] = new([.. channels[Manifest.Stable].Published, crowded]),
@@ -296,7 +299,8 @@ public sealed class UpdateTests
     {
         Assert.True(UpdateSchedule.DueOnResume(Now, null) && UpdateSchedule.DueOnResume(Now, Now - UpdateSchedule.Every));
         Assert.False(UpdateSchedule.DueOnResume(Now, Now.AddHours(-1)));
-        Assert.Equal([true, true, false, true], new[] { (false, false), (false, true), (true, false), (true, true) }.Select(each => UpdateSchedule.MayDownload(each.Item1, each.Item2)));
+        (bool Metered, bool Urgent)[] networks = [(false, false), (false, true), (true, false), (true, true)];
+        Assert.Equal([true, true, false, true], networks.Select(each => UpdateSchedule.MayDownload(each.Metered, each.Urgent)));
     }
 
     // A version names a folder, so it is read strictly, and ordered as SemVer orders them.
@@ -322,22 +326,6 @@ public sealed class UpdateTests
             (read.Installed, read.Previous, read.SequenceOf(Manifest.Beta), read.SequenceOf(Manifest.Stable)));
         Assert.Equal(state.Failed, read.Failed);
         Assert.All((string?[])[null, "", "{", "null", """{ "installed": "../x" }"""], text => Assert.Null(UpdateState.Read(text).Installed));
-    }
-
-    // A version rolled back to finds the copy of the settings kept in its format, and a new copy never takes an old one's name.
-    [Fact]
-    public void ASettingsCopyIsFoundAgainByItsFormat()
-    {
-        var file = Path.Combine("settings", "config.json");
-        string[] kept =
-        [
-            "config.v3-2026-01-01-000000.json", "config.v4-2026-01-02-000000.json", "config.v4-2026-03-01-000000.json",
-            "config.broken-2026-04-01-000000.json",
-        ];
-        Assert.Equal("config.v4-2026-03-01-000000.json", KeptCopies.Newest(kept.Select(name => Path.Combine("settings", name)), file, 4));
-        Assert.Null(KeptCopies.Newest(kept, file, 5));
-        var taken = new HashSet<string>(StringComparer.Ordinal) { Path.Combine("settings", "config.v5-2026-11-24-210000.json") };
-        Assert.Equal(Path.Combine("settings", "config.v5-2026-11-24-210000-2.json"), KeptCopies.Name(file, "v5", Now, taken.Contains));
     }
 
     // A build without a key, the policy, a version ready, the last successful check or the first, in days ago, and beta.

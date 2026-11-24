@@ -73,7 +73,8 @@ internal static class Program
         var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version);
         if (build.Built && folder is null)
         {
-            SensorService.Say(events, $"thermi runs from {AppContext.BaseDirectory}, which is no version's folder, so it does not update itself.", EventLogEntryType.Warning);
+            var where = AppContext.BaseDirectory;
+            SensorService.Say(events, $"thermi runs from {where}, which is no version's folder, so it does not update itself.", EventLogEntryType.Warning);
         }
 
         using var client = new ManifestClient();
