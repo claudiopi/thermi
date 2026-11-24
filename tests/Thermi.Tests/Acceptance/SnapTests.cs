@@ -87,24 +87,14 @@ public sealed class SnapTests
         Assert.Equal(2560 - 330, Placed(SnappedTo(SnapSpot.TaskbarRight), [notOnTheTaskbar], 600, 57).Right);
     }
 
-    // What an overlay keeps on a taskbar as it shows: three items of a 50 px widest value, with a 30 px label while
-    // labels show, 8 px between them. The overlay keeps its labels and items whatever its row's room.
+    // An overlay its row has no room for never covers the buttons: it sits right above the taskbar, its snapped edge where
+    // it was, below a taskbar at the top, and goes back into the taskbar once it fits. In a row's box wider than it shows,
+    // it keeps its spot's edge. Whether it fits is the width it is drawn at (the Windows tests' PainterTests).
     [Theory]
-    [InlineData(300, true, true)]
-    [InlineData(280, true, true)]
-    [InlineData(279, true, false)]
-    [InlineData(279, false, true)]
-    [InlineData(190, false, true)]
-    [InlineData(189, false, false)]
-    public void WhetherAnOverlayFitsBesideTheAppsIsMeasuredOnItsWidestValues(double room, bool labels, bool fits)
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AnOverlayItsRowHasNoRoomForSitsJustOffTheTaskbar(bool fits)
     {
-        FitItem[] three = [.. Enumerable.Repeat(new FitItem(labels ? 30 : 0, 50), 3)];
-
-        Assert.Equal(fits, TaskbarFit.Width(three, gap: 8) <= room);
-
-        // One its row has no room for never covers the buttons: it sits right above the taskbar, its snapped edge where it
-        // was, below a taskbar at the top, and goes back into the taskbar once it fits. In a row's box wider than it shows,
-        // it keeps its spot's edge.
         var onTop = Main with { Work = new PixelRect(0, 72, 2560, 1440), Taskbar = new PixelRect(0, 0, 2560, 72), Tray = new PixelRect(2200, 0, 2560, 72) };
         RowPlace? row = fits ? null : new RowPlace(null, 600);
         Assert.Equal<Position>(

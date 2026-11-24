@@ -68,7 +68,7 @@ function TitleRowDrawn({ mark, narrow, listOpen, onShowList, steps, onUndo, onRe
             { kind: 'action', id: 'new', text: t('UiText.NewOverlay'), disabled: !canAddOverlay, onRun: onNewOverlay },
             { kind: 'action', id: 'keys', text: t('UiText.KeyboardShortcuts'), keys: 'F1', onRun: onShortcuts },
             { kind: 'divider', id: 'end' },
-            { kind: 'action', id: 'exit', text: t('UiText.ExitThermi'), onRun: onExit },
+            { kind: 'action', id: 'exit', text: t('MenuEntry.Exit'), onRun: onExit },
           ]}
         />
       </span>

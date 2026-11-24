@@ -95,7 +95,6 @@ export function useWindowData(): WindowData | null {
     }
     let changes = 0;
     let ticks = 0;
-    let missed = false;
     let live = true;
     // What the page shows, and whether the sensors may have changed since: a refresh that gave way to a later one read
     // them for nothing, so the later one reads them again.
@@ -114,29 +113,24 @@ export function useWindowData(): WindowData | null {
         }
       });
     };
-    // Readings asked for before a change came back are older than it, and give way to it.
-    const tick = (): void => {
+    // Readings asked for before a change came back are older than it, and give way to it. C# sends the view and the
+    // status with each second's readings; a page that shows again asks for them.
+    const tick = (sent: Readings | null): void => {
       if (document.hidden) {
-        missed = true;
         return;
       }
       ticks += 1;
       const mine = ticks;
       const since = changes;
       const reads = [...liveReads];
-      void Promise.all([readReadings(from), ...reads.map((one) => one.read(from))]).then(([next, ...values]) => {
+      void Promise.all([sent ?? readReadings(from), ...reads.map((one) => one.read(from))]).then(([next, ...values]) => {
         if (live && mine === ticks && since === changes) {
           reads.forEach((one, index) => one.show(values[index]));
           setData((before) => (before === null ? null : withReadings(before, next)));
         }
       });
     };
-    const shown = (): void => {
-      if (!document.hidden && missed) {
-        missed = false;
-        tick();
-      }
-    };
+    const shown = (): void => tick(null);
     const stopChanges = from.changed((change) => refresh(change.sensors));
     const stopReadings = from.readings(tick);
     document.addEventListener('visibilitychange', shown);

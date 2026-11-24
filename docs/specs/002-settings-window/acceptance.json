@@ -820,8 +820,8 @@
       "covers": [
         "R143"
       ],
-      "description": "Given a taskbar spot with a table of room beside the app buttons, with labels shown and hidden, when the overlay is measured, then it fits or not on each value's widest form plus 8 px, its labels counted only while they show, and one that does not fit sits right above the taskbar (below one at the top) with its snapped edge kept, back in the taskbar once it fits.",
-      "check": "WhetherAnOverlayFitsBesideTheAppsIsMeasuredOnItsWidestValues",
+      "description": "Given the default six items on a taskbar spot whose row has exactly the room they are drawn in, each value at its widest form, or a pixel less, when the window asks which overlays are crowded, then it fits in the first and not in the second, where the map marks that spot as without room; one that does not fit sits right above the taskbar (below one at the top) with its snapped edge kept, back in the taskbar once it fits (SnapTests.AnOverlayItsRowHasNoRoomForSitsJustOffTheTaskbar).",
+      "check": "AnOverlayFitsItsTaskbarWhenTheWidthItIsDrawnAtDoes",
       "passes": true
     },
     {

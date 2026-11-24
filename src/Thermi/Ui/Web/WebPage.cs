@@ -48,7 +48,13 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
     /// </summary>
     public async Task OpenAsync(HWND window, string? browserFolder, string dataFolder, bool trace, bool mica)
     {
-        var options = new CoreWebView2EnvironmentOptions { AreBrowserExtensionsEnabled = false, IsCustomCrashReportingEnabled = true };
+        // Windows 11's thin scrollbars that float over the page, as Edge draws them, never the classic ones with arrows.
+        var options = new CoreWebView2EnvironmentOptions
+        {
+            AreBrowserExtensionsEnabled = false,
+            IsCustomCrashReportingEnabled = true,
+            ScrollBarStyle = CoreWebView2ScrollbarStyle.FluentOverlay,
+        };
         var environment = await CoreWebView2Environment.CreateAsync(browserFolder, dataFolder, options);
         Controller = await environment.CreateCoreWebView2ControllerAsync(window);
         // Made under a window not shown yet, WebView2's own windows stay hidden until told otherwise: the page is shown
@@ -65,7 +71,14 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
         view.ProcessFailed += (_, e) => Failed(view, e.ProcessFailedKind);
         view.WebMessageReceived += Received;
         bridge.Changed += (_, change) => Raise(nameof(IWindowBridge.Changed), change);
-        bridge.Readings += (_, _) => Raise(nameof(IWindowBridge.Readings), null);
+        // A hidden page draws no readings, and reads the latest once it shows.
+        bridge.Readings += (_, readings) =>
+        {
+            if (Controller?.IsVisible == true)
+            {
+                Raise(nameof(IWindowBridge.Readings), readings);
+            }
+        };
         bridge.Picked += (_, pick) => Raise(nameof(IWindowBridge.Picked), pick);
         await view.AddScriptToExecuteOnDocumentCreatedAsync(BridgeCalls.Client);
         // The document has no element yet when this runs; it has one, styled before the window shows, once parsed. Over

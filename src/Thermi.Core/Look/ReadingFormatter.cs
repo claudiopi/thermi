@@ -150,7 +150,7 @@ public static class ReadingFormatter
             SensorKind.Clock => (value / 1000, 1, "GHz", ""),
             SensorKind.Power => (value, 0, "W", ""),
             SensorKind.Fan => (value, 0, "RPM", ""),
-            SensorKind.Data => (value, 1, "GB", ""),
+            SensorKind.Data => Data(value),
             SensorKind.Throughput when bits => Rate(value * 8, texts, BitRates, UnitText.BitsPerSecond),
             SensorKind.Throughput => Rate(value, texts, Rates, UnitText.BytesPerSecond),
             SensorKind.Duration => (value / 3600, 1, texts.Of(UnitText.Hours), ""),
@@ -168,8 +168,21 @@ public static class ReadingFormatter
         return string.Create(culture, $"{minutes / 60}:{minutes % 60:00}");
     }
 
-    // A fan's thousands are grouped, as 1,087 RPM, since its speed has four digits, and so are a drive's, as 60,987.0 GB.
+    // A fan's thousands are grouped, as 1,087 RPM, since its speed has four digits.
     private static string Grouped(int decimals) => "N" + decimals.ToString(CultureInfo.InvariantCulture);
+
+    // A drive's counters run to tens of thousands of gigabytes: from what would read 1,000.0 GB on, they read in
+    // terabytes with three significant digits, so a value never reads wider than 888.8 GB, the room it keeps.
+    private static (double Number, int Decimals, string Unit, string Letter) Data(double gigabytes)
+    {
+        if (Math.Abs(gigabytes) < 999.95)
+        {
+            return (gigabytes, 1, "GB", "");
+        }
+
+        var terabytes = gigabytes / 1000;
+        return (terabytes, Math.Abs(terabytes) >= 99.95 ? 0 : Math.Abs(terabytes) >= 9.995 ? 1 : 2, "TB", "T");
+    }
 
     // The largest scale that keeps three significant digits, rounded first, so 999,999 B/s reads 1.00 MB/s and never 1000 KB/s.
     private static (double Number, int Decimals, string Unit, string Letter) Rate(

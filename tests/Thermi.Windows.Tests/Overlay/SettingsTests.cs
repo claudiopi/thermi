@@ -22,13 +22,27 @@ public sealed class SettingsTests : IDisposable
 
     public void Dispose() => _folder.Dispose();
 
-    [Fact]
-    public async Task AMissingFileIsCreatedWithTheDefaults()
+    // QA r4 (R4-03): a file of an earlier version is written in this one once, at load, so what an editor opens is what
+    // the window shows, with the old file kept beside it.
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("""{ "version": 2, "overlays": [ { "name": "Floating" } ] }""", "config.v2-2026-11-22-153045.json")]
+    public async Task AMissingOrOlderFileIsWrittenInThisVersionAtLoad(string? older, string kept)
     {
+        if (older is not null)
+        {
+            _folder.Write(older);
+        }
+
         var settings = await _folder.LoadedAsync();
 
         Assert.Null(settings.Problem);
-        Assert.Equal(ThermiConfigJson.Write(new ThermiConfig()), _folder.Text());
+        Assert.Equal(ThermiConfigJson.Write(ThermiConfigJson.Read(older).Config), _folder.Text());
+        Assert.Equal(
+            [.. new[] { kept, "config.json" }.Where(name => name.Length > 0).Order(StringComparer.Ordinal)],
+            _folder.Files.Order(StringComparer.Ordinal));
+        var aside = Path.Combine(Path.GetDirectoryName(_folder.File)!, kept);
+        Assert.Equal(older ?? "", kept.Length > 0 ? await File.ReadAllTextAsync(aside, TestContext.Current.CancellationToken) : "");
     }
 
     // As written by hand, so any save, even of the same settings, would show as a change of the text.
@@ -41,11 +55,13 @@ public sealed class SettingsTests : IDisposable
         {
             _folder.Write(text);
             var settings = await _folder.LoadedAsync();
+            // Read in an older version, the file is written in this one at load, and never again by the release.
+            var loaded = _folder.Text();
 
             settings.Release(AtTheCorner, released, Distance);
             _folder.Pass(Settings.Interval);
 
-            Assert.Equal(text, _folder.Text());
+            Assert.Equal(loaded, _folder.Text());
             Assert.Null(settings.Config.Overlays[0].Position);
         }
     }

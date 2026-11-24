@@ -24,7 +24,8 @@ internal sealed record Version1Item(string? Metric, string? Meter, Threshold? Th
 /// and the overlay keep no name, so they are named in the window's language.
 /// <para>
 /// A version 2 file, which earlier builds of this version wrote, becomes version 3: what those builds wrote without the
-/// user choosing it takes what this one gives. Lines equal to 0.1's defaults for their meter take this version's; a name
+/// user choosing it takes what this one gives. Lines whose critical line is still 0.1's default for their meter take this
+/// version's, so a warning nudged on a meter that now starts without lines, as RAM's, goes with them; a name
 /// an overlay or a metric's item was given as thermi named it then, in any language, is dropped, so it is named in the
 /// window's language; and a custom look's labels at the 10 px those builds gave them take Standard's, the look itself
 /// Standard when its values are Standard's too. Lines and names the user typed keep, unless they read as thermi's own.
@@ -34,6 +35,9 @@ internal static class ConfigMigration
 {
     // The label size earlier builds of version 2 gave a custom look.
     private const double Version2LabelSize = 10;
+
+    // The file keeps lines to a tenth.
+    private const double Tenth = 0.1;
 
     private static readonly Version1Item[] Version1Defaults =
     [
@@ -108,7 +112,13 @@ internal static class ConfigMigration
     {
         var metric = Metrics.Find(item.Metric ?? item.Auto);
         var meter = Metrics.Find(item.Meter?.Metric ?? item.Meter?.Auto);
-        var calm = meter is not null && Array.Exists(Version1Defaults, made => made.Meter == meter.Id && made.Threshold == item.Threshold);
+        var calm = meter is not null && item.Threshold is { } lines
+            && Array.Exists(
+                Version1Defaults,
+                made => made.Meter == meter.Id
+                    && made.Threshold is { Critical: { } critical }
+                    && lines.Critical is { } kept
+                    && Math.Abs(kept - critical) < Tenth / 2);
         var given = metric is not null && item.Sensors is null && item.Name is { } name
             && Texts.Languages.Any(language => Texts.Of(language).Of(metric.Name) == name);
         return item with

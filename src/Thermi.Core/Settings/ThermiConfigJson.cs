@@ -41,6 +41,20 @@ public static class ThermiConfigJson
         }
     }
 
+    /// <summary>The version a file says it is, 1 when it says none, or null for text that is not a JSON object.</summary>
+    public static int? VersionOf(string? json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json ?? "");
+            return document.RootElement.ValueKind == JsonValueKind.Object ? VersionOf(document.RootElement) : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>
     /// Whether the text is not yet a whole file: empty, or JSON that ends before its root closes, as while an editor
     /// saves. Text broken before its end is whole, and broken.

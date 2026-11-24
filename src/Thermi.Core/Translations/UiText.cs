@@ -232,7 +232,6 @@ public enum UiText
     Collapse,
     Expand,
     NewOverlay,
-    ExitThermi,
 
     /// <summary>A pill, named by its label.</summary>
     PillName,

@@ -59,6 +59,48 @@ public sealed class WindowFrameTests
         });
     }
 
+    // QA r4 (R4-01): the window, above the overlays while in front, goes just below the app the user switches to, and a
+    // later deactivation with no window named never lifts it over that app again.
+    [Fact]
+    public void TheWindowLeftForAnotherAppStaysBelowIt()
+    {
+        var (belowApp, topmost, stillBelow) = (false, true, false);
+        TestWindows.OnOwnDesktop(() =>
+        {
+            WNDPROC procedure = (window, message, wParam, lParam) => PInvoke.DefWindowProc(window, message, wParam, lParam);
+            HiddenWindow.Register(ClassName, name => HiddenWindow.Plain(procedure, name));
+            var window = Shown();
+            var app = Shown();
+            try
+            {
+                WindowFrame.Above(window, window);
+                PInvoke.SetWindowPos(app, HWND.Null, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE);
+                WindowFrame.Above(window, app);
+                belowApp = Overlay.MenuWatcher.Above(app, window);
+                topmost = ((WINDOW_EX_STYLE)PInvoke.GetWindowLongPtr(window, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE)).HasFlag(WINDOW_EX_STYLE.WS_EX_TOPMOST);
+                WindowFrame.Above(window, HWND.Null);
+                stillBelow = Overlay.MenuWatcher.Above(app, window);
+            }
+            finally
+            {
+                PInvoke.DestroyWindow(app);
+                PInvoke.DestroyWindow(window);
+                HiddenWindow.Unregister(ClassName);
+                GC.KeepAlive(procedure);
+            }
+        });
+
+        Assert.Equal((true, false, true), (belowApp, topmost, stillBelow));
+    }
+
+    private static HWND Shown()
+    {
+        var window = HiddenWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
+        const SET_WINDOW_POS_FLAGS Shows = SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE;
+        PInvoke.SetWindowPos(window, HWND.Null, 100, 100, 400, 300, Shows);
+        return window;
+    }
+
     // The hole is cut in the page's own pixels, the page sitting at its bounds in the client area.
     private static (int Left, int Top, int Right, int Bottom) HoleOnScreen(HWND window)
     {

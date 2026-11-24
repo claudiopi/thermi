@@ -101,16 +101,21 @@ public static class ThermiMark
     internal static IReadOnlyDictionary<string, Reading> Readable(OverlayConfig overlay, TrayInput input) =>
         SensorMap.Read(Live(input) ?? SystemSensors.Only(input.Snapshot), overlay);
 
-    /// <summary>Whether an item reads one of the CPU's temperatures, powers or clocks, which read zero without thermi's driver.</summary>
+    /// <summary>
+    /// Whether an item reads what thermi's driver reads: one of the CPU's temperatures, powers or clocks, which read zero
+    /// without it, or the CPU fan, whose board chip is not read at all without it.
+    /// </summary>
     internal static bool ReadsWithTheDriver(ItemConfig item, Snapshot snapshot) =>
         (Metrics.Find(item.Metric ?? item.Auto) is { } metric
             && Metrics.DeviceOf(metric) == DeviceKind.Cpu
-            && metric.Kind is SensorKind.Temperature or SensorKind.Power or SensorKind.Clock)
+            && metric.Kind is SensorKind.Temperature or SensorKind.Power or SensorKind.Clock or SensorKind.Fan or SensorKind.Control)
         || (item.Sensor is { } id && SensorMap.Find(snapshot, id) is { } sensor && SensorMap.ZeroIsMissing(sensor));
 
-    // A CPU value the driver would read says so in its place, and the CPU's temperature and clock show it throttling.
+    // A value the driver would read says so in its place, in only the room of the word: it stays missing until the driver
+    // comes, which lays the overlay out anew. The CPU's temperature and clock show it throttling.
     private static OverlayItem Marked(OverlayItem drawn, ItemConfig item, ValueHint hint, bool throttled, Snapshot snapshot, Texts texts) =>
-        hint == ValueHint.NeedsDriver && ReadsWithTheDriver(item, snapshot) ? drawn with { Value = texts.Of(OverlayText.Driver) }
+        hint == ValueHint.NeedsDriver && ReadsWithTheDriver(item, snapshot)
+            ? drawn with { Value = texts.Of(OverlayText.Driver), Room = texts.Of(OverlayText.Driver) }
         : throttled && Throttling.Shows(item, snapshot) ? drawn with { Throttled = true }
         : drawn;
 

@@ -4,6 +4,7 @@ import { asOneStep, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Icon, Menu } from '../kit';
 import { displays } from '../overlay/placeModel';
 import { useMonitors } from '../overlay/useOverlayReads';
+import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
 import { ListRow } from './ListRow';
 import { rowKey, type ListMoves } from './listKeys';
@@ -93,6 +94,7 @@ export function ItemList({
 }: ItemListProps) {
   const t = useText();
   const edit = useEdit();
+  const news = useNews();
   const shownDisplays = displays(useMonitors(data.changes));
   const rows = rowsOf(data.settings, data.view, folded, t);
   const shown = shownRows(rows);
@@ -161,10 +163,10 @@ export function ItemList({
     },
     nudge: (row, dx, dy) => {
       focusRow(row.key, true);
-      // A snapped overlay stays on its place, and the list says why instead of doing nothing.
+      // A snapped overlay stays on its place, and the toast says why, where anyone sees it, instead of doing nothing.
       void edit({ kind: 'nudgeOverlay', overlay: row.overlay, dx, dy }).then((refusal) => {
         if (refusal !== null) {
-          announce(t(refusal as TextKey));
+          news.show({ message: t(refusal as TextKey) });
         }
       });
     },

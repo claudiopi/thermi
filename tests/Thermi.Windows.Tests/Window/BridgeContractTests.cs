@@ -151,7 +151,7 @@ public sealed class BridgeContractTests
             turn.Enqueue);
         var heard = new List<string>();
         bridge.Changed += (_, _) => heard.Add(nameof(bridge.Changed));
-        bridge.Readings += (_, _) => heard.Add(nameof(bridge.Readings));
+        bridge.Readings += (_, readings) => heard.Add(readings.View.Items.Values.All(item => item.Value is not null) ? nameof(bridge.Readings) : "empty");
 
         var view = bridge.View();
         Assert.False(view.IsCompleted);

@@ -97,11 +97,14 @@ internal static class Desktop
             : NotificationState.Normal;
     }
 
-    /// <summary>Where the cursor is, in the screen's pixels.</summary>
+    /// <summary>
+    /// Where the cursor was when the message in hand came, in the screen's pixels: a drop lands where the button was let
+    /// go, not where a fast hand took the cursor by the time a busy PC handled it.
+    /// </summary>
     public static Position Cursor()
     {
-        PInvoke.GetCursorPos(out var cursor);
-        return new Position(cursor.X, cursor.Y);
+        var at = PInvoke.GetMessagePos();
+        return new Position((short)(at & 0xFFFF), (short)(at >> 16));
     }
 
     /// <summary>How far the cursor may move at a DPI before a press is a drag, as the system sets it.</summary>

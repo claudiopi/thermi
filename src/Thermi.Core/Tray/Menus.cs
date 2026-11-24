@@ -92,16 +92,17 @@ public static class Menus
             rows.AddRange(Shape(overlays[0], 0));
         }
 
-        if (!state.HideOverlays)
-        {
-            rows.Add(new MenuRow(MenuEntry.HideOverlays) { Hotkey = hotkeys?.Toggle });
-        }
-
+        // In the overlay's menu's order, so the two read alike.
         rows.Add(new MenuRow(MenuEntry.ClickThrough, overlays.All(overlay => overlay.ClickThrough)) { Hotkey = hotkeys?.ClickThrough });
         rows.Add(new MenuRow(MenuEntry.Lock, overlays.All(overlay => overlay.Locked)));
         if (overlays.Any(ShowsMinOrMax) || hotkeys?.ResetMinMax is not null)
         {
             rows.Add(new MenuRow(MenuEntry.ResetMinMax) { Hotkey = hotkeys?.ResetMinMax });
+        }
+
+        if (!state.HideOverlays)
+        {
+            rows.Add(new MenuRow(MenuEntry.HideOverlays) { Hotkey = hotkeys?.Toggle });
         }
 
         if (overlays.Count > 1)
@@ -210,9 +211,9 @@ public static class Menus
 
     private static List<MenuRow> Submenu(OverlayConfig overlay, int at) =>
     [
-        overlay.Hidden ? new MenuRow(MenuEntry.ShowOverlay) { Overlay = at } : new MenuRow(MenuEntry.HideThisOverlay) { Overlay = at },
+        .. Shape(overlay, at),
         new MenuRow(MenuEntry.ClickThrough, overlay.ClickThrough) { Overlay = at },
         new MenuRow(MenuEntry.Lock, overlay.Locked) { Overlay = at },
-        .. Shape(overlay, at),
+        overlay.Hidden ? new MenuRow(MenuEntry.ShowOverlay) { Overlay = at } : new MenuRow(MenuEntry.HideThisOverlay) { Overlay = at },
     ];
 }

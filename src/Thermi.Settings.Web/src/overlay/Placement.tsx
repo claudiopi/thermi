@@ -6,6 +6,7 @@ import { Button, Card, CardRow, Dropdown, Icon } from '../kit';
 import { useText, type TextKey } from '../texts/Texts';
 import { MonitorMap } from './MonitorMap';
 import { placedOf, positionHint, snapAt } from './placeModel';
+import { useRoomless } from './useOverlayReads';
 
 export interface PlacementProps {
   data: WindowData;
@@ -39,6 +40,7 @@ function lockSummary(one: Overlay, say: (key: TextKey, ...blanks: string[]) => s
 export function Placement({ data, overlay, shown, lockOpen, onLockOpen, onOverlayEdit }: PlacementProps) {
   const t = useText();
   const edit = useEdit();
+  const roomless = useRoomless(overlay, data.changes);
   const one = data.settings.overlays[overlay];
   if (one === undefined) {
     return null;
@@ -61,6 +63,7 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen, onOverla
             placed={placed}
             vertical={vertical}
             hidden={hidden}
+            roomless={roomless}
             onSnap={(spot: SnapSpot, display: Monitor) => set('snap', snapAt(spot, display))}
           />
         </div>

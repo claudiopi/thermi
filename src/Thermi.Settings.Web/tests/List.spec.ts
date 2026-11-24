@@ -15,6 +15,7 @@ import {
   startingWith,
   test,
   text,
+  toast,
   withDrivesAndBattery,
   type Overlay,
   type Settings,
@@ -307,4 +308,17 @@ test('OverlaysAreManagedFromTheList', async ({ page }) => {
     await expect.poll(async () => (await names()).length).toBe(3);
     await expect(row((await names())[2] ?? '')).toBeFocused();
   });
+});
+
+// Alt+arrows on an overlay snapped to its place move nothing, and the window says why where anyone sees it.
+test('AltArrowsOnASnappedOverlaySayWhyTheyMoveNothing', async ({ page }) => {
+  await openWindow(page);
+  const taskbar = list(page).getByRole('treeitem', { level: 1 }).first();
+  const before = overlayOf(await settingsOf(page), 0).position;
+  await taskbar.focus();
+  await taskbar.press('Alt+ArrowRight');
+
+  await expect(toast(page)).toBeVisible();
+  expect(overlayOf(await settingsOf(page), 0).position).toEqual(before);
+  await expect(taskbar).toBeFocused();
 });

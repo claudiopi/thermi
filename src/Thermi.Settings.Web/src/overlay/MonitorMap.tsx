@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
-import type { Monitor, SnapSpot } from '../bridge/bridge.g';
+import type { Monitor, Snap, SnapSpot } from '../bridge/bridge.g';
 import { useText } from '../texts/Texts';
 import { cornerSpots, displayName, spotKey, taskbarSpots, type Placed } from './placeModel';
 
@@ -11,6 +11,8 @@ export interface MonitorMapProps {
   vertical: boolean;
   /** Hidden, the overlay's spot shows dimmed and says so. */
   hidden: boolean;
+  /** The taskbar spots where the overlay would have no room beside the app buttons, which the map marks and names so. */
+  roomless: readonly Snap[];
   onSnap: (spot: SnapSpot, display: Monitor) => void;
 }
 
@@ -85,7 +87,7 @@ function layoutOf(shown: readonly Monitor[], scale: number): { drawn: Box[]; wid
   return { drawn, wide: end === undefined ? 0 : end.x + end.w, tallest: Math.max(0, ...drawn.map((box) => box.h)) };
 }
 
-export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorMapProps) {
+export function MonitorMap({ shown, placed, vertical, hidden, roomless, onSnap }: MonitorMapProps) {
   const t = useText();
   const [block, width] = useWidth();
   const group = useRef<HTMLDivElement>(null);
@@ -97,7 +99,15 @@ export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorM
   const tabStop = all.find(isOn) ?? all[0];
   // The spots are dots: the one pointed at or focused, else the overlay's, names itself in words under the map.
   const [pointed, setPointed] = useState<Spot | null>(null);
-  const nameOf = (spot: Spot): string => t('OverlayPageText.SpotOnMonitor', t(spotKey(spot.spot)), spot.display + 1);
+  // The main display's spots name no display, as the file writes them.
+  const tight = (spot: Spot): boolean => {
+    const display = shown[spot.display];
+    return roomless.some((one) => one.spot === spot.spot && (one.monitor ?? null) === (display?.primary === true ? null : (display?.id ?? null)));
+  };
+  const nameOf = (spot: Spot): string => {
+    const named = t('OverlayPageText.SpotOnMonitor', t(spotKey(spot.spot)), spot.display + 1);
+    return tight(spot) ? t('OverlayPageText.SpotNoRoom', named) : named;
+  };
   const said = pointed ?? all.find(isOn);
   const keyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
@@ -141,7 +151,7 @@ export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorM
                     tabIndex={spot === tabStop ? 0 : -1}
                     className={
                       `t-spot${spot.spot.startsWith('taskbar') ? ' t-spot-bar' : ''}` +
-                      `${isOn(spot) ? ' t-on' : ''}${hidden && isOn(spot) ? ' t-hidden' : ''}`
+                      `${isOn(spot) ? ' t-on' : ''}${hidden && isOn(spot) ? ' t-hidden' : ''}${tight(spot) ? ' t-tight' : ''}`
                     }
                     style={{ left: spot.x, top: spot.y }}
                     onClick={() => onSnap(spot.spot, box.one)}

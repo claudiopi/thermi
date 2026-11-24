@@ -148,6 +148,17 @@ public sealed class WindowChangeEventArgs(bool sensors) : EventArgs
     public bool Sensors { get; } = sensors;
 }
 
+/// <summary>
+/// A second's new readings with what they change of the view and the status, sent with the event so the page need not
+/// ask for them: each call across WebView2 costs more than the reading.
+/// </summary>
+public sealed class WindowReadingsEventArgs(WindowView view, WindowStatus status) : EventArgs
+{
+    public WindowView View { get; } = view;
+
+    public WindowStatus Status { get; } = status;
+}
+
 /// <summary>The settings as the page reads them.</summary>
 public static class PageSettings
 {

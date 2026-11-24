@@ -342,6 +342,11 @@ export interface WindowChange {
   sensors: boolean;
 }
 
+export interface WindowReadings {
+  view: WindowView;
+  status: WindowStatus;
+}
+
 export interface WindowStatus {
   overlay: boolean;
   driver: boolean;
@@ -378,6 +383,7 @@ export interface Bridge {
   monitors(): Promise<Monitor[]>;
   report(error: string): Promise<void>;
   crowded(): Promise<number[]>;
+  roomless(overlay: number): Promise<Snap[]>;
   looks(): Promise<Record<string, Style>>;
   saveLook(overlay: number, name: string): Promise<string | null>;
   renameLook(name: string, to: string): Promise<string | null>;
@@ -400,7 +406,7 @@ export interface Bridge {
   editing(overlay: number | null, selected: string | null, pointed: string | null): Promise<void>;
   start(): Promise<DesktopPick | null>;
   changed(listener: (value: WindowChange) => void): () => void;
-  readings(listener: () => void): () => void;
+  readings(listener: (value: WindowReadings) => void): () => void;
   picked(listener: (value: DesktopPick) => void): () => void;
 }
 

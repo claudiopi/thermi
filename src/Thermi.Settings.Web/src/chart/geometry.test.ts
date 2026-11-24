@@ -36,8 +36,11 @@ describe('the chart', () => {
     [300, 1000, 150],
     [100, 100, 140],
     [1000, 1001.25, 401],
-  ])('is %d wide in a pane %d high: %d high', (width, pane, height) => {
-    expect(chartHeight(width, pane)).toBe(height);
+    // Beside the cards, in a maximized window, it fills the pane but for its heading and foot, at most 3/4 as high as wide.
+    [780, 1330, 585, true],
+    [1000, 900, 660, true],
+  ] as [number, number, number, boolean?][])('is %d wide in a pane %d high: %d high', (width, pane, height, beside) => {
+    expect(chartHeight(width, pane, beside)).toBe(height);
   });
 
   test.each([

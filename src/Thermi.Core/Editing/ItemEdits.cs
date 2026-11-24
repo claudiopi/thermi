@@ -1,3 +1,4 @@
+using System.Globalization;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -27,9 +28,24 @@ public static class ItemEdits
             // A battery's rate is a few watts, so whole watts would hide most of its change.
             var language = texts ?? Texts.English;
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
-            var item = new ItemConfig { Sensor = sensorId, Name = Names.OfItem(config, sensor, sensorId, language), Decimals = decimals };
+            var name = Names.OfItem(config, sensor, sensorId, language);
+            var apart = OtherGpu(config.Overlays[overlay], snapshot, sensor);
+            var item = new ItemConfig
+            {
+                Sensor = sensorId,
+                Name = apart ? language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware) : name,
+                Decimals = decimals,
+                Own = apart,
+            };
             return Insert(config, overlay, sensor, item, language);
         });
+
+    // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one: a sensor of the
+    // other is named by its GPU and starts a pill of its own, never reading as the pill's.
+    private static bool OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
+        SensorMap.IsGpu(sensor)
+        && SensorMap.Chosen(snapshot, overlay).GetValueOrDefault(Metrics.GpuLoad.Id) is { } read
+        && read.Hardware != sensor.Hardware;
 
     /// <summary>Puts a new item in its device's pill, with that pill's label.</summary>
     internal static EditResult Insert(ThermiConfig config, int overlay, RawSensor sensor, ItemConfig item, Texts texts)

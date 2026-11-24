@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type Ref } from 'react';
 import type { CatalogGroup, CatalogRow, NoValue } from '../bridge/bridge.g';
-import { Icon } from '../kit';
+import { Icon, Tooltip } from '../kit';
 import { useText, type TextKey } from '../texts/Texts';
 import { Sparkline } from './Sparkline';
 
@@ -141,12 +141,21 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
             <div id={heading} className="t-cat-dev">
               {kind === undefined ? group.name : t('UiText.SensorOn', t(kind), group.name)}
             </div>
-            {group.sensors.map((row) =>
-              row.id === renaming ? (
-                <div key={row.id} className="t-cat-row t-cat-renaming" role="none">
-                  <NameBox row={row} onDone={(name) => handleRenamed(row, name)} />
-                </div>
-              ) : (
+            {group.sensors.map((row) => {
+              if (row.id === renaming) {
+                return (
+                  <div key={row.id} className="t-cat-row t-cat-renaming" role="none">
+                    <NameBox row={row} onDone={(name) => handleRenamed(row, name)} />
+                  </div>
+                );
+              }
+              const name = (
+                <span className="t-cat-name">
+                  <span className="t-cat-n">{row.name}</span>
+                  <span className={`t-cat-d${row.why === null ? '' : ' t-cat-why'}`}>{under(row)}</span>
+                </span>
+              );
+              return (
                 <div
                   key={row.id}
                   className="t-cat-row"
@@ -154,29 +163,23 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
                   aria-selected={false}
                   aria-keyshortcuts="F2"
                   data-sensor={row.id}
-                  title={row.tip ?? undefined}
                   tabIndex={-1}
                   onKeyDown={(event) => handleKeyDown(event, row.id)}
                   onClick={(event) => handleClick(event, row.id)}
                 >
-                  <span className="t-cat-name">
-                    <span className="t-cat-n">{row.name}</span>
-                    <span className={`t-cat-d${row.why === null ? '' : ' t-cat-why'}`}>{under(row)}</span>
-                  </span>
+                  {/* A probable name says why in the kit's tooltip; the row itself stays put, so its focus does too. */}
+                  {row.tip === null ? name : <Tooltip text={row.tip}>{name}</Tooltip>}
                   <Sparkline minute={row.minute} kind={row.kind} />
                   <span className={`t-cat-v${row.value === null || row.why !== null ? ' t-cat-off' : ''}`}>{row.value}</span>
                   {/* For the pointer alone: the keyboard has F2, which the row names, so the option holds no control of its own. */}
-                  <span
-                    className="t-cat-pencil"
-                    aria-hidden="true"
-                    title={t('CatalogText.RenameSensor', row.name)}
-                    onClick={(event) => handlePencil(event, row.id)}
-                  >
-                    <Icon name="edit" />
-                  </span>
+                  <Tooltip text={t('CatalogText.RenameSensor', row.name)}>
+                    <span className="t-cat-pencil" aria-hidden="true" onClick={(event) => handlePencil(event, row.id)}>
+                      <Icon name="edit" />
+                    </span>
+                  </Tooltip>
                 </div>
-              ),
-            )}
+              );
+            })}
           </div>
         );
       })}

@@ -14,13 +14,13 @@ public sealed class MenuTests
     [InlineData(
         "{}",
         "",
-        "Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Exit",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
     [InlineData(
         "{}|{}",
         "",
-        "Settings* TaskManager HideOverlays ClickThrough Lock Overlay[HideThisOverlay ClickThrough Lock CopyImage Vertical] "
-            + "Overlay[HideThisOverlay ClickThrough Lock CopyImage Vertical] Exit",
+        "Settings* TaskManager ClickThrough Lock HideOverlays Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideThisOverlay Exit")]
     [InlineData(
         "{}",
@@ -30,64 +30,64 @@ public sealed class MenuTests
     [InlineData(
         "{'hidden':true}",
         "",
-        "ShowOverlay* Settings TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Exit",
+        "ShowOverlay* Settings TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
     [InlineData(
         "{}|{'hidden':true}",
         "",
-        "ShowOverlay* Settings TaskManager HideOverlays ClickThrough Lock Overlay[HideThisOverlay ClickThrough Lock CopyImage Vertical] "
-            + "Overlay[ShowOverlay ClickThrough Lock CopyImage Vertical] Exit",
+        "ShowOverlay* Settings TaskManager ClickThrough Lock HideOverlays Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideThisOverlay Exit")]
     [InlineData(
         "{'hidden':true}|{'hidden':true}",
         "",
-        "ShowHiddenOverlays* Settings TaskManager HideOverlays ClickThrough Lock Overlay[ShowOverlay ClickThrough Lock CopyImage Vertical] "
-            + "Overlay[ShowOverlay ClickThrough Lock CopyImage Vertical] Exit",
+        "ShowHiddenOverlays* Settings TaskManager ClickThrough Lock HideOverlays Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideThisOverlay Exit")]
     [InlineData(
         "{}",
         "broken",
-        "SettingsBroken Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Exit",
+        "SettingsBroken Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
         "SettingsBroken Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
     [InlineData(
         "{}",
         "stopped",
-        "StartSensors Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Exit",
+        "StartSensors Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
     [InlineData(
         "{'clickThrough':true,'locked':true,'style':{'orientation':'vertical'}}",
         "",
-        "Settings* TaskManager CopyImage Vertical+ HideOverlays ClickThrough+ Lock+ Exit",
+        "Settings* TaskManager CopyImage Vertical+ ClickThrough+ Lock+ HideOverlays Exit",
         "Settings* TaskManager CopyImage Vertical+ Lock+ HideOverlays Exit")]
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','stat':'max'}]}",
         "",
-        "Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock ResetMinMax Exit",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock ResetMinMax HideOverlays Exit",
         "Settings* TaskManager CopyImage Vertical Lock ResetMinMax HideOverlays Exit")]
     [InlineData(
         "{}",
         "hotkeys",
-        "Settings* TaskManager CopyImage Vertical HideOverlays@ ClickThrough@ Lock ResetMinMax@ Exit",
+        "Settings* TaskManager CopyImage Vertical ClickThrough@ Lock ResetMinMax@ HideOverlays@ Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideOverlays@ Exit")]
     [InlineData(
         "{}",
         "gesture10",
-        "Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Exit",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
         "UndoGesture Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
     [InlineData(
         "{}",
         "gesture31",
-        "Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Exit",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
     [InlineData(
         "{'style':{'name':'Night'}}",
         "looks",
-        "Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Exit",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
         "Settings* TaskManager CopyImage Look Look+ Look Vertical Lock HideOverlays Exit")]
     [InlineData(
         "{}",
         "update",
-        "Settings* TaskManager CopyImage Vertical HideOverlays ClickThrough Lock Update Exit",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update Exit",
         "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
     public void MenusHaveTheirEntriesInOrder(string overlays, string state, string thermis, string overlaysMenu)
     {

@@ -82,7 +82,9 @@ function Window({ data }: { data: WindowData }) {
     } else if (target === null) {
       return;
     } else {
-      target.focus();
+      // Scrolled only as far as it takes, so a narrow list opening on its first rows keeps their overlay's heading in view.
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: 'nearest' });
     }
     focusDone.current = focusAsk.count;
   }, [focusAsk, data.version]);

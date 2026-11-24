@@ -67,6 +67,7 @@ public sealed class AdditionTests
     [InlineData("gpu.load", "admin critical", "chrome 23", "NVIDIA GeForce RTX 5060 Ti|game 61 %")]
     [InlineData("cpu.load", "admin warning", "chrome 23", "AMD Ryzen 9 9950X")]
     [InlineData("cpu.temperature", "no-admin", "", "driver")]
+    [InlineData("fan.cpu", "no-admin", "", "driver")]
     [InlineData("/amdcpu/0/load/2", "admin", "chrome 23", "AMD Ryzen 9 9950X")]
     [InlineData("/lpc/it8689e/0/temperature/2", "admin", "", "")]
     [InlineData("+/amdcpu/0/load/2", "admin", "", "AMD Ryzen 9 9950X")]
@@ -89,6 +90,7 @@ public sealed class AdditionTests
         if (adds == "driver")
         {
             Assert.Equal(Texts.English.Of(OverlayText.Driver), scene.Items[0].Value);
+            Assert.Equal(scene.Items[0].Value, scene.Items[0].Room);
             Assert.Equal(ValueHint.NeedsDriver, scene.Tooltips[0].Hint);
             return;
         }

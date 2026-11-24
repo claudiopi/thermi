@@ -61,20 +61,20 @@ public sealed class ReadableCatalogTests
             ],
             rows.Where(row => row.Name is { From: NameFrom.Library, Chip: not null }).Select(row => (row.Id, row.Name.Input!.Value)));
         Assert.All(rows.Where(row => row.Name.Chip is not null), row => Assert.Equal(row.Sensor.Hardware, row.Name.Chip));
-        // Any other sensor keeps the library's name, but a duty, which the library names as its fan, says it is the duty.
+        // Any other sensor keeps the library's name, but a duty, which the library names as its fan, says it is the duty, as "GPU fan duty".
         Assert.All(
             rows.Where(row => !row.Id.StartsWith("/lpc/", StringComparison.Ordinal)),
             row => Assert.Equal(
                 new SensorName(
                     row.Reading.Kind == SensorKind.Control
-                        ? Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, row.Sensor.Name)
+                        ? Duty(row.Sensor.Name)
                         : row.Sensor.Name,
                     NameFrom.Library,
                     row.Sensor.Name),
                 row.Name));
         Assert.All(
             rows.Where(row => row is { Name.From: NameFrom.Library, Reading.Kind: SensorKind.Control }),
-            row => Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, row.Sensor.Name), row.Name.Shown));
+            row => Assert.Equal(Duty(row.Sensor.Name), row.Name.Shown));
 
         var cpu = SensorCatalog.Build(Desktop, texts: spanish).SelectMany(device => device.Sensors).Single(row => row.Id == $"{Ite}/temperature/2");
         Assert.Equal(spanish.Of(LikelyName.Cpu), cpu.Name.Shown);
@@ -152,6 +152,10 @@ public sealed class ReadableCatalogTests
     // A fan's duty keeps its type in its name, so it never reads as the fan itself.
     private static string Duty(LikelyName name) => Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, Texts.English.Of(name));
 
+    // A duty the library names as its fan, "GPU Fan", reads "GPU fan duty", in thermi's case.
+    private static string Duty(string library) =>
+        Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, library.Replace(" Fan", " fan", StringComparison.Ordinal));
+
     // The recorded adapters the catalog shows, given the sensors seen moving since it opened.
     private static string[] Adapters(IReadOnlySet<string> moved) =>
         [
@@ -167,10 +171,12 @@ public sealed class ReadableCatalogTests
     [InlineData("/nvme/0/load/30", DeviceKind.Ssd, "used space", "")]
     [InlineData("/nvme/0/temperature/0", DeviceKind.Ssd, "temperature", "")]
     [InlineData("/vram/data/2", null, "Virtual memory used", "")]
-    [InlineData("/gpu-nvidia/0/control/1", null, "GPU Fan", "duty")]
+    [InlineData("/gpu-nvidia/0/control/1", null, "GPU fan", "duty")]
     [InlineData("/lpc/it8689e/0/control/3", null, "Fan #4", "duty")]
     [InlineData("/lpc/it8689e/0/control/0", null, "=fan.cpu.duty", "")]
     [InlineData("/amdcpu/0/power/0", null, "=cpu.power", "2")]
+    [InlineData("/gpu-nvidia/0/clock/0", DeviceKind.Gpu, "frequency", "")]
+    [InlineData("/gpu-amd/0/clock/0", DeviceKind.Gpu, "frequency", "apart")]
     public void ANewItemIsNamedForWhatItsSensorReads(string sensor, DeviceKind? device, string name, string form)
     {
         var texts = Texts.English;
@@ -180,13 +186,15 @@ public sealed class ReadableCatalogTests
         {
             "duty" => texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, plain),
             "" => plain,
+            "apart" => texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, plain, "AMD Radeon(TM) Graphics"),
             _ => texts.Format(CultureInfo.InvariantCulture, NameText.Numbered, plain, form),
         };
         var snapshot = TestRecordings.Read(TestRecordings.NetDisk);
 
-        var added = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, snapshot, sensor));
+        var added = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, snapshot, sensor)).Overlays[0].Items.Single(item => item.Sensor == sensor);
 
-        Assert.Equal(expected, added.Overlays[0].Items.Single(item => item.Sensor == sensor).Name);
+        // A sensor of another GPU than the one the GPU pill reads starts a pill of its own.
+        Assert.Equal((expected, form == "apart"), (added.Name, added.Own));
     }
 
     // Two items of one board sensor, the second renamed by hand, beside the CPU fan item, whose metric picks the board's first fan.

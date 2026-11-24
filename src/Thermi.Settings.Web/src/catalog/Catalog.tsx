@@ -5,6 +5,7 @@ import { Button, Chips, Dropdown, Icon, Panel, SearchField, ToggleChip } from '.
 import { overlayName } from '../list/rows';
 import { useText, type TextKey } from '../texts/Texts';
 import { CatalogRows } from './CatalogRows';
+import { shownBy } from './shownBy';
 import { useCatalog } from './useCatalog';
 import './catalog.css';
 
@@ -105,7 +106,6 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
   const [chip, setChip] = useState('all');
   const [showAll, setShowAll] = useState(false);
   const [to, setTo] = useState(ask.overlay);
-  const items = data.settings.overlays.flatMap((overlay) => overlay.items);
   const view = useLastCatalog(typed, chip === 'all' ? [] : [chip as SensorKind], showAll, data.changes);
   const counted = useSaidCount(typed, view, announce);
   const hidden = view?.hidden ?? 0;
@@ -115,8 +115,7 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
     queueMicrotask(() => search.current?.focus());
   }, []);
 
-  const shownBy = (sensor: string): string[] =>
-    items.filter((item) => item.sensor === sensor || data.view.items[item.id]?.auto === sensor).map((item) => item.name ?? item.id);
+  const shownByItems = (sensor: string): string[] => shownBy(data.settings, data.view.items, sensor, t);
   const handlePick = (sensor: string, keep: boolean): void => {
     void onAdd(sensor, to, keep);
     if (keep) {
@@ -177,7 +176,7 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
         <CatalogRows
           ref={results}
           groups={view?.groups ?? []}
-          shownBy={shownBy}
+          shownBy={shownByItems}
           onPick={handlePick}
           onRename={handleRename}
           onLeaveUp={() => search.current?.focus()}

@@ -101,11 +101,14 @@ test('UndoAndRedoWorkFromTheKeysAndTheTitleRow', async ({ page }) => {
   await expect.poll(tray).toBe(true);
   await expect(page.getByRole('heading', { name: text('MetricName.CpuTemperature') })).toBeVisible();
 
-  const listBox = await list(page).boundingBox();
+  await page.clock.fastForward(6_000);
+  await expect(toast(page)).toBeHidden();
+  const boxes = async (): Promise<unknown> => Promise.all([list(page).boundingBox(), page.getByRole('main').boundingBox()]);
+  const before = await boxes();
   await undo.click();
   await expect.poll(tray).toBe(false);
   await expect(toast(page)).toBeVisible();
-  expect(await list(page).boundingBox()).toEqual(listBox);
+  expect(await boxes()).toEqual(before);
 
   await expect(undo).toBeDisabled();
   await undo.focus();

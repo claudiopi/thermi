@@ -153,7 +153,7 @@ public sealed class SettingsFileTests
         Assert.Equal(["cpu.temperature-2", "cpu.temperature", "cpu.temperature-3"], Ids(ThermiConfigJson.Read(Taken).Config));
     }
 
-    // What earlier builds wrote unchosen takes this version's: 0.1's default lines its lines, thermi's names in any
+    // What earlier builds wrote unchosen takes this version's: 0.1's default critical line its lines, thermi's names in any
     // language no name, so they read in the window's, and a custom look's 10 px labels Standard's.
     [Fact]
     public void AVersionTwoFileMigratesToVersionThree()
@@ -162,7 +162,8 @@ public sealed class SettingsFileTests
         var file = $$"""
             { "version": 2, "overlays": [
               { "name": "{{spanish.Of(NameText.Taskbar)}} 2", "style": { "preset": "custom", "label": { "size": 10, "weight": "regular" } },
-                "items": [ { "name": "{{spanish.Of(MetricName.CpuTemperature)}}", "metric": "cpu.temperature" } ] },
+                "items": [ { "name": "{{spanish.Of(MetricName.CpuTemperature)}}", "metric": "cpu.temperature" },
+                  { "metric": "ram.used", "meter": { "metric": "ram.load" }, "threshold": { "warning": 69, "critical": 80 } } ] },
               { "name": "{{Texts.English.Of(SnapSpot.TaskbarRight)}}",
                 "style": { "preset": "custom", "label": { "size": 10, "weight": "regular" }, "value": { "size": 16, "weight": "bold" } } } ] }
             """;
@@ -182,6 +183,9 @@ public sealed class SettingsFileTests
         Assert.All(ItemNames(other), Assert.Null);
         Assert.Equal([StylePreset.Standard, StylePreset.Custom], other.Overlays.Select(overlay => overlay.Style.Preset));
         Assert.Equal(StylePresets.Of(StylePreset.Standard).Label, StylePresets.Text(other.Overlays[1].Style).Label);
+
+        // QA r4 (R4-04): a warning nudged under 0.1's critical line goes with it, as a new RAM item starts without lines.
+        Assert.Null(other.Overlays[0].Items[1].Threshold);
     }
 
     [Fact]

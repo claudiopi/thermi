@@ -89,10 +89,10 @@ public enum UndoText
     /// <summary>After an undo of a step that has no value to name.</summary>
     Undone,
 
-    /// <summary>After a redo, a field that holds its value again.</summary>
+    /// <summary>After a redo, a field set to the value the step gave it, told as the change and not as a way back.</summary>
     RedoneTo,
 
-    /// <summary>After a redo, a switch that is on or off again.</summary>
+    /// <summary>After a redo, a switch on or off as the step left it.</summary>
     RedoneAgain,
 
     /// <summary>After a redo of a step that has no value to name.</summary>

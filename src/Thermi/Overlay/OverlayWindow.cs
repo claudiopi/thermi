@@ -191,8 +191,7 @@ internal sealed class OverlayWindow : IDisposable
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
-        var row = scene.Row(_index, () => shown.SensorsStopped ? bitmap.Width : TaskbarRoom.Width(_painter, items, look, scale, bitmap.Width),
-            _actions.RequestPaint);
+        var row = scene.Row(_index, () => bitmap.Width, _actions.RequestPaint);
         var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, row) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown);

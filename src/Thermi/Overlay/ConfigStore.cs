@@ -85,7 +85,8 @@ internal sealed class ConfigStore : IDisposable
 
     /// <summary>
     /// The settings in the file, or the defaults and why it cannot be used. A file still missing once the retry is over
-    /// is created with the defaults, so there is something to edit.
+    /// is created with the defaults, so there is something to edit; one of an earlier version is written in this one,
+    /// the old file kept beside it, so an editor opens what the window shows.
     /// </summary>
     public async Task<ConfigRead> ReadAsync()
     {
@@ -95,7 +96,11 @@ internal sealed class ConfigStore : IDisposable
             return new ConfigRead(created, null, Outside: false);
         }
 
-        return ReadOf(found.Kind == Found.Missing ? Peek() : found);
+        var read = ReadOf(found.Kind == Found.Missing ? Peek() : found);
+        return read.Problem is null && found.Kind == Found.Whole && ThermiConfigJson.VersionOf(found.Text) < ThermiConfig.CurrentVersion
+            && (await WriteAsync(Upgraded, settled: false).ConfigureAwait(false)).Config is { } upgraded
+            ? read with { Config = upgraded }
+            : read;
     }
 
     /// <summary>The settings in the file as <see cref="ReadAsync"/> gives them, or the defaults when it is missing, which is left missing.</summary>
@@ -117,6 +122,16 @@ internal sealed class ConfigStore : IDisposable
     public void Dispose() => _mutex.Dispose();
 
     private static Plan Create(Look found) => new(found.Kind == Found.Missing ? new ThermiConfig() : null);
+
+    // Another process may have written the file in this version first, or broken it since: then it is left as it is.
+    private static Plan Upgraded(Look found)
+    {
+        var version = found.Kind == Found.Whole ? ThermiConfigJson.VersionOf(found.Text) : null;
+        var (config, problem) = ThermiConfigJson.Read(found.Text);
+        return version < ThermiConfig.CurrentVersion && problem is null
+            ? new Plan(config, Aside: string.Create(CultureInfo.InvariantCulture, $"v{version}"))
+            : new Plan(null, new ConfigWrite(WriteOutcome.Good, problem is null ? config : null));
+    }
 
     private static Plan Changed(Look found, Func<ThermiConfig, ThermiConfig> change)
     {
@@ -145,7 +160,7 @@ internal sealed class ConfigStore : IDisposable
 
         return found.Kind == Found.Whole && Parsed(found.Text) is { Problem: null } read
             ? new Plan(null, new ConfigWrite(WriteOutcome.Good, read.Config))
-            : new Plan(good, Keep: true);
+            : new Plan(good, Aside: "broken");
     }
 
     private async Task<Look> SettledAsync()
@@ -205,7 +220,7 @@ internal sealed class ConfigStore : IDisposable
             }
 
             var decided = plan(found);
-            return (decided.Next is { } next ? Commit(next, decided.Keep) : decided.Instead ?? Again, false);
+            return (decided.Next is { } next ? Commit(next, decided.Aside) : decided.Instead ?? Again, false);
         }
         finally
         {
@@ -227,7 +242,7 @@ internal sealed class ConfigStore : IDisposable
     }
 
     // A write that fails takes its copy of the file back, so a restore retried once a second never piles up copies.
-    private ConfigWrite Commit(ThermiConfig next, bool keep)
+    private ConfigWrite Commit(ThermiConfig next, string? aside)
     {
         var text = ThermiConfigJson.Write(next);
         var temporary = $"{FilePath}.{Guid.NewGuid():N}{Temporary}";
@@ -235,9 +250,9 @@ internal sealed class ConfigStore : IDisposable
         try
         {
             Directory.CreateDirectory(Folder);
-            if (keep)
+            if (aside is not null)
             {
-                kept = CopyAside();
+                kept = CopyAside(aside);
             }
 
             File.WriteAllText(temporary, text);
@@ -258,9 +273,9 @@ internal sealed class ConfigStore : IDisposable
     }
 
     // The copy is thermi's own, so a read-only file's is made writable, or a failed write could not take it back.
-    private string CopyAside()
+    private string CopyAside(string aside)
     {
-        var kept = KeptName();
+        var kept = KeptName(aside);
         File.Copy(FilePath, kept);
         File.SetAttributes(kept, File.GetAttributes(kept) & ~FileAttributes.ReadOnly);
         return kept;
@@ -309,10 +324,10 @@ internal sealed class ConfigStore : IDisposable
         }
     }
 
-    private string KeptName()
+    private string KeptName(string aside)
     {
         var stamp = _time.GetLocalNow().ToString("yyyy-MM-dd-HHmmss", CultureInfo.InvariantCulture);
-        var stem = Path.Combine(Folder, $"{Path.GetFileNameWithoutExtension(FilePath)}.broken-{stamp}");
+        var stem = Path.Combine(Folder, $"{Path.GetFileNameWithoutExtension(FilePath)}.{aside}-{stamp}");
         var extension = Path.GetExtension(FilePath);
         var name = stem + extension;
         var repeat = 1;
@@ -364,5 +379,5 @@ internal sealed class ConfigStore : IDisposable
     private readonly record struct Look(Found Kind, string Text, Exception? Lock = null);
 
     /// <summary>What a write puts in place, keeping the file it found beside it, or what it gives instead of writing.</summary>
-    private sealed record Plan(ThermiConfig? Next, ConfigWrite? Instead = null, bool Keep = false);
+    private sealed record Plan(ThermiConfig? Next, ConfigWrite? Instead = null, string? Aside = null);
 }

@@ -13,6 +13,8 @@ const sensors = [
   sensor('load', 'Load'),
   sensor('gpuload', 'Load', 'GpuNvidia', 'RTX'),
   sensor('ethernet', 'Throughput', 'Network', 'Ethernet'),
+  sensor('ramused', 'Data', 'Memory', 'Memory'),
+  sensor('read', 'Data', 'Storage', 'SSD'),
 ];
 
 function view(shows: Partial<ItemView>): WindowView {
@@ -78,6 +80,15 @@ describe('the item page', () => {
       item: { id: 'cpu', sensor: 'load' },
       shows: { type: 'Load' },
       choices: [each('UiText.SensorOn load name Ryzen', 'load', ''), each('UiText.SensorOn gpuload name RTX', 'gpuload', '', 'RTX')],
+    },
+    // An amount of data is offered from the item's own kind of device alone: the RAM in use is no drive's data read.
+    {
+      item: { id: 'cpu', metric: 'ram.used' },
+      shows: { auto: 'ramused', type: 'Data' },
+      choices: [
+        { value: '', text: 'UiText.AutoFollows ramused name', shown: 'ramused name', aside: '' },
+        each('UiText.SensorOn ramused name Memory', 'ramused', '', 'Memory'),
+      ],
     },
     // The item's own device first: a GPU's load lists the GPU's sensors before the CPU's.
     {

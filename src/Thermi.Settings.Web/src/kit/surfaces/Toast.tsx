@@ -9,7 +9,7 @@ export interface ToastProps {
   actions?: ReactNode;
   /** Whether the pointer or the focus is on it, which holds it there until they leave. */
   onHold?: (held: boolean) => void;
-  /** Where its room is, which the page around it gives up while it shows. */
+  /** Where it floats, over the page, which keeps the focused control clear of it. */
   className?: string;
 }
 
@@ -38,8 +38,8 @@ const useStyles = makeStyles({
 });
 
 /**
- * Passing news in a room of its own at the foot of the window, under any dialog, which covers nothing and takes no
- * focus; the control that has it stays in view as the room opens.
+ * Passing news floating at the foot of the page, under any dialog, which moves nothing and takes no focus; the control
+ * that has the focus is scrolled clear of it as it comes.
  */
 export function Toast({ message, actions, onHold, className }: ToastProps) {
   const styles = useStyles();

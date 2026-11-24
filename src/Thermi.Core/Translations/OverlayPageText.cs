@@ -98,6 +98,9 @@ public enum OverlayPageText
     /// <summary>A spot of the map: the spot, then its display's number.</summary>
     SpotOnMonitor,
 
+    /// <summary>A taskbar spot of the map where the overlay has no room beside the app buttons: the spot as named.</summary>
+    SpotNoRoom,
+
     /// <summary>Why a top spot sits lower than the corner.</summary>
     TopSpotHint,
 

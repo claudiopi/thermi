@@ -64,7 +64,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public event EventHandler<WindowChangeEventArgs>? Changed;
 
-    public event EventHandler? Readings;
+    public event EventHandler<WindowReadingsEventArgs>? Readings;
 
     public event EventHandler<DesktopPickEventArgs>? Picked;
 
@@ -97,9 +97,9 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             Recrowd();
             Changed?.Invoke(this, new WindowChangeEventArgs(sensors: true));
         }
-        else
+        else if (Readings is { } readings)
         {
-            Readings?.Invoke(this, EventArgs.Empty);
+            readings(this, new WindowReadingsEventArgs(_views.View(_texts), StatusNow()));
         }
     }
 
@@ -171,14 +171,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<Undone?> Redo() => Task.FromResult(TakeBack(_editor.RedoName, _editor.Redo, redo: true));
 
-    public Task<WindowStatus> Status() => Ready(() => WindowFacts.Status(
-        _editor.Config,
-        _start.Environment.Sensors.State,
-        _start.Environment.Sensors.Latest,
-        _looks.AnySaved,
-        _watch.Hotkeys,
-        _editor.Problem,
-        _views.Format(_texts)));
+    public Task<WindowStatus> Status() => Ready(StatusNow);
 
     public Task<UndoSteps> Steps() => Task.FromResult(WindowFacts.Steps(_editor.UndoName, _editor.RedoName, _views.Format(_texts)));
 
@@ -217,6 +210,9 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             Snaps.Floats(screen)))]);
 
     public Task<IReadOnlyList<int>> Crowded() => Ready(() => _crowded);
+
+    public Task<IReadOnlyList<SnapConfig>> Roomless(int overlay) => Ready(() => TaskbarRoom.Roomless(
+        _painter, _apps, _editor.Config, overlay, _start.Environment.Sensors.Latest, _start.Environment.Screens()));
 
     public Task Report(string error)
     {
@@ -329,6 +325,15 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     // What reads the readings waits for the first ones, as PageWatch says.
     private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);
+
+    private WindowStatus StatusNow() => WindowFacts.Status(
+        _editor.Config,
+        _start.Environment.Sensors.State,
+        _start.Environment.Sensors.Latest,
+        _looks.AnySaved,
+        _watch.Hotkeys,
+        _editor.Problem,
+        _views.Format(_texts));
 
     // An undo or a redo, named before it runs, and what it changed back once it did; null when it changed nothing.
     private Undone? TakeBack(StepName? name, Func<UndoResult?> take, bool redo = false)

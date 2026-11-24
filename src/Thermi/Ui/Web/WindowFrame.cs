@@ -139,16 +139,26 @@ internal static class WindowFrame
             + PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, dpi);
     }
 
-    /// <summary>Above thermi's overlays, which are topmost, while the window is active; among other windows while it is not.</summary>
-    public static void Above(HWND window, bool active) =>
-        PInvoke.SetWindowPos(
-            window,
-            active ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST,
-            0,
-            0,
-            0,
-            0,
-            SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+    /// <summary>
+    /// Above thermi's overlays, which are topmost, while the window is <paramref name="front"/>; once another window
+    /// takes the front, just below that one. Leaving the topmost band any other way puts the window at the top of the
+    /// others, over the app the user just switched to.
+    /// </summary>
+    public static void Above(HWND window, HWND front)
+    {
+        const SET_WINDOW_POS_FLAGS Flags = SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE;
+        if (front == window)
+        {
+            PInvoke.SetWindowPos(window, HWND.HWND_TOPMOST, 0, 0, 0, 0, Flags);
+        }
+        else if (Topmost(window))
+        {
+            PInvoke.SetWindowPos(window, front.IsNull || Topmost(front) ? HWND.HWND_NOTOPMOST : front, 0, 0, 0, 0, Flags);
+        }
+    }
+
+    private static bool Topmost(HWND window) =>
+        ((WINDOW_EX_STYLE)PInvoke.GetWindowLongPtr(window, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE)).HasFlag(WINDOW_EX_STYLE.WS_EX_TOPMOST);
 
     /// <summary>The first child window, where WebView2 shows the page.</summary>
     public static HWND PageWindow(HWND window) => PInvoke.GetWindow(window, GET_WINDOW_CMD.GW_CHILD);

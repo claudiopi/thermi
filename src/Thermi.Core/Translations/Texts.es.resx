@@ -186,6 +186,9 @@
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Se muestra: {0}</value>
   </data>
+  <data name="CatalogText.ShownOn" xml:space="preserve">
+    <value>{0} en {1}</value>
+  </data>
   <data name="CatalogText.GroupNetwork" xml:space="preserve">
     <value>Red</value>
   </data>
@@ -582,6 +585,9 @@
   <data name="OverlayPageText.SpotOnMonitor" xml:space="preserve">
     <value>{0}, pantalla {1}</value>
   </data>
+  <data name="OverlayPageText.SpotNoRoom" xml:space="preserve">
+    <value>{0}, sin lugar junto a las apps</value>
+  </data>
   <data name="OverlayPageText.TopSpotHint" xml:space="preserve">
     <value>Más abajo, para no tapar nunca los botones de las ventanas.</value>
   </data>
@@ -710,9 +716,6 @@
   </data>
   <data name="UiText.NewOverlay" xml:space="preserve">
     <value>Superposición nueva</value>
-  </data>
-  <data name="UiText.ExitThermi" xml:space="preserve">
-    <value>Salir de thermi y cerrar sus superposiciones</value>
   </data>
   <data name="UiText.PillName" xml:space="preserve">
     <value>píldora {0}</value>
@@ -1675,10 +1678,10 @@
     <value>Deshecho: {0}.</value>
   </data>
   <data name="UndoText.RedoneTo" xml:space="preserve">
-    <value>Rehecho: {0} vuelve a {1}.</value>
+    <value>Rehecho: {0} a {1}.</value>
   </data>
   <data name="UndoText.RedoneAgain" xml:space="preserve">
-    <value>Rehecho: {0} vuelve a estar en {1}.</value>
+    <value>Rehecho: {0} queda en {1}.</value>
   </data>
   <data name="UndoText.Redone" xml:space="preserve">
     <value>Rehecho: {0}.</value>

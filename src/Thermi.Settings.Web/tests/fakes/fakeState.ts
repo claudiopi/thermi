@@ -76,6 +76,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     hotkeysResting: false,
     crowded: [],
     crowdedWithoutLabels: [],
+    roomless: [],
     finder: { phase: 'idle', pick: null },
     finderPick: null,
     texts: texts(),

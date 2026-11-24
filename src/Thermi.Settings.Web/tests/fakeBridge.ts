@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import type { DesktopPick, Edit, FakeState, Item, OracleCall, Overlay, Settings, Undone, UndoSteps } from './bridgeTypes';
+import type { DesktopPick, Edit, FakeState, Item, OracleCall, Overlay, Settings, Undone, UndoSteps, WindowReadings } from './bridgeTypes';
 import { installFakeCatalog } from './fakes/fakeCatalog';
 import { installFakeLooks } from './fakes/fakeLooks';
 import { fakeState } from './fakes/fakeState';
@@ -22,7 +22,7 @@ export * from './pageChecks';
 function installFake(initial: FakeState): void {
   const state = initial;
   const listeners: ((change: { sensors: boolean }) => void)[] = [];
-  const readingListeners: (() => void)[] = [];
+  const readingListeners: ((readings: WindowReadings) => void)[] = [];
   const pickers: ((pick: DesktopPick) => void)[] = [];
   // A listener, kept until the page takes it back, as the host's script keeps it.
   const listen = <T>(list: T[], listener: T): (() => void) => {
@@ -66,7 +66,13 @@ function installFake(initial: FakeState): void {
       const readings = Object.keys(change).every((key) => key === 'sensors') && change.sensors !== undefined && ids(change.sensors) === ids(state.sensors);
       Object.assign(state, change);
       if (readings) {
-        readingListeners.forEach((listener) => listener());
+        // With the view and the status they give, as C# sends them.
+        const bridge = window.thermi;
+        void Promise.all([bridge?.view(), bridge?.status()]).then(([view, status]) => {
+          if (view !== undefined && status !== undefined) {
+            readingListeners.forEach((listener) => listener({ view, status }));
+          }
+        });
       } else {
         changed('sensors' in change || 'service' in change);
       }
@@ -116,6 +122,7 @@ function installFake(initial: FakeState): void {
       state.settings.overlays.flatMap((one, overlay) =>
         state.crowdedWithoutLabels.includes(overlay) || (state.crowded.includes(overlay) && one.style?.noLabels !== true) ? [overlay] : [],
       ),
+    roomless: async () => state.roomless,
     looks: async () => state.looks,
     saveLook: async (overlay, name) => (await ask('saveLook', overlay, name)) as string | null,
     renameLook: async (name, to) => (await ask('renameLook', name, to)) as string | null,

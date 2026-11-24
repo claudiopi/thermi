@@ -1,6 +1,6 @@
 // What the page's tests fake behind the bridge, whose shapes the build generates from the C# side.
 
-import type { DesktopPick, FinderView, Language, Monitor, Overlay, Problem, Sensor, Service, Settings, Style, UndoSteps } from '../src/bridge/bridge.g';
+import type { DesktopPick, FinderView, Language, Monitor, Overlay, Problem, Sensor, Service, Settings, Snap, Style, UndoSteps } from '../src/bridge/bridge.g';
 
 export type * from '../src/bridge/bridge.g';
 
@@ -31,6 +31,8 @@ export interface FakeState {
   crowded: number[];
   /** The overlays that do not fit beside the taskbar's apps even without their labels. */
   crowdedWithoutLabels: number[];
+  /** The taskbar spots where the overlays would have no room beside the apps, the same for each. */
+  roomless: Snap[];
   finder: FinderView;
   finderPick: string | null;
   texts: Record<string, string>;

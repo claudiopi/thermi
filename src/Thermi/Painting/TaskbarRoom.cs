@@ -9,25 +9,13 @@ using Thermi.Windows;
 namespace Thermi.Painting;
 
 /// <summary>
-/// How much of a taskbar's row an overlay keeps, its labels and each value's widest form measured as the painter draws
-/// them, and which overlays the rows beside the app buttons, which UI Automation reads, have no room for. One without
-/// room sits just off the taskbar, and the window says so.
+/// Which overlays the rows beside the app buttons, which UI Automation reads, have no room for, each keeping the width the
+/// painter draws it at, its values at their widest forms. One without room sits just off the taskbar, and the window
+/// says so.
 /// </summary>
 internal static class TaskbarRoom
 {
     private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
-
-    /// <summary>
-    /// The width <paramref name="items"/>, drawn in <paramref name="look"/> at <paramref name="scale"/>, keep on a taskbar,
-    /// never less than the <paramref name="shown"/> width they are drawn at now.
-    /// </summary>
-    public static int Width(Painter painter, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, int shown)
-    {
-        // Each pill's own padding is room the items cannot take.
-        var (padding, gap) = Painter.Spacing(scale);
-        var pills = OverlayLayout.Groups(items, look.Layout).Count;
-        return Math.Max(shown, (int)Math.Ceiling(TaskbarFit.Width(painter.Measure(items, look, scale), gap) + (pills * padding)));
-    }
 
     /// <summary>The window's question: the overlays that, as they show now, have no room on their taskbar.</summary>
     public static IReadOnlyList<int> Crowded(Painter painter, TaskbarApps apps, ThermiConfig config, Snapshot? snapshot, IReadOnlyList<Screen> screens)
@@ -36,6 +24,34 @@ internal static class TaskbarRoom
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);
         int?[] widths = [.. config.Overlays.Select(overlay => WidthOf(painter, config, overlay, texts, snapshot, read))];
         return [.. Enumerable.Range(0, widths.Length).Where(overlay => TaskbarRow.Place(config.Overlays, overlay, read, widths) is { Left: null })];
+    }
+
+    /// <summary>
+    /// The map's question: the taskbar spots, on every display with a taskbar, where <paramref name="overlay"/> would have
+    /// no room as it shows now, beside the others where they are. The main display's are named without it, as the file does.
+    /// </summary>
+    public static IReadOnlyList<SnapConfig> Roomless(
+        Painter painter,
+        TaskbarApps apps,
+        ThermiConfig config,
+        int overlay,
+        Snapshot? snapshot,
+        IReadOnlyList<Screen> screens)
+    {
+        if (overlay < 0 || overlay >= config.Overlays.Count)
+        {
+            return [];
+        }
+
+        var spots = screens.Where(screen => screen.Taskbar is not null)
+            .SelectMany(screen => new[] { SnapSpot.TaskbarLeft, SnapSpot.TaskbarCenter, SnapSpot.TaskbarRight }
+                .Select(spot => new SnapConfig(spot, screen.Primary ? null : screen.Id)));
+        return [.. spots.Where(snap =>
+        {
+            var there = config.Overlays[overlay] with { Snap = snap, Position = null, Hidden = false };
+            var moved = config with { Overlays = [.. config.Overlays.Select((one, at) => at == overlay ? there : one)] };
+            return Crowded(painter, apps, moved, snapshot, screens).Contains(overlay);
+        })];
     }
 
     // A hidden overlay, or one off the taskbars, keeps no room there.
@@ -49,6 +65,6 @@ internal static class TaskbarRoom
         var readings = snapshot is null ? NoReadings : SensorMap.Read(snapshot, overlay);
         var items = OverlayLayout.Build(overlay, readings, CultureInfo.CurrentCulture, texts, config.Temperature);
         var look = OverlayLook.Of(overlay.Style, Desktop.LightTaskbar());
-        return items.Count == 0 ? null : Width(painter, items, look, (float)(screen.Scale * overlay.Size), 0);
+        return items.Count == 0 ? null : painter.Width(items, look, (float)(screen.Scale * overlay.Size));
     }
 }

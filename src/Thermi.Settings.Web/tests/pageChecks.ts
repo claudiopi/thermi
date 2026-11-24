@@ -243,14 +243,12 @@ export async function layoutFaults(page: Page): Promise<string[]> {
       }
       main.scrollTop = before;
     }
-    // Passing news never covers a control: the window's toast, outside the pane, makes its own room.
+    // Passing news floats over the pane, but never over the control that has the focus, the one just edited.
     const toasts = [...document.querySelectorAll<HTMLElement>('[role="status"] > *')].filter((one) => one.closest('main') === null && one.checkVisibility());
     for (const toast of toasts) {
       const over = toast.getBoundingClientRect();
-      const page = controls.filter(
-        (one) => !toast.contains(one) && one.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') === null,
-      );
-      for (const control of page) {
+      const focused = controls.filter((one) => !toast.contains(one) && one.contains(document.activeElement));
+      for (const control of focused) {
         const part = seen(control);
         if (Math.min(part.right, over.right) - Math.max(part.left, over.left) > 1 && Math.min(part.bottom, over.bottom) - Math.max(part.top, over.top) > 1) {
           faults.push(`under the toast: ${named(control)}`);

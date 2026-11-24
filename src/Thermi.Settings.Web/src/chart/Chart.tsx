@@ -22,6 +22,9 @@ const names = { warning: 'UiText.WarningFrom', critical: 'UiText.CriticalFrom' }
 const adds = { warning: 'UiText.AddWarningLine', critical: 'UiText.AddCriticalLine' } as const;
 const empties = { stopped: 'UiText.ChartSensorsStopped', driver: 'UiText.ChartNeedsDriver', none: 'UiText.ChartNoReadings' } as const;
 
+/** The pane's width from which the item page lays the chart beside its cards. */
+const besideFrom = 864;
+
 /** The chart's width, from its column, and the pane's height, which its own height follows. */
 function useSize(): [RefObject<HTMLDivElement | null>, { width: number; height: number }] {
   const box = useRef<HTMLDivElement>(null);
@@ -34,7 +37,8 @@ function useSize(): [RefObject<HTMLDivElement | null>, { width: number; height: 
     }
     const measure = (): void => {
       const width = element.clientWidth;
-      setSize({ width, height: chartHeight(width, pane.clientHeight) });
+      // The item page lays the chart beside its cards from 864 px of pane on, as item.css says.
+      setSize({ width, height: chartHeight(width, pane.clientHeight, pane.clientWidth >= besideFrom) });
     };
     const observer = new ResizeObserver(measure);
     observer.observe(element);

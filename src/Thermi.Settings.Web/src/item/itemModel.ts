@@ -48,9 +48,13 @@ export function sensorChoices(item: Item, view: WindowView, sensors: readonly Se
         ];
   // The device the item reads first, as a GPU's load lists the GPU's sensors before the CPU's cores.
   const read = item.sensor ?? item.sensors?.[0] ?? shows?.auto;
-  const own = sensors.find((sensor) => sensor.id === read)?.hardware;
+  const reading = sensors.find((sensor) => sensor.id === read);
+  const own = reading?.hardware;
+  // An amount of data means another thing on each kind of device, the RAM in use or what a drive read in all, so it is
+  // offered from the item's own kind alone.
+  const sameKind = (sensor: Sensor): boolean => sensor.type !== 'Data' || reading === undefined || sensor.hardwareType === reading.hardwareType;
   const ofType = sensors
-    .filter((sensor) => sensor.type === shows?.type)
+    .filter((sensor) => sensor.type === shows?.type && sameKind(sensor))
     .sort((one, other) => Number(other.hardware === own) - Number(one.hardware === own));
   return [
     ...autoChoice,

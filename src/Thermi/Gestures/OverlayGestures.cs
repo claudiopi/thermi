@@ -56,11 +56,10 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         // The key's state as it was when the press was sent, which a posted press without a keyboard reads as up.
         var ctrl = PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_CONTROL) < 0;
         var start = new DragStart(held, item, ctrl, on.Box, at, painted.Size, painted.Scale, item is null ? null : () => PillPicture(item, painted));
-        using var painter = new Painter();
         var widths = rowWidths.ToArray();
         if (index < widths.Length)
         {
-            widths[index] = TaskbarRoom.Width(painter, painted.Items, painted.Look, painted.Scale, painted.Size.Width);
+            widths[index] = painted.Size.Width;
         }
 
         Drag = new DesktopDrag(index, settings, start, screens, hwnd, widths);

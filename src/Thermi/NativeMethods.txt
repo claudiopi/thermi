@@ -91,6 +91,7 @@ IDC_SIZENWSE
 SetCapture
 ReleaseCapture
 GetCursorPos
+GetMessagePos
 GetKeyState
 VIRTUAL_KEY
 GetStockObject

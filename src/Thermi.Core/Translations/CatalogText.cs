@@ -52,6 +52,9 @@ public enum CatalogText
     /// <summary>Under a catalog row: the items that already show it.</summary>
     ShownAs,
 
+    /// <summary>One of those items, with more than one overlay: its name and its overlay's.</summary>
+    ShownOn,
+
     /// <summary>The group a network adapter lists under, before its name.</summary>
     GroupNetwork,
 

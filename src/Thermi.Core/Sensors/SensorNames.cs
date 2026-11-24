@@ -83,12 +83,13 @@ public static class SensorNames
         _ => null,
     };
 
-    // The library names a fan's duty as the fan, so its name says it is the duty, never reading as the fan itself.
+    // The library names a fan's duty as the fan, so its name says it is the duty, never reading as the fan itself; its
+    // "GPU Fan" then reads "GPU fan duty", in thermi's case, as the CPU fan's does.
     private static string LikelyOf(RawSensor sensor, LikelyName likely, Texts texts) => DutyOf(sensor, texts.Of(likely), texts);
 
     private static string DutyOf(RawSensor sensor, string name, Texts texts) =>
         SensorMap.KindOf(sensor) == SensorKind.Control && !name.Contains("Control", StringComparison.OrdinalIgnoreCase)
-            ? texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, name) : name;
+            ? texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, name.Replace(" Fan", " fan", StringComparison.Ordinal)) : name;
 
     /// <summary>The snapshot's sensors as the window names them everywhere: the user's name, else the probable one, else the library's.</summary>
     public static IEnumerable<RawSensor> Named(Snapshot snapshot, IReadOnlyDictionary<string, string>? own, Texts texts) =>

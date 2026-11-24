@@ -422,6 +422,16 @@
   box-shadow: 0 0 0 3px var(--t-accent-soft);
 }
 
+/* A taskbar spot without room beside the app buttons: dashed, the overlay would sit just off the taskbar there (R143). */
+.t-spot.t-tight {
+  border-style: dashed;
+  border-color: var(--thermi-warning);
+}
+
+.t-spot.t-on.t-tight {
+  box-shadow: 0 0 0 3px var(--t-accent-soft), 0 0 0 4.5px var(--thermi-warning);
+}
+
 /* A hidden overlay's spot, dimmed: it sits there, but shows only in the window. */
 .t-spot.t-on.t-hidden {
   opacity: 0.4;

@@ -235,10 +235,11 @@ internal sealed class WebWindow : IDisposable
             // A click that activates the window rises it once the click is through: moved in the z-order while the
             // click is on its way, the page's child window can lose it, and the button clicked does not answer.
             case PInvoke.WM_ACTIVATE when (wParam.Value & 0xFFFF) == ClickActive:
-                _turn.Post(() => WindowFrame.Above(hwnd, PInvoke.GetForegroundWindow() == hwnd));
+                _turn.Post(() => WindowFrame.Above(hwnd, PInvoke.GetForegroundWindow()));
                 return null;
+            // Deactivated, lParam is the window taking the front, when Windows names it.
             case PInvoke.WM_ACTIVATE:
-                WindowFrame.Above(hwnd, (wParam.Value & 0xFFFF) != 0);
+                WindowFrame.Above(hwnd, (wParam.Value & 0xFFFF) != 0 ? hwnd : lParam.Value != 0 ? (HWND)lParam.Value : PInvoke.GetForegroundWindow());
                 return null;
             case PInvoke.WM_SETTINGCHANGE:
                 WindowFrame.Follow(hwnd);

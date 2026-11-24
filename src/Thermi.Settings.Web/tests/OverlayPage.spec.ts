@@ -202,6 +202,16 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
     await page.close();
   });
 
+  await test.step('a taskbar spot without room says so', async () => {
+    const page = await windowWith(context, fakeState({ roomless: [{ spot: 'taskbar-left' }] }));
+    await select(page, 'Taskbar');
+    const map = page.getByRole('radiogroup', { name: text('UiText.MonitorMap') });
+    const left = text('OverlayPageText.SpotOnMonitor', text('SnapSpot.TaskbarLeft'), 1);
+    await expect(map.getByRole('radio', { name: text('OverlayPageText.SpotNoRoom', left), exact: true })).toHaveCount(1);
+    await expect(mapSpot(page, 'SnapSpot.TaskbarRight', 1)).toHaveCount(1);
+    await page.close();
+  });
+
   await test.step('the switches and When to show', async () => {
     const page = await windowWith(context, fakeState({ crowded: [0] }));
     await select(page, 'Taskbar');

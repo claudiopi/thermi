@@ -3,7 +3,6 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
 using Thermi.Core.Look;
-using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 
 namespace Thermi.Painting;
@@ -72,14 +71,31 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         [.. OverlayLayout.Groups(items, look.Layout, look.Labels)
             .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale))];
 
-    private Bitmap Painted(List<Pill> pills, OverlayLook look, float scale, Func<string, double>? glow, bool mark)
+    /// <summary>
+    /// The width <see cref="Paint"/> draws the items at, without drawing them: each value keeps the room of its widest
+    /// form, so this is the room the overlay keeps on a taskbar however its numbers change.
+    /// </summary>
+    public int Width(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale)
+    {
+        var fonts = FontsFor(look, scale);
+        using var measure = Graphics.FromHwnd(0);
+        return SizeOf(PillsOf(items, look, scale, fonts, measure), look, scale).Width;
+    }
+
+    private static (int Width, int Height, Arrangement Arranged) SizeOf(List<Pill> pills, OverlayLook look, float scale)
     {
         var height = Math.Ceiling(Height * scale);
         var arranged = look.Arrange([.. pills.Select(pill => (double)pill.Width)], height, scale);
-        Bitmap? bitmap = Canvas(Math.Max((int)height, (int)Math.Ceiling(arranged.Width)), Math.Max((int)height, (int)Math.Ceiling(arranged.Height)));
+        return (Math.Max((int)height, (int)Math.Ceiling(arranged.Width)), Math.Max((int)height, (int)Math.Ceiling(arranged.Height)), arranged);
+    }
+
+    private Bitmap Painted(List<Pill> pills, OverlayLook look, float scale, Func<string, double>? glow, bool mark)
+    {
+        var size = SizeOf(pills, look, scale);
+        var bitmap = Canvas(size.Width, size.Height);
         try
         {
-            var boxes = arranged.Pills.Select(box => new RectangleF((float)box.Left, (float)box.Top, (float)box.Width, (float)box.Height)).ToList();
+            var boxes = size.Arranged.Pills.Select(box => new RectangleF((float)box.Left, (float)box.Top, (float)box.Width, (float)box.Height)).ToList();
             DrawPills(bitmap, boxes, look, scale);
 
             // The stopped pill's place goes first, as its tooltip does.
@@ -90,14 +106,13 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             }
 
             Alpha.Scale(bitmap, look.Opacity);
-            var painted = bitmap;
-            bitmap = null;
-            return painted;
+            return bitmap;
         }
-        finally
+        catch
         {
-            _canvas = bitmap is not null && bitmap == _canvas ? null : _canvas;
-            bitmap?.Dispose();
+            _canvas = bitmap == _canvas ? null : _canvas;
+            bitmap.Dispose();
+            throw;
         }
     }
 
@@ -176,22 +191,6 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         _fonts = new PainterFonts(look.Font, look.Label, look.Value, scale);
         return _fonts;
     }
-
-    /// <summary>
-    /// Each item as the taskbar's fit measures it, in pixels at <paramref name="scale"/>: its label with the gap after it,
-    /// 0 without one or while the look shows no labels, and its value at its widest form, its graph included.
-    /// </summary>
-    public IReadOnlyList<FitItem> Measure(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale)
-    {
-        var fonts = FontsFor(look, scale);
-        using var measure = Graphics.FromHwnd(0);
-        return [.. items.Select(item => new FitItem(
-            look.Labels ? LabelWidth(measure, fonts, item, scale) * scale : 0,
-            ValueWidth(measure, fonts, item, scale) * scale))];
-    }
-
-    /// <summary>What a pill adds around its items, and what lies between two items, in pixels at <paramref name="scale"/>.</summary>
-    public static (double Padding, double Gap) Spacing(float scale) => ((PainterShapes.OuterPadding + InnerPadding) * 2 * scale, ItemGap * scale);
 
     // In unscaled pixels.
     private static float ItemWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale) =>

@@ -26,6 +26,9 @@
     <AppHostDotNetSearch>Global</AppHostDotNetSearch>
     <StartupHookSupport>false</StartupHookSupport>
     <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
+    <!-- Profiling the hot code of a program that wakes once a second costs more than it gains: without it, the overlay's
+         first minute and the window's measured about half as much CPU, and no more once settled. -->
+    <TieredPGO>false</TieredPGO>
   </PropertyGroup>
 
   <ItemGroup>
