@@ -159,7 +159,9 @@ public sealed class UndoTests
         var undone = history.Undo(byHand)!;
 
         Assert.Equal(File(new ThermiConfig()), File(new ThermiConfig { Overlays = reset.Overlays }));
-        Assert.Equal((Everything.Language, Everything.Hotkeys, Everything.Temperature), (reset.Language, reset.Hotkeys, reset.Temperature));
+        Assert.Equal(
+            (Everything.Language, Everything.Hotkeys, Everything.Temperature, Everything.WindowTheme),
+            (reset.Language, reset.Hotkeys, reset.Temperature, reset.WindowTheme));
         Assert.Equal(File(WithOverlay(Everything, 0, overlay => overlay with { Size = 1.5 })), File(undone.Config));
         Assert.Equal(1, undone.Skipped);
     }
@@ -208,6 +210,12 @@ public sealed class UndoTests
             (config => OverlayEdits.SetHidden(config, 0, hidden: true), ChangedField.Hidden, null, null, null),
             (OverlayEdits.Add, ChangedField.OverlayAdded, null, null, null),
             (config => ThermiEdits.SetTemperature(config, TemperatureUnit.Fahrenheit), ChangedField.TemperatureUnit, null, null, null),
+            (
+                config => ThermiEdits.SetWindowTheme(config, WindowTheme.Dark),
+                ChangedField.WindowTheme,
+                Texts.English.Of(WindowTheme.System),
+                Texts.English.Of(WindowTheme.Dark),
+                Texts.English.Of(WindowTheme.System)),
 
             // Cold review 4 (Q10): a choice is named by its words, so an undo says which it went back to.
             (

@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Thermi.Core.Settings;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.LibraryLoader;
@@ -6,9 +7,9 @@ using Windows.Win32.System.LibraryLoader;
 namespace Thermi.Windows;
 
 /// <summary>
-/// Windows' light or dark mode for apps, which the settings window's caption and thermi's menus take. Windows' own
-/// popup menus turn dark only through uxtheme's preferred app mode, which it exports by ordinal alone, as Explorer and
-/// Windows' inbox apps use it; where those ordinals are missing, the menus stay light.
+/// Windows' light or dark mode for apps, which thermi's menus take, and the settings window unless Settings chose one.
+/// Windows' own popup menus turn dark only through uxtheme's preferred app mode, which it exports by ordinal alone, as
+/// Explorer and Windows' inbox apps use it; where those ordinals are missing, the menus stay light.
 /// </summary>
 internal static class AppMode
 {
@@ -24,6 +25,9 @@ internal static class AppMode
     private const int ForceLight = 3;
 
     public static bool LightApps() => Registry.GetValue(Personalize, "AppsUseLightTheme", 1) is not 0;
+
+    /// <summary>Whether the settings window is dark now, in the theme Settings chose.</summary>
+    public static bool DarkWindow(WindowTheme theme) => WindowThemes.Dark(theme, LightApps(), Desktop.HighContrast() is not null);
 
     /// <summary>The menus this process shows next take the apps' mode now, or the system's colors under high contrast.</summary>
     public static unsafe void FollowInMenus()

@@ -28,6 +28,7 @@ internal static class ConfigFields
         new(ChangedField.Hotkeys, config => config.Hotkeys, (config, value) => config with { Hotkeys = (HotkeysConfig?)value }),
         new(ChangedField.Language, config => config.Language, (config, value) => config with { Language = (string?)value }),
         new(ChangedField.TemperatureUnit, config => config.Temperature, (config, value) => config with { Temperature = (TemperatureUnit)value! }),
+        new(ChangedField.WindowTheme, config => config.WindowTheme, (config, value) => config with { WindowTheme = (WindowTheme)value! }),
         new(
             ChangedField.SensorName,
             config => config.SensorNames,

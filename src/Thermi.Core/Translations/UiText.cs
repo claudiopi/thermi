@@ -145,6 +145,8 @@ public enum UiText
 
     TemperatureField,
 
+    ThemeField,
+
     DuplicateOverlay,
 
     StatField,

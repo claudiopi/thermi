@@ -8,6 +8,7 @@
   },
   "language": "es",
   "temperature": "f",
+  "windowTheme": "dark",
   "sensorNames": {
     "/lpc/it8689e/0/temperature/1": "Chipset"
   },

@@ -1,4 +1,3 @@
-using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Dwm;
@@ -18,9 +17,8 @@ namespace Thermi.Ui.Web;
 internal static class WindowFrame
 {
     /// <summary>
-    /// Mica, the extended frame and the dark or light caption, as Windows' apps are now; false where Windows refused
-    /// Mica, as Windows 10 does, so the page paints its own opaque background. Windows 10's corners stay square, as
-    /// nothing asks it for rounded ones.
+    /// Mica and the extended frame, as Windows' apps are now; false where Windows refused Mica, as Windows 10 does, so the
+    /// page paints its own opaque background. Windows 10's corners stay square, as nothing asks it for rounded ones.
     /// </summary>
     public static unsafe bool Dress(HWND window)
     {
@@ -29,15 +27,14 @@ internal static class WindowFrame
         // The caption buttons are Windows' own drawing over the extended frame, on Windows 10 as on 11.
         var margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
         _ = PInvoke.DwmExtendFrameIntoClientArea(window, &margins);
-        Follow(window);
         return mica;
     }
 
-    /// <summary>Takes the dark or light caption of Windows' apps, again when the user changes it.</summary>
-    public static unsafe void Follow(HWND window)
+    /// <summary>The dark or light caption, which Mica's tint and the caption buttons take too.</summary>
+    public static unsafe void Theme(HWND window, bool dark)
     {
-        BOOL dark = !AppMode.LightApps();
-        _ = PInvoke.DwmSetWindowAttribute(window, DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, (uint)sizeof(BOOL));
+        BOOL on = dark;
+        _ = PInvoke.DwmSetWindowAttribute(window, DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE, &on, (uint)sizeof(BOOL));
     }
 
     /// <summary>

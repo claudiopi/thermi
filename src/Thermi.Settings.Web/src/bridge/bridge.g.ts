@@ -291,6 +291,7 @@ export interface Settings {
   hotkeys?: Hotkeys;
   language?: string;
   temperature?: TemperatureUnit;
+  windowTheme?: WindowTheme;
   sensorNames?: Record<string, string>;
   overlays: Overlay[];
 }
@@ -391,6 +392,8 @@ export interface WindowStatus {
   failed: HotkeyRole[];
   problem: string | null;
 }
+
+export type WindowTheme = 'system' | 'light' | 'dark';
 
 export interface WindowView {
   pills: PillView[][];

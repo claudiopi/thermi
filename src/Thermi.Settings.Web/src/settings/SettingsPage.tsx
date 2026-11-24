@@ -5,6 +5,7 @@ import { Creature } from '../app/Creature';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
 import { Button, Card, CardRow, CardStack, Dialog, Dropdown, LinkButton, Segmented } from '../kit';
+import { enumChoices } from '../overlay/lookModel';
 import { useText } from '../texts/Texts';
 import { HotkeysCard } from './HotkeysCard';
 import './settings.css';
@@ -47,6 +48,16 @@ function General({ data, about }: { data: WindowData; about: About | null }) {
             choices={units}
             value={data.settings.temperature ?? 'c'}
             onChange={(value) => void edit({ kind: 'thermi', field: 'temperature', value })}
+          />
+        </CardRow>
+      </Card>
+      <Card>
+        <CardRow label={t('UiText.ThemeField')}>
+          <Segmented
+            label={t('UiText.ThemeField')}
+            choices={enumChoices(t, 'WindowTheme', ['system', 'light', 'dark'])}
+            value={data.settings.windowTheme ?? 'system'}
+            onChange={(value) => void edit({ kind: 'thermi', field: 'windowTheme', value })}
           />
         </CardRow>
       </Card>

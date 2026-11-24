@@ -63,6 +63,7 @@ public enum ChangedField
     Hotkeys,
     Language,
     TemperatureUnit,
+    WindowTheme,
     SensorName,
     Changes,
 }

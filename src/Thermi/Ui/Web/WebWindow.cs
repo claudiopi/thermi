@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using Thermi.Core.Placement;
+using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Logging;
 using Thermi.Windows;
@@ -37,6 +38,7 @@ internal sealed class WebWindow : IDisposable
     private ExceptionDispatchInfo? _failed;
     private bool _shown;
     private IReadOnlyList<Screen>? _screens;
+    private WindowTheme _theme;
 
     public WebWindow(WindowStart start, WindowTurn turn, WebPage page)
     {
@@ -49,6 +51,8 @@ internal sealed class WebWindow : IDisposable
         Hwnd = TopLevelWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
         _turn.Window = Hwnd;
         _mica = WindowFrame.Dress(Hwnd);
+        _theme = start.Settings.Config.WindowTheme;
+        FollowTheme();
         _place.Restore(Hwnd, start.Settings.Config, start.Environment.Screens());
         _page.Loaded += (_, _) => Show();
         _page.Ended += (_, _) => PageEnded();
@@ -73,6 +77,23 @@ internal sealed class WebWindow : IDisposable
         }
 
         _failed?.Throw();
+    }
+
+    public void Theme(WindowTheme theme)
+    {
+        if (theme != _theme)
+        {
+            _theme = theme;
+            FollowTheme();
+        }
+    }
+
+    // Followed again whenever Windows' mode or high contrast changes, which "Windows" and high contrast take.
+    private void FollowTheme()
+    {
+        var dark = AppMode.DarkWindow(_theme);
+        WindowFrame.Theme(Hwnd, dark);
+        _page.Scheme(dark);
     }
 
     /// <summary>Comes to the front, restored if it was minimized.</summary>
@@ -259,7 +280,7 @@ internal sealed class WebWindow : IDisposable
                 return null;
             case PInvoke.WM_SETTINGCHANGE:
             case PInvoke.WM_DISPLAYCHANGE:
-                Changed(hwnd, message);
+                Changed(message);
                 return null;
             case PInvoke.WM_CLOSE:
                 _place.Keep(hwnd, _start.Environment.Screens());
@@ -275,12 +296,12 @@ internal sealed class WebWindow : IDisposable
     }
 
     // The monitors, their work areas or a setting of Windows changed: the window's limits and frame follow, and the page.
-    private void Changed(HWND hwnd, uint message)
+    private void Changed(uint message)
     {
         _screens = null;
         if (message == PInvoke.WM_SETTINGCHANGE)
         {
-            WindowFrame.Follow(hwnd);
+            FollowTheme();
         }
 
         DesktopChanged();

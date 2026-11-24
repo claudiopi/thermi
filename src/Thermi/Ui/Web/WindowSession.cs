@@ -25,6 +25,7 @@ internal static class WindowSession
             using var window = new WebWindow(start, turn, page);
             bridge.Window = window.Hwnd;
             window.DesktopChanged = bridge.DesktopChanged;
+            editor.Changed += (_, _) => window.Theme(editor.Config.WindowTheme);
             using var link = new OverlayLink(chart, editor, bridge.Pick, bridge.Tell, start.Time);
             bridge.Link = link;
             window.Shown = link.Shown;

@@ -92,12 +92,13 @@ The rest
 - R45. When the sensor service is not running, a bar says "The sensor service stopped. Live values come back as soon as it runs." with "Start it", which asks Windows for administrator rights once; thermi's menu offers "Start sensors" too. The window recovers on its own when the service starts. When the service's data goes stale, the window says so and stops showing live values until fresh data arrives.
 - R47. Every action of the window, of thermi's menu and of the overlays' menus can be done with the keyboard alone, and so can every desktop gesture's result, through the list: Alt+arrows move a floating overlay, "Move to a new overlay" takes an item off, "Merge into" joins overlays, and the Size slider resizes.
 - R48. Narrator reads a name and a role for every control of the window, and its value where it has one: a level in words ("CPU temperature 96 °C, critical"), a color button its color, a shortcut its keys.
-- R49. The window follows Windows' light or dark mode, accent color and high contrast; under high contrast every part of it, the chart and the level marks included, takes the system's colors.
+- R49. The window follows Windows' light or dark mode, unless Settings chose its own (R193), its accent color and high contrast; under high contrast every part of it, the chart and the level marks included, takes the system's colors.
+- R193. Settings' General has "Theme", a segmented choice of "Windows" (the default), "Light" and "Dark", for the window alone: the overlays, their tooltips and thermi's menus keep their own. It applies at once, without reopening, to the whole window: the page, its title row and caption buttons, Mica behind them, and Edge's own scrollbars and controls, and the window's first frame is already in it, never a white flash before a dark page. "Windows" keeps following Windows' mode as it changes. High contrast wins over any choice. Undo takes it back, and Reset keeps it.
 - R50. With animation effects off in Windows, nothing animates.
 - R51. While the window is open and idle, the overlay stays within its budget (spec 001's R9, as `docs/adr/0001-architecture.md` amends it).
 - R191. Open and idle, the window itself and its page's renderer stay under 1 % of one core together: each second's readings draw once, and only what they change, sent with the view and status they give so the page asks C# only for what reads them live, as a chart. Minimized, it draws and reads nothing, and once it shows again it shows the latest readings.
 - R52. A "Start with Windows" switch applies at once and survives a reinstall. It changes Windows, not the settings, so Ctrl+Z does not touch it.
-- R53. "Reset…" asks "Reset to defaults?" in a dialog whose Cancel is the focused accent button. Reset brings back one overlay with the default items, labels, meters, thresholds, placement (with click-through and lock off), size, look and visibility; the language, the hotkeys and the temperature unit stay. Undoing it restores every overlay, item and field that still holds its default.
+- R53. "Reset…" asks "Reset to defaults?" in a dialog whose Cancel is the focused accent button. Reset brings back one overlay with the default items, labels, meters, thresholds, placement (with click-through and lock off), size, look and visibility; the language, the hotkeys, the temperature unit and the window's theme stay. Undoing it restores every overlay, item and field that still holds its default.
 
 Pills
 
@@ -366,6 +367,7 @@ Redo checks the same way. A step that cannot apply is skipped, and the window sa
 - `hotkeys` (optional): `toggle`, `nextStyle`, `clickThrough` and `resetMinMax`, each like `Ctrl+Alt+T`.
 - `language` (optional): a language code, or left out to follow Windows.
 - `temperature` (optional): `c` (the default) or `f`.
+- `windowTheme` (optional): `system` (the default, Windows' own mode), `light` or `dark`, the window's alone.
 - `clickThrough`, `locked` and `oled` (optional, per overlay): true or false, false by default.
 - `color` (optional, per item): the value's own color, as `#RRGGBB`.
 

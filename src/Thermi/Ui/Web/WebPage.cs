@@ -50,6 +50,7 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
     // The window took the keyboard's focus while the page could not, hidden or not loaded yet: it takes it once shown.
     private bool _focus;
     private string? _caption;
+    private bool _dark;
 
     public CoreWebView2Controller? Controller { get; private set; }
 
@@ -74,6 +75,8 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
         Controller.IsVisible = false;
         Controller.DefaultBackgroundColor = Color.Transparent;
         var view = Controller.CoreWebView2;
+        // Before the page loads, so its first frame is already in the window's mode.
+        TellScheme();
         Lock(view.Settings, trace);
         view.AddWebResourceRequestedFilter($"{Origin}/*", CoreWebView2WebResourceContext.All);
         view.WebResourceRequested += (_, e) => e.Response = Serve(view.Environment, e.Request.Uri);
@@ -151,6 +154,24 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
             System.Globalization.CultureInfo.InvariantCulture,
             $"document.documentElement.style.setProperty('--thermi-caption-width','{width}px');");
         TellCaption();
+    }
+
+    /// <summary>
+    /// The window's light or dark mode, which the page's <c>prefers-color-scheme</c> answers, and so Edge's own scrollbars
+    /// and controls too.
+    /// </summary>
+    public void Scheme(bool dark)
+    {
+        _dark = dark;
+        TellScheme();
+    }
+
+    private void TellScheme()
+    {
+        if (Controller is { } controller)
+        {
+            controller.CoreWebView2.Profile.PreferredColorScheme = _dark ? CoreWebView2PreferredColorScheme.Dark : CoreWebView2PreferredColorScheme.Light;
+        }
     }
 
     // Told again each time the page loads: a script run while it navigates may reach the document it leaves.

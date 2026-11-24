@@ -387,6 +387,9 @@
   <data name="UiText.TemperatureField" xml:space="preserve">
     <value>Temperatura</value>
   </data>
+  <data name="UiText.ThemeField" xml:space="preserve">
+    <value>Tema</value>
+  </data>
   <data name="HotkeyText.HotkeyOff" xml:space="preserve">
     <value>Desactivado</value>
   </data>
@@ -960,6 +963,9 @@
   <data name="ChangedField.TemperatureUnit" xml:space="preserve">
     <value>Unidad de temperatura</value>
   </data>
+  <data name="ChangedField.WindowTheme" xml:space="preserve">
+    <value>Tema de la ventana</value>
+  </data>
   <data name="ChangedField.Changes" xml:space="preserve">
     <value>Cambios</value>
   </data>
@@ -1430,6 +1436,15 @@
   </data>
   <data name="PillTheme.Light" xml:space="preserve">
     <value>Claras</value>
+  </data>
+  <data name="WindowTheme.System" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="WindowTheme.Light" xml:space="preserve">
+    <value>Claro</value>
+  </data>
+  <data name="WindowTheme.Dark" xml:space="preserve">
+    <value>Oscuro</value>
   </data>
   <data name="Refusal.NotFound" xml:space="preserve">
     <value>Ese elemento ya no está en la configuración: se cambió fuera de la ventana.</value>

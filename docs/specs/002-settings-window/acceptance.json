@@ -440,9 +440,10 @@
         "R81",
         "R133",
         "R134",
-        "R152"
+        "R152",
+        "R193"
       ],
-      "description": "Given the page with the fake bridge, when the language, the unit and Start with Windows change, a hotkey is recorded, refused, cleared and cancelled, and Reset is asked and cancelled, then the settings hold each change, Start with Windows is outside undo, thermi's hotkeys rest while one records, and Cancel is the destroying dialog's default.",
+      "description": "Given the page with the fake bridge, when the language, the unit, the window's theme and Start with Windows change, a hotkey is recorded, refused, cleared and cancelled, and Reset is asked and cancelled, then the settings hold each change, Start with Windows is outside undo, thermi's hotkeys rest while one records, and Cancel is the destroying dialog's default.",
       "check": "TheSettingsPageChangesThermi",
       "passes": true
     },
@@ -460,7 +461,7 @@
       "covers": [
         "R53"
       ],
-      "description": "Given two overlays with every field changed, when the settings are reset and the reset undone after a hand edit, then one default overlay is left, shown always, the language, hotkeys and unit stay, and undo brings back every field still at its default while the hand edit stays.",
+      "description": "Given two overlays with every field changed, when the settings are reset and the reset undone after a hand edit, then one default overlay is left, shown always, the language, hotkeys, unit and window theme stay, and undo brings back every field still at its default while the hand edit stays.",
       "check": "AResetKeepsLanguageHotkeysAndTheTemperatureUnit",
       "passes": true
     },
@@ -1397,8 +1398,26 @@
         "R43",
         "R90"
       ],
-      "description": "Given the version 5 file with every field, an item metered by its own duty's fan, a graph switched on, a combined item metered by one of its sensors, an item without a meter and the RAM metered by its load, when it is read, then it becomes version 6, the file of version 6 with every field but its first overlay's Graph, each item drawing and warning as it did.",
+      "description": "Given the version 5 file with every field, an item metered by its own duty's fan, a graph switched on, a combined item metered by one of its sensors, an item without a meter and the RAM metered by its load, when it is read, then it becomes version 6, the file of version 6 with every field but its first overlay's Graph and the window's theme, which version 6 brought, each item drawing and warning as it did.",
       "check": "AVersionFiveFileMigratesToVersionSix",
+      "passes": true
+    },
+    {
+      "id": "A319",
+      "covers": [
+        "R193"
+      ],
+      "description": "Given Windows' apps light or dark and high contrast on or off, when the window's theme is Windows, Light or Dark, then the window is dark as chosen, as Windows' apps are for Windows, and as Windows' apps are under high contrast whatever was chosen; the file leaves Windows out.",
+      "check": "TheWindowTakesTheThemeChosenUnlessHighContrastIsOn",
+      "passes": true
+    },
+    {
+      "id": "A320",
+      "covers": [
+        "R193"
+      ],
+      "description": "Given the real window over Windows' dark mode, when Theme is set to Light, Dark and Windows in Settings, and the window is opened again in Light, then each applies at once to the page, the title row, the caption buttons and Mica, and the first frame of the window opened in Light is already light.",
+      "check": "by hand",
       "passes": true
     }
   ]

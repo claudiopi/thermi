@@ -29,6 +29,10 @@ public sealed record ThermiConfig
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public TemperatureUnit Temperature { get; init; }
 
+    /// <summary>The settings window's own light or dark mode, which leaves the overlay's look alone.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public WindowTheme WindowTheme { get; init; }
+
     /// <summary>The names the user gave sensors, by the id an item names each by; null while none has one.</summary>
     public IReadOnlyDictionary<string, string>? SensorNames { get; init; }
 
@@ -218,6 +222,26 @@ public enum TemperatureUnit
 
     [JsonStringEnumMemberName("f")]
     Fahrenheit,
+}
+
+/// <summary>The settings window's mode: Windows' own for apps, the default, or light or dark whatever Windows' is.</summary>
+[Translated]
+[JsonConverter(typeof(ConfigEnum<WindowTheme>))]
+public enum WindowTheme
+{
+    System,
+    Light,
+    Dark,
+}
+
+public static class WindowThemes
+{
+    /// <summary>
+    /// Whether the window is dark: as chosen, or as Windows' apps are for <see cref="WindowTheme.System"/> and under high
+    /// contrast, whose colors win over any choice.
+    /// </summary>
+    public static bool Dark(WindowTheme chosen, bool lightApps, bool highContrast) =>
+        chosen == WindowTheme.System || highContrast ? !lightApps : chosen == WindowTheme.Dark;
 }
 
 [Translated]

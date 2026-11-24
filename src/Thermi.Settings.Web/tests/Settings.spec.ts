@@ -32,6 +32,13 @@ test('TheSettingsPageChangesThermi', async ({ page }) => {
     expect((await fakeOf(page)).startWithWindows).toBe(true);
   });
 
+  await test.step('the window\'s theme', async () => {
+    await pane.getByRole('radio', { name: text('WindowTheme.Dark') }).press('Space');
+    await expect.poll(async () => (await settingsOf(page)).windowTheme).toBe('dark');
+    await page.keyboard.press('Control+Z');
+    await expect.poll(async () => (await settingsOf(page)).windowTheme).toBeUndefined();
+  });
+
   const presses: { name: string; keys: string[]; expected: string | undefined }[] = [
     { name: 'recorded', keys: ['Control+Alt+H'], expected: 'Ctrl+Alt+H' },
     { name: 'refused as a common shortcut', keys: ['Control+C'], expected: 'Ctrl+Alt+H' },

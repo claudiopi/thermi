@@ -73,4 +73,7 @@ public static class ThermiEdits
     /// <summary>Changes only how temperatures show: thresholds and offsets stay in °C.</summary>
     public static EditResult SetTemperature(ThermiConfig config, TemperatureUnit unit) =>
         ConfigEdits.Apply(config, current => current with { Temperature = unit });
+
+    public static EditResult SetWindowTheme(ThermiConfig config, WindowTheme theme) =>
+        ConfigEdits.Apply(config, current => current with { WindowTheme = theme });
 }

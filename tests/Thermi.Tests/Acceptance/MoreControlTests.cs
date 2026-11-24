@@ -51,6 +51,21 @@ public sealed class MoreControlTests
                 Temperatures.Kept(62, TemperatureUnit.Celsius)));
     }
 
+    // The window is light or dark as chosen in Settings, or as Windows' apps are for "Windows", the default the file leaves
+    // out; under high contrast Windows' colors win over any choice.
+    [Theory]
+    [InlineData(WindowTheme.System, false, false, true)]
+    [InlineData(WindowTheme.Light, false, false, false)]
+    [InlineData(WindowTheme.Dark, true, false, true)]
+    [InlineData(WindowTheme.Dark, true, true, false)]
+    public void TheWindowTakesTheThemeChosenUnlessHighContrastIsOn(WindowTheme chosen, bool lightApps, bool highContrast, bool dark)
+    {
+        var config = Done(ThermiEdits.SetWindowTheme(new ThermiConfig(), chosen));
+
+        Assert.Equal(dark, WindowThemes.Dark(config.WindowTheme, lightApps, highContrast));
+        Assert.Equal(chosen != WindowTheme.System, File(config).Contains("\"windowTheme\"", StringComparison.Ordinal));
+    }
+
     // thermi's tooltip gives the hottest value as the overlay shows it, so without its unit; an item's icon keeps its own.
     // Labels off, each pill keeps its items and shows their values alone.
     [Fact]
