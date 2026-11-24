@@ -50,7 +50,7 @@ public static class SwitchHealth
     public static UpdateState Done(UpdateState state, DateTimeOffset now)
     {
         var pending = state.Switch ?? throw new InvalidOperationException("No switch was written down.");
-        var rollback = pending.To < pending.From;
+        var rollback = pending.Back;
         return state with
         {
             Installed = pending.To,
@@ -97,6 +97,18 @@ public static class SwitchHealth
         return Probation(Adopted(state, self), now);
     }
 
+    /// <summary>
+    /// The state once <paramref name="self"/> was installed by hand, from an MSI or a script: the PC runs it, with no
+    /// probation, and a version ready that is not later than it is dropped, or the PC would switch back down to it.
+    /// </summary>
+    public static UpdateState InstalledByHand(UpdateState state, ReleaseVersion self) => state with
+    {
+        Installed = self,
+        Probation = null,
+        Ready = state.Ready > self ? state.Ready : null,
+        ReadyUrgent = state.Ready > self && state.ReadyUrgent,
+    };
+
     /// <summary>The state once the service stopped as asked, which is never a crash.</summary>
     public static UpdateState Stopped(UpdateState state) =>
         state.Probation is { } probation ? state with { Probation = probation with { Stopped = true } } : state;
@@ -113,16 +125,8 @@ public static class SwitchHealth
         return pending.Back ? state with { Switch = null } : Failed(state with { Switch = cut });
     }
 
-    private static UpdateState Adopted(UpdateState state, ReleaseVersion self)
-    {
-        if (state.Installed != self)
-        {
-            // Installed by hand, from an MSI of another version: the PC runs what it runs.
-            return state with { Installed = self, Probation = null, Ready = state.Ready <= self ? null : state.Ready };
-        }
-
-        return state;
-    }
+    // A service that starts as another version than the state says was installed by hand: the PC runs what it runs.
+    private static UpdateState Adopted(UpdateState state, ReleaseVersion self) => state.Installed != self ? InstalledByHand(state, self) : state;
 
     private static (UpdateState State, StartStep Step) Probation(UpdateState state, DateTimeOffset now)
     {

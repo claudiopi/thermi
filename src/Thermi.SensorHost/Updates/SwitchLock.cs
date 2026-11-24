@@ -1,5 +1,4 @@
 using System.Security.AccessControl;
-using System.Security.Principal;
 
 namespace Thermi.SensorHost.Updates;
 
@@ -10,8 +9,6 @@ namespace Thermi.SensorHost.Updates;
 /// </summary>
 internal sealed class SwitchLock(InstallFolder folder, TimeProvider time)
 {
-    private static readonly SecurityIdentifier LocalSystem = new(WellKnownSidType.LocalSystemSid, null);
-    private static readonly SecurityIdentifier Administrators = new(WellKnownSidType.BuiltinAdministratorsSid, null);
 
     private string LockPath => Path.Combine(folder.Update, "switch.lock");
 
@@ -45,7 +42,7 @@ internal sealed class SwitchLock(InstallFolder folder, TimeProvider time)
             try
             {
                 return new FileInfo(LockPath)
-                    .Create(FileMode.OpenOrCreate, FileSystemRights.FullControl, FileShare.None, 1, FileOptions.DeleteOnClose, AdminsOnly());
+                    .Create(FileMode.OpenOrCreate, FileSystemRights.FullControl, FileShare.None, 1, FileOptions.DeleteOnClose, folder.Private());
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -57,13 +54,4 @@ internal sealed class SwitchLock(InstallFolder folder, TimeProvider time)
         return null;
     }
 
-    // Users may read update\, and would hold a lock a power cut left behind open: none but administrators may open it.
-    private static FileSecurity AdminsOnly()
-    {
-        var security = new FileSecurity();
-        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-        security.AddAccessRule(new FileSystemAccessRule(LocalSystem, FileSystemRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new FileSystemAccessRule(Administrators, FileSystemRights.FullControl, AccessControlType.Allow));
-        return security;
-    }
 }

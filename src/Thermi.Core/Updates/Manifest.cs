@@ -129,14 +129,7 @@ public static class ManifestEnvelope
         return JsonSerializer.SerializeToUtf8Bytes(new Envelope(Convert.ToBase64String(body), Convert.ToBase64String(signature)), UpdateJson.Default.Envelope);
     }
 
-    /// <summary>The manifest an envelope holds, unchecked: for the levers, which read what they themselves published.</summary>
-    public static Manifest? Peek(ReadOnlySpan<byte> envelope)
-    {
-        var sealedOne = JsonSerializer.Deserialize(envelope, UpdateJson.Default.Envelope);
-        return sealedOne is null ? null : JsonSerializer.Deserialize(Convert.FromBase64String(sealedOne.Manifest), UpdateJson.Default.Manifest);
-    }
-
-    private static bool Verifies(byte[] key, byte[] body, byte[] signature)
+    internal static bool Verifies(byte[] key, byte[] body, byte[] signature)
     {
         try
         {

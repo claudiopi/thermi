@@ -17,33 +17,42 @@ internal sealed class ManifestClient : IDisposable
     /// <summary>How much free space a download needs, in zips: the zip, its unpacked version, and room to spare.</summary>
     public const int FreeSpace = 3;
 
-    private readonly HttpClient _http;
+    // A connection that moves nothing this long is given up, as a dropped network or a server that stalls it would hold
+    // the updater for good; one that moves, however slowly, is never cut.
+    private static readonly TimeSpan Idle = TimeSpan.FromMinutes(1);
 
-    public ManifestClient()
+    private readonly HttpClient _http;
+    private readonly TimeProvider _time;
+
+    public ManifestClient(TimeProvider time)
     {
+        _time = time;
 #pragma warning disable CA2000 // The client owns the handler and disposes it with itself.
         var handler = new SocketsHttpHandler { UseCookies = false, AllowAutoRedirect = false };
 #pragma warning restore CA2000
-        _http = new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromMinutes(10) };
+        _http = new HttpClient(handler, disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("thermi", null));
     }
 
     /// <summary>The envelope's bytes, cut one past its cap so a longer one is refused as too long; null when it could not be read.</summary>
     public async Task<byte[]?> EnvelopeAsync(Uri address, CancellationToken stop)
     {
-        using var response = await _http.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, stop);
+        using var idle = new CancellationTokenSource(Idle, _time);
+        using var either = CancellationTokenSource.CreateLinkedTokenSource(idle.Token, stop);
+        using var response = await _http.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, either.Token);
         if (!response.IsSuccessStatusCode)
         {
             return null;
         }
 
-        await using var body = await response.Content.ReadAsStreamAsync(stop);
+        await using var body = await response.Content.ReadAsStreamAsync(either.Token);
         var buffer = new byte[ManifestEnvelope.MaxBytes + 1];
         var read = 0;
         int got;
-        while (read < buffer.Length && (got = await body.ReadAsync(buffer.AsMemory(read), stop)) > 0)
+        while (read < buffer.Length && (got = await body.ReadAsync(buffer.AsMemory(read), either.Token)) > 0)
         {
             read += got;
+            idle.CancelAfter(Idle);
         }
 
         return buffer[..read];
@@ -95,19 +104,22 @@ internal sealed class ManifestClient : IDisposable
 
     private async Task<string?> FetchAsync(Package package, FileStream zip, CancellationToken stop)
     {
-        using var response = await _http.GetAsync(package.Url, HttpCompletionOption.ResponseHeadersRead, stop);
+        using var idle = new CancellationTokenSource(Idle, _time);
+        using var either = CancellationTokenSource.CreateLinkedTokenSource(idle.Token, stop);
+        using var response = await _http.GetAsync(package.Url, HttpCompletionOption.ResponseHeadersRead, either.Token);
         if (!response.IsSuccessStatusCode)
         {
             return $"{package.Url} answered {(int)response.StatusCode}";
         }
 
-        await using var body = await response.Content.ReadAsStreamAsync(stop);
+        await using var body = await response.Content.ReadAsStreamAsync(either.Token);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[81920];
         long total = 0;
         int got;
-        while ((got = await body.ReadAsync(buffer, stop)) > 0)
+        while ((got = await body.ReadAsync(buffer, either.Token)) > 0)
         {
+            idle.CancelAfter(Idle);
             total += got;
             if (total > package.Size)
             {

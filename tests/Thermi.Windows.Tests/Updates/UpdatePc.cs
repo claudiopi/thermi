@@ -3,6 +3,7 @@ extern alias sensors;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost.Updates;
 using Thermi.Core.Updates;
 
@@ -23,7 +24,7 @@ internal sealed class UpdatePc : IAsyncDisposable
 
     // A user's folder, which only the folder checks of the real PC would refuse: the tests run without admin rights.
     private static readonly FolderAccess Anyone = new(
-        Directory.Exists, (parent, prefix) => Directory.CreateDirectory(Path.Combine(parent, prefix + Guid.NewGuid().ToString("N"))).FullName);
+        Directory.Exists, (parent, prefix) => Directory.CreateDirectory(Path.Combine(parent, prefix + Guid.NewGuid().ToString("N"))).FullName, () => null);
 
     private readonly ECDsa _release = ECDsa.Create(ECCurve.NamedCurves.nistP256);
     private readonly ECDsa _backup = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -119,7 +120,8 @@ internal sealed class UpdatePc : IAsyncDisposable
 
     public Updater Updater(UpdateBuild? build = null, bool trusted = true)
     {
-        var client = new ManifestClient();
+        // A clock of its own, never stepped: the updater's counts each wait, and a download's idle limit is no wait of its.
+        var client = new ManifestClient(new FakeTimeProvider());
         var host = new UpdateHost(() => Policy, () => Metered, watchdog => Watchdogs.Add(watchdog.FileName));
         var updater = new Updater(build ?? Build(), Folder(trusted), client, Clock, Say, host);
         _owned.Add(updater);

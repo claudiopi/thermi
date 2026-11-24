@@ -6,16 +6,32 @@ namespace Thermi.Releases;
 /// <summary>
 /// A folder laid out as the update server is (docs/adr/0008-updates.md): each channel's signed envelope at the top,
 /// the zips under <c>zips/&lt;version&gt;/</c>, which never change once written, and each channel's history of manifests
-/// under <c>history/</c>, which only the levers read.
+/// under <c>history/</c>, which only the levers read, signed by the key that sealed its last manifest.
 /// </summary>
-internal sealed class ChannelFolder(string root)
+internal sealed class ChannelFolder(string root, byte[] release, byte[] backup)
 {
     public string Root => root;
 
+    /// <summary>Each channel's history; throws for one neither key signed, which no lever wrote, so none signs over it.</summary>
     public IReadOnlyDictionary<string, ChannelHistory> Read() => Manifest.Channels.ToDictionary(
         channel => channel,
-        channel => ChannelHistory.Read(File.Exists(HistoryOf(channel)) ? File.ReadAllText(HistoryOf(channel)) : null),
+        channel => ChannelHistory.Open(File.Exists(HistoryOf(channel)) ? File.ReadAllBytes(HistoryOf(channel)) : null, release, backup)
+            ?? throw new InvalidOperationException($"history/{channel}.json is signed by neither of thermi's keys, so no lever signs over it."),
         StringComparer.Ordinal);
+
+    /// <summary>
+    /// Why <paramref name="key"/> may not seal what a lever changed, or null: a channel whose release key is revoked takes
+    /// only the backup key's signature, as every PC that honored the revocation does.
+    /// </summary>
+    public string? Refuses(IReadOnlyDictionary<string, ChannelHistory> before, IReadOnlyDictionary<string, ChannelHistory> after, ECDsa key)
+    {
+        var byBackup = key.ExportSubjectPublicKeyInfo().AsSpan().SequenceEqual(backup);
+        var revoked = after.FirstOrDefault(channel => channel.Value.Current is { RevokedKey: not null } current
+            && !ReferenceEquals(before[channel.Key].Current, current)).Key;
+        return revoked is not null && !byBackup
+            ? $"{revoked}'s release key is revoked: sign with the backup key until PCs run a build with the new one, then unrevoke."
+            : null;
+    }
 
     /// <summary>Writes each channel whose history changed, its history first and its envelope last, sealed by <paramref name="key"/>.</summary>
     public IReadOnlyList<Manifest> Write(IReadOnlyDictionary<string, ChannelHistory> before, IReadOnlyDictionary<string, ChannelHistory> after, ECDsa key)
@@ -29,7 +45,7 @@ internal sealed class ChannelFolder(string root)
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(HistoryOf(channel))!);
-            File.WriteAllText(HistoryOf(channel), history.Write());
+            File.WriteAllBytes(HistoryOf(channel), history.Seal(key));
             File.WriteAllBytes(Path.Combine(root, channel + ".json"), ManifestEnvelope.Seal(current, key));
             written.Add(current);
         }

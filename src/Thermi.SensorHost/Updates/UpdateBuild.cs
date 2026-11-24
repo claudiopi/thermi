@@ -29,9 +29,14 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, IR
         var from = metadata.TryGetValue("ThermiUpdatesFrom", out var address) && Uri.TryCreate(address, UriKind.Absolute, out var uri) ? uri : null;
         var release = Key(metadata, "ThermiUpdatesKey");
         var backup = Key(metadata, "ThermiUpdatesBackupKey");
-        return released is null || from is null || release is null || backup is null
+        var signers = SignersOf(metadata);
+
+        // Only a test channel on this PC goes without the catalog: a release whose signers went missing never updates,
+        // rather than take any zip the manifest key alone signed.
+        var uncatalogued = signers is not { Length: > 0 } && from?.IsLoopback != true;
+        return released is null || from is null || release is null || backup is null || uncatalogued
             ? new UpdateBuild(null, null, [], Signers: null, version, processor)
-            : new UpdateBuild(from, release, backup, SignersOf(metadata), version, processor);
+            : new UpdateBuild(from, release, backup, signers, version, processor);
     }
 
     private static string[]? SignersOf(Dictionary<string, string> metadata) =>

@@ -73,7 +73,7 @@ internal static class Program
             SensorService.Say(events, $"thermi runs from {where}, which is no version's folder, so it does not update itself.", EventLogEntryType.Warning);
         }
 
-        using var client = new ManifestClient();
+        using var client = new ManifestClient(time);
         using var updater = folder is null ? null : new Updater(build, folder, client, time, (message, type) => SensorService.Say(events, message, type));
         using var service = new SensorService(
             stop =>
@@ -292,7 +292,12 @@ internal sealed class SensorService : ServiceBase
 
     protected override void OnStop()
     {
-        Update(updates => updates.Stopped());
+        // The server's failure stops the service with an error code: a crash, which counts against a version on probation.
+        if (ExitCode == 0)
+        {
+            Update(updates => updates.Stopped());
+        }
+
         _stop.Cancel();
 #pragma warning disable VSTHRD002 // OnStop is synchronous: Windows expects the service to have stopped when it returns.
         _running.Wait(5000, CancellationToken.None);

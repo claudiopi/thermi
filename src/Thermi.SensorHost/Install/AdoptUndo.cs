@@ -5,9 +5,10 @@ namespace Thermi.SensorHost.Install;
 
 /// <summary>
 /// What an install found before it changed anything, kept in <c>update\</c> so the MSI's rollback puts it back: each
-/// service's image path, whether the version's folder was there, the update state's text and Installed apps' entry.
+/// service's image path, whether the version's folder was there, the update state's text and Installed apps' entry, for
+/// the version the install laid down.
 /// </summary>
-internal sealed record AdoptUndo(string? Sensors, string? Elevated, bool VersionThere, string? State, InstalledApp? App)
+internal sealed record AdoptUndo(string Version, string? Sensors, string? Elevated, bool VersionThere, string? State, InstalledApp? App)
 {
     public string ToJson() => JsonSerializer.Serialize(this, AdoptUndoJson.Default.AdoptUndo);
 

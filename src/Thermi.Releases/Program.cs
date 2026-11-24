@@ -8,7 +8,9 @@ namespace Thermi.Releases;
 /// <summary>
 /// <c>thermi-releases</c>: the owner's levers on the update channels, each writing the channel's next signed manifest into
 /// a channels folder, and <c>serve</c>, which answers that folder on this PC. The private key comes from <c>--key</c>, a PEM
-/// file, or the <c>THERMI_UPDATES_KEY</c> variable holding the PEM itself, as the release workflow gives it.
+/// file, or the <c>THERMI_UPDATES_KEY</c> variable holding the PEM itself, as the release workflow gives it. The two public
+/// keys, which open each channel's signed history, come from <c>--trust</c>, a folder with <c>release.pub.pem</c> and
+/// <c>backup.pub.pem</c>, or the <c>THERMI_UPDATES_RELEASE_PUB</c> and <c>THERMI_UPDATES_BACKUP_PUB</c> variables.
 /// </summary>
 internal static class Program
 {
@@ -17,6 +19,10 @@ internal static class Program
     private static readonly Option<string> Channel = new("--channel") { Description = "stable or beta.", DefaultValueFactory = _ => Manifest.Stable };
     private static readonly Option<int> Rollout = new("--rollout") { Description = "The percentage of PCs that take it.", DefaultValueFactory = _ => 100 };
     private static readonly Option<bool> Urgent = new("--urgent") { Description = "Switches without waiting for a quiet moment." };
+    private static readonly Option<DirectoryInfo?> Trust = new("--trust")
+    {
+        Description = "The folder with release.pub.pem and backup.pub.pem; else THERMI_UPDATES_RELEASE_PUB and THERMI_UPDATES_BACKUP_PUB.",
+    };
 
     private static int Main(string[] args) => Root().Parse(args).Invoke();
 
@@ -30,6 +36,7 @@ internal static class Program
         root.Subcommands.Add(Lever("disable", "Keeps every PC on the channel where it is.", Levers.Disable));
         root.Subcommands.Add(Lever("refresh", "Signs the channel's manifest again before it expires.", Levers.Refresh));
         root.Subcommands.Add(Revoke());
+        root.Subcommands.Add(Lever("unrevoke", "Clears the channel's revocation, once PCs run a build with the new release key.", Levers.Unrevoke));
         root.Subcommands.Add(Status());
         root.Subcommands.Add(Serve());
         return root;
@@ -66,7 +73,7 @@ internal static class Program
             AllowMultipleArgumentsPerToken = true,
         };
         var baseUrl = new Option<string>("--base-url") { Description = "Where the folder is served, ending in /v1/.", Required = true };
-        var command = new Command("publish", "Puts a build on a channel.") { Folder, Key, Channel, version, zips, baseUrl, Rollout, Urgent };
+        var command = new Command("publish", "Puts a build on a channel.") { Folder, Trust, Key, Channel, version, zips, baseUrl, Rollout, Urgent };
         command.SetAction(parsed => Run(parsed, (channels, folder, now) =>
         {
             var release = ReleaseVersion.Parse(parsed.GetValue(version)) ?? throw new InvalidOperationException("--version is not a release version.");
@@ -83,7 +90,7 @@ internal static class Program
     {
         var from = new Option<string>("--from") { DefaultValueFactory = _ => Manifest.Beta };
         var to = new Option<string>("--to") { DefaultValueFactory = _ => Manifest.Stable };
-        var command = new Command("promote", "Takes one channel's version, files and all, to another.") { Folder, Key, from, to, Rollout, Urgent };
+        var command = new Command("promote", "Takes one channel's version, files and all, to another.") { Folder, Trust, Key, from, to, Rollout, Urgent };
         command.SetAction(parsed => Run(parsed, (channels, _, now) => Levers.Promote(
             channels, parsed.GetValue(from)!, parsed.GetValue(to)!, parsed.GetValue(Rollout), parsed.GetValue(Urgent) ? true : null, now)));
         return command;
@@ -95,7 +102,7 @@ internal static class Program
     {
         var backup = new Option<FileInfo>("--backup-key") { Description = "The backup key's private PEM.", Required = true };
         var release = new Option<FileInfo>("--release-key") { Description = "The revoked release key's public PEM.", Required = true };
-        var command = new Command("revoke", "Names the release key as revoked, signed with the backup key.") { Folder, Channel, backup, release };
+        var command = new Command("revoke", "Names the release key as revoked, signed with the backup key.") { Folder, Trust, Channel, backup, release };
         command.SetAction(parsed =>
         {
             using var signer = SigningKey(parsed.GetValue(backup));
@@ -115,17 +122,17 @@ internal static class Program
 
     private static Command Lever(string name, string description, Func<IReadOnlyDictionary<string, ChannelHistory>, string, DateTimeOffset, LeverResult> lever)
     {
-        var command = new Command(name, description) { Folder, Key, Channel };
+        var command = new Command(name, description) { Folder, Trust, Key, Channel };
         command.SetAction(parsed => Run(parsed, (channels, _, now) => lever(channels, parsed.GetValue(Channel)!, now)));
         return command;
     }
 
     private static Command Status()
     {
-        var command = new Command("status", "Shows what each channel serves.") { Folder };
+        var command = new Command("status", "Shows what each channel serves.") { Folder, Trust };
         command.SetAction(parsed =>
         {
-            foreach (var (channel, history) in new ChannelFolder(parsed.GetValue(Folder)!.FullName).Read())
+            foreach (var (channel, history) in FolderOf(parsed).Read())
             {
                 Console.WriteLine(history.Current is { } current ? Describe(channel, current) : $"{channel}: nothing published");
             }
@@ -152,10 +159,10 @@ internal static class Program
     private static int Run(
         ParseResult parsed, ECDsa key, Func<IReadOnlyDictionary<string, ChannelHistory>, ChannelFolder, DateTimeOffset, LeverResult> lever)
     {
-        var folder = new ChannelFolder(parsed.GetValue(Folder)!.FullName);
+        var folder = FolderOf(parsed);
         var before = folder.Read();
         var result = lever(before, folder, TimeProvider.System.GetUtcNow());
-        if (result.Refused is { } refused)
+        if ((result.Refused ?? folder.Refuses(before, result.Channels, key)) is { } refused)
         {
             Console.Error.WriteLine(refused);
             return 1;
@@ -167,6 +174,22 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    private static ChannelFolder FolderOf(ParseResult parsed)
+    {
+        var trust = parsed.GetValue(Trust);
+        return new ChannelFolder(parsed.GetValue(Folder)!.FullName, PublicKey(trust, "release"), PublicKey(trust, "backup"));
+    }
+
+    private static byte[] PublicKey(DirectoryInfo? trust, string name)
+    {
+        var variable = $"THERMI_UPDATES_{name.ToUpperInvariant()}_PUB";
+        var pem = trust is not null ? File.ReadAllText(Path.Combine(trust.FullName, name + ".pub.pem")) : Environment.GetEnvironmentVariable(variable)
+            ?? throw new InvalidOperationException($"Give --trust or {variable}.");
+        using var key = ECDsa.Create();
+        key.ImportFromPem(pem);
+        return key.ExportSubjectPublicKeyInfo();
     }
 
     private static ECDsa SigningKey(FileInfo? file)

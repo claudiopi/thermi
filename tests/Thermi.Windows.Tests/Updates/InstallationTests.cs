@@ -35,10 +35,11 @@ public sealed class InstallationTests : IAsyncDisposable
 
     private string Setup => Path.Combine(_pc.Top, Installation.Setup);
 
-    // What was there before: nothing, a build from before the version folders, a later version an update switched to, or
-    // this version built again with other files.
+    // What was there before: nothing, a build from before the version folders, a later version an update switched to,
+    // this version built again with other files, or an earlier version ready, which the PC must not switch down to.
     [Theory]
     [InlineData("nothing", "0.9.0", "0.9.0")]
+    [InlineData("an earlier version ready", "0.9.0", "0.9.0")]
     [InlineData("a flat build", "0.9.0", "0.9.0")]
     [InlineData("a later version", "0.9.5", "0.9.5")]
     [InlineData("this version built again", "0.9.0", "0.9.0")]
@@ -61,6 +62,9 @@ public sealed class InstallationTests : IAsyncDisposable
                 _pc.Lay(Later);
                 _system.Images[Sensors] = Service(Later);
                 break;
+            case "an earlier version ready":
+                _pc.Folder().Write(new UpdateState { Installed = UpdatePc.Running, Ready = new ReleaseVersion(0, 8, 5) });
+                break;
             default:
                 _pc.Lay(UpdatePc.Built);
                 var built = Path.Combine(_pc.Top, UpdatePc.Built.ToString(), "thermi.exe");
@@ -73,8 +77,8 @@ public sealed class InstallationTests : IAsyncDisposable
         var version = ReleaseVersion.Parse(runs)!;
         var laid = await File.ReadAllTextAsync(Path.Combine(_pc.Top, runs, "thermi.exe"), TestContext.Current.CancellationToken);
         Assert.Equal(
-            (0, Service(version), UpdatePc.Launcher("thermi", version == UpdatePc.Built ? version : UpdatePc.Running), $"thermi {runs}", false, shown),
-            (exit, _system.Images[Sensors], _pc.LauncherAtTop("thermi"), laid, File.Exists(flat), _system.Shown?.Version));
+            (0, Service(version), UpdatePc.Launcher("thermi", version == UpdatePc.Built ? version : UpdatePc.Running), $"thermi {runs}", false, shown, null),
+            (exit, _system.Images[Sensors], _pc.LauncherAtTop("thermi"), laid, File.Exists(flat), _system.Shown?.Version, _pc.Folder().Read().Ready));
     }
 
     // Each step that may fail, in the order the install takes them, over a thermi or on a PC with none: what was there
@@ -100,15 +104,26 @@ public sealed class InstallationTests : IAsyncDisposable
         Assert.Equal((1, before), (await AdoptAsync(), Snapshot()));
     }
 
-    // The MSI's rollback, after an install that went well.
+    // The MSI's rollback, after an install that went well, or that left a later version an update switched to running,
+    // with what an install before it recorded still in update\.
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task AnInstallRolledBackLeavesWhatWasThere(bool fresh)
+    [InlineData("a thermi")]
+    [InlineData("nothing")]
+    [InlineData("a later version")]
+    public async Task AnInstallRolledBackLeavesWhatWasThere(string there)
     {
-        if (fresh)
+        if (there == "nothing")
         {
             Fresh();
+        }
+        else if (there == "a later version")
+        {
+            _pc.Lay(Later);
+            _system.Images[Sensors] = Service(Later);
+            _pc.Folder().PlaceLaunchers(Later);
+            var earlier = new AdoptUndo(UpdatePc.Built.ToString(), Service(UpdatePc.Running), null, VersionThere: true, State: null, App: null);
+            Directory.CreateDirectory(_pc.Folder().Update);
+            await File.WriteAllTextAsync(Path.Combine(_pc.Folder().Update, "adopt-undo.json"), earlier.ToJson(), TestContext.Current.CancellationToken);
         }
 
         var before = Snapshot();

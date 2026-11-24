@@ -17,7 +17,7 @@ internal static class ThermiPaths
     public static string? State { get; } =
         string.Equals(Launcher, Own, StringComparison.OrdinalIgnoreCase)
             ? null
-            : Path.Combine(Path.GetDirectoryName(Launcher)!, "update", UpdateState.FileName);
+            : Path.Combine(Path.GetDirectoryName(Launcher)!, "update", UpdateState.SharedFileName);
 
     /// <summary>Whether <paramref name="path"/> is one of thermi's: an overlay and its window may run from either.</summary>
     public static bool IsThermi(string path) =>

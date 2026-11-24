@@ -13,14 +13,15 @@ a channels folder laid out as the server is:
   keys --out <folder>
   publish --folder <channels> --channel beta --version 0.9.1 --zip x64=<zip> arm64=<zip> --base-url <url> [--rollout 10] [--urgent]
   promote --folder <channels> [--from beta --to stable] [--rollout 100]
-  rollback | disable | refresh --folder <channels> --channel stable
+  rollback | disable | refresh | unrevoke --folder <channels> --channel stable
   revoke --folder <channels> --channel stable --release-key <release.pub.pem> --backup-key <backup.key.pem>
   status --folder <channels>
   serve --folder <channels> [--port 8765]
-The levers sign with --key <private PEM>, or the PEM in THERMI_UPDATES_KEY.
+The levers sign with --key <private PEM>, or the PEM in THERMI_UPDATES_KEY, and open the signed histories with the public
+keys in --trust <folder>, release.pub.pem and backup.pub.pem, or THERMI_UPDATES_RELEASE_PUB and THERMI_UPDATES_BACKUP_PUB.
 #>
 # No param block: PowerShell would read the tool's --options as its own.
-if ($args.Count -lt 1) { throw 'Give a command: pack, keys, publish, promote, rollback, disable, refresh, status or serve.' }
+if ($args.Count -lt 1) { throw 'Give a command: pack, keys, publish, promote, rollback, disable, refresh, revoke, unrevoke, status or serve.' }
 $Command = [string]$args[0]
 [string[]]$Rest = @($args | Select-Object -Skip 1)
 

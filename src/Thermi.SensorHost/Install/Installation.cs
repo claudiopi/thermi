@@ -34,6 +34,8 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
     // A watchdog holds the lock for the two minutes it gives a version at most; an install waits three, 200 ms a try.
     private const int LockTries = 900;
 
+    private const string Switching = "An update is switching thermi's version, so nothing was changed: try again in a few minutes.";
+
     private static readonly string[] Launchers = ["thermi.exe", "thermi-sensors.exe"];
 
     private string UndoPath => Path.Combine(folder.Update, "adopt-undo.json");
@@ -58,15 +60,22 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             return 1;
         }
 
+        // What an install before this one recorded is no longer what to put back, whatever this one does.
+        if (File.Exists(UndoPath))
+        {
+            File.Delete(UndoPath);
+        }
+
         using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
         if (held is null)
         {
-            say("An update is switching thermi's version, so nothing was installed: install again in a few minutes.");
+            say(Switching);
             return 1;
         }
 
-        var undo = new AdoptUndo(
-            system.ImagePath(Sensors), system.ImagePath(Elevated), Directory.Exists(folder.VersionOf(version)), folder.StateText(), system.App());
+        var there = Directory.Exists(folder.VersionOf(version));
+        var undo = new AdoptUndo(version.ToString(), system.ImagePath(Sensors), system.ImagePath(Elevated), there, folder.StateText(), system.App());
+        await File.WriteAllTextAsync(UndoPath, undo.ToJson(), stop);
         var shownBy = product ?? undo.App?.Product;
         if (Running(undo.Sensors) is { } running && running > version && Directory.Exists(folder.VersionOf(running)))
         {
@@ -74,7 +83,6 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             return 0;
         }
 
-        await File.WriteAllTextAsync(UndoPath, undo.ToJson(), stop);
         return Adopt(version, from, shownBy, undo);
     }
 
@@ -87,9 +95,20 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         }
 
         using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
-        if (AdoptUndo.Read(File.Exists(UndoPath) ? await File.ReadAllTextAsync(UndoPath, stop) : null) is { } undo)
+        if (held is null)
+        {
+            say(Switching);
+            return 1;
+        }
+
+        var undo = AdoptUndo.Read(File.Exists(UndoPath) ? await File.ReadAllTextAsync(UndoPath, stop) : null);
+        if (undo is not null && undo.Version == version.ToString())
         {
             Restore(undo, version);
+        }
+
+        if (undo is not null)
+        {
             File.Delete(UndoPath);
         }
 
@@ -107,28 +126,24 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             return 1;
         }
 
-        try
+        // The lock lives in update\, so it is let go before update\ goes.
+        using (var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop))
         {
-            using (await new SwitchLock(folder, time).HoldAsync(LockTries, stop))
+            if (held is null)
             {
-                foreach (var service in new[] { Elevated, Sensors })
-                {
-                    system.Stop(service);
-                    if (system.ImagePath(service) is not null)
-                    {
-                        system.Sc("delete", service);
-                    }
-                }
-
-                system.EventSource(Sensors, registered: false);
-                system.App(null, folder.Top);
-                system.EndPrograms(folder.Top);
+                say(Switching);
+                return 1;
             }
-        }
-        catch (Exception ex) when (Failed(ex))
-        {
-            say($"thermi could not be removed: {ex.Message}");
-            return 1;
+
+            try
+            {
+                TakeOff();
+            }
+            catch (Exception ex) when (Failed(ex))
+            {
+                say($"thermi could not be removed: {ex.Message}");
+                return 1;
+            }
         }
 
         foreach (var entry in Directory.EnumerateFileSystemEntries(folder.Top).Where(entry => Owned(entry) && !SamePath(entry, own)))
@@ -139,15 +154,31 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         return 0;
     }
 
+    private void TakeOff()
+    {
+        foreach (var service in new[] { Elevated, Sensors })
+        {
+            system.Stop(service);
+            if (system.ImagePath(service) is not null)
+            {
+                system.Sc("delete", service);
+            }
+        }
+
+        system.EventSource(Sensors, registered: false);
+        system.App(null, folder.Top);
+        system.EndPrograms(folder.Top);
+    }
+
     private int Adopt(ReleaseVersion version, string from, string? product, AdoptUndo undo)
     {
         try
         {
             system.Stop(Sensors);
-            Copy(from, folder.VersionOf(version));
+            Copy(from, version);
             Register(folder.ServiceOf(version), undo.Sensors is not null, undo.Elevated is not null);
             folder.PlaceLaunchers(version);
-            folder.Write(folder.Read() with { Installed = version, Switch = null, Probation = null });
+            folder.Write(SwitchHealth.InstalledByHand(folder.Read() with { Switch = null }, version));
             Show(product, version);
             Tidy(from);
             system.Start(Sensors);
@@ -190,11 +221,11 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
 
         if (!undo.VersionThere)
         {
-            folder.SetAside(folder.VersionOf(version));
+            Try(() => folder.SetAside(folder.VersionOf(version)));
         }
 
         Try(() => PutLaunchersBack(undo));
-        folder.RestoreState(undo.State);
+        Try(() => folder.RestoreState(undo.State));
         Try(() => system.App(undo.App, folder.Top));
         if (undo.Sensors is not null)
         {
@@ -259,16 +290,12 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
 
     // A version already there with the same files stays, as an update unpacked it; one built again with other files is
     // replaced, which Windows refuses while anything runs from it.
-    private void Copy(string from, string to)
+    private void Copy(string from, ReleaseVersion version)
     {
+        var to = folder.VersionOf(version);
         if (SamePath(from, to) || Same(from, to))
         {
             return;
-        }
-
-        if (Directory.Exists(to) && !folder.SetAside(to))
-        {
-            throw new SetupRefusedException($"{to} holds other files and is in use: close thermi and install again.");
         }
 
         var fresh = folder.Fresh("unpack-") ?? throw new IOException($"{folder.Update} is not a folder only administrators change.");
@@ -279,7 +306,11 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             File.Copy(file, copy);
         }
 
-        Directory.Move(fresh, to);
+        if (!folder.Place(fresh, version))
+        {
+            folder.SetAside(fresh);
+            throw new SetupRefusedException($"{to} holds other files and is in use: close thermi and install again.");
+        }
     }
 
     private static bool Same(string one, string other) => Directory.Exists(other) && Tree(one).SequenceEqual(Tree(other));

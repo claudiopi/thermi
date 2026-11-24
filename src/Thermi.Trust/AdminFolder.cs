@@ -71,6 +71,19 @@ public static class AdminFolder
         }
     }
 
+    /// <summary>Whether <paramref name="who"/> is SYSTEM or the administrators, as owns what a service or an administrator made.</summary>
+    public static bool IsAdministrator(IdentityReference? who) => who is SecurityIdentifier sid && (sid == System || sid == Administrators);
+
+    /// <summary>A file's access for SYSTEM and administrators alone, which no user can open, even to read, and so hold open.</summary>
+    public static FileSecurity PrivateFile()
+    {
+        var security = new FileSecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new FileSystemAccessRule(System, FileSystemRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new FileSystemAccessRule(Administrators, FileSystemRights.FullControl, AccessControlType.Allow));
+        return security;
+    }
+
     // Program Files' own owner and writer is TrustedInstaller, which only Windows' servicing runs as.
     private static bool Trusted(IdentityReference? who) =>
         who is SecurityIdentifier sid && (sid == System || sid == Administrators || sid == Installer);

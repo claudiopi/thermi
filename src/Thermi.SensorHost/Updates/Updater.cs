@@ -29,7 +29,8 @@ internal sealed class Updater(
     /// <summary>
     /// At the service's start: finishes or undoes a switch left written down, counts a run that never stopped and puts the
     /// launchers of this version back, before the state says which version runs, so an overlay that reads it starts this
-    /// one. A version that failed its probation goes back, and a version ready switches, once the service has started.
+    /// one. A version that failed its probation goes back at once, its watchdog waiting for the service to run; a version
+    /// ready switches once the service has started.
     /// </summary>
     public void Started()
     {
@@ -39,10 +40,7 @@ internal sealed class Updater(
         }
 
         var (state, step) = SwitchHealth.Started(folder.Read(), build.Version, time.GetUtcNow());
-        if (folder.PlaceLaunchers(build.Version))
-        {
-            say($"thermi put back the launchers of {build.Version}.", EventLogEntryType.Information);
-        }
+        PlaceLaunchers();
 
         folder.Write(state);
         if (step == StartStep.RollBack)
@@ -61,6 +59,21 @@ internal sealed class Updater(
         }
 
         _switchSoon = state.Ready is not null;
+    }
+
+    private void PlaceLaunchers()
+    {
+        try
+        {
+            if (folder.PlaceLaunchers(build.Version))
+            {
+                say($"thermi put back the launchers of {build.Version}.", EventLogEntryType.Information);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            say($"thermi could not put back the launchers of {build.Version}, and tries at its next start: {ex.Message}", EventLogEntryType.Warning);
+        }
     }
 
     /// <summary>At a stop asked for, which is never a crash.</summary>
@@ -171,7 +184,7 @@ internal sealed class Updater(
             FirstCheck = state.FirstCheck ?? now,
             LastCheck = now,
         };
-        var envelope = await client.EnvelopeAsync(build.ManifestOf(channel), stop);
+        var envelope = await EnvelopeAsync(state, channel, stop);
         var read = envelope is null ? null : ManifestEnvelope.Open(envelope, build.ReleaseKeyHash == state.RevokedKey ? null : build.Release, build.Backup);
         var plan = read?.Manifest is null ? null : UpdatePlan.Decide(state, read, channel, build.Processor, now, build.ReleaseKeyHash);
         if (read?.Manifest is not { } manifest || plan is null || plan.Kind == PlanKind.Refuse)
@@ -192,6 +205,20 @@ internal sealed class Updater(
         if (switchTo is { } to)
         {
             _switcher.Begin(next, to, build.Version, back: to < build.Version);
+        }
+    }
+
+    // A check that could not reach the channel still counts, so About tells a PC that never could.
+    private async Task<byte[]?> EnvelopeAsync(UpdateState state, string channel, CancellationToken stop)
+    {
+        try
+        {
+            return await client.EnvelopeAsync(build.ManifestOf(channel), stop);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException && !stop.IsCancellationRequested)
+        {
+            WriteAfterCheck(state);
+            throw;
         }
     }
 
@@ -257,13 +284,14 @@ internal sealed class Updater(
     private void SwitchReady()
     {
         var state = folder.Read();
-        if (_host.Policy(build).Checks && !_switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && Trusted())
+        if (_host.Policy(build).Checks && !_switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && ready > build.Version
+            && Trusted())
         {
             _switcher.Begin(state, ready, build.Version);
         }
     }
 
-    // After OnStart returned, so the watchdog may stop the service: a failed probation goes back, else a version ready switches.
+    // After OnStart returned, so the watchdog may stop the service.
     private async Task SwitchOnStartAsync(CancellationToken stop)
     {
         await _busy.WaitAsync(stop);

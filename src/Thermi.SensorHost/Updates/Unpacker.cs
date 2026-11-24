@@ -43,14 +43,7 @@ internal static class Unpacker
                 return refused;
             }
 
-            var target = folder.VersionOf(version);
-            if (Directory.Exists(target) && !folder.SetAside(target))
-            {
-                return $"{target} is in use";
-            }
-
-            Directory.Move(fresh, target);
-            return null;
+            return folder.Place(fresh, version) ? null : $"{folder.VersionOf(version)} is in use";
         }
         catch (InvalidDataException ex)
         {
@@ -74,6 +67,7 @@ internal static class Unpacker
         }
 
         var root = Path.TrimEndingDirectorySeparator(fresh) + Path.DirectorySeparatorChar;
+        var left = MaxBytes;
         foreach (var entry in archive.Entries)
         {
             var target = Path.GetFullPath(Path.Combine(fresh, entry.FullName));
@@ -90,10 +84,40 @@ internal static class Unpacker
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            entry.ExtractToFile(target, overwrite: false);
+            var written = Write(entry, target, left);
+            if (written < 0)
+            {
+                return "the zip holds more than a version could";
+            }
+
+            left -= written;
         }
 
         return null;
+    }
+
+    // Counted as written, not as the zip declares, and flushed to the disk, so a power cut after a switch finds every file
+    // whole. Less than zero once past what is left.
+    private static long Write(ZipArchiveEntry entry, string target, long left)
+    {
+        using var source = entry.Open();
+        using var file = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920);
+        var buffer = new byte[81920];
+        long written = 0;
+        int got;
+        while ((got = source.Read(buffer)) > 0)
+        {
+            written += got;
+            if (written > left)
+            {
+                return -1;
+            }
+
+            file.Write(buffer, 0, got);
+        }
+
+        file.Flush(flushToDisk: true);
+        return written;
     }
 
     // The manifest signs the zip; the programs inside sign what they are, so a manifest cannot relabel an older release.

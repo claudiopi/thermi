@@ -1,18 +1,51 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Thermi.Core.Updates;
 
-/// <summary>Every manifest a channel published, oldest first: the last is what it serves, the rest are what a rollback reaches.</summary>
+/// <summary>
+/// Every manifest a channel published, oldest first: the last is what it serves, the rest are what a rollback reaches.
+/// Kept beside the channels and signed as a manifest is, so whoever can write the server cannot have a lever sign what
+/// it planted there.
+/// </summary>
 public sealed record ChannelHistory(IReadOnlyList<Manifest> Published)
 {
     public const int Kept = 50;
 
     public Manifest? Current => Published.Count > 0 ? Published[^1] : null;
 
-    public static ChannelHistory Read(string? text) =>
-        text is null ? new ChannelHistory([]) : JsonSerializer.Deserialize(text, UpdateJson.Default.ChannelHistory) ?? new ChannelHistory([]);
+    /// <summary>
+    /// The history <paramref name="sealedOne"/> holds when the release or the backup key signed it; empty for none; null
+    /// for one neither signed, or that is no history.
+    /// </summary>
+    public static ChannelHistory? Open(byte[]? sealedOne, byte[] release, byte[] backup)
+    {
+        if (sealedOne is null)
+        {
+            return new ChannelHistory([]);
+        }
 
-    public string Write() => JsonSerializer.Serialize(this, UpdateJson.Default.ChannelHistory);
+        try
+        {
+            var envelope = JsonSerializer.Deserialize(sealedOne, UpdateJson.Default.Envelope);
+            var body = Convert.FromBase64String(envelope?.Manifest ?? "");
+            var signature = Convert.FromBase64String(envelope?.Signature ?? "");
+            return ManifestEnvelope.Verifies(release, body, signature) || ManifestEnvelope.Verifies(backup, body, signature)
+                ? JsonSerializer.Deserialize(body, UpdateJson.Default.ChannelHistory)
+                : null;
+        }
+        catch (Exception ex) when (ex is JsonException or FormatException)
+        {
+            return null;
+        }
+    }
+
+    public byte[] Seal(ECDsa key)
+    {
+        var body = JsonSerializer.SerializeToUtf8Bytes(this, UpdateJson.Default.ChannelHistory);
+        var signature = key.SignData(body, HashAlgorithmName.SHA256);
+        return JsonSerializer.SerializeToUtf8Bytes(new Envelope(Convert.ToBase64String(body), Convert.ToBase64String(signature)), UpdateJson.Default.Envelope);
+    }
 
     public ChannelHistory With(Manifest manifest) => new([.. Published.Skip(Math.Max(0, Published.Count + 1 - Kept)), manifest]);
 }
@@ -129,6 +162,13 @@ public static class Levers
             ? Again(channels, channel, now, manifest => manifest with { RevokedKey = keyHash })
             : new LeverResult(channels, "the key's SHA-256 is 64 lowercase hex digits");
 
+    /// <summary>
+    /// The channel's manifest again without its revocation, which every manifest after it carried for the PCs that missed
+    /// one: once PCs run a build with the new release key.
+    /// </summary>
+    public static LeverResult Unrevoke(IReadOnlyDictionary<string, ChannelHistory> channels, string channel, DateTimeOffset now) =>
+        Again(channels, channel, now, manifest => manifest with { RevokedKey = null });
+
     private static LeverResult Again(
         IReadOnlyDictionary<string, ChannelHistory> channels, string channel, DateTimeOffset now, Func<Manifest, Manifest> change)
     {
@@ -142,7 +182,7 @@ public static class Levers
     }
 
     private static Manifest Next(Manifest? current, string channel, DateTimeOffset now) =>
-        (current ?? new Manifest { Channel = channel }) with { Sequence = (current?.Sequence ?? 0) + 1, Expires = now + Manifest.Lifetime, RevokedKey = null };
+        (current ?? new Manifest { Channel = channel }) with { Sequence = checked((current?.Sequence ?? 0) + 1), Expires = now + Manifest.Lifetime };
 
     private static bool SamePackages(IReadOnlyDictionary<string, Package> one, IReadOnlyDictionary<string, Package> other) =>
         one.Count == other.Count && one.All(package => other.TryGetValue(package.Key, out var same) && same == package.Value);

@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Principal;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
+using Thermi.Trust;
 using Windows.Win32;
 
 namespace Thermi.SensorHost.Updates;
@@ -25,8 +26,8 @@ internal sealed class Switcher(
 {
     public const string Option = "--switch";
 
-    private static readonly SecurityIdentifier LocalSystem = new(WellKnownSidType.LocalSystemSid, null);
-    private static readonly SecurityIdentifier Administrators = new(WellKnownSidType.BuiltinAdministratorsSid, null);
+    private const int WriteTries = 5;
+
 
     private readonly SwitchLock _lock = new(folder, time);
 
@@ -50,8 +51,13 @@ internal sealed class Switcher(
     public async Task<int> WatchAsync(ReleaseVersion to, string pipeName, CancellationToken stop)
     {
         using var owned = await _lock.HoldAsync(5, stop);
+        if (owned is null || !folder.Trusted())
+        {
+            return 2;
+        }
+
         var state = folder.Read();
-        if (owned is null || state.Switch is not { Running: true } pending || pending.To != to)
+        if (state.Switch is not { Running: true } pending || pending.To != to)
         {
             return 2;
         }
@@ -66,11 +72,10 @@ internal sealed class Switcher(
             StartOnce(services, pending, ref started);
             if (await PollAsync(to, pipeName, squatted, stop) == Verdict.Passed)
             {
+                // Pointed for good, the version has passed: what fails after this is never held against it.
+                started = false;
                 services.Point(to);
-                folder.PlaceLaunchers(to);
-                folder.Write(SwitchHealth.Done(folder.Read(), time.GetUtcNow()));
-                shown?.Invoke(to);
-                say($"thermi switched to {to}, which serves its readings.", EventLogEntryType.Information);
+                await FinishAsync(to, stop);
                 return 0;
             }
 
@@ -90,6 +95,39 @@ internal sealed class Switcher(
 
         GoBack(services, pending, started);
         return 1;
+    }
+
+    // A launcher a program holds open is put back at the version's next start; a state Windows would not let be written,
+    // tried a few times, is finished then too, from the switch it still says is running.
+    private async Task FinishAsync(ReleaseVersion to, CancellationToken stop)
+    {
+        try
+        {
+            folder.PlaceLaunchers(to);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            say($"thermi could not put {to}'s launchers in place, and does at its next start: {ex.Message}", EventLogEntryType.Warning);
+        }
+
+        for (var tried = 1; tried <= WriteTries; tried++)
+        {
+            try
+            {
+                folder.Write(SwitchHealth.Done(folder.Read(), time.GetUtcNow()));
+                shown?.Invoke(to);
+                say($"thermi switched to {to}, which serves its readings.", EventLogEntryType.Information);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && tried < WriteTries)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), time, stop);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                say($"thermi runs {to}, but could not write so, and does at its next start: {ex.Message}", EventLogEntryType.Warning);
+            }
+        }
     }
 
     // Started and pointed back in one step, so the service is pointed at the new version only while it starts. Once
@@ -168,12 +206,15 @@ internal sealed class Switcher(
     // A snapshot from the pipe, served by the new version's own process: the old one, restarted by Windows, proves nothing.
     private async Task<bool> ServesAsync(ReleaseVersion to, string pipeName, StrongBox<bool> squatted, CancellationToken stop)
     {
-        using var poll = new CancellationTokenSource(TimeSpan.FromSeconds(5), time);
+        // A second to connect, as a pipe not there yet is waited for to the end; then five to read a snapshot.
+        using var poll = new CancellationTokenSource(TimeSpan.FromSeconds(1), time);
         using var both = CancellationTokenSource.CreateLinkedTokenSource(poll.Token, stop);
         try
         {
-            await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In, PipeOptions.Asynchronous);
+            // As SYSTEM, the watchdog lets the pipe's server only identify it, never act as it.
+            await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In, PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
             await pipe.ConnectAsync(both.Token);
+            poll.CancelAfter(TimeSpan.FromSeconds(5));
             var ours = Ours(pipe, to);
             squatted.Value |= ours is null;
             if (ours != true)
@@ -195,7 +236,7 @@ internal sealed class Switcher(
     // program no administrator started holds it.
     private bool? Ours(NamedPipeClientStream pipe, ReleaseVersion to)
     {
-        if (pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier owner || (owner != LocalSystem && owner != Administrators))
+        if (pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier owner || !AdminFolder.IsAdministrator(owner))
         {
             return null;
         }

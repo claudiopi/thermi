@@ -1,3 +1,4 @@
+using System.Security.AccessControl;
 using Thermi.Core.Updates;
 
 namespace Thermi.SensorHost.Updates;
@@ -16,6 +17,8 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
     public string Update => Path.Combine(top, "update");
 
     private string StatePath => Path.Combine(Update, UpdateState.FileName);
+
+    private string SharedPath => Path.Combine(Update, UpdateState.SharedFileName);
 
     private string Trash => Path.Combine(Update, "trash");
 
@@ -55,12 +58,16 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
     /// <summary>A new folder in <c>update\</c> named <paramref name="prefix"/> and a part nobody can guess; null when <c>update\</c> is not trusted.</summary>
     public string? Fresh(string prefix) => _access.Fresh(Update, prefix);
 
+    /// <summary>The access of a file in <c>update\</c> no user may open; null for the folder's own, in a test.</summary>
+    public FileSecurity? Private() => _access.Private();
+
     /// <summary>Notes that another program held the pipe's name as this service started; never throws.</summary>
     public void MarkPipeHeld()
     {
         try
         {
-            File.WriteAllText(PipeHeldPath, "");
+            using var _ = new FileInfo(PipeHeldPath)
+                .Create(FileMode.Create, FileSystemRights.FullControl, FileShare.None, 1, FileOptions.None, _access.Private());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -80,29 +87,57 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
     /// <summary>Puts the state file back as <see cref="StateText"/> read it, or with null removes it.</summary>
     public void RestoreState(string? text)
     {
-        if (text is null)
+        if (text is not null)
         {
-            File.Delete(StatePath);
+            WriteText(text);
+            return;
         }
-        else
-        {
-            File.WriteAllText(StatePath, text);
-        }
+
+        File.Delete(StatePath);
+        Share(null);
     }
 
-    /// <summary>Writes the state whole or not at all: to a file of its own, flushed to the disk, then moved over the old one.</summary>
-    public void Write(UpdateState state)
+    /// <summary>Writes the state whole or not at all, then the copy users read.</summary>
+    public void Write(UpdateState state) => WriteText(state.Write());
+
+    private void WriteText(string text)
     {
-        var next = StatePath + ".new";
-        using (var file = new FileStream(next, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+        Whole(StatePath, text, _access.Private());
+        Share(text);
+    }
+
+    private static void Whole(string path, string text, FileSecurity? security)
+    {
+        var next = path + ".new";
+        using (var file = new FileInfo(next).Create(FileMode.Create, FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.WriteThrough, security))
         using (var writer = new StreamWriter(file))
         {
-            writer.Write(state.Write());
+            writer.Write(text);
             writer.Flush();
             file.Flush(flushToDisk: true);
         }
 
-        File.Move(next, StatePath, overwrite: true);
+        File.Move(next, path, overwrite: true);
+    }
+
+    // The users' copy, as the folder's access lets them read it; one a user holds open stays as it was.
+    private void Share(string? text)
+    {
+        try
+        {
+            if (text is null)
+            {
+                File.Delete(SharedPath);
+            }
+            else
+            {
+                Whole(SharedPath, text, security: null);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = ex;
+        }
     }
 
     /// <summary>
@@ -152,6 +187,22 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Moves <paramref name="fresh"/>, made in <c>update\</c>, in as <paramref name="version"/>'s folder, setting aside the
+    /// one there; false, moving nothing, when that one is in use.
+    /// </summary>
+    public bool Place(string fresh, ReleaseVersion version)
+    {
+        var target = VersionOf(version);
+        if (Directory.Exists(target) && !SetAside(target))
+        {
+            return false;
+        }
+
+        Directory.Move(fresh, target);
+        return true;
     }
 
     /// <summary>

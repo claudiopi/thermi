@@ -24,6 +24,12 @@ public sealed record UpdateState
 {
     public const string FileName = "state.json";
 
+    /// <summary>
+    /// The copy of the state users read, as the overlay and About do: the service's own is no user's to open, so none can
+    /// hold it open against a write. A user holding this one keeps only their own view old.
+    /// </summary>
+    public const string SharedFileName = "status.json";
+
     /// <summary>The version the launchers start.</summary>
     public ReleaseVersion? Installed { get; init; }
 

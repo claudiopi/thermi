@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using Thermi.Core.Translations;
 using Thermi.Core.Updates;
 
@@ -128,7 +127,7 @@ public sealed class UpdateTests
         Assert.Equal(StartStep.Serve, SwitchHealth.Started(SwitchHealth.Stopped(second), V("1.3.0"), Now.AddMinutes(3)).Step);
 
         // The rollback itself withdraws nothing from the PC but the version that failed.
-        var back = SwitchHealth.Done(SwitchHealth.Begin(second, V("1.2.0")), Now.AddMinutes(3));
+        var back = SwitchHealth.Done(SwitchHealth.Begin(second, V("1.2.0"), back: true), Now.AddMinutes(3));
         Assert.Equal(("1.2.0", "1.3.0"), (back.Installed!.ToString(), Assert.Single(back.Failed).ToString()));
     }
 
@@ -212,12 +211,14 @@ public sealed class UpdateTests
             Assert.Equal(manifest, ManifestEnvelope.Open(ManifestEnvelope.Seal(manifest, key), release, backup).Manifest, ManifestComparer.Instance);
         }
 
-        // Only the backup key may revoke the release key, which it names, and once revoked only the backup key opens a manifest.
+        // Only the backup key revokes the release key, which it names, in every manifest after until cleared; then only the backup key opens one.
         var releaseHash = Convert.ToHexStringLower(SHA256.HashData(release));
         Assert.NotNull(Levers.Revoke(channels, Manifest.Stable, "not a hash", Now).Refused);
         Assert.NotNull(Levers.Revoke(channels, Manifest.Stable, releaseHash.ToUpperInvariant(), Now).Refused);
-        var revoking = Done(Levers.Revoke(channels, Manifest.Stable, releaseHash, Now))[Manifest.Stable].Current!;
-        Assert.Equal(releaseHash, revoking.RevokedKey);
+        var revoked = Done(Levers.Revoke(channels, Manifest.Stable, releaseHash, Now));
+        var revoking = revoked[Manifest.Stable].Current!;
+        Assert.Equal(releaseHash, Done(Levers.Refresh(revoked, Manifest.Stable, Now))[Manifest.Stable].Current!.RevokedKey);
+        Assert.Null(Done(Levers.Unrevoke(revoked, Manifest.Stable, Now))[Manifest.Stable].Current!.RevokedKey);
         Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), release, backup).Problem);
         Assert.True(ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, backupKey), release, backup).Backup);
         Assert.Equal(ManifestProblem.NotSigned, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), null, backup).Problem);
@@ -239,11 +240,10 @@ public sealed class UpdateTests
         var notAManifest = Encoding.UTF8.GetBytes($$"""{ "manifest": "{{Convert.ToBase64String("[1]"u8)}}", "signature": "{{signed}}" }""");
         Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(notAManifest, release, backup).Problem);
         Assert.Equal(ManifestProblem.NotSigned, ManifestEnvelope.Open(sealedOne, [1, 2, 3], [4, 5, 6]).Problem);
-        Assert.Equal(rolledBack, ManifestEnvelope.Peek(sealedOne), ManifestComparer.Instance);
         var history = channels[Manifest.Stable];
-        Assert.Equal(history.Published, ChannelHistory.Read(history.Write()).Published, ManifestComparer.Instance);
-        Assert.Empty(ChannelHistory.Read(null).Published);
-        Assert.Throws<JsonException>(() => ChannelHistory.Read("{"));
+        Assert.Equal(history.Published, ChannelHistory.Open(history.Seal(backupKey), release, backup)!.Published, ManifestComparer.Instance);
+        Assert.Empty(ChannelHistory.Open(null, release, backup)!.Published);
+        Assert.All([history.Seal(key), "{"u8.ToArray()], planted => Assert.Null(ChannelHistory.Open(planted, backup, backup)));
 
         // A history keeps its last manifests and a manifest its last withdrawn versions, so neither grows without end.
         for (var refresh = 0; refresh < ChannelHistory.Kept; refresh++)

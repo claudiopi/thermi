@@ -27,9 +27,11 @@ on:
 permissions:
   contents: read
 
-# One run at a time, never cancelled: two runs writing a channel's manifest would each sign a sequence the other took.
+# Merges queue behind each other, a newer one replacing one still waiting, as its beta holds the older's changes; each of
+# the owner's runs has a group of its own, so a merge never cancels one. Two runs that write the same channel anyway are
+# caught by scripts/channel-sync.ps1, which refuses a manifest the bucket changed since the run fetched it.
 concurrency:
-  group: release
+  group: ${{ github.event_name == 'push' && 'release-merges' || format('release-{0}', github.run_id) }}
   cancel-in-progress: false
 
 env:
@@ -75,13 +77,16 @@ jobs:
           RELEASE_PUB: ${{ vars.THERMI_UPDATES_RELEASE_PUB }}
           BACKUP_PUB: ${{ vars.THERMI_UPDATES_BACKUP_PUB }}
         run: |
+          # A variable missing would build a release that never updates, or takes any catalog: none ships.
+          foreach ($name in 'FROM', 'SIGNERS', 'RELEASE_PUB', 'BACKUP_PUB') {
+            if (-not [Environment]::GetEnvironmentVariable($name)) { throw "The THERMI_UPDATES_$name variable is not set." }
+          }
           $keys = New-Item (Join-Path $env:RUNNER_TEMP keys) -ItemType Directory -Force
           Set-Content (Join-Path $keys release.pub.pem) $env:RELEASE_PUB
           Set-Content (Join-Path $keys backup.pub.pem) $env:BACKUP_PUB
           . ./scripts/publish.ps1
           Publish-Thermi "artifacts/release/$env:PROCESSOR" $env:PROCESSOR $env:VERSION $env:FROM $keys $env:SIGNERS
-      - id: unsigned
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-${{ matrix.processor }}
           path: artifacts/release/${{ matrix.processor }}
@@ -93,6 +98,10 @@ jobs:
     environment: release
     runs-on: windows-latest
     timeout-minutes: 60
+    # The run's artifacts, which this job finds and SignPath fetches by their ids.
+    permissions:
+      contents: read
+      actions: read
     strategy:
       matrix:
         processor: [x64, arm64]
@@ -122,7 +131,9 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: signed
       - shell: pwsh
-        run: New-FileCatalog -Path signed -CatalogFilePath catalog/thermi.cat -CatalogVersion 2.0 | Out-Null
+        run: |
+          New-Item catalog -ItemType Directory | Out-Null
+          New-FileCatalog -Path signed -CatalogFilePath catalog/thermi.cat -CatalogVersion 2.0 | Out-Null
       - id: catalog
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -137,12 +148,13 @@ jobs:
           artifact-configuration-slug: catalog
           github-artifact-id: ${{ steps.catalog.outputs.artifact-id }}
           wait-for-completion: true
-          output-artifact-directory: signed
+          output-artifact-directory: signed-catalog
       - shell: pwsh
         env:
           VERSION: ${{ needs.build.outputs.version }}
           PROCESSOR: ${{ matrix.processor }}
         run: |
+          Copy-Item signed-catalog/thermi.cat signed/thermi.cat
           New-Item zips -ItemType Directory | Out-Null
           [System.IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path signed), "$PWD/zips/thermi-$env:VERSION-$env:PROCESSOR.zip", 'Optimal', $false)
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -161,6 +173,9 @@ jobs:
     environment: release
     runs-on: windows-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
     strategy:
       matrix:
         processor: [x64, arm64]
@@ -230,14 +245,17 @@ jobs:
         with:
           subject-path: 'out/*'
       - shell: pwsh
-        run: ./scripts/channel-sync.ps1 down
+        run: ./scripts/channel-sync.ps1 down -Version $env:VERSION
         env:
+          VERSION: ${{ needs.build.outputs.version }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       - shell: pwsh
         env:
           THERMI_UPDATES_KEY: ${{ secrets.THERMI_UPDATES_KEY }}
+          THERMI_UPDATES_RELEASE_PUB: ${{ vars.THERMI_UPDATES_RELEASE_PUB }}
+          THERMI_UPDATES_BACKUP_PUB: ${{ vars.THERMI_UPDATES_BACKUP_PUB }}
           VERSION: ${{ needs.build.outputs.version }}
           CHANNEL: ${{ github.event_name == 'push' && 'beta' || 'stable' }}
           ROLLOUT: ${{ github.event_name == 'push' && '100' || inputs.rollout }}
@@ -246,18 +264,19 @@ jobs:
           pwsh scripts/updates.ps1 publish --folder channels --channel $env:CHANNEL --version $env:VERSION `
             --zip "x64=out/thermi-$env:VERSION-x64.zip" "arm64=out/thermi-$env:VERSION-arm64.zip" --base-url $env:FROM --rollout $env:ROLLOUT
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - shell: pwsh
-        run: ./scripts/channel-sync.ps1 up
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      # The release with its MSIs before the manifest that offers it, so no PC runs a version with no release.
       - if: inputs.lever == 'release'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
         run: gh release create "v$env:VERSION" (Get-ChildItem out/*.msi).FullName --title "thermi $env:VERSION" --generate-notes
+      - shell: pwsh
+        run: ./scripts/channel-sync.ps1 up
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
 
   # A lever on a channel, by hand, or each month a new signature on both before their manifests expire.
   lever:
@@ -281,6 +300,8 @@ jobs:
       - shell: pwsh
         env:
           THERMI_UPDATES_KEY: ${{ secrets.THERMI_UPDATES_KEY }}
+          THERMI_UPDATES_RELEASE_PUB: ${{ vars.THERMI_UPDATES_RELEASE_PUB }}
+          THERMI_UPDATES_BACKUP_PUB: ${{ vars.THERMI_UPDATES_BACKUP_PUB }}
           LEVER: ${{ github.event_name == 'schedule' && 'refresh' || inputs.lever }}
           CHANNEL: ${{ inputs.channel }}
           ROLLOUT: ${{ inputs.rollout }}
