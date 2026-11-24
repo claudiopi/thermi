@@ -13,20 +13,28 @@ public sealed class OverlayTests
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
-    [Fact]
-    public void ShowsTheDefaultOverlayFromARecording()
+    // The values of the CPU's temperature, fan, load and power, the GPU's load and the RAM used, then the segments lit of
+    // the meters of the temperature, the fan and the RAM. The i9's CPU temperature is its package's, not a core's nor the
+    // board's "CPU Core" at 50 °C, and its CPU fan the Nuvoton's second input, not its first, which reads 0 RPM.
+    [Theory]
+    [InlineData(TestRecordings.Admin, "77 °C|1,087 RPM|9 %|71 W|3 %|27.2 GB", "4 1 2")]
+    [InlineData(TestRecordings.IntelAdmin, "57 °C|720 RPM|5 %|29 W|5 %|15.0 GB", "3 1 1")]
+    public void ShowsTheDefaultOverlayFromARecording(string recording, string values, string lit)
     {
+        var shown = values.Split('|');
+        var meters = lit.Split(' ').Select(each => int.Parse(each, CultureInfo.InvariantCulture)).ToArray();
+
         // The loads' graphs are lists, which records compare by reference; SettingsFileTests says which items have one.
-        var items = OverlayLayout.Build(new OverlayConfig(), SensorMap.Read(Desktop, NoSources), English);
+        var items = OverlayLayout.Build(new OverlayConfig(), SensorMap.Read(TestRecordings.Read(recording), NoSources), English);
 
         Assert.Equal(
             [
-                new OverlayItem("CPU", "77 °C", Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id, Lit = 4 },
-                new OverlayItem(null, "1,087 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 1 },
-                new OverlayItem(null, "9 %", Level.Normal, "100 %") { Id = Metrics.CpuLoad.Id },
-                new OverlayItem(null, "71 W", Level.Normal, "888 W") { Id = Metrics.CpuPower.Id },
-                new OverlayItem("GPU", "3 %", Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
-                new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id, Lit = 2 },
+                new OverlayItem("CPU", shown[0], Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id, Lit = meters[0] },
+                new OverlayItem(null, shown[1], Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = meters[1] },
+                new OverlayItem(null, shown[2], Level.Normal, "100 %") { Id = Metrics.CpuLoad.Id },
+                new OverlayItem(null, shown[3], Level.Normal, "888 W") { Id = Metrics.CpuPower.Id },
+                new OverlayItem("GPU", shown[4], Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
+                new OverlayItem("RAM", shown[5], Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id, Lit = meters[2] },
             ],
             items.Select(item => item with { Graph = null }));
     }
@@ -51,9 +59,11 @@ public sealed class OverlayTests
     }
 
     // A sensor that is gone, or named for a metric of another kind, leaves the metric missing: never another sensor's
-    // value, nor one in the wrong unit. Without a metric, every metric is.
+    // value, nor one in the wrong unit. Without a metric, every metric is. An Intel core's distance to its limit, TjMax,
+    // falls as the core heats, so it is never the CPU's temperature.
     [Theory]
     [InlineData("the desktop without Memory Used", null, null, "ram.used")]
+    [InlineData("the i9's distances to TjMax alone", null, null, "cpu.temperature")]
     [InlineData("the desktop", "cpu.temperature", "/lpc/it8689e/0/fan/0", "cpu.temperature")]
     [InlineData("the desktop", "cpu.temperature", "/amdcpu/9/temperature/9", "cpu.temperature")]
     [InlineData("a fan's control alone", "fan.cpu", "/lpc/it8689e/0/control/0", "fan.cpu.duty")]
@@ -64,6 +74,8 @@ public sealed class OverlayTests
         {
             "the desktop" => Desktop,
             "the desktop without Memory Used" => new Snapshot([.. Desktop.Sensors.Where(each => each.Name != "Memory Used")]),
+            "the i9's distances to TjMax alone" => new Snapshot(
+                [.. TestRecordings.Read(TestRecordings.IntelAdmin).Sensors.Where(each => each.Name.EndsWith("Distance to TjMax", StringComparison.Ordinal))]),
             "a fan's control alone" => new Snapshot([new RawSensor("/lpc/it8689e/0/control/0", "SuperIO", "ITE IT8689E", "Control", "Fan #1", 42)]),
             _ => new Snapshot([]),
         };

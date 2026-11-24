@@ -15,16 +15,23 @@ public sealed class FanFinderTests
     private const string SecondFan = "/lpc/it8689e/0/fan/1";
     private const string CpuTotal = "/amdcpu/0/load/0";
     private const string GpuFan = "/gpu-nvidia/0/fan/1";
+    private const string IntelFan = "/lpc/nct6798d/0/fan/1";
 
     private static readonly TimeSpan Half = TimeSpan.FromSeconds(0.5);
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
     /// <summary>The fan barely answers: fan-control software drives it, and it rises about 166 RPM under 30 s of full load.</summary>
-    private static IReadOnlyList<Snapshot> Software => TestFiles.Series("ryzen-9950x-rtx-5060-ti-cpu-load-fan-software.jsonl");
+    private static IReadOnlyList<Snapshot> Software => TestFiles.Series(TestRecordings.CpuLoad);
+
+    /// <summary>The board drives the fan: it rises from about 740 to 1,490 RPM a few seconds into the load.</summary>
+    private static IReadOnlyList<Snapshot> Intel => TestFiles.Series(TestRecordings.IntelCpuLoad);
+
+    private static int LoadStart => LoadStartOf(Software);
 
     // As the design says, the load starts at the first second whose CPU load passes 50 %.
-    private static int LoadStart => Software.ToList().FindIndex(snapshot => snapshot.Sensors.Single(sensor => sensor.Id == CpuTotal).Value > 50);
+    private static int LoadStartOf(IReadOnlyList<Snapshot> series) =>
+        series.ToList().FindIndex(snapshot => snapshot.Sensors.Single(sensor => sensor.Name == "CPU Total").Value > 50);
 
     [Fact]
     public void OnDerivedSeriesTheFinderStopsThreeSecondsAfterAFanMeetsTheRuleOrAtEightSeconds()
@@ -116,7 +123,10 @@ public sealed class FanFinderTests
     // A series, and what the finder gives: Found, an outcome when it picks nothing, or why it cannot start. NoFanRose is the
     // outcome whose words mention fan-control software and picking the fan by hand. "Use it" keeps the item's meter and
     // adds no item, as one undo step.
+    // On the Intel desktop's recorded series the board drives its CPU fan, and the Nuvoton's second input answers the load,
+    // the one the CPU fan item reads already.
     [Theory]
+    [InlineData("board-answers", "Found")]
     [InlineData("three-times-faster", "Found")]
     [InlineData("answering-at-once", "Found")]
     [InlineData("software", nameof(FanFinderOutcome.NoFanRose))]
@@ -141,18 +151,22 @@ public sealed class FanFinderTests
             return;
         }
 
-        var result = Replay(SeriesOf(series)).Result;
+        var intel = series == "board-answers";
+        var result = (intel ? Replay(Intel, LoadStartOf(Intel)) : Replay(SeriesOf(series))).Result;
+        var fan = intel ? IntelFan : BoardFan;
         Assert.Equal(expected, result.Outcome.ToString());
-        Assert.Equal(expected == nameof(FanFinderOutcome.Found) ? BoardFan : null, result.Fan);
+        Assert.Equal(expected == nameof(FanFinderOutcome.Found) ? fan : null, result.Fan);
         if (result.Fan is null)
         {
             return;
         }
 
+        var pc = intel ? Intel[^1] : Desktop;
+        Assert.Equal(fan, SensorMap.Chosen(pc, new OverlayConfig())[Metrics.CpuFan.Id]?.Id);
         var history = new UndoHistory();
         var config = new ThermiConfig();
-        var used = Done(history, config, current => ItemEdits.UseCpuFan(current, 0, Desktop, result.Fan));
-        Assert.Equal(Item(config, Metrics.CpuFan.Id) with { Sensor = BoardFan, Metric = null, Auto = Metrics.CpuFan.Id }, Item(used, Metrics.CpuFan.Id));
+        var used = Done(history, config, current => ItemEdits.UseCpuFan(current, 0, pc, result.Fan));
+        Assert.Equal(Item(config, Metrics.CpuFan.Id) with { Sensor = fan, Metric = null, Auto = Metrics.CpuFan.Id }, Item(used, Metrics.CpuFan.Id));
         Assert.Equal(Ids(config.Overlays[0]), Ids(used.Overlays[0]));
         Assert.Equal(File(config), File(history.Undo(used)!.Config));
         Assert.False(history.CanUndo);
@@ -176,14 +190,16 @@ public sealed class FanFinderTests
     // The finder starts on the fourth reading before the recorded load, so its 3 s baseline ends on the last reading
     // before it and the window's load lines up with the recorded one. A reading comes on each whole second, a null
     // being one that never came, and the window checks on each half second.
-    private static Run Replay(IReadOnlyList<Snapshot?> series)
+    private static Run Replay(IReadOnlyList<Snapshot?> series) => Replay(series, LoadStart);
+
+    private static Run Replay(IReadOnlyList<Snapshot?> series, int loadStart)
     {
         var time = new FakeTimeProvider();
         var start = time.GetTimestamp();
-        var finder = new FanFinder(series[LoadStart - 4]!, time);
+        var finder = new FanFinder(series[loadStart - 4]!, time);
         double? from = null;
         double? to = null;
-        for (var index = LoadStart - 3; index < series.Count && finder.Result is null; index++)
+        for (var index = loadStart - 3; index < series.Count && finder.Result is null; index++)
         {
             foreach (var reading in new[] { null, series[index] })
             {

@@ -3,12 +3,21 @@ using Thermi.Core.Sensors;
 namespace Thermi.Windows.Tests;
 
 /// <summary>
-/// The snapshots recorded on the author's PC, with admin rights and without, which the test projects link from
-/// <c>tests/Thermi.Tests/Recordings</c> into their own output.
+/// The snapshots recorded on the author's PC, with admin rights and without, and on an Intel desktop, which the test
+/// projects link from <c>tests/Thermi.Tests/Recordings</c> into their own output.
 /// </summary>
 internal static class TestRecordings
 {
     public const string Admin = "ryzen-9950x-rtx-5060-ti-admin.json";
+
+    /// <summary>
+    /// An Intel desktop as administrator: an i9-12900K, whose cores report how far each is under its limit, and an ASUS
+    /// board's Nuvoton NCT6798D, whose CPU fan is its second input.
+    /// </summary>
+    public const string IntelAdmin = "i9-12900k-rtx-5050-admin.json";
+
+    /// <summary>A snapshot a second on the Intel desktop, as administrator, while the CPU ran a 30 s load the board's fan answers.</summary>
+    public const string IntelCpuLoad = "i9-12900k-rtx-5050-cpu-load-fans.jsonl";
 
     public const string NoAdmin = "ryzen-9950x-rtx-5060-ti-no-admin.json";
 

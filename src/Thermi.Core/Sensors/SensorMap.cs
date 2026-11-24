@@ -19,6 +19,9 @@ public static class SensorMap
 
     private const string Storage = "Storage";
 
+    /// <summary>The end of the name the library gives an Intel core's distance to TjMax, after the core's own.</summary>
+    public const string DistanceToTjMax = "Distance to TjMax";
+
     // The library's types that thermi reads as one of its own under another name.
     private static readonly Dictionary<string, SensorKind> LibraryTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -29,7 +32,7 @@ public static class SensorMap
     // OnlyPreferred: a "Data" sensor is any size (used, available, a stick's capacity), so a guess would be a wrong number;
     // a network's, a drive's and a battery's sensors of one type mean different things, so only the named one is the metric.
     // Device: which adapter or drive the metric follows, when a machine has several. SkipName: a sensor of the type that
-    // measures something else.
+    // measures something else. OnChip: the preferred names on a chip whose name starts with the key, in their place.
     private sealed record Rule(
         string[] HardwareTypes,
         string Type,
@@ -37,7 +40,8 @@ public static class SensorMap
         string? SkipHardware = null,
         bool OnlyPreferred = false,
         Follow Device = Follow.Any,
-        string? SkipName = null);
+        string? SkipName = null,
+        (string Chip, string[] Names)? OnChip = null);
 
     private enum Follow
     {
@@ -59,8 +63,9 @@ public static class SensorMap
         // Virtual memory reports a load named "Memory" too, and it comes first.
         [Metrics.RamLoad.Id] = new(["Memory"], "Load", ["Memory"], SkipHardware: "Virtual Memory"),
         [Metrics.RamUsed.Id] = new(["Memory"], "Data", ["Memory Used"], SkipHardware: "Virtual Memory", OnlyPreferred: true),
-        // A laptop reports its fans on its embedded controller, with no board chip.
-        [Metrics.CpuFan.Id] = new(["SuperIO", "EmbeddedController"], "Fan", ["CPU Fan", "Fan #1"]),
+        // A laptop reports its fans on its embedded controller, with no board chip. Nuvoton's NCT67xx chips have their CPU
+        // fan's input second, after a system fan's, and boards wire the CPU fan header to it.
+        [Metrics.CpuFan.Id] = new(["SuperIO", "EmbeddedController"], "Fan", ["CPU Fan", "Fan #1"], OnChip: ("Nuvoton NCT67", ["CPU Fan", "Fan #2"])),
         [Metrics.NetDownload.Id] = new([Network], "Throughput", ["Download Speed"], OnlyPreferred: true, Device: Follow.Adapter),
         [Metrics.NetUpload.Id] = new([Network], "Throughput", ["Upload Speed"], OnlyPreferred: true, Device: Follow.Adapter),
         [Metrics.DiskActivity.Id] = new([Storage], "Load", ["Total Activity"], OnlyPreferred: true, Device: Follow.Drive),
@@ -150,6 +155,10 @@ public static class SensorMap
     public static bool ZeroIsMissing(RawSensor sensor) =>
         sensor is { Value: 0, HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) or nameof(SensorKind.Power) or nameof(SensorKind.Clock) };
 
+    /// <summary>Whether the sensor is a distance to TjMax, which the library types as a temperature though it falls as the core heats.</summary>
+    public static bool IsDistanceToTjMax(RawSensor sensor) =>
+        sensor.Type == nameof(SensorKind.Temperature) && sensor.Name.EndsWith(DistanceToTjMax, StringComparison.Ordinal);
+
     /// <summary>Whether thermi's driver seems missing: a CPU temperature reads zero, and so the board's sensors may not be read either.</summary>
     public static bool DriverMayBeMissing(Snapshot snapshot) =>
         snapshot.Sensors.Any(sensor => sensor.Type == nameof(SensorKind.Temperature) && ZeroIsMissing(sensor));
@@ -202,7 +211,7 @@ public static class SensorMap
     }
 
     /// <summary>
-    /// The metric a sensor is one of: the one whose rule picks it by name, as the board's first fan is the CPU fan's,
+    /// The metric a sensor is one of: the one whose rule picks it by name, as the board's CPU fan input is the CPU fan's,
     /// else, on its kind of device, one whose rule takes any sensor of its type there; null when none does. A new item
     /// from the sensor is named and labeled like it.
     /// </summary>
@@ -228,7 +237,7 @@ public static class SensorMap
             ? (PickedBy(sensor with { Type = nameof(SensorKind.Fan) }) == Metrics.CpuFan ? Metrics.CpuFanDuty : null)
             : Metrics.All.FirstOrDefault(metric => Rules.TryGetValue(metric.Id, out var rule)
                 && Picks(rule, sensor)
-                && rule.PreferredNames.Contains(sensor.Name, StringComparer.Ordinal));
+                && Preference(rule, sensor) >= 0);
 
     /// <summary>A fan's own duty is the control with the same index on the same chip: ".../fan/0" goes with ".../control/0".</summary>
     public static string? OwnDuty(string fanId)
@@ -337,14 +346,20 @@ public static class SensorMap
         var candidates = rule.HardwareTypes
             .SelectMany(type => byHardware[type].Where(sensor => Picks(rule, sensor) && (device is null || DeviceIdOf(sensor) == device)))
             .ToList();
-        return rule.PreferredNames.Select(name => candidates.FirstOrDefault(sensor => sensor.Name == name)).FirstOrDefault(sensor => sensor is not null)
+        return candidates.Where(sensor => Preference(rule, sensor) >= 0).MinBy(sensor => Preference(rule, sensor))
             ?? (rule.OnlyPreferred ? null : candidates.FirstOrDefault());
     }
 
     private static bool Picks(Rule rule, RawSensor sensor) =>
         rule.HardwareTypes.Contains(sensor.HardwareType, StringComparer.Ordinal) && sensor.Type == rule.Type && sensor.Hardware != rule.SkipHardware
         && sensor.Name != rule.SkipName
-        && (!rule.OnlyPreferred || rule.PreferredNames.Contains(sensor.Name, StringComparer.Ordinal));
+        && !IsDistanceToTjMax(sensor)
+        && (!rule.OnlyPreferred || Preference(rule, sensor) >= 0);
+
+    // The place of the sensor's name among the rule's preferred names on its chip, or -1 when it is none of them.
+    private static int Preference(Rule rule, RawSensor sensor) => Array.IndexOf(
+        rule.OnChip is { } chip && sensor.Hardware.StartsWith(chip.Chip, StringComparison.Ordinal) ? chip.Names : rule.PreferredNames,
+        sensor.Name);
 
     // The adapter that has moved the most data, as the library counts it: a physical one while any moves data, so a VPN
     // or a virtual switch, which carries the same traffic again, never wins; any one when none does.

@@ -22,8 +22,6 @@ public sealed record Threshold
     // A CPU's limit when nothing says otherwise: AMD's, which the defaults also take, having no machine to ask.
     private const double DefaultCpuLimit = 100;
 
-    private const string DistanceToTjMax = "Distance to TjMax";
-
     // Each line is optional in the file, where a meter that only warns has no critical.
     public Threshold(double? warning = null, double? critical = null)
     {
@@ -144,9 +142,9 @@ public sealed record Threshold
         }
 
         var distances = snapshot.Sensors
-            .Where(each => each.Hardware == sensor.Hardware && each.Name.EndsWith(DistanceToTjMax, StringComparison.Ordinal) && each.Value is not null)
+            .Where(each => each.Hardware == sensor.Hardware && SensorMap.IsDistanceToTjMax(each) && each.Value is not null)
             .ToList();
-        var distance = distances.FirstOrDefault(each => each.Name == $"{sensor.Name} {DistanceToTjMax}") ?? distances.FirstOrDefault();
+        var distance = distances.FirstOrDefault(each => each.Name == $"{sensor.Name} {SensorMap.DistanceToTjMax}") ?? distances.FirstOrDefault();
         return distance?.Value is { } below ? Math.Round(value + below) : DefaultCpuLimit;
     }
 

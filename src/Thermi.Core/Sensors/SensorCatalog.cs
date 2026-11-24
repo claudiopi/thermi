@@ -292,9 +292,12 @@ public static class SensorCatalog
             .Select(row => row.Id)),
     ];
 
-    // A type thermi does not show has no unit to show it in, so it has no row; nor has a constant.
+    // A type thermi does not show has no unit to show it in, so it has no row; nor has a constant, nor a distance to TjMax,
+    // which reads as a temperature that falls as the CPU heats.
     private static CatalogSensor? Row(string id, RawSensor sensor, SensorName name) =>
-        SensorMap.ReadingOf(sensor) is { } reading && !Constant(sensor) ? new CatalogSensor(id, sensor, reading, Why(sensor, reading), name) : null;
+        SensorMap.ReadingOf(sensor) is { } reading && !Constant(sensor) && !SensorMap.IsDistanceToTjMax(sensor)
+            ? new CatalogSensor(id, sensor, reading, Why(sensor, reading), name)
+            : null;
 
     /// <summary>
     /// Whether a sensor only reports a fixed fact, which reads as a temperature, a load or a size but never moves: a drive's
