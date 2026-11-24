@@ -1,4 +1,3 @@
-using System.Globalization;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
@@ -122,6 +121,28 @@ public sealed class SnapTests
         Assert.Equal<Position>(
             fits ? [new(1588, 1375), new(12, 1375), new(1588, 7)] : [new(1588, 1368 - 12 - 57), new(12, 1368 - 12 - 57), new(1588, 72 + 12)],
             [Snaps.Locate(SnappedTo(SnapSpot.TaskbarRight), [Main], 600, 57, crowded: !fits)!, Snaps.Locate(SnappedTo(SnapSpot.TaskbarLeft), [Main], 600, 57, crowded: !fits)!, Snaps.Locate(SnappedTo(SnapSpot.TaskbarRight), [onTop], 600, 57, crowded: !fits)!]);
+    }
+
+    // The buttons as Windows 11 names them: Start, two apps, then the settings window's own button, which opening the
+    // window adds and which must not crowd the overlay out; the notification area's and anything off the bar never count.
+    [Fact]
+    public void TheAppButtonsReachLeavesOutThermisOwnButton()
+    {
+        var bar = Main.Taskbar!.Value;
+        TaskbarElement[] read =
+        [
+            new(new PixelRect(0, 1368, 72, 1440), false, "ToggleButton", "StartButton"),
+            new(new PixelRect(72, 1368, 138, 1440), true, "Taskbar.TaskListButtonAutomationPeer", "Appid: Microsoft.Windows.Explorer"),
+            new(new PixelRect(138, 1368, 204, 1440), true, "Taskbar.TaskListButtonAutomationPeer", @"Appid: {6D809377-6AF0-444B-8957-A3773F02200E}\OBS\obs64.exe"),
+            new(new PixelRect(204, 1368, 270, 1440), true, "Taskbar.TaskListButtonAutomationPeer", @"Appid: {6D809377-6AF0-444B-8957-A3773F02200E}\thermi\THERMI.exe"),
+            new(new PixelRect(2210, 1368, 2258, 1440), true, "SystemTray.NormalButton", "SystemTrayIcon"),
+            new(new PixelRect(2260, 1368, 2300, 1440), true, "Button", "Volume"),
+            new(new PixelRect(300, 1300, 366, 1360), true, "Button", "Flyout"),
+            new(new PixelRect(400, 1368, 400, 1440), true, "Button", "Hidden"),
+        ];
+
+        Assert.Equal(new TaskbarButtons(new PixelRect(0, 1368, 204, 1440), new PixelRect(0, 1368, 72, 1440)), TaskbarButtons.Of(read, bar, Main.Tray, "thermi.exe"));
+        Assert.Null(TaskbarButtons.Of(read[4..], bar, Main.Tray, "thermi.exe"));
     }
 
     // The top corners sit 64 px below the work area's top, at the monitor's scale.
@@ -256,8 +277,7 @@ public sealed class SnapTests
 
         Assert.Null(Snaps.Locate(config.Overlays[0], [], 600, 57));
         Assert.Null(Snaps.ScreenOf(new SnapConfig(SnapSpot.TopLeft), []));
-        var second = Texts.English.Format(CultureInfo.InvariantCulture, UiText.OverlayName, 2);
-        Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, UiText.OverlayPlace, second, Texts.English.Of(SnapSpot.TopLeft)), OverlayNames.Of(config, 1, Texts.English, [], CultureInfo.InvariantCulture));
+        Assert.Equal(Texts.English.Of(NameText.TopLeft), OverlayNames.Of(config, 1, Texts.English));
     }
 
     [Fact]

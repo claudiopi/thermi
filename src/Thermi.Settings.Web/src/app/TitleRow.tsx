@@ -1,6 +1,6 @@
 import type { Ref } from 'react';
 import type { MarkState, UndoSteps } from '../bridge/bridge.g';
-import { Button, Icon, Menu, Tooltip } from '../kit';
+import { Button, Icon, Menu, steady, Tooltip } from '../kit';
 import { useText } from '../texts/Texts';
 import { Creature } from './Creature';
 
@@ -38,7 +38,7 @@ export function AppName({ mark }: { mark: MarkState }) {
  * The title row's content: the mark, the list's button while it folds, Undo, Redo and "…". Windows draws the caption
  * buttons at its end and takes the rest of the row as caption, so it drags and snaps the window.
  */
-export function TitleRow({ mark, narrow, listOpen, onShowList, steps, onUndo, onRedo, canAddOverlay, onNewOverlay, onShortcuts, onExit, navRef }: TitleRowProps) {
+function TitleRowDrawn({ mark, narrow, listOpen, onShowList, steps, onUndo, onRedo, canAddOverlay, onNewOverlay, onShortcuts, onExit, navRef }: TitleRowProps) {
   const t = useText();
   return (
     <header className="t-title">
@@ -75,3 +75,5 @@ export function TitleRow({ mark, narrow, listOpen, onShowList, steps, onUndo, on
     </header>
   );
 }
+
+export const TitleRow = steady(TitleRowDrawn);

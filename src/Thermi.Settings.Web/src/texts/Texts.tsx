@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 
 // Every text the page shows comes from Core's translations, keyed as Core's [Translated] enums name them, and reaches
 // the page through the bridge; the lint rule against text in JSX keeps it so.
@@ -12,6 +12,13 @@ const TextsContext = createContext<Texts>({});
 
 /** The texts of the language Windows or the settings chose, as the bridge gives them. */
 export function TextsProvider({ texts, children }: { texts: Texts; children: ReactNode }) {
+  // The page declares the language its texts are in, so Narrator reads them in its voice.
+  const tag = texts['UiText.LanguageTag'];
+  useEffect(() => {
+    if (tag !== undefined) {
+      document.documentElement.lang = tag;
+    }
+  }, [tag]);
   return <TextsContext value={texts}>{children}</TextsContext>;
 }
 

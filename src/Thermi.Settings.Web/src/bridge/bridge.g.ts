@@ -54,6 +54,9 @@ export interface ChartView {
   empty: ChartEmpty | null;
   pushed: string | null;
   title: string | null;
+  fromText: string;
+  toText: string;
+  fires: boolean;
 }
 
 export interface ColorStop {
@@ -389,6 +392,7 @@ export interface Bridge {
   editing(overlay: number | null, selected: string | null, pointed: string | null): Promise<void>;
   start(): Promise<DesktopPick | null>;
   changed(listener: () => void): void;
+  readings(listener: () => void): void;
   picked(listener: (value: DesktopPick) => void): void;
 }
 

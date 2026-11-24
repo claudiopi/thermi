@@ -201,6 +201,33 @@
   color: var(--thermi-text2);
 }
 
+/* Lines that fire most of the time: one quiet sentence and the way back to the defaults. */
+.t-fires {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+}
+
+/* The span's ends in the plot's left corners, as quiet as the time axis under it. */
+.t-scale {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-block: 2px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--thermi-text3);
+  pointer-events: none;
+}
+
 .t-adds {
   display: flex;
   flex-wrap: wrap;

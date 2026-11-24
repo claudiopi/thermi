@@ -36,6 +36,7 @@
   <ItemGroup>
     <None Include="..\Thermi.Tests\Recordings\ryzen-9950x-rtx-5060-ti-admin.json" Link="Recordings\ryzen-9950x-rtx-5060-ti-admin.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Thermi.Tests\Recordings\ryzen-9950x-rtx-5060-ti-no-admin.json" Link="Recordings\ryzen-9950x-rtx-5060-ti-no-admin.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Thermi.Tests\Recordings\ryzen-9950x-rtx-5060-ti-admin-net-disk.json" Link="Recordings\ryzen-9950x-rtx-5060-ti-admin-net-disk.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

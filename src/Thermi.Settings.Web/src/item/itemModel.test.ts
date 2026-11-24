@@ -33,7 +33,7 @@ describe('the item page', () => {
     expect(found === null ? null : { overlay: found.overlay, pill: found.pill, firstOfPill: found.firstOfPill, id: found.item.id }).toEqual(placed === null ? null : { ...placed, id });
   });
 
-  const each = (text: string, value: string, aside: string) => ({ value, text, aside });
+  const each = (text: string, value: string, aside: string, detail = 'Ryzen') => ({ value, text, aside, shown: `${value} name`, detail });
   test.each([
     {
       item: { id: 'cpu', metric: 'cpu.temperature' },
@@ -47,7 +47,7 @@ describe('the item page', () => {
     {
       item: { id: 'cpu', metric: 'network.down' },
       shows: { auto: 'ethernet', type: 'Throughput' },
-      choices: [{ value: '', text: 'UiText.AutoFollows Ethernet', shown: 'Ethernet', aside: '1 MB/s' }, each('UiText.SensorOn ethernet name Ethernet', 'ethernet', '1 MB/s')],
+      choices: [{ value: '', text: 'UiText.AutoFollows Ethernet', shown: 'Ethernet', aside: '1 MB/s' }, each('UiText.SensorOn ethernet name Ethernet', 'ethernet', '1 MB/s', 'Ethernet')],
     },
     {
       item: { id: 'cpu', metric: 'cpu.load' },

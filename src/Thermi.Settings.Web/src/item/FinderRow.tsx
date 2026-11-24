@@ -107,7 +107,7 @@ function FinderDone({ found, detail, fan, onUseFan }: FinderDoneProps) {
 export function FinderRow({ data, item, onUseFan }: FinderRowProps) {
   const t = useText();
   const row = useRef<HTMLDivElement>(null);
-  const finder = useFinder(data.version);
+  const finder = useFinder(data.changes);
   const shown = shownOf(finder);
   const [spoken, say] = useState('');
   useFocusFollows(shown, row);

@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { chooseByKeys, fakeOf, fakeState, list, openWindow, settingsOf, startingWith, text, texts } from './fakeBridge';
+import { chooseByKeys, expect, fakeOf, fakeState, list, openWindow, settingsOf, startingWith, test, text, texts } from './fakeBridge';
 
 // A211: the Settings page changes thermi's own fields; Start with Windows stays outside undo, hotkeys are recorded, refused,
 // cleared and cancelled while thermi's rest, and Reset asks with Cancel as its default.

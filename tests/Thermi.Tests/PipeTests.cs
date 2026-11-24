@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Text;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 
@@ -42,12 +43,50 @@ public sealed class PipeTests
         Assert.Equal(sent.Sensors, snapshot.Sensors);
     }
 
+    // Values with no whole snapshot before them, or not one per sensor of the last, are no snapshot.
     [Fact]
     public void SeveralLinesInOneReadAllArrive()
     {
-        var bytes = Line(Fan).Concat(Line(Accented)).Concat(Encoding.UTF8.GetBytes("garbage\n")).ToArray();
+        var bytes = Encoding.UTF8.GetBytes("[953]\n").Concat(Line(Fan)).Concat(Line(Accented)).Concat(Encoding.UTF8.GetBytes("garbage\n[1,2]\n[8]\n")).ToArray();
 
-        Assert.Equal(2, new SnapshotLines().Add(bytes).Count);
+        var snapshots = new SnapshotLines().Add(bytes);
+
+        Assert.Equal([953, 7, 8], snapshots.Select(snapshot => snapshot.Sensors.Single().Value));
+    }
+
+    // A client gets the whole snapshot when it connects and when the sensors change, their values alone in between, and
+    // makes the same snapshots of them as of whole ones: a recorded series, then a sensor renamed, reading nothing and NaN.
+    [Fact]
+    public void EachClientGetsTheWholeSnapshotOnceAndThenOnlyItsValues()
+    {
+        var series = TestFiles.Series("ryzen-9950x-rtx-5060-ti-cpu-load-fan-software.jsonl");
+        var last = series[^1];
+        var renamed = last with { Sensors = [.. last.Sensors.Select((sensor, at) => at switch { 0 => sensor with { Name = "Renamed" }, 1 => sensor with { Value = null }, 2 => sensor with { Value = double.NaN }, _ => sensor })] };
+        List<Snapshot> sent = [.. series, renamed, renamed];
+        var writer = new SnapshotWriter();
+        var clients = new[] { (From: 0, Lines: new SnapshotLines(), Had: 0, Got: new List<Snapshot>(), Bytes: new List<int>()), (From: series.Count / 2, Lines: new SnapshotLines(), Had: 0, Got: [], Bytes: []) };
+
+        for (var second = 0; second < sent.Count; second++)
+        {
+            writer.Next(sent[second], sending: second % 2 == 0);
+            for (var at = 0; at < clients.Length; at++)
+            {
+                if (second >= clients[at].From)
+                {
+                    var line = writer.LineFor(clients[at].Had);
+                    clients[at].Had = writer.Catalog;
+                    clients[at].Bytes.Add(line.Length);
+                    clients[at].Got.AddRange(clients[at].Lines.Add(line.Span));
+                }
+            }
+        }
+
+        foreach (var (from, _, _, got, bytes) in clients)
+        {
+            Assert.Equal(sent.Skip(from).Select(snapshot => snapshot.Sensors), got.Select(snapshot => snapshot.Sensors));
+            var whole = Line(series[0]).Length;
+            Assert.Equal([0, sent.Count - 2 - from], bytes.Select((size, at) => (size, at)).Where(line => line.size * 4 > whole).Select(line => line.at));
+        }
     }
 
     [Fact]

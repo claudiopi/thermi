@@ -74,6 +74,11 @@ TTM_SETMAXTIPWIDTH
 TTM_ACTIVATE
 TTS_ALWAYSTIP
 TTS_NOPREFIX
+SetWindowSubclass
+RemoveWindowSubclass
+DefSubclassProc
+WINDOWPOS
+WM_WINDOWPOSCHANGING
 SetWindowTheme
 SendMessage
 KillTimer
@@ -91,7 +96,8 @@ VIRTUAL_KEY
 GetStockObject
 CreatePopupMenu
 AppendMenu
-TrackPopupMenu
+TrackPopupMenuEx
+TRACK_POPUP_MENU_FLAGS
 DestroyMenu
 SetMenuDefaultItem
 // The menus' dark mode, which uxtheme gives only by ordinal
@@ -100,6 +106,8 @@ GetProcAddress
 // Hotkeys
 RegisterHotKey
 UnregisterHotKey
+GetKeyboardLayout
+VkKeyScanEx
 // Monitors, DPI and system settings
 EnumDisplayMonitors
 GetMonitorInfo
@@ -125,6 +133,9 @@ DeleteDC
 SelectObject
 DeleteObject
 AC_SRC_ALPHA
+CreateDIBSection
+BITMAPINFO
+BI_COMPRESSION
 // A terminal's console to answer in, since a windowed program has none of its own
 AttachConsole
 ATTACH_PARENT_PROCESS
@@ -184,6 +195,8 @@ HWND_NOTOPMOST
 IsWindow
 HTCLIENT
 HTTOP
+// The window's one message box, where WebView2's runtime is missing
+MessageBox
 // Look files, picked in Windows' own dialogs
 GetOpenFileName
 GetSaveFileName
@@ -217,5 +230,14 @@ IUIAutomation2
 IUIAutomationElement
 IUIAutomationElementArray
 IUIAutomationCondition
+IUIAutomationCacheRequest
 UIA_CONTROLTYPE_ID
+UIA_PROPERTY_ID
 CoCreateInstance
+SysFreeString
+// The taskbar's buttons coming and going, which the shell tells its hook windows
+RegisterShellHookWindow
+DeregisterShellHookWindow
+HSHELL_WINDOWCREATED
+HSHELL_WINDOWDESTROYED
+HSHELL_WINDOWREPLACED

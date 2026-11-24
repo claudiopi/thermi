@@ -24,16 +24,20 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
     /// <summary>Raised once the page has loaded, before its first frame shows.</summary>
     public event EventHandler? Loaded;
 
+    private bool _shown;
+    private bool _minimized;
+
     public CoreWebView2Controller? Controller { get; private set; }
 
     /// <summary>
-    /// Starts WebView2 in <paramref name="window"/>, its profile kept in <paramref name="dataFolder"/>, and loads the page;
-    /// without <paramref name="mica"/>, the page is marked to paint Windows' solid background instead.
+    /// Starts WebView2 in <paramref name="window"/>, its runtime from <paramref name="browserFolder"/> or the installed one,
+    /// its profile kept in <paramref name="dataFolder"/>, and loads the page; without <paramref name="mica"/>, the page is
+    /// marked to paint Windows' solid background instead. Throws <see cref="WebView2RuntimeNotFoundException"/> without a runtime.
     /// </summary>
-    public async Task OpenAsync(HWND window, string dataFolder, bool trace, bool mica)
+    public async Task OpenAsync(HWND window, string? browserFolder, string dataFolder, bool trace, bool mica)
     {
         var options = new CoreWebView2EnvironmentOptions { AreBrowserExtensionsEnabled = false, IsCustomCrashReportingEnabled = true };
-        var environment = await CoreWebView2Environment.CreateAsync(null, dataFolder, options);
+        var environment = await CoreWebView2Environment.CreateAsync(browserFolder, dataFolder, options);
         Controller = await environment.CreateCoreWebView2ControllerAsync(window);
         // Made under a window not shown yet, WebView2's own windows stay hidden until told otherwise: the page is shown
         // with the window, through Show.
@@ -49,6 +53,7 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
         view.ProcessFailed += (_, e) => log.PageFailed(e.ProcessFailedKind.ToString());
         view.WebMessageReceived += Received;
         bridge.Changed += (_, _) => Raise(nameof(IWindowBridge.Changed), null);
+        bridge.Readings += (_, _) => Raise(nameof(IWindowBridge.Readings), null);
         bridge.Picked += (_, pick) => Raise(nameof(IWindowBridge.Picked), pick);
         await view.AddScriptToExecuteOnDocumentCreatedAsync(BridgeCalls.Client);
         // The document has no element yet when this runs; it has one, styled before the window shows, once parsed. Over
@@ -62,9 +67,25 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
     /// <summary>Shows the page, once its window shows.</summary>
     public void Show()
     {
+        _shown = true;
+        Follow();
+    }
+
+    /// <summary>
+    /// The window minimized or back: hidden, the page draws nothing, and reads nothing either, as it does while
+    /// `document.hidden`, until it shows again.
+    /// </summary>
+    public void Minimized(bool minimized)
+    {
+        _minimized = minimized;
+        Follow();
+    }
+
+    private void Follow()
+    {
         if (Controller is { } controller)
         {
-            controller.IsVisible = true;
+            controller.IsVisible = _shown && !_minimized;
         }
     }
 

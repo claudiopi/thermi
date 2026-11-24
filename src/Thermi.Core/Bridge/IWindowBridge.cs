@@ -11,8 +11,14 @@ namespace Thermi.Core.Bridge;
 /// </summary>
 public interface IWindowBridge
 {
-    /// <summary>Raised when anything the page reads may have changed: the settings, the readings, the service, the finder.</summary>
+    /// <summary>Raised when anything the page reads may have changed: the settings, the service, the finder, the desktop.</summary>
     event EventHandler? Changed;
+
+    /// <summary>
+    /// Raised for each second's new readings that changed nothing else, so the page reads again only what readings change:
+    /// the view, the sensors, the status and what reads the readings, as a chart.
+    /// </summary>
+    event EventHandler? Readings;
 
     /// <summary>A value or an overlay's edge clicked or pointed at on a real overlay.</summary>
     event EventHandler<DesktopPickEventArgs>? Picked;

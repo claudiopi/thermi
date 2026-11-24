@@ -78,7 +78,7 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
       </CardRow>
       {range !== null && (
         <CardRow label={t('UiText.Combine')}>
-          <CombineButton item={item} type={type} sensors={data.sensors.sensors.filter((sensor) => sensor.type === type && sensor.value !== null)} set={(field, value) => set(field, value)} />
+          <CombineButton item={item} type={type} sensors={data.sensors.sensors.filter((sensor) => sensor.type === type && data.view.values[sensor.id] !== undefined)} set={(field, value) => set(field, value)} />
         </CardRow>
       )}
     </>

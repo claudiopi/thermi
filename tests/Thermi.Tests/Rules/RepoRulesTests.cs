@@ -28,7 +28,10 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void CodeFilesStayShort()
     {
+        // The page's .g.ts files are written in the build from Core's records, one line per field, so the files those
+        // records live in, which this counts, bound them.
         var tooLong = RepoFiles(CodeExtensions)
+            .Where(path => !path.EndsWith(".g.ts", StringComparison.Ordinal))
             .Select(path => (path, lines: File.ReadLines(path).Count()))
             .Where(file => file.lines > MaxLinesPerFile)
             .Select(file => $"{Relative(file.path)} has {file.lines} lines");
@@ -291,8 +294,9 @@ public sealed partial class RepoRulesTests
                 && (path.EndsWith(".spec.ts", StringComparison.Ordinal) || path.EndsWith(".spec.tsx", StringComparison.Ordinal)))
             .SelectMany(path => PlaywrightTest().Matches(File.ReadAllText(path)).Select(match => match.Groups["name"].Value));
 
-    // A Playwright test, like "test('TheChartShows', ...", also when it waits behind skip, fail or its not-yet-written marker.
-    [GeneratedRegex(@"\btest(\.(skip|fixme|fail))?\(\s*(?<quote>['""`])(?<name>[A-Z]\w+)\k<quote>\s*,", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    // A Playwright test, like "test('TheChartShows', ...", also when it waits behind skip, fail or its not-yet-written
+    // marker, or a table of cases under one describe of that name.
+    [GeneratedRegex(@"\btest(\.(skip|fixme|fail|describe))?\(\s*(?<quote>['""`])(?<name>[A-Z]\w+)\k<quote>\s*,", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PlaywrightTest();
 
     // A draft names the tests it will need; they exist once it is approved, before any code.

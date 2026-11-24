@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { axeViolations, fakeOf, fakeState, focusFault, layoutFaults, list, pseudo, recording, select, selectedRow, setFake, text, texts, windowWith, type FakeState } from './fakeBridge';
+import { type Page } from '@playwright/test';
+import { axeViolations, expect, fakeOf, fakeState, focusFault, layoutFaults, list, openWindow, pseudo, recording, select, selectedRow, setFake, test, text, texts, windowWith, type FakeState } from './fakeBridge';
 import { focusContract, type Act } from './focusContract';
 
 /** A text by its key, in the language the window shows. */
@@ -131,8 +131,9 @@ async function perform(page: Page, act: Act): Promise<void> {
     await page.setViewportSize(act.size);
   } else if ('at' in act) {
     await page.mouse.click(act.at.x, act.at.y);
-  } else if ('pause' in act) {
-    await page.waitForTimeout(act.pause);
+  } else if ('sliding' in act) {
+    // Not a wait of some milliseconds, which a slow run would overshoot: the moment an animation runs.
+    await page.waitForFunction(() => document.getAnimations().some((animation) => animation.playState === 'running'));
   } else if ('pick' in act) {
     await page.evaluate((pick) => window.thermiFake?.pick(pick), act.pick);
   } else {
@@ -141,20 +142,20 @@ async function perform(page: Page, act: Act): Promise<void> {
 }
 
 // A213: the design prototype's focus contract, its 102 steps as one table: after each, the focus is on a control in
-// view, never the page, a dialog keeps it inside, and a menu or dialog gives it back to what opened it.
-test('TheFocusContractHolds', async ({ context }) => {
-  // Over a hundred steps in a dozen windows, beside the other tests' workers.
-  test.setTimeout(120_000);
+// view, never the page, a dialog keeps it inside, and a menu or dialog gives it back to what opened it. A scene is a
+// case; a step that waits for its task, or that Windows' frame does, is a fixme of its own, so the report shows it.
+test.describe('TheFocusContractHolds', () => {
   for (const run of focusContract) {
-    const page = await windowWith(context, run.start());
+    for (const step of run.steps.filter((one) => one.frame === true || one.waits !== undefined)) {
+      test.fixme(`${run.name}: ${step.name}, ${step.frame === true ? "which Windows' frame does" : `until ${step.waits}`}`, () => {});
+    }
+  }
+  for (const run of focusContract) test(run.name, async ({ page }) => {
+    await openWindow(page, run.start());
     await page.setViewportSize(run.size);
     await page.emulateMedia({ colorScheme: run.colorScheme, reducedMotion: run.motion === true ? 'no-preference' : 'reduce' });
-    for (const step of run.steps) {
-      if (step.frame === true || step.waits !== undefined) {
-        test.step.skip(`${run.name}: ${step.name}, ${step.frame === true ? "which Windows' frame does" : `until ${step.waits}`}`, () => Promise.resolve());
-        continue;
-      }
-      await test.step(`${run.name}: ${step.name}`, async () => {
+    for (const step of run.steps.filter((one) => one.frame !== true && one.waits === undefined)) {
+      await test.step(step.name, async () => {
         for (const act of step.acts) {
           await perform(page, act);
         }
@@ -172,13 +173,13 @@ test('TheFocusContractHolds', async ({ context }) => {
         }
       });
     }
-    await page.close();
-  }
+  });
 });
 
 // A214: axe finds nothing in any page, dialog, menu, bar or toast, light, dark and under forced colors, also on the
-// opaque background Windows 10 gets for want of Mica (R177), and with reduced motion nothing animates.
-test('AxeFindsNothingInAnyState', async ({ context }) => {
+// opaque background Windows 10 gets for want of Mica (R177), and with reduced motion nothing animates. A view is a
+// case, and one whose task is not done is a fixme, so the report shows it.
+test.describe('AxeFindsNothingInAnyState', () => {
   const modes: { name: string; colorScheme: 'light' | 'dark'; forcedColors: 'active' | 'none'; solid?: boolean }[] = [
     { name: 'light', colorScheme: 'light', forcedColors: 'none' },
     { name: 'dark', colorScheme: 'dark', forcedColors: 'none' },
@@ -188,11 +189,11 @@ test('AxeFindsNothingInAnyState', async ({ context }) => {
   ];
   for (const view of [...pages, ...dialogsAndMenus, ...barsAndToasts]) {
     if (view.waits !== undefined) {
-      test.step.skip(`${view.name}, until ${view.waits}`, () => Promise.resolve());
+      test.fixme(`${view.name}, until ${view.waits}`, () => {});
       continue;
     }
-    await test.step(view.name, async () => {
-      const page = await windowWith(context, fakeState(view.state));
+    test(view.name, async ({ page }) => {
+      await openWindow(page, fakeState(view.state));
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openOn(page, view);
       for (const mode of modes) {
@@ -209,7 +210,6 @@ test('AxeFindsNothingInAnyState', async ({ context }) => {
         expect(await page.locator('main').evaluate((main) => getComputedStyle(main).colorScheme), mode.name).toContain(mode.colorScheme);
         expect(await page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === 'running').length), mode.name).toBe(0);
       }
-      await page.close();
     });
   }
 });

@@ -75,7 +75,10 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             summary is (var least, _, var most) ? format.Texts.Format(format.Numbers, ChartText.Summary, Said(least), Said(most), Said(values[^1])) : "",
             EmptyOf(meter, values.Count),
             _pushed.GetValueOrDefault(id),
-            scale.Kind == SensorKind.Control ? format.Texts.Of(ChartText.DutyTitle) : null);
+            scale.Kind == SensorKind.Control ? format.Texts.Of(ChartText.DutyTitle) : null,
+            Said(from),
+            Said(to),
+            MeterChart.FiresMostly(history, warning, critical) && item.Threshold != Threshold.Default(meter, readings.Known(sensors.Latest)));
     }
 
     /// <summary>

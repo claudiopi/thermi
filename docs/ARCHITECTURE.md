@@ -9,7 +9,7 @@ How thermi is built, with the real names, so you can find any piece and change i
         │ LibreHardwareMonitor, with the PawnIO driver; Windows' IP Helper for which adapters are physical
         ▼
  ┌─ thermi-sensors (src/Thermi.SensorHost) ── Windows service, LocalSystem ────┐
- │ LhmSensorSource reads ─► SensorPipeServer writes one JSON line per second    │
+ │ LhmSensorSource reads ─► SensorPipeServer: the catalog once, then values    │
  └──────────────────────────────┬──────────────────────────────────────────────┘
                                 ▼ named pipe "thermi-sensors": read-only, owner checked
  ┌─ thermi.exe (src/Thermi) ── the user's process, no admin rights ────────────┐
@@ -51,6 +51,7 @@ Why these packages and no others, and why the service takes the fewest, since it
 | --- | --- |
 | **Snapshot** | Every sensor of the types thermi shows, at one moment: id, hardware, type, name, value. `Snapshot.cs`. |
 | **Recording** | A snapshot saved with `thermi-sensors --dump`, replayed by tests. `tests/Thermi.Tests/Recordings`. |
+| **Catalog line** | The whole snapshot, names and all, which the pipe sends each client on connecting and on any change of its sensors; every other second it sends a values line, the values alone in that order (`docs/adr/0012-sensor-pipe-catalog-once.md`). `src/Thermi.Core/Pipe/SnapshotWriter.cs`, `SnapshotLines.cs`. |
 | **Metric** | A stable name for what the overlay shows, like `cpu.temperature`. `Metrics.cs`. |
 | **Sensor map** | The rules from a snapshot to each metric and to each sensor an item names, and the "zero means not read" rule, for a CPU temperature, power or clock only. `SensorMap.cs`. |
 | **Catalog** | Every sensor the service reads, by device, with its search, its type filter and why a sensor has no value. `SensorCatalog.cs`; the window's view of it is `Ui/Views/WindowViews.cs`, and the page's `src/Thermi.Settings.Web/src/catalog`. |
@@ -83,7 +84,7 @@ Why these packages and no others, and why the service takes the fewest, since it
 - **Trust.** The service is the only elevated process and never reads from its pipe. The overlay trusts a pipe only when its owner is SYSTEM or Administrators (`docs/adr/0003-sensor-service.md`).
 - **Failure.** A failure in the service stops it with an error, and Windows restarts it. Nothing the overlay reads can crash it. The service's errors go to the Application event log under `thermi-sensors`; the overlay's and the window's go through an injected `ILogger` to `%LOCALAPPDATA%\thermi\thermi.log`, one Serilog file both write, rolled at 1 MB with three kept, and `--trace` adds the debug events.
 - **Time.** Code gets time from an injected `TimeProvider`, so tests run on a fake clock.
-- **Above the taskbar.** `Topmost.cs` reacts when a taskbar rises above the overlay, and the once-a-second tick re-raises as a safety net (`docs/adr/0004-above-the-taskbar.md`).
+- **Above the taskbar.** `Topmost.cs` reacts when a taskbar rises above the overlay, and the once-a-second tick looks again as a safety net, raising it only past a taskbar too (`docs/adr/0004-above-the-taskbar.md`).
 - **Settings.** The file is versioned, and an older version is migrated when read (`ConfigMigration.cs`). A broken or newer file is never overwritten: the overlay keeps the last settings it read well, or the defaults if there were none, and says why (`ConfigProblem.cs`); the window changes nothing until the file is fixed or the last good settings are restored, the broken file kept beside it. Every writer holds the file's mutex from its re-read to its move into place, and a file found locked, empty, cut short or missing is tried again for 500 ms before it counts (`ConfigStore.cs`, `docs/adr/0005-settings-window-process.md`). Each overlay of the file, up to four, is a layered window of its own in the one overlay process (`OverlayHost.cs`).
 - **Budget.** Spec 001 sets the target: at rest, the overlay under 0.5 % of one core and 40 MB of private memory. No project uses WPF (`RepoRulesTests`), and the window's memory, WebView2's included, is its own process's, so closing it frees all of it.
 

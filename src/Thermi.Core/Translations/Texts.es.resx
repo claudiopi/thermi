@@ -99,8 +99,11 @@
   <data name="UiText.MeterNone" xml:space="preserve">
     <value>Apagado</value>
   </data>
-  <data name="UiText.MeterItself" xml:space="preserve">
-    <value>Este valor</value>
+  <data name="UiText.MeterSpeed" xml:space="preserve">
+    <value>Velocidad (RPM)</value>
+  </data>
+  <data name="UiText.FiresMostly" xml:space="preserve">
+    <value>Salta casi todo el tiempo</value>
   </data>
   <data name="UiText.OwnPill" xml:space="preserve">
     <value>Píldora aparte</value>
@@ -145,7 +148,7 @@
     <value>Agregar a {0}</value>
   </data>
   <data name="CatalogText.CatalogOverlay" xml:space="preserve">
-    <value>Overlay al que se agrega</value>
+    <value>Superposición a la que se agrega</value>
   </data>
   <data name="CatalogText.KindField" xml:space="preserve">
     <value>Tipo</value>
@@ -350,6 +353,9 @@
   </data>
   <data name="UiText.LanguageName" xml:space="preserve">
     <value>Español</value>
+  </data>
+  <data name="UiText.LanguageTag" xml:space="preserve">
+    <value>es</value>
   </data>
   <data name="UiText.LanguageFromWindows" xml:space="preserve">
     <value>Idioma de Windows · {0}</value>
@@ -1850,6 +1856,12 @@
   </data>
   <data name="WindowText.SaveLook" xml:space="preserve">
     <value>Guardar como mi aspecto</value>
+  </data>
+  <data name="WindowText.WebViewMissingTitle" xml:space="preserve">
+    <value>La ventana de configuración no puede abrirse</value>
+  </data>
+  <data name="WindowText.WebViewMissing" xml:space="preserve">
+    <value>Necesita Microsoft Edge WebView2 Runtime, que Windows suele traer y a este PC le falta. La superposición sigue funcionando. ¿Abrir su página de descarga?</value>
   </data>
   <data name="SheetText.AnywhereInWindows" xml:space="preserve">
     <value>En cualquier parte de Windows · se eligen en Configuración</value>

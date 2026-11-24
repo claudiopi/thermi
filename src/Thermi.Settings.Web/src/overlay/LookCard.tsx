@@ -40,7 +40,7 @@ type Asking = { kind: 'save' } | { kind: 'rename'; name: string } | null;
 export function LookCard({ data, overlay }: LookCardProps) {
   const t = useText();
   const edit = useEdit();
-  const looks = useLooks(data.version);
+  const looks = useLooks(data.changes);
   const [asking, setAsking] = useState<Asking>(null);
   const news = useNews();
   const tiles = useRef<HTMLDivElement>(null);

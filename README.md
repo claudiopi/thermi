@@ -1,29 +1,35 @@
-# thermi app
+# thermi
 
-A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM and fans in a small overlay you can place anywhere: over the taskbar, in a corner, or floating. thermi will suggest designs that fit the spot you pick.
+A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM and fans in a small overlay you place anywhere: over the taskbar, in a corner, or floating.
 
-It is built to be configured by AI agents too: a CLI and an MCP server will let your agent inspect your screen, preview a design and apply it.
+**Status: v1 preview, 0.9.0.** There is no release to download yet: you build it from source and install it on your own PC. Expect rough edges, and please report them.
 
-**Status: early development.** Nothing to download yet.
+## What it does
 
-## Planned
+- Shows the values you pick, such as temperatures, loads, power, clocks, memory and fan speeds, in small pills, and keeps them on top, the taskbar included.
+- Colors a value at its warning and critical thresholds, and shows `–` for one it cannot read, never a zero or an old number that looks live.
+- A settings window, "Settings…" in the overlay's menu or `thermi settings`, picks the values and their sensors, the look, the position, the thresholds and the hotkeys, with undo. English and Spanish.
+- Reads the sensors in a small Windows service, `thermi-sensors`, so the overlay and the window never run as administrator.
+- CPU temperature, power and clocks need a small signed driver. When they read nothing, the settings window offers to install it, behind one Windows permission prompt.
 
-- **0.1**: the overlay with CPU, GPU, RAM and fans, replacing the tools its author uses every day.
-- **0.5**: the CLI (`inspect`, `preview`, `apply`, `revert`), the MCP server, design suggestions and the settings window.
-- **1.0**: FPS (through PresentMon, never injecting into games), per-app profiles, a signed installer and winget.
+Planned: a command line and an MCP server so AI agents can configure it, FPS, and a signed installer.
 
-## Build from source
+## Install from source
 
-Requires Windows, PowerShell 7 and the .NET SDK version in `global.json`.
+Requires Windows 10 22H2 or Windows 11, x64 or Arm64, with PowerShell 7, the .NET SDK version in `global.json`, and Node.js 22.12 or later for the settings window's page.
 
-```
-pwsh scripts/check.ps1
-```
-
-To run it, install the [PawnIO](https://pawnio.eu) driver, then run this as yourself (not as administrator). It asks for admin rights once, to register the `thermi-sensors` service:
+Run this as yourself, not as administrator:
 
 ```
 pwsh scripts/install.ps1
+```
+
+It builds thermi, then asks Windows for administrator rights once, to copy it to Program Files and register the `thermi-sensors` service. It installs the WebView2 runtime the settings window needs only where it is missing, and starts thermi at sign-in. Run it again to update. `pwsh scripts/install.ps1 -Uninstall` removes thermi but keeps your settings, and leaves the driver, which other programs may use: remove it from Installed apps if nothing else needs it.
+
+## Build and test
+
+```
+pwsh scripts/check.ps1
 ```
 
 ## Contributing

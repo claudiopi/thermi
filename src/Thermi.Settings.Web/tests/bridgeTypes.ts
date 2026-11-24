@@ -1,14 +1,8 @@
 // What the page's tests fake behind the bridge, whose shapes the build generates from the C# side.
 
-import type { DesktopPick, Edit, FinderView, Language, Monitor, Overlay, Problem, Sensor, Service, Settings, Style } from '../src/bridge/bridge.g';
+import type { DesktopPick, FinderView, Language, Monitor, Overlay, Problem, Sensor, Service, Settings, Style, UndoSteps } from '../src/bridge/bridge.g';
 
 export type * from '../src/bridge/bridge.g';
-
-/** The chart's edits of a line, which the fake's views apply. */
-export type LineEdit = Extract<Edit, { kind: 'line' | 'typedLine' | 'addLine' | 'resetLines' }>;
-
-/** A sensor renamed in the catalog, which the fake's catalog applies. */
-export type SensorNameEdit = Extract<Edit, { kind: 'sensorName' }>;
 
 /** Everything the C# side holds that the page can see, which a test sets and reads back. */
 export interface FakeState {
@@ -46,6 +40,34 @@ export interface FakeState {
   start: DesktopPick | null;
   /** What the page last told the real overlay it edits: the overlay, the selected item and the item pointed at. */
   editing: { overlay: number | null; selected: string | null; pointed: string | null } | null;
+  /** While true, every read is answered with what C# held when asked, but only once a test lets the answers go. */
+  lateReplies: boolean;
+}
+
+/** A call of the page that changes what the C# side holds, as the bridge's wire carries it. */
+export interface OracleCall {
+  method: 'edit' | 'gesture' | 'undo' | 'redo' | 'saveLook' | 'renameLook' | 'deleteLook' | 'importLook';
+  args: unknown[];
+}
+
+/** What the real bridge answered a call, the settings it then showed and its looks when they changed, and its undo steps. */
+export interface OracleAnswer {
+  result?: unknown;
+  error?: string;
+  settings?: Settings;
+  looks?: Record<string, Style>;
+  steps: UndoSteps;
+}
+
+/** What the real bridge starts from: the settings file, the saved looks, the readings, and the window's language. */
+export interface OracleStart {
+  settings: Settings;
+  looks: Record<string, Style>;
+  /** A recording of tests/Thermi.Tests/Recordings by its name's end, or the sensors themselves. */
+  sensors: 'admin' | 'no-admin' | 'admin-net-disk' | Sensor[];
+  service: Service;
+  texts: 'en' | 'es' | 'pseudo';
+  problem: Problem | null;
 }
 
 interface FakeControl {
@@ -53,8 +75,10 @@ interface FakeControl {
   set(change: Partial<FakeState>): void;
   /** A value or an overlay's edge clicked or pointed at on a real overlay. */
   pick(pick: DesktopPick): void;
-  /** How many steps undo and redo would take. */
-  history(): { done: number; undone: number };
+  /** Lets the late answers go, the newest first, as a busy bridge's can arrive, and answers on time from then. */
+  release?(): void;
+  /** Whether the page has read the settings since they last changed. */
+  caughtUp(): boolean;
 }
 
 interface AxeResults {
@@ -64,8 +88,8 @@ interface AxeResults {
 declare global {
   interface Window {
     thermiFake?: FakeControl;
-    thermiFakeViews?: { apply(settings: Settings, edit: LineEdit): string | null };
-    thermiFakeCatalog?: { rename(settings: Settings, edit: SensorNameEdit): void };
+    /** The C# side's answer to a call, from the oracle's table, or why it has none. */
+    thermiOracle?: (call: OracleCall) => Promise<OracleAnswer | { missing: string } | null>;
     axe?: { run(context: { exclude: string[][] }): Promise<AxeResults> };
   }
 }

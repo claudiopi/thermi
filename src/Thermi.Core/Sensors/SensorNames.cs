@@ -85,9 +85,9 @@ public static class SensorNames
             ? texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, texts.Of(likely))
             : texts.Of(likely);
 
-    /// <summary>The snapshot's sensors with the names the user gave them, as the window names them.</summary>
-    public static IEnumerable<RawSensor> Named(Snapshot snapshot, IReadOnlyDictionary<string, string>? own) =>
-        SensorMap.Named(snapshot).Select(named => own?.GetValueOrDefault(named.Id) is { } name ? named.Sensor with { Name = name } : named.Sensor);
+    /// <summary>The snapshot's sensors as the window names them everywhere: the user's name, else the probable one, else the library's.</summary>
+    public static IEnumerable<RawSensor> Named(Snapshot snapshot, IReadOnlyDictionary<string, string>? own, Texts texts) =>
+        SensorMap.Named(snapshot).Select(named => named.Sensor with { Name = Of(named.Sensor, named.Id, own, texts).Shown });
 
     // A duty names its fan's input as the fan does.
     private static int? InputOf(RawSensor sensor) =>

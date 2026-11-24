@@ -113,19 +113,21 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         var kind = ItemEdits.KindOf(item, known);
         var read = item.Sensor ?? (item.Sensors is [var first, ..] ? first : auto);
         var type = (read is null ? null : SensorMap.Find(known, read)?.Type) ?? (kind is { } some ? TypeOf(some) : "");
-        // The item's own reading is "this item"; its other form, as a fan's duty, by its own name.
+        // A meter is a reading of the item itself, so each is named by what it reads: a fan's speed or its duty, else its type.
         IReadOnlyList<MeterChoice> meters = [.. Threshold.MetersOf(item, kind, known).Select((meter, at) =>
-            new MeterChoice(meter, at == 0 ? names.Texts.Of(UiText.MeterItself) : MeterName(meter, known, names.Texts, names.Own)!))];
+            new MeterChoice(meter, MeterKindName(at == 0 ? kind!.Value : kind == SensorKind.Fan ? SensorKind.Control : SensorKind.Fan, names.Texts)))];
         return new ItemView(value, item.Meter is null || value is null ? null : shown!.Level, type, auto, meters, MeterName(item.Meter, known, names.Texts, names.Own));
     }
 
-    // A sensor of its own is named as the user named it, else as the library does, one the service no longer reads by its
-    // id; else its metric's name.
+    // A sensor of its own is named as the catalog names it, one the service no longer reads by the user's name or its id;
+    // else its metric's name.
     private static string? MeterName(MeterConfig? meter, Snapshot known, Texts texts, IReadOnlyDictionary<string, string>? own) =>
         meter is null ? null
-        : meter.Sensor is { } sensor ? own?.GetValueOrDefault(sensor) ?? SensorMap.Find(known, sensor)?.Name ?? sensor
+        : meter.Sensor is { } sensor ? (SensorMap.Find(known, sensor) is { } found ? SensorNames.Of(found, sensor, own, texts).Shown : own?.GetValueOrDefault(sensor) ?? sensor)
         : Metrics.Find(meter.Metric ?? meter.Auto) is { } metric ? texts.Of(metric.Name)
         : meter.Metric;
+
+    private static string MeterKindName(SensorKind kind, Texts texts) => kind == SensorKind.Fan ? texts.Of(UiText.MeterSpeed) : texts.Of(kind);
 
     // The library's name of a type, which the page compares sensors by: a duration is a TimeSpan there.
     private static string TypeOf(SensorKind kind) => kind == SensorKind.Duration ? "TimeSpan" : kind.ToString();

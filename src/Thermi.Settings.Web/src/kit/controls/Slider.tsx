@@ -1,3 +1,4 @@
+import { steady } from '../steady';
 import { Slider as FluentSlider, makeStyles, tokens } from '@fluentui/react-components';
 import { fluentRef } from '../fluentRef';
 import type { Ref } from 'react';
@@ -26,7 +27,7 @@ const useStyles = makeStyles({
 });
 
 /** A slider with its value written beside it. */
-export function Slider({ label, min, max, step, value, valueText, onChange, disabled = false, className, ref }: SliderProps) {
+function SliderDrawn({ label, min, max, step, value, valueText, onChange, disabled = false, className, ref }: SliderProps) {
   const styles = useStyles();
   return (
     <span className={styles.root}>
@@ -49,3 +50,5 @@ export function Slider({ label, min, max, step, value, valueText, onChange, disa
     </span>
   );
 }
+
+export const Slider = steady(SliderDrawn);

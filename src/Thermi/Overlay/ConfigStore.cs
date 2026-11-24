@@ -1,9 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Extensions.Logging;
 using Thermi.Core.Settings;
-using Thermi.Logging;
 
 namespace Thermi.Overlay;
 
@@ -117,31 +115,6 @@ internal sealed class ConfigStore : IDisposable
     public Task<ConfigWrite> RestoreAsync(ThermiConfig good) => WriteAsync(found => Restored(found, good), settled: false);
 
     public void Dispose() => _mutex.Dispose();
-
-    // Without access to its folder the overlay still runs, with the defaults, and the config problem says why. On a first
-    // run the folder is made here, since the file is made only once a read has found it missing.
-    internal static FileSystemWatcher? Watch(string file, Action changed, ILogger log)
-    {
-        var watcher = new FileSystemWatcher();
-        try
-        {
-            watcher.Path = Directory.CreateDirectory(Path.GetDirectoryName(file)!).FullName;
-            watcher.Filter = Path.GetFileName(file);
-
-            // Editors save in different ways: in place, or by writing another file and renaming it over this one.
-            watcher.Changed += (_, _) => changed();
-            watcher.Created += (_, _) => changed();
-            watcher.Renamed += (_, _) => changed();
-            watcher.EnableRaisingEvents = true;
-            return watcher;
-        }
-        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
-        {
-            watcher.Dispose();
-            log.WatchFailed(ex);
-            return null;
-        }
-    }
 
     private static Plan Create(Look found) => new(found.Kind == Found.Missing ? new ThermiConfig() : null);
 

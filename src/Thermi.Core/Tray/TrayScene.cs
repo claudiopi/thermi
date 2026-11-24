@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
-using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -165,20 +164,9 @@ public static class TrayScene
     private sealed record Scene(ThermiConfig Config, TrayInput Input, Taskbar Taskbar, List<IReadOnlyDictionary<string, Reading>> Readings);
 }
 
-/// <summary>Overlays named as the window's picker names them, and thermi's own tray icon its submenus.</summary>
+/// <summary>Overlays named as the window's list names them, for thermi's own tray icon and its submenus.</summary>
 public static class OverlayNames
 {
-    /// <summary>"Overlay" and its number, then where it sits, with its monitor's number, counted from 1 in Windows' order, when there are several.</summary>
-    public static string Of(ThermiConfig config, int overlay, Texts texts, IReadOnlyList<Screen> screens, IFormatProvider numbers)
-    {
-        var name = texts.Format(numbers, UiText.OverlayName, overlay + 1);
-        if (config.Overlays[overlay].Snapped is not { } snap)
-        {
-            return texts.Format(numbers, UiText.OverlayPlace, name, texts.Of(PlaceText.FreePosition));
-        }
-
-        var spot = texts.Of(snap.Spot);
-        var place = screens.Count > 1 && Snaps.ScreenOf(snap, screens) is { } screen ? texts.Format(numbers, PlaceText.OnMonitor, spot, screens.ToList().IndexOf(screen) + 1) : spot;
-        return texts.Format(numbers, UiText.OverlayPlace, name, place);
-    }
+    /// <summary>The name the user typed, else where it sits, as <see cref="Names.OfOverlays"/> says.</summary>
+    public static string Of(ThermiConfig config, int overlay, Texts texts) => Names.OfOverlays(config, texts)[overlay];
 }

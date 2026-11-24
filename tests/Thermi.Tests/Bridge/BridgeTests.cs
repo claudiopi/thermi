@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
@@ -12,31 +13,33 @@ public sealed class BridgeTests
 {
     // A call goes to the C# method its camel-case name names, its arguments read as the page's generated types write
     // them, and its answer, or why it failed, goes back under its id; an event goes out with its value. "event" and
-    // "event:none" raise one with a value and without; "failed:" and a call give the answer that rejects that call.
+    // "event:none" raise one with a value and without; "failed:" and a call give the answer that rejects that call. An
+    // error of "*" is one whose words are the bridge's, which only a log reads: that it fails is the behavior, and an
+    // exception's own message crosses as it is.
     [Theory]
     [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":2,"temperature":"f","overlays":[]}}""")]
     [InlineData("""{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""", """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]
     [InlineData("""{"id":3,"method":"edit","args":[{"kind":"line","item":"cpu.temperature","line":"critical","value":95}]}""", """{"id":3,"result":"LineEdit { Item = cpu.temperature, Line = Critical, Value = 95 }"}""")]
     [InlineData("""{"id":4,"method":"history","args":["cpu.load"]}""", """{"id":4,"result":[1.5,null]}""")]
     [InlineData("""{"id":5,"method":"editing","args":[null,"cpu.load",null]}""", """{"id":5,"result":null}""")]
-    [InlineData("""{"id":6,"method":"undo","args":[]}""", """{"id":6,"error":"No step to undo."}""")]
-    [InlineData("""{"id":7,"method":"format","args":[]}""", """{"id":7,"error":"No such method."}""")]
-    [InlineData("""{"id":8,"method":"history","args":[]}""", """{"id":8,"error":"History takes 1 arguments."}""")]
-    [InlineData("""{"id":9,"method":"edit","args":[{"kind":"paint"}]}""", null)]
+    [InlineData("""{"id":6,"method":"undo","args":[]}""", """{"id":6,"error":"Boom"}""")]
+    [InlineData("""{"id":7,"method":"format","args":[]}""", """{"id":7,"error":"*"}""")]
+    [InlineData("""{"id":8,"method":"history","args":[]}""", """{"id":8,"error":"*"}""")]
+    [InlineData("""{"id":9,"method":"edit","args":[{"kind":"paint"}]}""", """{"id":9,"error":"*"}""")]
     [InlineData("""{"id":10,"method":"crowded","args":[]}""", """{"id":10,"result":[1]}""")]
     [InlineData("""{"id":11,"method":"report","args":["TypeError: x"]}""", """{"id":11,"result":null}""")]
-    [InlineData("""{"id":12,"method":"chart","args":["none"]}""", "{\"id\":12,\"error\":\"No such item. (Parameter \\u0027args\\u0027)\"}")]
-    [InlineData("""{"id":13,"method":"deleteLook","args":["none"]}""", """{"id":13,"error":"No such look."}""")]
-    [InlineData("""{"method":"undo","args":[]}""", """{"id":null,"error":"No step to undo."}""")]
-    [InlineData("""{"id":14,"args":[]}""", """{"id":14,"error":"No such method."}""")]
+    [InlineData("""{"id":12,"method":"chart","args":["none"]}""", """{"id":12,"error":"*"}""")]
+    [InlineData("""{"id":13,"method":"deleteLook","args":["none"]}""", """{"id":13,"error":"Boom"}""")]
+    [InlineData("""{"method":"undo","args":[]}""", """{"id":null,"error":"Boom"}""")]
+    [InlineData("""{"id":14,"args":[]}""", """{"id":14,"error":"*"}""")]
     [InlineData("""{"id":15,"method":"crowded"}""", """{"id":15,"result":[1]}""")]
-    [InlineData("[1]", """{"id":null,"error":"A call is a JSON object."}""")]
+    [InlineData("[1]", """{"id":null,"error":"*"}""")]
     [InlineData("event", """{"event":"picked","value":{"overlay":1,"item":null,"how":"point-in"}}""")]
     [InlineData("event:none", """{"event":"picked","value":null}""")]
     [InlineData("""failed:{"id":16,"method":"undo"}""", """{"id":16,"error":"Boom"}""")]
     [InlineData("failed:[1]", """{"id":null,"error":"Boom"}""")]
     [InlineData("failed:{", """{"id":null,"error":"Boom"}""")]
-    public async Task TheBridgeAnswersEachCallAsThePageTypesIt(string call, string? answer)
+    public async Task TheBridgeAnswersEachCallAsThePageTypesIt(string call, string answer)
     {
         var bridge = DispatchProxy.Create<IWindowBridge, CannedBridge>();
 
@@ -48,14 +51,19 @@ public sealed class BridgeTests
             _ => await BridgeCalls.AnswerAsync(bridge, call),
         };
 
-        if (answer is null)
+        Assert.Equal(answer, answer.Contains("\"error\":\"*\"", StringComparison.Ordinal) ? AnyError(answered) : answered);
+    }
+
+    // The answer with the words of its error, when it has one, as "*".
+    private static string AnyError(string answered)
+    {
+        var shown = JsonNode.Parse(answered)!.AsObject();
+        if (shown["error"]?.GetValue<string>() is { Length: > 0 })
         {
-            Assert.StartsWith("""{"id":9,"error":""", answered, StringComparison.Ordinal);
+            shown["error"] = "*";
         }
-        else
-        {
-            Assert.Equal(answer, answered);
-        }
+
+        return shown.ToJsonString();
     }
 
     // The overlay's ten minutes, moved on by the seconds since it sent them, under what the window read itself; a gap in
@@ -94,9 +102,9 @@ public sealed class BridgeTests
             nameof(IWindowBridge.Edit) => Task.FromResult<string?>(args![0]!.ToString()),
             nameof(IWindowBridge.History) => Task.FromResult<IReadOnlyList<double?>>([1.5, null]),
             nameof(IWindowBridge.Crowded) => Task.FromResult<IReadOnlyList<int>>([1]),
-            nameof(IWindowBridge.Undo) => Task.FromException<Undone?>(new InvalidOperationException("No step to undo.")),
-            nameof(IWindowBridge.Chart) => throw new ArgumentException("No such item.", nameof(args)),
-            nameof(IWindowBridge.DeleteLook) => throw new KeyNotFoundException("No such look."),
+            nameof(IWindowBridge.Undo) => Task.FromException<Undone?>(new InvalidOperationException("Boom")),
+            nameof(IWindowBridge.Chart) => throw new ArgumentException("Boom", nameof(args)),
+            nameof(IWindowBridge.DeleteLook) => throw new KeyNotFoundException("Boom"),
             _ => Task.CompletedTask,
         };
     }

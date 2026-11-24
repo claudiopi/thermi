@@ -30,7 +30,7 @@ function chartMenu(chart: ChartView, item: string, edit: (edit: Edit) => void, s
 export function ItemPage({ data, id, labelAsked, moreOpen, onMoreOpen }: ItemPageProps) {
   const t = useText();
   const edit = useEdit();
-  const chart = useChart(id, data.version);
+  const chart = useChart(id, data.changes);
   const placed = placeOf(data.settings, data.view, id);
   if (placed === null) {
     return null;

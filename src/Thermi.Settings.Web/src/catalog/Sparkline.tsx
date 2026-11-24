@@ -1,13 +1,22 @@
 import { useId } from 'react';
+import type { SensorKind } from '../bridge/bridge.g';
 
 const width = 64;
 const height = 20;
 
-/** The points of a minute of readings, scaled to the line's own range; a gap breaks the line. */
-function runsOf(minute: readonly (number | null)[]): string[] {
+/**
+ * The least span a line of each type is drawn over, in its unit, so a degree or a few RPM read as the small change they
+ * are and not as a square wave; any other type, a tenth of its value.
+ */
+const leastSpans: Partial<Record<SensorKind, number>> = { temperature: 10, load: 20, control: 20, fan: 300, power: 20, clock: 500 };
+
+/** The points of a minute of readings, over the line's range or its type's least span about it; a gap breaks the line. */
+function runsOf(minute: readonly (number | null)[], kind: SensorKind): string[] {
   const read = minute.filter((value): value is number => value !== null);
-  const low = Math.min(...read);
-  const span = Math.max(...read) - low || 1;
+  const top = Math.max(...read);
+  const bottom = Math.min(...read);
+  const span = Math.max(top - bottom, leastSpans[kind] ?? Math.abs(top) / 10) || 1;
+  const low = (top + bottom) / 2 - span / 2;
   const runs: string[][] = [[]];
   minute.forEach((value, at) => {
     if (value === null) {
@@ -22,9 +31,9 @@ function runsOf(minute: readonly (number | null)[]): string[] {
 }
 
 /** A sensor's last minute as a line in the chart's colors; flat at the bottom when it read nothing. */
-export function Sparkline({ minute }: { minute: readonly (number | null)[] }) {
+export function Sparkline({ minute, kind }: { minute: readonly (number | null)[]; kind: SensorKind }) {
   const gradient = useId();
-  const runs = minute.some((value) => value !== null && value !== 0) ? runsOf(minute) : [];
+  const runs = minute.some((value) => value !== null && value !== 0) ? runsOf(minute, kind) : [];
   return (
     <svg className="t-spark" width={width} height={height} aria-hidden="true">
       {runs.length === 0 ? (

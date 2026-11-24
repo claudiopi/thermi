@@ -244,14 +244,7 @@ public sealed class SensorClientTests : IAsyncDisposable
         return await _received.Reader.ReadAsync(giveUp.Token);
     }
 
-    // What the client's own thread does once the pipe has ended, which has nothing to wait on.
-    private static async Task<bool> EventuallyAsync(Func<bool> done)
-    {
-        for (var tries = 0; tries < 200 && !done(); tries++)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, TestContext.Current.CancellationToken);
-        }
-
-        return done();
-    }
+    // What the client's own thread does once the pipe has ended, which raises nothing to wait on: the state itself is
+    // watched, and the real clock only bounds a test that hangs.
+    private static Task<bool> EventuallyAsync(Func<bool> done) => Task.FromResult(SpinWait.SpinUntil(done, Patience));
 }

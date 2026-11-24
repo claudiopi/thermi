@@ -1,238 +1,94 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import type { DesktopPick, Edit, FakeState, Item, Overlay, Settings, Value } from './bridgeTypes';
+import type { DesktopPick, Edit, FakeState, Item, OracleCall, Overlay, Settings, Undone, UndoSteps } from './bridgeTypes';
 import { installFakeCatalog } from './fakes/fakeCatalog';
 import { installFakeLooks } from './fakes/fakeLooks';
 import { fakeState } from './fakes/fakeState';
 import { installFakeViews } from './fakes/fakeViews';
 import { installFakeWindow } from './fakes/fakeWindow';
+import { askOracle } from './oracle';
 
+export { expect } from '@playwright/test';
 export * from './bridgeTypes';
 export * from './fakes/fakeState';
+export { test } from './oracle';
 export * from './pageChecks';
 
 // The page's tests fake the C# side behind the bridge, from the recorded snapshots, and check what
 // the settings hold afterwards: never a text, the DOM's shape, or that a call was made.
 
-// Runs in the page, before its own script, so it may use nothing from this module but its types.
+// Runs in the page, before its own script, so it may use nothing from this module but its types. What the C# side
+// decides, each edit, undo, redo, gesture and saved look, the fake never decides: it asks the oracle for the real
+// bridge's answer to the same call from the same start, and takes the settings, looks and undo steps it then showed.
 function installFake(initial: FakeState): void {
   const state = initial;
   const listeners: (() => void)[] = [];
+  const readingListeners: (() => void)[] = [];
   const pickers: ((pick: DesktopPick) => void)[] = [];
-  const done: Settings[] = [];
-  const undone: Settings[] = [];
-  const changed = (): void => listeners.forEach((listener) => listener());
+  let steps: UndoSteps = { undo: null, redo: null };
+  // The settings' changes, and the last of them the page has read: a test reads the settings only once the page has.
+  let changes = 0;
+  let read = 0;
+  const changed = (): void => {
+    changes += 1;
+    listeners.forEach((listener) => listener());
+  };
 
-  const put = (target: object, field: string, value: Value): void => {
-    const fields = target as Record<string, Value | undefined>;
-    if (value === null) {
-      delete fields[field];
-    } else {
-      fields[field] = value;
+  // As the real bridge's wire, a missing argument goes as null; a call the oracle lacks rejects, as one C# fails.
+  const ask = async (method: OracleCall['method'], ...args: unknown[]): Promise<unknown> => {
+    const answer = await window.thermiOracle?.({ method, args: args.map((arg) => arg ?? null) });
+    if (answer === undefined || answer === null || 'missing' in answer) {
+      throw new Error(`The oracle has no answer: ${answer?.missing ?? 'it is not installed'}.`);
     }
-  };
-
-  const apply = (before: Settings, edit: Edit): Settings | string => {
-    const settings = structuredClone(before);
-    const overlays = settings.overlays;
-    const overlay = (index: number): Overlay => {
-      const found = overlays[index];
-      if (found === undefined) {
-        throw new Error(`The fake has no overlay ${index}.`);
-      }
-      return found;
-    };
-    const find = (id: string): { overlay: Overlay; index: number; item: Item } => {
-      for (const candidate of overlays) {
-        const index = candidate.items.findIndex((item) => item.id === id);
-        const item = candidate.items[index];
-        if (item !== undefined) {
-          return { overlay: candidate, index, item };
-        }
-      }
-      throw new Error(`The fake has no item ${id}.`);
-    };
-    const full = overlays.length >= 4;
-
-    switch (edit.kind) {
-      case 'thermi':
-        put(settings, edit.field, edit.value);
-        break;
-      case 'overlay':
-        put(overlay(edit.overlay), edit.field, edit.value);
-        break;
-      case 'style': {
-        const target = overlay(edit.overlay);
-        target.style = { ...target.style };
-        put(target.style, edit.field, edit.value);
-        break;
-      }
-      case 'item':
-        put(find(edit.item).item, edit.field, edit.value);
-        break;
-      case 'look': {
-        const look = state.looks[edit.name];
-        if (look === undefined) {
-          return 'Refusal.StyleNotFound';
-        }
-        const targets = edit.overlay === null ? overlays : [overlay(edit.overlay)];
-        targets.forEach((target) => {
-          target.style = { ...look, name: edit.name, layout: target.style?.layout ?? 'pills', orientation: target.style?.orientation ?? 'horizontal', ...(target.style?.noLabels === true ? { noLabels: true } : {}) };
-        });
-        break;
-      }
-      case 'addItem': {
-        const sensor = state.sensors.find((candidate) => candidate.id === edit.sensor);
-        overlay(edit.overlay).items.push({ id: edit.sensor, name: settings.sensorNames?.[edit.sensor] ?? sensor?.name ?? edit.sensor, sensor: edit.sensor });
-        break;
-      }
-      case 'sensorName':
-        window.thermiFakeCatalog?.rename(settings, edit);
-        break;
-      case 'removeItem': {
-        const found = find(edit.item);
-        found.overlay.items.splice(found.index, 1);
-        break;
-      }
-      case 'moveItem': {
-        if (edit.overlay === null && full) {
-          return 'Refusal.TooManyOverlays';
-        }
-        const found = find(edit.item);
-        found.overlay.items.splice(found.index, 1);
-        const target = edit.overlay === null ? { name: `Overlay ${overlays.length + 1}`, items: [] } : overlay(edit.overlay);
-        if (edit.overlay === null) {
-          overlays.push(target);
-        }
-        target.items.splice(edit.index, 0, found.item);
-        settings.overlays = overlays.filter((candidate) => candidate.items.length > 0);
-        break;
-      }
-      case 'newOverlay':
-        if (full) {
-          return 'Refusal.TooManyOverlays';
-        }
-        overlays.push({ ...structuredClone(state.defaultOverlay), name: `Overlay ${overlays.length + 1}`, items: [] });
-        break;
-      case 'duplicateOverlay': {
-        if (full) {
-          return 'Refusal.TooManyOverlays';
-        }
-        const copy = structuredClone(overlay(edit.overlay));
-        copy.name = `${copy.name} 2`;
-        copy.items = copy.items.map((item) => ({ ...item, id: `${item.id}-2` }));
-        overlays.splice(edit.overlay + 1, 0, copy);
-        break;
-      }
-      case 'mergeOverlay':
-        overlay(edit.into).items.push(...overlay(edit.overlay).items);
-        overlays.splice(edit.overlay, 1);
-        break;
-      case 'deleteOverlay':
-        if (overlays.length === 1) {
-          return 'Refusal.LastOverlay';
-        }
-        overlays.splice(edit.overlay, 1);
-        break;
-      case 'reset':
-        settings.overlays = [structuredClone(state.defaultOverlay)];
-        break;
-      case 'nudgeOverlay': {
-        // A snapped overlay stays on its snap, as Core's nudge leaves it.
-        const target = overlay(edit.overlay);
-        if (target.position !== undefined && target.snap === undefined) {
-          target.position = { x: target.position.x + edit.dx, y: target.position.y + edit.dy };
-        }
-        break;
-      }
-      default: {
-        const refused = window.thermiFakeViews?.apply(settings, edit);
-        if (refused !== null && refused !== undefined) {
-          return refused;
-        }
-      }
-    }
-    return settings;
-  };
-
-  // The editor's grouping: a drag is one step, and so are repeated changes of one target within a second.
-  let gesture: 'off' | 'started' | 'open' = 'off';
-  let last: { target: string; at: number } | null = null;
-  const targetOf = (edit: Edit): string => JSON.stringify([edit.kind, 'item' in edit ? edit.item : null, 'field' in edit ? edit.field : null]);
-  const joins = (edit: Edit): boolean => {
-    const target = targetOf(edit);
-    const now = Date.now();
-    const joined = gesture === 'open' || (gesture === 'off' && last !== null && last.target === target && now - last.at < 1000);
-    last = gesture === 'off' ? { target, at: now } : null;
-    gesture = gesture === 'started' ? 'open' : gesture;
-    return joined && done.length > 0;
-  };
-
-  const write = (next: Settings, history: Settings[]): void => {
-    history.push(state.settings);
-    state.settings = next;
+    state.settings = answer.settings ?? state.settings;
+    state.looks = answer.looks ?? state.looks;
+    steps = answer.steps;
     changed();
+    if (answer.error !== undefined) {
+      throw new Error(answer.error);
+    }
+    return answer.result ?? null;
   };
 
   window.thermiFake = {
     state,
+    // New values of the same sensors are a second's readings, as C# raises them; anything else is a change.
     set(change) {
+      const ids = (sensors: FakeState['sensors']): string => sensors.map((sensor) => sensor.id).join('\n');
+      const readings = Object.keys(change).every((key) => key === 'sensors') && change.sensors !== undefined && ids(change.sensors) === ids(state.sensors);
       Object.assign(state, change);
-      changed();
+      if (readings) {
+        readingListeners.forEach((listener) => listener());
+      } else {
+        changed();
+      }
     },
     pick: (pick) => pickers.forEach((picker) => picker(pick)),
-    history: () => ({ done: state.problem === null ? done.length : 0, undone: state.problem === null ? undone.length : 0 }),
+    caughtUp: () => read === changes,
   };
 
-  // The views, the looks, the catalog, the finder and the window's status are each installed apart, after this.
+  // The views, the look files, the catalog, the finder and the window's status are each installed apart, after this.
   const notInstalled = async (): Promise<never> => Promise.reject(new Error('A part of the fake is not installed.'));
   window.thermi = {
-    settings: async () => structuredClone(state.settings),
-    problem: async () => state.problem,
-    edit: async (edit: Edit) => {
-      if (state.problem !== null) {
-        return 'Refusal.SettingsBroken';
-      }
-      const next = apply(state.settings, edit);
-      if (typeof next === 'string') {
-        return next;
-      }
-      undone.length = 0;
-      if (joins(edit)) {
-        state.settings = next;
-        changed();
-      } else {
-        write(next, done);
-      }
-      return null;
+    settings: async () => {
+      read = changes;
+      return structuredClone(state.settings);
     },
+    problem: async () => state.problem,
+    edit: async (edit: Edit) => (await ask('edit', edit)) as string | null,
     gesture: async (active) => {
-      gesture = active ? 'started' : 'off';
-      last = null;
+      await ask('gesture', active);
     },
     view: notInstalled,
     chart: async () => null,
     exitThermi: async () => undefined,
-    undo: async () => {
-      last = null;
-      const previous = done.pop();
-      if (previous !== undefined && state.problem === null) {
-        write(previous, undone);
-      }
-      return null;
-    },
-    redo: async () => {
-      last = null;
-      const next = undone.pop();
-      if (next !== undefined && state.problem === null) {
-        write(next, done);
-      }
-      return null;
-    },
+    undo: async () => (await ask('undo')) as Undone | null,
+    redo: async () => (await ask('redo')) as Undone | null,
     status: notInstalled,
-    steps: notInstalled,
+    steps: async () => steps,
     about: notInstalled,
     open: notInstalled,
-    pasteLook: notInstalled,
+    // Windows' clipboard, held by another app, fails the paste before C# reads any look.
+    pasteLook: async (overlay) => (state.clipboard === null ? 'Refusal.PasteFailed' : ((await ask('importLook', overlay, state.clipboard)) as string | null)),
     snapshot: async () => ({ service: state.service, sensors: state.service === 'stopped' ? [] : state.sensors.map((sensor) => ({ ...sensor, name: state.settings.sensorNames?.[sensor.id] ?? sensor.name })) }),
     history: async (id) => {
       const value = state.service === 'running' ? (state.sensors.find((sensor) => sensor.id === id)?.value ?? null) : null;
@@ -244,12 +100,18 @@ function installFake(initial: FakeState): void {
     crowded: async () =>
       state.settings.overlays.flatMap((one, overlay) => (state.crowdedWithoutLabels.includes(overlay) || (state.crowded.includes(overlay) && one.style?.noLabels !== true) ? [overlay] : [])),
     looks: async () => state.looks,
-    saveLook: notInstalled,
-    renameLook: notInstalled,
-    deleteLook: notInstalled,
+    saveLook: async (overlay, name) => (await ask('saveLook', overlay, name)) as string | null,
+    renameLook: async (name, to) => (await ask('renameLook', name, to)) as string | null,
+    deleteLook: async (name) => {
+      await ask('deleteLook', name);
+    },
     exportLook: notInstalled,
     exportSavedLook: notInstalled,
-    importLook: notInstalled,
+    // Windows' file dialog, cancelled, gives C# no look to read.
+    importLook: async (overlay, text) => {
+      const picked = text ?? state.importFile;
+      return picked === null ? null : ((await ask('importLook', overlay, picked)) as string | null);
+    },
     catalog: notInstalled,
     findCpuFan: notInstalled,
     cancelFind: notInstalled,
@@ -299,6 +161,9 @@ function installFake(initial: FakeState): void {
     changed: (listener) => {
       listeners.push(listener);
     },
+    readings: (listener) => {
+      readingListeners.push(listener);
+    },
     // The real overlays are the fake's: what the page tells them it edits is kept, and a test picks on them.
     editing: async (overlay, selected, pointed) => {
       state.editing = { overlay, selected, pointed };
@@ -310,14 +175,45 @@ function installFake(initial: FakeState): void {
   };
 }
 
-/** Opens the page on a fake of the C# side holding the given state. */
+// Runs in the page after every other part of the fake. While the state holds replies late, each read is answered with
+// what the C# side held when it was asked, as a busy bridge answers, and the answers wait for the test to let them go.
+function installLateReplies(): void {
+  const fake = window.thermiFake;
+  const bridge = window.thermi as unknown as Record<string, (...args: unknown[]) => Promise<unknown>> | undefined;
+  if (fake === undefined || bridge === undefined) {
+    throw new Error('The fake bridge is not installed.');
+  }
+  const held: (() => void)[] = [];
+  for (const method of ['settings', 'view', 'snapshot', 'texts', 'status', 'steps', 'problem', 'startWithWindows', 'crowded', 'chart', 'catalog']) {
+    const answer = bridge[method];
+    if (answer === undefined) {
+      throw new Error(`The fake has no ${method}.`);
+    }
+    bridge[method] = async (...args: unknown[]) => {
+      const now = await answer(...args);
+      return fake.state.lateReplies ? new Promise((resolve) => held.push(() => resolve(now))) : now;
+    };
+  }
+  fake.release = () => {
+    fake.state.lateReplies = false;
+    held.splice(0).reverse().forEach((answer) => answer());
+  };
+}
+
+/** Opens the page on a fake of the C# side holding the given state, its settings as C# shows that file. */
 export async function openWindow(page: Page, state: FakeState = fakeState()): Promise<void> {
-  await page.addInitScript(installFake, state);
+  await page.addInitScript(installFake, await askOracle(page, state));
   await page.addInitScript(installFakeViews);
   await page.addInitScript(installFakeLooks);
   await page.addInitScript(installFakeCatalog);
   await page.addInitScript(installFakeWindow);
+  await page.addInitScript(installLateReplies);
   await page.goto('/');
+}
+
+/** Lets the answers a late fake holds go, the newest first. */
+export async function releaseReplies(page: Page): Promise<void> {
+  await page.evaluate(() => window.thermiFake?.release?.());
 }
 
 /** A page of its own on the given state, for a table whose rows each start apart. */
@@ -327,8 +223,12 @@ export async function windowWith(context: BrowserContext, state: FakeState): Pro
   return page;
 }
 
-/** What the fake holds now: the settings the page's edits left, and the rest of the C# side. */
+/**
+ * What the fake holds now: the settings the page's edits left, and the rest of the C# side, once the page has read
+ * them, so the test's next key lands on the page as it shows them, as a person's does.
+ */
 export async function fakeOf(page: Page): Promise<FakeState> {
+  await page.waitForFunction(() => window.thermiFake?.caughtUp() !== false, undefined, { timeout: 5000 });
   return page.evaluate(() => {
     if (window.thermiFake === undefined) {
       throw new Error('The fake bridge is not installed.');

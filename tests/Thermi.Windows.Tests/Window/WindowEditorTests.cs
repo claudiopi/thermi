@@ -23,7 +23,7 @@ public sealed class WindowEditorTests : IAsyncDisposable
         _folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         _settings = _folder.Settings();
         Assert.True(_folder.Settled(_settings.SyncAsync).IsCompletedSuccessfully);
-        _editor = new WindowEditor(_settings, _turn.Enqueue, _folder.Log);
+        _editor = new WindowEditor(_settings, _turn.Enqueue, _folder.Log, _folder.Clock);
     }
 
     // The settings file as the window's writes left it.

@@ -53,7 +53,9 @@ function useFocusHandOver(chart: ChartView): { focused: (target: string) => void
     const lost = document.activeElement === document.body || document.activeElement === null;
     const swap = last.current?.startsWith('knob-') === true ? last.current.replace('knob-', 'add-') : last.current?.replace('add-', 'knob-');
     const target = wanted.current ?? (lost ? swap : null);
-    const element = target === null || target === undefined ? null : document.querySelector<HTMLElement>(`[data-focus="${target}"]`);
+    // A knob asked for that the change left off hands over to its line's Add button.
+    const find = (one: string): HTMLElement | null => document.querySelector<HTMLElement>(`[data-focus="${one}"]`);
+    const element = target === null || target === undefined ? null : (find(target) ?? find(target.replace('knob-', 'add-')));
     if (element !== null) {
       element.focus();
       wanted.current = null;
@@ -186,6 +188,13 @@ export function Chart({ item, name, chart, edit }: ChartProps) {
           })}
         </svg>
         {chart.empty !== null && <EmptyNote why={chart.empty} width={plot.width} />}
+        {chart.empty === null && (
+          // The span's ends, quiet in the plot's corner, so the line's height reads as a value without a grid.
+          <div className="t-scale" aria-hidden="true">
+            <span>{chart.toText}</span>
+            <span>{chart.fromText}</span>
+          </div>
+        )}
         <div className="t-knobs">
           {lines.map((one) => {
             const value = chart[one];
@@ -222,6 +231,20 @@ export function Chart({ item, name, chart, edit }: ChartProps) {
           </div>
         )}
         {chart.stats !== null && <div className="t-stats">{chart.stats}</div>}
+        {chart.fires && (
+          <div className="t-fires">
+            <span>{t('UiText.FiresMostly')}</span>
+            <Button
+              className="t-small-button"
+              onClick={() => {
+                focus.after('knob-warning');
+                later(() => edit({ kind: 'resetLines', item }));
+              }}
+            >
+              {t('UiText.ResetThreshold')}
+            </Button>
+          </div>
+        )}
         <div className="t-pushed" aria-live="polite">
           {chart.pushed ?? ''}
         </div>

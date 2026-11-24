@@ -86,11 +86,11 @@ public sealed record SensorNameEdit(string Sensor, string Name) : PageEdit;
 public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> Sensors)
 {
     /// <summary>
-    /// The snapshot's sensors with the names the user gave them, <paramref name="own"/>, a value that is no number as null,
-    /// since the page's JSON has no NaN.
+    /// The snapshot's sensors with the names the catalog shows, the user's <paramref name="own"/> or a probable one, so a
+    /// sensor has one name everywhere; a value that is no number as null, since the page's JSON has no NaN.
     /// </summary>
-    public static SensorView Of(ServiceState service, Snapshot? snapshot, IReadOnlyDictionary<string, string>? own = null) =>
-        new(service, service == ServiceState.Stopped || snapshot is null ? [] : [.. SensorNames.Named(snapshot, own).Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)]);
+    public static SensorView Of(ServiceState service, Snapshot? snapshot, IReadOnlyDictionary<string, string>? own, Texts texts) =>
+        new(service, service == ServiceState.Stopped || snapshot is null ? [] : [.. SensorNames.Named(snapshot, own, texts).Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)]);
 }
 
 public sealed record Rect(int X, int Y, int Width, int Height);
@@ -134,16 +134,16 @@ public sealed class DesktopPickEventArgs(int overlay, string? item, SelectHow ho
 public static class PageSettings
 {
     /// <summary>
-    /// The settings, every overlay without a name, as one written by hand, named from where it sits, and every item without
-    /// one named as a new item of its sensor, which <paramref name="known"/> names.
+    /// The settings, every overlay without a name the user typed named from where it sits, and every item without one
+    /// named as a new item of its sensor, which <paramref name="known"/> names.
     /// </summary>
     public static ThermiConfig Of(ThermiConfig config, Texts texts, Snapshot? known) =>
         config.Overlays.All(overlay => overlay.Name is not null && overlay.Items.All(item => item.Name is not null)) ? config
         : config with
         {
-            Overlays = [.. config.Overlays.Select(overlay => overlay with
+            Overlays = [.. config.Overlays.Select((overlay, at) => overlay with
             {
-                Name = overlay.Name ?? Names.OfOverlay(config, overlay, texts),
+                Name = Names.OfOverlays(config, texts)[at],
                 Items = [.. overlay.Items.Select(item => item.Name is null ? item with { Name = Names.OfUnnamed(item, known, texts) } : item)],
             })],
         };

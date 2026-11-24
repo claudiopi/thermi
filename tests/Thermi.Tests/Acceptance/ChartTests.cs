@@ -94,6 +94,14 @@ public sealed class ChartTests
             Assert.Null(MeterChart.PushText(scale, MeterChart.Pushed(scale, low, high, ChartLine.Warning), InEnglish));
         }
 
+        // The lowest line reached for more than half of the ten minutes fires most of the time; half of them does not.
+        if ((warning ?? critical) is { } lowest)
+        {
+            Assert.Equal(
+                (false, true),
+                (MeterChart.FiresMostly([.. Enumerable.Repeat<double?>(lowest, 300), null, lowest - 1], warning, critical), MeterChart.FiresMostly([.. Enumerable.Repeat<double?>(lowest, 301), null], warning, critical)));
+        }
+
         if (kind == SensorKind.Temperature)
         {
             // In °F the box takes 32 to 212, and a pushed line says where it went in °F.

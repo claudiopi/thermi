@@ -37,10 +37,14 @@ internal sealed class Topmost : IDisposable
     [field: ThreadStatic]
     public static bool MenuShowing { get; set; }
 
-    // The windows it owns, its value tooltip, rise with it, so it never covers a tooltip that shows.
+    /// <summary>
+    /// Goes back on top when a taskbar is above it, as the reorder event does, for the once-a-second safety net and a new
+    /// taskbar. Only a taskbar makes it rise: rising over any other window would start a fight with every other
+    /// always-on-top app. The windows it owns, its value tooltip, rise with it, so it never covers a tooltip that shows.
+    /// </summary>
     public void Raise()
     {
-        if (!MenuShowing)
+        if (!MenuShowing && TaskbarIsAbove())
         {
             PInvoke.SetWindowPos(_window, HWND.HWND_TOPMOST, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
@@ -50,15 +54,8 @@ internal sealed class Topmost : IDisposable
     // where UnhookWinEvent fails.
     public void Dispose() => _hook.Dispose();
 
-    // Windows reports every change in the order of windows. Only a taskbar above the overlay makes it
-    // react: answering any other window would start a fight with every other always-on-top app.
-    private void OnReorder(HWINEVENTHOOK hook, uint eventType, HWND hwnd, int objectId, int childId, uint thread, uint time)
-    {
-        if (TaskbarIsAbove())
-        {
-            Raise();
-        }
-    }
+    // Windows reports every change in the order of windows.
+    private void OnReorder(HWINEVENTHOOK hook, uint eventType, HWND hwnd, int objectId, int childId, uint thread, uint time) => Raise();
 
     private bool TaskbarIsAbove()
     {

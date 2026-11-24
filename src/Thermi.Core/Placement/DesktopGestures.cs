@@ -23,14 +23,14 @@ public static class DesktopGestures
     /// becomes an overlay of its own there; without one, the overlay merges into the overlay it was dropped onto, snaps to
     /// the <paramref name="mark"/> it was dropped on, or stays where it was dropped.
     /// </summary>
-    public static DesktopDrop Release(ThermiConfig config, int overlay, string? takenOff, Position dropped, int? onto, SnapConfig? mark, Texts texts)
+    public static DesktopDrop Release(ThermiConfig config, int overlay, string? takenOff, Position dropped, int? onto, SnapConfig? mark)
     {
         var other = onto is { } under && under != overlay ? onto : null;
         if (takenOff is not null)
         {
             return other is { } into
-                ? new DesktopDrop(GestureKind.Merge, OverlayEdits.PillInto(config, takenOff, into, texts))
-                : new DesktopDrop(GestureKind.DragOff, OverlayEdits.DragOff(config, takenOff, dropped, texts));
+                ? new DesktopDrop(GestureKind.Merge, OverlayEdits.PillInto(config, takenOff, into))
+                : new DesktopDrop(GestureKind.DragOff, OverlayEdits.DragOff(config, takenOff, dropped));
         }
 
         return other is { } target ? new DesktopDrop(GestureKind.Merge, OverlayEdits.Merge(config, overlay, target))

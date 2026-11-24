@@ -2,7 +2,7 @@ import type { Edit, Monitor, Settings } from '../bridge/bridge.g';
 import type { MenuEntry } from '../kit';
 import { displayName, moveToDisplay, placedOf } from '../overlay/placeModel';
 import type { TextKey } from '../texts/Texts';
-import { overlayName, type Row } from './rows';
+import { overlayName, pillKey, type Row } from './rows';
 
 type Say = (key: TextKey, ...blanks: (string | number)[]) => string;
 
@@ -22,6 +22,7 @@ const mostOverlays = 4;
 function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): MenuEntry[] {
   const id = row.items[0] ?? '';
   const item = settings.overlays[row.overlay]?.items.find((one) => one.id === id);
+  const firstOfPill = row.parent === pillKey(row.overlay, id);
   const moves: MenuEntry[] = settings.overlays.flatMap((overlay, index) =>
     index === row.overlay ? [] : [{ kind: 'action' as const, id: `move-${index}`, text: say('UiText.MoveToOverlay', overlayName(overlay, index, say)), onRun: () => run.edit({ kind: 'moveItem', item: id, overlay: index, index: overlay.items.length }) }],
   );
@@ -29,7 +30,8 @@ function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): M
   return [
     { kind: 'action', id: 'rename', text: say('UiText.Rename'), keys: 'F2', onRun: () => run.rename(row) },
     { kind: 'action', id: 'label', text: say('UiText.EditPillLabel'), onRun: () => run.editLabel(id) },
-    { kind: 'check', id: 'own', text: say('UiText.OwnPill'), checked: item?.own === true, onRun: () => run.edit({ kind: 'item', item: id, field: 'own', value: item?.own === true ? null : true }) },
+    // The first item of a pill already starts one, as its page's switch shows: On, locked.
+    { kind: 'check', id: 'own', text: say('UiText.OwnPill'), checked: item?.own === true || firstOfPill, disabled: firstOfPill && item?.own !== true, onRun: () => run.edit({ kind: 'item', item: id, field: 'own', value: item?.own === true ? null : true }) },
     { kind: 'check', id: 'tray', text: say('UiText.OwnTrayIcon'), checked: item?.tray === true, onRun: () => run.edit({ kind: 'item', item: id, field: 'tray', value: item?.tray === true ? null : true }) },
     { kind: 'divider', id: 'moves' },
     ...moves,

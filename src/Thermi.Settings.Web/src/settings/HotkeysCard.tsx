@@ -71,22 +71,26 @@ function HotkeyRow({ role, combination, refusal, capturing, onCapture, onSet }: 
     main.current?.focus();
     onSet(null);
   };
+  // A set hotkey's × sits in its field, where the pen was, so every field ends where the other rows' controls do.
+  const clearable = combination !== undefined && !capturing;
   return (
     <CardRow label={name} {...(description === undefined ? {} : { description: <span className={refusal === null ? undefined : 't-hk-error'}>{description}</span>, descriptionId: hintId })}>
-      <button
-        ref={main}
-        type="button"
-        className={`t-hk${capturing ? ' t-hk-capturing' : ''}`}
-        aria-label={name}
-        aria-describedby={description === undefined ? valueId : `${valueId} ${hintId}`}
-        onClick={() => !capturing && onCapture(true)}
-        onKeyDown={keyDown}
-        onBlur={() => capturing && onCapture(false)}
-      >
-        <HotkeyKeys id={valueId} combination={combination} capturing={capturing} />
-        {!capturing && <Icon name="edit" className="t-hk-pen" />}
-      </button>
-      {combination !== undefined && !capturing ? <Button kind="subtle" className="t-hk-x" icon={<Icon name="close" />} label={t('WindowText.ClearHotkey', name)} onClick={clear} /> : <span className="t-hk-x" />}
+      <span className="t-hk-field">
+        <button
+          ref={main}
+          type="button"
+          className={`t-hk${capturing ? ' t-hk-capturing' : ''}${clearable ? ' t-hk-set' : ''}`}
+          aria-label={name}
+          aria-describedby={description === undefined ? valueId : `${valueId} ${hintId}`}
+          onClick={() => !capturing && onCapture(true)}
+          onKeyDown={keyDown}
+          onBlur={() => capturing && onCapture(false)}
+        >
+          <HotkeyKeys id={valueId} combination={combination} capturing={capturing} />
+          {!capturing && !clearable && <Icon name="edit" className="t-hk-pen" />}
+        </button>
+        {clearable && <Button kind="subtle" className="t-hk-x" icon={<Icon name="close" />} label={t('WindowText.ClearHotkey', name)} onClick={clear} />}
+      </span>
     </CardRow>
   );
 }

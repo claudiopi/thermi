@@ -42,9 +42,6 @@ public sealed record OverlayConfig(double Size = 1)
 
     public const double MaxSize = 2;
 
-    /// <summary>The default overlay's name, in English, since the defaults have no language; overlays made in the window are named in its.</summary>
-    public static string DefaultName { get; } = Texts.English.Of(NameText.Taskbar);
-
     // Named in English, as the default overlay is.
     public static IReadOnlyList<ItemConfig> DefaultItems { get; } =
     [
@@ -56,8 +53,8 @@ public sealed record OverlayConfig(double Size = 1)
         Default(Metrics.RamUsed, Metrics.RamLoad),
     ];
 
-    /// <summary>The overlay's name, given when it is made from where it sits; null in a file written by hand without one.</summary>
-    public string? Name { get; init; } = DefaultName;
+    /// <summary>The name the user typed, or null: then it is named from where it sits, in the window's language.</summary>
+    public string? Name { get; init; }
 
     /// <summary>Wins over <see cref="Position"/> when the file has both.</summary>
     public SnapConfig? Snap { get; init; }

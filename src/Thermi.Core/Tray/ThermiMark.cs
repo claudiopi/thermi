@@ -135,7 +135,8 @@ public static class ThermiMark
         }
         else
         {
-            parts.AddRange(config.Overlays.Where(overlay => overlay.Hidden).Select(overlay => texts.Format(input.Numbers, TrayText.OverlayHidden, overlay.Name ?? Names.OfOverlay(config, overlay, texts))));
+            var names = Names.OfOverlays(config, texts);
+            parts.AddRange(config.Overlays.Select((overlay, at) => (overlay, at)).Where(each => each.overlay.Hidden).Select(each => texts.Format(input.Numbers, TrayText.OverlayHidden, names[each.at])));
         }
 
         if (config.Overlays.Any(overlay => overlay.ClickThrough))

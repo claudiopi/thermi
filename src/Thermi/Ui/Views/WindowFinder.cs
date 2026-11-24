@@ -74,7 +74,7 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
         { Result: { Outcome: FanFinderOutcome.Found, Fan: { } fan }, Rising: var rising } => new FinderView(
             FinderPhase.Done,
             fan,
-            Text: texts.Format(numbers, FanFinderOutcome.Found, NameOf(fan, own)),
+            Text: texts.Format(numbers, FanFinderOutcome.Found, NameOf(fan, own, texts)),
             Detail: rising is { } rose && rose.Fan == fan ? texts.Format(numbers, CatalogText.FanRose, Math.Round(rose.Rpm)) : null),
         { Result: { } result } => new FinderView(FinderPhase.Done, null, Text: texts.Of(result.Outcome)),
     };
@@ -131,12 +131,13 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
         var text = texts.Of(CatalogText.FanFinderLoading);
         if (_finder?.Rising is { } rising)
         {
-            text += " · " + texts.Format(numbers, CatalogText.FanRising, NameOf(rising.Fan, own), Math.Round(rising.Rpm), Math.Round(rising.Share * 100));
+            text += " · " + texts.Format(numbers, CatalogText.FanRising, NameOf(rising.Fan, own, texts), Math.Round(rising.Rpm), Math.Round(rising.Share * 100));
         }
 
         return new FinderView(FinderPhase.Running, null, Progress: Math.Min(1, time.GetElapsedTime(_loadedAt) / FanFinder.MaxRun), Text: text);
     }
 
-    private string NameOf(string fan, IReadOnlyDictionary<string, string>? own) =>
-        _last is { } snapshot && SensorMap.Find(snapshot, fan) is { } sensor ? string.Create(CultureInfo.InvariantCulture, $"{own?.GetValueOrDefault(fan) ?? sensor.Name} · {sensor.Hardware}") : fan;
+    // The fan as the catalog and the Sensor dropdown name it, so one fan never reads by two names.
+    private string NameOf(string fan, IReadOnlyDictionary<string, string>? own, Texts texts) =>
+        _last is { } snapshot && SensorMap.Find(snapshot, fan) is { } sensor ? string.Create(CultureInfo.InvariantCulture, $"{SensorNames.Of(sensor, fan, own, texts).Shown} · {sensor.Hardware}") : fan;
 }

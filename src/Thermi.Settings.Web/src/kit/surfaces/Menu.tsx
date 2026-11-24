@@ -7,7 +7,7 @@ import { Icon, type IconName } from '../controls/Icon';
 export type MenuEntry =
   | { kind: 'action'; id: string; text: string; keys?: string; disabled?: boolean; icon?: IconName; onRun: () => void }
   | { kind: 'choice'; id: string; text: string; chosen: boolean; onRun: () => void }
-  | { kind: 'check'; id: string; text: string; checked: boolean; onRun: () => void }
+  | { kind: 'check'; id: string; text: string; checked: boolean; disabled?: boolean; onRun: () => void }
   | { kind: 'submenu'; id: string; text: string; icon?: IconName; entries: readonly MenuEntry[] }
   | { kind: 'divider'; id: string };
 
@@ -77,7 +77,7 @@ function Entry({ entry, chosen }: { entry: MenuEntry; chosen: RefObject<HTMLDivE
       );
     case 'check':
       return (
-        <MenuItemCheckbox name={checks} value={entry.id} onClick={entry.onRun}>
+        <MenuItemCheckbox name={checks} value={entry.id} disabled={entry.disabled ?? false} onClick={entry.onRun}>
           {entry.text}
         </MenuItemCheckbox>
       );

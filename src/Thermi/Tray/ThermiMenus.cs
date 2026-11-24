@@ -29,7 +29,7 @@ internal static class ThermiMenus
         nuint choice;
         using (var menu = Build(rows, place, all))
         {
-            choice = Track(menu, owner);
+            choice = Track(menu, owner, place.Overlay is not null);
         }
 
         return choice > 0 && (int)choice <= all.Count ? all[(int)choice - 1] : null;
@@ -97,7 +97,7 @@ internal static class ThermiMenus
 
         if (entry is MenuEntry.ShowOverlay or MenuEntry.Overlay)
         {
-            return texts.Format(place.Numbers, entry, NameOf(config, row.Overlay ?? 0, texts, place.Numbers));
+            return texts.Format(place.Numbers, entry, NameOf(config, row.Overlay ?? 0, texts));
         }
 
         return entry == MenuEntry.Look && row.Look is { } look ? look
@@ -105,13 +105,14 @@ internal static class ThermiMenus
             : texts.Of(entry);
     }
 
-    /// <summary>An overlay's name, or without one, the window's picker's.</summary>
-    public static string NameOf(ThermiConfig config, int overlay, Texts texts, IFormatProvider numbers) =>
-        overlay >= config.Overlays.Count ? "" : config.Overlays[overlay].Name ?? OverlayNames.Of(config, overlay, texts, Desktop.Screens(), numbers);
+    /// <summary>An overlay's name, as the window's list says it.</summary>
+    public static string NameOf(ThermiConfig config, int overlay, Texts texts) =>
+        overlay >= config.Overlays.Count ? "" : OverlayNames.Of(config, overlay, texts);
 
     // The owner comes to the front first, or the menu would not close when the user clicks elsewhere, and gets a message
-    // after, or the next menu would close as soon as it opens. While it shows, no overlay rises over it.
-    private static nuint Track(SafeHandle menu, HWND owner)
+    // after, or the next menu would close as soon as it opens. While it shows, no overlay rises over it. An overlay's menu
+    // keeps off the overlay, above or below it, so it covers none of its pills.
+    private static unsafe nuint Track(SafeHandle menu, HWND owner, bool offOwner)
     {
         PInvoke.GetCursorPos(out var cursor);
         PInvoke.SetForegroundWindow(owner);
@@ -119,7 +120,10 @@ internal static class ThermiMenus
         Topmost.MenuShowing = true;
         try
         {
-            var choice = (nuint)(int)PInvoke.TrackPopupMenu(menu, TRACK_POPUP_MENU_FLAGS.TPM_RETURNCMD, cursor.X, cursor.Y, owner, null);
+            var away = new TPMPARAMS { cbSize = (uint)sizeof(TPMPARAMS) };
+            var exclude = offOwner && PInvoke.GetWindowRect(owner, out away.rcExclude);
+            var flags = TRACK_POPUP_MENU_FLAGS.TPM_RETURNCMD | (exclude ? TRACK_POPUP_MENU_FLAGS.TPM_VERTICAL : TRACK_POPUP_MENU_FLAGS.TPM_LEFTALIGN);
+            var choice = (nuint)(int)PInvoke.TrackPopupMenuEx(menu, (uint)flags, cursor.X, cursor.Y, owner, exclude ? away : null);
             PInvoke.PostMessage(owner, PInvoke.WM_NULL, 0, 0);
             return choice;
         }

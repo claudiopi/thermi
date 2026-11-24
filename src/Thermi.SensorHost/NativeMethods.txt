@@ -4,3 +4,5 @@ GetIfTable2
 FreeMibTable
 IF_TYPE_SOFTWARE_LOOPBACK
 IF_TYPE_TUNNEL
+// Whose session a pipe client is in
+GetNamedPipeClientSessionId

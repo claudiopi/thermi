@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
@@ -289,6 +290,20 @@ public sealed class SettingsTests : IDisposable
 
         Assert.Equal(2, changes);
         Assert.Equal(1.75, settings.Config.Overlays[0].Size);
+    }
+
+    // Windows drops a watcher's changes when they come faster than it reads them, and says so only as an error, raised
+    // here as Windows raises it: the file is read again, since a change may have been lost, and watched on.
+    [Fact]
+    public async Task AWatcherThatLostChangesReadsTheFileAgain()
+    {
+        var settings = await _folder.LoadedAsync();
+        _folder.Write(SettingsFolder.Sized(1.5));
+        using var watcher = settings.Watch(_folder.Log)!;
+
+        typeof(FileSystemWatcher).GetMethod("OnError", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(watcher, [new ErrorEventArgs(new InternalBufferOverflowException())]);
+
+        Assert.Equal((1.5, true), (settings.Config.Overlays[0].Size, watcher.EnableRaisingEvents));
     }
 
     private static ThermiConfig Grow(ThermiConfig config) => OverlayEdits.SetSize(config, 0, config.Overlays[0].Size + 0.25).Config;

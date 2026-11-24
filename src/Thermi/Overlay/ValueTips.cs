@@ -3,7 +3,9 @@ using System.Runtime.InteropServices;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.Controls;
+using Windows.Win32.UI.Shell;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Overlay;
@@ -21,9 +23,15 @@ internal sealed class ValueTips : IDisposable
     // comctl32 version 5, which a process without its manifest loads, refuses version 6's longer structure.
     private static readonly uint ToolSize = (uint)Marshal.OffsetOf<TTTOOLINFOW>(nameof(TTTOOLINFOW.lpReserved));
 
+    // Between the tooltip and the overlay, so it reads as the overlay's and covers none of its pills.
+    private const int Gap = 6;
+
     private readonly HWND _owner;
     private readonly HWND _tips;
     private readonly List<string> _texts = [];
+
+    // Kept alive as long as the tooltip, which calls it.
+    private readonly SUBCLASSPROC _placed;
     private bool? _dark;
 
     public unsafe ValueTips(HWND owner)
@@ -37,6 +45,11 @@ internal sealed class ValueTips : IDisposable
         }
 
         PInvoke.SendMessage(_tips, PInvoke.TTM_SETMAXTIPWIDTH, 0, MaxWidth);
+        _placed = Placed;
+        if (!_tips.IsNull)
+        {
+            PInvoke.SetWindowSubclass(_tips, _placed, 0, 0);
+        }
     }
 
     /// <summary>One tool per place, in the overlay's pixels, with its text; tools past the places go.</summary>
@@ -100,8 +113,29 @@ internal sealed class ValueTips : IDisposable
     {
         if (!_tips.IsNull)
         {
+            PInvoke.RemoveWindowSubclass(_tips, _placed, 0);
             PInvoke.DestroyWindow(_tips);
         }
+    }
+
+    // Windows puts a tooltip under the pointer, or over it near the screen's foot, where it would cover the next pills: it
+    // goes whole above the overlay instead, or below it where the screen has no room above, as on a taskbar at the top.
+    private unsafe LRESULT Placed(HWND window, uint message, WPARAM wParam, LPARAM lParam, nuint id, nuint data)
+    {
+        if (message == PInvoke.WM_WINDOWPOSCHANGING && (WINDOWPOS*)lParam.Value is var pos && (pos->flags & SET_WINDOW_POS_FLAGS.SWP_NOMOVE) != SET_WINDOW_POS_FLAGS.SWP_NOMOVE && PInvoke.GetWindowRect(_owner, out var overlay))
+        {
+            var height = (pos->flags & SET_WINDOW_POS_FLAGS.SWP_NOSIZE) != SET_WINDOW_POS_FLAGS.SWP_NOSIZE ? pos->cy : (PInvoke.GetWindowRect(window, out var tip) ? tip.bottom - tip.top : 0);
+            var above = overlay.top - Gap - height;
+            pos->y = above >= ScreenTop(overlay) ? above : overlay.bottom + Gap;
+        }
+
+        return PInvoke.DefSubclassProc(window, message, wParam, lParam);
+    }
+
+    private static int ScreenTop(RECT overlay)
+    {
+        var info = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
+        return PInvoke.GetMonitorInfo(PInvoke.MonitorFromRect(overlay, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST), ref info) ? info.rcMonitor.top : int.MinValue;
     }
 
     // The control copies the text, so it is pinned only for the call.

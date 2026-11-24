@@ -9,8 +9,9 @@ using Windows.Win32.Security.WinTrust;
 namespace Thermi.Commands;
 
 /// <summary>
-/// <c>%ProgramData%\thermi\driver</c>, where the driver's installer waits while it is checked and run: made, or kept,
-/// writable only by administrators and SYSTEM, and checked for its owner, its access and links before each use.
+/// <c>%ProgramData%\thermi\driver</c>, where the driver's installer waits while it is checked and run: made, or taken
+/// back, owned by administrators and writable only by them and SYSTEM, and checked for its owner, its access and links
+/// before each use.
 /// </summary>
 internal static class DriverFolder
 {
@@ -22,7 +23,7 @@ internal static class DriverFolder
     private static readonly SecurityIdentifier Administrators = new(WellKnownSidType.BuiltinAdministratorsSid, null);
     private static readonly SecurityIdentifier Users = new(WellKnownSidType.BuiltinUsersSid, null);
 
-    /// <summary>The folder, ready; null when it is a link or someone other than an administrator owns it, which nothing here takes over.</summary>
+    /// <summary>The folder, ready; null when it is a link, or when its owner kept administrators from taking it back.</summary>
     public static string? Prepare() => Prepare(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "thermi"));
 
     /// <summary>The <c>driver</c> folder in <paramref name="thermi"/>, both made or kept safe, or null.</summary>
@@ -42,17 +43,24 @@ internal static class DriverFolder
                 folder.Refresh();
             }
 
-            if (folder.Attributes.HasFlag(FileAttributes.ReparsePoint) || !Trusted(folder.GetAccessControl().GetOwner(typeof(SecurityIdentifier))))
+            if (folder.Attributes.HasFlag(FileAttributes.ReparsePoint))
             {
                 return false;
             }
 
-            // An administrator's folder may have taken ProgramData's access, which lets every user add files.
-            folder.SetAccessControl(AdminsOnly());
-            return folder.GetAccessControl().GetAccessRules(includeExplicit: true, includeInherited: true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>()
-                .All(rule => rule.AccessControlType == AccessControlType.Deny || ((int)rule.FileSystemRights & (int)Writes) == 0 || Trusted(rule.IdentityReference));
+            // Taken back from whoever made it: a user who made it first would otherwise block the install for good, and an
+            // administrator's may have taken ProgramData's access, which lets every user add files. What it held stays
+            // harmless, since the installer is checked by its hash while it is held open.
+            var safe = AdminsOnly();
+            safe.SetOwner(Administrators);
+            folder.SetAccessControl(safe);
+            var now = folder.GetAccessControl();
+            return Trusted(now.GetOwner(typeof(SecurityIdentifier)))
+                && now.GetAccessRules(includeExplicit: true, includeInherited: true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>()
+                    .All(rule => rule.AccessControlType == AccessControlType.Deny || ((int)rule.FileSystemRights & (int)Writes) == 0 || Trusted(rule.IdentityReference));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PrivilegeNotHeldException)
+        // Windows refuses an owner the process may not set as InvalidOperationException.
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PrivilegeNotHeldException or InvalidOperationException)
         {
             return false;
         }

@@ -13,9 +13,9 @@ function settings(...overlays: Overlay[]): Settings {
 
 const ids = (...names: string[]): Item[] => names.map((id) => ({ id }));
 
-// A row as one line: what it is, what Narrator reads, where it hangs and what it shows.
-const line = (row: Row): string =>
-  `${row.key} ${row.kind} ${row.level} ${row.name} | ${row.label} | ${row.parent ?? '-'} ${row.branch} ${row.expanded} [${row.items.join(',')}] ${row.value ?? '-'} ${row.alert ?? '-'}`;
+// What the list decides of a row: what it is, which text Narrator reads it by and with what, where it hangs and what it
+// shows. The texts are their keys and blanks, as sayKeys gives them, never their words.
+const decided = (row: Row) => ({ key: row.key, kind: row.kind, name: row.name, said: row.label, parent: row.parent, branch: row.branch, expanded: row.expanded, items: row.items, value: row.value ?? null, alert: row.alert ?? null });
 
 function row(key: string, level: 1 | 2 | 3, expanded = true): Row {
   return { key, kind: level === 1 ? 'overlay' : level === 2 ? 'pill' : 'item', level, name: key, label: key, overlay: 0, parent: null, branch: level < 3, expanded, items: [] };
@@ -33,14 +33,14 @@ describe('the list', () => {
 
     const rows = rowsOf(shown, view, new Set(['p:0:gpu']), sayKeys);
 
-    expect(rows.map(line)).toEqual([
-      'o:0 overlay 1 Main | UiText.OverlayItems Main 2 | - true true [cpu,gpu] - -',
-      'p:0:cpu pill 2 CPU | UiText.PillOneItem CPU | o:0 true true [cpu] - -',
-      'i:cpu item 3 cpu | cpu | p:0:cpu false false [cpu] 50 °C warning',
-      'p:0:gpu pill 2 Pair | UiText.PillItems Pair 2 | o:0 true false [gpu,ghost] - -',
-      'i:gpu item 3 Graphics | Graphics | p:0:gpu false false [gpu] - -',
-      'i:ghost item 3 ghost | ghost | p:0:gpu false false [ghost] - -',
-      'o:1 overlay 1 UiText.OverlayName 2 | UiText.OverlayOneItem UiText.OverlayName 2 | - true true [ram] UiText.OverlayHidden -',
+    expect(rows.map(decided)).toEqual([
+      { key: 'o:0', kind: 'overlay', name: 'Main', said: sayKeys('UiText.OverlayItems', 'Main', 2), parent: null, branch: true, expanded: true, items: ['cpu', 'gpu'], value: null, alert: null },
+      { key: 'p:0:cpu', kind: 'pill', name: 'CPU', said: sayKeys('UiText.PillOneItem', 'CPU'), parent: 'o:0', branch: true, expanded: true, items: ['cpu'], value: null, alert: null },
+      { key: 'i:cpu', kind: 'item', name: 'cpu', said: 'cpu', parent: 'p:0:cpu', branch: false, expanded: false, items: ['cpu'], value: '50 °C', alert: 'warning' },
+      { key: 'p:0:gpu', kind: 'pill', name: 'Pair', said: sayKeys('UiText.PillItems', 'Pair', 2), parent: 'o:0', branch: true, expanded: false, items: ['gpu', 'ghost'], value: null, alert: null },
+      { key: 'i:gpu', kind: 'item', name: 'Graphics', said: 'Graphics', parent: 'p:0:gpu', branch: false, expanded: false, items: ['gpu'], value: null, alert: null },
+      { key: 'i:ghost', kind: 'item', name: 'ghost', said: 'ghost', parent: 'p:0:gpu', branch: false, expanded: false, items: ['ghost'], value: null, alert: null },
+      { key: 'o:1', kind: 'overlay', name: sayKeys('UiText.OverlayName', 2), said: sayKeys('UiText.OverlayOneItem', sayKeys('UiText.OverlayName', 2)), parent: null, branch: true, expanded: true, items: ['ram'], value: sayKeys('UiText.OverlayHidden'), alert: null },
     ]);
   });
 

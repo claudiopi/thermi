@@ -9,7 +9,7 @@ namespace Thermi.Core.Editing;
 /// <summary>
 /// The names and places of what an edit makes. A new item is named like the defaults, as "GPU temperature", with its
 /// sensor's own name in brackets when another item has that name, and a number when the same sensor is added again; it
-/// joins the pill of its device's kind. A new overlay is named from where it sits, with a number when one reads the same.
+/// joins the pill of its device's kind. An overlay without a typed name is named from where it sits, with a number when one reads the same.
 /// </summary>
 internal static class Names
 {
@@ -67,19 +67,30 @@ internal static class Names
         : (item.Sensor ?? (item.Sensors is [var first, ..] ? first : null)) is { } id && known is not null && SensorMap.Find(known, id) is { } sensor ? Base(sensor, texts)
         : item.Id;
 
-    /// <summary>The name of an overlay that sits where <paramref name="overlay"/> does, among the overlays of <paramref name="config"/>.</summary>
-    public static string OfOverlay(ThermiConfig config, OverlayConfig overlay, Texts texts)
+    /// <summary>
+    /// Every overlay's name, in order: the one the user typed, else where it sits now, in <paramref name="texts"/>'
+    /// language, with a number when an earlier one reads the same. Only a typed name is saved, so moving an overlay or
+    /// changing the language renames the others.
+    /// </summary>
+    public static IReadOnlyList<string> OfOverlays(ThermiConfig config, Texts texts)
     {
-        var place = texts.Of(overlay.Snapped?.Spot switch
+        var shown = new List<string>();
+        var typed = config.Overlays.Select(each => each.Name).OfType<string>().ToList();
+        foreach (var overlay in config.Overlays)
         {
-            null => NameText.Floating,
-            SnapSpot.TopLeft => NameText.TopLeft,
-            SnapSpot.TopRight => NameText.TopRight,
-            SnapSpot.BottomLeft => NameText.BottomLeft,
-            SnapSpot.BottomRight => NameText.BottomRight,
-            SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight or _ => NameText.Taskbar,
-        });
-        return Numbered(place, [.. config.Overlays.Select(each => each.Name)], texts);
+            var place = texts.Of(overlay.Snapped?.Spot switch
+            {
+                null => NameText.Floating,
+                SnapSpot.TopLeft => NameText.TopLeft,
+                SnapSpot.TopRight => NameText.TopRight,
+                SnapSpot.BottomLeft => NameText.BottomLeft,
+                SnapSpot.BottomRight => NameText.BottomRight,
+                SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight or _ => NameText.Taskbar,
+            });
+            shown.Add(overlay.Name ?? Numbered(place, [.. typed, .. shown], texts));
+        }
+
+        return shown;
     }
 
     /// <summary>The first corner of the primary monitor no overlay snaps to, in the order top right, bottom right, bottom left, top left.</summary>

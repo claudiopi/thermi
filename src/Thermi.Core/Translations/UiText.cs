@@ -44,7 +44,11 @@ public enum UiText
 
     MeterNone,
 
-    MeterItself,
+    /// <summary>A fan item's meter by its own speed, as its other meter is its duty.</summary>
+    MeterSpeed,
+
+    /// <summary>Under a chart whose lines, not the defaults, were reached for most of its ten minutes.</summary>
+    FiresMostly,
 
     OwnPill,
 
@@ -122,6 +126,9 @@ public enum UiText
 
     /// <summary>This language's own name, as its speakers write it.</summary>
     LanguageName,
+
+    /// <summary>This language's BCP 47 tag, which the page declares so Narrator reads it in its voice.</summary>
+    LanguageTag,
 
     /// <summary>The choice that follows Windows, with the language that gives now.</summary>
     LanguageFromWindows,

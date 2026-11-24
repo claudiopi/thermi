@@ -3,7 +3,6 @@ using Thermi.Core.Editing;
 using Thermi.Core.Messages;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.Core.Translations;
 using Thermi.Overlay;
 using Thermi.Windows;
 using Windows.Win32;
@@ -90,7 +89,7 @@ internal sealed class DesktopDrag : IDisposable
     /// The press let go: a drag writes its gesture as one edit, the plain move through <see cref="Settings.Release"/> so it
     /// stays where it was dropped until written. <paramref name="onto"/> is the other overlay under the cursor.
     /// </summary>
-    public void Release(Press press, Position cursor, DragDistance distance, int? onto, GestureUndo? undo, Texts texts)
+    public void Release(Press press, Position cursor, DragDistance distance, int? onto, GestureUndo? undo)
     {
         if (_dropped is not { } at)
         {
@@ -100,7 +99,7 @@ internal sealed class DesktopDrag : IDisposable
         var before = _settings.Config;
         var drop = _start.Held == Held.Corner
             ? new DesktopDrop(GestureKind.Resize, OverlayEdits.Resize(before, _overlay, Preview!.Value.Size, Preview.Value.Orientation))
-            : DesktopGestures.Release(before, _overlay, Moves ? null : _start.Pill, Moves ? at : PillAt(at), onto, Moves ? Snaps.Near(_screens, before.Overlays[_overlay].Style.Orientation, _start.Size.Width, _start.Size.Height, at) : null, texts);
+            : DesktopGestures.Release(before, _overlay, Moves ? null : _start.Pill, Moves ? at : PillAt(at), onto, Moves ? Snaps.Near(_screens, before.Overlays[_overlay].Style.Orientation, _start.Size.Width, _start.Size.Height, at) : null);
         if (drop.Result.Refused is not null || ConfigEdits.Replay(before, drop.Result.Config) is not { } change)
         {
             return;

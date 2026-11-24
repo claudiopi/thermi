@@ -38,6 +38,27 @@ internal sealed class HotkeyRegistry(HWND hwnd) : IDisposable
     public static bool AskToRest(bool rest) => HiddenWindow.Ask(HiddenWindow.HostClass, RestMessage, rest ? 1u : 0u) is not null;
 
     /// <summary>
+    /// The keys that type a character with AltGr, which Windows reads as Ctrl+Alt, on the calling thread's keyboard
+    /// layout: a hotkey of Ctrl+Alt with one of them would take that character from every app.
+    /// </summary>
+    public static IReadOnlySet<int> AltGrKeys()
+    {
+        var layout = PInvoke.GetKeyboardLayout(0);
+        var keys = new HashSet<int>();
+        foreach (var character in Enumerable.Range('!', 'ÿ' - '!' + 1).Append('€'))
+        {
+            // The low byte is the key, the high its shift state, where Ctrl is 2 and Alt 4; -1 is no key at all.
+            var scan = PInvoke.VkKeyScanEx((char)character, layout);
+            if (scan != -1 && ((scan >> 8) & 6) == 6)
+            {
+                keys.Add(scan & 0xFF);
+            }
+        }
+
+        return keys;
+    }
+
+    /// <summary>
     /// Whether another program holds <paramref name="combination"/>, as Windows says by refusing it to this thread too.
     /// One of thermi's own hotkeys is left to Core, which refuses another hotkey's combination; one that cannot be read
     /// is Core's to refuse too.

@@ -1,4 +1,4 @@
-import type { ChartColor, ChartView, Item, ItemView, Line, LineEdit, MarkState, Meter, MeterChoice, PillView, Sensor, Settings, WindowView } from '../bridgeTypes';
+import type { ChartColor, ChartView, Item, ItemView, MarkState, Meter, MeterChoice, PillView, Sensor, WindowView } from '../bridgeTypes';
 
 // The C# side's views of the settings and the readings, as the fake gives them: the pills, each item's value and
 // level, and its chart. Core decides these for real and tests them; the fake follows the same rules in rough form,
@@ -90,7 +90,9 @@ export function installFakeViews(): void {
       return [];
     }
     const other = item.sensors === undefined ? otherForm(item) : undefined;
-    return [{ meter: self, name: say('UiText.MeterItself') }, ...(other === undefined ? [] : [{ meter: other, name: meterNameOf({ ...item, meter: other }) ?? '' }])];
+    // Each named by what it reads, as the C# side names it: a fan's speed or its duty, else its type.
+    const kindName = (of: string): string => say(of === 'Fan' ? 'UiText.MeterSpeed' : `SensorKind.${of}`);
+    return [{ meter: self, name: kindName(type) }, ...(other === undefined ? [] : [{ meter: other, name: kindName(type === 'Fan' ? 'Control' : 'Fan') }])];
   };
   const itemView = (item: Item): ItemView => {
     const read = sensorOf(item);
@@ -126,85 +128,8 @@ export function installFakeViews(): void {
     };
   };
 
-  const scaleOf = (type: string): { max: number; step: number; push: number } =>
-    type === 'Fan' ? { max: 10000, step: 50, push: 100 } : { max: 100, step: 1, push: 5 };
-  const pushed = new Map<string, string>();
-  const find = (settings: Settings, id: string): Item => {
-    const item = settings.overlays.flatMap((overlay) => overlay.items).find((candidate) => candidate.id === id);
-    if (item === undefined) {
-      throw new Error(`The fake has no item ${id}.`);
-    }
-    return item;
-  };
-  const putLine = (item: Item, line: Line, value: number | null): void => {
-    const type = meterOf(item)?.type ?? 'Temperature';
-    const { max, push } = scaleOf(type);
-    const lines = { ...item.threshold };
-    if (value === null) {
-      delete lines[line];
-    } else {
-      lines[line] = value;
-    }
-    pushed.delete(item.id);
-    if (lines.warning !== undefined && lines.critical !== undefined && lines.warning > lines.critical) {
-      if (line === 'warning') {
-        lines.critical = Math.min(lines.warning + push, max);
-        pushed.set(item.id, say('ChartText.CriticalPushed', format(type, lines.critical)));
-      } else {
-        lines.warning = Math.max(lines.critical - push, 0);
-        pushed.set(item.id, say('ChartText.WarningPushed', format(type, lines.warning)));
-      }
-    }
-    item.threshold = lines;
-  };
-  const typed = (item: Item, line: Line, text: string): string | null => {
-    const type = meterOf(item)?.type ?? 'Temperature';
-    const { max } = scaleOf(type);
-    if (text.trim() === '') {
-      putLine(item, line, null);
-      return null;
-    }
-    const value = Number(text.replace(',', '.'));
-    if (Number.isNaN(value)) {
-      const example = item.threshold?.critical ?? item.threshold?.warning ?? max;
-      return say('ChartText.NotANumber', String(example));
-    }
-    if (value < 0 || value > max) {
-      return say('ChartText.OutOfRange', '0', format(type, max));
-    }
-    putLine(item, line, value);
-    return null;
-  };
-  const defaults = (id: string): Item['threshold'] => state.defaultOverlay.items.find((item) => item.id === id)?.threshold;
-
-  window.thermiFakeViews = {
-    apply(settings: Settings, edit: LineEdit): string | null {
-      switch (edit.kind) {
-        case 'line':
-          putLine(find(settings, edit.item), edit.line, edit.value);
-          return null;
-        case 'typedLine':
-          return typed(find(settings, edit.item), edit.line, edit.typed);
-        case 'addLine': {
-          const item = find(settings, edit.item);
-          const other = edit.line === 'warning' ? item.threshold?.critical : item.threshold?.warning;
-          const value = defaults(edit.item)?.[edit.line] ?? (other === undefined ? (edit.line === 'warning' ? 80 : 90) : other + (edit.line === 'warning' ? -10 : 10));
-          putLine(item, edit.line, value);
-          return null;
-        }
-        case 'resetLines': {
-          const item = find(settings, edit.item);
-          const back = defaults(edit.item);
-          if (back === undefined) {
-            delete item.threshold;
-          } else {
-            item.threshold = { ...back };
-          }
-          return null;
-        }
-      }
-    },
-  };
+  // A line's edits, and the push of the other line past it, are the real bridge's, which the fake replays.
+  const scaleOf = (type: string): { max: number; step: number } => (type === 'Fan' ? { max: 10000, step: 50 } : { max: 100, step: 1 });
 
   // Ten minutes of readings around the value now, the same on every run so a screenshot compares.
   const history = (value: number | null, max: number): (number | null)[] =>
@@ -217,6 +142,11 @@ export function installFakeViews(): void {
     const hot = warning !== undefined && critical !== undefined ? critical : warm + 10;
     return [{ at: warm - 20, color: 'cool' }, { at: warm - 8, color: 'middle' }, { at: warm, color: 'warm' }, { at: hot, color: 'hot' }];
   };
+
+  // A line reached for more than half of the ten minutes' seconds, unless the lines are the item's defaults.
+  const firesMostly = (readings: readonly (number | null)[], line: number | undefined): boolean =>
+    line !== undefined && readings.filter((reading) => reading !== null && reading >= line).length * 2 > 600;
+  const madeLines = (item: Item): unknown => state.defaultOverlay.items.find((made) => made.metric !== undefined && made.metric === item.metric)?.threshold;
 
   bridge.chart = async (id: string): Promise<ChartView | null> => {
     const item = state.settings.overlays.flatMap((overlay) => overlay.items).find((candidate) => candidate.id === id);
@@ -253,8 +183,11 @@ export function installFakeViews(): void {
       stats: shown.length === 0 ? null : `Min ${round(Math.min(...shown))} · Avg ${round(average)} · Max ${format(meter.type, Math.max(...shown))}`,
       summary: shown.length === 0 ? '' : `Last 10 minutes: between ${round(Math.min(...shown))} and ${format(meter.type, Math.max(...shown))}, now ${format(meter.type, shown.at(-1) ?? 0)}.`,
       empty: state.service === 'stopped' ? 'stopped' : driver ? 'driver' : shown.length === 0 ? 'none' : null,
-      pushed: pushed.get(id) ?? null,
+      pushed: null,
       title: meter.type === 'Control' ? say('ChartText.DutyTitle') : null,
+      fromText: format(meter.type, from),
+      toText: format(meter.type, to),
+      fires: firesMostly(readings, warning ?? critical) && JSON.stringify(madeLines(item)) !== JSON.stringify(item.threshold),
     };
   };
 }

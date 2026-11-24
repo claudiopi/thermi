@@ -1,3 +1,4 @@
+import { steady } from '../steady';
 import { Radio, RadioGroup, ToggleButton, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import type { Choice } from './Dropdown';
 import { radius } from '../theme/look';
@@ -86,7 +87,7 @@ const useChipStyles = makeStyles({
 });
 
 /** Filters as a row of chips, one chosen: the arrows move and choose, and the row is one Tab stop. */
-export function Chips({ label, choices, value, onChange }: Omit<SegmentedProps, 'disabled'>) {
+function ChipsDrawn({ label, choices, value, onChange }: Omit<SegmentedProps, 'disabled'>) {
   const styles = useChipStyles();
   return (
     <RadioGroup className={styles.group} aria-label={label} layout="horizontal" value={value} onChange={(_, data) => onChange(data.value)}>
@@ -122,7 +123,7 @@ export interface ToggleChipProps {
 }
 
 /** A chip that is on or off by itself, as a filter beside a count: pressed, it takes the chosen chips' accent. */
-export function ToggleChip({ text, pressed, onChange }: ToggleChipProps) {
+function ToggleChipDrawn({ text, pressed, onChange }: ToggleChipProps) {
   const styles = useToggleStyles();
   return (
     <ToggleButton className={styles.chip} size="small" shape="circular" appearance={pressed ? 'primary' : 'outline'} checked={pressed} onClick={() => onChange(!pressed)}>
@@ -132,7 +133,7 @@ export function ToggleChip({ text, pressed, onChange }: ToggleChipProps) {
 }
 
 /** A few exclusive choices side by side: the arrows move and choose, as in Windows' settings. */
-export function Segmented({ label, choices, value, onChange, disabled = false }: SegmentedProps) {
+function SegmentedDrawn({ label, choices, value, onChange, disabled = false }: SegmentedProps) {
   const styles = useStyles();
   return (
     <RadioGroup className={styles.group} aria-label={label} layout="horizontal" value={value} disabled={disabled} onChange={(_, data) => onChange(data.value)}>
@@ -148,3 +149,9 @@ export function Segmented({ label, choices, value, onChange, disabled = false }:
     </RadioGroup>
   );
 }
+
+export const Chips = steady(ChipsDrawn);
+
+export const ToggleChip = steady(ToggleChipDrawn);
+
+export const Segmented = steady(SegmentedDrawn);

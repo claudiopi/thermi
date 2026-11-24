@@ -4,7 +4,7 @@ namespace Thermi.SensorHost;
 
 /// <summary>
 /// Records a series for tests that replay time, like the fan finder's: one snapshot per second, one line
-/// each, in the pipe's format, so a replay reads it exactly as the overlay reads the pipe.
+/// each, whole, as the pipe sends a snapshot to a client that has not had its sensors, so a replay reads it as the overlay does.
 /// </summary>
 internal static class SeriesRecorder
 {

@@ -1,3 +1,4 @@
+import { steady } from '../steady';
 import { Button as FluentButton, Link, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import { fluentRef } from '../fluentRef';
 import type { ButtonHTMLAttributes, ReactElement, ReactNode, Ref } from 'react';
@@ -53,7 +54,7 @@ function Shield({ className }: { className: string }) {
  * A button. A disabled one keeps the focus it has, so a button that disables itself, like Undo when nothing is left
  * to undo, never drops the focus to the page.
  */
-export function Button({ kind = 'standard', children, icon, shield = false, label, keys, disabled = false, type = 'button', onClick, describedBy, className, ref, ...trigger }: ButtonProps) {
+function ButtonDrawn({ kind = 'standard', children, icon, shield = false, label, keys, disabled = false, type = 'button', onClick, describedBy, className, ref, ...trigger }: ButtonProps) {
   const styles = useStyles();
   const shown = shield ? <Shield className={styles.shield} /> : icon;
   return (
@@ -106,7 +107,7 @@ export interface LinkButtonProps {
 }
 
 /** An action written as a link in the accent's color, as "What is this?" in a bar or a toast's Undo. */
-export function LinkButton({ children, icon, onClick, label, keys, className, ref }: LinkButtonProps) {
+function LinkButtonDrawn({ children, icon, onClick, label, keys, className, ref }: LinkButtonProps) {
   const styles = useLinkStyles();
   return (
     <Link ref={fluentRef(ref)} as="button" type="button" className={mergeClasses(styles.link, className)} aria-label={label} aria-keyshortcuts={keys} onClick={onClick}>
@@ -115,3 +116,7 @@ export function LinkButton({ children, icon, onClick, label, keys, className, re
     </Link>
   );
 }
+
+export const Button = steady(ButtonDrawn);
+
+export const LinkButton = steady(LinkButtonDrawn);

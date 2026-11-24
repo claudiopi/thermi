@@ -98,6 +98,7 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
             <Dropdown
               ref={sensorBox}
               className="t-sensor-box"
+              wide
               label={t('UiText.SensorField')}
               choices={choices}
               value={item.sensor ?? ''}
@@ -125,7 +126,8 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
         </CardRow>
       </Card>
       {item.threshold?.critical !== undefined && <SwitchRow label={t('UiText.NotifyMe')} checked={item.notify === true} onChange={(on) => set('notify', on ? true : null)} />}
-      <SwitchRow label={t('UiText.OwnPill')} {...(ownOff ? { description: t('UiText.AlreadyOwnPill') } : {})} checked={item.own === true} disabled={ownOff} onChange={(on) => set('own', on ? true : null)} />
+      {/* The first item of a pill already starts one, so its switch shows On, locked. */}
+      <SwitchRow label={t('UiText.OwnPill')} {...(ownOff ? { description: t('UiText.AlreadyOwnPill') } : {})} checked={item.own === true || ownOff} disabled={ownOff} onChange={(on) => set('own', on ? true : null)} />
       <SwitchRow label={t('UiText.OwnTrayIcon')} checked={item.tray === true} onChange={(on) => set('tray', on ? true : null)} />
     </>
   );

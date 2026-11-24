@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
@@ -36,10 +35,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     private static readonly TimeSpan DriverPoll = TimeSpan.FromMilliseconds(500);
 
-    private const string Repository = "https://github.com/claudiopi/thermi";
-
-    // The version the build stamps, without the commit it adds after a plus.
-    private static readonly string Version = (typeof(WindowBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "").Split('+')[0];
+    // The version the build stamps, from Directory.Build.props.
+    private static readonly string Version = typeof(WindowBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
 
     private readonly WindowStart _start;
     private readonly WindowEditor _editor;
@@ -49,6 +46,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly WindowLooks _looks;
     private readonly Painter _painter = new();
     private readonly TaskbarApps _apps;
+    private readonly PageWatch _watch;
     private Texts _texts;
     private IReadOnlyList<int> _crowded = [];
 
@@ -63,10 +61,13 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _apps = new TaskbarApps(start.Time, onTurn, AppsMoved);
+        _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell);
         editor.Changed += (_, _) => Edited();
     }
 
     public event EventHandler? Changed;
+
+    public event EventHandler? Readings;
 
     public event EventHandler<DesktopPickEventArgs>? Picked;
 
@@ -79,16 +80,34 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         set => _looks.Owner = value;
     }
 
-    /// <summary>A fresh snapshot, on the window's thread: kept for the charts and the catalog, given to the finder, and the page told.</summary>
+    /// <summary>
+    /// A fresh snapshot, on the window's thread: kept for the charts and the catalog, given to the finder, and the page
+    /// told of new readings, or of a change when other sensors came, which may name items or crowd an overlay anew, or the
+    /// service's state changed.
+    /// </summary>
     public void Arrived()
     {
         _views.Arrived();
         _charts.Arrived();
-        if (_start.Environment.Sensors.Latest is { } snapshot)
+        var snapshot = _start.Environment.Sensors.Latest;
+        if (snapshot is not null)
         {
             _finder.Add(snapshot);
         }
 
+        if (_watch.Arrived(snapshot))
+        {
+            DesktopChanged();
+        }
+        else
+        {
+            Readings?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>The monitors, the taskbars or a setting of Windows changed: which overlays fit is decided again, and the page reads all again.</summary>
+    public void DesktopChanged()
+    {
         Recrowd();
         Tell();
     }
@@ -100,7 +119,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public void Tell() => Changed?.Invoke(this, EventArgs.Empty);
 
-    public Task<ThermiConfig> Settings() => Task.FromResult(PageSettings.Of(_editor.Config, _texts, _start.Environment.Sensors.Latest));
+    public Task<ThermiConfig> Settings() => Ready(() => PageSettings.Of(_editor.Config, _texts, _start.Environment.Sensors.Latest));
 
     public Task<ConfigProblemKind?> Problem() => Task.FromResult(_editor.Problem?.Kind);
 
@@ -112,7 +131,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         }
 
         var snapshot = _start.Environment.Sensors.Latest ?? new Snapshot([]);
-        var result = _editor.Edit(edit.GetType().Name, PageEdits.Of(edit, snapshot, _texts));
+        var result = _editor.Edit(edit.GetType().Name, PageEdits.Of(edit, snapshot, _texts, _start.Environment.AltGrKeys));
         return Task.FromResult(result.Refused is { } refused ? Core.Translations.Texts.Key(refused) : null);
     }
 
@@ -130,7 +149,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task<WindowView> View() => Task.FromResult(_views.View(_texts));
+    public Task<WindowView> View() => Ready(() => _views.View(_texts));
 
     public Task<ChartView?> Chart(string id) => Task.FromResult(_charts.Chart(id, _views.Format(_texts)));
 
@@ -151,11 +170,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<Undone?> Redo() => Task.FromResult(TakeBack(_editor.RedoName, _editor.Redo));
 
-    public Task<WindowStatus> Status()
-    {
-        var sensors = _start.Environment.Sensors;
-        return Task.FromResult(WindowFacts.Status(_editor.Config, sensors.State, sensors.Latest, _looks.Looks().Count > 0, _start.Environment.HotkeyStatus(), _editor.Problem, _views.Format(_texts)));
-    }
+    public Task<WindowStatus> Status() =>
+        Ready(() => WindowFacts.Status(_editor.Config, _start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _looks.AnySaved, _watch.Hotkeys, _editor.Problem, _views.Format(_texts)));
 
     public Task<UndoSteps> Steps() => Task.FromResult(WindowFacts.Steps(_editor.UndoName, _editor.RedoName, _views.Format(_texts)));
 
@@ -163,22 +179,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task Open(Opened what)
     {
-        var target = what switch
-        {
-            Opened.SettingsFile => _start.Environment.SettingsPath,
-            Opened.Source => Repository,
-            Opened.Report => $"{Repository}/issues/new/choose",
-            Opened.Notices or _ => $"{Repository}/blob/main/THIRD-PARTY-NOTICES.md",
-        };
-        try
-        {
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose();
-        }
-        catch (Win32Exception ex)
-        {
-            _start.Environment.Log.OpenFailed(target, ex);
-        }
-
+        WindowLinks.Open(what, _start.Environment.SettingsPath, _start.Environment.Log);
         return Task.CompletedTask;
     }
 
@@ -189,7 +190,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         return ClipboardText.Read(Window) is { } text ? _looks.Import(overlay, text, _texts) : Core.Translations.Texts.Key(Refusal.PasteFailed);
     }
 
-    public Task<SensorView> Snapshot() => Task.FromResult(SensorView.Of(_start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _editor.Config.SensorNames));
+    public Task<SensorView> Snapshot() => Ready(() => SensorView.Of(_start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _editor.Config.SensorNames, _texts));
 
     public Task<IReadOnlyList<double?>> History(string id) => Task.FromResult(_charts.History(id));
 
@@ -198,7 +199,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public Task<IReadOnlyList<MonitorView>> Monitors() =>
         Task.FromResult<IReadOnlyList<MonitorView>>([.. _start.Environment.Screens().Select(screen => new MonitorView(screen.Id, screen.Primary, RectOf(screen.Bounds), RectOf(screen.Work), screen.Scale, screen.Taskbar is not null, Snaps.Floats(screen)))]);
 
-    public Task<IReadOnlyList<int>> Crowded() => Task.FromResult(_crowded);
+    public Task<IReadOnlyList<int>> Crowded() => Ready(() => _crowded);
 
     public Task Report(string error)
     {
@@ -315,6 +316,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public Task RestHotkeys(bool rest)
     {
         _start.Environment.RestHotkeys(rest);
+        _watch.AskHotkeys();
         return Task.CompletedTask;
     }
 
@@ -322,9 +324,14 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     {
         _finder.Dispose();
         _painter.Dispose();
+        _apps.Dispose();
+        _watch.Dispose();
     }
 
     private static Rect RectOf(PixelRect rect) => new(rect.Left, rect.Top, rect.Width, rect.Height);
+
+    // What reads the readings waits for the first ones, as PageWatch says.
+    private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);
 
     // An undo or a redo, named before it runs, and what it changed back once it did; null when it changed nothing.
     private Undone? TakeBack(StepName? name, Func<UndoResult?> take)
@@ -362,8 +369,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             _texts = Core.Translations.Texts.For(_editor.Config.Language, CultureInfo.CurrentUICulture);
         }
 
-        Recrowd();
-        Tell();
+        _watch.Edited();
+        DesktopChanged();
     }
 
     // The app buttons' new extent tells the page only when it changes which overlays fit.

@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { openWindow, select, text } from './fakeBridge';
+import { expect, openWindow, select, test, text } from './fakeBridge';
 
 // A test's title is one PascalCase word, like a .NET test's name, so a spec's acceptance step can name it.
 test('ThePageStartsWithoutErrorsOrTheNetwork', async ({ page, baseURL }) => {

@@ -99,8 +99,11 @@
   <data name="UiText.MeterNone" xml:space="preserve">
     <value>Off</value>
   </data>
-  <data name="UiText.MeterItself" xml:space="preserve">
-    <value>This value</value>
+  <data name="UiText.MeterSpeed" xml:space="preserve">
+    <value>Speed (RPM)</value>
+  </data>
+  <data name="UiText.FiresMostly" xml:space="preserve">
+    <value>Fires most of the time</value>
   </data>
   <data name="UiText.OwnPill" xml:space="preserve">
     <value>Separate pill</value>
@@ -350,6 +353,9 @@
   </data>
   <data name="UiText.LanguageName" xml:space="preserve">
     <value>English</value>
+  </data>
+  <data name="UiText.LanguageTag" xml:space="preserve">
+    <value>en</value>
   </data>
   <data name="UiText.LanguageFromWindows" xml:space="preserve">
     <value>Windows' language · {0}</value>
@@ -1456,7 +1462,7 @@
     <value>Load</value>
   </data>
   <data name="SensorKind.Clock" xml:space="preserve">
-    <value>Clock</value>
+    <value>Frequency</value>
   </data>
   <data name="SensorKind.Power" xml:space="preserve">
     <value>Power</value>
@@ -1549,7 +1555,7 @@
     <value>usage use utilization busy percent</value>
   </data>
   <data name="Synonyms.Clock" xml:space="preserve">
-    <value>frequency mhz ghz</value>
+    <value>clock mhz ghz</value>
   </data>
   <data name="Synonyms.Power" xml:space="preserve">
     <value>watts wattage energy consumption draw</value>
@@ -1850,6 +1856,12 @@
   </data>
   <data name="WindowText.SaveLook" xml:space="preserve">
     <value>Save as my look</value>
+  </data>
+  <data name="WindowText.WebViewMissingTitle" xml:space="preserve">
+    <value>The settings window can't open</value>
+  </data>
+  <data name="WindowText.WebViewMissing" xml:space="preserve">
+    <value>It needs Microsoft Edge WebView2 Runtime, which Windows usually includes and this PC lacks. The overlay keeps working. Open its download page?</value>
   </data>
   <data name="SheetText.AnywhereInWindows" xml:space="preserve">
     <value>Anywhere in Windows · set them in Settings</value>

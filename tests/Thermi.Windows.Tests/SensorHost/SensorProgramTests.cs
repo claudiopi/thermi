@@ -37,13 +37,16 @@ public sealed class SensorProgramTests : IAsyncDisposable
     {
         await _stop.CancelAsync();
         Task runs = Task.WhenAll(_runs);
-        for (var second = 0; second < 60 && !runs.IsCompleted; second++)
+        // A second at a time until they end; the real clock only bounds a run that hangs.
+        var ended = SpinWait.SpinUntil(() =>
         {
             _clock.Advance(TimeSpan.FromSeconds(1));
-            await Task.WhenAny(runs, Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, CancellationToken.None));
+            return runs.IsCompleted;
+        }, Patience);
+        if (ended)
+        {
+            await runs.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         }
-
-        await runs.WaitAsync(Patience, TimeProvider.System, CancellationToken.None).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         _sensors.Dispose();
         await _out.DisposeAsync();
         await _error.DisposeAsync();

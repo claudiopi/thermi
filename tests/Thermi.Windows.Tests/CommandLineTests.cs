@@ -84,6 +84,17 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(0, services.Asked);
     }
 
+    // Only administrators write under Program Files, so only a thermi there is asked to run as administrator: one in a
+    // folder the user writes could be swapped while the prompt waits. Elsewhere nothing starts, and the answer is the
+    // missing service's, since installing thermi is the fix.
+    [Fact]
+    public async Task OnlyAThermiUnderProgramFilesAsksForAdministratorRights()
+    {
+        var elsewhere = Path.Combine(Path.GetDirectoryName(_folder.File)!, "thermi.exe");
+
+        Assert.Equal(StartSensors.Missing, await Elevated.AskAsync(elsewhere, StartSensors.Verb));
+    }
+
     // "Start sensors" as administrator: the service's states as the service manager gives them, one a poll, then the
     // exit code. A start Windows refuses is judged by the state after it, and a service that never runs gives up at 10 s.
     [Theory]

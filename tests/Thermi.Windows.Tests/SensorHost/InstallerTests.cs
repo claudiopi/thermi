@@ -45,6 +45,43 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal((exitCode, installed), (exit, Directory.Exists(incoming)));
     }
 
+    // The old thermi is set aside, not deleted, until the new one's service is registered: an install that fails there
+    // puts the old files back and registers them again, and leaves nothing beside them. The service manager is faked,
+    // refusing the new build's files, so no service on this PC is touched.
+    [Theory]
+    [InlineData(true, 0, "built")]
+    [InlineData(false, 1, "old")]
+    public async Task AnInstallThatFailsPutsTheOldThermiBack(bool registers, int exitCode, string left)
+    {
+        var build = Path.Combine(_folder, "build");
+        var target = Path.Combine(_folder, "thermi");
+        Directory.CreateDirectory(target);
+        await File.WriteAllTextAsync(Path.Combine(target, "thermi-sensors.exe"), "old", TestContext.Current.CancellationToken);
+        var refuse = registers ? "" : "if ((Get-Content \"$target\\thermi-sensors.exe\") -eq 'built') { throw 'Windows refused the service.' }";
+
+        var exit = await PwshAsync($"$target = '{target}'; $service = 'thermi-tests-none'; function Remove-Service {{ }}; function Register-Service {{ {refuse} }}; "
+            + $"Install-Elevated '{build}' (Get-TreeHash '{build}') $true");
+
+        var beside = new[] { ".old", ".new" }.Any(end => Directory.Exists(target + end));
+        var installed = File.Exists(Path.Combine(target, "thermi-sensors.exe")) ? await File.ReadAllTextAsync(Path.Combine(target, "thermi-sensors.exe"), TestContext.Current.CancellationToken) : "nothing";
+        Assert.Equal((exitCode, left, false), (exit, installed.Trim(), beside));
+    }
+
+    // The elevated half runs as administrator from the PowerShell that started the installer, so only one where only
+    // administrators write, and signed as it shipped, is trusted with it.
+    [Theory]
+    [InlineData("installed", 0)]
+    [InlineData("copied", 1)]
+    public async Task OnlyAPowerShellUnderProgramFilesRunsTheAdministratorStep(string where, int exitCode)
+    {
+        var copy = Path.Combine(_folder, "pwsh.exe");
+        var path = where == "installed" ? "(Join-Path $PSHOME 'pwsh.exe')" : $"'{copy}'";
+
+        var exit = await PwshAsync($"Copy-Item (Join-Path $PSHOME 'pwsh.exe') '{copy}'; Get-TrustedPwsh {path} | Out-Null");
+
+        Assert.Equal(exitCode, exit);
+    }
+
     public void Dispose()
     {
         // A recursive delete refuses a junction, so the links go first, on their own.

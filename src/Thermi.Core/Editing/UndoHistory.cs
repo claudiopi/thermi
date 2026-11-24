@@ -147,6 +147,12 @@ public sealed class UndoHistory
             return;
         }
 
+        Keep(before, after, gesture: false);
+    }
+
+    // A gesture's step stands alone: no change before or after it within the second joins it.
+    private void Keep(ThermiConfig before, ThermiConfig after, bool gesture)
+    {
         var operations = ConfigDiff.Between(before, after);
         if (operations.Count == 0)
         {
@@ -155,7 +161,7 @@ public sealed class UndoHistory
 
         _redo.Clear();
         var now = _time?.GetTimestamp() ?? 0;
-        if (_time is not null && _undo.TryPeek(out var last) && _time.GetElapsedTime(last.At, now) <= Repeat && Merged(last.Operations, operations) is { } merged)
+        if (!gesture && _time is not null && _undo.TryPeek(out var last) && !last.Gesture && _time.GetElapsedTime(last.At, now) <= Repeat && Merged(last.Operations, operations) is { } merged)
         {
             _undo.Pop();
             if (merged.Count > 0)
@@ -166,7 +172,7 @@ public sealed class UndoHistory
             return;
         }
 
-        _undo.Push(new Step(operations, now));
+        _undo.Push(new Step(operations, now, gesture));
     }
 
     public void BeginGesture()
@@ -182,7 +188,7 @@ public sealed class UndoHistory
         (_inGesture, _gestureStart, _gestureEnd) = (false, null, null);
         if (start is not null && end is not null)
         {
-            Record(start, end);
+            Keep(start, end, gesture: true);
         }
     }
 
@@ -257,5 +263,5 @@ public sealed class UndoHistory
     }
 
     /// <summary>A step's operations, and when its last change came, on the history's clock.</summary>
-    private sealed record Step(IReadOnlyList<IOperation> Operations, long At);
+    private sealed record Step(IReadOnlyList<IOperation> Operations, long At, bool Gesture = false);
 }

@@ -15,16 +15,23 @@ export interface WindowData {
   startWithWindows: boolean;
   /** The overlays, by index, that do not fit beside the taskbar's apps, which the C# side tells when it changes. */
   crowded: number[];
-  /** Counts each refresh, so what reads more from the bridge, like a chart, reads again. */
+  /** Counts each refresh, new readings included, so what reads them from the bridge, like a chart, reads again. */
   version: number;
+  /** Counts each refresh but new readings, so what changes only with the settings, the looks or the desktop reads again. */
+  changes: number;
 }
+
+type Read = Omit<WindowData, 'version' | 'changes'>;
+// The sensors themselves come with each change, which other sensors or the service starting or stopping are: a second's
+// readings change only their values, which the view words.
+type Readings = Pick<WindowData, 'view' | 'status'>;
 
 /** The bridge the host injects, or null in a plain browser, where the page shows nothing. */
 export function bridge(): Bridge | null {
   return window.thermi ?? null;
 }
 
-async function read(from: Bridge, version: number): Promise<WindowData> {
+async function readAll(from: Bridge): Promise<Read> {
   const [settings, view, sensors, texts, status, steps, problem, startWithWindows, crowded] = await Promise.all([
     from.settings(),
     from.view(),
@@ -36,12 +43,39 @@ async function read(from: Bridge, version: number): Promise<WindowData> {
     from.startWithWindows(),
     from.crowded(),
   ]);
-  return { settings, view, sensors, texts, status, steps, problem, startWithWindows, crowded, version };
+  return { settings, view, sensors, texts, status, steps, problem, startWithWindows, crowded };
 }
 
+async function readReadings(from: Bridge): Promise<Readings> {
+  const [view, status] = await Promise.all([from.view(), from.status()]);
+  return { view, status };
+}
+
+/** Whether two answers of the bridge hold the same. */
+const same = (one: unknown, other: unknown): boolean => one === other || JSON.stringify(one) === JSON.stringify(other);
+
+/** `next`, or `before` where it holds the same, so what did not change keeps its identity and what shows it is not drawn again. */
+const kept = <T>(before: T, next: T): T => (same(before, next) ? before : next);
+
+/** The data after a second's readings: the same object when they changed nothing, which draws nothing. */
+function withReadings(before: WindowData, next: Readings): WindowData {
+  const view = kept(before.view, next.view);
+  const status = kept(before.status, next.status);
+  return view === before.view && status === before.status ? before : { ...before, view, status, version: before.version + 1 };
+}
+
+/** A read the page shows live, like a chart: read again with each second's readings, and shown in the same render as they. */
+interface LiveRead {
+  read: (from: Bridge) => Promise<unknown>;
+  show: (value: unknown) => void;
+}
+
+const liveReads = new Set<LiveRead>();
+
 /**
- * The window's data, read again each time the C# side says something changed: an edit, an undo, or new readings.
- * The page holds no copy of its own, so what it shows is always what the settings hold.
+ * The window's data, read whole each time the C# side says something changed, an edit or an undo, and only what
+ * readings change for each second's new readings, with the live reads, drawn once. The page holds no copy of its own,
+ * so what it shows is always what the settings hold. A hidden page, minimized, reads nothing until it shows again.
  */
 export function useWindowData(): WindowData | null {
   const [data, setData] = useState<WindowData | null>(null);
@@ -50,21 +84,49 @@ export function useWindowData(): WindowData | null {
     if (from === null) {
       return;
     }
-    let version = 0;
+    let changes = 0;
+    let ticks = 0;
+    let missed = false;
     let live = true;
     const refresh = (): void => {
-      version += 1;
-      const mine = version;
-      void read(from, mine).then((next) => {
-        if (live && mine === version) {
-          setData(next);
+      changes += 1;
+      const mine = changes;
+      void readAll(from).then((next) => {
+        if (live && mine === changes) {
+          setData((before) => ({ ...next, version: (before?.version ?? 0) + 1, changes: mine }));
         }
       });
     };
+    // Readings asked for before a change came back are older than it, and give way to it.
+    const tick = (): void => {
+      if (document.hidden) {
+        missed = true;
+        return;
+      }
+      ticks += 1;
+      const mine = ticks;
+      const since = changes;
+      const reads = [...liveReads];
+      void Promise.all([readReadings(from), ...reads.map((one) => one.read(from))]).then(([next, ...values]) => {
+        if (live && mine === ticks && since === changes) {
+          reads.forEach((one, index) => one.show(values[index]));
+          setData((before) => (before === null ? null : withReadings(before, next)));
+        }
+      });
+    };
+    const shown = (): void => {
+      if (!document.hidden && missed) {
+        missed = false;
+        tick();
+      }
+    };
     from.changed(refresh);
+    from.readings(tick);
+    document.addEventListener('visibilitychange', shown);
     refresh();
     return () => {
       live = false;
+      document.removeEventListener('visibilitychange', shown);
     };
   }, []);
   return data;
@@ -87,31 +149,39 @@ export async function asOneStep(edits: () => Promise<unknown>): Promise<void> {
 }
 
 /**
- * What the bridge answers to `read` for `arg`, read again at each refresh of the window's data; null until it answers.
+ * What the bridge answers to `read` for `arg`, read again each time `version` changes and, when `live`, with each
+ * second's readings too; null until it answers. An answer that holds what the last did keeps it, which draws nothing.
  * `read` must be the same function each time, so it is declared once, outside the component.
  */
-export function useBridgeRead<A extends string | number, T>(read: (from: Bridge, arg: A) => Promise<T>, arg: A, version: number): T | null {
+export function useBridgeRead<A extends string | number, T>(read: (from: Bridge, arg: A) => Promise<T>, arg: A, version: number, live = false): T | null {
   const [answer, setAnswer] = useState<{ arg: A; value: T } | null>(null);
   useEffect(() => {
-    let live = true;
+    let mounted = true;
     const from = bridge();
-    if (from !== null) {
-      void read(from, arg).then((value) => {
-        if (live) {
-          setAnswer({ arg, value });
-        }
-      });
+    if (from === null) {
+      return undefined;
+    }
+    const show = (value: T): void => {
+      if (mounted) {
+        setAnswer((before) => (before?.arg === arg && same(before.value, value) ? before : { arg, value }));
+      }
+    };
+    void read(from, arg).then(show);
+    const each: LiveRead = { read: (source) => read(source, arg), show: (value) => show(value as T) };
+    if (live) {
+      liveReads.add(each);
     }
     return () => {
-      live = false;
+      mounted = false;
+      liveReads.delete(each);
     };
-  }, [read, arg, version]);
+  }, [read, arg, version, live]);
   return answer?.arg === arg ? answer.value : null;
 }
 
 const readChart = (from: Bridge, item: string): Promise<ChartView | null> => from.chart(item);
 
-/** An item's chart, read again at each refresh of the window's data. */
-export function useChart(item: string, version: number): ChartView | null {
-  return useBridgeRead(readChart, item, version);
+/** An item's chart, live, and read again at each change of the window's data. */
+export function useChart(item: string, changes: number): ChartView | null {
+  return useBridgeRead(readChart, item, changes, true);
 }

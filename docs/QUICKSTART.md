@@ -12,7 +12,7 @@ People who care about their PC want to see its temperatures, loads and fans whil
 2. **It sends a snapshot every second.** A snapshot is every sensor of the kinds thermi shows (temperatures, loads, fans, power, clocks, memory), with its value, sent as one line of text down a named pipe. The pipe can only be read, so nothing can send the service commands.
 3. **The overlay listens.** The overlay runs as the user, without admin rights. Before trusting the pipe, it checks that SYSTEM or an administrator made it, so a program without admin rights cannot feed it fake numbers.
 4. **It picks what to show.** The settings say which metrics to show: the CPU temperature, the GPU load, the RAM used. Rules find the sensor behind each one, because sensor names differ between PCs.
-5. **It paints.** Values are grouped into pills (FAN, CPU, GPU, RAM), with meters that turn yellow and red at thresholds. Each value keeps the room of its widest number, so the overlay never jitters.
+5. **It paints.** Values are grouped into pills by their label (CPU, GPU, RAM by default). At a threshold a value gets an underline in the warning color, and at the critical one it is drawn reversed on the critical color. Each value keeps the room of its widest number, so the overlay never jitters.
 6. **It stays on top.** Windows lifts the taskbar over everything when it is clicked. The overlay notices at once and goes back on top.
 
 If anything is missing, thermi shows `–`, never a zero and never an old number that looks live: a value that cannot be read must look unread.

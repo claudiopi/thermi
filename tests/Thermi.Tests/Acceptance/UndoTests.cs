@@ -20,32 +20,38 @@ public sealed class UndoTests
 
     private static ThermiConfig Everything => ThermiConfigJson.Read(TestFiles.Config("v2.json")).Config;
 
-    [Fact]
-    public void EveryEditCanBeUndoneAndRedone()
+    // Each kind of edit, from the file with every field set; the overlay snapped is a copy, made first, so its row
+    // undoes two steps.
+    private static readonly Dictionary<string, Func<ThermiConfig, EditResult>[]> Edits = new(StringComparer.Ordinal)
+    {
+        ["Threshold"] = [config => ItemEdits.SetThreshold(config, "cpu.temperature", 75, 90)],
+        ["MoveItem"] = [config => ItemEdits.Move(config, "/gpu-nvidia/0/power/0", 0)],
+        ["AddSensor"] = [config => ItemEdits.AddSensor(config, 1, Desktop, "/gpu-nvidia/0/temperature/0")],
+        ["ChangeSensor"] = [config => ItemEdits.ChangeSensor(config, "cpu.temperature-2", Desktop, "/amdcpu/0/temperature/3")],
+        ["RenamePill"] = [config => ItemEdits.RenamePill(config, "ram.used", "MEM")],
+        ["RenameSensor"] = [config => ThermiEdits.RenameSensor(config, Desktop, "/lpc/it8689e/0/temperature/1", "Chipset hub")],
+        ["MeterOfASensor"] = [config => ItemEdits.SetMeter(config, "ccd", Desktop, null)],
+        ["MeterOfAMetric"] = [config => ItemEdits.SetMeter(config, "cpu.temperature", Desktop, null)],
+        ["MeterOfMemory"] = [config => ItemEdits.SetMeter(config, "ram.used", Desktop, null)],
+        ["DeleteItem"] = [config => ItemEdits.Delete(config, "ccd")],
+        ["Size"] = [config => OverlayEdits.SetSize(config, 1, 1.5)],
+        ["Duplicate"] = [config => OverlayEdits.Duplicate(config, 1)],
+        ["SnapTheCopy"] = [config => OverlayEdits.Duplicate(config, 1), config => OverlayEdits.Snap(config, 2, new SnapConfig(SnapSpot.TopLeft))],
+        ["ThermiAndOverlayAtOnce"] = [config => ConfigEdits.Apply(config, current => WithOverlay(current with { Language = null }, 0, overlay => overlay with { Style = overlay.Style with { Gap = 12 } }))],
+        ["DeleteOverlay"] = [config => OverlayEdits.Delete(config, 0)],
+        ["Reset"] = [OverlayEdits.Reset],
+        ["AddOverlay"] = [OverlayEdits.Add],
+    };
+
+    public static TheoryData<string> EditKinds => new(Edits.Keys);
+
+    [Theory]
+    [MemberData(nameof(EditKinds))]
+    public void EveryEditCanBeUndoneAndRedone(string kind)
     {
         var history = new UndoHistory();
-        Func<ThermiConfig, EditResult>[] edits =
-        [
-            config => ItemEdits.SetThreshold(config, "cpu.temperature", 75, 90),
-            config => ItemEdits.Move(config, "/gpu-nvidia/0/power/0", 0),
-            config => ItemEdits.AddSensor(config, 1, Desktop, "/gpu-nvidia/0/temperature/0"),
-            config => ItemEdits.ChangeSensor(config, "cpu.temperature-2", Desktop, "/amdcpu/0/temperature/3"),
-            config => ItemEdits.RenamePill(config, "ram.used", "MEM"),
-            config => ThermiEdits.RenameSensor(config, Desktop, "/lpc/it8689e/0/temperature/1", "Chipset hub"),
-            config => ItemEdits.SetMeter(config, "ccd", Desktop, null),
-            config => ItemEdits.SetMeter(config, "cpu.temperature", Desktop, null),
-            config => ItemEdits.Delete(config, "ccd"),
-            config => ItemEdits.SetMeter(config, "ram.used", Desktop, null),
-            config => OverlayEdits.SetSize(config, 1, 1.5),
-            config => OverlayEdits.Duplicate(config, 1),
-            config => OverlayEdits.Snap(config, 2, new SnapConfig(SnapSpot.TopLeft)),
-            config => ConfigEdits.Apply(config, current => WithOverlay(current with { Language = null }, 0, overlay => overlay with { Style = overlay.Style with { Gap = 12 } })),
-            config => OverlayEdits.Delete(config, 0),
-            OverlayEdits.Reset,
-            OverlayEdits.Add,
-        ];
         var states = new List<ThermiConfig> { Everything };
-        foreach (var edit in edits)
+        foreach (var edit in Edits[kind])
         {
             states.Add(Done(history, states[^1], edit));
         }
@@ -171,12 +177,12 @@ public sealed class UndoTests
             (config => ItemEdits.Rename(config, Metrics.CpuPower.Id, " Package "), ChangedField.ItemName, cpuPower, "Package", cpuPower),
             (config => ItemEdits.AddSensor(config, 0, Desktop, "/gpu-nvidia/0/temperature/0"), ChangedField.ItemAdded, null, null, null),
             (config => ItemEdits.Delete(config, Metrics.CpuPower.Id), ChangedField.ItemRemoved, null, null, null),
-            (config => OverlayEdits.Rename(config, 0, "Desk"), ChangedField.OverlayName, OverlayConfig.DefaultName, "Desk", OverlayConfig.DefaultName),
+            (config => OverlayEdits.Rename(config, 0, "Desk"), ChangedField.OverlayName, null, "Desk", null),
             (config => OverlayEdits.SetHidden(config, 0, hidden: true), ChangedField.Hidden, null, null, null),
-            (config => OverlayEdits.Add(config, Texts.English), ChangedField.OverlayAdded, null, null, null),
+            (OverlayEdits.Add, ChangedField.OverlayAdded, null, null, null),
             (config => ThermiEdits.SetTemperature(config, TemperatureUnit.Fahrenheit), ChangedField.TemperatureUnit, null, null, null),
             (config => OverlayEdits.Resize(config, 0, 1.5, Orientation.Vertical), ChangedField.Size, null, null, null),
-            (config => OverlayEdits.MoveItem(config, Metrics.GpuLoad.Id, null, Texts.English), ChangedField.OverlayAdded, null, null, null),
+            (config => OverlayEdits.MoveItem(config, Metrics.GpuLoad.Id, null), ChangedField.OverlayAdded, null, null, null),
         ];
         var time = new FakeTimeProvider();
 
@@ -223,6 +229,16 @@ public sealed class UndoTests
         Assert.Equal(98, Item(first.Config, Metrics.CpuTemperature.Id).Threshold!.Critical);
         Assert.Equal(95, Item(grouped.Undo(first.Config)!.Config, Metrics.CpuTemperature.Id).Threshold!.Critical);
 
+        // A drag right after a key on the same line is a step of its own, and so is the key right after it.
+        var dragged = new UndoHistory(time);
+        var keyed = Done(dragged, new ThermiConfig(), current => ItemEdits.SetThreshold(current, Metrics.CpuTemperature.Id, 90, 96));
+        dragged.BeginGesture();
+        var held = Done(dragged, keyed, current => ItemEdits.SetThreshold(current, Metrics.CpuTemperature.Id, 90, 99));
+        dragged.EndGesture();
+        var keyedAgain = Done(dragged, held, current => ItemEdits.SetThreshold(current, Metrics.CpuTemperature.Id, 90, 100));
+        var afterKey = dragged.Undo(keyedAgain)!.Config;
+        Assert.Equal((99, 96), (Item(afterKey, Metrics.CpuTemperature.Id).Threshold!.Critical, Item(dragged.Undo(afterKey)!.Config, Metrics.CpuTemperature.Id).Threshold!.Critical));
+
         // A field changed back within a second leaves no step; another field between them keeps both.
         var back = new UndoHistory(time);
         var sized = Done(back, new ThermiConfig(), current => OverlayEdits.SetSize(current, 0, 1.5));
@@ -235,11 +251,11 @@ public sealed class UndoTests
         Assert.Equal((false, new StepName(ChangedField.Size, 1.0, 1.25)), (canUndo, back.UndoName));
 
         // Items that only change overlay are named by what happened to the overlays: a merge, or a move.
-        var apart = Done(OverlayEdits.MoveItem(new ThermiConfig(), Metrics.GpuLoad.Id, null, Texts.English));
+        var apart = Done(OverlayEdits.MoveItem(new ThermiConfig(), Metrics.GpuLoad.Id, null));
         var merged = new UndoHistory(time);
         Done(merged, apart, current => OverlayEdits.Merge(current, 1, 0));
         var moved = new UndoHistory(time);
-        Done(moved, Done(OverlayEdits.MoveItem(apart, Metrics.CpuLoad.Id, 1, Texts.English)), current => OverlayEdits.MoveItem(current, Metrics.CpuLoad.Id, 0, Texts.English));
+        Done(moved, Done(OverlayEdits.MoveItem(apart, Metrics.CpuLoad.Id, 1)), current => OverlayEdits.MoveItem(current, Metrics.CpuLoad.Id, 0));
         Assert.Equal((ChangedField.Merge, ChangedField.Place), (merged.UndoName!.Field, moved.UndoName!.Field));
     }
 

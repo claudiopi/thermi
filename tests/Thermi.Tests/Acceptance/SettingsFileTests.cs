@@ -56,7 +56,8 @@ public sealed class SettingsFileTests
             Shown(wrongType));
         Assert.Equal(ShownByVersionOne(wrongType, new() { [Metrics.CpuFan.Id] = "/lpc/it8689e/0/control/0", [Metrics.CpuTemperature.Id] = "/lpc/it8689e/0/fan/0" }), Shown(wrongType));
 
-        // 0.1's own defaults, which listed the fan first, become this version's; a sensor chosen for one of their meters keeps the item.
+        // 0.1's own defaults, which listed the fan first, become this version's; a sensor chosen for one of their meters keeps
+        // the item, and its lines, 0.1's defaults, become this version's calm ones, while lines the user moved stay, as above.
         var untouched = ThermiConfigJson.Read(UntouchedVersion1("{}")).Config.Overlays[0].Items;
         var chosenDuty = ThermiConfigJson.Read(UntouchedVersion1("""{ "fan.cpu.duty": "/lpc/it8689e/0/control/1" }""")).Config.Overlays[0].Items;
         Assert.Equal([.. OverlayConfig.DefaultItems.OrderBy(item => item.Id != Metrics.CpuFan.Id)], untouched);
@@ -67,7 +68,7 @@ public sealed class SettingsFileTests
                 Name = Texts.English.Of(Metrics.CpuFan.Name),
                 Metric = Metrics.CpuFan.Id,
                 Meter = new MeterConfig { Sensor = "/lpc/it8689e/0/control/1", Auto = Metrics.CpuFanDuty.Id },
-                Threshold = new Threshold(60, 85),
+                Threshold = Threshold.Default(Metrics.CpuFanDuty),
             },
             chosenDuty[0]);
         Assert.Equal(untouched.Skip(1), chosenDuty.Skip(1));

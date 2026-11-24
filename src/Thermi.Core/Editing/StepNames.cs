@@ -116,6 +116,8 @@ public static class StepTexts
     private static string? Shown(StepName step, object? value, ValueFormat format, bool units) => value switch
     {
         double number when step.Kind is { } kind => ReadingFormatter.Format(kind, number, format, units, difference: step.Field == ChangedField.Offset),
+        // The size is a factor in the file and a percent on its slider.
+        double size when step.Field == ChangedField.Size => Math.Round(size * 100).ToString(format.Numbers) + (units ? " %" : ""),
         double number => number.ToString(format.Numbers),
         int number => number.ToString(format.Numbers),
         string text => text,

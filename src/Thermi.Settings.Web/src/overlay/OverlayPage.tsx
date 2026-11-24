@@ -38,7 +38,7 @@ function FitNotice({ overlay, labels }: { overlay: number; labels: boolean }) {
 export function OverlayPage({ data, overlay, onOverlayEdit }: OverlayPageProps) {
   const t = useText();
   const edit = useEdit();
-  const shown = displays(useMonitors(data.version));
+  const shown = displays(useMonitors(data.changes));
   // The expanders stay as they were from overlay to overlay, as More options does from item to item.
   const [textOpen, setTextOpen] = useState(false);
   const [colorsOpen, setColorsOpen] = useState(false);

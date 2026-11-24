@@ -1,7 +1,6 @@
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.Core.Translations;
 
 namespace Thermi.Core.Editing;
 
@@ -58,26 +57,20 @@ public static class OverlayEdits
         : Snaps.Dragged(press, released, distance, config.Overlays[overlay].Locked) is { } dropped ? Drop(config, overlay, dropped)
         : null;
 
-    /// <summary>A new overlay of the default items, named in English; the window names its own in its language.</summary>
-    public static EditResult Add(ThermiConfig config) => Add(config, Texts.English);
-
     /// <summary>
-    /// A new overlay of the default items at the first free corner, named in <paramref name="texts"/>' language from where it
-    /// sits, its items in the order the first overlay gives them.
+    /// A new overlay of the default items at the first free corner, its items in the order the first overlay gives them.
+    /// It has no name of its own, so it is named from where it sits (<see cref="Names.OfOverlays"/>).
     /// </summary>
-    public static EditResult Add(ThermiConfig config, Texts texts) =>
+    public static EditResult Add(ThermiConfig config) =>
         config.Overlays.Count >= ThermiConfig.MaxOverlays
             ? ConfigEdits.Refuse(config, Refusal.TooManyOverlays)
             : ConfigEdits.Apply(config, current => current with
             {
-                Overlays = [.. current.Overlays, Cornered(current, new OverlayConfig { Items = InOrderOf(OverlayConfig.DefaultItems, current.Overlays[0].Items) }, texts)],
+                Overlays = [.. current.Overlays, Cornered(current, new OverlayConfig { Items = InOrderOf(OverlayConfig.DefaultItems, current.Overlays[0].Items) })],
             });
 
-    /// <summary>A copy of an overlay right after it, named in English; the window names its own in its language.</summary>
-    public static EditResult Duplicate(ThermiConfig config, int overlay) => Duplicate(config, overlay, Texts.English);
-
-    /// <summary>A copy of an overlay right after it, at the first free corner, named from there, its items with ids of their own.</summary>
-    public static EditResult Duplicate(ThermiConfig config, int overlay, Texts texts) =>
+    /// <summary>A copy of an overlay right after it, at the first free corner, its items with ids of their own; a name the user typed is not copied.</summary>
+    public static EditResult Duplicate(ThermiConfig config, int overlay) =>
         ConfigEdits.OnOverlay(config, overlay, () =>
         {
             if (config.Overlays.Count >= ThermiConfig.MaxOverlays)
@@ -85,7 +78,7 @@ public static class OverlayEdits
                 return ConfigEdits.Refuse(config, Refusal.TooManyOverlays);
             }
 
-            var copy = Cornered(config, config.Overlays[overlay] with { Items = [.. config.Overlays[overlay].Items.Select(item => item with { Id = "" })] }, texts);
+            var copy = Cornered(config, config.Overlays[overlay] with { Name = null, Items = [.. config.Overlays[overlay].Items.Select(item => item with { Id = "" })] });
             return ConfigEdits.Apply(config, current => current with { Overlays = [.. current.Overlays.Take(overlay + 1), copy, .. current.Overlays.Skip(overlay + 1)] });
         });
 
@@ -98,7 +91,7 @@ public static class OverlayEdits
     public static EditResult Reset(ThermiConfig config) =>
         ConfigEdits.Apply(config, current => current with { Overlays = [new OverlayConfig()] });
 
-    /// <summary>Gives the overlay a name of its own; moving it never does.</summary>
+    /// <summary>Gives the overlay a name of its own, which moving it keeps.</summary>
     public static EditResult Rename(ThermiConfig config, int overlay, string name) =>
         ConfigEdits.OnOverlay(config, overlay, () => name.Trim() is { Length: > 0 } trimmed
             ? ConfigEdits.Apply(config, current => ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Name = trimmed }))
@@ -131,7 +124,7 @@ public static class OverlayEdits
     }
 
     /// <summary>Moves an item to the end of another overlay, or of a new one when <paramref name="overlay"/> is null; an overlay it leaves empty goes.</summary>
-    public static EditResult MoveItem(ThermiConfig config, string id, int? overlay, Texts texts)
+    public static EditResult MoveItem(ThermiConfig config, string id, int? overlay)
     {
         if (ConfigEdits.Find(config, id) is not var (from, index) || (overlay is { } to && !ConfigEdits.HasOverlay(config, to)))
         {
@@ -143,14 +136,14 @@ public static class OverlayEdits
             return ConfigEdits.Refuse(config, Refusal.TooManyOverlays);
         }
 
-        return overlay == from ? new EditResult(config) : Split(config, from, index, index, overlay, null, texts);
+        return overlay == from ? new EditResult(config) : Split(config, from, index, index, overlay, null);
     }
 
     /// <summary>
     /// A pill dragged off its overlay: its items become an overlay of their own where it was dropped. The pill that is the
     /// whole overlay moves it there instead.
     /// </summary>
-    public static EditResult DragOff(ThermiConfig config, string id, Position at, Texts texts)
+    public static EditResult DragOff(ThermiConfig config, string id, Position at)
     {
         if (ConfigEdits.Find(config, id) is not var (from, index))
         {
@@ -165,11 +158,11 @@ public static class OverlayEdits
 
         return config.Overlays.Count >= ThermiConfig.MaxOverlays
             ? ConfigEdits.Refuse(config, Refusal.TooManyOverlays)
-            : Split(config, from, first, last, null, at, texts);
+            : Split(config, from, first, last, null, at);
     }
 
     /// <summary>A pill dragged off its overlay onto another: its items go to the end of that one, as a merge does.</summary>
-    public static EditResult PillInto(ThermiConfig config, string id, int into, Texts texts)
+    public static EditResult PillInto(ThermiConfig config, string id, int into)
     {
         if (ConfigEdits.Find(config, id) is not var (from, index) || !ConfigEdits.HasOverlay(config, into))
         {
@@ -177,7 +170,7 @@ public static class OverlayEdits
         }
 
         var (first, last) = ItemEdits.PillOf(config.Overlays[from], index);
-        return from == into ? new EditResult(config) : Split(config, from, first, last, into, null, texts);
+        return from == into ? new EditResult(config) : Split(config, from, first, last, into, null);
     }
 
     /// <summary>A floating overlay's corner dragged: its size, and the direction the drag's shape gave.</summary>
@@ -198,7 +191,7 @@ public static class OverlayEdits
 
     // Items first to last of one overlay go to the end of another, or to a new one, at a free corner or where it was dropped,
     // with the look and size they had; the overlay they leave empty goes.
-    private static EditResult Split(ThermiConfig config, int from, int first, int last, int? into, Position? dropped, Texts texts)
+    private static EditResult Split(ThermiConfig config, int from, int first, int last, int? into, Position? dropped)
     {
         var source = config.Overlays[from];
         var items = Labeled(source.Items);
@@ -212,7 +205,7 @@ public static class OverlayEdits
         else
         {
             var made = new OverlayConfig(source.Size) { Style = source.Style, Items = moved, Position = dropped };
-            overlays.Add(dropped is null ? Cornered(config, made, texts) : made with { Name = Names.OfOverlay(config, made, texts) });
+            overlays.Add(dropped is null ? Cornered(config, made) : made);
         }
 
         return ConfigEdits.Apply(config, current => current with { Overlays = [.. overlays.Where(each => each.Items.Count > 0)] });
@@ -235,11 +228,8 @@ public static class OverlayEdits
         return [.. items.Select(item => item.Metric is { } metric && at.ContainsKey(metric) ? sorted.Dequeue() : item)];
     }
 
-    private static OverlayConfig Cornered(ThermiConfig config, OverlayConfig overlay, Texts texts)
-    {
-        var placed = overlay with { Snap = new SnapConfig(Names.FreeCorner(config)), Position = null };
-        return placed with { Name = Names.OfOverlay(config, placed, texts) };
-    }
+    private static OverlayConfig Cornered(ThermiConfig config, OverlayConfig overlay) =>
+        overlay with { Snap = new SnapConfig(Names.FreeCorner(config)), Position = null };
 
     // An item that showed the label of the run before it gets that label written, so a move never changes what it shows.
     private static List<ItemConfig> Labeled(IReadOnlyList<ItemConfig> items)

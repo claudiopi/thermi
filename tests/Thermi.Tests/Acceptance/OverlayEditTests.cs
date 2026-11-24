@@ -5,6 +5,7 @@ using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
+using Thermi.Core.Tray;
 using static Thermi.Tests.Acceptance.Edited;
 
 namespace Thermi.Tests.Acceptance;
@@ -28,8 +29,8 @@ public sealed class OverlayEditTests
     private static ThermiConfig Reordered => Done(ItemEdits.Move(One, Metrics.CpuFan.Id, 0));
 
     // Where the edit starts, the edit, the overlays after it as their place, their items' count, h when hidden, v when
-    // vertical and their size when not 100 %, or the refusal; then the name the edit gave an overlay, as its place and
-    // the name text it is given, or "same" when every name stays.
+    // vertical and their size when not 100 %, or the refusal; then the name an overlay without a typed one shows, as its
+    // place and that name's text, or "same" when no edit wrote a name.
     [Theory]
     [InlineData("one", "new", "TaskbarRight:6 TopRight:6", "1=TopRight")]
     [InlineData("reordered", "new", "TaskbarRight:6 TopRight:6", "1=TopRight")]
@@ -94,7 +95,7 @@ public sealed class OverlayEditTests
         {
             "same" => Names(after).All(Names(before).Contains),
             "" => true,
-            _ => Names(after)[named[0] - '0'] == Texts.English.Of(Enum.Parse<NameText>(named[2..])),
+            _ => Names(after)[named[0] - '0'] is null && OverlayNames.Of(after, named[0] - '0', Texts.English) == Texts.English.Of(Enum.Parse<NameText>(named[2..])),
         });
     }
 
@@ -107,14 +108,14 @@ public sealed class OverlayEditTests
 
         return words[0] switch
         {
-            "new" => OverlayEdits.Add(config, Texts.English),
-            "duplicate" => OverlayEdits.Duplicate(config, At(1), Texts.English),
+            "new" => OverlayEdits.Add(config),
+            "duplicate" => OverlayEdits.Duplicate(config, At(1)),
             "merge" => OverlayEdits.Merge(config, At(1), At(2)),
             "delete" => OverlayEdits.Delete(config, At(1)),
             "hide" => OverlayEdits.SetHidden(config, At(1), hidden: true),
             "rename" => OverlayEdits.Rename(config, At(1), words[2]),
-            "move" => OverlayEdits.MoveItem(config, words[1], words[2] == "new" ? null : At(2), Texts.English),
-            "drag" => OverlayEdits.DragOff(config, words[1], new Position(At(2), At(3)), Texts.English),
+            "move" => OverlayEdits.MoveItem(config, words[1], words[2] == "new" ? null : At(2)),
+            "drag" => OverlayEdits.DragOff(config, words[1], new Position(At(2), At(3))),
             "resize" => OverlayEdits.Resize(config, At(1), double.Parse(words[2], CultureInfo.InvariantCulture), Enum.Parse<Orientation>(words[3], ignoreCase: true)),
             "desk" => Desk(config, words),
             "corner" => Corner(config, DesktopGestures.Corner(1, At(1), At(2), At(3), At(4))),
@@ -136,7 +137,7 @@ public sealed class OverlayEditTests
         var ctrl = words[2].StartsWith("ctrl+", StringComparison.Ordinal);
         var pill = ctrl ? words[2]["ctrl+".Length..] : words[2];
         var takenOff = DesktopGestures.TakesOff(config, overlay, pill == "edge" ? null : pill, ctrl) ? pill : null;
-        return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark, Texts.English).Result;
+        return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark).Result;
     }
 
     private static string Summary(ThermiConfig config, OverlayConfig overlay, int at)

@@ -64,6 +64,16 @@ public static class SensorCatalog
 {
     private const string D3dLayer = "D3D ";
 
+    // A CPU's clock of each core as the time it ran, beside the core's own: the cores' average says it once.
+    private const string CoreClock = "Core #";
+    private const string Effective = "(Effective)";
+
+    private const string Storage = "Storage";
+    private const string Level = "Level";
+
+    // An NVMe drive's thresholds, which the library lists as sensors of their own.
+    private static readonly string[] DriveLimits = ["Warning Temperature", "Critical Temperature"];
+
     private static readonly char[] NotLetters = [' ', '(', ')', '#', '/', '-', ',', '.', ':'];
 
     /// <summary>
@@ -187,7 +197,8 @@ public static class SensorCatalog
     /// The devices without the rows nobody would add, and how many those are: a sensor that reads nothing; a fan stopped or
     /// a temperature at 0 °C that is not lively now nor among <paramref name="seen"/>, the sensors seen lively since the
     /// window opened, as a memory module's limits; a network adapter none of whose speeds has moved, as Windows' virtual
-    /// ones; and a GPU's D3D engine loads, which Windows' counters repeat beside the GPU's own. A CPU sensor that needs the
+    /// ones; a GPU's D3D engine loads, which Windows' counters repeat beside the GPU's own; and each core's effective clock,
+    /// which the cores' average effective clock says once. A CPU sensor that needs the
     /// driver stays, since its row says how to fix it. A device left with no row is left out.
     /// </summary>
     public static (IReadOnlyList<CatalogDevice> Shown, int Hidden) Hide(IReadOnlyList<CatalogDevice> devices, IReadOnlySet<string> seen)
@@ -207,11 +218,16 @@ public static class SensorCatalog
     private static bool Hidden(CatalogSensor row, IReadOnlySet<string> seen) =>
         row.Why == NoValue.ReadsNothing
         || ((row.Why is null or NoValue.Stopped) && (row.Reading.Kind is SensorKind.Fan or SensorKind.Temperature) && !Seen(row, seen))
-        || (SensorMap.IsGpu(row.Sensor) && row.Reading.Kind == SensorKind.Load && row.Sensor.Name.StartsWith(D3dLayer, StringComparison.Ordinal));
+        || (SensorMap.IsGpu(row.Sensor) && row.Reading.Kind == SensorKind.Load && row.Sensor.Name.StartsWith(D3dLayer, StringComparison.Ordinal))
+        || (row.Reading.Kind == SensorKind.Clock && row.Sensor.Name.StartsWith(CoreClock, StringComparison.Ordinal) && row.Sensor.Name.EndsWith(Effective, StringComparison.Ordinal));
 
-    // A type thermi does not show has no unit to show it in, so it has no row.
+    // A type thermi does not show has no unit to show it in, so it has no row; nor has a drive's fixed limit or its wear,
+    // which read as a temperature or a load but never move.
     private static CatalogSensor? Row(string id, RawSensor sensor, SensorName name) =>
-        SensorMap.ReadingOf(sensor) is { } reading ? new CatalogSensor(id, sensor, reading, Why(sensor, reading), name) : null;
+        SensorMap.ReadingOf(sensor) is { } reading && !DriveConstant(sensor) ? new CatalogSensor(id, sensor, reading, Why(sensor, reading), name) : null;
+
+    private static bool DriveConstant(RawSensor sensor) =>
+        sensor.HardwareType == Storage && (sensor.Type == Level || Array.IndexOf(DriveLimits, sensor.Name) >= 0);
 
     private static NoValue? Why(RawSensor sensor, Reading reading) =>
         SensorMap.ZeroIsMissing(sensor) ? NoValue.DriverMayBeMissing

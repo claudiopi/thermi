@@ -41,13 +41,20 @@ interface Spot {
   y: number;
 }
 
-/** A display's spots, from its top left: four corners, and three on its taskbar unless the overlay is vertical. */
+/** The least room between a corner's center and the taskbar spot's below, half of each one's target, 26 and 24 px. */
+const apart = 25;
+
+/**
+ * A display's spots, from its top left: four corners, and three on its taskbar unless the overlay is vertical. The lower
+ * corners keep a target's room above the taskbar's.
+ */
 function spotsOf(display: number, width: number, height: number, bar: number, onTaskbar: boolean): Spot[] {
+  const lower = Math.min(height - bar - 12, height - bar / 2 - apart);
   const corners: [number, number][] = [
     [12, 12],
     [width - 12, 12],
-    [12, height - bar - 12],
-    [width - 12, height - bar - 12],
+    [12, lower],
+    [width - 12, lower],
   ];
   const bars = [14, width / 2, width - 14];
   return [
@@ -123,7 +130,7 @@ export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorM
                     aria-checked={isOn(spot)}
                     aria-label={t('OverlayPageText.SpotOnMonitor', t(spotKey(spot.spot)), box.index + 1)}
                     aria-description={hidden && isOn(spot) ? t('UiText.OverlayHidden') : undefined}
-                    title={spot.spot.startsWith('top') ? t('OverlayPageText.TopSpotHint') : undefined}
+                    title={spot.spot.startsWith('top') ? `${t(spotKey(spot.spot))}\n${t('OverlayPageText.TopSpotHint')}` : t(spotKey(spot.spot))}
                     tabIndex={spot === tabStop ? 0 : -1}
                     className={`t-spot${spot.spot.startsWith('taskbar') ? ' t-spot-bar' : ''}${isOn(spot) ? ' t-on' : ''}${hidden && isOn(spot) ? ' t-hidden' : ''}`}
                     style={{ left: spot.x, top: spot.y }}

@@ -31,7 +31,7 @@ export const settingsKey = 'settings';
 
 export const overlayKey = (index: number): string => `o:${index}`;
 export const itemKey = (id: string): string => `i:${id}`;
-const pillKey = (overlay: number, first: string): string => `p:${overlay}:${first}`;
+export const pillKey = (overlay: number, first: string): string => `p:${overlay}:${first}`;
 
 type Say = (key: TextKey, ...blanks: (string | number)[]) => string;
 

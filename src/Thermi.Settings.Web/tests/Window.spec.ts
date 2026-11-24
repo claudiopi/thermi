@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { fakeOf, fakeState, itemOf, list, openWindow, recording, select, settingsOf, setFake, text, toast, windowWith, type FakeState } from './fakeBridge';
+import { expect, fakeOf, fakeState, itemOf, list, openWindow, recording, select, settingsOf, setFake, test, text, toast, windowWith, type FakeState } from './fakeBridge';
 
 // A201: each state that keeps the window from working offers its fix, and the state moves on as the C# side answers.
 test('TheWindowSaysWhatIsWrongAndOffersTheFix', async ({ context }) => {
@@ -85,4 +84,24 @@ test('UndoAndRedoWorkFromTheKeysAndTheTitleRow', async ({ page }) => {
 
   await page.clock.fastForward(6_000);
   await expect(toast(page)).toBeHidden();
+});
+
+// A265: minimized, the window draws no readings, and once it shows again it draws the latest.
+test('AHiddenWindowShowsTheLatestReadingsOnceItShowsAgain', async ({ page }) => {
+  await openWindow(page);
+  const row = list(page).getByRole('treeitem', { name: text('MetricName.CpuTemperature') });
+  const before = await row.getAttribute('aria-description');
+  const hidden = async (hide: boolean): Promise<void> =>
+    page.evaluate((hide) => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => hide });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, hide);
+
+  await hidden(true);
+  await setFake(page, { sensors: recording('admin').map((sensor) => ({ ...sensor, value: sensor.value === null ? null : sensor.value + 3 })) });
+  await page.waitForTimeout(300);
+  await expect(row).toHaveAttribute('aria-description', before ?? '');
+
+  await hidden(false);
+  await expect(row).not.toHaveAttribute('aria-description', before ?? '');
 });

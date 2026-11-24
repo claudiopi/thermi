@@ -1,3 +1,4 @@
+import { steady } from '../steady';
 import { Checkbox as FluentCheckbox, SpinButton, makeStyles, mergeClasses } from '@fluentui/react-components';
 import type { Ref } from 'react';
 import { fluentRef } from '../fluentRef';
@@ -9,7 +10,7 @@ export interface CheckboxProps {
 }
 
 /** A check box with its label beside it, for a choice among many, like the sensors to combine. */
-export function Checkbox({ label, checked, onChange }: CheckboxProps) {
+function CheckboxDrawn({ label, checked, onChange }: CheckboxProps) {
   return <FluentCheckbox label={label} checked={checked} onChange={(_, data) => onChange(data.checked === true)} />;
 }
 
@@ -33,7 +34,7 @@ const useStyles = makeStyles({
 });
 
 /** A box for a number, which the arrows step and typed digits replace. */
-export function NumberField({ label, value, min, max, step = 1, shown, onCommit, describedBy, className, ref }: NumberFieldProps) {
+function NumberFieldDrawn({ label, value, min, max, step = 1, shown, onCommit, describedBy, className, ref }: NumberFieldProps) {
   const styles = useStyles();
   return (
     <SpinButton
@@ -56,3 +57,7 @@ export function NumberField({ label, value, min, max, step = 1, shown, onCommit,
     />
   );
 }
+
+export const Checkbox = steady(CheckboxDrawn);
+
+export const NumberField = steady(NumberFieldDrawn);

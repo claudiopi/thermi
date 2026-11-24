@@ -21,18 +21,20 @@ internal sealed class WindowEditor
     private readonly Settings _settings;
     private readonly Action<Action> _onTurn;
     private readonly ILogger _log;
-    private readonly UndoHistory _history = new();
+    private readonly UndoHistory _history;
     private bool _inGesture;
     private bool _held;
 
     /// <param name="settings">The settings file, already read.</param>
     /// <param name="onTurn">Runs an action on the window's thread, where the settings' changes, raised on any thread, are taken.</param>
     /// <param name="log">Where each input is logged with <c>--trace</c>.</param>
-    public WindowEditor(Settings settings, Action<Action> onTurn, ILogger log)
+    /// <param name="time">The clock by which repeated changes of one field within a second are one step.</param>
+    public WindowEditor(Settings settings, Action<Action> onTurn, ILogger log, TimeProvider time)
     {
         _settings = settings;
         _onTurn = onTurn;
         _log = log;
+        _history = new UndoHistory(time);
         Config = settings.Config;
         settings.Changed += SettingsChanged;
     }

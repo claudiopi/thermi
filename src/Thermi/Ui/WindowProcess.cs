@@ -23,11 +23,17 @@ internal sealed record WindowEnvironment(string Mutex, string SettingsPath, stri
     /// <summary>Where the window keeps WebView2's profile and its size and place: beside the log.</summary>
     public string DataFolder { get; init; } = Path.GetDirectoryName(ThermiLog.DefaultPath)!;
 
+    /// <summary>Where WebView2's runtime is looked for: null for the one installed, wherever Windows has it.</summary>
+    public string? BrowserFolder { get; init; }
+
     /// <summary>Asks the overlay which hotkeys it could not register, null when none answers.</summary>
     public Func<long?> HotkeyStatus { get; init; } = OverlayHost.AskHotkeyStatus;
 
     /// <summary>Asks the overlay to let its hotkeys rest, or take them again.</summary>
     public Func<bool, bool> RestHotkeys { get; init; } = HotkeyRegistry.AskToRest;
+
+    /// <summary>The keys AltGr types a character with on the keyboard layout now, which no Ctrl+Alt hotkey may take.</summary>
+    public Func<IReadOnlySet<int>> AltGrKeys { get; init; } = HotkeyRegistry.AltGrKeys;
 
     /// <summary>The elevated mode's verb from the executable's path, behind its UAC prompt: its exit code, or null when the prompt was refused.</summary>
     public Func<string, string, Task<int?>> Elevate { get; init; } = Elevated.AskAsync;
@@ -94,7 +100,7 @@ internal static class WindowProcess
         using var store = new ConfigStore(environment.SettingsPath, time);
         await using var settings = new Settings(store, time, environment.Log);
         await settings.SyncAsync();
-        using var watcher = ConfigStore.Watch(settings.FilePath, settings.FileChanged, environment.Log);
+        using var watcher = settings.Watch(environment.Log);
         using var stop = new CancellationTokenSource();
         var reading = Task.CompletedTask;
         var texts = pseudo ? Texts.Pseudo() : Texts.For(settings.Config.Language, CultureInfo.CurrentUICulture);

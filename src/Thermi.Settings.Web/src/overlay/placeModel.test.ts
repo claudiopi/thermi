@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Monitor, Overlay } from '../bridge/bridge.g';
 import type { TextKey } from '../texts/Texts';
-import { displayName, displays, moveToDisplay, placeText, placedOf, snapAt, spotKey } from './placeModel';
+import { displayName, displays, moveToDisplay, placeText, placedOf, positionHint, snapAt, spotKey, type Placed } from './placeModel';
 
 function monitor(id: string, primary = false): Monitor {
   const rect = { x: 0, y: 0, width: 1920, height: 1080 };
@@ -60,6 +60,21 @@ describe('where an overlay sits', () => {
   ] satisfies { overlay: Partial<Overlay>; text: string }[])('says where $overlay sits', ({ overlay, text }) => {
     expect(placeText({ name: 'A', items: [], ...overlay }, shown, lower)).toBe(text);
   });
+
+  test.each([
+    { placed: null, vertical: false, floats: undefined, hint: 'OverlayPageText.FreeHint' },
+    { placed: { spot: 'top-right', display: 0, gone: false }, vertical: true, floats: 'side', hint: null },
+    { placed: { spot: 'taskbar-right', display: 0, gone: false }, vertical: false, floats: 'side', hint: 'OverlayPageText.TaskbarOnSide' },
+    { placed: { spot: 'taskbar-right', display: 0, gone: false }, vertical: true, floats: 'hides', hint: 'OverlayPageText.TaskbarHides' },
+    { placed: { spot: 'taskbar-left', display: 1, gone: false }, vertical: false, floats: 'hides', hint: null },
+    { placed: { spot: 'taskbar-left', display: 0, gone: false }, vertical: true, floats: undefined, hint: 'OverlayPageText.AboveTaskbar' },
+    { placed: { spot: 'taskbar-left', display: 0, gone: false }, vertical: false, floats: undefined, hint: null },
+  ] satisfies { placed: Placed | null; vertical: boolean; floats: Monitor['floats']; hint: TextKey | null }[])(
+    'hints $hint at $placed.spot with a main taskbar that floats $floats',
+    ({ placed, vertical, floats, hint }) => {
+      expect(positionHint(placed, vertical, [{ ...main, ...(floats === undefined ? {} : { floats }) }, second])).toBe(hint);
+    },
+  );
 
   test('names the main display apart from the others, counting from 1', () => {
     expect([displayName(main, 0, lower), displayName(second, 2, lower)]).toEqual(['overlaypagetext.maindisplay 1', 'overlaypagetext.displayname 3']);

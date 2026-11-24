@@ -79,14 +79,14 @@ function dropOf(data: WindowData, dragged: string, row: Row, event: DragEvent<HT
 export function ItemList({ data, selected, onSelect, onEnter, folded, onFold, onEditLabel, onAddItem, announce, onRemoved, onOverlayEdit, pointed, onPoint }: ItemListProps) {
   const t = useText();
   const edit = useEdit();
-  const shownDisplays = displays(useMonitors(data.version));
+  const shownDisplays = displays(useMonitors(data.changes));
   const rows = rowsOf(data.settings, data.view, folded, t);
   const shown = shownRows(rows);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ row: Row; at: HTMLElement } | null>(null);
   const dragged = useRef<string | null>(null);
   const moved = useRef<string | null>(null);
-  const focusRow = useRowFocus(data.version);
+  const focusRow = useRowFocus(data.changes);
 
   useLayoutEffect(() => {
     const row = rows.find((one) => one.key === moved.current);

@@ -2,7 +2,6 @@ using System.Drawing;
 using System.Globalization;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
-using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
@@ -11,7 +10,6 @@ using Thermi.Painting;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 using Select = Thermi.Core.Messages.Select;
@@ -19,46 +17,11 @@ using SelectHow = Thermi.Core.Messages.SelectHow;
 
 namespace Thermi.Overlay;
 
-internal sealed record OverlayActions(CultureInfo Culture, TimeProvider Time, Action RequestPaint, Action<int, string?> OpenSettings, Action Exit, Func<Position> Cursor)
-{
-    /// <summary>A value or an edge clicked or pointed at, which the open window selects or marks.</summary>
-    public Action<Select> Select { get; init; } = _ => { };
-
-    /// <summary>The place of another overlay shown under a point of the screen, the first given apart, or null.</summary>
-    public Func<int, Position, int?> OverlayAt { get; init; } = (_, _) => null;
-
-    /// <summary>The last desktop gesture, which the overlays' menus offer to undo.</summary>
-    public GestureUndo? Gestures { get; init; }
-
-    /// <summary>Shows an overlay's menu, which the host builds with thermi's.</summary>
-    public Action<int> Menu { get; init; } = _ => { };
-
-    /// <summary>Every overlay's items' last minute and running statistics, by item, which the tray icons show too.</summary>
-    public ItemHistory History { get; init; } = new(Time);
-}
-
-internal sealed record OverlayScene(ThermiConfig Config, ConfigProblem? Problem, Snapshot? Snapshot, IReadOnlyList<Screen> Screens, bool LightTaskbar, HighContrastColors? HighContrast, bool WindowOpen)
-{
-    public ServiceState Service { get; init; } = ServiceState.Running;
-
-    /// <summary>Whether the window has opened since thermi was first started, after which the tooltips stop offering to set it up.</summary>
-    public bool OpenedOnce { get; init; } = true;
-
-    /// <summary>Whether apps are in light mode, which the values' tooltips follow as thermi's menus do.</summary>
-    public bool LightApps { get; init; } = true;
-
-    /// <summary>Whether Windows' animation effects are on, without which no pill glows.</summary>
-    public bool Animate { get; init; }
-
-    /// <summary>The CPU's base clock, read once, and what is busiest now, read only while a CPU or GPU value is critical.</summary>
-    public CpuWatch? Cpu { get; init; }
-}
-
 /// <summary>
 /// One overlay of the settings, found by its place in them: a layered window that only draws, with its own painter, its
-/// own items' history, its menu and the mouse. The host runs its messages.
+/// own items' history, its menu and the mouse, whose presses its gestures decide, and its fade. The host runs its messages.
 /// </summary>
-internal sealed partial class OverlayWindow : IDisposable
+internal sealed class OverlayWindow : IDisposable
 {
     internal const string ClassName = "thermi-overlay";
     internal const WINDOW_EX_STYLE ExStyle = WINDOW_EX_STYLE.WS_EX_LAYERED | WINDOW_EX_STYLE.WS_EX_TOPMOST | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_NOACTIVATE;
@@ -71,17 +34,21 @@ internal sealed partial class OverlayWindow : IDisposable
     private readonly Settings _settings;
     private readonly OverlayActions _actions;
     private readonly Painter _painter = new(reuse: true);
+    private readonly LayeredPicture _picture = new();
     private readonly OverlayMouse _mouse = new();
     private readonly Topmost _topmost;
     private readonly ValueTips _tips;
     private readonly CriticalGlow _glow;
+    private readonly OverlayFade _fade;
+    private readonly OverlayGestures _gestures;
 
     // OLED care moves the overlay by how long it has run.
     private readonly long _started;
     private bool _shown;
 
-    // The last scene painted, which the glow's frames paint again.
+    // The last scene painted, which the glow's frames paint again, and what it drew.
     private OverlayScene? _scene;
+    private PaintedOverlay? _painted;
 
     // The item the pointer is on, which the open window marks on its row.
     private string? _pointed;
@@ -96,6 +63,8 @@ internal sealed partial class OverlayWindow : IDisposable
         Hwnd = HiddenWindow.Create(ClassName, ExStyle);
         _topmost = new Topmost(Hwnd);
         _tips = new ValueTips(Hwnd);
+        _fade = new OverlayFade(Hwnd, actions.Cursor);
+        _gestures = new OverlayGestures(index, settings, actions, Hwnd);
     }
 
     public HWND Hwnd { get; }
@@ -117,39 +86,29 @@ internal sealed partial class OverlayWindow : IDisposable
         hCursor = PInvoke.LoadCursor(HINSTANCE.Null, PInvoke.IDC_ARROW),
     };
 
-    /// <summary>The scale the overlay is drawn at: its monitor's, times its own size.</summary>
-    internal static float ScaleOf(uint dpi, OverlayConfig overlay) => dpi / 96f * (float)overlay.Size;
-
     /// <summary>
-    /// Puts the bitmap on screen at <paramref name="position"/>: its alpha becomes the window's shape, rounded corners and
-    /// all, and where clicks pass. Moving and resizing in the same call keeps a snapped edge still as the overlay grows.
+    /// The scale the overlay is drawn at, times its own size: the monitor's it is about to show on among
+    /// <paramref name="screens"/>, so a snap to a monitor of another scale paints right at once, or its window's,
+    /// <paramref name="dpi"/>, while it knows none.
     /// </summary>
-    internal static void Show(HWND hwnd, Bitmap bitmap, Position position, byte alpha = 255)
+    internal static float ScaleOf(uint dpi, OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
+        (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * overlay.Size);
+
+    /// <summary>Puts a picture shown once, as a dragged pill's, on screen at <paramref name="position"/>, as <see cref="LayeredPicture.Show"/> does.</summary>
+    internal static void Show(HWND hwnd, Bitmap bitmap, Position position)
     {
-        HDC screen = default, memory = default;
-        HGDIOBJ hBitmap = default, previous = default;
-        try
-        {
-            screen = PInvoke.GetDC(HWND.Null);
-            memory = PInvoke.CreateCompatibleDC(screen);
-            hBitmap = (HGDIOBJ)bitmap.GetHbitmap(Color.FromArgb(0));
-            previous = PInvoke.SelectObject(memory, hBitmap);
-            var blend = new BLENDFUNCTION { SourceConstantAlpha = alpha, AlphaFormat = (byte)PInvoke.AC_SRC_ALPHA };
-            PInvoke.UpdateLayeredWindow(hwnd, screen, new Point(position.X, position.Y), new SIZE(bitmap.Width, bitmap.Height), memory, new Point(0, 0), default, blend, UPDATE_LAYERED_WINDOW_FLAGS.ULW_ALPHA);
-        }
-        finally
-        {
-            Release(screen, memory, hBitmap, previous);
-        }
+        using var picture = new LayeredPicture();
+        picture.Show(hwnd, bitmap, position);
     }
 
     public void Dispose()
     {
+        _picture.Dispose();
         _topmost.Dispose();
         _tips.Dispose();
-        _drag?.Dispose();
+        _gestures.Dispose();
+        _fade.Dispose();
         PInvoke.KillTimer(Hwnd, GlowTimer);
-        PInvoke.KillTimer(Hwnd, FadeTimer);
         PInvoke.DestroyWindow(Hwnd);
         _painter.Dispose();
     }
@@ -195,8 +154,8 @@ internal sealed partial class OverlayWindow : IDisposable
                 return true;
             case PInvoke.WM_SETCURSOR:
                 return CornerCursor(overlay);
-            case PInvoke.WM_TIMER when wParam == FadeTimer:
-                FadeNow(overlay);
+            case PInvoke.WM_TIMER when wParam == OverlayFade.TimerId:
+                _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Drag is not null, _shown);
                 return true;
             case PInvoke.WM_TIMER when _shown && _scene is { } scene && _index < scene.Config.Overlays.Count:
                 Repaint(scene);
@@ -209,14 +168,16 @@ internal sealed partial class OverlayWindow : IDisposable
     public void Repaint(OverlayScene scene)
     {
         _scene = scene;
-        var overlay = _drag?.Shown(scene.Config.Overlays[_index]) ?? scene.Config.Overlays[_index];
+        var overlay = _gestures.Drag?.Shown(scene.Config.Overlays[_index]) ?? scene.Config.Overlays[_index];
+        var heldAt = _gestures.HeldAt(_mouse.Dragged);
         var texts = Texts.For(scene.Config.Language, CultureInfo.CurrentUICulture);
         var input = new TrayInput(scene.Snapshot, scene.Service, _actions.Culture, texts, scene.LightTaskbar, "") { History = _actions.History, WindowOpen = scene.WindowOpen, BaseClock = scene.Cpu?.BaseClock, Busiest = scene.Cpu?.Busiest };
         var shown = ThermiMark.Overlay(scene.Config, _index, input, scene.OpenedOnce);
         var marks = Marks;
         ClickThrough(overlay.ClickThrough);
         var look = marks.Applied(OverlayLook.Of(overlay.Style, scene.LightTaskbar, scene.HighContrast));
-        var scale = ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay);
+        // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
+        var scale = ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, heldAt is null ? scene.Screens : []);
         var items = Extras(scene, texts, shown.Items);
         _glow.Update(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
@@ -227,11 +188,11 @@ internal sealed partial class OverlayWindow : IDisposable
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
         Tips(scene, input, shown);
         Glow();
-        _painted = (items, look, scale, bitmap.Size);
+        _painted = new PaintedOverlay(items, look, scale, bitmap.Size);
         var running = _actions.Time.GetElapsedTime(_started);
         var crowded = !shown.SensorsStopped && TaskbarRoom.Crowded(_painter, items, look, scale, overlay, scene.Screens);
-        Show(Hwnd, bitmap, HeldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, crowded) ?? WindowPosition(), _alpha);
-        WatchPointer(overlay);
+        _picture.Show(Hwnd, bitmap, heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, crowded) ?? WindowPosition(), _fade.Alpha);
+        _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown);
         if (!_shown)
         {
             PInvoke.SetWindowPos(Hwnd, HWND.HWND_TOPMOST, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
@@ -279,17 +240,18 @@ internal sealed partial class OverlayWindow : IDisposable
                 Pressed(overlay);
                 return true;
             case MouseAction.Move:
-                Dragging(step);
+                _gestures.Move(step.At!, _mouse.Dragged);
                 return true;
             case MouseAction.Release:
                 PInvoke.ReleaseCapture();
                 Clicked(step.Press!, overlay.Locked);
-                Released(step);
+                _gestures.Release(step.Press!, DragDistance());
+                Dropped();
                 return true;
             case MouseAction.Lost:
                 Dropped();
                 return true;
-            case MouseAction.Open when !DoubleClickedCorner(overlay):
+            case MouseAction.Open when !_gestures.DoubleClickedCorner(overlay, _painted, WindowPosition()):
                 _actions.OpenSettings(_index, ItemAt(_actions.Cursor()));
                 return true;
             case MouseAction.Open:
@@ -301,6 +263,37 @@ internal sealed partial class OverlayWindow : IDisposable
             default:
                 return false;
         }
+    }
+
+    private void Pressed(OverlayConfig overlay)
+    {
+        PInvoke.SetCapture(Hwnd);
+        _tips.Quiet(true);
+        _gestures.Let();
+        if (_painted is { } painted && _scene is { } scene)
+        {
+            var item = ItemAt(_actions.Cursor());
+            var box = item is null ? RectangleF.Empty : _painter.Places.First(place => place.Id == item).Pill;
+            _gestures.Press(overlay, painted, scene.Screens, (item, box), WindowPosition());
+        }
+    }
+
+    private void Dropped()
+    {
+        _tips.Quiet(false);
+        _gestures.Let();
+        _actions.RequestPaint();
+    }
+
+    private bool CornerCursor(OverlayConfig overlay)
+    {
+        if (!OverlayGestures.InCorner(overlay, _painted, WindowPosition(), _actions.Cursor()))
+        {
+            return false;
+        }
+
+        PInvoke.SetCursor(PInvoke.LoadCursor(HINSTANCE.Null, PInvoke.IDC_SIZENWSE));
+        return true;
     }
 
     private void Clicked(Press press, bool locked)
@@ -362,33 +355,30 @@ internal sealed partial class OverlayWindow : IDisposable
 
     private DragDistance DragDistance() => Desktop.DragDistanceAt(PInvoke.GetDpiForWindow(Hwnd));
 
-    private static void Release(HDC screen, HDC memory, HGDIOBJ hBitmap, HGDIOBJ previous)
-    {
-        if (!previous.IsNull)
-        {
-            PInvoke.SelectObject(memory, previous);
-        }
-
-        if (!hBitmap.IsNull)
-        {
-            PInvoke.DeleteObject(hBitmap);
-        }
-
-        if (!memory.IsNull)
-        {
-            PInvoke.DeleteDC(memory);
-        }
-
-        if (!screen.IsNull)
-        {
-            _ = PInvoke.ReleaseDC(HWND.Null, screen);
-        }
-    }
-
     private void ShowMenu()
     {
         _tips.Quiet(true);
         _actions.Menu(_index);
         _tips.Quiet(false);
     }
+
+    /// <summary>
+    /// The overlay as its last paint drew it, painted afresh without what only the open window or a broken file adds; the
+    /// "Sensors stopped" pill while they are. Null before the first paint.
+    /// </summary>
+    internal Bitmap? Picture()
+    {
+        if (_painted is not { } painted || _scene is not { } scene)
+        {
+            return null;
+        }
+
+        using var painter = new Painter();
+        IReadOnlyList<OverlayItem> items = [.. painted.Items.Where(item => item.Id.Length > 0)];
+        return scene.Service == ServiceState.Stopped || items.Count == 0
+            ? painter.PaintStopped(Translations.Of(OverlayText.SensorsStopped), painted.Look, painted.Scale)
+            : painter.Paint(items, painted.Look, painted.Scale);
+    }
+
+    internal void UndoGesture() => _gestures.Undo();
 }

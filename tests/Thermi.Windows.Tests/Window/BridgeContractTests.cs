@@ -3,6 +3,7 @@ using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
+using Thermi.Core.Tray;
 using Thermi.Ui;
 using Thermi.Ui.Editor;
 using Thermi.Ui.Web;
@@ -12,7 +13,8 @@ namespace Thermi.Windows.Tests.Window;
 /// <summary>
 /// What the real bridge gives the page, over the recorded PC, held to what the page renders and the Playwright fake gives
 /// it: every item and overlay named, every value with its level, each meter's chart in its own unit, the catalog, the
-/// finder, the status and About filled, and the item it opened on. The fake is kinder than C# wherever this test is the only one that sees it.
+/// finder, the status and About filled, and the item it opened on: the views, which the fake shows in rough form. What
+/// an edit, an undo or a look does the fake never decides; <see cref="BridgeOracleTests"/> holds its answers to C#'s.
 /// </summary>
 public sealed class BridgeContractTests
 {
@@ -45,7 +47,7 @@ public sealed class BridgeContractTests
         await using var settings = folder.Settings();
         Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
         var turn = new Queue<Action>();
-        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log);
+        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
         var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), new TestFeed { Latest = Recorded }, startup) { Screens = () => [] };
         using var bridge = new WindowBridge(new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id }, editor, new ChartHistory(folder.Clock), turn.Enqueue);
@@ -84,8 +86,48 @@ public sealed class BridgeContractTests
         Assert.Equal(new FinderView(FinderPhase.Idle, null), await bridge.Finder());
         Assert.Null((await bridge.Status()).Problem);
         Assert.Equal(new UndoSteps(null, null), await bridge.Steps());
-        Assert.True((await bridge.About()) is { Version.Length: > 0, Languages.Count: > 1, Windows.Length: > 0 });
+        // The version lives in Directory.Build.props alone, and About shows it as it stands there.
+        var version = System.Xml.Linq.XDocument.Load(Path.Combine(TestRecordings.RepoRoot(), "Directory.Build.props")).Descendants("Version").Single().Value;
+        Assert.True((await bridge.About()) is { Languages.Count: > 1, Windows.Length: > 0 } about && about.Version == version, version);
         // Opened from a double-click on a value, the page starts on that item of the first overlay.
         Assert.True((await bridge.Start()) is { Overlay: 0, Item: "cpu.temperature" });
+    }
+
+    // A window opened before the pipe's first snapshot shows nothing as missing that the overlay already shows: what the
+    // page reads waits for it. After it, a second's readings tell the page to read only what readings change.
+    [Fact]
+    public async Task ThePageWaitsForTheFirstReadingsAndThenHearsOfEachSecondApart()
+    {
+        using var folder = new SettingsFolder();
+        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+        await using var settings = folder.Settings();
+        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
+        var turn = new Queue<Action>();
+        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        var feed = new TestFeed();
+        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
+        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup) { Screens = () => [], HotkeyStatus = () => null };
+        using var bridge = new WindowBridge(new WindowStart(0, settings, Texts.English, environment, folder.Clock), editor, new ChartHistory(folder.Clock), turn.Enqueue);
+        var heard = new List<string>();
+        bridge.Changed += (_, _) => heard.Add(nameof(bridge.Changed));
+        bridge.Readings += (_, _) => heard.Add(nameof(bridge.Readings));
+
+        var view = bridge.View();
+        Assert.False(view.IsCompleted);
+        feed.Latest = Recorded;
+        bridge.Arrived();
+        Assert.All((await view).Items.Values, item => Assert.NotNull(item.Value));
+
+        heard.Clear();
+        for (var second = 0; second < 3; second++)
+        {
+            folder.Clock.Advance(TimeSpan.FromSeconds(1));
+            bridge.Arrived();
+        }
+
+        // The page reads the sensors only at a change, so the service's going stale is one.
+        feed.State = ServiceState.Stale;
+        bridge.Arrived();
+        Assert.Equal([nameof(bridge.Readings), nameof(bridge.Readings), nameof(bridge.Readings), nameof(bridge.Changed)], heard);
     }
 }

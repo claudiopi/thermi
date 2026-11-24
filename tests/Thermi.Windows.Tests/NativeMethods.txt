@@ -23,8 +23,15 @@ GET_GUI_RESOURCES_FLAGS
 IsWindow
 PeekMessage
 WM_QUIT
-// A test desktop joined by a helper process
+// A test desktop joined by a helper process, or a process started on it, whose own children start there too
 OpenDesktop
+CreateProcess
+WaitForSingleObject
+TerminateProcess
+GetExitCodeProcess
+CloseHandle
 KillTimer
+// A message box answered
+WM_COMMAND
 // A test's window without the input methods' own thread
 ImmDisableIME

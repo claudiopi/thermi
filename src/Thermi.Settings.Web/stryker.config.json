@@ -3,6 +3,7 @@
   "testRunner": "vitest",
   "vitest": { "dir": "src" },
   "mutate": [
+    "src/app/shortcuts.ts",
     "src/chart/geometry.ts",
     "src/item/itemModel.ts",
     "src/list/rows.ts",

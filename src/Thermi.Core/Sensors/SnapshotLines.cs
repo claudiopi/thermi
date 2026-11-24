@@ -1,16 +1,17 @@
-using System.Text;
+using Thermi.Core.Pipe;
 using Thermi.Core.Tray;
 
 namespace Thermi.Core.Sensors;
 
 /// <summary>
-/// Turns the bytes read from the pipe into snapshots. Bytes arrive in arbitrary pieces: a line, or a single
-/// character, can span two reads, and one read can hold several lines.
+/// Turns the bytes read from the pipe into snapshots: a whole snapshot, names and all, then lines of its values alone,
+/// each filled in with the names of the whole one before it. Values before any whole snapshot, or not as many as it has
+/// sensors, are no snapshot. A sensor whose value did not change is the same object as in the snapshot before.
 /// </summary>
 public sealed class SnapshotLines
 {
-    private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
-    private readonly StringBuilder _pending = new();
+    private readonly LineBuffer _lines = new(SnapshotJson.MaxLineLength);
+    private Snapshot? _last;
 
     /// <summary>
     /// Returns the snapshots this piece completes. Throws <see cref="InvalidDataException"/> once a line
@@ -18,31 +19,39 @@ public sealed class SnapshotLines
     /// </summary>
     public IReadOnlyList<Snapshot> Add(ReadOnlySpan<byte> bytes)
     {
-        var chars = new char[_decoder.GetCharCount(bytes, flush: false)];
-        _pending.Append(chars, 0, _decoder.GetChars(bytes, chars, flush: false));
-
         var snapshots = new List<Snapshot>();
-        var text = _pending.ToString();
-        var end = text.LastIndexOf('\n');
-        if (end >= 0)
+        _lines.Add(bytes, line =>
         {
-            foreach (var line in text[..end].Split('\n'))
+            if (Read(line) is { } snapshot)
             {
-                if (SnapshotJson.Read(line) is { } snapshot)
-                {
-                    snapshots.Add(snapshot);
-                }
+                _last = snapshot;
+                snapshots.Add(snapshot);
             }
-
-            _pending.Clear().Append(text, end + 1, text.Length - end - 1);
-        }
-
-        if (_pending.Length > SnapshotJson.MaxLineLength)
-        {
-            throw new InvalidDataException("A line from the sensor pipe is longer than any real snapshot.");
-        }
-
+        });
         return snapshots;
+    }
+
+    private Snapshot? Read(ReadOnlySpan<byte> line)
+    {
+        var start = line.IndexOfAnyExcept(" \t\r"u8);
+        if (start < 0 || line[start] != (byte)'[')
+        {
+            return SnapshotJson.Read(line);
+        }
+
+        if (_last is not { } last || SnapshotJson.ReadValues(line) is not { } values || values.Length != last.Sensors.Count)
+        {
+            return null;
+        }
+
+        var sensors = new RawSensor[values.Length];
+        for (var at = 0; at < values.Length; at++)
+        {
+            var before = last.Sensors[at];
+            sensors[at] = Nullable.Equals(before.Value, values[at]) ? before : before with { Value = values[at] };
+        }
+
+        return new Snapshot(sensors) { VirtualAdapters = last.VirtualAdapters };
     }
 }
 

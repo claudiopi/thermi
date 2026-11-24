@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { chooseByKeys, fakeState, itemOf, list, openWindow, overlayOf, recording, select, selectedRow, setFake, settingsOf, startingWith, text, windowWith, withDrivesAndBattery, type Overlay, type Settings } from './fakeBridge';
+import { type Page } from '@playwright/test';
+import { chooseByKeys, expect, fakeState, itemOf, list, openWindow, overlayOf, recording, select, selectedRow, setFake, settingsOf, startingWith, test, text, withDrivesAndBattery, type Overlay, type Settings } from './fakeBridge';
 
 const ids = (settings: Settings, overlay: number): string[] => overlayOf(settings, overlay).items.map((item) => item.id);
 
@@ -76,7 +76,7 @@ test('TheListWorksWithTheKeyboard', async ({ page }) => {
 });
 
 // A204: the catalog opened from each overlay adds there, or where its picker says, with Enter or Ctrl+Enter.
-test('TheCatalogAddsWithTheKeyboard', async ({ context }) => {
+test.describe('TheCatalogAddsWithTheKeyboard', () => {
   const sensors = recording('admin').filter((sensor) => sensor.type === 'Temperature' && sensor.value !== null);
   const first = sensors[0];
   const second = sensors[1];
@@ -90,8 +90,8 @@ test('TheCatalogAddsWithTheKeyboard', async ({ context }) => {
   ];
 
   for (const row of rows) {
-    await test.step(`from ${row.from} to ${row.lands}`, async () => {
-      const page = await windowWith(context, fakeState());
+    test(`from ${row.from} to ${row.lands}`, async ({ page }) => {
+      await openWindow(page);
       await select(page, row.from);
       await page.keyboard.press('Control+N');
       const catalog = page.getByRole('dialog', { name: text('UiText.Catalog') });
@@ -117,17 +117,16 @@ test('TheCatalogAddsWithTheKeyboard', async ({ context }) => {
       await expect(search).toHaveValue('');
       await page.keyboard.press('Escape');
       await expect(catalog).toBeHidden();
-      await page.close();
     });
   }
 
   // A245: what nobody would add waits behind "Show all", a board's input says its likely name, and F2 renames its sensor.
-  await test.step('the catalog hides, names likely and renames', async () => {
+  test('the catalog hides, names likely and renames', async ({ page }) => {
     const layer = recording('admin').find((sensor) => sensor.hardwareType.startsWith('Gpu') && sensor.name.startsWith('D3D '));
     if (layer === undefined) {
       throw new Error('The recording has no GPU engine layer.');
     }
-    const page = await windowWith(context, fakeState());
+    await openWindow(page);
     await select(page, 'Taskbar');
     await page.keyboard.press('Control+N');
     const catalog = page.getByRole('dialog', { name: text('UiText.Catalog') });
@@ -164,15 +163,14 @@ test('TheCatalogAddsWithTheKeyboard', async ({ context }) => {
     await search.fill(text('LikelyName.Vrm'));
     await options.first().click();
     await expect.poll(count).toBe(before + 1);
-    await page.close();
   });
 
   // A232 and A238: adapters, drives and a battery each make a group named by their role, and only a laptop has a battery.
   const grouped = (key: string): RegExp => startingWith(text('UiText.SensorOn', text(key), ''));
   for (const laptop of [false, true]) {
-    await test.step(laptop ? 'a laptop lists its battery' : 'a desktop lists its adapters and drives, and no battery', async () => {
+    test(laptop ? 'a laptop lists its battery' : 'a desktop lists its adapters and drives, and no battery', async ({ page }) => {
       const sensors = withDrivesAndBattery(laptop);
-      const page = await windowWith(context, fakeState({ sensors }));
+      await openWindow(page, fakeState({ sensors }));
       await select(page, 'Taskbar');
       await page.keyboard.press('Control+N');
       const catalog = page.getByRole('dialog', { name: text('UiText.Catalog') });
@@ -182,7 +180,6 @@ test('TheCatalogAddsWithTheKeyboard', async ({ context }) => {
 
       await catalog.getByRole('radio', { name: text('SensorKind.Throughput') }).check();
       await expect(catalog.getByRole('listbox', { name: text('UiText.Catalog') }).getByRole('option')).toHaveCount(sensors.filter((sensor) => sensor.type === 'Throughput').length);
-      await page.close();
     });
   }
 });

@@ -15,7 +15,8 @@
   align-items: flex-start;
 }
 
-.t-rows {
+/* Its own name: the list's rows keep a scrollbar's room, which would end these cards short of the column. */
+.t-place-rows {
   display: flex;
   flex-direction: column;
   gap: 4px;

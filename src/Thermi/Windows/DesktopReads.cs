@@ -8,10 +8,11 @@ namespace Thermi.Windows;
 /// monitors, the taskbar's and the apps' modes and the accent color. The scale, the work areas and the taskbars are read each time, and
 /// a monitor gone or a taskbar on one it does not hold lists the monitors again. The taskbar's buttons are read, through
 /// UI Automation off the window's thread, only while an overlay sits on a taskbar's left or right, which they may crowd.
+/// Disposed on the window's thread.
 /// </summary>
 /// <param name="time">The clock the buttons' answers are kept by.</param>
 /// <param name="changed">Told, on any thread, when a taskbar's buttons moved.</param>
-internal sealed class DesktopReads(TimeProvider time, Action changed)
+internal sealed class DesktopReads(TimeProvider time, Action changed) : IDisposable
 {
     private readonly Lock _gate = new();
     private IReadOnlyList<ListedMonitor>? _monitors;
@@ -62,6 +63,15 @@ internal sealed class DesktopReads(TimeProvider time, Action changed)
     public bool LightApps() => _lightApps ??= AppMode.LightApps();
 
     public Rgb Accent() => _accent ??= Desktop.Accent();
+
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            _apps?.Dispose();
+            _apps = null;
+        }
+    }
 
     /// <summary>The display, a setting or the accent color changed: each is read again when next asked for.</summary>
     public void Forget()

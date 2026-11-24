@@ -24,10 +24,13 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 
 Requires the .NET SDK in `global.json` and PowerShell 7.
 
-- `pwsh scripts/check.ps1`: restore, format, the test count, Release build, tests and coverage, then the settings page's type check, lint, react-doctor, unit tests, dead code (knip) and Playwright tests with axe. The CI runs the same script, each half in a job of its own (`-Part DotNet`, `-Part Web`). Run it before every PR.
+- `pwsh scripts/check.ps1`: restore, format, the third-party notices, the test count, Release build, tests and coverage, then the settings page's type check, lint, react-doctor, unit tests, dead code (knip) and Playwright tests with axe. The CI runs the same script, each half in a job of its own (`-Part DotNet`, `-Part Web`). Run it before every PR.
 - `pwsh scripts/check.ps1 -Mutation`: the same, then Stryker.NET's mutation score of `Thermi.Core`'s tests and StrykerJS's of the page's logic, which measure them better than coverage. Slow: run it when you change Core, the page's logic or their tests. `pwsh scripts/mutation.ps1 --disable-bail` runs Stryker.NET alone and lists every test that kills each mutant.
 - `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]`: open the real settings window (the installed one by default) with WebView2's debugging port, click through every screen, and fail on any error the page shows or logs. Run it before a person gets a build; close any open settings window first.
+- `pwsh scripts/measure.ps1 [-Window] [-Exe <thermi.exe>] [-Seconds <n>]`: measure for 60 s what the overlay, the settings window with its WebView2 processes (`-Window` opens it and closes it after) and the sensor service cost, CPU as a percent of one core and private memory, and fail past their budgets: the overlay 0.5 %, the idle window with its page's renderer 1 %, the service 80 MB. Run it on the installed build after a change to what runs each second; a plain build compiles its code as it runs, so it measures high.
+- `pwsh scripts/oracle.ps1`: after a change to what C# answers the page's edits, undos or looks, or to a page test's calls, run them through the real bridge into the fake's table, `src/Thermi.Settings.Web/tests/oracle/edits.json`; `-Prune` drops what no test asks any longer. A page test that asks the table for what it lacks fails, and so does `BridgeOracleTests` when an answer is stale.
 - `pwsh scripts/mark-icon.ps1`: draw the program's icon, `src/Thermi/thermi.ico`, from thermi's mark again, after changing the mark.
+- `pwsh scripts/notices.ps1`: write `THIRD-PARTY-NOTICES.md` again from the lock files, after adding, removing or updating a package.
 - `dotnet test --project tests/Thermi.Tests -- --filter-method "*Threshold*"`: run only some tests while you work.
 - `dotnet format whitespace thermi.slnx`: fix formatting.
 - `pwsh scripts/install.ps1` (as yourself; it asks for admin rights once): install this build on your PC. `-Uninstall` removes it.
@@ -59,13 +62,16 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Docs only cite paths that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |
 | A rule is turned off only in `Thermi.globalconfig`, with the reason above it. In code, a suppression says why on the same line. NuGet warnings are never suppressed: update the package. | `RepoRulesTests` |
 | Package versions live in `Directory.Packages.props`; lock files are committed; packages come only from nuget.org. | NuGet, `nuget.config`, `--locked-mode` in CI |
+| `THIRD-PARTY-NOTICES.md` lists every package that ships, NuGet and npm, with its license. | `scripts/notices.ps1 -Check` in `scripts/check.ps1` |
+| thermi's version lives only in `Directory.Build.props`, and About shows it. | `BridgeContractTests` |
 | Every agent brief pins its model. | `RepoRulesTests` |
 | Every text a user reads is a member of an enum marked `[Translated]`, and every translation has every text of the English one, with the same blanks, and no others. None is blank or names the driver's product. | `RepoRulesTests` |
 | A spec is a folder with `spec.md`, `tasks.md` and `acceptance.json`. Every requirement has an acceptance step, every check is a real test (once approved) or `by hand`, and `done` means every step passes. | `RepoRulesTests` |
 | PR titles follow Conventional Commits (they become the squash commit). | CI `pr-title` |
-| One behavior, one test, at the cheapest layer that proves it. Its first test is written red at the unit's edge, as its acceptance step. | the ratchet: `scripts/test-count.ps1` holds the count of `[Fact]`, `[Theory]` and Playwright tests to `tests/test-count.json`, raised only in a change of its own |
+| One behavior, one test, at the cheapest layer that proves it. Its first test is written red at the unit's edge, as its acceptance step. | the ratchet: `scripts/test-count.ps1` holds the count of cases (each `[Fact]`, each row of a `[Theory]`, each Playwright and Vitest case) to `tests/test-count.json`, each half on its own, raised only in a change of its own |
 | Near-identical cases are one table-driven test; a bug's reproduction is a new row when the behavior has its test. | the ratchet |
 | Inner tests only for pure logic with real decisions. A test that drove a small step goes at the refactor once an edge test covers it and no new mutant survives without it. Characterization tests and oracles go when their spec passes. | the ratchet, `scripts/mutation.ps1` |
+| The page's fake never decides what C# decides: an edit, an undo, a gesture or a saved look is answered from the real bridge's answers to the same calls. | `BridgeOracleTests`, the `oracle` fixture of `src/Thermi.Settings.Web/tests/oracle.ts` |
 
 These need judgment, so review enforces them:
 

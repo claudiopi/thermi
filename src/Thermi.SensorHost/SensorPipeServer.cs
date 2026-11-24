@@ -1,19 +1,31 @@
-using System.Buffers;
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
+using Windows.Win32;
 
 namespace Thermi.SensorHost;
 
 /// <summary>
-/// Writes one snapshot per second to every connected client, and reads sensors only while someone listens.
-/// It never reads from the pipe: there is no client input to trust. If either loop fails, the whole server
-/// fails, so the service stops and Windows restarts it instead of leaving it alive and silent.
+/// Writes one snapshot per second to every connected client, whole on connecting and on any change of its sensors and its
+/// values alone between (<see cref="SnapshotWriter"/>), and reads sensors only while someone listens. It never reads from
+/// the pipe: there is no client input to trust. If either loop fails, the whole server fails, so the service stops and
+/// Windows restarts it instead of leaving it alive and silent.
 /// </summary>
 internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, string pipeName = SnapshotJson.PipeName) : IDisposable
 {
-    public const int MaxClients = 4;
+    /// <summary>Clients connected at once, across sessions; past it, new ones wait for one to leave.</summary>
+    public const int MaxClients = 32;
+
+    /// <summary>
+    /// Clients one Windows session may hold: any interactive user can open the pipe, so one who holds it open from their
+    /// own session never takes the slots of another's overlay and window.
+    /// </summary>
+    public const int PerSession = 4;
+
+    /// <summary>How long it waits to create the pipe again while someone else holds its name.</summary>
+    public static readonly TimeSpan Retry = TimeSpan.FromSeconds(5);
 
     // ERROR_NO_DATA as an HRESULT: the client closed its end.
     private const int PipeBeingClosed = unchecked((int)0x800700E8);
@@ -32,9 +44,9 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
     // A slot per client: past the limit, new clients wait for one to leave.
     private readonly SemaphoreSlim _slots = new(MaxClients);
 
-    // The line of each second, written straight as UTF-8: a snapshot as a string and then as bytes would be two objects
+    // Each second's lines, written straight as UTF-8: a snapshot as a string and then as bytes would be two objects
     // near the large object heap's size every second.
-    private ArrayBufferWriter<byte> _line = new();
+    private readonly SnapshotWriter _lines = new();
 
     public async Task RunAsync(CancellationToken stop)
     {
@@ -87,12 +99,18 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
     }
 
     // False for a client that left before it was taken in: Windows says so as the pipe "being closed", which is no failure
-    // of the server's.
+    // of the server's. False too for one past its session's share, and after a wait while someone else holds the pipe's
+    // name: failing then would restart the service into the same name, again and again.
     private async Task<bool> AcceptOneAsync(CancellationToken stop)
     {
 #pragma warning disable CA2000 // Disposed on failure here; once connected, _clients owns it and Drop or RunAsync dispose it.
-        var pipe = CreatePipe();
+        if (CreatePipe() is not { } pipe)
 #pragma warning restore CA2000
+        {
+            await Task.Delay(Retry, time, stop);
+            return false;
+        }
+
         try
         {
             await pipe.WaitForConnectionAsync(stop);
@@ -110,12 +128,33 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
             throw;
         }
 
+        return TakeIn(pipe);
+    }
+
+    // A client past its session's share is hung up at once.
+    private bool TakeIn(NamedPipeServerStream pipe)
+    {
+        var session = SensorPInvoke.GetNamedPipeClientSessionId(pipe.SafePipeHandle, out var id) ? id : uint.MaxValue;
+#pragma warning disable CA2000 // Taken in, _clients owns it, and Drop or RunAsync dispose it; refused, it is disposed below.
+        var client = new Client(pipe, session);
+#pragma warning restore CA2000
+        bool taken;
         lock (_lock)
         {
-            _clients.Add(new Client(pipe));
+            taken = _clients.Count(each => each.Session == session) < PerSession;
+            if (taken)
+            {
+                _clients.Add(client);
+            }
         }
 
-        return true;
+        if (!taken)
+        {
+            client.Dispose();
+            Closed();
+        }
+
+        return taken;
     }
 
     private async Task BroadcastAsync(CancellationToken stop)
@@ -137,19 +176,11 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
             }
 
             // A client still writing the last line reads it from the buffer, so it is reused only once none does.
-            if (anySending)
-            {
-                _line = new ArrayBufferWriter<byte>(_line.Capacity);
-            }
-            else
-            {
-                _line.ResetWrittenCount();
-            }
-
-            SnapshotJson.WriteLine(read(), _line);
+            _lines.Next(read(), anySending);
             foreach (var client in ready)
             {
-                client.Sending = SendAsync(client, _line.WrittenMemory);
+                client.Sending = SendAsync(client, _lines.LineFor(client.Catalog));
+                client.Catalog = _lines.Catalog;
             }
         }
     }
@@ -192,8 +223,8 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         }
     }
 
-    // The first instance must be new: a pipe someone else created is not ours to join.
-    private NamedPipeServerStream CreatePipe()
+    // The first instance must be new: a pipe someone else created is not ours to join. Null while someone else holds it.
+    private NamedPipeServerStream? CreatePipe()
     {
         bool first;
         lock (_lock)
@@ -206,6 +237,11 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         try
         {
             return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, Security);
+        }
+        catch (UnauthorizedAccessException) when (first)
+        {
+            Closed();
+            return null;
         }
         catch
         {
@@ -228,11 +264,16 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         return security;
     }
 
-    private sealed class Client(NamedPipeServerStream pipe) : IDisposable
+    private sealed class Client(NamedPipeServerStream pipe, uint session) : IDisposable
     {
         public NamedPipeServerStream Pipe { get; } = pipe;
 
+        public uint Session { get; } = session;
+
         public Task Sending { get; set; } = Task.CompletedTask;
+
+        /// <summary>The catalog of the last whole snapshot it was sent, 0 before the first (<see cref="SnapshotWriter.Catalog"/>).</summary>
+        public int Catalog { get; set; }
 
         public void Dispose() => Pipe.Dispose();
     }

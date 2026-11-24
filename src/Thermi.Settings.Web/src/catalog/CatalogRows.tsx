@@ -153,7 +153,7 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
                     <span className="t-cat-n">{row.name}</span>
                     <span className="t-cat-d">{under(row)}</span>
                   </span>
-                  <Sparkline minute={row.minute} />
+                  <Sparkline minute={row.minute} kind={row.kind} />
                   <span className={`t-cat-v${row.value === null || row.why !== null ? ' t-cat-off' : ''}`}>{row.value}</span>
                   {/* For the pointer alone: the keyboard has F2, which the row names, so the option holds no control of its own. */}
                   <span className="t-cat-pencil" aria-hidden="true" title={t('CatalogText.RenameSensor', row.name)} onClick={(event) => handlePencil(event, row.id)}>

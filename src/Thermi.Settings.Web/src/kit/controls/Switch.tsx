@@ -1,3 +1,4 @@
+import { steady } from '../steady';
 import { Switch as FluentSwitch, makeStyles, mergeClasses, shorthands, tokens } from '@fluentui/react-components';
 import { fluentRef } from '../fluentRef';
 import type { Ref } from 'react';
@@ -27,7 +28,7 @@ const useStyles = makeStyles({
 });
 
 /** A switch, its state written before it, as in Windows' settings. */
-export function Switch({ label, stateText, checked, onChange, disabled = false, describedBy, ref }: SwitchProps) {
+function SwitchDrawn({ label, stateText, checked, onChange, disabled = false, describedBy, ref }: SwitchProps) {
   const styles = useStyles();
   return (
     <FluentSwitch
@@ -47,3 +48,5 @@ export function Switch({ label, stateText, checked, onChange, disabled = false, 
     />
   );
 }
+
+export const Switch = steady(SwitchDrawn);

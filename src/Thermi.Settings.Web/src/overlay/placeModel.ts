@@ -37,6 +37,24 @@ export function placedOf(overlay: Overlay, shown: readonly Monitor[]): Placed | 
   return { spot: snap.spot, display: Math.max(0, at), gone: at < 0 };
 }
 
+/**
+ * What the Position row says under its name: how a free overlay moves, why a taskbar spot floats beside a taskbar on a
+ * side or one that hides, or where a vertical one goes.
+ */
+export function positionHint(placed: Placed | null, vertical: boolean, shown: readonly Monitor[]): TextKey | null {
+  if (placed === null) {
+    return 'OverlayPageText.FreeHint';
+  }
+  if (!placed.spot.startsWith('taskbar')) {
+    return null;
+  }
+  const floats = shown[placed.display]?.floats;
+  if (floats !== undefined) {
+    return floats === 'side' ? 'OverlayPageText.TaskbarOnSide' : 'OverlayPageText.TaskbarHides';
+  }
+  return vertical ? 'OverlayPageText.AboveTaskbar' : null;
+}
+
 /** The snap a spot of the map writes, as an overlay edit's value: the main display is left out, as the file does. */
 export function snapAt(spot: SnapSpot, display: Monitor | undefined): { [field: string]: Value } {
   return display === undefined || display.primary ? { spot } : { spot, monitor: display.id };

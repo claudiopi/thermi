@@ -103,7 +103,7 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
   const [showAll, setShowAll] = useState(false);
   const [to, setTo] = useState(ask.overlay);
   const items = data.settings.overlays.flatMap((overlay) => overlay.items);
-  const view = useLastCatalog(typed, chip === 'all' ? [] : [chip as SensorKind], showAll, data.version);
+  const view = useLastCatalog(typed, chip === 'all' ? [] : [chip as SensorKind], showAll, data.changes);
   const counted = useSaidCount(typed, view, announce);
   const hidden = view?.hidden ?? 0;
 

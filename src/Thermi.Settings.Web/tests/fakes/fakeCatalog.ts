@@ -1,8 +1,9 @@
-import type { CatalogGroup, CatalogRow, CatalogView, DeviceKind, NoValue, Sensor, SensorKind, SensorNameEdit, Settings } from '../bridgeTypes';
+import type { CatalogGroup, CatalogRow, CatalogView, DeviceKind, NoValue, Sensor, SensorKind } from '../bridgeTypes';
 
 // The C# side's catalog and CPU fan finder, as the fake gives them. Core decides both for real and tests them; the
-// fake follows the same rules in rough form, only so the page has something true to show. It runs in the page after the
-// fake and its views, so it may use nothing but types.
+// fake follows the same rules in rough form, only so the page has something true to show. A sensor's rename is the real
+// bridge's answer, which the fake replays. It runs in the page after the fake and its views, so it may use nothing but
+// types.
 export function installFakeCatalog(): void {
   const fake = window.thermiFake;
   const bridge = window.thermi;
@@ -85,18 +86,6 @@ export function installFakeCatalog(): void {
     groups.forEach((group) => group.sensors.sort((one, other) => kinds.indexOf(one.kind) - kinds.indexOf(other.kind)));
     const count = groups.reduce((sum, group) => sum + group.sensors.length, 0);
     return { groups, count, hidden, suggestion: count + hidden === 0 && words.length > 0 ? 'gpu' : null };
-  };
-
-  // Core's rule in rough form: the items still named after the sensor follow it, and empty gives the library's back.
-  window.thermiFakeCatalog = {
-    rename(settings: Settings, edit: SensorNameEdit): void {
-      const library = state.sensors.find((candidate) => candidate.id === edit.sensor)?.name ?? edit.sensor;
-      const [was, now] = [settings.sensorNames?.[edit.sensor] ?? library, edit.name.trim() === '' ? library : edit.name.trim()];
-      const others = Object.fromEntries(Object.entries(settings.sensorNames ?? {}).filter(([id]) => id !== edit.sensor));
-      settings.sensorNames = now === library ? others : { ...others, [edit.sensor]: now };
-      const named = settings.overlays.flatMap((overlay) => overlay.items).filter((item) => item.sensor === edit.sensor && item.metric === undefined && item.auto === undefined && item.name === was);
-      named.forEach((item) => (item.name = now));
-    },
   };
 
   // The finder runs until a test moves it on, as the C# side would after up to 30 s of load.

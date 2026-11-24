@@ -20,6 +20,9 @@ function plot(chart: Partial<ChartView> = {}): Plot {
     empty: null,
     pushed: null,
     title: null,
+    fromText: '',
+    toText: '',
+    fires: false,
     ...chart,
   };
   return { width: 300, height: 124, chart: view };

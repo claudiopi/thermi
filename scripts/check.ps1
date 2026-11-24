@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    The one quality check: restore, format, the test-count ratchet, Release build, tests, the Thermi.Core coverage gate
+    The one quality check: restore, format, the third-party notices, the test-count ratchet, Release build, tests, the Thermi.Core coverage gate
     and the app's coverage; then the settings window's page: type check, lint, react-doctor, unit tests, dead code and
     the page's tests with axe. The CI runs this same script, so passing here means passing there.
     Prints one line per step; on failure, only the errors and how to fix them.
@@ -138,8 +138,10 @@ function Get-Rate([hashtable]$Hits) {
 function Invoke-DotNet {
     Invoke-Step 'restore' { dotnet restore thermi.slnx $(if ($Ci) { '--locked-mode' }) }
     Invoke-Step 'format' { dotnet format whitespace thermi.slnx --verify-no-changes } -Explain { Write-Host '  Fix it with: dotnet format whitespace thermi.slnx' }
-    Invoke-Step 'test count' { pwsh -NoProfile -File scripts/test-count.ps1 }
+    # From the lock files and the packages the restore just downloaded, the page's too.
+    Invoke-Step 'third-party notices' { pwsh -NoProfile -File scripts/notices.ps1 -Check }
     Invoke-Step 'build Release' { dotnet build thermi.slnx -c Release --no-restore }
+    Invoke-Step 'test count' { pwsh -NoProfile -File scripts/test-count.ps1 -Part DotNet }
     # Coverage counts only Core's own tests: the Windows tests would inflate Core's numbers by counting code they run only in passing.
     Invoke-Step 'tests and coverage' {
         dotnet test --project tests/Thermi.Tests -c Release --no-build --results-directory $results -- `
@@ -163,6 +165,7 @@ function Invoke-Web {
         Invoke-Step 'web build' { npm run build --prefix $web }
     }
     Invoke-Step 'web typecheck' { npm run typecheck --prefix $web }
+    Invoke-Step 'web test count' { pwsh -NoProfile -File scripts/test-count.ps1 -Part Web }
     Invoke-Step 'web lint' { npm run lint --prefix $web }
     Invoke-Step 'web doctor' { npm run doctor --prefix $web }
     Invoke-Step 'web unit tests' { npm run test:unit --prefix $web }

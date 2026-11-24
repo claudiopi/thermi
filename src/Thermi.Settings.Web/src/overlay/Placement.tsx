@@ -5,7 +5,7 @@ import { SwitchLine } from '../app/SwitchLine';
 import { Button, Card, CardRow, Dropdown, Icon } from '../kit';
 import { useText, type TextKey } from '../texts/Texts';
 import { MonitorMap } from './MonitorMap';
-import { placedOf, snapAt, type Placed } from './placeModel';
+import { placedOf, positionHint, snapAt } from './placeModel';
 
 export interface PlacementProps {
   data: WindowData;
@@ -22,24 +22,6 @@ const visibilities = [
   ['hide-in-fullscreen', 'Visibility.HideInFullscreen'],
   ['only-in-fullscreen', 'Visibility.OnlyInFullscreen'],
 ] as const;
-
-/**
- * What the Position row says under its name: how a free overlay moves, why a taskbar spot floats beside a taskbar on a
- * side or one that hides, or where a vertical one goes.
- */
-function positionHint(placed: Placed | null, vertical: boolean, shown: readonly Monitor[]): TextKey | null {
-  if (placed === null) {
-    return 'OverlayPageText.FreeHint';
-  }
-  if (!placed.spot.startsWith('taskbar')) {
-    return null;
-  }
-  const floats = shown[placed.display]?.floats;
-  if (floats !== undefined) {
-    return floats === 'side' ? 'OverlayPageText.TaskbarOnSide' : 'OverlayPageText.TaskbarHides';
-  }
-  return vertical ? 'OverlayPageText.AboveTaskbar' : null;
-}
 
 /** What "Lock, click-through and OLED care" says closed: the ones on, the fade included, or All off. */
 function lockSummary(one: Overlay, say: (key: TextKey, ...blanks: string[]) => string): string {
@@ -71,7 +53,7 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen, onOverla
   return (
     <section className="t-col" aria-label={t('OverlayPageText.PlacementSection')}>
       <h3 className="t-pane-h">{t('OverlayPageText.PlacementSection')}</h3>
-      <div className="t-rows">
+      <div className="t-place-rows">
         <div className="t-card t-map-card">
           <CardRow label={t('UiText.MonitorMap')} {...(said === '' ? {} : { description: said })} />
           <MonitorMap shown={shown} placed={placed} vertical={vertical} hidden={hidden} onSnap={(spot: SnapSpot, display: Monitor) => set('snap', snapAt(spot, display))} />

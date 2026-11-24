@@ -54,6 +54,25 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     languages: (['en', 'es'] as const).map((code) => ({ code, name: texts(code)['UiText.LanguageName'] ?? code })),
     start: null,
     editing: null,
+    lateReplies: false,
     ...change,
   };
 }
+
+const reading = (state: FakeState, of: (hardwareType: string) => boolean): FakeState => ({
+  ...state,
+  sensors: state.sensors.map((sensor) => (of(sensor.hardwareType) ? { ...sensor, value: null } : sensor)),
+});
+
+/**
+ * What real hardware does that a recording on a good day never shows, each a start of its own or a change the C# side
+ * raises once the page is open: a reading that is no number, which the bridge's JSON carries as null; every reading
+ * missing; readings that froze, which C# says by calling the service stale; the CPU's sensors gone mid-session, as a
+ * driver that resets drops them.
+ */
+export const hostile: { name: string; start: () => FakeState; then?: (state: FakeState) => Partial<FakeState> }[] = [
+  { name: 'NoNumber', start: () => reading(fakeState(), (type) => type === 'Cpu') },
+  { name: 'NothingReads', start: () => reading(fakeState(), () => true) },
+  { name: 'Frozen', start: () => fakeState({ service: 'stale' }) },
+  { name: 'SensorsGo', start: fakeState, then: (state) => ({ sensors: state.sensors.filter((sensor) => sensor.hardwareType !== 'Cpu') }) },
+];

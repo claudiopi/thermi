@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Thermi.Core;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
@@ -23,18 +24,21 @@ internal static class PageEdits
     /// <summary>Whether an edit is a chart's line, which the charts make, or a saved look worn, which the looks make.</summary>
     public static bool Elsewhere(PageEdit edit) => edit is LineEdit or TypedLineEdit or AddLineEdit or LookEdit;
 
-    /// <summary>The Core edit for <paramref name="edit"/>, on the settings, the readings and the texts it is made with.</summary>
-    public static Func<ThermiConfig, EditResult> Of(PageEdit edit, Snapshot snapshot, Texts texts) => edit switch
+    /// <summary>
+    /// The Core edit for <paramref name="edit"/>, on the settings, the readings and the texts it is made with, and for a
+    /// hotkey the keys the keyboard layout types with AltGr.
+    /// </summary>
+    public static Func<ThermiConfig, EditResult> Of(PageEdit edit, Snapshot snapshot, Texts texts, Func<IReadOnlySet<int>> altGrKeys) => edit switch
     {
-        ThermiFieldEdit thermi => config => Thermi(thermi.Field, config, thermi.Value),
+        ThermiFieldEdit thermi => config => Thermi(thermi.Field, config, thermi.Value, altGrKeys),
         OverlayFieldEdit overlay => config => Overlay(overlay.Field, overlay.Overlay, config, overlay.Value),
         StyleFieldEdit style => config => Style(style.Field, style.Overlay, config, style.Value),
         ItemFieldEdit item => config => Item(new ItemField(item.Field, item.Item, item.Value, snapshot), config),
         AddItemEdit add => config => ItemEdits.AddSensor(config, add.Overlay, snapshot, add.Sensor, texts),
         RemoveItemEdit remove => config => ItemEdits.Delete(config, remove.Item),
-        MoveItemEdit move => config => Move(config, move, texts),
-        NewOverlayEdit => config => OverlayEdits.Add(config, texts),
-        DuplicateOverlayEdit duplicate => config => OverlayEdits.Duplicate(config, duplicate.Overlay, texts),
+        MoveItemEdit move => config => Move(config, move),
+        NewOverlayEdit => OverlayEdits.Add,
+        DuplicateOverlayEdit duplicate => config => OverlayEdits.Duplicate(config, duplicate.Overlay),
         MergeOverlayEdit merge => config => OverlayEdits.Merge(config, merge.Overlay, merge.Into),
         DeleteOverlayEdit delete => config => OverlayEdits.Delete(config, delete.Overlay),
         NudgeOverlayEdit nudge => config => OverlayEdits.Nudge(config, nudge.Overlay, nudge.Dx, nudge.Dy),
@@ -44,12 +48,17 @@ internal static class PageEdits
         _ => throw new BridgeCallException($"The window makes no {edit.GetType().Name}."),
     };
 
-    private static EditResult Thermi(string field, ThermiConfig config, JsonElement value) => field switch
+    private static EditResult Thermi(string field, ThermiConfig config, JsonElement value, Func<IReadOnlySet<int>> altGrKeys) => field switch
     {
         "language" => ThermiEdits.SetLanguage(config, Text(value)),
         "temperature" => ThermiEdits.SetTemperature(config, Read<TemperatureUnit>(value)),
+        _ when HotkeyOf(field) is { } role => ThermiEdits.SetHotkey(config, role, Text(value), altGrKeys()),
         _ => throw NoField(field),
     };
+
+    // A hotkey's field is "hotkeys." and its name in the settings file.
+    private static HotkeyRole? HotkeyOf(string field) =>
+        Hotkeys.Roles.Cast<HotkeyRole?>().FirstOrDefault(role => field == $"hotkeys.{JsonNamingPolicy.CamelCase.ConvertName(role.ToString()!)}");
 
     private static EditResult Overlay(string field, int overlay, ThermiConfig config, JsonElement value) => field switch
     {
@@ -125,9 +134,9 @@ internal static class PageEdits
     }
 
     // An item moved to another overlay, or to one of its own, goes to its end there, then to its place.
-    private static EditResult Move(ThermiConfig config, MoveItemEdit move, Texts texts)
+    private static EditResult Move(ThermiConfig config, MoveItemEdit move)
     {
-        var moved = OverlayEdits.MoveItem(config, move.Item, move.Overlay, texts);
+        var moved = OverlayEdits.MoveItem(config, move.Item, move.Overlay);
         return moved.Refused is null ? ItemEdits.Move(moved.Config, move.Item, move.Index) : moved;
     }
 

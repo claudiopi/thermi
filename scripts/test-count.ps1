@@ -1,58 +1,105 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    The unique-test ratchet: counts each [Fact], each [Theory] (its rows are one test) and each Playwright or Vitest
-    test, and fails when the count is above the baseline in tests/test-count.json, or when this change raised that
-    baseline.
-    A new behavior takes the cheapest test that proves it, a new case of one is a row of its table, and a test an edge
-    test now covers goes; so the count stays flat while the code grows.
+    The test-case ratchet: counts every case the runners would run, each row of a [Theory] (inline or member data), each
+    Playwright test a loop or a describe makes and each Vitest case of a table, and fails when a half's count is above its
+    baseline in tests/test-count.json, or when this change raised that baseline.
+    Rows count as cases so that splitting a test that bundles many checks into rows never looks like growth, and bundling
+    them never looks like thrift. A new behavior takes the cheapest test that proves it, and a test an edge test now
+    covers goes; so the count stays flat while the code grows.
+    The .NET half lists the built test projects, so it runs after the build; the page's half lists with its installed runners.
 #>
+param(
+    [ValidateSet('All', 'DotNet', 'Web')]
+    [string]$Part = 'All',
+    [string]$Configuration = 'Release',
+    # Where the build put its output, when it was given --artifacts-path.
+    [string]$ArtifactsPath
+)
+
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $baselineFile = 'tests/test-count.json'
-$skipped = 'bin', 'obj', 'node_modules', 'TestResults', 'test-results', 'playwright-report', 'dist'
+$web = Join-Path $root 'src' 'Thermi.Settings.Web'
 
-# Skipped folders are never entered: node_modules alone holds thousands of files.
-function Get-Files([string]$Folder, [string[]]$Patterns) {
-    if (-not (Test-Path $Folder)) { return }
-    foreach ($pattern in $Patterns) { Get-ChildItem $Folder -File -Filter $pattern }
-    Get-ChildItem $Folder -Directory | Where-Object Name -NotIn $skipped | ForEach-Object { Get-Files $_.FullName $Patterns }
+# xUnit's own listing, with each theory's rows enumerated as the runner finds them.
+function Get-DotNetCases {
+    $total = 0
+    foreach ($project in Get-ChildItem (Join-Path $root 'tests') -Directory | Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") }) {
+        $exe = if ($ArtifactsPath) { Join-Path $ArtifactsPath 'bin' $project.Name $Configuration.ToLowerInvariant() "$($project.Name).exe" }
+            else { Join-Path $project.FullName 'bin' $Configuration '*' "$($project.Name).exe" | Resolve-Path -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Path }
+        if (-not $exe -or -not (Test-Path $exe)) { throw "$($project.Name) is not built: build $Configuration first." }
+        $listed = & $exe -list full/json -preEnumerateTheories | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "$exe could not list its tests." }
+        $total += @($listed | ConvertFrom-Json).Count
+    }
+    $total
 }
 
-function Get-Count([string]$Pattern, $Files) {
-    ($Files | ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), $Pattern).Count } | Measure-Object -Sum).Sum
+function Get-PlaywrightCases($Suites) {
+    $count = 0
+    foreach ($suite in $Suites) {
+        foreach ($spec in $suite.specs) { $count += @($spec.tests).Count }
+        $count += Get-PlaywrightCases $suite.suites
+    }
+    $count
 }
 
-# An attribute on a line of its own, so a mention in a comment or a string is never counted.
-$dotnet = Get-Count '(?m)^\s*\[(Fact|Theory)\b' (Get-Files (Join-Path $root 'tests') '*.cs')
-# A test as Playwright or Vitest declares it, also when it waits behind skip, fixme or fail, and a table (test.each)
-# as one; describe and hooks are no tests.
-$web = Get-Count '\btest(\.(skip|fixme|fail|only))?\(\s*[''"`]|\btest\.each\(' (Get-Files (Join-Path $root 'src' 'Thermi.Settings.Web') '*.spec.ts', '*.spec.tsx', '*.test.ts', '*.test.tsx')
-$count = $dotnet + $web
-$baseline = (Get-Content (Join-Path $root $baselineFile) -Raw | ConvertFrom-Json).tests
+# Playwright's and Vitest's listings, as each runner expands its loops and tables; a fixme or a skip is still a case.
+function Get-WebCases {
+    Push-Location $web
+    try {
+        $playwright = npx --no-install playwright test --list --reporter=json | Out-String | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or $playwright.errors) { throw "Playwright could not list its tests: $($playwright.errors.message)" }
+        # Vitest's listing names a table once, so its cases are counted from a run, which takes a second.
+        $report = Join-Path $root 'TestResults' 'vitest-count.json'
+        npx --no-install vitest run --dir src --reporter=json --silent "--outputFile.json=$report" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Vitest could not run its tests.' }
+        $vitest = Get-Content $report -Raw | ConvertFrom-Json
+    }
+    finally {
+        Pop-Location
+    }
+    (Get-PlaywrightCases $playwright.suites) + $vitest.numTotalTests
+}
 
-$raise = "To add tests beyond it, raise `"tests`" in $baselineFile in a change of its own, which a person approves."
-if ($count -gt $baseline) {
-    Write-Host "$count unique tests ($dotnet .NET, $web web), above the baseline of $baseline."
-    Write-Host 'Merge near-identical cases into one table-driven test, and delete tests an edge test already covers.'
+$baseline = Get-Content (Join-Path $root $baselineFile) -Raw | ConvertFrom-Json
+$halves = [ordered]@{}
+if ($Part -ne 'Web') { $halves.dotnet = Get-DotNetCases }
+if ($Part -ne 'DotNet') { $halves.web = Get-WebCases }
+
+$raise = "To add tests beyond it, raise it in $baselineFile in a change of its own, which a person approves."
+$failed = $false
+foreach ($half in $halves.Keys) {
+    if ($halves[$half] -gt $baseline.$half) {
+        Write-Host "$($halves[$half]) $half test cases, above the baseline of $($baseline.$half)."
+        $failed = $true
+    }
+}
+if ($failed) {
+    Write-Host 'Merge near-identical cases into one table, and delete tests an edge test already covers.'
     Write-Host $raise
     exit 1
 }
 
-# The baseline where this change branched off main, when git can tell; a change that raises it raises it alone.
+# The baseline where this change branched off main, when git can tell; a change that raises it raises it alone. A
+# baseline that counted something else then has nothing to compare with.
 $main = @('origin/main', 'main') | Where-Object { git -C $root rev-parse --verify --quiet $_ 2>$null } | Select-Object -First 1
 $base = if ($main) { git -C $root merge-base HEAD $main 2>$null }
 $before = if ($base) { git -C $root show "${base}:$baselineFile" 2>$null | ConvertFrom-Json }
-if ($before -and $before.tests -lt $baseline) {
+$raised = foreach ($half in $halves.Keys) { if ($null -ne $before.$half -and $before.$half -lt $baseline.$half) { $half } }
+if ($raised) {
     $others = @(git -C $root diff --name-only $base) + @(git -C $root ls-files --others --exclude-standard) | Where-Object { $_ -ne $baselineFile }
     if ($others) {
-        Write-Host "This change raises the baseline in $baselineFile from $($before.tests) to $baseline along with other files."
+        Write-Host "This change raises the baseline of $($raised -join ' and ') in $baselineFile along with other files."
         Write-Host $raise
         exit 1
     }
 }
 
-if ($count -lt $baseline) {
-    Write-Host "note: $count unique tests, below the baseline of ${baseline}: lower it in $baselineFile so the ratchet holds what was won."
+foreach ($half in $halves.Keys) {
+    if ($halves[$half] -lt $baseline.$half) {
+        Write-Host "note: $($halves[$half]) $half test cases, below the baseline of $($baseline.$half): lower it in $baselineFile so the ratchet holds what was won."
+    }
 }
 exit 0

@@ -20,8 +20,13 @@ namespace Thermi.Ui.Views;
 /// <param name="changed">Tells the page that the saved looks changed.</param>
 internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action changed)
 {
+    private bool? _anySaved;
+
     /// <summary>The window the dialogs show over.</summary>
     public HWND Owner { get; set; }
+
+    /// <summary>Whether any look is saved, read from the folder again only once this window changed its files.</summary>
+    public bool AnySaved => _anySaved ??= Looks().Count > 0;
 
     public IReadOnlyDictionary<string, StyleConfig> Looks() =>
         saved.List().Where(style => style.Name is not null).ToDictionary(style => style.Name!, StringComparer.OrdinalIgnoreCase);
@@ -134,6 +139,7 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
             refused = Refusal.StyleFileFailed;
         }
 
+        _anySaved = null;
         changed();
         return refused is { } why ? Texts.Key(why) : null;
     }

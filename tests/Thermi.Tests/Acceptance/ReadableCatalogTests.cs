@@ -76,11 +76,13 @@ public sealed class ReadableCatalogTests
         string[] stopped = [.. Enumerable.Range(1, 4).Select(index => $"{Ite}/fan/{index}"), "/gpu-nvidia/0/fan/1"];
         // A memory module's resolution and low limits, which read 0 °C for good.
         string[] zeros = [.. new[] { 1, 3 }.SelectMany(dimm => new[] { 1, 2, 4 }.Select(index => $"/memory/dimm/{dimm}/temperature/{index}"))];
+        // Each of the 16 cores' effective clock, which the cores' average effective clock says once.
+        string[] effective = [.. Enumerable.Range(0, 16).Select(core => $"/amdcpu/0/clock/{4 + (2 * core)}")];
         Assert.Equal(24, layers.Count);
         Assert.Equal(
-            nothing.Concat(stopped).Concat(layers).Concat(zeros).Order(StringComparer.Ordinal),
+            nothing.Concat(stopped).Concat(layers).Concat(zeros).Concat(effective).Order(StringComparer.Ordinal),
             rows.Select(row => row.Id).Except(shown.SelectMany(device => device.Sensors).Select(row => row.Id), StringComparer.Ordinal).Order(StringComparer.Ordinal));
-        Assert.Equal(nothing.Length + stopped.Length + layers.Count + zeros.Length, hidden);
+        Assert.Equal(nothing.Length + stopped.Length + layers.Count + zeros.Length + effective.Length, hidden);
         Assert.DoesNotContain(shown, device => device.Sensors.Count == 0);
         Assert.Contains(seen, row => row is { Id: $"{Ite}/fan/1", Why: NoValue.Stopped });
         Assert.Contains(seen, row => row.Id == LowLimit);
@@ -88,8 +90,14 @@ public sealed class ReadableCatalogTests
         // Of the recorded adapters only the Ethernet one moves data; the idle ones show once they have moved any.
         Assert.Equal([MadeUpHardware.Ethernet], Adapters(new HashSet<string>(StringComparer.Ordinal)));
         Assert.Equal([MadeUpHardware.Ethernet, MadeUpHardware.WiFi], Adapters(new HashSet<string>([$"{MadeUpHardware.WiFi}/throughput/8"], StringComparer.Ordinal)));
+
+        // A drive's fixed limits and wear counters never move, so the catalog lists only its temperatures, load and rates.
+        Assert.Equal(
+            ["/nvme/0/temperature/0", "/nvme/0/temperature/1", "/nvme/0/temperature/2", "/nvme/0/load/30", "/nvme/0/load/51", "/nvme/0/load/52", "/nvme/0/load/53"],
+            SensorCatalog.Build(TestRecordings.Read(TestRecordings.NetDisk)).Single(device => device.Id == "/nvme/0").Sensors.Where(row => row.Reading.Kind is SensorKind.Temperature or SensorKind.Load).Select(row => row.Id));
         Assert.Equal((0, layers.Count), (searched.Count, searchHidden));
-        Assert.Equal(36, noAdmin.Count(row => row.Why == NoValue.DriverMayBeMissing));
+        // Without the driver the cores' clocks say how to fix it; their effective twins stay hidden.
+        Assert.Equal(20, noAdmin.Count(row => row.Why == NoValue.DriverMayBeMissing));
         Assert.DoesNotContain(noAdmin, row => row.Why == NoValue.ReadsNothing);
     }
 

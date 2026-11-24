@@ -97,4 +97,8 @@ public enum WindowText
 
     /// <summary>The applied-look toast's action that saves it under a name.</summary>
     SaveLook,
+
+    /// <summary>The message box that shows in place of the window where WebView2's runtime is missing: its title, and what to do, asked as Yes or No.</summary>
+    WebViewMissingTitle,
+    WebViewMissing,
 }

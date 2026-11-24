@@ -141,6 +141,13 @@ public static class MeterChart
     }
 
     /// <summary>
+    /// Whether the lowest line was reached for more than half of the last ten minutes, a second each: a line nobody would
+    /// set on purpose, as one carried over from an older thermi.
+    /// </summary>
+    public static bool FiresMostly(IEnumerable<double?> readings, double? warning, double? critical) =>
+        (warning ?? critical) is { } line && readings.Count(value => value >= line) * 2 > SensorHistory.Kept.TotalSeconds;
+
+    /// <summary>
     /// The lines once <paramref name="moved"/> is where it was put: when it went past the other, the other moves
     /// <see cref="MeterScale.Push"/> beyond it, held on the track, so the warning stays below the critical.
     /// </summary>

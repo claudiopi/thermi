@@ -37,7 +37,7 @@ export function sensorChoices(item: Item, view: WindowView, sensors: readonly Se
   const follows = auto !== undefined && followsDevice.includes(auto.hardwareType) ? auto.hardware : auto?.name;
   const autoChoice: Choice[] = item.metric === undefined ? [] : [{ value: '', text: say('UiText.AutoFollows', follows ?? say('UiText.Auto')), shown: follows ?? say('UiText.Auto'), ...(auto === undefined ? {} : { aside: view.values[auto.id] ?? '' }) }];
   const ofType = sensors.filter((sensor) => sensor.type === shows?.type);
-  return [...autoChoice, ...ofType.map((sensor) => ({ value: sensor.id, text: named(sensor), aside: view.values[sensor.id] ?? '' }))];
+  return [...autoChoice, ...ofType.map((sensor) => ({ value: sensor.id, text: named(sensor), aside: view.values[sensor.id] ?? '', shown: sensor.name, detail: sensor.hardware }))];
 }
 
 const sameMeter = (one: Meter, other: Meter): boolean => one.metric === other.metric && one.sensor === other.sensor;

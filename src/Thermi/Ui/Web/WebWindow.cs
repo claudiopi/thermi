@@ -1,6 +1,9 @@
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using Microsoft.Web.WebView2.Core;
+using Thermi.Core.Translations;
 using Thermi.Logging;
 using Thermi.Windows;
 using Windows.Win32;
@@ -18,6 +21,11 @@ namespace Thermi.Ui.Web;
 internal sealed class WebWindow : IDisposable
 {
     private const string ClassName = "thermi-window";
+
+    // WM_ACTIVATE's WA_CLICKACTIVE: activated by a mouse click.
+    private const nuint ClickActive = 2;
+
+    private const string RuntimePage = "https://developer.microsoft.com/microsoft-edge/webview2/";
 
     private readonly WindowStart _start;
     private readonly WindowTurn _turn;
@@ -44,6 +52,9 @@ internal sealed class WebWindow : IDisposable
     }
 
     public HWND Hwnd { get; }
+
+    /// <summary>Told when the monitors, the work areas or a setting of Windows changed, which the page then reads again.</summary>
+    public Action DesktopChanged { get; set; } = () => { };
 
     /// <summary>Opens the page and runs the window's messages until it closes; a failure on its way out is thrown here.</summary>
     public void Run()
@@ -84,8 +95,14 @@ internal sealed class WebWindow : IDisposable
     {
         try
         {
-            await _page.OpenAsync(Hwnd, Path.Combine(_start.Environment.DataFolder, "WebView2"), _start.Environment.Log.IsEnabled(LogLevel.Debug), _mica);
+            await _page.OpenAsync(Hwnd, _start.Environment.BrowserFolder, Path.Combine(_start.Environment.DataFolder, "WebView2"), _start.Environment.Log.IsEnabled(LogLevel.Debug), _mica);
             Fit();
+        }
+        catch (WebView2RuntimeNotFoundException ex)
+        {
+            _start.Environment.Log.WebViewMissing(ex);
+            Missing(_start.Texts);
+            PInvoke.DestroyWindow(Hwnd);
         }
 #pragma warning disable CA1031 // Not handled: thrown again by Run, on the window's thread, after its loop ends.
         catch (Exception ex)
@@ -93,6 +110,17 @@ internal sealed class WebWindow : IDisposable
         {
             _failed = ExceptionDispatchInfo.Capture(ex);
             PInvoke.DestroyWindow(Hwnd);
+        }
+    }
+
+    // A window that cannot open says why, instead of vanishing with nothing but a line in the log, and offers the
+    // runtime's download page.
+    private static void Missing(Texts texts)
+    {
+        const MESSAGEBOX_STYLE Style = MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_SETFOREGROUND;
+        if (PInvoke.MessageBox(HWND.Null, texts.Of(WindowText.WebViewMissing), texts.Of(WindowText.WebViewMissingTitle), Style) == MESSAGEBOX_RESULT.IDYES)
+        {
+            Process.Start(new ProcessStartInfo(RuntimePage) { UseShellExecute = true })?.Dispose();
         }
     }
 
@@ -125,6 +153,7 @@ internal sealed class WebWindow : IDisposable
 
     private void Fit()
     {
+        _page.Minimized(PInvoke.IsIconic(Hwnd));
         if (_page.Controller is not { } controller)
         {
             return;
@@ -188,11 +217,20 @@ internal sealed class WebWindow : IDisposable
             case PInvoke.WM_GETMINMAXINFO:
                 WindowPlace.Limit(hwnd, lParam, _start.Environment.Screens());
                 return new LRESULT(0);
+            // A click that activates the window rises it once the click is through: moved in the z-order while the
+            // click is on its way, the page's child window can lose it, and the button clicked does not answer.
+            case PInvoke.WM_ACTIVATE when (wParam.Value & 0xFFFF) == ClickActive:
+                _turn.Post(() => WindowFrame.Above(hwnd, PInvoke.GetForegroundWindow() == hwnd));
+                return null;
             case PInvoke.WM_ACTIVATE:
                 WindowFrame.Above(hwnd, (wParam.Value & 0xFFFF) != 0);
                 return null;
             case PInvoke.WM_SETTINGCHANGE:
                 WindowFrame.Follow(hwnd);
+                DesktopChanged();
+                return null;
+            case PInvoke.WM_DISPLAYCHANGE:
+                DesktopChanged();
                 return null;
             case PInvoke.WM_CLOSE:
                 _place.Keep(hwnd, _start.Environment.Screens());

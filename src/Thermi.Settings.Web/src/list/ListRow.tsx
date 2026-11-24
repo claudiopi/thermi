@@ -1,6 +1,6 @@
 import { useEffect, useRef, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import type { TextKey } from '../texts/Texts';
-import { Icon } from '../kit';
+import { Icon, steady } from '../kit';
 import { useText } from '../texts/Texts';
 import type { Row } from './rows';
 
@@ -63,7 +63,7 @@ function describe(row: Row, say: (key: TextKey) => string): string | undefined {
 }
 
 /** A row of the list: an overlay, a pill or an item, as the prototype draws each. */
-export function ListRow({ row, selected, tabStop, renaming, onClick, onMenu, onPoint, pointed, onKeyDown, onFold, onRename, onStartRename, onDragStart, onDrop }: ListRowProps) {
+function ListRowDrawn({ row, selected, tabStop, renaming, onClick, onMenu, onPoint, pointed, onKeyDown, onFold, onRename, onStartRename, onDragStart, onDrop }: ListRowProps) {
   const t = useText();
   const fold = (event: MouseEvent): void => {
     event.stopPropagation();
@@ -128,3 +128,5 @@ function classOf(row: Row, selected: boolean, pointed: boolean): string {
   const hidden = row.kind === 'overlay' && row.value !== undefined;
   return `t-row t-row-${row.kind}${selected ? ' t-selected' : ''}${pointed ? ' t-pointed' : ''}${hidden ? ' t-row-hidden' : ''}`;
 }
+
+export const ListRow = steady(ListRowDrawn);

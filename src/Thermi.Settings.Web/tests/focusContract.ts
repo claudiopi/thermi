@@ -11,7 +11,8 @@ export type Target = (page: Page) => Locator;
 /**
  * What a person does: a key as Playwright names it, or one it does not have by its code, typed text, a control focused,
  * clicked (low in it, or with the right button) or filled, the window resized, the C# side moving on, or a value or an
- * overlay's edge picked on a real overlay, a person's pause of some milliseconds, or a click at a point of the window.
+ * overlay's edge picked on a real overlay, a person acting while what closes still slides away, or a click at a point
+ * of the window.
  */
 export type Act =
   | string
@@ -23,7 +24,7 @@ export type Act =
   | { size: { width: number; height: number } }
   | { fake: Partial<FakeState> }
   | { pick: DesktopPick }
-  | { pause: number }
+  | { sliding: true }
   | { at: { x: number; y: number } };
 
 export interface FocusStep {
@@ -108,7 +109,8 @@ const firstRun: FocusStep[] = [
   { name: 'Tab into the list', acts: [{ focus: metric('MetricName.CpuTemperature') }], focus: metric('MetricName.CpuTemperature') },
   { name: 'Down to the next row', acts: ['ArrowDown'], focus: metric('MetricName.CpuFan') },
   { name: 'Enter in a text field commits and stays', acts: [{ focus: role('textbox', 'UiText.LabelField') }, { type: 'X' }, 'Enter'], focus: role('textbox', 'UiText.LabelField'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').label?.endsWith('X') === true },
-  { name: 'Ctrl+Z undoes', acts: ['Control+Z'], holds: (fake) => itemOf(fake.settings, 'fan.cpu').label?.endsWith('X') !== true },
+  // The undo selects what it changed back, the pill's first item, whose label is the pill's; the next step waits for it.
+  { name: 'Ctrl+Z undoes', acts: ['Control+Z'], holds: (fake) => itemOf(fake.settings, 'fan.cpu').label?.endsWith('X') !== true && fake.editing?.selected === 'cpu.temperature' },
   { name: 'Tab out of an edited field moves on', acts: [{ focus: role('textbox', 'UiText.LabelField') }, { type: 'Q' }, 'Tab'], away: role('textbox', 'UiText.LabelField'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').label?.endsWith('Q') === true },
   { name: 'Shift+Tab out of it, the same', acts: [{ focus: role('textbox', 'UiText.LabelField') }, { type: 'R' }, 'Shift+Tab'], away: role('textbox', 'UiText.LabelField'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').label?.endsWith('R') === true },
   { name: 'A digit on a threshold knob opens its box', acts: [{ click: metric('MetricName.CpuTemperature') }, { focus: knob('UiText.WarningFrom') }, '1'], focus: box('UiText.WarningFrom') },
@@ -198,8 +200,8 @@ export const focusContract: FocusRun[] = [
     { name: 'Color menu: Tab reaches the hex box', acts: [{ click: overlay('Taskbar') }, { focus: button('OverlayPageText.ColorsField') }, 'Enter', { focus: button('StyleColor.Warning') }, 'Enter', 'Tab'], focus: role('textbox', 'UiText.HexColor') },
     { name: 'A bad hex stays', acts: [{ type: 'zz' }, 'Enter'], focus: role('textbox', 'UiText.HexColor'), holds: (fake) => overlayOf(fake.settings, 0).style?.colors?.warning === undefined },
     { name: 'A good one returns to its opener', acts: [{ fill: role('textbox', 'UiText.HexColor'), value: '#123456' }, 'Enter'], focus: button('StyleColor.Warning'), holds: (fake) => overlayOf(fake.settings, 0).style?.colors?.warning === '#123456' },
-    { name: 'New overlay: its row', acts: [{ focus: button('UiText.MoreActions') }, 'Enter', { focus: menuItem(() => text('UiText.NewOverlay')) }, 'Enter'], focus: overlay('Overlay 3'), holds: (fake) => fake.settings.overlays.length === 3 },
-    { name: 'Merge into: the target\'s row', acts: [{ focus: overlay('Overlay 3') }, 'Shift+F10', { focus: menuItem(() => text('UiText.MergeInto')) }, 'Enter', { focus: menuItem(() => 'Taskbar') }, 'Enter'], focus: overlay('Taskbar'), holds: (fake) => fake.settings.overlays.length === 2 },
+    { name: 'New overlay: its row', acts: [{ focus: button('UiText.MoreActions') }, 'Enter', { focus: menuItem(() => text('UiText.NewOverlay')) }, 'Enter'], focus: overlay('Bottom right'), holds: (fake) => fake.settings.overlays.length === 3 },
+    { name: 'Merge into: the target\'s row', acts: [{ focus: overlay('Bottom right') }, 'Shift+F10', { focus: menuItem(() => text('UiText.MergeInto')) }, 'Enter', { focus: menuItem(() => 'Taskbar') }, 'Enter'], focus: overlay('Taskbar'), holds: (fake) => fake.settings.overlays.length === 2 },
     { name: 'Delete this overlay: the next overlay\'s row', acts: [{ click: overlay('Top right') }, { focus: button('UiText.DeleteThisOverlay') }, 'Enter'], focus: overlay('Taskbar'), holds: (fake) => fake.settings.overlays.length === 1 },
   ] },
   { name: 'renaming in the narrow list', start: fakeState, size: narrowest, colorScheme: 'dark', steps: [
@@ -242,7 +244,9 @@ export const focusContract: FocusRun[] = [
     { name: 'Spanish keyboard: Ctrl+Alt+2 types @, refused', acts: ['Control+Comma', opened('WindowText.HotkeysField'), ...refused('Control+Alt+2')], focus: hotkey },
   ] },
   { name: 'the final polish', start: fakeState, size: wide, colorScheme: 'dark', steps: [
-    { name: 'Title-bar Undo of the last step keeps focus', acts: [{ click: metric('MetricName.CpuFan') }, { focus: role('switch', 'UiText.OwnTrayIcon') }, 'Space', { focus: button('UiText.Undo') }, 'Enter'], focus: button('UiText.Undo'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').tray !== true },
+    // Undo waits for the step it takes back, as a person's press does: the answer comes over the bridge.
+    { name: 'Tray icon on', acts: [{ click: metric('MetricName.CpuFan') }, { focus: role('switch', 'UiText.OwnTrayIcon') }, 'Space'], focus: role('switch', 'UiText.OwnTrayIcon'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').tray === true },
+    { name: 'Title-bar Undo of the last step keeps focus', acts: [{ focus: button('UiText.Undo') }, 'Enter'], focus: button('UiText.Undo'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').tray !== true },
     { name: 'Title-bar Redo, the same', acts: [{ focus: button('UiText.Redo') }, 'Enter'], focus: button('UiText.Redo'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').tray === true },
     { name: 'Separate pill on, Ctrl+Z turns it off again', acts: [{ focus: role('switch', 'UiText.OwnPill') }, 'Space', 'Control+Z'], focus: role('switch', 'UiText.OwnPill'), holds: (fake) => itemOf(fake.settings, 'fan.cpu').own !== true },
     { name: 'Separate pill is off on a pill\'s first item', acts: [{ click: metric('MetricName.CpuFan') }], focus: metric('MetricName.CpuFan') },
@@ -267,7 +271,7 @@ export const focusContract: FocusRun[] = [
   ] },
   { name: 'a closing panel', start: fakeState, size: wide, colorScheme: 'dark', motion: true, steps: [
     { name: 'Ctrl+N opens the catalog', acts: [{ focus: metric('MetricName.CpuTemperature') }, 'Control+N'], focus: catalogSearch },
-    { name: 'Esc, then F1 while it slides away, opens the sheet', acts: ['Escape', { pause: 100 }, 'F1'], focus: focusIn(role('dialog', 'UiText.KeyboardShortcuts')) },
+    { name: 'Esc, then F1 while it slides away, opens the sheet', acts: ['Escape', { sliding: true }, 'F1'], focus: focusIn(role('dialog', 'UiText.KeyboardShortcuts')) },
     { name: 'Esc closes the sheet, back where the catalog opened', acts: ['Escape'], focus: metric('MetricName.CpuTemperature') },
   ] },
 ];

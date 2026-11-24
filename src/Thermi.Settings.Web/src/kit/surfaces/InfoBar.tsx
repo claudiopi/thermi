@@ -1,3 +1,4 @@
+import { steady } from '../steady';
 import { makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import type { ReactNode } from 'react';
 import { radius, space } from '../theme/look';
@@ -73,7 +74,7 @@ const useStyles = makeStyles({
 });
 
 /** A bar for a problem that lasts, with its fix: a badge, its words, and its action, as WinUI's InfoBar. */
-export function InfoBar({ intent, title, message, actions }: InfoBarProps) {
+function InfoBarDrawn({ intent, title, message, actions }: InfoBarProps) {
   const styles = useStyles();
   const badge = { info: styles.badgeInfo, warning: styles.badgeWarning, error: styles.badgeError, success: styles.badgeSuccess }[intent];
   return (
@@ -89,3 +90,5 @@ export function InfoBar({ intent, title, message, actions }: InfoBarProps) {
     </div>
   );
 }
+
+export const InfoBar = steady(InfoBarDrawn);

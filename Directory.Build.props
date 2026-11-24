@@ -6,6 +6,11 @@
        each disabled rule is off), SonarLint.xml (size limits), BannedSymbols.txt (banned APIs). -->
 
   <PropertyGroup>
+    <!-- thermi's one version, which About and both executables' file properties show; a v1 preview until 1.0. Without
+         the commit after a "+", so the two show the same. -->
+    <Version>0.9.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 

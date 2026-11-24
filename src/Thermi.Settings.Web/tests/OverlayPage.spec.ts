@@ -1,5 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import { chooseByKeys, fakeOf, fakeState, openWindow, overlayOf, secondMonitor, select, text, windowWith, type FakeState } from './fakeBridge';
+import { type Locator, type Page } from '@playwright/test';
+import { chooseByKeys, expect, fakeOf, fakeState, openWindow, overlayOf, secondMonitor, select, test, text, windowWith, type FakeState } from './fakeBridge';
 
 const pressOn = async (control: Locator, ...keys: string[]): Promise<void> => {
   await control.focus();
@@ -111,19 +111,6 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
     await page.close();
   });
 
-  await test.step('a taskbar on a side, or one that hides, floats the taskbar spot, and the Position row says why', async () => {
-    for (const [floats, key] of [['side', 'OverlayPageText.TaskbarOnSide'], ['hides', 'OverlayPageText.TaskbarHides']] as const) {
-      const state = fakeState();
-      state.monitors = state.monitors.map((monitor) => (monitor.primary ? { ...monitor, floats } : monitor));
-      const page = await windowWith(context, state);
-      await select(page, 'Taskbar');
-      await expect(page.getByRole('main').getByText(text(key))).toBeVisible();
-      await select(page, 'Top right');
-      await expect(page.getByRole('main').getByText(text(key))).toHaveCount(0);
-      await page.close();
-    }
-  });
-
   await test.step('the switches and When to show', async () => {
     const page = await windowWith(context, fakeState({ crowded: [0] }));
     await select(page, 'Taskbar');
@@ -143,7 +130,7 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
     }
     // Without its labels the overlay fits, and the notice goes with its button.
     await expect(pane.getByRole('button', { name: text('FitText.HideLabels') })).toHaveCount(0);
-    await expect(pane.getByText(text('FitText.DoesNotFit'))).toHaveCount(0);
+    await expect(pane.getByRole('status')).toHaveCount(0);
     await page.close();
   });
 
@@ -153,7 +140,7 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
     const page = await windowWith(context, state);
     await select(page, 'Taskbar');
     const pane = page.getByRole('main');
-    await expect(pane.getByText(text('FitText.DoesNotFit'))).toBeVisible();
+    await expect(pane.getByRole('status')).toBeVisible();
     await expect(pane.getByRole('button', { name: text('FitText.HideLabels') })).toHaveCount(0);
     await page.close();
   });

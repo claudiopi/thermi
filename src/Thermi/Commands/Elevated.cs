@@ -37,13 +37,21 @@ internal static class Elevated
     /// <summary>
     /// Runs the mode's <paramref name="verb"/> from <paramref name="exePath"/> behind one UAC prompt and waits for its exit
     /// code; null when the prompt was refused, which starts nothing. Starting it blocks until the prompt closes, so the
-    /// caller runs it off its UI thread.
+    /// caller runs it off its UI thread. A thermi outside Program Files is never elevated: it answers
+    /// <see cref="StartSensors.Missing"/>, as an install is what it lacks.
     /// </summary>
     public static async Task<int?> AskAsync(string exePath, string verb)
     {
         if (!Verbs.Contains(verb, StringComparer.Ordinal))
         {
             throw new ArgumentOutOfRangeException(nameof(verb), verb, "The elevated mode does not know this verb.");
+        }
+
+        // Only administrators write there, so nothing can swap the file while the prompt waits.
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + Path.DirectorySeparatorChar;
+        if (!Path.GetFullPath(exePath).StartsWith(programFiles, StringComparison.OrdinalIgnoreCase))
+        {
+            return StartSensors.Missing;
         }
 
         var start = new ProcessStartInfo(exePath) { UseShellExecute = true, Verb = "runas", ArgumentList = { Command, verb } };

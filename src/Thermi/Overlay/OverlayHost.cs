@@ -76,7 +76,7 @@ internal sealed class OverlayHost : IDisposable
             Menu = overlay => Tray?.Menu(overlay),
         };
         _settings.Changed += SettingsChanged;
-        _watcher = ConfigStore.Watch(settings.FilePath, settings.FileChanged, log);
+        _watcher = settings.Watch(log);
     }
 
     internal HWND Hwnd { get; private set; }
@@ -154,6 +154,7 @@ internal sealed class OverlayHost : IDisposable
         _watcher?.Dispose();
         _paints.Dispose();
         _cpu.Dispose();
+        _desktop.Dispose();
         foreach (var overlay in _overlays)
         {
             overlay.Dispose();
@@ -313,13 +314,7 @@ internal sealed class OverlayHost : IDisposable
         RequestPaint();
     }
 
-    private void Raise()
-    {
-        foreach (var overlay in _overlays)
-        {
-            overlay.Raise();
-        }
-    }
+    private void Raise() => _overlays.ForEach(overlay => overlay.Raise());
 
     private void RequestPaint() => _paints.Post(true);
 

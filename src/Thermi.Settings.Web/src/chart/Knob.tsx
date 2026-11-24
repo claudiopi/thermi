@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { Line } from '../bridge/bridge.g';
+import { steady } from '../kit';
 
 export interface KnobProps {
   line: Line;
@@ -90,7 +91,7 @@ function Box({ label, first, typedFirst, onDone, onTyped }: { label: string; fir
 }
 
 /** A threshold's knob at its line: a slider that the arrows, a drag and a typed value move. */
-export function Knob({ line, label, value, text, max, step, top, onMove, onTyped, onPress, onFocus }: KnobProps) {
+function KnobDrawn({ line, label, value, text, max, step, top, onMove, onTyped, onPress, onFocus }: KnobProps) {
   const [box, setBox] = useState<{ first: string; typed: boolean } | null>(null);
   const knob = useRef<HTMLDivElement>(null);
   const keyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -142,3 +143,5 @@ export function Knob({ line, label, value, text, max, step, top, onMove, onTyped
     </div>
   );
 }
+
+export const Knob = steady(KnobDrawn);

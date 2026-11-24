@@ -17,8 +17,9 @@ internal sealed record Version1Item(string? Metric, string? Meter, Threshold? Th
 /// and meters that show its metric, which they keep as auto; a fan duty meter on a named fan becomes that
 /// fan's own duty. A source goes over as it is, even of the wrong type, so it still shows as missing. An item just as
 /// thermi 0.1 made it by default becomes this version's default of its metric, since 0.1 wrote its defaults to the file
-/// the first time it saved anything, so nobody chose them, unless a source names a sensor for its meter. Items and the overlay are named in English, as the defaults
-/// are, the overlay from where it sits.
+/// the first time it saved anything, so nobody chose them, unless a source names a sensor for its meter; lines equal to
+/// 0.1's defaults for their metric take this version's defaults of their meter, so only lines the user moved stay. Items
+/// are named in English, as the defaults are; the overlay keeps no name, so it is named from where it sits.
 /// </summary>
 internal static class ConfigMigration
 {
@@ -43,22 +44,29 @@ internal static class ConfigMigration
             : OverlayConfig.DefaultItems;
         var overlay = new OverlayConfig
         {
-            Name = file?.Position is null ? OverlayConfig.DefaultName : Texts.English.Of(NameText.Floating),
             Position = file?.Position,
             Items = [.. items.Select(item => Named(item, sources))],
         };
         return new ThermiConfig { Overlays = [overlay] };
     }
 
-    private static ItemConfig ItemOf(Version1Item item, Dictionary<string, string> sources) =>
-        Array.IndexOf(Version1Defaults, item) >= 0 && (item.Meter is null || !sources.ContainsKey(item.Meter)) && OverlayConfig.DefaultItems.FirstOrDefault(made => made.Metric == item.Metric) is { } made ? made
-        : new ItemConfig
+    private static ItemConfig ItemOf(Version1Item item, Dictionary<string, string> sources)
+    {
+        // Lines just as 0.1's defaults for the metric were never chosen either, so they take this version's calm ones.
+        var calm = Array.Find(Version1Defaults, made => made.Metric == item.Metric) is { } old && item.Threshold == old.Threshold;
+        if (Array.IndexOf(Version1Defaults, item) >= 0 && (item.Meter is null || !sources.ContainsKey(item.Meter)) && OverlayConfig.DefaultItems.FirstOrDefault(made => made.Metric == item.Metric) is { } made)
+        {
+            return made;
+        }
+
+        return new ItemConfig
         {
             Name = Metrics.Find(item.Metric) is { } metric ? Texts.English.Of(metric.Name) : null,
             Metric = item.Metric,
             Meter = item.Meter is null ? null : new MeterConfig { Metric = item.Meter },
-            Threshold = item.Threshold,
+            Threshold = calm && Metrics.Find(item.Meter) is { } metered ? Threshold.Default(metered) : item.Threshold,
         };
+    }
 
     private static ItemConfig Named(ItemConfig item, Dictionary<string, string> sources)
     {

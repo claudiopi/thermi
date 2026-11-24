@@ -1,3 +1,4 @@
+import { steady } from '../steady';
 import { Field, Input, makeStyles, tokens } from '@fluentui/react-components';
 import { fluentRef } from '../fluentRef';
 import type { KeyboardEvent, Ref } from 'react';
@@ -60,7 +61,7 @@ const useSearchStyles = makeStyles({
 });
 
 /** A search box, its magnifier at its end, that filters what follows as each letter is typed; a button clears it. */
-export function SearchField({ label, value, onChange, onKeyDown, placeholder, describedBy, clearLabel, ref }: SearchFieldProps) {
+function SearchFieldDrawn({ label, value, onChange, onKeyDown, placeholder, describedBy, clearLabel, ref }: SearchFieldProps) {
   const styles = useSearchStyles();
   return (
     <Input
@@ -91,7 +92,7 @@ export function SearchField({ label, value, onChange, onKeyDown, placeholder, de
 }
 
 /** A text box in a field: its label, a hint, and the reason a value is refused. */
-export function TextField({ label, labelShown = true, value, onChange, onCommit, onCancel, hint, error, type = 'text', placeholder, className, ref }: TextFieldProps) {
+function TextFieldDrawn({ label, labelShown = true, value, onChange, onCommit, onCancel, hint, error, type = 'text', placeholder, className, ref }: TextFieldProps) {
   const keyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === 'Enter') {
       onCommit?.(value);
@@ -121,3 +122,7 @@ export function TextField({ label, labelShown = true, value, onChange, onCommit,
     </Field>
   );
 }
+
+export const SearchField = steady(SearchFieldDrawn);
+
+export const TextField = steady(TextFieldDrawn);

@@ -68,7 +68,8 @@ public sealed record ColorStop(double At, ChartColor Color);
 /// <summary>
 /// An item's chart: its track, from 0 to <see cref="Max"/> by <see cref="Step"/>, the span it shows, its ten minutes, its
 /// lines and their texts, the colors along it, its Min · Avg · Max and its summary for Narrator, why it is empty, the
-/// message of a line pushed by the other, and its title.
+/// message of a line pushed by the other, its title, the ends of its span as its scale says them, and whether its lines
+/// are not the defaults and the lowest was reached for most of the ten minutes, which the page offers to reset.
 /// </summary>
 public sealed record ChartView(
     double Max,
@@ -85,4 +86,7 @@ public sealed record ChartView(
     string Summary,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] ChartEmpty? Empty,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Pushed,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Title);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Title,
+    string FromText,
+    string ToText,
+    bool Fires);

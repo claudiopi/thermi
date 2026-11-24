@@ -24,7 +24,7 @@ public sealed class TopmostTests
     {
         var seen = new List<(bool Covered, bool Above, bool TipAbove)>();
 
-        OnTop((overlay, other) =>
+        OnTop((overlay, _, other) =>
         {
             using var tips = new Thermi.Overlay.ValueTips(overlay);
             var tip = Owned(overlay);
@@ -40,13 +40,14 @@ public sealed class TopmostTests
         Assert.Equal([(true, true, true), (true, true, true)], seen);
     }
 
-    // Its change of order reaches a hook of the test's own as it reaches the overlay's, which has had it by then.
+    // Its change of order reaches a hook of the test's own as it reaches the overlay's, which has had it by then; the
+    // once-a-second safety net, which raises it too, leaves it below as well.
     [Fact]
     public void AnyOtherWindowRaisedAboveTheOverlayStaysAbove()
     {
-        var (covered, reached, stays) = (false, false, false);
+        var (covered, reached, stays, staysAfterTick) = (false, false, false, false);
 
-        OnTop((overlay, other) =>
+        OnTop((overlay, topmost, other) =>
         {
             var reorders = 0;
             WINEVENTPROC counted = (_, _, _, _, _, _, _) => reorders++;
@@ -56,14 +57,16 @@ public sealed class TopmostTests
             reached = Pump(overlay, () => reorders > 0);
             Pump(overlay, () => false, ticks: 2);
             stays = Above(window, overlay);
+            topmost.Raise();
+            staysAfterTick = Above(window, overlay);
             GC.KeepAlive(counted);
         });
 
-        Assert.Equal((true, true, true), (covered, reached, stays));
+        Assert.Equal((true, true, true, true), (covered, reached, stays, staysAfterTick));
     }
 
     // An overlay's window, as the overlay shows it, kept on top, beside another process's windows.
-    private static void OnTop(Action<HWND, OtherProcess> body) => TestWindows.OnOwnDesktop(desktop =>
+    private static void OnTop(Action<HWND, Topmost, OtherProcess> body) => TestWindows.OnOwnDesktop(desktop =>
     {
         using var bitmap = new Bitmap(60, 20);
         using (var graphics = Graphics.FromImage(bitmap))
@@ -74,7 +77,7 @@ public sealed class TopmostTests
         using var overlay = new LayeredTestWindow(bitmap, new Position(100, 100));
         using var topmost = new Topmost(overlay.Hwnd);
         using var other = new OtherProcess(desktop);
-        body(overlay.Hwnd, other);
+        body(overlay.Hwnd, topmost, other);
     });
 
     // The window that the overlay owns, its tooltip.

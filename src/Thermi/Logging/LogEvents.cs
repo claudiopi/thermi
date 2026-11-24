@@ -14,6 +14,9 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Error, Message = "The settings file cannot be watched")]
     public static partial void WatchFailed(this ILogger logger, Exception error);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "WebView2's runtime is missing: the settings window cannot open")]
+    public static partial void WebViewMissing(this ILogger logger, Exception error);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The settings could not be read or written")]
     public static partial void SettingsFailed(this ILogger logger, Exception error);
 

@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -26,14 +27,15 @@ public sealed record Snapshot(IReadOnlyList<RawSensor> Sensors)
 }
 
 /// <summary>
-/// The pipe protocol: one snapshot per line, as JSON. Reading never throws: the line comes from
-/// another process, so anything malformed or oversized is simply not a snapshot.
+/// A snapshot as one line of JSON, as recordings hold it and as the pipe sends it whole, and its values alone, a JSON
+/// array in the order of the whole one the pipe sent last (docs/adr/0012-sensor-pipe-catalog-once.md).
+/// Reading never throws: the line comes from another process, so anything malformed or oversized is simply not a snapshot.
 /// </summary>
 public static class SnapshotJson
 {
     public const string PipeName = "thermi-sensors";
 
-    /// <summary>Far above a real snapshot (about 20 KB); a longer line is rejected unread.</summary>
+    /// <summary>Far above a real snapshot (about 40 KB with network and disks); a longer line is rejected unread.</summary>
     public const int MaxLineLength = 1_000_000;
 
     public static string Write(Snapshot snapshot) => JsonSerializer.Serialize(snapshot, CoreJson.Default.Snapshot);
@@ -50,9 +52,13 @@ public static class SnapshotJson
         line.Write("\n"u8);
     }
 
-    public static Snapshot? Read(string? line)
+    public static Snapshot? Read(string? line) =>
+        string.IsNullOrWhiteSpace(line) || line.Length > MaxLineLength ? null : Read(Encoding.UTF8.GetBytes(line));
+
+    /// <summary>A whole snapshot from one line of UTF-8, as the pipe carries it.</summary>
+    public static Snapshot? Read(ReadOnlySpan<byte> line)
     {
-        if (string.IsNullOrWhiteSpace(line) || line.Length > MaxLineLength)
+        if (line.Length > MaxLineLength)
         {
             return null;
         }
@@ -68,6 +74,43 @@ public static class SnapshotJson
         }
     }
 
+    /// <summary>Adds the values of <paramref name="snapshot"/> to <paramref name="line"/>, in its sensors' order, as one line.</summary>
+    public static void WriteValues(Snapshot snapshot, IBufferWriter<byte> line)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(line);
+        using (var writer = new Utf8JsonWriter(line))
+        {
+            writer.WriteStartArray();
+            foreach (var sensor in snapshot.Sensors)
+            {
+                JsonSerializer.Serialize(writer, sensor.Value, CoreJson.Default.NullableDouble);
+            }
+
+            writer.WriteEndArray();
+        }
+
+        line.Write("\n"u8);
+    }
+
+    /// <summary>The values of a line <see cref="WriteValues"/> wrote, or null for anything else.</summary>
+    public static double?[]? ReadValues(ReadOnlySpan<byte> line)
+    {
+        if (line.Length > MaxLineLength)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(line, CoreJson.Default.NullableDoubleArray);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     // The generated reader lets a missing string through as null, whatever the type says.
     private static bool IsComplete(RawSensor? sensor) =>
         sensor is { Id: not null, HardwareType: not null, Hardware: not null, Type: not null, Name: not null };
@@ -76,4 +119,5 @@ public static class SnapshotJson
 // Sensors do report NaN and infinity; they travel as "NaN" and "Infinity" and show as missing.
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals)]
 [JsonSerializable(typeof(Snapshot))]
+[JsonSerializable(typeof(double?[]))]
 internal sealed partial class CoreJson : JsonSerializerContext;

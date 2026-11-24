@@ -68,12 +68,29 @@
   box-shadow: inset 0 0 0 1px var(--colorNeutralStroke1), inset 0 -1px 0 var(--colorNeutralStroke2);
 }
 
+/* The field and, once a hotkey is set, its ×, over the field's end where the pen was. */
+.t-hk-field {
+  position: relative;
+  display: inline-flex;
+}
+
+.t-hk.t-hk-set {
+  padding-right: 32px;
+}
+
 .t-hk-x.t-hk-x {
-  flex: none;
+  position: absolute;
+  inset: 1px 1px auto auto;
   display: inline-grid;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+}
+
+/* As small as the pen it takes the place of. */
+.t-hk-x.t-hk-x svg {
+  width: 12px;
+  height: 12px;
 }
 
 .t-hk-error {
