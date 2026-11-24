@@ -46,6 +46,7 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
     private readonly List<long> _reloads = [];
     private bool _shown;
     private bool _minimized;
+    private string? _caption;
 
     public CoreWebView2Controller? Controller { get; private set; }
 
@@ -78,7 +79,11 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
         // The page asks for no camera, location or notification, and saves no file: nothing may ask for one in its name.
         view.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
         view.DownloadStarting += (_, e) => e.Cancel = true;
-        view.NavigationCompleted += (_, _) => Loaded?.Invoke(this, EventArgs.Empty);
+        view.NavigationCompleted += (_, _) =>
+        {
+            TellCaption();
+            Loaded?.Invoke(this, EventArgs.Empty);
+        };
         view.ProcessFailed += (_, e) => Failed(view, e.ProcessFailedKind);
         view.WebMessageReceived += Received;
         bridge.Changed += OnChanged;
@@ -119,14 +124,22 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
         }
     }
 
-    /// <summary>Tells the page where Windows' caption buttons are, in CSS pixels, so its title row leaves them room.</summary>
-    public void Caption(double width, double height)
+    /// <summary>Tells the page how wide Windows' caption buttons are, in CSS pixels, so its title row leaves them room.</summary>
+    public void Caption(double width)
     {
-        var culture = System.Globalization.CultureInfo.InvariantCulture;
-        var script =
-            string.Create(culture, $"document.documentElement.style.setProperty('--thermi-caption-width','{width}px');") +
-            string.Create(culture, $"document.documentElement.style.setProperty('--thermi-caption-height','{height}px');");
-        _ = Controller?.CoreWebView2.ExecuteScriptAsync(script);
+        _caption = string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"document.documentElement.style.setProperty('--thermi-caption-width','{width}px');");
+        TellCaption();
+    }
+
+    // Told again each time the page loads: a script run while it navigates may reach the document it leaves.
+    private void TellCaption()
+    {
+        if (_caption is { } script)
+        {
+            _ = Controller?.CoreWebView2.ExecuteScriptAsync(script);
+        }
     }
 
     // Closed, the controller throws on any use: what the bridge says after, as a gesture that ends with the window,

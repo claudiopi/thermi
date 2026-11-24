@@ -190,7 +190,7 @@ internal sealed class WebWindow : IDisposable
 
         var hole = WindowFrame.Hole(Hwnd, bounds);
         var scale = PInvoke.GetDpiForWindow(Hwnd) / 96.0;
-        _page.Caption((hole.right - hole.left) / scale, hole.bottom / scale);
+        _page.Caption((hole.right - hole.left) / scale);
     }
 
     private LRESULT WndProc(HWND hwnd, uint message, WPARAM wParam, LPARAM lParam)

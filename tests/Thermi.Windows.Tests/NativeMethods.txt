@@ -5,6 +5,8 @@ SetThreadDesktop
 CloseDesktop
 CoInitializeEx
 CoUninitialize
+SetThreadDpiAwarenessContext
+DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
 // What a window shows and where a click lands
 WindowFromPoint
 IsWindowVisible

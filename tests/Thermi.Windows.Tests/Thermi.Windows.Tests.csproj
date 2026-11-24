@@ -8,6 +8,8 @@
     <!-- CsWin32 needs it, for the calls only the tests make. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CsWin32PlatformTarget>x64</CsWin32PlatformTarget>
+    <!-- thermi's oldest Windows, said in TestWindows.cs as Thermi.csproj says why. -->
+    <GenerateSupportedOSPlatformAttribute>false</GenerateSupportedOSPlatformAttribute>
   </PropertyGroup>
 
   <ItemGroup>

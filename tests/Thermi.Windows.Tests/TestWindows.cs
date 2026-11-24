@@ -10,10 +10,14 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Com;
 using Windows.Win32.System.Threading;
+using Windows.Win32.UI.HiDpi;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 [assembly: AssemblyFixture(typeof(Thermi.Windows.Tests.NoInputMethods))]
+
+// Windows 10 1607 and later, as thermi itself (Thermi.csproj says why it is set in code).
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("windows10.0.14393")]
 
 namespace Thermi.Windows.Tests;
 
@@ -52,6 +56,14 @@ internal static class TestWindows
                 }
 
                 TestPInvoke.CoInitializeEx(COINIT.COINIT_APARTMENTTHREADED).ThrowOnFailure();
+
+                // Per-monitor aware, as thermi is by its manifest while the test host is not: on a scaled screen an unaware
+                // window's coordinates are scaled down, while what DWM says of it, as its caption buttons, is not.
+                if (TestPInvoke.SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == default)
+                {
+                    throw new Win32Exception();
+                }
+
                 body(name);
             }
 #pragma warning disable CA1031 // Whatever the body throws fails the test on the test's own thread.
