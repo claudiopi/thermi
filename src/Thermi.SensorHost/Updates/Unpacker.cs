@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using Thermi.Core.Updates;
-using Thermi.Trust;
 
 namespace Thermi.SensorHost.Updates;
 
@@ -30,7 +29,7 @@ internal static class Unpacker
     /// </summary>
     public static string? Unpack(Stream zip, InstallFolder folder, ReleaseVersion version, Func<string, string?>? catalog)
     {
-        var fresh = AdminFolder.Fresh(folder.Update, "unpack-");
+        var fresh = folder.Fresh("unpack-");
         if (fresh is null)
         {
             return $"{folder.Update} is not a folder only administrators change";

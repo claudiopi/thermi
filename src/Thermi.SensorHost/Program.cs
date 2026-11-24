@@ -97,11 +97,16 @@ internal static class Program
         return service.ExitCode;
     }
 
-    private static void Squatted(EventLog events, string pipe) => SensorService.Say(
-        events,
-        $"Another program holds the {pipe} pipe, so thermi's overlay and window get no readings. "
-            + "The service tries again every 5 s until that program closes it.",
-        EventLogEntryType.Warning);
+    // A switch's watchdog reads the note, so a version is never failed for a pipe another program held.
+    private static void Squatted(EventLog events, string pipe)
+    {
+        SensorService.Say(
+            events,
+            $"Another program holds the {pipe} pipe, so thermi's overlay and window get no readings. "
+                + "The service tries again every 5 s until that program closes it.",
+            EventLogEntryType.Warning);
+        InstallFolder.Of(AppContext.BaseDirectory, UpdateBuild.Of(typeof(Program).Assembly).Version)?.MarkPipeHeld();
+    }
 
     private static async Task<int> WatchAsync(ReleaseVersion to, SensorHostEnvironment environment, CancellationToken stop)
     {

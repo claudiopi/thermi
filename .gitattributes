@@ -7,3 +7,5 @@
 *.jpg binary
 *.exe binary
 *.dll binary
+# The pipe's lines as the service writes them, byte for byte, its newlines included.
+tests/Thermi.Tests/Golden/*.jsonl binary

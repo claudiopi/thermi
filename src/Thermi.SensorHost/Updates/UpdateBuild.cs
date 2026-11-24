@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using Microsoft.Win32;
 using Thermi.Core.Updates;
 
 namespace Thermi.SensorHost.Updates;
@@ -34,12 +33,6 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, bo
             : new UpdateBuild(from, release, backup, metadata.TryGetValue("ThermiUpdatesCatalog", out var catalog) && catalog == "true", version, processor);
     }
 
-    /// <summary>The PC's policy as an administrator left it: read at each check, so a change needs no restart.</summary>
-    public UpdatePolicy Policy()
-    {
-        using var key = Registry.LocalMachine.OpenSubKey(UpdatePolicy.Key);
-        return UpdatePolicy.Of(Built, key?.GetValue(UpdatePolicy.UpdatesValue), key?.GetValue(UpdatePolicy.ChannelValue));
-    }
 
     public Uri ManifestOf(string channel) => new(From!, $"{channel}.json");
 

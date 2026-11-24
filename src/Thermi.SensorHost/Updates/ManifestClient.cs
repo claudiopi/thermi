@@ -1,7 +1,6 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using Thermi.Core.Updates;
-using Thermi.Trust;
 
 namespace Thermi.SensorHost.Updates;
 
@@ -61,7 +60,7 @@ internal sealed class ManifestClient : IDisposable
             return new Download(null, $"the disk has less than {FreeSpace} times the zip's {package.Size} bytes free");
         }
 
-        if (!AdminFolder.AdminsOnly(folder.Update))
+        if (!folder.AdminsOnly(folder.Update))
         {
             return new Download(null, $"{folder.Update} is not a folder only administrators change");
         }

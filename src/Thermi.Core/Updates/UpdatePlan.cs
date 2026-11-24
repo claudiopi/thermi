@@ -35,13 +35,14 @@ public static class UpdatePlan
     private static readonly TimeSpan ClockSlack = TimeSpan.FromDays(1);
 
     /// <summary>
-    /// What to do with <paramref name="read"/>'s manifest at <paramref name="now"/>. One the backup key signed to revoke a
-    /// release key is taken whatever its sequence, since that key may have pushed the sequence out of reach.
+    /// What to do with <paramref name="read"/>'s manifest at <paramref name="now"/>, on a build whose release key's SHA-256
+    /// is <paramref name="releaseKeyHash"/>. The backup key's revocation of that key is taken whatever its sequence, once,
+    /// since that key may have pushed the sequence out of reach.
     /// </summary>
-    public static Plan Decide(UpdateState state, ManifestRead read, string channel, string processor, DateTimeOffset now)
+    public static Plan Decide(UpdateState state, ManifestRead read, string channel, string processor, DateTimeOffset now, string? releaseKeyHash = null)
     {
         var manifest = read.Manifest ?? throw new ArgumentException("A manifest that was refused plans nothing.", nameof(read));
-        if (Refusal(state, read, channel, now) is { } refused)
+        if (Refusal(state, read, channel, now, releaseKeyHash) is { } refused)
         {
             return new Plan(PlanKind.Refuse, Refused: refused);
         }
@@ -67,10 +68,17 @@ public static class UpdatePlan
         return state.Ready == offered.Version ? offered with { Kind = PlanKind.Keep, Package = null } : offered;
     }
 
-    private static string? Refusal(UpdateState state, ManifestRead read, string channel, DateTimeOffset now)
+    /// <summary>
+    /// Whether <paramref name="read"/> revokes this build's release key now: signed by the backup key, naming that key, and
+    /// not revoked here yet. A revocation of another key, or one replayed, changes nothing.
+    /// </summary>
+    public static bool Revokes(UpdateState state, ManifestRead read, string? releaseKeyHash) =>
+        read is { Backup: true, Manifest.RevokedKey: { } revoked } && revoked == releaseKeyHash && state.RevokedKey != revoked;
+
+    private static string? Refusal(UpdateState state, ManifestRead read, string channel, DateTimeOffset now, string? releaseKeyHash)
     {
         var manifest = read.Manifest!;
-        var reset = read.Backup && manifest.RevokedKey is not null;
+        var reset = Revokes(state, read, releaseKeyHash);
         return !string.Equals(manifest.Channel, channel, StringComparison.Ordinal) ? $"it is of the {manifest.Channel} channel"
             : manifest.Sequence < state.SequenceOf(channel) && !reset
                 ? string.Create(CultureInfo.InvariantCulture, $"its sequence {manifest.Sequence} is older than {state.SequenceOf(channel)}")

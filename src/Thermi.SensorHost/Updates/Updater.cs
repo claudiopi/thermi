@@ -10,12 +10,16 @@ namespace Thermi.SensorHost.Updates;
 /// a quiet moment. It decides nothing itself: Core's <see cref="UpdatePlan"/> and <see cref="SwitchHealth"/> do. Nothing
 /// it meets ever stops the service: every failure is written to the event log and tried again at the next check.
 /// </summary>
-internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestClient client, TimeProvider time, Action<string, EventLogEntryType> say)
+internal sealed class Updater(
+    UpdateBuild build, InstallFolder folder, ManifestClient client, TimeProvider time, Action<string, EventLogEntryType> say, UpdateHost? host = null)
     : IDisposable
 {
     private static readonly TimeSpan Tick = TimeSpan.FromMinutes(1);
 
-    private readonly Switcher _switcher = new(folder, time, say);
+    private static readonly TimeSpan AfterStart = TimeSpan.FromSeconds(2);
+
+    private readonly UpdateHost _host = host ?? UpdateHost.Windows;
+    private readonly Switcher _switcher = new(folder, time, say, (host ?? UpdateHost.Windows).Start);
     private readonly SemaphoreSlim _busy = new(1, 1);
     private volatile bool _checkSoon;
     private volatile bool _switchSoon;
@@ -101,7 +105,9 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         {
             while (!stop.IsCancellationRequested)
             {
-                await Task.Delay(Tick, time, stop);
+                // A switch the start asked for waits only for the service to run, so a version that ends within its first
+                // minute is still sent back.
+                await Task.Delay(_switchSoon ? AfterStart : Tick, time, stop);
                 if (_switchSoon)
                 {
                     _switchSoon = false;
@@ -126,7 +132,7 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         await _busy.WaitAsync(stop);
         try
         {
-            var policy = build.Policy();
+            var policy = _host.Policy(build);
             if (policy.Checks && !_switcher.UnderWay() && Trusted())
             {
                 await CheckAsync(policy.Channel, stop);
@@ -161,38 +167,46 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         };
         var envelope = await client.EnvelopeAsync(build.ManifestOf(channel), stop);
         var read = envelope is null ? null : ManifestEnvelope.Open(envelope, build.ReleaseKeyHash == state.RevokedKey ? null : build.Release, build.Backup);
-        var plan = read?.Manifest is null ? null : UpdatePlan.Decide(state, read, channel, build.Processor, now);
+        var plan = read?.Manifest is null ? null : UpdatePlan.Decide(state, read, channel, build.Processor, now, build.ReleaseKeyHash);
         if (read?.Manifest is not { } manifest || plan is null || plan.Kind == PlanKind.Refuse)
         {
             say($"thermi refused the {channel} channel's manifest: {Refusal(envelope, read, plan)}.", EventLogEntryType.Warning);
-            folder.Write(state);
+            WriteAfterCheck(state);
             return;
         }
 
         state = state.WithSequence(channel, manifest.Sequence) with
         {
             LastSuccess = now,
-            RevokedKey = read.Backup && manifest.RevokedKey is { } revoked && revoked == build.ReleaseKeyHash ? revoked : state.RevokedKey,
+            RevokedKey = UpdatePlan.Revokes(state, read, build.ReleaseKeyHash) ? manifest.RevokedKey : state.RevokedKey,
         };
         var (next, switchTo) = await ApplyAsync(state, plan, stop);
-
-        // A stop while the check ran wrote the probation; the check's own state never takes it back.
-        next = next with { Probation = folder.Read().Probation };
-        folder.Write(next);
+        next = WriteAfterCheck(next);
         Prune(next);
         if (switchTo is { } to)
         {
-            _switcher.Begin(next, to, build.Version);
+            _switcher.Begin(next, to, build.Version, back: to < build.Version);
         }
+    }
+
+    // A stop while the check ran wrote the probation; the check's own state never takes it back.
+    private UpdateState WriteAfterCheck(UpdateState state)
+    {
+        var written = state with { Probation = folder.Read().Probation };
+        folder.Write(written);
+        return written;
     }
 
     private async Task<(UpdateState State, ReleaseVersion? SwitchTo)> ApplyAsync(UpdateState state, Plan plan, CancellationToken stop)
     {
         switch (plan.Kind)
         {
-            case PlanKind.Download:
-                return plan is { Version: { } version, Package: { } package }
-                    && UpdateSchedule.MayDownload(Network.Metered(), plan.Urgent) && await FetchAsync(version, package, stop)
+            case PlanKind.Download when plan is { Version: { } version, Package: { } package }:
+                var metered = !UpdateSchedule.MayDownload(_host.Metered(), plan.Urgent);
+                say(
+                    metered ? $"thermi found {version}, and downloads it once the network is not metered." : $"thermi found {version}, and downloads it.",
+                    EventLogEntryType.Information);
+                return !metered && await FetchAsync(version, package, stop)
                     ? (state with { Ready = version, ReadyUrgent = plan.Urgent }, plan.Urgent ? version : null)
                     : (state, null);
             case PlanKind.Keep:
@@ -203,6 +217,7 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
             case PlanKind.RollBack:
                 say($"thermi {state.Installed} was withdrawn, so the PC goes back to {plan.Version}.", EventLogEntryType.Warning);
                 return (state, plan.Version);
+            case PlanKind.Download:
             case PlanKind.Nothing:
             case PlanKind.Refuse:
             default:
@@ -214,7 +229,7 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
     {
         if (build.Catalog)
         {
-            // A release build takes only files its signed catalog lists, which this build cannot check yet.
+            // A release build takes only files its signed catalog lists, and without the check here it takes none.
             say($"thermi refused {version}: this build cannot check its catalog. Nothing installed changed.", EventLogEntryType.Warning);
             return false;
         }
@@ -236,7 +251,7 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
     private void SwitchReady()
     {
         var state = folder.Read();
-        if (build.Policy().Checks && !_switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && Trusted())
+        if (_host.Policy(build).Checks && !_switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && Trusted())
         {
             _switcher.Begin(state, ready, build.Version);
         }

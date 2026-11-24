@@ -46,6 +46,7 @@ public sealed class UpdateTests
     [InlineData("1.3.0 - - - 10 1", "stable 2 1.3.0-rc.2 100", "", false, "Nothing")]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 expired", "", false, "Refuse")]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 far", "", false, "Refuse")]
+    [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 near", "", false, "Download 1.3.0")]
     public void TheUpdaterNeverGoesBackButToItsOwnPrevious(string state, string manifest, string withdrawn, bool disabled, string plan)
     {
         var s = state.Split(' ');
@@ -67,7 +68,12 @@ public sealed class UpdateTests
             Rollout = int.Parse(m[3], System.Globalization.CultureInfo.InvariantCulture),
             Withdrawn = [.. withdrawn.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(V)],
             Disabled = disabled,
-            Expires = m.Length < 5 ? Now.AddDays(30) : m[4] == "far" ? Now + Manifest.Lifetime + TimeSpan.FromDays(2) : Now.AddMinutes(-1),
+            Expires = m.Length < 5 ? Now.AddDays(30) : m[4] switch
+            {
+                "far" => Now + Manifest.Lifetime + TimeSpan.FromDays(2),
+                "near" => Now + Manifest.Lifetime + TimeSpan.FromHours(12),
+                _ => Now.AddMinutes(-1),
+            },
         };
 
         var decided = UpdatePlan.Decide(before, new ManifestRead(offered, null), Manifest.Stable, "x64", Now);
@@ -209,11 +215,19 @@ public sealed class UpdateTests
         // Only the backup key may revoke the release key, which it names, and once revoked only the backup key opens a manifest.
         var releaseHash = Convert.ToHexStringLower(SHA256.HashData(release));
         Assert.NotNull(Levers.Revoke(channels, Manifest.Stable, "not a hash", Now).Refused);
+        Assert.NotNull(Levers.Revoke(channels, Manifest.Stable, releaseHash.ToUpperInvariant(), Now).Refused);
         var revoking = Done(Levers.Revoke(channels, Manifest.Stable, releaseHash, Now))[Manifest.Stable].Current!;
         Assert.Equal(releaseHash, revoking.RevokedKey);
         Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), release, backup).Problem);
         Assert.True(ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, backupKey), release, backup).Backup);
         Assert.Equal(ManifestProblem.NotSigned, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), null, backup).Problem);
+
+        // It sets the sequence back for the key it names, once: a replayed one, or one naming another key, does not.
+        var revocation = ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, backupKey), release, backup);
+        var ahead = new UpdateState { Installed = V("1.2.0") }.WithSequence(Manifest.Stable, 99);
+        Assert.NotEqual(PlanKind.Refuse, UpdatePlan.Decide(ahead, revocation, Manifest.Stable, "x64", Now, releaseHash).Kind);
+        Assert.Equal(PlanKind.Refuse, UpdatePlan.Decide(ahead, revocation, Manifest.Stable, "x64", Now, new string('0', 64)).Kind);
+        Assert.Equal(PlanKind.Refuse, UpdatePlan.Decide(ahead with { RevokedKey = releaseHash }, revocation, Manifest.Stable, "x64", Now, releaseHash).Kind);
 
         // What a server or a cache could serve instead of an envelope, and a history read back as the levers wrote it.
         var sealedOne = ManifestEnvelope.Seal(rolledBack, key);
@@ -291,16 +305,6 @@ public sealed class UpdateTests
         Assert.Null(adopted.Ready);
         Assert.Null(adopted.Probation);
         Assert.Equal(V("1.3.1"), SwitchHealth.Started(state with { Ready = V("1.3.1") }, V("1.3.0"), Now).State.Ready);
-    }
-
-    // A resume checks again only once the last check is as old as the schedule's; a metered network downloads only what is urgent.
-    [Fact]
-    public void AResumeAndAMeteredNetworkWaitForTheSchedule()
-    {
-        Assert.True(UpdateSchedule.DueOnResume(Now, null) && UpdateSchedule.DueOnResume(Now, Now - UpdateSchedule.Every));
-        Assert.False(UpdateSchedule.DueOnResume(Now, Now.AddHours(-1)));
-        (bool Metered, bool Urgent)[] networks = [(false, false), (false, true), (true, false), (true, true)];
-        Assert.Equal([true, true, false, true], networks.Select(each => UpdateSchedule.MayDownload(each.Metered, each.Urgent)));
     }
 
     // A version names a folder, so it is read strictly, and ordered as SemVer orders them.

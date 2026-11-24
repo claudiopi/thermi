@@ -1,0 +1,76 @@
+extern alias sensors;
+
+using sensors::Thermi.SensorHost.Updates;
+using Thermi.Core.Updates;
+
+namespace Thermi.Windows.Tests.Updates;
+
+/// <summary>
+/// A switch cut by a power cut or a crash at each of its steps, and the service that starts next: the version Windows
+/// starts is the one the service's image path named at the cut, which the live run on a real service proves (A15); here,
+/// what that service makes of the folder it finds.
+/// </summary>
+public sealed class SwitchCutTests
+{
+    // How many of the new version's launchers were placed, whether Windows started the new version next, and whether the
+    // switch was marked done. The PC runs whole the version Windows started.
+    [Theory]
+    [InlineData(0, false, false)]
+    [InlineData(0, true, false)]
+    [InlineData(1, true, false)]
+    [InlineData(1, false, false)]
+    [InlineData(2, true, true)]
+    public async Task ASwitchCutAtAnyStepLeavesOneVersionWhole(int placed, bool startsNew, bool done)
+    {
+        await using var pc = new UpdatePc();
+        pc.Lay(UpdatePc.Built);
+        var begun = SwitchHealth.Begin(pc.State with { Ready = UpdatePc.Built }, UpdatePc.Built);
+        pc.Folder().Write(done ? SwitchHealth.Done(begun, pc.Clock.GetUtcNow()) : begun);
+        foreach (var program in Unpacker.Programs.Take(placed))
+        {
+            File.Copy(Path.Combine(pc.Top, UpdatePc.Built.ToString(), "launchers", program + ".exe"), Path.Combine(pc.Top, program + ".exe"), overwrite: true);
+        }
+
+        // An overlay that runs from the launcher at the top, which Windows lets be renamed but not deleted or rewritten.
+        await using var running = new FileStream(Path.Combine(pc.Top, "thermi.exe"), FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+        var before = Text(running);
+        var started = startsNew ? UpdatePc.Built : UpdatePc.Running;
+        using var updater = pc.Updater(pc.Build(version: started));
+
+        updater.Started();
+
+        Assert.Equal(started, pc.State.Installed);
+        Assert.All(Unpacker.Programs, program => Assert.Equal(UpdatePc.Launcher(program, started), pc.LauncherAtTop(program)));
+        Assert.Equal(before, Text(running));
+        Assert.Equal([UpdatePc.Running, UpdatePc.Built], pc.Versions);
+    }
+
+    private static string Text(FileStream file)
+    {
+        file.Position = 0;
+        using var reader = new StreamReader(file, leaveOpen: true);
+        return reader.ReadToEnd();
+    }
+
+    // The service keeps what it runs, the installed version, the one before and the one ready; a folder a process still runs
+    // from stays until a later prune.
+    [Fact]
+    public async Task OnlyFoldersOfVersionsNeitherKeptNorRunningAreDeleted()
+    {
+        await using var pc = new UpdatePc();
+        ReleaseVersion[] laid = [new(0, 5, 0), new(0, 6, 0), new(0, 7, 0), UpdatePc.Built];
+        foreach (var version in laid)
+        {
+            pc.Lay(version);
+        }
+
+        pc.Folder().Write(pc.State with { Previous = new ReleaseVersion(0, 7, 0), Ready = UpdatePc.Built });
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
+        using var held = File.OpenRead(Path.Combine(pc.Top, "0.6.0", "thermi.exe"));
+        using var updater = pc.Updater();
+
+        await updater.CheckAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal([new(0, 6, 0), new(0, 7, 0), UpdatePc.Running, UpdatePc.Built], pc.Versions);
+    }
+}

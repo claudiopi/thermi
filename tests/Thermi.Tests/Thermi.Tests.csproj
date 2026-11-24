@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Recordings\*.json;Recordings\*.jsonl;Configs\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Recordings\*.json;Recordings\*.jsonl;Configs\*.json;Golden\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

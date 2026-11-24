@@ -105,12 +105,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
             }
 
             log.HandoverFailed(to, "no overlay of it came up in time");
-            if (successor is { HasExited: false })
-            {
-                // Gone before this overlay runs again, so the two never show at once.
-                successor.Kill();
-                successor.WaitForExit(TimeSpan.FromSeconds(5));
-            }
+            End(successor);
 
             return false;
         }
@@ -154,6 +149,23 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
         }
 
         return _known;
+    }
+
+    // Gone before this overlay runs again, so the two never show at once; one that ended on its own already is.
+    private static void End(Process? successor)
+    {
+        try
+        {
+            if (successor is { HasExited: false })
+            {
+                successor.Kill();
+                successor.WaitForExit(TimeSpan.FromSeconds(5));
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            _ = ex;
+        }
     }
 
     private void TellService()

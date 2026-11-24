@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.CompilerServices;
+using System.Security.AccessControl;
 using System.Security.Principal;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
@@ -10,12 +11,13 @@ using Windows.Win32;
 namespace Thermi.SensorHost.Updates;
 
 /// <summary>
-/// Moves the PC from one version to another (docs/adr/0008-updates.md). The service writes the switch down and starts its
-/// own executable as the watchdog, <c>thermi-sensors --switch &lt;version&gt;</c>, which outlives it: the watchdog stops the
+/// Moves the PC from one version to another (docs/adr/0008-updates.md). The service writes the switch down and starts a
+/// watchdog, <c>thermi-sensors --switch &lt;version&gt;</c>, its own for a step forward and the older version's for a step
+/// back, which outlives it: the watchdog stops the
 /// service, points it at the new version, starts it and points it back at once, so a power cut leaves Windows starting the
 /// old version; then it polls the pipe, and points both services at the new version for good only once it serves.
 /// </summary>
-internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<string, EventLogEntryType> say)
+internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<string, EventLogEntryType> say, Action<ProcessStartInfo>? start = null)
 {
     public const string Option = "--switch";
 
@@ -34,7 +36,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
             using var free = new FileStream(LockPath, FileMode.Open, FileAccess.Read, FileShare.None);
             return false;
         }
-        catch (FileNotFoundException)
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
             return false;
         }
@@ -51,10 +53,10 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
     public void Begin(UpdateState state, ReleaseVersion to, ReleaseVersion self, bool back = false)
     {
         folder.Write(SwitchHealth.Begin(state, to, back));
-        var start = new ProcessStartInfo(folder.ServiceOf(back ? to : self)) { UseShellExecute = false, CreateNoWindow = true };
-        start.ArgumentList.Add(Option);
-        start.ArgumentList.Add(to.ToString());
-        Process.Start(start)?.Dispose();
+        var watchdog = new ProcessStartInfo(folder.ServiceOf(back ? to : self)) { UseShellExecute = false, CreateNoWindow = true };
+        watchdog.ArgumentList.Add(Option);
+        watchdog.ArgumentList.Add(to.ToString());
+        (start ?? (info => Process.Start(info)?.Dispose()))(watchdog);
         say($"thermi is switching from {self} to {to}.", EventLogEntryType.Information);
     }
 
@@ -74,6 +76,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         try
         {
             ServiceConfig.Stop();
+            folder.ForgetPipeHeld();
             StartOnce(services, pending, ref started);
             if (await PollAsync(to, pipeName, squatted, stop) == Verdict.Passed)
             {
@@ -84,7 +87,9 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
                 return 0;
             }
 
-            // A pipe another program held tells nothing of the version, which is tried again later rather than failed.
+            // A pipe another program held tells nothing of the version, which is tried again later rather than failed: the
+            // watchdog saw its owner, or the new service could not make it and wrote so where only administrators write.
+            squatted.Value |= folder.PipeHeld();
             started &= !squatted.Value;
             say(squatted.Value
                 ? $"Another program held thermi's pipe while {to} started, so the PC went back to {pending.From} and tries again later."
@@ -129,10 +134,22 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
             say($"The service did not stop as thermi went back to {pending.From}: {ex.Message}", EventLogEntryType.Warning);
         }
 
-        services.Point(pending.From);
-        folder.PlaceLaunchers(pending.From);
-        var state = folder.Read();
-        folder.Write(SwitchHealth.Stopped(started ? SwitchHealth.Failed(state) : state with { Switch = null }));
+        try
+        {
+            services.Point(pending.From);
+            folder.PlaceLaunchers(pending.From);
+            var state = folder.Read();
+            folder.Write(SwitchHealth.Stopped(started ? SwitchHealth.Failed(state) : state with { Switch = null }));
+        }
+        finally
+        {
+            // Whatever failed above, the PC is never left without its sensors.
+            StartAgain(pending);
+        }
+    }
+
+    private void StartAgain(PendingSwitch pending)
+    {
         try
         {
             ServiceConfig.Start();
@@ -150,7 +167,8 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         {
             try
             {
-                return new FileStream(LockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
+                return new FileInfo(LockPath)
+                    .Create(FileMode.OpenOrCreate, FileSystemRights.FullControl, FileShare.None, 1, FileOptions.DeleteOnClose, AdminsOnly());
             }
             catch (IOException)
             {
@@ -159,6 +177,16 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         }
 
         return null;
+    }
+
+    // Users may read update\, and would hold a lock a power cut left behind open: none but administrators may open it.
+    private static FileSecurity AdminsOnly()
+    {
+        var security = new FileSecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new FileSystemAccessRule(LocalSystem, FileSystemRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new FileSystemAccessRule(Administrators, FileSystemRights.FullControl, AccessControlType.Allow));
+        return security;
     }
 
     // One poll a second, counted, never timed: a PC that sleeps in between loses no tries.

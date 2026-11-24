@@ -1,6 +1,6 @@
 # 004-updates: Tasks
 
-> Progress: 16 / 28
+> Progress: 18 / 28
 > Current block: B7
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -8,7 +8,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 ## B0: Decisions
 
 - [x] **T1** Covers R1–R24: `docs/adr/0008-updates.md` rewritten for updates beside the running version, and this spec with it.
-- [ ] **T2** The acceptance tests written, waiting with `Skip`.
+- [x] **T2** The acceptance tests written, waiting with `Skip`.
 
 ## B1: Core, without Windows
 
@@ -30,7 +30,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - [x] **T12** Covers R5, R6, R8: the check and the download.
 - [ ] **T13** Covers R10, R12: verifying, unpacking and the folder checks.
 - [x] **T14** Covers R14, R15, R17, R18: the switch through the services' image paths, the watchdog, code 128, probation, repair at start and pruning by renaming aside.
-- [ ] **T15** Covers R20, R24: the event log entries, and the pipe's golden file.
+- [x] **T15** Covers R20, R24: the event log entries, and the pipe's golden file.
 
 ## B4: The overlay and the window
 
@@ -75,3 +75,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - The live run on this PC (B6) found that a version whose service crashes as it starts made Windows refuse the start, which the watchdog took for a switch that never began: it dropped the switch, the old version tried again each minute, and each try counted as a crash of the old version, whose probation then sent the PC back a version. Once the watchdog points the service at the new version, that version ran, so a refused start now marks it failed, and the watchdog's own stop of the old version counts as a stop.
 - About's line is worded in C#, in the window's language, and the page reads About again when the language changes.
 - B6, live on this PC on 2026-11-24, against a channel served from it: 0.9.0 switched to 0.9.1, service and overlay, 5 s after the check, with no prompt; a 0.9.2 and a 0.9.4 whose service cannot start were failed and the PC stayed where it was (0.9.4, after the fix above, without counting a crash of the old version); a channel rolled back from 0.9.5 sent the PC back to 0.9.3 at its next check and failed 0.9.5; a turned-off channel left the PC on 0.9.3 with 0.9.6 offered; pruning removed every version neither kept nor running; the service held 65 MB private.
+- The updater's acceptance tests run it whole against a channel served from the test's own loopback, on a fake clock that says when the updater waits, so a step never races a check. Only the folder's access and the watchdog's start are the test's own, through `FolderAccess` and `UpdateHost`: the tests run without admin rights, and an admin-only folder is one they could not write. The real access check still meets a folder users write to, and refuses it.
+- A8 runs on the folder and the state file; which version Windows starts after a cut is the services' image path, which only an administrator changes, and the live run (A15) proved it on a real service.
+- A service that cannot make its pipe because another program holds the name writes `update\pipe-held`, where no user writes, and the watchdog reads it before it fails a version: a user who squats the pipe, keeps it busy or denies SYSTEM it makes a switch be tried again later, never a version be failed. The lock the watchdog holds is made with access for SYSTEM and administrators alone, so no user can hold one a power cut left behind.
+- A revocation sets the sequence back only when the backup key signed it, it names this build's release key, and that key is not revoked here yet; `revoke` takes the release key's public file and the backup's private one, and computes the hash PCs compare.

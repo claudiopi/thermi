@@ -1,5 +1,4 @@
 using Thermi.Core.Updates;
-using Thermi.Trust;
 
 namespace Thermi.SensorHost.Updates;
 
@@ -8,8 +7,10 @@ namespace Thermi.SensorHost.Updates;
 /// and <c>update\</c> with the service's state, its downloads and what it set aside to delete. Everything the updater
 /// changes is here, and it checks the folder is one only administrators change before each use.
 /// </summary>
-internal sealed class InstallFolder(string top)
+internal sealed class InstallFolder(string top, FolderAccess? access = null)
 {
+    private readonly FolderAccess _access = access ?? FolderAccess.Admins;
+
     public string Top => top;
 
     public string Update => Path.Combine(top, "update");
@@ -17,6 +18,9 @@ internal sealed class InstallFolder(string top)
     private string StatePath => Path.Combine(Update, UpdateState.FileName);
 
     private string Trash => Path.Combine(Update, "trash");
+
+    // Written by a service that could not make its pipe because another program held the name, where no user writes.
+    private string PipeHeldPath => Path.Combine(Update, "pipe-held");
 
     /// <summary>
     /// The layout a process in <paramref name="baseDirectory"/> runs in: a folder named after its version, which the
@@ -39,11 +43,34 @@ internal sealed class InstallFolder(string top)
         if (!Directory.Exists(Update))
         {
             // Inherits the top's access, which is checked first.
-            return AdminFolder.AdminsOnly(top) && Directory.CreateDirectory(Update) is not null && AdminFolder.AdminsOnly(Update);
+            return AdminsOnly(top) && Directory.CreateDirectory(Update) is not null && AdminsOnly(Update);
         }
 
-        return AdminFolder.AdminsOnly(top) && AdminFolder.AdminsOnly(Update);
+        return AdminsOnly(top) && AdminsOnly(Update);
     }
+
+    /// <summary>Whether <paramref name="path"/> is a real folder only administrators, SYSTEM and Windows' installer change.</summary>
+    public bool AdminsOnly(string path) => _access.AdminsOnly(path);
+
+    /// <summary>A new folder in <c>update\</c> named <paramref name="prefix"/> and a part nobody can guess; null when <c>update\</c> is not trusted.</summary>
+    public string? Fresh(string prefix) => _access.Fresh(Update, prefix);
+
+    /// <summary>Notes that another program held the pipe's name as this service started; never throws.</summary>
+    public void MarkPipeHeld()
+    {
+        try
+        {
+            File.WriteAllText(PipeHeldPath, "");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Outside an install folder only administrators change, or with update\ gone: no switch waits on it.
+        }
+    }
+
+    public bool PipeHeld() => File.Exists(PipeHeldPath);
+
+    public void ForgetPipeHeld() => File.Delete(PipeHeldPath);
 
     public UpdateState Read() => UpdateState.Read(File.Exists(StatePath) ? File.ReadAllText(StatePath) : null);
 

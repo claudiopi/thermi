@@ -89,12 +89,27 @@ internal static class Program
         return command;
     }
 
-    // Signed with the backup key: a revocation the release key signed is refused by every PC.
+    // Signed with the backup key alone, never the release key's variable: every PC refuses a revocation the release key
+    // signed, and the channel would go dark. The hash is the one PCs compare, of the public key itself, not of its file.
     private static Command Revoke()
     {
-        var hash = new Option<string>("--release-key-sha256") { Description = "The SHA-256 of the release key's public key, in hex.", Required = true };
-        var command = new Command("revoke", "Names the release key as revoked; sign it with the backup key.") { Folder, Key, Channel, hash };
-        command.SetAction(parsed => Run(parsed, (channels, _, now) => Levers.Revoke(channels, parsed.GetValue(Channel)!, parsed.GetValue(hash)!, now)));
+        var backup = new Option<FileInfo>("--backup-key") { Description = "The backup key's private PEM.", Required = true };
+        var release = new Option<FileInfo>("--release-key") { Description = "The revoked release key's public PEM.", Required = true };
+        var command = new Command("revoke", "Names the release key as revoked, signed with the backup key.") { Folder, Channel, backup, release };
+        command.SetAction(parsed =>
+        {
+            using var signer = SigningKey(parsed.GetValue(backup));
+            using var revoked = ECDsa.Create();
+            revoked.ImportFromPem(File.ReadAllText(parsed.GetValue(release)!.FullName));
+            var hash = Convert.ToHexStringLower(SHA256.HashData(revoked.ExportSubjectPublicKeyInfo()));
+            if (Convert.ToHexStringLower(SHA256.HashData(signer.ExportSubjectPublicKeyInfo())) == hash)
+            {
+                Console.Error.WriteLine("--backup-key is the release key it revokes: sign with the backup key.");
+                return 1;
+            }
+
+            return Run(parsed, signer, (channels, _, now) => Levers.Revoke(channels, parsed.GetValue(Channel)!, hash, now));
+        });
         return command;
     }
 
@@ -130,8 +145,14 @@ internal static class Program
 
     private static int Run(ParseResult parsed, Func<IReadOnlyDictionary<string, ChannelHistory>, ChannelFolder, DateTimeOffset, LeverResult> lever)
     {
-        var folder = new ChannelFolder(parsed.GetValue(Folder)!.FullName);
         using var key = SigningKey(parsed.GetValue(Key));
+        return Run(parsed, key, lever);
+    }
+
+    private static int Run(
+        ParseResult parsed, ECDsa key, Func<IReadOnlyDictionary<string, ChannelHistory>, ChannelFolder, DateTimeOffset, LeverResult> lever)
+    {
+        var folder = new ChannelFolder(parsed.GetValue(Folder)!.FullName);
         var before = folder.Read();
         var result = lever(before, folder, TimeProvider.System.GetUtcNow());
         if (result.Refused is { } refused)
