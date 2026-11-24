@@ -35,7 +35,13 @@ export function installFakeCatalog(): void {
     if (sensor.hardwareType === 'Cpu' && sensor.value === 0 && ['temperature', 'power', 'clock'].includes(kind)) {
       return 'driver-may-be-missing';
     }
-    return sensor.value === null ? 'reads-nothing' : kind === 'fan' && sensor.value === 0 ? 'stopped' : null;
+    if (sensor.value === null) {
+      return 'reads-nothing';
+    }
+    if (kind !== 'fan' || sensor.value !== 0) {
+      return null;
+    }
+    return devices[sensor.hardwareType] === 'gpu' ? 'resting' : 'stopped';
   };
   // A minute around the value now, the same on every run so a screenshot compares.
   const minute = (value: number | null): (number | null)[] =>

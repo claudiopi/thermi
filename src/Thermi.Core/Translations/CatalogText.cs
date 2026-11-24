@@ -46,6 +46,9 @@ public enum CatalogText
     /// <summary>A catalog row's reason: a fan at 0 RPM.</summary>
     RowStopped,
 
+    /// <summary>A catalog row's note: a GPU's fan at 0 RPM, which the GPU stops while it is cool.</summary>
+    RowResting,
+
     /// <summary>A catalog row's reason: any other sensor without a value.</summary>
     RowReadsNothing,
 

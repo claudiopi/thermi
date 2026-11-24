@@ -180,6 +180,9 @@
   <data name="CatalogText.RowStopped" xml:space="preserve">
     <value>Stopped or not connected</value>
   </data>
+  <data name="CatalogText.RowResting" xml:space="preserve">
+    <value>Stops while the GPU is cool</value>
+  </data>
   <data name="CatalogText.RowReadsNothing" xml:space="preserve">
     <value>Reads nothing</value>
   </data>
@@ -1340,6 +1343,9 @@
   </data>
   <data name="NoValue.Stopped" xml:space="preserve">
     <value>stopped or not connected</value>
+  </data>
+  <data name="NoValue.Resting" xml:space="preserve">
+    <value>stopped while the GPU is cool</value>
   </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>

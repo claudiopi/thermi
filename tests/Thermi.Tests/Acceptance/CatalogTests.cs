@@ -142,9 +142,13 @@ public sealed class CatalogTests
         var item = OverlayLayout.Build(config.Overlays[0], SensorMap.Read(Desktop, config.Overlays[0]), English).Single(each => each.Id == Idle);
 
         Assert.Equal(
-            ["/lpc/it8689e/0/fan/1", "/lpc/it8689e/0/fan/2", "/lpc/it8689e/0/fan/3", "/lpc/it8689e/0/fan/4", "/gpu-nvidia/0/fan/1"],
+            ["/lpc/it8689e/0/fan/1", "/lpc/it8689e/0/fan/2", "/lpc/it8689e/0/fan/3", "/lpc/it8689e/0/fan/4"],
             rows.Where(row => row.Why == NoValue.Stopped).Select(row => row.Id));
-        Assert.All(rows.Where(row => row.Why == NoValue.Stopped), row => Assert.Equal("0 RPM", ReadingFormatter.Format(row.Reading, English)));
+        // A GPU stops its fans while it is cool, so its 0 RPM is a fan at rest, never one not connected.
+        Assert.Equal(["/gpu-nvidia/0/fan/1"], rows.Where(row => row.Why == NoValue.Resting).Select(row => row.Id));
+        Assert.All(
+            rows.Where(row => row.Why is NoValue.Stopped or NoValue.Resting),
+            row => Assert.Equal("0 RPM", ReadingFormatter.Format(row.Reading, English)));
         var idle = rows.Single(row => row.Id == Idle);
         Assert.Equal(("0 %", null), (ReadingFormatter.Format(idle.Reading, English), idle.Why));
         Assert.Equal("0 %", item.Value);

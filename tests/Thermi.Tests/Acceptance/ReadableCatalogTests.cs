@@ -118,7 +118,8 @@ public sealed class ReadableCatalogTests
             .Shown.SelectMany(device => device.Sensors).ToList();
 
         string[] nothing = [.. Enumerable.Range(1, 5).Select(index => $"{Ite}/control/{index}")];
-        string[] stopped = [.. Enumerable.Range(1, 4).Select(index => $"{Ite}/fan/{index}"), "/gpu-nvidia/0/fan/1"];
+        // The GPU's fan reads 0 RPM too, but a GPU stops its fans while cool, so it stays.
+        string[] stopped = [.. Enumerable.Range(1, 4).Select(index => $"{Ite}/fan/{index}")];
         // The CPU's bus speed, which never moves, and its effective clocks, the time its cores ran: each core's and their average.
         string[] effective = ["/amdcpu/0/clock/0", "/amdcpu/0/clock/2", .. Enumerable.Range(0, 16).Select(core => $"/amdcpu/0/clock/{4 + (2 * core)}")];
         Assert.Equal(24, layers.Count);
@@ -145,6 +146,7 @@ public sealed class ReadableCatalogTests
         Assert.Equal(["twin"], SensorCatalog.Unoffered(twice).Except(SensorCatalog.Unoffered(devices)));
         Assert.DoesNotContain(shown, device => device.Sensors.Count == 0);
         Assert.Contains(seen, row => row is { Id: $"{Ite}/fan/1", Why: NoValue.Stopped });
+        Assert.Contains(noAdmin, row => row is { Id: "/gpu-nvidia/0/fan/1", Why: NoValue.Resting });
         // A memory module's limits, resolution and size never move, so of a module the catalog lists its temperature alone.
         Assert.Equal(
             ["/memory/dimm/1/temperature/0", "/memory/dimm/3/temperature/0"],

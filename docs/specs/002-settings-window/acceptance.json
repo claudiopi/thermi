@@ -994,9 +994,10 @@
     {
       "id": "A243",
       "covers": [
+        "R16",
         "R179"
       ],
-      "description": "Given the recorded desktop with and without administrator rights, when the catalog is built before and after a stopped fan turns, then it hides the sensors that read nothing, the fans at 0 RPM that never turned, the GPUs' D3D loads and each core's effective clock, keeps the CPU sensors that need the driver, counts what each search hides, and shows a fan once it has turned; a drive's fixed limits and wear counters are not listed at all.",
+      "description": "Given the recorded desktop with and without administrator rights, when the catalog is built before and after a stopped fan turns, then it hides the sensors that read nothing, the board's fans at 0 RPM that never turned, the GPUs' D3D loads and each core's effective clock, keeps the CPU sensors that need the driver and the GPU's fan at 0 RPM, at rest while the GPU is cool, counts what each search hides, and shows a fan once it has turned; a drive's fixed limits and wear counters are not listed at all.",
       "check": "TheCatalogHidesWhatNobodyWouldAddAndCountsIt",
       "passes": true
     },

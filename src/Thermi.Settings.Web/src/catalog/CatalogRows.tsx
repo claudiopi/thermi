@@ -20,6 +20,7 @@ export interface CatalogRowsProps {
 const reasons: Record<NoValue, TextKey> = {
   'driver-may-be-missing': 'CatalogText.RowNeedsDriver',
   stopped: 'CatalogText.RowStopped',
+  resting: 'CatalogText.RowResting',
   'reads-nothing': 'CatalogText.RowReadsNothing',
 };
 
@@ -170,7 +171,8 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
                   {/* A probable name says why in the kit's tooltip; the row itself stays put, so its focus does too. */}
                   {row.tip === null ? name : <Tooltip text={row.tip}>{name}</Tooltip>}
                   <Sparkline minute={row.minute} kind={row.kind} />
-                  <span className={`t-cat-v${row.value === null || row.why !== null ? ' t-cat-off' : ''}`}>{row.value}</span>
+                  {/* A GPU's fan at rest reads a real 0 RPM, so it shows as any value, never dimmed as one off. */}
+                  <span className={`t-cat-v${row.value === null || (row.why !== null && row.why !== 'resting') ? ' t-cat-off' : ''}`}>{row.value}</span>
                   {/* For the pointer alone: the keyboard has F2, which the row names, so the option holds no control of its own. */}
                   <Tooltip text={t('CatalogText.RenameSensor', row.name)}>
                     <span className="t-cat-pencil" aria-hidden="true" onClick={(event) => handlePencil(event, row.id)}>

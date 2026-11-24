@@ -193,7 +193,7 @@ export interface Monitor {
 
 export type NameFrom = 'library' | 'likely' | 'own';
 
-export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped';
+export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting';
 
 export interface Opacity {
   background?: number;

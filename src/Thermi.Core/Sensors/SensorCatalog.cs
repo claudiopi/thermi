@@ -43,6 +43,9 @@ public enum NoValue
 
     /// <summary>A fan at 0 RPM: stopped or not connected. Its zero is real, so it still shows.</summary>
     Stopped,
+
+    /// <summary>A GPU's fan at 0 RPM: a GPU stops its fans while it is cool, so it is at rest, not missing.</summary>
+    Resting,
 }
 
 /// <summary>
@@ -230,7 +233,8 @@ public static class SensorCatalog
     /// window opened, as a memory module's limits; a network adapter none of whose speeds has moved, as Windows' virtual
     /// ones; a GPU's D3D engine loads, which Windows' counters repeat beside the GPU's own; and a CPU's effective clocks,
     /// the time its cores ran rather than their speed, and its bus speed, which never moves. A CPU sensor that needs the
-    /// driver stays, since its row says how to fix it. A device left with no row is left out.
+    /// driver stays, since its row says how to fix it, and so does a GPU's fan at rest, which turns once the GPU warms. A
+    /// device left with no row is left out.
     /// </summary>
     public static (IReadOnlyList<CatalogDevice> Shown, int Hidden) Hide(IReadOnlyList<CatalogDevice> devices, IReadOnlySet<string> seen)
     {
@@ -246,6 +250,7 @@ public static class SensorCatalog
 
     private static bool Seen(CatalogSensor row, IReadOnlySet<string> seen) => Lively(row) || seen.Contains(row.Id);
 
+    // Only a fan that may not be connected waits to be seen turning; a GPU's at rest has its own reason, so it never does.
     private static bool Hidden(CatalogSensor row, IReadOnlySet<string> seen) =>
         Useless(row) || ((row.Why is null or NoValue.Stopped) && (row.Reading.Kind is SensorKind.Fan or SensorKind.Temperature) && !Seen(row, seen));
 
@@ -286,6 +291,7 @@ public static class SensorCatalog
     private static NoValue? Why(RawSensor sensor, Reading reading) =>
         SensorMap.ZeroIsMissing(sensor) ? NoValue.DriverMayBeMissing
         : reading.Usable is null ? NoValue.ReadsNothing
-        : reading is { Kind: SensorKind.Fan, Usable: 0 } ? NoValue.Stopped
-        : null;
+        : reading is not { Kind: SensorKind.Fan, Usable: 0 } ? null
+        : SensorMap.IsGpu(sensor) ? NoValue.Resting
+        : NoValue.Stopped;
 }
