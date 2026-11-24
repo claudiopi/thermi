@@ -105,8 +105,9 @@ internal sealed class UpdatePc : IAsyncDisposable
 
     /// <summary>A build with the test's keys built in, or one without, which never updates itself.</summary>
     public UpdateBuild Build(bool keys = true, bool catalog = false, ReleaseVersion? version = null) => keys
-        ? new UpdateBuild(Channel.Address, _release.ExportSubjectPublicKeyInfo(), _backup.ExportSubjectPublicKeyInfo(), catalog, version ?? Running, "x64")
-        : new UpdateBuild(null, null, [], Catalog: false, version ?? Running, "x64");
+        ? new UpdateBuild(
+            Channel.Address, _release.ExportSubjectPublicKeyInfo(), _backup.ExportSubjectPublicKeyInfo(), catalog ? "thermi" : null, version ?? Running, "x64")
+        : new UpdateBuild(null, null, [], Publisher: null, version ?? Running, "x64");
 
     public Updater Updater(UpdateBuild? build = null, bool trusted = true)
     {

@@ -167,11 +167,6 @@ SERVICE_STOP
 SERVICE_CONTROL_STOP
 ControlService
 WIN32_ERROR
-// The driver's installer, checked for a valid Authenticode signature before it runs
-WinVerifyTrust
-WINTRUST_DATA
-WINTRUST_FILE_INFO
-WINTRUST_ACTION_GENERIC_VERIFY_V2
 // The sender of a message, checked as the same thermi.exe as the receiver (docs/adr/0009-overlay-and-window-messages.md)
 OpenProcess
 QueryFullProcessImageName

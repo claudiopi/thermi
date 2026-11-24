@@ -9,3 +9,5 @@
 *.dll binary
 # The pipe's lines as the service writes them, byte for byte, its newlines included.
 tests/Thermi.Tests/Golden/*.jsonl binary
+# A catalog's files as it hashed them, byte for byte.
+tests/Thermi.Windows.Tests/Updates/Catalog/** binary

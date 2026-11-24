@@ -74,7 +74,7 @@ public sealed class UpdaterTests
     [InlineData("a zip of another hash")]
     [InlineData("an entry leaving its folder")]
     [InlineData("an older release relabelled")]
-    [InlineData("a release build without its catalog")]
+    [InlineData("a release build without its signed catalog")]
     [InlineData("a folder users write to")]
     [InlineData("the release key revoked")]
     public async Task TheUpdaterTakesOnlyWhatPassesEveryCheck(string wrong)
@@ -176,7 +176,7 @@ public sealed class UpdaterTests
             pc.Publish(offer with { Sequence = 4 });
         }
 
-        return (pc.Build(catalog: wrong == "a release build without its catalog"), wrong != "a folder users write to");
+        return (pc.Build(catalog: wrong == "a release build without its signed catalog"), wrong != "a folder users write to");
     }
 
     private static Dictionary<string, Package> X64(Package package) => new(StringComparer.Ordinal) { ["x64"] = package };

@@ -7,10 +7,10 @@ namespace Thermi.SensorHost.Updates;
 
 /// <summary>
 /// What this build of the service knows of updates (docs/adr/0008-updates.md): the channels' address and the public keys
-/// it trusts, from the build, none in a build that never updates itself; whether the zip must carry a signed catalog; the
-/// version it is; and the PC's processor.
+/// it trusts, from the build, none in a build that never updates itself; in a release build, the publisher whose signed
+/// catalog every version must carry; the version it is; and the PC's processor.
 /// </summary>
-internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, bool Catalog, ReleaseVersion Version, string Processor)
+internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, string? Publisher, ReleaseVersion Version, string Processor)
 {
     public bool Built => From is not null;
 
@@ -29,8 +29,8 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, bo
         var release = Key(metadata, "ThermiUpdatesKey");
         var backup = Key(metadata, "ThermiUpdatesBackupKey");
         return released is null || from is null || release is null || backup is null
-            ? new UpdateBuild(null, null, [], Catalog: false, version, processor)
-            : new UpdateBuild(from, release, backup, metadata.TryGetValue("ThermiUpdatesCatalog", out var catalog) && catalog == "true", version, processor);
+            ? new UpdateBuild(null, null, [], Publisher: null, version, processor)
+            : new UpdateBuild(from, release, backup, metadata.GetValueOrDefault("ThermiUpdatesPublisher"), version, processor);
     }
 
 

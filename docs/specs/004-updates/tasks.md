@@ -1,6 +1,6 @@
 # 004-updates: Tasks
 
-> Progress: 18 / 28
+> Progress: 20 / 28
 > Current block: B7
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -23,12 +23,12 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 - [x] **T9** Covers R15: the launchers, made by the SDK's `CreateAppHost` to start their version's folder; a self-contained publish per version.
 - [x] **T10** Covers R3, R4: `scripts/install.ps1` lays down the layout, with updates off or pointed at a test channel; "Start with Windows" and the tray icons' ids name the fixed path.
-- [ ] **T11** Covers R10, R12: `src/Thermi.Trust`, the folder and Authenticode checks moved out of the driver's install.
+- [x] **T11** Covers R10, R12: `src/Thermi.Trust`, the folder and Authenticode checks moved out of the driver's install.
 
 ## B3: The service's updater
 
 - [x] **T12** Covers R5, R6, R8: the check and the download.
-- [ ] **T13** Covers R10, R12: verifying, unpacking and the folder checks.
+- [x] **T13** Covers R10, R12: verifying, unpacking and the folder checks.
 - [x] **T14** Covers R14, R15, R17, R18: the switch through the services' image paths, the watchdog, code 128, probation, repair at start and pruning by renaming aside.
 - [x] **T15** Covers R20, R24: the event log entries, and the pipe's golden file.
 
@@ -79,3 +79,4 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - A8 runs on the folder and the state file; which version Windows starts after a cut is the services' image path, which only an administrator changes, and the live run (A15) proved it on a real service.
 - A service that cannot make its pipe because another program holds the name writes `update\pipe-held`, where no user writes, and the watchdog reads it before it fails a version: a user who squats the pipe, keeps it busy or denies SYSTEM it makes a switch be tried again later, never a version be failed. The lock the watchdog holds is made with access for SYSTEM and administrators alone, so no user can hold one a power cut left behind.
 - A revocation sets the sequence back only when the backup key signed it, it names this build's release key, and that key is not revoked here yet; `revoke` takes the release key's public file and the backup's private one, and computes the hash PCs compare.
+- A release's catalog is the one PowerShell's `New-FileCatalog` makes, which lists each file under its path with the hash Windows computes for its kind, and which the release signs with thermi's Authenticode key; the service reads it through Windows' own catalog calls, takes its SHA-256 members, and needs every file of the version listed as it is. A release build names the publisher whose signature it accepts, `ThermiUpdatesPublisher`; a test build names none and needs no catalog.

@@ -1,3 +1,9 @@
 # Thermi.Trust
 
-What thermi checks on Windows before it runs or changes anything as SYSTEM: that a folder is a real one only administrators, SYSTEM and Windows' installer may change, and a new folder made with that access from its first moment (`AdminFolder.cs`). The overlay's elevated mode installs the driver from such a folder, and the service keeps its updates in one (`docs/adr/0008-updates.md`). It depends on nothing of thermi's.
+What thermi checks on Windows before it runs or changes anything as SYSTEM:
+
+- that a folder is a real one only administrators, SYSTEM and Windows' installer may change, and a new folder made with that access from its first moment (`AdminFolder.cs`);
+- that Windows holds a file's Authenticode signature valid, and from whom (`Authenticode.cs`);
+- that a release's catalog, `thermi.cat`, lists every file of its version under its own path with its own hash (`FileCatalog.cs`).
+
+The overlay's elevated mode installs the driver from such a folder once its installer's signature holds, and the service keeps its updates in one and takes a version only when thermi's publisher signed its catalog (`docs/adr/0008-updates.md`). It depends on nothing of thermi's.

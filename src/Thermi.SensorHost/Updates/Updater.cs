@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using Thermi.Core.Updates;
+using Thermi.Trust;
 
 namespace Thermi.SensorHost.Updates;
 
@@ -227,16 +228,9 @@ internal sealed class Updater(
 
     private async Task<bool> FetchAsync(ReleaseVersion version, Package package, CancellationToken stop)
     {
-        if (build.Catalog)
-        {
-            // A release build takes only files its signed catalog lists, and without the check here it takes none.
-            say($"thermi refused {version}: this build cannot check its catalog. Nothing installed changed.", EventLogEntryType.Warning);
-            return false;
-        }
-
         var download = await client.DownloadAsync(package, folder, stop);
         await using var zip = download.Zip;
-        var refused = zip is null ? download.Refused : Unpacker.Unpack(zip, folder, version, catalog: null);
+        var refused = zip is null ? download.Refused : Unpacker.Unpack(zip, folder, version, Catalog());
         if (refused is not null)
         {
             say($"thermi refused {version}: {refused}. Nothing installed changed.", EventLogEntryType.Warning);
@@ -246,6 +240,13 @@ internal sealed class Updater(
         say($"thermi {version} is ready, and switches when the PC is quiet.", EventLogEntryType.Information);
         return true;
     }
+
+    // A release build takes a version only when thermi's publisher signed its catalog and the catalog lists every file.
+    private Func<string, string?>? Catalog() => build.Publisher is { } publisher
+        ? unpacked => Authenticode.SignedBy(Path.Combine(unpacked, FileCatalog.Name), publisher)
+            ? FileCatalog.Lists(unpacked)
+            : $"its {FileCatalog.Name} is not signed by {publisher}"
+        : null;
 
     // A version ready switches when a quiet overlay says so, or when the service starts; a PC no one signs in to has no overlay.
     private void SwitchReady()
