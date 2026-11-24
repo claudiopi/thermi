@@ -158,6 +158,13 @@ public sealed class UpdateTests
             [Manifest.Beta] = new([]),
         };
 
+        // Nothing to promote or take back yet, and a rollout is a percentage.
+        Assert.NotNull(Levers.Promote(channels, Manifest.Beta, Manifest.Stable, rollout: 100, urgent: null, Now).Refused);
+        Assert.NotNull(Levers.RollBack(channels, Manifest.Stable, Now).Refused);
+        Assert.All(
+            (int[])[-1, 101],
+            rollout => Assert.NotNull(Levers.Publish(channels, Manifest.Stable, V("1.0.0"), zips, rollout, urgent: false, Now).Refused));
+
         // Stable's first version reaches beta too, which was behind.
         channels = Done(Levers.Publish(channels, Manifest.Stable, V("1.0.0"), zips, 100, urgent: false, Now));
         Assert.Equal("1.0.0 1.0.0", Offers(channels));
@@ -307,6 +314,7 @@ public sealed class UpdateTests
         var line = UpdateStatus.Of(policy, state, Now);
 
         Assert.Equal(kind, line.Kind);
+        Assert.Equal(built && !off, policy.Checks);
         Assert.Equal(beta, line.Beta);
         Assert.All(Texts.Languages, language =>
         {
