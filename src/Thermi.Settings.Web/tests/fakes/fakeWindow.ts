@@ -30,6 +30,7 @@ export function installFakeWindow(): void {
     ),
     failed: [],
     problem: state.problem === null ? null : say('ConfigProblemText.AtLine', '12', 'a comma is missing after "size": 1'),
+    lightTaskbar: false,
   });
 
   bridge.status = async () => status();

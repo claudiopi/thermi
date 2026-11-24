@@ -1,15 +1,16 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import type { PillTheme, Style, Value } from '../bridge/bridge.g';
+import type { Style, Value } from '../bridge/bridge.g';
 import { useEdit } from '../bridge/useWindow';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
 import { Button, CardRow, Popover, TextField } from '../kit';
 import { useText } from '../texts/Texts';
-import { colorChoices, colorblindSafe, hexColor, isColorblindSafe, levelDefaults, type ColorKey } from './lookModel';
+import { colorChoices, colorblindSafe, hexColor, isColorblindSafe, levelDefaults, pillsShown, type ColorKey } from './lookModel';
 
 export interface ColorsCardProps {
   overlay: number;
   style: Style | undefined;
+  lightTaskbar: boolean;
   open: boolean;
   onOpen: (open: boolean) => void;
 }
@@ -32,7 +33,7 @@ const words = {
 } as const;
 
 /** The color a swatch shows while the look leaves it out: the level's default, or the pills' text. */
-function fallbackOf(key: ColorKey, pills: PillTheme): string {
+function fallbackOf(key: ColorKey, pills: 'dark' | 'light'): string {
   const light = pills === 'light';
   switch (key) {
     case 'normal':
@@ -153,11 +154,11 @@ function Swatch({ name, color, fallback, filledDefault, choices, onColor }: Swat
   );
 }
 
-export function ColorsCard({ overlay, style, open, onOpen }: ColorsCardProps) {
+export function ColorsCard({ overlay, style, lightTaskbar, open, onOpen }: ColorsCardProps) {
   const t = useText();
   const edit = useEdit();
   const colors = style?.colors ?? {};
-  const pills = style?.pills ?? 'system';
+  const pills = pillsShown(style?.pills ?? 'system', lightTaskbar);
   const setColors = (next: { [key in ColorKey]?: string | undefined }): void =>
     void edit({ kind: 'style', overlay, field: 'colors', value: colorsValue(next) });
   // Its word under it is what the swatch's name already tells Narrator.

@@ -47,6 +47,11 @@ export function shownStyle(style: Style | undefined): ShownStyle {
   };
 }
 
+/** The pills a look draws, as the overlay does: "Match taskbar" takes the taskbar's mode, never the window's own theme. */
+export function pillsShown(pills: PillTheme, lightTaskbar: boolean): 'dark' | 'light' {
+  return pills === 'system' ? (lightTaskbar ? 'light' : 'dark') : pills;
+}
+
 /** The meter's colors that "Colorblind-safe" sets: Okabe-Ito's blue, orange and vermilion. */
 export const colorblindSafe = { normal: '#0072B2', warning: '#E69F00', critical: '#D55E00' } as const;
 

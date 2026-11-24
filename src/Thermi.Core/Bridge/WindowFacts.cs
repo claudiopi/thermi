@@ -19,7 +19,12 @@ public sealed record WindowStatus(
     bool Driver,
     IReadOnlyList<HotkeyRole> Hotkeys,
     IReadOnlyList<HotkeyRole> Failed,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Problem);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Problem)
+{
+    /// <summary>Whether Windows' taskbar is light, which a look's "Match taskbar" pills take in the window as on the overlay.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public bool LightTaskbar { get; init; }
+}
 
 /// <summary>The steps Undo and Redo would take, worded as "Critical 84 → 85 °C", or null when there is none.</summary>
 public sealed record UndoSteps(

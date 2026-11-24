@@ -391,6 +391,7 @@ export interface WindowStatus {
   hotkeys: HotkeyRole[];
   failed: HotkeyRole[];
   problem: string | null;
+  lightTaskbar: boolean;
 }
 
 export type WindowTheme = 'system' | 'light' | 'dark';

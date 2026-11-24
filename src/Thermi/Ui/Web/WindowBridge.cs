@@ -42,6 +42,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly PageWatch _watch;
     private readonly WindowFixes _fixes;
     private Texts _texts;
+    private bool _lightTaskbar = Desktop.LightTaskbar();
 
     public WindowBridge(WindowStart start, WindowEditor editor, ChartHistory chart, Action<Action> onTurn)
     {
@@ -99,7 +100,11 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     /// <summary>The monitors, the taskbars or a setting of Windows changed: the page reads all again.</summary>
-    public void DesktopChanged() => Tell();
+    public void DesktopChanged()
+    {
+        _lightTaskbar = Desktop.LightTaskbar();
+        Tell();
+    }
 
     public void Pick(DesktopPickEventArgs pick) => Picked?.Invoke(this, pick);
 
@@ -314,14 +319,18 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     // What reads the readings waits for the first ones, as PageWatch says.
     private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);
 
-    private WindowStatus StatusNow() => WindowFacts.Status(
-        _editor.Config,
-        _start.Environment.Sensors.State,
-        _start.Environment.Sensors.Latest,
-        _looks.AnySaved,
-        _watch.Hotkeys,
-        _editor.Problem,
-        _views.Format(_texts));
+    private WindowStatus StatusNow()
+    {
+        var status = WindowFacts.Status(
+            _editor.Config,
+            _start.Environment.Sensors.State,
+            _start.Environment.Sensors.Latest,
+            _looks.AnySaved,
+            _watch.Hotkeys,
+            _editor.Problem,
+            _views.Format(_texts));
+        return status with { LightTaskbar = _lightTaskbar };
+    }
 
     // An undo or a redo, named before it runs, and what it changed back once it did; null when it changed nothing.
     private Undone? TakeBack(StepName? name, Func<UndoResult?> take, bool redo = false)

@@ -5,7 +5,7 @@ import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
-import { fontFamilies, levelDefaults, meterSegments, pillSizes, shownStyle, weights, type ShownStyle } from './lookModel';
+import { fontFamilies, levelDefaults, meterSegments, pillSizes, pillsShown, shownStyle, weights, type ShownStyle } from './lookModel';
 import { useLooks } from './useOverlayReads';
 
 export interface LookCardProps {
@@ -38,7 +38,15 @@ function SampleMeter({ look, metered, segment }: { look: ShownStyle; metered: Me
 }
 
 /** A look's sample pill: the overlay's first label, meter and value, in the look's theme, colors, sizes, font and corners. */
-function Sample({ look, label, value, metered }: { look: Style; label: string; value: string; metered: Metered | null }) {
+interface SampleProps {
+  look: Style;
+  label: string;
+  value: string;
+  metered: Metered | null;
+  lightTaskbar: boolean;
+}
+
+function Sample({ look, label, value, metered, lightTaskbar }: SampleProps) {
   const shown = shownStyle(look);
   const sizes = pillSizes(shown);
   const warning = shown.colors.warning;
@@ -51,7 +59,7 @@ function Sample({ look, label, value, metered }: { look: Style; label: string; v
     fontFamily: fontFamilies[shown.font],
   };
   return (
-    <span className={`t-pill t-pill-${shown.pills}`} style={pill} aria-hidden="true">
+    <span className={`t-pill t-pill-${pillsShown(shown.pills, lightTaskbar)}`} style={pill} aria-hidden="true">
       <span className="t-pill-label" style={{ fontSize: shown.label.size, fontWeight: weights[shown.label.weight], color: shown.colors.label }}>
         {label}
       </span>
@@ -164,7 +172,7 @@ export function LookCard({ data, overlay }: LookCardProps) {
         className={`t-look${on ? ' t-on' : ''}`}
         onClick={() => choose(name)}
       >
-        <Sample look={name === null ? {} : (looks[name] ?? {})} label={label} value={value} metered={metered} />
+        <Sample look={name === null ? {} : (looks[name] ?? {})} label={label} value={value} metered={metered} lightTaskbar={data.status.lightTaskbar} />
         <span className="t-look-name">{shown}</span>
       </button>
     );
