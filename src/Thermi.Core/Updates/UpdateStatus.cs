@@ -2,13 +2,11 @@ using Thermi.Core.Translations;
 
 namespace Thermi.Core.Updates;
 
-/// <summary>What About says about updates.</summary>
 public enum UpdateLineKind
 {
     /// <summary>A build from the repo, which never checks.</summary>
     NotUpdating,
 
-    /// <summary>The PC's policy turned updates off.</summary>
     TurnedOff,
 
     /// <summary>A version waits for a quiet moment.</summary>
@@ -17,14 +15,11 @@ public enum UpdateLineKind
     /// <summary>No check has worked for <see cref="UpdateStatus.Stale"/>, since <see cref="UpdateLine.At"/>.</summary>
     Unreached,
 
-    /// <summary>Up to date, as of <see cref="UpdateLine.At"/>.</summary>
     UpToDate,
 
-    /// <summary>Updates are on, and no check has been made yet.</summary>
     NotChecked,
 }
 
-/// <summary>About's line on updates: what it says, whether the PC follows beta, and the version or the time it names.</summary>
 public sealed record UpdateLine(UpdateLineKind Kind, bool Beta, ReleaseVersion? Version = null, DateTimeOffset? At = null);
 
 /// <summary>The one line About shows on updates; nothing else ever shows one, since an update is meant to go unseen.</summary>
@@ -61,10 +56,6 @@ public static class UpdateStatus
             : new UpdateLine(UpdateLineKind.NotChecked, beta);
     }
 
-    /// <summary>
-    /// <paramref name="line"/> in <paramref name="texts"/>' words, its date as <paramref name="numbers"/> writes one in
-    /// <paramref name="zone"/>.
-    /// </summary>
     public static string Say(UpdateLine line, Texts texts, IFormatProvider numbers, TimeZoneInfo zone)
     {
         var date = line.At is { } at ? TimeZoneInfo.ConvertTime(at, zone).ToString("d", numbers) : "";

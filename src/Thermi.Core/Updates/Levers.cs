@@ -5,7 +5,6 @@ namespace Thermi.Core.Updates;
 /// <summary>Every manifest a channel published, oldest first: the last is what it serves, the rest are what a rollback reaches.</summary>
 public sealed record ChannelHistory(IReadOnlyList<Manifest> Published)
 {
-    /// <summary>How many manifests a channel remembers.</summary>
     public const int Kept = 50;
 
     public Manifest? Current => Published.Count > 0 ? Published[^1] : null;
@@ -18,7 +17,6 @@ public sealed record ChannelHistory(IReadOnlyList<Manifest> Published)
     public ChannelHistory With(Manifest manifest) => new([.. Published.Skip(Math.Max(0, Published.Count + 1 - Kept)), manifest]);
 }
 
-/// <summary>What a lever did: each channel's history after it, or why it refused, which changes nothing.</summary>
 public sealed record LeverResult(IReadOnlyDictionary<string, ChannelHistory> Channels, string? Refused = null);
 
 /// <summary>
@@ -118,7 +116,6 @@ public static class Levers
     public static LeverResult Disable(IReadOnlyDictionary<string, ChannelHistory> channels, string channel, DateTimeOffset now) =>
         Again(channels, channel, now, manifest => manifest with { Disabled = true });
 
-    /// <summary>The channel's manifest as it is, signed again before it expires.</summary>
     public static LeverResult Refresh(IReadOnlyDictionary<string, ChannelHistory> channels, string channel, DateTimeOffset now) =>
         Again(channels, channel, now, manifest => manifest);
 

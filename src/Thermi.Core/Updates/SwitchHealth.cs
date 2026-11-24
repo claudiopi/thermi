@@ -1,6 +1,5 @@
 namespace Thermi.Core.Updates;
 
-/// <summary>Where a new version's trial stands.</summary>
 public enum Verdict
 {
     Waiting,
@@ -8,7 +7,6 @@ public enum Verdict
     Failed,
 }
 
-/// <summary>What the service does as it starts, after reading the switch it may have left.</summary>
 public enum StartStep
 {
     /// <summary>Serve; put the launchers of the version it is back in place, should they be missing or another's.</summary>
@@ -44,13 +42,11 @@ public static class SwitchHealth
     public static Verdict Overlay(int ticks, bool cameUp, bool exited) =>
         cameUp ? Verdict.Passed : exited || ticks >= OverlayTicks ? Verdict.Failed : Verdict.Waiting;
 
-    /// <summary>The state once a switch to <paramref name="to"/> is written down, before anything changes.</summary>
     public static UpdateState Begin(UpdateState state, ReleaseVersion to) => state with
     {
         Switch = new PendingSwitch(state.Installed ?? to, to, state.Switch is { } cut && cut.To == to ? cut.Cuts : 0, Running: true),
     };
 
-    /// <summary>The state once the PC runs <paramref name="state"/>'s switch for good, its new service running.</summary>
     public static UpdateState Done(UpdateState state, DateTimeOffset now)
     {
         var pending = state.Switch ?? throw new InvalidOperationException("No switch was written down.");

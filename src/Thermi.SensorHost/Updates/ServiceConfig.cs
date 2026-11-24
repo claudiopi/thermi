@@ -25,7 +25,6 @@ internal sealed class ServiceConfig(InstallFolder folder)
         Change(Elevated, $"\"{exe}\" --elevated");
     }
 
-    /// <summary>Stops the service and waits until its process let go of its files.</summary>
     public static void Stop()
     {
         using var service = new ServiceController(SensorService.Name);

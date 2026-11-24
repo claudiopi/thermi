@@ -15,7 +15,6 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, bo
 {
     public bool Built => From is not null;
 
-    /// <summary>The release key's SHA-256, which a revocation names.</summary>
     public string? ReleaseKeyHash => Release is null ? null : Convert.ToHexStringLower(SHA256.HashData(Release));
 
     public static UpdateBuild Of(Assembly assembly)
@@ -41,7 +40,6 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, bo
         return UpdatePolicy.Of(Built, key?.GetValue(UpdatePolicy.UpdatesValue), key?.GetValue(UpdatePolicy.ChannelValue));
     }
 
-    /// <summary>The address of <paramref name="channel"/>'s manifest.</summary>
     public Uri ManifestOf(string channel) => new(From!, $"{channel}.json");
 
     private static byte[]? Key(Dictionary<string, string> metadata, string name)

@@ -2,7 +2,6 @@ using System.Globalization;
 
 namespace Thermi.Core.Updates;
 
-/// <summary>What a manifest moves the service to do.</summary>
 public enum PlanKind
 {
     /// <summary>Nothing: the PC runs what the channel offers it, or may not take it.</summary>
@@ -17,14 +16,12 @@ public enum PlanKind
     /// <summary>The version ready already is the one offered; <see cref="Plan.Urgent"/> says whether it is urgent now.</summary>
     Keep,
 
-    /// <summary>The version ready is no longer offered: delete it.</summary>
     DropReady,
 
     /// <summary>The installed version is withdrawn: switch back to the kept <see cref="Plan.Version"/>.</summary>
     RollBack,
 }
 
-/// <summary>What to do, and with which version and zip.</summary>
 public sealed record Plan(PlanKind Kind, ReleaseVersion? Version = null, Package? Package = null, bool Urgent = false, string? Refused = null);
 
 /// <summary>

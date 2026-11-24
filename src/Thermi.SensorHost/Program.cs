@@ -178,7 +178,6 @@ internal sealed class SensorService : ServiceBase
         CanShutdown = true;
     }
 
-    /// <summary>The updater, told of the service's start, stop and the overlay's code; none outside an installed layout.</summary>
     public Updater? Updates { get; init; }
 
     /// <summary>

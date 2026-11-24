@@ -21,7 +21,6 @@ public sealed record UpdatePolicy(bool Built, bool TurnedOff, string Channel)
         channel is string named && string.Equals(named.Trim(), Manifest.Beta, StringComparison.OrdinalIgnoreCase) ? Manifest.Beta : Manifest.Stable);
 }
 
-/// <summary>When the service checks, what it may download, and when a ready version may switch.</summary>
 public static class UpdateSchedule
 {
     /// <summary>After the service starts: long enough to stay out of Windows' own start.</summary>
@@ -29,10 +28,8 @@ public static class UpdateSchedule
 
     public static readonly TimeSpan Every = TimeSpan.FromHours(4);
 
-    /// <summary>How long a session must go without input to be quiet.</summary>
     public static readonly TimeSpan Idle = TimeSpan.FromMinutes(3);
 
-    /// <summary>Whether a resume from sleep is a reason to check now: the last check is <see cref="Every"/> old, or none was made.</summary>
     public static bool DueOnResume(DateTimeOffset now, DateTimeOffset? lastCheck) => lastCheck is not { } last || now - last >= Every;
 
     /// <summary>On a metered network only an urgent version downloads; the check itself is a few hundred bytes.</summary>
@@ -47,5 +44,4 @@ public static class UpdateSchedule
         !session.WindowOpen && !session.Dragging && (urgent || session.SinceInput >= Idle || session.Locked || session.AllHidden);
 }
 
-/// <summary>What a session's overlay knows of the moment: its window, a drag, the time since the last input, the lock and its overlays.</summary>
 public sealed record SessionFacts(bool WindowOpen, bool Dragging, TimeSpan SinceInput, bool Locked, bool AllHidden);

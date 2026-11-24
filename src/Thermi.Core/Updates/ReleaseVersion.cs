@@ -14,7 +14,6 @@ public sealed record ReleaseVersion(int Major, int Minor, int Patch, string? Sta
 {
     private static readonly string[] Stages = ["beta", "rc"];
 
-    /// <summary>The version <paramref name="text"/> writes, or null when it is not one.</summary>
     public static ReleaseVersion? Parse(string? text)
     {
         if (text is null || text.Length > 40)
@@ -92,7 +91,6 @@ public sealed record ReleaseVersion(int Major, int Minor, int Patch, string? Sta
             : null;
 }
 
-/// <summary>A version as the string it writes, refused when it is not one.</summary>
 public sealed class ReleaseVersionJson : JsonConverter<ReleaseVersion>
 {
     public override ReleaseVersion Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>

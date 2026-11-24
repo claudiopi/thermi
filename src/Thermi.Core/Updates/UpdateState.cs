@@ -29,7 +29,6 @@ public sealed record UpdateState
     /// <summary>The version before it, kept whole for a rollback.</summary>
     public ReleaseVersion? Previous { get; init; }
 
-    /// <summary>A version downloaded, checked and unpacked, waiting for its switch.</summary>
     public ReleaseVersion? Ready { get; init; }
 
     public bool ReadyUrgent { get; init; }

@@ -52,7 +52,6 @@ public sealed record Manifest
     public IReadOnlyList<ReleaseVersion> Withdrawn { get; init; } = [];
 }
 
-/// <summary>Why a manifest's envelope was refused.</summary>
 public enum ManifestProblem
 {
     TooLong,
@@ -61,7 +60,6 @@ public enum ManifestProblem
     Invalid,
 }
 
-/// <summary>The manifest an envelope holds, or why it was refused.</summary>
 public sealed record ManifestRead(Manifest? Manifest, ManifestProblem? Problem, bool Backup = false);
 
 /// <summary>
@@ -168,7 +166,6 @@ public static class ManifestEnvelope
         && package.Sha256.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f');
 }
 
-/// <summary>An envelope as the file holds it.</summary>
 public sealed record Envelope(string Manifest, string Signature);
 
 [JsonSourceGenerationOptions(

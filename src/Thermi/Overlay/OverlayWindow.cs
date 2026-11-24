@@ -45,7 +45,6 @@ internal sealed class OverlayWindow : IDisposable
 
     // OLED care moves the overlay by how long it has run.
     private readonly long _started;
-    /// <summary>Whether the overlay is on the screen now.</summary>
     public bool OnScreen { get; private set; }
 
     // The last scene painted, which the glow's frames paint again, and what it drew.

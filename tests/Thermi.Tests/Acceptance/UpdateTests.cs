@@ -1,5 +1,8 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Updates;
 
@@ -137,6 +140,7 @@ public sealed class UpdateTests
         // A reboot with no switch under way changes nothing.
         Assert.Equal(cut, SwitchHealth.Started(cut, V("1.2.0"), Now).State);
     }
+
     [Fact]
     public void LeversNeverSendAPcBackward()
     {
@@ -186,6 +190,47 @@ public sealed class UpdateTests
         Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), release, backup).Problem);
         Assert.True(ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, backupKey), release, backup).Backup);
         Assert.Equal(ManifestProblem.NotSigned, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), null, backup).Problem);
+
+        // What a server or a cache could serve instead of an envelope, and a history read back as the levers wrote it.
+        var sealedOne = ManifestEnvelope.Seal(rolledBack, key);
+        Assert.Equal(ManifestProblem.TooLong, ManifestEnvelope.Open(new byte[ManifestEnvelope.MaxBytes + 1], release, backup).Problem);
+        Assert.All(
+            (string[])["", "{", "[]", """{ "manifest": "not base64", "signature": "" }"""],
+            served => Assert.Equal(ManifestProblem.Malformed, ManifestEnvelope.Open(Encoding.UTF8.GetBytes(served), release, backup).Problem));
+        var notAManifest = Encoding.UTF8.GetBytes($$"""{ "manifest": "{{Convert.ToBase64String("[1]"u8)}}", "signature": "{{Convert.ToBase64String(key.SignData("[1]"u8, HashAlgorithmName.SHA256))}}" }""");
+        Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(notAManifest, release, backup).Problem);
+        Assert.Equal(ManifestProblem.NotSigned, ManifestEnvelope.Open(sealedOne, [1, 2, 3], [4, 5, 6]).Problem);
+        Assert.Equal(rolledBack, ManifestEnvelope.Peek(sealedOne), ManifestComparer.Instance);
+        var history = channels[Manifest.Stable];
+        Assert.Equal(history.Published, ChannelHistory.Read(history.Write()).Published, ManifestComparer.Instance);
+        Assert.Empty(ChannelHistory.Read(null).Published);
+        Assert.Throws<JsonException>(() => ChannelHistory.Read("{"));
+    }
+
+    // The service's own files and the folders it names: a version is read strictly, since it names a folder, a state file
+    // broken or missing is a PC that knows nothing yet, and a version rolled back to finds its settings' copy again.
+    [Fact]
+    public void WhatTheUpdaterReadsBackIsReadStrictly()
+    {
+        Assert.All(
+            (string?[])[null, "", "1.2", "1.2.3.4", "01.2.3", "1.2.x", "1.2.3-alpha.1", "1.2.3-rc.0", "1.2.3-beta", @"..\1.2.3", new string('1', 41)],
+            text => Assert.Null(ReleaseVersion.Parse(text)));
+        Assert.True(V("1.2.3-beta.2") < V("1.2.3-rc.1") && V("1.2.3-rc.1") < V("1.2.3") && V("1.2.3") < V("1.10.0"));
+        Assert.True(V("1.0.0") > null && V("1.0.0") >= V("1.0.0") && V("1.0.0") <= V("1.0.0"));
+        Assert.Equal("1.2.3-rc.4", V("1.2.3-rc.4").ToString());
+
+        var state = new UpdateState { Installed = V("1.2.0"), Previous = V("1.1.0"), Failed = [V("1.3.0")] }.WithSequence(Manifest.Beta, 7);
+        var read = UpdateState.Read(state.Write());
+        Assert.Equal((state.Installed, state.Previous, 7L, 0L), (read.Installed, read.Previous, read.SequenceOf(Manifest.Beta), read.SequenceOf(Manifest.Stable)));
+        Assert.Equal(state.Failed, read.Failed);
+        Assert.All((string?[])[null, "", "{", "null", """{ "installed": "../x" }"""], text => Assert.Null(UpdateState.Read(text).Installed));
+
+        const string File = @"C:\settings\config.json";
+        string[] kept = ["config.v3-2026-01-01-000000.json", "config.v4-2026-01-02-000000.json", "config.v4-2026-03-01-000000.json", "config.broken-2026-04-01-000000.json"];
+        Assert.Equal("config.v4-2026-03-01-000000.json", KeptCopies.Newest(kept.Select(name => @"C:\settings\" + name), File, 4));
+        Assert.Null(KeptCopies.Newest(kept, File, 5));
+        var taken = new HashSet<string>(StringComparer.Ordinal) { @"C:\settings\config.v5-2026-11-24-210000.json" };
+        Assert.Equal(@"C:\settings\config.v5-2026-11-24-210000-2.json", KeptCopies.Name(File, "v5", Now, taken.Contains));
     }
 
     // A build without a key, the policy, a version ready, the last successful check or the first, in days ago, and beta.

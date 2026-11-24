@@ -32,7 +32,6 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
     private UpdateState _known = new();
     private DateTimeOffset _told = DateTimeOffset.MinValue;
 
-    /// <summary>The version the overlay closed to hand over to, or null.</summary>
     public ReleaseVersion? Leaving { get; private set; }
 
     public void Tick()

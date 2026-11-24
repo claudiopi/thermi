@@ -43,7 +43,6 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         }
     }
 
-    /// <summary>The service's side: writes the switch to <paramref name="to"/> down, then starts the watchdog.</summary>
     public void Begin(UpdateState state, ReleaseVersion to, ReleaseVersion self)
     {
         folder.Write(SwitchHealth.Begin(state, to));

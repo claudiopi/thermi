@@ -13,7 +13,6 @@ namespace Thermi.SensorHost.Updates;
 internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestClient client, TimeProvider time, Action<string, EventLogEntryType> say)
     : IDisposable
 {
-    /// <summary>The control code an overlay sends when its session is quiet.</summary>
     public const int QuietCode = 128;
 
     private static readonly TimeSpan QuietEvery = TimeSpan.FromMinutes(1);
@@ -58,7 +57,6 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         }
     }
 
-    /// <summary>After Windows resumes: checks soon when the last check is old enough.</summary>
     public void Resumed()
     {
         if (UpdateSchedule.DueOnResume(time.GetUtcNow(), folder.Read().LastCheck))
@@ -118,7 +116,6 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         }
     }
 
-    /// <summary>One check: the manifest, and what Core's plan makes of it.</summary>
     public async Task CheckAsync(CancellationToken stop)
     {
         await _busy.WaitAsync(stop);
