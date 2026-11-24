@@ -1,6 +1,6 @@
 <Project Sdk="WixToolset.Sdk/5.0.2">
   <!-- The MSI of one version for one processor (docs/adr/0008-updates.md), built from that version's published folder:
-       `pwsh scripts/updates.ps1 pack --msi` builds it. Outside thermi.slnx, since it needs a publish first. -->
+       `pwsh scripts/updates.ps1 pack` builds it, given its MSI option. Outside thermi.slnx, since it needs a publish first. -->
   <PropertyGroup>
     <OutputType>Package</OutputType>
     <OutputName>thermi-$(ThermiVersion)-$(Platform)</OutputName>
