@@ -28,6 +28,9 @@ internal sealed class Switcher(
 
     private const int WriteTries = 5;
 
+    // ERROR_SERVICE_REQUEST_TIMEOUT: the service did not answer Windows in time.
+    private const int ServiceTimedOut = 1053;
+
     private readonly SwitchLock _lock = new(folder, time);
 
     /// <summary>Whether a watchdog is switching now, so the state is its own until it is done.</summary>
@@ -63,12 +66,13 @@ internal sealed class Switcher(
 
         var services = new ServiceConfig(folder);
         var started = false;
+        var timedOut = false;
         var squatted = new StrongBox<bool>();
         try
         {
             ServiceConfig.Stop();
             folder.ForgetPipeHeld();
-            StartOnce(services, pending, ref started);
+            StartOnce(services, pending, ref started, ref timedOut);
             if (await PollAsync(to, pipeName, squatted, stop) == Verdict.Passed)
             {
                 // Pointed for good, the version has passed: what fails after this is never held against it.
@@ -92,12 +96,12 @@ internal sealed class Switcher(
             say($"Switching to {to} failed, so the PC stays on {pending.From}: {ex.Message}", EventLogEntryType.Warning);
         }
 
-        GoBack(services, pending, started);
+        GoBack(services, pending, started ? SwitchHealth.Failed : timedOut ? SwitchHealth.Cut : state => state with { Switch = null });
         return 1;
     }
 
-    // A launcher a program holds open is put back at the version's next start; a state Windows would not let be written,
-    // tried a few times, is finished then too, from the switch it still says is running.
+    // A launcher a program holds open is put back at the next check; a state Windows would not let be written, tried a few
+    // times, is finished at the version's next start, from the switch it still says is running.
     private async Task FinishAsync(ReleaseVersion to, CancellationToken stop)
     {
         try
@@ -106,7 +110,7 @@ internal sealed class Switcher(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            say($"thermi could not put {to}'s launchers in place, and does at its next start: {ex.Message}", EventLogEntryType.Warning);
+            say($"thermi could not put {to}'s launchers in place, and does at its next check: {ex.Message}", EventLogEntryType.Warning);
         }
 
         for (var tried = 1; tried <= WriteTries; tried++)
@@ -131,7 +135,7 @@ internal sealed class Switcher(
 
     // Started and pointed back in one step, so the service is pointed at the new version only while it starts. Once
     // pointed, the new version ran, even if Windows then says it could not start it: it crashed as it began.
-    private static void StartOnce(ServiceConfig services, PendingSwitch pending, ref bool started)
+    private static void StartOnce(ServiceConfig services, PendingSwitch pending, ref bool started, ref bool timedOut)
     {
         services.Point(pending.To);
         started = true;
@@ -139,11 +143,12 @@ internal sealed class Switcher(
         {
             ServiceConfig.Start();
         }
-        catch (System.ServiceProcess.TimeoutException)
+        catch (InvalidOperationException ex) when (ex.InnerException is Win32Exception { NativeErrorCode: ServiceTimedOut })
         {
             // Windows gave up waiting, as under a boot's disk and antivirus: the version may be slow, not broken, so the
-            // switch is dropped and tried again rather than the version failed.
+            // switch is cut and tried once more rather than the version failed at once.
             started = false;
+            timedOut = true;
             throw;
         }
         finally
@@ -154,7 +159,7 @@ internal sealed class Switcher(
 
     // A version that started and failed is never taken again; a switch that never started it is only dropped, to try later.
     // The watchdog stopped the old version itself, which is no crash of it.
-    private void GoBack(ServiceConfig services, PendingSwitch pending, bool started)
+    private void GoBack(ServiceConfig services, PendingSwitch pending, Func<UpdateState, UpdateState> outcome)
     {
         try
         {
@@ -170,7 +175,7 @@ internal sealed class Switcher(
             services.Point(pending.From);
             folder.PlaceLaunchers(pending.From);
             var state = folder.Read();
-            folder.Write(SwitchHealth.Stopped(started ? SwitchHealth.Failed(state) : state with { Switch = null }));
+            folder.Write(SwitchHealth.Stopped(outcome(state)));
         }
         finally
         {

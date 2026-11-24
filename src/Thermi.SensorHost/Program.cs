@@ -293,16 +293,17 @@ internal sealed class SensorService : ServiceBase
 
     protected override void OnStop()
     {
-        // The server's failure stops the service with an error code: a crash, which counts against a version on probation.
-        if (ExitCode == 0)
-        {
-            Update(updates => updates.Stopped());
-        }
-
         _stop.Cancel();
 #pragma warning disable VSTHRD002 // OnStop is synchronous: Windows expects the service to have stopped when it returns.
         _running.Wait(5000, CancellationToken.None);
 #pragma warning restore VSTHRD002
+
+        // After the updater's check ended, so no write of its own takes the mark back. The server's failure stops the
+        // service with an error code: a crash, which counts against a version on probation.
+        if (ExitCode == 0)
+        {
+            Update(updates => updates.Stopped());
+        }
     }
 
     protected override void Dispose(bool disposing)

@@ -19,9 +19,21 @@ internal static class ThermiPaths
 
     public static string? State() => Updates is null || !Directory.Exists(Updates)
         ? null
-        : new DirectoryInfo(Updates).EnumerateFiles(UpdateState.SharedPrefix + "*.json").MaxBy(copy => copy.LastWriteTimeUtc)?.FullName;
+        : Directory.EnumerateFiles(Updates, UpdateState.SharedPrefix + "*.json").MaxBy(copy => UpdateState.SharedNumber(Path.GetFileName(copy)));
 
-    public static string OwnOf(ReleaseVersion version) => Path.Combine(Path.GetDirectoryName(Launcher)!, version.ToString(), "thermi.exe");
+    /// <summary>Whether the launcher at the top is the copy the version keeps under <c>launchers\</c>.</summary>
+    public static bool LauncherStarts(ReleaseVersion version)
+    {
+        try
+        {
+            var own = Path.Combine(Path.GetDirectoryName(Launcher)!, version.ToString(), "launchers", "thermi.exe");
+            return File.Exists(own) && File.ReadAllBytes(own).AsSpan().SequenceEqual(File.ReadAllBytes(Launcher));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>Whether <paramref name="path"/> is one of thermi's: an overlay and its window may run from either.</summary>
     public static bool IsThermi(string path) =>

@@ -6,10 +6,7 @@ using Thermi.Core.Updates;
 
 namespace Thermi.Tests.Acceptance;
 
-/// <summary>
-/// What the updates decide without Windows, spec 004: what a PC takes from a channel, when it may switch, whether a switch
-/// worked, the owner's levers, and About's line.
-/// </summary>
+/// <summary>What spec 004's updates decide without Windows: what a PC takes, when it switches, if that worked, the levers, About.</summary>
 public sealed class UpdateTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 24, 21, 0, 0, TimeSpan.Zero);
@@ -22,13 +19,14 @@ public sealed class UpdateTests
 
     private static Dictionary<string, Package> Zips(string processor, Package zip) => new(StringComparer.Ordinal) { [processor] = zip };
 
-    // The state as "installed previous ready failed bucket sequence", "-" for none; the manifest as "channel sequence version
-    // rollout", then its withdrawn versions and whether it is off. The answer is the plan's kind and version.
+    // The state as "installed previous ready failed bucket sequence", "-" for none, "refused" for the offered zip refused; the
+    // manifest as "channel sequence version rollout", its withdrawn versions and whether it is off. The answer: kind and version.
     [Theory]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100", "", false, "Download 1.3.0")]
     [InlineData("1.3.0 1.2.0 - - 10 1", "stable 2 1.3.0 100", "", false, "Nothing")]
     [InlineData("1.3.0 1.2.0 - - 10 1", "stable 2 1.2.0 100", "", false, "Nothing")]
     [InlineData("1.2.0 - - 1.3.0 10 1", "stable 2 1.3.0 100", "", false, "Nothing")]
+    [InlineData("1.2.0 - - refused 10 1", "stable 2 1.3.0 100", "", false, "Nothing")]
     [InlineData("1.2.0 - - - 50 1", "stable 2 1.3.0 50", "", false, "Nothing")]
     [InlineData("1.2.0 - - - 49 1", "stable 2 1.3.0 50", "", false, "Download 1.3.0")]
     [InlineData("1.2.0 - - - 49 1", "stable 3 1.3.0 80", "", false, "Download 1.3.0")]
@@ -55,7 +53,8 @@ public sealed class UpdateTests
             Installed = Maybe(None(s[0])),
             Previous = Maybe(None(s[1])),
             Ready = Maybe(None(s[2])),
-            Failed = None(s[3]) is { } failed ? [V(failed)] : [],
+            Failed = None(s[3]) is { } failed && failed != "refused" ? [V(failed)] : [],
+            Refused = s[3] == "refused" ? Zip.Sha256 : null,
             Bucket = int.Parse(s[4], System.Globalization.CultureInfo.InvariantCulture),
         }.WithSequence(Manifest.Stable, long.Parse(s[5], System.Globalization.CultureInfo.InvariantCulture));
         var offered = new Manifest
@@ -116,7 +115,8 @@ public sealed class UpdateTests
         Assert.Null(failed.Ready);
 
         // Once done, the new service runs; two of its runs that end without stopping, within ten minutes, send the PC back.
-        var done = SwitchHealth.Done(SwitchHealth.Begin(ready, V("1.3.0")), Now);
+        var done = SwitchHealth.Done(SwitchHealth.Begin(ready with { Refused = Zip.Sha256 }, V("1.3.0")), Now);
+        Assert.Null(done.Refused);
         var (second, step) = SwitchHealth.Started(done, V("1.3.0"), Now.AddSeconds(5));
         Assert.Equal(StartStep.Serve, step);
         Assert.Equal(StartStep.RollBack, SwitchHealth.Started(second, V("1.3.0"), Now.AddMinutes(1)).Step);
@@ -144,7 +144,7 @@ public sealed class UpdateTests
         Assert.Empty(cut.Failed);
         var cutTwice = SwitchHealth.Started(SwitchHealth.Begin(cut, V("1.3.0")), V("1.2.0"), Now).State;
         Assert.Equal("1.3.0", Assert.Single(cutTwice.Failed).ToString());
-
+        Assert.Equal(cutTwice.Failed, SwitchHealth.Cut(SwitchHealth.Begin(SwitchHealth.Cut(SwitchHealth.Begin(ready, V("1.3.0"))), V("1.3.0"))).Failed);
         // A reboot with no switch under way changes nothing.
         Assert.Equal(cut, SwitchHealth.Started(cut, V("1.2.0"), Now).State);
 
@@ -231,9 +231,8 @@ public sealed class UpdateTests
         // What a server or a cache could serve instead of an envelope, and a history read back as the levers wrote it.
         var sealedOne = ManifestEnvelope.Seal(rolledBack, key);
         Assert.Equal(ManifestProblem.TooLong, ManifestEnvelope.Open(new byte[ManifestEnvelope.MaxBytes + 1], release, backup).Problem);
-        Assert.All(
-            (string[])["", "{", "[]", """{ "manifest": "not base64", "signature": "" }"""],
-            served => Assert.Equal(ManifestProblem.Malformed, ManifestEnvelope.Open(Encoding.UTF8.GetBytes(served), release, backup).Problem));
+        Assert.All((string[])["", "{", "[]", """{ "manifest": "not base64", "signature": "" }"""], served =>
+            Assert.Equal(ManifestProblem.Malformed, ManifestEnvelope.Open(Encoding.UTF8.GetBytes(served), release, backup).Problem));
         var signed = Convert.ToBase64String(key.SignData("[1]"u8, HashAlgorithmName.SHA256));
         var notAManifest = Encoding.UTF8.GetBytes($$"""{ "manifest": "{{Convert.ToBase64String("[1]"u8)}}", "signature": "{{signed}}" }""");
         Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(notAManifest, release, backup).Problem);
@@ -283,9 +282,8 @@ public sealed class UpdateTests
             good with { Packages = Zips("x64", Zip with { Sha256 = "ab" }) },
         ];
 
-        Assert.All(
-            refused,
-            manifest => Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(ManifestEnvelope.Seal(manifest, key), release, release).Problem));
+        Assert.All(refused, manifest =>
+            Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(ManifestEnvelope.Seal(manifest, key), release, release).Problem));
         var local = good with { Packages = Zips("arm64", Zip with { Url = new Uri("http://127.0.0.1:8765/v1/z.zip") }) };
         Assert.Null(ManifestEnvelope.Open(ManifestEnvelope.Seal(local, key), release, release).Problem);
     }

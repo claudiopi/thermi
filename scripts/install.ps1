@@ -65,6 +65,7 @@ function Install-Version([string]$From, [string]$Hash) {
         Stop-Overlay
         & (Join-Path $copy 'thermi-sensors.exe') --adopt
         if ($LASTEXITCODE -ne 0) { throw "thermi-sensors.exe --adopt failed (exit code $LASTEXITCODE), and left the thermi installed before." }
+& (Join-Path $copy 'thermi-sensors.exe') --forget
     }
     finally {
         Remove-Item $copy -Recurse -Force -ErrorAction SilentlyContinue

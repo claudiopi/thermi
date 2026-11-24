@@ -105,12 +105,13 @@ public sealed class InstallationTests : IAsyncDisposable
     }
 
     // The MSI's rollback, after an install that went well, or that left a later version an update switched to running,
-    // with what an install before it recorded still in update\.
+    // with what an install before it recorded still in update\; once the install committed, a later rollback keeps it.
     [Theory]
-    [InlineData("a thermi")]
-    [InlineData("nothing")]
-    [InlineData("a later version")]
-    public async Task AnInstallRolledBackLeavesWhatWasThere(string there)
+    [InlineData("a thermi", false)]
+    [InlineData("nothing", false)]
+    [InlineData("a later version", false)]
+    [InlineData("a thermi", true)]
+    public async Task AnInstallRolledBackLeavesWhatWasThere(string there, bool committed)
     {
         if (there == "nothing")
         {
@@ -131,9 +132,11 @@ public sealed class InstallationTests : IAsyncDisposable
         var stop = TestContext.Current.CancellationToken;
 
         var adopted = await installation.AdoptAsync(UpdatePc.Built, Setup, "{PRODUCT}", stop);
+        var installed = Snapshot();
+        var forgot = committed ? installation.Forget(Setup) : 0;
         var undone = await installation.UndoAsync(UpdatePc.Built, Setup, stop);
 
-        Assert.Equal((0, 0, before), (adopted, undone, Snapshot()));
+        Assert.Equal((0, 0, 0, committed ? installed : before), (adopted, forgot, undone, Snapshot()));
     }
 
     // A watchdog switching versions holds the lock: the install waits for it rather than change the services under it.

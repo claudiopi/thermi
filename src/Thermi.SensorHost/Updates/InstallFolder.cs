@@ -1,5 +1,4 @@
 using System.Security.AccessControl;
-using System.Security.Cryptography;
 using Thermi.Core.Updates;
 
 namespace Thermi.SensorHost.Updates;
@@ -18,8 +17,6 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
     public string Update => Path.Combine(top, "update");
 
     private string StatePath => Path.Combine(Update, UpdateState.FileName);
-
-
 
     private string Trash => Path.Combine(Update, "trash");
 
@@ -125,12 +122,14 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
     // open stays until a later write.
     private void Share(string? text)
     {
-        var older = Directory.EnumerateFiles(Update, UpdateState.SharedPrefix + "*.json").ToList();
+        // Every copy and a write cut short, its .new, goes once the next is in place.
+        var older = Directory.EnumerateFiles(Update, UpdateState.SharedPrefix + "*").ToList();
+        var next = (older.Max(path => UpdateState.SharedNumber(Path.GetFileName(path))) ?? 0) + 1;
         try
         {
             if (text is not null)
             {
-                Whole(Path.Combine(Update, $"{UpdateState.SharedPrefix}{Convert.ToHexString(RandomNumberGenerator.GetBytes(8))}.json"), text, security: null);
+                Whole(Path.Combine(Update, $"{UpdateState.SharedPrefix}{next}.json"), text, security: null);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

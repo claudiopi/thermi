@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using Thermi.Core.Updates;
 using Thermi.Releases;
 
-namespace Thermi.Windows.Tests.Updates;
+namespace Thermi.Tests.Acceptance;
 
 /// <summary>The owner's channel folder: a lever signs only what a PC opens, and never over a history it cannot trust.</summary>
 public sealed class ChannelFolderTests : IDisposable
@@ -22,11 +22,32 @@ public sealed class ChannelFolderTests : IDisposable
         Assert.NotNull(folder.Refuses(before, after, _release));
         Assert.Null(folder.Refuses(before, after, _backup));
         Assert.Null(folder.Refuses(Empty(), before, _release));
+        Assert.Null(folder.Refuses(after, after, _release));
     }
 
-    // A history neither key signed, or gone while its channel serves, stops every lever; a channel never published starts empty.
+    // keys writes both pairs or none: never over a key, nor half a pair beside the other's half.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("backup.pub.pem")]
+    public void KeysNeverWriteOverAKey(string? there)
+    {
+        var folder = new DirectoryInfo(Path.Combine(_root, "keys"));
+        folder.Create();
+        if (there is not null)
+        {
+            File.WriteAllText(Path.Combine(folder.FullName, there), "kept");
+        }
+
+        var refused = KeyFiles.MakeIn(folder);
+
+        Assert.Equal(there is not null, refused is not null);
+        Assert.Equal(there is null ? KeyFiles.Names.Count : 1, folder.GetFiles().Length);
+    }
+
+    // A history neither key signed, a signed manifest in its place, or none while its channel serves stops every lever; a new channel starts empty.
     [Theory]
     [InlineData("planted")]
+    [InlineData("a manifest")]
     [InlineData("gone")]
     [InlineData("new")]
     public void ALeverSignsOnlyOverAHistoryItTrusts(string history)
@@ -38,6 +59,11 @@ public sealed class ChannelFolderTests : IDisposable
             using var stranger = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             folder.Write(Empty(), published, _release);
             File.WriteAllBytes(Path.Combine(_root, "history", Manifest.Stable + ".json"), published[Manifest.Stable].Seal(stranger));
+        }
+        else if (history == "a manifest")
+        {
+            folder.Write(Empty(), published, _release);
+            File.Copy(Path.Combine(_root, Manifest.Stable + ".json"), Path.Combine(_root, "history", Manifest.Stable + ".json"), overwrite: true);
         }
         else if (history == "gone")
         {

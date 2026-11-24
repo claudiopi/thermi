@@ -27,27 +27,26 @@ internal static class Unpacker
     /// Null when <paramref name="version"/> is unpacked into its folder, else why it was refused. <paramref name="catalog"/>
     /// checks a release's signed catalog over the folder, and is null in a build that needs none.
     /// </summary>
-    public static string? Unpack(Stream zip, InstallFolder folder, ReleaseVersion version, Func<string, string?>? catalog)
+    public static Refusal? Unpack(Stream zip, InstallFolder folder, ReleaseVersion version, Func<string, string?>? catalog)
     {
         var fresh = folder.Fresh("unpack-");
         if (fresh is null)
         {
-            return $"{folder.Update} is not a folder only administrators change";
+            return new($"{folder.Update} is not a folder only administrators change", ForTheZip: false);
         }
 
         try
         {
-            var refused = Extract(zip, fresh) ?? Versions(fresh, version) ?? catalog?.Invoke(fresh);
-            if (refused is not null)
+            if ((Extract(zip, fresh) ?? Versions(fresh, version) ?? catalog?.Invoke(fresh)) is { } refused)
             {
-                return refused;
+                return new(refused, ForTheZip: true);
             }
 
-            return folder.Place(fresh, version) ? null : $"{folder.VersionOf(version)} is in use";
+            return folder.Place(fresh, version) ? null : new($"{folder.VersionOf(version)} is in use", ForTheZip: false);
         }
         catch (InvalidDataException ex)
         {
-            return $"the zip is broken: {ex.Message}";
+            return new($"the zip is broken: {ex.Message}", ForTheZip: true);
         }
         finally
         {
@@ -57,6 +56,9 @@ internal static class Unpacker
             }
         }
     }
+
+    /// <summary>Why a zip was refused, and whether for what it holds, which fetching it again cannot change.</summary>
+    public sealed record Refusal(string Why, bool ForTheZip);
 
     private static string? Extract(Stream zip, string fresh)
     {

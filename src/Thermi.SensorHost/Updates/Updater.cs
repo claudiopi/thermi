@@ -279,11 +279,20 @@ internal sealed class Updater(
         }
 
         await using var zip = download.Zip;
-        var refused = zip is null ? download.Refused : Unpacker.Unpack(zip, folder, version, Catalog());
+        Unpacker.Refusal? refused;
+        try
+        {
+            refused = zip is null ? new Unpacker.Refusal(download.Refused!, ForTheZip: false) : Unpacker.Unpack(zip, folder, version, Catalog());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            refused = new Unpacker.Refusal(ex.Message, ForTheZip: false);
+        }
+
         if (refused is not null)
         {
-            say($"thermi refused {version}: {refused}. Nothing installed changed.", EventLogEntryType.Warning);
-            return zip is null ? Fetched.Later : Fetched.Refused;
+            say($"thermi refused {version}: {refused.Why}. Nothing installed changed.", EventLogEntryType.Warning);
+            return refused.ForTheZip ? Fetched.Refused : Fetched.Later;
         }
 
         say($"thermi {version} is ready, and switches when the PC is quiet.", EventLogEntryType.Information);

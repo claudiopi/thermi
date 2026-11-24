@@ -25,11 +25,18 @@ public sealed record UpdateState
     public const string FileName = "state.json";
 
     /// <summary>
-    /// The start of the copies of the state users read, as the overlay and About do, the newest of them: the service's own
-    /// is no user's to open, so none can hold it open against a write, and each copy is a new file, so a user holding one
-    /// keeps no one's view old.
+    /// The start of the copies of the state users read, as the overlay and About do, the highest numbered of them: the
+    /// service's own is no user's to open, so none can hold it open against a write, and each copy is a new file, so a user
+    /// holding one keeps no one's view old.
     /// </summary>
     public const string SharedPrefix = "status-";
+
+    /// <summary>The number of a users' copy, from its name, or null for no copy.</summary>
+    public static long? SharedNumber(string name) =>
+        name.StartsWith(SharedPrefix, StringComparison.Ordinal) && name.EndsWith(".json", StringComparison.Ordinal)
+        && long.TryParse(name.AsSpan(SharedPrefix.Length, name.Length - SharedPrefix.Length - ".json".Length), out var number)
+            ? number
+            : null;
 
     /// <summary>The version the launchers start.</summary>
     public ReleaseVersion? Installed { get; init; }
@@ -69,8 +76,8 @@ public sealed record UpdateState
     public string? RevokedKey { get; init; }
 
     /// <summary>
-    /// The SHA-256 of the last zip refused for what it holds, as a catalog this build cannot trust: never fetched again,
-    /// while another zip is.
+    /// The SHA-256 of the last zip refused for what it holds, as a catalog this build cannot trust: never fetched again
+    /// by this build, while another zip is. Another version installed, by a switch or by hand, forgets it.
     /// </summary>
     public string? Refused { get; init; }
 

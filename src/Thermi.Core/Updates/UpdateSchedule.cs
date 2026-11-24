@@ -20,7 +20,11 @@ public sealed record UpdatePolicy(bool Built, bool TurnedOff, string Channel)
     /// missing never updates rather than take any zip the manifest key alone signed.
     /// </summary>
     public static bool Updates(string? from, string? signers) =>
-        Uri.TryCreate(from, UriKind.Absolute, out var address) && (!string.IsNullOrWhiteSpace(signers) || address.IsLoopback);
+        Uri.TryCreate(from, UriKind.Absolute, out var address) && (Signers(signers).Length > 0 || address.IsLoopback);
+
+    /// <summary>The thumbprints a build's <c>ThermiUpdatesSigners</c> lists, separated by semicolons.</summary>
+    public static string[] Signers(string? signers) =>
+        signers?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
 
     /// <summary>The policy from the registry's values as read: <c>Updates</c> = 0 turns checks off, <c>UpdateChannel</c> = beta picks beta.</summary>
     public static UpdatePolicy Of(bool built, object? updates, object? channel) => new(

@@ -15,9 +15,9 @@ namespace Thermi.Updates;
 /// <summary>
 /// The overlay's side of updates (docs/adr/0008-updates.md), once a second on a timer of its own. While the service has a
 /// version ready, a quiet session tells it so with code 128. Once the service runs another version, the overlay switches
-/// itself at its own quiet moment: it closes as its tray's "Exit thermi" does, lets go of its single-instance mutex, starts
-/// the fixed launcher, and is done once the new overlay's host window shows; past 60 of its ticks it ends that process,
-/// runs its overlay again and leaves that version alone.
+/// itself at its own quiet moment once the fixed launcher starts that version: it closes as its tray's "Exit thermi" does,
+/// lets go of its single-instance mutex, starts the launcher, and is done once the new overlay's host window shows;
+/// past 60 of its ticks it ends that process, runs its overlay again and leaves that version alone.
 /// </summary>
 internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, TimeProvider time, ILogger log)
 {
@@ -45,7 +45,8 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
             var state = Read();
             if (state.Installed is { } installed && installed != _own && !_left.Contains(installed))
             {
-                if (UpdateSchedule.Quiet(facts(), state.InstalledUrgent))
+                // A launcher a program held stays the old one's until the service puts it back; the version's own program would lose the tray icons.
+                if (UpdateSchedule.Quiet(facts(), state.InstalledUrgent) && ThermiPaths.LauncherStarts(installed))
                 {
                     log.HandingOver(_own, installed);
                     Leaving = installed;
@@ -80,8 +81,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
         Process? successor;
         try
         {
-            // The version's own program, not the launcher at the top, which a program holding it may have left the old one's.
-            successor = Process.Start(new ProcessStartInfo(ThermiPaths.OwnOf(to)) { UseShellExecute = false });
+            successor = Process.Start(new ProcessStartInfo(ThermiPaths.Launcher) { UseShellExecute = false });
         }
         catch (Win32Exception ex)
         {

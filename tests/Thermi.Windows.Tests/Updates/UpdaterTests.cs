@@ -96,7 +96,7 @@ public sealed class UpdaterTests
         Assert.Equal(pc.Folder().StateText(), await File.ReadAllTextAsync(copy, TestContext.Current.CancellationToken));
     }
 
-    // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again; a download that failed is.
+    // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again by this build.
     [Fact]
     public async Task AZipRefusedForWhatItHoldsIsNotFetchedAgain()
     {

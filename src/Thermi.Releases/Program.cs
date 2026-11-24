@@ -49,13 +49,10 @@ internal static class Program
         command.SetAction(parsed =>
         {
             var folder = parsed.GetValue(output)!;
-            folder.Create();
-            foreach (var name in new[] { "release", "backup" })
+            if (KeyFiles.MakeIn(folder) is { } refused)
             {
-                using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-                // Never over a key there: the backup pair is the one every PC trusts once a release key is revoked.
-                New(Path.Combine(folder.FullName, name + ".key.pem"), key.ExportPkcs8PrivateKeyPem());
-                New(Path.Combine(folder.FullName, name + ".pub.pem"), key.ExportSubjectPublicKeyInfoPem());
+                Console.Error.WriteLine(refused);
+                return 1;
             }
 
             Console.WriteLine($"Wrote release and backup keys to {folder.FullName}. Keep the backup's private key offline.");
@@ -64,12 +61,6 @@ internal static class Program
         return command;
     }
 
-    private static void New(string path, string text)
-    {
-        using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
-        using var writer = new StreamWriter(file);
-        writer.Write(text);
-    }
 
     private static Command Publish()
     {

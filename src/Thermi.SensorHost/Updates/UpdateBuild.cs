@@ -37,9 +37,7 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, IR
     }
 
     private static string[]? SignersOf(Dictionary<string, string> metadata) =>
-        metadata.TryGetValue("ThermiUpdatesSigners", out var signers)
-            ? signers.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            : null;
+        metadata.TryGetValue("ThermiUpdatesSigners", out var signers) ? UpdatePolicy.Signers(signers) : null;
 
     public Uri ManifestOf(string channel) => new(From!, $"{channel}.json");
 

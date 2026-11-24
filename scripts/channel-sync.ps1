@@ -18,6 +18,11 @@ param(
     [string]$Bucket = 'thermi-updates')
 
 $ErrorActionPreference = 'Stop'
+
+# Conditional puts, --if-match and --if-none-match, came with AWS CLI 2.22: an older one would put over another run's.
+if ((aws --version) -notmatch '^aws-cli/(\d+)\.(\d+)' -or [version]"$($Matches[1]).$($Matches[2])" -lt [version]'2.22') {
+    throw "channel-sync.ps1 needs AWS CLI 2.22 or later, for conditional puts; this is $(aws --version)."
+}
 $endpoint = "https://$($env:R2_ACCOUNT_ID).r2.cloudflarestorage.com"
 $remote = "s3://$Bucket/v1"
 $fetched = "$Folder.fetched"
@@ -43,6 +48,8 @@ if ($Direction -eq 'down') {
         $tag = aws s3api head-object --bucket $Bucket --key "v1/$name" --query ETag --output text --endpoint-url $endpoint --region auto 2>$null
         $tags[$name] = $LASTEXITCODE -eq 0 ? $tag : $null
     }
+    # A sync skips a local file of the same size, and a history at its cap keeps its size: each is fetched afresh.
+    foreach ($name in $signed) { Remove-Item (Join-Path $Folder $name) -ErrorAction SilentlyContinue }
     Invoke-Aws @('s3', 'sync', $remote, $Folder, '--exclude', 'zips/*')
     if ($Version) { Invoke-Aws @('s3', 'sync', "$remote/zips/$Version", (Join-Path $Folder "zips/$Version")) }
     Remove-Item $fetched -Recurse -Force -ErrorAction SilentlyContinue
@@ -57,7 +64,8 @@ if (Test-Path (Join-Path $Folder 'zips')) {
 }
 
 # Each history before its manifest, each only if the bucket still holds what this run fetched: R2 refuses the put
-# otherwise, so of two runs that pulled levers at once, the second fails whole and is run again.
+# otherwise, so of two runs that pulled levers at once, the second fails at the first file both changed, a history, before any
+# manifest of the same channel lands, and is run again.
 $tags = Get-Content (Join-Path $fetched 'etags.json') -Raw | ConvertFrom-Json -AsHashtable
 $changed = $signed | Where-Object { (Get-Hash (Join-Path $Folder $_)) -ne (Get-Hash (Join-Path $fetched $_)) }
 foreach ($name in $changed | Sort-Object { $_ -notlike 'history/*' }) {

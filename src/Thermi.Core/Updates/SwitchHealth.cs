@@ -55,6 +55,7 @@ public static class SwitchHealth
         {
             Installed = pending.To,
             Previous = rollback ? null : pending.From,
+            Refused = null,
             Ready = state.Ready == pending.To ? null : state.Ready,
             ReadyUrgent = state.Ready != pending.To && state.ReadyUrgent,
             InstalledUrgent = !rollback && state.Ready == pending.To && state.ReadyUrgent,
@@ -105,6 +106,7 @@ public static class SwitchHealth
     {
         Installed = self,
         Probation = null,
+        Refused = null,
         Ready = state.Ready > self ? state.Ready : null,
         ReadyUrgent = state.Ready > self && state.ReadyUrgent,
     };
@@ -112,6 +114,12 @@ public static class SwitchHealth
     /// <summary>The state once the service stopped as asked, which is never a crash.</summary>
     public static UpdateState Stopped(UpdateState state) =>
         state.Probation is { } probation ? state with { Probation = probation with { Stopped = true } } : state;
+
+    /// <summary>
+    /// The switch under way cut because Windows gave up on the start: tried once more, then its version failed, so one
+    /// that never starts in time is not tried each quiet minute.
+    /// </summary>
+    public static UpdateState Cut(UpdateState state) => Cut(state, state.Switch ?? throw new InvalidOperationException("No switch was written down."));
 
     private static UpdateState Cut(UpdateState state, PendingSwitch pending)
     {
