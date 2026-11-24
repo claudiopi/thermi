@@ -24,6 +24,9 @@ internal interface IServiceManager
 
     /// <summary>Asks the service to stop; false when Windows refuses, as for one already stopped.</summary>
     bool Stop();
+
+    /// <summary>The exit code the service stopped with last.</summary>
+    int ExitCode();
 }
 
 /// <summary>
@@ -102,8 +105,8 @@ internal static class StartSensors
         return await RunAsync(manager, time).ConfigureAwait(false);
     }
 
-    /// <summary>"Start sensors" from <paramref name="exePath"/>, behind one UAC prompt, as <see cref="Elevated.AskAsync"/> runs it.</summary>
-    public static Task<int?> AskAsync(string exePath) => Elevated.AskAsync(exePath, Verb);
+    /// <summary>"Start sensors", behind one UAC prompt, as <see cref="Elevated.AskAsync(string)"/> runs it.</summary>
+    public static Task<int?> AskAsync() => Elevated.AskAsync(Verb);
 }
 
 /// <summary>Windows' service manager, for one service, as the elevated mode reaches it.</summary>
@@ -126,6 +129,13 @@ internal sealed class WindowsServices(string name) : IServiceManager
         return status.dwCurrentState == SERVICE_STATUS_CURRENT_STATE.SERVICE_RUNNING ? ServiceRun.Running
             : status.dwCurrentState == SERVICE_STATUS_CURRENT_STATE.SERVICE_STOPPED ? ServiceRun.Stopped
             : ServiceRun.Changing;
+    }
+
+    public int ExitCode()
+    {
+        using var manager = PInvoke.OpenSCManager(null, null, PInvoke.SC_MANAGER_CONNECT);
+        using var service = PInvoke.OpenService(manager, name, PInvoke.SERVICE_QUERY_STATUS);
+        return !service.IsInvalid && PInvoke.QueryServiceStatus(service, out var status) ? (int)status.dwWin32ExitCode : StartSensors.Failed;
     }
 
     public bool Start()

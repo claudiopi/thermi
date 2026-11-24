@@ -33,6 +33,9 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
     // A client that stops reading is dropped after this long, and never delays the others meanwhile.
     public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(2);
 
+    /// <summary>How long one read of the sensors may take: a drive's SMART or a rescan of the hardware takes seconds, never this.</summary>
+    public static readonly TimeSpan ReadLimit = TimeSpan.FromSeconds(60);
+
     private static readonly PipeSecurity Security = Secure();
 
     private readonly List<Client> _clients = [];
@@ -47,6 +50,24 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
     // Each second's lines, written straight as UTF-8: a snapshot as a string and then as bytes would be two objects
     // near the large object heap's size every second.
     private readonly SnapshotWriter _lines = new();
+
+    /// <summary>
+    /// What ends a read past <see cref="ReadLimit"/>: the process, which Windows' recovery restarts, since the stuck thread
+    /// holds the library and a stop could wait on it forever. Tests end it their own way.
+    /// </summary>
+    public Action Hung { get; init; } = () =>
+#pragma warning disable RS0030 // Only a process that ends frees a thread stuck in a driver, so the service manager restarts it.
+        Environment.FailFast("A sensor read did not return within its limit.");
+#pragma warning restore RS0030
+
+    /// <summary>
+    /// What says, once each time, that someone else holds the pipe's name: silent, the service would look running and
+    /// serve nothing. The service writes it to the event log.
+    /// </summary>
+    public Action Squatted { get; init; } = () => { };
+
+    // Whether Squatted was said since the pipe was last created.
+    private bool _squatSaid;
 
     public async Task RunAsync(CancellationToken stop)
     {
@@ -107,9 +128,17 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         if (CreatePipe() is not { } pipe)
 #pragma warning restore CA2000
         {
+            if (!_squatSaid)
+            {
+                _squatSaid = true;
+                Squatted();
+            }
+
             await Task.Delay(Retry, time, stop);
             return false;
         }
+
+        _squatSaid = false;
 
         try
         {
@@ -176,12 +205,26 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
             }
 
             // A client still writing the last line reads it from the buffer, so it is reused only once none does.
-            _lines.Next(read(), anySending);
+            _lines.Next(await ReadAsync(stop), anySending);
             foreach (var client in ready)
             {
                 client.Sending = SendAsync(client, _lines.LineFor(client.Catalog));
                 client.Catalog = _lines.Catalog;
             }
+        }
+    }
+
+    // On a thread of its own, so a read that never returns is seen.
+    private async Task<Snapshot> ReadAsync(CancellationToken stop)
+    {
+        try
+        {
+            return await Task.Run(read, CancellationToken.None).WaitAsync(ReadLimit, time, stop);
+        }
+        catch (TimeoutException)
+        {
+            Hung();
+            throw;
         }
     }
 

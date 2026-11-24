@@ -7,8 +7,8 @@ using Windows.Win32.Security.WinTrust;
 namespace Thermi.Commands;
 
 /// <summary>
-/// The installer as Windows checks and runs it: its Authenticode signature, and its process, with no window and none of
-/// the user's environment.
+/// The installer as Windows checks and runs it: its Authenticode signature, and its process, with no window and its own
+/// folder for temp files.
 /// </summary>
 internal sealed class WindowsInstaller : IDriverInstaller
 {
@@ -69,30 +69,10 @@ internal sealed class WindowsInstaller : IDriverInstaller
         }
     }
 
-    // The elevated mode runs with the user's environment, which any program of the user's can set: a PATH or TEMP of
-    // theirs would find their DLLs and programs first. The installer gets Windows' own folders, read from Windows rather
-    // than from that environment, and its own folder, which only administrators write, for its temp files.
+    // The elevated mode's environment is the one the thermi-elevated service left it, Windows' own folders alone; the
+    // installer's temp files go in its own folder, which only administrators write.
     private static void Clean(IDictionary<string, string?> environment, string folder)
     {
-        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        environment.Clear();
-        environment["SystemRoot"] = windows;
-        environment["windir"] = windows;
-        environment["SystemDrive"] = Path.GetPathRoot(windows)!.TrimEnd(Path.DirectorySeparatorChar);
-        environment["ComSpec"] = Path.Combine(Environment.SystemDirectory, "cmd.exe");
-        environment["PATH"] = Environment.SystemDirectory;
-        environment["PATHEXT"] = ".COM;.EXE;.BAT;.CMD";
-        environment["ProgramData"] = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        environment["ALLUSERSPROFILE"] = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        environment["ProgramFiles"] = programFiles;
-        environment["ProgramW6432"] = programFiles;
-        environment["ProgramFiles(x86)"] = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        environment["CommonProgramFiles"] = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles);
-        environment["OS"] = "Windows_NT";
-        environment["NUMBER_OF_PROCESSORS"] = Environment.ProcessorCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        environment["PROCESSOR_ARCHITECTURE"] =
-            System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64 ? "ARM64" : "AMD64";
         environment["TEMP"] = folder;
         environment["TMP"] = folder;
     }

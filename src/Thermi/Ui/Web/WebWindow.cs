@@ -3,6 +3,7 @@ using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
+using Thermi.Core.Placement;
 using Thermi.Core.Translations;
 using Thermi.Logging;
 using Thermi.Windows;
@@ -35,6 +36,7 @@ internal sealed class WebWindow : IDisposable
     private readonly bool _mica;
     private ExceptionDispatchInfo? _failed;
     private bool _shown;
+    private IReadOnlyList<Screen>? _screens;
 
     public WebWindow(WindowStart start, WindowTurn turn, WebPage page)
     {
@@ -44,7 +46,7 @@ internal sealed class WebWindow : IDisposable
         _place = new WindowPlace(start.Environment.DataFolder, start.Environment.Log);
         _procedure = WndProc;
         HiddenWindow.Register(ClassName, name => Class(_procedure, name));
-        Hwnd = HiddenWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
+        Hwnd = TopLevelWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
         _turn.Window = Hwnd;
         _mica = WindowFrame.Dress(Hwnd);
         _place.Restore(Hwnd, start.Settings.Config, start.Environment.Screens());
@@ -226,11 +228,15 @@ internal sealed class WebWindow : IDisposable
             case PInvoke.WM_NCHITTEST:
                 return WindowFrame.HitTest(hwnd, message, wParam, lParam);
             case PInvoke.WM_SIZE:
-            case PInvoke.WM_DPICHANGED when Resized(lParam):
                 Fit();
                 return null;
+            case PInvoke.WM_DPICHANGED:
+                MoveToSuggested(lParam);
+                Fit();
+                return null;
+            // Asked on every step of a resize, so the monitors are read once and read again only when they change.
             case PInvoke.WM_GETMINMAXINFO:
-                WindowPlace.Limit(hwnd, lParam, _start.Environment.Screens());
+                WindowPlace.Limit(hwnd, lParam, _screens ??= _start.Environment.Screens());
                 return new LRESULT(0);
             // A click that activates the window rises it once the click is through: moved in the z-order while the
             // click is on its way, the page's child window can lose it, and the button clicked does not answer.
@@ -242,11 +248,8 @@ internal sealed class WebWindow : IDisposable
                 WindowFrame.Above(hwnd, (wParam.Value & 0xFFFF) != 0 ? hwnd : lParam.Value != 0 ? (HWND)lParam.Value : PInvoke.GetForegroundWindow());
                 return null;
             case PInvoke.WM_SETTINGCHANGE:
-                WindowFrame.Follow(hwnd);
-                DesktopChanged();
-                return null;
             case PInvoke.WM_DISPLAYCHANGE:
-                DesktopChanged();
+                Changed(hwnd, message);
                 return null;
             case PInvoke.WM_CLOSE:
                 _place.Keep(hwnd, _start.Environment.Screens());
@@ -261,8 +264,20 @@ internal sealed class WebWindow : IDisposable
         }
     }
 
+    // The monitors, their work areas or a setting of Windows changed: the window's limits and frame follow, and the page.
+    private void Changed(HWND hwnd, uint message)
+    {
+        _screens = null;
+        if (message == PInvoke.WM_SETTINGCHANGE)
+        {
+            WindowFrame.Follow(hwnd);
+        }
+
+        DesktopChanged();
+    }
+
     // Windows' suggested place for the new DPI, which a window that follows DPI takes.
-    private bool Resized(LPARAM lParam)
+    private void MoveToSuggested(LPARAM lParam)
     {
         var suggested = Marshal.PtrToStructure<RECT>(lParam);
         PInvoke.SetWindowPos(
@@ -273,6 +288,5 @@ internal sealed class WebWindow : IDisposable
             suggested.right - suggested.left,
             suggested.bottom - suggested.top,
             SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
-        return true;
     }
 }

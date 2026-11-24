@@ -260,6 +260,9 @@ internal sealed class Settings : IAsyncDisposable
             case WriteOutcome.Broken:
                 Show(write.Problem);
                 return Recheck;
+            case WriteOutcome.Retry when write.Problem is not null:
+                Show(write.Problem);
+                return Failed(write.Error);
             case WriteOutcome.Retry:
             case WriteOutcome.Good:
             default:

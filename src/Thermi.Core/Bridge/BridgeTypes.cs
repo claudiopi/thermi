@@ -82,21 +82,25 @@ public sealed record ResetLinesEdit(string Item) : PageEdit;
 /// <summary>A sensor named by the user, by the id an item names it by; an empty name gives back the library's.</summary>
 public sealed record SensorNameEdit(string Sensor, string Name) : PageEdit;
 
-/// <summary>What the service reads now, and whether it runs: no sensors while it is stopped.</summary>
-public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> Sensors)
+/// <summary>
+/// What the service reads now, and whether it runs: no sensors while it is stopped, and whether another program holds
+/// its pipe then.
+/// </summary>
+public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> Sensors, bool Taken = false)
 {
     /// <summary>
     /// The snapshot's sensors with the names the catalog shows, the user's <paramref name="own"/> or a probable one, so a
     /// sensor has one name everywhere; a value that is no number as null, since the page's JSON has no NaN. A constant, as
     /// a memory module's limits, is no sensor to pick, so it is left out.
     /// </summary>
-    public static SensorView Of(ServiceState service, Snapshot? snapshot, IReadOnlyDictionary<string, string>? own, Texts texts) =>
+    public static SensorView Of(ServiceState service, Snapshot? snapshot, IReadOnlyDictionary<string, string>? own, Texts texts, bool taken = false) =>
         new(
             service,
             service == ServiceState.Stopped || snapshot is null
                 ? []
                 : [.. SensorNames.Named(snapshot, own, texts).Where(sensor => !SensorCatalog.Constant(sensor))
-                    .Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)]);
+                    .Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)],
+            taken);
 }
 
 public sealed record Rect(int X, int Y, int Width, int Height);

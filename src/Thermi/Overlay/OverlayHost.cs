@@ -55,6 +55,9 @@ internal sealed class OverlayHost : IDisposable
     private readonly WNDPROC _procedure;
     private HotkeyRegistry? _hotkeys;
 
+    // Whether a full-screen app was in front on any monitor at the last paint.
+    private bool _fullScreen;
+
     public OverlayHost(Settings settings, Func<Snapshot?> latest, CultureInfo culture, TimeProvider time, ILogger log, HostEnvironment? environment = null)
     {
         _settings = settings;
@@ -186,7 +189,7 @@ internal sealed class OverlayHost : IDisposable
 
             if (hwnd == Hwnd && message == HotkeyRegistry.RestMessage)
             {
-                _link.Opened();
+                _link.LookForWindow();
                 _hotkeys?.Rest(wParam != 0 && _link.WindowOpen);
                 return new LRESULT(1);
             }
@@ -280,7 +283,7 @@ internal sealed class OverlayHost : IDisposable
 
     private void Tick()
     {
-        _link.Opened();
+        _link.LookForWindow();
 
         // A window that closed or crashed while a row recorded leaves no hotkey resting.
         if (!_link.WindowOpen)
@@ -324,10 +327,9 @@ internal sealed class OverlayHost : IDisposable
         _actions.History.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
         _cpu.Sample(ValueTooltips.WantsBusiest(config, snapshot));
 
-        // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation.
-        var fullScreen = OverlayVisibility.FullScreen(config, _desktop.Screens(), Desktop.Foreground(), Desktop.UserState())
-            .Any(full => full);
-        Tray?.Critical(config, snapshot, fullScreen);
+        // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint
+        // found it: one a second at least, so asking Windows again for each reading would only repeat it.
+        Tray?.Critical(config, snapshot, _fullScreen);
     }
 
     private void Repaint()
@@ -346,6 +348,7 @@ internal sealed class OverlayHost : IDisposable
         var scene = Scene(config, screens);
         var editing = _link.Editing(config.Overlays.Count);
         var fullScreen = OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState());
+        _fullScreen = fullScreen.Any(full => full);
         var shown = _visibility.Decide(config, fullScreen);
         var accent = scene.HighContrast?.Highlight ?? _desktop.Accent();
         for (var at = 0; at < _overlays.Count; at++)

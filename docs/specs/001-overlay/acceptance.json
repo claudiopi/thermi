@@ -79,7 +79,7 @@
         "R1"
       ],
       "description": "Given a sensor read that fails, when the service ticks, then the service ends with the error so Windows restarts it.",
-      "check": "ASensorReadThatFailsEndsTheServerWithTheError",
+      "check": "ASensorReadThatFailsOrHangsEndsTheServer",
       "passes": true
     },
     {

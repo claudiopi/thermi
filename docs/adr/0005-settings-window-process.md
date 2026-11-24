@@ -4,7 +4,7 @@
 
 ## Context
 
-ADR 0001 planned the settings window as WPF loaded inside the overlay's process, only when it opens. Once loaded, WPF stays: the overlay would keep tens of megabytes it no longer uses until the user signs out, and spec 001 (R9) promises an overlay under 40 MB. A crash in the window would also take the overlay down.
+ADR 0001 planned the settings window as WPF loaded inside the overlay's process, only when it opens. Once loaded, WPF stays: the overlay would keep tens of megabytes it no longer uses until the user signs out, and spec 001 (R9) promises an overlay within a memory budget. A crash in the window would also take the overlay down.
 
 ## Decision
 

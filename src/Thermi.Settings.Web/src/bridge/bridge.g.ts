@@ -257,6 +257,7 @@ export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'c
 export interface SensorView {
   service: Service;
   sensors: Sensor[];
+  taken?: boolean;
 }
 
 export type Service = 'running' | 'stopped' | 'stale';

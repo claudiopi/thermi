@@ -1806,6 +1806,9 @@
   <data name="WindowText.StartIt" xml:space="preserve">
     <value>Start it</value>
   </data>
+  <data name="WindowText.PipeTaken" xml:space="preserve">
+    <value>Another program holds the connection thermi reads its sensors through. Close it, or restart the PC.</value>
+  </data>
   <data name="WindowText.ReadingsStale" xml:space="preserve">
     <value>Readings stopped a few seconds ago.</value>
   </data>

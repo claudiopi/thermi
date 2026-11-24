@@ -84,15 +84,37 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(0, services.Asked);
     }
 
-    // Only administrators write under Program Files, so only a thermi there is asked to run as administrator: one in a
-    // folder the user writes could be swapped while the prompt waits. Elsewhere nothing starts, and the answer is the
-    // missing service's, since installing thermi is the fix.
-    [Fact]
-    public async Task OnlyAThermiUnderProgramFilesAsksForAdministratorRights()
+    // No code of thermi's runs elevated from the user's environment: behind the prompt, Windows' sc.exe starts the
+    // thermi-elevated service with the verb, and the fix's answer is the exit code it stops with. A refused prompt starts
+    // nothing, a service not installed asks for thermi to be installed again, one already running is waited for, and one
+    // that never stops is a fix that failed.
+    [Theory]
+    [InlineData(null, "S", 0, null)]
+    [InlineData(1060, "M", 0, StartSensors.Missing)]
+    [InlineData(5, "S", 0, StartSensors.Failed)]
+    [InlineData(0, "CCS", InstallDriver.RestartNeeded, InstallDriver.RestartNeeded)]
+    [InlineData(1056, "CS", InstallDriver.Installed, InstallDriver.Installed)]
+    [InlineData(0, "C", 0, StartSensors.Failed)]
+    public async Task AFixAnswersWithTheElevatedServicesExitCode(int? prompt, string states, int exitCode, int? expected)
     {
-        var elsewhere = Path.Combine(Path.GetDirectoryName(_folder.File)!, "thermi.exe");
+        var time = new FakeTimeProvider();
+        var asked = new List<string>();
+        var ask = new ElevatedAsk(
+            verb =>
+            {
+                asked.Add(verb);
+                return Task.FromResult(prompt);
+            },
+            new FakeServices(states, starts: false, exitCode));
 
-        Assert.Equal(StartSensors.Missing, await Elevated.AskAsync(elsewhere, StartSensors.Verb));
+        var run = Elevated.AskAsync(InstallDriver.Verb, ask, time);
+        for (var waited = TimeSpan.Zero; !run.IsCompleted && waited <= Elevated.Wait; waited += StartSensors.Poll)
+        {
+            time.Advance(StartSensors.Poll);
+        }
+
+        Assert.True(run.IsCompleted);
+        Assert.Equal((expected, InstallDriver.Verb), (await run, Assert.Single(asked)));
     }
 
     // "Start sensors" as administrator: the service's states as the service manager gives them, one a poll, then the
@@ -169,25 +191,9 @@ public sealed class CommandLineTests : IDisposable
         Assert.Contains(expected, said, StringComparison.Ordinal);
     }
 
-    // An elevated thermi.exe keeps the user's environment, which any program of the user's can set: no code may load from
-    // it before Main. Here the hook is not there, which stops a thermi that honors hooks before it reads its arguments.
-    // The .NET it runs on comes only from where Windows installed it, which only the published thermi.exe is built for.
-    [Fact]
-    public async Task TheUsersEnvironmentLoadsNoCodeIntoThermi()
-    {
-        var steering = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["DOTNET_STARTUP_HOOKS"] = Path.Combine(Path.GetDirectoryName(_folder.File)!, "hook.dll"),
-        };
-
-        var (code, said) = await RunAsync(["settings", "--overlay", "0"], steering);
-
-        Assert.Equal((2, true), (code, said.Contains("--overlay takes a whole number from 1 up.", StringComparison.Ordinal)));
-    }
-
     // The test's own files stand in for the words that name them: its settings, a file that is no snapshot, and a picture
     // in a folder that is not there.
-    private async Task<(int Code, string Said)> RunAsync(string[] args, Dictionary<string, string>? environment = null)
+    private async Task<(int Code, string Said)> RunAsync(string[] args)
     {
         var folder = Path.GetDirectoryName(_folder.File)!;
         var junk = Path.Combine(folder, "junk.json");
@@ -205,7 +211,7 @@ public sealed class CommandLineTests : IDisposable
         ];
 
         // On a desktop of its own and bounded, since a thermi.exe that finds no .NET waits on a message box nobody sees.
-        return await DesktopProcess.RunAsync(Path.Combine(AppContext.BaseDirectory, "thermi.exe"), words, TimeSpan.FromSeconds(30), environment);
+        return await DesktopProcess.RunAsync(Path.Combine(AppContext.BaseDirectory, "thermi.exe"), words, TimeSpan.FromSeconds(30));
     }
 
     // The fans' answer is recorded under a load of whole seconds, up to ten minutes, so a typo never loads the PC for hours.
@@ -235,12 +241,15 @@ public sealed class CommandLineTests : IDisposable
     [InlineData(new[] { "--seconds", "45" }, "--seconds needs --dump.")]
     [InlineData(new[] { "--dump", "load.json", "--seconds", "0" }, "--seconds needs a whole number above zero.")]
     [InlineData(new[] { "--dump", "load.json", "--seconds", "many" }, "--seconds needs a whole number above zero.")]
+    [InlineData(new[] { "--elevated" }, "elevated")]
+    [InlineData(new[] { "--elevated", "--console" }, "--elevated takes no other option.")]
     public void TheSensorServiceServesOrDumps(string[] args, string expected)
     {
         var request = SensorCommands.Parse(args, out var errors);
 
         Assert.Equal(expected, request switch
         {
+            SensorElevated => "elevated",
             SensorServe { Console: false } => "serve",
             SensorServe => "console",
             SensorDump { Seconds: null } dump => $"dump {dump.File} once",
@@ -249,9 +258,14 @@ public sealed class CommandLineTests : IDisposable
         });
     }
 
-    /// <summary>The service manager, as each state asked for: the next of its letters, the last one kept, a start only when it takes it.</summary>
-    internal sealed class FakeServices(string states, bool starts) : IServiceManager
+    /// <summary>
+    /// The service manager, as each state asked for: the next of its letters, the last one kept, a start only when it
+    /// takes it, and the exit code it last stopped with.
+    /// </summary>
+    internal sealed class FakeServices(string states, bool starts, int exitCode = 0) : IServiceManager
     {
+        public int ExitCode() => exitCode;
+
         public int Asked { get; private set; }
 
         public ServiceRun State() => states[Math.Min(Asked++, states.Length - 1)] switch

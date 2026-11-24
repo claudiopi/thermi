@@ -309,7 +309,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     {
         try
         {
-            if (await parts.Environment.StartSensors(parts.Environment.ExePath).ConfigureAwait(false) is { } code and not StartSensors.Started)
+            if (await parts.Environment.StartSensors().ConfigureAwait(false) is { } code and not StartSensors.Started)
             {
                 log.StartSensorsEnded(code);
             }

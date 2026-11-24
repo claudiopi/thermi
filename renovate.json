@@ -26,6 +26,13 @@
       "automerge": true
     },
     {
+      "description": "The settings window's page: one weekly PR for its npm packages' minor and patch updates, pinned exactly with the lockfile, merged by a person after its Playwright tests.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "rangeStrategy": "pin",
+      "groupName": "npm minor and patch"
+    },
+    {
       "description": "GitHub Actions in their own PR, merged automatically once the CI gate is green.",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],

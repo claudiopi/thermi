@@ -8,13 +8,12 @@ using Thermi.Painting;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Kept = Thermi.Core.Look.ItemHistory;
-using Sent = Thermi.Core.Messages.ItemHistory;
 
 namespace Thermi.Overlay;
 
 /// <summary>What the link reaches in the host: the settings, the overlays, what lies outside the process, and a paint.</summary>
-internal sealed record LinkParts(Settings Settings, Kept History, HostEnvironment Environment, TimeProvider Time, ILogger Log, Action RequestPaint);
+internal sealed record LinkParts(
+    Settings Settings, Core.Look.ItemHistory History, HostEnvironment Environment, TimeProvider Time, ILogger Log, Action RequestPaint);
 
 /// <summary>
 /// The overlay's side of the messages with the window (docs/adr/0009-overlay-and-window-messages.md): whether the window
@@ -42,11 +41,11 @@ internal sealed class WindowLink(LinkParts parts)
     public void Start(bool firstStart)
     {
         OpenedOnce = !firstStart;
-        Opened();
+        LookForWindow();
     }
 
     /// <summary>Looks again whether the window is open: one that closed or crashed leaves no ghost and no mark.</summary>
-    public void Opened()
+    public void LookForWindow()
     {
         WindowOpen = parts.Environment.WindowOpen();
         OpenedOnce |= WindowOpen;
@@ -72,7 +71,7 @@ internal sealed class WindowLink(LinkParts parts)
                 PInvoke.PostMessage(host, HistoryWanted, 0, 0);
                 break;
             case Edited edited:
-                Opened();
+                LookForWindow();
                 _edited = edited;
                 parts.RequestPaint();
                 break;
@@ -150,15 +149,15 @@ internal sealed class WindowLink(LinkParts parts)
     /// The last ten minutes of every item's meter that read anything, one slot a second ending now, NaN for a gap, or null
     /// when none did: the window then starts with ten empty minutes, as it does when no answer comes.
     /// </summary>
-    public static History? HistoryOf(ThermiConfig config, Kept kept, long now)
+    public static History? HistoryOf(ThermiConfig config, Core.Look.ItemHistory kept, long now)
     {
-        var items = new List<Sent>();
+        var items = new List<Core.Messages.ItemHistory>();
         foreach (var item in config.Overlays.SelectMany(overlay => overlay.Items))
         {
             var values = kept.TenMinutes(item.Id);
             if (values.Any(value => value is not null))
             {
-                items.Add(new Sent(item.Id, now, SlotsOf(values)));
+                items.Add(new Core.Messages.ItemHistory(item.Id, now, SlotsOf(values)));
             }
         }
 

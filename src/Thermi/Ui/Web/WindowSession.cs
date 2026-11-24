@@ -21,13 +21,13 @@ internal static class WindowSession
             var editor = new WindowEditor(start.Settings, turn.Post, start.Environment.Log, start.Time);
             var chart = new ChartHistory(start.Time);
             using var bridge = new WindowBridge(start, editor, chart, turn.Post);
-            using var page = new WebPage(bridge, start.Environment.Log);
+            using var page = new WebPage(bridge, start.Environment.Log, start.Time);
             using var window = new WebWindow(start, turn, page);
             bridge.Window = window.Hwnd;
             window.DesktopChanged = bridge.DesktopChanged;
             using var link = new OverlayLink(chart, editor, bridge.Pick, bridge.Tell, start.Time);
             bridge.Link = link;
-            using var beacon = new SettingsBeacon(_ => window.Raise()) { Received = link.Received };
+            using var beacon = new SettingsBeacon(_ => window.Raise(), start.Environment.Log) { Received = link.Received };
             void Arrived(object? sender, EventArgs e)
             {
                 turn.Post(bridge.Arrived);

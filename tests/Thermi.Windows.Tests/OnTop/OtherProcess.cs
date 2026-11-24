@@ -107,7 +107,8 @@ internal sealed class OtherProcess : IDisposable
                 HiddenWindow.Register(className, name => HiddenWindow.Plain(TestWindows.DefaultProcedure, name));
 
                 // Topmost from the start, as a taskbar is: one made topmost only once shown stays under the overlay at its first raise.
-                windows[kind] = window = HiddenWindow.Create(className, WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_TOPMOST);
+                const WINDOW_EX_STYLE OnTop = WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_TOPMOST;
+                windows[kind] = window = TopLevelWindow.Create(className, OnTop, WINDOW_STYLE.WS_POPUP);
                 PInvoke.SetWindowPos(window, HWND.HWND_TOPMOST, 0, 0, 200, 40, SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
             }
 

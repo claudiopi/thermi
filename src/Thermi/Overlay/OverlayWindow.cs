@@ -61,7 +61,7 @@ internal sealed class OverlayWindow : IDisposable
         _actions = actions;
         _glow = new CriticalGlow(actions.Time);
         _started = actions.Time.GetTimestamp();
-        Hwnd = HiddenWindow.Create(ClassName, ExStyle);
+        Hwnd = TopLevelWindow.Create(ClassName, ExStyle, WINDOW_STYLE.WS_POPUP);
         _topmost = new Topmost(Hwnd);
         _tips = new ValueTips(Hwnd);
         _fade = new OverlayFade(Hwnd, actions.Cursor);

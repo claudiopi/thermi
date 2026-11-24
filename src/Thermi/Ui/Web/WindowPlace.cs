@@ -23,9 +23,25 @@ internal sealed class WindowPlace(string folder, ILogger log)
 
     public bool Maximized { get; private set; }
 
+    /// <summary>
+    /// Places the window, not shown yet. A remembered place is in the coordinates of the work area that Windows keeps a
+    /// window's normal place in, which a taskbar at the top or left shifts from the screen's, so it goes back the same way.
+    /// </summary>
     public void Restore(HWND window, ThermiConfig config, IReadOnlyList<Screen> screens)
     {
-        var place = Remembered(screens) ?? First(config, screens);
+        if (Remembered(screens) is { } normal)
+        {
+            var placement = new WINDOWPLACEMENT
+            {
+                length = (uint)Marshal.SizeOf<WINDOWPLACEMENT>(),
+                showCmd = SHOW_WINDOW_CMD.SW_HIDE,
+                rcNormalPosition = new RECT(normal.Left, normal.Top, normal.Right, normal.Bottom),
+            };
+            PInvoke.SetWindowPlacement(window, in placement);
+            return;
+        }
+
+        var place = First(config, screens);
         PInvoke.SetWindowPos(
             window,
             HWND.Null,
@@ -72,7 +88,10 @@ internal sealed class WindowPlace(string folder, ILogger log)
                 normal.bottom,
                 placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED);
             Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
-            File.WriteAllText(_file, all.ToJsonString());
+            // Written beside it and moved over it, so a write cut short leaves the places kept before.
+            var written = _file + ".new";
+            File.WriteAllText(written, all.ToJsonString());
+            File.Move(written, _file, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -121,13 +140,15 @@ internal sealed class WindowPlace(string folder, ILogger log)
     {
         try
         {
-            if (Read()?[WindowRoom.Setup(screens)] is JsonArray { Count: 5 } kept)
+            if (Read()?[WindowRoom.Setup(screens)] is JsonArray { Count: 5 } kept
+                && Int(kept[0]) is { } left && Int(kept[1]) is { } top && Int(kept[2]) is { } right && Int(kept[3]) is { } bottom
+                && kept[4] is JsonValue maximized && maximized.TryGetValue<bool>(out var isMaximized))
             {
-                Maximized = kept[4]!.GetValue<bool>();
-                return new PixelRect(kept[0]!.GetValue<int>(), kept[1]!.GetValue<int>(), kept[2]!.GetValue<int>(), kept[3]!.GetValue<int>());
+                Maximized = isMaximized;
+                return new PixelRect(left, top, right, bottom);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or FormatException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             log.WindowPlaceFailed(ex);
         }
@@ -135,5 +156,24 @@ internal sealed class WindowPlace(string folder, ILogger log)
         return null;
     }
 
-    private JsonObject? Read() => File.Exists(_file) ? JsonNode.Parse(File.ReadAllText(_file)) as JsonObject : null;
+    private static int? Int(JsonNode? node) => node is JsonValue value && value.TryGetValue<int>(out var number) ? number : null;
+
+    // A file that is not JSON is logged and taken as none, so closing the window writes it anew.
+    private JsonObject? Read()
+    {
+        if (!File.Exists(_file))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonNode.Parse(File.ReadAllText(_file)) as JsonObject;
+        }
+        catch (JsonException ex)
+        {
+            log.WindowPlaceFailed(ex);
+            return null;
+        }
+    }
 }

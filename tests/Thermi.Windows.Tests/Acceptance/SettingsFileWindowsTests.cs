@@ -174,10 +174,10 @@ public sealed class SettingsFileWindowsTests : IDisposable
         Mutex,
     }
 
-    // The drag waits on screen, leaves no file behind, and lands once the block goes. Waiting is no failure; a move that
-    // failed is, and is logged once.
+    // The drag waits on screen, leaves no file behind, and lands once the block goes. Waiting for the mutex is no failure;
+    // a move that failed is, and so is a lock that outlasts an editor's save, and each is logged once.
     [Theory]
-    [InlineData(Block.Locked, 0)]
+    [InlineData(Block.Locked, 1)]
     [InlineData(Block.ReadOnlyShare, 1)]
     [InlineData(Block.Mutex, 0)]
     public async Task ABlockedWriteIsRetriedUntilItLands(Block block, int logged)
@@ -185,7 +185,7 @@ public sealed class SettingsFileWindowsTests : IDisposable
         var settings = await _folder.LoadedAsync();
         var (during, after) = block switch
         {
-            Block.Locked => (ConfigStore.MutexTimeout, ConfigStore.Settle + Settings.Interval),
+            Block.Locked => (ConfigStore.MutexTimeout, ConfigStore.Settle + Settings.Backoff + Settings.Interval),
             Block.ReadOnlyShare => (TimeSpan.FromSeconds(1), Settings.Backoff),
             Block.Mutex => (ConfigStore.MutexTimeout * 3, ConfigStore.Poll),
             _ => throw new ArgumentOutOfRangeException(nameof(block)),

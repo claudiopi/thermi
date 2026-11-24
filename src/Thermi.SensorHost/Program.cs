@@ -33,6 +33,11 @@ internal static class Program
             return await builtIn.Parsed.InvokeAsync(new InvocationConfiguration { Output = environment.Out, Error = environment.Error }, stop);
         }
 
+        if (request is SensorElevated)
+        {
+            return RunElevated(environment.Time);
+        }
+
         using var source = environment.Open();
         if (request is SensorDump dump)
         {
@@ -40,7 +45,15 @@ internal static class Program
             return 0;
         }
 
-        using var server = new SensorPipeServer(source.Read, environment.Time, environment.PipeName);
+        using var events = new EventLog("Application") { Source = SensorService.Name };
+        using var server = new SensorPipeServer(source.Read, environment.Time, environment.PipeName)
+        {
+            Squatted = () => SensorService.Say(
+                events,
+                $"Another program holds the {environment.PipeName} pipe, so thermi's overlay and window get no readings. "
+                    + "The service tries again every 5 s until that program closes it.",
+                EventLogEntryType.Warning),
+        };
         if (request is not SensorServe { Console: true })
         {
             using var service = new SensorService(server.RunAsync, resumed: () => _ = source.Read());
@@ -50,6 +63,14 @@ internal static class Program
 
         await ServeAsync(server, environment.Out, stop);
         return 0;
+    }
+
+    // Before the sensors are opened: the fixes read none.
+    private static int RunElevated(TimeProvider time)
+    {
+        using var elevated = new ElevatedService(ElevatedService.RunThermiAsync, time);
+        ServiceBase.Run(elevated);
+        return elevated.ExitCode;
     }
 
     private static async Task DumpAsync(ISensorSource source, SensorDump dump, TimeProvider time)
@@ -125,7 +146,24 @@ internal sealed class SensorService : ServiceBase
         {
             ExitCode = 1;
             _ = Task.Run(_stopOnFailure, CancellationToken.None);
-            Report(ex);
+            Report(EventLog, ex);
+        }
+    }
+
+    /// <summary>Writes <paramref name="error"/> to <paramref name="log"/>, which may refuse: what the service does next matters more.</summary>
+    internal static void Report(EventLog log, Exception error) => Say(log, error.ToString(), EventLogEntryType.Error);
+
+    /// <summary>Writes <paramref name="message"/> to <paramref name="log"/>, which may refuse: what the service does next matters more.</summary>
+    internal static void Say(EventLog log, string message, EventLogEntryType type)
+    {
+        try
+        {
+            log.WriteEntry(message, type);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException
+            or System.ComponentModel.Win32Exception or System.Security.SecurityException)
+        {
+            // Nowhere else to report it.
         }
     }
 
@@ -158,19 +196,5 @@ internal sealed class SensorService : ServiceBase
         }
 
         base.Dispose(disposing);
-    }
-
-    // The event log may refuse (no rights to create the source, a full log): the restart matters more.
-    private void Report(Exception error)
-    {
-        try
-        {
-            EventLog.WriteEntry(error.ToString(), EventLogEntryType.Error);
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException
-            or System.ComponentModel.Win32Exception or System.Security.SecurityException)
-        {
-            // Nowhere else to report it.
-        }
     }
 }

@@ -19,6 +19,9 @@ internal interface ISensorFeed
     /// <summary>Whether the readings are fresh or awaited, the service is not running, or its data went stale.</summary>
     ServiceState State { get; }
 
+    /// <summary>Whether, the service stopped, a program other than it holds a pipe of its name, which the service then waits out.</summary>
+    bool Taken => false;
+
     Task RunAsync(CancellationToken stop);
 }
 
@@ -39,11 +42,16 @@ internal sealed class SensorClient(
     // The reading and the retry wait of now, which a wake from sleep cancels.
     private CancellationTokenSource? _round;
 
+    // The last pipe reached was not the service's.
+    private bool _taken;
+
     public event EventHandler? Received;
 
     public Snapshot? Latest => _latest.Current;
 
     public ServiceState State => _latest.State;
+
+    public bool Taken => Volatile.Read(ref _taken) && State == ServiceState.Stopped;
 
     public async Task RunAsync(CancellationToken stop)
     {
@@ -111,7 +119,13 @@ internal sealed class SensorClient(
         // Identification: the host may learn who connects, but never act as this user.
         await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In, PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
         await ConnectAsync(pipe, stop);
-        TrustOrThrow(pipe);
+        var ours = Trusted(pipe);
+        Volatile.Write(ref _taken, !ours);
+        if (!ours)
+        {
+            throw new UnauthorizedAccessException("The sensor pipe belongs to another program, not to the thermi-sensors service.");
+        }
+
         _latest.Connected();
         var lines = new SnapshotLines();
         var bytes = new byte[64 * 1024];
@@ -142,14 +156,8 @@ internal sealed class SensorClient(
 
     // Any local user can create a pipe with this name while the service restarts. Only one made by the
     // service (owned by SYSTEM) or by an administrator is the real sensor host.
-    private void TrustOrThrow(NamedPipeClientStream pipe)
-    {
-        var owner = pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) as SecurityIdentifier;
-        if (!(trusted ?? IsTrustedOwner)(owner))
-        {
-            throw new UnauthorizedAccessException($"The sensor pipe belongs to {owner?.Value ?? "nobody"}, not to the thermi-sensors service.");
-        }
-    }
+    private bool Trusted(NamedPipeClientStream pipe) =>
+        (trusted ?? IsTrustedOwner)(pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) as SecurityIdentifier);
 
     public static bool IsTrustedOwner(SecurityIdentifier? owner) =>
         owner is not null && (owner.IsWellKnown(WellKnownSidType.LocalSystemSid) || owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid));

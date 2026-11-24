@@ -50,7 +50,7 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
     {
         try
         {
-            var code = await Task.Run(() => environment.Elevate(environment.ExePath, verb));
+            var code = await Task.Run(() => environment.Elevate(verb));
             if (code is { } ended and not 0)
             {
                 environment.Log.ElevatedEnded(verb, ended);

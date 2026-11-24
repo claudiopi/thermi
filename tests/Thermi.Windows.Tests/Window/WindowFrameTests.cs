@@ -1,3 +1,5 @@
+using Thermi.Core.Placement;
+using Thermi.Core.Settings;
 using Thermi.Ui.Web;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -28,7 +30,7 @@ public sealed class WindowFrameTests
                 _ => PInvoke.DefWindowProc(window, message, wParam, lParam),
             };
             HiddenWindow.Register(ClassName, name => HiddenWindow.Plain(procedure, name));
-            var window = HiddenWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
+            var window = TopLevelWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
             try
             {
                 WindowFrame.Dress(window);
@@ -93,9 +95,63 @@ public sealed class WindowFrameTests
         Assert.Equal((true, false, true), (belowApp, topmost, stillBelow));
     }
 
+    // The window opens where it closed. A window.json that is not JSON, or holds a place it cannot read, is logged and the
+    // window opens at its first place, and closing it keeps its place anew, so the next one opens there.
+    [Theory]
+    [InlineData("none")]
+    [InlineData("unreadable")]
+    [InlineData("nulls")]
+    public void TheWindowOpensWhereItClosedWhateverItsFileHeld(string held)
+    {
+        var folder = Path.Combine(AppContext.BaseDirectory, "window-place", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var log = new ListLogger();
+        var normal = default(RECT);
+        try
+        {
+            TestWindows.OnOwnDesktop(() =>
+            {
+                WNDPROC procedure = (window, message, wParam, lParam) => PInvoke.DefWindowProc(window, message, wParam, lParam);
+                HiddenWindow.Register(ClassName, name => HiddenWindow.Plain(procedure, name));
+                var screens = Desktop.Screens();
+                var file = Path.Combine(folder, "window.json");
+                if (held != "none")
+                {
+                    File.WriteAllText(file, held == "unreadable" ? "{ not json" : $"{{\"{WindowRoom.Setup(screens)}\":[null,null,null,null,false]}}");
+                }
+
+                var closed = Shown();
+                var opened = TopLevelWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
+                try
+                {
+                    new WindowPlace(folder, log).Restore(closed, new ThermiConfig(), screens);
+                    PInvoke.SetWindowPos(closed, HWND.Null, 100, 100, 400, 300, SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+                    new WindowPlace(folder, log).Keep(closed, screens);
+                    new WindowPlace(folder, log).Restore(opened, new ThermiConfig(), screens);
+                    var placement = new WINDOWPLACEMENT { length = (uint)System.Runtime.InteropServices.Marshal.SizeOf<WINDOWPLACEMENT>() };
+                    PInvoke.GetWindowPlacement(opened, ref placement);
+                    normal = placement.rcNormalPosition;
+                }
+                finally
+                {
+                    PInvoke.DestroyWindow(opened);
+                    PInvoke.DestroyWindow(closed);
+                    HiddenWindow.Unregister(ClassName);
+                    GC.KeepAlive(procedure);
+                }
+            });
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+
+        Assert.Equal((100, 100, 500, 400), (normal.left, normal.top, normal.right, normal.bottom));
+    }
+
     private static HWND Shown()
     {
-        var window = HiddenWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
+        var window = TopLevelWindow.Create(ClassName, WINDOW_EX_STYLE.WS_EX_APPWINDOW, WINDOW_STYLE.WS_OVERLAPPEDWINDOW);
         const SET_WINDOW_POS_FLAGS Shows = SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE;
         PInvoke.SetWindowPos(window, HWND.Null, 100, 100, 400, 300, Shows);
         return window;

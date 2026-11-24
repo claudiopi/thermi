@@ -133,11 +133,13 @@ internal sealed class ConfigStore : IDisposable
             : new Plan(null, new ConfigWrite(WriteOutcome.Good, problem is null ? config : null));
     }
 
+    // A lock that outlasts the settle is another program's, which may hold it for good: it is said as the file's problem
+    // and as a write Windows refused, so the retries slow down and the first is logged.
     private static Plan Changed(Look found, Func<ThermiConfig, ThermiConfig> change)
     {
         if (found.Kind == Found.Locked)
         {
-            return new Plan(null, Again);
+            return new Plan(null, new ConfigWrite(WriteOutcome.Retry, Problem: ConfigProblem.Locked(found.Text), Error: found.Lock));
         }
 
         var (config, problem) = ThermiConfigJson.Read(found.Text);
@@ -255,7 +257,7 @@ internal sealed class ConfigStore : IDisposable
                 kept = CopyAside(aside);
             }
 
-            File.WriteAllText(temporary, text);
+            WriteThrough(temporary, text);
             Replace(temporary);
             _known = text;
             return new ConfigWrite(WriteOutcome.Written, next);
@@ -279,6 +281,15 @@ internal sealed class ConfigStore : IDisposable
         File.Copy(FilePath, kept);
         File.SetAttributes(kept, File.GetAttributes(kept) & ~FileAttributes.ReadOnly);
         return kept;
+    }
+
+    // On the disk before the replace points the name at it: a power cut between the two would otherwise leave the
+    // settings file empty, its data still in the cache.
+    private static void WriteThrough(string path, string text)
+    {
+        using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough);
+        file.Write(Encoding.UTF8.GetBytes(text));
+        file.Flush(flushToDisk: true);
     }
 
     // A move fails over a file a reader holds open, even one shared for delete; a replace does not.

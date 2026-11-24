@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Core.Messages;
+using Thermi.Logging;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -14,14 +16,17 @@ namespace Thermi.Ui;
 internal sealed class SettingsBeacon : IDisposable
 {
     private readonly Action<int> _raised;
+    private readonly ILogger _log;
 
     // Held in a field so the garbage collector never frees it while Windows still calls it.
     private readonly WNDPROC _procedure;
 
-    /// <param name="raised">Called on this thread with the overlay asked for; it must not throw, since Windows calls it.</param>
-    public SettingsBeacon(Action<int> raised)
+    /// <param name="raised">Called on this thread with the overlay asked for.</param>
+    /// <param name="log">Where a message that failed is logged.</param>
+    public SettingsBeacon(Action<int> raised, ILogger log)
     {
         _raised = raised;
+        _log = log;
         _procedure = WndProc;
         HiddenWindow.Register(HiddenWindow.WindowClass, name => HiddenWindow.Plain(_procedure, name));
         Hwnd = HiddenWindow.Create(HiddenWindow.WindowClass);
@@ -49,17 +54,27 @@ internal sealed class SettingsBeacon : IDisposable
 
     private LRESULT WndProc(HWND hwnd, uint message, WPARAM wParam, LPARAM lParam)
     {
-        if (HiddenWindow.Receive(message, wParam, lParam, HiddenWindow.HostClass, out var dropped) is { } received)
+        try
         {
-            if (received is Raise raise)
+            if (HiddenWindow.Receive(message, wParam, lParam, HiddenWindow.HostClass, out var dropped) is { } received)
             {
-                _raised(raise.Overlay);
+                if (received is Raise raise)
+                {
+                    _raised(raise.Overlay);
+                }
+
+                Received?.Invoke(received);
+                return new LRESULT(1);
             }
 
-            Received?.Invoke(received);
-            return new LRESULT(1);
+            return dropped ? new LRESULT(0) : PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
         }
-
-        return dropped ? new LRESULT(0) : PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
+#pragma warning disable CA1031 // Windows calls this from native code: an exception escaping it ends the process.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            _log.MessageFailed(ex);
+            return new LRESULT(0);
+        }
     }
 }

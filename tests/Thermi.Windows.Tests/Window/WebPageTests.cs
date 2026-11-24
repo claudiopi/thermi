@@ -23,16 +23,18 @@ public sealed class WebPageTests
     }
 
     // A renderer that ended or hangs leaves the window blank for good unless the page loads again; a browser that ended
-    // takes the page's controller with it, so the window closes and says so. WebView2 restarts its other processes itself.
+    // takes the page's controller with it, so the window closes and says so, as it does for a renderer that keeps
+    // failing, instead of loading again for ever. WebView2 restarts its other processes itself.
     [Theory]
-    [InlineData(CoreWebView2ProcessFailedKind.RenderProcessExited, "Reload")]
-    [InlineData(CoreWebView2ProcessFailedKind.RenderProcessUnresponsive, "Reload")]
-    [InlineData(CoreWebView2ProcessFailedKind.FrameRenderProcessExited, "Reload")]
-    [InlineData(CoreWebView2ProcessFailedKind.BrowserProcessExited, "Close")]
-    [InlineData(CoreWebView2ProcessFailedKind.GpuProcessExited, "None")]
-    [InlineData(CoreWebView2ProcessFailedKind.UtilityProcessExited, "None")]
-    public void APageWhoseProcessFailedLoadsAgainOrItsWindowCloses(CoreWebView2ProcessFailedKind kind, string expected)
+    [InlineData(CoreWebView2ProcessFailedKind.RenderProcessExited, WebPage.MostReloads - 1, "Reload")]
+    [InlineData(CoreWebView2ProcessFailedKind.RenderProcessExited, WebPage.MostReloads, "Close")]
+    [InlineData(CoreWebView2ProcessFailedKind.RenderProcessUnresponsive, 0, "Reload")]
+    [InlineData(CoreWebView2ProcessFailedKind.FrameRenderProcessExited, 0, "Reload")]
+    [InlineData(CoreWebView2ProcessFailedKind.BrowserProcessExited, 0, "Close")]
+    [InlineData(CoreWebView2ProcessFailedKind.GpuProcessExited, 0, "None")]
+    [InlineData(CoreWebView2ProcessFailedKind.UtilityProcessExited, WebPage.MostReloads, "None")]
+    public void APageWhoseProcessFailedLoadsAgainOrItsWindowCloses(CoreWebView2ProcessFailedKind kind, int reloads, string expected)
     {
-        Assert.Equal(expected, WebPage.Recovery(kind).ToString());
+        Assert.Equal(expected, WebPage.Recovery(kind, reloads).ToString());
     }
 }

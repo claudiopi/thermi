@@ -99,10 +99,26 @@ public sealed class SensorPipeServerTests : IAsyncDisposable
         Assert.False(_running!.IsCompleted, "The server should still be running.");
     }
 
-    [Fact]
-    public async Task ASensorReadThatFailsEndsTheServerWithTheError()
+    // A read that never returns, as a driver stuck in the library, would leave the service running and silent, so past
+    // its limit the server ends the process, which Windows' recovery restarts; here the end is the test's.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ASensorReadThatFailsOrHangsEndsTheServer(bool hangs)
     {
-        var running = Start(() => throw new InvalidOperationException("The GPU driver reset."));
+        using var stuck = new ManualResetEventSlim();
+        var ended = false;
+        var running = Start(
+            () =>
+            {
+                if (hangs)
+                {
+                    stuck.Wait(TestContext.Current.CancellationToken);
+                }
+
+                throw new InvalidOperationException("The GPU driver reset.");
+            },
+            () => ended = true);
         await ConnectAsync();
 
         // A second at a time until the server, which reads once a client is in, has ended; the real clock only bounds a hang.
@@ -111,22 +127,26 @@ public sealed class SensorPipeServerTests : IAsyncDisposable
             _clock.Advance(TimeSpan.FromSeconds(1));
             return running.IsCompleted;
         }, Patience);
+        stuck.Set();
 
         Assert.True(running.IsFaulted, "The server should have failed.");
-        var error = Assert.IsType<InvalidOperationException>(running.Exception.InnerException);
-        Assert.Equal("The GPU driver reset.", error.Message);
+        Assert.Equal(
+            (hangs, hangs ? typeof(TimeoutException) : typeof(InvalidOperationException)),
+            (ended, running.Exception.InnerException!.GetType()));
     }
 
     // A pipe someone else made first is never joined, nor does it end the server: failing, the service would restart
-    // into the same pipe every minute. It waits the squatter out and serves once the name is free.
+    // into the same pipe every minute. It waits the squatter out, saying so once in the event log, and serves once the
+    // name is free.
     [Fact]
     public async Task APipeSomeoneElseCreatedFirstIsNeverJoined()
     {
         Task running;
+        var said = 0;
         // Same direction and instance count as the real host, so only "first instance" can refuse it.
         await using (new NamedPipeServerStream(_pipeName, PipeDirection.InOut, SensorPipeServer.MaxClients))
         {
-            running = Start(() => Small);
+            running = Start(() => Small, squatted: () => said++);
             await Task.WhenAny(running, _clock.RetryWaited.Task).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
             Assert.False(running.IsCompleted, "The server should wait for the name, not end.");
         }
@@ -135,6 +155,7 @@ public sealed class SensorPipeServerTests : IAsyncDisposable
 
         Assert.NotNull(await NextSnapshotAsync(client));
         Assert.False(running.IsCompleted, "The server should still be running.");
+        Assert.Equal(1, said);
     }
 
     [Fact]
@@ -150,9 +171,13 @@ public sealed class SensorPipeServerTests : IAsyncDisposable
         Assert.True(await EndsAsync(client));
     }
 
-    private Task Start(Func<Snapshot> read)
+    private Task Start(Func<Snapshot> read, Action? hung = null, Action? squatted = null)
     {
-        _server = new SensorPipeServer(read, _clock, _pipeName);
+        _server = new SensorPipeServer(read, _clock, _pipeName)
+        {
+            Hung = hung ?? (() => Assert.Fail("No read should hang.")),
+            Squatted = squatted ?? (() => { }),
+        };
         _running = Task.Run(() => _server.RunAsync(_stop.Token), CancellationToken.None);
         return _running;
     }

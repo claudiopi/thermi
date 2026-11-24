@@ -113,7 +113,7 @@ internal sealed class LayeredTestWindow : IDisposable
     public LayeredTestWindow(Bitmap bitmap, Position position)
     {
         HiddenWindow.Register(_className, className => OverlayWindow.WindowClass(TestWindows.DefaultProcedure, className));
-        Hwnd = HiddenWindow.Create(_className, OverlayWindow.ExStyle);
+        Hwnd = TopLevelWindow.Create(_className, OverlayWindow.ExStyle, WINDOW_STYLE.WS_POPUP);
         OverlayWindow.Show(Hwnd, bitmap, position);
         PInvoke.SetWindowPos(
             Hwnd,

@@ -138,7 +138,10 @@ function DriverBar({ needed, onInstalled }: { needed: boolean; onInstalled: () =
   );
 }
 
-/** The sensor service's bar: stopped, with Start it, or readings late, which come back on their own. */
+/**
+ * The sensor service's bar: stopped, with Start it, and why when another program holds its pipe, or readings late,
+ * which come back on their own.
+ */
 function ServiceBar({ data }: { data: WindowData }) {
   const t = useText();
   const service = data.sensors.service;
@@ -152,7 +155,7 @@ function ServiceBar({ data }: { data: WindowData }) {
     <InfoBar
       intent="error"
       title={t('WindowText.ServiceStopped')}
-      message={t('WindowText.ServiceStoppedMore')}
+      message={t(data.sensors.taken ? 'WindowText.PipeTaken' : 'WindowText.ServiceStoppedMore')}
       actions={
         <Button shield onClick={() => void bridge()?.startService()}>
           {t('WindowText.StartIt')}

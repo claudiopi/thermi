@@ -57,7 +57,7 @@ public sealed class MessagesWindowsTests : IDisposable
                 _folder.Log,
                 new FakeTray().Environment(_windowMutex))
             { Received = received.Add };
-            using var beacon = new SettingsBeacon(_ => { }) { Received = received.Add };
+            using var beacon = new SettingsBeacon(_ => { }, _folder.Log) { Received = received.Add };
             host.Start();
 
             delivered = HiddenWindow.Send(to, sent);
@@ -67,6 +67,36 @@ public sealed class MessagesWindowsTests : IDisposable
         Assert.True(delivered);
         var message = Assert.Single(received);
         Assert.Equal(WindowMessages.Encode(sent), WindowMessages.Encode(message));
+    }
+
+    // Windows calls the beacon from native code, where an exception would end the window's process: a message its
+    // handler fails on is logged, and the next one still arrives.
+    [Fact]
+    public void AMessageTheWindowFailsOnLeavesItsBeaconAnswering()
+    {
+        var received = new List<WindowMessage>();
+        var delivered = new List<bool>();
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var beacon = new SettingsBeacon(_ => { }, _folder.Log)
+            {
+                Received = message =>
+                {
+                    received.Add(message);
+                    if (received.Count == 1)
+                    {
+                        throw new InvalidOperationException("The window's handler failed.");
+                    }
+                },
+            };
+
+            delivered.Add(HiddenWindow.Send(Window, new Raise(1, null)));
+            delivered.Add(HiddenWindow.Send(Window, new Raise(2, null)));
+        });
+
+        Assert.Equal((2, true), (received.Count, delivered[^1]));
+        Assert.Contains(_folder.Log.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Error);
     }
 
     // Windows cannot say who sent a message, so the sender names its hidden window: another program's window of the

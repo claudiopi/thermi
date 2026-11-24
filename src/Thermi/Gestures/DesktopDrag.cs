@@ -194,7 +194,7 @@ internal sealed class DesktopDrag : IDisposable
                 return;
             }
 
-            _ghost = HiddenWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT);
+            _ghost = TopLevelWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT, WINDOW_STYLE.WS_POPUP);
             using var bitmap = picture();
             OverlayWindow.Show(_ghost, bitmap, at);
             PInvoke.ShowWindow(_ghost, SHOW_WINDOW_CMD.SW_SHOWNA);

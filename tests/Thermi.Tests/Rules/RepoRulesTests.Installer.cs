@@ -28,5 +28,15 @@ public sealed partial class RepoRulesTests
         Assert.Contains("sc.exe delete $service", script, StringComparison.Ordinal);
         Assert.Contains("$servicePrivileges = 'SeChangeNotifyPrivilege'", script, StringComparison.Ordinal);
         Assert.Contains("sc.exe privs $service $servicePrivileges", script, StringComparison.Ordinal);
+
+        // The fixes' service, by the name both its own code and the window's know it by, is registered and removed too.
+        var fixes = File.ReadAllText(Path.Combine(Root, "src", "Thermi.SensorHost", "ElevatedService.cs"));
+        var asks = File.ReadAllText(Path.Combine(Root, "src", "Thermi", "Commands", "Elevated.cs"));
+        var elevated = Regex.Match(fixes, "public const string Name = \"(?<name>[^\"]+)\";", RegexOptions.None, TimeSpan.FromSeconds(1)).Groups["name"].Value;
+        Assert.NotEmpty(elevated);
+        Assert.Contains($"public const string Service = \"{elevated}\";", asks, StringComparison.Ordinal);
+        Assert.Contains($"$elevatedService = '{elevated}'", script, StringComparison.Ordinal);
+        Assert.Contains("New-Service $elevatedService -BinaryPathName \"`\"$sensors`\" --elevated\"", script, StringComparison.Ordinal);
+        Assert.Contains("sc.exe delete $elevatedService", script, StringComparison.Ordinal);
     }
 }

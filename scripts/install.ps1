@@ -6,7 +6,8 @@ Builds thermi from this repo and installs it on this PC, or removes it with -Uni
 .DESCRIPTION
 Run it as yourself, not as administrator: it builds as you and asks for admin rights (UAC) only to copy
 the files to Program Files and register the thermi-sensors service and its event log source (see
-docs/adr/0003-sensor-service.md), and to install the WebView2 runtime the settings window needs, only where it is missing.
+docs/adr/0003-sensor-service.md) and the thermi-elevated service that runs the window's fixes, and to install the
+WebView2 runtime the settings window needs, only where it is missing.
 A first install starts the overlay at your sign-in; a reinstall keeps "Start with Windows" as the settings window
 left it. Your config in %APPDATA%\thermi is never touched. -Uninstall removes the rest: the files, the service, the
 folder earlier builds kept the driver's installer in, %ProgramData%\thermi, and the window's data in %LOCALAPPDATA%\thermi. It leaves the sensor
@@ -20,17 +21,49 @@ $service = 'thermi-sensors'
 # The one privilege the service keeps of LocalSystem's: the sensors read the same with it alone as with all of them
 # (docs/adr/0003-sensor-service.md).
 $servicePrivileges = 'SeChangeNotifyPrivilege'
+# Runs the window's fixes as SYSTEM, started through sc.exe behind a UAC prompt; only administrators and SYSTEM may start
+# it, and interactive users only read its state, the fix's exit code among it
+# (docs/adr/0010-driver-and-service-from-the-window.md).
+$elevatedService = 'thermi-elevated'
+$elevatedRights = 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLORC;;;IU)(A;;CCLCSWLORC;;;SU)'
 # The settings window's "Start with Windows" switches this same value (src/Thermi/Ui/StartWithWindows.cs), and
 # Task Manager's Startup tab turns it off in the second key without deleting it.
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $approvedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
 
-# The thermi this installer started, which holds its files; one started elevated only the elevated step can see.
+# The thermi this installer started, which holds its files; one started elevated only the elevated step can see. Each
+# is asked to close first, as its tray's "Exit thermi" asks, so its tray icon goes with it and a settings write still
+# waiting lands; one still running 5 s later is ended.
 function Stop-Overlay {
-    Get-Process thermi -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" } | Stop-Process -Force
+    $running = @(Get-Process thermi -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" })
+    if (-not $running) { return }
+    if (-not ('ThermiInstall.Windows' -as [type])) {
+        Add-Type -Namespace ThermiInstall -Name Windows -MemberDefinition (
+            '[DllImport("user32.dll", CharSet = CharSet.Unicode)] ' +
+            'public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string className, string title);' +
+            '[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);' +
+            '[DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);')
+    }
+    $ids = $running.Id
+    # The overlay's hidden host window and the settings window; WM_CLOSE is 0x10.
+    foreach ($class in 'thermi-host', 'thermi-window') {
+        $window = [IntPtr]::Zero
+        while (($window = [ThermiInstall.Windows]::FindWindowEx([IntPtr]::Zero, $window, $class, $null)) -ne [IntPtr]::Zero) {
+            $processId = [uint32]0
+            [ThermiInstall.Windows]::GetWindowThreadProcessId($window, [ref]$processId) | Out-Null
+            if ($ids -contains $processId) { [ThermiInstall.Windows]::PostMessage($window, 0x10, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
+        }
+    }
+    $running | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue
+    $running | Where-Object { -not $_.HasExited } | Stop-Process -Force
 }
 
 function Remove-Service {
+    # A fix running now ends on its own within minutes; it is never stopped halfway.
+    if (Get-Service $elevatedService -ErrorAction SilentlyContinue) {
+        sc.exe delete $elevatedService | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not remove the $elevatedService service (sc.exe exit code $LASTEXITCODE)." }
+    }
     if (Get-Service $service -ErrorAction SilentlyContinue) {
         Stop-Service $service -Force
         sc.exe delete $service | Out-Null
@@ -51,8 +84,10 @@ function Register-Service {
     New-Service $service -BinaryPathName "`"$sensors`"" -DisplayName 'thermi sensors' -StartupType Automatic `
         -Description 'Reads hardware sensors for the thermi overlay.' | Out-Null
     sc.exe failure $service reset= 86400 actions= restart/5000/restart/5000/restart/60000 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not set the $service service's restarts (sc.exe exit code $LASTEXITCODE)." }
     # A service that stops itself with an error code counts as failed too, so it gets restarted.
     sc.exe failureflag $service 1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not have the $service service restarted after an error (sc.exe exit code $LASTEXITCODE)." }
     sc.exe privs $service $servicePrivileges | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Could not limit the $service service's privileges (sc.exe exit code $LASTEXITCODE)." }
     # A 2 MB young generation (the value is hex) keeps the service in its memory budget
@@ -61,6 +96,10 @@ function Register-Service {
     $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$service"
     New-ItemProperty $serviceKey -Name Environment -PropertyType MultiString -Value @('DOTNET_GCgen0size=200000') | Out-Null
     [System.Diagnostics.EventLog]::CreateEventSource($service, 'Application')
+    New-Service $elevatedService -BinaryPathName "`"$sensors`" --elevated" -DisplayName 'thermi fixes' -StartupType Manual `
+        -Description "Installs the sensor driver or starts thermi's sensors, when an administrator asks from thermi." | Out-Null
+    sc.exe sdset $elevatedService $elevatedRights | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not limit who starts the $elevatedService service (sc.exe exit code $LASTEXITCODE)." }
     Start-Service $service
 }
 
@@ -155,7 +194,8 @@ function Get-TreeHash([string]$Folder) {
 function Copy-Verified([string]$From, [string]$Hash, [string]$To) {
     if (Test-Path $To) { Remove-Item $To -Recurse -Force }
     New-Item $To -ItemType Directory | Out-Null
-    Copy-Item (Join-Path $From '*') $To -Recurse
+    # Hidden files too, as the hash counts them.
+    Copy-Item (Join-Path $From '*') $To -Recurse -Force
     # A link copied as a link would still point into a folder the user can write.
     if ((Get-ChildItem $To -Recurse -Force -Attributes ReparsePoint) -or (Get-TreeHash $To) -ne $Hash) {
         Remove-Item $To -Recurse -Force
@@ -199,9 +239,24 @@ function Get-TrustedPwsh([string]$Path) {
     $full
 }
 
+# A process UAC starts takes its environment from the user's registry, which any of their programs can write, and .NET
+# loads a profiler, a startup hook or more assemblies from it before PowerShell runs a line. With one of those named
+# there, nothing is asked; the elevated pwsh reads the registry again as the prompt closes, which this cannot see
+# (docs/adr/0010-driver-and-service-from-the-window.md).
+function Assert-NoCodeLoadingVariable([string[]]$Names) {
+    $pattern = '^(CORECLR_ENABLE_PROFILING|CORECLR_PROFILER|COR_ENABLE_PROFILING|COR_PROFILER|' +
+        'DOTNET_STARTUP_HOOKS|DOTNET_ADDITIONAL_DEPS|DOTNET_ROOT|DOTNET_SHARED_STORE)'
+    $loading = @($Names | Where-Object { $_ -match $pattern })
+    if ($loading) {
+        throw "Your environment sets $($loading -join ', '), which would load code into the administrator step: remove them and run this again."
+    }
+}
+
 # This script and the user's modules stay the user's to write while the UAC prompt waits, so the elevated half is
-# handed over whole, as text taken before the prompt, with its arguments in it, and loads modules only from PowerShell's own.
-function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2) {
+# written whole to $Script before the prompt, with its arguments in it, and loads modules only from PowerShell's own. The
+# command line, which Windows caps at 32,767 characters, carries only its SHA-256: the administrator reads the file once
+# and runs those bytes only if they match, so a file swapped while the prompt waits runs nothing.
+function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [string]$Script) {
     $quoted = { param([string]$Text) "'$($Text -replace "'", "''")'" }
     $names = 'Stop-Overlay', 'Remove-Service', 'Register-Service', 'Install-Service', 'Restore-Service',
         'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Install-Elevated'
@@ -214,17 +269,35 @@ function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2) {
         "`$target = $(& $quoted $target)"
         "`$service = $(& $quoted $service)"
         "`$servicePrivileges = $(& $quoted $servicePrivileges)"
+        "`$elevatedService = $(& $quoted $elevatedService)"
+        "`$elevatedRights = $(& $quoted $elevatedRights)"
         $functions
         "Install-Elevated $(& $quoted $From) $(& $quoted $Hash) `$$HasWebView2"
     ) -join "`n"
-    [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    $bytes = [Text.Encoding]::UTF8.GetBytes($command)
+    [IO.File]::WriteAllBytes($Script, $bytes)
+    $sha = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
+    $check = "`$bytes = [IO.File]::ReadAllBytes($(& $quoted $Script))`n" +
+        "if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(`$bytes)) -ne '$sha') { exit 4 }`n" +
+        "& ([scriptblock]::Create([Text.Encoding]::UTF8.GetString(`$bytes)))"
+    [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($check))
 }
 
 function Invoke-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
     $pwsh = Get-TrustedPwsh (Join-Path $PSHOME 'pwsh.exe')
-    $arguments = @('-NoProfile', '-EncodedCommand', (Get-ElevatedCommand $From $Hash $HasWebView2))
-    $elevated = Start-Process $pwsh -Verb RunAs -Wait -PassThru -ArgumentList $arguments
-    if ($elevated.ExitCode -eq 3) {
+    Assert-NoCodeLoadingVariable @(
+        (Get-Item 'HKCU:\Environment').Property
+        (Get-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').Property)
+    $script = Join-Path ([IO.Path]::GetTempPath()) "thermi-install-$([guid]::NewGuid()).ps1"
+    try {
+        $arguments = @('-NoProfile', '-EncodedCommand', (Get-ElevatedCommand $From $Hash $HasWebView2 $script))
+        $elevated = Start-Process $pwsh -Verb RunAs -Wait -PassThru -ArgumentList $arguments
+    }
+    finally {
+        Remove-Item $script -ErrorAction SilentlyContinue
+    }
+    if ($elevated.ExitCode -eq 4) { throw 'The administrator step changed while the prompt waited, so nothing was installed. Run the installer again.' }
+    elseif ($elevated.ExitCode -eq 3) {
         Write-Warning ('thermi is installed, but the WebView2 runtime could not be: the settings window needs it. ' +
             'Install it from https://developer.microsoft.com/microsoft-edge/webview2/ and run thermi settings.')
     }

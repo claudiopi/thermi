@@ -21,7 +21,11 @@ internal static class HiddenWindow
     /// <summary>The window process's hidden window, which the overlay and a second <c>thermi settings</c> find.</summary>
     public const string WindowClass = "thermi-settings";
 
-    private static readonly HashSet<uint> Ids = [.. WindowMessages.Names.Select(name => PInvoke.RegisterWindowMessage(name))];
+    // Registered once: a window procedure asks for them on every message it gets.
+    private static readonly Dictionary<string, uint> IdOf =
+        WindowMessages.Names.ToDictionary(name => name, name => PInvoke.RegisterWindowMessage(name), StringComparer.Ordinal);
+    private static readonly HashSet<uint> Ids = [.. IdOf.Values];
+    private static readonly uint HistoryAskedId = Id(new HistoryAsked());
 
     // The window answers at once, or it is hung.
     private static readonly TimeSpan AnswerTimeout = TimeSpan.FromMilliseconds(500);
@@ -53,18 +57,9 @@ internal static class HiddenWindow
         lpszClassName = className,
     };
 
-    /// <summary>
-    /// Makes the window of a registered class, as a hidden tool window unless told otherwise, so it never shows on the
-    /// taskbar; the settings window is an overlapped one.
-    /// </summary>
-    public static unsafe HWND Create(string className, WINDOW_EX_STYLE style = WINDOW_EX_STYLE.WS_EX_TOOLWINDOW, WINDOW_STYLE kind = WINDOW_STYLE.WS_POPUP)
-    {
-        fixed (char* name = className)
-        fixed (char* title = "thermi")
-        {
-            return PInvoke.CreateWindowEx(style, name, title, kind, 0, 0, 0, 0, HWND.Null, HMENU.Null, Instance, null);
-        }
-    }
+    /// <summary>Makes a hidden tool window of a registered class, which never shows, on the taskbar or anywhere.</summary>
+    public static HWND Create(string className) =>
+        TopLevelWindow.Create(className, WINDOW_EX_STYLE.WS_EX_TOOLWINDOW, WINDOW_STYLE.WS_POPUP);
 
     /// <summary>
     /// Sends <paramref name="message"/> to the window of that class and waits up to 500 ms for its answer: null when there
@@ -105,7 +100,7 @@ internal static class HiddenWindow
         }
 
         found?.Invoke(window);
-        var id = PInvoke.RegisterWindowMessage(WindowMessages.NameOf(message));
+        var id = Id(message);
         if (message is HistoryAsked)
         {
             return PInvoke.SendMessageTimeout(
@@ -148,7 +143,7 @@ internal static class HiddenWindow
     public static unsafe WindowMessage? Receive(uint message, nuint wParam, nint lParam, string from, out bool dropped)
     {
         dropped = false;
-        if (message == PInvoke.RegisterWindowMessage(WindowMessages.NameOf(new HistoryAsked())))
+        if (message == HistoryAskedId)
         {
             return new HistoryAsked();
         }
@@ -168,7 +163,7 @@ internal static class HiddenWindow
             ? WindowMessages.Decode(new ReadOnlySpan<byte>(copy->lpData, (int)copy->cbData))
             : null;
         dropped = decoded is null
-            || PInvoke.RegisterWindowMessage(WindowMessages.NameOf(decoded)) != copy->dwData
+            || Id(decoded) != copy->dwData
             || (decoded is not Raise && !Peer((HWND)(nint)wParam, from));
         return dropped ? null : decoded;
     }
@@ -182,6 +177,8 @@ internal static class HiddenWindow
         PInvoke.GetWindowThreadProcessId(window, out var process);
         PInvoke.AllowSetForegroundWindow(process);
     }
+
+    private static uint Id(WindowMessage message) => IdOf[WindowMessages.NameOf(message)];
 
     // This process's hidden window of that class, which names the sender of a message; none in a second thermi.
     private static HWND OwnWindow(string className)

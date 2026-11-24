@@ -32,7 +32,7 @@ internal sealed class SnapMarks : IDisposable
         (_size, _scale) = (size, scale);
         foreach (var (snap, at) in Snaps.Marks(screens, orientation, size.Width, size.Height, rows))
         {
-            var window = HiddenWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT);
+            var window = TopLevelWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT, WINDOW_STYLE.WS_POPUP);
             _marks.Add((snap, at, window));
             Paint(window, at, lit: false);
             PInvoke.ShowWindow(window, SHOW_WINDOW_CMD.SW_SHOWNA);

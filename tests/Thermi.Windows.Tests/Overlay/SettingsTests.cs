@@ -117,14 +117,18 @@ public sealed class SettingsTests : IDisposable
         Assert.Equal(["Big", "Big", "Big", "Big", "Big"], shown);
     }
 
-    // A file Windows will not let thermi replace: the first failure is logged, and the retries slow to one a second.
-    [Fact]
-    public async Task AWriteThatKeepsFailingIsLoggedOnceAndRetriedOnceASecond()
+    // A file Windows will not let thermi replace, or one another program keeps locked: the first failure is logged, the
+    // retries slow to one a second, and a lock says so as the file's problem. The change waits, and lands once it can.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AWriteThatKeepsFailingIsLoggedOnceAndRetriedOnceASecond(bool locked)
     {
         var settings = await _folder.LoadedAsync();
         var tries = 0;
-        File.SetAttributes(_folder.File, FileAttributes.ReadOnly);
-        try
+        ConfigProblemKind? shown;
+        File.SetAttributes(_folder.File, locked ? FileAttributes.Normal : FileAttributes.ReadOnly);
+        using (locked ? new FileStream(_folder.File, FileMode.Open, FileAccess.Read, FileShare.None) : null)
         {
             settings.Edit(config =>
             {
@@ -132,17 +136,16 @@ public sealed class SettingsTests : IDisposable
                 return OverlayEdits.SetSize(config, 0, 1.5).Config;
             });
             _folder.Pass(TimeSpan.FromSeconds(10));
-        }
-        finally
-        {
+            shown = settings.Problem?.Kind;
             File.SetAttributes(_folder.File, FileAttributes.Normal);
         }
 
-        var whileReadOnly = tries;
-        _folder.Pass(Settings.Backoff);
+        var whileFailing = tries;
+        _folder.Pass(ConfigStore.Settle + Settings.Backoff + Settings.Interval);
 
         Assert.Single(_folder.Log.Entries);
-        Assert.InRange(whileReadOnly, 10, 20);
+        Assert.Equal(locked ? ConfigProblemKind.Locked : null, shown);
+        Assert.InRange(whileFailing, 10, 20);
         Assert.Equal(1.5, _folder.Read().Overlays[0].Size);
     }
 

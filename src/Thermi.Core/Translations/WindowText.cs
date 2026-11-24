@@ -51,6 +51,9 @@ public enum WindowText
     ServiceStoppedMore,
     StartIt,
 
+    /// <summary>The rest of its sentence instead, while another program holds the pipe the service would serve.</summary>
+    PipeTaken,
+
     /// <summary>The bar while the service's readings are stale.</summary>
     ReadingsStale,
     ReadingsStaleMore,

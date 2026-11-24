@@ -1806,6 +1806,9 @@
   <data name="WindowText.StartIt" xml:space="preserve">
     <value>Iniciarlo</value>
   </data>
+  <data name="WindowText.PipeTaken" xml:space="preserve">
+    <value>Otro programa ocupa la conexión por la que thermi lee sus sensores. Ciérralo o reinicia el PC.</value>
+  </data>
   <data name="WindowText.ReadingsStale" xml:space="preserve">
     <value>Las lecturas se detuvieron hace unos segundos.</value>
   </data>

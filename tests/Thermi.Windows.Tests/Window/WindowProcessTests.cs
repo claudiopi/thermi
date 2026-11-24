@@ -38,7 +38,7 @@ public sealed class WindowProcessTests : IDisposable
                 found = WindowProcess.RunAsync(2, Environment(), pseudo: false, _folder.Clock);
                 _folder.Pass(TimeSpan.FromMilliseconds(500));
                 waiting.Add(!found.IsCompleted);
-                using (new SettingsBeacon(raised.Add))
+                using (new SettingsBeacon(raised.Add, _folder.Log))
                 {
                     _folder.RunOut(found);
                 }

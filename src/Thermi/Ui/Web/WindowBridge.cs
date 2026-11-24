@@ -193,7 +193,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     public Task<SensorView> Snapshot() =>
-        Ready(() => SensorView.Of(_start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _editor.Config.SensorNames, _texts));
+        Ready(() => SensorView.Of(
+            _start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _editor.Config.SensorNames, _texts, _start.Environment.Sensors.Taken));
 
     public Task<IReadOnlyList<double?>> History(string id) => Task.FromResult(_charts.History(id));
 

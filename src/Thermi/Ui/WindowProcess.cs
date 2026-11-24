@@ -42,8 +42,8 @@ internal sealed record WindowEnvironment(
     /// <summary>The keys AltGr types a character with on the keyboard layout now, which no Ctrl+Alt hotkey may take.</summary>
     public Func<IReadOnlySet<int>> AltGrKeys { get; init; } = HotkeyRegistry.AltGrKeys;
 
-    /// <summary>The elevated mode's verb from the executable's path, behind its UAC prompt: its exit code, or null when the prompt was refused.</summary>
-    public Func<string, string, Task<int?>> Elevate { get; init; } = Elevated.AskAsync;
+    /// <summary>The elevated mode's verb, behind its UAC prompt: its exit code, or null when the prompt was refused.</summary>
+    public Func<string, Task<int?>> Elevate { get; init; } = Elevated.AskAsync;
 
     /// <summary>The monitors, their taskbars and notification areas, as Windows has them now.</summary>
     public Func<IReadOnlyList<Screen>> Screens { get; init; } = Desktop.Screens;

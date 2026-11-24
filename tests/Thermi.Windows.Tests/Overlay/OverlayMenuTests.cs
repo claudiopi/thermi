@@ -90,7 +90,7 @@ public sealed class OverlayMenuTests : IDisposable
         var closed = false;
         var environment = _tray.Environment(_windowMutex) with
         {
-            StartSensors = _ =>
+            StartSensors = () =>
             {
                 asked.Set();
                 prompt.Wait(Patience, TestContext.Current.CancellationToken);

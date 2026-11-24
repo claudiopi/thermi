@@ -31,10 +31,9 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     public Func<Position> Cursor { get; init; } = Desktop.Cursor;
 
     /// <summary>
-    /// "Start sensors" from the executable's path, behind its UAC prompt: the elevated mode's exit code, or null when the
-    /// prompt was refused.
+    /// "Start sensors", behind its UAC prompt: the elevated mode's exit code, or null when the prompt was refused.
     /// </summary>
-    public Func<string, Task<int?>> StartSensors { get; init; } = Commands.StartSensors.AskAsync;
+    public Func<Task<int?>> StartSensors { get; init; } = Commands.StartSensors.AskAsync;
 
     /// <summary>Puts an overlay's picture on the clipboard, for the window that owns it; tests keep it, and never touch the real one.</summary>
     public Action<HWND, Bitmap> CopyImage { get; init; } = ClipboardImage.Write;

@@ -36,7 +36,7 @@ Three more reasons weigh:
 
 ## Consequences
 
-- Memory while the window is open: measured around 170 MB for an empty WebView2 page and about 240 MB for the full prototype, against 80–90 MB for WPF. It is spent only while the window is open, in its own process, and closing the window frees all of it; the overlay's 40 MB budget (spec 001) does not change.
+- Memory while the window is open: measured around 170 MB for an empty WebView2 page and about 240 MB for the full prototype, against 80–90 MB for WPF. It is spent only while the window is open, in its own process, and closing the window frees all of it; the overlay's memory budget (`docs/adr/0001-architecture.md`) does not change.
 - The rule "only `src/Thermi/Ui` uses WPF" becomes "no WPF", and its check changes with it; the WPF views and their tests are deleted when the new window replaces them.
 - The repo gains a Node toolchain, with its own lockfile and CI job, beside .NET.
 - Spec 002's acceptance tests for the window move from WPF UI tests to Playwright against the page, with the C# side faked behind the typed interface; the C# side keeps its own tests.

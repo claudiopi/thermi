@@ -93,7 +93,7 @@ The rest
 - R48. Narrator reads a name and a role for every control of the window, and its value where it has one: a level in words ("CPU temperature 96 °C, critical"), a color button its color, a shortcut its keys.
 - R49. The window follows Windows' light or dark mode, accent color and high contrast; under high contrast every part of it, the chart and the level marks included, takes the system's colors.
 - R50. With animation effects off in Windows, nothing animates.
-- R51. While the window is open and idle, the overlay stays within spec 001's budget (under 0.5 % of one core and 40 MB of private memory).
+- R51. While the window is open and idle, the overlay stays within its budget (spec 001's R9, as `docs/adr/0001-architecture.md` amends it).
 - R191. Open and idle, the window itself and its page's renderer stay under 1 % of one core together: each second's readings draw once, and only what they change, sent with the view and status they give so the page asks C# only for what reads them live, as a chart. Minimized, it draws and reads nothing, and once it shows again it shows the latest readings.
 - R52. A "Start with Windows" switch applies at once and survives a reinstall. It changes Windows, not the settings, so Ctrl+Z does not touch it.
 - R53. "Reset…" asks "Reset to defaults?" in a dialog whose Cancel is the focused accent button. Reset brings back one overlay with the default items, labels, meters, thresholds, placement (with click-through and lock off), size, look and visibility; the language, the hotkeys and the temperature unit stay. Undoing it restores every overlay, item and field that still holds its default.

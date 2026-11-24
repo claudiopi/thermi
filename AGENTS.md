@@ -12,7 +12,7 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
 | `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys. |
-| `src/Thermi.SensorHost` | The `thermi-sensors` service, the only elevated process and the only one that loads LibreHardwareMonitor. |
+| `src/Thermi.SensorHost` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor, and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |
 | `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |

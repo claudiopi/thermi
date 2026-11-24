@@ -20,11 +20,6 @@
     <!-- Published for the PC's processor, its code compiled ahead so it starts without the JIT (scripts/install.ps1);
          both processors are restored, so the lock file holds what a publish for either needs. -->
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-    <!-- The elevated mode runs with the user's environment, which any program of the user's can set: .NET comes only from
-         where Windows installed it, never from DOTNET_ROOT, and no startup hook loads code before Main
-         (docs/adr/0010-driver-and-service-from-the-window.md). -->
-    <AppHostDotNetSearch>Global</AppHostDotNetSearch>
-    <StartupHookSupport>false</StartupHookSupport>
     <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
     <!-- Profiling the hot code of a program that wakes once a second costs more than it gains: without it, the overlay's
          first minute and the window's measured about half as much CPU, and no more once settled. -->

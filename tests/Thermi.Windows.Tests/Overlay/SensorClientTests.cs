@@ -94,7 +94,7 @@ public sealed class SensorClientTests : IAsyncDisposable
     }
 
     // Anyone may make a pipe of that name while the service restarts: the client hangs up on it unread, and says the
-    // service is stopped, without logging what is no failure.
+    // service is stopped because another program holds its pipe, without logging what is no failure.
     [Fact]
     public async Task APipeOwnedByAnOrdinaryUserIsRefused()
     {
@@ -104,7 +104,7 @@ public sealed class SensorClientTests : IAsyncDisposable
         var hungUp = await HungUpAsync(host);
 
         Assert.True(hungUp, "The client read from a pipe it should not trust.");
-        Assert.True(await EventuallyAsync(() => client.State == ServiceState.Stopped), $"The service was {client.State}.");
+        Assert.True(await EventuallyAsync(() => client is { State: ServiceState.Stopped, Taken: true }), $"The service was {client.State}.");
         Assert.False(_received.Reader.TryRead(out _));
         Assert.Null(client.Latest);
         Assert.Empty(_log.Entries);
@@ -136,6 +136,7 @@ public sealed class SensorClientTests : IAsyncDisposable
         Assert.False(early, "The client came back before its 2 s.");
         Assert.Equal(NoAdmin.Sensors, again?.Sensors);
         Assert.Equal([ServiceState.Stopped, ServiceState.Running], states);
+        Assert.False(client.Taken);
         Assert.Empty(_log.Entries);
     }
 

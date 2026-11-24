@@ -108,8 +108,15 @@ internal sealed class Topmost : IDisposable
             }
         }
 
+        // A change in the order of top-level windows comes from the desktop, their parent; the hook hears every child
+        // reordered in any app too, which never moves a taskbar.
         private static void OnReorder(HWINEVENTHOOK hook, uint eventType, HWND hwnd, int objectId, int childId, uint thread, uint time)
         {
+            if (hwnd != PInvoke.GetDesktopWindow())
+            {
+                return;
+            }
+
             // A copy: raising one may run another's message, which can close it.
             foreach (var topmost in _kept?.ToArray() ?? [])
             {

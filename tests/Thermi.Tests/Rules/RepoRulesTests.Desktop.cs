@@ -16,6 +16,7 @@ public sealed partial class RepoRulesTests
         "WindowSession.Run(",
         "WindowProcess.RunAsync(",
         "HiddenWindow.Create(",
+        "TopLevelWindow.Create(",
     ];
 
     // Helpers that make windows only for a caller already on its own desktop, or that join one before they make any; a

@@ -13,10 +13,10 @@ public sealed class WindowsInstallerTests : IDisposable
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
-    // The installer runs as administrator from what the user's environment would say: a PATH or TEMP of the user's
-    // finds the user's programs and DLLs first. It gets Windows' own folders, and its own folder for temp files.
+    // The installer inherits the elevated mode's environment, which the thermi-elevated service cleaned
+    // (ElevatedServiceTests), with its own folder, which only administrators write, for its temp files.
     [Fact]
-    public async Task TheInstallerSeesNoneOfTheUsersEnvironment()
+    public async Task TheInstallerKeepsItsTempFilesInItsOwnFolder()
     {
         var seen = Path.Combine(_folder, "environment.txt");
         var cmd = Path.Combine(_folder, "setup.exe");
@@ -27,12 +27,7 @@ public sealed class WindowsInstallerTests : IDisposable
         var variables = (await File.ReadAllLinesAsync(seen, TestContext.Current.CancellationToken))
             .Select(line => line.Split('=', 2))
             .ToDictionary(pair => pair[0], pair => pair[1], StringComparer.OrdinalIgnoreCase);
-        Assert.Equal(0, exit);
-        Assert.Equal(Environment.SystemDirectory, variables["PATH"]);
-        Assert.Equal((_folder, _folder), (variables["TEMP"], variables["TMP"]));
-        Assert.DoesNotContain(
-            variables.Keys,
-            name => name is "USERPROFILE" or "APPDATA" or "LOCALAPPDATA" || name.StartsWith("DOTNET_", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal((0, _folder, _folder), (exit, variables["TEMP"], variables["TMP"]));
     }
 
     // One that outlives its wait would go on as administrator, with the window saying it failed: it ends, children too.

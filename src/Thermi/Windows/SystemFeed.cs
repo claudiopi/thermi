@@ -50,6 +50,8 @@ internal sealed class SystemFeed : ISensorFeed
 
     public ServiceState State => _sensors.State;
 
+    public bool Taken => _sensors.Taken;
+
     public Task RunAsync(CancellationToken stop) => _sensors.RunAsync(stop);
 
     private Snapshot With(Snapshot read)

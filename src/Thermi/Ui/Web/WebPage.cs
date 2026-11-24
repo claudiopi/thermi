@@ -20,10 +20,13 @@ internal enum PageRecovery
 /// that loads nothing from anywhere else; no navigation away, no new window, no browser keys or menus. The page reaches
 /// C# only through <c>window.thermi</c>, which a script set before the page's own answers with the bridge.
 /// </summary>
-internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
+internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider time) : IDisposable
 {
     /// <summary>Reserved never to resolve, so a request that escapes the page's own files reaches no one.</summary>
     public const string Origin = "https://thermi.invalid";
+
+    /// <summary>How many times in a minute a failed renderer loads the page again before the window gives up and closes.</summary>
+    public const int MostReloads = 3;
 
     // A second line of defense behind the page's own policy in index.html, which keeps the only style it allows, the
     // empty element Fluent fills: this one, sent with every file, forbids any other origin even if that one changed.
@@ -33,9 +36,14 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
     /// <summary>Raised once the page has loaded, before its first frame shows.</summary>
     public event EventHandler? Loaded;
 
-    /// <summary>Raised when WebView2's browser process ended, which leaves the page no way back.</summary>
+    /// <summary>
+    /// Raised when WebView2's browser process ended, which leaves the page no way back, or its renderer failed more than
+    /// <see cref="MostReloads"/> times in a minute.
+    /// </summary>
     public event EventHandler? Ended;
 
+    // When the page loaded again after a renderer failed, in the last minute.
+    private readonly List<long> _reloads = [];
     private bool _shown;
     private bool _minimized;
 
@@ -67,19 +75,15 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
         view.WebResourceRequested += (_, e) => e.Response = Serve(view.Environment, e.Request.Uri);
         view.NavigationStarting += (_, e) => e.Cancel = !e.Uri.StartsWith($"{Origin}/", StringComparison.Ordinal);
         view.NewWindowRequested += (_, e) => e.Handled = true;
+        // The page asks for no camera, location or notification, and saves no file: nothing may ask for one in its name.
+        view.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
+        view.DownloadStarting += (_, e) => e.Cancel = true;
         view.NavigationCompleted += (_, _) => Loaded?.Invoke(this, EventArgs.Empty);
         view.ProcessFailed += (_, e) => Failed(view, e.ProcessFailedKind);
         view.WebMessageReceived += Received;
-        bridge.Changed += (_, change) => Raise(nameof(IWindowBridge.Changed), change);
-        // A hidden page draws no readings, and reads the latest once it shows.
-        bridge.Readings += (_, readings) =>
-        {
-            if (Controller?.IsVisible == true)
-            {
-                Raise(nameof(IWindowBridge.Readings), readings);
-            }
-        };
-        bridge.Picked += (_, pick) => Raise(nameof(IWindowBridge.Picked), pick);
+        bridge.Changed += OnChanged;
+        bridge.Readings += OnReadings;
+        bridge.Picked += OnPicked;
         await view.AddScriptToExecuteOnDocumentCreatedAsync(BridgeCalls.Client);
         // The document has no element yet when this runs; it has one, styled before the window shows, once parsed. Over
         // Mica the page lets it show, as it does around the caption buttons; without it, it paints Windows' solid one.
@@ -125,7 +129,17 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
         _ = Controller?.CoreWebView2.ExecuteScriptAsync(script);
     }
 
-    public void Dispose() => Controller?.Close();
+    // Closed, the controller throws on any use: what the bridge says after, as a gesture that ends with the window,
+    // reaches no page.
+    public void Dispose()
+    {
+        bridge.Changed -= OnChanged;
+        bridge.Readings -= OnReadings;
+        bridge.Picked -= OnPicked;
+        var controller = Controller;
+        Controller = null;
+        controller?.Close();
+    }
 
     // What a person could do to a browser and not to a window: reload, zoom, print, find, open the browser's menus or
     // tools, save passwords. The tools stay with --trace, to look into a fault.
@@ -160,12 +174,13 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
         return environment.CreateWebResourceResponse(file, 200, "OK", headers);
     }
 
-    // A renderer that ended or hangs leaves the page blank for good until it loads again; a browser that ended takes the
-    // controller with it. WebView2 starts its other processes again itself.
-    internal static PageRecovery Recovery(CoreWebView2ProcessFailedKind kind) =>
+    // A renderer that ended or hangs leaves the page blank for good until it loads again, unless it fails as it loads,
+    // which would load it again for ever; a browser that ended takes the controller with it. WebView2 starts its other
+    // processes again itself.
+    internal static PageRecovery Recovery(CoreWebView2ProcessFailedKind kind, int reloads) =>
         kind is CoreWebView2ProcessFailedKind.RenderProcessExited
             or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive
-            or CoreWebView2ProcessFailedKind.FrameRenderProcessExited ? PageRecovery.Reload
+            or CoreWebView2ProcessFailedKind.FrameRenderProcessExited ? (reloads < MostReloads ? PageRecovery.Reload : PageRecovery.Close)
         : kind is CoreWebView2ProcessFailedKind.BrowserProcessExited ? PageRecovery.Close
         : PageRecovery.None;
 
@@ -187,9 +202,12 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
     private void Failed(CoreWebView2 view, CoreWebView2ProcessFailedKind kind)
     {
         log.PageFailed(kind.ToString());
-        var recovery = Recovery(kind);
+        var now = time.GetTimestamp();
+        _reloads.RemoveAll(reload => time.GetElapsedTime(reload, now) >= TimeSpan.FromMinutes(1));
+        var recovery = Recovery(kind, _reloads.Count);
         if (recovery == PageRecovery.Reload)
         {
+            _reloads.Add(now);
             view.Reload();
         }
         else if (recovery == PageRecovery.Close)
@@ -225,6 +243,19 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log) : IDisposable
 
         Controller?.CoreWebView2.PostWebMessageAsJson(answer);
     }
+
+    private void OnChanged(object? sender, WindowChangeEventArgs change) => Raise(nameof(IWindowBridge.Changed), change);
+
+    // A hidden page draws no readings, and reads the latest once it shows.
+    private void OnReadings(object? sender, WindowReadingsEventArgs readings)
+    {
+        if (Controller?.IsVisible == true)
+        {
+            Raise(nameof(IWindowBridge.Readings), readings);
+        }
+    }
+
+    private void OnPicked(object? sender, DesktopPickEventArgs pick) => Raise(nameof(IWindowBridge.Picked), pick);
 
     private void Raise(string name, object? value) => Controller?.CoreWebView2.PostWebMessageAsJson(BridgeCalls.EventOf(name, value));
 }

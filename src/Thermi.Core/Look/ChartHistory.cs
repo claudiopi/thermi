@@ -1,6 +1,5 @@
 using Thermi.Core.Messages;
 using Thermi.Core.Sensors;
-using Sent = Thermi.Core.Messages.ItemHistory;
 
 namespace Thermi.Core.Look;
 
@@ -13,7 +12,7 @@ public sealed class ChartHistory(TimeProvider time)
 {
     private static readonly int Slots = (int)SensorHistory.Kept.TotalSeconds;
 
-    private readonly Dictionary<string, Sent> _sent = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Messages.ItemHistory> _sent = new(StringComparer.Ordinal);
 
     /// <summary>Keeps what the overlay sent, over anything it sent before.</summary>
     public void Take(History history)
