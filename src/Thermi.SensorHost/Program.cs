@@ -138,7 +138,6 @@ internal static class Program
         return 0;
     }
 
-    // Before the sensors are opened: the fixes read none.
     private static int RunElevated(TimeProvider time)
     {
         using var elevated = new ElevatedService(ElevatedService.RunThermiAsync, time);

@@ -1,6 +1,5 @@
 namespace Thermi.SensorHost.Install;
 
-/// <summary>Windows refused a step of the install.</summary>
 public sealed class SetupRefusedException : Exception
 {
     public SetupRefusedException()
