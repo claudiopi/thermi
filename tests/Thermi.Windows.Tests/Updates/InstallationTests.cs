@@ -63,7 +63,8 @@ public sealed class InstallationTests : IAsyncDisposable
                 break;
             default:
                 _pc.Lay(UpdatePc.Built);
-                await File.WriteAllTextAsync(Path.Combine(_pc.Top, UpdatePc.Built.ToString(), "thermi.exe"), "built before", TestContext.Current.CancellationToken);
+                var built = Path.Combine(_pc.Top, UpdatePc.Built.ToString(), "thermi.exe");
+                await File.WriteAllTextAsync(built, "built before", TestContext.Current.CancellationToken);
                 break;
         }
 
@@ -112,10 +113,12 @@ public sealed class InstallationTests : IAsyncDisposable
 
         var before = Snapshot();
         var installation = Install();
+        var stop = TestContext.Current.CancellationToken;
 
-        Assert.Equal(
-            (0, 0, before),
-            (await installation.AdoptAsync(UpdatePc.Built, Setup, "{PRODUCT}", TestContext.Current.CancellationToken), await installation.UndoAsync(UpdatePc.Built, Setup, TestContext.Current.CancellationToken), Snapshot()));
+        var adopted = await installation.AdoptAsync(UpdatePc.Built, Setup, "{PRODUCT}", stop);
+        var undone = await installation.UndoAsync(UpdatePc.Built, Setup, stop);
+
+        Assert.Equal((0, 0, before), (adopted, undone, Snapshot()));
     }
 
     // A watchdog switching versions holds the lock: the install waits for it rather than change the services under it.

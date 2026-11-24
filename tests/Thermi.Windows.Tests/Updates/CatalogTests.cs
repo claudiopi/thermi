@@ -72,10 +72,8 @@ public sealed class CatalogTests : IDisposable
         File.Copy(Runtime, Path.Combine(_folder, "coreclr.dll"));
         File.Delete(Path.Combine(_folder, FileCatalog.Name));
 
-        var (made, _) = await DesktopProcess.RunAsync(
-            "pwsh",
-            ["-NoProfile", "-NonInteractive", "-Command", $"New-FileCatalog -Path '{_folder}' -CatalogFilePath '{Path.Combine(_folder, FileCatalog.Name)}' -CatalogVersion 2.0 | Out-Null"],
-            TimeSpan.FromMinutes(1));
+        var make = $"New-FileCatalog -Path '{_folder}' -CatalogFilePath '{Path.Combine(_folder, FileCatalog.Name)}' -CatalogVersion 2.0 | Out-Null";
+        var (made, _) = await DesktopProcess.RunAsync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", make], TimeSpan.FromMinutes(1));
 
         Assert.Equal(0, made);
         Assert.Null(FileCatalog.Lists(_folder));

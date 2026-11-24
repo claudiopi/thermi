@@ -15,7 +15,8 @@ driver, which other programs may use.
 thermi is laid out as updates keep it (docs/adr/0008-updates.md): each version self-contained in a folder of its own, the
 service run from it, and launchers at the top that start it. A build never updates itself, unless -UpdatesFrom gives it a
 channel's address, as `scripts/updates.ps1 serve` answers, and -UpdatesKeys the folder whose release.pub.pem and
-backup.pub.pem it trusts, and -UpdatesSigners the SHA-256 thumbprints of the certificates, separated by semicolons, one of which must sign every version's catalog.
+backup.pub.pem it trusts, and -UpdatesSigners the SHA-256 thumbprints of the certificates, separated by semicolons,
+one of which must sign every version's catalog.
 #>
 param([switch]$Uninstall, [string]$UpdatesFrom, [string]$UpdatesKeys, [string]$UpdatesSigners)
 

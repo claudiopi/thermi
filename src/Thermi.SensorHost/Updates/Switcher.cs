@@ -17,7 +17,11 @@ namespace Thermi.SensorHost.Updates;
 /// old version; then it polls the pipe, and points both services at the new version for good only once it serves.
 /// </summary>
 internal sealed class Switcher(
-    InstallFolder folder, TimeProvider time, Action<string, EventLogEntryType> say, Action<ProcessStartInfo>? start = null, Action<ReleaseVersion>? shown = null)
+    InstallFolder folder,
+    TimeProvider time,
+    Action<string, EventLogEntryType> say,
+    Action<ProcessStartInfo>? start = null,
+    Action<ReleaseVersion>? shown = null)
 {
     public const string Option = "--switch";
 
