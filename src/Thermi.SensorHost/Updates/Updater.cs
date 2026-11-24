@@ -203,11 +203,13 @@ internal sealed class Updater(
         };
         var (next, switchTo) = await ApplyAsync(state, plan, stop);
         next = WriteAfterCheck(next);
-        Prune(next);
-        if (switchTo is { } to)
+        if (switchTo is { } to && (to < build.Version || SwitchHealth.MaySwitch(next, now)))
         {
-            _switcher.Begin(next, to, build.Version, back: to < build.Version);
+            // From the state as it is now: a stop's mark written since the check's own write is kept.
+            _switcher.Begin(folder.Read(), to, build.Version, back: to < build.Version);
         }
+
+        Prune(next);
     }
 
     // A check that could not reach the channel still counts, so About tells a PC that never could.
@@ -318,7 +320,7 @@ internal sealed class Updater(
     {
         var state = folder.Read();
         if (_host.Policy(build).Checks && !_switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && ready > build.Version
-            && Trusted())
+            && SwitchHealth.MaySwitch(state, time.GetUtcNow()) && Trusted())
         {
             _switcher.Begin(state, ready, build.Version);
         }
@@ -345,8 +347,20 @@ internal sealed class Updater(
     private void Prune(UpdateState state)
     {
         // The version the launcher at the top starts, which overlays and sign-ins still run while a program holds it.
+        ReleaseVersion? atTop;
+        try
+        {
+            atTop = folder.AtTop();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A launcher a program holds unreadable: nothing is pruned until it can be told which version it starts.
+            _ = ex;
+            return;
+        }
+
         HashSet<ReleaseVersion> keep = [build.Version];
-        foreach (var version in new[] { state.Installed, state.Previous, state.Ready, folder.AtTop() })
+        foreach (var version in new[] { state.Installed, state.Previous, state.Ready, atTop })
         {
             if (version is not null)
             {

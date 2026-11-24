@@ -81,6 +81,12 @@ public sealed record UpdateState
     /// </summary>
     public string? Refused { get; init; }
 
+    /// <summary>
+    /// Before this, no switch forward begins: one went back without failing, cut by a slow start or met by a program holding
+    /// the pipe, and the old service's own start would only try it again under the same load or the same program.
+    /// </summary>
+    public DateTimeOffset? SwitchAfter { get; init; }
+
     /// <summary>The state <paramref name="text"/> holds; a file broken or missing is a PC that knows nothing yet. Never throws.</summary>
     public static UpdateState Read(string? text)
     {

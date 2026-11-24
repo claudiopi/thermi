@@ -52,13 +52,13 @@ public sealed class SwitchCutTests
         return reader.ReadToEnd();
     }
 
-    // The service keeps what it runs, the installed version, the one before and the one ready; a folder a process still runs
-    // from stays until a later prune.
+    // The service keeps what it runs, the installed version, the one before, the one ready and the one the launcher at the
+    // top still starts, as a program holding it left it; a folder a process still runs from stays until a later prune.
     [Fact]
     public async Task OnlyFoldersOfVersionsNeitherKeptNorRunningAreDeleted()
     {
         await using var pc = new UpdatePc();
-        ReleaseVersion[] laid = [new(0, 5, 0), new(0, 6, 0), new(0, 7, 0), UpdatePc.Built];
+        ReleaseVersion[] laid = [new(0, 4, 0), new(0, 5, 0), new(0, 6, 0), new(0, 7, 0), UpdatePc.Built];
         foreach (var version in laid)
         {
             pc.Lay(version);
@@ -66,11 +66,13 @@ public sealed class SwitchCutTests
 
         pc.Folder().Write(pc.State with { Previous = new ReleaseVersion(0, 7, 0), Ready = UpdatePc.Built });
         pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
+        pc.Folder().PlaceLaunchers(new ReleaseVersion(0, 4, 0));
+        using var top = new FileStream(Path.Combine(pc.Top, "thermi.exe"), FileMode.Open, FileAccess.Read, FileShare.Read);
         using var held = File.OpenRead(Path.Combine(pc.Top, "0.6.0", "thermi.exe"));
         using var updater = pc.Updater();
 
         await updater.CheckAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal([new(0, 6, 0), new(0, 7, 0), UpdatePc.Running, UpdatePc.Built], pc.Versions);
+        Assert.Equal([new(0, 4, 0), new(0, 6, 0), new(0, 7, 0), UpdatePc.Running, UpdatePc.Built], pc.Versions);
     }
 }

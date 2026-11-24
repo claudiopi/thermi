@@ -31,6 +31,9 @@ internal sealed class Switcher(
     // ERROR_SERVICE_REQUEST_TIMEOUT: the service did not answer Windows in time.
     private const int ServiceTimedOut = 1053;
 
+    // ERROR_SHUTDOWN_IN_PROGRESS: Windows refused the start because it is shutting down, which says nothing of the version.
+    private const int ShuttingDown = 1115;
+
     private readonly SwitchLock _lock = new(folder, time);
 
     /// <summary>Whether a watchdog is switching now, so the state is its own until it is done.</summary>
@@ -143,7 +146,7 @@ internal sealed class Switcher(
         {
             ServiceConfig.Start();
         }
-        catch (InvalidOperationException ex) when (ex.InnerException is Win32Exception { NativeErrorCode: ServiceTimedOut })
+        catch (InvalidOperationException ex) when (ex.InnerException is Win32Exception { NativeErrorCode: ServiceTimedOut or ShuttingDown })
         {
             // Windows gave up waiting, as under a boot's disk and antivirus: the version may be slow, not broken, so the
             // switch is cut and tried once more rather than the version failed at once.
@@ -158,9 +161,9 @@ internal sealed class Switcher(
     }
 
     // A version that went back without failing is ready again only at the next check, or GoBack's start would switch again within a minute.
-    private static Func<UpdateState, UpdateState> Outcome(bool started, bool timedOut) => started
+    private Func<UpdateState, UpdateState> Outcome(bool started, bool timedOut) => started
         ? SwitchHealth.Failed
-        : state => (timedOut ? SwitchHealth.Cut(state) : state with { Switch = null }) with { Ready = null, ReadyUrgent = false };
+        : state => SwitchHealth.HeldBack(state, timedOut, time.GetUtcNow());
 
     // A version that started and failed is never taken again; a switch that never started it is only dropped, to try later.
     // The watchdog stopped the old version itself, which is no crash of it.

@@ -9,6 +9,8 @@ namespace Thermi.Updates;
 /// </summary>
 internal static class ThermiPaths
 {
+    private static ((string, DateTime, DateTime) Seen, bool Same)? _compared;
+
     public static string Own { get; } = Path.Combine(AppContext.BaseDirectory, "thermi.exe");
 
     public static string Launcher { get; } = LauncherOf(Own);
@@ -57,7 +59,6 @@ internal static class ThermiPaths
         return bytes;
     }
 
-    private static ((string, DateTime, DateTime) Seen, bool Same)? _compared;
     /// <summary>Whether <paramref name="path"/> is one of thermi's: an overlay and its window may run from either.</summary>
     public static bool IsThermi(string path) =>
         string.Equals(path, Own, StringComparison.OrdinalIgnoreCase) || string.Equals(path, Launcher, StringComparison.OrdinalIgnoreCase);

@@ -29,7 +29,7 @@ internal static class KeyFiles
                 New(Path.Combine(folder.FullName, name + ".pub.pem"), key.ExportSubjectPublicKeyInfoPem(), written);
             }
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             written.ForEach(File.Delete);
             return $"no keys were written: {ex.Message}";
