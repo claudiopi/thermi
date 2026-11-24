@@ -12,7 +12,13 @@ A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM and fans in a
 - Reads the sensors in a small Windows service, `thermi-sensors`, so the overlay and the window never run as administrator.
 - CPU temperature, power and clocks need a small signed driver. When they read nothing, the settings window offers to install it, behind one Windows permission prompt.
 
-Planned: a command line and an MCP server so AI agents can configure it, FPS, and a signed installer.
+- Keeps itself up to date, silently, as a browser does: a new version is downloaded, checked against thermi's signatures and switched to at a quiet moment, with no prompt. A version that fails is set aside and the PC stays on the one that worked.
+
+Planned: a command line and an MCP server so AI agents can configure it, and FPS.
+
+## Privacy
+
+thermi sends nothing about you or your PC. Its only connection is the update check, a minute after the service starts and every 4 hours: one HTTPS request for the channel's manifest, with no query, no cookie, no identifier and `thermi` as its whole User-Agent, and then the zip of a new version. The server sees the address a request comes from, as any server does. An administrator turns updates off with the `Updates` policy value in `HKLM\SOFTWARE\Policies\thermi`, and a build from source never checks unless it is told where.
 
 ## Install from source
 
@@ -24,7 +30,7 @@ Run this as yourself, not as administrator:
 pwsh scripts/install.ps1
 ```
 
-It builds thermi, then asks Windows for administrator rights once, to copy it to Program Files and register the `thermi-sensors` service. It installs the WebView2 runtime the settings window needs only where it is missing, and starts thermi at sign-in. Run it again to update. `pwsh scripts/install.ps1 -Uninstall` removes thermi but keeps your settings, and leaves the driver, which other programs may use: remove it from Installed apps if nothing else needs it.
+It builds thermi, then asks Windows for administrator rights once, to copy it to Program Files and register the `thermi-sensors` service. It installs the WebView2 runtime the settings window needs only where it is missing, and starts thermi at sign-in. A build from source never updates itself: run it again to update. `pwsh scripts/install.ps1 -Uninstall` removes thermi but keeps your settings, and leaves the driver, which other programs may use: remove it from Installed apps if nothing else needs it.
 
 ## Build and test
 

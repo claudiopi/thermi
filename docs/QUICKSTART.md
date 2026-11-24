@@ -24,13 +24,14 @@ The settings are a JSON file in the user's profile. When it changes, the overlay
 
 The settings window edits the same file, in a process of its own that closes with it. It is a web page, the same on any PC, shown by a plain window through WebView2, the browser engine Windows ships. The page decides nothing: it asks C# what to show and hands each change back through one typed bridge, and C# checks it against the same rules the overlay follows, keeps it for undo, and never writes over a broken file.
 
-## Five ideas you need
+## Six ideas you need
 
 - **Separate processes.** The service has admin rights and reads hardware; the overlay has none and draws; the settings window, while open, edits. Each does one job, and a crash in one never takes another down.
 - **Core knows no Windows.** Everything that can be decided without Windows, which metric is which sensor, how a value reads, what the overlay shows, lives in Core and is tested without hardware.
 - **Recordings, not mocks.** Tests replay snapshots recorded on real PCs, with and without admin rights. Fakes kinder than real hardware hide the bugs users hit.
 - **Missing is not zero.** Without its driver, a CPU reports 0 °C. thermi treats that as missing, because no running chip is at 0 °C.
 - **The user's file is sacred.** thermi reads it, never overwrites it while it is broken, and keeps what the user wrote.
+- **Updates are invisible, and undone when they fail.** Each version has a folder of its own beside the last ones, behind launchers whose paths never change, so the service switches versions without a prompt, and goes back to the one that worked when the new one does not serve.
 
 ## How work gets done
 

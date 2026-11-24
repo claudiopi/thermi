@@ -53,6 +53,27 @@ jobs:
           cache-dependency-path: src/Thermi.Settings.Web/package-lock.json
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Web -Mutation
 
+  # The MSI of this build, unsigned and with updates off, so a change that breaks it fails here and not at a release.
+  msi:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - shell: pwsh
+        run: |
+          . ./scripts/publish.ps1
+          $version = @(([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version | Where-Object { $_ })[0]
+          Publish-Thermi artifacts/ci-msi x64 $version
+          Build-Msi artifacts/ci-msi x64 $version "thermi-$version-x64.msi"
+
   pr-title:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -73,9 +94,9 @@ jobs:
   ci-gate:
     name: CI gate
     if: always()
-    needs: [check, web, pr-title]
+    needs: [check, web, msi, pr-title]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - if: needs.check.result != 'success' || needs.web.result != 'success' || (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
+      - if: needs.check.result != 'success' || needs.web.result != 'success' || needs.msi.result != 'success' || (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
         run: exit 1
