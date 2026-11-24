@@ -40,13 +40,14 @@
   </ItemGroup>
 
   <!-- Where the service checks for updates and the public keys it trusts (docs/adr/0008-updates.md): a build without them
-       never updates itself. A release build names the publisher whose signed catalog every version must carry. The release
-       workflow gives the real ones; scripts/install.ps1 -UpdatesFrom a test channel's, with no publisher. -->
+       never updates itself. A release build names the SHA-256 thumbprints of the certificates, separated by semicolons, one
+       of which must sign every version's catalog. The release workflow gives the real ones; scripts/install.ps1
+       -UpdatesFrom a test channel's, with no signer. -->
   <ItemGroup Condition="'$(ThermiUpdatesFrom)' != ''">
     <AssemblyMetadata Include="ThermiUpdatesFrom" Value="$(ThermiUpdatesFrom)" />
     <AssemblyMetadata Include="ThermiUpdatesKey" Value="$(ThermiUpdatesKey)" />
     <AssemblyMetadata Include="ThermiUpdatesBackupKey" Value="$(ThermiUpdatesBackupKey)" />
-    <AssemblyMetadata Include="ThermiUpdatesPublisher" Value="$(ThermiUpdatesPublisher)" />
+    <AssemblyMetadata Include="ThermiUpdatesSigners" Value="$(ThermiUpdatesSigners)" />
   </ItemGroup>
 
   <ItemGroup>

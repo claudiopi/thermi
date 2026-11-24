@@ -1,8 +1,6 @@
-using Thermi.Core.Updates;
-
 namespace Thermi.SensorHost.Install;
 
-/// <summary>What an install changes in Windows beyond thermi's folder: the services, their log source, Installed apps and the overlays that run.</summary>
+/// <summary>What an install changes in Windows beyond thermi's folder: the services, their log source, Installed apps and the programs that run.</summary>
 internal interface ISystemSetup
 {
     /// <summary>The service's image path, or null when there is no such service.</summary>
@@ -11,6 +9,7 @@ internal interface ISystemSetup
     /// <summary>Runs the service manager's <c>sc.exe</c>; throws <see cref="SetupRefusedException"/> when it refuses.</summary>
     void Sc(params string[] arguments);
 
+    /// <summary>Stops the service and waits for it, when there is one.</summary>
     void Stop(string service);
 
     void Start(string service);
@@ -20,10 +19,15 @@ internal interface ISystemSetup
 
     void EventSource(string service, bool registered);
 
-    /// <summary>thermi's entry in Installed apps, removable through the MSI of <paramref name="product"/>; null removes it.</summary>
-    void InstalledApp(string? product, ReleaseVersion version, string top);
+    /// <summary>thermi's entry in Installed apps: the MSI it uninstalls through and the version it shows, or null.</summary>
+    InstalledApp? App();
 
-    /// <summary>Ends every overlay that runs from <paramref name="top"/>, in every session.</summary>
-    void EndOverlays(string top);
+    /// <summary>Writes thermi's entry in Installed apps, or with null removes it.</summary>
+    void App(InstalledApp? app, string top);
+
+    /// <summary>Ends every thermi program that runs from <paramref name="top"/>, in every session, but this process.</summary>
+    void EndPrograms(string top);
 }
 
+/// <summary>thermi's entry in Installed apps: the MSI's product code, which uninstalls it, and the version shown.</summary>
+internal sealed record InstalledApp(string Product, string Version);

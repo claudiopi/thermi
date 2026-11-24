@@ -1,16 +1,20 @@
 using System.Runtime.InteropServices;
 using Thermi.Trust;
+using Thermi.Windows.Tests.Processes;
 
 namespace Thermi.Windows.Tests.Updates;
 
 /// <summary>
-/// A release's signed catalog, which a stolen manifest key cannot make: a version runs only when thermi's publisher signed
+/// A release's signed catalog, which a stolen manifest key cannot make: a version runs only when thermi's certificate signed
 /// it and it lists every file. The fixture is a version's folder and the catalog PowerShell's <c>New-FileCatalog</c> made
 /// over it, unsigned, since no test holds thermi's key.
 /// </summary>
 public sealed class CatalogTests : IDisposable
 {
     private static readonly string Fixture = Path.Combine(AppContext.BaseDirectory, "Updates", "Catalog");
+
+    // The runtime thermi ships, which Microsoft signs.
+    private static readonly string Runtime = Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), "coreclr.dll");
 
     private readonly string _folder = Path.Combine(AppContext.BaseDirectory, "catalogs", Guid.NewGuid().ToString("N"));
 
@@ -32,6 +36,7 @@ public sealed class CatalogTests : IDisposable
     [InlineData("a file changed", false)]
     [InlineData("a file added", false)]
     [InlineData("a file moved", false)]
+    [InlineData("a file deleted", false)]
     [InlineData("the catalog gone", false)]
     public void AVersionRunsOnlyWhatItsCatalogLists(string done, bool listed)
     {
@@ -47,6 +52,9 @@ public sealed class CatalogTests : IDisposable
             case "a file moved":
                 File.Move(page, Path.Combine(_folder, "index.html"));
                 break;
+            case "a file deleted":
+                File.Delete(page);
+                break;
             case "the catalog gone":
                 File.Delete(Path.Combine(_folder, FileCatalog.Name));
                 break;
@@ -57,14 +65,30 @@ public sealed class CatalogTests : IDisposable
         Assert.Equal(listed, FileCatalog.Lists(_folder) is null);
     }
 
+    // A program's hash leaves its own signature out, as Windows computes it: a catalog made over a signed library lists it.
     [Fact]
-    public void OnlyItsPublisherSignsACatalog()
+    public async Task ACatalogListsAProgramByWindowsOwnHash()
     {
-        // The runtime thermi ships, which Microsoft signs as ".NET".
-        var runtime = Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), "coreclr.dll");
+        File.Copy(Runtime, Path.Combine(_folder, "coreclr.dll"));
+        File.Delete(Path.Combine(_folder, FileCatalog.Name));
 
-        Assert.True(Authenticode.Trusted(runtime) && Authenticode.SignedBy(runtime, ".NET"));
-        Assert.False(Authenticode.SignedBy(runtime, "thermi"));
+        var (made, _) = await DesktopProcess.RunAsync(
+            "pwsh",
+            ["-NoProfile", "-NonInteractive", "-Command", $"New-FileCatalog -Path '{_folder}' -CatalogFilePath '{Path.Combine(_folder, FileCatalog.Name)}' -CatalogVersion 2.0 | Out-Null"],
+            TimeSpan.FromMinutes(1));
+
+        Assert.Equal(0, made);
+        Assert.Null(FileCatalog.Lists(_folder));
+    }
+
+    // A certificate by its thumbprint, never its name, which a signing service gives every project it signs for.
+    [Fact]
+    public void OnlyThermisCertificateSignsACatalog()
+    {
+        var signer = Authenticode.Signer(Runtime);
+
+        Assert.True(Authenticode.Trusted(Runtime) && Authenticode.SignedBy(Runtime, [signer]));
+        Assert.False(Authenticode.SignedBy(Runtime, [UpdatePc.Thumbprint]));
         Assert.False(Authenticode.Trusted(Path.Combine(_folder, FileCatalog.Name)));
     }
 }

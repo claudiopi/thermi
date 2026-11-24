@@ -106,8 +106,11 @@ internal sealed class UpdatePc : IAsyncDisposable
     /// <summary>A build with the test's keys built in, or one without, which never updates itself.</summary>
     public UpdateBuild Build(bool keys = true, bool catalog = false, ReleaseVersion? version = null) => keys
         ? new UpdateBuild(
-            Channel.Address, _release.ExportSubjectPublicKeyInfo(), _backup.ExportSubjectPublicKeyInfo(), catalog ? "thermi" : null, version ?? Running, "x64")
-        : new UpdateBuild(null, null, [], Publisher: null, version ?? Running, "x64");
+            Channel.Address, _release.ExportSubjectPublicKeyInfo(), _backup.ExportSubjectPublicKeyInfo(), catalog ? [Thumbprint] : null, version ?? Running, "x64")
+        : new UpdateBuild(null, null, [], Signers: null, version ?? Running, "x64");
+
+    /// <summary>A certificate's thumbprint that signed nothing here.</summary>
+    public const string Thumbprint = "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF";
 
     public Updater Updater(UpdateBuild? build = null, bool trusted = true)
     {

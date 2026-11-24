@@ -24,7 +24,6 @@ internal sealed class Updater(
     private readonly SemaphoreSlim _busy = new(1, 1);
     private volatile bool _checkSoon;
     private volatile bool _switchSoon;
-    private volatile bool _goBack;
     private DateTimeOffset _lastQuiet = DateTimeOffset.MinValue;
 
     /// <summary>
@@ -53,8 +52,15 @@ internal sealed class Updater(
                 EventLogEntryType.Warning);
         }
 
-        _goBack = step == StartStep.RollBack;
-        _switchSoon = _goBack || state.Ready is not null;
+        // Back at once, from the start itself: a version that ends within seconds of every start would never reach a later
+        // tick. The watchdog waits for the service to run before it stops it.
+        if (step == StartStep.RollBack && state.Previous is { } previous)
+        {
+            _switcher.Begin(state, previous, build.Version, back: true);
+            return;
+        }
+
+        _switchSoon = state.Ready is not null;
     }
 
     /// <summary>At a stop asked for, which is never a crash.</summary>
@@ -106,8 +112,7 @@ internal sealed class Updater(
         {
             while (!stop.IsCancellationRequested)
             {
-                // A switch the start asked for waits only for the service to run, so a version that ends within its first
-                // minute is still sent back.
+                // A switch the start asked for waits only for the service to run.
                 await Task.Delay(_switchSoon ? AfterStart : Tick, time, stop);
                 if (_switchSoon)
                 {
@@ -241,11 +246,11 @@ internal sealed class Updater(
         return true;
     }
 
-    // A release build takes a version only when thermi's publisher signed its catalog and the catalog lists every file.
-    private Func<string, string?>? Catalog() => build.Publisher is { } publisher
-        ? unpacked => Authenticode.SignedBy(Path.Combine(unpacked, FileCatalog.Name), publisher)
+    // A release build takes a version only when thermi's certificate signed its catalog and the catalog lists every file.
+    private Func<string, string?>? Catalog() => build.Signers is { Count: > 0 } signers
+        ? unpacked => Authenticode.SignedBy(Path.Combine(unpacked, FileCatalog.Name), signers)
             ? FileCatalog.Lists(unpacked)
-            : $"its {FileCatalog.Name} is not signed by {publisher}"
+            : $"its {FileCatalog.Name} is not signed by thermi's certificate"
         : null;
 
     // A version ready switches when a quiet overlay says so, or when the service starts; a PC no one signs in to has no overlay.
@@ -264,18 +269,7 @@ internal sealed class Updater(
         await _busy.WaitAsync(stop);
         try
         {
-            var state = folder.Read();
-            if (_goBack && state.Previous is { } previous)
-            {
-                if (!_switcher.UnderWay() && Trusted())
-                {
-                    _switcher.Begin(state, previous, build.Version, back: true);
-                }
-            }
-            else
-            {
-                SwitchReady();
-            }
+            SwitchReady();
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested) // As a check: logged, never the updater's end.
         {

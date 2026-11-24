@@ -7,10 +7,11 @@ namespace Thermi.SensorHost.Updates;
 
 /// <summary>
 /// What this build of the service knows of updates (docs/adr/0008-updates.md): the channels' address and the public keys
-/// it trusts, from the build, none in a build that never updates itself; in a release build, the publisher whose signed
-/// catalog every version must carry; the version it is; and the PC's processor.
+/// it trusts, from the build, none in a build that never updates itself; in a release build, the SHA-256 thumbprints of
+/// the certificates one of which must sign every version's catalog, two while one replaces the other; the version it is;
+/// and the PC's processor.
 /// </summary>
-internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, string? Publisher, ReleaseVersion Version, string Processor)
+internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, IReadOnlyList<string>? Signers, ReleaseVersion Version, string Processor)
 {
     public bool Built => From is not null;
 
@@ -29,10 +30,14 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, st
         var release = Key(metadata, "ThermiUpdatesKey");
         var backup = Key(metadata, "ThermiUpdatesBackupKey");
         return released is null || from is null || release is null || backup is null
-            ? new UpdateBuild(null, null, [], Publisher: null, version, processor)
-            : new UpdateBuild(from, release, backup, metadata.GetValueOrDefault("ThermiUpdatesPublisher"), version, processor);
+            ? new UpdateBuild(null, null, [], Signers: null, version, processor)
+            : new UpdateBuild(from, release, backup, SignersOf(metadata), version, processor);
     }
 
+    private static string[]? SignersOf(Dictionary<string, string> metadata) =>
+        metadata.TryGetValue("ThermiUpdatesSigners", out var signers)
+            ? signers.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : null;
 
     public Uri ManifestOf(string channel) => new(From!, $"{channel}.json");
 

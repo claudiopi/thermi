@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Security.Cryptography;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Updates;
@@ -7,10 +8,11 @@ namespace Thermi.SensorHost.Install;
 /// <summary>
 /// The layout an update keeps, laid down by the MSI and by <c>scripts/install.ps1</c> alike (docs/adr/0008-updates.md):
 /// <c>thermi-sensors --adopt</c> copies its own version beside any other, points both services at it with the settings
-/// docs/adr/0003-sensor-service.md measured, puts its launchers at the top and starts the service, which adopts it.
-/// <c>--remove</c> undoes all of it. Both run as SYSTEM or an administrator.
+/// docs/adr/0003-sensor-service.md measured, puts its launchers at the top and starts the service. <c>--undo</c> puts back
+/// what the last one changed, for the MSI's rollback, and <c>--remove</c> takes thermi off. Each runs as SYSTEM or an
+/// administrator, from a folder of thermi's own, and holds the switch's lock, so no update switches meanwhile.
 /// </summary>
-internal sealed class Installation(InstallFolder folder, ISystemSetup system, Action<string> say)
+internal sealed class Installation(InstallFolder folder, ISystemSetup system, TimeProvider time, Action<string> say)
 {
     public const string ElevatedRights = "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLORC;;;IU)(A;;CCLCSWLORC;;;SU)";
 
@@ -20,122 +22,253 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ac
     /// <summary>A 2 MB young generation, in hex, which keeps the service in docs/adr/0011-sensor-service-memory-budget.md's budget.</summary>
     public const string YoungGeneration = "DOTNET_GCgen0size=200000";
 
+    /// <summary>The folder the MSI installs a version in, beside the ones the service keeps, and which only the MSI removes.</summary>
+    public const string Setup = "setup";
+
+    /// <summary>The start of the folder scripts/install.ps1 copies a build to before it adopts it.</summary>
+    public const string InstallPrefix = "install-";
+
     private const string Sensors = SensorService.Name;
     private const string Elevated = ServiceConfig.Elevated;
 
-    /// <summary>
-    /// Lays <paramref name="version"/> down from <paramref name="from"/>, where it was installed; 0 when it runs, 1 when
-    /// Windows refused a step, which leaves the services where they were.
-    /// </summary>
-    public int Adopt(ReleaseVersion version, string from, string? product)
+    // A watchdog holds the lock for the two minutes it gives a version at most; an install waits three, 200 ms a try.
+    private const int LockTries = 900;
+
+    private static readonly string[] Launchers = ["thermi.exe", "thermi-sensors.exe"];
+
+    private string UndoPath => Path.Combine(folder.Update, "adopt-undo.json");
+
+    /// <summary>Whether <paramref name="own"/> is a folder an install runs from: the MSI's, the script's or a version's.</summary>
+    public static bool InstallsFrom(string own)
     {
-        if (!folder.Trusted())
+        var name = Path.GetFileName(Full(own));
+        return string.Equals(name, Setup, StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith(InstallPrefix, StringComparison.OrdinalIgnoreCase)
+            || ReleaseVersion.Parse(name) is not null;
+    }
+
+    /// <summary>
+    /// Lays <paramref name="version"/> down from <paramref name="from"/>; 0 when it runs, 1 when a step failed, which puts
+    /// back what was there. An install while an update runs a later version leaves the later one.
+    /// </summary>
+    public async Task<int> AdoptAsync(ReleaseVersion version, string from, string? product, CancellationToken stop)
+    {
+        if (Refuses(from))
         {
-            say($"{folder.Top} is not a folder only administrators change, so thermi is not installed there.");
             return 1;
         }
 
-        var before = (Sensors: system.ImagePath(Sensors), Elevated: system.ImagePath(Elevated));
-        if (Running(before.Sensors) is { } running && running > version && Directory.Exists(folder.VersionOf(running)))
+        using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
+        if (held is null)
         {
-            // An update already runs a later version: an MSI of this one, repaired or upgraded to, does not take it back.
-            system.InstalledApp(product, running, folder.Top);
+            say("An update is switching thermi's version, so nothing was installed: install again in a few minutes.");
+            return 1;
+        }
+
+        var undo = new AdoptUndo(
+            system.ImagePath(Sensors), system.ImagePath(Elevated), Directory.Exists(folder.VersionOf(version)), folder.StateText(), system.App());
+        var shownBy = product ?? undo.App?.Product;
+        if (Running(undo.Sensors) is { } running && running > version && Directory.Exists(folder.VersionOf(running)))
+        {
+            Show(shownBy, running);
             return 0;
         }
 
-        system.Stop(Sensors);
-        if (!Copy(from, folder.VersionOf(version)))
+        await File.WriteAllTextAsync(UndoPath, undo.ToJson(), stop);
+        return Adopt(version, from, shownBy, undo);
+    }
+
+    /// <summary>Puts back what the last install changed, as its file in <c>update\</c> recorded; nothing when there is none.</summary>
+    public async Task<int> UndoAsync(ReleaseVersion version, string from, CancellationToken stop)
+    {
+        if (Refuses(from))
         {
-            say($"{folder.VersionOf(version)} holds other files and is in use: close thermi and install again.");
-            PutBack(before.Sensors, before.Elevated);
+            return 1;
+        }
+
+        using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
+        if (AdoptUndo.Read(File.Exists(UndoPath) ? await File.ReadAllTextAsync(UndoPath, stop) : null) is { } undo)
+        {
+            Restore(undo, version);
+            File.Delete(UndoPath);
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Removes both services, their log source, Installed apps' entry, every version, the launchers and <c>update\</c>,
+    /// all but the folder it runs from, <paramref name="own"/>, and the MSI's, which the MSI removes, or scripts/install.ps1.
+    /// </summary>
+    public async Task<int> RemoveAsync(string own, CancellationToken stop)
+    {
+        if (Refuses(own))
+        {
             return 1;
         }
 
         try
         {
-            Register(folder.ServiceOf(version), before.Sensors is not null, before.Elevated is not null);
+            using (await new SwitchLock(folder, time).HoldAsync(LockTries, stop))
+            {
+                foreach (var service in new[] { Elevated, Sensors })
+                {
+                    system.Stop(service);
+                    if (system.ImagePath(service) is not null)
+                    {
+                        system.Sc("delete", service);
+                    }
+                }
+
+                system.EventSource(Sensors, registered: false);
+                system.App(null, folder.Top);
+                system.EndPrograms(folder.Top);
+            }
         }
-        catch (SetupRefusedException refused)
+        catch (Exception ex) when (Failed(ex))
         {
-            say($"Windows refused to register thermi's services, so the thermi installed before stays: {refused.Message}");
-            PutBack(before.Sensors, before.Elevated);
+            say($"thermi could not be removed: {ex.Message}");
             return 1;
         }
 
-        folder.PlaceLaunchers(version);
-        Tidy(from);
-        system.InstalledApp(product, version, folder.Top);
-        system.Start(Sensors);
+        foreach (var entry in Directory.EnumerateFileSystemEntries(folder.Top).Where(entry => Owned(entry) && !SamePath(entry, own)))
+        {
+            InstallFolder.Delete(entry);
+        }
+
         return 0;
     }
 
-    /// <summary>
-    /// Removes both services, their log source, Installed apps' entry, and every version and launcher but the folder it
-    /// runs from, <paramref name="own"/>, which the MSI removes, or scripts/install.ps1 once it ended.
-    /// </summary>
-    public void Remove(ReleaseVersion version, string own)
+    private int Adopt(ReleaseVersion version, string from, string? product, AdoptUndo undo)
     {
-        system.Stop(Sensors);
-        foreach (var service in new[] { Elevated, Sensors })
+        try
         {
-            if (system.ImagePath(service) is not null)
+            system.Stop(Sensors);
+            Copy(from, folder.VersionOf(version));
+            Register(folder.ServiceOf(version), undo.Sensors is not null, undo.Elevated is not null);
+            folder.PlaceLaunchers(version);
+            folder.Write(folder.Read() with { Installed = version, Switch = null, Probation = null });
+            Show(product, version);
+            Tidy(from);
+            system.Start(Sensors);
+            return 0;
+        }
+        catch (Exception ex) when (Failed(ex))
+        {
+            say($"thermi {version} could not be installed, so the thermi installed before stays: {ex.Message}");
+            Restore(undo, version);
+            return 1;
+        }
+    }
+
+    private static bool Failed(Exception ex) => ex is SetupRefusedException or IOException or UnauthorizedAccessException or InvalidOperationException
+        or Win32Exception or System.ServiceProcess.TimeoutException;
+
+    // What failed first is what the install tells, so what fails here is only said.
+    private void Restore(AdoptUndo undo, ReleaseVersion version)
+    {
+        Try(() => system.Stop(Sensors));
+        foreach (var (service, image) in new[] { (Elevated, undo.Elevated), (Sensors, undo.Sensors) })
+        {
+            Try(() =>
             {
-                system.Sc("delete", service);
+                if (image is not null)
+                {
+                    system.Sc("config", service, "binPath=", image);
+                }
+                else if (system.ImagePath(service) is not null)
+                {
+                    system.Sc("delete", service);
+                }
+            });
+        }
+
+        if (undo.Sensors is null)
+        {
+            Try(() => system.EventSource(Sensors, registered: false));
+        }
+
+        if (!undo.VersionThere)
+        {
+            folder.SetAside(folder.VersionOf(version));
+        }
+
+        Try(() => PutLaunchersBack(undo));
+        folder.RestoreState(undo.State);
+        Try(() => system.App(undo.App, folder.Top));
+        if (undo.Sensors is not null)
+        {
+            Try(() => system.Start(Sensors));
+        }
+    }
+
+    private void PutLaunchersBack(AdoptUndo undo)
+    {
+        if (Running(undo.Sensors) is { } running && Directory.Exists(folder.VersionOf(running)))
+        {
+            folder.PlaceLaunchers(running);
+        }
+        else if (undo.Sensors is null)
+        {
+            foreach (var launcher in Launchers)
+            {
+                folder.SetAside(Path.Combine(folder.Top, launcher));
             }
         }
+    }
 
-        system.EventSource(Sensors, registered: false);
-        system.InstalledApp(null, version, folder.Top);
-        system.EndOverlays(folder.Top);
-        foreach (var entry in Directory.EnumerateFileSystemEntries(folder.Top).Where(entry => !SamePath(entry, own)))
+    private void Try(Action step)
+    {
+        try
         {
-            Delete(entry);
+            step();
+        }
+        catch (Exception ex) when (Failed(ex))
+        {
+            say($"The thermi installed before could not be put back whole: {ex.Message}");
         }
     }
 
-    /// <summary>The folder the MSI installs a version in, beside the ones the service keeps.</summary>
-    public const string Setup = "setup";
-
-    // The version of a service run from a version's folder; null for one run from anywhere else, as a build before
-    // these folders ran.
-    private ReleaseVersion? Running(string? imagePath)
+    private void Show(string? product, ReleaseVersion version)
     {
-        var exe = imagePath?.Split('"', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-        var parent = exe is null ? null : Path.GetDirectoryName(exe);
-        return parent is not null && SamePath(Path.GetDirectoryName(parent) ?? "", folder.Top) ? ReleaseVersion.Parse(Path.GetFileName(parent)) : null;
-    }
-
-    // What a build from before the version folders left at the top, which nothing runs once the launchers are there.
-    private void Tidy(string from)
-    {
-        var launchers = Directory.EnumerateFiles(folder.Top, "*.exe").Where(exe => File.Exists(Path.Combine(from, "launchers", Path.GetFileName(exe))));
-        var known = new HashSet<string>(launchers, StringComparer.OrdinalIgnoreCase) { folder.Update, Path.Combine(folder.Top, Setup) };
-        foreach (var entry in Directory.EnumerateFileSystemEntries(folder.Top))
+        if (product is not null)
         {
-            var kept = known.Contains(entry) || SamePath(entry, from) || (Directory.Exists(entry) && ReleaseVersion.Parse(Path.GetFileName(entry)) is not null);
-            if (!kept)
-            {
-                folder.SetAside(entry);
-            }
+            system.App(new InstalledApp(product, version.ToString()), folder.Top);
         }
     }
 
-    private static bool SamePath(string one, string other) => string.Equals(Full(one), Full(other), StringComparison.OrdinalIgnoreCase);
+    // Only from a folder of thermi's, in a folder only administrators change: its parent is what it removes from.
+    private bool Refuses(string own)
+    {
+        if (InstallsFrom(own) && SamePath(Path.GetDirectoryName(Full(own)) ?? "", folder.Top) && folder.Trusted())
+        {
+            return false;
+        }
 
-    private static string Full(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        say($"{own} is not a folder of thermi's in a folder only administrators change, so nothing was changed.");
+        return true;
+    }
+
+    private bool Owned(string entry)
+    {
+        var name = Path.GetFileName(entry);
+        return Directory.Exists(entry)
+            ? SamePath(entry, folder.Update) || name.StartsWith(InstallPrefix, StringComparison.OrdinalIgnoreCase) || ReleaseVersion.Parse(name) is not null
+            : Launchers.Contains(name, StringComparer.OrdinalIgnoreCase);
+    }
 
     // A version already there with the same files stays, as an update unpacked it; one built again with other files is
-    // replaced, which Windows refuses while anything runs from it. False then.
-    private bool Copy(string from, string to)
+    // replaced, which Windows refuses while anything runs from it.
+    private void Copy(string from, string to)
     {
         if (SamePath(from, to) || Same(from, to))
         {
-            return true;
+            return;
         }
 
         if (Directory.Exists(to) && !folder.SetAside(to))
         {
-            return false;
+            throw new SetupRefusedException($"{to} holds other files and is in use: close thermi and install again.");
         }
 
         var fresh = folder.Fresh("unpack-") ?? throw new IOException($"{folder.Update} is not a folder only administrators change.");
@@ -147,7 +280,6 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ac
         }
 
         Directory.Move(fresh, to);
-        return true;
     }
 
     private static bool Same(string one, string other) => Directory.Exists(other) && Tree(one).SequenceEqual(Tree(other));
@@ -177,48 +309,30 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ac
         system.Sc("sdset", Elevated, ElevatedRights);
     }
 
-    // A failure to put back is said, not thrown: what failed first is what the install tells. The service starts again
-    // either way, from wherever it points.
-    private void PutBack(string? sensors, string? elevated)
+    // The version of a service run from a version's folder; null for one run from anywhere else, as a build before
+    // these folders ran.
+    private ReleaseVersion? Running(string? imagePath)
     {
-        foreach (var (service, image) in new[] { (Elevated, elevated), (Sensors, sensors) })
-        {
-            try
-            {
-                if (image is not null)
-                {
-                    system.Sc("config", service, "binPath=", image);
-                }
-            }
-            catch (SetupRefusedException again)
-            {
-                say($"The thermi installed before could not be put back: {again.Message}");
-            }
-        }
+        var exe = imagePath?.Split('"', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var parent = exe is null ? null : Path.GetDirectoryName(exe);
+        return parent is not null && SamePath(Path.GetDirectoryName(parent) ?? "", folder.Top) ? ReleaseVersion.Parse(Path.GetFileName(parent)) : null;
+    }
 
-        if (sensors is not null)
+    // What a build from before the version folders left at the top: only the names this version ships, launchers aside.
+    private void Tidy(string from)
+    {
+        foreach (var entry in Directory.EnumerateFileSystemEntries(folder.Top))
         {
-            system.Start(Sensors);
+            var name = Path.GetFileName(entry);
+            var shipped = File.Exists(Path.Combine(from, name)) || Directory.Exists(Path.Combine(from, name));
+            if (shipped && !Launchers.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                folder.SetAside(entry);
+            }
         }
     }
 
-    // A file an overlay that would not end still holds is left behind, and only it.
-    private static void Delete(string entry)
-    {
-        try
-        {
-            if (Directory.Exists(entry))
-            {
-                Directory.Delete(entry, recursive: true);
-            }
-            else
-            {
-                File.Delete(entry);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _ = ex;
-        }
-    }
+    private static bool SamePath(string one, string other) => string.Equals(Full(one), Full(other), StringComparison.OrdinalIgnoreCase);
+
+    private static string Full(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 }

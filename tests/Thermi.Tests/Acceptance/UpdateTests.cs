@@ -307,6 +307,16 @@ public sealed class UpdateTests
         Assert.Equal(V("1.3.1"), SwitchHealth.Started(state with { Ready = V("1.3.1") }, V("1.3.0"), Now).State.Ready);
     }
 
+    // A resume checks again only once the last check is as old as the schedule's; a metered network downloads only what is urgent.
+    [Fact]
+    public void AResumeAndAMeteredNetworkWaitForTheSchedule()
+    {
+        Assert.True(UpdateSchedule.DueOnResume(Now, null) && UpdateSchedule.DueOnResume(Now, Now - UpdateSchedule.Every));
+        Assert.False(UpdateSchedule.DueOnResume(Now, Now.AddHours(-1)));
+        (bool Metered, bool Urgent)[] networks = [(false, false), (false, true), (true, false), (true, true)];
+        Assert.Equal([true, true, false, true], networks.Select(each => UpdateSchedule.MayDownload(each.Metered, each.Urgent)));
+    }
+
     // A version names a folder, so it is read strictly, and ordered as SemVer orders them.
     [Fact]
     public void AVersionIsReadStrictly()

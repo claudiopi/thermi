@@ -25,9 +25,24 @@ internal sealed class ServiceConfig(InstallFolder folder)
         Change(Elevated, $"\"{exe}\" --elevated");
     }
 
-    public static void Stop()
+    public static void Stop(string name = SensorService.Name)
     {
-        using var service = new ServiceController(SensorService.Name);
+        using var service = new ServiceController(name);
+        if (service.Status == ServiceControllerStatus.StartPending)
+        {
+            // One still starting refuses a stop; a watchdog the start itself began asks while it does.
+            try
+            {
+                service.WaitForStatus(ServiceControllerStatus.Running, Wait);
+            }
+            catch (System.ServiceProcess.TimeoutException)
+            {
+                // It stops as it is, or says why.
+            }
+
+            service.Refresh();
+        }
+
         if (service.Status != ServiceControllerStatus.Stopped)
         {
             service.Stop();
@@ -35,9 +50,9 @@ internal sealed class ServiceConfig(InstallFolder folder)
         }
     }
 
-    public static void Start()
+    public static void Start(string name = SensorService.Name)
     {
-        using var service = new ServiceController(SensorService.Name);
+        using var service = new ServiceController(name);
         service.Start();
     }
 

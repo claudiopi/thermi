@@ -72,7 +72,23 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
 
     public void ForgetPipeHeld() => File.Delete(PipeHeldPath);
 
-    public UpdateState Read() => UpdateState.Read(File.Exists(StatePath) ? File.ReadAllText(StatePath) : null);
+    public UpdateState Read() => UpdateState.Read(StateText());
+
+    /// <summary>The state file as it is, or null when there is none.</summary>
+    public string? StateText() => File.Exists(StatePath) ? File.ReadAllText(StatePath) : null;
+
+    /// <summary>Puts the state file back as <see cref="StateText"/> read it, or with null removes it.</summary>
+    public void RestoreState(string? text)
+    {
+        if (text is null)
+        {
+            File.Delete(StatePath);
+        }
+        else
+        {
+            File.WriteAllText(StatePath, text);
+        }
+    }
 
     /// <summary>Writes the state whole or not at all: to a file of its own, flushed to the disk, then moved over the old one.</summary>
     public void Write(UpdateState state)
@@ -176,21 +192,27 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
 
         foreach (var entry in Directory.EnumerateFileSystemEntries(Trash))
         {
-            try
+            Delete(entry);
+        }
+    }
+
+    /// <summary>Deletes a file or a folder; one a process still runs from, or an antivirus holds, stays for a later try.</summary>
+    public static void Delete(string entry)
+    {
+        try
+        {
+            if (Directory.Exists(entry))
             {
-                if (Directory.Exists(entry))
-                {
-                    Directory.Delete(entry, recursive: true);
-                }
-                else
-                {
-                    File.Delete(entry);
-                }
+                Directory.Delete(entry, recursive: true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            else
             {
-                // A launcher a process still runs from, or a file an antivirus holds: the next prune tries again.
+                File.Delete(entry);
             }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = ex;
         }
     }
 }

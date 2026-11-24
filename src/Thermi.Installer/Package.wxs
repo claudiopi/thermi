@@ -8,36 +8,36 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="thermi" Manufacturer="thermi" Version="$(var.Version)" UpgradeCode="{DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}"
            Scope="perMachine" InstallerVersion="500" Compressed="yes">
-    <MajorUpgrade Schedule="afterInstallInitialize"
+    <MajorUpgrade AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize"
                   DowngradeErrorMessage="A newer thermi is installed. Uninstall it from Installed apps first." />
     <MediaTemplate EmbedCab="yes" />
     <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="INSTALLFOLDER" Name="thermi">
-        <Directory Id="SETUPFOLDER" Name="setup" />
+      <Directory Id="installfolder" Name="thermi">
+        <Directory Id="setupfolder" Name="setup" />
       </Directory>
     </StandardDirectory>
 
-    <ComponentGroup Id="Bootstrap" Directory="SETUPFOLDER">
+    <ComponentGroup Id="Bootstrap" Directory="setupfolder">
       <Files Include="$(var.PublishDir)**" />
     </ComponentGroup>
 
     <!-- The launcher at the top, which every version's switch keeps in place. -->
     <StandardDirectory Id="ProgramMenuFolder">
       <Component Id="StartMenu">
-        <Shortcut Id="Thermi" Name="thermi" Target="[INSTALLFOLDER]thermi.exe" WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut Id="Thermi" Name="thermi" Target="[installfolder]thermi.exe" WorkingDirectory="installfolder" />
         <RegistryValue Root="HKMU" Key="SOFTWARE\thermi\installer" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
 
     <!-- Starting at sign-in is each person's: Active Setup turns it on once in every profile, at its next sign-in, as the
          window's "Start with Windows" does, and the person may turn it off for good. -->
-    <Component Id="ActiveSetup" Directory="INSTALLFOLDER">
+    <Component Id="ActiveSetup" Directory="installfolder">
       <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Active Setup\Installed Components\thermi">
         <RegistryValue Type="string" Value="thermi" />
         <RegistryValue Name="StubPath" Type="expandable"
-                       Value="&quot;[System64Folder]reg.exe&quot; add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v thermi /t REG_SZ /d &quot;\&quot;[INSTALLFOLDER]thermi.exe\&quot;&quot; /f" />
+                       Value="&quot;[System64Folder]reg.exe&quot; add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v thermi /t REG_SZ /d &quot;\&quot;[installfolder]thermi.exe\&quot;&quot; /f" />
         <RegistryValue Name="Version" Type="string" Value="1" />
         <RegistryValue Name="IsInstalled" Type="integer" Value="1" KeyPath="yes" />
       </RegistryKey>
@@ -50,17 +50,21 @@
     </Feature>
 
     <!-- As SYSTEM, from the bootstrap: Windows' installer service runs it, so nothing of the user's loads into it. -->
-    <CustomAction Id="Adopt" Directory="SETUPFOLDER" Execute="deferred" Impersonate="no" Return="check"
-                  ExeCommand="&quot;[SETUPFOLDER]thermi-sensors.exe&quot; --adopt --product [ProductCode]" />
-    <CustomAction Id="TakeOff" Directory="SETUPFOLDER" Execute="deferred" Impersonate="no" Return="ignore"
-                  ExeCommand="&quot;[SETUPFOLDER]thermi-sensors.exe&quot; --remove" />
+    <CustomAction Id="Adopt" Directory="setupfolder" Execute="deferred" Impersonate="no" Return="check"
+                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --adopt --product [ProductCode]" />
+    <!-- A rollback of the install, after Adopt or when it failed, puts back what Adopt found. -->
+    <CustomAction Id="Undo" Directory="setupfolder" Execute="rollback" Impersonate="no" Return="ignore"
+                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --undo" />
+    <CustomAction Id="TakeOff" Directory="setupfolder" Execute="deferred" Impersonate="no" Return="check"
+                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --remove" />
     <!-- The overlay of the person who ran the MSI by hand; a silent install, as Intune's, starts none as SYSTEM. -->
-    <CustomAction Id="StartOverlay" Directory="INSTALLFOLDER" Execute="immediate" Impersonate="yes" Return="asyncNoWait"
-                  ExeCommand="&quot;[INSTALLFOLDER]thermi.exe&quot;" />
+    <CustomAction Id="StartOverlay" Directory="installfolder" Execute="immediate" Impersonate="yes" Return="asyncNoWait"
+                  ExeCommand="&quot;[installfolder]thermi.exe&quot;" />
 
     <InstallExecuteSequence>
       <Custom Action="TakeOff" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
-      <Custom Action="Adopt" After="InstallFiles" Condition="NOT REMOVE" />
+      <Custom Action="Undo" After="InstallFiles" Condition="NOT REMOVE" />
+      <Custom Action="Adopt" After="Undo" Condition="NOT REMOVE" />
       <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
     </InstallExecuteSequence>
   </Package>

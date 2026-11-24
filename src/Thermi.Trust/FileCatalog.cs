@@ -20,7 +20,7 @@ public static class FileCatalog
     private const int Sha256Bytes = 32;
 
     /// <summary>
-    /// Null when the catalog in <paramref name="folder"/> lists every other file there under its own path with its own
+    /// Null when the catalog in <paramref name="folder"/> lists every other file there, and only those, under its own path with its own
     /// hash; else why not. Whether the catalog is signed, and by whom, is <see cref="Authenticode.SignedBy"/>'s.
     /// </summary>
     public static string? Lists(string folder)
@@ -31,6 +31,7 @@ public static class FileCatalog
             return $"it has no {Name} that Windows can read";
         }
 
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(folder, file);
@@ -38,9 +39,12 @@ public static class FileCatalog
             {
                 return $"its catalog does not list {relative} as it is";
             }
+
+            found.Add(relative);
         }
 
-        return null;
+        // A file left out would be looked for elsewhere, where Windows searches for a missing library.
+        return listed.Keys.FirstOrDefault(member => !found.Contains(member)) is { } missing ? $"it lacks {missing}, which its catalog lists" : null;
     }
 
     private static unsafe Dictionary<string, string>? Members(string catalog)

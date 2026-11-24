@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -9,12 +10,26 @@ namespace Thermi.Trust;
 public static class Authenticode
 {
     /// <summary>Whether <paramref name="path"/> holds a signature Windows trusts, from anyone.</summary>
-    public static bool Trusted(string path) => Verify(path, publisher: null);
+    public static bool Trusted(string path) => Verify(path, signers: null);
 
-    /// <summary>Whether <paramref name="path"/> holds a signature Windows trusts, from <paramref name="publisher"/>.</summary>
-    public static bool SignedBy(string path, string publisher) => Verify(path, publisher);
+    /// <summary>
+    /// Whether <paramref name="path"/> holds a signature Windows trusts, by a certificate whose SHA-256 thumbprint is one of
+    /// <paramref name="signers"/>, and not revoked. A certificate, not a name: a signing service may sign other projects
+    /// under the same name.
+    /// </summary>
+    public static bool SignedBy(string path, IReadOnlyCollection<string> signers) => Verify(path, signers);
 
-    private static unsafe bool Verify(string path, string? publisher)
+    /// <summary>The SHA-256 thumbprint of the certificate that signed <paramref name="path"/>, in upper-case hex.</summary>
+    public static string Signer(string path)
+    {
+#pragma warning disable SYSLIB0057 // The signed file's signer, which X509CertificateLoader cannot read; trust is judged apart.
+        using var signed = X509Certificate.CreateFromSignedFile(path);
+#pragma warning restore SYSLIB0057
+        using var certificate = X509CertificateLoader.LoadCertificate(signed.GetRawCertData());
+        return certificate.GetCertHashString(HashAlgorithmName.SHA256);
+    }
+
+    private static unsafe bool Verify(string path, IReadOnlyCollection<string>? signers)
     {
         fixed (char* file = path)
         {
@@ -23,7 +38,7 @@ public static class Authenticode
             {
                 cbStruct = (uint)sizeof(WINTRUST_DATA),
                 dwUIChoice = WINTRUST_DATA_UICHOICE.WTD_UI_NONE,
-                fdwRevocationChecks = WINTRUST_DATA_REVOCATION_CHECKS.WTD_REVOKE_NONE,
+                fdwRevocationChecks = signers is null ? WINTRUST_DATA_REVOCATION_CHECKS.WTD_REVOKE_NONE : WINTRUST_DATA_REVOCATION_CHECKS.WTD_REVOKE_WHOLECHAIN,
                 dwUnionChoice = WINTRUST_DATA_UNION_CHOICE.WTD_CHOICE_FILE,
                 dwStateAction = WINTRUST_DATA_STATE_ACTION.WTD_STATEACTION_VERIFY,
             };
@@ -31,7 +46,8 @@ public static class Authenticode
             var action = PInvoke.WINTRUST_ACTION_GENERIC_VERIFY_V2;
             try
             {
-                return PInvoke.WinVerifyTrust(HWND.Null, ref action, &data) == 0 && (publisher is null || Signer(path) == publisher);
+                return PInvoke.WinVerifyTrust(HWND.Null, ref action, &data) == 0
+                    && (signers is null || signers.Contains(Signer(path), StringComparer.OrdinalIgnoreCase));
             }
             finally
             {
@@ -39,15 +55,5 @@ public static class Authenticode
                 PInvoke.WinVerifyTrust(HWND.Null, ref action, &data);
             }
         }
-    }
-
-    // Read once Windows holds the signature valid; the file is in a folder only administrators change.
-    private static string Signer(string path)
-    {
-#pragma warning disable SYSLIB0057 // The signed file's signer, which X509CertificateLoader cannot read; trust was judged just before.
-        using var signed = X509Certificate.CreateFromSignedFile(path);
-#pragma warning restore SYSLIB0057
-        using var certificate = X509CertificateLoader.LoadCertificate(signed.GetRawCertData());
-        return certificate.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
     }
 }

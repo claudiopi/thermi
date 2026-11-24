@@ -111,7 +111,7 @@ internal static class Program
         var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version);
         return folder is null
             ? 2
-            : await new Switcher(folder, environment.Time, (message, type) => SensorService.Say(events, message, type))
+            : await new Switcher(folder, environment.Time, (message, type) => SensorService.Say(events, message, type), shown: WindowsSetup.Show)
                 .WatchAsync(to, environment.PipeName, stop);
     }
 
@@ -119,23 +119,23 @@ internal static class Program
     private static async Task<int> RunModeAsync(ISensorRequest request, SensorHostEnvironment environment, CancellationToken stop) => request switch
     {
         SensorSwitch watch => await WatchAsync(watch.To, environment, stop),
-        SensorInstall install => Install(install, environment.Error),
+        SensorInstall install => await InstallAsync(install, environment, stop),
         _ => RunElevated(environment.Time),
     };
 
     // Run from the folder the MSI or scripts/install.ps1 put this version in, beside the versions an update keeps.
-    private static int Install(SensorInstall install, TextWriter error)
+    private static Task<int> InstallAsync(SensorInstall install, SensorHostEnvironment environment, CancellationToken stop)
     {
         var version = UpdateBuild.Of(typeof(Program).Assembly).Version;
         var own = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
-        var installation = new Installation(new InstallFolder(Path.GetDirectoryName(own)!), new WindowsSetup(), error.WriteLine);
-        if (!install.Remove)
+        var installation = new Installation(new InstallFolder(Path.GetDirectoryName(own)!), new WindowsSetup(), environment.Time, environment.Error.WriteLine);
+        return install.Mode switch
         {
-            return installation.Adopt(version, own, install.Product);
-        }
-
-        installation.Remove(version, own);
-        return 0;
+            InstallMode.Adopt => installation.AdoptAsync(version, own, install.Product, stop),
+            InstallMode.Undo => installation.UndoAsync(version, own, stop),
+            InstallMode.Remove => installation.RemoveAsync(own, stop),
+            _ => throw new ArgumentOutOfRangeException(nameof(install), install.Mode, null),
+        };
     }
 
     private static int RunElevated(TimeProvider time)

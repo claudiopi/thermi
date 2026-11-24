@@ -243,9 +243,10 @@ public sealed class CommandLineTests : IDisposable
     [InlineData(new[] { "--dump", "load.json", "--seconds", "many" }, "--seconds needs a whole number above zero.")]
     [InlineData(new[] { "--elevated" }, "elevated")]
     [InlineData(new[] { "--elevated", "--console" }, "--elevated takes no other option.")]
-    [InlineData(new[] { "--adopt", "--product", "{db4b32af-cd73-400d-bfc1-1a144c2be80c}" }, "adopt {DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}")]
-    [InlineData(new[] { "--adopt" }, "adopt ")]
-    [InlineData(new[] { "--remove" }, "remove")]
+    [InlineData(new[] { "--adopt", "--product", "{db4b32af-cd73-400d-bfc1-1a144c2be80c}" }, "Adopt {DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}")]
+    [InlineData(new[] { "--adopt" }, "Adopt")]
+    [InlineData(new[] { "--remove" }, "Remove")]
+    [InlineData(new[] { "--undo" }, "Undo")]
     [InlineData(new[] { "--remove", "--product", "{db4b32af-cd73-400d-bfc1-1a144c2be80c}" }, "--product needs --adopt. --remove takes no other option.")]
     [InlineData(new[] { "--adopt", "--remove" }, "--adopt takes no other option. --remove takes no other option.")]
     public void TheSensorServiceServesOrDumps(string[] args, string expected)
@@ -259,8 +260,7 @@ public sealed class CommandLineTests : IDisposable
             SensorServe => "console",
             SensorDump { Seconds: null } dump => $"dump {dump.File} once",
             SensorDump dump => $"dump {dump.File} {dump.Seconds}",
-            SensorInstall { Remove: true } => "remove",
-            SensorInstall install => $"adopt {install.Product}",
+            SensorInstall install => $"{install.Mode} {install.Product}".TrimEnd(),
             _ => string.Join(" ", errors),
         });
     }

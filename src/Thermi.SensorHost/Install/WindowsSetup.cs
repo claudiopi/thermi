@@ -1,7 +1,8 @@
 using System.Diagnostics;
-using System.ServiceProcess;
+using System.Security;
 using Microsoft.Win32;
 using Thermi.Core.Updates;
+using Thermi.SensorHost.Updates;
 
 namespace Thermi.SensorHost.Install;
 
@@ -12,6 +13,7 @@ internal sealed class WindowsSetup : ISystemSetup
     public const string InstalledAppsKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\thermi";
 
     private const string ServicesKey = @"SYSTEM\CurrentControlSet\Services\";
+    private const string Uninstall = "MsiExec.exe /X";
 
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(30);
 
@@ -46,24 +48,13 @@ internal sealed class WindowsSetup : ISystemSetup
 
     public void Stop(string service)
     {
-        if (ImagePath(service) is null)
+        if (ImagePath(service) is not null)
         {
-            return;
-        }
-
-        using var controller = new ServiceController(service);
-        if (controller.Status != ServiceControllerStatus.Stopped)
-        {
-            controller.Stop();
-            controller.WaitForStatus(ServiceControllerStatus.Stopped, Wait);
+            ServiceConfig.Stop(service);
         }
     }
 
-    public void Start(string service)
-    {
-        using var controller = new ServiceController(service);
-        controller.Start();
-    }
+    public void Start(string service) => ServiceConfig.Start(service);
 
     public void Environment(string service, IReadOnlyList<string> variables)
     {
@@ -84,9 +75,17 @@ internal sealed class WindowsSetup : ISystemSetup
         }
     }
 
-    public void InstalledApp(string? product, ReleaseVersion version, string top)
+    public InstalledApp? App()
     {
-        if (product is null)
+        using var key = Registry.LocalMachine.OpenSubKey(InstalledAppsKey);
+        return key?.GetValue("UninstallString") is string uninstall && uninstall.StartsWith(Uninstall, StringComparison.OrdinalIgnoreCase)
+            ? new InstalledApp(uninstall[Uninstall.Length..], key.GetValue("DisplayVersion") as string ?? "")
+            : null;
+    }
+
+    public void App(InstalledApp? app, string top)
+    {
+        if (app is null)
         {
             Registry.LocalMachine.DeleteSubKeyTree(InstalledAppsKey, throwOnMissingSubKey: false);
             return;
@@ -94,34 +93,45 @@ internal sealed class WindowsSetup : ISystemSetup
 
         using var key = Registry.LocalMachine.CreateSubKey(InstalledAppsKey);
         key.SetValue("DisplayName", "thermi");
-        key.SetValue("DisplayVersion", version.ToString());
+        key.SetValue("DisplayVersion", app.Version);
         key.SetValue("Publisher", "thermi");
         key.SetValue("DisplayIcon", Path.Combine(top, "thermi.exe"));
         key.SetValue("InstallLocation", top);
-        key.SetValue("UninstallString", $"MsiExec.exe /X{product}");
+        key.SetValue("UninstallString", Uninstall + app.Product);
         key.SetValue("NoModify", 1, RegistryValueKind.DWord);
         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
     }
 
-    /// <summary>The version Installed apps shows, once an update switched; nothing when no MSI installed thermi.</summary>
+    /// <summary>
+    /// The version Installed apps shows, once an update switched; nothing when no MSI installed thermi. A key Windows
+    /// would not let be written leaves the version it showed: the switch is done either way.
+    /// </summary>
     public static void Show(ReleaseVersion version)
     {
-        using var key = Registry.LocalMachine.OpenSubKey(InstalledAppsKey, writable: true);
-        key?.SetValue("DisplayVersion", version.ToString());
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(InstalledAppsKey, writable: true);
+            key?.SetValue("DisplayVersion", version.ToString());
+        }
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
+        {
+            _ = ex;
+        }
     }
 
-    public void EndOverlays(string top)
+    public void EndPrograms(string top)
     {
-        foreach (var overlay in Process.GetProcessesByName("thermi"))
+        foreach (var program in Process.GetProcessesByName("thermi").Concat(Process.GetProcessesByName("thermi-sensors")))
         {
-            using (overlay)
+            using (program)
             {
                 try
                 {
-                    if (overlay.MainModule?.FileName.StartsWith(top + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true)
+                    if (program.Id != System.Environment.ProcessId
+                        && program.MainModule?.FileName.StartsWith(top + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true)
                     {
-                        overlay.Kill();
-                        overlay.WaitForExit(Wait);
+                        program.Kill();
+                        program.WaitForExit(Wait);
                     }
                 }
                 catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)

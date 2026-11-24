@@ -20,10 +20,18 @@ internal sealed record SensorElevated : ISensorRequest;
 internal sealed record SensorSwitch(ReleaseVersion To) : ISensorRequest;
 
 /// <summary>
-/// <c>--adopt</c>, with the MSI's product code when the MSI runs it: lays this version down as the one the PC runs; or
-/// <c>--remove</c>, which takes thermi off the PC (docs/adr/0008-updates.md).
+/// <c>--adopt</c>, with the MSI's product code when the MSI runs it: lays this version down as the one the PC runs;
+/// <c>--undo</c>, which puts back what the last one changed; or <c>--remove</c>, which takes thermi off the PC
+/// (docs/adr/0008-updates.md).
 /// </summary>
-internal sealed record SensorInstall(bool Remove, string? Product) : ISensorRequest;
+internal sealed record SensorInstall(InstallMode Mode, string? Product) : ISensorRequest;
+
+internal enum InstallMode
+{
+    Adopt,
+    Undo,
+    Remove,
+}
 
 /// <summary><c>--help</c> or <c>--version</c>, which System.CommandLine answers itself.</summary>
 internal sealed record SensorBuiltIn(ParseResult Parsed) : ISensorRequest;
@@ -37,7 +45,7 @@ internal static class SensorCommands
         var options = new Options();
         var root = new RootCommand("thermi-sensors: the service that reads the sensors for thermi.")
         {
-            options.Console, options.Dump, options.Seconds, options.Elevated, options.Watch, options.Adopt, options.Product, options.Remove,
+            options.Console, options.Dump, options.Seconds, options.Elevated, options.Watch, options.Adopt, options.Product, options.Undo, options.Remove,
         };
         root.Validators.Add(result => Validate(result, root, options));
         var parsed = root.Parse(args);
@@ -62,7 +70,7 @@ internal static class SensorCommands
             result.AddError("--product needs --adopt.");
         }
 
-        foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Remove })
+        foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Undo, options.Remove })
         {
             Alone(result, mode, [.. root.Options.Where(other => other != mode && (mode != options.Adopt || other != options.Product))]);
         }
@@ -105,15 +113,23 @@ internal static class SensorCommands
 
         public Option<Guid?> Product { get; } = new("--product") { Description = "With --adopt, the MSI that installed it.", Hidden = true };
 
+        public Option<bool> Undo { get; } = new("--undo") { Description = "Puts back what the last install changed.", Hidden = true };
+
         public Option<bool> Remove { get; } = new("--remove") { Description = "Takes thermi off the PC.", Hidden = true };
 
         public ISensorRequest Request(ParseResult parsed) =>
             parsed.GetValue(Elevated) ? new SensorElevated()
             : parsed.GetValue(Watch) is { } to ? new SensorSwitch(to)
-            : parsed.GetValue(Adopt) || parsed.GetValue(Remove)
-                ? new SensorInstall(parsed.GetValue(Remove), parsed.GetValue(Product)?.ToString("B").ToUpperInvariant())
+            : InstallOf(parsed) is { } install ? install
             : parsed.GetValue(Dump) is { } file ? new SensorDump(file, parsed.GetValue(Seconds))
             : new SensorServe(parsed.GetValue(Console));
+
+        private SensorInstall? InstallOf(ParseResult parsed) =>
+            parsed.GetValue(Adopt) ? new SensorInstall(InstallMode.Adopt, parsed.GetValue(Product)?.ToString("B").ToUpperInvariant())
+            : parsed.GetValue(Undo) ? new SensorInstall(InstallMode.Undo, null)
+            : parsed.GetValue(Remove) ? new SensorInstall(InstallMode.Remove, null)
+            : null;
+
         private static ReleaseVersion? To(ArgumentResult result)
         {
             var version = ReleaseVersion.Parse(result.Tokens.SingleOrDefault()?.Value);

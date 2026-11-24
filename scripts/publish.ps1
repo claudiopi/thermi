@@ -22,8 +22,9 @@ function Get-Processor {
 }
 
 # Self-contained, with ReadyToRun for the processor, so both start without compiling their code first. A build given a
-# channel's address and keys checks it for updates; one given a publisher takes only versions whose catalog it signed.
-function Publish-Thermi([string]$Out, [string]$Processor, [string]$Version, [string]$UpdatesFrom, [string]$UpdatesKeys, [string]$Publisher) {
+# channel's address and keys checks it for updates; one given signers, SHA-256 certificate thumbprints separated by
+# semicolons, takes only versions whose catalog one of them signed.
+function Publish-Thermi([string]$Out, [string]$Processor, [string]$Version, [string]$UpdatesFrom, [string]$UpdatesKeys, [string]$Signers) {
     $root = Split-Path $PSScriptRoot -Parent
     $properties = @('-p:DebugType=none', '-p:PublishDocumentationFile=false', '-p:PublishReferencesDocumentationFiles=false')
     if ($Version) { $properties += "-p:Version=$Version" }
@@ -31,7 +32,8 @@ function Publish-Thermi([string]$Out, [string]$Processor, [string]$Version, [str
         if (-not $UpdatesKeys) { throw 'A build that checks for updates needs the folder with the channel''s public keys.' }
         $properties += "-p:ThermiUpdatesFrom=$UpdatesFrom", "-p:ThermiUpdatesKey=$(Get-PublicKey $UpdatesKeys release.pub.pem)",
             "-p:ThermiUpdatesBackupKey=$(Get-PublicKey $UpdatesKeys backup.pub.pem)"
-        if ($Publisher) { $properties += "-p:ThermiUpdatesPublisher=$Publisher" }
+        # MSBuild reads a semicolon in a property as a list's, so it goes escaped.
+        if ($Signers) { $properties += "-p:ThermiUpdatesSigners=$($Signers -replace ';', '%3B')" }
     }
 
     Remove-Item $Out -Recurse -Force -ErrorAction SilentlyContinue

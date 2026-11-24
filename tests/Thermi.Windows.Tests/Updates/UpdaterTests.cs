@@ -127,10 +127,19 @@ public sealed class UpdaterTests
         Assert.Equal(2, await LoggedAsync(pc, updater, withdrawn));
         Assert.Equal(1, await LoggedAsync(pc, updater, withdrawn with { Sequence = 5, Expires = pc.Clock.GetUtcNow().AddMinutes(-1) }));
 
+        // A version on probation that ends twice without a stop goes back from its start itself, before any tick: one that
+        // ends within seconds of each start would never reach one.
+        var switched = SwitchHealth.Begin(new UpdateState { Installed = older, Ready = UpdatePc.Running }, UpdatePc.Running);
+        pc.Folder().Write(SwitchHealth.Done(switched, pc.Clock.GetUtcNow()));
+        var before = pc.Events.Count;
+        updater.Started();
+        updater.Started();
+
         // Each switch's watchdog: the running version's for a step forward, the older one's own for a step back.
         Assert.Equal(
-            [pc.Folder().ServiceOf(UpdatePc.Running), pc.Folder().ServiceOf(older)],
+            [pc.Folder().ServiceOf(UpdatePc.Running), pc.Folder().ServiceOf(older), pc.Folder().ServiceOf(older)],
             pc.Watchdogs);
+        Assert.Equal(2, pc.Events.Count - before);
     }
 
     private static async Task<int> LoggedAsync(UpdatePc pc, sensors::Thermi.SensorHost.Updates.Updater updater, Manifest manifest)

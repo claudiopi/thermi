@@ -6,8 +6,8 @@ The owner's levers on thermi's update channels (docs/adr/0008-updates.md).
 .DESCRIPTION
 pack builds a version for a processor and zips its folder as an update carries it:
   pwsh scripts/updates.ps1 pack --version 0.9.1 --out <zip> [--processor x64|arm64] [--msi <msi>]
-      [--updates-from <url> --updates-keys <folder> [--publisher <name>]]
-A release names the publisher whose signed catalog every version must carry.
+      [--updates-from <url> --updates-keys <folder> [--signers <thumbprints>]]
+A release names the SHA-256 thumbprints of the certificates, separated by semicolons, one of which signs every catalog.
 Every other command goes to thermi-releases (src/Thermi.Releases), which writes the channel's next signed manifest into
 a channels folder laid out as the server is:
   keys --out <folder>
@@ -53,7 +53,7 @@ if (-not $Processor) {
 # The same build as scripts/install.ps1's, at the version given, and pointed at the same channel when asked.
 . (Join-Path $PSScriptRoot 'publish.ps1')
 $staging = Join-Path $root "artifacts/pack/$Version-$Processor"
-Publish-Thermi $staging $Processor $Version $UpdatesFrom $UpdatesKeys $options['publisher']
+Publish-Thermi $staging $Processor $Version $UpdatesFrom $UpdatesKeys $options['signers']
 
 Remove-Item $Out -ErrorAction SilentlyContinue
 [System.IO.Compression.ZipFile]::CreateFromDirectory($staging, [IO.Path]::GetFullPath($Out), 'Optimal', $false)

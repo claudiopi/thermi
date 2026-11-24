@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.CompilerServices;
-using System.Security.AccessControl;
 using System.Security.Principal;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
@@ -17,35 +16,18 @@ namespace Thermi.SensorHost.Updates;
 /// service, points it at the new version, starts it and points it back at once, so a power cut leaves Windows starting the
 /// old version; then it polls the pipe, and points both services at the new version for good only once it serves.
 /// </summary>
-internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<string, EventLogEntryType> say, Action<ProcessStartInfo>? start = null)
+internal sealed class Switcher(
+    InstallFolder folder, TimeProvider time, Action<string, EventLogEntryType> say, Action<ProcessStartInfo>? start = null, Action<ReleaseVersion>? shown = null)
 {
     public const string Option = "--switch";
 
     private static readonly SecurityIdentifier LocalSystem = new(WellKnownSidType.LocalSystemSid, null);
     private static readonly SecurityIdentifier Administrators = new(WellKnownSidType.BuiltinAdministratorsSid, null);
 
-    // Held open by the watchdog while it switches, in update\, which only administrators change: a named mutex would be
-    // one any user could make first, and so stop every switch.
-    private string LockPath => Path.Combine(folder.Update, "switch.lock");
+    private readonly SwitchLock _lock = new(folder, time);
 
     /// <summary>Whether a watchdog is switching now, so the state is its own until it is done.</summary>
-    public bool UnderWay()
-    {
-        try
-        {
-            using var free = new FileStream(LockPath, FileMode.Open, FileAccess.Read, FileShare.None);
-            return false;
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return false;
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-    }
-
+    public bool UnderWay() => _lock.Held();
     /// <summary>
     /// Writes the switch to <paramref name="to"/> down and starts its watchdog: this version's for a step forward, and for
     /// a step back after a failed probation the version it goes back to, which ran here before.
@@ -63,7 +45,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
     /// <summary>The watchdog: 0 when the PC runs <paramref name="to"/> for good, 1 when it went back, 2 when there was nothing to do.</summary>
     public async Task<int> WatchAsync(ReleaseVersion to, string pipeName, CancellationToken stop)
     {
-        using var owned = await HoldAsync(stop);
+        using var owned = await _lock.HoldAsync(5, stop);
         var state = folder.Read();
         if (owned is null || state.Switch is not { Running: true } pending || pending.To != to)
         {
@@ -83,7 +65,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
                 services.Point(to);
                 folder.PlaceLaunchers(to);
                 folder.Write(SwitchHealth.Done(folder.Read(), time.GetUtcNow()));
-                Install.WindowsSetup.Show(to);
+                shown?.Invoke(to);
                 say($"thermi switched to {to}, which serves its readings.", EventLogEntryType.Information);
                 return 0;
             }
@@ -159,35 +141,6 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         {
             say($"thermi {pending.From} did not start again after the switch: {ex.Message}", EventLogEntryType.Error);
         }
-    }
-
-    // A service asking whether a switch is under way opens the lock for a moment, so a few tries tell it from a watchdog.
-    private async Task<FileStream?> HoldAsync(CancellationToken stop)
-    {
-        for (var tries = 0; tries < 5; tries++)
-        {
-            try
-            {
-                return new FileInfo(LockPath)
-                    .Create(FileMode.OpenOrCreate, FileSystemRights.FullControl, FileShare.None, 1, FileOptions.DeleteOnClose, AdminsOnly());
-            }
-            catch (IOException)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(200), time, stop);
-            }
-        }
-
-        return null;
-    }
-
-    // Users may read update\, and would hold a lock a power cut left behind open: none but administrators may open it.
-    private static FileSecurity AdminsOnly()
-    {
-        var security = new FileSecurity();
-        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-        security.AddAccessRule(new FileSystemAccessRule(LocalSystem, FileSystemRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new FileSystemAccessRule(Administrators, FileSystemRights.FullControl, AccessControlType.Allow));
-        return security;
     }
 
     // One poll a second, counted, never timed: a PC that sleeps in between loses no tries.
