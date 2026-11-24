@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.ServiceProcess;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
+using Thermi.SensorHost.Install;
 using Thermi.SensorHost.Updates;
 
 namespace Thermi.SensorHost;
@@ -35,14 +36,9 @@ internal static class Program
             return await builtIn.Parsed.InvokeAsync(new InvocationConfiguration { Output = environment.Out, Error = environment.Error }, stop);
         }
 
-        if (request is SensorElevated)
+        if (request is SensorElevated or SensorSwitch or SensorInstall)
         {
-            return RunElevated(environment.Time);
-        }
-
-        if (request is SensorSwitch watch)
-        {
-            return await WatchAsync(watch.To, environment, stop);
+            return await RunModeAsync(request, environment, stop);
         }
 
         using var source = environment.Open();
@@ -117,6 +113,29 @@ internal static class Program
             ? 2
             : await new Switcher(folder, environment.Time, (message, type) => SensorService.Say(events, message, type))
                 .WatchAsync(to, environment.PipeName, stop);
+    }
+
+    // The modes that read no sensors.
+    private static async Task<int> RunModeAsync(ISensorRequest request, SensorHostEnvironment environment, CancellationToken stop) => request switch
+    {
+        SensorSwitch watch => await WatchAsync(watch.To, environment, stop),
+        SensorInstall install => Install(install, environment.Error),
+        _ => RunElevated(environment.Time),
+    };
+
+    // Run from the folder the MSI or scripts/install.ps1 put this version in, beside the versions an update keeps.
+    private static int Install(SensorInstall install, TextWriter error)
+    {
+        var version = UpdateBuild.Of(typeof(Program).Assembly).Version;
+        var own = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+        var installation = new Installation(new InstallFolder(Path.GetDirectoryName(own)!), new WindowsSetup(), error.WriteLine);
+        if (!install.Remove)
+        {
+            return installation.Adopt(version, own, install.Product);
+        }
+
+        installation.Remove(version, own);
+        return 0;
     }
 
     // Before the sensors are opened: the fixes read none.

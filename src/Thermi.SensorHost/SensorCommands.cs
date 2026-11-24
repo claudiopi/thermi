@@ -19,6 +19,12 @@ internal sealed record SensorElevated : ISensorRequest;
 /// <summary><c>--switch &lt;version&gt;</c>: the watchdog of a switch to that version, which the service starts (docs/adr/0008-updates.md).</summary>
 internal sealed record SensorSwitch(ReleaseVersion To) : ISensorRequest;
 
+/// <summary>
+/// <c>--adopt</c>, with the MSI's product code when the MSI runs it: lays this version down as the one the PC runs; or
+/// <c>--remove</c>, which takes thermi off the PC (docs/adr/0008-updates.md).
+/// </summary>
+internal sealed record SensorInstall(bool Remove, string? Product) : ISensorRequest;
+
 /// <summary><c>--help</c> or <c>--version</c>, which System.CommandLine answers itself.</summary>
 internal sealed record SensorBuiltIn(ParseResult Parsed) : ISensorRequest;
 
@@ -28,23 +34,12 @@ internal static class SensorCommands
     /// <summary>The request, or null with <paramref name="errors"/> saying why the arguments make no sense.</summary>
     public static ISensorRequest? Parse(IReadOnlyList<string> args, out IReadOnlyList<string> errors)
     {
-        var console = new Option<bool>("--console") { Description = "Serves readings in this terminal, as administrator." };
-        var dump = new Option<string>("--dump") { Description = "Saves what the sensors read now to a file, for a bug report or test data." };
-        var seconds = new Option<int?>("--seconds") { Description = "With --dump, records a series of one snapshot a second.", CustomParser = Seconds };
-        var elevated = new Option<bool>("--elevated") { Description = "Runs the thermi-elevated service, which the service manager starts.", Hidden = true };
-        var watch = new Option<ReleaseVersion?>("--switch") { Description = "Switches the service to a version.", Hidden = true, CustomParser = To };
-        var root = new RootCommand("thermi-sensors: the service that reads the sensors for thermi.") { console, dump, seconds, elevated, watch };
-        root.Validators.Add(result =>
+        var options = new Options();
+        var root = new RootCommand("thermi-sensors: the service that reads the sensors for thermi.")
         {
-            if (result.GetResult(seconds) is not null && result.GetResult(dump) is null)
-            {
-                result.AddError("--seconds needs --dump.");
-            }
-
-            Alone(result, elevated, console, dump, seconds, watch);
-            Alone(result, watch, console, dump, seconds, elevated);
-        });
-
+            options.Console, options.Dump, options.Seconds, options.Elevated, options.Watch, options.Adopt, options.Product, options.Remove,
+        };
+        root.Validators.Add(result => Validate(result, root, options));
         var parsed = root.Parse(args);
         errors = [.. parsed.Errors.Select(error => error.Message)];
         if (errors.Count > 0)
@@ -52,26 +47,28 @@ internal static class SensorCommands
             return null;
         }
 
-        if (parsed.Action is not null)
-        {
-            return new SensorBuiltIn(parsed);
-        }
-
-        if (parsed.GetValue(elevated))
-        {
-            return new SensorElevated();
-        }
-
-        if (parsed.GetValue(watch) is { } to)
-        {
-            return new SensorSwitch(to);
-        }
-
-        return parsed.GetValue(dump) is { } file ? new SensorDump(file, parsed.GetValue(seconds)) : new SensorServe(parsed.GetValue(console));
+        return parsed.Action is not null ? new SensorBuiltIn(parsed) : options.Request(parsed);
     }
 
+    private static void Validate(CommandResult result, RootCommand root, Options options)
+    {
+        if (result.GetResult(options.Seconds) is not null && result.GetResult(options.Dump) is null)
+        {
+            result.AddError("--seconds needs --dump.");
+        }
+
+        if (result.GetResult(options.Product) is not null && result.GetResult(options.Adopt) is null)
+        {
+            result.AddError("--product needs --adopt.");
+        }
+
+        foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Remove })
+        {
+            Alone(result, mode, [.. root.Options.Where(other => other != mode && (mode != options.Adopt || other != options.Product))]);
+        }
+    }
     // The service manager's own modes take nothing else.
-    private static void Alone(CommandResult result, Option option, params Option[] others)
+    private static void Alone(CommandResult result, Option option, IEnumerable<Option> others)
     {
         if (result.GetResult(option) is not null && others.Any(other => result.GetResult(other) is not null))
         {
@@ -79,25 +76,65 @@ internal static class SensorCommands
         }
     }
 
-    private static ReleaseVersion? To(ArgumentResult result)
+    private sealed class Options
     {
-        var version = ReleaseVersion.Parse(result.Tokens.SingleOrDefault()?.Value);
-        if (version is null)
+        public Option<bool> Console { get; } = new("--console") { Description = "Serves readings in this terminal, as administrator." };
+
+        public Option<string> Dump { get; } = new("--dump") { Description = "Saves what the sensors read now to a file, for a bug report or test data." };
+
+        public Option<int?> Seconds { get; } = new("--seconds")
         {
-            result.AddError("--switch needs a version.");
+            Description = "With --dump, records a series of one snapshot a second.",
+            CustomParser = SecondsOf,
+        };
+
+        public Option<bool> Elevated { get; } = new("--elevated")
+        {
+            Description = "Runs the thermi-elevated service, which the service manager starts.",
+            Hidden = true,
+        };
+
+        public Option<ReleaseVersion?> Watch { get; } = new("--switch")
+        {
+            Description = "Switches the service to a version.",
+            Hidden = true,
+            CustomParser = To,
+        };
+
+        public Option<bool> Adopt { get; } = new("--adopt") { Description = "Installs this version as the one the PC runs.", Hidden = true };
+
+        public Option<Guid?> Product { get; } = new("--product") { Description = "With --adopt, the MSI that installed it.", Hidden = true };
+
+        public Option<bool> Remove { get; } = new("--remove") { Description = "Takes thermi off the PC.", Hidden = true };
+
+        public ISensorRequest Request(ParseResult parsed) =>
+            parsed.GetValue(Elevated) ? new SensorElevated()
+            : parsed.GetValue(Watch) is { } to ? new SensorSwitch(to)
+            : parsed.GetValue(Adopt) || parsed.GetValue(Remove)
+                ? new SensorInstall(parsed.GetValue(Remove), parsed.GetValue(Product)?.ToString("B").ToUpperInvariant())
+            : parsed.GetValue(Dump) is { } file ? new SensorDump(file, parsed.GetValue(Seconds))
+            : new SensorServe(parsed.GetValue(Console));
+        private static ReleaseVersion? To(ArgumentResult result)
+        {
+            var version = ReleaseVersion.Parse(result.Tokens.SingleOrDefault()?.Value);
+            if (version is null)
+            {
+                result.AddError("--switch needs a version.");
+            }
+
+            return version;
         }
 
-        return version;
-    }
-
-    private static int? Seconds(ArgumentResult result)
-    {
-        if (result.Tokens is [var token] && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value > 0)
+        private static int? SecondsOf(ArgumentResult result)
         {
-            return value;
-        }
+            if (result.Tokens is [var token] && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value > 0)
+            {
+                return value;
+            }
 
-        result.AddError("--seconds needs a whole number above zero.");
-        return null;
+            result.AddError("--seconds needs a whole number above zero.");
+            return null;
+        }
     }
+
 }

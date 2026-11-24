@@ -83,6 +83,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
                 services.Point(to);
                 folder.PlaceLaunchers(to);
                 folder.Write(SwitchHealth.Done(folder.Read(), time.GetUtcNow()));
+                Install.WindowsSetup.Show(to);
                 say($"thermi switched to {to}, which serves its readings.", EventLogEntryType.Information);
                 return 0;
             }

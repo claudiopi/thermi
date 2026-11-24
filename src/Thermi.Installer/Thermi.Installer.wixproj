@@ -1,0 +1,11 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!-- The MSI of one version for one processor (docs/adr/0008-updates.md), built from that version's published folder:
+       pwsh scripts/msi.ps1 builds both. Outside thermi.slnx, since it needs a publish first. -->
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <OutputName>thermi-$(ThermiVersion)-$(Platform)</OutputName>
+    <!-- ICE57 reads the Start menu as each person's, but a per-machine package's is everyone's, under ProgramData. -->
+    <SuppressIces>ICE57</SuppressIces>
+    <DefineConstants>Version=$(ThermiMsiVersion);PublishDir=$(ThermiPublishDir)</DefineConstants>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  thermi's MSI (docs/adr/0008-updates.md): per machine, it owns only a bootstrap, the version it ships in
+  C:\Program Files\thermi\setup, and has that version's thermi-sensors.exe adopt it into the layout an update keeps:
+  the version beside the others, both services, the launchers and Installed apps' entry, which shows the version that
+  runs. The MSI's own entry is hidden for it. Uninstalling has thermi-sensors.exe take all of that off first.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="thermi" Manufacturer="thermi" Version="$(var.Version)" UpgradeCode="{DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}"
+           Scope="perMachine" InstallerVersion="500" Compressed="yes">
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="A newer thermi is installed. Uninstall it from Installed apps first." />
+    <MediaTemplate EmbedCab="yes" />
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="thermi">
+        <Directory Id="SETUPFOLDER" Name="setup" />
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="Bootstrap" Directory="SETUPFOLDER">
+      <Files Include="$(var.PublishDir)**" />
+    </ComponentGroup>
+
+    <!-- The launcher at the top, which every version's switch keeps in place. -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenu">
+        <Shortcut Id="Thermi" Name="thermi" Target="[INSTALLFOLDER]thermi.exe" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKMU" Key="SOFTWARE\thermi\installer" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <!-- Starting at sign-in is each person's: Active Setup turns it on once in every profile, at its next sign-in, as the
+         window's "Start with Windows" does, and the person may turn it off for good. -->
+    <Component Id="ActiveSetup" Directory="INSTALLFOLDER">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Active Setup\Installed Components\thermi">
+        <RegistryValue Type="string" Value="thermi" />
+        <RegistryValue Name="StubPath" Type="expandable"
+                       Value="&quot;[System64Folder]reg.exe&quot; add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v thermi /t REG_SZ /d &quot;\&quot;[INSTALLFOLDER]thermi.exe\&quot;&quot; /f" />
+        <RegistryValue Name="Version" Type="string" Value="1" />
+        <RegistryValue Name="IsInstalled" Type="integer" Value="1" KeyPath="yes" />
+      </RegistryKey>
+    </Component>
+
+    <Feature Id="Thermi">
+      <ComponentGroupRef Id="Bootstrap" />
+      <ComponentRef Id="StartMenu" />
+      <ComponentRef Id="ActiveSetup" />
+    </Feature>
+
+    <!-- As SYSTEM, from the bootstrap: Windows' installer service runs it, so nothing of the user's loads into it. -->
+    <CustomAction Id="Adopt" Directory="SETUPFOLDER" Execute="deferred" Impersonate="no" Return="check"
+                  ExeCommand="&quot;[SETUPFOLDER]thermi-sensors.exe&quot; --adopt --product [ProductCode]" />
+    <CustomAction Id="TakeOff" Directory="SETUPFOLDER" Execute="deferred" Impersonate="no" Return="ignore"
+                  ExeCommand="&quot;[SETUPFOLDER]thermi-sensors.exe&quot; --remove" />
+    <!-- The overlay of the person who ran the MSI by hand; a silent install, as Intune's, starts none as SYSTEM. -->
+    <CustomAction Id="StartOverlay" Directory="INSTALLFOLDER" Execute="immediate" Impersonate="yes" Return="asyncNoWait"
+                  ExeCommand="&quot;[INSTALLFOLDER]thermi.exe&quot;" />
+
+    <InstallExecuteSequence>
+      <Custom Action="TakeOff" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="Adopt" After="InstallFiles" Condition="NOT REMOVE" />
+      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

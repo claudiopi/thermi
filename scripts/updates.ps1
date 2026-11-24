@@ -5,13 +5,16 @@ The owner's levers on thermi's update channels (docs/adr/0008-updates.md).
 
 .DESCRIPTION
 pack builds a version for a processor and zips its folder as an update carries it:
-  pwsh scripts/updates.ps1 pack --version 0.9.1 --out <zip> [--processor x64|arm64] [--updates-from <url> --updates-keys <folder>]
+  pwsh scripts/updates.ps1 pack --version 0.9.1 --out <zip> [--processor x64|arm64] [--msi <msi>]
+      [--updates-from <url> --updates-keys <folder> [--publisher <name>]]
+A release names the publisher whose signed catalog every version must carry.
 Every other command goes to thermi-releases (src/Thermi.Releases), which writes the channel's next signed manifest into
 a channels folder laid out as the server is:
   keys --out <folder>
   publish --folder <channels> --channel beta --version 0.9.1 --zip x64=<zip> arm64=<zip> --base-url <url> [--rollout 10] [--urgent]
   promote --folder <channels> [--from beta --to stable] [--rollout 100]
   rollback | disable | refresh --folder <channels> --channel stable
+  revoke --folder <channels> --channel stable --release-key <release.pub.pem> --backup-key <backup.key.pem>
   status --folder <channels>
   serve --folder <channels> [--port 8765]
 The levers sign with --key <private PEM>, or the PEM in THERMI_UPDATES_KEY.
@@ -48,29 +51,15 @@ if (-not $Processor) {
 }
 
 # The same build as scripts/install.ps1's, at the version given, and pointed at the same channel when asked.
-function Get-PublicKey([string]$Name) {
-    $pem = Get-Content (Join-Path $UpdatesKeys $Name) -Raw
-    if ($pem -notmatch '-----BEGIN PUBLIC KEY-----([A-Za-z0-9+/=\s]+)-----END PUBLIC KEY-----') { throw "$Name holds no public key." }
-    $Matches[1] -replace '\s', ''
-}
-$updates = @()
-if ($UpdatesFrom) {
-    $updates = "-p:ThermiUpdatesFrom=$UpdatesFrom", "-p:ThermiUpdatesKey=$(Get-PublicKey release.pub.pem)",
-        "-p:ThermiUpdatesBackupKey=$(Get-PublicKey backup.pub.pem)"
-}
-
+. (Join-Path $PSScriptRoot 'publish.ps1')
 $staging = Join-Path $root "artifacts/pack/$Version-$Processor"
-Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
-foreach ($project in 'src/Thermi.SensorHost', 'src/Thermi') {
-    $path = Join-Path $root $project
-    dotnet restore $path --locked-mode -p:PublishReadyToRun=true -p:SelfContained=true --nologo -v quiet
-    if ($LASTEXITCODE -ne 0) { throw "Restoring $project failed." }
-    dotnet publish $path -c Release -r "win-$Processor" --self-contained true --no-restore -o $staging --nologo -v quiet `
-        -p:Version=$Version -p:DebugType=none -p:PublishDocumentationFile=false -p:PublishReferencesDocumentationFiles=false @updates
-    if ($LASTEXITCODE -ne 0) { throw "Publishing $project failed." }
-}
+Publish-Thermi $staging $Processor $Version $UpdatesFrom $UpdatesKeys $options['publisher']
 
 Remove-Item $Out -ErrorAction SilentlyContinue
 [System.IO.Compression.ZipFile]::CreateFromDirectory($staging, [IO.Path]::GetFullPath($Out), 'Optimal', $false)
 $zip = Get-Item $Out
 Write-Host "Packed $Version for $Processor into $($zip.FullName), $($zip.Length) bytes."
+if ($options['msi']) {
+    Build-Msi $staging $Processor $Version $options['msi']
+    Write-Host "Built its MSI, $((Get-Item $options['msi']).FullName)."
+}
