@@ -1,6 +1,6 @@
 # 004-updates: Tasks
 
-> Progress: 21 / 28
+> Progress: 24 / 28
 > Current block: B7
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -41,7 +41,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 ## B5: The levers
 
 - [x] **T19** Covers R21, R22: `src/Thermi.Releases` and `scripts/updates.ps1`: keys, pack, publish, promote, rollback, disable, refresh, status, serve, over a folder or R2.
-- [ ] **T20** Covers R21: CI publishes each merge to main to beta and signs the channels again monthly, each behind the owner's approval.
+- [x] **T20** Covers R21: CI publishes each merge to main to beta and signs the channels again monthly, each behind the owner's approval.
 
 ## B6: Proof on this PC
 
@@ -50,8 +50,8 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 ## B7: Installer and release
 
 - [x] **T22** Covers R1, R3: the WiX MSI and its uninstall.
-- [ ] **T23** Covers R2: the release workflow: approval, SignPath, the signed manifest, the MSIs, provenance.
-- [ ] **T24** What the owner must create: the list, with each step.
+- [x] **T23** Covers R2: the release workflow: approval, SignPath, the signed manifest, the MSIs, provenance.
+- [x] **T24** What the owner must create: the list, with each step.
 - [ ] **T25** The docs: `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/QUICKSTART.md`, the READMEs and the privacy note.
 
 ## B8: Review and proof
@@ -85,3 +85,4 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - An MSI installed, repaired or upgraded to while an update runs a later version keeps the later one, and Installed apps shows it: the MSI's own entry is hidden, and thermi's is written by `--adopt` and each finished switch.
 - `--adopt` sets aside what a build from before the version folders left at the top, so `scripts/install.ps1` over one leaves only the layout.
 - Windows Installer takes only a version of numbers, so a prerelease's MSI carries its numbers alone. Major upgrades refuse the same version, so two builds of one version are not both installed; a silent install, as Intune's, starts no overlay, and one by hand starts it for the person who ran it.
+- The release workflow cannot run before the owner's accounts exist, so it is checked as YAML and by the levers it calls, which run on this PC; its first run is the owner's. A beta per merge is `<version>-beta.<run>`, and only a stable release builds MSIs, since Windows Installer sees every beta of a version as that version. SignPath signs the binaries, then the catalog made over them, then the MSIs, each request behind the one approval of the `release` environment.
