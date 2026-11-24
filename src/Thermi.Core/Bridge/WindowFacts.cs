@@ -6,6 +6,7 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
+using Thermi.Core.Updates;
 
 namespace Thermi.Core.Bridge;
 
@@ -34,8 +35,11 @@ public sealed record UndoSteps(
 /// <summary>A language thermi ships: its code, as the settings file writes it, and its name in itself, like "Español".</summary>
 public sealed record Language(string Code, string Name);
 
-/// <summary>What About and the language dropdown show: the version, every language, and the one Windows' own gives.</summary>
-public sealed record About(string Version, IReadOnlyList<Language> Languages, string Windows);
+/// <summary>
+/// What About and the language dropdown show: the version, every language, the one Windows' own gives, and the line on
+/// updates, worded.
+/// </summary>
+public sealed record About(string Version, IReadOnlyList<Language> Languages, string Windows, string Updates);
 
 /// <summary>What an undo or a redo changed back: the toast's words, and the item, or else the overlay, to show.</summary>
 public sealed record Undone(
@@ -95,12 +99,16 @@ public static class WindowFacts
     public static UndoSteps Steps(StepName? undo, StepName? redo, ValueFormat format) =>
         new(undo is null ? null : StepTexts.Of(undo, format), redo is null ? null : StepTexts.Of(redo, format));
 
-    /// <summary>thermi's <paramref name="version"/>, every language by its own name, and the one Windows' display language gives.</summary>
-    public static About About(string version, CultureInfo windows) =>
+    /// <summary>
+    /// thermi's <paramref name="version"/>, every language by its own name, the one Windows' display language gives, and
+    /// the <paramref name="updates"/> line in the window's words.
+    /// </summary>
+    public static About About(string version, CultureInfo windows, UpdateLine updates, ValueFormat format, TimeZoneInfo zone) =>
         new(
             version,
             [.. Texts.Languages.Select(code => new Language(code, Texts.Of(code).Of(UiText.LanguageName)))],
-            Texts.For(null, windows).Of(UiText.LanguageName));
+            Texts.For(null, windows).Of(UiText.LanguageName),
+            UpdateStatus.Say(updates, format.Texts, format.Numbers, zone));
 
     /// <summary>
     /// What a step taken back as <paramref name="step"/>, or made again on a <paramref name="redo"/>, changed from

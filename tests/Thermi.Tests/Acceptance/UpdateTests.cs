@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Security.Cryptography;
+using Thermi.Core.Translations;
 using Thermi.Core.Updates;
 
 namespace Thermi.Tests.Acceptance;
@@ -209,6 +211,11 @@ public sealed class UpdateTests
 
         Assert.Equal(kind, line.Kind);
         Assert.Equal(beta, line.Beta);
+        Assert.All(Texts.Languages, language =>
+        {
+            var said = UpdateStatus.Say(line, Texts.Of(language), CultureInfo.GetCultureInfo(language), TimeZoneInfo.Utc);
+            Assert.Equal(ready is not null, said.Contains(ready ?? "-", StringComparison.Ordinal));
+        });
     }
 
     private static string? None(string text) => text == "-" ? null : text;

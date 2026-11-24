@@ -2148,4 +2148,25 @@
   <data name="UiText.BitsHint" xml:space="preserve">
     <value>As 99.2 Mbps; its lines stay in bytes</value>
   </data>
+  <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
+    <value>This build does not update itself</value>
+  </data>
+  <data name="WindowText.UpdatesTurnedOff" xml:space="preserve">
+    <value>Updates are turned off by this PC's policy</value>
+  </data>
+  <data name="WindowText.UpdatesReady" xml:space="preserve">
+    <value>Version {0} is ready, and installs when the PC is quiet</value>
+  </data>
+  <data name="WindowText.UpdatesUnreached" xml:space="preserve">
+    <value>Could not check for updates since {0}</value>
+  </data>
+  <data name="WindowText.UpdatesUpToDate" xml:space="preserve">
+    <value>Up to date, checked {0}</value>
+  </data>
+  <data name="WindowText.UpdatesNotChecked" xml:space="preserve">
+    <value>Checks for updates soon</value>
+  </data>
+  <data name="WindowText.UpdatesBeta" xml:space="preserve">
+    <value>{0} · Beta channel</value>
+  </data>
 </root>

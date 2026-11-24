@@ -15,6 +15,7 @@ using Thermi.Logging;
 using Thermi.Overlay;
 using Thermi.Ui.Editor;
 using Thermi.Ui.Views;
+using Thermi.Updates;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -168,7 +169,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<UndoSteps> Steps() => Task.FromResult(WindowFacts.Steps(_editor.UndoName, _editor.RedoName, _views.Format(_texts)));
 
-    public Task<About> About() => Task.FromResult(WindowFacts.About(Version, CultureInfo.CurrentUICulture));
+    public Task<About> About() => Task.FromResult(
+        WindowFacts.About(Version, CultureInfo.CurrentUICulture, UpdatesHere.Line(_start.Time.GetUtcNow()), _views.Format(_texts), _start.Time.LocalTimeZone));
 
     public Task Open(Opened what)
     {

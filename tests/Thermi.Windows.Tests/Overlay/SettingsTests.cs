@@ -45,6 +45,24 @@ public sealed class SettingsTests : IDisposable
         Assert.Equal(older ?? "", kept.Length > 0 ? await File.ReadAllTextAsync(aside, TestContext.Current.CancellationToken) : "");
     }
 
+    // Spec 004 A10: a newer version wrote the file, keeping this version's copy beside it, and the PC went back a version.
+    [Fact]
+    public async Task SettingsSurviveARollback()
+    {
+        var mine = $$"""{ "version": {{ThermiConfig.CurrentVersion}}, "overlays": [ { "name": "Floating" } ] }""";
+        var newer = $$"""{ "version": {{ThermiConfig.CurrentVersion + 1}}, "overlays": [ { "name": "Docked" } ] }""";
+        var folder = Path.GetDirectoryName(_folder.File)!;
+        _folder.Write(newer);
+        await File.WriteAllTextAsync(Path.Combine(folder, $"config.v{ThermiConfig.CurrentVersion}-2026-11-20-101010.json"), mine, TestContext.Current.CancellationToken);
+
+        var settings = await _folder.LoadedAsync();
+
+        Assert.Null(settings.Problem);
+        Assert.Equal(ThermiConfigJson.Write(ThermiConfigJson.Read(mine).Config), _folder.Text());
+        var kept = Assert.Single(_folder.Files, name => name.StartsWith($"config.v{ThermiConfig.CurrentVersion + 1}-", StringComparison.Ordinal));
+        Assert.Equal(newer, await File.ReadAllTextAsync(Path.Combine(folder, kept), TestContext.Current.CancellationToken));
+    }
+
     // As written by hand, so any save, even of the same settings, would show as a change of the text.
     [Fact]
     public async Task AClickOrAPressOnALockedOverlayWritesNothing()

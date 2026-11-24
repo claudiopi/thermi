@@ -13,6 +13,12 @@ internal static class ThermiPaths
 
     public static string Launcher { get; } = LauncherOf(Own);
 
+    /// <summary>The service's update state, beside the launcher; null outside an installed layout.</summary>
+    public static string? State { get; } =
+        string.Equals(Launcher, Own, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : Path.Combine(Path.GetDirectoryName(Launcher)!, "update", UpdateState.FileName);
+
     /// <summary>Whether <paramref name="path"/> is one of thermi's: an overlay and its window may run from either.</summary>
     public static bool IsThermi(string path) =>
         string.Equals(path, Own, StringComparison.OrdinalIgnoreCase) || string.Equals(path, Launcher, StringComparison.OrdinalIgnoreCase);

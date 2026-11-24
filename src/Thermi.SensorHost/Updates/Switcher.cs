@@ -69,7 +69,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         try
         {
             ServiceConfig.Stop();
-            started = StartOnce(services, pending);
+            StartOnce(services, pending, ref started);
             if (await PollAsync(to, pipeName, stop) == Verdict.Passed)
             {
                 services.Point(to);
@@ -91,14 +91,15 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         return 1;
     }
 
-    // Started and pointed back in one step, so the service is pointed at the new version only while it starts.
-    private static bool StartOnce(ServiceConfig services, PendingSwitch pending)
+    // Started and pointed back in one step, so the service is pointed at the new version only while it starts. Once
+    // pointed, the new version ran, even if Windows then says it could not start it: it crashed as it began.
+    private static void StartOnce(ServiceConfig services, PendingSwitch pending, ref bool started)
     {
         services.Point(pending.To);
+        started = true;
         try
         {
             ServiceConfig.Start();
-            return true;
         }
         finally
         {
@@ -107,6 +108,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
     }
 
     // A version that started and failed is never taken again; a switch that never started it is only dropped, to try later.
+    // The watchdog stopped the old version itself, which is no crash of it.
     private void GoBack(ServiceConfig services, PendingSwitch pending, bool started)
     {
         try
@@ -121,7 +123,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         services.Point(pending.From);
         folder.PlaceLaunchers(pending.From);
         var state = folder.Read();
-        folder.Write(started ? SwitchHealth.Failed(state) : state with { Switch = null });
+        folder.Write(SwitchHealth.Stopped(started ? SwitchHealth.Failed(state) : state with { Switch = null }));
         ServiceConfig.Start();
     }
 

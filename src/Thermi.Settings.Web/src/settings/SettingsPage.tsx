@@ -121,6 +121,7 @@ function AboutCard({ about, open, onOpen }: { about: About | null; open: boolean
           <LinkButton onClick={() => void bridge()?.open('report')}>{t('WindowText.ReportProblem')}</LinkButton>
           <LinkButton onClick={() => void bridge()?.open('notices')}>{t('WindowText.ThirdPartyNotices')}</LinkButton>
         </div>
+        <div className="t-about-license">{about?.updates}</div>
         <div className="t-about-license">{t('WindowText.License')}</div>
       </div>
     </Expander>
@@ -129,7 +130,8 @@ function AboutCard({ about, open, onOpen }: { about: About | null; open: boolean
 
 export function SettingsPage({ data }: { data: WindowData }) {
   const t = useText();
-  const about = useBridgeRead(readAbout, 0, 0);
+  // Read again in a new language, which About's line on updates is worded in.
+  const about = useBridgeRead(readAbout, data.settings.language ?? '', 0);
   const [hotkeysOpen, setHotkeysOpen] = useState(false);
   const [fileOpen, setFileOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);

@@ -22,7 +22,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
 {
     private static readonly TimeSpan QuietEvery = TimeSpan.FromMinutes(1);
 
-    private readonly string? _state = StatePath();
+    private readonly string? _state = ThermiPaths.State;
     private readonly ReleaseVersion? _own = ReleaseVersion.Parse(
         typeof(OverlayUpdates).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
@@ -112,12 +112,6 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
             return false;
         }
     }
-
-    // The state file, beside the launcher; none outside an installed layout.
-    private static string? StatePath() =>
-        string.Equals(ThermiPaths.Launcher, ThermiPaths.Own, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : Path.Combine(Path.GetDirectoryName(ThermiPaths.Launcher)!, "update", UpdateState.FileName);
 
     // The new overlay's host window, of the process just started.
     private static bool Shows(Process? successor)

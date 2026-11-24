@@ -41,6 +41,13 @@ public enum WindowText
 
     AboutThermi,
     AboutVersion,
+    UpdatesNotUpdating,
+    UpdatesTurnedOff,
+    UpdatesReady,
+    UpdatesUnreached,
+    UpdatesUpToDate,
+    UpdatesNotChecked,
+    UpdatesBeta,
     SourceCode,
     ReportProblem,
     ThirdPartyNotices,

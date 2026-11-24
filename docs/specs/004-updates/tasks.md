@@ -1,7 +1,7 @@
 # 004-updates: Tasks
 
-> Progress: 7 / 28
-> Current block: B2
+> Progress: 15 / 28
+> Current block: B6
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
 
@@ -21,26 +21,26 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 ## B2: The layout
 
-- [ ] **T9** Covers R15: the launchers, made by the SDK's `CreateAppHost` to start their version's folder; a self-contained publish per version.
-- [ ] **T10** Covers R3, R4: `scripts/install.ps1` lays down the layout, with updates off or pointed at a test channel; "Start with Windows" and the tray icons' ids name the fixed path.
+- [x] **T9** Covers R15: the launchers, made by the SDK's `CreateAppHost` to start their version's folder; a self-contained publish per version.
+- [x] **T10** Covers R3, R4: `scripts/install.ps1` lays down the layout, with updates off or pointed at a test channel; "Start with Windows" and the tray icons' ids name the fixed path.
 - [ ] **T11** Covers R10, R12: `src/Thermi.Trust`, the folder and Authenticode checks moved out of the driver's install.
 
 ## B3: The service's updater
 
-- [ ] **T12** Covers R5, R6, R8: the check and the download.
+- [x] **T12** Covers R5, R6, R8: the check and the download.
 - [ ] **T13** Covers R10, R12: verifying, unpacking and the folder checks.
-- [ ] **T14** Covers R14, R15, R17, R18: the switch through the services' image paths, the watchdog, code 128, probation, repair at start and pruning by renaming aside.
+- [x] **T14** Covers R14, R15, R17, R18: the switch through the services' image paths, the watchdog, code 128, probation, repair at start and pruning by renaming aside.
 - [ ] **T15** Covers R20, R24: the event log entries, and the pipe's golden file.
 
 ## B4: The overlay and the window
 
-- [ ] **T16** Covers R14, R16, R17: the quiet moment, code 128, and the handover, which gives up after 60 ticks.
-- [ ] **T17** Covers R19: the settings' way back.
-- [ ] **T18** Covers R23: About's line, in every language.
+- [x] **T16** Covers R14, R16, R17: the quiet moment, code 128, and the handover, which gives up after 60 ticks.
+- [x] **T17** Covers R19: the settings' way back.
+- [x] **T18** Covers R23: About's line, in every language.
 
 ## B5: The levers
 
-- [ ] **T19** Covers R21, R22: `src/Thermi.Releases` and `scripts/updates.ps1`: keys, pack, publish, promote, rollback, disable, refresh, status, serve, over a folder or R2.
+- [x] **T19** Covers R21, R22: `src/Thermi.Releases` and `scripts/updates.ps1`: keys, pack, publish, promote, rollback, disable, refresh, status, serve, over a folder or R2.
 - [ ] **T20** Covers R21: CI publishes each merge to main to beta and signs the channels again monthly, each behind the owner's approval.
 
 ## B6: Proof on this PC
@@ -72,3 +72,5 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - Channel and on/off are policy values only, with no switch in the window: whoever changes them for a PC is its administrator.
 - No release notes in the manifest and nothing that pops up: the window shows no text from the network, and an update is invisible by design.
 - The levers are a .NET tool beside Core rather than PowerShell alone, so they and the service read and write the same manifest code.
+- The live run on this PC (B6) found that a version whose service crashes as it starts made Windows refuse the start, which the watchdog took for a switch that never began: it dropped the switch, the old version tried again each minute, and each try counted as a crash of the old version, whose probation then sent the PC back a version. Once the watchdog points the service at the new version, that version ran, so a refused start now marks it failed, and the watchdog's own stop of the old version counts as a stop.
+- About's line is worded in C#, in the window's language, and the page reads About again when the language changes.

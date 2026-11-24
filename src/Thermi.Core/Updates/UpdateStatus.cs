@@ -1,3 +1,5 @@
+using Thermi.Core.Translations;
+
 namespace Thermi.Core.Updates;
 
 /// <summary>What About says about updates.</summary>
@@ -57,5 +59,25 @@ public static class UpdateStatus
         return state.LastSuccess is { } last
             ? new UpdateLine(UpdateLineKind.UpToDate, beta, At: last)
             : new UpdateLine(UpdateLineKind.NotChecked, beta);
+    }
+
+    /// <summary>
+    /// <paramref name="line"/> in <paramref name="texts"/>' words, its date as <paramref name="numbers"/> writes one in
+    /// <paramref name="zone"/>.
+    /// </summary>
+    public static string Say(UpdateLine line, Texts texts, IFormatProvider numbers, TimeZoneInfo zone)
+    {
+        var date = line.At is { } at ? TimeZoneInfo.ConvertTime(at, zone).ToString("d", numbers) : "";
+        var said = line.Kind switch
+        {
+            UpdateLineKind.NotUpdating => texts.Of(WindowText.UpdatesNotUpdating),
+            UpdateLineKind.TurnedOff => texts.Of(WindowText.UpdatesTurnedOff),
+            UpdateLineKind.Ready => texts.Format(numbers, WindowText.UpdatesReady, line.Version),
+            UpdateLineKind.Unreached => texts.Format(numbers, WindowText.UpdatesUnreached, date),
+            UpdateLineKind.UpToDate => texts.Format(numbers, WindowText.UpdatesUpToDate, date),
+            UpdateLineKind.NotChecked => texts.Of(WindowText.UpdatesNotChecked),
+            _ => throw new ArgumentOutOfRangeException(nameof(line), line.Kind, null),
+        };
+        return line.Beta ? texts.Format(numbers, WindowText.UpdatesBeta, said) : said;
     }
 }

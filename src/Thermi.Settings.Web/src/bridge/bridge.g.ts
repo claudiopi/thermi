@@ -6,6 +6,7 @@ export interface About {
   version: string;
   languages: Language[];
   windows: string;
+  updates: string;
 }
 
 export interface CatalogGroup {

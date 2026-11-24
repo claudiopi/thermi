@@ -34,6 +34,6 @@ export function installFakeWindow(): void {
   });
 
   bridge.status = async () => status();
-  bridge.about = async () => ({ version: '0.6.0', languages: state.languages, windows: state.languages[0]?.name ?? '' });
+  bridge.about = async () => ({ version: '0.6.0', languages: state.languages, windows: state.languages[0]?.name ?? '', updates: 'Up to date' });
   bridge.open = async () => {};
 }
