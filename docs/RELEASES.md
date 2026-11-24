@@ -17,6 +17,7 @@ The update server is static files: each channel's signed envelope, `stable.json`
 | `rollback --channel stable` | The version is withdrawn: PCs on it go back to the version they kept, and the one before is offered. |
 | `disable --channel stable` | PCs stop taking anything until the next publish. |
 | `refresh --channel stable` | The same manifest, signed again; a manifest expires 45 days after it is signed. |
+| `revoke --channel stable --release-key-sha256 <hex> --key <backup key>` | The release key is revoked: PCs trust the backup key alone until a build with another release key runs. Signed with the backup key, or refused. |
 | `status` | What each channel offers. |
 
 A version that fails on a PC is never taken there again: its service served nothing within 120 polls, or its second run ended without stopping within 10 minutes.

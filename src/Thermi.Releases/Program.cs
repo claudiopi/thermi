@@ -29,6 +29,7 @@ internal static class Program
         root.Subcommands.Add(Lever("rollback", "Withdraws the channel's version and offers the one before it.", Levers.RollBack));
         root.Subcommands.Add(Lever("disable", "Keeps every PC on the channel where it is.", Levers.Disable));
         root.Subcommands.Add(Lever("refresh", "Signs the channel's manifest again before it expires.", Levers.Refresh));
+        root.Subcommands.Add(Revoke());
         root.Subcommands.Add(Status());
         root.Subcommands.Add(Serve());
         return root;
@@ -85,6 +86,15 @@ internal static class Program
         var command = new Command("promote", "Takes one channel's version, files and all, to another.") { Folder, Key, from, to, Rollout, Urgent };
         command.SetAction(parsed => Run(parsed, (channels, _, now) => Levers.Promote(
             channels, parsed.GetValue(from)!, parsed.GetValue(to)!, parsed.GetValue(Rollout), parsed.GetValue(Urgent) ? true : null, now)));
+        return command;
+    }
+
+    // Signed with the backup key: a revocation the release key signed is refused by every PC.
+    private static Command Revoke()
+    {
+        var hash = new Option<string>("--release-key-sha256") { Description = "The SHA-256 of the release key's public key, in hex.", Required = true };
+        var command = new Command("revoke", "Names the release key as revoked; sign it with the backup key.") { Folder, Key, Channel, hash };
+        command.SetAction(parsed => Run(parsed, (channels, _, now) => Levers.Revoke(channels, parsed.GetValue(Channel)!, parsed.GetValue(hash)!, now)));
         return command;
     }
 
