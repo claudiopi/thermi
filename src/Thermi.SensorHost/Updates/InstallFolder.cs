@@ -215,6 +215,14 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
         return true;
     }
 
+    public ReleaseVersion? AtTop() => Directory.EnumerateDirectories(top)
+        .Select(path => ReleaseVersion.Parse(Path.GetFileName(path)))
+        .FirstOrDefault(version => version is not null
+            && Same(Path.Combine(top, "thermi.exe"), Path.Combine(VersionOf(version), "launchers", "thermi.exe")));
+
+    private static bool Same(string one, string other) =>
+        File.Exists(one) && File.Exists(other) && File.ReadAllBytes(one).AsSpan().SequenceEqual(File.ReadAllBytes(other));
+
     /// <summary>
     /// Puts <paramref name="version"/>'s launchers at the top, should they be missing or another's: the one there is set
     /// aside, which Windows allows while a process runs from it, and the new one copied beside and moved in. True when any changed.
@@ -225,7 +233,7 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
         foreach (var launcher in Directory.EnumerateFiles(Path.Combine(VersionOf(version), "launchers"), "*.exe"))
         {
             var placed = Path.Combine(top, Path.GetFileName(launcher));
-            if (File.Exists(placed) && File.ReadAllBytes(placed).AsSpan().SequenceEqual(File.ReadAllBytes(launcher)))
+            if (Same(placed, launcher))
             {
                 continue;
             }

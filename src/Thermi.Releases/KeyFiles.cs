@@ -19,13 +19,31 @@ internal static class KeyFiles
             return $"{there} is already in {folder.FullName}: make keys in a new, empty folder.";
         }
 
-        foreach (var name in new[] { "release", "backup" })
+        var written = new List<string>();
+        try
         {
-            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            File.WriteAllText(Path.Combine(folder.FullName, name + ".key.pem"), key.ExportPkcs8PrivateKeyPem());
-            File.WriteAllText(Path.Combine(folder.FullName, name + ".pub.pem"), key.ExportSubjectPublicKeyInfoPem());
+            foreach (var name in new[] { "release", "backup" })
+            {
+                using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+                New(Path.Combine(folder.FullName, name + ".key.pem"), key.ExportPkcs8PrivateKeyPem(), written);
+                New(Path.Combine(folder.FullName, name + ".pub.pem"), key.ExportSubjectPublicKeyInfoPem(), written);
+            }
+        }
+        catch (IOException ex)
+        {
+            written.ForEach(File.Delete);
+            return $"no keys were written: {ex.Message}";
         }
 
         return null;
+    }
+
+    // Never over a file, even one made since the check above.
+    private static void New(string path, string text, List<string> written)
+    {
+        using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+        written.Add(path);
+        using var writer = new StreamWriter(file);
+        writer.Write(text);
     }
 }

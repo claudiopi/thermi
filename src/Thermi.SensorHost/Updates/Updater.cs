@@ -72,7 +72,7 @@ internal sealed class Updater(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            say($"thermi could not put back the launchers of {build.Version}, and tries at its next start: {ex.Message}", EventLogEntryType.Warning);
+            say($"thermi could not put back the launchers of {build.Version}, and tries at its next check: {ex.Message}", EventLogEntryType.Warning);
         }
     }
 
@@ -344,8 +344,9 @@ internal sealed class Updater(
 
     private void Prune(UpdateState state)
     {
+        // The version the launcher at the top starts, which overlays and sign-ins still run while a program holds it.
         HashSet<ReleaseVersion> keep = [build.Version];
-        foreach (var version in new[] { state.Installed, state.Previous, state.Ready })
+        foreach (var version in new[] { state.Installed, state.Previous, state.Ready, folder.AtTop() })
         {
             if (version is not null)
             {

@@ -96,19 +96,25 @@ public sealed class UpdaterTests
         Assert.Equal(pc.Folder().StateText(), await File.ReadAllTextAsync(copy, TestContext.Current.CancellationToken));
     }
 
-    // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again by this build.
-    [Fact]
-    public async Task AZipRefusedForWhatItHoldsIsNotFetchedAgain()
+    // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again by this build; one
+    // refused for the PC's reasons, as its version's folder in use, is.
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 2)]
+    public async Task AZipRefusedForWhatItHoldsIsNotFetchedAgain(bool catalog, int fetched)
     {
         await using var pc = new UpdatePc();
         pc.Folder().Write(pc.State.WithSequence(Manifest.Stable, 2));
         pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)), at: Manifest.Stable);
-        using var updater = pc.Updater(pc.Build(catalog: true), trusted: true);
+        Directory.CreateDirectory(pc.Folder().VersionOf(UpdatePc.Built));
+        await using var held = File.Create(Path.Combine(pc.Folder().VersionOf(UpdatePc.Built), "held"));
+        using var updater = pc.Updater(pc.Build(catalog: catalog), trusted: true);
 
         await updater.CheckAsync(TestContext.Current.CancellationToken);
         await updater.CheckAsync(TestContext.Current.CancellationToken);
 
-        Assert.Single(pc.Channel.Paths, path => path.EndsWith(".zip", StringComparison.Ordinal));
+        Assert.Equal(fetched, pc.Channel.Paths.Count(path => path.EndsWith(".zip", StringComparison.Ordinal)));
+        Assert.Null(pc.State.Ready);
     }
 
     [Fact]

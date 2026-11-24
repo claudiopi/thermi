@@ -12,7 +12,10 @@ public static class Authenticode
     // CERT_E_REVOCATION_FAILURE: the revocation could not be checked.
     private const int RevocationUnknown = unchecked((int)0x800B010E);
 
+    // CRYPT_E_REVOCATION_OFFLINE and CRYPT_E_NO_REVOCATION_CHECK: a server unreachable says nothing of the signature either.
     private const int RevocationOffline = unchecked((int)0x80092013);
+
+    private const int NoRevocationCheck = unchecked((int)0x80092012);
 
     /// <summary>Whether <paramref name="path"/> holds a signature Windows trusts, from anyone.</summary>
     public static bool Trusted(string path) => Verify(path, signers: null);
@@ -55,7 +58,7 @@ public static class Authenticode
 
                 // A revocation server out of reach is no revocation, as browsers hold it: the pinned certificate is the
                 // check, and a PC offline or behind a proxy still updates. A certificate revoked is refused.
-                return (verdict == 0 || (signers is not null && verdict is RevocationUnknown or RevocationOffline))
+                return (verdict == 0 || (signers is not null && verdict is RevocationUnknown or RevocationOffline or NoRevocationCheck))
                     && (signers is null || signers.Contains(Signer(path), StringComparer.OrdinalIgnoreCase));
             }
             finally

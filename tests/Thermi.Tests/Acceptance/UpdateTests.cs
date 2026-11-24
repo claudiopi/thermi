@@ -292,7 +292,8 @@ public sealed class UpdateTests
     [Fact]
     public void AVersionInstalledByHandIsAdopted()
     {
-        var state = new UpdateState { Installed = V("1.2.0"), Previous = V("1.1.0"), Ready = V("1.3.0"), Probation = new Probation(V("1.1.0"), Now, 1, false) };
+        var probation = new Probation(V("1.1.0"), Now, 1, false);
+        var state = new UpdateState { Installed = V("1.2.0"), Previous = V("1.1.0"), Ready = V("1.3.0"), Probation = probation, Refused = "ab" };
 
         var (adopted, step) = SwitchHealth.Started(state, V("1.3.0"), Now);
 
@@ -300,6 +301,7 @@ public sealed class UpdateTests
         Assert.Equal(V("1.3.0"), adopted.Installed);
         Assert.Null(adopted.Ready);
         Assert.Null(adopted.Probation);
+        Assert.Null(adopted.Refused);
         Assert.Equal(V("1.3.1"), SwitchHealth.Started(state with { Ready = V("1.3.1") }, V("1.3.0"), Now).State.Ready);
     }
 

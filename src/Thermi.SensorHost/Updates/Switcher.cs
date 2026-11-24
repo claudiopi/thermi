@@ -96,7 +96,7 @@ internal sealed class Switcher(
             say($"Switching to {to} failed, so the PC stays on {pending.From}: {ex.Message}", EventLogEntryType.Warning);
         }
 
-        GoBack(services, pending, started ? SwitchHealth.Failed : timedOut ? SwitchHealth.Cut : state => state with { Switch = null });
+        GoBack(services, pending, Outcome(started, timedOut));
         return 1;
     }
 
@@ -156,6 +156,11 @@ internal sealed class Switcher(
             services.Point(pending.From);
         }
     }
+
+    // A version that went back without failing is ready again only at the next check, or GoBack's start would switch again within a minute.
+    private static Func<UpdateState, UpdateState> Outcome(bool started, bool timedOut) => started
+        ? SwitchHealth.Failed
+        : state => (timedOut ? SwitchHealth.Cut(state) : state with { Switch = null }) with { Ready = null, ReadyUrgent = false };
 
     // A version that started and failed is never taken again; a switch that never started it is only dropped, to try later.
     // The watchdog stopped the old version itself, which is no crash of it.

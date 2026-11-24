@@ -61,7 +61,6 @@ internal static class Program
         return command;
     }
 
-
     private static Command Publish()
     {
         var version = new Option<string>("--version") { Description = "The build's version.", Required = true };

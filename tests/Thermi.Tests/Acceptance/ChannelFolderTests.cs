@@ -4,7 +4,7 @@ using Thermi.Releases;
 
 namespace Thermi.Tests.Acceptance;
 
-/// <summary>The owner's channel folder: a lever signs only what a PC opens, and never over a history it cannot trust.</summary>
+/// <summary>The owner's tools: a lever signs only what a PC opens, never over a history it cannot trust, and keys never over a key.</summary>
 public sealed class ChannelFolderTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);

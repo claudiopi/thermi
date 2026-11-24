@@ -27,7 +27,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
 
     private readonly HashSet<ReleaseVersion> _left = [];
     private readonly Lock _lock = new();
-    private string? _read;
+    private (string, DateTime)? _read;
     private UpdateState _known = new();
     private DateTimeOffset _told = DateTimeOffset.MinValue;
 
@@ -137,10 +137,10 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
     {
         try
         {
-            if (ThermiPaths.State() is { } newest && newest != _read)
+            if (ThermiPaths.State() is { } newest && (newest, File.GetLastWriteTimeUtc(newest)) is var seen && seen != _read)
             {
                 _known = UpdateState.Read(File.ReadAllText(newest));
-                _read = newest;
+                _read = seen;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

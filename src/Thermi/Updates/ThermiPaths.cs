@@ -26,8 +26,21 @@ internal static class ThermiPaths
     {
         try
         {
-            var own = Path.Combine(Path.GetDirectoryName(Launcher)!, version.ToString(), "launchers", "thermi.exe");
-            return File.Exists(own) && File.ReadAllBytes(own).AsSpan().SequenceEqual(File.ReadAllBytes(Launcher));
+            var top = new FileInfo(Launcher);
+            var own = new FileInfo(Path.Combine(Path.GetDirectoryName(Launcher)!, version.ToString(), "launchers", "thermi.exe"));
+            if (!own.Exists || !top.Exists || own.Length != top.Length)
+            {
+                return false;
+            }
+
+            var seen = (own.FullName, own.LastWriteTimeUtc, top.LastWriteTimeUtc);
+            if (_compared is not { } compared || compared.Seen != seen)
+            {
+                compared = (seen, Read(own).AsSpan().SequenceEqual(Read(top)));
+                _compared = compared;
+            }
+
+            return compared.Same;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -35,6 +48,16 @@ internal static class ThermiPaths
         }
     }
 
+    // Shared for delete too, so a read never holds a launcher against the service setting it aside.
+    private static byte[] Read(FileInfo file)
+    {
+        using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var bytes = new byte[stream.Length];
+        stream.ReadExactly(bytes);
+        return bytes;
+    }
+
+    private static ((string, DateTime, DateTime) Seen, bool Same)? _compared;
     /// <summary>Whether <paramref name="path"/> is one of thermi's: an overlay and its window may run from either.</summary>
     public static bool IsThermi(string path) =>
         string.Equals(path, Own, StringComparison.OrdinalIgnoreCase) || string.Equals(path, Launcher, StringComparison.OrdinalIgnoreCase);
