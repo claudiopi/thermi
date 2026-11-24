@@ -133,26 +133,30 @@ public sealed class OverlayDragTests : IDisposable
 
     // A pill held still lifts, and dropped back on its own overlay in front of its first pill moves there; a press that left
     // the drag distance and came back moves the overlay whole however long it then holds; an overlay of one pill dragged onto
-    // another shows whole, not faded, and joins it before the pill it is let go on. The overlays left, as their count, the
-    // first overlay's first item and whether it is still snapped.
+    // another shows whole, not faded, and joins it before the pill it is let go on, but not with Alt held; a lifted pill
+    // dropped on the overlay of one pill joins it before that pill, and thrown far onto the desktop becomes an overlay of
+    // its own; and the overlay of many dragged over the one of one pill joins it with the cursor beside it. The overlays
+    // left, as their count, each one's first item and whether the first is still snapped.
     [Theory]
     [InlineData("own", "1 gpu.load snapped")]
     [InlineData("back", "1 cpu.temperature free")]
     [InlineData("merge", "1 solo snapped")]
+    [InlineData("alt", "2 cpu.temperature,solo snapped")]
+    [InlineData("lifted", "2 cpu.temperature,gpu.load snapped")]
+    [InlineData("over", "1 cpu.temperature snapped")]
+    [InlineData("off", "2 cpu.temperature,gpu.load snapped")]
     public async Task APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo(string drag, string expected)
     {
         var solo = new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight), Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] };
-        var settings = await _folder.LoadedAsync(drag == "merge" ? new ThermiConfig { Overlays = [new OverlayConfig(), solo] } : new ThermiConfig());
+        var two = drag is "merge" or "alt" or "lifted" or "over";
+        var settings = await _folder.LoadedAsync(two ? new ThermiConfig { Overlays = [new OverlayConfig(), solo] } : new ThermiConfig());
         var before = _folder.Text();
         byte during = 0;
 
         Run(settings, host =>
         {
-            var first = host.Overlays[0];
-            var held = host.Overlays[drag == "merge" ? 1 : 0];
-            PInvoke.GetWindowRect(first.Hwnd, out var rect);
-            var front = new Position(rect.left + 3, (rect.top + rect.bottom) / 2);
-            var pressed = drag == "merge" ? Middle(held.Hwnd) : PillOf(first, Metrics.GpuLoad.Id);
+            var (first, held) = (host.Overlays[0], host.Overlays[drag is "merge" or "alt" ? 1 : 0]);
+            var pressed = drag is "merge" or "alt" or "over" ? Middle(held.Hwnd) : PillOf(first, Metrics.GpuLoad.Id);
             MoveTo(host, held, pressed, PInvoke.WM_LBUTTONDOWN);
             if (drag == "back")
             {
@@ -160,18 +164,37 @@ public sealed class OverlayDragTests : IDisposable
                 MoveTo(host, held, pressed);
             }
 
-            _folder.Clock.Advance(DesktopGestures.Hold);
-            PInvoke.PostMessage(held.Hwnd, PInvoke.WM_TIMER, OverlayGestures.HoldTimer, 0);
-            HostRun.Pump(host);
-            MoveTo(host, held, drag == "back" ? new Position(pressed.X + By.X, pressed.Y + By.Y) : front);
+            if (drag != "over")
+            {
+                _folder.Clock.Advance(DesktopGestures.Hold);
+                PInvoke.PostMessage(held.Hwnd, PInvoke.WM_TIMER, OverlayGestures.HoldTimer, 0);
+                HostRun.Pump(host);
+            }
+
+            MoveTo(host, held, DroppedAt(host, drag, pressed));
             during = held.Alpha;
-            Post(held.Hwnd, PInvoke.WM_LBUTTONUP);
+            End(host, held.Hwnd, drag == "alt" ? "alt" : "drop");
             HostRun.Until(host, _folder.Clock, () => _folder.Text() != before);
         });
 
         var file = _folder.Read();
-        Assert.Equal(expected, $"{file.Overlays.Count} {file.Overlays[0].Items[0].Id} {(file.Overlays[0].Snapped is null ? "free" : "snapped")}");
+        var firsts = string.Join(',', file.Overlays.Select(overlay => overlay.Items[0].Id));
+        Assert.Equal(expected, $"{file.Overlays.Count} {firsts} {(file.Overlays[0].Snapped is null ? "free" : "snapped")}");
         Assert.Equal(255, during);
+    }
+
+    // In front of the first overlay's first pill, or of the overlay of one pill, or, for the overlay of many held in its
+    // middle, 20 px left of the overlay of one pill, the overlay of many then over all of it.
+    private static Position DroppedAt(OverlayHost host, string drag, Position pressed)
+    {
+        PInvoke.GetWindowRect(host.Overlays[drag is "lifted" or "over" ? 1 : 0].Hwnd, out var rect);
+        var middle = (rect.top + rect.bottom) / 2;
+        return drag switch
+        {
+            "back" or "off" => new Position(pressed.X + By.X, pressed.Y + By.Y),
+            "over" => new Position(rect.left - 20, middle),
+            _ => new Position(rect.left + 3, middle),
+        };
     }
 
     // The cursor put at a point and the mouse's message sent, then the paints it asks for let out.

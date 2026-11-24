@@ -1307,8 +1307,18 @@
       "covers": [
         "R148"
       ],
-      "description": "Given the overlay on a desktop of its own, when a pill is held still until it lifts and dropped in front of its own overlay's first pill, a press leaves the drag distance and comes back before holding, and an overlay of one pill is dragged onto another, then the pill moves to the front of its overlay, the overlay moves whole, and the dragged overlay shows whole and joins the other before the pill it is let go on.",
+      "description": "Given the overlay on a desktop of its own, when a pill is held still until it lifts and dropped in front of its own overlay's first pill, a press leaves the drag distance and comes back before holding, an overlay of one pill is dragged onto another, also with Alt held, a lifted pill is dropped on the overlay of one pill and another thrown far onto the desktop, and the overlay of many is dragged over the one of one pill with the cursor beside it, then the pill moves to the front of its overlay, the overlay moves whole, the dragged overlay shows whole and joins the other before the pill it is let go on, and with Alt held stays apart, the lifted pill joins the overlay of one pill, the thrown one becomes an overlay of its own, and the overlay of many joins the one of one pill.",
       "check": "APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A318",
+      "covers": [
+        "R33",
+        "R148"
+      ],
+      "description": "Given the owner's taskbar after a pill was dragged off, the CPU overlay beside the notification area, the one-pill CPU power overlay to its left, a hidden third one and a fourth between them, when an overlay or a lifted pill is dragged with the cursor on another, with the cursor just above it, with half or just less of itself over it, beside it touching, the big overlay over the small one with the cursor beside it, a pill over two at once, or with Alt held, then it is on that overlay, the one it covers most of two, joining at the cursor brought onto it, on none while less than half covers either and with Alt held, and the hidden one is never a target.",
+      "check": "ADragJoinsTheOverlayItIsOver",
       "passes": true
     },
     {

@@ -42,6 +42,30 @@ public static class DesktopGestures
     }
 
     /// <summary>
+    /// The overlay a drop joins, among <paramref name="shown"/> (null: not shown), <paramref name="self"/> apart: the one under
+    /// the cursor, else the one the <paramref name="dragged"/> box covers most, by at least half of the smaller of the two.
+    /// With it, the cursor brought onto it. None while <paramref name="free"/> (Alt held).
+    /// </summary>
+    public static (int Onto, Position At)? JoinTarget(IReadOnlyList<PixelRect?> shown, int self, PixelRect dragged, Position cursor, bool free = false)
+    {
+        if (free)
+        {
+            return null;
+        }
+
+        var others = shown.Select((box, at) => (Box: box.GetValueOrDefault(), At: at)).Where(each => each.At != self && each.Box.Area > 0).ToList();
+        var under = others.Where(each => each.Box.Contains(cursor))
+            .Concat(others.Where(each => Covers(each.Box, dragged)).OrderByDescending(each => each.Box.Shared(dragged)))
+            .Select(each => ((PixelRect Box, int At)?)each)
+            .FirstOrDefault();
+        return under is var (box, onto)
+            ? (onto, new Position(Math.Clamp(cursor.X, box.Left, box.Right - 1), Math.Clamp(cursor.Y, box.Top, box.Bottom - 1)))
+            : null;
+    }
+
+    private static bool Covers(PixelRect one, PixelRect other) => one.Shared(other) * 2 >= Math.Min(one.Area, other.Area);
+
+    /// <summary>
     /// The size and direction a floating overlay of <paramref name="width"/> by <paramref name="height"/> pixels at
     /// <paramref name="size"/> takes when its corner is dragged by <paramref name="dx"/> and <paramref name="dy"/>: vertical
     /// when the box dragged out is taller than wide, and grown as its longer side grew, in steps of 5 %, from 75 % to 200 %.

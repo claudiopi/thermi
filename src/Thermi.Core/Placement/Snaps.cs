@@ -9,9 +9,17 @@ public readonly record struct PixelRect(int Left, int Top, int Right, int Bottom
 
     public int Height => Bottom - Top;
 
+    public long Area => (long)Width * Height;
+
     public bool Overlaps(PixelRect other) => Left < other.Right && other.Left < Right && Top < other.Bottom && other.Top < Bottom;
 
     public bool Contains(PixelRect other) => other.Left >= Left && other.Right <= Right && other.Top >= Top && other.Bottom <= Bottom;
+
+    public bool Contains(Position point) => point.X >= Left && point.X < Right && point.Y >= Top && point.Y < Bottom;
+
+    /// <summary>The pixels this and <paramref name="other"/> both cover.</summary>
+    public long Shared(PixelRect other) =>
+        (long)Math.Max(0, Math.Min(Right, other.Right) - Math.Max(Left, other.Left)) * Math.Max(0, Math.Min(Bottom, other.Bottom) - Math.Max(Top, other.Top));
 }
 
 /// <summary>
@@ -294,15 +302,11 @@ public static class Snaps
     public static Position Inside(Position free, IReadOnlyList<Screen> screens, int width, int height)
     {
         var box = new PixelRect(free.X, free.Y, free.X + width, free.Y + height);
-        var work = Clear(screens.MaxBy(screen => Shared(screen.Bounds, box))!);
+        var work = Clear(screens.MaxBy(screen => screen.Bounds.Shared(box))!);
         var x = Math.Max(work.Left, Math.Min(free.X, work.Right - width));
         var y = Math.Max(work.Top, Math.Min(free.Y, work.Bottom - height));
         return x == free.X && y == free.Y ? free : new Position(x, y);
     }
-
-    private static long Shared(PixelRect one, PixelRect other) =>
-        (long)Math.Max(0, Math.Min(one.Right, other.Right) - Math.Max(one.Left, other.Left))
-        * Math.Max(0, Math.Min(one.Bottom, other.Bottom) - Math.Max(one.Top, other.Top));
 
     // A notification area that does not lie on its taskbar was not found where Windows draws it.
     private static int RightEnd(Screen screen, PixelRect bar) =>

@@ -21,8 +21,8 @@ internal sealed record OverlayActions(
     /// <summary>A value or an edge clicked or pointed at, which the open window selects or marks.</summary>
     public Action<Select> Select { get; init; } = _ => { };
 
-    /// <summary>The place of another overlay shown under a point of the screen, the first given apart, or null.</summary>
-    public Func<int, Position, int?> OverlayAt { get; init; } = (_, _) => null;
+    /// <summary>Each overlay's box on the screen, by its place, null for one not shown.</summary>
+    public Func<IReadOnlyList<PixelRect?>> Shown { get; init; } = () => [];
 
     /// <summary>The item of an overlay drawn first past a point of the screen, before whose pill a pill dropped there joins; null past its last.</summary>
     public Func<int, Position, string?> ItemAfter { get; init; } = (_, _) => null;

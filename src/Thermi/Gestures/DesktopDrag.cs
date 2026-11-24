@@ -27,7 +27,7 @@ internal enum Held
 /// </summary>
 internal sealed record DragStart(Held Held, string? Pill, RectangleF PillBox, Position Origin, Size Size, float Scale, Func<Bitmap>? PillPicture);
 
-/// <summary>Where a drag was let go: the other overlay under the cursor, and the item of it before whose pill a pill joins.</summary>
+/// <summary>Where a drag was let go: the other overlay it is over, and the item of it before whose pill a pill joins.</summary>
 internal readonly record struct DropTarget(int? Onto, string? Before);
 
 /// <summary>
@@ -44,7 +44,6 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     private HWND _ghost;
     private Size _pill;
     private bool _moved;
-    private Position? _dropped;
 
     /// <summary>Whether the drag moves the overlay itself, which a lifted pill or a corner held never do.</summary>
     public bool Moves => start.Held != Held.Corner && !Lifted;
@@ -90,7 +89,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     /// </summary>
     public bool Moved(Position? dragged, bool over = false)
     {
-        _dropped = dragged;
+        Dropped = dragged;
         if (dragged is not { } at)
         {
             return false;
@@ -124,7 +123,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
 
     // Alt held as the move or the drop was sent drops it where it is, whatever mark is in reach.
     private SnapConfig? Near(Position at, Orientation orientation, Size size) =>
-        Snaps.Near(screens, orientation, size.Width, size.Height, at, magnets: PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_MENU) >= 0);
+        Snaps.Near(screens, orientation, size.Width, size.Height, at, magnets: !AltHeld());
 
     /// <summary>
     /// The press let go: a drag writes its gesture as one edit, the plain move through <see cref="Settings.Release"/> so it
@@ -132,7 +131,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     /// </summary>
     public void Release(Press press, Position cursor, DragDistance distance, DropTarget target, GestureUndo? undo)
     {
-        if (_dropped is not { } at)
+        if (Dropped is not { } at)
         {
             return;
         }
@@ -169,24 +168,23 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         undo?.Add(drop.Kind, before, after);
     }
 
-    /// <summary>
-    /// The place of the overlay shown under <paramref name="cursor"/>, <paramref name="self"/> apart, which a drop there
-    /// joins; null for none. A lifted pill, whose own overlay stays in place, gives none apart, so a drop back on its own
-    /// overlay moves it there.
-    /// </summary>
-    public static int? Under(IReadOnlyList<OverlayWindow> overlays, int self, Position cursor)
-    {
-        for (var at = 0; at < overlays.Count; at++)
-        {
-            if (at != self && PInvoke.IsWindowVisible(overlays[at].Hwnd) && PInvoke.GetWindowRect(overlays[at].Hwnd, out var rect)
-                && cursor.X >= rect.left && cursor.X < rect.right && cursor.Y >= rect.top && cursor.Y < rect.bottom)
-            {
-                return at;
-            }
-        }
+    /// <summary>Where the overlay's corner was last dragged to, which its release drops at; null while still a click.</summary>
+    public Position? Dropped { get; private set; }
 
-        return null;
+    /// <summary>What the drag carries with the overlay's corner at <paramref name="dragged"/>, on the screen: the overlay, or a lifted pill.</summary>
+    public PixelRect Box(Position dragged)
+    {
+        var (at, size) = Lifted ? (PillAt(dragged), _pill) : (dragged, start.Size);
+        return new PixelRect(at.X, at.Y, at.X + size.Width, at.Y + size.Height);
     }
+
+    /// <summary>Whether Alt was down as the message being handled was sent.</summary>
+    public static bool AltHeld() => PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_MENU) < 0;
+
+    public static IReadOnlyList<PixelRect?> Boxes(IReadOnlyList<OverlayWindow> overlays) =>
+        [.. overlays.Select(overlay => PInvoke.IsWindowVisible(overlay.Hwnd) && PInvoke.GetWindowRect(overlay.Hwnd, out var rect)
+            ? new PixelRect(rect.left, rect.top, rect.right, rect.bottom)
+            : (PixelRect?)null)];
 
     public void Dispose()
     {

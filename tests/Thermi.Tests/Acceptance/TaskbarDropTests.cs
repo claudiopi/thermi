@@ -69,4 +69,41 @@ public sealed class TaskbarDropTests
             : Snaps.Locate(new OverlayConfig { Snap = snap }, [Pc, Side], Width, Height)!;
         Assert.Equal(lands, string.Create(CultureInfo.InvariantCulture, $"{snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y}"));
     }
+
+    // The owner's taskbar after a pill was dragged off (the owner, 2026-11-24): the CPU overlay 662 × 38 beside the
+    // notification area, the "CPU 141 W" overlay 103 × 38 to its left, a hidden third overlay, and a fourth 100 × 38 between
+    // the two shown, 34 px from the first and 72 px from the second. A drag held as its words
+    // say, `self` the dragged overlay's place (-1 for a lifted pill, whose overlay stays), its box `x,y,width` 38 px high
+    // and the cursor, with Alt held when it says so. What it joins, and the point of it the drop joins at, or none.
+    [Theory]
+    // The cursor on the other overlay, or off it with the dragged overlay over it by half of either.
+    [InlineData("1 1700,1397,103 1750,1416", "0 1750,1416")]
+    [InlineData("1 1700,1380,103 1750,1394", "0 1750,1397")]
+    [InlineData("1 1521,1397,103 1550,1416", "0 1572,1416")]
+    [InlineData("1 1520,1397,103 1550,1416", "none")]
+    [InlineData("1 1469,1397,103 1500,1416", "none")]
+    // The big overlay over the small one, and a lifted pill over another overlay or its own.
+    [InlineData("0 900,1397,662 1200,1416", "1 1263,1416")]
+    [InlineData("-1 1300,1397,220 1380,1416", "3 1400,1416")]
+    [InlineData("-1 1280,1393,103 1300,1412", "1 1300,1412")]
+    [InlineData("-1 1900,1393,103 1950,1412", "0 1950,1412")]
+    // Alt held drops it free.
+    [InlineData("alt 1 1700,1397,103 1750,1416", "none")]
+    public void ADragJoinsTheOverlayItIsOver(string drag, string joins)
+    {
+        var words = drag.Split(' ');
+        var (box, cursor) = (Numbers(words[^2]), Numbers(words[^1]));
+        PixelRect?[] shown = [new PixelRect(1572, 1397, 2234, 1435), new PixelRect(1263, 1397, 1366, 1435), null, new PixelRect(1400, 1397, 1500, 1435)];
+
+        var target = DesktopGestures.JoinTarget(
+            shown,
+            int.Parse(words[^3], CultureInfo.InvariantCulture),
+            new PixelRect(box[0], box[1], box[0] + box[2], box[1] + Height),
+            new Position(cursor[0], cursor[1]),
+            free: words[0] == "alt");
+
+        Assert.Equal(joins, target is var (onto, at) ? string.Create(CultureInfo.InvariantCulture, $"{onto} {at.X},{at.Y}") : "none");
+    }
+
+    private static int[] Numbers(string word) => [.. word.Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture))];
 }

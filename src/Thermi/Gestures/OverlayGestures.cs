@@ -126,7 +126,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
                 SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
-        var target = dragged is null || Drag?.Resizes != false ? default : Target(actions.Cursor());
+        var target = Drag?.Resizes != false ? default : Target(actions.Cursor(), dragged);
         var moved = Drag?.Moved(dragged, target.Onto is not null) == true;
         // The overlay a drop would join marks where, which it paints.
         var previewed = actions.Preview.Over(target);
@@ -140,12 +140,15 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     public void Release(Press press, DragDistance distance)
     {
         var cursor = actions.Cursor();
-        Drag?.Release(press, cursor, distance, Target(cursor), actions.Gestures);
+        Drag?.Release(press, cursor, distance, Target(cursor, Drag.Dropped), actions.Gestures);
         Let();
     }
 
-    private DropTarget Target(Position cursor) =>
-        actions.OverlayAt(Self, cursor) is { } onto ? new DropTarget(onto, actions.ItemAfter(onto, cursor)) : default;
+    private DropTarget Target(Position cursor, Position? dragged) =>
+        dragged is { } at && Drag is { } drag
+        && DesktopGestures.JoinTarget(actions.Shown(), Self, drag.Box(at), cursor, DesktopDrag.AltHeld()) is var (onto, point)
+            ? new DropTarget(onto, actions.ItemAfter(onto, point))
+            : default;
 
     /// <summary>
     /// Whether Esc was down as the message being handled was sent, which cancels a drag: read as the mouse moves for when
