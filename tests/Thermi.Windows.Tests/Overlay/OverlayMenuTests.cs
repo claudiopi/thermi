@@ -61,9 +61,13 @@ public sealed class OverlayMenuTests : IDisposable
         Assert.Equal([warmer, recorded], shown);
     }
 
-    // Exit takes the host's window down, which ends the overlay process's message loop.
-    [Fact]
-    public async Task ExitEndsTheOverlayProcess()
+    // Exit takes the host's window down, which ends the overlay process's message loop, and so does a tool or a script
+    // that closes the host's window or the overlay Windows calls the process's main window.
+    [Theory]
+    [InlineData("menu")]
+    [InlineData("host")]
+    [InlineData("overlay")]
+    public async Task ExitEndsTheOverlayProcess(string how)
     {
         var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en" });
         var (before, after, quit) = (false, true, false);
@@ -71,7 +75,16 @@ public sealed class OverlayMenuTests : IDisposable
         Run(settings, host =>
         {
             before = TestPInvoke.IsWindow(host.Hwnd);
-            HostMenus.Choose(host, null, "Exit thermi");
+            switch (how)
+            {
+                case "menu":
+                    HostMenus.Choose(host, null, "Exit thermi");
+                    break;
+                default:
+                    PInvoke.SendMessage(how == "host" ? host.Hwnd : host.Overlays[0].Hwnd, PInvoke.WM_CLOSE, 0, 0);
+                    break;
+            }
+
             after = TestPInvoke.IsWindow(host.Hwnd);
             quit = TestPInvoke.PeekMessage(out _, default, TestPInvoke.WM_QUIT, TestPInvoke.WM_QUIT, PEEK_MESSAGE_REMOVE_TYPE.PM_REMOVE);
         });

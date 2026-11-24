@@ -101,6 +101,18 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         }
     }
 
+    /// <summary>Whether Esc was down as the message being handled was sent, which cancels a drag.</summary>
+    public static bool Escape() => PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_ESCAPE) < 0;
+
+    /// <summary>Lets the mouse go after Esc cancelled the press; the change of capture that follows finds no press.</summary>
+    public void LetMouseGo()
+    {
+        if (PInvoke.GetCapture() == hwnd)
+        {
+            PInvoke.ReleaseCapture();
+        }
+    }
+
     /// <summary>Ends the press's drag, whatever it did.</summary>
     public void Let()
     {

@@ -160,11 +160,7 @@ internal sealed class OverlayHost : IDisposable
         _paints.Dispose();
         _cpu.Dispose();
         _desktop.Dispose();
-        foreach (var overlay in _overlays)
-        {
-            overlay.Dispose();
-        }
-
+        _overlays.ForEach(overlay => overlay.Dispose());
         _overlays.Clear();
         Tray?.Dispose();
         _hotkeys?.Dispose();
@@ -197,6 +193,13 @@ internal sealed class OverlayHost : IDisposable
             if (hwnd == Hwnd && _link.FromWindow(Hwnd, message, wParam, lParam) is { } answer)
             {
                 return answer;
+            }
+
+            // Windows calls an overlay thermi's main window: a tool closing it exits thermi, not that overlay alone.
+            if (message == PInvoke.WM_CLOSE)
+            {
+                _actions.Exit();
+                return new LRESULT(0);
             }
 
             if (hwnd == Hwnd ? Handle(message, wParam, lParam) : _overlays.Find(overlay => overlay.Hwnd == hwnd)?.Handle(message, wParam) == true)

@@ -26,22 +26,20 @@ public sealed class TaskbarDropTests
     // clear of the buttons, the notification area and the other overlays, a margin apart, and none where it has no room.
     [Theory]
     // Its row ends 8 px before the notification area, with room for it from 8 px after the apps: the place beside the
-    // notification area, from above within 31, 32 and 33 px, from the left, from the right, diagonally, a 10 px nudge up
-    // from that place, and dropped anywhere in the row: along it, over the apps, over Start, or past its bottom.
-    [InlineData("0-1636", "", "1652,1366", "TaskbarRight 1652,1397")]
-    [InlineData("0-1636", "", "1652,1365", "TaskbarRight 1652,1397")]
-    [InlineData("0-1636", "", "1652,1364", "free 1652,1354")]
+    // notification area, from above with its bottom edge 95, 96 and 97 px over the taskbar, from the left, from the right,
+    // diagonally, and dropped anywhere in the row: along it, over the apps, over Start, past its bottom, or just above it.
+    [InlineData("0-1636", "", "1652,1259", "TaskbarRight 1652,1397")]
+    [InlineData("0-1636", "", "1652,1258", "TaskbarRight 1652,1397")]
+    [InlineData("0-1636", "", "1652,1257", "free 1652,1257")]
     [InlineData("0-1636", "", "1621,1397", "TaskbarRight 1652,1397")]
     [InlineData("0-1636", "", "1683,1397", "TaskbarRight 1652,1397")]
-    [InlineData("0-1636", "", "1690,1397", "TaskbarRight 1652,1397")]
     [InlineData("0-1636", "", "1672,1377", "TaskbarRight 1652,1397")]
     [InlineData("0-1636", "", "1642,1407", "TaskbarRight 1652,1397")]
-    [InlineData("0-1636", "", "1652,1387", "TaskbarRight 1652,1397")]
     [InlineData("0-1636", "", "1400,1397", "TaskbarRight 1652,1397")]
     [InlineData("0-1636", "", "900,1397", "TaskbarRight 1652,1397")]
     [InlineData("0-1636", "", "13,1397", "TaskbarRight 1652,1397")]
     [InlineData("0-1636", "", "1200,1420", "TaskbarRight 1652,1397")]
-    [InlineData("0-1636", "", "1200,1354", "free 1200,1354")]
+    [InlineData("0-1636", "", "1200,1354", "TaskbarRight 1652,1397")]
     // Room for two places after the apps, or one on each side of centered apps; one where the row is exactly as wide as
     // the overlay, none where it is a pixel short.
     [InlineData("0-1000", "", "1010,1397", "TaskbarLeft 1008,1397")]
@@ -56,9 +54,13 @@ public sealed class TaskbarDropTests
     [InlineData("0-1000", "right 200", "1100,1397", "TaskbarRight 1444,1397")]
     [InlineData("0-1000", "left 300", "1652,1397", "TaskbarRight 1652,1397")]
     [InlineData("0-1000", "right 1000", "1300,1397", "free 1300,1354")]
-    // The corners: within reach of a mark, and between a top corner's mark and the top of the screen.
+    // The corners: within reach of a mark, its edge 95, 96 and 97 px from it, and between a top corner's mark and the top
+    // of the screen.
     [InlineData("0-1636", "", "18,1336", "BottomLeft 8,1346")]
     [InlineData("0-1636", "", "1992,1336", "BottomRight 2002,1346")]
+    [InlineData("0-1636", "", "1907,64", "TopRight 2002,64")]
+    [InlineData("0-1636", "", "1906,64", "TopRight 2002,64")]
+    [InlineData("0-1636", "", "1905,64", "free 1905,64")]
     [InlineData("0-1636", "", "18,18", "TopLeft 8,64")]
     [InlineData("0-1636", "", "1992,18", "TopRight 2002,64")]
     [InlineData("0-1636", "", "1200,0", "free 1200,0")]

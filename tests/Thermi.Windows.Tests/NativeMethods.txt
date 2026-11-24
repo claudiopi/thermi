@@ -10,6 +10,7 @@ DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
 // What a window shows and where a click lands
 WindowFromPoint
 IsWindowVisible
+EnumWindows
 GetGuiResources
 // Where a point of a window's frame is
 HTCLOSE
@@ -37,3 +38,5 @@ KillTimer
 WM_COMMAND
 // A test's window without the input methods' own thread
 ImmDisableIME
+// Esc or Alt down as a drag's message is sent
+SetKeyboardState

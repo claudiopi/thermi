@@ -1193,7 +1193,7 @@
         "R33",
         "R143"
       ],
-      "description": "Given a taskbar's app buttons, notification area and other overlays, and an overlay 550 px wide, when it is dropped from above within 31, 32 or 33 px of a mark, from the left, the right, diagonally, nudged 10 px, along the taskbar, over the apps, over Start, past its bottom, near a corner or between a top corner's mark and the top, in rows with room for one place, two, exactly its width or a pixel less, then it lands at the place beside the notification area when the row has room for it once, at the place nearest otherwise, and stays free where no place has room; no taskbar mark leaves the taskbar or covers a button, the notification area or another overlay.",
+      "description": "Given a taskbar's app buttons, notification area and other overlays, and an overlay 550 px wide, when it is dropped with its bottom edge 95, 96 or 97 px above the taskbar, from the left, the right, diagonally, along the taskbar, over the apps, over Start, past its bottom, just above it, near a corner, with its edge 95, 96 or 97 px from a corner's mark, or between a top corner's mark and the top, in rows with room for one place, two, exactly its width or a pixel less, then it lands at the place beside the notification area when the row has room for it once, at the place nearest otherwise, and stays free where no place has room; no taskbar mark leaves the taskbar or covers a button, the notification area or another overlay.",
       "check": "ADropLandsAtTheMarkItsTaskbarHasRoomFor",
       "passes": true
     },
@@ -1262,6 +1262,25 @@
       "description": "Given two overlays, when one is dragged over the other, then it shows through at half opacity and no snap mark lights; and on a load's item page, Graph is a row after Meter and turning it off keeps it off after a restart.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A305",
+      "covers": [
+        "R33",
+        "R148"
+      ],
+      "description": "Given an overlay dragged on the desktop near a corner's mark, with its marks showing, when it is let go, let go with Alt held, cancelled with Esc down as the mouse moves, or loses the mouse to another window, then it snaps to that corner, stays free where it was let go, or goes back to its snap with the file unchanged, and the desktop shows the overlay alone.",
+      "check": "ADragEndsWithNothingOfItLeftOnScreen",
+      "passes": true
+    },
+    {
+      "id": "A306",
+      "covers": [
+        "R136"
+      ],
+      "description": "Given the overlay process, when Exit thermi is chosen, or Windows asks its host window or an overlay to close, then its window goes and its message loop ends.",
+      "check": "ExitEndsTheOverlayProcess",
+      "passes": true
     }
   ]
 }

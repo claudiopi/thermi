@@ -1,3 +1,4 @@
+using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Overlay;
 using Windows.Win32;
@@ -80,38 +81,106 @@ public sealed class OverlayDragTests : IDisposable
         Assert.True(OverlayWindow.WindowClass(TestWindows.DefaultProcedure, default).style.HasFlag(WNDCLASS_STYLES.CS_DBLCLKS));
     }
 
-    // Another window took the mouse mid-drag, as a menu or a dialog does: the overlay goes back to its snap, and the
-    // button let go after moves nothing.
-    [Fact]
-    public async Task LosingTheMouseMidDragPutsTheOverlayBack()
+    // A drag ends with nothing of it on screen but the overlay, its marks gone: let go near a corner's mark it snaps there,
+    // and with Alt held it stays where it was let go; with Esc down as the mouse moves, or another window taking the mouse,
+    // as a menu or a dialog does, it goes back to its snap and the button let go after moves nothing.
+    [Theory]
+    [InlineData("drop", "TopLeft")]
+    [InlineData("alt", "free")]
+    [InlineData("esc", "back")]
+    [InlineData("lost", "back")]
+    public async Task ADragEndsWithNothingOfItLeftOnScreen(string end, string lands)
     {
         var settings = await _folder.LoadedAsync(new ThermiConfig());
         var before = _folder.Text();
-        var (start, during, back, after) = (Nowhere, Nowhere, false, Nowhere);
+        var (start, near, after, written) = (Nowhere, Nowhere, Nowhere, false);
+        var (during, left) = (new List<HWND>(), new List<HWND>());
+        HWND overlay = default;
 
         Run(settings, host =>
         {
-            var overlay = host.Overlays[0].Hwnd;
+            overlay = host.Overlays[0].Hwnd;
+            PInvoke.GetWindowRect(overlay, out var rect);
             start = Corner(overlay);
-            during = Drag(host, overlay).Dragged;
-            using (var other = new HiddenTestWindow("thermi-test-" + Guid.NewGuid().ToString("N")))
-            {
-                PInvoke.SetCapture(other.Hwnd);
-                back = HostRun.Until(host, _folder.Clock, () => Corner(overlay) == start);
-                PInvoke.ReleaseCapture();
-            }
-
-            Post(overlay, PInvoke.WM_LBUTTONUP);
-            HostRun.Pump(host);
+            var topLeft = new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopLeft) };
+            var corner = Snaps.Locate(topLeft, Desktop.Screens(), rect.right - rect.left, rect.bottom - rect.top)!;
+            near = new Position(corner.X + 20, corner.Y + 20);
+            DragBy(host, overlay, new Position(near.X - start.X, near.Y - start.Y));
+            during.AddRange(Shown());
+            End(host, overlay, end);
+            written = HostRun.Until(host, _folder.Clock, () => _folder.Text() != before);
             HostRun.Tick(host);
             after = Corner(overlay);
+            left.AddRange(Shown());
         });
 
-        Assert.NotEqual(start, during);
-        Assert.True(back, "The overlay stayed where the drag had it.");
-        Assert.Equal(start, after);
-        Assert.Null(settings.Config.Overlays[0].Position);
-        Assert.Equal(before, _folder.Text());
+        Assert.True(during.Count > 1, "No snap mark showed during the drag.");
+        Assert.Equal([overlay], left);
+        var file = _folder.Read().Overlays[0];
+        Assert.Equal(
+            lands switch
+            {
+                "back" => (false, start, (SnapSpot?)null, (Position?)null),
+                "free" => (true, near, null, near),
+                _ => (true, after, SnapSpot.TopLeft, null),
+            },
+            (written, after, file.Snap?.Spot, file.Position));
+    }
+
+    // Esc and Alt are down as the move or the drop is sent, as the window's thread reads them.
+    private static void End(OverlayHost host, HWND overlay, string end)
+    {
+        switch (end)
+        {
+            case "esc":
+                Holding(0x1B, () => Post(overlay, PInvoke.WM_MOUSEMOVE), host);
+                break;
+            case "lost":
+                using (var other = new HiddenTestWindow("thermi-test-" + Guid.NewGuid().ToString("N")))
+                {
+                    PInvoke.SetCapture(other.Hwnd);
+                    HostRun.Pump(host);
+                    PInvoke.ReleaseCapture();
+                }
+
+                break;
+            case "alt":
+                Holding(0x12, () => Post(overlay, PInvoke.WM_LBUTTONUP), host);
+                return;
+            default:
+                break;
+        }
+
+        Post(overlay, PInvoke.WM_LBUTTONUP);
+        HostRun.Pump(host);
+    }
+
+    private static void Holding(byte key, Action send, OverlayHost host)
+    {
+        var keys = new byte[256];
+        keys[key] = 0x80;
+        TestPInvoke.SetKeyboardState(keys);
+        send();
+        HostRun.Pump(host);
+        TestPInvoke.SetKeyboardState(new byte[256]);
+    }
+
+    // The windows the test's desktop shows, which only the host's process has windows on.
+    private static List<HWND> Shown()
+    {
+        var shown = new List<HWND>();
+        TestPInvoke.EnumWindows(
+            (hwnd, _) =>
+            {
+                if (TestPInvoke.IsWindowVisible(hwnd))
+                {
+                    shown.Add(hwnd);
+                }
+
+                return true;
+            },
+            0);
+        return shown;
     }
 
     private static Position Corner(HWND window) => PInvoke.GetWindowRect(window, out var rect) ? new Position(rect.left, rect.top) : new Position(0, 0);
@@ -121,9 +190,11 @@ public sealed class OverlayDragTests : IDisposable
     private void Run(Settings settings, Action<OverlayHost> body, Action<int>? openSettings = null) =>
         HostRun.Run(settings, _folder, _tray.Environment(_windowMutex, openSettings) with { Cursor = () => _cursor }, body);
 
-    // A press in the overlay's middle, the cursor nudged by a pixel, within any drag distance, then moved by By, the
-    // button still down; gives where the overlay is after each move.
-    private (Position Nudged, Position Dragged) Drag(OverlayHost host, HWND overlay)
+    // A press in the overlay's middle, the cursor nudged by a pixel, within any drag distance, then moved by By, or by
+    // `by`, the button still down; gives where the overlay is after each move.
+    private (Position Nudged, Position Dragged) Drag(OverlayHost host, HWND overlay) => DragBy(host, overlay, By);
+
+    private (Position Nudged, Position Dragged) DragBy(OverlayHost host, HWND overlay, Position by)
     {
         PInvoke.GetWindowRect(overlay, out var rect);
         var pressed = new Position((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2);
@@ -134,7 +205,7 @@ public sealed class OverlayDragTests : IDisposable
         Post(overlay, PInvoke.WM_MOUSEMOVE);
         HostRun.Pump(host);
         var nudged = Corner(overlay);
-        _cursor = new Position(pressed.X + By.X, pressed.Y + By.Y);
+        _cursor = new Position(pressed.X + by.X, pressed.Y + by.Y);
         Post(overlay, PInvoke.WM_MOUSEMOVE);
         HostRun.Pump(host);
         return (nudged, Corner(overlay));

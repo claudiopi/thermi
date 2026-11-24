@@ -7,6 +7,7 @@ using Thermi.Overlay;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Gestures;
@@ -99,10 +100,16 @@ internal sealed class DesktopDrag : IDisposable
         var changed = _marks is null || Merging != over;
         Merging = over;
         _marks ??= new SnapMarks(_screens, orientation, _start.Size, _start.Scale, _window, Rows);
-        // Over another overlay the drop merges, wherever a snap would be, so no mark is lit.
-        _marks.Light(over ? null : Snaps.Near(_screens, orientation, _start.Size.Width, _start.Size.Height, at, Rows));
+        // Over another overlay the drop merges, wherever a snap would be, so no mark is lit; nor is one with Alt held.
+        _marks.Light(over ? null : Near(at));
         return changed;
     }
+
+    // Alt held as the move or the drop was sent places the overlay freely, whatever mark is in reach.
+    private SnapConfig? Near(Position at) =>
+        PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_MENU) < 0
+            ? null
+            : Snaps.Near(_screens, _settings.Config.Overlays[_overlay].Style.Orientation, _start.Size.Width, _start.Size.Height, at, Rows);
 
     /// <summary>
     /// The press let go: a drag writes its gesture as one edit, the plain move through <see cref="Settings.Release"/> so it
@@ -124,9 +131,7 @@ internal sealed class DesktopDrag : IDisposable
                 Moves ? null : _start.Pill,
                 Moves ? Kept(at) : PillAt(at),
                 onto,
-                Moves
-                    ? Snaps.Near(_screens, before.Overlays[_overlay].Style.Orientation, _start.Size.Width, _start.Size.Height, at, Rows)
-                    : null);
+                Moves ? Near(at) : null);
         if (drop.Result.Refused is not null || ConfigEdits.Replay(before, drop.Result.Config) is not { } change)
         {
             return;

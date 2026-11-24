@@ -18,7 +18,7 @@ internal enum MouseAction
     /// <summary>The press ended: <see cref="MouseStep.Press"/> is let go, written only if it was a drag.</summary>
     Release,
 
-    /// <summary>Another window took the mouse mid-press: the overlay goes back to its place.</summary>
+    /// <summary>Another window took the mouse mid-press, or Esc was down as it moved: the overlay goes back to its place.</summary>
     Lost,
 
     /// <summary>A double-click: the settings open.</summary>
@@ -38,14 +38,22 @@ internal sealed class OverlayMouse
     /// <summary>Where a drag in progress has the overlay once past the drag distance, so a repaint leaves it there.</summary>
     public Position? Dragged { get; private set; }
 
-    /// <summary>The step for <paramref name="message"/>, with the cursor and the overlay's corner where they are now.</summary>
-    public MouseStep On(uint message, Position cursor, Position overlay, DragDistance distance, bool locked)
+    /// <summary>
+    /// The step for <paramref name="message"/>, with the cursor and the overlay's corner where they are now, and whether
+    /// Esc was down when it was sent.
+    /// </summary>
+    public MouseStep On(uint message, Position cursor, Position overlay, DragDistance distance, bool locked, bool escape = false)
     {
         switch (message)
         {
             case PInvoke.WM_LBUTTONDOWN:
                 (_press, Dragged) = (new Press(cursor, overlay), null);
                 return new MouseStep(MouseAction.Capture);
+
+            // The overlay never has the keyboard's focus, so no Esc reaches it: its state is read as each move was sent.
+            case PInvoke.WM_MOUSEMOVE when _press is not null && escape:
+                (_press, Dragged) = (null, null);
+                return new MouseStep(MouseAction.Lost);
             case PInvoke.WM_MOUSEMOVE when _press is { } press:
                 Dragged = Snaps.Dragged(press, cursor, distance, locked);
                 return new MouseStep(MouseAction.Move, At: Dragged ?? press.Overlay);

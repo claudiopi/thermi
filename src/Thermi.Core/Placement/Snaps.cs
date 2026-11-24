@@ -60,8 +60,11 @@ public static class Snaps
     /// <summary>Pixels at 100 % between the work area's top and a top corner's overlay, below a maximized window's caption buttons.</summary>
     public const int BelowTop = 64;
 
-    /// <summary>Pixels at 100 % within which an overlay dragged on the desktop drops onto a snap mark.</summary>
-    public const int Pull = 32;
+    /// <summary>
+    /// Pixels at 100 % within which an overlay dragged on the desktop drops onto a snap mark, from its edge nearest the
+    /// mark, or into a taskbar's row, from its edge facing the taskbar.
+    /// </summary>
+    public const int Reach = 96;
 
     private static readonly SnapSpot[] Corners = [SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.BottomRight];
 
@@ -210,28 +213,58 @@ public static class Snaps
     }
 
     /// <summary>
-    /// The mark an overlay dragged to <paramref name="at"/> drops onto: the nearest within 32 px at its monitor's scale,
-    /// counting a top corner's as reaching up to the work area's top, else, dropped in a taskbar's row, that taskbar's
-    /// nearest spot, since a free overlay never sits on a taskbar; or null.
+    /// The mark an overlay dragged to <paramref name="at"/> drops onto: the nearest within <see cref="Reach"/> at its
+    /// monitor's scale, counting a top corner's as reaching up to the work area's top, else, with its edge facing a
+    /// taskbar within that reach of it, that taskbar's nearest spot, since a free overlay never sits on a taskbar; or null.
     /// Laid among the <paramref name="rows"/>, only the marks <see cref="Marks"/> offers count.
     /// </summary>
     public static SnapConfig? Near(IReadOnlyList<Screen> screens, Orientation orientation, int width, int height, Position at, RowContext? rows = null)
     {
         var marks = Marks(screens, orientation, width, height, rows);
-        return marks
-            .Select(mark => (Mark: mark, Screen: ScreenOf(mark.Snap, screens)!))
-            .Select(each => (each.Mark.Snap, Distance: Distance(each.Mark, at, each.Screen), Reach: Scaled(Pull, each.Screen)))
-            .Where(mark => mark.Distance <= mark.Reach)
-            .OrderBy(mark => mark.Distance)
-            .Select(mark => mark.Snap)
-            .FirstOrDefault()
+        var box = new PixelRect(at.X, at.Y, at.X + width, at.Y + height);
+        var middle = new PixelRect(at.X + (width / 2), at.Y + (height / 2), at.X + (width / 2) + 1, at.Y + (height / 2) + 1);
+
+        // A drop on a taskbar goes into its row before any corner within reach, as the bottom ones sit just above it.
+        return OnTaskbar(marks, screens, at, (bar, _) => bar.Contains(middle))
             ?? marks
-                .Where(mark => TaskbarOf(ScreenOf(mark.Snap, screens)!) is { } bar
-                    && mark.Snap.Spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight
-                    && bar.Contains(new PixelRect(at.X + (width / 2), at.Y + (height / 2), at.X + (width / 2) + 1, at.Y + (height / 2) + 1)))
-                .OrderBy(mark => Math.Abs(mark.At.X - at.X))
+                .Select(mark => (Mark: mark, Screen: ScreenOf(mark.Snap, screens)!))
+                .Select(each => (each.Mark.Snap, Distance: Distance(each.Mark, at, each.Screen), Reach: Scaled(Reach, each.Screen)))
+                .Where(mark => mark.Distance <= mark.Reach)
+                .OrderBy(mark => mark.Distance)
                 .Select(mark => mark.Snap)
-                .FirstOrDefault();
+                .FirstOrDefault()
+            ?? OnTaskbar(marks, screens, at, (bar, screen) => InBand(box, bar, screen));
+    }
+
+    // The taskbar spot nearest along its row, among the marks offered on a taskbar the drop reached.
+    private static SnapConfig? OnTaskbar(
+        IReadOnlyList<(SnapConfig Snap, Position At)> marks,
+        IReadOnlyList<Screen> screens,
+        Position at,
+        Func<PixelRect, Screen, bool> reached) =>
+        marks
+            .Where(mark => mark.Snap.Spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight
+                && ScreenOf(mark.Snap, screens) is { } screen
+                && TaskbarOf(screen) is { } bar
+                && reached(bar, screen))
+            .OrderBy(mark => Math.Abs(mark.At.X - at.X))
+            .Select(mark => mark.Snap)
+            .FirstOrDefault();
+
+    // Across the taskbar, with the overlay's edge that faces it no farther from it than the reach: the bottom edge from a
+    // taskbar's top, the top edge from a taskbar's bottom at the top of the screen. The cursor, inside the overlay, is
+    // never nearer than that edge.
+    private static bool InBand(PixelRect box, PixelRect bar, Screen screen)
+    {
+        var middle = box.Left + (box.Width / 2);
+        if (middle < bar.Left || middle >= bar.Right)
+        {
+            return false;
+        }
+
+        var reach = Scaled(Reach, screen);
+        var below = bar.Top + bar.Bottom > screen.Bounds.Top + screen.Bounds.Bottom;
+        return below ? box.Bottom >= bar.Top - reach && box.Top < bar.Bottom : box.Top <= bar.Bottom + reach && box.Bottom > bar.Top;
     }
 
     // A top corner's mark sits below a maximized window's caption buttons, so a drop between it and the work area's top,

@@ -93,6 +93,7 @@ IDC_SIZENWSE
 // Mouse and menus
 SetCapture
 ReleaseCapture
+GetCapture
 GetCursorPos
 GetMessagePos
 GetKeyState

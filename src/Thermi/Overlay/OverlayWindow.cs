@@ -246,7 +246,7 @@ internal sealed class OverlayWindow : IDisposable
 
     private bool Mouse(uint message, OverlayConfig overlay)
     {
-        var step = _mouse.On(message, _actions.Cursor(), WindowPosition(), DragDistance(), overlay.Locked);
+        var step = _mouse.On(message, _actions.Cursor(), WindowPosition(), DragDistance(), overlay.Locked, OverlayGestures.Escape());
         switch (step.Action)
         {
             case MouseAction.Capture:
@@ -262,6 +262,7 @@ internal sealed class OverlayWindow : IDisposable
                 Dropped();
                 return true;
             case MouseAction.Lost:
+                _gestures.LetMouseGo();
                 Dropped();
                 return true;
             case MouseAction.Open when !_gestures.DoubleClickedCorner(overlay, _painted, WindowPosition()):
