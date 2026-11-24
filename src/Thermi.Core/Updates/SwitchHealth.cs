@@ -108,6 +108,7 @@ public static class SwitchHealth
         Installed = self,
         Probation = null,
         Refused = null,
+        SwitchAfter = null,
         Ready = state.Ready > self ? state.Ready : null,
         ReadyUrgent = state.Ready > self && state.ReadyUrgent,
     };
@@ -123,11 +124,14 @@ public static class SwitchHealth
     public static UpdateState HeldBack(UpdateState state, bool cut, DateTimeOffset now) =>
         (cut ? Cut(state) : state with { Switch = null }) with { SwitchAfter = now + UpdateSchedule.Every };
 
-    /// <summary>Whether a switch forward to the version ready may begin now.</summary>
-    public static bool MaySwitch(UpdateState state, DateTimeOffset now) => !(state.SwitchAfter > now);
+    /// <summary>
+    /// Whether a switch forward to the version ready may begin now: a hold further ahead than one interval was set by a
+    /// clock that ran ahead, and holds nothing.
+    /// </summary>
+    public static bool MaySwitch(UpdateState state, DateTimeOffset now) =>
+        state.SwitchAfter is not { } after || after <= now || after - now > UpdateSchedule.Every;
 
-    /// <summary>The switch under way cut: tried once more, then its version failed.</summary>
-    public static UpdateState Cut(UpdateState state) => Cut(state, state.Switch ?? throw new InvalidOperationException("No switch was written down."));
+    private static UpdateState Cut(UpdateState state) => Cut(state, state.Switch ?? throw new InvalidOperationException("No switch was written down."));
 
     private static UpdateState Cut(UpdateState state, PendingSwitch pending)
     {

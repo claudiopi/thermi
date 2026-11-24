@@ -96,6 +96,25 @@ public sealed class UpdaterTests
         Assert.Equal(pc.Folder().StateText(), await File.ReadAllTextAsync(copy, TestContext.Current.CancellationToken));
     }
 
+    // A switch that went back without failing holds the next one forward a check's interval: neither an urgent check nor a
+    // quiet session begins it until then.
+    [Fact]
+    public async Task AHeldSwitchWaitsItsInterval()
+    {
+        await using var pc = new UpdatePc();
+        pc.Folder().Write(pc.State with { SwitchAfter = pc.Clock.GetUtcNow().AddHours(1) });
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Urgent = true });
+        using var updater = pc.Updater();
+
+        await updater.CheckAsync(TestContext.Current.CancellationToken);
+        updater.Quiet();
+        var (ready, before) = (pc.State.Ready, pc.Watchdogs.Count);
+        pc.Clock.Advance(TimeSpan.FromHours(1));
+        updater.Quiet();
+
+        Assert.Equal((UpdatePc.Built, 0, 1), (ready, before, pc.Watchdogs.Count));
+    }
+
     // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again by this build; one
     // refused for the PC's reasons, as its version's folder in use, is.
     [Theory]

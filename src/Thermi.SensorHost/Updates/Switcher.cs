@@ -31,7 +31,8 @@ internal sealed class Switcher(
     // ERROR_SERVICE_REQUEST_TIMEOUT: the service did not answer Windows in time.
     private const int ServiceTimedOut = 1053;
 
-    // ERROR_SHUTDOWN_IN_PROGRESS: Windows refused the start because it is shutting down, which says nothing of the version.
+    // ERROR_SHUTDOWN_IN_PROGRESS: Windows refused the start because it is shutting down, which says nothing of the version,
+    // so it is held without counting as a cut.
     private const int ShuttingDown = 1115;
 
     private readonly SwitchLock _lock = new(folder, time);
@@ -148,10 +149,10 @@ internal sealed class Switcher(
         }
         catch (InvalidOperationException ex) when (ex.InnerException is Win32Exception { NativeErrorCode: ServiceTimedOut or ShuttingDown })
         {
-            // Windows gave up waiting, as under a boot's disk and antivirus: the version may be slow, not broken, so the
-            // switch is cut and tried once more rather than the version failed at once.
+            // Windows gave up waiting, as under a boot's disk and antivirus, so the version may be slow, not broken: the switch
+            // is cut and held, then tried once more. A start refused at shutdown is only held.
             started = false;
-            timedOut = true;
+            timedOut = ex.InnerException is Win32Exception { NativeErrorCode: ServiceTimedOut };
             throw;
         }
         finally
@@ -160,7 +161,7 @@ internal sealed class Switcher(
         }
     }
 
-    // A version that went back without failing is ready again only at the next check, or GoBack's start would switch again within a minute.
+    // A version that went back without failing stays ready but held a check's interval, or GoBack's start would switch again within a minute.
     private Func<UpdateState, UpdateState> Outcome(bool started, bool timedOut) => started
         ? SwitchHealth.Failed
         : state => SwitchHealth.HeldBack(state, timedOut, time.GetUtcNow());

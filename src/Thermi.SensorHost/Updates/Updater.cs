@@ -205,7 +205,8 @@ internal sealed class Updater(
         next = WriteAfterCheck(next);
         if (switchTo is { } to && (to < build.Version || SwitchHealth.MaySwitch(next, now)))
         {
-            // From the state as it is now: a stop's mark written since the check's own write is kept.
+            // From the state as it is now: a stop's mark written since the check's own write is kept. A start that
+            // throws leaves the prune to the next check.
             _switcher.Begin(folder.Read(), to, build.Version, back: to < build.Version);
         }
 
@@ -354,8 +355,7 @@ internal sealed class Updater(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // A launcher a program holds unreadable: nothing is pruned until it can be told which version it starts.
-            _ = ex;
+            say($"thermi could not read the launcher at the top, so it deletes no version until it can: {ex.Message}", EventLogEntryType.Warning);
             return;
         }
 

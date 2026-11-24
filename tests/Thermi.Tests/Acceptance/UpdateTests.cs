@@ -144,7 +144,6 @@ public sealed class UpdateTests
         Assert.Empty(cut.Failed);
         var cutTwice = SwitchHealth.Started(SwitchHealth.Begin(cut, V("1.3.0")), V("1.2.0"), Now).State;
         Assert.Equal("1.3.0", Assert.Single(cutTwice.Failed).ToString());
-        Assert.Equal(cutTwice.Failed, SwitchHealth.Cut(SwitchHealth.Begin(SwitchHealth.Cut(SwitchHealth.Begin(ready, V("1.3.0"))), V("1.3.0"))).Failed);
         // A reboot with no switch under way changes nothing.
         Assert.Equal(cut, SwitchHealth.Started(cut, V("1.2.0"), Now).State);
 

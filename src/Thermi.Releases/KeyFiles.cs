@@ -13,7 +13,15 @@ internal static class KeyFiles
     /// </summary>
     public static string? MakeIn(DirectoryInfo folder)
     {
-        folder.Create();
+        try
+        {
+            folder.Create();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"no keys were written: {ex.Message}";
+        }
+
         if (Names.FirstOrDefault(name => File.Exists(Path.Combine(folder.FullName, name))) is { } there)
         {
             return $"{there} is already in {folder.FullName}: make keys in a new, empty folder.";
