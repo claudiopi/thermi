@@ -179,24 +179,6 @@ function Window({ data }: { data: WindowData }) {
   useEffect(() => {
     undoFromToast.current = () => void stepBack('undo', true);
   });
-  // An overlay that stops fitting beside the taskbar's apps, as after an item is added, says so where the person acted,
-  // with the way out while its labels show and Undo; the overlay's page keeps saying it while it lasts.
-  const crowdedBefore = useRef(data.crowded);
-  useEffect(() => {
-    const before = new Set(crowdedBefore.current);
-    const now = data.crowded.find((overlay) => !before.has(overlay));
-    crowdedBefore.current = data.crowded;
-    if (now === undefined) {
-      return;
-    }
-    const labels = data.settings.overlays[now]?.style?.noLabels !== true;
-    const hideLabels = (): void => void edit({ kind: 'style', overlay: now, field: 'noLabels', value: true });
-    news.api.show({
-      message: t('FitText.DoesNotFit'),
-      undo: true,
-      ...(labels ? { fix: { text: t('FitText.HideLabels'), run: hideLabels } } : {}),
-    });
-  }, [data.crowded, data.settings, edit, news.api, t]);
   // A look file dropped on the window is worn by the selected overlay, as one pasted.
   const dragOver = (event: DragEvent): void => {
     if (event.dataTransfer.types.includes('Files')) {

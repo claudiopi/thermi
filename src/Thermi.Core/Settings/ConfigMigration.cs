@@ -1,6 +1,9 @@
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
 
@@ -108,6 +111,37 @@ internal static class ConfigMigration
                 : item)],
         })],
     };
+
+    /// <summary>
+    /// The taskbar's three places of versions 2 to 4 become the one free taskbar place, before the file is read. Its right
+    /// place stays beside the notification area, where an overlay that was never moved sits; its left one keeps the margin
+    /// it sat in from the taskbar's start; and its center, which the app buttons around it decided, goes beside the
+    /// notification area too, since those buttons no longer count.
+    /// </summary>
+    public static JsonNode? FromVersion4(JsonNode? root)
+    {
+        foreach (var snap in (root?["overlays"] as JsonArray ?? []).Select(overlay => (overlay as JsonObject)?["snap"]).OfType<JsonObject>())
+        {
+            if (snap["spot"] is JsonValue spot && spot.TryGetValue<string>(out var place) && place.StartsWith("taskbar-", StringComparison.Ordinal))
+            {
+                snap["spot"] = "taskbar";
+                if (place == "taskbar-left")
+                {
+                    snap["offset"] = Snaps.Margin;
+                }
+            }
+        }
+
+        return root;
+    }
+
+    /// <summary>Whether a file of versions 2 to 4 names one of the taskbar's three places, which <see cref="FromVersion4"/> rewrites.</summary>
+    public static bool NamesTaskbarPlaces(JsonElement root) =>
+        root.TryGetProperty("overlays", out var overlays) && overlays.ValueKind == JsonValueKind.Array
+        && overlays.EnumerateArray().Any(overlay => overlay.ValueKind == JsonValueKind.Object
+            && overlay.TryGetProperty("snap", out var snap) && snap.ValueKind == JsonValueKind.Object
+            && snap.TryGetProperty("spot", out var spot) && spot.ValueKind == JsonValueKind.String
+            && spot.GetString()!.StartsWith("taskbar-", StringComparison.Ordinal));
 
     // Every name earlier builds gave an overlay from where it sat, in every language thermi ships.
     private static readonly HashSet<string> OverlayNamesThermiGave = [.. Texts.Languages.Select(Texts.Of).SelectMany(texts => new[]

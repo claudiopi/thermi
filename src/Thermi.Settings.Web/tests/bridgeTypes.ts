@@ -11,7 +11,6 @@ import type {
   Sensor,
   Service,
   Settings,
-  Snap,
   Style,
   UndoSteps,
 } from '../src/bridge/bridge.g';
@@ -41,12 +40,6 @@ export interface FakeState {
   /** Combinations whose check fails, as an exception on the C# side rejects it. */
   failingHotkeys: string[];
   hotkeysResting: boolean;
-  /** The overlays that do not fit beside the taskbar's apps while their labels show. */
-  crowded: number[];
-  /** The overlays that do not fit beside the taskbar's apps even without their labels. */
-  crowdedWithoutLabels: number[];
-  /** The taskbar spots where the overlays would have no room beside the apps, the same for each. */
-  roomless: Snap[];
   finder: FinderView;
   finderPick: string | null;
   texts: Record<string, string>;

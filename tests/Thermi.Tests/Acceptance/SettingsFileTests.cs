@@ -93,10 +93,10 @@ public sealed class SettingsFileTests
         var unplaced = ThermiConfigJson.Read("{ \"version\": 1 }").Config;
         var placed = ThermiConfigJson.Read(TestFiles.Config("v1.json")).Config;
 
-        Assert.Equal(new SnapConfig(SnapSpot.TaskbarRight), unplaced.Overlays[0].Snapped);
+        Assert.Equal(new SnapConfig(SnapSpot.Taskbar), unplaced.Overlays[0].Snapped);
         Assert.Null(placed.Overlays[0].Snapped);
         Assert.Equal(new Position(1665, 1402), placed.Overlays[0].Position);
-        Assert.Equal(new SnapConfig(SnapSpot.TaskbarRight), Reread(unplaced).Overlays[0].Snapped);
+        Assert.Equal(new SnapConfig(SnapSpot.Taskbar), Reread(unplaced).Overlays[0].Snapped);
         Assert.Equal(new Position(1665, 1402), Reread(placed).Overlays[0].Position);
     }
 
@@ -131,7 +131,7 @@ public sealed class SettingsFileTests
         Assert.Same(named, PageSettings.Of(named, Texts.English, Desktop));
 
         // A copied overlay's items take the next free number of their ids; an id made from a sensor is its sensor again.
-        var two = ThermiConfigJson.Read(TestFiles.Config("v4.json")).Config;
+        var two = ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config;
         var copied = OverlayEdits.Duplicate(OverlayEdits.Add(two).Config, 0).Config;
         Assert.Equal(
             ["fan.cpu-3", "cpu.temperature-4", "/amdcpu/0/temperature/3", "/gpu-nvidia/0/power/0-2"],
@@ -156,7 +156,7 @@ public sealed class SettingsFileTests
     // What earlier builds wrote unchosen takes this version's: 0.1's default critical line its lines, thermi's names in any
     // language no name, so they read in the window's, and a custom look's 10 px labels Standard's.
     [Fact]
-    public void AVersionTwoFileMigratesToVersionFour()
+    public void AVersionTwoFileMigratesToVersionFive()
     {
         var spanish = Texts.Of("es");
         var file = $$"""
@@ -166,7 +166,7 @@ public sealed class SettingsFileTests
                   { "metric": "ram.used", "meter": { "metric": "ram.load" }, "threshold": { "warning": 69, "critical": 80 } },
                   { "metric": "cpu.load", "meter": { "metric": "cpu.load" } },
                   { "metric": "gpu.load", "meter": { "metric": "gpu.load" }, "threshold": { "warning": 50 } } ] },
-              { "name": "{{Texts.English.Of(SnapSpot.TaskbarRight)}}",
+              { "name": "{{Texts.English.Of(SnapSpot.TopRight)}}",
                 "style": { "preset": "custom", "label": { "size": 10, "weight": "regular" }, "value": { "size": 16, "weight": "bold" } } } ] }
             """;
 
@@ -196,10 +196,28 @@ public sealed class SettingsFileTests
             new OverlayConfig().Items.Where(item => item.Graph).Select(item => item.Id));
     }
 
-    [Fact]
-    public void AVersionFourFileRoundTrips()
+    // The owner, 2026-11-24: the taskbar's three places of versions 2 to 4 become its one free place, a migrated file
+    // written as version 5. Its right place stays beside the notification area, its left one the margin in from the start,
+    // and its center, which the app buttons decided, goes beside the notification area; a corner stays as it was.
+    [Theory]
+    [InlineData(4, """{ "spot": "taskbar-right" }""", """{"spot":"taskbar"}""")]
+    [InlineData(3, """{ "spot": "taskbar-left", "monitor": "DEL-41A8" }""", """{"spot":"taskbar","monitor":"DEL-41A8","offset":8}""")]
+    [InlineData(4, """{ "spot": "taskbar-center" }""", """{"spot":"taskbar"}""")]
+    [InlineData(4, """{ "spot": "top-left" }""", """{"spot":"top-left"}""")]
+    public void AVersionFourTaskbarPlaceBecomesTheFreeTaskbarPlace(int version, string snap, string migrated)
     {
-        var file = TestFiles.Config("v4.json");
+        var (config, problem) = ThermiConfigJson.Read($$"""{ "version": {{version}}, "overlays": [ { "snap": {{snap}} } ] }""");
+
+        Assert.Null(problem);
+        Assert.Equal(ThermiConfig.CurrentVersion, config.Version);
+        var written = JsonDocument.Parse(ThermiConfigJson.Write(config)).RootElement.GetProperty("overlays")[0].GetProperty("snap");
+        Assert.Equal(migrated, JsonSerializer.Serialize(written));
+    }
+
+    [Fact]
+    public void AVersionFiveFileRoundTrips()
+    {
+        var file = TestFiles.Config("v5.json");
 
         var (config, problem) = ThermiConfigJson.Read(file);
 

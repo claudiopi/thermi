@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { Edit } from '../bridge/bridge.g';
 import { useEdit, type WindowData } from '../bridge/useWindow';
 import { PageTitle } from '../app/PageTitle';
-import { focusPane } from '../app/paneFocus';
 import { Button, Icon } from '../kit';
 import { overlayName } from '../list/rows';
 import { useText } from '../texts/Texts';
@@ -18,23 +17,6 @@ export interface OverlayPageProps {
   data: WindowData;
   overlay: number;
   onOverlayEdit: (edit: Edit) => void;
-}
-
-/**
- * An overlay that does not fit beside the taskbar's apps keeps its width over them, so the window says so, with the way
- * out while its labels show. Its button goes with them, so the focus goes to the pane's first control.
- */
-function FitNotice({ overlay, labels }: { overlay: number; labels: boolean }) {
-  const t = useText();
-  const edit = useEdit();
-  const hideLabels = (): void => void edit({ kind: 'style', overlay, field: 'noLabels', value: true }).then(focusPane);
-  return (
-    <div className="t-crowd" role="status">
-      <Icon name="info" className="t-crowd-icon" />
-      <span className="t-crowd-text">{t('FitText.DoesNotFit')}</span>
-      {labels && <Button onClick={hideLabels}>{t('FitText.HideLabels')}</Button>}
-    </div>
-  );
 }
 
 export function OverlayPage({ data, overlay, onOverlayEdit }: OverlayPageProps) {
@@ -73,7 +55,6 @@ export function OverlayPage({ data, overlay, onOverlayEdit }: OverlayPageProps) 
           {t(one.hidden === true ? 'UiText.ShowThisOverlay' : 'UiText.HideThisOverlay')}
         </Button>
       </div>
-      {data.crowded.includes(overlay) && <FitNotice overlay={overlay} labels={one.style?.noLabels !== true} />}
       {/* The text and colors sit under Placement on a wide pane, so the two columns run about as long. */}
       <div className="t-cols t-ov-cols">
         <Appearance data={data} overlay={overlay} />

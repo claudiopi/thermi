@@ -14,10 +14,9 @@ public static class ValueTooltips
     private const string MemoryAvailable = "Memory Available";
 
     /// <summary>
-    /// The tooltip's lines, one per line break, of a tooltip <see cref="ThermiMark.Overlay"/> gave for the overlay; a value
-    /// of an overlay that <paramref name="floatsAbove"/> its taskbar for lack of room says so, where the pointer already is.
+    /// The tooltip's lines, one per line break, of a tooltip <see cref="ThermiMark.Overlay"/> gave for the overlay.
     /// </summary>
-    public static string Text(ThermiConfig config, int overlay, TrayInput input, ValueTooltip tooltip, bool floatsAbove = false)
+    public static string Text(ThermiConfig config, int overlay, TrayInput input, ValueTooltip tooltip)
     {
         var texts = input.Texts;
         var shown = config.Overlays[overlay];
@@ -49,11 +48,6 @@ public static class ValueTooltips
             : texts.Format(input.Numbers, TrayText.AtLevel, value, texts.Of(tooltip.Level == Level.Critical ? TrayText.Critical : TrayText.Warning));
         var minMax = texts.Format(input.Numbers, OverlayText.MinAndMax, Value(ItemStat.Min), Value(ItemStat.Max));
         var lines = snapshot is null ? [first, minMax] : About(item, (shown, snapshot), (first, minMax), tooltip.Level, config, input);
-        if (floatsAbove)
-        {
-            lines.Add(texts.Of(OverlayText.FloatsAbove));
-        }
-
         lines.Add(texts.Of(tooltip.Hint == ValueHint.SetUp ? OverlayText.SetUp : OverlayText.DoubleClickToEdit));
         return string.Join('\n', lines);
     }

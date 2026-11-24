@@ -16,7 +16,7 @@ namespace Thermi.Core.Settings;
 /// </summary>
 public sealed record ThermiConfig
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     public const int MaxOverlays = 4;
 
@@ -89,10 +89,10 @@ public sealed record OverlayConfig(double Size = 1)
 
     /// <summary>
     /// Where the overlay is snapped, or null when it sits at its free <see cref="Position"/>.
-    /// With neither, it snaps to the right of the primary monitor's taskbar.
+    /// With neither, it sits on the primary monitor's taskbar, beside its notification area.
     /// </summary>
     [JsonIgnore]
-    public SnapConfig? Snapped => Snap ?? (Position is null ? new SnapConfig(SnapSpot.TaskbarRight) : null);
+    public SnapConfig? Snapped => Snap ?? (Position is null ? new SnapConfig(SnapSpot.Taskbar) : null);
 
     /// <summary>
     /// Whether an item starts with its graph: a load metered by itself, whose last minute says more than the value alone,
@@ -195,8 +195,14 @@ public sealed record MeterConfig
     public string? Auto { get; init; }
 }
 
-/// <summary>A spot on a monitor, which is left out for the primary one.</summary>
-public sealed record SnapConfig(SnapSpot Spot, string? Monitor = null);
+/// <summary>
+/// A spot on a monitor, which is left out for the primary one. On the taskbar, <see cref="Offset"/> is how far its left
+/// edge sits from the taskbar's start, in physical pixels; without one, it sits beside the notification area.
+/// </summary>
+public sealed record SnapConfig(SnapSpot Spot, string? Monitor = null)
+{
+    public int? Offset { get; init; }
+}
 
 public sealed record Position(int X, int Y);
 
@@ -235,9 +241,7 @@ public enum Visibility
 [JsonConverter(typeof(ConfigEnum<SnapSpot>))]
 public enum SnapSpot
 {
-    TaskbarLeft,
-    TaskbarCenter,
-    TaskbarRight,
+    Taskbar,
     TopLeft,
     TopRight,
     BottomLeft,

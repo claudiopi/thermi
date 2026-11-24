@@ -4,6 +4,7 @@ using System.Drawing.Imaging;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Overlay;
+using Thermi.Painting;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -12,9 +13,9 @@ using Windows.Win32.UI.WindowsAndMessaging;
 namespace Thermi.Gestures;
 
 /// <summary>
-/// While an overlay is dragged, the spots it can snap to: each the overlay's own outline where it would go, on the
-/// taskbars where their rows have room for it and in the corners of every monitor, the one it would drop onto filled. They let every click through, and
-/// sit under the overlay dragged.
+/// While an overlay or a pill is dragged, the spots it can snap to: each its own outline where it would go, on the
+/// taskbars beside the notification area and at their start, and in the corners of every monitor, the one it would drop
+/// onto filled. They let every click through, and sit under what is dragged.
 /// </summary>
 internal sealed class SnapMarks : IDisposable
 {
@@ -27,10 +28,10 @@ internal sealed class SnapMarks : IDisposable
     private readonly float _scale;
     private SnapConfig? _lit;
 
-    public SnapMarks(IReadOnlyList<Screen> screens, Orientation orientation, Size size, float scale, HWND dragged, RowContext rows)
+    public SnapMarks(IReadOnlyList<Screen> screens, Orientation orientation, Size size, float scale, HWND dragged)
     {
         (_size, _scale) = (size, scale);
-        foreach (var (snap, at) in Snaps.Marks(screens, orientation, size.Width, size.Height, rows))
+        foreach (var (snap, at) in Snaps.Marks(screens, orientation, size.Width, size.Height))
         {
             var window = TopLevelWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT, WINDOW_STYLE.WS_POPUP);
             _marks.Add((snap, at, window));
@@ -96,6 +97,6 @@ internal sealed class SnapMarks : IDisposable
             g.DrawPath(light, path);
         }
 
-        OverlayWindow.Show(window, bitmap, at);
+        LayeredPicture.ShowOnce(window, bitmap, at);
     }
 }

@@ -600,6 +600,9 @@
   <data name="OverlayPageText.FreeHint" xml:space="preserve">
     <value>Drag it on your desktop, or Alt+arrows on its row</value>
   </data>
+  <data name="OverlayPageText.TaskbarHint" xml:space="preserve">
+    <value>Drag it anywhere along the taskbar</value>
+  </data>
   <data name="OverlayPageText.DisplayName" xml:space="preserve">
     <value>Display {0}</value>
   </data>
@@ -614,9 +617,6 @@
   </data>
   <data name="OverlayPageText.SpotOnMonitor" xml:space="preserve">
     <value>{0}, display {1}</value>
-  </data>
-  <data name="OverlayPageText.SpotNoRoom" xml:space="preserve">
-    <value>{0}, no room beside the apps</value>
   </data>
   <data name="OverlayPageText.TopSpotHint" xml:space="preserve">
     <value>Moved down so it never covers window buttons.</value>
@@ -1077,12 +1077,6 @@
   <data name="FanFinderRefusal.DriverMayBeMissing" xml:space="preserve">
     <value>Only the GPUs report fans, and the CPU temperature reads zero: thermi's sensor driver may be missing.</value>
   </data>
-  <data name="FitText.DoesNotFit" xml:space="preserve">
-    <value>Doesn't fit in the taskbar beside your apps.</value>
-  </data>
-  <data name="FitText.HideLabels" xml:space="preserve">
-    <value>Hide labels</value>
-  </data>
   <data name="HostText.ShowTheOverlay" xml:space="preserve">
     <value>Show the overlay</value>
   </data>
@@ -1374,9 +1368,6 @@
   <data name="OverlayText.FanUnconfirmed" xml:space="preserve">
     <value>Likely the CPU fan, by its input's name. "Find it" in its settings checks.</value>
   </data>
-  <data name="OverlayText.FloatsAbove" xml:space="preserve">
-    <value>Above the taskbar: it doesn't fit beside your apps. Hiding labels makes it narrower.</value>
-  </data>
   <data name="OverlayText.NeedsDriver" xml:space="preserve">
     <value>{0} needs thermi's driver. Double-click to fix.</value>
   </data>
@@ -1557,14 +1548,8 @@
   <data name="ServiceState.Stale" xml:space="preserve">
     <value>The sensor service has sent no fresh readings for a few seconds.</value>
   </data>
-  <data name="SnapSpot.TaskbarLeft" xml:space="preserve">
-    <value>left of the taskbar</value>
-  </data>
-  <data name="SnapSpot.TaskbarCenter" xml:space="preserve">
-    <value>center of the taskbar</value>
-  </data>
-  <data name="SnapSpot.TaskbarRight" xml:space="preserve">
-    <value>right of the taskbar</value>
+  <data name="SnapSpot.Taskbar" xml:space="preserve">
+    <value>on the taskbar</value>
   </data>
   <data name="SnapSpot.TopLeft" xml:space="preserve">
     <value>top left corner</value>
@@ -1981,7 +1966,7 @@
     <value>Place a pill anywhere</value>
   </data>
   <data name="SheetText.DragOff" xml:space="preserve">
-    <value>Ctrl+drag it off</value>
+    <value>Hold it, then drag it off</value>
   </data>
   <data name="SheetText.ResizeOverlay" xml:space="preserve">
     <value>Resize a floating overlay</value>

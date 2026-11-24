@@ -30,13 +30,13 @@ public static class OledCare
         };
     }
 
-    // A taskbar snap keeps its left or right end, never a top or bottom edge, since it sits in the taskbar's middle.
+    // An overlay on the taskbar keeps no edge: it sits where it was dropped along it, in its middle across it.
     private static (int X, int Y) Inward(SnapSpot? spot) => spot switch
     {
         SnapSpot.TopLeft => (1, 1),
         SnapSpot.TopRight => (-1, 1),
-        SnapSpot.BottomLeft or SnapSpot.TaskbarLeft => (1, -1),
-        SnapSpot.BottomRight or SnapSpot.TaskbarRight or SnapSpot.TaskbarCenter or null => (-1, -1),
+        SnapSpot.BottomLeft => (1, -1),
+        SnapSpot.BottomRight or SnapSpot.Taskbar or null => (-1, -1),
         _ => (-1, -1),
     };
 }

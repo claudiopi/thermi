@@ -95,13 +95,6 @@ internal sealed class OverlayWindow : IDisposable
     internal static float ScaleOf(uint dpi, OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
         (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * overlay.Size);
 
-    /// <summary>Puts a picture shown once, as a dragged pill's, on screen at <paramref name="position"/>.</summary>
-    internal static void Show(HWND hwnd, Bitmap bitmap, Position position)
-    {
-        using var picture = new LayeredPicture();
-        picture.Show(hwnd, bitmap, position);
-    }
-
     public void Dispose()
     {
         _picture.Dispose();
@@ -158,6 +151,9 @@ internal sealed class OverlayWindow : IDisposable
             case PInvoke.WM_TIMER when wParam == OverlayFade.TimerId:
                 _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Drag is not null, _shown, _gestures.Drag?.Merging == true);
                 return true;
+            case PInvoke.WM_TIMER when wParam == OverlayGestures.HoldTimer:
+                _gestures.Hold();
+                return true;
             case PInvoke.WM_TIMER when _shown && _scene is { } scene && _index < scene.Config.Overlays.Count:
                 Repaint(scene);
                 return true;
@@ -190,9 +186,8 @@ internal sealed class OverlayWindow : IDisposable
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
-        var row = scene.Row(_index, () => bitmap.Width, _actions.RequestPaint);
-        Tips(scene, input, shown, floatsAbove: row is { Left: null });
-        var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, row) ?? WindowPosition();
+        Tips(scene, input, shown);
+        var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown, _gestures.Drag?.Merging == true);
         if (!_shown)
@@ -226,10 +221,10 @@ internal sealed class OverlayWindow : IDisposable
     }
 
     // Each value's tooltip where the painter drew its item, the "Sensors stopped" pill's over the whole pill.
-    private void Tips(OverlayScene scene, TrayInput input, Core.Tray.OverlayScene shown, bool floatsAbove)
+    private void Tips(OverlayScene scene, TrayInput input, Core.Tray.OverlayScene shown)
     {
         _tips.Theme(!scene.LightApps && scene.HighContrast is null);
-        _tips.Update([.. _painter.Places.Zip(shown.Tooltips, (place, tip) => (place.Item, ValueTooltips.Text(scene.Config, _index, input, tip, floatsAbove)))]);
+        _tips.Update([.. _painter.Places.Zip(shown.Tooltips, (place, tip) => (place.Item, ValueTooltips.Text(scene.Config, _index, input, tip)))]);
     }
 
     private void Glow()
@@ -288,7 +283,7 @@ internal sealed class OverlayWindow : IDisposable
         {
             var item = ItemAt(_actions.Cursor());
             var box = item is null ? RectangleF.Empty : _painter.Places.First(place => place.Id == item).Pill;
-            _gestures.Press(overlay, painted, scene.Screens, (item, box), WindowPosition(), scene.RowWidths);
+            _gestures.Press(overlay, painted, scene.Screens, (item, box), WindowPosition());
         }
     }
 
@@ -341,12 +336,15 @@ internal sealed class OverlayWindow : IDisposable
         _pointed = item;
     }
 
-    // The item drawn under a point of the screen, or null on the overlay's edge.
-    private string? ItemAt(Position cursor)
+    /// <summary>The item before which a pill dropped at a point of the screen joins this overlay; null past the last.</summary>
+    internal string? ItemAfter(Position cursor) => _painter.ItemAfter(OnPicture(cursor), _painted?.Look.Orientation == Orientation.Vertical);
+
+    private string? ItemAt(Position cursor) => _painter.ItemAt(OnPicture(cursor));
+
+    private PointF OnPicture(Position cursor)
     {
         var corner = WindowPosition();
-        var at = new PointF(cursor.X - corner.X, cursor.Y - corner.Y);
-        return _painter.Places.FirstOrDefault(place => place.Item.Contains(at) && place.Id.Length > 0)?.Id;
+        return new PointF(cursor.X - corner.X, cursor.Y - corner.Y);
     }
 
     // A layered window that is also transparent lets every click through, its pills included.

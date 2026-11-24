@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using Thermi.Core;
 using Thermi.Core.Settings;
 using Thermi.Overlay;
+using Thermi.Painting;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Com;
@@ -126,7 +127,7 @@ internal sealed class LayeredTestWindow : IDisposable
     {
         HiddenWindow.Register(_className, className => OverlayWindow.WindowClass(TestWindows.DefaultProcedure, className));
         Hwnd = TopLevelWindow.Create(_className, OverlayWindow.ExStyle, WINDOW_STYLE.WS_POPUP);
-        OverlayWindow.Show(Hwnd, bitmap, position);
+        LayeredPicture.ShowOnce(Hwnd, bitmap, position);
         PInvoke.SetWindowPos(
             Hwnd,
             HWND.HWND_TOPMOST,

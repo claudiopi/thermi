@@ -33,9 +33,6 @@ public enum OverlayText
     /// <summary>The CPU fan's tooltip while thermi picked it by its input's name: only likely, and how to check.</summary>
     FanUnconfirmed,
 
-    /// <summary>A value's tooltip while its overlay sits above the taskbar for lack of room beside the apps.</summary>
-    FloatsAbove,
-
     /// <summary>The overlay's menu entry that takes back a pill or an overlay moved on the desktop.</summary>
     UndoMove,
 

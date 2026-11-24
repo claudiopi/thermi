@@ -40,7 +40,6 @@ internal sealed class OverlayHost : IDisposable
     private readonly ILogger _log;
     private readonly FileSystemWatcher? _watcher;
     private readonly List<OverlayWindow> _overlays = [];
-    private int?[] _rowWidths = [];
     private readonly OverlayActions _actions;
     private readonly HostEnvironment _environment;
     private readonly OverlayVisibility _visibility = new();
@@ -66,7 +65,7 @@ internal sealed class OverlayHost : IDisposable
         _environment = environment ?? HostEnvironment.Default;
         _procedure = WndProc;
         _paints = new Throttle<bool>(Settings.Interval, _ => PInvoke.PostMessage(Hwnd, PaintNow, 0, 0), time);
-        _desktop = new DesktopReads(time, RequestPaint);
+        _desktop = new DesktopReads();
         var history = new Core.Look.ItemHistory(time);
         _link = new WindowLink(new LinkParts(settings, history, _environment, time, log, RequestPaint));
         _actions = new OverlayActions(culture, time, RequestPaint, _link.OpenWindow, () => PInvoke.DestroyWindow(Hwnd), _environment.Cursor)
@@ -74,6 +73,7 @@ internal sealed class OverlayHost : IDisposable
             History = history,
             Select = _link.Selected,
             OverlayAt = (self, cursor) => DesktopDrag.Under(_overlays, self, cursor),
+            ItemAfter = (overlay, cursor) => overlay < _overlays.Count ? _overlays[overlay].ItemAfter(cursor) : null,
             Gestures = new GestureUndo(time, gesture => _ = _link.WindowOpen && HiddenWindow.Send(HiddenWindow.WindowClass, gesture)),
             Menu = overlay => Tray?.Menu(overlay),
         };
@@ -159,7 +159,6 @@ internal sealed class OverlayHost : IDisposable
         _watcher?.Dispose();
         _paints.Dispose();
         _cpu.Dispose();
-        _desktop.Dispose();
         _overlays.ForEach(overlay => overlay.Dispose());
         _overlays.Clear();
         Tray?.Dispose();
@@ -345,9 +344,7 @@ internal sealed class OverlayHost : IDisposable
         var config = _settings.Config;
         OnePerOverlay(config);
 
-        // A horizontal overlay may sit, or be dropped, on a taskbar, whose row the app buttons narrow.
-        var screens = _desktop.Screens(config.Overlays.Any(overlay => overlay.Style.Orientation == Core.Settings.Orientation.Horizontal));
-        Array.Resize(ref _rowWidths, config.Overlays.Count);
+        var screens = _desktop.Screens();
         var scene = Scene(config, screens);
         var editing = _link.Editing(config.Overlays.Count);
         var fullScreen = OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState());
@@ -363,7 +360,6 @@ internal sealed class OverlayHost : IDisposable
             }
             else
             {
-                _rowWidths[at] = null;
                 _overlays[at].Hide();
             }
         }
@@ -389,7 +385,6 @@ internal sealed class OverlayHost : IDisposable
     private OverlayScene Scene(Core.Settings.ThermiConfig config, IReadOnlyList<Screen> screens) =>
         new(config, _settings.Problem, _latest(), screens, _desktop.LightTaskbar(), Desktop.HighContrast(), _link.WindowOpen)
         {
-            RowWidths = _rowWidths,
             Service = Service(),
             Animate = Desktop.Animations(),
             LightApps = _desktop.LightApps(),

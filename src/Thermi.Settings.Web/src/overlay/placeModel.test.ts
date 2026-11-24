@@ -17,8 +17,8 @@ const lower = (key: TextKey, ...blanks: (string | number)[]): string => [key.toL
 
 describe('where an overlay sits', () => {
   test.each([
-    ['taskbar-left', 'SnapSpot.TaskbarLeft'],
-    ['taskbar-center', 'SnapSpot.TaskbarCenter'],
+    ['taskbar', 'SnapSpot.Taskbar'],
+    ['top-left', 'SnapSpot.TopLeft'],
     ['top-right', 'SnapSpot.TopRight'],
   ] as const)('names %s by %s', (spot, key) => {
     expect(spotKey(spot)).toBe(key);
@@ -32,7 +32,7 @@ describe('where an overlay sits', () => {
 
   test.each([
     { overlay: { position: { x: 5, y: 5 } }, placed: null },
-    { overlay: {}, placed: { spot: 'taskbar-right', display: 0, gone: false } },
+    { overlay: { snap: { spot: 'taskbar', offset: 1200 } }, placed: { spot: 'taskbar', display: 0, gone: false, offset: 1200 } },
     { overlay: { snap: { spot: 'top-left' }, position: { x: 5, y: 5 } }, placed: { spot: 'top-left', display: 0, gone: false } },
     { overlay: { snap: { spot: 'top-left', monitor: 'm2' } }, placed: { spot: 'top-left', display: 1, gone: false } },
     { overlay: { snap: { spot: 'top-left', monitor: 'unplugged' } }, placed: { spot: 'top-left', display: 0, gone: true } },
@@ -43,7 +43,7 @@ describe('where an overlay sits', () => {
   test.each([
     { overlay: { snap: { spot: 'top-left' } }, display: second, snap: { spot: 'top-left', monitor: 'm2' } },
     { overlay: { snap: { spot: 'top-left', monitor: 'm2' } }, display: main, snap: { spot: 'top-left' } },
-    { overlay: {}, display: second, snap: { spot: 'taskbar-right', monitor: 'm2' } },
+    { overlay: { snap: { spot: 'taskbar', offset: 1200 } }, display: second, snap: { spot: 'taskbar', monitor: 'm2' } },
     { overlay: { position: { x: 5, y: 5 } }, display: second, snap: { spot: 'top-right', monitor: 'm2' } },
   ] satisfies { overlay: Partial<Overlay>; display: Monitor; snap: unknown }[])('moves $overlay to $display.id at $snap', ({ overlay, display, snap }) => {
     expect(moveToDisplay({ name: 'A', items: [], ...overlay }, display)).toEqual(snap);
@@ -68,11 +68,11 @@ describe('where an overlay sits', () => {
   test.each([
     { placed: null, vertical: false, floats: undefined, hint: 'OverlayPageText.FreeHint' },
     { placed: { spot: 'top-right', display: 0, gone: false }, vertical: true, floats: 'side', hint: null },
-    { placed: { spot: 'taskbar-right', display: 0, gone: false }, vertical: false, floats: 'side', hint: 'OverlayPageText.TaskbarOnSide' },
-    { placed: { spot: 'taskbar-right', display: 0, gone: false }, vertical: true, floats: 'hides', hint: 'OverlayPageText.TaskbarHides' },
-    { placed: { spot: 'taskbar-left', display: 1, gone: false }, vertical: false, floats: 'hides', hint: null },
-    { placed: { spot: 'taskbar-left', display: 0, gone: false }, vertical: true, floats: undefined, hint: 'OverlayPageText.AboveTaskbar' },
-    { placed: { spot: 'taskbar-left', display: 0, gone: false }, vertical: false, floats: undefined, hint: null },
+    { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: false, floats: 'side', hint: 'OverlayPageText.TaskbarOnSide' },
+    { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: true, floats: 'hides', hint: 'OverlayPageText.TaskbarHides' },
+    { placed: { spot: 'taskbar', display: 1, gone: false, offset: 8 }, vertical: false, floats: 'hides', hint: 'OverlayPageText.TaskbarHint' },
+    { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: true, floats: undefined, hint: 'OverlayPageText.AboveTaskbar' },
+    { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: false, floats: undefined, hint: 'OverlayPageText.TaskbarHint' },
   ] satisfies { placed: Placed | null; vertical: boolean; floats: Monitor['floats']; hint: TextKey | null }[])(
     'hints $hint at $placed.spot with a main taskbar that floats $floats',
     ({ placed, vertical, floats, hint }) => {

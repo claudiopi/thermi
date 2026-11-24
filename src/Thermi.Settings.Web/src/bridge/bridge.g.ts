@@ -306,9 +306,10 @@ export interface Settings {
 export interface Snap {
   spot: SnapSpot;
   monitor?: string;
+  offset?: number;
 }
 
-export type SnapSpot = 'taskbar-left' | 'taskbar-center' | 'taskbar-right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type SnapSpot = 'taskbar' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 export interface Style {
   gap?: number;
@@ -415,8 +416,6 @@ export interface Bridge {
   texts(): Promise<Record<string, string>>;
   monitors(): Promise<Monitor[]>;
   report(error: string): Promise<void>;
-  crowded(): Promise<number[]>;
-  roomless(overlay: number): Promise<Snap[]>;
   looks(): Promise<Record<string, Style>>;
   saveLook(overlay: number, name: string): Promise<string | null>;
   renameLook(name: string, to: string): Promise<string | null>;

@@ -57,7 +57,7 @@ public sealed class BridgeContractTests
             folder.Clock.GetUtcNow(),
             new TestFeed { Latest = Recorded },
             startup)
-        { Screens = () => [], ReadsTaskbar = false };
+        { Screens = () => [] };
         using var bridge = new WindowBridge(
             new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id },
             editor,
@@ -143,7 +143,7 @@ public sealed class BridgeContractTests
             folder.Clock.GetUtcNow(),
             feed,
             startup)
-        { Screens = () => [], HotkeyStatus = () => null, ReadsTaskbar = false };
+        { Screens = () => [], HotkeyStatus = () => null };
         using var bridge = new WindowBridge(
             new WindowStart(0, settings, Texts.English, environment, folder.Clock),
             editor,
@@ -190,7 +190,6 @@ public sealed class BridgeContractTests
         {
             Screens = () => [],
             HotkeyStatus = () => null,
-            ReadsTaskbar = false,
         };
         using var bridge = new WindowBridge(
             new WindowStart(0, settings, Texts.English, environment, folder.Clock),

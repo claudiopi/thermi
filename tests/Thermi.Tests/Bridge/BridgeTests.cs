@@ -17,7 +17,7 @@ public sealed class BridgeTests
     // error of "*" is one whose words are the bridge's, which only a log reads: that it fails is the behavior, and an
     // exception's own message crosses as it is.
     [Theory]
-    [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":4,"temperature":"f","overlays":[]}}""")]
+    [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":5,"temperature":"f","overlays":[]}}""")]
     [InlineData(
         """{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""",
         """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]
@@ -30,13 +30,12 @@ public sealed class BridgeTests
     [InlineData("""{"id":7,"method":"format","args":[]}""", """{"id":7,"error":"*"}""")]
     [InlineData("""{"id":8,"method":"history","args":[]}""", """{"id":8,"error":"*"}""")]
     [InlineData("""{"id":9,"method":"edit","args":[{"kind":"paint"}]}""", """{"id":9,"error":"*"}""")]
-    [InlineData("""{"id":10,"method":"crowded","args":[]}""", """{"id":10,"result":[1]}""")]
     [InlineData("""{"id":11,"method":"report","args":["TypeError: x"]}""", """{"id":11,"result":null}""")]
     [InlineData("""{"id":12,"method":"chart","args":["none"]}""", """{"id":12,"error":"*"}""")]
     [InlineData("""{"id":13,"method":"deleteLook","args":["none"]}""", """{"id":13,"error":"Boom"}""")]
     [InlineData("""{"method":"undo","args":[]}""", """{"id":null,"error":"Boom"}""")]
     [InlineData("""{"id":14,"args":[]}""", """{"id":14,"error":"*"}""")]
-    [InlineData("""{"id":15,"method":"crowded"}""", """{"id":15,"result":[1]}""")]
+    [InlineData("""{"id":15,"method":"undo"}""", """{"id":15,"error":"Boom"}""")]
     [InlineData("[1]", """{"id":null,"error":"*"}""")]
     [InlineData("event", """{"event":"picked","value":{"overlay":1,"item":null,"how":"point-in"}}""")]
     [InlineData("event:none", """{"event":"picked","value":null}""")]
@@ -105,7 +104,6 @@ public sealed class BridgeTests
             nameof(IWindowBridge.Settings) => Task.FromResult(new ThermiConfig { Temperature = TemperatureUnit.Fahrenheit, Overlays = [] }),
             nameof(IWindowBridge.Edit) => Task.FromResult<string?>(args![0]!.ToString()),
             nameof(IWindowBridge.History) => Task.FromResult<IReadOnlyList<double?>>([1.5, null]),
-            nameof(IWindowBridge.Crowded) => Task.FromResult<IReadOnlyList<int>>([1]),
             nameof(IWindowBridge.Undo) => Task.FromException<Undone?>(new InvalidOperationException("Boom")),
             nameof(IWindowBridge.Chart) => throw new ArgumentException("Boom", nameof(args)),
             nameof(IWindowBridge.DeleteLook) => throw new KeyNotFoundException("Boom"),

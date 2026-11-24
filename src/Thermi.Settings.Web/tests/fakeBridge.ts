@@ -118,11 +118,6 @@ function installFake(initial: FakeState): void {
     texts: async () => state.texts,
     monitors: async () => state.monitors,
     report: async () => undefined,
-    crowded: async () =>
-      state.settings.overlays.flatMap((one, overlay) =>
-        state.crowdedWithoutLabels.includes(overlay) || (state.crowded.includes(overlay) && one.style?.noLabels !== true) ? [overlay] : [],
-      ),
-    roomless: async () => state.roomless,
     looks: async () => state.looks,
     saveLook: async (overlay, name) => (await ask('saveLook', overlay, name)) as string | null,
     renameLook: async (name, to) => (await ask('renameLook', name, to)) as string | null,
@@ -211,7 +206,7 @@ function installLateReplies(): void {
     throw new Error('The fake bridge is not installed.');
   }
   const held: (() => void)[] = [];
-  for (const method of ['settings', 'view', 'snapshot', 'texts', 'status', 'steps', 'problem', 'startWithWindows', 'crowded', 'chart', 'catalog']) {
+  for (const method of ['settings', 'view', 'snapshot', 'texts', 'status', 'steps', 'problem', 'startWithWindows', 'chart', 'catalog']) {
     const answer = bridge[method];
     if (answer === undefined) {
       throw new Error(`The fake has no ${method}.`);

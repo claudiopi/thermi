@@ -63,20 +63,6 @@ export const laterRuns: FocusRun[] = [
     ],
   },
   {
-    name: 'a crowded overlay in the narrow window',
-    start: () => fakeState({ crowded: [0] }),
-    size: narrowest,
-    colorScheme: 'dark',
-    steps: [
-      {
-        name: 'Narrow: Hide labels, its button goes',
-        acts: [...fromTheList(overlay('Taskbar')), { focus: button('FitText.HideLabels') }, 'Enter'],
-        holds: (fake) => overlayOf(fake.settings, 0).style?.noLabels === true,
-      },
-      { name: 'Narrow: Ctrl+Z brings the labels back', acts: ['Control+Z'], holds: (fake) => overlayOf(fake.settings, 0).style?.noLabels !== true },
-    ],
-  },
-  {
     name: 'pills and hotkeys',
     start: fakeState,
     size: wide,

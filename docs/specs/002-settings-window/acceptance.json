@@ -268,10 +268,9 @@
         "R68",
         "R84",
         "R85",
-        "R95",
-        "R143"
+        "R95"
       ],
-      "description": "Given the page with two monitors and a table of Placement's controls (each spot of the map, a monitor that is gone, vertical, When to show, lock, click-through, OLED care, and Hide labels on an overlay that does not fit beside the apps), when each is chosen by keys, then the settings hold the row's change, and the fit notice goes once the overlay fits; an overlay that stops fitting says so in the toast, whose Hide labels turns them off.",
+      "description": "Given the page with two monitors and a table of Placement's controls (each spot of the map, the taskbar's one included, a monitor that is gone, vertical, When to show, lock, click-through and OLED care), when each is chosen by keys, then the settings hold the row's change.",
       "check": "ThePlacementPageMovesTheOverlay",
       "passes": true
     },
@@ -289,7 +288,7 @@
       "covers": [
         "R32"
       ],
-      "description": "Given an overlay snapped to the right of a taskbar, when its width grows, then its right edge stays where it was.",
+      "description": "Given an overlay beside the notification area, one dropped on the taskbar and one in a corner, when its width grows, then the edge each keeps stays where it was, and on a taller taskbar it stays in its middle.",
       "check": "ASnappedOverlayStaysAlignedWhenItGrows",
       "passes": true
     },
@@ -755,7 +754,7 @@
         "R148",
         "R150"
       ],
-      "description": "Given a table of edits (new, duplicate, merge, delete, hide, move an item to another or a new overlay, a pill dragged off, a drop that merges, a corner resize, Alt+arrows), when each is applied and undone, then the overlays are the row's, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
+      "description": "Given a table of edits (new, duplicate, merge, delete, hide, move an item to another or a new overlay, a pill held 499 and 500 ms by the injected clock and dragged off, a drop that merges, a drop on the taskbar, a corner resize, Alt+arrows on a free overlay and one on the taskbar), when each is applied and undone, then the overlays are the row's, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
       "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
       "passes": true
     },
@@ -783,7 +782,7 @@
         "R148",
         "R150"
       ],
-      "description": "Given four overlays on two monitors and a crowded taskbar, when the author clicks values with the window open, drags pills off, merges and resizes overlays, opens and closes apps, and undoes a gesture from the overlay's menu, then the window follows, the marks and fades show, a hidden overlay shows only in the window, and an overlay that no longer fits beside the apps sits right above the taskbar with its labels and items while the window says it does not fit, until it fits again and goes back into the taskbar.",
+      "description": "Given four overlays on two monitors and a crowded taskbar, when the author clicks values with the window open, holds pills until they lift and drags them off, onto another overlay and onto the desktop, drags one before the hold, presses Esc during a drag, merges and resizes overlays, opens and closes apps, and undoes a gesture from the overlay's menu, then the window follows, the marks and fades show, a lifted pill joins where it is let go or becomes an overlay that snaps, a drag before the hold moves the whole overlay, Esc puts everything back, a hidden overlay shows only in the window, and no overlay on the taskbar moves as apps open and close.",
       "check": "by hand",
       "passes": false
     },
@@ -820,8 +819,8 @@
       "covers": [
         "R143"
       ],
-      "description": "Given the default six items on a taskbar spot whose row has exactly the room they are drawn in, each value at its widest form, or a pixel less, when the window asks which overlays are crowded, then it fits in the first and not in the second, where the map marks that spot as without room; one that does not fit sits right above the taskbar (below one at the top) with its snapped edge kept, back in the taskbar once it fits (SnapTests.AnOverlayItsRowHasNoRoomForSitsJustOffTheTaskbar).",
-      "check": "AnOverlayFitsItsTaskbarWhenTheWidthItIsDrawnAtDoes",
+      "description": "Given two overlays dropped on the taskbar, the second where the first ends, when they are placed, then each sits at its own offset on the same line, touching, with no room kept between them or beside any app button.",
+      "check": "TwoOverlaysOnTheTaskbarSitWhereTheyWereDroppedEvenTouching",
       "passes": true
     },
     {
@@ -1024,10 +1023,11 @@
     {
       "id": "A250",
       "covers": [
+        "R30",
         "R181"
       ],
-      "description": "Given monitors with a taskbar at the bottom, at the top, at the left, at the right and one that hides, when the overlay snaps to each taskbar spot, then it sits on the top and bottom taskbars, and on the others shows at the work area's bottom corner on the spot's side, clear of a hiding taskbar's band, each monitor saying why its taskbar spots float; and on a taskbar whose buttons begin at its left end, Start first, the left spot sits after them with the room up to the notification area.",
-      "check": "TaskbarSnapsAreOfferedOnlyWhereThereIsATaskbar",
+      "description": "Given an overlay on the taskbar at an offset, and one without, when the notification area grows, the taskbar moves to the top, the screen is narrower or at another scale, the taskbar hides or stands on a side, or its notification area is not found, then the first keeps its offset, held whole on the taskbar, and floats just above the work area's bottom at it, clear of a hiding taskbar's band, where it cannot sit on the taskbar; the second follows the notification area, or keeps the reserve from the end.",
+      "check": "OnTheTaskbarAnOverlayKeepsItsPlaceAlongIt",
       "passes": true
     },
     {
@@ -1045,7 +1045,7 @@
       "covers": [
         "R181"
       ],
-      "description": "Given Windows 10 with the taskbar at the left, the right, the top and hiding, and Windows 11 with StartAllBack's taskbar at the top and TranslucentTB's clear one, when the author snaps the overlay to each taskbar spot, then it sits on each taskbar that lies across its monitor and floats clear of the others, the window saying why; moving the taskbar to another edge, or setting it to hide, with the overlay running moves the overlay with it within a second, never over the notification area; on a taskbar aligned left the left spot never covers Start; and an overlay dropped half off the screen or over the taskbar shows whole inside the work area.",
+      "description": "Given Windows 10 with the taskbar at the left, the right, the top and hiding, and Windows 11 with StartAllBack's taskbar at the top and TranslucentTB's clear one, when the author drops the overlay along each taskbar, then it sits on each taskbar that lies across its monitor where it was dropped and floats clear of the others, the window saying why; moving the taskbar to another edge, or setting it to hide, restarting Explorer, or changing the resolution or scale, with the overlay running, moves the overlay with it within a second, at the same offset from the taskbar's start; and an overlay dropped half off the screen shows whole inside the work area.",
       "check": "by hand",
       "passes": false
     },
@@ -1193,8 +1193,8 @@
         "R33",
         "R143"
       ],
-      "description": "Given a taskbar's app buttons, notification area and other overlays, and an overlay 550 px wide, when it is dropped with its bottom edge 95, 96 or 97 px above the taskbar, from the left, the right, diagonally, along the taskbar, over the apps, over Start, past its bottom, just above it, near a corner, with its edge 95, 96 or 97 px from a corner's mark, or between a top corner's mark and the top, in rows with room for one place, two, exactly its width or a pixel less, then it lands at the place beside the notification area when the row has room for it once, at the place nearest otherwise, and stays free where no place has room; no taskbar mark leaves the taskbar or covers a button, the notification area or another overlay.",
-      "check": "ADropLandsAtTheMarkItsTaskbarHasRoomFor",
+      "description": "Given a taskbar with its notification area and an overlay 550 px wide, when it is dropped anywhere along the taskbar, over the app buttons, over the notification area and past its end, 96 and 97 px along it from its marks, with its edge 96 and 97 px from the taskbar, from a corner's mark, or between a top corner's mark and the top, and with Alt held on the taskbar, near a corner and off both, then on the taskbar it stays where it was let go along it, centered across it and whole on it, unless a mark is within 96 px, which it goes to; near a corner it goes to the corner's mark; and with Alt held it stays where it was let go, on the taskbar or free.",
+      "check": "ADropLandsWhereItIsLetGoOrOnAMarkInReach",
       "passes": true
     },
     {
@@ -1249,8 +1249,8 @@
         "R43",
         "R90"
       ],
-      "description": "Given a version 2 file with a load metered by itself and no lines and a load given a warning, when it is read, then it becomes version 4, the first showing its graph and the second as it was; and the default overlay's CPU and GPU loads show theirs.",
-      "check": "AVersionTwoFileMigratesToVersionFour",
+      "description": "Given a version 2 file with a load metered by itself and no lines and a load given a warning, when it is read, then it becomes version 5, the first showing its graph and the second as it was; and the default overlay's CPU and GPU loads show theirs.",
+      "check": "AVersionTwoFileMigratesToVersionFive",
       "passes": true
     },
     {
@@ -1280,6 +1280,25 @@
       ],
       "description": "Given the overlay process, when Exit thermi is chosen, or Windows asks its host window or an overlay to close, then its window goes and its message loop ends.",
       "check": "ExitEndsTheOverlayProcess",
+      "passes": true
+    },
+    {
+      "id": "A307",
+      "covers": [
+        "R30",
+        "R43"
+      ],
+      "description": "Given version 4 files with an overlay at the taskbar's right, left and center, and one in a corner, when each is read, then it becomes version 5 with the taskbar's one place: beside the notification area for the right and the center, 8 px from the start for the left, and the corner as it was.",
+      "check": "AVersionFourTaskbarPlaceBecomesTheFreeTaskbarPlace",
+      "passes": true
+    },
+    {
+      "id": "A308",
+      "covers": [
+        "R148"
+      ],
+      "description": "Given a pill held until it lifts, when it is dropped on an overlay of one pill in front of that pill, and past it, then it joins that overlay before it, and after it.",
+      "check": "ALiftedPillJoinsAnotherOverlayWhereItIsDropped",
       "passes": true
     }
   ]

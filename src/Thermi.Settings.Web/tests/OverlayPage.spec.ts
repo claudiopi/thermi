@@ -8,10 +8,8 @@ import {
   overlayOf,
   secondMonitor,
   select,
-  setFake,
   test,
   text,
-  toast,
   windowWith,
   type FakeState,
 } from './fakeBridge';
@@ -177,9 +175,7 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
   const mapSpot = (page: Page, key: string, monitor: number): Locator =>
     page.getByRole('radiogroup', { name: text('UiText.MonitorMap') }).getByRole('radio', { name: text('OverlayPageText.SpotOnMonitor', text(key), monitor) });
   const spots = [
-    'SnapSpot.TaskbarLeft',
-    'SnapSpot.TaskbarCenter',
-    'SnapSpot.TaskbarRight',
+    'SnapSpot.Taskbar',
     'SnapSpot.TopLeft',
     'SnapSpot.TopRight',
     'SnapSpot.BottomLeft',
@@ -213,22 +209,12 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
     state.settings.overlays[0] = { ...overlayOf(state.settings, 0), style: { orientation: 'vertical' } };
     const page = await windowWith(context, state);
     await select(page, 'Taskbar');
-    await expect(mapSpot(page, 'SnapSpot.TaskbarRight', 1)).toHaveCount(0);
-    await page.close();
-  });
-
-  await test.step('a taskbar spot without room says so', async () => {
-    const page = await windowWith(context, fakeState({ roomless: [{ spot: 'taskbar-left' }] }));
-    await select(page, 'Taskbar');
-    const map = page.getByRole('radiogroup', { name: text('UiText.MonitorMap') });
-    const left = text('OverlayPageText.SpotOnMonitor', text('SnapSpot.TaskbarLeft'), 1);
-    await expect(map.getByRole('radio', { name: text('OverlayPageText.SpotNoRoom', left), exact: true })).toHaveCount(1);
-    await expect(mapSpot(page, 'SnapSpot.TaskbarRight', 1)).toHaveCount(1);
+    await expect(mapSpot(page, 'SnapSpot.Taskbar', 1)).toHaveCount(0);
     await page.close();
   });
 
   await test.step('the switches and When to show', async () => {
-    const page = await windowWith(context, fakeState({ crowded: [0] }));
+    const page = await windowWith(context, fakeState());
     await select(page, 'Taskbar');
     const pane = page.getByRole('main');
     await pressOn(pane.getByRole('button', { name: text('OverlayPageText.LockGroup') }), 'Enter');
@@ -263,40 +249,11 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
         read: (state) => overlayOf(state.settings, 0).fade,
         expected: true,
       },
-      {
-        act: () => pressOn(pane.getByRole('button', { name: text('FitText.HideLabels') }), 'Enter'),
-        read: (state) => overlayOf(state.settings, 0).style?.noLabels,
-        expected: true,
-      },
     ];
     for (const row of rows) {
       await row.act();
       await expect.poll(async () => row.read(await fakeOf(page))).toEqual(row.expected);
     }
-    // Without its labels the overlay fits, and the notice goes with its button.
-    await expect(pane.getByRole('button', { name: text('FitText.HideLabels') })).toHaveCount(0);
-    await expect(pane.getByRole('status')).toHaveCount(0);
-    await page.close();
-  });
-
-  // Cold review 4 (Q1): an overlay that stops fitting, as after an item is added, says so in a toast where the person
-  // acted, with Hide labels.
-  await test.step('an overlay that stops fitting says so where the person is', async () => {
-    const page = await windowWith(context, fakeState());
-    await setFake(page, { crowded: [0] });
-    await toast(page).getByRole('button', { name: text('FitText.HideLabels') }).click();
-    await expect.poll(async () => overlayOf((await fakeOf(page)).settings, 0).style?.noLabels).toBe(true);
-    await page.close();
-  });
-
-  await test.step('an overlay too wide even without its labels keeps the notice, with no way out', async () => {
-    const state = fakeState({ crowdedWithoutLabels: [0] });
-    state.settings.overlays[0] = { ...overlayOf(state.settings, 0), style: { noLabels: true } };
-    const page = await windowWith(context, state);
-    await select(page, 'Taskbar');
-    const pane = page.getByRole('main');
-    await expect(pane.getByRole('status')).toBeVisible();
-    await expect(pane.getByRole('button', { name: text('FitText.HideLabels') })).toHaveCount(0);
     await page.close();
   });
 });

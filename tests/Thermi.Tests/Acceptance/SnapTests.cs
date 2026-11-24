@@ -1,4 +1,3 @@
-using System.Globalization;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
@@ -9,7 +8,8 @@ using static Thermi.Tests.Acceptance.Edited;
 namespace Thermi.Tests.Acceptance;
 
 /// <summary>
-/// Snapped placement is computed, never written, and survives monitors coming and going.
+/// Placement is computed, never written for a snap, and survives monitors coming and going. On the taskbar, an overlay
+/// sits where it was dropped along it and moves only to stay on it (the owner, 2026-11-24).
 /// </summary>
 public sealed class SnapTests
 {
@@ -29,6 +29,9 @@ public sealed class SnapTests
     private static OverlayConfig SnappedTo(SnapSpot spot, string? monitor = null, Orientation orientation = Orientation.Horizontal) =>
         new() { Snap = new SnapConfig(spot, monitor), Style = new StyleConfig { Orientation = orientation } };
 
+    private static OverlayConfig OnTaskbar(int? offset, string? monitor = null, Orientation orientation = Orientation.Horizontal) =>
+        new() { Snap = new SnapConfig(SnapSpot.Taskbar, monitor) { Offset = offset }, Style = new StyleConfig { Orientation = orientation } };
+
     internal static PixelRect Placed(OverlayConfig overlay, IReadOnlyList<Screen> screens, int width, int height)
     {
         var at = Snaps.Locate(overlay, screens, width, height)!;
@@ -42,157 +45,80 @@ public sealed class SnapTests
         return OverlayEdits.Release(config, 0, new Press(cursor, new Position(shown.Left, shown.Top)), released, Distance);
     }
 
-    [Fact]
-    public void TaskbarSnapsAreOfferedOnlyWhereThereIsATaskbar()
+    // An overlay 600 × 57 on the main taskbar, 1000 px from its start, or with no offset, as the taskbar and the desktop
+    // change around it: its top-left corner. Nothing on the taskbar moves it, not the app buttons, the notification area
+    // or another overlay, which the screen does not even hold; it follows the taskbar to the top, keeps its offset,
+    // clamped on the taskbar, at another resolution or scale, and floats just above the work area's bottom at its offset
+    // where the taskbar hides or stands on a side. Without an offset it sits beside the notification area, or a fixed
+    // reserve from the end where that is not found.
+    [Theory]
+    [InlineData("as it is", 1000, 1000, 1375)]
+    [InlineData("tray grown", 1000, 1000, 1375)]
+    [InlineData("at the top", 1000, 1000, 7)]
+    [InlineData("1920 wide", 1000, 1000, 1375)]
+    [InlineData("1280 wide", 1000, 680, 1375)]
+    [InlineData("at 100 %", 1000, 1000, 1375)]
+    [InlineData("hides", 1000, 1000, 1356 - 72 - 57 + 72)]
+    [InlineData("on a side", 1000, 1000, 1428 - 57)]
+    [InlineData("as it is", null, 1588, 1375)]
+    [InlineData("tray grown", null, 1288, 1375)]
+    [InlineData("tray not found", null, 1630, 1375)]
+    [InlineData("hides", null, 1948, 1356 - 72 - 57 + 72)]
+    public void OnTheTaskbarAnOverlayKeepsItsPlaceAlongIt(string desktop, int? offset, int left, int top)
     {
-        SnapSpot[] corners = [SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.BottomRight];
+        var screen = desktop switch
+        {
+            "tray grown" => Main with { Tray = new PixelRect(1900, 1368, 2560, 1440) },
+            "tray not found" => Main with { Tray = null },
+            "at the top" => Main with
+            {
+                Work = new PixelRect(0, 72, 2560, 1440),
+                Taskbar = new PixelRect(0, 0, 2560, 72),
+                Tray = new PixelRect(2200, 0, 2560, 72),
+            },
+            "1920 wide" => Wide(1920),
+            "1280 wide" => Wide(1280),
+            "at 100 %" => Main with { Scale = 1 },
+            "hides" => Main with { Work = Main.Bounds, Taskbar = new PixelRect(0, 1436, 2560, 1508) },
+            "on a side" => Main with { Work = new PixelRect(0, 0, 2464, 1440), Taskbar = new PixelRect(2464, 0, 2560, 1440) },
+            _ => Main,
+        };
 
-        Assert.Equal([SnapSpot.TaskbarLeft, SnapSpot.TaskbarCenter, SnapSpot.TaskbarRight, .. corners], Snaps.Spots(Main, Orientation.Horizontal));
-        Assert.Equal(corners, Snaps.Spots(Side, Orientation.Horizontal));
+        Assert.Equal(new Position(left, top), Snaps.Locate(OnTaskbar(offset), [screen], 600, 57));
 
-        // A taskbar on a side, or one that hides over the work area, offers no spots either.
+        static Screen Wide(int width)
+        {
+            return Main with
+            {
+                Bounds = new PixelRect(0, 0, width, 1440),
+                Work = new PixelRect(0, 0, width, 1368),
+                Taskbar = new PixelRect(0, 1368, width, 1440),
+            };
+        }
+    }
+
+    [Fact]
+    public void TwoOverlaysOnTheTaskbarSitWhereTheyWereDroppedEvenTouching()
+    {
+        var first = Placed(OnTaskbar(1000), [Main], 600, 57);
+        var second = Placed(OnTaskbar(1600), [Main], 400, 57);
+
+        Assert.Equal((1600, 1600), (first.Right, second.Left));
+        Assert.Equal(first.Top + 0, second.Top);
+    }
+
+    [Fact]
+    public void TheTaskbarPlaceSaysWhyItFloats()
+    {
         var onASide = Side with { Work = new PixelRect(-1856, 0, 0, 1080), Taskbar = new PixelRect(-1920, 0, -1856, 1080) };
         var hiding = Main with { Work = Main.Bounds, Taskbar = new PixelRect(0, 1436, 2560, 1508) };
-        Assert.Equal(corners, Snaps.Spots(onASide, Orientation.Horizontal));
-        Assert.Equal(corners, Snaps.Spots(hiding, Orientation.Horizontal));
-
-        // There a taskbar spot floats at the bottom corner on its side, clear of a hiding taskbar's band, and the window says why.
         var onTheRight = Main with { Work = new PixelRect(0, 0, 2464, 1440), Taskbar = new PixelRect(2464, 0, 2560, 1440) };
         var hidingOnTop = Main with { Work = Main.Bounds, Taskbar = new PixelRect(0, -68, 2560, 4) };
+
         Assert.Equal<TaskbarFloat?>(
             [null, null, TaskbarFloat.Side, TaskbarFloat.Hides, TaskbarFloat.Side, TaskbarFloat.Hides],
             [.. new[] { Main, Side, onASide, hiding, onTheRight, hidingOnTop }.Select(Snaps.Floats)]);
-        Assert.Equal(new PixelRect(2464 - 12 - 600, 1440 - 12 - 57, 2464 - 12, 1440 - 12), Placed(SnappedTo(SnapSpot.TaskbarCenter), [onTheRight], 600, 57));
-        Assert.Equal(1368 - 12, Placed(SnappedTo(SnapSpot.TaskbarRight), [hiding], 600, 57).Bottom);
         Assert.Equal(72, Placed(SnappedTo(SnapSpot.TopLeft), [hidingOnTop], 600, 57).Top - Placed(SnappedTo(SnapSpot.TopLeft), [Main], 600, 57).Top);
-    }
-
-    [Fact]
-    public void ARightSnapEndsBeforeTheNotificationArea()
-    {
-        var placed = Placed(SnappedTo(SnapSpot.TaskbarRight), [Main], 600, 57);
-
-        Assert.Equal(2200 - 12, placed.Right);
-        Assert.Equal(1368 + 7, placed.Top);
-        Assert.Equal(placed, Placed(new OverlayConfig(), [Main], 600, 57));
-    }
-
-    [Fact]
-    public void WithoutTheNotificationAreaTheRightSnapKeepsAFixedReserve()
-    {
-        var notFound = Main with { Tray = null };
-        var notOnTheTaskbar = Main with { Tray = new PixelRect(2200, 0, 2560, 72) };
-
-        Assert.Equal(2560 - 330, Placed(SnappedTo(SnapSpot.TaskbarRight), [notFound], 600, 57).Right);
-        Assert.Equal(2560 - 330, Placed(SnappedTo(SnapSpot.TaskbarRight), [notOnTheTaskbar], 600, 57).Right);
-    }
-
-    // An overlay its row has no room for never covers the buttons: it sits right above the taskbar, its snapped edge where
-    // it was, below a taskbar at the top, and goes back into the taskbar once it fits. In a row's box wider than it shows,
-    // it keeps its spot's edge. Whether it fits is the width it is drawn at (the Windows tests' PainterTests).
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void AnOverlayItsRowHasNoRoomForSitsJustOffTheTaskbar(bool fits)
-    {
-        var onTop = Main with { Work = new PixelRect(0, 72, 2560, 1440), Taskbar = new PixelRect(0, 0, 2560, 72), Tray = new PixelRect(2200, 0, 2560, 72) };
-        RowPlace? row = fits ? null : new RowPlace(null, 600);
-        Assert.Equal<Position>(
-            fits ? [new(1588, 1375), new(12, 1375), new(1588, 7)] : [new(1588, 1368 - 12 - 57), new(12, 1368 - 12 - 57), new(1588, 72 + 12)],
-            [
-                Snaps.Locate(SnappedTo(SnapSpot.TaskbarRight), [Main], 600, 57, row: row)!,
-                Snaps.Locate(SnappedTo(SnapSpot.TaskbarLeft), [Main], 600, 57, row: row)!,
-                Snaps.Locate(SnappedTo(SnapSpot.TaskbarRight), [onTop], 600, 57, row: row)!,
-            ]);
-        Assert.Equal(
-            [1000, 1020, 1040],
-            new[] { SnapSpot.TaskbarLeft, SnapSpot.TaskbarCenter, SnapSpot.TaskbarRight }
-                .Select(spot => Snaps.Locate(SnappedTo(spot), [Main], 600, 57, row: new RowPlace(1000, 640))!.X));
-    }
-
-    // Overlays on the main monitor's taskbar, whose row runs from 12 to 2188, a margin of 12 px between them, beside app
-    // buttons centered from 1000 to 1560, aligned left from Start to 1500, or not read: each one's left edge, "-" for one
-    // its taskbar has no room for, "x" for one not on a taskbar. The settings' first overlay takes its place first.
-    [Theory]
-    [InlineData("aligned-left", "left 600", "1512")]
-    [InlineData("aligned-left", "center 600", "1512")]
-    [InlineData("centered", "center 600", "1572")]
-    [InlineData("unread", "center 600", "980")]
-    [InlineData("aligned-left", "left 300, right 300", "1512 1888")]
-    [InlineData("aligned-left", "left 400, left 200", "1512 1924")]
-    [InlineData("aligned-left", "right 400, right 400", "1788 -")]
-    [InlineData("aligned-left", "top-left 600, left 600", "x 1512")]
-    [InlineData("centered", "left 900", "12")]
-    [InlineData("centered", "right 700", "288")]
-    [InlineData("centered", "left 1100", "-")]
-    public void OverlaysOnATaskbarKeepOffItsButtonsAndOneAnother(string buttons, string overlays, string lefts)
-    {
-        var screen = Main with
-        {
-            Apps = buttons switch
-            {
-                "centered" => new PixelRect(1000, 1368, 1560, 1440),
-                "aligned-left" => new PixelRect(0, 1368, 1500, 1440),
-                _ => null,
-            },
-        };
-        var spots = new Dictionary<string, SnapSpot>(StringComparer.Ordinal)
-        {
-            ["left"] = SnapSpot.TaskbarLeft,
-            ["center"] = SnapSpot.TaskbarCenter,
-            ["right"] = SnapSpot.TaskbarRight,
-            ["top-left"] = SnapSpot.TopLeft,
-        };
-        var row = overlays.Split(", ").Select(each => each.Split(' ')).ToList();
-        OverlayConfig[] configs = [.. row.Select(each => SnappedTo(spots[each[0]]))];
-        int?[] widths = [.. row.Select(each => (int?)int.Parse(each[1], CultureInfo.InvariantCulture))];
-
-        var laid = Enumerable.Range(0, configs.Length).Select(at => TaskbarRow.Place(configs, at, [screen], widths) switch
-        {
-            null => "x",
-            { Left: null } => "-",
-            { Left: { } left } => left.ToString(CultureInfo.InvariantCulture),
-        });
-
-        Assert.Equal(lefts, string.Join(' ', laid));
-    }
-
-    // The buttons as Windows 11 names them: Start, two apps, then the settings window's own button, which opening the
-    // window adds and which must not crowd the overlay out; the notification area's and anything off the bar never count.
-    [Fact]
-    public void TheAppButtonsReachLeavesOutThermisOwnButton()
-    {
-        var bar = Main.Taskbar!.Value;
-        TaskbarElement[] read =
-        [
-            new(new PixelRect(0, 1368, 72, 1440), false, "ToggleButton", "StartButton"),
-            new(new PixelRect(72, 1368, 138, 1440), true, "Taskbar.TaskListButtonAutomationPeer", "Appid: Microsoft.Windows.Explorer"),
-            new(
-                new PixelRect(138, 1368, 204, 1440),
-                true,
-                "Taskbar.TaskListButtonAutomationPeer",
-                @"Appid: {6D809377-6AF0-444B-8957-A3773F02200E}\OBS\obs64.exe"),
-            new(
-                new PixelRect(204, 1368, 270, 1440),
-                true,
-                "Taskbar.TaskListButtonAutomationPeer",
-                @"Appid: {6D809377-6AF0-444B-8957-A3773F02200E}\thermi\THERMI.exe"),
-            new(new PixelRect(2210, 1368, 2258, 1440), true, "SystemTray.NormalButton", "SystemTrayIcon"),
-            new(new PixelRect(2260, 1368, 2300, 1440), true, "Button", "Volume"),
-            new(new PixelRect(300, 1300, 366, 1360), true, "Button", "Flyout"),
-            new(new PixelRect(400, 1368, 400, 1440), true, "Button", "Hidden"),
-        ];
-
-        Assert.Equal(new TaskbarButtons(new PixelRect(0, 1368, 204, 1440)), TaskbarButtons.Of(read, bar, Main.Tray, "thermi.exe"));
-        Assert.Null(TaskbarButtons.Of(read[4..], bar, Main.Tray, "thermi.exe"));
-
-        // Among the others, the buttons after it slide back by its width: toward Start at the left end, from both sides
-        // of buttons centered.
-        TaskbarElement[] among = [read[0], read[1], read[3] with { Box = read[2].Box }, read[2] with { Box = read[3].Box }];
-        TaskbarElement[] centered = [.. among.Select(each => each with { Box = each.Box with { Left = each.Box.Left + 1000, Right = each.Box.Right + 1000 } })];
-        Assert.Equal<PixelRect>(
-            [new PixelRect(0, 1368, 204, 1440), new PixelRect(1033, 1368, 1237, 1440)],
-            [TaskbarButtons.Of(among, bar, Main.Tray, "thermi.exe")!.Extent, TaskbarButtons.Of(centered, bar, Main.Tray, "thermi.exe")!.Extent]);
     }
 
     // The top corners sit 64 px below the work area's top, at the monitor's scale.
@@ -217,17 +143,13 @@ public sealed class SnapTests
     [Fact]
     public void ASnappedOverlayStaysAlignedWhenItGrows()
     {
-        var right = SnappedTo(SnapSpot.TaskbarRight);
-        var left = SnappedTo(SnapSpot.TaskbarLeft);
-        var center = SnappedTo(SnapSpot.TaskbarCenter);
+        var beside = new OverlayConfig();
+        var dropped = OnTaskbar(1000);
 
-        Assert.Equal(Placed(right, [Main], 600, 57).Right, Placed(right, [Main], 840, 57).Right);
-        Assert.Equal(Placed(left, [Main], 600, 57).Left, Placed(left, [Main], 840, 57).Left);
-        Assert.Equal(12, Placed(left, [Main], 600, 57).Left);
-        var narrow = Placed(center, [Main], 600, 57);
-        var wide = Placed(center, [Main], 840, 57);
-        Assert.Equal(1280, (narrow.Left + narrow.Right) / 2);
-        Assert.Equal(1280, (wide.Left + wide.Right) / 2);
+        Assert.Equal(2200 - 12, Placed(beside, [Main], 600, 57).Right);
+        Assert.Equal(Placed(beside, [Main], 600, 57).Right, Placed(beside, [Main], 840, 57).Right);
+        Assert.Equal(Placed(dropped, [Main], 600, 57).Left, Placed(dropped, [Main], 840, 57).Left);
+        Assert.Equal(Placed(SnappedTo(SnapSpot.TopRight), [Main], 600, 57).Right, Placed(SnappedTo(SnapSpot.TopRight), [Main], 840, 57).Right);
 
         // A taller taskbar keeps the overlay in its middle.
         var taller = Main with
@@ -236,7 +158,7 @@ public sealed class SnapTests
             Taskbar = new PixelRect(0, 1340, 2560, 1440),
             Tray = new PixelRect(2200, 1340, 2560, 1440),
         };
-        Assert.Equal(1340 + 21, Placed(right, [taller], 600, 57).Top);
+        Assert.Equal(1340 + 21, Placed(beside, [taller], 600, 57).Top);
     }
 
     // A free overlay dropped where it hangs off the screen, over the taskbar or across two monitors; where it shows.
@@ -258,6 +180,7 @@ public sealed class SnapTests
         Assert.Equal(new Position(left, top), Snaps.Inside(new Position(x, y), [Main, right], 600, 57));
     }
 
+    // A vertical overlay keeps its bottom edge in a corner, and on the taskbar sits above it, at its offset.
     [Fact]
     public void ASnappedVerticalOverlayKeepsItsBottomEdge()
     {
@@ -269,13 +192,14 @@ public sealed class SnapTests
         Assert.Equal(1368 - 12, shorter.Bottom);
         Assert.Equal(shorter.Bottom, taller.Bottom);
         Assert.Equal(shorter.Left, taller.Left);
+        Assert.Equal(new PixelRect(1000, 1356 - 228, 1200, 1356), Placed(OnTaskbar(1000, orientation: Orientation.Vertical), [Main], 200, 228));
     }
 
     [Fact]
     public void ASnappedOverlayNeverWritesItsPosition()
     {
-        var config = new ThermiConfig { Overlays = [SnappedTo(SnapSpot.TaskbarCenter)] };
-        var pressed = new Position(1280, 1400);
+        var config = new ThermiConfig { Overlays = [new OverlayConfig()] };
+        var pressed = new Position(1900, 1400);
 
         // Wherever it is computed to be as it grows, a press let go where it started has nothing to write.
         foreach (var width in new[] { 600, 700, 800 })
@@ -291,7 +215,7 @@ public sealed class SnapTests
     [Fact]
     public void DraggingASnappedOverlayUnsnapsIt()
     {
-        var config = new ThermiConfig { Overlays = [SnappedTo(SnapSpot.TaskbarRight)] };
+        var config = new ThermiConfig { Overlays = [new OverlayConfig()] };
         var pressed = new Position(1900, 1400);
         var shown = Placed(config.Overlays[0], [Main], 600, 57);
 
@@ -312,7 +236,7 @@ public sealed class SnapTests
     [Fact]
     public void AClickKeepsTheSnap()
     {
-        var config = new ThermiConfig { Overlays = [SnappedTo(SnapSpot.TaskbarRight)] };
+        var config = new ThermiConfig { Overlays = [new OverlayConfig()] };
         var pressed = new Position(1900, 1400);
 
         Assert.Null(Released(config, pressed, pressed));
@@ -325,7 +249,7 @@ public sealed class SnapTests
     [Fact]
     public void WithNoMonitorAtAllTheOverlayStaysWhereItIs()
     {
-        var config = new ThermiConfig { Overlays = [SnappedTo(SnapSpot.TaskbarRight), new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopLeft, "side") }] };
+        var config = new ThermiConfig { Overlays = [new OverlayConfig(), new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopLeft, "side") }] };
 
         Assert.Null(Snaps.Locate(config.Overlays[0], [], 600, 57));
         Assert.Null(Snaps.ScreenOf(new SnapConfig(SnapSpot.TopLeft), []));
@@ -345,8 +269,10 @@ public sealed class SnapTests
         Assert.Equal(Placed(SnappedTo(SnapSpot.TopRight), [Main], 600, 57), gone);
         Assert.Equal(there, back);
 
-        // A taskbar snap on a monitor that has none shows at the bottom corner on its side.
-        Assert.Equal(new PixelRect(-608, 1015, -8, 1072), Placed(SnappedTo(SnapSpot.TaskbarCenter, "side"), [Main, Side], 600, 57));
-        Assert.Equal(new PixelRect(-1912, 1015, -1312, 1072), Placed(SnappedTo(SnapSpot.TaskbarLeft, "side"), [Main, Side], 600, 57));
+        // On a monitor without a taskbar, the taskbar place shows above the work area's bottom, at its offset or in the
+        // bottom right corner.
+        Assert.Equal(new PixelRect(-608, 1015, -8, 1072), Placed(OnTaskbar(null, "side"), [Main, Side], 600, 57));
+        Assert.Equal(new PixelRect(-1912, 1015, -1312, 1072), Placed(OnTaskbar(8, "side"), [Main, Side], 600, 57));
+        Assert.Equal(Placed(OnTaskbar(1000), [Main], 600, 57), Placed(OnTaskbar(1000, "side"), [Main], 600, 57));
     }
 }

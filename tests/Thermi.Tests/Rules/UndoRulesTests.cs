@@ -106,7 +106,7 @@ public sealed class UndoRulesTests
     [Fact]
     public void EverySettingCanBeUndone()
     {
-        var everything = ThermiConfigJson.Read(TestFiles.Config("v4.json")).Config;
+        var everything = ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config;
         var item = new ItemConfig { Id = "item", Metric = Metrics.CpuLoad.Id };
         var full = new ItemConfig
         {

@@ -18,7 +18,7 @@ public sealed class UndoTests
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
-    private static ThermiConfig Everything => ThermiConfigJson.Read(TestFiles.Config("v4.json")).Config;
+    private static ThermiConfig Everything => ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config;
 
     // Each kind of edit, from the file with every field set; the overlay snapped is a copy, made first, so its row
     // undoes two steps.
@@ -77,7 +77,7 @@ public sealed class UndoTests
         Assert.Equal([.. states.SkipLast(1).Reverse().Select(File)], undone.Select(result => File(result.Config)));
         Assert.Equal([.. states.Skip(1).Select(File)], redone.Select(result => File(result.Config)));
         Assert.All(undone.Concat(redone), result => Assert.Equal(0, result.Skipped));
-        Assert.Equal(TestFiles.Config("v4.json").ReplaceLineEndings().TrimEnd(), File(undone[^1].Config).ReplaceLineEndings());
+        Assert.Equal(TestFiles.Config("v5.json").ReplaceLineEndings().TrimEnd(), File(undone[^1].Config).ReplaceLineEndings());
         Assert.Null(history.Redo(redone[^1].Config));
     }
 

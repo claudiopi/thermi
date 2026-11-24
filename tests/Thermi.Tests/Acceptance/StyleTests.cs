@@ -90,16 +90,10 @@ public sealed class StyleTests
     [Fact]
     public void AVerticalOverlayLeavesTheTaskbarForItsCorner()
     {
-        var left = SnapTests.Placed(Snapped(SnapSpot.TaskbarLeft, Orientation.Vertical), [SnapTests.Main], 200, 228);
-        var center = SnapTests.Placed(Snapped(SnapSpot.TaskbarCenter, Orientation.Vertical), [SnapTests.Main], 200, 228);
-        var right = SnapTests.Placed(Snapped(SnapSpot.TaskbarRight, Orientation.Vertical), [SnapTests.Main], 200, 228);
+        var beside = SnapTests.Placed(Snapped(SnapSpot.Taskbar, Orientation.Vertical), [SnapTests.Main], 200, 228);
 
-        Assert.Equal(SnapTests.Placed(Snapped(SnapSpot.BottomLeft, Orientation.Vertical), [SnapTests.Main], 200, 228), left);
-        Assert.Equal(SnapTests.Placed(Snapped(SnapSpot.BottomRight, Orientation.Vertical), [SnapTests.Main], 200, 228), center);
-        Assert.Equal(center, right);
-        Assert.DoesNotContain(
-            Snaps.Spots(SnapTests.Main, Orientation.Vertical),
-            spot => spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight);
+        Assert.Equal(SnapTests.Placed(Snapped(SnapSpot.BottomRight, Orientation.Vertical), [SnapTests.Main], 200, 228), beside);
+        Assert.DoesNotContain(Snaps.Marks([SnapTests.Main], Orientation.Vertical, 200, 228), mark => mark.Snap.Spot == SnapSpot.Taskbar);
     }
 
     [Fact]

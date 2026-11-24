@@ -13,8 +13,6 @@ export interface WindowData {
   problem: Problem | null;
   /** Windows' Run entry, which is no part of the settings. */
   startWithWindows: boolean;
-  /** The overlays, by index, that do not fit beside the taskbar's apps, which the C# side tells when it changes. */
-  crowded: number[];
   /** Counts each refresh, new readings included, so what reads them from the bridge, like a chart, reads again. */
   version: number;
   /** Counts each refresh but new readings, so what changes only with the settings, the looks or the desktop reads again. */
@@ -37,14 +35,13 @@ export function bridge(): Bridge | null {
  * slider, changes neither.
  */
 async function readAll(from: Bridge, before: Read | null, sensorsChanged: boolean): Promise<Read> {
-  const [settings, view, status, steps, problem, startWithWindows, crowded] = await Promise.all([
+  const [settings, view, status, steps, problem, startWithWindows] = await Promise.all([
     from.settings(),
     from.view(),
     from.status(),
     from.steps(),
     from.problem(),
     from.startWithWindows(),
-    from.crowded(),
   ]);
   const language = before !== null && before.settings.language === settings.language;
   const names = language && same(before.settings.sensorNames, settings.sensorNames);
@@ -52,7 +49,7 @@ async function readAll(from: Bridge, before: Read | null, sensorsChanged: boolea
     language ? before.texts : from.texts(),
     names && !sensorsChanged ? before.sensors : from.snapshot(),
   ]);
-  return { settings, view, sensors, texts, status, steps, problem, startWithWindows, crowded };
+  return { settings, view, sensors, texts, status, steps, problem, startWithWindows };
 }
 
 async function readReadings(from: Bridge): Promise<Readings> {

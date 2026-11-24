@@ -21,13 +21,20 @@ internal sealed record PaintedOverlay(IReadOnlyList<OverlayItem> Items, OverlayL
 }
 
 /// <summary>
-/// An overlay's desktop gestures: the overlay moved onto a snap mark or into another overlay, a pill dragged off with
-/// Ctrl, and a floating overlay's corner. The window says where it is and what it drew; these decide what a press does.
+/// An overlay's desktop gestures: the overlay moved onto a snap mark or into another overlay, a pill held still until it
+/// lifts and then dragged off, and a floating overlay's corner. The window says where it is and what it drew; these decide
+/// what a press does.
 /// </summary>
 internal sealed class OverlayGestures(int index, Settings settings, OverlayActions actions, HWND hwnd) : IDisposable
 {
+    /// <summary>The timer that wakes the overlay when a press on a pill may have held long enough to lift it.</summary>
+    internal const nuint HoldTimer = 3;
+
     // The corner of a floating overlay that resizes it, in pixels at 100 %, square.
     private const float CornerSize = 14;
+
+    // When the press began, on the injected clock, which says whether it held long enough.
+    private long _pressed;
 
     /// <summary>The drag a press holds, which the overlay is painted as, or null.</summary>
     public DesktopDrag? Drag { get; private set; }
@@ -38,32 +45,43 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     public Position? HeldAt(Position? dragged) => Drag?.Moves == false ? null : dragged;
 
     /// <summary>
-    /// A press on <paramref name="overlay"/> at <paramref name="at"/>: on its corner, its edge, or the pill of the item it is
-    /// on, in its box. <paramref name="rowWidths"/> are the widths the overlays keep on the taskbars, which this one's
-    /// joins wherever it sits, so its taskbar spots are offered only where they have room.
+    /// A press on <paramref name="overlay"/> at <paramref name="at"/>: on its corner, its edge, or the pill of the item it
+    /// is on, in its box. On a pill it starts the wait for the hold that lifts it.
     /// </summary>
-    public void Press(
-        OverlayConfig overlay,
-        PaintedOverlay painted,
-        IReadOnlyList<Screen> screens,
-        (string? Item, RectangleF Box) on,
-        Position at,
-        IReadOnlyList<int?> rowWidths)
+    public void Press(OverlayConfig overlay, PaintedOverlay painted, IReadOnlyList<Screen> screens, (string? Item, RectangleF Box) on, Position at)
     {
         Let();
         var item = on.Item;
         var held = InCorner(overlay, painted, at, actions.Cursor()) ? Held.Corner : item is null ? Held.Edge : Held.Pill;
-        // The key's state as it was when the press was sent, which a posted press without a keyboard reads as up.
-        var ctrl = PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_CONTROL) < 0;
-        var start = new DragStart(held, item, ctrl, on.Box, at, painted.Size, painted.Scale, item is null ? null : () => PillPicture(item, painted));
-        var widths = rowWidths.ToArray();
-        if (index < widths.Length)
+        var start = new DragStart(held, item, on.Box, at, painted.Size, painted.Scale, item is null ? null : () => PillPicture(item, painted));
+        Drag = new DesktopDrag(index, settings, start, screens, hwnd);
+        _pressed = actions.Time.GetTimestamp();
+        if (held == Held.Pill)
         {
-            widths[index] = painted.Size.Width;
+            Wake(DesktopGestures.Hold);
+        }
+    }
+
+    /// <summary>The hold's timer woke the overlay: the pill lifts once the clock says the press held long enough, or it waits on.</summary>
+    public void Hold()
+    {
+        PInvoke.KillTimer(hwnd, HoldTimer);
+        var held = actions.Time.GetElapsedTime(_pressed);
+        if (Drag is null)
+        {
+            return;
         }
 
-        Drag = new DesktopDrag(index, settings, start, screens, hwnd, widths);
+        if (held < DesktopGestures.Hold)
+        {
+            Wake(DesktopGestures.Hold - held);
+            return;
+        }
+
+        Drag.Lift(held);
     }
+
+    private void Wake(TimeSpan after) => PInvoke.SetTimer(hwnd, HoldTimer, (uint)Math.Ceiling(after.TotalMilliseconds), null);
 
     /// <summary>The pointer dragged to <paramref name="to"/>: the overlay follows unless the press carries a pill or holds the corner.</summary>
     public void Move(Position to, Position? dragged)
@@ -80,7 +98,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
                 SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
-        var over = Drag?.Moves == true && dragged is not null && actions.OverlayAt(index, actions.Cursor()) is not null;
+        var over = dragged is not null && actions.OverlayAt(index, actions.Cursor()) is not null;
         if (Drag?.Moved(dragged, over) == true)
         {
             actions.RequestPaint();
@@ -92,7 +110,8 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     {
         var cursor = actions.Cursor();
         var merging = Drag?.Merging == true;
-        Drag?.Release(press, cursor, distance, actions.OverlayAt(index, cursor), actions.Gestures);
+        var onto = actions.OverlayAt(index, cursor);
+        Drag?.Release(press, cursor, distance, new DropTarget(onto, onto is { } target ? actions.ItemAfter(target, cursor) : null), actions.Gestures);
         Let();
         // A merge refused writes nothing that would paint it whole again.
         if (merging)
@@ -116,6 +135,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     /// <summary>Ends the press's drag, whatever it did.</summary>
     public void Let()
     {
+        PInvoke.KillTimer(hwnd, HoldTimer);
         Drag?.Dispose();
         Drag = null;
     }

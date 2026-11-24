@@ -149,14 +149,14 @@ public static class OverlayEdits
             return ConfigEdits.Refuse(config, Refusal.TooManyOverlays);
         }
 
-        return overlay == from ? new EditResult(config) : Split(config, from, index, index, overlay, null);
+        return overlay == from ? new EditResult(config) : Split(config, from, index, index, new Landing(overlay));
     }
 
     /// <summary>
-    /// A pill dragged off its overlay: its items become an overlay of their own where it was dropped. The pill that is the
-    /// whole overlay moves it there instead.
+    /// A pill dragged off its overlay: its items become an overlay of their own where it was dropped, or at the
+    /// <paramref name="snap"/> it was dropped onto. The pill that is the whole overlay moves it there instead.
     /// </summary>
-    public static EditResult DragOff(ThermiConfig config, string id, Position at)
+    public static EditResult DragOff(ThermiConfig config, string id, Position at, SnapConfig? snap = null)
     {
         if (ConfigEdits.Find(config, id) is not var (from, index))
         {
@@ -166,16 +166,19 @@ public static class OverlayEdits
         var (first, last) = ItemEdits.PillOf(config.Overlays[from], index);
         if (first == 0 && last == config.Overlays[from].Items.Count - 1)
         {
-            return Drop(config, from, at);
+            return snap is null ? Drop(config, from, at) : Snap(config, from, snap);
         }
 
         return config.Overlays.Count >= ThermiConfig.MaxOverlays
             ? ConfigEdits.Refuse(config, Refusal.TooManyOverlays)
-            : Split(config, from, first, last, null, at);
+            : Split(config, from, first, last, new Landing(Dropped: at, SnapTo: snap));
     }
 
-    /// <summary>A pill dragged off its overlay onto another: its items go to the end of that one, as a merge does.</summary>
-    public static EditResult PillInto(ThermiConfig config, string id, int into)
+    /// <summary>
+    /// A pill dragged off its overlay onto another: its items join that one where it was dropped, before the pill of the
+    /// item <paramref name="before"/>, or at its end when none is named.
+    /// </summary>
+    public static EditResult PillInto(ThermiConfig config, string id, int into, string? before = null)
     {
         if (ConfigEdits.Find(config, id) is not var (from, index) || !ConfigEdits.HasOverlay(config, into))
         {
@@ -183,7 +186,7 @@ public static class OverlayEdits
         }
 
         var (first, last) = ItemEdits.PillOf(config.Overlays[from], index);
-        return from == into ? new EditResult(config) : Split(config, from, first, last, into, null);
+        return from == into ? new EditResult(config) : Split(config, from, first, last, new Landing(into, before));
     }
 
     /// <summary>A floating overlay's corner dragged: its size, and the direction the drag's shape gave.</summary>
@@ -197,34 +200,63 @@ public static class OverlayEdits
             : ConfigEdits.Refuse(config, Refusal.SizeOutOfRange));
 
     /// <summary>
-    /// Alt+arrows on a floating overlay's row: it moves by the pixels given. A snapped overlay stays on its snap, and the
-    /// window says why, since where it shows is the overlay's to work out.
+    /// Alt+arrows on a floating overlay's row: it moves by the pixels given; on the taskbar, left and right move it along
+    /// the taskbar from where it was dropped. A snapped overlay stays on its snap, and the window says why, since where it
+    /// shows is the overlay's to work out.
     /// </summary>
     public static EditResult Nudge(ThermiConfig config, int overlay, int dx, int dy) =>
-        ConfigEdits.OnOverlay(config, overlay, () => config.Overlays[overlay].Position is { } position && config.Overlays[overlay].Snap is null
-            ? Drop(config, overlay, new Position(position.X + dx, position.Y + dy))
-            : ConfigEdits.Refuse(config, Refusal.Snapped));
+        ConfigEdits.OnOverlay(config, overlay, () => config.Overlays[overlay] switch
+        {
+            { Snap: null, Position: { } position } => Drop(config, overlay, new Position(position.X + dx, position.Y + dy)),
+            { Snap: { Spot: SnapSpot.Taskbar, Offset: { } offset } snap } when dy == 0 =>
+                Snap(config, overlay, snap with { Offset = Math.Max(0, offset + dx) }),
+            _ => ConfigEdits.Refuse(config, Refusal.Snapped),
+        });
 
-    // Items first to last of one overlay go to the end of another, or to a new one, at a free corner or where it was dropped,
-    // with the look and size they had; the overlay they leave empty goes.
-    private static EditResult Split(ThermiConfig config, int from, int first, int last, int? into, Position? dropped)
+    // Where a pill's items go: into another overlay, before the pill of an item of it or at its end, or to a new one, at the
+    // snap or the place it was dropped, or else at a free corner.
+    private readonly record struct Landing(int? Into = null, string? Before = null, Position? Dropped = null, SnapConfig? SnapTo = null);
+
+    // Items first to last of one overlay go into another or to a new one, with the look and size they had; the overlay they
+    // leave empty goes.
+    private static EditResult Split(ThermiConfig config, int from, int first, int last, Landing landing)
     {
         var source = config.Overlays[from];
         var items = Labeled(source.Items);
         var moved = items.Skip(first).Take(last - first + 1).ToList();
         var left = items.Where((_, at) => at < first || at > last).ToList();
         var overlays = config.Overlays.Select((each, at) => at == from ? each with { Items = left } : each).ToList();
-        if (into is { } target)
+        if (landing.Into is { } target)
         {
-            overlays[target] = overlays[target] with { Items = [.. overlays[target].Items, .. moved] };
+            overlays[target] = Joined(overlays[target], moved, landing.Before);
         }
         else
         {
-            var made = new OverlayConfig(source.Size) { Style = source.Style, Items = moved, Position = dropped };
-            overlays.Add(dropped is null ? Cornered(config, made) : made);
+            var made = new OverlayConfig(source.Size)
+            {
+                Style = source.Style,
+                Items = moved,
+                Position = landing.SnapTo is null ? landing.Dropped : null,
+                Snap = landing.SnapTo,
+            };
+            overlays.Add(landing.Dropped is null && landing.SnapTo is null ? Cornered(config, made) : made);
         }
 
         return ConfigEdits.Apply(config, current => current with { Overlays = [.. overlays.Where(each => each.Items.Count > 0)] });
+    }
+
+    // Before a pill, never inside one, and its labels written, so every pill of the overlay shows as it did.
+    private static OverlayConfig Joined(OverlayConfig overlay, List<ItemConfig> moved, string? before)
+    {
+        var found = before is null ? -1 : overlay.Items.ToList().FindIndex(item => item.Id == before);
+        if (found < 0)
+        {
+            return overlay with { Items = [.. overlay.Items, .. moved] };
+        }
+
+        var at = ItemEdits.PillOf(overlay, found).First;
+        var items = Labeled(overlay.Items);
+        return overlay with { Items = [.. items.Take(at), .. moved, .. items.Skip(at)] };
     }
 
     // The items that also show in the order's metrics take, among their own places, the order those give them; the rest

@@ -47,7 +47,7 @@ public sealed class FinderTests : IAsyncDisposable
             _folder.Clock.GetUtcNow(),
             _feed,
             startup)
-        { Screens = () => [], ReadsTaskbar = false };
+        { Screens = () => [] };
         var start = new WindowStart(1, _settings, Texts.English, environment, _folder.Clock) { Load = _loads.Add };
         _bridge = new WindowBridge(start, _editor, new ChartHistory(_folder.Clock), _turn.Enqueue);
     }

@@ -13,7 +13,6 @@ using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Logging;
 using Thermi.Overlay;
-using Thermi.Painting;
 using Thermi.Ui.Editor;
 using Thermi.Ui.Views;
 using Thermi.Windows;
@@ -40,12 +39,9 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly WindowCharts _charts;
     private readonly WindowFinder _finder;
     private readonly WindowLooks _looks;
-    private readonly Painter _painter = new();
-    private readonly TaskbarApps _apps;
     private readonly PageWatch _watch;
     private readonly WindowFixes _fixes;
     private Texts _texts;
-    private IReadOnlyList<int> _crowded = [];
 
     public WindowBridge(WindowStart start, WindowEditor editor, ChartHistory chart, Action<Action> onTurn)
     {
@@ -57,7 +53,6 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _charts = new WindowCharts(editor, chart, start.Environment.Sensors, readings, start.Time);
         _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
-        _apps = new TaskbarApps(start.Time, onTurn, AppsMoved, start.Environment.ReadsTaskbar);
         _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);
         _fixes = new WindowFixes(start.Environment, start.Time);
         editor.Changed += (_, _) => Edited();
@@ -95,7 +90,6 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
         if (_watch.Arrived(snapshot))
         {
-            Recrowd();
             Changed?.Invoke(this, new WindowChangeEventArgs(sensors: true));
         }
         else if (Readings is { } readings)
@@ -104,15 +98,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         }
     }
 
-    /// <summary>
-    /// The monitors, the taskbars or a setting of Windows changed: which overlays fit is decided again, and the page reads
-    /// all again.
-    /// </summary>
-    public void DesktopChanged()
-    {
-        Recrowd();
-        Tell();
-    }
+    /// <summary>The monitors, the taskbars or a setting of Windows changed: the page reads all again.</summary>
+    public void DesktopChanged() => Tell();
 
     public void Pick(DesktopPickEventArgs pick) => Picked?.Invoke(this, pick);
 
@@ -211,10 +198,6 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             screen.Taskbar is not null,
             Snaps.Floats(screen)))]);
 
-    public Task<IReadOnlyList<int>> Crowded() => Ready(() => _crowded);
-
-    public Task<IReadOnlyList<SnapConfig>> Roomless(int overlay) => Ready(() => TaskbarRoom.Roomless(
-        _painter, _apps, _editor.Config, overlay, _start.Environment.Sensors.Latest, _start.Environment.Screens()));
 
     public Task Report(string error)
     {
@@ -321,8 +304,6 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public void Dispose()
     {
         _finder.Dispose();
-        _painter.Dispose();
-        _apps.Dispose();
         _watch.Dispose();
     }
 
@@ -359,26 +340,5 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
         _watch.Edited();
         DesktopChanged();
-    }
-
-    // The app buttons' new extent tells the page only when it changes which overlays fit.
-    private void AppsMoved()
-    {
-        if (Recrowd())
-        {
-            Tell();
-        }
-    }
-
-    // Which overlays do not fit beside the app buttons, with their last read extent; true when that changed.
-    private bool Recrowd()
-    {
-        var config = _editor.Config;
-        var screens = _start.Environment.Screens();
-        var snapshot = _start.Environment.Sensors.Latest;
-        var crowded = TaskbarRoom.Crowded(_painter, _apps, config, snapshot, screens);
-        var changed = !crowded.SequenceEqual(_crowded);
-        _crowded = crowded;
-        return changed;
     }
 }

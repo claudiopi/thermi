@@ -110,7 +110,7 @@ internal static class Names
                 SnapSpot.TopRight => NameText.TopRight,
                 SnapSpot.BottomLeft => NameText.BottomLeft,
                 SnapSpot.BottomRight => NameText.BottomRight,
-                SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight or _ => NameText.Taskbar,
+                SnapSpot.Taskbar or _ => NameText.Taskbar,
             });
             shown.Add(overlay.Name ?? Numbered(place, [.. typed, .. shown], texts));
         }

@@ -181,7 +181,7 @@ public sealed class TrayTextTests
     public void TrayIconsKeepTheirIdentityPerInstall()
     {
         const string Elsewhere = @"C:\Program Files\thermi-build\thermi.exe";
-        var ids = ThermiConfigJson.Read(TestFiles.Config("v4.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
+        var ids = ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
 
         List<Guid> Made(string path)
         {
@@ -245,7 +245,6 @@ public sealed class TrayTextTests
     [InlineData("first-run", MarkState.Calm, false, ValueHint.SetUp)]
     [InlineData("critical asleep", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("critical asleep woken", MarkState.Hot, false, ValueHint.None)]
-    [InlineData("floats", MarkState.Calm, false, ValueHint.None)]
     public void TheOverlayAndThermisIconSayWhatTheyShow(string state, MarkState mark, bool stoppedPill, ValueHint hint)
     {
         var words = state.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -267,13 +266,7 @@ public sealed class TrayTextTests
                 || (clock is [{ Value: not ReadingFormatter.Missing }] && Icon(TrayScene.Of(config, input), Metrics.Clock.Id).Text != ReadingFormatter.Missing),
             "The clock never waits on the sensor service.");
         Assert.Equal(hint, scene.Tooltips.Select(tooltip => tooltip.Hint).FirstOrDefault(each => each != ValueHint.None));
-        // Cold review 4 (Q1): an overlay above its taskbar for lack of room says so in each value's tooltip.
-        var floats = words.Contains("floats");
-        Assert.All(
-            scene.Tooltips,
-            tooltip => Assert.Equal(
-                TooltipLines(tooltip) + (floats ? 1 : 0),
-                ValueTooltips.Text(config, 0, input, tooltip, floatsAbove: floats).Split('\n').Length));
+        Assert.All(scene.Tooltips, tooltip => Assert.Equal(TooltipLines(tooltip), ValueTooltips.Text(config, 0, input, tooltip).Split('\n').Length));
     }
 
     // A value's tooltip says its name and value, the CPU's or GPU's model it is read from, its minimum and maximum, and how

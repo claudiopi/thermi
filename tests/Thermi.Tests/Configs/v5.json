@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "hotkeys": {
     "toggle": "Ctrl+Alt+T",
     "nextStyle": "Ctrl+Alt+S",
@@ -16,8 +16,9 @@
       "size": 1.25,
       "name": "Night desk",
       "snap": {
-        "spot": "bottom-right",
-        "monitor": "DEL-41A8-3132344A"
+        "spot": "taskbar",
+        "monitor": "DEL-41A8-3132344A",
+        "offset": 1652
       },
       "visibility": "hide-in-fullscreen",
       "clickThrough": true,

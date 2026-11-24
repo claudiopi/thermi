@@ -24,6 +24,9 @@ internal sealed record OverlayActions(
     /// <summary>The place of another overlay shown under a point of the screen, the first given apart, or null.</summary>
     public Func<int, Position, int?> OverlayAt { get; init; } = (_, _) => null;
 
+    /// <summary>The item of an overlay drawn first past a point of the screen, before whose pill a pill dropped there joins; null past its last.</summary>
+    public Func<int, Position, string?> ItemAfter { get; init; } = (_, _) => null;
+
     /// <summary>The last desktop gesture, which the overlays' menus offer to undo.</summary>
     public GestureUndo? Gestures { get; init; }
 
@@ -56,32 +59,4 @@ internal sealed record OverlayScene(
 
     /// <summary>The CPU's base clock, read once, and what is busiest now, read only while a CPU or GPU value is critical.</summary>
     public CpuWatch? Cpu { get; init; }
-
-    /// <summary>
-    /// The width each overlay keeps on a taskbar, by its place, null for one hidden or off the taskbars: each overlay
-    /// writes its own as it paints, and lays itself out among the others' last.
-    /// </summary>
-    public int?[] RowWidths { get; init; } = [];
-
-    /// <summary>
-    /// The place of the overlay at <paramref name="index"/> in its taskbar's row, keeping the <paramref name="width"/> it
-    /// measures there, or null off the taskbars, where nothing is measured. A width that changed has the others
-    /// <paramref name="relay"/> themselves out again.
-    /// </summary>
-    public RowPlace? Row(int index, Func<int> width, Action relay)
-    {
-        if (index >= RowWidths.Length)
-        {
-            return null;
-        }
-
-        int? kept = TaskbarRow.Holds(Config.Overlays[index], Screens) ? width() : null;
-        if (RowWidths[index] != kept)
-        {
-            RowWidths[index] = kept;
-            relay();
-        }
-
-        return TaskbarRow.Place(Config.Overlays, index, Screens, RowWidths);
-    }
 }

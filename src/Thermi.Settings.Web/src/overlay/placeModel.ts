@@ -6,10 +6,9 @@ import type { TextKey } from '../texts/Texts';
 
 type Say = (key: TextKey, ...blanks: (string | number)[]) => string;
 
-export const taskbarSpots: readonly SnapSpot[] = ['taskbar-left', 'taskbar-center', 'taskbar-right'];
 export const cornerSpots: readonly SnapSpot[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
-/** A snap spot's text key: `taskbar-left` is `SnapSpot.TaskbarLeft`. */
+/** A snap spot's text key: `top-left` is `SnapSpot.TopLeft`. */
 export function spotKey(spot: SnapSpot): TextKey {
   return `SnapSpot.${spot.replace(/(^|-)(\w)/g, (_, _dash: string, letter: string) => letter.toUpperCase())}`;
 }
@@ -25,6 +24,8 @@ export interface Placed {
   display: number;
   /** Its display is not connected, so it shows on the main one. */
   gone: boolean;
+  /** On the taskbar, how far its left edge sits from the taskbar's start, in pixels; none beside the notification area. */
+  offset?: number;
 }
 
 /** The overlay's snap as it shows now, or null for one left where it was dropped. */
@@ -32,27 +33,27 @@ export function placedOf(overlay: Overlay, shown: readonly Monitor[]): Placed | 
   if (overlay.snap === undefined && overlay.position !== undefined) {
     return null;
   }
-  const snap: Snap = overlay.snap ?? { spot: 'taskbar-right' };
+  const snap: Snap = overlay.snap ?? { spot: 'taskbar' };
   const at = snap.monitor === undefined ? 0 : shown.findIndex((one) => one.id === snap.monitor);
-  return { spot: snap.spot, display: Math.max(0, at), gone: at < 0 };
+  return { spot: snap.spot, display: Math.max(0, at), gone: at < 0, ...(snap.offset === undefined ? {} : { offset: snap.offset }) };
 }
 
 /**
- * What the Position row says under its name: how a free overlay moves, why a taskbar spot floats beside a taskbar on a
- * side or one that hides, or where a vertical one goes.
+ * What the Position row says under its name: how a free overlay or one on the taskbar moves, why a taskbar spot floats
+ * beside a taskbar on a side or one that hides, or where a vertical one goes.
  */
 export function positionHint(placed: Placed | null, vertical: boolean, shown: readonly Monitor[]): TextKey | null {
   if (placed === null) {
     return 'OverlayPageText.FreeHint';
   }
-  if (!placed.spot.startsWith('taskbar')) {
+  if (placed.spot !== 'taskbar') {
     return null;
   }
   const floats = shown[placed.display]?.floats;
   if (floats !== undefined) {
     return floats === 'side' ? 'OverlayPageText.TaskbarOnSide' : 'OverlayPageText.TaskbarHides';
   }
-  return vertical ? 'OverlayPageText.AboveTaskbar' : null;
+  return vertical ? 'OverlayPageText.AboveTaskbar' : 'OverlayPageText.TaskbarHint';
 }
 
 /** The snap a spot of the map writes, as an overlay edit's value: the main display is left out, as the file does. */
@@ -62,12 +63,12 @@ export function snapAt(spot: SnapSpot, display: Monitor | undefined): { [field: 
 
 /** "Move to display": the same spot on another display, a free overlay going to its top right. */
 export function moveToDisplay(overlay: Overlay, display: Monitor): { [field: string]: Value } {
-  return snapAt(overlay.snap?.spot ?? (overlay.position === undefined ? 'taskbar-right' : 'top-right'), display);
+  return snapAt(overlay.snap?.spot ?? (overlay.position === undefined ? 'taskbar' : 'top-right'), display);
 }
 
 const capital = (text: string): string => text.charAt(0).toLocaleUpperCase() + text.slice(1);
 
-/** Where the overlay sits, as "Right of the taskbar" or "Top right corner, display 2". */
+/** Where the overlay sits, as "On the taskbar" or "Top right corner, display 2". */
 export function placeText(overlay: Overlay, shown: readonly Monitor[], say: Say): string {
   const placed = placedOf(overlay, shown);
   if (placed === null) {

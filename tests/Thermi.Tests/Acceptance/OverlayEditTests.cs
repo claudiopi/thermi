@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -24,6 +25,8 @@ public sealed class OverlayEditTests
 
     private static ThermiConfig Free => WithOverlay(One, 0, overlay => overlay with { Position = new Position(400, 300) });
 
+    private static ThermiConfig Bar => WithOverlay(One, 0, overlay => overlay with { Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = 1000 } });
+
     private static ThermiConfig Four => Done(OverlayEdits.Add(Done(OverlayEdits.Add(Two))));
 
     // The CPU fan moved first, as a person orders the default items.
@@ -33,48 +36,54 @@ public sealed class OverlayEditTests
     // vertical and their size when not 100 %, or the refusal; then the name an overlay without a typed one shows, as its
     // place and that name's text, or "same" when no edit wrote a name.
     [Theory]
-    [InlineData("one", "new", "TaskbarRight:6 TopRight:6", "1=TopRight")]
-    [InlineData("reordered", "new", "TaskbarRight:6 TopRight:6", "1=TopRight")]
-    [InlineData("two", "duplicate 0", "TaskbarRight:6 BottomRight:6 TopRight:6", "1=BottomRight")]
-    [InlineData("two", "merge 1 0", "TaskbarRight:12", "same")]
+    [InlineData("one", "new", "Taskbar:6 TopRight:6", "1=TopRight")]
+    [InlineData("reordered", "new", "Taskbar:6 TopRight:6", "1=TopRight")]
+    [InlineData("two", "duplicate 0", "Taskbar:6 BottomRight:6 TopRight:6", "1=BottomRight")]
+    [InlineData("two", "merge 1 0", "Taskbar:12", "same")]
     [InlineData("two", "merge 0 1", "TopRight:12", "same")]
-    [InlineData("two", "delete 1", "TaskbarRight:6", "same")]
-    [InlineData("two", "hide 1", "TaskbarRight:6 TopRight:6h", "same")]
-    [InlineData("two", "move cpu.load 1", "TaskbarRight:5 TopRight:7", "same")]
-    [InlineData("one", "move cpu.load new", "TaskbarRight:5 TopRight:1", "1=TopRight")]
-    [InlineData("solo", "move solo 0", "TaskbarRight:7", "same")]
-    [InlineData("one", "drag gpu.load 400 300", "TaskbarRight:5 400,300:1", "")]
-    [InlineData("one", "drag cpu.load 400 300", "TaskbarRight:2 400,300:4", "")]
+    [InlineData("two", "delete 1", "Taskbar:6", "same")]
+    [InlineData("two", "hide 1", "Taskbar:6 TopRight:6h", "same")]
+    [InlineData("two", "move cpu.load 1", "Taskbar:5 TopRight:7", "same")]
+    [InlineData("one", "move cpu.load new", "Taskbar:5 TopRight:1", "1=TopRight")]
+    [InlineData("solo", "move solo 0", "Taskbar:7", "same")]
+    [InlineData("one", "drag gpu.load 400 300", "Taskbar:5 400,300:1", "")]
+    [InlineData("one", "drag cpu.load 400 300", "Taskbar:2 400,300:4", "")]
+    [InlineData("solo", "drag solo 400 300", "Taskbar:6 400,300:1", "same")]
     [InlineData("free", "resize 0 1.5 vertical", "400,300:6v1.5", "same")]
     [InlineData("free", "nudge 0 8 0", "408,300:6", "same")]
     [InlineData("free", "nudge 0 0 -1", "400,299:6", "same")]
     [InlineData("four", "new", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("four", "duplicate 0", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("four", "move cpu.load new", nameof(Refusal.TooManyOverlays), "same")]
-    [InlineData("two", "rename 1 Desk", "TaskbarRight:6 TopRight:6", "")]
+    [InlineData("two", "rename 1 Desk", "Taskbar:6 TopRight:6", "")]
     [InlineData("two", "rename 1 ", nameof(Refusal.NameEmpty), "same")]
     [InlineData("two", "merge 5 0", nameof(Refusal.NotFound), "same")]
     [InlineData("two", "move none 1", nameof(Refusal.NotFound), "same")]
     [InlineData("one", "delete 0", nameof(Refusal.LastOverlay), "same")]
     [InlineData("four", "drag cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("one", "drag none 400 300", nameof(Refusal.NotFound), "same")]
+    [InlineData("one", "desk 0 hold500+gpu.load 400 300 5", nameof(Refusal.NotFound), "same")]
     [InlineData("free", "resize 0 3 vertical", nameof(Refusal.SizeOutOfRange), "same")]
     [InlineData("one", "nudge 0 8 0", nameof(Refusal.Snapped), "same")]
-    [InlineData("solo", "desk 1 solo 400 300 0", "TaskbarRight:7", "same")]
-    [InlineData("solo", "desk 1 solo 20 1306", "TaskbarRight:6 BottomLeft:1", "same")]
-    [InlineData("solo", "desk 1 solo 400 300", "TaskbarRight:6 400,300:1", "same")]
-    [InlineData("one", "desk 0 ctrl+gpu.load 400 300", "TaskbarRight:5 400,300:1", "")]
-    [InlineData("two", "desk 0 ctrl+gpu.load 400 300 1", "TaskbarRight:5 TopRight:7", "same")]
+    [InlineData("bar", "nudge 0 8 0", "Taskbar@1008:6", "same")]
+    [InlineData("bar", "nudge 0 -2000 0", "Taskbar@0:6", "same")]
+    [InlineData("bar", "nudge 0 0 -1", nameof(Refusal.Snapped), "same")]
+    [InlineData("solo", "desk 1 solo 400 300 0", "Taskbar:7", "same")]
+    [InlineData("solo", "desk 1 solo 20 1306", "Taskbar:6 BottomLeft:1", "same")]
+    [InlineData("solo", "desk 1 solo 400 300", "Taskbar:6 400,300:1", "same")]
+    [InlineData("one", "desk 0 hold500+gpu.load 400 300", "Taskbar:5 400,300:1", "")]
+    [InlineData("one", "desk 0 hold499+gpu.load 400 300", "400,300:6", "same")]
+    [InlineData("two", "desk 0 hold500+gpu.load 400 300 1", "Taskbar:5 TopRight:7", "same")]
     [InlineData("one", "desk 0 cpu.load 400 300", "400,300:6", "same")]
     [InlineData("one", "desk 0 edge 400 300 0", "400,300:6", "same")]
-    [InlineData("one", "desk 0 edge 1300 1375", "TaskbarRight:6", "same")]
-    [InlineData("free", "desk 0 edge 1000 1380", "TaskbarCenter:6", "same")]
-    [InlineData("four", "desk 0 ctrl+cpu.load 400 300", "400,300:6 TopRight:6 BottomRight:6 BottomLeft:6", "same")]
+    [InlineData("one", "desk 0 edge 1300 1375", "Taskbar@1300:6", "same")]
+    [InlineData("free", "desk 0 edge 1500 1380", "Taskbar@1588:6", "same")]
+    [InlineData("four", "desk 0 hold500+cpu.load 400 300", "400,300:6 TopRight:6 BottomRight:6 BottomLeft:6", "same")]
     [InlineData("free", "corner 400 38 -300 200", "400,300:6v0.75", "same")]
     [InlineData("free", "corner 400 38 199 5", "400,300:61.5", "same")]
     public void OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach(string start, string edit, string expected, string named)
     {
-        var before = start switch { "two" => Two, "solo" => Solo, "free" => Free, "four" => Four, "reordered" => Reordered, _ => One };
+        var before = start switch { "two" => Two, "solo" => Solo, "free" => Free, "four" => Four, "reordered" => Reordered, "bar" => Bar, _ => One };
         var history = new UndoHistory();
 
         var result = Edit(before, edit.Split(' '));
@@ -134,23 +143,39 @@ public sealed class OverlayEditTests
     private static EditResult Corner(ThermiConfig config, (double Size, Orientation Orientation) dragged) =>
         OverlayEdits.Resize(config, 0, dragged.Size, dragged.Orientation);
 
-    // A pill, held with Ctrl when its word says "ctrl+", or the edge, of an overlay as the main monitor shows it, dropped
-    // where the words say, near a snap mark or onto the overlay they name.
+    // A pill, held still for the milliseconds its word says as "hold500+", by the injected clock, or the edge, of an overlay
+    // as the main monitor shows it, dropped where the words say, near a snap mark or onto the overlay they name, before the
+    // pill of the item they name last.
     private static EditResult Desk(ThermiConfig config, string[] words)
     {
         var dropped = new Position(int.Parse(words[3], CultureInfo.InvariantCulture), int.Parse(words[4], CultureInfo.InvariantCulture));
         var mark = Snaps.Near([SnapTests.Main], Orientation.Horizontal, 600, 57, dropped);
         int? onto = words.Length > 5 ? int.Parse(words[5], CultureInfo.InvariantCulture) : null;
         var overlay = int.Parse(words[1], CultureInfo.InvariantCulture);
-        var ctrl = words[2].StartsWith("ctrl+", StringComparison.Ordinal);
-        var pill = ctrl ? words[2]["ctrl+".Length..] : words[2];
-        var takenOff = DesktopGestures.TakesOff(config, overlay, pill == "edge" ? null : pill, ctrl) ? pill : null;
-        return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark).Result;
+        var plus = words[2].IndexOf('+', StringComparison.Ordinal);
+        var time = new FakeTimeProvider();
+        var pressed = time.GetTimestamp();
+        time.Advance(TimeSpan.FromMilliseconds(plus < 0 ? 0 : int.Parse(words[2][4..plus], CultureInfo.InvariantCulture)));
+        var pill = words[2][(plus + 1)..];
+        var takenOff = DesktopGestures.Lifts(config, overlay, pill == "edge" ? null : pill, time.GetElapsedTime(pressed)) ? pill : null;
+        return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark, words.Length > 6 ? words[6] : null).Result;
+    }
+
+    // A lifted pill dropped on another overlay joins it where it was let go, before the pill it was dropped in front of.
+    [Fact]
+    public void ALiftedPillJoinsAnotherOverlayWhereItIsDropped()
+    {
+        var before = Done(Edit(Solo, ["desk", "0", "hold500+gpu.load", "400", "300", "1", "solo"]));
+        var after = Done(Edit(Solo, ["desk", "0", "hold500+gpu.load", "400", "300", "1"]));
+
+        Assert.Equal([Metrics.GpuLoad.Id, "solo"], before.Overlays[1].Items.Select(item => item.Id));
+        Assert.Equal(["solo", Metrics.GpuLoad.Id], after.Overlays[1].Items.Select(item => item.Id));
     }
 
     private static string Summary(ThermiConfig config, OverlayConfig overlay, int at)
     {
-        var place = overlay.Snapped is { } snap ? snap.Spot.ToString() : overlay.Position is { } position ? $"{position.X},{position.Y}" : "-";
+        var place = overlay.Snapped is { } snap ? $"{snap.Spot}{(snap.Offset is { } offset ? $"@{offset}" : "")}"
+            : overlay.Position is { } position ? $"{position.X},{position.Y}" : "-";
         var hidden = Overlay(config, at)?["hidden"]?.GetValue<bool>() == true ? "h" : "";
         var vertical = overlay.Style.Orientation == Orientation.Vertical ? "v" : "";
         var size = Math.Abs(overlay.Size - 1) < 0.001 ? "" : overlay.Size.ToString(CultureInfo.InvariantCulture);

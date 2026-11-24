@@ -21,6 +21,13 @@ internal sealed unsafe class LayeredPicture : IDisposable
     private void* _bits;
     private Size _size;
 
+    /// <summary>Puts a picture shown once, as a dragged pill's, on screen at <paramref name="position"/>.</summary>
+    public static void ShowOnce(HWND window, Bitmap picture, Position position)
+    {
+        using var once = new LayeredPicture();
+        once.Show(window, picture, position);
+    }
+
     /// <summary>
     /// Puts <paramref name="picture"/> on screen at <paramref name="position"/>: its alpha becomes the window's shape,
     /// rounded corners and all, and where clicks pass. Moving and resizing in the same call keeps a snapped edge still as

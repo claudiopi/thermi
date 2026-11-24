@@ -262,7 +262,7 @@ public sealed class PowerItemTests
     [Fact]
     public void AFileHoldsUpToFourOverlays()
     {
-        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v4.json"));
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v5.json"));
         var twoAlike = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {} ] }").Config;
         var (_, fiveProblem) = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {}, {}, {}, {} ] }");
 
@@ -270,7 +270,7 @@ public sealed class PowerItemTests
         var (first, second) = (config.Overlays[0], config.Overlays[1]);
         Assert.Equal(["fan.cpu", "cpu.temperature", "ccd", "/gpu-nvidia/0/power/0"], first.Items.Select(item => item.Id));
         Assert.Equal(["cpu.temperature-2", "ram.used"], second.Items.Select(item => item.Id));
-        Assert.Equal(new SnapConfig(SnapSpot.BottomRight, "DEL-41A8-3132344A"), first.Snapped);
+        Assert.Equal(new SnapConfig(SnapSpot.Taskbar, "DEL-41A8-3132344A") { Offset = 1652 }, first.Snapped);
         Assert.Null(second.Snapped);
         Assert.Equal(new Position(-1200, 1402), second.Position);
         Assert.Equal((StylePreset.Custom, StylePreset.Compact), (first.Style.Preset, second.Style.Preset));
@@ -281,11 +281,11 @@ public sealed class PowerItemTests
         Assert.Single(ThermiConfigJson.Read(TestFiles.Config("v1.json")).Config.Overlays);
     }
 
-    // Snapped to a corner, the square goes away from the corner's edges; snapped to the taskbar's middle, or dropped
-    // anywhere, it goes up and left.
+    // Snapped to a corner, the square goes away from the corner's edges; on the taskbar, or dropped anywhere, it goes up
+    // and left.
     [Theory]
     [InlineData(SnapSpot.BottomRight)]
-    [InlineData(SnapSpot.TaskbarCenter)]
+    [InlineData(SnapSpot.Taskbar)]
     [InlineData(null)]
     public void OledCareMovesTheOverlayAroundASmallSquare(SnapSpot? spot)
     {
@@ -304,8 +304,8 @@ public sealed class PowerItemTests
         Assert.Equal(home, Snaps.Locate(overlay with { Oled = false }, [SnapTests.Main], 300, 54, OledCare.Step));
         Assert.Equal(written, ThermiConfigJson.Write(new ThermiConfig { Overlays = [overlay] }));
         Assert.Equal(
-            [(1, 1), (-1, 1), (1, -1), (1, -1), (-1, -1)],
-            new SnapSpot[] { SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.TaskbarLeft, SnapSpot.TaskbarRight }
+            [(1, 1), (-1, 1), (1, -1), (-1, -1)],
+            new SnapSpot[] { SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.Taskbar }
                 .Select(each => OledCare.Shift(each, OledCare.Step * 2)));
     }
 

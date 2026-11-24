@@ -233,20 +233,3 @@ PdhCloseQuery
 PDH_FMT
 PDH_FMT_COUNTERVALUE_ITEM_W
 PDH_MORE_DATA
-// The taskbar's app buttons, read through UI Automation
-CUIAutomation8
-IUIAutomation2
-IUIAutomationElement
-IUIAutomationElementArray
-IUIAutomationCondition
-IUIAutomationCacheRequest
-UIA_CONTROLTYPE_ID
-UIA_PROPERTY_ID
-CoCreateInstance
-SysFreeString
-// The taskbar's buttons coming and going, which the shell tells its hook windows
-RegisterShellHookWindow
-DeregisterShellHookWindow
-HSHELL_WINDOWCREATED
-HSHELL_WINDOWDESTROYED
-HSHELL_WINDOWREPLACED

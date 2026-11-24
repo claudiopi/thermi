@@ -4,6 +4,7 @@ using Thermi.Core.Messages;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Overlay;
+using Thermi.Painting;
 using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -21,50 +22,62 @@ internal enum Held
 }
 
 /// <summary>
-/// Where a press on an overlay began: what it held, the item of a pill held, whether Ctrl was down, where that pill sits
-/// in the overlay's pixels, the overlay's corner on the screen, its size and scale, and a pill's own picture, which a drag
-/// off carries.
+/// Where a press on an overlay began: what it held, the item of a pill held, where that pill sits in the overlay's
+/// pixels, the overlay's corner on the screen, its size and scale, and a pill's own picture, which a pill lifted carries.
 /// </summary>
-internal sealed record DragStart(Held Held, string? Pill, bool Ctrl, RectangleF PillBox, Position Origin, Size Size, float Scale, Func<Bitmap>? PillPicture);
+internal sealed record DragStart(Held Held, string? Pill, RectangleF PillBox, Position Origin, Size Size, float Scale, Func<Bitmap>? PillPicture);
+
+/// <summary>Where a drag was let go: the other overlay under the cursor, and the item of it before whose pill a pill joins.</summary>
+internal readonly record struct DropTarget(int? Onto, string? Before);
 
 /// <summary>
 /// One press on an overlay, from its capture to its release, as a desktop gesture: the overlay moved over snap marks and
-/// other overlays, a pill carried off as a picture of itself, or the corner's size previewed. Its release writes one
-/// edit, offered for undo and told to the window; a click writes nothing.
+/// other overlays, a pill held still until it lifts and then carried off as a picture of itself, or the corner's size
+/// previewed. Its release writes one edit, offered for undo and told to the window; a click writes nothing.
 /// </summary>
-internal sealed class DesktopDrag : IDisposable
+internal sealed class DesktopDrag(int overlay, Settings settings, DragStart start, IReadOnlyList<Screen> screens, HWND window) : IDisposable
 {
-    private readonly int _overlay;
-    private readonly Settings _settings;
-    private readonly DragStart _start;
-    private readonly IReadOnlyList<Screen> _screens;
-    private readonly HWND _window;
-    private readonly IReadOnlyList<int?> _rowWidths;
+    // Pixels at 100 % a lifted pill rises above its place.
+    private const int Rise = 4;
+
     private SnapMarks? _marks;
     private HWND _ghost;
+    private Size _pill;
+    private bool _lifted;
     private Position? _dropped;
 
-    // rowWidths: the width each overlay keeps on a taskbar, the dragged one's included, among which its taskbar spots are offered.
-    public DesktopDrag(int overlay, Settings settings, DragStart start, IReadOnlyList<Screen> screens, HWND window, IReadOnlyList<int?> rowWidths)
-    {
-        (_overlay, _settings, _start, _screens, _window, _rowWidths) = (overlay, settings, start, screens, window, rowWidths);
-        Moves = start.Held != Held.Corner && !DesktopGestures.TakesOff(settings.Config, overlay, start.Pill, start.Ctrl);
-    }
-
-    private RowContext Rows => new(_settings.Config.Overlays, _overlay, _rowWidths);
-
-    /// <summary>Whether the drag moves the overlay itself, which a pill carried off or a corner held never do.</summary>
-    public bool Moves { get; }
+    /// <summary>Whether the drag moves the overlay itself, which a lifted pill or a corner held never do.</summary>
+    public bool Moves => start.Held != Held.Corner && !_lifted;
 
     /// <summary>The size and direction a corner's drag shows until it is let go.</summary>
     public (double Size, Orientation Orientation)? Preview { get; private set; }
 
     /// <summary>The overlay as the drag shows it: at its previewed size and direction while a corner is held.</summary>
-    public OverlayConfig Shown(OverlayConfig overlay) =>
-        Preview is var (size, orientation) ? overlay with { Size = size, Style = overlay.Style with { Orientation = orientation } } : overlay;
+    public OverlayConfig Shown(OverlayConfig shown) =>
+        Preview is var (size, orientation) ? shown with { Size = size, Style = shown.Style with { Orientation = orientation } } : shown;
 
     /// <summary>Whether the overlay is moved over another, which a drop there merges into.</summary>
     public bool Merging { get; private set; }
+
+    /// <summary>
+    /// The press has held still for <paramref name="held"/>: a pill that can come off lifts, a little above its place, so
+    /// the drag that follows carries it instead of the overlay. Nothing lifts once the overlay moves.
+    /// </summary>
+    public void Lift(TimeSpan held)
+    {
+        if (_dropped is not null || _lifted || start.PillPicture is not { } picture || !DesktopGestures.Lifts(settings.Config, overlay, start.Pill, held))
+        {
+            return;
+        }
+
+        _lifted = true;
+        _ghost = TopLevelWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT, WINDOW_STYLE.WS_POPUP);
+        using var bitmap = picture();
+        _pill = bitmap.Size;
+        var at = PillAt(start.Origin);
+        LayeredPicture.ShowOnce(_ghost, bitmap, at with { Y = at.Y - (int)(Rise * start.Scale) });
+        PInvoke.ShowWindow(_ghost, SHOW_WINDOW_CMD.SW_SHOWNA);
+    }
 
     /// <summary>
     /// The press moved, with the overlay's corner where the drag has it, or null while still a click, and
@@ -78,60 +91,54 @@ internal sealed class DesktopDrag : IDisposable
             return false;
         }
 
-        if (_start.Held == Held.Corner)
+        if (start.Held == Held.Corner)
         {
-            Preview = DesktopGestures.Corner(
-                _settings.Config.Overlays[_overlay].Size,
-                _start.Size.Width,
-                _start.Size.Height,
-                at.X - _start.Origin.X,
-                at.Y - _start.Origin.Y);
+            var size = settings.Config.Overlays[overlay].Size;
+            Preview = DesktopGestures.Corner(size, start.Size.Width, start.Size.Height, at.X - start.Origin.X, at.Y - start.Origin.Y);
             return true;
         }
 
-        if (!Moves)
+        if (_lifted)
         {
             Carry(PillAt(at));
+            _marks ??= new SnapMarks(screens, Orientation.Horizontal, _pill, start.Scale, _ghost);
+            _marks.Light(over ? null : Near(PillAt(at), Orientation.Horizontal, _pill));
             return false;
         }
 
         // Its first move paints the overlay again, with the background a drag gives it.
-        var orientation = _settings.Config.Overlays[_overlay].Style.Orientation;
+        var orientation = settings.Config.Overlays[overlay].Style.Orientation;
         var changed = _marks is null || Merging != over;
         Merging = over;
-        _marks ??= new SnapMarks(_screens, orientation, _start.Size, _start.Scale, _window, Rows);
-        // Over another overlay the drop merges, wherever a snap would be, so no mark is lit; nor is one with Alt held.
-        _marks.Light(over ? null : Near(at));
+        _marks ??= new SnapMarks(screens, orientation, start.Size, start.Scale, window);
+        // Over another overlay the drop merges, wherever a snap would be, so no mark is lit.
+        _marks.Light(over ? null : Near(at, orientation, start.Size));
         return changed;
     }
 
-    // Alt held as the move or the drop was sent places the overlay freely, whatever mark is in reach.
-    private SnapConfig? Near(Position at) =>
-        PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_MENU) < 0
-            ? null
-            : Snaps.Near(_screens, _settings.Config.Overlays[_overlay].Style.Orientation, _start.Size.Width, _start.Size.Height, at, Rows);
+    // Alt held as the move or the drop was sent drops it where it is, whatever mark is in reach.
+    private SnapConfig? Near(Position at, Orientation orientation, Size size) =>
+        Snaps.Near(screens, orientation, size.Width, size.Height, at, magnets: PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_MENU) >= 0);
 
     /// <summary>
     /// The press let go: a drag writes its gesture as one edit, the plain move through <see cref="Settings.Release"/> so it
-    /// stays where it was dropped until written. <paramref name="onto"/> is the other overlay under the cursor.
+    /// stays where it was dropped until written.
     /// </summary>
-    public void Release(Press press, Position cursor, DragDistance distance, int? onto, GestureUndo? undo)
+    public void Release(Press press, Position cursor, DragDistance distance, DropTarget target, GestureUndo? undo)
     {
         if (_dropped is not { } at)
         {
             return;
         }
 
-        var before = _settings.Config;
-        var drop = _start.Held == Held.Corner
-            ? new DesktopDrop(GestureKind.Resize, OverlayEdits.Resize(before, _overlay, Preview!.Value.Size, Preview.Value.Orientation))
-            : DesktopGestures.Release(
-                before,
-                _overlay,
-                Moves ? null : _start.Pill,
-                Moves ? Kept(at) : PillAt(at),
-                onto,
-                Moves ? Near(at) : null);
+        var before = settings.Config;
+        var pill = PillAt(at);
+        var drop = start.Held == Held.Corner
+            ? new DesktopDrop(GestureKind.Resize, OverlayEdits.Resize(before, overlay, Preview!.Value.Size, Preview.Value.Orientation))
+            : _lifted
+                ? DesktopGestures.Release(before, overlay, start.Pill, Kept(pill, _pill), target.Onto, Near(pill, Orientation.Horizontal, _pill), target.Before)
+                : DesktopGestures.Release(
+                    before, overlay, null, Kept(at, start.Size), target.Onto, Near(at, before.Overlays[overlay].Style.Orientation, start.Size));
         if (drop.Result.Refused is not null || ConfigEdits.Replay(before, drop.Result.Config) is not { } change)
         {
             return;
@@ -139,9 +146,9 @@ internal sealed class DesktopDrag : IDisposable
 
         // Undo takes back the very drop written, which a plain move takes from the cursor as the overlay does.
         var after = drop.Result.Config;
-        if (drop.Kind == GestureKind.Move && after.Overlays[_overlay].Snap is null)
+        if (drop.Kind == GestureKind.Move && after.Overlays[overlay].Snap is null)
         {
-            if (_settings.Release(press, Kept(cursor, at), distance, _overlay) is not { } released)
+            if (settings.Release(press, Kept(cursor, at), distance, overlay) is not { } released)
             {
                 return;
             }
@@ -150,7 +157,7 @@ internal sealed class DesktopDrag : IDisposable
         }
         else
         {
-            _settings.Edit(change);
+            settings.Edit(change);
         }
 
         undo?.Add(drop.Kind, before, after);
@@ -183,34 +190,19 @@ internal sealed class DesktopDrag : IDisposable
         }
     }
 
-    // A move dropped partly off its monitor's work area is written where the overlay then shows, inside it.
-    private Position Kept(Position at) => Snaps.Inside(at, _screens, _start.Size.Width, _start.Size.Height);
+    // A drop partly off its monitor's work area is written where it then shows, inside it.
+    private Position Kept(Position at, Size size) => Snaps.Inside(at, screens, size.Width, size.Height);
 
     // The cursor as it would have been let go with the overlay where it is kept.
     private Position Kept(Position cursor, Position at)
     {
-        var kept = Kept(at);
+        var kept = Kept(at, start.Size);
         return new(cursor.X + kept.X - at.X, cursor.Y + kept.Y - at.Y);
     }
 
-    private Position PillAt(Position overlay) => new(overlay.X + (int)_start.PillBox.Left, overlay.Y + (int)_start.PillBox.Top);
+    private Position PillAt(Position at) => new(at.X + (int)start.PillBox.Left, at.Y + (int)start.PillBox.Top);
 
-    private void Carry(Position at)
-    {
-        if (_ghost.IsNull)
-        {
-            if (_start.PillPicture is not { } picture)
-            {
-                return;
-            }
-
-            _ghost = TopLevelWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT, WINDOW_STYLE.WS_POPUP);
-            using var bitmap = picture();
-            OverlayWindow.Show(_ghost, bitmap, at);
-            PInvoke.ShowWindow(_ghost, SHOW_WINDOW_CMD.SW_SHOWNA);
-            return;
-        }
-
+    private void Carry(Position at) =>
         PInvoke.SetWindowPos(
             _ghost,
             HWND.Null,
@@ -219,5 +211,4 @@ internal sealed class DesktopDrag : IDisposable
             0,
             0,
             SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
-    }
 }

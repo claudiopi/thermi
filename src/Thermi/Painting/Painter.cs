@@ -36,6 +36,17 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     /// <summary>Where the last paint drew each item and its value, in its pixels, so the stage can tell what a click is on.</summary>
     public IReadOnlyList<PaintedItem> Places => _places;
 
+    /// <summary>The item the last paint drew at a point of it, or null on the overlay's edge.</summary>
+    public string? ItemAt(PointF at) => _places.FirstOrDefault(place => place.Item.Contains(at) && place.Id.Length > 0)?.Id;
+
+    /// <summary>
+    /// The first item the last paint drew whose pill's middle lies past a point of it along the overlay, so a pill dropped
+    /// there joins before that pill; null past the last.
+    /// </summary>
+    public string? ItemAfter(PointF at, bool vertical) =>
+        _places.FirstOrDefault(place => place.Id.Length > 0
+            && (vertical ? place.Pill.Top + (place.Pill.Height / 2) > at.Y : place.Pill.Left + (place.Pill.Width / 2) > at.X))?.Id;
+
     /// <summary>
     /// Paints the items in their pills. <paramref name="glow"/> gives how strongly an item's pill glows now, 0 to 1, as
     /// Core's <see cref="CriticalGlow"/> says; without it nothing glows.

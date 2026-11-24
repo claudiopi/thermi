@@ -47,10 +47,6 @@ internal sealed record WindowEnvironment(
 
     /// <summary>The monitors, their taskbars and notification areas, as Windows has them now.</summary>
     public Func<IReadOnlyList<Screen>> Screens { get; init; } = Desktop.Screens;
-
-    /// <summary>Whether the taskbars' buttons are read through UI Automation, which tests turn off, so they never read the user's taskbar.</summary>
-    public bool ReadsTaskbar { get; init; } = true;
-
     public static WindowEnvironment Of(ILoggerFactory logs, TimeProvider time)
     {
         using var process = Process.GetCurrentProcess();

@@ -24,15 +24,9 @@ public sealed record Screen(string Id, bool Primary, PixelRect Bounds, PixelRect
     public PixelRect? Taskbar { get; init; }
 
     public PixelRect? Tray { get; init; }
-
-    /// <summary>
-    /// How far the taskbar's buttons reach, Start and the apps' wherever they begin, as at its left end on Windows 10 or a
-    /// taskbar aligned left; null where they were not read.
-    /// </summary>
-    public PixelRect? Apps { get; init; }
 }
 
-/// <summary>Why a monitor's taskbar spots float at its work area's corners: its taskbar is on a side, or it hides itself.</summary>
+/// <summary>Why a monitor's taskbar place floats in its work area: its taskbar is on a side, or it hides itself.</summary>
 public enum TaskbarFloat
 {
     Side,
@@ -46,8 +40,10 @@ public sealed record Press(Position Cursor, Position Overlay);
 public readonly record struct DragDistance(int Width, int Height);
 
 /// <summary>
-/// Where an overlay sits, worked out again from the screens each time and never written to the file, so a snapped
-/// edge stays put as the overlay, the taskbar or the monitors change.
+/// Where an overlay sits, worked out again from the screens each time. A corner's snap keeps its edges as the overlay, the
+/// taskbar or the monitors change, and is never written as a position. On the taskbar, an overlay sits where it was
+/// dropped along it, in its middle across it, and never moves for the app buttons, the notification area or another
+/// overlay: it follows only what keeps it on the taskbar.
 /// </summary>
 public static class Snaps
 {
@@ -62,47 +58,29 @@ public static class Snaps
 
     /// <summary>
     /// Pixels at 100 % within which an overlay dragged on the desktop drops onto a snap mark, from its edge nearest the
-    /// mark, or into a taskbar's row, from its edge facing the taskbar.
+    /// mark, or onto a taskbar, from its edge facing the taskbar.
     /// </summary>
     public const int Reach = 96;
 
     private static readonly SnapSpot[] Corners = [SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.BottomRight];
 
-    private static readonly SnapSpot[] All = [SnapSpot.TaskbarLeft, SnapSpot.TaskbarCenter, SnapSpot.TaskbarRight, .. Corners];
-
-    // Where two spots' places overlap, as in a row with room for one overlay, the first offered wins: the place beside the
-    // notification area, as the default snap, then the one after Start or the apps.
-    private static readonly SnapSpot[] Offered = [SnapSpot.TaskbarRight, SnapSpot.TaskbarLeft, SnapSpot.TaskbarCenter, .. Corners];
-
-    private static readonly SnapConfig Default = new(SnapSpot.TaskbarRight);
-
-    /// <summary>The spots a monitor offers: its taskbar's only where it has one and the overlay is horizontal, its work area's corners always.</summary>
-    public static IReadOnlyList<SnapSpot> Spots(Screen screen, Orientation orientation) =>
-        orientation == Orientation.Horizontal && TaskbarOf(screen) is not null ? All : Corners;
+    private static readonly SnapConfig Default = new(SnapSpot.Taskbar);
 
     /// <summary>
     /// The top-left corner of an overlay of that size: at its snap, or at its free position while that still touches a
     /// monitor, moved inside that monitor's work area, and else at the default snap. A snap to a monitor that is not connected
     /// uses the same spot on the primary one.
     /// With OLED care on, it moves as <see cref="OledCare"/> says for an overlay running for <paramref name="running"/>.
-    /// On a taskbar's spot, it goes to its <paramref name="row"/>'s place, as <see cref="TaskbarRow"/> lays it out, and
-    /// sits just off the taskbar when that row has no room for it.
     /// Null with no monitor at all, as for a moment while the displays change, so the overlay stays where it is.
     /// </summary>
-    public static Position? Locate(
-        OverlayConfig overlay,
-        IReadOnlyList<Screen> screens,
-        int width,
-        int height,
-        TimeSpan running = default,
-        RowPlace? row = null)
+    public static Position? Locate(OverlayConfig overlay, IReadOnlyList<Screen> screens, int width, int height, TimeSpan running = default)
     {
         if (screens.Count == 0)
         {
             return null;
         }
 
-        var (place, spot) = Place(overlay, screens, width, height, row);
+        var (place, spot) = Place(overlay, screens, width, height);
         var (x, y) = overlay.Oled ? OledCare.Shift(spot, running) : (0, 0);
         return new Position(place.X + x, place.Y + y);
     }
@@ -134,9 +112,7 @@ public static class Snaps
         return !locked && (Math.Abs(x) > distance.Width || Math.Abs(y) > distance.Height) ? new Position(press.Overlay.X + x, press.Overlay.Y + y) : null;
     }
 
-    // The spot is the one shown, or null at a free position. An overlay its taskbar's row has no room for leaves the
-    // taskbar for the band just off it, its snapped edge kept, so it never covers the app buttons, Start or another overlay.
-    private static (Position Place, SnapSpot? Spot) Place(OverlayConfig overlay, IReadOnlyList<Screen> screens, int width, int height, RowPlace? row)
+    private static (Position Place, SnapSpot? Spot) Place(OverlayConfig overlay, IReadOnlyList<Screen> screens, int width, int height)
     {
         if (overlay.Snapped is null
             && overlay.Position is { } free
@@ -147,47 +123,26 @@ public static class Snaps
 
         var snap = overlay.Snapped ?? Default;
         var screen = ScreenOf(snap, screens)!;
-        var spot = Shown(snap.Spot, screen, overlay.Style.Orientation);
-        var at = At(screen, spot, width, height);
-        return row is { } place && spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight && TaskbarOf(screen) is { } bar
-            ? (InRow(at, place, spot, width, () => OffTheTaskbar(screen, bar, height)), spot)
-            : (at, spot);
-    }
-
-    // Within the box its row keeps, wider than the overlay as it shows now, the overlay keeps its spot's edge.
-    private static Position InRow(Position at, RowPlace row, SnapSpot spot, int width, Func<int> off) =>
-        row.Left is not { } left ? at with { Y = off() }
-        : spot == SnapSpot.TaskbarLeft ? at with { X = left }
-        : spot == SnapSpot.TaskbarRight ? at with { X = left + row.Width - width }
-        : at with { X = left + ((row.Width - width) / 2) };
-
-    private static int OffTheTaskbar(Screen screen, PixelRect bar, int height)
-    {
-        var margin = Scaled(Margin, screen);
-        return bar.Top + bar.Bottom > screen.Bounds.Top + screen.Bounds.Bottom ? bar.Top - margin - height : bar.Bottom + margin;
+        return (At(screen, snap, overlay.Style.Orientation, width, height), snap.Spot);
     }
 
     /// <summary>
-    /// The snap marks an overlay of that size dragged on the desktop shows: each spot of every monitor with where the
-    /// overlay would go there; the main monitor's name none, as a spot chosen in the window does. Laid among the
-    /// <paramref name="rows"/>, a taskbar spot is offered at its place in its row, and not at all where the row has no
-    /// room, nor where it would overlap the mark of a spot offered before it: the right one first, then the left.
+    /// The snap marks an overlay of that size dragged on the desktop shows, each with where the overlay would go there: on
+    /// every horizontal taskbar its overlay can sit on, beside the notification area and at the taskbar's start; and every
+    /// monitor's corners. The main monitor's name none, as a spot chosen in the window does. A mark that would overlap one
+    /// offered before it is left out.
     /// </summary>
-    public static IReadOnlyList<(SnapConfig Snap, Position At)> Marks(
-        IReadOnlyList<Screen> screens,
-        Orientation orientation,
-        int width,
-        int height,
-        RowContext? rows = null)
+    public static IReadOnlyList<(SnapConfig Snap, Position At)> Marks(IReadOnlyList<Screen> screens, Orientation orientation, int width, int height)
     {
         var marks = new List<(SnapConfig Snap, Position At)>();
         foreach (var screen in screens)
         {
-            foreach (var spot in Offered.Intersect(Spots(screen, orientation)))
+            var monitor = screen.Primary ? null : screen.Id;
+            var offered = (orientation == Orientation.Horizontal ? TaskbarMarks(screen, width, height) : [])
+                .Concat(Corners.Select(corner => new SnapConfig(corner, monitor)).Select(snap => (snap, At(screen, snap, orientation, width, height))));
+            foreach (var (snap, at) in offered)
             {
-                var snap = new SnapConfig(spot, screen.Primary ? null : screen.Id);
-                if (Mark(screens, screen, snap, width, height, rows) is { } at
-                    && !marks.Exists(mark => Math.Abs(mark.At.X - at.X) < width && Math.Abs(mark.At.Y - at.Y) < height))
+                if (!marks.Exists(mark => Math.Abs(mark.At.X - at.X) < width && Math.Abs(mark.At.Y - at.Y) < height))
                 {
                     marks.Add((snap, at));
                 }
@@ -197,59 +152,73 @@ public static class Snaps
         return marks;
     }
 
-    // Where a spot's mark goes, laid in its row among the others, or null where the row has no room.
-    private static Position? Mark(IReadOnlyList<Screen> screens, Screen screen, SnapConfig snap, int width, int height, RowContext? rows)
+    private static IEnumerable<(SnapConfig Snap, Position At)> TaskbarMarks(Screen screen, int width, int height)
     {
-        var at = At(screen, snap.Spot, width, height);
-        var place = rows is null || rows.Overlay >= rows.Overlays.Count ? null : TaskbarRow.Place(Moved(rows, snap), rows.Overlay, screens, rows.Widths);
-        return place is not { } row ? at : row.Left is null ? null : InRow(at, row, snap.Spot, width, () => at.Y);
-    }
+        if (TaskbarOf(screen) is not { } bar)
+        {
+            yield break;
+        }
 
-    private static List<OverlayConfig> Moved(RowContext rows, SnapConfig snap)
-    {
-        var overlays = rows.Overlays.ToList();
-        overlays[rows.Overlay] = overlays[rows.Overlay] with { Snap = snap, Position = null };
-        return overlays;
+        var monitor = screen.Primary ? null : screen.Id;
+        foreach (var offset in new[] { RightEnd(screen, bar) - width - bar.Left, Scaled(Margin, screen) })
+        {
+            var snap = new SnapConfig(SnapSpot.Taskbar, monitor) { Offset = Along(bar, offset, width) };
+            yield return (snap, At(screen, snap, Orientation.Horizontal, width, height));
+        }
     }
 
     /// <summary>
-    /// The mark an overlay dragged to <paramref name="at"/> drops onto: the nearest within <see cref="Reach"/> at its
-    /// monitor's scale, counting a top corner's as reaching up to the work area's top, else, with its edge facing a
-    /// taskbar within that reach of it, that taskbar's nearest spot, since a free overlay never sits on a taskbar; or null.
-    /// Laid among the <paramref name="rows"/>, only the marks <see cref="Marks"/> offers count.
+    /// Where an overlay dragged to <paramref name="at"/> drops. With its middle on a horizontal taskbar, onto that taskbar,
+    /// wherever along it; else onto the nearest mark within <see cref="Reach"/> at its monitor's scale, counting a top
+    /// corner's as reaching up to the work area's top; else, with its edge facing a taskbar within that reach of it, onto
+    /// that taskbar; or null, for a free drop. On a taskbar it goes to a mark of that taskbar within reach along it, or
+    /// stays where it was dropped along it. <paramref name="magnets"/> off, as with Alt held, no mark and no reach pulls it.
     /// </summary>
-    public static SnapConfig? Near(IReadOnlyList<Screen> screens, Orientation orientation, int width, int height, Position at, RowContext? rows = null)
+    public static SnapConfig? Near(IReadOnlyList<Screen> screens, Orientation orientation, int width, int height, Position at, bool magnets = true)
     {
-        var marks = Marks(screens, orientation, width, height, rows);
         var box = new PixelRect(at.X, at.Y, at.X + width, at.Y + height);
         var middle = new PixelRect(at.X + (width / 2), at.Y + (height / 2), at.X + (width / 2) + 1, at.Y + (height / 2) + 1);
+        var bars = orientation == Orientation.Horizontal ? Bars(screens) : [];
 
-        // A drop on a taskbar goes into its row before any corner within reach, as the bottom ones sit just above it.
-        return OnTaskbar(marks, screens, at, (bar, _) => bar.Contains(middle))
-            ?? marks
-                .Select(mark => (Mark: mark, Screen: ScreenOf(mark.Snap, screens)!))
-                .Select(each => (each.Mark.Snap, Distance: Distance(each.Mark, at, each.Screen), Reach: Scaled(Reach, each.Screen)))
+        // A drop on a taskbar stays on it before any corner within reach, as the bottom ones sit just above it.
+        if (bars.FirstOrDefault(each => each.Bar.Contains(middle)) is { Screen: { } on })
+        {
+            return Onto(on, at, width, height, magnets);
+        }
+
+        if (!magnets)
+        {
+            return null;
+        }
+
+        return Marks(screens, orientation, width, height)
+                .Where(mark => mark.Snap.Spot != SnapSpot.Taskbar)
+                .Select(mark => (mark.Snap, Distance: Distance(mark, at, ScreenOf(mark.Snap, screens)!), Reach: Scaled(Reach, ScreenOf(mark.Snap, screens)!)))
                 .Where(mark => mark.Distance <= mark.Reach)
                 .OrderBy(mark => mark.Distance)
                 .Select(mark => mark.Snap)
                 .FirstOrDefault()
-            ?? OnTaskbar(marks, screens, at, (bar, screen) => InBand(box, bar, screen));
+            ?? (bars.FirstOrDefault(each => InBand(box, each.Bar, each.Screen)) is { Screen: { } near } ? Onto(near, at, width, height, magnets) : null);
     }
 
-    // The taskbar spot nearest along its row, among the marks offered on a taskbar the drop reached.
-    private static SnapConfig? OnTaskbar(
-        IReadOnlyList<(SnapConfig Snap, Position At)> marks,
-        IReadOnlyList<Screen> screens,
-        Position at,
-        Func<PixelRect, Screen, bool> reached) =>
-        marks
-            .Where(mark => mark.Snap.Spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight
-                && ScreenOf(mark.Snap, screens) is { } screen
-                && TaskbarOf(screen) is { } bar
-                && reached(bar, screen))
-            .OrderBy(mark => Math.Abs(mark.At.X - at.X))
-            .Select(mark => mark.Snap)
-            .FirstOrDefault();
+    private static List<(Screen Screen, PixelRect Bar)> Bars(IReadOnlyList<Screen> screens) =>
+        [.. screens.SelectMany(screen => TaskbarOf(screen) is { } bar ? [(screen, bar)] : Array.Empty<(Screen, PixelRect)>())];
+
+    private static SnapConfig Onto(Screen screen, Position at, int width, int height, bool magnets)
+    {
+        var bar = TaskbarOf(screen)!.Value;
+        var reach = Scaled(Reach, screen);
+        var mark = magnets
+            ? TaskbarMarks(screen, width, height)
+                .Where(each => Math.Abs(each.At.X - at.X) <= reach)
+                .OrderBy(each => Math.Abs(each.At.X - at.X))
+                .Select(each => each.Snap)
+                .FirstOrDefault()
+            : null;
+        return mark ?? new SnapConfig(SnapSpot.Taskbar, screen.Primary ? null : screen.Id) { Offset = Along(bar, at.X - bar.Left, width) };
+    }
+
+    private static int Along(PixelRect bar, int offset, int width) => Math.Clamp(offset, 0, Math.Max(0, bar.Width - width));
 
     // Across the taskbar, with the overlay's edge that faces it no farther from it than the reach: the bottom edge from a
     // taskbar's top, the top edge from a taskbar's bottom at the top of the screen. The cursor, inside the overlay, is
@@ -276,7 +245,7 @@ public static class Snaps
     }
 
     /// <summary>
-    /// Why the monitor's taskbar spots float, or null where they sit on its taskbar or it has none: a taskbar on a side is
+    /// Why the monitor's taskbar place floats, or null where it sits on its taskbar or it has none: a taskbar on a side is
     /// too narrow for the overlay, and one that hides slides over the work area and back, which would make it jump.
     /// </summary>
     public static TaskbarFloat? Floats(Screen screen) =>
@@ -285,33 +254,35 @@ public static class Snaps
         : screen.Work.Overlaps(bar) ? TaskbarFloat.Hides
         : null;
 
-    /// <summary>
-    /// The spot a snap shows at on its monitor: its own, or the bottom corner on its side for a taskbar spot the monitor
-    /// does not offer, as on a vertical overlay or a monitor that has lost its taskbar.
-    /// </summary>
-    public static SnapSpot Shown(SnapSpot spot, Screen screen, Orientation orientation) =>
-        Spots(screen, orientation).Contains(spot) ? spot
-        : spot == SnapSpot.TaskbarLeft ? SnapSpot.BottomLeft
-        : SnapSpot.BottomRight;
-
-    private static Position At(Screen screen, SnapSpot spot, int width, int height)
+    private static Position At(Screen screen, SnapConfig snap, Orientation orientation, int width, int height)
     {
         var margin = Scaled(Margin, screen);
         var work = Clear(screen);
-        var bar = TaskbarOf(screen) ?? work;
-        var middle = bar.Top + ((bar.Height - height) / 2);
         var top = work.Top + Scaled(BelowTop, screen);
-        return spot switch
+        return snap.Spot switch
         {
-            SnapSpot.TaskbarLeft => new Position(bar.Left + margin, middle),
-            SnapSpot.TaskbarCenter => new Position(bar.Left + ((bar.Width - width) / 2), middle),
-            SnapSpot.TaskbarRight => new Position(RightEnd(screen, bar) - width, middle),
+            SnapSpot.Taskbar => OnTaskbar(screen, snap.Offset, orientation, width, height),
             SnapSpot.TopLeft => new Position(work.Left + margin, top),
             SnapSpot.TopRight => new Position(work.Right - margin - width, top),
             SnapSpot.BottomLeft => new Position(work.Left + margin, work.Bottom - margin - height),
             SnapSpot.BottomRight => new Position(work.Right - margin - width, work.Bottom - margin - height),
-            _ => throw new ArgumentOutOfRangeException(nameof(spot), spot, "Unknown snap spot."),
+            _ => throw new ArgumentOutOfRangeException(nameof(snap), snap.Spot, "Unknown snap spot."),
         };
+    }
+
+    // Where it cannot sit on a taskbar (vertical overlay, side, hidden or no taskbar), the offset is from the monitor's left edge.
+    private static Position OnTaskbar(Screen screen, int? offset, Orientation orientation, int width, int height)
+    {
+        if (orientation == Orientation.Horizontal && TaskbarOf(screen) is { } bar)
+        {
+            var along = Along(bar, offset ?? (RightEnd(screen, bar) - width - bar.Left), width);
+            return new Position(bar.Left + along, bar.Top + ((bar.Height - height) / 2));
+        }
+
+        var margin = Scaled(Margin, screen);
+        var work = Clear(screen);
+        var left = offset is { } kept ? screen.Bounds.Left + kept : work.Right - margin - width;
+        return new Position(Math.Clamp(left, work.Left, Math.Max(work.Left, work.Right - width)), work.Bottom - margin - height);
     }
 
     /// <summary>
@@ -332,7 +303,7 @@ public static class Snaps
         * Math.Max(0, Math.Min(one.Bottom, other.Bottom) - Math.Max(one.Top, other.Top));
 
     // A notification area that does not lie on its taskbar was not found where Windows draws it.
-    internal static int RightEnd(Screen screen, PixelRect bar) =>
+    private static int RightEnd(Screen screen, PixelRect bar) =>
         screen.Tray is { Width: > 0 } tray && bar.Contains(tray) ? tray.Left - Scaled(Margin, screen) : bar.Right - Scaled(Reserve, screen);
 
     // A taskbar that hides takes none of the work area, and slides over its edge when shown: the band it takes then is kept
@@ -357,10 +328,9 @@ public static class Snaps
         return bar.Left + bar.Right > bounds.Left + bounds.Right ? work with { Right = work.Right - thickness } : work with { Left = work.Left + thickness };
     }
 
-    // A taskbar counts when it lies across its monitor and outside the work area. One on a side is too narrow for the
-    // overlay, and an auto-hidden one slides over the work area and back, which would make the overlay jump with it.
-    internal static PixelRect? TaskbarOf(Screen screen) =>
+    // See Floats for why a side or auto-hidden taskbar does not count.
+    private static PixelRect? TaskbarOf(Screen screen) =>
         screen.Taskbar is { } bar && bar.Width > bar.Height && screen.Bounds.Overlaps(bar) && !screen.Work.Overlaps(bar) ? bar : null;
 
-    internal static int Scaled(int pixels, Screen screen) => (int)Math.Round(pixels * screen.Scale);
+    private static int Scaled(int pixels, Screen screen) => (int)Math.Round(pixels * screen.Scale);
 }

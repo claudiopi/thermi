@@ -600,6 +600,9 @@
   <data name="OverlayPageText.FreeHint" xml:space="preserve">
     <value>Arrástrala en el escritorio, o Alt+flechas en su fila</value>
   </data>
+  <data name="OverlayPageText.TaskbarHint" xml:space="preserve">
+    <value>Arrástrala a cualquier lugar de la barra de tareas</value>
+  </data>
   <data name="OverlayPageText.DisplayName" xml:space="preserve">
     <value>Pantalla {0}</value>
   </data>
@@ -614,9 +617,6 @@
   </data>
   <data name="OverlayPageText.SpotOnMonitor" xml:space="preserve">
     <value>{0}, pantalla {1}</value>
-  </data>
-  <data name="OverlayPageText.SpotNoRoom" xml:space="preserve">
-    <value>{0}, sin lugar junto a las apps</value>
   </data>
   <data name="OverlayPageText.TopSpotHint" xml:space="preserve">
     <value>Más abajo, para no tapar nunca los botones de las ventanas.</value>
@@ -1077,12 +1077,6 @@
   <data name="FanFinderRefusal.DriverMayBeMissing" xml:space="preserve">
     <value>Solo las GPU informan ventiladores, y la temperatura de la CPU marca cero: puede faltar el controlador de sensores de thermi.</value>
   </data>
-  <data name="FitText.DoesNotFit" xml:space="preserve">
-    <value>No cabe en la barra de tareas junto a tus aplicaciones.</value>
-  </data>
-  <data name="FitText.HideLabels" xml:space="preserve">
-    <value>Ocultar las etiquetas</value>
-  </data>
   <data name="HostText.ShowTheOverlay" xml:space="preserve">
     <value>Mostrar la superposición</value>
   </data>
@@ -1374,9 +1368,6 @@
   <data name="OverlayText.FanUnconfirmed" xml:space="preserve">
     <value>Probablemente el ventilador de la CPU, por el nombre de su entrada. "Buscarlo" en su configuración lo comprueba.</value>
   </data>
-  <data name="OverlayText.FloatsAbove" xml:space="preserve">
-    <value>Sobre la barra de tareas: no entra junto a tus aplicaciones. Ocultar las etiquetas la hace más angosta.</value>
-  </data>
   <data name="OverlayText.NeedsDriver" xml:space="preserve">
     <value>{0} necesita el controlador de thermi. Doble clic para arreglarlo.</value>
   </data>
@@ -1557,14 +1548,8 @@
   <data name="ServiceState.Stale" xml:space="preserve">
     <value>El servicio de sensores lleva unos segundos sin enviar lecturas nuevas.</value>
   </data>
-  <data name="SnapSpot.TaskbarLeft" xml:space="preserve">
-    <value>a la izquierda de la barra de tareas</value>
-  </data>
-  <data name="SnapSpot.TaskbarCenter" xml:space="preserve">
-    <value>en el centro de la barra de tareas</value>
-  </data>
-  <data name="SnapSpot.TaskbarRight" xml:space="preserve">
-    <value>a la derecha de la barra de tareas</value>
+  <data name="SnapSpot.Taskbar" xml:space="preserve">
+    <value>en la barra de tareas</value>
   </data>
   <data name="SnapSpot.TopLeft" xml:space="preserve">
     <value>esquina superior izquierda</value>
@@ -1981,7 +1966,7 @@
     <value>Poner una píldora en cualquier lugar</value>
   </data>
   <data name="SheetText.DragOff" xml:space="preserve">
-    <value>Ctrl+arrastrarla afuera</value>
+    <value>Mantenerla apretada y arrastrarla afuera</value>
   </data>
   <data name="SheetText.ResizeOverlay" xml:space="preserve">
     <value>Cambiar el tamaño de una superposición flotante</value>

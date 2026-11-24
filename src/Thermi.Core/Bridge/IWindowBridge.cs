@@ -78,12 +78,6 @@ public interface IWindowBridge
     /// <summary>An error the page threw and did not handle, with its stack, which goes to thermi's log.</summary>
     Task Report(string error);
 
-    /// <summary>The overlays, by index, that as they show do not fit the taskbar's free room beside the app buttons.</summary>
-    Task<IReadOnlyList<int>> Crowded();
-
-    /// <summary>The taskbar spots where an overlay, as it shows, would have no room beside the app buttons, which the map marks.</summary>
-    Task<IReadOnlyList<SnapConfig>> Roomless(int overlay);
-
     /// <summary>The saved looks by their names.</summary>
     Task<IReadOnlyDictionary<string, StyleConfig>> Looks();
 

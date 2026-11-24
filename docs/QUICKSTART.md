@@ -14,6 +14,7 @@ People who care about their PC want to see its temperatures, loads and fans whil
 4. **It picks what to show.** The settings say which metrics to show: the CPU temperature, the GPU load, the RAM used. Rules find the sensor behind each one, because sensor names differ between PCs.
 5. **It paints.** Values are grouped into pills by their label (CPU, GPU, RAM by default). At a threshold a value gets an underline in the warning color, and at the critical one it is drawn reversed on the critical color. Each value keeps the room of its widest number, so the overlay never jitters.
 6. **It stays on top.** Windows lifts the taskbar over everything when it is clicked. The overlay notices at once and goes back on top.
+7. **It stays where you put it.** Dropped on the taskbar, the overlay sits where it was let go along it, over the app buttons too, and moves only to stay on the taskbar when the taskbar or the screen changes. Near a corner or the taskbar's ends it snaps; Alt drops it freely. A pill held still for half a second lifts, and can be dragged off into an overlay of its own or onto another.
 
 If anything is missing, thermi shows `–`, never a zero and never an old number that looks live: a value that cannot be read must look unread.
 

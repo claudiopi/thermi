@@ -67,7 +67,7 @@ internal sealed class OracleReplay : IAsyncDisposable
             _folder.Clock.GetUtcNow(),
             feed,
             startup)
-        { Screens = () => [], HotkeyStatus = () => null, AltGrKeys = () => UsKeyboard, ReadsTaskbar = false };
+        { Screens = () => [], HotkeyStatus = () => null, AltGrKeys = () => UsKeyboard };
         var texts = language == "pseudo" ? Texts.Pseudo() : Texts.Of(language);
         _bridge = new WindowBridge(
             new WindowStart(0, _settings, texts, environment, _folder.Clock) { Pseudo = language == "pseudo" },
