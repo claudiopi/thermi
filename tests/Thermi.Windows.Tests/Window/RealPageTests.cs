@@ -108,6 +108,9 @@ public sealed class RealPageTests
         private int _ticks;
         private bool _sent;
 
+        // Whether the page had the keyboard's focus as the window first showed, so Ctrl+Z works without a click first.
+        private bool? _focused;
+
         private int Reached { get; set; }
 
         private int Count => steps.Count;
@@ -161,10 +164,10 @@ public sealed class RealPageTests
             }
 
             var warned = folder.Log.Entries.Where(entry => entry.Level >= LogLevel.Warning).Select(entry => entry.Message).ToList();
-            return walk.Done && warned.Count == 0
+            return walk.Done && walk._focused == true && warned.Count == 0
                 ? ""
-                : $"Answered {walk.Reached} of {walk.Count} steps; told the overlay {string.Join(", ", walk.Edits)}; "
-                    + $"logged {string.Join(" | ", warned)}";
+                : $"Answered {walk.Reached} of {walk.Count} steps; the page had the focus: {walk._focused}; "
+                    + $"told the overlay {string.Join(", ", walk.Edits)}; logged {string.Join(" | ", warned)}";
         }
 
         public void Told(WindowMessage message)
@@ -235,8 +238,18 @@ public sealed class RealPageTests
             }
             else if (!_sent && edits.Count > 0)
             {
+                _focused ??= FocusInPage();
                 _sent = HiddenWindow.Send(HiddenWindow.WindowClass, steps[Reached].Sent);
             }
+        }
+
+        // The window's thread has the focus on one of the page's windows inside it, not on the window itself.
+        private static unsafe bool FocusInPage()
+        {
+            var window = PInvoke.FindWindowEx(HWND.Null, HWND.Null, "thermi-window", null);
+            var info = new GUITHREADINFO { cbSize = (uint)sizeof(GUITHREADINFO) };
+            return TestPInvoke.GetGUIThreadInfo(TestPInvoke.GetWindowThreadProcessId(window, null), ref info)
+                && TestPInvoke.IsChild(window, info.hwndFocus);
         }
     }
 }

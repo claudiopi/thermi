@@ -1,4 +1,4 @@
-import type { Monitor, Overlay, Snap, SnapSpot, Value } from '../bridge/bridge.g';
+import type { Monitor, Overlay, Rect, Snap, SnapSpot, Value } from '../bridge/bridge.g';
 import type { TextKey } from '../texts/Texts';
 
 // Where an overlay sits, as the Placement column and the page's subtitle say it: its spot, its display counted from
@@ -36,6 +36,20 @@ export function placedOf(overlay: Overlay, shown: readonly Monitor[]): Placed | 
   const snap: Snap = overlay.snap ?? { spot: 'taskbar' };
   const at = snap.monitor === undefined ? 0 : shown.findIndex((one) => one.id === snap.monitor);
   return { spot: snap.spot, display: Math.max(0, at), gone: at < 0, ...(snap.offset === undefined ? {} : { offset: snap.offset }) };
+}
+
+/**
+ * Where a display's taskbar spot sits along it, as a share of its width: at the middle of the overlay where it shows, when
+ * it sits on that taskbar, else at its offset, or at the end, beside the notification area, where choosing it puts it.
+ */
+export function alongOf(placed: Placed | null, display: number, monitor: Monitor, place: Rect | null): number {
+  if (placed?.spot !== 'taskbar' || placed.display !== display) {
+    return 1;
+  }
+  if (place !== null) {
+    return (place.x + place.width / 2 - monitor.bounds.x) / monitor.bounds.width;
+  }
+  return placed.offset === undefined ? 1 : placed.offset / monitor.bounds.width;
 }
 
 /**

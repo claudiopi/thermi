@@ -204,6 +204,11 @@ internal sealed class WebWindow : IDisposable
                 WindowFrame.TrackLeave(hwnd);
             }
 
+            if (message == PInvoke.WM_SETFOCUS)
+            {
+                _page.Focus();
+            }
+
             if (message != PInvoke.WM_NCHITTEST && PInvoke.DwmDefWindowProc(hwnd, message, wParam, lParam, out var answer))
             {
                 return answer;

@@ -112,8 +112,11 @@ public static class OverlayEdits
         ConfigEdits.OnOverlay(config, overlay, () =>
             ConfigEdits.Apply(config, current => ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Hidden = hidden })));
 
-    /// <summary>Moves every item of <paramref name="overlay"/> to the end of <paramref name="into"/>, and removes it.</summary>
-    public static EditResult Merge(ThermiConfig config, int overlay, int into)
+    /// <summary>
+    /// Moves every item of <paramref name="overlay"/> into <paramref name="into"/>, before the pill of the item
+    /// <paramref name="before"/> or at its end, and removes it.
+    /// </summary>
+    public static EditResult Merge(ThermiConfig config, int overlay, int into, string? before = null)
     {
         if (!ConfigEdits.HasOverlay(config, overlay) || !ConfigEdits.HasOverlay(config, into))
         {
@@ -126,7 +129,7 @@ public static class OverlayEdits
         }
 
         var target = config.Overlays[into];
-        var merged = target with { Items = [.. target.Items, .. Labeled(config.Overlays[overlay].Items)] };
+        var merged = Joined(target, Labeled(config.Overlays[overlay].Items), before);
         return ConfigEdits.Apply(config, current => current with
         {
             Overlays = [.. current.Overlays.Select((each, at) => at == into ? merged : each).Where((_, at) => at != overlay)],
@@ -175,8 +178,9 @@ public static class OverlayEdits
     }
 
     /// <summary>
-    /// A pill dragged off its overlay onto another: its items join that one where it was dropped, before the pill of the
-    /// item <paramref name="before"/>, or at its end when none is named.
+    /// A pill dragged off its overlay onto an overlay: its items join that one where it was dropped, before the pill of the
+    /// item <paramref name="before"/>, or at its end when none is named. Dropped back on its own overlay it moves there,
+    /// and dropped on itself it stays.
     /// </summary>
     public static EditResult PillInto(ThermiConfig config, string id, int into, string? before = null)
     {
@@ -186,7 +190,8 @@ public static class OverlayEdits
         }
 
         var (first, last) = ItemEdits.PillOf(config.Overlays[from], index);
-        return from == into ? new EditResult(config) : Split(config, from, first, last, new Landing(into, before));
+        var onItself = from == into && config.Overlays[from].Items.Skip(first).Take(last - first + 1).Any(item => item.Id == before);
+        return onItself ? new EditResult(config) : Split(config, from, first, last, new Landing(into, before));
     }
 
     /// <summary>A floating overlay's corner dragged: its size, and the direction the drag's shape gave.</summary>

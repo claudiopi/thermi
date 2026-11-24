@@ -5,6 +5,7 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Dwm;
 using Windows.Win32.Graphics.Gdi;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.Controls;
 using Windows.Win32.UI.Shell;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -18,6 +19,12 @@ namespace Thermi.Overlay;
 /// </summary>
 internal sealed class ValueTips : IDisposable
 {
+    /// <summary>The timer that wakes the overlay when the quiet after a drop may end.</summary>
+    internal const nuint QuietTimer = 4;
+
+    /// <summary>How long after a drop no tooltip shows while the pointer stays on the overlay.</summary>
+    public static readonly TimeSpan AfterDrop = TimeSpan.FromSeconds(1.5);
+
     // Wide enough for a name and its value on one line, so only the tooltip's own lines break it.
     private const int MaxWidth = 480;
 
@@ -38,6 +45,9 @@ internal sealed class ValueTips : IDisposable
     // Kept alive as long as the tooltip, which calls it.
     private readonly SUBCLASSPROC _placed;
     private bool? _dark;
+
+    // When the last drop let go, on the injected clock, while its quiet lasts.
+    private long? _dropped;
 
     public unsafe ValueTips(HWND owner)
     {
@@ -141,8 +151,51 @@ internal sealed class ValueTips : IDisposable
         }
     }
 
+    /// <summary>
+    /// A drop leaves the pointer on a value, whose tooltip would show at once: none shows until the pointer leaves the
+    /// overlay, or for <see cref="AfterDrop"/>.
+    /// </summary>
+    public unsafe void Dropped(TimeProvider time)
+    {
+        _dropped = time.GetTimestamp();
+        var track = new TRACKMOUSEEVENT { cbSize = (uint)sizeof(TRACKMOUSEEVENT), dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE, hwndTrack = _owner };
+        PInvoke.TrackMouseEvent(ref track);
+        Wake(AfterDrop);
+    }
+
+    /// <summary>The quiet's timer woke the overlay: the tooltips show again once the clock says it has lasted, or it waits on.</summary>
+    public void Woke(TimeProvider time)
+    {
+        PInvoke.KillTimer(_owner, QuietTimer);
+        if (_dropped is { } at && time.GetElapsedTime(at) < AfterDrop)
+        {
+            Wake(AfterDrop - time.GetElapsedTime(at));
+            return;
+        }
+
+        Speak();
+    }
+
+    public void Left()
+    {
+        if (_dropped is not null)
+        {
+            PInvoke.KillTimer(_owner, QuietTimer);
+            Speak();
+        }
+    }
+
+    private void Speak()
+    {
+        _dropped = null;
+        Quiet(false);
+    }
+
+    private void Wake(TimeSpan after) => PInvoke.SetTimer(_owner, QuietTimer, (uint)Math.Ceiling(after.TotalMilliseconds), null);
+
     public void Dispose()
     {
+        PInvoke.KillTimer(_owner, QuietTimer);
         if (!_tips.IsNull)
         {
             PInvoke.RemoveWindowSubclass(_tips, _placed, 0);

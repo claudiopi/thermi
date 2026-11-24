@@ -160,9 +160,11 @@ public static class Snaps
         }
 
         var monitor = screen.Primary ? null : screen.Id;
-        foreach (var offset in new[] { RightEnd(screen, bar) - width - bar.Left, Scaled(Margin, screen) })
+
+        // The mark beside the notification area keeps no offset, so the overlay follows the notification area as it grows.
+        foreach (var offset in new int?[] { null, Scaled(Margin, screen) })
         {
-            var snap = new SnapConfig(SnapSpot.Taskbar, monitor) { Offset = Along(bar, offset, width) };
+            var snap = new SnapConfig(SnapSpot.Taskbar, monitor) { Offset = offset is { } start ? Along(bar, start, width) : null };
             yield return (snap, At(screen, snap, Orientation.Horizontal, width, height));
         }
     }

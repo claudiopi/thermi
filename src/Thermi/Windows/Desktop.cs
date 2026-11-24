@@ -107,9 +107,15 @@ internal static class Desktop
         return new Position((short)(at & 0xFFFF), (short)(at >> 16));
     }
 
-    /// <summary>How far the cursor may move at a DPI before a press is a drag, as the system sets it.</summary>
+    /// <summary>
+    /// How far the cursor may move at a DPI before a press is a drag, as the system sets it at 100 %, times the scale:
+    /// Windows gives it unscaled at any DPI, which at 150 % a hand held still on a pill can pass.
+    /// </summary>
     public static DragDistance DragDistanceAt(uint dpi) =>
-        new(PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXDRAG, dpi), PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYDRAG, dpi));
+        new(Scaled(SYSTEM_METRICS_INDEX.SM_CXDRAG, dpi), Scaled(SYSTEM_METRICS_INDEX.SM_CYDRAG, dpi));
+
+    private static int Scaled(SYSTEM_METRICS_INDEX metric, uint dpi) =>
+        (int)Math.Round(PInvoke.GetSystemMetricsForDpi(metric, 96) * Math.Max(96u, dpi) / 96.0);
 
     /// <summary>Every monitor, with its scale, taskbar and notification area as they are now.</summary>
     public static IReadOnlyList<Screen> Screens() => OnTaskbars(Monitors(), out _);

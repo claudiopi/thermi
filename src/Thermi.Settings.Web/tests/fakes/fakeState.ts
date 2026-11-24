@@ -66,6 +66,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
         taskbar: true,
       },
     ],
+    places: [],
     looks: { Night: { pills: 'dark', opacity: { background: 0.4 }, font: 'bahnschrift', corners: 'soft' } },
     exported: null,
     importFile: null,

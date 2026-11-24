@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import type { Monitor, Overlay } from '../bridge/bridge.g';
+import type { Monitor, Overlay, Rect } from '../bridge/bridge.g';
 import type { TextKey } from '../texts/Texts';
-import { displayName, displays, moveToDisplay, placeText, placedOf, positionHint, snapAt, spotKey, type Placed } from './placeModel';
+import { alongOf, displayName, displays, moveToDisplay, placeText, placedOf, positionHint, snapAt, spotKey, type Placed } from './placeModel';
 
 function monitor(id: string, primary = false): Monitor {
   const rect = { x: 0, y: 0, width: 1920, height: 1080 };
@@ -79,6 +79,15 @@ describe('where an overlay sits', () => {
       expect(positionHint(placed, vertical, [{ ...main, ...(floats === undefined ? {} : { floats }) }, second])).toBe(hint);
     },
   );
+
+  // The taskbar's spot marks the overlay's middle where C# says it shows; until it says, its offset.
+  test.each([
+    { placed: { spot: 'taskbar', display: 0, gone: false, offset: 600 }, place: { x: 600, y: 1040, width: 300, height: 40 }, along: 750 / 1920 },
+    { placed: { spot: 'taskbar', display: 0, gone: false, offset: 600 }, place: null, along: 600 / 1920 },
+    { placed: { spot: 'taskbar', display: 1, gone: false }, place: { x: 1500, y: 1040, width: 200, height: 40 }, along: 1 },
+  ] satisfies { placed: Placed; place: Rect | null; along: number }[])('puts the spot of $placed at $along of the main display', ({ placed, place, along }) => {
+    expect(alongOf(placed, 0, main, place)).toBeCloseTo(along);
+  });
 
   test('names the main display apart from the others, counting from 1', () => {
     expect([displayName(main, 0, lower), displayName(second, 2, lower)]).toEqual(['overlaypagetext.maindisplay 1', 'overlaypagetext.displayname 3']);

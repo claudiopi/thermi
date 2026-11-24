@@ -77,7 +77,7 @@ public sealed class OverlayEditTests
     [InlineData("one", "desk 0 cpu.load 400 300", "400,300:6", "same")]
     [InlineData("one", "desk 0 edge 400 300 0", "400,300:6", "same")]
     [InlineData("one", "desk 0 edge 1300 1375", "Taskbar@1300:6", "same")]
-    [InlineData("free", "desk 0 edge 1500 1380", "Taskbar@1588:6", "same")]
+    [InlineData("free", "desk 0 edge 1500 1380", "Taskbar:6", "same")]
     [InlineData("four", "desk 0 hold500+cpu.load 400 300", "400,300:6 TopRight:6 BottomRight:6 BottomLeft:6", "same")]
     [InlineData("free", "corner 400 38 -300 200", "400,300:6v0.75", "same")]
     [InlineData("free", "corner 400 38 199 5", "400,300:61.5", "same")]
@@ -161,15 +161,23 @@ public sealed class OverlayEditTests
         return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark, words.Length > 6 ? words[6] : null).Result;
     }
 
-    // A lifted pill dropped on another overlay joins it where it was let go, before the pill it was dropped in front of.
-    [Fact]
-    public void ALiftedPillJoinsAnotherOverlayWhereItIsDropped()
+    // A lifted pill, or an overlay moved whole, dropped on an overlay joins it where it was let go, before the pill it was
+    // dropped in front of, or at its end; a pill dropped back on its own overlay moves there, and stays put on its own place.
+    // Where the drop starts, its words as the desk edit's, and the items of the overlay it lands on, in their order.
+    [Theory]
+    [InlineData("solo", "0 hold500+gpu.load 400 300 1 solo", "gpu.load solo")]
+    [InlineData("solo", "0 hold500+gpu.load 400 300 1", "solo gpu.load")]
+    [InlineData("solo", "1 solo 400 300 0 gpu.load", "cpu.temperature fan.cpu cpu.load cpu.power solo gpu.load ram.used")]
+    [InlineData("one", "0 hold500+gpu.load 400 300 0 cpu.temperature", "gpu.load cpu.temperature fan.cpu cpu.load cpu.power ram.used")]
+    [InlineData("one", "0 hold500+gpu.load 400 300 0 gpu.load", "cpu.temperature fan.cpu cpu.load cpu.power gpu.load ram.used")]
+    public void ADropOnAnOverlayJoinsItWhereItIsLetGo(string start, string drop, string items)
     {
-        var before = Done(Edit(Solo, ["desk", "0", "hold500+gpu.load", "400", "300", "1", "solo"]));
-        var after = Done(Edit(Solo, ["desk", "0", "hold500+gpu.load", "400", "300", "1"]));
+        var before = start == "solo" ? Solo : One;
+        var words = drop.Split(' ');
 
-        Assert.Equal([Metrics.GpuLoad.Id, "solo"], before.Overlays[1].Items.Select(item => item.Id));
-        Assert.Equal(["solo", Metrics.GpuLoad.Id], after.Overlays[1].Items.Select(item => item.Id));
+        var after = Done(Edit(before, ["desk", .. words]));
+
+        Assert.Equal(items, string.Join(' ', after.Overlays[int.Parse(words[4], CultureInfo.InvariantCulture)].Items.Select(item => item.Id)));
     }
 
     private static string Summary(ThermiConfig config, OverlayConfig overlay, int at)

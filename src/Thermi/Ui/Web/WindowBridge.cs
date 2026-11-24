@@ -188,6 +188,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<IReadOnlyDictionary<string, string>> Texts() => Task.FromResult(_texts.All);
 
+    public Task<IReadOnlyList<Rect?>> Places() => Task.FromResult(_views.Places(_texts, _start.Environment.Screens()));
+
     public Task<IReadOnlyList<MonitorView>> Monitors() =>
         Task.FromResult<IReadOnlyList<MonitorView>>([.. _start.Environment.Screens().Select(screen => new MonitorView(
             screen.Id,

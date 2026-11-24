@@ -25,5 +25,8 @@ public sealed class DesktopTests
             .Select(monitor => monitor with { Screen = monitor.Screen with { Work = new Core.Placement.PixelRect(0, 0, 1, 1) } })
             .ToList();
         Assert.Equal(screens.Select(screen => screen.Work), Desktop.OnTaskbars(before, out _).Select(screen => screen.Work));
+
+        // The drag distance grows with the scale, as a hand held still on a monitor at 200 % moves twice the pixels.
+        Assert.Equal(Desktop.DragDistanceAt(96).Width * 2, Desktop.DragDistanceAt(192).Width);
     }
 }

@@ -18,4 +18,16 @@ internal static class TopLevelWindow
             return PInvoke.CreateWindowEx(style, name, title, kind, 0, 0, 0, 0, HWND.Null, HMENU.Null, HiddenWindow.Instance, null);
         }
     }
+
+    /// <summary>Lets every click through the window, or none: a layered window that is also transparent lets them all through.</summary>
+    public static void ClickThrough(HWND window, bool on)
+    {
+        const nint Transparent = (nint)WINDOW_EX_STYLE.WS_EX_TRANSPARENT;
+        var style = PInvoke.GetWindowLongPtr(window, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
+        var wanted = on ? style | Transparent : style & ~Transparent;
+        if (wanted != style)
+        {
+            PInvoke.SetWindowLongPtr(window, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, wanted);
+        }
+    }
 }

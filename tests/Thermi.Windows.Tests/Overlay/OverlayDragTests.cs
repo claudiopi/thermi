@@ -1,5 +1,7 @@
 using Thermi.Core.Placement;
+using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Gestures;
 using Thermi.Overlay;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -82,12 +84,14 @@ public sealed class OverlayDragTests : IDisposable
     }
 
     // A drag ends with nothing of it on screen but the overlay, its marks gone: let go near a corner's mark it snaps there,
-    // and with Alt held it stays where it was let go; with Esc down as the mouse moves, or another window taking the mouse,
-    // as a menu or a dialog does, it goes back to its snap and the button let go after moves nothing.
+    // and with Alt held it stays where it was let go; with Esc pressed, which the press holds as the overlay's hotkey so no
+    // other app gets it, or Esc down as the mouse moves, or another window taking the mouse, as a menu or a dialog does, it
+    // goes back to its snap and the button let go after moves nothing.
     [Theory]
     [InlineData("drop", "TopLeft")]
     [InlineData("alt", "free")]
     [InlineData("esc", "back")]
+    [InlineData("esc-moved", "back")]
     [InlineData("lost", "back")]
     public async Task ADragEndsWithNothingOfItLeftOnScreen(string end, string lands)
     {
@@ -127,12 +131,84 @@ public sealed class OverlayDragTests : IDisposable
             (written, after, file.Snap?.Spot, file.Position));
     }
 
-    // Esc and Alt are down as the move or the drop is sent, as the window's thread reads them.
+    // A pill held still lifts, and dropped back on its own overlay in front of its first pill moves there; a press that left
+    // the drag distance and came back moves the overlay whole however long it then holds; an overlay of one pill dragged onto
+    // another shows whole, not faded, and joins it before the pill it is let go on. The overlays left, as their count, the
+    // first overlay's first item and whether it is still snapped.
+    [Theory]
+    [InlineData("own", "1 gpu.load snapped")]
+    [InlineData("back", "1 cpu.temperature free")]
+    [InlineData("merge", "1 solo snapped")]
+    public async Task APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo(string drag, string expected)
+    {
+        var solo = new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight), Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] };
+        var settings = await _folder.LoadedAsync(drag == "merge" ? new ThermiConfig { Overlays = [new OverlayConfig(), solo] } : new ThermiConfig());
+        var before = _folder.Text();
+        byte during = 0;
+
+        Run(settings, host =>
+        {
+            var first = host.Overlays[0];
+            var held = host.Overlays[drag == "merge" ? 1 : 0];
+            PInvoke.GetWindowRect(first.Hwnd, out var rect);
+            var front = new Position(rect.left + 3, (rect.top + rect.bottom) / 2);
+            var pressed = drag == "merge" ? Middle(held.Hwnd) : PillOf(first, Metrics.GpuLoad.Id);
+            MoveTo(host, held, pressed, PInvoke.WM_LBUTTONDOWN);
+            if (drag == "back")
+            {
+                MoveTo(host, held, new Position(pressed.X + 20, pressed.Y));
+                MoveTo(host, held, pressed);
+            }
+
+            _folder.Clock.Advance(DesktopGestures.Hold);
+            PInvoke.PostMessage(held.Hwnd, PInvoke.WM_TIMER, OverlayGestures.HoldTimer, 0);
+            HostRun.Pump(host);
+            MoveTo(host, held, drag == "back" ? new Position(pressed.X + By.X, pressed.Y + By.Y) : front);
+            during = held.Alpha;
+            Post(held.Hwnd, PInvoke.WM_LBUTTONUP);
+            HostRun.Until(host, _folder.Clock, () => _folder.Text() != before);
+        });
+
+        var file = _folder.Read();
+        Assert.Equal(expected, $"{file.Overlays.Count} {file.Overlays[0].Items[0].Id} {(file.Overlays[0].Snapped is null ? "free" : "snapped")}");
+        Assert.Equal(255, during);
+    }
+
+    // The cursor put at a point and the mouse's message sent, then the paints it asks for let out.
+    private void MoveTo(OverlayHost host, OverlayWindow overlay, Position to, uint message = PInvoke.WM_MOUSEMOVE)
+    {
+        _cursor = to;
+        Post(overlay.Hwnd, message);
+        for (var paints = 0; paints < 3; paints++)
+        {
+            _folder.Clock.Advance(Settings.Interval);
+            HostRun.Pump(host);
+        }
+    }
+
+    private static Position Middle(HWND window) =>
+        PInvoke.GetWindowRect(window, out var rect) ? new Position((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) : new Position(0, 0);
+
+    // The middle of the run of the overlay's middle row the item's pill is drawn on.
+    private static Position PillOf(OverlayWindow overlay, string item)
+    {
+        PInvoke.GetWindowRect(overlay.Hwnd, out var rect);
+        var y = (rect.top + rect.bottom) / 2;
+        var on = Enumerable.Range(rect.left, rect.right - rect.left).Where(x => overlay.ItemAt(new Position(x, y)) == item).ToList();
+        return new Position((on[0] + on[^1]) / 2, y);
+    }
+
+    // Esc comes as the overlay's hotkey, with the mouse still; or Esc and Alt are down as the move or the drop is sent, as
+    // the window's thread reads them.
     private static void End(OverlayHost host, HWND overlay, string end)
     {
         switch (end)
         {
             case "esc":
+                PInvoke.PostMessage(overlay, PInvoke.WM_HOTKEY, OverlayGestures.EscapeKey, 0);
+                HostRun.Pump(host);
+                break;
+            case "esc-moved":
                 Holding(0x1B, () => Post(overlay, PInvoke.WM_MOUSEMOVE), host);
                 break;
             case "lost":

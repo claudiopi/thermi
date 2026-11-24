@@ -2,6 +2,7 @@ using System.Globalization;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -79,6 +80,13 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         var count = groups.Sum(group => group.Sensors.Count);
         return new CatalogView(groups, count, hidden, count + hidden == 0 ? SensorCatalog.Suggest(devices, search, texts) : null);
     }
+
+    /// <summary>Where each overlay shows on <paramref name="screens"/>, as its own window places it while the window is open.</summary>
+    public IReadOnlyList<Rect?> Places(Texts texts, IReadOnlyList<Screen> screens) =>
+        OverlayPlaces.Of(
+            editor.Config,
+            new TrayInput(sensors.Latest, sensors.State, CultureInfo.CurrentCulture, texts, LightTaskbar: false, ExePath: "") { WindowOpen = true },
+            screens);
 
     /// <summary>Numbers in the regional format, texts in the window's language, temperatures in the unit the settings choose.</summary>
     public ValueFormat Format(Texts texts) => new(texts, CultureInfo.CurrentCulture, editor.Config.Temperature);

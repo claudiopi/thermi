@@ -168,6 +168,35 @@ public sealed class OverlayHostTests : IDisposable
         Assert.Equal(widths[0], widths[2]);
     }
 
+    // The window's map marks each overlay where it shows: the place the window works out for it, while it is open, is
+    // where the overlay's own window is, on the taskbar beside the notification area and in a corner.
+    [Fact]
+    public async Task TheWindowPlacesEachOverlayWhereItShows()
+    {
+        var two = OverlayEdits.Snap(OverlayEdits.Add(new ThermiConfig()).Config, 1, new SnapConfig(SnapSpot.TopLeft)).Config;
+        var settings = await _folder.LoadedAsync(two);
+        var (shown, placed) = (new List<Core.Bridge.Rect?>(), new List<Core.Bridge.Rect?>());
+
+        Run(settings, host =>
+        {
+            List<Core.Bridge.Rect?> Shown()
+            {
+                return [.. host.Overlays.Select(overlay => PInvoke.GetWindowRect(overlay.Hwnd, out var rect)
+                    ? new Core.Bridge.Rect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+                    : null)];
+            }
+
+            var input = new TrayInput(HostRun.Recorded, ServiceState.Running, English, Texts.English, LightTaskbar: false, ExePath: "") { WindowOpen = true };
+            using var window = MutexHolder.Holding(_windowMutex);
+            OverlayHost.AskToShow();
+            placed.AddRange(Ui.Views.OverlayPlaces.Of(settings.Config, input, Desktop.Screens()));
+            HostRun.Until(host, _folder.Clock, () => Shown().SequenceEqual(placed));
+            shown.AddRange(Shown());
+        });
+
+        Assert.Equal(shown, placed);
+    }
+
     // The menu opens the window, not the file, and turns the lock on and off for its own overlay.
     [Fact]
     public async Task TheMenuOpensTheWindowAndSetsTheLock()

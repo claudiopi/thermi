@@ -40,3 +40,7 @@ WM_COMMAND
 ImmDisableIME
 // Esc or Alt down as a drag's message is sent
 SetKeyboardState
+// Where the settings window's thread has the keyboard's focus
+GetGUIThreadInfo
+GetWindowThreadProcessId
+IsChild

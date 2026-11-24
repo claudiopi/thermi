@@ -6,6 +6,7 @@ import { Card, CardRow, Dropdown } from '../kit';
 import { useText, type TextKey } from '../texts/Texts';
 import { MonitorMap } from './MonitorMap';
 import { placedOf, positionHint, snapAt } from './placeModel';
+import { usePlaces } from './useOverlayReads';
 
 export interface PlacementProps {
   data: WindowData;
@@ -38,6 +39,7 @@ function lockSummary(one: Overlay, say: (key: TextKey, ...blanks: string[]) => s
 export function Placement({ data, overlay, shown, lockOpen, onLockOpen }: PlacementProps) {
   const t = useText();
   const edit = useEdit();
+  const places = usePlaces(data.changes);
   const one = data.settings.overlays[overlay];
   if (one === undefined) {
     return null;
@@ -58,6 +60,7 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen }: Placem
           <MonitorMap
             shown={shown}
             placed={placed}
+            place={places[overlay] ?? null}
             vertical={vertical}
             hidden={hidden}
             onSnap={(spot: SnapSpot, display: Monitor) => set('snap', snapAt(spot, display))}

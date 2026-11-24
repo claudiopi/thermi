@@ -1259,7 +1259,7 @@
         "R90",
         "R109"
       ],
-      "description": "Given two overlays, when one is dragged over the other, then it shows through at half opacity and no snap mark lights; and on a load's item page, Graph is a row after Meter and turning it off keeps it off after a restart.",
+      "description": "Given two overlays, when one is dragged over the other, then it shows whole, the other ringed with a bar where it would join, and no snap mark lights; a pill held still lifts leaving an empty slot where it was; after a drop no tooltip shows until the pointer leaves or 1.5 s pass; the Position map's taskbar spot sits under the overlay's middle; Esc mid-drag with the mouse still reaches no other app; and on a load's item page, Graph is a row after Meter and turning it off keeps it off after a restart.",
       "check": "by hand",
       "passes": false
     },
@@ -1269,7 +1269,7 @@
         "R33",
         "R148"
       ],
-      "description": "Given an overlay dragged on the desktop near a corner's mark, with its marks showing, when it is let go, let go with Alt held, cancelled with Esc down as the mouse moves, or loses the mouse to another window, then it snaps to that corner, stays free where it was let go, or goes back to its snap with the file unchanged, and the desktop shows the overlay alone.",
+      "description": "Given an overlay dragged on the desktop near a corner's mark, with its marks showing, when it is let go, let go with Alt held, cancelled with Esc down as the mouse moves, or loses the mouse to another window, then it snaps to that corner, stays free where it was let go, or goes back to its snap with the file unchanged, and the desktop shows the overlay alone. Esc counts also with the mouse still, as the overlay's hotkey while pressed.",
       "check": "ADragEndsWithNothingOfItLeftOnScreen",
       "passes": true
     },
@@ -1297,8 +1297,44 @@
       "covers": [
         "R148"
       ],
-      "description": "Given a pill held until it lifts, when it is dropped on an overlay of one pill in front of that pill, and past it, then it joins that overlay before it, and after it.",
-      "check": "ALiftedPillJoinsAnotherOverlayWhereItIsDropped",
+      "description": "Given a pill held until it lifts, and an overlay of one pill moved whole, when the pill is dropped on an overlay of one pill in front of that pill and past it, back on its own overlay in front of its first pill and on its own place, and the overlay is dropped on another in front of one of its pills, then the pill joins that overlay before it and after it, moves to the front of its own and stays where it was on its own place, and the overlay's pill joins the other before the pill it was dropped in front of.",
+      "check": "ADropOnAnOverlayJoinsItWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A309",
+      "covers": [
+        "R148"
+      ],
+      "description": "Given the overlay on a desktop of its own, when a pill is held still until it lifts and dropped in front of its own overlay's first pill, a press leaves the drag distance and comes back before holding, and an overlay of one pill is dragged onto another, then the pill moves to the front of its overlay, the overlay moves whole, and the dragged overlay shows whole and joins the other before the pill it is let go on.",
+      "check": "APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A310",
+      "covers": [
+        "R31"
+      ],
+      "description": "Given two overlays, on the taskbar and in a corner, with the window open, when the window works out where each shows, then it is where each overlay's own window is, so the map's taskbar spot sits at the overlay's middle.",
+      "check": "TheWindowPlacesEachOverlayWhereItShows",
+      "passes": true
+    },
+    {
+      "id": "A311",
+      "covers": [
+        "R8"
+      ],
+      "description": "Given the built page in a real WebView2, when the window opens, then the keyboard's focus is in the page, so Ctrl+Z works without a click in it first.",
+      "check": "TheBuiltPageTakesEachMessageInARealWebView2",
+      "passes": true
+    },
+    {
+      "id": "A312",
+      "covers": [
+        "R32"
+      ],
+      "description": "Given a free overlay, when it is dropped on the taskbar near the mark beside the notification area, then it keeps no offset, so it follows the notification area as it grows.",
+      "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
       "passes": true
     }
   ]

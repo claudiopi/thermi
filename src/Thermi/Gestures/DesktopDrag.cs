@@ -43,11 +43,18 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     private SnapMarks? _marks;
     private HWND _ghost;
     private Size _pill;
-    private bool _lifted;
+    private bool _moved;
     private Position? _dropped;
 
     /// <summary>Whether the drag moves the overlay itself, which a lifted pill or a corner held never do.</summary>
-    public bool Moves => start.Held != Held.Corner && !_lifted;
+    public bool Moves => start.Held != Held.Corner && !Lifted;
+
+    public bool Resizes => start.Held == Held.Corner;
+
+    public bool Lifted { get; private set; }
+
+    /// <summary>Where the pill pressed sits in the overlay's pixels, which a lifted pill leaves as a gap.</summary>
+    public RectangleF PillBox => start.PillBox;
 
     /// <summary>The size and direction a corner's drag shows until it is let go.</summary>
     public (double Size, Orientation Orientation)? Preview { get; private set; }
@@ -56,21 +63,19 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     public OverlayConfig Shown(OverlayConfig shown) =>
         Preview is var (size, orientation) ? shown with { Size = size, Style = shown.Style with { Orientation = orientation } } : shown;
 
-    /// <summary>Whether the overlay is moved over another, which a drop there merges into.</summary>
-    public bool Merging { get; private set; }
-
     /// <summary>
     /// The press has held still for <paramref name="held"/>: a pill that can come off lifts, a little above its place, so
-    /// the drag that follows carries it instead of the overlay. Nothing lifts once the overlay moves.
+    /// the drag that follows carries it instead of the overlay. Nothing lifts once the press has left the drag distance,
+    /// even back inside it, since a slow drag is how a person moves the overlay.
     /// </summary>
     public void Lift(TimeSpan held)
     {
-        if (_dropped is not null || _lifted || start.PillPicture is not { } picture || !DesktopGestures.Lifts(settings.Config, overlay, start.Pill, held))
+        if (_moved || Lifted || start.PillPicture is not { } picture || !DesktopGestures.Lifts(settings.Config, overlay, start.Pill, held))
         {
             return;
         }
 
-        _lifted = true;
+        Lifted = true;
         _ghost = TopLevelWindow.Create(OverlayWindow.ClassName, OverlayWindow.ExStyle | WINDOW_EX_STYLE.WS_EX_TRANSPARENT, WINDOW_STYLE.WS_POPUP);
         using var bitmap = picture();
         _pill = bitmap.Size;
@@ -91,6 +96,8 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
             return false;
         }
 
+        _moved = true;
+
         if (start.Held == Held.Corner)
         {
             var size = settings.Config.Overlays[overlay].Size;
@@ -98,7 +105,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
             return true;
         }
 
-        if (_lifted)
+        if (Lifted)
         {
             Carry(PillAt(at));
             _marks ??= new SnapMarks(screens, Orientation.Horizontal, _pill, start.Scale, _ghost);
@@ -108,8 +115,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
 
         // Its first move paints the overlay again, with the background a drag gives it.
         var orientation = settings.Config.Overlays[overlay].Style.Orientation;
-        var changed = _marks is null || Merging != over;
-        Merging = over;
+        var changed = _marks is null;
         _marks ??= new SnapMarks(screens, orientation, start.Size, start.Scale, window);
         // Over another overlay the drop merges, wherever a snap would be, so no mark is lit.
         _marks.Light(over ? null : Near(at, orientation, start.Size));
@@ -135,10 +141,10 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         var pill = PillAt(at);
         var drop = start.Held == Held.Corner
             ? new DesktopDrop(GestureKind.Resize, OverlayEdits.Resize(before, overlay, Preview!.Value.Size, Preview.Value.Orientation))
-            : _lifted
+            : Lifted
                 ? DesktopGestures.Release(before, overlay, start.Pill, Kept(pill, _pill), target.Onto, Near(pill, Orientation.Horizontal, _pill), target.Before)
                 : DesktopGestures.Release(
-                    before, overlay, null, Kept(at, start.Size), target.Onto, Near(at, before.Overlays[overlay].Style.Orientation, start.Size));
+                    before, overlay, null, Kept(at, start.Size), target.Onto, Near(at, before.Overlays[overlay].Style.Orientation, start.Size), target.Before);
         if (drop.Result.Refused is not null || ConfigEdits.Replay(before, drop.Result.Config) is not { } change)
         {
             return;
@@ -146,7 +152,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
 
         // Undo takes back the very drop written, which a plain move takes from the cursor as the overlay does.
         var after = drop.Result.Config;
-        if (drop.Kind == GestureKind.Move && after.Overlays[overlay].Snap is null)
+        if (Moves && drop.Kind == GestureKind.Move && after.Overlays[overlay].Snap is null)
         {
             if (settings.Release(press, Kept(cursor, at), distance, overlay) is not { } released)
             {
@@ -165,7 +171,8 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
 
     /// <summary>
     /// The place of the overlay shown under <paramref name="cursor"/>, <paramref name="self"/> apart, which a drop there
-    /// merges into; null for none.
+    /// joins; null for none. A lifted pill, whose own overlay stays in place, gives none apart, so a drop back on its own
+    /// overlay moves it there.
     /// </summary>
     public static int? Under(IReadOnlyList<OverlayWindow> overlays, int self, Position cursor)
     {

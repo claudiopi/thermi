@@ -83,14 +83,15 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale))];
 
     /// <summary>
-    /// The width <see cref="Paint"/> draws the items at, without drawing them: each value keeps the room of its widest
-    /// form, so this is the room the overlay keeps on a taskbar however its numbers change.
+    /// The size <see cref="Paint"/> draws the items at, without drawing them: each value keeps the room of its widest
+    /// form, so this is the room the overlay keeps however its numbers change.
     /// </summary>
-    public int Width(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale)
+    public Size Measure(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale)
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
-        return SizeOf(PillsOf(items, look, scale, fonts, measure), look, scale).Width;
+        var (width, height, _) = SizeOf(PillsOf(items, look, scale, fonts, measure), look, scale);
+        return new Size(width, height);
     }
 
     private static (int Width, int Height, Arrangement Arranged) SizeOf(List<Pill> pills, OverlayLook look, float scale)

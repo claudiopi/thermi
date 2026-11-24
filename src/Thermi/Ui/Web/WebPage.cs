@@ -46,6 +46,9 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
     private readonly List<long> _reloads = [];
     private bool _shown;
     private bool _minimized;
+
+    // The window took the keyboard's focus while the page could not, hidden or not loaded yet: it takes it once shown.
+    private bool _focus;
     private string? _caption;
 
     public CoreWebView2Controller? Controller { get; private set; }
@@ -116,11 +119,28 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
         Follow();
     }
 
+    /// <summary>
+    /// The window took the keyboard's focus, as it does each time it is activated: the page takes it, so its keys, as
+    /// Ctrl+Z, work at once instead of after a click in it.
+    /// </summary>
+    public void Focus()
+    {
+        _focus = true;
+        Follow();
+    }
+
     private void Follow()
     {
-        if (Controller is { } controller)
+        if (Controller is not { } controller)
         {
-            controller.IsVisible = _shown && !_minimized;
+            return;
+        }
+
+        controller.IsVisible = _shown && !_minimized;
+        if (_focus && controller.IsVisible)
+        {
+            _focus = false;
+            controller.MoveFocus(CoreWebView2MoveFocusReason.Programmatic);
         }
     }
 

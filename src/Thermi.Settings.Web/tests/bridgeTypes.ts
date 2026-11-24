@@ -8,6 +8,7 @@ import type {
   Monitor,
   Overlay,
   Problem,
+  Rect,
   Sensor,
   Service,
   Settings,
@@ -29,6 +30,8 @@ export interface FakeState {
   driverAnswer: 'accepted' | 'refused' | 'failed' | 'restart';
   serviceAnswer: 'accepted' | 'refused';
   monitors: Monitor[];
+  /** Where each overlay shows, as C# works it out; with none, as before C# answers, the map's taskbar spot sits at the offset. */
+  places: (Rect | null)[];
   looks: Record<string, Style>;
   exported: string | null;
   /** The text of the look file Windows' dialog picks for an import, or null when it is cancelled. */

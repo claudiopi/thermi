@@ -27,6 +27,9 @@ internal sealed record OverlayActions(
     /// <summary>The item of an overlay drawn first past a point of the screen, before whose pill a pill dropped there joins; null past its last.</summary>
     public Func<int, Position, string?> ItemAfter { get; init; } = (_, _) => null;
 
+    /// <summary>The overlay a drag is over now, and where a drop would join it, which that overlay marks.</summary>
+    public DropPreview Preview { get; } = new();
+
     /// <summary>The last desktop gesture, which the overlays' menus offer to undo.</summary>
     public GestureUndo? Gestures { get; init; }
 

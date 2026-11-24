@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
-import type { Monitor, SnapSpot } from '../bridge/bridge.g';
+import type { Monitor, Rect, SnapSpot } from '../bridge/bridge.g';
 import { useText } from '../texts/Texts';
-import { cornerSpots, displayName, spotKey, type Placed } from './placeModel';
+import { alongOf, cornerSpots, displayName, spotKey, type Placed } from './placeModel';
 
 export interface MonitorMapProps {
   /** The displays, the main one first, as the window numbers them. */
   shown: readonly Monitor[];
   /** Where the overlay sits now, or null for one dropped anywhere. */
   placed: Placed | null;
+  /** Where the overlay shows on the desktop, or null while C# has not said. */
+  place: Rect | null;
   vertical: boolean;
   /** Hidden, the overlay's spot shows dimmed and says so. */
   hidden: boolean;
@@ -45,9 +47,8 @@ interface Spot {
 const apart = 25;
 
 /**
- * A display's spots, from its top left: four corners, and one on its taskbar unless the overlay is vertical, where the
- * overlay sits along it, as a share of its width, or beside the notification area, where choosing it puts it. The lower
- * corners keep a target's room above the taskbar's.
+ * A display's spots, from its top left: four corners, and one on its taskbar unless the overlay is vertical, at the share
+ * of its width `along` gives, its target kept whole inside it. The lower corners keep a target's room above the taskbar's.
  */
 function spotsOf(display: number, width: number, height: number, bar: number, along: number | null): Spot[] {
   const lower = Math.min(height - bar - 12, height - bar / 2 - apart);
@@ -57,7 +58,7 @@ function spotsOf(display: number, width: number, height: number, bar: number, al
     [12, lower],
     [width - 12, lower],
   ];
-  const onBar = along === null ? [] : [{ spot: 'taskbar' as const, display, x: 14 + Math.min(1, Math.max(0, along)) * (width - 28), y: height - bar / 2 }];
+  const onBar = along === null ? [] : [{ spot: 'taskbar' as const, display, x: Math.min(width - 14, Math.max(14, along * width)), y: height - bar / 2 }];
   return [...onBar, ...cornerSpots.map((spot, index) => ({ spot, display, x: corners[index]?.[0] ?? 0, y: corners[index]?.[1] ?? 0 }))];
 }
 
@@ -83,17 +84,14 @@ function layoutOf(shown: readonly Monitor[], scale: number): { drawn: Box[]; wid
   return { drawn, wide: end === undefined ? 0 : end.x + end.w, tallest: Math.max(0, ...drawn.map((box) => box.h)) };
 }
 
-export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorMapProps) {
+export function MonitorMap({ shown, placed, place, vertical, hidden, onSnap }: MonitorMapProps) {
   const t = useText();
   const [block, width] = useWidth();
   const group = useRef<HTMLDivElement>(null);
   const scale = Math.min(2, Math.max(0.8, Math.floor(((width - 32) / (units + between)) * 10) / 10));
   const { drawn, wide, tallest } = layoutOf(shown, scale);
   const bar = 14 * scale;
-  const along = (box: Box): number | null =>
-    !box.one.taskbar || vertical ? null
-    : placed?.spot === 'taskbar' && placed.display === box.index && placed.offset !== undefined ? placed.offset / box.one.bounds.width
-    : 1;
+  const along = (box: Box): number | null => (!box.one.taskbar || vertical ? null : alongOf(placed, box.index, box.one, place));
   const all = drawn.flatMap((box) => spotsOf(box.index, box.w, box.h, box.one.taskbar ? bar : 0, along(box)));
   const isOn = (spot: Spot): boolean => placed !== null && placed.spot === spot.spot && placed.display === spot.display;
   const tabStop = all.find(isOn) ?? all[0];

@@ -145,14 +145,21 @@ internal sealed class OverlayWindow : IDisposable
                 return true;
             case PInvoke.WM_MOUSELEAVE:
                 Point(null);
+                _tips.Left();
                 return true;
             case PInvoke.WM_SETCURSOR:
-                return CornerCursor(overlay);
+                return _gestures.CornerCursor(overlay, _painted, WindowPosition());
             case PInvoke.WM_TIMER when wParam == OverlayFade.TimerId:
-                _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Drag is not null, _shown, _gestures.Drag?.Merging == true);
+                _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Holds, _shown);
                 return true;
             case PInvoke.WM_TIMER when wParam == OverlayGestures.HoldTimer:
                 _gestures.Hold();
+                return true;
+            case PInvoke.WM_TIMER when wParam == ValueTips.QuietTimer:
+                _tips.Woke(_actions.Time);
+                return true;
+            case PInvoke.WM_HOTKEY when wParam == OverlayGestures.EscapeKey:
+                Cancel();
                 return true;
             case PInvoke.WM_TIMER when _shown && _scene is { } scene && _index < scene.Config.Overlays.Count:
                 Repaint(scene);
@@ -171,7 +178,7 @@ internal sealed class OverlayWindow : IDisposable
         var input = InputOf(scene, texts);
         var shown = ThermiMark.Overlay(scene.Config, _index, input, scene.OpenedOnce);
         var marks = Marks;
-        ClickThrough(overlay.ClickThrough);
+        TopLevelWindow.ClickThrough(Hwnd, overlay.ClickThrough);
         var look = marks.Applied(OverlayLook.Of(overlay.Style, scene.LightTaskbar, scene.HighContrast), held: heldAt is not null);
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
         var scale = ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, heldAt is null ? scene.Screens : []);
@@ -183,13 +190,14 @@ internal sealed class OverlayWindow : IDisposable
             : _painter.Paint(items, look, scale, _glow.Glowing ? _glow.Of : null);
 #pragma warning restore CA2000
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
+        _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, marks.Accent);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
         var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
-        _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown, _gestures.Drag?.Merging == true);
+        _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, _shown);
         if (!_shown)
         {
             const SET_WINDOW_POS_FLAGS Shown = SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE
@@ -252,13 +260,13 @@ internal sealed class OverlayWindow : IDisposable
                 return true;
             case MouseAction.Release:
                 PInvoke.ReleaseCapture();
-                Clicked(step.Press!, overlay.Locked);
+                var dropped = !Clicked(step.Press!, overlay.Locked);
                 _gestures.Release(step.Press!, DragDistance());
-                Dropped();
+                Dropped(dropped);
                 return true;
             case MouseAction.Lost:
                 _gestures.LetMouseGo();
-                Dropped();
+                Dropped(false);
                 return true;
             case MouseAction.Open when !_gestures.DoubleClickedCorner(overlay, _painted, WindowPosition()):
                 _actions.OpenSettings(_index, ItemAt(_actions.Cursor()));
@@ -287,30 +295,41 @@ internal sealed class OverlayWindow : IDisposable
         }
     }
 
-    private void Dropped()
+    // A drop leaves the pointer on a value, whose tooltip waits until the pointer leaves or a while passes.
+    private void Dropped(bool dragged)
     {
-        _tips.Quiet(false);
+        if (dragged)
+        {
+            _tips.Dropped(_actions.Time);
+        }
+        else
+        {
+            _tips.Quiet(false);
+        }
+
         _gestures.Let();
         _actions.RequestPaint();
     }
 
-    private bool CornerCursor(OverlayConfig overlay)
+    // Esc, the overlay's hotkey while pressed, puts it back as another window taking the mouse does.
+    private void Cancel()
     {
-        if (!OverlayGestures.InCorner(overlay, _painted, WindowPosition(), _actions.Cursor()))
+        if (_mouse.Cancel())
+        {
+            _gestures.LetMouseGo();
+            Dropped(false);
+        }
+    }
+
+    private bool Clicked(Press press, bool locked)
+    {
+        if (Snaps.Dragged(press, _actions.Cursor(), DragDistance(), locked) is not null)
         {
             return false;
         }
 
-        PInvoke.SetCursor(PInvoke.LoadCursor(HINSTANCE.Null, PInvoke.IDC_SIZENWSE));
+        _actions.Select(new Select(_index + 1, ItemAt(_actions.Cursor()), SelectHow.Click));
         return true;
-    }
-
-    private void Clicked(Press press, bool locked)
-    {
-        if (Snaps.Dragged(press, _actions.Cursor(), DragDistance(), locked) is null)
-        {
-            _actions.Select(new Select(_index + 1, ItemAt(_actions.Cursor()), SelectHow.Click));
-        }
     }
 
     // The pointer entering a value, or leaving it for another, the edge or outside; Windows says when it leaves only once asked.
@@ -339,24 +358,15 @@ internal sealed class OverlayWindow : IDisposable
     /// <summary>The item before which a pill dropped at a point of the screen joins this overlay; null past the last.</summary>
     internal string? ItemAfter(Position cursor) => _painter.ItemAfter(OnPicture(cursor), _painted?.Look.Orientation == Orientation.Vertical);
 
-    private string? ItemAt(Position cursor) => _painter.ItemAt(OnPicture(cursor));
+    internal string? ItemAt(Position cursor) => _painter.ItemAt(OnPicture(cursor));
+
+    /// <summary>The opacity the overlay shows at, 255 for whole.</summary>
+    internal byte Alpha => _fade.Alpha;
 
     private PointF OnPicture(Position cursor)
     {
         var corner = WindowPosition();
         return new PointF(cursor.X - corner.X, cursor.Y - corner.Y);
-    }
-
-    // A layered window that is also transparent lets every click through, its pills included.
-    private void ClickThrough(bool on)
-    {
-        const nint Transparent = (nint)WINDOW_EX_STYLE.WS_EX_TRANSPARENT;
-        var style = PInvoke.GetWindowLongPtr(Hwnd, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
-        var wanted = on ? style | Transparent : style & ~Transparent;
-        if (wanted != style)
-        {
-            PInvoke.SetWindowLongPtr(Hwnd, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, wanted);
-        }
     }
 
     private Position WindowPosition()
@@ -378,19 +388,7 @@ internal sealed class OverlayWindow : IDisposable
     /// The overlay as its last paint drew it, painted afresh without what only the open window or a broken file adds; the
     /// "Sensors stopped" pill while they are. Null before the first paint.
     /// </summary>
-    internal Bitmap? Picture()
-    {
-        if (_painted is not { } painted || _scene is null)
-        {
-            return null;
-        }
-
-        using var painter = new Painter();
-        IReadOnlyList<OverlayItem> items = [.. painted.Items.Where(item => item.Id.Length > 0)];
-        return painted.Stopped || items.Count == 0
-            ? painter.PaintStopped(Translations.Of(OverlayText.SensorsStopped), painted.Look, painted.Scale, items)
-            : painter.Paint(items, painted.Look, painted.Scale);
-    }
+    internal Bitmap? Picture() => _painted is { } painted && _scene is not null ? painted.Picture(Translations.Of(OverlayText.SensorsStopped)) : null;
 
     internal void UndoGesture() => _gestures.Undo();
 }

@@ -24,21 +24,20 @@ public static class DesktopGestures
     /// <summary>
     /// A drag let go with the pill or overlay it moved at <paramref name="dropped"/>, or on the <paramref name="mark"/> it
     /// was dropped on. The pill of <paramref name="takenOff"/>, an item whose pill the press <see cref="Lifts"/>, joins the
-    /// overlay it was dropped <paramref name="onto"/> before the pill of the item <paramref name="before"/>, or becomes an
-    /// overlay of its own where it was dropped; without one, the overlay merges into the overlay it was dropped onto, or
-    /// goes where it was dropped.
+    /// overlay it was dropped <paramref name="onto"/> before the pill of the item <paramref name="before"/>, its own included,
+    /// where it moves to that place, or becomes an overlay of its own where it was dropped; without one, the overlay merges
+    /// into the overlay it was dropped onto at that place too, or goes where it was dropped.
     /// </summary>
     public static DesktopDrop Release(ThermiConfig config, int overlay, string? takenOff, Position dropped, int? onto, SnapConfig? mark, string? before = null)
     {
-        var other = onto is { } under && under != overlay ? onto : null;
         if (takenOff is not null)
         {
-            return other is { } into
-                ? new DesktopDrop(GestureKind.Merge, OverlayEdits.PillInto(config, takenOff, into, before))
+            return onto is { } into
+                ? new DesktopDrop(into == overlay ? GestureKind.Move : GestureKind.Merge, OverlayEdits.PillInto(config, takenOff, into, before))
                 : new DesktopDrop(GestureKind.DragOff, OverlayEdits.DragOff(config, takenOff, dropped, mark));
         }
 
-        return other is { } target ? new DesktopDrop(GestureKind.Merge, OverlayEdits.Merge(config, overlay, target))
+        return onto is { } target && target != overlay ? new DesktopDrop(GestureKind.Merge, OverlayEdits.Merge(config, overlay, target, before))
             : new DesktopDrop(GestureKind.Move, mark is { } snap ? OverlayEdits.Snap(config, overlay, snap) : OverlayEdits.Drop(config, overlay, dropped));
     }
 

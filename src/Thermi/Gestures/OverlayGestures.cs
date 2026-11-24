@@ -18,6 +18,17 @@ internal sealed record PaintedOverlay(IReadOnlyList<OverlayItem> Items, OverlayL
 {
     /// <summary>Whether the "Sensors stopped" pill led the items.</summary>
     public bool Stopped { get; init; }
+
+    /// <summary>
+    /// The overlay painted afresh without what only the open window or a broken file adds; the "Sensors stopped" pill,
+    /// with <paramref name="stopped"/> in it, while they are.
+    /// </summary>
+    public Bitmap Picture(string stopped)
+    {
+        using var painter = new Painter();
+        IReadOnlyList<OverlayItem> items = [.. Items.Where(item => item.Id.Length > 0)];
+        return Stopped || items.Count == 0 ? painter.PaintStopped(stopped, Look, Scale, items) : painter.Paint(items, Look, Scale);
+    }
 }
 
 /// <summary>
@@ -30,11 +41,17 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     /// <summary>The timer that wakes the overlay when a press on a pill may have held long enough to lift it.</summary>
     internal const nuint HoldTimer = 3;
 
+    /// <summary>The id of Esc, which a press holds as a hotkey of the overlay's, so it cancels the drag and reaches no other app.</summary>
+    internal const nuint EscapeKey = 1;
+
     // The corner of a floating overlay that resizes it, in pixels at 100 %, square.
     private const float CornerSize = 14;
 
     // When the press began, on the injected clock, which says whether it held long enough.
     private long _pressed;
+
+    // Whether Esc is the overlay's hotkey now, which it lets go with the press.
+    private bool _escape;
 
     /// <summary>The drag a press holds, which the overlay is painted as, or null.</summary>
     public DesktopDrag? Drag { get; private set; }
@@ -43,6 +60,12 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
 
     /// <summary>Where the overlay goes while a press holds it: where the drag has it, unless it carries a pill off or holds the corner.</summary>
     public Position? HeldAt(Position? dragged) => Drag?.Moves == false ? null : dragged;
+
+    /// <summary>Whether a drag holds the overlay or is over it, which keeps it whole, without its fade.</summary>
+    public bool Holds => Drag is not null || actions.Preview.Onto == index;
+
+    // A lifted pill leaves its overlay in place, which a drop back on it joins as any other.
+    private int Self => Drag?.Lifted == true ? -1 : index;
 
     /// <summary>
     /// A press on <paramref name="overlay"/> at <paramref name="at"/>: on its corner, its edge, or the pill of the item it
@@ -56,6 +79,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         var start = new DragStart(held, item, on.Box, at, painted.Size, painted.Scale, item is null ? null : () => PillPicture(item, painted));
         Drag = new DesktopDrag(index, settings, start, screens, hwnd);
         _pressed = actions.Time.GetTimestamp();
+        _escape = PInvoke.RegisterHotKey(hwnd, (int)EscapeKey, HOT_KEY_MODIFIERS.MOD_NOREPEAT, (uint)VIRTUAL_KEY.VK_ESCAPE);
         if (held == Held.Pill)
         {
             Wake(DesktopGestures.Hold);
@@ -79,6 +103,10 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         }
 
         Drag.Lift(held);
+        if (Drag.Lifted)
+        {
+            actions.RequestPaint();
+        }
     }
 
     private void Wake(TimeSpan after) => PInvoke.SetTimer(hwnd, HoldTimer, (uint)Math.Ceiling(after.TotalMilliseconds), null);
@@ -98,29 +126,31 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
                 SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
-        var over = dragged is not null && actions.OverlayAt(index, actions.Cursor()) is not null;
-        if (Drag?.Moved(dragged, over) == true)
+        var target = dragged is null || Drag?.Resizes != false ? default : Target(actions.Cursor());
+        var moved = Drag?.Moved(dragged, target.Onto is not null) == true;
+        // The overlay a drop would join marks where, which it paints.
+        var previewed = actions.Preview.Over(target);
+        if (previewed || moved)
         {
             actions.RequestPaint();
         }
     }
 
-    /// <summary>A drag dropped onto another overlay merges into it; the corner's preview ends with the press either way.</summary>
+    /// <summary>A drag dropped onto an overlay joins it; the corner's preview ends with the press either way.</summary>
     public void Release(Press press, DragDistance distance)
     {
         var cursor = actions.Cursor();
-        var merging = Drag?.Merging == true;
-        var onto = actions.OverlayAt(index, cursor);
-        Drag?.Release(press, cursor, distance, new DropTarget(onto, onto is { } target ? actions.ItemAfter(target, cursor) : null), actions.Gestures);
+        Drag?.Release(press, cursor, distance, Target(cursor), actions.Gestures);
         Let();
-        // A merge refused writes nothing that would paint it whole again.
-        if (merging)
-        {
-            actions.RequestPaint();
-        }
     }
 
-    /// <summary>Whether Esc was down as the message being handled was sent, which cancels a drag.</summary>
+    private DropTarget Target(Position cursor) =>
+        actions.OverlayAt(Self, cursor) is { } onto ? new DropTarget(onto, actions.ItemAfter(onto, cursor)) : default;
+
+    /// <summary>
+    /// Whether Esc was down as the message being handled was sent, which cancels a drag: read as the mouse moves for when
+    /// another app holds Esc as its hotkey.
+    /// </summary>
     public static bool Escape() => PInvoke.GetKeyState((int)VIRTUAL_KEY.VK_ESCAPE) < 0;
 
     /// <summary>Lets the mouse go after Esc cancelled the press; the change of capture that follows finds no press.</summary>
@@ -136,8 +166,34 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     public void Let()
     {
         PInvoke.KillTimer(hwnd, HoldTimer);
+        if (_escape)
+        {
+            PInvoke.UnregisterHotKey(hwnd, (int)EscapeKey);
+            _escape = false;
+        }
+
         Drag?.Dispose();
         Drag = null;
+        if (actions.Preview.Over(default))
+        {
+            actions.RequestPaint();
+        }
+    }
+
+    /// <summary>
+    /// Marks what the drag shows on the overlay's last paint: the gap a lifted pill leaves, and where a drop joins it.
+    /// </summary>
+    public void Mark(Bitmap bitmap, IReadOnlyList<PaintedItem> places, float scale, bool vertical, Rgb accent)
+    {
+        if (Drag is { Lifted: true } drag)
+        {
+            DragMarks.Gap(bitmap, drag.PillBox, scale);
+        }
+
+        if (actions.Preview.Onto == index)
+        {
+            DragMarks.Join(bitmap, places, actions.Preview.Before, vertical, accent, scale);
+        }
     }
 
     /// <summary>A double-click on the corner, which sets the overlay back to its own size; false anywhere else.</summary>
@@ -156,6 +212,18 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
             actions.Gestures?.Add(GestureKind.Resize, before, after.Config);
         }
 
+        return true;
+    }
+
+    /// <summary>Shows the resizing cursor on a floating overlay's corner; false elsewhere, where the class's cursor shows.</summary>
+    public bool CornerCursor(OverlayConfig overlay, PaintedOverlay? painted, Position at)
+    {
+        if (!InCorner(overlay, painted, at, actions.Cursor()))
+        {
+            return false;
+        }
+
+        PInvoke.SetCursor(PInvoke.LoadCursor(HINSTANCE.Null, PInvoke.IDC_SIZENWSE));
         return true;
     }
 

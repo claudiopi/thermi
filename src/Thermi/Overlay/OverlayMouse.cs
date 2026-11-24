@@ -38,6 +38,14 @@ internal sealed class OverlayMouse
     /// <summary>Where a drag in progress has the overlay once past the drag distance, so a repaint leaves it there.</summary>
     public Position? Dragged { get; private set; }
 
+    /// <summary>Ends the press, as Esc does, without a release: false when there was none.</summary>
+    public bool Cancel()
+    {
+        var pressed = _press is not null;
+        (_press, Dragged) = (null, null);
+        return pressed;
+    }
+
     /// <summary>
     /// The step for <paramref name="message"/>, with the cursor and the overlay's corner where they are now, and whether
     /// Esc was down when it was sent.
@@ -50,7 +58,8 @@ internal sealed class OverlayMouse
                 (_press, Dragged) = (new Press(cursor, overlay), null);
                 return new MouseStep(MouseAction.Capture);
 
-            // The overlay never has the keyboard's focus, so no Esc reaches it: its state is read as each move was sent.
+            // The overlay never has the keyboard's focus: while another app holds Esc as its hotkey, Esc's state is read as each
+            // move was sent.
             case PInvoke.WM_MOUSEMOVE when _press is not null && escape:
                 (_press, Dragged) = (null, null);
                 return new MouseStep(MouseAction.Lost);

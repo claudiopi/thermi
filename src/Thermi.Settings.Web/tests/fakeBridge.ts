@@ -117,6 +117,7 @@ function installFake(initial: FakeState): void {
     },
     texts: async () => state.texts,
     monitors: async () => state.monitors,
+    places: async () => state.places,
     report: async () => undefined,
     looks: async () => state.looks,
     saveLook: async (overlay, name) => (await ask('saveLook', overlay, name)) as string | null,

@@ -415,6 +415,7 @@ export interface Bridge {
   history(id: string): Promise<(number | null)[]>;
   texts(): Promise<Record<string, string>>;
   monitors(): Promise<Monitor[]>;
+  places(): Promise<(Rect | null)[]>;
   report(error: string): Promise<void>;
   looks(): Promise<Record<string, Style>>;
   saveLook(overlay: number, name: string): Promise<string | null>;
