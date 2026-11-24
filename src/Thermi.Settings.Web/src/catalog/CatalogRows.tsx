@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type Ref } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode, type Ref } from 'react';
 import type { CatalogGroup, CatalogRow, NoValue } from '../bridge/bridge.g';
-import { Icon, Tooltip } from '../kit';
+import { HighlightedText, Icon, Tooltip } from '../kit';
 import { useText, type TextKey } from '../texts/Texts';
 import { Sparkline } from './Sparkline';
 
@@ -47,6 +47,24 @@ function moveFocus(event: KeyboardEvent<HTMLDivElement>, onLeaveUp: () => void):
     rows[Math.max(0, Math.min(rows.length - 1, next))]?.focus();
   }
   return true;
+}
+
+/** A device's name with what the search matched of it, after its group where it has one, as "Network · Intel I226-V". */
+function GroupName({ name, marks, kind }: { name: string; marks: CatalogGroup['marks']; kind: string | null }) {
+  const t = useText();
+  const marked = <HighlightedText text={name} marks={marks} />;
+  if (kind === null) {
+    return marked;
+  }
+  // The name stands where the translation puts it.
+  const [before = '', after = ''] = t('UiText.SensorOn', kind, '\u0000').split('\u0000');
+  return (
+    <>
+      {before}
+      {marked}
+      {after}
+    </>
+  );
 }
 
 /** The box that renames a sensor in its row: Enter or leaving it keeps the name, Esc puts it back. */
@@ -121,16 +139,20 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
       onRename(row.id, name.trim());
     }
   };
-  // Why it reads nothing comes first, then that its name is only likely, then the items that show it.
-  const under = (row: CatalogRow): string => {
+  // Why it reads nothing comes first, then the metric it feeds when a search found it by that, then that its name is only
+  // likely, then the items that show it; its note or type, the line the search marks, last.
+  const under = (row: CatalogRow): ReactNode => {
     if (row.why !== null) {
       return t(reasons[row.why]);
+    }
+    if (row.alias !== null) {
+      return <HighlightedText text={row.alias} marks={row.aliasMarks} />;
     }
     const names = shownBy(row.id);
     if (row.from !== 'likely' && names.length > 0) {
       return t('CatalogText.ShownAs', names.join(', '));
     }
-    return row.note ?? t(kindKey(row.kind));
+    return <HighlightedText text={row.note ?? t(kindKey(row.kind))} marks={row.lineMarks} />;
   };
   return (
     <div ref={ref} className="t-cat-list" role="listbox" aria-label={t('UiText.Catalog')}>
@@ -140,7 +162,7 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
         return (
           <div key={group.id} role="group" aria-labelledby={heading}>
             <div id={heading} className="t-cat-dev">
-              {kind === undefined ? group.name : t('UiText.SensorOn', t(kind), group.name)}
+              <GroupName name={group.name} marks={group.marks} kind={kind === undefined ? null : t(kind)} />
             </div>
             {group.sensors.map((row) => {
               if (row.id === renaming) {
@@ -152,7 +174,9 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
               }
               const name = (
                 <span className="t-cat-name">
-                  <span className="t-cat-n">{row.name}</span>
+                  <span className="t-cat-n">
+                    <HighlightedText text={row.name} marks={row.marks} />
+                  </span>
                   <span className={`t-cat-d${row.why === null ? '' : ' t-cat-why'}`}>{under(row)}</span>
                 </span>
               );

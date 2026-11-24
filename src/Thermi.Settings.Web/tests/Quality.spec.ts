@@ -43,6 +43,15 @@ const pages: View[] = [
 
 const dialogsAndMenus: View[] = [
   { name: 'the catalog', open: (page) => page.keyboard.press('Control+N') },
+  // A search marks what matched in each row, and the metric a sensor feeds where its name does not say it.
+  { name: 'the catalog searching', open: async (page) => {
+    await page.keyboard.press('Control+N');
+    await page.getByRole('searchbox').fill('cpu temp');
+  } },
+  { name: 'the Sensor dropdown filtering', open: async (page, say) => {
+    await page.getByRole('main').getByRole('combobox', { name: say('UiText.SensorField') }).press('Alt+ArrowDown');
+    await page.keyboard.type('ccd');
+  } },
   // Over the Placement column, whose map draws its spots above the page.
   { name: 'the catalog over an overlay', open: async (page) => {
     await list(page).getByRole('treeitem', { level: 1 }).first().click();

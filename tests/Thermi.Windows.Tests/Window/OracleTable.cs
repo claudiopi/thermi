@@ -27,6 +27,16 @@ internal sealed class OracleTable
 
     public JsonArray Cases => _root["cases"]?.AsArray() ?? throw new InvalidDataException("The oracle has no cases.");
 
+    /// <summary>The calls whose answer holds whatever came before them, as a search, each with its answer, from no start of their own.</summary>
+    public JsonArray Pure
+    {
+        get
+        {
+            _root["pure"] ??= new JsonArray();
+            return _root["pure"]!.AsArray();
+        }
+    }
+
     private string FilePath => Path.Combine(_web, "tests", "oracle", "edits.json");
 
     private string Results => Path.Combine(_web, "test-results", "oracle-misses");
@@ -40,8 +50,16 @@ internal sealed class OracleTable
     /// </summary>
     public void Merge()
     {
-        var misses = Lines("misses").OfType<JsonObject>().OrderBy(miss => miss["calls"]?.AsArray().Count ?? 0);
-        foreach (var miss in misses)
+        var misses = Lines("misses").OfType<JsonObject>().OrderBy(miss => miss["calls"]?.AsArray().Count ?? 0).ToList();
+        foreach (var pure in misses.Select(miss => miss["pure"]).OfType<JsonObject>())
+        {
+            if (!Pure.Any(one => JsonNode.DeepEquals(one?["method"], pure["method"]) && JsonNode.DeepEquals(one?["args"], pure["args"])))
+            {
+                Pure.Add(new JsonObject { ["method"] = pure["method"]?.DeepClone(), ["args"] = pure["args"]?.DeepClone() });
+            }
+        }
+
+        foreach (var miss in misses.Where(miss => miss["pure"] is null))
         {
             var id = miss["start"]?.GetValue<string>() ?? "";
             Starts[id] ??= miss["state"]?.DeepClone();
@@ -76,6 +94,9 @@ internal sealed class OracleTable
     public void Prune()
     {
         var used = Lines("used").OfType<JsonObject>().ToList();
+
+        // A run whose tests never started used nothing, and would leave an empty table.
+        Assert.NotEmpty(used);
         var depths = used.SelectMany(one => one["cases"]?.AsArray() ?? []).OfType<JsonArray>()
             .GroupBy(pair => pair[0]!.GetValue<int>(), pair => pair[1]!.GetValue<int>())
             .ToDictionary(group => group.Key, group => group.Max());
@@ -91,6 +112,11 @@ internal sealed class OracleTable
 
             Cases.Add(one.DeepClone());
         }
+
+        var pure = used.SelectMany(one => one["pure"]?.AsArray() ?? []).Select(index => index!.GetValue<int>()).ToHashSet();
+        var kept = Pure.Where((_, index) => pure.Contains(index)).Select(one => one!.DeepClone()).ToList();
+        Pure.Clear();
+        kept.ForEach(Pure.Add);
 
         var starts = used.SelectMany(one => one["starts"]?.AsArray() ?? []).Select(start => start?.GetValue<string>()).ToHashSet();
         foreach (var id in Starts.Select(pair => pair.Key).Where(id => !starts.Contains(id)).ToList())
@@ -111,6 +137,8 @@ internal sealed class OracleTable
                 $"    {{ \"start\": {one?["start"]?.ToJsonString()}, \"calls\": [\n"
                 + string.Join(",\n", (one?["calls"]?.AsArray() ?? []).Select(call => $"      {call?.ToJsonString(Written)}"))
                 + "\n    ] }"));
+        text.Append("\n  ],\n  \"pure\": [\n");
+        text.AppendJoin(",\n", Pure.Select(call => $"    {call?.ToJsonString(Written)}"));
         text.Append("\n  ]\n}\n");
         File.WriteAllText(FilePath, text.ToString());
         if (Directory.Exists(Results))

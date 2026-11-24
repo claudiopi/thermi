@@ -1,4 +1,6 @@
 using System.Globalization;
+using Thermi.Core.Search;
+using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 
 namespace Thermi.Core.Sensors;
@@ -54,13 +56,27 @@ public enum NoValue
 /// rule, <see cref="Why"/> says why it has no usable value, or is null when it has one, and <see cref="Name"/> is the
 /// name the window shows for it.
 /// </summary>
-public sealed record CatalogSensor(string Id, RawSensor Sensor, Reading Reading, NoValue? Why, SensorName Name);
+public sealed record CatalogSensor(string Id, RawSensor Sensor, Reading Reading, NoValue? Why, SensorName Name)
+{
+    /// <summary>Its second line where nothing else is said of it: its name's note, or else its type.</summary>
+    public string Line { get; init; } = "";
+
+    /// <summary>The names of the metrics that read it on this PC, as "CPU temperature", which find it too.</summary>
+    public IReadOnlyList<string> Feeds { get; init; } = [];
+
+    /// <summary>What a search matched of it, or null when none was made.</summary>
+    public Found? Found { get; init; }
+}
 
 /// <summary>
 /// One device and its sensors. <see cref="Id"/> is the library's id of the device, so two of the same model stay apart.
 /// <see cref="Kind"/> is the group the window lists it under, as Network, Disk or Battery; null for one of no known kind.
 /// </summary>
-public sealed record CatalogDevice(string Id, string Name, IReadOnlyList<CatalogSensor> Sensors, DeviceKind? Kind = null);
+public sealed record CatalogDevice(string Id, string Name, IReadOnlyList<CatalogSensor> Sensors, DeviceKind? Kind = null)
+{
+    /// <summary>The spans of its name that a search's words start.</summary>
+    public IReadOnlyList<Mark> Marks { get; init; } = [];
+}
 
 /// <summary>Every sensor the service reads, grouped by device, and the search and type filter over them.</summary>
 public static class SensorCatalog
@@ -87,25 +103,41 @@ public static class SensorCatalog
     /// The devices in the order the service reports them, each with its sensors by type, in the library's order within one
     /// type, named as <see cref="SensorNames.Of"/> names them with the user's names <paramref name="own"/>.
     /// </summary>
-    public static IReadOnlyList<CatalogDevice> Build(Snapshot snapshot, IReadOnlyDictionary<string, string>? own = null, Texts? texts = null) =>
-    [
-        .. SensorNames.All(snapshot, own, texts)
-            .Select(named => Row(named.Id, named.Sensor, named.Name))
-            .OfType<CatalogSensor>()
-            .GroupBy(row => SensorMap.DeviceIdOf(row.Sensor), StringComparer.Ordinal)
-            .Select(device => new CatalogDevice(
-                device.Key,
-                device.First().Sensor.Hardware,
-                [.. device.OrderBy(row => row.Reading.Kind)],
-                SensorMap.DeviceOf(device.First().Sensor))),
-    ];
+    public static IReadOnlyList<CatalogDevice> Build(Snapshot snapshot, IReadOnlyDictionary<string, string>? own = null, Texts? texts = null)
+    {
+        var language = texts ?? Texts.English;
+        var chosen = SensorMap.Chosen(snapshot, new OverlayConfig { Items = [] });
+        return
+        [
+            .. SensorNames.All(snapshot, own, texts)
+                .Select(named => Row(named.Id, named.Sensor, named.Name) is { } row
+                    ? row with
+                    {
+                        Line = SensorNames.NoteOf(row.Name, language, CultureInfo.InvariantCulture) ?? language.Of(row.Reading.Kind),
+                        Feeds =
+                        [
+                            .. Metrics.All
+                                .Where(metric => Equals(chosen.GetValueOrDefault(metric.Id), named.Sensor))
+                                .Select(metric => language.Of(metric.Name)),
+                        ],
+                    }
+                    : null)
+                .OfType<CatalogSensor>()
+                .GroupBy(row => SensorMap.DeviceIdOf(row.Sensor), StringComparer.Ordinal)
+                .Select(device => new CatalogDevice(
+                    device.Key,
+                    device.First().Sensor.Hardware,
+                    [.. device.OrderBy(row => row.Reading.Kind)],
+                    SensorMap.DeviceOf(device.First().Sensor))),
+        ];
+    }
 
     /// <summary>
-    /// The sensors whose name, the library's or the one shown, its note, device or type has a word starting with every word of
-    /// <paramref name="search"/>, ignoring case, and whose type is
-    /// one of <paramref name="kinds"/>, or any type when there are none. A device without such a sensor is left out. A type
-    /// matches by the library's name and by its name in the language of <paramref name="texts"/>, and a word also matches as
-    /// the start of a common synonym of the type or the kind of device, in that language or in English, as "heat" or "ssd".
+    /// The sensors whose type is one of <paramref name="kinds"/>, or any when there are none, that the window's search
+    /// (<see cref="SearchIndex"/>) finds for <paramref name="search"/>: by the name shown, its second line, the metrics it
+    /// feeds, as "CPU temperature", and by the library's name, its device and its type, in English and in the language of
+    /// <paramref name="texts"/>, and the common synonyms of its type and kind of device in both, as "heat" or "ssd". The
+    /// best come first, each device where its best sensor is, and each sensor and device holds what matched.
     /// </summary>
     public static IReadOnlyList<CatalogDevice> Filter(
         IReadOnlyList<CatalogDevice> devices,
@@ -113,22 +145,38 @@ public static class SensorCatalog
         IReadOnlyCollection<SensorKind> kinds,
         Texts? texts = null)
     {
-        var language = texts ?? Texts.English;
-        var words = WordsOf(search);
+        var rows = RowsOf(devices, kinds);
         return
         [
-            .. devices
-                .Select(device => device with
+            .. Index(rows, texts ?? Texts.English).Find(search)
+                .GroupBy(found => rows[found.Index].Device.Id, StringComparer.Ordinal)
+                .Select(device => rows[device.First().Index].Device with
                 {
-                    Sensors =
-                    [
-                        .. device.Sensors.Where(row =>
-                            (kinds.Count == 0 || kinds.Contains(row.Reading.Kind)) && words.All(word => Matches(device, row, word, language))),
-                    ],
-                })
-                .Where(device => device.Sensors.Count > 0),
+                    Sensors = [.. device.Select(found => rows[found.Index].Row with { Found = found })],
+                    Marks = SearchIndex.MarksIn(rows[device.First().Index].Device.Name, search),
+                }),
         ];
     }
+
+    private static List<(CatalogDevice Device, CatalogSensor Row)> RowsOf(IReadOnlyList<CatalogDevice> devices, IReadOnlyCollection<SensorKind> kinds) =>
+        [.. devices.SelectMany(device => device.Sensors.Where(row => kinds.Count == 0 || kinds.Contains(row.Reading.Kind)).Select(row => (device, row)))];
+
+    // A probable name's note is its second line, so "likely" finds every probable name as its row reads.
+    private static SearchIndex Index(List<(CatalogDevice Device, CatalogSensor Row)> rows, Texts texts) =>
+        new([
+            .. rows.Select(each => new Findable(
+                each.Row.Name.Shown,
+                each.Row.Line,
+                each.Row.Feeds,
+                [
+                    each.Row.Sensor.Name,
+                    each.Device.Name,
+                    each.Row.Sensor.Type,
+                    texts.Of(each.Row.Reading.Kind),
+                    .. SynonymsOf(each.Device, each.Row, texts),
+                    .. SynonymsOf(each.Device, each.Row, Texts.English),
+                ])),
+        ]);
 
     /// <summary>
     /// When <paramref name="search"/> lists nothing, the one word nearest to the first word typed that lists nothing alone,
@@ -138,7 +186,8 @@ public static class SensorCatalog
     public static string? Suggest(IReadOnlyList<CatalogDevice> devices, string search, Texts? texts = null)
     {
         var language = texts ?? Texts.English;
-        if (WordsOf(search).FirstOrDefault(word => Filter(devices, word, [], language).Count == 0) is not { } typed)
+        var index = Index(RowsOf(devices, []), language);
+        if (WordsOf(search).FirstOrDefault(word => index.Find(word).Count == 0) is not { } typed)
         {
             return null;
         }
@@ -152,7 +201,7 @@ public static class SensorCatalog
             .Distinct(StringComparer.Ordinal);
         var lower = typed.ToLower(CultureInfo.InvariantCulture);
         return vocabulary
-            .Where(word => Filter(devices, word, [], language).Count > 0)
+            .Where(word => index.Find(word).Count > 0)
             .Select(word => (Word: word, Distance: Distance(lower, word)))
             .Where(near => near.Distance <= Math.Max(1, lower.Length / 3))
             .OrderBy(near => near.Distance)
@@ -162,37 +211,6 @@ public static class SensorCatalog
     }
 
     private static string[] WordsOf(string search) => search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-    // A word matches where a word of the text starts, so "ip" finds "Local IP" and not "Chipset"; a probable name's note
-    // counts, so "likely" finds every probable name as its row reads.
-    private static bool Matches(CatalogDevice device, CatalogSensor row, string word, Texts texts) =>
-        new[]
-        {
-            row.Sensor.Name,
-            row.Name.Shown,
-            device.Name,
-            row.Sensor.Type,
-            texts.Of(row.Reading.Kind),
-            SensorNames.NoteOf(row.Name, texts, CultureInfo.InvariantCulture) ?? "",
-        }
-            .Any(text => StartsAWord(text, word))
-        || SynonymsOf(device, row, texts)
-            .Concat(SynonymsOf(device, row, Texts.English))
-            .Any(synonym => synonym.StartsWith(word, StringComparison.OrdinalIgnoreCase));
-
-    // A word starts at the text's start, after a sign or a space, or as digits after letters, as "5060" in "RTX5060".
-    private static bool StartsAWord(string text, string word)
-    {
-        for (var at = text.IndexOf(word, StringComparison.OrdinalIgnoreCase); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.OrdinalIgnoreCase))
-        {
-            if (at == 0 || !char.IsLetterOrDigit(text[at - 1]) || (char.IsDigit(word[0]) && !char.IsDigit(text[at - 1])))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static IEnumerable<string> SynonymsOf(CatalogDevice device, CatalogSensor row, Texts texts) =>
         new[] { Enum.Parse<Synonyms>(row.Reading.Kind.ToString()) }

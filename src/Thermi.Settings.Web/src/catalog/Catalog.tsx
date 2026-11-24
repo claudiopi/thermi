@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { CatalogView, SensorKind } from '../bridge/bridge.g';
 import { bridge, type WindowData } from '../bridge/useWindow';
 import { Button, Chips, Dropdown, Icon, Panel, SearchField, ToggleChip } from '../kit';
@@ -31,14 +31,20 @@ const kindKey = (kind: SensorKind): TextKey => `SensorKind.${kind.charAt(0).toUp
 /** How long the search waits for the typing to stop before Narrator says the count, as the prototype. */
 const sayAfter = 500;
 
-/** The last catalog the C# side gave, so the list stays while the next search is read. */
-function useLastCatalog(search: string, kinds: SensorKind[], all: boolean, version: number): CatalogView | null {
+/** The search's keys that act on the list: Down into it, Enter to add its first, Ctrl+Enter to add it and stay. */
+type ListKey = 'ArrowDown' | 'Enter' | 'Control+Enter';
+
+/**
+ * The last catalog the C# side gave, so the list stays while the next search is read, and whether it answers this one:
+ * a key that acts on the list waits for that.
+ */
+function useLastCatalog(search: string, kinds: SensorKind[], all: boolean, version: number): { view: CatalogView | null; fresh: boolean } {
   const view = useCatalog(search, kinds, all, version);
   const [last, setLast] = useState(view);
   if (view !== null && view !== last) {
     setLast(view);
   }
-  return view ?? last;
+  return { view: view ?? last, fresh: view !== null };
 }
 
 interface TitleProps {
@@ -106,7 +112,9 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
   const [chip, setChip] = useState('all');
   const [showAll, setShowAll] = useState(false);
   const [to, setTo] = useState(ask.overlay);
-  const view = useLastCatalog(typed, chip === 'all' ? [] : [chip as SensorKind], showAll, data.changes);
+  const { view, fresh } = useLastCatalog(typed, chip === 'all' ? [] : [chip as SensorKind], showAll, data.changes);
+  // Down or Enter typed before the list answers what is typed, as fast typing does, act on that answer, not the last.
+  const waiting = useRef<ListKey | null>(null);
   const counted = useSaidCount(typed, view, announce);
   const hidden = view?.hidden ?? 0;
   const kinds = [{ value: 'all', text: t('CatalogText.AllKinds') }, ...chipKinds.map((kind) => ({ value: kind, text: t(kindKey(kind)) }))];
@@ -126,16 +134,38 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
     void bridge()?.edit({ kind: 'sensorName', sensor, name });
   };
   const first = view?.groups[0]?.sensors[0];
+  const act = (key: ListKey): void => {
+    if (key === 'ArrowDown') {
+      results.current?.querySelector<HTMLElement>('[role="option"]')?.focus();
+    } else if (first !== undefined) {
+      handlePick(first.id, key === 'Control+Enter');
+    }
+  };
+  const actOnAnswer = useEffectEvent(() => {
+    const key = waiting.current;
+    waiting.current = null;
+    if (key !== null) {
+      act(key);
+    }
+  });
+  useEffect(() => {
+    if (fresh) {
+      actOnAnswer();
+    }
+  }, [fresh]);
   const handleSearchKey = (event: KeyboardEvent<HTMLInputElement>): void => {
-    const run: Partial<Record<string, () => void>> = {
-      Escape: typed === '' ? undefined : () => setTyped(''),
-      ArrowDown: () => results.current?.querySelector<HTMLElement>('[role="option"]')?.focus(),
-      Enter: first === undefined ? undefined : () => handlePick(first.id, event.ctrlKey),
-    };
-    const action = run[event.key];
-    if (action !== undefined) {
+    const key = event.key === 'Enter' && event.ctrlKey ? 'Control+Enter' : event.key;
+    const onList = key === 'ArrowDown' || ((key === 'Enter' || key === 'Control+Enter') && (!fresh || first !== undefined));
+    if (key === 'Escape' && typed !== '') {
       event.preventDefault();
-      action();
+      setTyped('');
+    } else if (onList) {
+      event.preventDefault();
+      if (fresh) {
+        act(key);
+      } else {
+        waiting.current = key;
+      }
     }
   };
   return (

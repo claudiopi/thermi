@@ -13,6 +13,7 @@ export interface CatalogGroup {
   name: string;
   kind: DeviceKind | null;
   sensors: CatalogRow[];
+  marks: Mark[];
 }
 
 export interface CatalogRow {
@@ -25,6 +26,10 @@ export interface CatalogRow {
   minute: (number | null)[];
   note: string | null;
   tip: string | null;
+  marks: Mark[];
+  lineMarks: Mark[];
+  alias: string | null;
+  aliasMarks: Mark[];
 }
 
 export interface CatalogView {
@@ -102,6 +107,13 @@ export type Edit =
 
 export type FanFinderRefusal = 'no-board-fans' | 'driver-may-be-missing';
 
+export interface Findable {
+  title: string;
+  detail: string;
+  aliases: string[];
+  words: string[];
+}
+
 export type FinderPhase = 'idle' | 'running' | 'done' | 'cancelled';
 
 export interface FinderView {
@@ -111,6 +123,14 @@ export interface FinderView {
   text?: string;
   detail?: string;
   refusal?: FanFinderRefusal;
+}
+
+export interface Found {
+  index: number;
+  title: Mark[];
+  detail: Mark[];
+  alias: string | null;
+  aliasMarks: Mark[];
 }
 
 export type HotkeyRole = 'toggle' | 'nextStyle' | 'clickThrough' | 'resetMinMax';
@@ -169,6 +189,11 @@ export type Level = 'normal' | 'warning' | 'critical';
 export type Line = 'warning' | 'critical';
 
 export type MarkState = 'calm' | 'warm' | 'hot' | 'stopped' | 'high-contrast' | 'app';
+export interface Mark {
+  from: number;
+  to: number;
+}
+
 
 export interface Meter {
   metric?: string;
@@ -400,6 +425,7 @@ export interface Bridge {
   finder(): Promise<FinderView>;
   installDriver(): Promise<DriverInstall>;
   startService(): Promise<boolean>;
+  search(query: string, among: Findable[]): Promise<Found[]>;
   startOverlay(): Promise<void>;
   restore(): Promise<void>;
   startWithWindows(): Promise<boolean>;

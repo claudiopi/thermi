@@ -1,9 +1,9 @@
-import type { CatalogGroup, CatalogRow, CatalogView, DeviceKind, NoValue, Sensor, SensorKind } from '../bridgeTypes';
+import type { CatalogFound, CatalogGroup, CatalogRow, CatalogView, DeviceKind, Mark, NoValue, Sensor, SensorKind } from '../bridgeTypes';
 
 // The C# side's catalog and CPU fan finder, as the fake gives them. Core decides both for real and tests them; the
-// fake follows the same rules in rough form, only so the page has something true to show. A sensor's rename is the real
-// bridge's answer, which the fake replays. It runs in the page after the fake and its views, so it may use nothing but
-// types.
+// fake follows the same rules in rough form, only so the page has something true to show. What a search finds, in what
+// order and with what marked, is Core's answer, and a sensor's rename the real bridge's, which the fake replays. It runs
+// in the page after the fake and its views, so it may use nothing but types.
 export function installFakeCatalog(): void {
   const fake = window.thermiFake;
   const bridge = window.thermi;
@@ -47,13 +47,6 @@ export function installFakeCatalog(): void {
   const minute = (value: number | null): (number | null)[] =>
     Array.from({ length: 60 }, (_, index) => (value === null || value === 0 ? value : value * (1 + 0.06 * Math.sin(index / 4) + 0.03 * Math.cos(index / 1.7))));
 
-  const matches = (sensor: Sensor, kind: SensorKind, word: string): boolean => {
-    const device = devices[sensor.hardwareType];
-    const synonyms = [say(`Synonyms.${capital(kind)}`), device === undefined ? '' : say(`Synonyms.${capital(device)}`)].join(' ').split(' ');
-    const said = [sensor.name, sensor.hardware, sensor.type, say(`SensorKind.${capital(kind)}`)];
-    return said.some((one) => one.toLowerCase().includes(word)) || synonyms.some((synonym) => synonym !== '' && synonym.startsWith(word));
-  };
-
   // Gigabyte's ITE wiring, the user's names, and the rows nobody would add, as Core has them.
   const likely: Record<string, string> = {
     'Temperature #1': 'System',
@@ -92,40 +85,86 @@ export function installFakeCatalog(): void {
   const hides = (sensor: Sensor, row: CatalogRow): boolean =>
     row.why === 'reads-nothing' || row.why === 'stopped' || (devices[sensor.hardwareType] === 'gpu' && sensor.name.startsWith('D3D '));
 
-  bridge.catalog = async (search: string, chosen: SensorKind[], all: boolean): Promise<CatalogView> => {
-    const values = (await bridge.view()).values;
-    const words = search.toLowerCase().split(' ').filter((word) => word !== '');
-    const groups: CatalogGroup[] = [];
-    const sensors = state.service === 'stopped' ? [] : state.sensors;
-    let hidden = 0;
+  // Every row of the types chosen, by device as the service lists them and by type within one, as Core builds them.
+  type Listed = { sensor: Sensor; row: CatalogRow };
+  const rowsOf = (values: Record<string, string>, chosen: SensorKind[]): Listed[] => {
+    const rows: Listed[] = [];
     // The library repeats a few ids; Core numbers the repeats, as "#2", so each row has its own.
     const seen = new Map<string, number>();
-    for (const sensor of sensors) {
+    for (const sensor of state.service === 'stopped' ? [] : state.sensors) {
       const repeat = (seen.get(sensor.id) ?? 0) + 1;
       seen.set(sensor.id, repeat);
       const kind = kindOf(sensor);
-      const id = repeat === 1 ? sensor.id : `${sensor.id}#${repeat}`;
-      const named = nameOf(sensor, id);
-      const fits = kind !== undefined && (chosen.length === 0 || chosen.includes(kind));
-      if (kind === undefined || !fits || !words.every((word) => matches(sensor, kind, word) || named.name.toLowerCase().includes(word))) {
+      if (kind === undefined || (chosen.length > 0 && !chosen.includes(kind))) {
         continue;
       }
-      const row: CatalogRow = { id, ...named, kind, value: values[sensor.id] ?? null, why: why(sensor, kind), minute: minute(sensor.value) };
+      const id = repeat === 1 ? sensor.id : `${sensor.id}#${repeat}`;
+      const row: CatalogRow = {
+        id,
+        ...nameOf(sensor, id),
+        kind,
+        value: values[sensor.id] ?? null,
+        why: why(sensor, kind),
+        minute: minute(sensor.value),
+        marks: [],
+        lineMarks: [],
+        alias: null,
+        aliasMarks: [],
+      };
+      rows.push({ sensor, row });
+    }
+    const devicesInOrder = [...new Set(rows.map(({ sensor }) => deviceOf(sensor)))];
+    const place = (one: Listed): number => devicesInOrder.indexOf(deviceOf(one.sensor)) * 100 + kinds.indexOf(one.row.kind);
+    return rows.map((one, index) => ({ one, index })).sort((a, b) => place(a.one) - place(b.one) || a.index - b.index).map(({ one }) => one);
+  };
+
+  // Which rows a search finds, in what order and with what marked, is Core's answer from the same sensors, language and
+  // names, which the oracle keeps.
+  const searched = async (search: string, chosen: SensorKind[], rows: Listed[]): Promise<{ listed: Listed[]; marks: Map<string, Mark[]> }> => {
+    const answer = await window.thermiPure?.({
+      method: 'catalogSearch',
+      args: [search, chosen, state.sensors, state.texts, state.settings.sensorNames ?? null],
+    });
+    if (answer === undefined || 'missing' in answer) {
+      throw new Error(`The oracle has no answer: ${answer?.missing ?? 'it is not installed'}.`);
+    }
+    const found = answer.result as CatalogFound[];
+    const listed = found.flatMap((device) =>
+      device.sensors.flatMap((one) => {
+        const at = rows.find((each) => each.row.id === one.id);
+        return at === undefined
+          ? []
+          : [{ ...at, row: { ...at.row, marks: one.marks, lineMarks: one.lineMarks, alias: one.alias ?? null, aliasMarks: one.aliasMarks } }];
+      }),
+    );
+    return { listed, marks: new Map(found.map((device) => [device.id, device.marks])) };
+  };
+
+  bridge.catalog = async (search: string, chosen: SensorKind[], all: boolean): Promise<CatalogView> => {
+    const rows = rowsOf((await bridge.view()).values, chosen);
+    const { listed, marks } = search.trim() === '' ? { listed: rows, marks: new Map<string, Mark[]>() } : await searched(search, chosen, rows);
+    const groups: CatalogGroup[] = [];
+    let hidden = 0;
+    for (const { sensor, row } of listed) {
       if (!all && hides(sensor, row)) {
         hidden++;
         continue;
       }
       const device = deviceOf(sensor);
-      let group = groups.find((one) => one.id === device);
-      if (group === undefined) {
-        group = { id: device, name: sensor.hardware, kind: devices[sensor.hardwareType] ?? null, sensors: [] };
+      const group = groups.find((one) => one.id === device) ?? {
+        id: device,
+        name: sensor.hardware,
+        kind: devices[sensor.hardwareType] ?? null,
+        sensors: [],
+        marks: marks.get(device) ?? [],
+      };
+      if (!groups.includes(group)) {
         groups.push(group);
       }
       group.sensors.push(row);
     }
-    groups.forEach((group) => group.sensors.sort((one, other) => kinds.indexOf(one.kind) - kinds.indexOf(other.kind)));
     const count = groups.reduce((sum, group) => sum + group.sensors.length, 0);
-    return { groups, count, hidden, suggestion: count + hidden === 0 && words.length > 0 ? 'gpu' : null };
+    return { groups, count, hidden, suggestion: count + hidden === 0 && search.trim() !== '' ? 'gpu' : null };
   };
 
   // The finder runs until a test moves it on, as the C# side would after up to 30 s of load.

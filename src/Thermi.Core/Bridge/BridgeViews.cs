@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Thermi.Core.Look;
+using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
@@ -10,7 +11,8 @@ namespace Thermi.Core.Bridge;
 /// A sensor in the catalog: its id as an item names it, the name the window shows and where it comes from, its type, its
 /// value now as text, or null with why it has none, its last minute since the window opened, a value a second, oldest
 /// first, null for a gap, and for a name the library does not give or a chip only numbers, what its second line and its
-/// tooltip say of it.
+/// tooltip say of it. With a search, what matched: the spans of its name, of its second line as its note or else its
+/// type reads, and the metric it feeds that explains it where its name does not, with that name's spans, or null.
 /// </summary>
 public sealed record CatalogRow(
     string Id,
@@ -21,14 +23,22 @@ public sealed record CatalogRow(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] NoValue? Why,
     IReadOnlyList<double?> Minute,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Note,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Tip);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Tip,
+    IReadOnlyList<Mark> Marks,
+    IReadOnlyList<Mark> LineMarks,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Alias,
+    IReadOnlyList<Mark> AliasMarks);
 
-/// <summary>A device of the catalog, by the library's id, with its name, the group it lists under, and its sensors that match.</summary>
+/// <summary>
+/// A device of the catalog, by the library's id, with its name, the group it lists under, its sensors that match, and the
+/// spans of its name a search's words start.
+/// </summary>
 public sealed record CatalogGroup(
     string Id,
     string Name,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] DeviceKind? Kind,
-    IReadOnlyList<CatalogRow> Sensors);
+    IReadOnlyList<CatalogRow> Sensors,
+    IReadOnlyList<Mark> Marks);
 
 /// <summary>
 /// The catalog for a search: its devices, how many sensors they list, how many more it hides, and when it lists and hides

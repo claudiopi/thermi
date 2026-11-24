@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import type { DesktopPick, Edit, FakeState, Item, OracleCall, Overlay, Settings, Undone, UndoSteps, WindowReadings } from './bridgeTypes';
+import type { Bridge, DesktopPick, Edit, FakeState, Item, OracleCall, Overlay, Settings, Undone, UndoSteps, WindowReadings } from './bridgeTypes';
 import { installFakeCatalog } from './fakes/fakeCatalog';
 import { installFakeLooks } from './fakes/fakeLooks';
 import { fakeState } from './fakes/fakeState';
@@ -134,6 +134,14 @@ function installFake(initial: FakeState): void {
     importLook: async (overlay, text) => {
       const picked = text ?? state.importFile;
       return picked === null ? null : ((await ask('importLook', overlay, picked)) as string | null);
+    },
+    // What a search finds and marks is C#'s, so the fake asks the oracle, as for an edit; it changes nothing.
+    search: async (query, among) => {
+      const answer = await window.thermiPure?.({ method: 'search', args: [query, among] });
+      if (answer === undefined || 'missing' in answer) {
+        throw new Error(`The oracle has no answer: ${answer?.missing ?? 'it is not installed'}.`);
+      }
+      return answer.result as Awaited<ReturnType<Bridge['search']>>;
     },
     catalog: notInstalled,
     findCpuFan: notInstalled,

@@ -113,9 +113,13 @@ export async function layoutFaults(page: Page): Promise<string[]> {
     if (root !== null && root.scrollWidth > root.clientWidth) {
       faults.push('the page scrolls sideways');
     }
-    // A control that shows only under the pointer or the focus, like a look's "…" in its tile's corner, is not seen.
+    // A control that shows only under the pointer or the focus, like a look's "…" in its tile's corner, is not seen, nor
+    // a text clipped away for Narrator alone.
     const shown = [...document.querySelectorAll<HTMLElement>('body *')].filter(
-      (element) => element.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && element.getClientRects().length > 0,
+      (element) =>
+        element.checkVisibility({ opacityProperty: true, visibilityProperty: true }) &&
+        element.getClientRects().length > 0 &&
+        getComputedStyle(element).clipPath !== 'inset(50%)',
     );
     for (const element of shown) {
       const overflow = getComputedStyle(element).overflowX;

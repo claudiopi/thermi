@@ -1,3 +1,4 @@
+using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
@@ -109,6 +110,12 @@ public interface IWindowBridge
     /// those nobody would add, which it counts.
     /// </summary>
     Task<CatalogView> Catalog(string search, IReadOnlyList<SensorKind> kinds, bool all);
+
+    /// <summary>
+    /// The window's search over a list the page already has, as a dropdown's choices: those every word of
+    /// <paramref name="query"/> finds, best first, each with what matched, as the catalog finds its sensors.
+    /// </summary>
+    Task<IReadOnlyList<Found>> Search(string query, IReadOnlyList<Findable> among);
 
     Task FindCpuFan();
 

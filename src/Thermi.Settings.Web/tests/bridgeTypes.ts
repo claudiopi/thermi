@@ -1,6 +1,20 @@
 // What the page's tests fake behind the bridge, whose shapes the build generates from the C# side.
 
-import type { DesktopPick, FinderView, Language, Monitor, Overlay, Problem, Sensor, Service, Settings, Snap, Style, UndoSteps } from '../src/bridge/bridge.g';
+import type {
+  DesktopPick,
+  FinderView,
+  Language,
+  Mark,
+  Monitor,
+  Overlay,
+  Problem,
+  Sensor,
+  Service,
+  Settings,
+  Snap,
+  Style,
+  UndoSteps,
+} from '../src/bridge/bridge.g';
 
 export type * from '../src/bridge/bridge.g';
 
@@ -52,6 +66,22 @@ export interface OracleCall {
   args: unknown[];
 }
 
+/**
+ * A call whose answer holds whatever came before it, which the oracle keeps apart from any start: the bridge's search,
+ * or the fake catalog's, which Core answers from the sensors, the language and the names it gives.
+ */
+export interface PureCall {
+  method: 'search' | 'catalogSearch';
+  args: unknown[];
+}
+
+/** What Core's catalog search finds: each device, with what matched of its name, and its sensors in order with theirs. */
+export interface CatalogFound {
+  id: string;
+  marks: Mark[];
+  sensors: { id: string; marks: Mark[]; lineMarks: Mark[]; alias?: string | null; aliasMarks: Mark[] }[];
+}
+
 /** What the real bridge answered a call, the settings it then showed and its looks when they changed, and its undo steps. */
 export interface OracleAnswer {
   result?: unknown;
@@ -92,6 +122,8 @@ declare global {
     thermiFake?: FakeControl;
     /** The C# side's answer to a call, from the oracle's table, or why it has none. */
     thermiOracle?: (call: OracleCall) => Promise<OracleAnswer | { missing: string } | null>;
+    /** The C# side's answer to a call that holds whatever came before it, from the oracle's table, or why it has none. */
+    thermiPure?: (call: PureCall) => Promise<{ result: unknown } | { missing: string }>;
     axe?: { run(context: { exclude: string[][] }): Promise<AxeResults> };
   }
 }

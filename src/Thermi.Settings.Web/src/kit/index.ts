@@ -3,7 +3,9 @@
 
 export { Button, LinkButton, type ButtonKind, type ButtonProps, type LinkButtonProps } from './controls/Button';
 export { Dropdown, type Choice, type DropdownProps } from './controls/Dropdown';
+export { type Find } from './controls/dropdownSearch';
 export { Checkbox, NumberField, type CheckboxProps, type NumberFieldProps } from './controls/Fields';
+export { HighlightedText, type HighlightedTextProps, type Marked } from './controls/HighlightedText';
 export { Icon, type IconName } from './controls/Icon';
 export { Progress, type ProgressProps } from './controls/Progress';
 export { Chips, Segmented, ToggleChip, type SegmentedProps, type ToggleChipProps } from './controls/Segmented';

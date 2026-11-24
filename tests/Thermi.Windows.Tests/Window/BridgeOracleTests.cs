@@ -4,7 +4,7 @@ namespace Thermi.Windows.Tests.Window;
 
 /// <summary>
 /// The page's tests fake the C# side, but decide nothing it decides: their fake replays, from the oracle's table, what
-/// the real bridge answered each edit, undo, redo and look of theirs, from the same start. This holds every answer of
+/// the real bridge answered each edit, undo, redo and look of theirs, from the same start, and each search. This holds every answer of
 /// the table to what the real bridge answers now, so the fake can never drift from it. With THERMI_ORACLE=write it takes
 /// in what the page's tests asked and lacked, and writes the answers instead; =prune also drops what they no longer use.
 /// <c>pwsh scripts/oracle.ps1</c> runs both sides until the table holds every call.
@@ -49,6 +49,25 @@ public sealed class BridgeOracleTests
             }
         }
 
+        // A call that holds whatever came before it answers the same from any start, so all of them run from the default one;
+        // the fake catalog's search is Core's, from the sensors, names and language it names.
+        var pure = table.Pure.OfType<JsonObject>().ToList();
+        var asked = pure
+            .Where(call => call["method"]?.GetValue<string>() != OracleReplay.CatalogSearchMethod)
+            .Select(call => new JsonObject { ["method"] = call["method"]?.DeepClone(), ["args"] = call["args"]?.DeepClone() });
+        var (_, replayed) = await OracleReplay.RunAsync(DefaultStart(), [.. asked]);
+        Assert.All(replayed, answer => Assert.Null(answer["error"]));
+        var bridged = new Queue<JsonNode?>(replayed.Select(answer => answer["result"]));
+        var results = pure.Select(call => call["method"]?.GetValue<string>() == OracleReplay.CatalogSearchMethod
+            ? OracleReplay.CatalogSearch(call["args"]?.AsArray() ?? [])
+            : bridged.Dequeue()).ToList();
+        var changed = results.Index().Where(each => !JsonNode.DeepEquals(pure[each.Index]["answer"], each.Item));
+        foreach (var (at, result) in changed)
+        {
+            stale.Add($"pure call {at + 1}, {pure[at]["method"]}");
+            pure[at]["answer"] = result?.DeepClone();
+        }
+
         if (writes)
         {
             table.Write();
@@ -59,4 +78,14 @@ public sealed class BridgeOracleTests
             $"{stale.Count} answers of the oracle are not what the real bridge answers now, the first: {stale.FirstOrDefault()}. "
             + "Run pwsh scripts/oracle.ps1, and check the answers it writes.");
     }
+
+    private static JsonObject DefaultStart() => new()
+    {
+        ["settings"] = new JsonObject(),
+        ["looks"] = new JsonObject(),
+        ["sensors"] = "admin",
+        ["service"] = "running",
+        ["texts"] = "en",
+        ["problem"] = null,
+    };
 }

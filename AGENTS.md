@@ -73,7 +73,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | One behavior, one test, at the cheapest layer that proves it. Its first test is written red at the unit's edge, as its acceptance step. | the ratchet: `scripts/test-count.ps1` holds the count of cases (each `[Fact]`, each row of a `[Theory]`, each Playwright and Vitest case) to `tests/test-count.json`, each half on its own, raised only in a change of its own |
 | Near-identical cases are one table-driven test; a bug's reproduction is a new row when the behavior has its test. | the ratchet |
 | Inner tests only for pure logic with real decisions. A test that drove a small step goes at the refactor once an edge test covers it and no new mutant survives without it. Characterization tests and oracles go when their spec passes. | the ratchet, `scripts/mutation.ps1` |
-| The page's fake never decides what C# decides: an edit, an undo, a gesture or a saved look is answered from the real bridge's answers to the same calls. | `BridgeOracleTests`, the `oracle` fixture of `src/Thermi.Settings.Web/tests/oracle.ts` |
+| The page's fake never decides what C# decides: an edit, an undo, a gesture, a saved look or a search is answered from the real bridge's answers to the same calls. | `BridgeOracleTests`, the `oracle` fixture of `src/Thermi.Settings.Web/tests/oracle.ts` |
 
 These need judgment, so review enforces them:
 

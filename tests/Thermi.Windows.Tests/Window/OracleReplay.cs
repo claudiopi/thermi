@@ -143,6 +143,43 @@ internal sealed class OracleReplay : IAsyncDisposable
         return edit;
     }
 
+    /// <summary>The fake catalog's own call for what its search finds, which <see cref="CatalogSearch"/> answers.</summary>
+    public const string CatalogSearchMethod = "catalogSearch";
+
+    /// <summary>
+    /// What the catalog's search finds for a search, the types chosen, the sensors (a recording's name or the sensors
+    /// themselves), the window's language and the user's names, as Core decides it for the window: each device found with
+    /// what matched of its name, and its sensors in order, each with what matched of its name, its second line and the
+    /// metric it feeds. The fake catalog shows its own rows in this order, with these marks.
+    /// </summary>
+    public static JsonNode? CatalogSearch(JsonArray args)
+    {
+        var texts = args[3]?.GetValue<string>() switch
+        {
+            "pseudo" => Texts.Pseudo(),
+            { } language => Texts.Of(language),
+            null => Texts.English,
+        };
+        var devices = SensorCatalog.Build(SnapshotOf(args[2]), args[4].Deserialize<IReadOnlyDictionary<string, string>>(BridgeCalls.Options), texts);
+        var kinds = args[1].Deserialize<IReadOnlyList<SensorKind>>(BridgeCalls.Options) ?? [];
+        var found = SensorCatalog.Filter(devices, args[0]?.GetValue<string>() ?? "", kinds, texts);
+        return JsonSerializer.SerializeToNode(
+            found.Select(device => new
+            {
+                device.Id,
+                device.Marks,
+                Sensors = device.Sensors.Select(row => new
+                {
+                    row.Id,
+                    Marks = row.Found?.Title,
+                    LineMarks = row.Found?.Detail,
+                    row.Found?.Alias,
+                    row.Found?.AliasMarks,
+                }),
+            }),
+            Sensors);
+    }
+
     private static Snapshot SnapshotOf(JsonNode? sensors) => sensors is JsonValue name
         ? TestRecordings.Read($"ryzen-9950x-rtx-5060-ti-{name.GetValue<string>()}.json")
         : new Snapshot(sensors.Deserialize<List<RawSensor>>(Sensors) ?? []);

@@ -7,6 +7,7 @@ using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Messages;
 using Thermi.Core.Placement;
+using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -250,6 +251,9 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<CatalogView> Catalog(string search, IReadOnlyList<SensorKind> kinds, bool all) =>
         Task.FromResult(_views.Catalog(search, kinds, all, _texts));
+
+    public Task<IReadOnlyList<Found>> Search(string query, IReadOnlyList<Findable> among) =>
+        Task.FromResult(new SearchIndex(among).Find(query));
 
     public Task FindCpuFan()
     {

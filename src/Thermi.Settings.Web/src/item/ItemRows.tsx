@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Edit, Item, Sensor, Value } from '../bridge/bridge.g';
-import type { WindowData } from '../bridge/useWindow';
+import { bridge, type WindowData } from '../bridge/useWindow';
 import { SwitchLine, type SwitchLineProps } from '../app/SwitchLine';
-import { Card, CardRow, Dropdown, TextField } from '../kit';
+import { Card, CardRow, Dropdown, TextField, type Find } from '../kit';
 import { useText } from '../texts/Texts';
 import { FinderRow } from './FinderRow';
 import { meterChoices, sensorChoices, type Placed } from './itemModel';
@@ -17,6 +17,9 @@ export interface ItemRowsProps {
 
 /** A list long enough for the Sensor dropdown to filter. */
 const filterFrom = 7;
+
+/** The Sensor dropdown's filter, which the C# side's search decides, as it does the catalog's. */
+const findSensors: Find = async (typed, among) => (await bridge()?.search(typed, among)) ?? [];
 
 /** The metric "Find it" looks for. */
 const cpuFan = 'fan.cpu';
@@ -112,7 +115,14 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
               label={t('UiText.SensorField')}
               choices={choices}
               value={item.sensor ?? ''}
-              {...(choices.length >= filterFrom ? { filter: t('UiText.FilterSensors', choices.length) } : {})}
+              {...(choices.length >= filterFrom
+                ? {
+                    filter: t('UiText.FilterSensors', choices.length),
+                    find: findSensors,
+                    counted: (count: number) => (count === 1 ? t('CatalogText.OneSensor') : t('CatalogText.SensorCount', count)),
+                    none: (typed: string) => t('CatalogText.NoMatchFor', typed),
+                  }
+                : {})}
               {...(sensorNote === undefined ? {} : { describedBy: describe })}
               onChange={(value) => set('sensor', value === '' ? null : value)}
             />

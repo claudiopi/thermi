@@ -1184,6 +1184,25 @@
       "description": "Given the default overlay painted, when the open window marks CPU load as selected, then its mark is a bar lying under the value's middle, wider than tall.",
       "check": "TheSelectedValuesMarkLiesUnderIt",
       "passes": true
+    },
+    {
+      "id": "A290",
+      "covers": [
+        "R14",
+        "R192"
+      ],
+      "description": "Given the recorded desktop's catalog and a table of searches (two words in either order, an accent and capitals, the name of the metric a sensor feeds, a long word with one letter wrong, a short one), when each is typed, then the first rows are the table's, each with what matched marked in its name, its second line or the metric it feeds, and the short typo finds nothing.",
+      "check": "TheSearchPutsTheBestFirstAndMarksWhy",
+      "passes": true
+    },
+    {
+      "id": "A291",
+      "covers": [
+        "R192"
+      ],
+      "description": "Given the window in dark and in light, when the author types in the catalog's search and in a Sensor dropdown's filter, then each row marks what matched on a faint accent, readable in both themes and under high contrast; the dropdown's status line says the count, a row says when nothing matches, and Enter takes the first.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

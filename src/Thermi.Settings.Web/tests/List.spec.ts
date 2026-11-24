@@ -123,7 +123,8 @@ test('TheListWorksWithTheKeyboard', async ({ page }) => {
 
 // A204: the catalog opened from each overlay adds there, or where its picker says, with Enter or Ctrl+Enter.
 test.describe('TheCatalogAddsWithTheKeyboard', () => {
-  const sensors = recording('admin').filter((sensor) => sensor.type === 'Temperature' && sensor.value !== null);
+  // The CPU's own, whose names the catalog shows as they are, so each is the first its name finds.
+  const sensors = recording('admin').filter((sensor) => sensor.hardwareType === 'Cpu' && sensor.type === 'Temperature' && sensor.value !== null);
   const first = sensors[0];
   const second = sensors[1];
   if (first === undefined || second === undefined) {

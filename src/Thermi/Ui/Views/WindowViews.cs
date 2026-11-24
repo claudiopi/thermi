@@ -73,7 +73,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         var (shown, hidden) = all ? (found, 0) : SensorCatalog.Hide(found, readings.Seen);
         var format = Format(texts);
         var groups = shown
-            .Select(device => new CatalogGroup(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(sensor => Row(sensor, format))]))
+            .Select(device => new CatalogGroup(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(sensor => Row(sensor, format))], device.Marks))
             .ToList();
         var count = groups.Sum(group => group.Sensors.Count);
         return new CatalogView(groups, count, hidden, count + hidden == 0 ? SensorCatalog.Suggest(devices, search, texts) : null);
@@ -102,7 +102,11 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         sensor.Why,
         readings.History.LastMinute(sensor.Id),
         SensorNames.NoteOf(sensor.Name, format.Texts, format.Numbers),
-        Tip(sensor.Name, format));
+        Tip(sensor.Name, format),
+        sensor.Found?.Title ?? [],
+        sensor.Found?.Detail ?? [],
+        sensor.Found?.Alias,
+        sensor.Found?.AliasMarks ?? []);
 
     private static string? Tip(SensorName name, ValueFormat format) => name switch
     {

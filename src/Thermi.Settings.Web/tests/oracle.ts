@@ -1,13 +1,15 @@
 import { test as base, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
-import type { FakeState, OracleAnswer, OracleCall, OracleStart, Sensor } from './bridgeTypes';
+import type { FakeState, OracleAnswer, OracleCall, OracleStart, PureCall, Sensor } from './bridgeTypes';
 import { pseudo, recording, texts } from './pageChecks';
 
 // The C# side's answers to the page's edits, undos and looks, which the fake replays instead of deciding them: a table
 // of calls from a start, each with what the real bridge answered, the settings it then showed, its saved looks and its
-// undo steps. Thermi.Windows.Tests' BridgeOracleTests runs every call through the real WindowBridge and fails when an
-// answer here is stale; a call the table lacks fails the test that made it, and `pwsh scripts/oracle.ps1` asks C#.
+// undo steps. A call whose answer holds whatever came before it, as a search, is kept apart, by itself, so a list read
+// again any number of times asks the same. Thermi.Windows.Tests' BridgeOracleTests runs every call through the real
+// WindowBridge and fails when an answer here is stale; a call the table lacks fails the test that made it, and
+// `pwsh scripts/oracle.ps1` asks C#.
 
 interface OracleCase {
   start: string;
@@ -17,6 +19,8 @@ interface OracleCase {
 interface Golden {
   starts: Record<string, OracleStart & { shown: FakeState['settings'] }>;
   cases: OracleCase[];
+  /** The answers to calls that hold whatever came before them, as a search, from any start. */
+  pure?: (PureCall & { answer: unknown })[];
 }
 
 const golden = JSON.parse(readFileSync(new URL('./oracle/edits.json', import.meta.url), 'utf8')) as Golden;
@@ -24,6 +28,7 @@ const misses = new URL('../test-results/oracle-misses/', import.meta.url);
 const missed = new Map<string, string[]>();
 const used = new Map<number, number>();
 const starts = new Set<string>();
+const pureUsed = new Set<number>();
 
 /** JSON with every object's keys in order, so the same call reads the same however its object was built. */
 function canonical(value: unknown): string {
@@ -39,23 +44,33 @@ function canonical(value: unknown): string {
 
 const recordings = ['admin', 'no-admin', 'admin-net-disk'] as const;
 
+// Each known language and recording as the oracle compares them, made once: a search asks for every key typed.
+let languages: [OracleStart['texts'], string][] | undefined;
+let recorded: [(typeof recordings)[number], string][] | undefined;
+
 function languageOf(shown: Record<string, string>): OracleStart['texts'] {
   const said = canonical(shown);
-  const known = ([['en', texts()], ['es', texts('es')], ['pseudo', pseudo(texts())]] as const).find(([, one]) => canonical(one) === said);
+  languages ??= [['en', canonical(texts())], ['es', canonical(texts('es'))], ['pseudo', canonical(pseudo(texts()))]];
+  const known = languages.find(([, one]) => one === said);
   if (known === undefined) {
     throw new Error('The oracle knows English, Spanish and the pseudo-language only.');
   }
   return known[0];
 }
 
+/** A recording by its name's end when the sensors are one, else the sensors themselves. */
+function sensorsOf(sensors: readonly Sensor[]): OracleStart['sensors'] {
+  const said = canonical(sensors);
+  recorded ??= recordings.map((name) => [name, canonical(recording(name))]);
+  return recorded.find(([, one]) => one === said)?.[0] ?? [...sensors];
+}
+
 /** What the C# side starts from: the settings file, the saved looks, the readings and the window's language. */
 function startOf(state: FakeState): OracleStart {
-  const sensors = canonical(state.sensors);
-  const named = recordings.find((name) => canonical(recording(name)) === sensors);
   return {
     settings: state.settings,
     looks: state.looks,
-    sensors: named ?? (state.sensors as Sensor[]),
+    sensors: sensorsOf(state.sensors),
     service: state.service,
     texts: languageOf(state.texts),
     problem: state.problem,
@@ -70,9 +85,31 @@ function record(file: string, line: unknown): void {
 // Which call of which case the run used, for `scripts/oracle.ps1 -Prune` to drop the rest.
 process.on('exit', () => {
   if (starts.size > 0) {
-    record('used', { cases: [...used.entries()], starts: [...starts] });
+    record('used', { cases: [...used.entries()], starts: [...starts], pure: [...pureUsed] });
   }
 });
+
+const pureAnswers = new Map((golden.pure ?? []).map((one, index) => [canonical({ method: one.method, args: one.args }), { index, answer: one.answer }]));
+
+// The fake catalog's search names the sensors and the language it searches, kept as the starts keep them, by name.
+const compact = (call: PureCall): PureCall =>
+  call.method === 'catalogSearch'
+    ? { ...call, args: [call.args[0], call.args[1], sensorsOf(call.args[2] as Sensor[]), languageOf(call.args[3] as Record<string, string>), call.args[4]] }
+    : call;
+
+/** Answers a call that holds whatever came before it from the table, or records that the table lacks it. */
+function askPure(asked: PureCall, testId: string): { result: unknown } | { missing: string } {
+  const call = compact(asked);
+  const known = pureAnswers.get(canonical(call));
+  if (known !== undefined) {
+    pureUsed.add(known.index);
+    return { result: known.answer };
+  }
+  record('misses', { pure: JSON.parse(canonical(call)) as unknown });
+  const why = `${call.method}(${JSON.stringify(call.args).slice(0, 200)})`;
+  missed.set(testId, [...(missed.get(testId) ?? []), why]);
+  return { missing: why };
+}
 
 /**
  * Answers the page's calls on <paramref name="page"/> from the table, for a fake starting at <paramref name="state"/>,
@@ -119,6 +156,7 @@ export async function askOracle(page: Page, state: FakeState): Promise<FakeState
     const answer = found.calls[at]?.answer;
     return answer ?? miss(`${call.method} as call ${at + 1}`);
   });
+  await page.exposeBinding('thermiPure', (_source, call: PureCall) => askPure(call, info.testId));
   return shown === undefined ? state : { ...state, settings: shown };
 }
 

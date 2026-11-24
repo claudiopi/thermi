@@ -66,8 +66,9 @@ public sealed class CatalogTests
         var nvidiaLoads = SensorCatalog.Filter(devices, " NVIDIA  load ", [SensorKind.Load]);
 
         Assert.Equal(["/lpc/it8689e/0", "/gpu-nvidia/0"], fans.Select(device => device.Id));
+        // A name that starts with the word comes before one that only holds it, as "Fan #4" before the likely "CPU fan".
         Assert.Equal(
-            ["Fan #1", "Fan #2", "Fan #3", "Fan #4", "Fan #5", "Fan #1", "Fan #2", "Fan #3", "Fan #4", "Fan #5", "Fan #6"],
+            ["Fan #4", "Fan #5", "Fan #4", "Fan #5", "Fan #6", "Fan #1", "Fan #2", "Fan #3", "Fan #1", "Fan #2", "Fan #3"],
             fans[0].Sensors.Select(row => row.Sensor.Name));
         Assert.Equal([("GPU Fan", SensorKind.Fan), ("GPU Fan", SensorKind.Control)], fans[1].Sensors.Select(row => (row.Sensor.Name, row.Reading.Kind)));
         Assert.Equal(
@@ -84,13 +85,15 @@ public sealed class CatalogTests
         Assert.All(spanish, row => Assert.Equal(SensorKind.Fan, row.Reading.Kind));
         Assert.Empty(SensorCatalog.Filter(devices, "ventilador", []));
 
-        // Each synonym finds its type, and a word that finds nothing offers the one word nearest to it that does.
+        // Each synonym finds its type, as a long word with one letter wrong does, and a word that finds nothing offers the
+        // one word nearest to it that does.
         foreach (var (synonym, kind) in new[]
         {
             ("heat", SensorKind.Temperature),
             ("usage", SensorKind.Load),
             ("rpm", SensorKind.Fan),
             ("watts", SensorKind.Power),
+            ("tempreature", SensorKind.Temperature),
         })
         {
             Assert.Equal(
@@ -98,7 +101,7 @@ public sealed class CatalogTests
                 SensorCatalog.Filter(devices, synonym, []).Sum(device => device.Sensors.Count));
         }
 
-        var suggested = SensorCatalog.Suggest(devices, "tempreature");
+        var suggested = SensorCatalog.Suggest(devices, "temprture");
         Assert.NotNull(suggested);
         Assert.NotEmpty(SensorCatalog.Filter(devices, suggested, []));
         Assert.Null(SensorCatalog.Suggest(devices, "fan"));
