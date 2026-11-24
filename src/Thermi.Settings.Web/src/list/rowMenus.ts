@@ -49,15 +49,18 @@ function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): M
   return [
     { kind: 'action', id: 'rename', text: say('UiText.Rename'), keys: 'F2', onRun: () => run.rename(row) },
     { kind: 'action', id: 'label', text: say('UiText.EditPillLabel'), onRun: () => run.editLabel(id) },
-    // The first item of a pill already starts one, as its page's switch shows: On, locked.
-    {
-      kind: 'check',
-      id: 'own',
-      text: say('UiText.OwnPill'),
-      checked: item?.own === true || firstOfPill,
-      disabled: firstOfPill && item?.own !== true,
-      onRun: () => run.edit({ kind: 'item', item: id, field: 'own', value: item?.own === true ? null : true }),
-    },
+    // The first item of a pill already starts one, so, as on its page, a check that could not change is not offered.
+    ...(firstOfPill && item?.own !== true
+      ? []
+      : [
+          {
+            kind: 'check' as const,
+            id: 'own',
+            text: say('UiText.OwnPill'),
+            checked: item?.own === true,
+            onRun: () => run.edit({ kind: 'item', item: id, field: 'own', value: item?.own === true ? null : true }),
+          },
+        ]),
     {
       kind: 'check',
       id: 'tray',

@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
 
@@ -26,12 +27,16 @@ internal sealed record EditMarks(Fade Fade, string? Selected, string? Pointed, R
 
     private const double FrameFade = 0.3;
     private const double WholeFade = 0.5;
-    private const float BarWidth = 3;
-    private const float BarHeight = 16;
-    private const float BarGap = 3;
 
-    // Room a value's level mark takes around it, which the bar steps aside from.
-    private const float LevelRoom = 4;
+    // A short bar lying under the value, as a tab's mark, so it never reads as a text cursor beside the digits.
+    private const float BarWidth = 16;
+    private const float BarHeight = 3;
+
+    // From the pill's lower edge to the bar's foot, inside its outer padding.
+    private const float BarRise = 6;
+
+    // A value's level mark, as a warning's underline, runs where the bar would: the bar steps down from it.
+    private const float LevelRoom = 1.5f;
 
     private const int PointedAlpha = 128;
 
@@ -68,9 +73,11 @@ internal sealed record EditMarks(Fade Fade, string? Selected, string? Pointed, R
         }
 
         var leveled = items.FirstOrDefault(item => item.Id == id)?.Level is { } level && level != Level.Normal;
-        var right = place.Value.Left - ((BarGap + (leveled ? LevelRoom : 0)) * scale);
-        var height = BarHeight * scale;
+        var (width, height) = (BarWidth * scale, BarHeight * scale);
+        var bottom = place.Pill.Bottom - ((BarRise - (leveled ? LevelRoom : 0)) * scale);
         using var brush = new SolidBrush(Color.FromArgb(alpha, PainterShapes.Drawn(Accent)));
-        g.FillRectangle(brush, right - (BarWidth * scale), place.Value.Top + ((place.Value.Height - height) / 2), BarWidth * scale, height);
+        using var bar = PainterShapes.Rounded(new RectangleF(place.Value.Left + ((place.Value.Width - width) / 2), bottom - height, width, height), height / 2);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.FillPath(brush, bar);
     }
 }

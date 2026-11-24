@@ -30,12 +30,17 @@ public static class ItemEdits
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
             var name = Names.OfItem(config, sensor, sensorId, language);
             var apart = OtherGpu(config.Overlays[overlay], snapshot, sensor);
+
+            // It starts as the defaults of its kind do: metered by itself, with its kind's calm lines, where it can be a meter.
+            var itself = Threshold.CanMeter(SensorMap.KindOf(sensor)!.Value) ? new MeterConfig { Sensor = sensorId } : null;
             var item = new ItemConfig
             {
                 Sensor = sensorId,
                 Name = apart ? language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware) : name,
                 Decimals = decimals,
                 Own = apart,
+                Meter = itself,
+                Threshold = itself is null ? null : Threshold.Default(itself, snapshot),
             };
             return Insert(config, overlay, sensor, item, language);
         });

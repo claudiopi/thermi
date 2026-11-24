@@ -16,9 +16,11 @@ public sealed class NoticeTests
     // Events, each then = and what follows it: a new notice as its kind and buttons, . for none new while one still shows,
     // ~ for none showing. first: thermi's first start; open: the window opens; flag and show: "Hide overlays" set and
     // cleared from outside the window; hide1 and show1: overlay 1 hidden on its own and shown; win: the next change comes
-    // from the window; ct0, ctall and clicks: click-through on for overlay 0, for all, and off for all.
+    // from the window; ct0, ctall and clicks: click-through on for overlay 0, for all, and off for all. first? is the first
+    // start before the sensors are read, and first! one where the CPU reads zero, the driver missing (cold review 4, G7).
     [Theory]
     [InlineData(2, "first=FirstRun:None open=~ flag=OverlaysHidden:ShowThem+GotIt show=~ flag=~ show=~")]
+    [InlineData(1, "first?=~ first!=FirstRunDriver:None first!=. open=~")]
     [InlineData(1, "flag=OverlaysHidden:ShowIt+GotIt show=~")]
     [InlineData(2, "hide1=OverlayHidden:ShowIt+GotIt show1=~ hide1=~ show1=~")]
     [InlineData(2, "win hide1=~ show1=~ win flag=~ show=~")]
@@ -40,7 +42,14 @@ public sealed class NoticeTests
             var (what, expected) = (step[..step.IndexOf('=', StringComparison.Ordinal)], step[(step.IndexOf('=', StringComparison.Ordinal) + 1)..]);
             desktop.Apply(what);
             var shown = notices.Update(
-                new NoticeInput(Config(desktop.Hidden, desktop.Through), desktop.Flag, desktop.FromWindow, FirstStart: what == "first"));
+                new NoticeInput(
+                    Config(desktop.Hidden, desktop.Through),
+                    desktop.Flag,
+                    desktop.FromWindow,
+                    FirstStart: what.StartsWith("first", StringComparison.Ordinal))
+                {
+                    DriverMissing = what == "first?" ? null : what == "first!",
+                });
             var now = shown is not null
                 ? $"{shown.Kind}:{shown.Buttons.ToString().Replace(", ", "+", StringComparison.Ordinal)}"
                 : notices.Showing is null ? "~" : ".";

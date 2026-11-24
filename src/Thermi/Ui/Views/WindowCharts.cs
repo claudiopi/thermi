@@ -54,6 +54,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         }
 
         var history = History(id);
+        var (span, start) = MeterChart.Span(history, format);
         var values = history.OfType<double>().ToList();
         var (warning, critical) = item.Meter is null ? default : (item.Threshold?.Warning, item.Threshold?.Critical);
         var (from, to) = MeterChart.Range(scale with { Warning = warning, Critical = critical }, values);
@@ -69,7 +70,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             scale.Step,
             from,
             to,
-            history,
+            span,
             warning,
             critical,
             warning is { } low ? Said(low) : null,
@@ -84,7 +85,8 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             TitleOf(item, meter, scale, format.Texts),
             Said(from),
             Said(to),
-            MeterChart.FiresMostly(history, warning, critical) && item.Threshold != defaults ? DefaultsText(defaults, scale.Kind, format) : null);
+            MeterChart.FiresMostly(history, warning, critical) && item.Threshold != defaults ? DefaultsText(defaults, scale.Kind, format) : null,
+            start);
     }
 
     // The button of lines that fire most of the time says the defaults it puts back.

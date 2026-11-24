@@ -86,8 +86,8 @@ public static class SensorCatalog
     /// </summary>
     public static IReadOnlyList<CatalogDevice> Build(Snapshot snapshot, IReadOnlyDictionary<string, string>? own = null, Texts? texts = null) =>
     [
-        .. SensorMap.Named(snapshot)
-            .Select(named => Row(named.Id, named.Sensor, SensorNames.Of(named.Sensor, named.Id, own, texts)))
+        .. SensorNames.All(snapshot, own, texts)
+            .Select(named => Row(named.Id, named.Sensor, named.Name))
             .OfType<CatalogSensor>()
             .GroupBy(row => SensorMap.DeviceIdOf(row.Sensor), StringComparer.Ordinal)
             .Select(device => new CatalogDevice(
@@ -247,12 +247,28 @@ public static class SensorCatalog
     private static bool Seen(CatalogSensor row, IReadOnlySet<string> seen) => Lively(row) || seen.Contains(row.Id);
 
     private static bool Hidden(CatalogSensor row, IReadOnlySet<string> seen) =>
+        Useless(row) || ((row.Why is null or NoValue.Stopped) && (row.Reading.Kind is SensorKind.Fan or SensorKind.Temperature) && !Seen(row, seen));
+
+    // What nobody would pick whatever it read since the window opened.
+    private static bool Useless(CatalogSensor row) =>
         row.Why == NoValue.ReadsNothing
-        || ((row.Why is null or NoValue.Stopped) && (row.Reading.Kind is SensorKind.Fan or SensorKind.Temperature) && !Seen(row, seen))
         || (SensorMap.IsGpu(row.Sensor) && row.Reading.Kind == SensorKind.Load && row.Sensor.Name.StartsWith(D3dLayer, StringComparison.Ordinal))
         || (row.Reading.Kind == SensorKind.Clock
             && row.Sensor.HardwareType == "Cpu"
             && (row.Sensor.Name.Contains(Effective, StringComparison.Ordinal) || row.Sensor.Name == BusSpeed));
+
+    /// <summary>
+    /// The ids the Sensor dropdown does not offer: the rows the catalog hides whatever was seen, as a sensor that reads
+    /// nothing, a GPU's D3D engine loads or a CPU's effective clocks, and a second sensor of a device with the type and the
+    /// name of one before it, which nobody could tell apart. A stopped fan stays, since a CPU fan may rest at idle.
+    /// </summary>
+    public static IReadOnlyList<string> Unoffered(IReadOnlyList<CatalogDevice> devices) =>
+    [
+        .. devices.SelectMany(device => device.Sensors
+            .Where((row, at) => Useless(row)
+                || device.Sensors.Take(at).Any(before => before.Reading.Kind == row.Reading.Kind && before.Name.Shown == row.Name.Shown))
+            .Select(row => row.Id)),
+    ];
 
     // A type thermi does not show has no unit to show it in, so it has no row; nor has a constant.
     private static CatalogSensor? Row(string id, RawSensor sensor, SensorName name) =>

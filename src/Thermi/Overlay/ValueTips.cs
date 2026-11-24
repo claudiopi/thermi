@@ -27,6 +27,10 @@ internal sealed class ValueTips : IDisposable
     // Between the tooltip and the overlay, so it reads as the overlay's and covers none of its pills.
     private const int Gap = 6;
 
+    // Room around the text at 100 %, as Windows 11's tooltips keep.
+    private const int MarginAcross = 6;
+    private const int MarginDown = 4;
+
     private readonly HWND _owner;
     private readonly HWND _tips;
     private readonly List<string> _texts = [];
@@ -63,10 +67,21 @@ internal sealed class ValueTips : IDisposable
         {
             PInvoke.SetWindowSubclass(_tips, _placed, 0, 0);
 
-            // Rounded as Windows 11's own tooltips are; Windows 10 refuses the attribute and keeps its square corners.
-            var corners = DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_ROUNDSMALL;
+            // Rounded and roomy as Windows 11's own flyouts are, not as the common control's tight box; Windows 10 refuses
+            // the corners and keeps them square.
+            var corners = DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_ROUND;
             _ = PInvoke.DwmSetWindowAttribute(_tips, DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
+            Margins(PInvoke.GetDpiForWindow(owner));
         }
+    }
+
+    // In the overlay's pixels, which follow its monitor's scale.
+    private unsafe void Margins(uint dpi)
+    {
+        var scale = dpi == 0 ? 1 : dpi / 96.0;
+        var (across, down) = ((int)Math.Round(MarginAcross * scale), (int)Math.Round(MarginDown * scale));
+        var margins = new RECT(across, down, across, down);
+        PInvoke.SendMessage(_tips, PInvoke.TTM_SETMARGIN, 0, (nint)(&margins));
     }
 
     /// <summary>One tool per place, in the overlay's pixels, with its text; tools past the places go.</summary>

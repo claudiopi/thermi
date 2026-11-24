@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import type { ChartEmpty, ChartView, Edit, Line } from '../bridge/bridge.g';
 import { bridge } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
@@ -15,6 +15,8 @@ export interface ChartProps {
   edit: (edit: Edit) => Promise<string | null>;
   /** Whether the item has a meter, whose lines the chart sets; without one it draws the reading alone. */
   metered: boolean;
+  /** The chart's own menu, on the line of its numbers, beside what it acts on. */
+  options?: ReactNode;
 }
 
 const lines: Line[] = ['warning', 'critical'];
@@ -100,8 +102,8 @@ function EmptyNote({ why, width }: { why: ChartEmpty; width: number }) {
   );
 }
 
-/** An item's chart: its meter's last ten minutes, the lines with their knobs, and what the minutes held. */
-export function Chart({ item, name, chart, edit, metered }: ChartProps) {
+/** An item's chart: its meter's last minutes, the lines with their knobs, what the minutes held, and its options. */
+export function Chart({ item, name, chart, edit, metered, options }: ChartProps) {
   const t = useText();
   const [box, size] = useSize();
   const plot: Plot = { width: Math.max(0, size.width - knobColumn), height: size.height, chart };
@@ -242,11 +244,16 @@ export function Chart({ item, name, chart, edit, metered }: ChartProps) {
       <div className="t-chart-foot" style={{ width: `${plot.width}px` }}>
         {chart.empty === null && (
           <div className="t-axis" aria-hidden="true">
-            <span>{t('UiText.ChartStart')}</span>
+            <span>{chart.startText}</span>
             <span>{t('UiText.ChartNow')}</span>
           </div>
         )}
-        {chart.stats !== null && <div className="t-stats">{chart.stats}</div>}
+        {(chart.stats !== null || options !== undefined) && (
+          <div className="t-stats-row">
+            <div className="t-stats">{chart.stats}</div>
+            {options}
+          </div>
+        )}
         {chart.fires !== null && (
           <div className="t-fires">
             <span>{t('UiText.FiresMostly')}</span>

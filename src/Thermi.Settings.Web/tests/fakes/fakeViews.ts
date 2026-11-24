@@ -244,6 +244,7 @@ export function installFakeViews(): void {
         firesMostly(readings, warning ?? critical) && JSON.stringify(madeLines(item)) !== JSON.stringify(item.threshold)
           ? defaultsText(madeLines(item) as Threshold | undefined, (reading, units) => (units ? format(meter.type, reading) : round(reading)))
           : null,
+      startText: say('ChartText.MinutesAgo', '10'),
     };
   };
 }

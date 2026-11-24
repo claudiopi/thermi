@@ -29,7 +29,7 @@ const useStyles = makeStyles({
   // Above the folded list (10), and under the title row, as everything that covers the page, since Windows' caption
   // buttons beside it cannot be dimmed.
   surface: { zIndex: 30, top: space.titleRow, width: '448px', maxWidth: 'calc(100vw - 32px)', padding: '0', borderRadius: '8px', background: surfaces.dialog },
-  backdrop: { zIndex: 30, top: space.titleRow, backgroundColor: 'rgba(0, 0, 0, 0.3)' },
+  backdrop: { zIndex: 30, top: space.titleRow, backgroundColor: surfaces.smoke },
   body: { padding: '24px' },
   title: { marginBottom: '12px' },
   foot: {

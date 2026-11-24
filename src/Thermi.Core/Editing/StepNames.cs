@@ -84,9 +84,9 @@ internal static class StepNames
 
     private static (double? Warning, double? Critical) Lines(Threshold? threshold) => threshold is null ? default : (threshold.Warning, threshold.Critical);
 
-    // A value is named as the file holds it; a choice or a group of fields has no single value to name.
+    // A value is named as the file holds it, and a choice by its words; a group of fields has no single value to name.
     // A metric's name stands for an item that stores none, named in the window's language when the step is told.
-    private static object? Value(object? value) => value is double or int or bool or string or MetricName ? value : null;
+    private static object? Value(object? value) => value is double or int or bool or string or Enum ? value : null;
 }
 
 /// <summary>
@@ -134,6 +134,7 @@ public static class StepTexts
         int number => number.ToString(format.Numbers),
         string text => text,
         MetricName name => format.Texts.Of(name),
+        Enum choice => format.Texts.OfChoice(choice),
         _ => null,
     };
 }

@@ -75,6 +75,12 @@ public enum CatalogText
     /// <summary>The CPU fan's Sensor row: the button that runs the finder.</summary>
     FindIt,
 
+    /// <summary>Asked before the finder loads the CPU, which a person may not want while they work.</summary>
+    FinderAsk,
+
+    /// <summary>The button that answers <see cref="FinderAsk"/> and starts the finder.</summary>
+    LoadCpu,
+
     /// <summary>The finder's result: the button that makes the CPU fan item show the fan found.</summary>
     UseIt,
 
@@ -104,6 +110,9 @@ public enum CatalogText
 
     /// <summary>Under an input a chip only numbers: the chip and the input's number.</summary>
     InputNote,
+
+    /// <summary>A library's name that another type of the same device shares, with its own type in lower case.</summary>
+    WithKind,
 
     /// <summary>A probable name's tooltip: the chip, its name for the input, and the probable name.</summary>
     LikelyTip,

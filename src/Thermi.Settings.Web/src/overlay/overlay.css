@@ -22,6 +22,27 @@
   gap: 4px;
 }
 
+/* Wide, Appearance runs down the left; Placement, then the text and colors, down the right. One column keeps the
+   page's order: the look, its text and colors, then where it sits. */
+@container (min-width: 864px) {
+  .t-ov-cols {
+    grid-template-areas: 'look place' 'look text';
+    grid-template-rows: auto 1fr;
+  }
+
+  .t-col-look {
+    grid-area: look;
+  }
+
+  .t-col-place {
+    grid-area: place;
+  }
+
+  .t-col-text {
+    grid-area: text;
+  }
+}
+
 .t-pane-foot {
   display: flex;
   justify-content: flex-end;
@@ -271,6 +292,18 @@
 
 .t-color-swatch:hover {
   background: var(--colorNeutralBackground1Hover);
+}
+
+/* A swatch over its word, as Windows' color settings name theirs. */
+.t-swatch-named {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 48px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--thermi-text2);
 }
 
 .t-color-swatch:focus-visible {

@@ -127,10 +127,10 @@
     <value>Value color</value>
   </data>
   <data name="UiText.StyleColor" xml:space="preserve">
-    <value>Use the style's</value>
+    <value>Use the look's color</value>
   </data>
   <data name="UiText.StyleColorShown" xml:space="preserve">
-    <value>The style's</value>
+    <value>From the look</value>
   </data>
   <data name="UiText.CombineChoose" xml:space="preserve">
     <value>Choose sensors…</value>
@@ -213,6 +213,12 @@
   <data name="CatalogText.UseIt" xml:space="preserve">
     <value>Use it</value>
   </data>
+  <data name="CatalogText.FinderAsk" xml:space="preserve">
+    <value>This loads the CPU for up to 30 s, so your fans speed up and may be loud.</value>
+  </data>
+  <data name="CatalogText.LoadCpu" xml:space="preserve">
+    <value>Load the CPU</value>
+  </data>
   <data name="CatalogText.Dismiss" xml:space="preserve">
     <value>Dismiss</value>
   </data>
@@ -239,6 +245,9 @@
   </data>
   <data name="CatalogText.InputNote" xml:space="preserve">
     <value>{0} · input {1}</value>
+  </data>
+  <data name="CatalogText.WithKind" xml:space="preserve">
+    <value>{0} ({1})</value>
   </data>
   <data name="CatalogText.LikelyTip" xml:space="preserve">
     <value>{0} calls this {1}. On most boards with this chip it reads the {2}, but boards differ: rename it if you know better.</value>
@@ -438,6 +447,9 @@
   <data name="OverlayPageText.PlacementSection" xml:space="preserve">
     <value>Placement</value>
   </data>
+  <data name="OverlayPageText.TextSection" xml:space="preserve">
+    <value>Text and colors</value>
+  </data>
   <data name="OverlayPageText.OverlayHeadItems" xml:space="preserve">
     <value>{0} items · {1}</value>
   </data>
@@ -530,6 +542,21 @@
   </data>
   <data name="OverlayPageText.ColorNeutral" xml:space="preserve">
     <value>Neutral</value>
+  </data>
+  <data name="OverlayPageText.SwatchNormal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="OverlayPageText.SwatchWarning" xml:space="preserve">
+    <value>Warning</value>
+  </data>
+  <data name="OverlayPageText.SwatchCritical" xml:space="preserve">
+    <value>Critical</value>
+  </data>
+  <data name="OverlayPageText.SwatchLabels" xml:space="preserve">
+    <value>Labels</value>
+  </data>
+  <data name="OverlayPageText.SwatchValues" xml:space="preserve">
+    <value>Values</value>
   </data>
   <data name="OverlayPageText.ColorSky" xml:space="preserve">
     <value>Sky</value>
@@ -660,9 +687,6 @@
   <data name="UiText.NotifyMe" xml:space="preserve">
     <value>Notify me when critical</value>
   </data>
-  <data name="UiText.AlreadyOwnPill" xml:space="preserve">
-    <value>Already starts its own pill</value>
-  </data>
   <data name="UiText.HexColor" xml:space="preserve">
     <value>Hex color</value>
   </data>
@@ -686,9 +710,6 @@
   </data>
   <data name="UiText.ChartActions" xml:space="preserve">
     <value>Chart options</value>
-  </data>
-  <data name="UiText.ChartStart" xml:space="preserve">
-    <value>10 min ago</value>
   </data>
   <data name="UiText.ChartNow" xml:space="preserve">
     <value>now</value>
@@ -963,6 +984,12 @@
   <data name="ChartText.UseNoLines" xml:space="preserve">
     <value>Remove the lines</value>
   </data>
+  <data name="ChartText.MinutesAgo" xml:space="preserve">
+    <value>{0} min ago</value>
+  </data>
+  <data name="ChartText.SecondsAgo" xml:space="preserve">
+    <value>{0} s ago</value>
+  </data>
   <data name="Combine.Max" xml:space="preserve">
     <value>Highest</value>
   </data>
@@ -1073,6 +1100,9 @@
   </data>
   <data name="HostText.FirstRun" xml:space="preserve">
     <value>Double-click the overlay to choose what it shows, or drag it anywhere.</value>
+  </data>
+  <data name="HostText.FirstRunDriver" xml:space="preserve">
+    <value>CPU temperature, power and clocks need a small signed driver. Click here to install it.</value>
   </data>
   <data name="HostText.OverlaysHiddenTitle" xml:space="preserve">
     <value>Overlays hidden</value>
@@ -1331,6 +1361,12 @@
   </data>
   <data name="OverlayText.DoubleClickToEdit" xml:space="preserve">
     <value>Double-click to edit</value>
+  </data>
+  <data name="OverlayText.FanUnconfirmed" xml:space="preserve">
+    <value>Likely the CPU fan, by its input's name. "Find it" in its settings checks.</value>
+  </data>
+  <data name="OverlayText.FloatsAbove" xml:space="preserve">
+    <value>Above the taskbar: it doesn't fit beside your apps. Hiding labels makes it narrower.</value>
   </data>
   <data name="OverlayText.NeedsDriver" xml:space="preserve">
     <value>{0} needs thermi's driver. Double-click to fix.</value>

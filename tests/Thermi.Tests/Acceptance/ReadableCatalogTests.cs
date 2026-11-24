@@ -1,8 +1,10 @@
 using System.Globalization;
+using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
+using Thermi.Core.Tray;
 using static Thermi.Tests.Acceptance.Edited;
 
 namespace Thermi.Tests.Acceptance;
@@ -61,17 +63,26 @@ public sealed class ReadableCatalogTests
             ],
             rows.Where(row => row.Name is { From: NameFrom.Library, Chip: not null }).Select(row => (row.Id, row.Name.Input!.Value)));
         Assert.All(rows.Where(row => row.Name.Chip is not null), row => Assert.Equal(row.Sensor.Hardware, row.Name.Chip));
-        // Any other sensor keeps the library's name, but a duty, which the library names as its fan, says it is the duty, as "GPU fan duty".
+        // Any other sensor keeps the library's name, but a duty, which the library names as its fan, says it is the duty, as
+        // "GPU fan duty", and a name another type of its device shares says its type (cold review 4, Q5).
+        bool Shared(CatalogSensor row)
+        {
+            return row.Reading.Kind != SensorKind.Control && rows.Exists(other =>
+                other.Sensor.Hardware == row.Sensor.Hardware && other.Sensor.Name == row.Sensor.Name
+                && other.Reading.Kind != row.Reading.Kind && other.Reading.Kind != SensorKind.Control);
+        }
+
         Assert.All(
             rows.Where(row => !row.Id.StartsWith("/lpc/", StringComparison.Ordinal)),
             row => Assert.Equal(
                 new SensorName(
-                    row.Reading.Kind == SensorKind.Control
-                        ? Duty(row.Sensor.Name)
-                        : row.Sensor.Name,
+                    row.Reading.Kind == SensorKind.Control ? Duty(row.Sensor.Name)
+                    : Shared(row) ? WithKind(row.Sensor.Name, row.Reading.Kind)
+                    : row.Sensor.Name,
                     NameFrom.Library,
                     row.Sensor.Name),
                 row.Name));
+        Assert.True(Shared(rows.Single(row => row.Id == "/gpu-nvidia/0/temperature/0")));
         Assert.All(
             rows.Where(row => row is { Name.From: NameFrom.Library, Reading.Kind: SensorKind.Control }),
             row => Assert.Equal(Duty(row.Sensor.Name), row.Name.Shown));
@@ -117,6 +128,21 @@ public sealed class ReadableCatalogTests
                 .Except(shown.SelectMany(device => device.Sensors).Select(row => row.Id), StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal));
         Assert.Equal(nothing.Length + stopped.Length + layers.Count + effective.Length, hidden);
+
+        // Cold review 4 (Q4): the Sensor dropdown leaves out what the catalog hides whatever was seen, but a stopped fan, which
+        // a CPU fan may be at idle, and a second sensor of a device with the type and name of one before it.
+        var twin = rows.Single(row => row.Id == "/gpu-nvidia/0/load/0");
+        var twice = devices
+            .Select(device => device with
+            {
+                Sensors = [.. device.Sensors, .. device.Sensors.Where(row => row == twin).Select(row => row with { Id = "twin" })],
+            })
+            .ToList();
+        Assert.Equal(
+            nothing.Concat(layers).Concat(effective).Order(StringComparer.Ordinal),
+            SensorView.Of(ServiceState.Running, Desktop, null, Texts.English).Unoffered.Order(StringComparer.Ordinal));
+        Assert.Empty(SensorView.Of(ServiceState.Stopped, Desktop, null, Texts.English).Unoffered);
+        Assert.Equal(["twin"], SensorCatalog.Unoffered(twice).Except(SensorCatalog.Unoffered(devices)));
         Assert.DoesNotContain(shown, device => device.Sensors.Count == 0);
         Assert.Contains(seen, row => row is { Id: $"{Ite}/fan/1", Why: NoValue.Stopped });
         // A memory module's limits, resolution and size never move, so of a module the catalog lists its temperature alone.
@@ -155,6 +181,10 @@ public sealed class ReadableCatalogTests
     // A duty the library names as its fan, "GPU Fan", reads "GPU fan duty", in thermi's case.
     private static string Duty(string library) =>
         Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, library.Replace(" Fan", " fan", StringComparison.Ordinal));
+
+    // A name another type of the device shares, with its own type after it.
+    private static string WithKind(string library, SensorKind kind) =>
+        Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.WithKind, library, Texts.English.Of(kind).ToLowerInvariant());
 
     // The recorded adapters the catalog shows, given the sensors seen moving since it opened.
     private static string[] Adapters(IReadOnlySet<string> moved) =>

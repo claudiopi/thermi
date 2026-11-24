@@ -191,9 +191,6 @@ public enum UiText
 
     NotifyMe,
 
-    /// <summary>Why Separate pill is off on a pill's first item.</summary>
-    AlreadyOwnPill,
-
     /// <summary>The name of a color box's hex field.</summary>
     HexColor,
 
@@ -214,9 +211,6 @@ public enum UiText
 
     /// <summary>The name of the chart's "…" button.</summary>
     ChartActions,
-
-    /// <summary>The chart's axis at its start.</summary>
-    ChartStart,
 
     /// <summary>The chart's axis at its end.</summary>
     ChartNow,

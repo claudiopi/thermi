@@ -75,6 +75,14 @@ public sealed class EditTests
             ],
             Ids(board.Overlays[0]));
 
+        // Cold review 4 (Q3): an item added from the catalog starts as its kind's defaults do, metered by itself with its
+        // kind's calm lines, and one that cannot be a meter, as a power, with none.
+        var gpuTemperature = Item(gpu, "/gpu-nvidia/0/temperature/0");
+        Assert.Equal((new MeterConfig { Sensor = "/gpu-nvidia/0/temperature/0" }, new Threshold(80, 88)), (gpuTemperature.Meter, gpuTemperature.Threshold));
+        Assert.Equal(new Threshold(70, 80), Item(board, "/lpc/it8689e/0/temperature/0").Threshold);
+        var power = Item(Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, "/gpu-nvidia/0/power/0")), "/gpu-nvidia/0/power/0");
+        Assert.Equal((null, null), (power.Meter, power.Threshold));
+
         // Named as its metric, while the defaults store no name, so they read in the window"s language; the same sensor
         // added again takes a number, so no two names are alike.
         var names = JsonNode.Parse(File(again))!["overlays"]![0]!["items"]!.AsArray().Select(each => each!["name"]?.GetValue<string>()).ToList();

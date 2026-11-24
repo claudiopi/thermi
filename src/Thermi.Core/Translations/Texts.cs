@@ -67,6 +67,9 @@ public sealed class Texts
     public string Of<T>(T text)
         where T : struct, Enum => _texts[Key(text)];
 
+    /// <summary>The words of a choice whose type is known only as an enum, or null when its type has no translation.</summary>
+    public string? OfChoice(Enum choice) => _texts.GetValueOrDefault(string.Concat(choice.GetType().Name, ".", choice.ToString()));
+
     /// <summary>A text with its blanks filled, numbers in the regional format.</summary>
     public string Format<T>(IFormatProvider numbers, T text, params object?[] values)
         where T : struct, Enum => string.Format(numbers, Of(text), values);

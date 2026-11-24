@@ -114,8 +114,8 @@ internal static class PainterShapes
         }
     }
 
-    // A radius of half the height is the round pill, two half circles; none is a plain rectangle.
-    private static GraphicsPath Rounded(RectangleF rect, float radius)
+    /// <summary>A radius of half the height is the round pill, two half circles; none is a plain rectangle.</summary>
+    public static GraphicsPath Rounded(RectangleF rect, float radius)
     {
         var path = new GraphicsPath();
         var diameter = radius * 2;

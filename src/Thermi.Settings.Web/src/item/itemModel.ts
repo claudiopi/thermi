@@ -1,4 +1,4 @@
-import type { Item, ItemView, Meter, Sensor, Settings, WindowView } from '../bridge/bridge.g';
+import type { Item, ItemView, Meter, Sensor, SensorView, Settings, WindowView } from '../bridge/bridge.g';
 import type { Choice } from '../kit';
 import type { TextKey } from '../texts/Texts';
 
@@ -28,8 +28,12 @@ export function placeOf(settings: Settings, view: WindowView, id: string): Place
 
 const followsDevice = ['Network', 'Storage'];
 
-/** The Sensor dropdown's choices: Auto first for an item made from a metric, then every sensor of its type, its own device's first. */
-export function sensorChoices(item: Item, view: WindowView, sensors: readonly Sensor[], say: Say): Choice[] {
+/**
+ * The Sensor dropdown's choices: Auto first for an item made from a metric, then every sensor of its type that C# offers,
+ * its own device's first, and the one it reads now whatever C# says.
+ */
+export function sensorChoices(item: Item, view: WindowView, read: SensorView, say: Say): Choice[] {
+  const { sensors, unoffered } = read;
   const shows = view.items[item.id];
   const named = (sensor: Sensor): string => say('UiText.SensorOn', sensor.name, sensor.hardware);
   const auto = sensors.find((sensor) => sensor.id === shows?.auto);
@@ -47,14 +51,15 @@ export function sensorChoices(item: Item, view: WindowView, sensors: readonly Se
           },
         ];
   // The device the item reads first, as a GPU's load lists the GPU's sensors before the CPU's cores.
-  const read = item.sensor ?? item.sensors?.[0] ?? shows?.auto;
-  const reading = sensors.find((sensor) => sensor.id === read);
+  const now = item.sensor ?? item.sensors?.[0] ?? shows?.auto;
+  const reading = sensors.find((sensor) => sensor.id === now);
   const own = reading?.hardware;
   // An amount of data means another thing on each kind of device, the RAM in use or what a drive read in all, so it is
   // offered from the item's own kind alone.
   const sameKind = (sensor: Sensor): boolean => sensor.type !== 'Data' || reading === undefined || sensor.hardwareType === reading.hardwareType;
+  const offered = (sensor: Sensor): boolean => sensor.id === item.sensor || !unoffered.includes(sensor.id);
   const ofType = sensors
-    .filter((sensor) => sensor.type === shows?.type && sameKind(sensor))
+    .filter((sensor) => sensor.type === shows?.type && sameKind(sensor) && offered(sensor))
     .sort((one, other) => Number(other.hardware === own) - Number(one.hardware === own));
   return [
     ...autoChoice,

@@ -98,7 +98,17 @@ public sealed class ChartTests
         Assert.Equal(range, string.Create(CultureInfo.InvariantCulture, $"{from} {to}"));
         Assert.Equal(ColorsWithLines(warning, critical), Bands(scale));
         Assert.Equal((value, value, value), MeterChart.Summary([value, null, double.NaN]));
+
+        // Cold review 4 (Q16): the chart spans from its first reading, a gap after it kept, and says how long ago that was.
+        double?[] read = [.. Enumerable.Repeat<double?>(null, 470), value, null, .. Enumerable.Repeat<double?>(value, 128)];
+        var (span, since) = MeterChart.Span(read, InEnglish);
+        Assert.Equal(read[470..], span);
+        Assert.Equal(Format(ChartText.MinutesAgo, 2), since);
+        var (one, now) = MeterChart.Span([null, value], InEnglish);
+        Assert.Equal([value], one);
+        Assert.Equal(Format(ChartText.SecondsAgo, 1), now);
         Assert.Equal(
+
             [null, null, Format(ChartText.OutOfRange, ends), Format(ChartText.NotANumber, Number(scale, critical ?? warning ?? scale.Max))],
             new[] { "", scale.Max.ToString(English), (scale.Max + 1).ToString(English), "ninety" }.Select(typed => MeterChart.Check(scale, typed, InEnglish)));
         if (warning is { } low && critical is { } high)

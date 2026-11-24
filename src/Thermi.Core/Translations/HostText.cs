@@ -28,6 +28,9 @@ public enum HostText
     /// <summary>The first-run notice: what to do first; a click on it opens the window.</summary>
     FirstRun,
 
+    /// <summary>The first-run notice where the CPU reads zero: the driver it needs; a click on it opens the window, whose bar installs it.</summary>
+    FirstRunDriver,
+
     /// <summary>The title of the notice after "Hide overlays" hid several.</summary>
     OverlaysHiddenTitle,
 

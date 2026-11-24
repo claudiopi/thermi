@@ -2,23 +2,17 @@ import type { Value } from '../bridge/bridge.g';
 import { asOneStep, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Card, CardRow, CardStack, Dropdown, Segmented, Slider } from '../kit';
 import { useText } from '../texts/Texts';
-import { ColorsCard } from './ColorsCard';
 import { LookCard } from './LookCard';
 import { enumChoices as choicesOf, shownStyle } from './lookModel';
-import { TextAndShape } from './TextAndShape';
 
 export interface AppearanceProps {
   data: WindowData;
   overlay: number;
-  textOpen: boolean;
-  onTextOpen: (open: boolean) => void;
-  colorsOpen: boolean;
-  onColorsOpen: (open: boolean) => void;
 }
 
 const percent = (value: number): string => `${Math.round(value * 100)} %`;
 
-export function Appearance({ data, overlay, textOpen, onTextOpen, colorsOpen, onColorsOpen }: AppearanceProps) {
+export function Appearance({ data, overlay }: AppearanceProps) {
   const t = useText();
   const edit = useEdit();
   const { overlays } = data.settings;
@@ -37,7 +31,7 @@ export function Appearance({ data, overlay, textOpen, onTextOpen, colorsOpen, on
       ),
     );
   return (
-    <section className="t-col" aria-label={t('OverlayPageText.AppearanceSection')}>
+    <section className="t-col t-col-look" aria-label={t('OverlayPageText.AppearanceSection')}>
       <h3 className="t-pane-h">{t('OverlayPageText.AppearanceSection')}</h3>
       <LookCard data={data} overlay={overlay} />
       <CardStack>
@@ -109,8 +103,6 @@ export function Appearance({ data, overlay, textOpen, onTextOpen, colorsOpen, on
           </CardRow>
         </Card>
       </CardStack>
-      <TextAndShape overlay={overlay} style={one.style} open={textOpen} onOpen={onTextOpen} />
-      <ColorsCard overlay={overlay} style={one.style} open={colorsOpen} onOpen={onColorsOpen} />
     </section>
   );
 }

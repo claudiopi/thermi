@@ -85,11 +85,11 @@ public enum ChartEmpty
 public sealed record ColorStop(double At, ChartColor Color);
 
 /// <summary>
-/// An item's chart: its track, from 0 to <see cref="Max"/> by <see cref="Step"/>, the span it shows, its ten minutes, its
-/// lines and their texts, the colors along it, its Min · Avg · Max and its summary for Narrator, why it is empty, the
-/// message of a line pushed by the other, its title, the ends of its span as its scale says them, and, when its lines are
-/// not the defaults and the lowest was reached for most of the ten minutes, what the button that puts the defaults back
-/// says, as "Use 90/95 °C"; else null.
+/// An item's chart: its track, from 0 to <see cref="Max"/> by <see cref="Step"/>, the span it shows, its ten minutes from
+/// its first reading, its lines and their texts, the colors along it, its Min · Avg · Max and its summary for Narrator, why
+/// it is empty, the message of a line pushed by the other, its title, the ends of its span as its scale says them, when its
+/// lines are not the defaults and the lowest was reached for most of the ten minutes, what the button that puts the
+/// defaults back says, as "Use 90/95 °C", else null; and how long ago its first reading came, as "4 min ago".
 /// </summary>
 public sealed record ChartView(
     double Max,
@@ -109,4 +109,5 @@ public sealed record ChartView(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Title,
     string FromText,
     string ToText,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Fires);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Fires,
+    string StartText);

@@ -188,7 +188,7 @@
         "R109",
         "R114"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Label, Meter, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, then the settings hold the row's change, a row that cannot apply is locked with its reason, as Separate pill on a pill's first item, locked on, and the Meter offers Off and the item's own readings alone: a temperature itself, the CPU fan its speed and its duty, power nothing, which then offers no only on alert.",
+      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Label, Meter, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, then the settings hold the row's change, a row that cannot apply is locked with its reason, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, and the Meter offers Off and the item's own readings alone: a temperature itself, the CPU fan its speed and its duty, power nothing, which then offers no only on alert.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },
@@ -208,7 +208,7 @@
         "R20",
         "R21"
       ],
-      "description": "Given the CPU fan item and a fake finder, when \"Find it\" runs, is cancelled, runs again and its pick is used, then the row shows the run and its result in place, Cancel stops it, and using the pick changes the item's sensor.",
+      "description": "Given the CPU fan item and a fake finder, when \"Find it\" is asked and turned down, then runs, is cancelled, runs again and its pick is used, then nothing loads until \"Load the CPU\", the row shows the run and its result in place, Cancel stops it, and using the pick changes the item's sensor.",
       "check": "FindItRunsInTheSensorRow",
       "passes": true
     },
@@ -271,7 +271,7 @@
         "R95",
         "R143"
       ],
-      "description": "Given the page with two monitors and a table of Placement's controls (each spot of the map, a monitor that is gone, vertical, When to show, lock, click-through, OLED care, and Hide labels on an overlay that does not fit beside the apps), when each is chosen by keys, then the settings hold the row's change, and the fit notice goes once the overlay fits.",
+      "description": "Given the page with two monitors and a table of Placement's controls (each spot of the map, a monitor that is gone, vertical, When to show, lock, click-through, OLED care, and Hide labels on an overlay that does not fit beside the apps), when each is chosen by keys, then the settings hold the row's change, and the fit notice goes once the overlay fits; an overlay that stops fitting says so in the toast, whose Hide labels turns them off.",
       "check": "ThePlacementPageMovesTheOverlay",
       "passes": true
     },
@@ -1173,6 +1173,15 @@
       ],
       "description": "Given the window hidden, when a second's readings come, then it draws none of them, and once it shows again it draws the latest.",
       "check": "AHiddenWindowShowsTheLatestReadingsOnceItShowsAgain",
+      "passes": true
+    },
+    {
+      "id": "A266",
+      "covers": [
+        "R104"
+      ],
+      "description": "Given the default overlay painted, when the open window marks CPU load as selected, then its mark is a bar lying under the value's middle, wider than tall.",
+      "check": "TheSelectedValuesMarkLiesUnderIt",
       "passes": true
     }
   ]

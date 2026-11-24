@@ -12,7 +12,7 @@ export interface FinderRowProps {
   onUseFan: (sensor: string) => void;
 }
 
-type Shown = 'idle' | 'running' | 'done';
+type Shown = 'idle' | 'asking' | 'running' | 'done';
 
 const shownOf = (finder: FinderView | null): Shown => (finder?.phase === 'running' ? 'running' : finder?.phase === 'done' ? 'done' : 'idle');
 const refusalKey = (refusal: FanFinderRefusal): TextKey =>
@@ -47,6 +47,25 @@ function FinderIdle({ refusal, onStart }: { refusal: FanFinderRefusal | undefine
       </span>
       <Button className="t-finder-small" describedBy={hint} disabled={refusal !== undefined} onClick={onStart}>
         {t('CatalogText.FindIt')}
+      </Button>
+    </div>
+  );
+}
+
+// The load is loud and takes the CPU for a while, so it starts only once the person says so.
+function FinderAsking({ onStart, onCancel }: { onStart: () => void; onCancel: () => void }) {
+  const t = useText();
+  const ask = useId();
+  return (
+    <div className="t-finder-idle">
+      <span id={ask} className="t-finder-hint">
+        {t('CatalogText.FinderAsk')}
+      </span>
+      <Button className="t-finder-small" kind="accent"describedBy={ask} onClick={onStart}>
+        {t('CatalogText.LoadCpu')}
+      </Button>
+      <Button className="t-finder-small" onClick={onCancel}>
+        {t('UiText.Cancel')}
       </Button>
     </div>
   );
@@ -109,7 +128,9 @@ export function FinderRow({ data, item, onUseFan }: FinderRowProps) {
   const t = useText();
   const row = useRef<HTMLDivElement>(null);
   const finder = useFinder(data.changes);
-  const shown = shownOf(finder);
+  const [asking, ask] = useState(false);
+  const run = shownOf(finder);
+  const shown = asking && run === 'idle' ? 'asking' : run;
   const [spoken, say] = useState('');
   useFocusFollows(shown, row);
 
@@ -119,6 +140,7 @@ export function FinderRow({ data, item, onUseFan }: FinderRowProps) {
   const used = pick !== null && item.sensor === pick;
   const detail = used ? t('CatalogText.AlreadyUsed') : (finder?.detail ?? null);
   const handleStart = (): void => {
+    ask(false);
     say(t('CatalogText.FinderStarted'));
     void bridge()?.findCpuFan();
   };
@@ -128,7 +150,8 @@ export function FinderRow({ data, item, onUseFan }: FinderRowProps) {
   };
   return (
     <div ref={row} className="t-finder">
-      {shown === 'idle' && <FinderIdle refusal={finder?.refusal} onStart={handleStart} />}
+      {shown === 'idle' && <FinderIdle refusal={finder?.refusal} onStart={() => ask(true)} />}
+      {shown === 'asking' && <FinderAsking onStart={handleStart} onCancel={() => ask(false)} />}
       {shown === 'running' && <FinderRunning finder={finder} onCancel={handleCancel} />}
       {shown === 'done' && <FinderDone found={found} detail={detail} fan={used ? null : pick} onUseFan={onUseFan} />}
       <span className="t-announce" aria-live="polite">

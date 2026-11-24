@@ -193,6 +193,19 @@
   color: var(--thermi-text2);
 }
 
+/* The numbers, and the chart's menu at their end, under the plot it acts on. */
+.t-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.t-stats-row > .t-stats {
+  margin-top: 0;
+}
+
 .t-stats,
 .t-pushed {
   margin-top: 4px;

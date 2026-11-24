@@ -87,7 +87,7 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
   const { item } = placed;
   const set = (field: string, value: Value): void => edit({ kind: 'item', item: item.id, field, value });
   const sensors = data.sensors.sensors;
-  const choices = sensorChoices(item, data.view, sensors, t);
+  const choices = sensorChoices(item, data.view, data.sensors, t);
   const current = sensors.find((sensor) => sensor.id === (item.sensor ?? data.view.items[item.id]?.auto));
   const sensorNote = sensorNoteOf(data, item, current, t);
   const metered = meterChoices(item, data.view.items[item.id], t);
@@ -140,14 +140,8 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
       {item.threshold?.critical !== undefined && (
         <SwitchRow label={t('UiText.NotifyMe')} checked={item.notify === true} onChange={(on) => set('notify', on ? true : null)} />
       )}
-      {/* The first item of a pill already starts one, so its switch shows On, locked. */}
-      <SwitchRow
-        label={t('UiText.OwnPill')}
-        {...(ownOff ? { description: t('UiText.AlreadyOwnPill') } : {})}
-        checked={item.own === true || ownOff}
-        disabled={ownOff}
-        onChange={(on) => set('own', on ? true : null)}
-      />
+      {/* The first item of a pill already starts one, so a switch that could not change is not offered. */}
+      {!ownOff && <SwitchRow label={t('UiText.OwnPill')} checked={item.own === true} onChange={(on) => set('own', on ? true : null)} />}
       <SwitchRow label={t('UiText.OwnTrayIcon')} checked={item.tray === true} onChange={(on) => set('tray', on ? true : null)} />
     </>
   );

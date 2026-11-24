@@ -23,6 +23,7 @@ function plot(chart: Partial<ChartView> = {}): Plot {
     fromText: '',
     toText: '',
     fires: null,
+    startText: '',
     ...chart,
   };
   return { width: 300, height: 124, chart: view };
@@ -68,8 +69,9 @@ describe('the chart', () => {
 
   test.each([
     { readings: [], path: '' },
-    { readings: [50], path: 'M0.0,62.0' },
-    { readings: [100, null, 0], path: 'M0.0,12.0M300.0,112.0' },
+    // Cold review 4 (Q6): a reading alone is no line, so it draws nothing; the dot at its end says it.
+    { readings: [50], path: '' },
+    { readings: [100, null, 0], path: '' },
     { readings: [null, 100, 0], path: 'M150.0,12.0C175.0,28.7 275.0,95.3 300.0,112.0' },
     { readings: [100, 50, 0, 50], path: 'M0.0,12.0C16.7,20.3 66.7,45.3 100.0,62.0C133.3,78.7 166.7,112.0 200.0,112.0C233.3,112.0 283.3,70.3 300.0,62.0' },
   ])('draws the readings $readings', ({ readings, path }) => {
@@ -81,8 +83,8 @@ describe('the chart', () => {
     { readings: [], fill: '' },
     { readings: [null, null], fill: '' },
     { readings: [null, 100, 0, null], fill: 'M100.0,12.0C116.7,28.7 183.3,95.3 200.0,112.0L200.0,124.0L100.0,124.0Z' },
-    { readings: [100, null, 0], fill: 'M0.0,12.0L0.0,124.0L0.0,124.0ZM300.0,112.0L300.0,124.0L300.0,124.0Z' },
-    { readings: [50, null, 50, 50], fill: 'M0.0,62.0L0.0,124.0L0.0,124.0ZM200.0,62.0C216.7,62.0 283.3,62.0 300.0,62.0L300.0,124.0L200.0,124.0Z' },
+    { readings: [100, null, 0], fill: '' },
+    { readings: [50, null, 50, 50], fill: 'M200.0,62.0C216.7,62.0 283.3,62.0 300.0,62.0L300.0,124.0L200.0,124.0Z' },
   ])('fills under $readings', ({ readings, fill }) => {
     expect(fillPath(plot({ readings }))).toBe(fill);
   });

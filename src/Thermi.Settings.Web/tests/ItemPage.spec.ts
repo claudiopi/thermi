@@ -113,13 +113,14 @@ test.describe('TheItemPageEditsTheItem', () => {
     });
   }
 
+  // Cold review 4 (Q12): a pill's first item already starts one, so it offers no Separate pill that could not change.
+  test("A pill's first item offers no Separate pill", async ({ page }) => {
+    await openWindow(page);
+    await select(page, text('MetricName.CpuTemperature'));
+    await expect(fieldOf(page, 'switch', 'UiText.OwnPill')).toHaveCount(0);
+  });
+
   const off: { name: string; state: () => FakeState; control: (page: Page) => Locator; reason: string }[] = [
-    {
-      name: 'Separate pill on a pill\'s first item',
-      state: () => fakeState(),
-      control: (page) => fieldOf(page, 'switch', 'UiText.OwnPill'),
-      reason: 'UiText.AlreadyOwnPill',
-    },
     { name: 'Only on alert without a meter', state: () => {
       const state = fakeState();
       const temperature = state.settings.overlays[0]?.items.find((item) => item.id === 'cpu.temperature');
@@ -186,6 +187,7 @@ test.describe('TheItemPageEditsTheItem', () => {
     await fieldOf(page, 'button', 'UiText.MoreOptions').press('Enter');
     await expect(fieldOf(page, 'switch', 'UiText.Bits')).toHaveCount(0);
     await select(page, speed.name);
+    await fieldOf(page, 'button', 'UiText.MoreOptions').press('Enter');
     await fieldOf(page, 'switch', 'UiText.Bits').press('Space');
     await expect.poll(async () => (await itemIn(page, speed.id)).bits).toBe(true);
   });
@@ -201,11 +203,9 @@ test.describe('TheItemPageEditsTheItem', () => {
     state.settings.overlays[0]?.items.push(...windows.map((sensor) => ({ id: sensor.id, name: sensor.name, sensor: sensor.id })));
     await openWindow(page, state);
     const main = page.getByRole('main');
-    await select(page, text('MetricName.CpuTemperature'));
-    // More options stays open from item to item.
-    await main.getByRole('button', { name: text('UiText.MoreOptions') }).press('Enter');
     for (const sensor of windows) {
       await select(page, sensor.name);
+      await main.getByRole('button', { name: text('UiText.MoreOptions') }).press('Enter');
       await expect(main.getByRole('button', { name: text('UiText.ValueColor') })).toBeVisible();
       const numberTools = [
         ['combobox', 'UiText.StatField'],
@@ -239,6 +239,12 @@ test.describe('TheItemPageEditsTheItem', () => {
     await main.getByRole('button', { name: text('UiText.MoreOptions') }).press('Enter');
     await expect.poll(() => main.evaluate((pane) => pane.scrollHeight > pane.clientHeight)).toBe(true);
     expect(await across()).toEqual(before);
+
+    // Cold review 4 (Q8): the next item's page opens at its top, its title in view, with its options closed.
+    await main.evaluate((pane) => pane.scrollTo({ top: pane.scrollHeight }));
+    await select(page, text('MetricName.CpuLoad'));
+    await expect(main.getByRole('heading', { level: 2 })).toBeInViewport();
+    await expect(main.getByRole('button', { name: text('UiText.MoreOptions') })).toHaveAttribute('aria-expanded', 'false');
   });
 });
 
@@ -250,13 +256,19 @@ test('FindItRunsInTheSensorRow', async ({ page }) => {
   const row = page.getByRole('group', { name: text('UiText.SensorField') });
   const meterBefore = (await itemIn(page, 'fan.cpu')).meter;
 
+  // Cold review 4 (Q7): it asks before it loads the CPU, and a person can say no.
   await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
+  await row.getByRole('button', { name: text('UiText.Cancel') }).press('Enter');
+  expect((await fakeOf(page)).finder.phase).not.toBe('running');
+  await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
+  await row.getByRole('button', { name: text('CatalogText.LoadCpu') }).press('Enter');
   await expect(row.getByRole('progressbar')).toBeVisible();
   await row.getByRole('button', { name: text('UiText.Cancel') }).press('Enter');
   await expect.poll(async () => (await fakeOf(page)).finder.phase).toBe('cancelled');
   await expect(row.getByRole('progressbar')).toBeHidden();
 
   await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
+  await row.getByRole('button', { name: text('CatalogText.LoadCpu') }).press('Enter');
   await setFake(page, { finder: { phase: 'done', pick: boardFan } });
   await row.getByRole('button', { name: text('CatalogText.UseIt') }).press('Enter');
   await expect.poll(async () => (await itemIn(page, 'fan.cpu')).sensor).toBe(boardFan);

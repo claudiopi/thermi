@@ -60,6 +60,12 @@ public enum ChartText
 
     /// <summary>The same button when the default is no lines.</summary>
     UseNoLines,
+
+    /// <summary>Under the chart's left end: how many minutes ago its first reading came.</summary>
+    MinutesAgo,
+
+    /// <summary>The same, under a minute: how many seconds ago.</summary>
+    SecondsAgo,
 }
 
 /// <summary>
@@ -157,6 +163,20 @@ public static class MeterChart
             : value >= warm ? ChartColor.Warm
             : value >= warm - 8 ? ChartColor.Middle
             : ChartColor.Cool;
+    }
+
+    /// <summary>
+    /// The chart's span, a reading a second: from its first reading on, so minutes the overlay and the window had not yet
+    /// read leave no empty stretch, while a gap after it stays one; and how long ago it starts, as "4 min ago".
+    /// </summary>
+    public static (IReadOnlyList<double?> Readings, string Start) Span(IReadOnlyList<double?> history, ValueFormat format)
+    {
+        var first = history.Count - history.SkipWhile(value => value is null).Count();
+        var seconds = Math.Max(1, history.Count - first);
+        var start = seconds < 60
+            ? format.Texts.Format(format.Numbers, ChartText.SecondsAgo, seconds)
+            : format.Texts.Format(format.Numbers, ChartText.MinutesAgo, (int)Math.Round(seconds / 60.0, MidpointRounding.AwayFromZero));
+        return ([.. history.Skip(first)], start);
     }
 
     /// <summary>The lowest, average and highest of the readings, a missing one or a gap left out; null when there are none.</summary>

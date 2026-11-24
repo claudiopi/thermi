@@ -100,9 +100,19 @@ describe('the item page', () => {
         each('UiText.SensorOn load name Ryzen', 'load', ''),
       ],
     },
-  ] satisfies { item: Item; shows: Partial<ItemView>; choices: unknown[] }[])('offers the sensors of $item', ({ item, shows, choices }) => {
-    expect(sensorChoices(item, view(shows), sensors, sayKeys)).toEqual(choices);
-  });
+    // Cold review 4 (Q4): what C# says the dropdown does not offer stays out, but the sensor the item reads now.
+    {
+      item: { id: 'cpu', sensor: 'load' },
+      shows: { type: 'Load' },
+      unoffered: ['load', 'gpuload'],
+      choices: [each('UiText.SensorOn load name Ryzen', 'load', '')],
+    },
+  ] satisfies { item: Item; shows: Partial<ItemView>; unoffered?: string[]; choices: unknown[] }[])(
+    'offers the sensors of $item',
+    ({ item, shows, unoffered, choices }) => {
+      expect(sensorChoices(item, view(shows), { service: 'running', sensors, unoffered: unoffered ?? [] }, sayKeys)).toEqual(choices);
+    },
+  );
 
   // The item's offered meters by place, Off first; a meter written by hand that is none of them shows kept. An item
   // offered no meter, as a power or a clock, has no Meter row at all, since Off would be its only choice.

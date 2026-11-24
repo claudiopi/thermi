@@ -11,6 +11,8 @@ export interface News {
   undo?: boolean;
   /** The overlay wearing a look from a file, which "Save as my look" names. */
   save?: { overlay: number; name: string };
+  /** A way out of what happened, offered before Undo, as "Hide labels" for an overlay that no longer fits. */
+  fix?: { text: string; run: () => void };
 }
 
 /** How long a toast stays, unless the pointer or the focus holds it. */
@@ -77,10 +79,16 @@ export function useWindowNews(onUndo: () => void): { api: NewsApi; toast: ReactN
     setNews(null);
   };
 
+  const fix = (): void => {
+    news?.fix?.run();
+    setNews(null);
+  };
+
   const actions =
-    news?.undo === true || news?.save !== undefined ? (
+    news?.undo === true || news?.save !== undefined || news?.fix !== undefined ? (
       <>
         {news.save !== undefined && <LinkButton onClick={save}>{t('WindowText.SaveLook')}</LinkButton>}
+        {news.fix !== undefined && <LinkButton onClick={fix}>{news.fix.text}</LinkButton>}
         {news.undo === true && (
           <LinkButton label={t('UiText.Undo')} keys="Control+Z" onClick={undo}>
             {t('WindowText.UndoLink')}

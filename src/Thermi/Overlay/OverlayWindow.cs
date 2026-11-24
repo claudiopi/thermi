@@ -187,11 +187,11 @@ internal sealed class OverlayWindow : IDisposable
             : _painter.Paint(items, look, scale, _glow.Glowing ? _glow.Of : null);
 #pragma warning restore CA2000
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
-        Tips(scene, input, shown);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
         var row = scene.Row(_index, () => bitmap.Width, _actions.RequestPaint);
+        Tips(scene, input, shown, floatsAbove: row is { Left: null });
         var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, row) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown);
@@ -226,10 +226,10 @@ internal sealed class OverlayWindow : IDisposable
     }
 
     // Each value's tooltip where the painter drew its item, the "Sensors stopped" pill's over the whole pill.
-    private void Tips(OverlayScene scene, TrayInput input, Core.Tray.OverlayScene shown)
+    private void Tips(OverlayScene scene, TrayInput input, Core.Tray.OverlayScene shown, bool floatsAbove)
     {
         _tips.Theme(!scene.LightApps && scene.HighContrast is null);
-        _tips.Update([.. _painter.Places.Zip(shown.Tooltips, (place, tip) => (place.Item, ValueTooltips.Text(scene.Config, _index, input, tip)))]);
+        _tips.Update([.. _painter.Places.Zip(shown.Tooltips, (place, tip) => (place.Item, ValueTooltips.Text(scene.Config, _index, input, tip, floatsAbove)))]);
     }
 
     private void Glow()

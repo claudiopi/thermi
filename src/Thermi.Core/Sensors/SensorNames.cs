@@ -93,7 +93,33 @@ public static class SensorNames
 
     /// <summary>The snapshot's sensors as the window names them everywhere: the user's name, else the probable one, else the library's.</summary>
     public static IEnumerable<RawSensor> Named(Snapshot snapshot, IReadOnlyDictionary<string, string>? own, Texts texts) =>
-        SensorMap.Named(snapshot).Select(named => named.Sensor with { Name = Of(named.Sensor, named.Id, own, texts).Shown });
+        All(snapshot, own, texts).Select(named => named.Sensor with { Name = named.Name.Shown });
+
+    /// <summary>
+    /// Every sensor of the snapshot with the id an item names it by and its name as <see cref="Of"/> gives it, but that a
+    /// library's name that a sensor of another type of the same device also has says its type, as "GPU Core (load)" beside
+    /// "GPU Core (temperature)", so a name never reads as another kind's.
+    /// </summary>
+    public static IReadOnlyList<(string Id, RawSensor Sensor, SensorName Name)> All(Snapshot snapshot, IReadOnlyDictionary<string, string>? own, Texts? texts)
+    {
+        var language = texts ?? Texts.English;
+        var named = SensorMap.Named(snapshot).Select(each => (each.Id, each.Sensor, Name: Of(each.Sensor, each.Id, own, language))).ToList();
+        var shared = named
+            .Where(each => each.Name.From == NameFrom.Library && SensorMap.KindOf(each.Sensor) is not null)
+            .GroupBy(each => (Device: SensorMap.DeviceIdOf(each.Sensor), each.Name.Shown))
+            .Where(same => same.Select(each => SensorMap.KindOf(each.Sensor)).Distinct().Count() > 1)
+            .Select(same => same.Key)
+            .ToHashSet();
+        return
+        [
+            .. named.Select(each => shared.Contains((SensorMap.DeviceIdOf(each.Sensor), each.Name.Shown)) && each.Name.From == NameFrom.Library
+                ? (each.Id, each.Sensor, each.Name with { Shown = WithKind(each.Name.Shown, SensorMap.KindOf(each.Sensor)!.Value, language) })
+                : each),
+        ];
+    }
+
+    private static string WithKind(string name, SensorKind kind, Texts texts) =>
+        texts.Format(CultureInfo.InvariantCulture, CatalogText.WithKind, name, texts.Of(kind).ToLowerInvariant());
 
     // A duty names its fan's input as the fan does.
     private static int? InputOf(RawSensor sensor) =>

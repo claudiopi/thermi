@@ -1,8 +1,8 @@
-import type { Edit, Monitor, Overlay, SnapSpot, Value } from '../bridge/bridge.g';
+import type { Monitor, Overlay, SnapSpot, Value } from '../bridge/bridge.g';
 import { useEdit, type WindowData } from '../bridge/useWindow';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
-import { Button, Card, CardRow, Dropdown, Icon } from '../kit';
+import { Card, CardRow, Dropdown } from '../kit';
 import { useText, type TextKey } from '../texts/Texts';
 import { MonitorMap } from './MonitorMap';
 import { placedOf, positionHint, snapAt } from './placeModel';
@@ -15,7 +15,6 @@ export interface PlacementProps {
   shown: readonly Monitor[];
   lockOpen: boolean;
   onLockOpen: (open: boolean) => void;
-  onOverlayEdit: (edit: Edit) => void;
 }
 
 const visibilities = [
@@ -37,7 +36,7 @@ function lockSummary(one: Overlay, say: (key: TextKey, ...blanks: string[]) => s
   return on.length === 0 ? say('OverlayPageText.AllOff') : on.reduce((joined, next) => say('OverlayPageText.SummaryJoin', joined, next));
 }
 
-export function Placement({ data, overlay, shown, lockOpen, onLockOpen, onOverlayEdit }: PlacementProps) {
+export function Placement({ data, overlay, shown, lockOpen, onLockOpen }: PlacementProps) {
   const t = useText();
   const edit = useEdit();
   const roomless = useRoomless(overlay, data.changes);
@@ -53,7 +52,7 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen, onOverla
   const hint = positionHint(placed, vertical, shown);
   const said = [hidden ? t('UiText.OverlayHidden') : null, hint === null ? null : t(hint)].filter((part) => part !== null).join(' · ');
   return (
-    <section className="t-col" aria-label={t('OverlayPageText.PlacementSection')}>
+    <section className="t-col t-col-place" aria-label={t('OverlayPageText.PlacementSection')}>
       <h3 className="t-pane-h">{t('OverlayPageText.PlacementSection')}</h3>
       <div className="t-place-rows">
         <div className="t-card t-map-card">
@@ -100,13 +99,6 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen, onOverla
           onChange={(value) => set('fade', value ? true : null)}
         />
       </Expander>
-      {data.settings.overlays.length > 1 && (
-        <div className="t-pane-foot">
-          <Button kind="subtle" icon={<Icon name="delete" />} onClick={() => onOverlayEdit({ kind: 'deleteOverlay', overlay })}>
-            {t('UiText.DeleteThisOverlay')}
-          </Button>
-        </div>
-      )}
     </section>
   );
 }

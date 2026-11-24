@@ -89,7 +89,11 @@ public static class ThermiMark
             snapshot is null && !SystemSensors.Reads(item)
                 ? ValueHint.SensorsStopped
                 : HintOf(OverlayLayout.ReadingOf(item, readings), driver, windowOpenedOnce))).ToList();
-        var items = built.Select((drawn, at) => snapshot is null ? drawn : Marked(drawn, configs[at], tooltips[at].Hint, throttled, snapshot, input.Texts));
+        var items = OncePerPill(
+            [.. built.Select((drawn, at) => snapshot is null ? drawn : Marked(drawn, configs[at], tooltips[at].Hint, throttled, snapshot, input.Texts))],
+            built,
+            shown.Style,
+            input.Texts);
         var standsIn = stopped && (all.Items.Count == 0 || shown.Items.Count < all.Items.Count);
         return new OverlayScene([.. items], standsIn, standsIn ? [new ValueTooltip(null, Level.Normal, ValueHint.SensorsStopped), .. tooltips] : tooltips);
     }
@@ -118,6 +122,17 @@ public static class ThermiMark
             ? drawn with { Value = texts.Of(OverlayText.Driver), Room = texts.Of(OverlayText.Driver) }
         : throttled && Throttling.Shows(item, snapshot) ? drawn with { Throttled = true }
         : drawn;
+
+    // A pill says "Driver" once, at its first value the driver reads, so a pill of four reads one fix and not four; its other
+    // such values show as missing, as they are.
+    private static IReadOnlyList<OverlayItem> OncePerPill(IReadOnlyList<OverlayItem> marked, IReadOnlyList<OverlayItem> built, StyleConfig style, Texts texts)
+    {
+        var driver = texts.Of(OverlayText.Driver);
+        var said = new HashSet<int>();
+        var pills = OverlayLayout.Groups(marked, style.Layout, !style.NoLabels);
+        var pillOf = pills.SelectMany((pill, at) => pill.Select(_ => at)).ToList();
+        return [.. marked.Select((item, at) => item.Value == driver && !said.Add(pillOf[at]) ? built[at] : item)];
+    }
 
     private static ValueHint HintOf(Reading? reading, bool driverMissing, bool windowOpenedOnce) =>
         reading?.Usable is null ? (driverMissing ? ValueHint.NeedsDriver : ValueHint.ReadsNothing)

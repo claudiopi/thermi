@@ -95,6 +95,29 @@ public sealed class PainterTests
         Assert.Equal(alpha, bitmap.GetPixel(1, 1).A);
     }
 
+    // Cold review 4 (Q9): the open window marks the selected value with a short bar lying under it, as a tab's mark, never a
+    // standing one beside its digits that reads as a text cursor.
+    [Fact]
+    public void TheSelectedValuesMarkLiesUnderIt()
+    {
+        using var painter = new Painter();
+        var items = Layout(9);
+        using var bitmap = painter.Paint(items, Look, 1);
+        var accent = new Rgb(255, 0, 255);
+
+        new EditMarks(Fade.None, Metrics.CpuLoad.Id, null, accent).Draw(bitmap, painter.Places, items, 1);
+
+        var place = painter.Places.Single(each => each.Id == Metrics.CpuLoad.Id);
+        var marked = Enumerable.Range(0, bitmap.Width)
+            .SelectMany(x => Enumerable.Range(0, bitmap.Height).Select(y => (X: x, Y: y)))
+            .Where(at => bitmap.GetPixel(at.X, at.Y) is { A: 255, R: 255, G: 0, B: 255 })
+            .ToList();
+        var (left, right, top, bottom) = (marked.Min(at => at.X), marked.Max(at => at.X), marked.Min(at => at.Y), marked.Max(at => at.Y));
+        Assert.True(right - left > bottom - top, "The mark lies down.");
+        Assert.InRange((left + right) / 2f, place.Value.Left, place.Value.Right);
+        Assert.True(top > place.Pill.Top + (place.Pill.Height / 2), "The mark is under the value's middle.");
+    }
+
     private static int Width(Painter painter, IReadOnlyList<OverlayItem> items, OverlayLook look)
     {
         using var bitmap = painter.Paint(items, look, 1);

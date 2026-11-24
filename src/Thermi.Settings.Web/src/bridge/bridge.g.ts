@@ -57,6 +57,7 @@ export interface ChartView {
   fromText: string;
   toText: string;
   fires: string | null;
+  startText: string;
 }
 
 export interface ColorStop {
@@ -257,6 +258,7 @@ export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'c
 export interface SensorView {
   service: Service;
   sensors: Sensor[];
+  unoffered: string[];
   taken?: boolean;
 }
 

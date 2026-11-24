@@ -23,6 +23,13 @@ const names = {
   label: 'StyleColor.Label',
   value: 'StyleColor.Value',
 } as const;
+const words = {
+  normal: 'OverlayPageText.SwatchNormal',
+  warning: 'OverlayPageText.SwatchWarning',
+  critical: 'OverlayPageText.SwatchCritical',
+  label: 'OverlayPageText.SwatchLabels',
+  value: 'OverlayPageText.SwatchValues',
+} as const;
 
 /** The color a swatch shows while the look leaves it out: neutral, the level's default, or the pills' text. */
 function fallbackOf(key: ColorKey, pills: PillTheme): string | null {
@@ -148,15 +155,18 @@ export function ColorsCard({ overlay, style, open, onOpen }: ColorsCardProps) {
   const pills = style?.pills ?? 'system';
   const setColors = (next: { [key in ColorKey]?: string | undefined }): void =>
     void edit({ kind: 'style', overlay, field: 'colors', value: colorsValue(next) });
+  // Its word under it is what the swatch's name already tells Narrator.
   const swatch = (key: ColorKey) => (
-    <Swatch
-      key={key}
-      name={t(names[key])}
-      color={colors[key]}
-      fallback={fallbackOf(key, pills)}
-      choices={colorChoices[key]}
-      onColor={(color) => setColors({ ...colors, [key]: color ?? undefined })}
-    />
+    <span key={key} className="t-swatch-named">
+      <Swatch
+        name={t(names[key])}
+        color={colors[key]}
+        fallback={fallbackOf(key, pills)}
+        choices={colorChoices[key]}
+        onColor={(color) => setColors({ ...colors, [key]: color ?? undefined })}
+      />
+      <span aria-hidden="true">{t(words[key])}</span>
+    </span>
   );
   const safe = isColorblindSafe(colors);
   const levels = (

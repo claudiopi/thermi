@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ChartView, Edit } from '../bridge/bridge.g';
 import { PageTitle } from '../app/PageTitle';
 import { useChart, useEdit, type WindowData } from '../bridge/useWindow';
@@ -14,8 +15,6 @@ export interface ItemPageProps {
   data: WindowData;
   id: string;
   labelAsked: number;
-  moreOpen: boolean;
-  onMoreOpen: (open: boolean) => void;
 }
 
 function chartMenu(chart: ChartView, item: string, edit: (edit: Edit) => void, say: ReturnType<typeof useText>): MenuEntry[] {
@@ -45,8 +44,10 @@ function chartMenu(chart: ChartView, item: string, edit: (edit: Edit) => void, s
 }
 
 /** An item's page: its name, where it lives, its chart and its rows, in two columns on a wide pane. */
-export function ItemPage({ data, id, labelAsked, moreOpen, onMoreOpen }: ItemPageProps) {
+export function ItemPage({ data, id, labelAsked }: ItemPageProps) {
   const t = useText();
+  // Closed on each item's page, as it opens at its top: one item's open rows never carry to the next.
+  const [moreOpen, setMoreOpen] = useState(false);
   const edit = useEdit();
   const chart = useChart(id, data.changes);
   const placed = placeOf(data.settings, data.view, id);
@@ -69,23 +70,33 @@ export function ItemPage({ data, id, labelAsked, moreOpen, onMoreOpen }: ItemPag
             {t('UiText.OverlayPlace', where === undefined ? '' : overlayName(where, overlay, t), t('UiText.PillName', placed.pill))}
           </div>
         </div>
-        {chart !== null && item.meter !== undefined && (
-          <Menu
-            // In words, so it never reads as the title row's "…" just above it.
-            trigger={
-              <Button kind="subtle" icon={<Icon name="more" />}>
-                {t('UiText.ChartActions')}
-              </Button>
-            }
-            entries={chartMenu(chart, id, run, t)}
-          />
-        )}
       </div>
-      {chart !== null && <Chart item={id} name={name} chart={chart} edit={edit} metered={item.meter !== undefined} />}
+      {chart !== null && (
+        <Chart
+          item={id}
+          name={name}
+          chart={chart}
+          edit={edit}
+          metered={item.meter !== undefined}
+          options={
+            item.meter === undefined ? undefined : (
+              <Menu
+                // In words, so it never reads as the title row's "…".
+                trigger={
+                  <Button kind="subtle" className="t-small-button" icon={<Icon name="more" />}>
+                    {t('UiText.ChartActions')}
+                  </Button>
+                }
+                entries={chartMenu(chart, id, run, t)}
+              />
+            )
+          }
+        />
+      )}
       <div className="t-item-rows">
         <CardStack>
           <ItemRows data={data} placed={placed} edit={run} labelAsked={labelAsked} />
-          <MoreOptions data={data} placed={placed} edit={edit} open={moreOpen} onOpen={onMoreOpen} />
+          <MoreOptions data={data} placed={placed} edit={edit} open={moreOpen} onOpen={setMoreOpen} />
         </CardStack>
       </div>
     </div>

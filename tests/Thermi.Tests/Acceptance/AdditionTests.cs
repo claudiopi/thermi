@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -92,6 +93,11 @@ public sealed class AdditionTests
             Assert.Equal(Texts.English.Of(OverlayText.Driver), scene.Items[0].Value);
             Assert.Equal(scene.Items[0].Value, scene.Items[0].Room);
             Assert.Equal(ValueHint.NeedsDriver, scene.Tooltips[0].Hint);
+
+            // Cold review 4 (G7): a pill says it once, at its first value the driver reads, its others missing as any.
+            var defaults = ThermiMark.Overlay(new ThermiConfig(), 0, input, windowOpenedOnce: true).Items;
+            Assert.Equal([1, 0, 0], OverlayLayout.Groups(defaults).Select(pill => pill.Count(each => each.Value == scene.Items[0].Value)));
+            Assert.Contains(defaults, each => each is { Value: ReadingFormatter.Missing, Label: null });
             return;
         }
 

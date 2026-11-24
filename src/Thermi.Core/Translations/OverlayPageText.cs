@@ -10,9 +10,10 @@ public enum OverlayPageText
     ColorblindSafe,
     OledCare,
 
-    /// <summary>The overlay page's two headings.</summary>
+    /// <summary>The overlay page's three headings.</summary>
     AppearanceSection,
     PlacementSection,
+    TextSection,
 
     /// <summary>Under an overlay page's title: how many items, then where it sits.</summary>
     OverlayHeadItems,
@@ -69,6 +70,13 @@ public enum OverlayPageText
     /// <summary>The hint in a color's hex box, and what it says of a value it cannot read.</summary>
     HexHint,
     HexFormat,
+
+    /// <summary>Under the meter's and the text's swatches, a word each, so a swatch says what it colors.</summary>
+    SwatchNormal,
+    SwatchWarning,
+    SwatchCritical,
+    SwatchLabels,
+    SwatchValues,
 
     ColorNeutral,
     ColorSky,

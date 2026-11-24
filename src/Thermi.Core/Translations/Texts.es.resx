@@ -127,10 +127,10 @@
     <value>Color del valor</value>
   </data>
   <data name="UiText.StyleColor" xml:space="preserve">
-    <value>Usar el del estilo</value>
+    <value>Usar el color del aspecto</value>
   </data>
   <data name="UiText.StyleColorShown" xml:space="preserve">
-    <value>El del estilo</value>
+    <value>Del aspecto</value>
   </data>
   <data name="UiText.CombineChoose" xml:space="preserve">
     <value>Elegir sensores…</value>
@@ -213,6 +213,12 @@
   <data name="CatalogText.UseIt" xml:space="preserve">
     <value>Usarlo</value>
   </data>
+  <data name="CatalogText.FinderAsk" xml:space="preserve">
+    <value>Esto carga la CPU hasta 30 s, así que tus ventiladores aceleran y pueden hacer ruido.</value>
+  </data>
+  <data name="CatalogText.LoadCpu" xml:space="preserve">
+    <value>Cargar la CPU</value>
+  </data>
   <data name="CatalogText.Dismiss" xml:space="preserve">
     <value>Descartar</value>
   </data>
@@ -239,6 +245,9 @@
   </data>
   <data name="CatalogText.InputNote" xml:space="preserve">
     <value>{0} · entrada {1}</value>
+  </data>
+  <data name="CatalogText.WithKind" xml:space="preserve">
+    <value>{0} ({1})</value>
   </data>
   <data name="CatalogText.LikelyTip" xml:space="preserve">
     <value>{0} lo llama {1}. En la mayoría de las placas con este chip mide: {2}, pero cada placa es distinta; cámbiale el nombre si sabes cuál es.</value>
@@ -438,6 +447,9 @@
   <data name="OverlayPageText.PlacementSection" xml:space="preserve">
     <value>Ubicación</value>
   </data>
+  <data name="OverlayPageText.TextSection" xml:space="preserve">
+    <value>Texto y colores</value>
+  </data>
   <data name="OverlayPageText.OverlayHeadItems" xml:space="preserve">
     <value>{0} elementos · {1}</value>
   </data>
@@ -530,6 +542,21 @@
   </data>
   <data name="OverlayPageText.ColorNeutral" xml:space="preserve">
     <value>Neutro</value>
+  </data>
+  <data name="OverlayPageText.SwatchNormal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="OverlayPageText.SwatchWarning" xml:space="preserve">
+    <value>Advertencia</value>
+  </data>
+  <data name="OverlayPageText.SwatchCritical" xml:space="preserve">
+    <value>Crítico</value>
+  </data>
+  <data name="OverlayPageText.SwatchLabels" xml:space="preserve">
+    <value>Etiquetas</value>
+  </data>
+  <data name="OverlayPageText.SwatchValues" xml:space="preserve">
+    <value>Valores</value>
   </data>
   <data name="OverlayPageText.ColorSky" xml:space="preserve">
     <value>Celeste</value>
@@ -660,9 +687,6 @@
   <data name="UiText.NotifyMe" xml:space="preserve">
     <value>Avisarme si llega a crítico</value>
   </data>
-  <data name="UiText.AlreadyOwnPill" xml:space="preserve">
-    <value>Ya empieza su propia píldora</value>
-  </data>
   <data name="UiText.HexColor" xml:space="preserve">
     <value>Color hexadecimal</value>
   </data>
@@ -686,9 +710,6 @@
   </data>
   <data name="UiText.ChartActions" xml:space="preserve">
     <value>Opciones del gráfico</value>
-  </data>
-  <data name="UiText.ChartStart" xml:space="preserve">
-    <value>hace 10 min</value>
   </data>
   <data name="UiText.ChartNow" xml:space="preserve">
     <value>ahora</value>
@@ -963,6 +984,12 @@
   <data name="ChartText.UseNoLines" xml:space="preserve">
     <value>Quitar las líneas</value>
   </data>
+  <data name="ChartText.MinutesAgo" xml:space="preserve">
+    <value>hace {0} min</value>
+  </data>
+  <data name="ChartText.SecondsAgo" xml:space="preserve">
+    <value>hace {0} s</value>
+  </data>
   <data name="Combine.Max" xml:space="preserve">
     <value>Máximo</value>
   </data>
@@ -1073,6 +1100,9 @@
   </data>
   <data name="HostText.FirstRun" xml:space="preserve">
     <value>Haz doble clic en la superposición para elegir qué muestra, o arrástrala a cualquier lugar.</value>
+  </data>
+  <data name="HostText.FirstRunDriver" xml:space="preserve">
+    <value>La temperatura, el consumo y las frecuencias de la CPU necesitan un pequeño driver firmado. Haz clic aquí para instalarlo.</value>
   </data>
   <data name="HostText.OverlaysHiddenTitle" xml:space="preserve">
     <value>Superposiciones ocultas</value>
@@ -1331,6 +1361,12 @@
   </data>
   <data name="OverlayText.DoubleClickToEdit" xml:space="preserve">
     <value>Doble clic para editar</value>
+  </data>
+  <data name="OverlayText.FanUnconfirmed" xml:space="preserve">
+    <value>Probablemente el ventilador de la CPU, por el nombre de su entrada. "Buscarlo" en su configuración lo comprueba.</value>
+  </data>
+  <data name="OverlayText.FloatsAbove" xml:space="preserve">
+    <value>Sobre la barra de tareas: no entra junto a tus aplicaciones. Ocultar las etiquetas la hace más angosta.</value>
   </data>
   <data name="OverlayText.NeedsDriver" xml:space="preserve">
     <value>{0} necesita el controlador de thermi. Doble clic para arreglarlo.</value>

@@ -73,7 +73,8 @@ function stretches(plot: Plot): Stretch[] {
     run.path += `C${c1.map((n) => n.toFixed(1)).join(',')} ${c2.map((n) => n.toFixed(1)).join(',')} ${point[0].toFixed(1)},${point[1].toFixed(1)}`;
     run.to = point[0];
   });
-  return runs;
+  // A reading alone is no line, and its fill would stand as a column: it draws nothing, and the dot at the end says it.
+  return runs.filter((run) => run.to > run.from);
 }
 
 /** The line as smooth curves through the readings, broken where a reading is missing. */

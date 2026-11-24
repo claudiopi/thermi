@@ -9,6 +9,9 @@ namespace Thermi.Core.Tray;
 public enum NoticeKind
 {
     FirstRun,
+
+    /// <summary>The first start on a PC whose CPU reads zero: thermi is running, and its click opens the window's driver bar.</summary>
+    FirstRunDriver,
     OverlaysHidden,
     OverlayHidden,
     ClickThrough,
@@ -36,7 +39,11 @@ public sealed record Notice(NoticeKind Kind, NoticeButtons Buttons)
 /// What the notices are decided from: the settings, the hide flag, whether the window made the last change, and whether
 /// this is thermi's first start, which lasts until the window first opens.
 /// </summary>
-public sealed record NoticeInput(ThermiConfig Config, bool HideOverlays, bool FromWindow, bool FirstStart);
+public sealed record NoticeInput(ThermiConfig Config, bool HideOverlays, bool FromWindow, bool FirstStart)
+{
+    /// <summary>Whether thermi's driver may be missing, as the CPU reads zero; null until the sensors are first read.</summary>
+    public bool? DriverMissing { get; init; } = false;
+}
 
 /// <summary>
 /// When thermi's icon shows a notice: on the first start; the first time overlays are hidden from outside the window,
@@ -74,22 +81,23 @@ public sealed class Notices
 
     private static bool Ended(Notice notice, NoticeInput input) => notice.Kind switch
     {
-        NoticeKind.FirstRun => !input.FirstStart,
+        NoticeKind.FirstRun or NoticeKind.FirstRunDriver => !input.FirstStart,
         NoticeKind.ClickThrough or NoticeKind.ClickThroughAll =>
             !notice.Overlays.Any(overlay => overlay < input.Config.Overlays.Count && input.Config.Overlays[overlay].ClickThrough),
         NoticeKind.OverlaysHidden or NoticeKind.OverlayHidden => !input.HideOverlays && !input.Config.Overlays.Any(overlay => overlay.Hidden),
         _ => true,
     };
 
+    // It waits for the first reading, so a PC without the driver is offered it at once, where the window's bar installs it.
     private Notice? FirstRun(NoticeInput input)
     {
-        if (!input.FirstStart || _firstRunTold)
+        if (!input.FirstStart || _firstRunTold || input.DriverMissing is not { } driver)
         {
             return null;
         }
 
         _firstRunTold = true;
-        return new Notice(NoticeKind.FirstRun, NoticeButtons.None);
+        return new Notice(driver ? NoticeKind.FirstRunDriver : NoticeKind.FirstRun, NoticeButtons.None);
     }
 
     private static Notice? ClickThrough(NoticeInput? before, NoticeInput input)

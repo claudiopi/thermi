@@ -1,5 +1,20 @@
 import { type Locator, type Page } from '@playwright/test';
-import { chooseByKeys, expect, fakeOf, fakeState, openWindow, overlayOf, secondMonitor, select, test, text, windowWith, type FakeState } from './fakeBridge';
+import {
+  chooseByKeys,
+  expect,
+  fakeOf,
+  fakeState,
+  openWindow,
+  overlayOf,
+  secondMonitor,
+  select,
+  setFake,
+  test,
+  text,
+  toast,
+  windowWith,
+  type FakeState,
+} from './fakeBridge';
 
 const pressOn = async (control: Locator, ...keys: string[]): Promise<void> => {
   await control.focus();
@@ -261,6 +276,16 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
     // Without its labels the overlay fits, and the notice goes with its button.
     await expect(pane.getByRole('button', { name: text('FitText.HideLabels') })).toHaveCount(0);
     await expect(pane.getByRole('status')).toHaveCount(0);
+    await page.close();
+  });
+
+  // Cold review 4 (Q1): an overlay that stops fitting, as after an item is added, says so in a toast where the person
+  // acted, with Hide labels.
+  await test.step('an overlay that stops fitting says so where the person is', async () => {
+    const page = await windowWith(context, fakeState());
+    await setFake(page, { crowded: [0] });
+    await toast(page).getByRole('button', { name: text('FitText.HideLabels') }).click();
+    await expect.poll(async () => overlayOf((await fakeOf(page)).settings, 0).style?.noLabels).toBe(true);
     await page.close();
   });
 

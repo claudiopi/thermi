@@ -75,7 +75,9 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         _icons.Refresh(icons, TrayIcons.SizeAt((uint)Math.Round((primary?.Scale ?? 1) * 96)));
 
         // A change while the window is open is taken as the window's, whose list already says what is hidden.
-        if (_notices.Update(new NoticeInput(scene.Config, parts.Visibility.HideOverlays, state.WindowOpen, state.FirstStart)) is { } notice)
+        var driver = input.Service != ServiceState.Running ? false : scene.Snapshot is { } read ? SensorMap.DriverMayBeMissing(read) : (bool?)null;
+        var told = new NoticeInput(scene.Config, parts.Visibility.HideOverlays, state.WindowOpen, state.FirstStart) { DriverMissing = driver };
+        if (_notices.Update(told) is { } notice)
         {
             Tell(notice, scene.Config);
         }
@@ -269,6 +271,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         var (title, text) = notice.Kind switch
         {
             NoticeKind.FirstRun => (texts.Of(HostText.FirstRunTitle), texts.Of(HostText.FirstRun)),
+            NoticeKind.FirstRunDriver => (texts.Of(HostText.FirstRunTitle), texts.Of(HostText.FirstRunDriver)),
             NoticeKind.OverlaysHidden when config.Overlays.Count == 1 => (texts.Format(numbers, HostText.OverlayHiddenTitle, one),
                 hotkey is null ? texts.Of(HostText.OverlayHiddenByFlag) : texts.Format(numbers, HostText.OverlayHiddenByFlagHotkey, hotkey)),
             NoticeKind.OverlaysHidden => (texts.Of(HostText.OverlaysHiddenTitle),
@@ -284,7 +287,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     {
         switch (notice.Kind)
         {
-            case NoticeKind.FirstRun:
+            case NoticeKind.FirstRun or NoticeKind.FirstRunDriver:
                 Actions.OpenSettings(0, null);
                 break;
             case NoticeKind.OverlaysHidden:

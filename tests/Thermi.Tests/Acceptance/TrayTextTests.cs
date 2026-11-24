@@ -245,6 +245,7 @@ public sealed class TrayTextTests
     [InlineData("first-run", MarkState.Calm, false, ValueHint.SetUp)]
     [InlineData("critical asleep", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("critical asleep woken", MarkState.Hot, false, ValueHint.None)]
+    [InlineData("floats", MarkState.Calm, false, ValueHint.None)]
     public void TheOverlayAndThermisIconSayWhatTheyShow(string state, MarkState mark, bool stoppedPill, ValueHint hint)
     {
         var words = state.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -266,14 +267,22 @@ public sealed class TrayTextTests
                 || (clock is [{ Value: not ReadingFormatter.Missing }] && Icon(TrayScene.Of(config, input), Metrics.Clock.Id).Text != ReadingFormatter.Missing),
             "The clock never waits on the sensor service.");
         Assert.Equal(hint, scene.Tooltips.Select(tooltip => tooltip.Hint).FirstOrDefault(each => each != ValueHint.None));
-        Assert.All(scene.Tooltips, tooltip => Assert.Equal(TooltipLines(tooltip), ValueTooltips.Text(config, 0, input, tooltip).Split('\n').Length));
+        // Cold review 4 (Q1): an overlay above its taskbar for lack of room says so in each value's tooltip.
+        var floats = words.Contains("floats");
+        Assert.All(
+            scene.Tooltips,
+            tooltip => Assert.Equal(
+                TooltipLines(tooltip) + (floats ? 1 : 0),
+                ValueTooltips.Text(config, 0, input, tooltip, floatsAbove: floats).Split('\n').Length));
     }
 
     // A value's tooltip says its name and value, the CPU's or GPU's model it is read from, its minimum and maximum, and how
-    // to edit it; a missing one only why and what to do.
+    // to edit it; a missing one only why and what to do. The CPU fan thermi picked by its input's name says it is only
+    // likely, until the finder or a hand picks it (cold review 4, G3).
     private static int TooltipLines(ValueTooltip tooltip) =>
         tooltip.Hint is ValueHint.SensorsStopped or ValueHint.NeedsDriver or ValueHint.ReadsNothing ? 1
-        : tooltip.ItemId is { } id && (id.StartsWith("cpu.", StringComparison.Ordinal) || id.StartsWith("gpu.", StringComparison.Ordinal)) ? 4
+        : tooltip.ItemId is { } id
+            && (id.StartsWith("cpu.", StringComparison.Ordinal) || id.StartsWith("gpu.", StringComparison.Ordinal) || id == Metrics.CpuFan.Id) ? 4
         : 3;
 
     private static (ThermiConfig Config, TrayInput Input) SceneOf(string[] words)

@@ -196,6 +196,14 @@ public sealed class UndoTests
             (config => OverlayEdits.SetHidden(config, 0, hidden: true), ChangedField.Hidden, null, null, null),
             (OverlayEdits.Add, ChangedField.OverlayAdded, null, null, null),
             (config => ThermiEdits.SetTemperature(config, TemperatureUnit.Fahrenheit), ChangedField.TemperatureUnit, null, null, null),
+
+            // Cold review 4 (Q10): a choice is named by its words, so an undo says which it went back to.
+            (
+                config => StyleEdits.Restyle(config, 0, style => style with { Pills = PillTheme.Dark }),
+                ChangedField.Theme,
+                Texts.English.Of(PillTheme.System),
+                Texts.English.Of(PillTheme.Dark),
+                Texts.English.Of(PillTheme.System)),
             (config => OverlayEdits.Resize(config, 0, 1.5, Orientation.Vertical), ChangedField.Size, null, null, null),
             (config => OverlayEdits.MoveItem(config, Metrics.GpuLoad.Id, null), ChangedField.OverlayAdded, null, null, null),
         ];

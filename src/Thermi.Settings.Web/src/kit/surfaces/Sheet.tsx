@@ -31,7 +31,7 @@ const useStyles = makeStyles({
     boxShadow: '0 8px 16px rgba(0, 0, 0, 0.26)',
     '@media (forced-colors: active)': { border: '1px solid CanvasText', background: 'Canvas' },
   },
-  backdrop: { zIndex: 30, top: space.titleRow, backgroundColor: 'rgba(0, 0, 0, 0.3)' },
+  backdrop: { zIndex: 30, top: space.titleRow, backgroundColor: surfaces.smoke },
   head: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' },
   title: { margin: '0', fontSize: '20px', lineHeight: '28px', fontWeight: tokens.fontWeightSemibold },
   // The prototype's × is a 12 px glyph in a 32 px button.

@@ -79,8 +79,8 @@ export const focusContract: FocusRun[] = [
         holds: (fake) => threshold(fake).critical === 94,
       },
       {
-        name: 'Find it moves to Cancel',
-        acts: [{ click: metric('MetricName.CpuFan') }, { focus: sensorGroup('CatalogText.FindIt') }, 'Enter'],
+        name: 'Find it asks first, and its answer moves to Cancel',
+        acts: [{ click: metric('MetricName.CpuFan') }, { focus: sensorGroup('CatalogText.FindIt') }, 'Enter', 'Enter'],
         focus: sensorGroup('UiText.Cancel'),
       },
       {

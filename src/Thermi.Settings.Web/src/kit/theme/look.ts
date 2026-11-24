@@ -20,6 +20,8 @@ export const surface = {
   flyoutStroke: 'var(--thermi-flyout-stroke)',
   dialog: 'var(--thermi-dialog)',
   dialogFoot: 'var(--thermi-dialog-foot)',
+  /** Behind a dialog, over the list and the pane. */
+  smoke: 'var(--thermi-smoke)',
 } as const;
 
 /** The text colors of the prototype: primary, secondary and tertiary, as Windows 11's. */
@@ -71,6 +73,7 @@ const surfaces = {
     '--thermi-control-stroke': 'rgba(0, 0, 0, 0.0578)',
     '--thermi-dialog': '#f3f3f3',
     '--thermi-dialog-foot': '#eeeeee',
+    '--thermi-smoke': 'rgba(0, 0, 0, 0.3)',
     '--thermi-flyout-stroke': 'rgba(0, 0, 0, 0.0578)',
   },
   dark: {
@@ -108,6 +111,8 @@ const surfaces = {
     '--thermi-control-stroke': 'rgba(255, 255, 255, 0.0698)',
     '--thermi-dialog': '#2b2b2b',
     '--thermi-dialog-foot': '#202020',
+    // Windows' 30 % smoke barely shows over a dark window, so a dialog seemed to float over a live page.
+    '--thermi-smoke': 'rgba(0, 0, 0, 0.55)',
     '--thermi-flyout-stroke': 'rgba(255, 255, 255, 0.08)',
   },
 } as const;

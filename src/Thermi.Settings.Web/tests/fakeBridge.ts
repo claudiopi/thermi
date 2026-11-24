@@ -110,6 +110,7 @@ function installFake(initial: FakeState): void {
         state.service === 'stopped'
           ? []
           : state.sensors.map((sensor) => ({ ...sensor, name: state.settings.sensorNames?.[sensor.id] ?? sensor.name })),
+      unoffered: [],
     }),
     history: async (id) => {
       const value = state.service === 'running' ? (state.sensors.find((sensor) => sensor.id === id)?.value ?? null) : null;
