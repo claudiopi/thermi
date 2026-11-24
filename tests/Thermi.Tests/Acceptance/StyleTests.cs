@@ -247,7 +247,7 @@ public sealed class StyleTests
     public void ALevelShowsOnTheValueNeverByColorAlone()
     {
         var contrast = new HighContrastColors(Rgb.Parse("#000000"), Rgb.Parse("#FFFFFF"), Rgb.Parse("#1AEBFF"), Rgb.Parse("#FFFF00"));
-        (bool Light, HighContrastColors? HighContrast, Level Level, bool Graphed, LevelMark Mark)[] marks =
+        (bool Light, HighContrastColors? HighContrast, Level Level, bool Metered, LevelMark Mark)[] marks =
         [
             (false, null, Level.Normal, false, new LevelMark(MarkKind.None, default, default)),
             (false, null, Level.Warning, false, new LevelMark(MarkKind.Underline, OverlayLook.DefaultWarning, default)),
@@ -257,7 +257,7 @@ public sealed class StyleTests
             (true, null, Level.Critical, false, new LevelMark(MarkKind.Reversed, Rgb.Parse("#C42B1C"), Rgb.Parse("#FFFFFF"))),
             (false, contrast, Level.Warning, false, new LevelMark(MarkKind.Underline, contrast.WindowText, default)),
             (false, contrast, Level.Critical, false, new LevelMark(MarkKind.Reversed, contrast.WindowText, contrast.Window)),
-            // A graph shows a warning in its bars' color, so its value is not underlined too; a critical one is still reversed.
+            // A meter or a graph shows a warning in its color, so its value is not underlined too; a critical one is still reversed.
             (false, null, Level.Warning, true, new LevelMark(MarkKind.None, default, default)),
             (true, null, Level.Critical, true, new LevelMark(MarkKind.Reversed, Rgb.Parse("#C42B1C"), Rgb.Parse("#FFFFFF"))),
         ];
@@ -277,13 +277,19 @@ public sealed class StyleTests
                 LevelMarks.Of(
                     OverlayLook.Of(new StyleConfig { Pills = row.Light ? PillTheme.Light : PillTheme.Dark }, row.Light, row.HighContrast),
                     row.Level,
-                    row.Graphed)));
+                    row.Metered)));
         Assert.Equal(
             [ReadingFormatter.Format(new Reading(SensorKind.Load, 0), English), ReadingFormatter.Format(new Reading(SensorKind.Load, 100), English)],
             shown.Where((_, at) => at is 2 or 4).Select(item => item.Value));
         Assert.Equal([true, false, true, false, true, false], shown.Select(item => item.Graph is not null));
         // A metered item without its graph lights its meter instead; the power, without a meter, draws neither.
         Assert.Equal([null, 1, null, null, null, 2], shown.Select(item => item.Lit));
+        // Only an item with neither underlines its warning.
+        var warm = new OverlayItem("CPU", "90 °C", Level.Warning, "100 °C");
+        var dark = OverlayLook.Of(new StyleConfig { Pills = PillTheme.Dark }, lightTaskbar: false);
+        Assert.Equal(
+            [MarkKind.Underline, MarkKind.None, MarkKind.None],
+            new[] { warm, warm with { Lit = 5 }, warm with { Graph = [] } }.Select(item => LevelMarks.Of(dark, item).Kind));
     }
 
     // The RAM's meter, its load: of five segments, those its value rounds to, at least one for any value above zero, a

@@ -59,7 +59,8 @@ public sealed class StyleWindowsTests
 
     // The admin recording's CPU temperature, 77 °C, metered by itself: a meter of five segments 12 px wide at 100 %, the
     // four lowest lit, as 77 of 100 rounds to four fifths, in its level's color, and the top one a faint track; at 100 %
-    // on the dark pills of a dark taskbar, and at 150 % past a warning line on the light pills of a light one.
+    // on the dark pills of a dark taskbar, and at 150 % past a warning line on the light pills of a light one, where the
+    // meter shows the warning, so the value has no underline too.
     [Theory]
     [InlineData(1f, false, null)]
     [InlineData(1.5f, true, 60d)]
@@ -82,6 +83,9 @@ public sealed class StyleWindowsTests
         Assert.Equal(4, Bands(lit));
         Assert.Equal(1, Bands(track));
         Assert.True(track.Max(pixel => pixel.Y) < lit.Min(pixel => pixel.Y), "The lit segments are the lowest.");
+        var value = Enumerable.Range((int)temperature.Value.Left, (int)temperature.Value.Width)
+            .SelectMany(x => Enumerable.Range(0, bitmap.Height).Select(y => bitmap.GetPixel(x, y)));
+        Assert.DoesNotContain(value, pixel => Near(pixel, look.Warning, 0));
     }
 
     // The pixels of a strip of the given width that ends where the item's value starts.

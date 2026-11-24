@@ -722,7 +722,7 @@
         "R138",
         "R141"
       ],
-      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, a graph on and off), when the overlay is laid out, then each value carries its row's mark, a graphed value at warning none, since its line shows it, percentages are held between 0 and 100, and a metered item holds its graph or else its lit meter, and the power neither.",
+      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, a graph on and off), when the overlay is laid out, then each value carries its row's mark, a value at warning whose meter or graph shows it none, percentages are held between 0 and 100, and a metered item holds its graph or else its lit meter, and the power neither.",
       "check": "ALevelShowsOnTheValueNeverByColorAlone",
       "passes": true
     },
@@ -1352,9 +1352,10 @@
       "covers": [
         "R60",
         "R61",
-        "R90"
+        "R90",
+        "R138"
       ],
-      "description": "Given the admin recording's CPU temperature, 77 °C, metered by itself, when the overlay is painted at 100 % on the pills of a dark taskbar, and at 150 % past a warning line on the pills of a light one, then its meter is five segments 12 px wide at 100 %, the four lowest lit in its level's color and the top one a faint track.",
+      "description": "Given the admin recording's CPU temperature, 77 °C, metered by itself, when the overlay is painted at 100 % on the pills of a dark taskbar, and at 150 % past a warning line on the pills of a light one, then its meter is five segments 12 px wide at 100 %, the four lowest lit in its level's color and the top one a faint track, and the value at warning has no underline.",
       "check": "AMeterLightsItsSegmentsFromTheBottomInItsLevelsColor",
       "passes": true
     },
