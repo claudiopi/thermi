@@ -5,7 +5,7 @@ The owner's levers on thermi's update channels (docs/adr/0008-updates.md).
 
 .DESCRIPTION
 pack builds a version for a processor and zips its folder as an update carries it:
-  pwsh scripts/updates.ps1 pack -Version 0.9.1 -Out <zip> [-Processor x64|arm64] [-UpdatesFrom <url> -UpdatesKeys <folder>]
+  pwsh scripts/updates.ps1 pack --version 0.9.1 --out <zip> [--processor x64|arm64] [--updates-from <url> --updates-keys <folder>]
 Every other command goes to thermi-releases (src/Thermi.Releases), which writes the channel's next signed manifest into
 a channels folder laid out as the server is:
   keys --out <folder>
@@ -16,25 +16,33 @@ a channels folder laid out as the server is:
   serve --folder <channels> [--port 8765]
 The levers sign with --key <private PEM>, or the PEM in THERMI_UPDATES_KEY.
 #>
-param(
-    [Parameter(Mandatory, Position = 0)][string]$Command,
-    [string]$Version,
-    [string]$Out,
-    [ValidateSet('x64', 'arm64')][string]$Processor,
-    [string]$UpdatesFrom,
-    [string]$UpdatesKeys,
-    [Parameter(ValueFromRemainingArguments)][string[]]$Rest
-)
+# No param block: PowerShell would read the tool's --options as its own.
+if ($args.Count -lt 1) { throw 'Give a command: pack, keys, publish, promote, rollback, disable, refresh, status or serve.' }
+$Command = [string]$args[0]
+[string[]]$Rest = @($args | Select-Object -Skip 1)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 
 if ($Command -ne 'pack') {
-    dotnet run --project (Join-Path $root 'src/Thermi.Releases') -c Release --nologo -v quiet -- $Command @Rest
+    # Run from a copy, so a server left running never holds the build's files.
+    $tool = Join-Path $root 'artifacts/releases'
+    dotnet build (Join-Path $root 'src/Thermi.Releases') -c Release -o (Join-Path $root 'artifacts/releases-build') --nologo -v quiet
+    if ($LASTEXITCODE -ne 0) { throw 'Building thermi-releases failed.' }
+    if ($Command -eq 'serve') { $tool = Join-Path $root "artifacts/releases-serve-$PID" }
+    New-Item $tool -ItemType Directory -Force | Out-Null
+    Copy-Item (Join-Path $root 'artifacts/releases-build/*') $tool -Recurse -Force
+    dotnet (Join-Path $tool 'thermi-releases.dll') $Command @Rest
     exit $LASTEXITCODE
 }
 
-if (-not $Version -or -not $Out) { throw 'pack needs -Version and -Out.' }
+# pack's own options, written as the tool's are.
+$options = @{}
+for ($at = 0; $at -lt $Rest.Count; $at += 2) { $options[$Rest[$at].TrimStart('-')] = $Rest[$at + 1] }
+$Version, $Out, $Processor = $options['version'], $options['out'], $options['processor']
+$UpdatesFrom, $UpdatesKeys = $options['updates-from'], $options['updates-keys']
+if (-not $Version -or -not $Out) { throw 'pack needs --version and --out.' }
+if ($Processor -and $Processor -notin 'x64', 'arm64') { throw '--processor is x64 or arm64.' }
 if (-not $Processor) {
     $Processor = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64') { 'arm64' } else { 'x64' }
 }

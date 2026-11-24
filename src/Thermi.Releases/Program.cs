@@ -64,14 +64,14 @@ internal static class Program
             Required = true,
             AllowMultipleArgumentsPerToken = true,
         };
-        var baseUrl = new Option<Uri>("--base-url") { Description = "Where the folder is served, ending in /v1/.", Required = true };
+        var baseUrl = new Option<string>("--base-url") { Description = "Where the folder is served, ending in /v1/.", Required = true };
         var command = new Command("publish", "Puts a build on a channel.") { Folder, Key, Channel, version, zips, baseUrl, Rollout, Urgent };
         command.SetAction(parsed => Run(parsed, (channels, folder, now) =>
         {
             var release = ReleaseVersion.Parse(parsed.GetValue(version)) ?? throw new InvalidOperationException("--version is not a release version.");
             var packages = parsed.GetValue(zips)!.Select(zip => zip.Split('=', 2)).ToDictionary(
                 pair => pair[0],
-                pair => folder.Add(release, pair[0], pair[1], parsed.GetValue(baseUrl)!),
+                pair => folder.Add(release, pair[0], pair[1], new Uri(parsed.GetValue(baseUrl)!)),
                 StringComparer.Ordinal);
             return Levers.Publish(channels, parsed.GetValue(Channel)!, release, packages, parsed.GetValue(Rollout), parsed.GetValue(Urgent), now);
         }));
