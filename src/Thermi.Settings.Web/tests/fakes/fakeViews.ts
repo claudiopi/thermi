@@ -120,12 +120,23 @@ export function installFakeViews(): void {
     const other = item.sensors === undefined ? otherForm(item) : undefined;
     return [{ meter: self, name: kindName(type) }, ...(other === undefined ? [] : [{ meter: other, name: kindName(type === 'Fan' ? 'Control' : 'Fan') }])];
   };
+  // As Core's SensorOffer: the sensors of its type on its own device first, then, of data, only its own kind's.
+  const deviceOf = (id: string): string => id.slice(0, id.lastIndexOf('/', id.lastIndexOf('/') - 1));
+  const offerOf = (read: Sensor | undefined, type: string): NonNullable<ItemView['offer']> => {
+    const ofType = state.sensors.filter((one) => one.type === type);
+    const own = (one: Sensor): boolean => read === undefined || deviceOf(one.id) === deviceOf(read.id);
+    return {
+      first: ofType.filter(own).map((one) => one.id),
+      more: ofType.filter((one) => !own(one) && (type !== 'Data' || one.hardwareType === read?.hardwareType)).map((one) => one.id),
+    };
+  };
   const itemView = (item: Item): ItemView => {
     const read = sensorOf(item);
     const value = live(read);
     const missing = value === null || (value === 0 && read?.hardwareType === 'Cpu' && read.type !== 'Load');
     const type = read?.type ?? 'Temperature';
     return {
+      offer: offerOf(read, type),
       value: missing ? null : format(type, value),
       level: levelOf(item),
       type,

@@ -5,7 +5,7 @@ import { SwitchLine, type SwitchLineProps } from '../app/SwitchLine';
 import { Card, CardRow, Dropdown, TextField, type Find } from '../kit';
 import { useText } from '../texts/Texts';
 import { FinderRow } from './FinderRow';
-import { meterChoices, sensorChoices, type Placed } from './itemModel';
+import { meterChoices, sensorChoices, showAllSensors, type Placed } from './itemModel';
 
 export interface ItemRowsProps {
   data: WindowData;
@@ -90,7 +90,9 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
   const { item } = placed;
   const set = (field: string, value: Value): void => edit({ kind: 'item', item: item.id, field, value });
   const sensors = data.sensors.sensors;
-  const choices = sensorChoices(item, data.view, data.sensors, t);
+  // Asked on one item, the other devices' sensors stay listed until another item's page opens.
+  const [allFor, setAllFor] = useState<string | null>(null);
+  const choices = sensorChoices(item, data.view, data.sensors, t, allFor === item.id);
   const current = sensors.find((sensor) => sensor.id === (item.sensor ?? data.view.items[item.id]?.auto));
   const sensorNote = sensorNoteOf(data, item, current, t);
   const metered = meterChoices(item, data.view.items[item.id], t);
@@ -124,7 +126,7 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
                   }
                 : {})}
               {...(sensorNote === undefined ? {} : { describedBy: describe })}
-              onChange={(value) => set('sensor', value === '' ? null : value)}
+              onChange={(value) => (value === showAllSensors ? setAllFor(item.id) : set('sensor', value === '' ? null : value))}
             />
           </CardRow>
           {item.metric === cpuFan && (

@@ -18,11 +18,23 @@ namespace Thermi.Ui.Web;
 /// <param name="picked">Hands the page what the desktop picked, on the window's thread.</param>
 /// <param name="changed">Tells the page that what it reads changed, as the history coming does.</param>
 /// <param name="time">The throttle's clock.</param>
-internal sealed class OverlayLink(ChartHistory chart, WindowEditor editor, Action<DesktopPickEventArgs> picked, Action changed, TimeProvider time) : IDisposable
+/// <param name="send">Where what it edits goes: the overlay's hidden window, off the window's thread, unless a test takes it.</param>
+internal sealed class OverlayLink(
+    ChartHistory chart,
+    WindowEditor editor,
+    Action<DesktopPickEventArgs> picked,
+    Action changed,
+    TimeProvider time,
+    Action<Edited>? send = null) : IDisposable
 {
     private static readonly TimeSpan EditedEvery = TimeSpan.FromMilliseconds(100);
 
-    private readonly Throttle<Edited> _edited = new(EditedEvery, edited => _ = Task.Run(() => HiddenWindow.Send(HiddenWindow.HostClass, edited)), time);
+    private readonly Throttle<Edited> _edited =
+        new(EditedEvery, send ?? (edited => _ = Task.Run(() => HiddenWindow.Send(HiddenWindow.HostClass, edited))), time);
+
+    // What the page edits, told to the overlay only while the window shows.
+    private Edited _editing = new(null, null, null);
+    private bool _shown = true;
 
     /// <summary>Asks the overlay for its ten minutes, which come to the beacon; with none in 500 ms the charts start with gaps.</summary>
     public static void AskHistory() => HiddenWindow.Send(HiddenWindow.HostClass, new HistoryAsked());
@@ -51,7 +63,26 @@ internal sealed class OverlayLink(ChartHistory chart, WindowEditor editor, Actio
     }
 
     /// <summary>The overlay the page edits, counted from 0, its selected item and the item pointed at, each or null.</summary>
-    public void Editing(int? overlay, string? selected, string? pointed) => _edited.Post(new Edited(overlay + 1, selected, pointed));
+    public void Editing(int? overlay, string? selected, string? pointed)
+    {
+        _editing = new Edited(overlay + 1, selected, pointed);
+        Tell();
+    }
+
+    /// <summary>
+    /// Whether the window shows: its marks guide the person working in it, so minimized it tells the overlay it edits
+    /// none, and no value is marked nor overlay faded, until it is restored.
+    /// </summary>
+    public void Shown(bool shown)
+    {
+        if (shown != _shown)
+        {
+            _shown = shown;
+            Tell();
+        }
+    }
+
+    private void Tell() => _edited.Post(_shown ? _editing : new Edited(null, null, null));
 
     public void Dispose() => _edited.Dispose();
 }

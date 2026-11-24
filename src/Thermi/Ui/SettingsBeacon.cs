@@ -11,7 +11,7 @@ namespace Thermi.Ui;
 /// <summary>
 /// The window process's hidden top-level window, of class <c>thermi-settings</c>, which the overlay and a second
 /// <c>thermi settings</c> find: "raise" brings the open window to the front on the overlay asked for, counted from 1, or
-/// 0 to keep the one it shows, and the overlay's messages come here decoded.
+/// 0 to keep the one it shows, as a double-click on a value does on its overlay, and the overlay's messages come here decoded.
 /// </summary>
 internal sealed class SettingsBeacon : IDisposable
 {
@@ -58,9 +58,16 @@ internal sealed class SettingsBeacon : IDisposable
         {
             if (HiddenWindow.Receive(message, wParam, lParam, HiddenWindow.HostClass, out var dropped) is { } received)
             {
-                if (received is Raise raise)
+                // A double-click on a value opens the window on it, so a window behind others or minimized comes up too.
+                var raised = received switch
                 {
-                    _raised(raise.Overlay);
+                    Raise raise => raise.Overlay,
+                    Select { How: SelectHow.DoubleClick } select => select.Overlay,
+                    _ => (int?)null,
+                };
+                if (raised is { } overlay)
+                {
+                    _raised(overlay);
                 }
 
                 Received?.Invoke(received);

@@ -227,11 +227,11 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         return x;
     }
 
-    // A level never rests on color alone: a warning underlines the value, and a critical value is drawn reversed, on a
-    // box of its color, where the text effect has nothing to set apart.
+    // A level never rests on color alone: a warning underlines the value, unless its graph shows it, and a critical value
+    // is drawn reversed, on a box of its color, where the text effect has nothing to set apart.
     private static void DrawValue(Graphics g, OverlayItem item, Font font, OverlayLook look, PointF at, float scale)
     {
-        var mark = LevelMarks.Of(look, item.Level);
+        var mark = LevelMarks.Of(look, item.Level, item.Graph is not null);
         var size = g.MeasureString(item.Value, font, 0, PainterFonts.Typographic);
         var text = new RectangleF(at.X, at.Y - (size.Height / 2), size.Width, size.Height);
         if (mark.Kind == MarkKind.Reversed)

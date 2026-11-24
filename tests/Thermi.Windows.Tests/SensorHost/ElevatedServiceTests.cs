@@ -45,6 +45,7 @@ public sealed class ElevatedServiceTests
     {
         var stopped = new TaskCompletionSource();
         string[]? ran = null;
+        var reported = new List<Exception>();
         using var service = new ElevatedService(
             (arguments, _) =>
             {
@@ -52,12 +53,14 @@ public sealed class ElevatedServiceTests
                 return answer is { } code ? Task.FromResult(code) : throw new Win32Exception(2);
             },
             new FakeTimeProvider(),
-            stopped.SetResult);
+            stopped.SetResult,
+            reported.Add);
 
         await service.RunAsync(["install-driver"]);
 
         await stopped.Task.WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System, TestContext.Current.CancellationToken);
         Assert.Equal((exitCode, ElevatedService.Name), (service.ExitCode, service.ServiceName));
         Assert.Equal(["elevated", "install-driver"], ran!);
+        Assert.Equal(answer is null ? 1 : 0, reported.Count);
     }
 }

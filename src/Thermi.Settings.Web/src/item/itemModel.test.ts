@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Item, ItemView, Sensor, Settings, WindowView } from '../bridge/bridge.g';
 import { sayKeys } from '../testSay';
-import { meterChoices, offsetRange, placeOf, sensorChoices } from './itemModel';
+import { meterChoices, offsetRange, placeOf, sensorChoices, showAllSensors } from './itemModel';
 
 function sensor(id: string, type: string, hardwareType = 'Cpu', hardware = 'Ryzen'): Sensor {
   return { id, type, hardwareType, hardware, name: `${id} name`, value: 1 };
@@ -20,7 +20,7 @@ const sensors = [
 function view(shows: Partial<ItemView>): WindowView {
   return {
     pills: [],
-    items: { cpu: { value: null, level: null, type: 'Temperature', meters: [], meterName: null, bits: false, ...shows } },
+    items: { cpu: { value: null, level: null, type: 'Temperature', meters: [], meterName: null, bits: false, offer: { first: [], more: [] }, ...shows } },
     values: { package: '50 °C', ethernet: '1 MB/s' },
     mark: 'calm',
   };
@@ -52,7 +52,8 @@ describe('the item page', () => {
   test.each([
     {
       item: { id: 'cpu', metric: 'cpu.temperature' },
-      shows: { auto: 'package' },
+      shows: { auto: 'package', offer: { first: ['package', 'core'], more: [] } },
+      all: false,
       choices: [
         { value: '', text: 'UiText.AutoFollows package name', shown: 'package name', aside: '50 °C' },
         each('UiText.SensorOn package name Ryzen', 'package', '50 °C'),
@@ -61,56 +62,34 @@ describe('the item page', () => {
     },
     {
       item: { id: 'cpu', metric: 'network.down' },
-      shows: { auto: 'ethernet', type: 'Throughput' },
+      shows: { auto: 'ethernet', type: 'Throughput', offer: { first: ['ethernet'], more: [] } },
+      all: false,
       choices: [
         { value: '', text: 'UiText.AutoFollows Ethernet', shown: 'Ethernet', aside: '1 MB/s' },
         each('UiText.SensorOn ethernet name Ethernet', 'ethernet', '1 MB/s', 'Ethernet'),
       ],
     },
+    // R5-05: the other devices' sensors wait behind a last choice, which says how many, until it is taken.
     {
       item: { id: 'cpu', metric: 'cpu.load' },
-      shows: { type: 'Load' },
+      shows: { type: 'Load', offer: { first: ['load'], more: ['gpuload'] } },
+      all: false,
       choices: [
         { value: '', text: 'UiText.AutoFollows UiText.Auto', shown: 'UiText.Auto' },
         each('UiText.SensorOn load name Ryzen', 'load', ''),
-        each('UiText.SensorOn gpuload name RTX', 'gpuload', '', 'RTX'),
+        { value: showAllSensors, text: 'CatalogText.ShowAll', aside: '1' },
       ],
     },
     {
       item: { id: 'cpu', sensor: 'load' },
-      shows: { type: 'Load' },
+      shows: { type: 'Load', offer: { first: ['load'], more: ['gpuload'] } },
+      all: true,
       choices: [each('UiText.SensorOn load name Ryzen', 'load', ''), each('UiText.SensorOn gpuload name RTX', 'gpuload', '', 'RTX')],
     },
-    // An amount of data is offered from the item's own kind of device alone: the RAM in use is no drive's data read.
-    {
-      item: { id: 'cpu', metric: 'ram.used' },
-      shows: { auto: 'ramused', type: 'Data' },
-      choices: [
-        { value: '', text: 'UiText.AutoFollows ramused name', shown: 'ramused name', aside: '' },
-        each('UiText.SensorOn ramused name Memory', 'ramused', '', 'Memory'),
-      ],
-    },
-    // The item's own device first: a GPU's load lists the GPU's sensors before the CPU's.
-    {
-      item: { id: 'cpu', metric: 'gpu.load' },
-      shows: { auto: 'gpuload', type: 'Load' },
-      choices: [
-        { value: '', text: 'UiText.AutoFollows gpuload name', shown: 'gpuload name', aside: '' },
-        each('UiText.SensorOn gpuload name RTX', 'gpuload', '', 'RTX'),
-        each('UiText.SensorOn load name Ryzen', 'load', ''),
-      ],
-    },
-    // Cold review 4 (Q4): what C# says the dropdown does not offer stays out, but the sensor the item reads now.
-    {
-      item: { id: 'cpu', sensor: 'load' },
-      shows: { type: 'Load' },
-      unoffered: ['load', 'gpuload'],
-      choices: [each('UiText.SensorOn load name Ryzen', 'load', '')],
-    },
-  ] satisfies { item: Item; shows: Partial<ItemView>; unoffered?: string[]; choices: unknown[] }[])(
+  ] satisfies { item: Item; shows: Partial<ItemView>; all: boolean; choices: unknown[] }[])(
     'offers the sensors of $item',
-    ({ item, shows, unoffered, choices }) => {
-      expect(sensorChoices(item, view(shows), { service: 'running', sensors, unoffered: unoffered ?? [] }, sayKeys)).toEqual(choices);
+    ({ item, shows, all, choices }) => {
+      expect(sensorChoices(item, view(shows), { service: 'running', sensors }, sayKeys, all)).toEqual(choices);
     },
   );
 

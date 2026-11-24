@@ -1,10 +1,8 @@
 using System.Globalization;
-using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Core.Tray;
 using static Thermi.Tests.Acceptance.Edited;
 
 namespace Thermi.Tests.Acceptance;
@@ -63,8 +61,9 @@ public sealed class ReadableCatalogTests
             ],
             rows.Where(row => row.Name is { From: NameFrom.Library, Chip: not null }).Select(row => (row.Id, row.Name.Input!.Value)));
         Assert.All(rows.Where(row => row.Name.Chip is not null), row => Assert.Equal(row.Sensor.Hardware, row.Name.Chip));
-        // Any other sensor keeps the library's name, but a duty, which the library names as its fan, says it is the duty, as
-        // "GPU fan duty", and a name another type of its device shares says its type (cold review 4, Q5).
+        // Any other sensor keeps the library's name, but "Fan" in it reads "fan" (QA round 5, P9), a duty, which the library
+        // names as its fan, says it is the duty, as "GPU fan duty", and a name another type of its device shares says its type
+        // (cold review 4, Q5).
         bool Shared(CatalogSensor row)
         {
             return row.Reading.Kind != SensorKind.Control && rows.Exists(other =>
@@ -78,6 +77,7 @@ public sealed class ReadableCatalogTests
                 new SensorName(
                     row.Reading.Kind == SensorKind.Control ? Duty(row.Sensor.Name)
                     : Shared(row) ? WithKind(row.Sensor.Name, row.Reading.Kind)
+                    : row.Reading.Kind == SensorKind.Fan ? row.Sensor.Name.Replace(" Fan", " fan", StringComparison.Ordinal)
                     : row.Sensor.Name,
                     NameFrom.Library,
                     row.Sensor.Name),
@@ -141,8 +141,7 @@ public sealed class ReadableCatalogTests
             .ToList();
         Assert.Equal(
             nothing.Concat(layers).Concat(effective).Order(StringComparer.Ordinal),
-            SensorView.Of(ServiceState.Running, Desktop, null, Texts.English).Unoffered.Order(StringComparer.Ordinal));
-        Assert.Empty(SensorView.Of(ServiceState.Stopped, Desktop, null, Texts.English).Unoffered);
+            SensorCatalog.Unoffered(devices).Order(StringComparer.Ordinal));
         Assert.Equal(["twin"], SensorCatalog.Unoffered(twice).Except(SensorCatalog.Unoffered(devices)));
         Assert.DoesNotContain(shown, device => device.Sensors.Count == 0);
         Assert.Contains(seen, row => row is { Id: $"{Ite}/fan/1", Why: NoValue.Stopped });
@@ -225,8 +224,23 @@ public sealed class ReadableCatalogTests
 
         var added = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, snapshot, sensor)).Overlays[0].Items.Single(item => item.Sensor == sensor);
 
-        // A sensor of another GPU than the one the GPU pill reads starts a pill of its own.
-        Assert.Equal((expected, form == "apart"), (added.Name, added.Own));
+        Assert.Equal(expected, added.Name);
+    }
+
+    // QA round 5 (R5-08): a sensor of the CPU's graphics chip, beside a graphics card the GPU pill reads, starts an iGPU
+    // pill, and a sensor of the card added after it still joins the GPU pill, as one of the chip joins the iGPU one.
+    [Fact]
+    public void ASecondGpusSensorsGoToAPillOfTheirOwn()
+    {
+        var added = new[] { "/gpu-amd/0/clock/0", "/gpu-nvidia/0/control/1", "/gpu-amd/0/load/0" }
+            .Aggregate(new ThermiConfig(), (config, sensor) => Done(ItemEdits.AddSensor(config, 0, Desktop, sensor)));
+
+        Assert.Equal(
+            ["CPU", "CPU", "CPU", "CPU", "GPU", "GPU", "RAM", "iGPU", "iGPU"],
+            Thermi.Core.Look.OverlayLayout.RunLabels(added.Overlays[0].Items));
+        Assert.Equal(
+            ["gpu.load", "/gpu-nvidia/0/control/1", "ram.used", "/gpu-amd/0/clock/0", "/gpu-amd/0/load/0"],
+            added.Overlays[0].Items.Skip(4).Select(item => item.Sensor ?? item.Metric));
     }
 
     // Two items of one board sensor, the second renamed by hand, beside the CPU fan item, whose metric picks the board's first fan.

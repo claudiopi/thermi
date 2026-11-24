@@ -38,6 +38,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         var config = editor.Config;
         var snapshot = sensors.Latest;
         var known = readings.Known(snapshot);
+        var catalog = readings.CatalogOf(known);
         var pills = new List<IReadOnlyList<PillView>>();
         var items = new Dictionary<string, ItemView>(StringComparer.Ordinal);
         foreach (var overlay in config.Overlays)
@@ -55,7 +56,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             var chosen = SensorMap.Chosen(known, overlay);
             foreach (var item in overlay.Items)
             {
-                items[item.Id] = ItemOf(item, shown.FirstOrDefault(each => each.Id == item.Id), known, chosen, (texts, config.SensorNames));
+                items[item.Id] = ItemOf(item, shown.FirstOrDefault(each => each.Id == item.Id), (known, catalog), chosen, (texts, config.SensorNames));
             }
         }
 
@@ -125,10 +126,11 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
     private static ItemView ItemOf(
         ItemConfig item,
         OverlayItem? shown,
-        Snapshot known,
+        (Snapshot Known, IReadOnlyList<CatalogDevice> Catalog) from,
         IReadOnlyDictionary<string, RawSensor?> chosen,
         (Texts Texts, IReadOnlyDictionary<string, string>? Own) names)
     {
+        var known = from.Known;
         var value = shown is { Value: var text } && !text.EndsWith(ReadingFormatter.Missing, StringComparison.Ordinal) ? text : null;
         var auto = (item.Metric ?? item.Auto) is { } metric ? chosen.GetValueOrDefault(metric)?.Id : null;
         var kind = ItemEdits.KindOf(item, known);
@@ -150,6 +152,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
                     || (item.Metric ?? item.Auto) == Metrics.NetDownload.Id
                     || (item.Metric ?? item.Auto) == Metrics.NetUpload.Id),
             OffsetShown = OffsetOf(item, kind, names.Texts),
+            Offer = SensorOffer.Of(from.Catalog, type, read, item.Sensor),
         };
     }
 

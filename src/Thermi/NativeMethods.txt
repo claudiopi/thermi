@@ -21,6 +21,7 @@ SetTimer
 FindWindowEx
 GetClassName
 GetTopWindow
+EnumWindows
 GetWindow
 GetWindowRect
 SetWindowPos

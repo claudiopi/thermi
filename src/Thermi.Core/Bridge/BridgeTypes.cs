@@ -84,9 +84,9 @@ public sealed record SensorNameEdit(string Sensor, string Name) : PageEdit;
 
 /// <summary>
 /// What the service reads now, and whether it runs: no sensors while it is stopped, and whether another program holds
-/// its pipe then; and the ids of those the Sensor dropdown does not offer, as <see cref="SensorCatalog.Unoffered"/> says.
+/// its pipe then.
 /// </summary>
-public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> Sensors, IReadOnlyList<string> Unoffered, bool Taken = false)
+public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> Sensors, bool Taken = false)
 {
     /// <summary>
     /// The snapshot's sensors with the names the catalog shows, the user's <paramref name="own"/> or a probable one, so a
@@ -95,12 +95,11 @@ public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> S
     /// </summary>
     public static SensorView Of(ServiceState service, Snapshot? snapshot, IReadOnlyDictionary<string, string>? own, Texts texts, bool taken = false) =>
         service == ServiceState.Stopped || snapshot is null
-            ? new(service, [], [], taken)
+            ? new(service, [], taken)
             : new(
                 service,
                 [.. SensorNames.Named(snapshot, own, texts).Where(sensor => !SensorCatalog.Constant(sensor))
-                    .Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)],
-                SensorCatalog.Unoffered(SensorCatalog.Build(snapshot, own, texts)));
+                    .Select(sensor => sensor.Value is { } value && !double.IsFinite(value) ? sensor with { Value = null } : sensor)]);
 }
 
 public sealed record Rect(int X, int Y, int Width, int Height);

@@ -110,7 +110,6 @@ function installFake(initial: FakeState): void {
         state.service === 'stopped'
           ? []
           : state.sensors.map((sensor) => ({ ...sensor, name: state.settings.sensorNames?.[sensor.id] ?? sensor.name })),
-      unoffered: [],
     }),
     history: async (id) => {
       const value = state.service === 'running' ? (state.sensors.find((sensor) => sensor.id === id)?.value ?? null) : null;
@@ -135,6 +134,7 @@ function installFake(initial: FakeState): void {
       const picked = text ?? state.importFile;
       return picked === null ? null : ((await ask('importLook', overlay, picked)) as string | null);
     },
+    catalog: notInstalled,
     // What a search finds and marks is C#'s, so the fake asks the oracle, as for an edit; it changes nothing.
     search: async (query, among) => {
       const answer = await window.thermiPure?.({ method: 'search', args: [query, among] });
@@ -143,7 +143,6 @@ function installFake(initial: FakeState): void {
       }
       return answer.result as Awaited<ReturnType<Bridge['search']>>;
     },
-    catalog: notInstalled,
     findCpuFan: notInstalled,
     cancelFind: notInstalled,
     finder: async () => state.finder,

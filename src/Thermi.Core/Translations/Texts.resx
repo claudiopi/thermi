@@ -367,7 +367,7 @@
     <value>Save as my look</value>
   </data>
   <data name="UiText.StyleFiles" xml:space="preserve">
-    <value>thermi styles</value>
+    <value>thermi looks</value>
   </data>
   <data name="UiText.LanguageField" xml:space="preserve">
     <value>Language</value>
@@ -1320,6 +1320,9 @@
   <data name="NameText.AfterSensor" xml:space="preserve">
     <value>{0} ({1})</value>
   </data>
+  <data name="NameText.OtherGpu" xml:space="preserve">
+    <value>iGPU</value>
+  </data>
   <data name="NameText.OfSensor" xml:space="preserve">
     <value>{0} {1}</value>
   </data>
@@ -1483,31 +1486,31 @@
     <value>This item's sensors are not read now, so thermi cannot tell whether a sum of them means anything.</value>
   </data>
   <data name="Refusal.StyleNameEmpty" xml:space="preserve">
-    <value>A style needs a name.</value>
+    <value>A look needs a name.</value>
   </data>
   <data name="Refusal.StyleNameTooLong" xml:space="preserve">
-    <value>A style's name has up to 40 characters.</value>
+    <value>A look's name has up to 40 characters.</value>
   </data>
   <data name="Refusal.StyleNameTaken" xml:space="preserve">
-    <value>There is already a style with that name: choose another.</value>
+    <value>There is already a look with that name: choose another.</value>
   </data>
   <data name="Refusal.StyleNotFound" xml:space="preserve">
-    <value>That style is no longer among your styles.</value>
+    <value>That look is no longer among your looks.</value>
   </data>
   <data name="Refusal.BrokenStyle" xml:space="preserve">
-    <value>This style cannot be used: {0}</value>
+    <value>This look cannot be used: {0}</value>
   </data>
   <data name="Refusal.NewerStyle" xml:space="preserve">
-    <value>This style was made by a newer thermi: update thermi to use it.</value>
+    <value>This look was made by a newer thermi: update thermi to use it.</value>
   </data>
   <data name="Refusal.Hotkey" xml:space="preserve">
     <value>This combination cannot be a hotkey.</value>
   </data>
   <data name="Refusal.StyleFileFailed" xml:space="preserve">
-    <value>The style file could not be written or read: {0}</value>
+    <value>The look file could not be written or read: {0}</value>
   </data>
   <data name="Refusal.StyleTooLarge" xml:space="preserve">
-    <value>That is no style: a style file is a few kilobytes, and this is over 1 MB.</value>
+    <value>That is not a look: a look file is a few kilobytes, and this is over 1 MB.</value>
   </data>
   <data name="Refusal.PasteFailed" xml:space="preserve">
     <value>Windows would not hand over what was pasted or dropped, as while another app holds the clipboard. Try again in a moment.</value>
@@ -1731,6 +1734,9 @@
   <data name="UndoText.On" xml:space="preserve">
     <value>On</value>
   </data>
+  <data name="UndoText.Named" xml:space="preserve">
+    <value>{0} “{1}”</value>
+  </data>
   <data name="UndoText.Off" xml:space="preserve">
     <value>Off</value>
   </data>
@@ -1816,7 +1822,7 @@
     <value>Reset to defaults?</value>
   </data>
   <data name="WindowText.ResetBody" xml:space="preserve">
-    <value>Items, labels, meters, thresholds, placement and style go back to how thermi starts. Language, hotkeys and the temperature unit stay. Ctrl+Z undoes it.</value>
+    <value>Items, labels, meters, thresholds, placement and look go back to how thermi starts. Language, hotkeys and the temperature unit stay. Ctrl+Z undoes it.</value>
   </data>
   <data name="WindowText.Reset" xml:space="preserve">
     <value>Reset</value>

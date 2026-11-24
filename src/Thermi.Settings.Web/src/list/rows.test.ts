@@ -52,7 +52,7 @@ describe('the list', () => {
     });
     const view: WindowView = {
       pills: [[{ label: 'CPU', items: ['cpu'] }, { label: 'Pair', items: ['gpu', 'ghost'] }]],
-      items: { cpu: { value: '50 °C', level: 'warning', type: 'Temperature', meters: [], meterName: null, bits: false } },
+      items: { cpu: { value: '50 °C', level: 'warning', type: 'Temperature', meters: [], meterName: null, bits: false, offer: { first: [], more: [] } } },
       values: {},
       mark: 'calm',
     };

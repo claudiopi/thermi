@@ -128,9 +128,15 @@ internal static class Names
     /// the board's CPU fan and its duty join the CPU's pill, and Windows' uptime takes UP. A drive's read and write rates
     /// join that drive's pill. A sensor of no kind thermi knows is labeled from its name, cut short.
     /// </summary>
-    public static (int At, string Label) PlaceOf(OverlayConfig overlay, RawSensor sensor, Texts texts)
+    public static (int At, string Label) PlaceOf(OverlayConfig overlay, RawSensor sensor, Texts texts, string? label = null)
     {
         var items = overlay.Items;
+        if (label is not null)
+        {
+            var run = OverlayLayout.RunLabels(items).ToList().FindLastIndex(each => each == label);
+            return (run < 0 ? items.Count : ItemEdits.PillOf(overlay, run).Last + 1, label);
+        }
+
         if (SensorMap.DeviceOf(sensor) is not { } device)
         {
             var name = sensor.Name.Trim().ToUpperInvariant();

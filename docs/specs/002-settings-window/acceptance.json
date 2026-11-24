@@ -723,7 +723,7 @@
         "R138",
         "R141"
       ],
-      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, a graph on and off), when the overlay is laid out, then each value carries its row's mark, percentages are held between 0 and 100, and only a graph item holds a meter.",
+      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, a graph on and off), when the overlay is laid out, then each value carries its row's mark, a graphed value at warning none, since its bars show it, percentages are held between 0 and 100, and only a graph item holds a meter.",
       "check": "ALevelShowsOnTheValueNeverByColorAlone",
       "passes": true
     },
@@ -1183,6 +1183,45 @@
       ],
       "description": "Given the default overlay painted, when the open window marks CPU load as selected, then its mark is a bar lying under the value's middle, wider than tall.",
       "check": "TheSelectedValuesMarkLiesUnderIt",
+      "passes": true
+    },
+    {
+      "id": "A267",
+      "covers": [
+        "R30",
+        "R31",
+        "R33",
+        "R143"
+      ],
+      "description": "Given a taskbar's app buttons, notification area and other overlays, and an overlay 550 px wide, when it is dropped from above within 31, 32 or 33 px of a mark, from the left, the right, diagonally, nudged 10 px, along the taskbar, over the apps, over Start, past its bottom, near a corner or between a top corner's mark and the top, in rows with room for one place, two, exactly its width or a pixel less, then it lands at the place beside the notification area when the row has room for it once, at the place nearest otherwise, and stays free where no place has room; no taskbar mark leaves the taskbar or covers a button, the notification area or another overlay.",
+      "check": "ADropLandsAtTheMarkItsTaskbarHasRoomFor",
+      "passes": true
+    },
+    {
+      "id": "A300",
+      "covers": [
+        "R18"
+      ],
+      "description": "Given the recorded desktop and items reading a GPU's load, the CPU's load, a sensor the dropdown leaves out but the item names, the RAM in use, an adapter's download and a sensor no longer read, when each item's Sensor dropdown is built, then it lists its own device's sensors of its type first and the other devices' only behind \"Show all\", of data only the item's own kind of device's, and an item whose sensor is not read lists every device's at once.",
+      "check": "TheSensorDropdownListsTheItemsOwnDeviceFirst",
+      "passes": true
+    },
+    {
+      "id": "A302",
+      "covers": [
+        "R17"
+      ],
+      "description": "Given the recorded desktop, with a Ryzen's graphics chip and a GeForce card, when the chip's frequency, the card's fan duty and the chip's load are added in turn, then the card's fan duty joins the GPU pill and the chip's two sensors an iGPU pill at the end.",
+      "check": "ASecondGpusSensorsGoToAPillOfTheirOwn",
+      "passes": true
+    },
+    {
+      "id": "A301",
+      "covers": [
+        "R104"
+      ],
+      "description": "Given the window open on an overlay and a value, when it is minimized and restored, then it tells the overlay it edits none, so no value is marked nor overlay faded, and then the overlay and value again.",
+      "check": "AMinimizedWindowMarksNoOverlay",
       "passes": true
     },
     {

@@ -156,6 +156,13 @@ public static class SensorMap
 
     public static bool IsGpu(RawSensor sensor) => Gpus.Contains(sensor.HardwareType, StringComparer.Ordinal);
 
+    /// <summary>
+    /// Whether <paramref name="gpu"/> comes after <paramref name="than"/> in the GPU metrics' order of preference, as a graphics
+    /// chip in a CPU after a card.
+    /// </summary>
+    public static bool GpuAfter(RawSensor gpu, RawSensor than) =>
+        Array.IndexOf(Gpus, gpu.HardwareType) > Array.IndexOf(Gpus, than.HardwareType);
+
     /// <summary>What the sensor measures, or null for a type thermi does not show.</summary>
     public static SensorKind? KindOf(RawSensor sensor) => KindOfType(sensor.Type);
 

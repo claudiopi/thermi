@@ -11,13 +11,15 @@ public sealed class SensorServiceTests
     public async Task AFailingServerStopsTheServiceWithAnErrorCode()
     {
         var stopped = new TaskCompletionSource();
-        using var service = new SensorService(_ => throw new InvalidOperationException("The GPU driver reset."), stopped.SetResult);
+        var reported = new List<Exception>();
+        using var service = new SensorService(_ => throw new InvalidOperationException("The GPU driver reset."), stopped.SetResult, report: reported.Add);
 
         await service.RunAsync();
 
         await stopped.Task.WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System, TestContext.Current.CancellationToken);
         Assert.Equal(1, service.ExitCode);
         Assert.Equal(SensorService.Name, service.ServiceName);
+        Assert.Equal("The GPU driver reset.", Assert.Single(reported).Message);
     }
 
     [Fact]

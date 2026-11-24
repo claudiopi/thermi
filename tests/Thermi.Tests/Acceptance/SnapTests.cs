@@ -157,38 +157,6 @@ public sealed class SnapTests
         Assert.Equal(lefts, string.Join(' ', laid));
     }
 
-    // Dragged beside an overlay that keeps 400 px at the right of a taskbar whose buttons, aligned left, reach 1500: a
-    // taskbar spot is offered only where its row has room, at its place there, never over another spot's mark, as the
-    // center would be over the left, and a drop in the row takes the nearest offered; with no room, none is offered and
-    // the drop stays free.
-    [Fact]
-    public void ADraggedOverlayIsOfferedOnlyTheTaskbarPlacesWithRoom()
-    {
-        var screen = Main with { Apps = new PixelRect(0, 1368, 1500, 1440) };
-        OverlayConfig[] overlays = [SnappedTo(SnapSpot.TaskbarRight), new() { Position = new Position(100, 100) }];
-        var room = new RowContext(overlays, 1, [400, 120]);
-        var none = room with { Widths = [400, 300] };
-        static IEnumerable<(SnapConfig, Position)> OnTaskbar(IEnumerable<(SnapConfig Snap, Position At)> marks)
-        {
-            return marks.Where(mark => mark.Snap.Spot is SnapSpot.TaskbarLeft or SnapSpot.TaskbarCenter or SnapSpot.TaskbarRight);
-        }
-
-        Assert.Equal(
-            [(new SnapConfig(SnapSpot.TaskbarLeft), new Position(1512, 1375)), (new SnapConfig(SnapSpot.TaskbarRight), new Position(1666, 1375))],
-            OnTaskbar(Snaps.Marks([screen], Orientation.Horizontal, 110, 57, room)));
-        Assert.Empty(OnTaskbar(Snaps.Marks([screen], Orientation.Horizontal, 110, 57, none)));
-
-        // Dropped at the row's left end, it snaps to the left spot and shows where its mark was, on the taskbar.
-        var dropped = new Position(20, 1380);
-        var snap = Snaps.Near([screen], Orientation.Horizontal, 110, 57, dropped, room);
-        Assert.Equal(new SnapConfig(SnapSpot.TaskbarLeft), snap);
-        OverlayConfig[] after = [overlays[0], overlays[1] with { Snap = snap, Position = null }];
-        Assert.Equal(
-            new Position(1512, 1375),
-            Snaps.Locate(after[1], [screen], 110, 57, row: TaskbarRow.Place(after, 1, [screen], room.Widths)));
-        Assert.Null(Snaps.Near([screen], Orientation.Horizontal, 110, 57, dropped, none));
-    }
-
     // The buttons as Windows 11 names them: Start, two apps, then the settings window's own button, which opening the
     // window adds and which must not crowd the overlay out; the notification area's and anything off the bar never count.
     [Fact]

@@ -28,12 +28,15 @@ export function placeOf(settings: Settings, view: WindowView, id: string): Place
 
 const followsDevice = ['Network', 'Storage'];
 
+/** The Sensor dropdown's last choice while other devices' sensors wait, which lists them; no sensor has it. */
+export const showAllSensors = '\u0000all';
+
 /**
- * The Sensor dropdown's choices: Auto first for an item made from a metric, then every sensor of its type that C# offers,
- * its own device's first, and the one it reads now whatever C# says.
+ * The Sensor dropdown's choices: Auto first for an item made from a metric, then what C# offers it, its own device's
+ * sensors of its type, and the other devices' once `all` asks for them, with a last choice that asks while they wait.
  */
-export function sensorChoices(item: Item, view: WindowView, read: SensorView, say: Say): Choice[] {
-  const { sensors, unoffered } = read;
+export function sensorChoices(item: Item, view: WindowView, read: SensorView, say: Say, all = false): Choice[] {
+  const { sensors } = read;
   const shows = view.items[item.id];
   const named = (sensor: Sensor): string => say('UiText.SensorOn', sensor.name, sensor.hardware);
   const auto = sensors.find((sensor) => sensor.id === shows?.auto);
@@ -50,26 +53,20 @@ export function sensorChoices(item: Item, view: WindowView, read: SensorView, sa
             ...(auto === undefined ? {} : { aside: view.values[auto.id] ?? '' }),
           },
         ];
-  // The device the item reads first, as a GPU's load lists the GPU's sensors before the CPU's cores.
-  const now = item.sensor ?? item.sensors?.[0] ?? shows?.auto;
-  const reading = sensors.find((sensor) => sensor.id === now);
-  const own = reading?.hardware;
-  // An amount of data means another thing on each kind of device, the RAM in use or what a drive read in all, so it is
-  // offered from the item's own kind alone.
-  const sameKind = (sensor: Sensor): boolean => sensor.type !== 'Data' || reading === undefined || sensor.hardwareType === reading.hardwareType;
-  const offered = (sensor: Sensor): boolean => sensor.id === item.sensor || !unoffered.includes(sensor.id);
-  const ofType = sensors
-    .filter((sensor) => sensor.type === shows?.type && sameKind(sensor) && offered(sensor))
-    .sort((one, other) => Number(other.hardware === own) - Number(one.hardware === own));
+  const offer = shows?.offer ?? { first: [], more: [] };
+  const byId = new Map(sensors.map((sensor) => [sensor.id, sensor]));
+  const listed = [...offer.first, ...(all ? offer.more : [])].flatMap((id) => byId.get(id) ?? []);
+  const ask: Choice[] = all || offer.more.length === 0 ? [] : [{ value: showAllSensors, text: say('CatalogText.ShowAll'), aside: String(offer.more.length) }];
   return [
     ...autoChoice,
-    ...ofType.map((sensor) => ({
+    ...listed.map((sensor) => ({
       value: sensor.id,
       text: named(sensor),
       aside: view.values[sensor.id] ?? '',
       shown: sensor.name,
       detail: sensor.hardware,
     })),
+    ...ask,
   ];
 }
 

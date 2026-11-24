@@ -27,6 +27,7 @@ internal static class WindowSession
             window.DesktopChanged = bridge.DesktopChanged;
             using var link = new OverlayLink(chart, editor, bridge.Pick, bridge.Tell, start.Time);
             bridge.Link = link;
+            window.Shown = link.Shown;
             using var beacon = new SettingsBeacon(_ => window.Raise(), start.Environment.Log) { Received = link.Received };
             void Arrived(object? sender, EventArgs e)
             {

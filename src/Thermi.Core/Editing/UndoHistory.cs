@@ -101,6 +101,9 @@ public enum UndoText
     /// <summary>A switch that is on, in <see cref="Again"/>.</summary>
     On,
 
+    /// <summary>A step that adds or removes an item, with the item's name after it.</summary>
+    Named,
+
     /// <summary>A switch that is off, in <see cref="Again"/>.</summary>
     Off,
 }

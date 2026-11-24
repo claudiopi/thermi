@@ -121,8 +121,12 @@ public static class StepTexts
         : format.Texts.Format(format.Numbers, words.Plain, Field(step, format));
 
     // Hiding an overlay is named as its button does it, an action and not a switch, so showing it again is the other button.
+    // An item added or removed is named with its name, which says which of a few it was.
     private static string Field(StepName step, ValueFormat format) =>
-        step is { Field: ChangedField.Hidden, After: false } ? format.Texts.Of(UiText.ShowThisOverlay) : format.Texts.Of(step.Field);
+        step is { Field: ChangedField.Hidden, After: false } ? format.Texts.Of(UiText.ShowThisOverlay)
+        : step.Field is ChangedField.ItemAdded or ChangedField.ItemRemoved && Shown(step, step.After ?? step.Before, format, units: false) is { } item
+            ? format.Texts.Format(format.Numbers, UndoText.Named, format.Texts.Of(step.Field), item)
+        : format.Texts.Of(step.Field);
 
     // A line or an offset in its reading's unit; any other number in the regional format, and a name as it is.
     private static string? Shown(StepName step, object? value, ValueFormat format, bool units) => value switch

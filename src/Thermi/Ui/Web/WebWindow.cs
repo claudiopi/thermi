@@ -59,6 +59,9 @@ internal sealed class WebWindow : IDisposable
     /// <summary>Told when the monitors, the work areas or a setting of Windows changed, which the page then reads again.</summary>
     public Action DesktopChanged { get; set; } = () => { };
 
+    /// <summary>Told whether the window shows, not minimized, each time it is sized, minimized or restored.</summary>
+    public Action<bool> Shown { get; set; } = _ => { };
+
     /// <summary>Opens the page and runs the window's messages until it closes; a failure on its way out is thrown here.</summary>
     public void Run()
     {
@@ -170,7 +173,9 @@ internal sealed class WebWindow : IDisposable
 
     private void Fit()
     {
-        _page.Minimized(PInvoke.IsIconic(Hwnd));
+        var minimized = PInvoke.IsIconic(Hwnd);
+        _page.Minimized(minimized);
+        Shown(!minimized);
         if (_page.Controller is not { } controller)
         {
             return;

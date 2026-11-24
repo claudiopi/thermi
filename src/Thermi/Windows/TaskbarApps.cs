@@ -39,6 +39,10 @@ internal sealed class TaskbarApps : IDisposable
     private readonly HashSet<PixelRect> _reading = [];
     private readonly HashSet<PixelRect> _again = [];
 
+    // The windows that may have a button, as of the last read, and whether a setting or the taskbar changed since.
+    private HashSet<HWND>? _windows;
+    private bool _changedBar;
+
     // One client for every read, made on the first; UI Automation's client may be used from any thread of the pool.
     private readonly Lazy<Client> _automation = new(Client.Make);
 
@@ -115,8 +119,17 @@ internal sealed class TaskbarApps : IDisposable
         }
     }
 
+    // Most windows made or destroyed never had a button, as a browser's or an input method's helpers, which on a busy PC
+    // come and go many times a minute: the taskbar is read again only when the windows that may have one changed.
     private void ReadAll()
     {
+        var windows = ButtonWindows();
+        if (!_changedBar && _windows is { } before && before.SetEquals(windows))
+        {
+            return;
+        }
+
+        (_windows, _changedBar) = (windows, false);
         foreach (var bar in _read.Keys.ToList())
         {
             Start(bar);
@@ -162,14 +175,36 @@ internal sealed class TaskbarApps : IDisposable
         }
     }
 
+    // A visible top-level window has a button unless it is a tool window, or owned without asking for one.
+    private static HashSet<HWND> ButtonWindows()
+    {
+        var windows = new HashSet<HWND>();
+        PInvoke.EnumWindows(
+            (window, _) =>
+            {
+                var style = (WINDOW_EX_STYLE)PInvoke.GetWindowLongPtr(window, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
+                if (PInvoke.IsWindowVisible(window) && !style.HasFlag(WINDOW_EX_STYLE.WS_EX_TOOLWINDOW)
+                    && (style.HasFlag(WINDOW_EX_STYLE.WS_EX_APPWINDOW) || PInvoke.GetWindow(window, GET_WINDOW_CMD.GW_OWNER).IsNull))
+                {
+                    windows.Add(window);
+                }
+
+                return true;
+            },
+            0);
+        return windows;
+    }
+
     // Windows tells every shell hook window when a window that may have a button is made or destroyed, and every
     // top-level window when a setting changes, as the taskbar's alignment, or Explorer builds a new taskbar.
     private LRESULT WndProc(HWND hwnd, uint message, WPARAM wParam, LPARAM lParam)
     {
         var shell = message == ShellHook
             && (uint)wParam.Value is PInvoke.HSHELL_WINDOWCREATED or PInvoke.HSHELL_WINDOWDESTROYED or PInvoke.HSHELL_WINDOWREPLACED;
-        if (shell || message == PInvoke.WM_SETTINGCHANGE || message == Topmost.TaskbarCreated)
+        var bar = message == PInvoke.WM_SETTINGCHANGE || message == Topmost.TaskbarCreated;
+        if (shell || bar)
         {
+            _changedBar |= bar;
             _settled.Change(Settle, Timeout.InfiniteTimeSpan);
         }
 

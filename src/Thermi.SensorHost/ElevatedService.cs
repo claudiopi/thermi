@@ -26,16 +26,19 @@ internal sealed class ElevatedService : ServiceBase
     private readonly Func<IReadOnlyList<string>, TimeProvider, Task<int>> _run;
     private readonly TimeProvider _time;
     private readonly Action _stop;
+    private readonly Action<Exception> _report;
     private Task _running = Task.CompletedTask;
 
     /// <param name="run">The elevated thermi, with its arguments, until it exits.</param>
     /// <param name="time">The clock its wait runs on.</param>
     /// <param name="stop">How to stop once it ended; the service's own <see cref="ServiceBase.Stop"/> unless a test says otherwise.</param>
-    public ElevatedService(Func<IReadOnlyList<string>, TimeProvider, Task<int>> run, TimeProvider time, Action? stop = null)
+    /// <param name="report">Where a failure goes; Windows' Application log unless a test says otherwise.</param>
+    public ElevatedService(Func<IReadOnlyList<string>, TimeProvider, Task<int>> run, TimeProvider time, Action? stop = null, Action<Exception>? report = null)
     {
         _run = run;
         _time = time;
         _stop = stop ?? Stop;
+        _report = report ?? (error => SensorService.Report(EventLog, error));
         ServiceName = Name;
         // Stopped halfway, a fix would leave the driver's install or the sensors' restart undone.
         CanStop = false;
@@ -57,7 +60,7 @@ internal sealed class ElevatedService : ServiceBase
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException)
         {
             ExitCode = Failed;
-            SensorService.Report(EventLog, ex);
+            _report(ex);
         }
 
         _ = Task.Run(_stop, CancellationToken.None);

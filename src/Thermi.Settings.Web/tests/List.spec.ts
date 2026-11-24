@@ -266,6 +266,8 @@ test('OverlaysAreManagedFromTheList', async ({ page }) => {
     await expect.poll(async () => (await names()).length).toBe(4);
     const copy = (await names())[2] ?? '';
     await expect(row(copy)).toBeFocused();
+    // QA round 5 (P16): an overlay duplicated, merged or deleted says so in a toast with Undo, as an item removed does.
+    await expect(toast(page)).toBeVisible();
   });
 
   await test.step('no fifth overlay', async () => {
@@ -301,6 +303,7 @@ test('OverlaysAreManagedFromTheList', async ({ page }) => {
     await page.getByRole('button', { name: text('UiText.DeleteThisOverlay') }).press('Enter');
     await expect.poll(names).toEqual(['Taskbar', 'Bottom left']);
     await expect(row('Bottom left')).toBeFocused();
+    await expect(toast(page)).toBeVisible();
   });
 
   await test.step('new overlay', async () => {

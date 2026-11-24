@@ -22,10 +22,12 @@ public static class LevelMarks
 
     /// <summary>
     /// The level's mark in the look's warning and critical colors, the critical value black on dark pills and white on
-    /// light ones; under high contrast, in the system's window-text color with the reversed value in its window color.
+    /// light ones; under high contrast, in the system's window-text color with the reversed value in its window color. A
+    /// <paramref name="graphed"/> value's graph shows a warning in its bars' color, so the value is not underlined too.
     /// </summary>
-    public static LevelMark Of(OverlayLook look, Level level) => level switch
+    public static LevelMark Of(OverlayLook look, Level level, bool graphed = false) => level switch
     {
+        Level.Warning when graphed => new LevelMark(MarkKind.None, default, default),
         Level.Warning => new LevelMark(MarkKind.Underline, look.HighContrast ? look.Pills.Value : look.Warning, default),
         Level.Critical when look.HighContrast => new LevelMark(MarkKind.Reversed, look.Pills.Value, look.Pills.Outer),
         Level.Critical => new LevelMark(MarkKind.Reversed, look.Critical, look.Pills == PillColors.Light ? White : Black),

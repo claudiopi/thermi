@@ -30,4 +30,7 @@ public enum NameText
 
     /// <summary>The name of an overlay made at the bottom right corner.</summary>
     BottomRight,
+
+    /// <summary>The label of the pill of a second GPU, as the graphics chip in a CPU beside a graphics card.</summary>
+    OtherGpu,
 }

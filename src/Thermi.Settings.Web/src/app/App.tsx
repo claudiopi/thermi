@@ -115,12 +115,8 @@ function Window({ data }: { data: WindowData }) {
     closeList();
     focusTo('pane');
   };
-  // An overlay made, merged or deleted takes the selection, on its row, or on the page in a narrow window.
-  const goToOverlay = (index: number, said: string): void => {
-    announce(said);
-    select(overlayKey(index));
-    focusTo(narrow ? 'pane' : overlayKey(index));
-  };
+  // An overlay made, merged or deleted takes the selection, on its row, or on the page in a narrow window, and says so
+  // in the toast, with Undo, as an item removed does.
   const runOverlayEdit = (one: Edit): void => {
     const outcome = overlayOutcome(one, data.settings.overlays, t);
     void edit(one).then((refusal) => {
@@ -129,7 +125,9 @@ function Window({ data }: { data: WindowData }) {
       } else if (outcome.select === null) {
         announce(outcome.say);
       } else {
-        goToOverlay(outcome.select, outcome.say);
+        news.api.show({ message: outcome.say, undo: true });
+        select(overlayKey(outcome.select));
+        focusTo(narrow ? 'pane' : overlayKey(outcome.select));
       }
     });
   };

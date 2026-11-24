@@ -67,6 +67,10 @@ public static class Snaps
 
     private static readonly SnapSpot[] All = [SnapSpot.TaskbarLeft, SnapSpot.TaskbarCenter, SnapSpot.TaskbarRight, .. Corners];
 
+    // Where two spots' places overlap, as in a row with room for one overlay, the first offered wins: the place beside the
+    // notification area, as the default snap, then the one after Start or the apps.
+    private static readonly SnapSpot[] Offered = [SnapSpot.TaskbarRight, SnapSpot.TaskbarLeft, SnapSpot.TaskbarCenter, .. Corners];
+
     private static readonly SnapConfig Default = new(SnapSpot.TaskbarRight);
 
     /// <summary>The spots a monitor offers: its taskbar's only where it has one and the overlay is horizontal, its work area's corners always.</summary>
@@ -164,7 +168,7 @@ public static class Snaps
     /// The snap marks an overlay of that size dragged on the desktop shows: each spot of every monitor with where the
     /// overlay would go there; the main monitor's name none, as a spot chosen in the window does. Laid among the
     /// <paramref name="rows"/>, a taskbar spot is offered at its place in its row, and not at all where the row has no
-    /// room, nor where it would overlap an earlier spot's mark, as the center does the left one on a full taskbar.
+    /// room, nor where it would overlap the mark of a spot offered before it: the right one first, then the left.
     /// </summary>
     public static IReadOnlyList<(SnapConfig Snap, Position At)> Marks(
         IReadOnlyList<Screen> screens,
@@ -176,7 +180,7 @@ public static class Snaps
         var marks = new List<(SnapConfig Snap, Position At)>();
         foreach (var screen in screens)
         {
-            foreach (var spot in Spots(screen, orientation))
+            foreach (var spot in Offered.Intersect(Spots(screen, orientation)))
             {
                 var snap = new SnapConfig(spot, screen.Primary ? null : screen.Id);
                 if (Mark(screens, screen, snap, width, height, rows) is { } at
@@ -207,17 +211,16 @@ public static class Snaps
 
     /// <summary>
     /// The mark an overlay dragged to <paramref name="at"/> drops onto: the nearest within 32 px at its monitor's scale,
-    /// else, dropped in a taskbar's row, that taskbar's nearest spot, since a free overlay never sits on a taskbar; or null.
+    /// counting a top corner's as reaching up to the work area's top, else, dropped in a taskbar's row, that taskbar's
+    /// nearest spot, since a free overlay never sits on a taskbar; or null.
     /// Laid among the <paramref name="rows"/>, only the marks <see cref="Marks"/> offers count.
     /// </summary>
     public static SnapConfig? Near(IReadOnlyList<Screen> screens, Orientation orientation, int width, int height, Position at, RowContext? rows = null)
     {
         var marks = Marks(screens, orientation, width, height, rows);
         return marks
-            .Select(mark => (
-                mark.Snap,
-                Distance: Math.Max(Math.Abs(mark.At.X - at.X), Math.Abs(mark.At.Y - at.Y)),
-                Reach: Scaled(Pull, ScreenOf(mark.Snap, screens)!)))
+            .Select(mark => (Mark: mark, Screen: ScreenOf(mark.Snap, screens)!))
+            .Select(each => (each.Mark.Snap, Distance: Distance(each.Mark, at, each.Screen), Reach: Scaled(Pull, each.Screen)))
             .Where(mark => mark.Distance <= mark.Reach)
             .OrderBy(mark => mark.Distance)
             .Select(mark => mark.Snap)
@@ -229,6 +232,14 @@ public static class Snaps
                 .OrderBy(mark => Math.Abs(mark.At.X - at.X))
                 .Select(mark => mark.Snap)
                 .FirstOrDefault();
+    }
+
+    // A top corner's mark sits below a maximized window's caption buttons, so a drop between it and the work area's top,
+    // toward the corner itself, counts as on it.
+    private static int Distance((SnapConfig Snap, Position At) mark, Position at, Screen screen)
+    {
+        var above = mark.Snap.Spot is SnapSpot.TopLeft or SnapSpot.TopRight && at.Y < mark.At.Y && at.Y >= mark.At.Y - Scaled(BelowTop, screen);
+        return Math.Max(Math.Abs(mark.At.X - at.X), above ? 0 : Math.Abs(mark.At.Y - at.Y));
     }
 
     /// <summary>

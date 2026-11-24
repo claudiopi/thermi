@@ -71,6 +71,9 @@ public sealed record ItemView(
 
     /// <summary>Its offset with the unit it is typed in, as "2 °C", or null for a type that takes none.</summary>
     public string? OffsetShown { get; init; }
+
+    /// <summary>What its Sensor dropdown lists: its own device's sensors of its type, then, asked to show all, the others'.</summary>
+    public SensorOffer Offer { get; init; } = SensorOffer.None;
 }
 
 /// <summary>A meter an item is offered, with the name its Meter dropdown shows.</summary>

@@ -3,6 +3,8 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Overlay;
 using Thermi.Ui;
+using Thermi.Ui.Editor;
+using Thermi.Ui.Web;
 using Thermi.Windows.Tests.OnTop;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -26,19 +28,21 @@ public sealed class MessagesWindowsTests : IDisposable
 
     public void Dispose() => _folder.Dispose();
 
-    // A message, and the class of the hidden window it goes to, which acts on it and hands it on decoded as it was sent.
+    // A message, and the class of the hidden window it goes to, which acts on it and hands it on decoded as it was sent;
+    // a double-click on a value and a raise bring the window to the front, restored if it was minimized.
     [Theory]
-    [InlineData("history-asked", Host)]
-    [InlineData("history", Window)]
-    [InlineData("double-click", Window)]
-    [InlineData("click", Window)]
-    [InlineData("edge", Window)]
-    [InlineData("point", Window)]
-    [InlineData("edited", Host)]
-    [InlineData("gesture", Window)]
-    [InlineData("raise", Window)]
-    public async Task EachMessageReachesTheOtherProcess(string kind, string to)
+    [InlineData("history-asked", Host, false)]
+    [InlineData("history", Window, false)]
+    [InlineData("double-click", Window, true)]
+    [InlineData("click", Window, false)]
+    [InlineData("edge", Window, false)]
+    [InlineData("point", Window, false)]
+    [InlineData("edited", Host, false)]
+    [InlineData("gesture", Window, false)]
+    [InlineData("raise", Window, true)]
+    public async Task EachMessageReachesTheOtherProcess(string kind, string to, bool raises)
     {
+        var raised = new List<int>();
         var config = new ThermiConfig { Overlays = [new OverlayConfig(), new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight) }] };
         _folder.Write(ThermiConfigJson.Write(config));
         var settings = await _folder.LoadedAsync();
@@ -57,7 +61,7 @@ public sealed class MessagesWindowsTests : IDisposable
                 _folder.Log,
                 new FakeTray().Environment(_windowMutex))
             { Received = received.Add };
-            using var beacon = new SettingsBeacon(_ => { }, _folder.Log) { Received = received.Add };
+            using var beacon = new SettingsBeacon(raised.Add, _folder.Log) { Received = received.Add };
             host.Start();
 
             delivered = HiddenWindow.Send(to, sent);
@@ -67,6 +71,33 @@ public sealed class MessagesWindowsTests : IDisposable
         Assert.True(delivered);
         var message = Assert.Single(received);
         Assert.Equal(WindowMessages.Encode(sent), WindowMessages.Encode(message));
+        Assert.Equal(raises, raised.Count == 1);
+    }
+
+    // QA round 5 (R5-07 and the owner): the window's marks guide the person while it shows: minimized, it tells the overlay
+    // it edits none, so no value is marked nor overlay faded, and restored, the overlay and value it edits again.
+    [Fact]
+    public async Task AMinimizedWindowMarksNoOverlay()
+    {
+        _folder.Write(ThermiConfigJson.Write(new ThermiConfig { Overlays = [new OverlayConfig(), new OverlayConfig()] }));
+        var settings = await _folder.LoadedAsync();
+        var sent = new List<Edited>();
+        using var link = new OverlayLink(
+            new Thermi.Core.Look.ChartHistory(_folder.Clock),
+            new WindowEditor(settings, action => action(), _folder.Log, _folder.Clock),
+            _ => { },
+            () => { },
+            _folder.Clock,
+            sent.Add);
+
+        link.Editing(1, Metrics.CpuLoad.Id, null);
+        foreach (var shown in new[] { false, true })
+        {
+            _folder.Pass(TimeSpan.FromMilliseconds(200));
+            link.Shown(shown);
+        }
+
+        Assert.Equal([new Edited(2, Metrics.CpuLoad.Id, null), new Edited(null, null, null), new Edited(2, Metrics.CpuLoad.Id, null)], sent);
     }
 
     // Windows calls the beacon from native code, where an exception would end the window's process: a message its

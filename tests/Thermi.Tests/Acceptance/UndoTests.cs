@@ -217,6 +217,10 @@ public sealed class UndoTests
             var offered = WindowFacts.Steps(history.UndoName, history.RedoName, InEnglish);
             var restored = history.Undo(done)!.Config;
             var shown = WindowFacts.UndoneOf(undoName, done, restored, InEnglish);
+            // QA round 5 (P7): an item added or removed is named with its name, as "Add item “GPU temperature”".
+            var named = field == ChangedField.ItemAdded ? Say(UndoText.Named, Say(field), Texts.English.Of(MetricName.GpuTemperature))
+                : field == ChangedField.ItemRemoved ? Say(UndoText.Named, Say(field), cpuPower)
+                : Say(field);
 
             Assert.Equal(new UndoSteps(StepTexts.Of(undoName, InEnglish), null), offered);
             Assert.Equal(new UndoSteps(null, StepTexts.Of(undoName, InEnglish)), WindowFacts.Steps(history.UndoName, history.RedoName, InEnglish));
@@ -226,14 +230,14 @@ public sealed class UndoTests
             Assert.Equal(StepTexts.Undone(undoName, InEnglish), shown.Said);
             Assert.Equal(undoName, history.RedoName);
             Assert.Equal(
-                Say(UndoText.Undo, before is null ? Say(field) : Say(UndoText.Change, Say(field), before, after!)),
+                Say(UndoText.Undo, before is null ? named : Say(UndoText.Change, named, before, after!)),
                 StepTexts.Button(UndoText.Undo, undoName, InEnglish));
             Assert.Equal(
                 undone switch
                 {
-                    UndoText state => Say(UndoText.Again, Say(field), Say(state)),
-                    string value => Say(UndoText.BackTo, Say(field), value),
-                    _ => Say(UndoText.Undone, Say(field)),
+                    UndoText state => Say(UndoText.Again, named, Say(state)),
+                    string value => Say(UndoText.BackTo, named, value),
+                    _ => Say(UndoText.Undone, named),
                 },
                 StepTexts.Undone(undoName, InEnglish));
 
@@ -242,9 +246,9 @@ public sealed class UndoTests
             Assert.Equal(
                 undone switch
                 {
-                    UndoText state => Say(UndoText.RedoneAgain, Say(field), Say(state == UndoText.On ? UndoText.Off : UndoText.On)),
-                    string => Say(UndoText.RedoneTo, Say(field), after!),
-                    _ => Say(UndoText.Redone, Say(field)),
+                    UndoText state => Say(UndoText.RedoneAgain, named, Say(state == UndoText.On ? UndoText.Off : UndoText.On)),
+                    string => Say(UndoText.RedoneTo, named, after!),
+                    _ => Say(UndoText.Redone, named),
                 },
                 WindowFacts.UndoneOf(undoName, restored, redone, InEnglish, redo: true).Said);
         }

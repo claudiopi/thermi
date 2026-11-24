@@ -177,6 +177,7 @@ export interface ItemView {
   meterName: string | null;
   bits: boolean;
   offsetShown?: string;
+  offer?: SensorOffer;
 }
 
 export interface Language {
@@ -188,12 +189,12 @@ export type Level = 'normal' | 'warning' | 'critical';
 
 export type Line = 'warning' | 'critical';
 
-export type MarkState = 'calm' | 'warm' | 'hot' | 'stopped' | 'high-contrast' | 'app';
 export interface Mark {
   from: number;
   to: number;
 }
 
+export type MarkState = 'calm' | 'warm' | 'hot' | 'stopped' | 'high-contrast' | 'app';
 
 export interface Meter {
   metric?: string;
@@ -280,10 +281,14 @@ export interface Sensor {
 
 export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address';
 
+export interface SensorOffer {
+  first: string[];
+  more: string[];
+}
+
 export interface SensorView {
   service: Service;
   sensors: Sensor[];
-  unoffered: string[];
   taken?: boolean;
 }
 
@@ -420,12 +425,12 @@ export interface Bridge {
   exportSavedLook(name: string): Promise<void>;
   importLook(overlay: number, text: string | null): Promise<string | null>;
   catalog(search: string, kinds: SensorKind[], all: boolean): Promise<CatalogView>;
+  search(query: string, among: Findable[]): Promise<Found[]>;
   findCpuFan(): Promise<void>;
   cancelFind(): Promise<void>;
   finder(): Promise<FinderView>;
   installDriver(): Promise<DriverInstall>;
   startService(): Promise<boolean>;
-  search(query: string, among: Findable[]): Promise<Found[]>;
   startOverlay(): Promise<void>;
   restore(): Promise<void>;
   startWithWindows(): Promise<boolean>;

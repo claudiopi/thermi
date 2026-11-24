@@ -115,17 +115,20 @@ internal sealed class SensorService : ServiceBase
     private readonly Func<CancellationToken, Task> _run;
     private readonly Action _stopOnFailure;
     private readonly Action? _resumed;
+    private readonly Action<Exception> _report;
     private readonly CancellationTokenSource _stop = new();
     private Task _running = Task.CompletedTask;
 
     /// <param name="run">The server, until the token stops it.</param>
     /// <param name="stopOnFailure">How to stop after a failure; the service's own <see cref="ServiceBase.Stop"/> unless a test says otherwise.</param>
     /// <param name="resumed">What runs on waking from sleep; without it, the service asks Windows for no power events.</param>
-    public SensorService(Func<CancellationToken, Task> run, Action? stopOnFailure = null, Action? resumed = null)
+    /// <param name="report">Where a failure goes; Windows' Application log unless a test says otherwise.</param>
+    public SensorService(Func<CancellationToken, Task> run, Action? stopOnFailure = null, Action? resumed = null, Action<Exception>? report = null)
     {
         _run = run;
         _stopOnFailure = stopOnFailure ?? Stop;
         _resumed = resumed;
+        _report = report ?? (error => Report(EventLog, error));
         ServiceName = Name;
         CanHandlePowerEvent = resumed is not null;
     }
@@ -146,7 +149,7 @@ internal sealed class SensorService : ServiceBase
         {
             ExitCode = 1;
             _ = Task.Run(_stopOnFailure, CancellationToken.None);
-            Report(EventLog, ex);
+            _report(ex);
         }
     }
 

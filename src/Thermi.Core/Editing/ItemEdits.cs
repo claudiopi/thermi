@@ -29,34 +29,37 @@ public static class ItemEdits
             var language = texts ?? Texts.English;
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
             var name = Names.OfItem(config, sensor, sensorId, language);
-            var apart = OtherGpu(config.Overlays[overlay], snapshot, sensor);
+            var read = OtherGpu(config.Overlays[overlay], snapshot, sensor);
+            var chip = read is not null && SensorMap.GpuAfter(sensor, read);
 
             // It starts as the defaults of its kind do: metered by itself, with its kind's calm lines, where it can be a meter.
             var itself = Threshold.CanMeter(SensorMap.KindOf(sensor)!.Value) ? new MeterConfig { Sensor = sensorId } : null;
             var item = new ItemConfig
             {
                 Sensor = sensorId,
-                Name = apart ? language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware) : name,
+                Name = read is null ? name : language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware),
+                Label = chip ? language.Of(NameText.OtherGpu) : null,
                 Decimals = decimals,
-                Own = apart,
+                Own = read is not null && !chip,
                 Meter = itself,
                 Threshold = itself is null ? null : Threshold.Default(itself, snapshot),
             };
             return Insert(config, overlay, sensor, item, language);
         });
 
-    // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one: a sensor of the
-    // other is named by its GPU and starts a pill of its own, never reading as the pill's.
-    private static bool OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
+    // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one, returned here: a
+    // sensor of the other is named by its GPU and goes to a pill of its own, never reading as the pill's. The chip's pill
+    // is the iGPU one, which its later sensors join; a card's, beside a GPU pill set to read the chip, starts a GPU pill.
+    private static RawSensor? OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
         SensorMap.IsGpu(sensor)
         && SensorMap.Chosen(snapshot, overlay).GetValueOrDefault(Metrics.GpuLoad.Id) is { } read
-        && read.Hardware != sensor.Hardware;
+        && read.Hardware != sensor.Hardware ? read : null;
 
-    /// <summary>Puts a new item in its device's pill, with that pill's label.</summary>
+    /// <summary>Puts a new item in its device's pill, or in the pill of the label it comes with, with that pill's label.</summary>
     internal static EditResult Insert(ThermiConfig config, int overlay, RawSensor sensor, ItemConfig item, Texts texts)
     {
         var items = config.Overlays[overlay].Items;
-        var (at, label) = Names.PlaceOf(config.Overlays[overlay], sensor, texts);
+        var (at, label) = Names.PlaceOf(config.Overlays[overlay], sensor, texts, item.Label);
         return ConfigEdits.Apply(
             config,
             current => ConfigEdits.WithItems(current, overlay, [.. items.Take(at), item with { Label = label }, .. items.Skip(at)]));

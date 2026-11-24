@@ -367,7 +367,7 @@
     <value>Guardar como mi aspecto</value>
   </data>
   <data name="UiText.StyleFiles" xml:space="preserve">
-    <value>Estilos de thermi</value>
+    <value>Aspectos de thermi</value>
   </data>
   <data name="UiText.LanguageField" xml:space="preserve">
     <value>Idioma</value>
@@ -1320,6 +1320,9 @@
   <data name="NameText.AfterSensor" xml:space="preserve">
     <value>{0} ({1})</value>
   </data>
+  <data name="NameText.OtherGpu" xml:space="preserve">
+    <value>iGPU</value>
+  </data>
   <data name="NameText.OfSensor" xml:space="preserve">
     <value>{1} de {0}</value>
   </data>
@@ -1483,31 +1486,31 @@
     <value>Los sensores de este elemento no se leen ahora, así que thermi no puede saber si sumarlos tiene sentido.</value>
   </data>
   <data name="Refusal.StyleNameEmpty" xml:space="preserve">
-    <value>Un estilo necesita un nombre.</value>
+    <value>Un aspecto necesita un nombre.</value>
   </data>
   <data name="Refusal.StyleNameTooLong" xml:space="preserve">
-    <value>El nombre de un estilo tiene hasta 40 caracteres.</value>
+    <value>El nombre de un aspecto tiene hasta 40 caracteres.</value>
   </data>
   <data name="Refusal.StyleNameTaken" xml:space="preserve">
-    <value>Ya hay un estilo con ese nombre: elige otro.</value>
+    <value>Ya hay un aspecto con ese nombre: elige otro.</value>
   </data>
   <data name="Refusal.StyleNotFound" xml:space="preserve">
-    <value>Ese estilo ya no está entre tus estilos.</value>
+    <value>Ese aspecto ya no está entre tus aspectos.</value>
   </data>
   <data name="Refusal.BrokenStyle" xml:space="preserve">
-    <value>Este estilo no se puede usar: {0}</value>
+    <value>Este aspecto no se puede usar: {0}</value>
   </data>
   <data name="Refusal.NewerStyle" xml:space="preserve">
-    <value>Este estilo lo hizo un thermi más nuevo: actualiza thermi para usarlo.</value>
+    <value>Este aspecto lo hizo un thermi más nuevo: actualiza thermi para usarlo.</value>
   </data>
   <data name="Refusal.Hotkey" xml:space="preserve">
     <value>Esta combinación no puede ser un atajo.</value>
   </data>
   <data name="Refusal.StyleFileFailed" xml:space="preserve">
-    <value>No se pudo escribir ni leer el archivo de estilo: {0}</value>
+    <value>No se pudo escribir ni leer el archivo de aspecto: {0}</value>
   </data>
   <data name="Refusal.StyleTooLarge" xml:space="preserve">
-    <value>Eso no es un estilo: un archivo de estilo ocupa unos pocos kilobytes, y esto pasa de 1 MB.</value>
+    <value>Eso no es un aspecto: un archivo de aspecto ocupa unos pocos kilobytes, y esto pasa de 1 MB.</value>
   </data>
   <data name="Refusal.PasteFailed" xml:space="preserve">
     <value>Windows no entregó lo que se pegó o se soltó, como pasa mientras otra aplicación usa el portapapeles. Vuelve a intentarlo en un momento.</value>
@@ -1731,6 +1734,9 @@
   <data name="UndoText.On" xml:space="preserve">
     <value>Activado</value>
   </data>
+  <data name="UndoText.Named" xml:space="preserve">
+    <value>{0} «{1}»</value>
+  </data>
   <data name="UndoText.Off" xml:space="preserve">
     <value>Desactivado</value>
   </data>
@@ -1816,7 +1822,7 @@
     <value>¿Restablecer los valores predeterminados?</value>
   </data>
   <data name="WindowText.ResetBody" xml:space="preserve">
-    <value>Los elementos, las etiquetas, los medidores, los umbrales, la ubicación y el estilo vuelven a como empieza thermi. El idioma, los atajos y la unidad de temperatura se mantienen. Ctrl+Z lo deshace.</value>
+    <value>Los elementos, las etiquetas, los medidores, los umbrales, la ubicación y el aspecto vuelven a como empieza thermi. El idioma, los atajos y la unidad de temperatura se mantienen. Ctrl+Z lo deshace.</value>
   </data>
   <data name="WindowText.Reset" xml:space="preserve">
     <value>Restablecer</value>
