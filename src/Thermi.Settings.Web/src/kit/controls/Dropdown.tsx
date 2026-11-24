@@ -41,7 +41,11 @@ export interface DropdownProps {
 }
 
 const useStyles = makeStyles({
-  dropdown: { minWidth: '160px' },
+  dropdown: {
+    minWidth: '160px',
+    // Overflowing past the box makes it the scroll parent Fluent scrolls into view, instead of the pane, which jumped on open.
+    '::before': { content: '""', position: 'absolute', top: '0', bottom: '-4px', width: '1px', visibility: 'hidden', pointerEvents: 'none' },
+  },
   option: { display: 'flex', gap: '12px', width: '100%' },
   name: { flex: '1', minWidth: '0' },
   aside: { color: text.secondary, fontVariantNumeric: 'tabular-nums' },

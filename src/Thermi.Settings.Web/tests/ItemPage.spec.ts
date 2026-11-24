@@ -228,8 +228,13 @@ test.describe('TheItemPageEditsTheItem', () => {
   });
 
   // Live QA: the item page keeps the scrollbar's room, so the chart does not jump when More options makes it scroll.
-  test('The chart keeps its place when the page starts to scroll', async ({ page }) => {
-    await openWindow(page);
+  test('The page keeps its place as it scrolls', async ({ page }) => {
+    const state = fakeState();
+    const ram = state.settings.overlays[0]?.items.find((item) => item.id === 'ram.used');
+    if (ram !== undefined) {
+      ram.stat = 'average';
+    }
+    await openWindow(page, state);
     await page.setViewportSize({ width: 1920, height: 1080 });
     await select(page, text('MetricName.CpuTemperature'));
     // A window just tall enough for the rows beside the chart, which fills the pane's height, so More options makes it scroll.
@@ -250,6 +255,41 @@ test.describe('TheItemPageEditsTheItem', () => {
     await main.getByRole('button', { name: text('UiText.MoreOptions') }).press('Enter');
     await expect.poll(() => main.evaluate((pane) => pane.scrollHeight > pane.clientHeight)).toBe(true);
     expect(await across()).toEqual(before);
+
+    // Owner's QA: the page stays where it was scrolled through whatever is done on it, and what it shows goes back to
+    // the value now, its default, as any other choice does.
+    await page.setViewportSize({ width: 1500, height: 640 });
+    await select(page, text('MetricName.RamUsed'));
+    await fieldOf(page, 'button', 'UiText.MoreOptions').click();
+    // Scrolled so all of More options shows under the pane's top, each control in view, as a person would see it.
+    const at = await main.evaluate((pane, top) => {
+      pane.scrollTop = Math.min(pane.scrollHeight - pane.clientHeight, top - pane.getBoundingClientRect().top - 8);
+      return pane.scrollTop;
+    }, (await fieldOf(page, 'button', 'UiText.MoreOptions').boundingBox())?.y ?? 0);
+    expect(at).toBeGreaterThan(0);
+    const pick = async (key: string, option: string): Promise<void> => {
+      await fieldOf(page, 'combobox', key).click();
+      await page.getByRole('option', { name: option, exact: true }).click();
+    };
+    const acts: { name: string; act: () => Promise<void>; read?: (item: Item) => unknown; expected?: unknown }[] = [
+      { name: 'Value now', act: () => pick('UiText.StatField', text('ItemStat.Now')), read: (item) => item.stat, expected: undefined },
+      { name: 'Smoothing', act: () => pick('UiText.SmoothField', text('UiText.SmoothSeconds', 3)), read: (item) => item.smooth, expected: 3 },
+      { name: 'Decimals', act: () => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.DecimalsField'), '2'), read: (item) => item.decimals, expected: 2 },
+      { name: 'a switch', act: () => fieldOf(page, 'switch', 'UiText.AlertOnly').click(), read: (item) => item.alertOnly, expected: true },
+      { name: 'undo', act: () => page.keyboard.press('Control+Z'), read: (item) => item.alertOnly, expected: undefined },
+      { name: 'redo', act: () => page.keyboard.press('Control+Y'), read: (item) => item.alertOnly, expected: true },
+      { name: 'new readings', act: () => setFake(page, { sensors: recording('admin').map((sensor) => ({ ...sensor, value: (sensor.value ?? 0) + 1 })) }) },
+    ];
+    for (const row of acts) {
+      await test.step(row.name, async () => {
+        await row.act();
+        if (row.read !== undefined) {
+          await expect.poll(async () => row.read?.(await itemIn(page, 'ram.used'))).toEqual(row.expected);
+        }
+        await fakeOf(page);
+        expect(await main.evaluate((pane) => pane.scrollTop)).toBe(at);
+      });
+    }
 
     // Cold review 4 (Q8): the next item's page opens at its top, its title in view, with its options closed.
     await main.evaluate((pane) => pane.scrollTo({ top: pane.scrollHeight }));

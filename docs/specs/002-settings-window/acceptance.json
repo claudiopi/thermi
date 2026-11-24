@@ -188,7 +188,7 @@
         "R109",
         "R114"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
+      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },

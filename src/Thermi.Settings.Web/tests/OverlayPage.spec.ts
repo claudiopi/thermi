@@ -235,6 +235,12 @@ test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
         read: (state) => overlayOf(state.settings, 0).visibility,
         expected: 'hide-in-fullscreen',
       },
+      // Owner's QA: the default, which the page sends as null, can be chosen again.
+      {
+        act: () => chooseByKeys(page, pane.getByRole('combobox', { name: text('OverlayPageText.WhenToShowField') }), text('Visibility.Always')),
+        read: (state) => overlayOf(state.settings, 0).visibility,
+        expected: undefined,
+      },
       {
         act: () => pressOn(pane.getByRole('switch', { name: text('UiText.LockPosition') }), 'Space'),
         read: (state) => overlayOf(state.settings, 0).locked,

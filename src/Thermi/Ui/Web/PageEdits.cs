@@ -70,7 +70,7 @@ internal static class PageEdits
         "fade" => OverlayEdits.SetFade(config, overlay, Flag(value)),
         "hidden" => OverlayEdits.SetHidden(config, overlay, Flag(value)),
         "visibility" => OverlayEdits.SetVisibility(config, overlay, Read<Visibility>(value)),
-        "graph" => OverlayEdits.SetGraph(config, overlay, value.ValueKind == JsonValueKind.Null ? GraphStyle.Auto : Read<GraphStyle>(value)),
+        "graph" => OverlayEdits.SetGraph(config, overlay, Read<GraphStyle>(value)),
         "snap" => OverlayEdits.Snap(config, overlay, value.Deserialize<SnapConfig>(BridgeCalls.Options) ?? throw NoField(field)),
         _ => throw NoField(field),
     };
@@ -144,8 +144,9 @@ internal static class PageEdits
 
     private static bool Flag(JsonElement value) => value.ValueKind == JsonValueKind.True;
 
+    // The page sends null for a choice's default, as for every other field.
     private static T Read<T>(JsonElement value)
-        where T : struct, Enum => value.Deserialize<T>(BridgeCalls.Options);
+        where T : struct, Enum => value.ValueKind == JsonValueKind.Null ? default : value.Deserialize<T>(BridgeCalls.Options);
 
     private static BridgeCallException NoField(string field) => new($"The window changes no field {field} this way.");
 
