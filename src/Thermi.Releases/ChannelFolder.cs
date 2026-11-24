@@ -13,24 +13,39 @@ internal sealed class ChannelFolder(string root, byte[] release, byte[] backup)
     public string Root => root;
 
     /// <summary>Each channel's history; throws for one neither key signed, which no lever wrote, so none signs over it.</summary>
-    public IReadOnlyDictionary<string, ChannelHistory> Read() => Manifest.Channels.ToDictionary(
-        channel => channel,
-        channel => ChannelHistory.Open(File.Exists(HistoryOf(channel)) ? File.ReadAllBytes(HistoryOf(channel)) : null, release, backup)
-            ?? throw new InvalidOperationException($"history/{channel}.json is signed by neither of thermi's keys, so no lever signs over it."),
-        StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, ChannelHistory> Read() => Manifest.Channels.ToDictionary(channel => channel, Read, StringComparer.Ordinal);
+
+    private ChannelHistory Read(string channel)
+    {
+        if (!File.Exists(HistoryOf(channel)))
+        {
+            return File.Exists(Path.Combine(root, channel + ".json"))
+                ? throw new InvalidOperationException($"history/{channel}.json is gone while {channel} serves: no lever starts it over.")
+                : new ChannelHistory([]);
+        }
+
+        return ChannelHistory.Open(File.ReadAllBytes(HistoryOf(channel)), release, backup)
+            ?? throw new InvalidOperationException($"history/{channel}.json is signed by neither of thermi's keys, so no lever signs over it.");
+    }
 
     /// <summary>
-    /// Why <paramref name="key"/> may not seal what a lever changed, or null: a channel whose release key is revoked takes
-    /// only the backup key's signature, as every PC that honored the revocation does.
+    /// Why <paramref name="key"/> may not seal what a lever changed, or null: each new manifest, sealed, must open as a
+    /// PC opens it, so a channel whose release key is revoked takes only the backup key's signature.
     /// </summary>
     public string? Refuses(IReadOnlyDictionary<string, ChannelHistory> before, IReadOnlyDictionary<string, ChannelHistory> after, ECDsa key)
     {
-        var byBackup = key.ExportSubjectPublicKeyInfo().AsSpan().SequenceEqual(backup);
-        var revoked = after.FirstOrDefault(channel => channel.Value.Current is { RevokedKey: not null } current
-            && !ReferenceEquals(before[channel.Key].Current, current)).Key;
-        return revoked is not null && !byBackup
-            ? $"{revoked}'s release key is revoked: sign with the backup key until PCs run a build with the new one, then unrevoke."
-            : null;
+        foreach (var (channel, history) in after)
+        {
+            if (history.Current is { } current && !ReferenceEquals(before[channel].Current, current)
+                && ManifestEnvelope.Open(ManifestEnvelope.Seal(current, key), release, backup).Problem is { } problem)
+            {
+                return current.RevokedKey is not null
+                    ? $"{channel}'s release key is revoked: sign with the backup key until PCs run a build with the new one, then unrevoke."
+                    : $"{channel}'s next manifest would not open on a PC: {problem}.";
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Writes each channel whose history changed, its history first and its envelope last, sealed by <paramref name="key"/>.</summary>

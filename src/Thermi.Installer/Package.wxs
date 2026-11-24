@@ -55,6 +55,9 @@
     <!-- A rollback of the install, after Adopt or when it failed, puts back what Adopt found. -->
     <CustomAction Id="Undo" Directory="setupfolder" Execute="rollback" Impersonate="no" Return="ignore"
                   ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --undo" />
+    <!-- Once the install committed, its record is no later install's to put back. -->
+    <CustomAction Id="Forget" Directory="setupfolder" Execute="commit" Impersonate="no" Return="ignore"
+                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --forget" />
     <CustomAction Id="TakeOff" Directory="setupfolder" Execute="deferred" Impersonate="no" Return="check"
                   ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --remove" />
     <!-- The overlay of the person who ran the MSI by hand; a silent install, as Intune's, starts none as SYSTEM. -->
@@ -65,6 +68,7 @@
       <Custom Action="TakeOff" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="Undo" After="InstallFiles" Condition="NOT REMOVE" />
       <Custom Action="Adopt" After="Undo" Condition="NOT REMOVE" />
+      <Custom Action="Forget" After="Adopt" Condition="NOT REMOVE" />
       <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
     </InstallExecuteSequence>
   </Package>

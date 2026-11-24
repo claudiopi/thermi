@@ -13,11 +13,15 @@ internal static class ThermiPaths
 
     public static string Launcher { get; } = LauncherOf(Own);
 
-    /// <summary>The service's update state, beside the launcher; null outside an installed layout.</summary>
-    public static string? State { get; } =
-        string.Equals(Launcher, Own, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : Path.Combine(Path.GetDirectoryName(Launcher)!, "update", UpdateState.SharedFileName);
+    /// <summary>The service's <c>update\</c> folder, beside the launcher, with the copies of its state; null outside an installed layout.</summary>
+    public static string? Updates { get; } =
+        string.Equals(Launcher, Own, StringComparison.OrdinalIgnoreCase) ? null : Path.Combine(Path.GetDirectoryName(Launcher)!, "update");
+
+    public static string? State() => Updates is null || !Directory.Exists(Updates)
+        ? null
+        : new DirectoryInfo(Updates).EnumerateFiles(UpdateState.SharedPrefix + "*.json").MaxBy(copy => copy.LastWriteTimeUtc)?.FullName;
+
+    public static string OwnOf(ReleaseVersion version) => Path.Combine(Path.GetDirectoryName(Launcher)!, version.ToString(), "thermi.exe");
 
     /// <summary>Whether <paramref name="path"/> is one of thermi's: an overlay and its window may run from either.</summary>
     public static bool IsThermi(string path) =>

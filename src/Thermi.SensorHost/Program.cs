@@ -133,6 +133,7 @@ internal static class Program
         {
             InstallMode.Adopt => installation.AdoptAsync(version, own, install.Product, stop),
             InstallMode.Undo => installation.UndoAsync(version, own, stop),
+            InstallMode.Forget => Task.FromResult(installation.Forget(own)),
             InstallMode.Remove => installation.RemoveAsync(own, stop),
             _ => throw new ArgumentOutOfRangeException(nameof(install), install.Mode, null),
         };

@@ -1,4 +1,5 @@
 using System.Security.AccessControl;
+using System.Security.Cryptography;
 using Thermi.Core.Updates;
 
 namespace Thermi.SensorHost.Updates;
@@ -18,7 +19,7 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
 
     private string StatePath => Path.Combine(Update, UpdateState.FileName);
 
-    private string SharedPath => Path.Combine(Update, UpdateState.SharedFileName);
+
 
     private string Trash => Path.Combine(Update, "trash");
 
@@ -120,23 +121,33 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
         File.Move(next, path, overwrite: true);
     }
 
-    // The users' copy, as the folder's access lets them read it; one a user holds open stays as it was.
+    // The users' copy, a new file as the folder's access lets them read it, then the older ones deleted: one a user holds
+    // open stays until a later write.
     private void Share(string? text)
     {
+        var older = Directory.EnumerateFiles(Update, UpdateState.SharedPrefix + "*.json").ToList();
         try
         {
-            if (text is null)
+            if (text is not null)
             {
-                File.Delete(SharedPath);
-            }
-            else
-            {
-                Whole(SharedPath, text, security: null);
+                Whole(Path.Combine(Update, $"{UpdateState.SharedPrefix}{Convert.ToHexString(RandomNumberGenerator.GetBytes(8))}.json"), text, security: null);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _ = ex;
+            return;
+        }
+
+        foreach (var copy in older)
+        {
+            try
+            {
+                File.Delete(copy);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _ = ex;
+            }
         }
     }
 

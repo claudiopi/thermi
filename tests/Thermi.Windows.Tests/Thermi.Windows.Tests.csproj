@@ -48,6 +48,7 @@
     <!-- Both thermi and thermi-sensors show the tests their own CsWin32 types, so the service's sit behind an alias,
          or the tests' own generated code could not tell the two apart. -->
     <ProjectReference Include="..\..\src\Thermi.SensorHost\Thermi.SensorHost.csproj" Aliases="sensors" />
+    <ProjectReference Include="..\..\src\Thermi.Releases\Thermi.Releases.csproj" />
   </ItemGroup>
 
 </Project>

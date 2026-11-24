@@ -247,6 +247,7 @@ public sealed class CommandLineTests : IDisposable
     [InlineData(new[] { "--adopt" }, "Adopt")]
     [InlineData(new[] { "--remove" }, "Remove")]
     [InlineData(new[] { "--undo" }, "Undo")]
+    [InlineData(new[] { "--forget" }, "Forget")]
     [InlineData(new[] { "--remove", "--product", "{db4b32af-cd73-400d-bfc1-1a144c2be80c}" }, "--product needs --adopt. --remove takes no other option.")]
     [InlineData(new[] { "--adopt", "--remove" }, "--adopt takes no other option. --remove takes no other option.")]
     public void TheSensorServiceServesOrDumps(string[] args, string expected)

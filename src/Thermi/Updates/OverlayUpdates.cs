@@ -21,13 +21,13 @@ namespace Thermi.Updates;
 /// </summary>
 internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, TimeProvider time, ILogger log)
 {
-    private readonly string? _state = ThermiPaths.State;
+    private readonly string? _updates = ThermiPaths.Updates;
     private readonly ReleaseVersion? _own = ReleaseVersion.Parse(
         typeof(OverlayUpdates).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
     private readonly HashSet<ReleaseVersion> _left = [];
     private readonly Lock _lock = new();
-    private DateTime _read;
+    private string? _read;
     private UpdateState _known = new();
     private DateTimeOffset _told = DateTimeOffset.MinValue;
 
@@ -35,7 +35,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
 
     public void Tick()
     {
-        if (_state is null || _own is null || Leaving is not null || !_lock.TryEnter())
+        if (_updates is null || _own is null || Leaving is not null || !_lock.TryEnter())
         {
             return;
         }
@@ -80,7 +80,8 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
         Process? successor;
         try
         {
-            successor = Process.Start(new ProcessStartInfo(ThermiPaths.Launcher) { UseShellExecute = false });
+            // The version's own program, not the launcher at the top, which a program holding it may have left the old one's.
+            successor = Process.Start(new ProcessStartInfo(ThermiPaths.OwnOf(to)) { UseShellExecute = false });
         }
         catch (Win32Exception ex)
         {
@@ -136,16 +137,15 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
     {
         try
         {
-            var written = File.GetLastWriteTimeUtc(_state!);
-            if (written != _read)
+            if (ThermiPaths.State() is { } newest && newest != _read)
             {
-                _read = written;
-                _known = UpdateState.Read(File.Exists(_state) ? File.ReadAllText(_state) : null);
+                _known = UpdateState.Read(File.ReadAllText(newest));
+                _read = newest;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // The service writes it whole by a move; a read that meets it mid-move tries again at the next tick.
+            // A copy deleted mid-read is retried at the next tick.
         }
 
         return _known;

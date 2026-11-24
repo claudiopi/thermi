@@ -14,6 +14,14 @@ public sealed record UpdatePolicy(bool Built, bool TurnedOff, string Channel)
 
     public bool Checks => Built && !TurnedOff;
 
+    /// <summary>
+    /// Whether a build pointed at <paramref name="from"/>, with the certificates' thumbprints <paramref name="signers"/>
+    /// names, updates itself: only a test channel on this PC goes without the catalog, so a release whose signers went
+    /// missing never updates rather than take any zip the manifest key alone signed.
+    /// </summary>
+    public static bool Updates(string? from, string? signers) =>
+        Uri.TryCreate(from, UriKind.Absolute, out var address) && (!string.IsNullOrWhiteSpace(signers) || address.IsLoopback);
+
     /// <summary>The policy from the registry's values as read: <c>Updates</c> = 0 turns checks off, <c>UpdateChannel</c> = beta picks beta.</summary>
     public static UpdatePolicy Of(bool built, object? updates, object? channel) => new(
         built,

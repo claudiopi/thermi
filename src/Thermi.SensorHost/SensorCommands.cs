@@ -21,7 +21,8 @@ internal sealed record SensorSwitch(ReleaseVersion To) : ISensorRequest;
 
 /// <summary>
 /// <c>--adopt</c>, with the MSI's product code when the MSI runs it: lays this version down as the one the PC runs;
-/// <c>--undo</c>, which puts back what the last one changed; or <c>--remove</c>, which takes thermi off the PC
+/// <c>--undo</c>, which puts back what the last one changed; <c>--forget</c>, which drops that record once the install
+/// committed; or <c>--remove</c>, which takes thermi off the PC
 /// (docs/adr/0008-updates.md).
 /// </summary>
 internal sealed record SensorInstall(InstallMode Mode, string? Product) : ISensorRequest;
@@ -30,6 +31,7 @@ internal enum InstallMode
 {
     Adopt,
     Undo,
+    Forget,
     Remove,
 }
 
@@ -45,7 +47,8 @@ internal static class SensorCommands
         var options = new Options();
         var root = new RootCommand("thermi-sensors: the service that reads the sensors for thermi.")
         {
-            options.Console, options.Dump, options.Seconds, options.Elevated, options.Watch, options.Adopt, options.Product, options.Undo, options.Remove,
+            options.Console, options.Dump, options.Seconds, options.Elevated, options.Watch, options.Adopt, options.Product, options.Undo, options.Forget,
+            options.Remove,
         };
         root.Validators.Add(result => Validate(result, root, options));
         var parsed = root.Parse(args);
@@ -70,7 +73,7 @@ internal static class SensorCommands
             result.AddError("--product needs --adopt.");
         }
 
-        foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Undo, options.Remove })
+        foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Undo, options.Forget, options.Remove })
         {
             Alone(result, mode, [.. root.Options.Where(other => other != mode && (mode != options.Adopt || other != options.Product))]);
         }
@@ -115,6 +118,8 @@ internal static class SensorCommands
 
         public Option<bool> Undo { get; } = new("--undo") { Description = "Puts back what the last install changed.", Hidden = true };
 
+        public Option<bool> Forget { get; } = new("--forget") { Description = "Drops what the last install recorded, once it committed.", Hidden = true };
+
         public Option<bool> Remove { get; } = new("--remove") { Description = "Takes thermi off the PC.", Hidden = true };
 
         public ISensorRequest Request(ParseResult parsed) =>
@@ -127,6 +132,7 @@ internal static class SensorCommands
         private SensorInstall? InstallOf(ParseResult parsed) =>
             parsed.GetValue(Adopt) ? new SensorInstall(InstallMode.Adopt, parsed.GetValue(Product)?.ToString("B").ToUpperInvariant())
             : parsed.GetValue(Undo) ? new SensorInstall(InstallMode.Undo, null)
+            : parsed.GetValue(Forget) ? new SensorInstall(InstallMode.Forget, null)
             : parsed.GetValue(Remove) ? new SensorInstall(InstallMode.Remove, null)
             : null;
 

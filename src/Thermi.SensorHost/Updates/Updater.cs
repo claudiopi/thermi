@@ -17,7 +17,7 @@ internal sealed class Updater(
 {
     private static readonly TimeSpan Tick = TimeSpan.FromMinutes(1);
 
-    private static readonly TimeSpan AfterStart = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan AfterStart = TimeSpan.FromMinutes(1);
 
     private readonly UpdateHost _host = host ?? UpdateHost.Windows;
     private readonly Switcher _switcher = new(folder, time, say, (host ?? UpdateHost.Windows).Start);
@@ -28,9 +28,9 @@ internal sealed class Updater(
 
     /// <summary>
     /// At the service's start: finishes or undoes a switch left written down, counts a run that never stopped and puts the
-    /// launchers of this version back, before the state says which version runs, so an overlay that reads it starts this
-    /// one. A version that failed its probation goes back at once, its watchdog waiting for the service to run; a version
-    /// ready switches once the service has started.
+    /// launchers of this version back, as each check does again while a program holds one. A version that failed its
+    /// probation goes back at once, its watchdog waiting for the service to run; a version ready switches a minute after
+    /// the service started.
     /// </summary>
     public void Started()
     {
@@ -125,7 +125,7 @@ internal sealed class Updater(
         {
             while (!stop.IsCancellationRequested)
             {
-                // A switch the start asked for waits only for the service to run.
+                // A switch the start asked for waits a minute, for a boot's disk and antivirus to settle.
                 await Task.Delay(_switchSoon ? AfterStart : Tick, time, stop);
                 if (_switchSoon)
                 {
@@ -154,6 +154,8 @@ internal sealed class Updater(
             var policy = _host.Policy(build);
             if (policy.Checks && !_switcher.UnderWay() && Trusted())
             {
+                // A launcher a program held as a switch finished is put back here, or overlays would start the old one.
+                PlaceLaunchers();
                 await CheckAsync(policy.Channel, stop);
             }
         }
@@ -239,9 +241,13 @@ internal sealed class Updater(
                 say(
                     metered ? $"thermi found {version}, and downloads it once the network is not metered." : $"thermi found {version}, and downloads it.",
                     EventLogEntryType.Information);
-                return !metered && await FetchAsync(version, package, stop)
-                    ? (state with { Ready = version, ReadyUrgent = plan.Urgent }, plan.Urgent ? version : null)
-                    : (state, null);
+                return (metered ? Fetched.Later : await FetchAsync(version, package, stop)) switch
+                {
+                    Fetched.Ready => (state with { Ready = version, ReadyUrgent = plan.Urgent, Refused = null }, plan.Urgent ? version : null),
+                    Fetched.Refused => (state with { Refused = package.Sha256 }, null),
+                    Fetched.Later => (state, null),
+                    _ => (state, null),
+                };
             case PlanKind.Keep:
                 return (state with { ReadyUrgent = plan.Urgent }, plan.Urgent ? state.Ready : null);
             case PlanKind.DropReady:
@@ -258,19 +264,37 @@ internal sealed class Updater(
         }
     }
 
-    private async Task<bool> FetchAsync(ReleaseVersion version, Package package, CancellationToken stop)
+    // A refused zip stays refused, as a download again cannot change it; a failed download is retried at the next check.
+    private async Task<Fetched> FetchAsync(ReleaseVersion version, Package package, CancellationToken stop)
     {
-        var download = await client.DownloadAsync(package, folder, stop);
+        Download download;
+        try
+        {
+            download = await client.DownloadAsync(package, folder, stop);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException && !stop.IsCancellationRequested)
+        {
+            say($"thermi could not download {version}, and tries at the next check: {ex.Message}", EventLogEntryType.Warning);
+            return Fetched.Later;
+        }
+
         await using var zip = download.Zip;
         var refused = zip is null ? download.Refused : Unpacker.Unpack(zip, folder, version, Catalog());
         if (refused is not null)
         {
             say($"thermi refused {version}: {refused}. Nothing installed changed.", EventLogEntryType.Warning);
-            return false;
+            return zip is null ? Fetched.Later : Fetched.Refused;
         }
 
         say($"thermi {version} is ready, and switches when the PC is quiet.", EventLogEntryType.Information);
-        return true;
+        return Fetched.Ready;
+    }
+
+    private enum Fetched
+    {
+        Later,
+        Ready,
+        Refused,
     }
 
     // A release build takes a version only when thermi's certificate signed its catalog and the catalog lists every file.

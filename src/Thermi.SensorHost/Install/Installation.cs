@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Updates;
@@ -31,8 +32,9 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
     private const string Sensors = SensorService.Name;
     private const string Elevated = ServiceConfig.Elevated;
 
-    // A watchdog holds the lock for the two minutes it gives a version at most; an install waits three, 200 ms a try.
-    private const int LockTries = 900;
+    // A watchdog holds the lock while it gives a version its 120 polls, about four minutes for one that never serves and
+    // twelve for one that connects and never writes; an install waits fifteen, 200 ms a try.
+    private const int LockTries = 4500;
 
     private const string Switching = "An update is switching thermi's version, so nothing was changed: try again in a few minutes.";
 
@@ -61,10 +63,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         }
 
         // What an install before this one recorded is no longer what to put back, whatever this one does.
-        if (File.Exists(UndoPath))
-        {
-            File.Delete(UndoPath);
-        }
+        DeleteUndo();
 
         using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
         if (held is null)
@@ -74,8 +73,8 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         }
 
         var there = Directory.Exists(folder.VersionOf(version));
-        var undo = new AdoptUndo(version.ToString(), system.ImagePath(Sensors), system.ImagePath(Elevated), there, folder.StateText(), system.App());
-        await File.WriteAllTextAsync(UndoPath, undo.ToJson(), stop);
+        var undo = new AdoptUndo(system.ImagePath(Sensors), system.ImagePath(Elevated), there, folder.StateText(), system.App());
+        await WriteUndoAsync(undo, stop);
         var shownBy = product ?? undo.App?.Product;
         if (Running(undo.Sensors) is { } running && running > version && Directory.Exists(folder.VersionOf(running)))
         {
@@ -101,17 +100,24 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             return 1;
         }
 
-        var undo = AdoptUndo.Read(File.Exists(UndoPath) ? await File.ReadAllTextAsync(UndoPath, stop) : null);
-        if (undo is not null && undo.Version == version.ToString())
+        if (AdoptUndo.Read(File.Exists(UndoPath) ? await File.ReadAllTextAsync(UndoPath, stop) : null) is { } undo)
         {
             Restore(undo, version);
+            DeleteUndo();
         }
 
-        if (undo is not null)
+        return 0;
+    }
+
+    /// <summary>Drops what the last install recorded to put back, once the MSI committed it.</summary>
+    public int Forget(string from)
+    {
+        if (Refuses(from))
         {
-            File.Delete(UndoPath);
+            return 1;
         }
 
+        DeleteUndo();
         return 0;
     }
 
@@ -152,6 +158,23 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         }
 
         return 0;
+    }
+
+    // No user may open it, so none holds it against the next install's delete.
+    private async Task WriteUndoAsync(AdoptUndo undo, CancellationToken stop)
+    {
+        await using var file = new FileInfo(UndoPath)
+            .Create(FileMode.Create, FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.None, folder.Private());
+        await using var writer = new StreamWriter(file);
+        await writer.WriteAsync(undo.ToJson().AsMemory(), stop);
+    }
+
+    private void DeleteUndo()
+    {
+        if (File.Exists(UndoPath))
+        {
+            File.Delete(UndoPath);
+        }
     }
 
     private void TakeOff()

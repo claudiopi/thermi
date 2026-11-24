@@ -97,7 +97,8 @@ public static class UpdatePlan
             || manifest.Withdrawn.Contains(version)
             || state.Bucket is < 0 or > 99
             || state.Bucket >= manifest.Rollout
-            || !manifest.Packages.TryGetValue(processor, out var package))
+            || !manifest.Packages.TryGetValue(processor, out var package)
+            || string.Equals(state.Refused, package.Sha256, StringComparison.Ordinal))
         {
             return null;
         }

@@ -28,7 +28,6 @@ internal sealed class Switcher(
 
     private const int WriteTries = 5;
 
-
     private readonly SwitchLock _lock = new(folder, time);
 
     /// <summary>Whether a watchdog is switching now, so the state is its own until it is done.</summary>
@@ -119,11 +118,11 @@ internal sealed class Switcher(
                 say($"thermi switched to {to}, which serves its readings.", EventLogEntryType.Information);
                 return;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && tried < WriteTries)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException && tried < WriteTries)
             {
                 await Task.Delay(TimeSpan.FromSeconds(1), time, stop);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
                 say($"thermi runs {to}, but could not write so, and does at its next start: {ex.Message}", EventLogEntryType.Warning);
             }
@@ -139,6 +138,13 @@ internal sealed class Switcher(
         try
         {
             ServiceConfig.Start();
+        }
+        catch (System.ServiceProcess.TimeoutException)
+        {
+            // Windows gave up waiting, as under a boot's disk and antivirus: the version may be slow, not broken, so the
+            // switch is dropped and tried again rather than the version failed.
+            started = false;
+            throw;
         }
         finally
         {

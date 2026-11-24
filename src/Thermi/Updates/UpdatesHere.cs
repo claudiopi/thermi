@@ -10,22 +10,24 @@ namespace Thermi.Updates;
 /// </summary>
 internal static class UpdatesHere
 {
-    private static readonly bool Built = typeof(UpdatesHere).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-        .Any(attribute => attribute.Key == "ThermiUpdatesFrom" && attribute.Value is { Length: > 0 });
+    private static readonly bool Built = UpdatePolicy.Updates(Metadata("ThermiUpdatesFrom"), Metadata("ThermiUpdatesSigners"));
 
     public static UpdateLine Line(DateTimeOffset now)
     {
         using var key = Registry.LocalMachine.OpenSubKey(UpdatePolicy.Key);
         var policy = UpdatePolicy.Of(
-            Built && ThermiPaths.State is not null, key?.GetValue(UpdatePolicy.UpdatesValue), key?.GetValue(UpdatePolicy.ChannelValue));
+            Built && ThermiPaths.Updates is not null, key?.GetValue(UpdatePolicy.UpdatesValue), key?.GetValue(UpdatePolicy.ChannelValue));
         return UpdateStatus.Of(policy, State(), now);
     }
+
+    private static string? Metadata(string key) =>
+        typeof(UpdatesHere).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(attribute => attribute.Key == key)?.Value;
 
     private static UpdateState State()
     {
         try
         {
-            return UpdateState.Read(ThermiPaths.State is { } path && File.Exists(path) ? File.ReadAllText(path) : null);
+            return UpdateState.Read(ThermiPaths.State() is { } path ? File.ReadAllText(path) : null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

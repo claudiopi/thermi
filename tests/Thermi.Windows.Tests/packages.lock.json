@@ -493,6 +493,13 @@
           "Thermi.Trust": "[0.9.0, )"
         }
       },
+      "thermi-releases": {
+        "type": "Project",
+        "dependencies": {
+          "System.CommandLine": "[3.0.0, )",
+          "Thermi.Core": "[0.9.0, )"
+        }
+      },
       "thermi-sensors": {
         "type": "Project",
         "dependencies": {

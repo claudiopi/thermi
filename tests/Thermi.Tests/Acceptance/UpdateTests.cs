@@ -178,9 +178,7 @@ public sealed class UpdateTests
         // Nothing to promote or take back yet, and a rollout is a percentage.
         Assert.NotNull(Levers.Promote(channels, Manifest.Beta, Manifest.Stable, rollout: 100, urgent: null, Now).Refused);
         Assert.NotNull(Levers.RollBack(channels, Manifest.Stable, Now).Refused);
-        Assert.All(
-            (int[])[-1, 101],
-            rollout => Assert.NotNull(Levers.Publish(channels, Manifest.Stable, V("1.0.0"), zips, rollout, urgent: false, Now).Refused));
+        Assert.All((int[])[-1, 101], rollout => Assert.NotNull(Levers.Publish(channels, Manifest.Stable, V("1.0.0"), zips, rollout, false, Now).Refused));
 
         // Stable's first version reaches beta too, which was behind.
         channels = Done(Levers.Publish(channels, Manifest.Stable, V("1.0.0"), zips, 100, urgent: false, Now));
@@ -335,25 +333,27 @@ public sealed class UpdateTests
     {
         var state = new UpdateState { Installed = V("1.2.0"), Previous = V("1.1.0"), Failed = [V("1.3.0")] }.WithSequence(Manifest.Beta, 7);
         var read = UpdateState.Read(state.Write());
-        Assert.Equal(
-            (state.Installed, state.Previous, 7L, 0L),
-            (read.Installed, read.Previous, read.SequenceOf(Manifest.Beta), read.SequenceOf(Manifest.Stable)));
+        Assert.Equal((state.Installed, state.Previous), (read.Installed, read.Previous));
+        Assert.Equal((7L, 0L), (read.SequenceOf(Manifest.Beta), read.SequenceOf(Manifest.Stable)));
         Assert.Equal(state.Failed, read.Failed);
         Assert.All((string?[])[null, "", "{", "null", """{ "installed": "../x" }"""], text => Assert.Null(UpdateState.Read(text).Installed));
     }
 
-    // A build without a key, the policy, a version ready, the last successful check or the first, in days ago, and beta.
+    // A build's address and signers (a release one without them never updates), the policy, a ready version, the last checks, beta.
     [Theory]
-    [InlineData(false, false, null, 1, null, false, UpdateLineKind.NotUpdating)]
-    [InlineData(true, true, null, 1, null, false, UpdateLineKind.TurnedOff)]
-    [InlineData(true, false, "1.3.0", 20, null, false, UpdateLineKind.Ready)]
-    [InlineData(true, false, null, 13, null, true, UpdateLineKind.UpToDate)]
-    [InlineData(true, false, null, 14, null, false, UpdateLineKind.Unreached)]
-    [InlineData(true, false, null, null, 15, false, UpdateLineKind.Unreached)]
-    [InlineData(true, false, null, null, 2, false, UpdateLineKind.NotChecked)]
-    public void TheUpdateLineSaysWhatThisPcDoes(bool built, bool off, string? ready, int? success, int? first, bool beta, UpdateLineKind kind)
+    [InlineData(null, false, null, 1, null, false, UpdateLineKind.NotUpdating)]
+    [InlineData("https://u/v1/", false, null, 1, null, false, UpdateLineKind.NotUpdating)]
+    [InlineData("http://127.0.0.1:8765/v1/", false, null, 1, null, false, UpdateLineKind.UpToDate)]
+    [InlineData("https://u/v1/ AB", true, null, 1, null, false, UpdateLineKind.TurnedOff)]
+    [InlineData("https://u/v1/ AB", false, "1.3.0", 20, null, false, UpdateLineKind.Ready)]
+    [InlineData("https://u/v1/ AB", false, null, 13, null, true, UpdateLineKind.UpToDate)]
+    [InlineData("https://u/v1/ AB", false, null, 14, null, false, UpdateLineKind.Unreached)]
+    [InlineData("https://u/v1/ AB", false, null, null, 15, false, UpdateLineKind.Unreached)]
+    [InlineData("https://u/v1/ AB", false, null, null, 2, false, UpdateLineKind.NotChecked)]
+    public void TheUpdateLineSaysWhatThisPcDoes(string? build, bool off, string? ready, int? success, int? first, bool beta, UpdateLineKind kind)
     {
-        var policy = UpdatePolicy.Of(built, off ? 0 : null, beta ? " Beta " : "stable");
+        var parts = build?.Split(' ');
+        var policy = UpdatePolicy.Of(UpdatePolicy.Updates(parts?[0], parts?.ElementAtOrDefault(1)), off ? 0 : null, beta ? " Beta " : "stable");
         var state = new UpdateState
         {
             Ready = Maybe(ready),
@@ -364,7 +364,7 @@ public sealed class UpdateTests
         var line = UpdateStatus.Of(policy, state, Now);
 
         Assert.Equal(kind, line.Kind);
-        Assert.Equal(built && !off, policy.Checks);
+        Assert.Equal(policy.Built && !off, policy.Checks);
         Assert.Equal(beta, line.Beta);
         Assert.All(Texts.Languages, language =>
         {

@@ -9,7 +9,6 @@ namespace Thermi.SensorHost.Updates;
 /// </summary>
 internal sealed class SwitchLock(InstallFolder folder, TimeProvider time)
 {
-
     private string LockPath => Path.Combine(folder.Update, "switch.lock");
 
     /// <summary>Whether a watchdog or an install holds the lock now.</summary>
@@ -53,5 +52,4 @@ internal sealed class SwitchLock(InstallFolder folder, TimeProvider time)
 
         return null;
     }
-
 }

@@ -16,7 +16,8 @@ public sealed record ChannelHistory(IReadOnlyList<Manifest> Published)
 
     /// <summary>
     /// The history <paramref name="sealedOne"/> holds when the release or the backup key signed it; empty for none; null
-    /// for one neither signed, or that is no history.
+    /// for one neither signed, or that is no history. An older one signed replays: a lever then signs a sequence PCs have
+    /// passed, which they refuse, so it only withholds updates, as whoever holds the server can anyway.
     /// </summary>
     public static ChannelHistory? Open(byte[]? sealedOne, byte[] release, byte[] backup)
     {
@@ -30,8 +31,9 @@ public sealed record ChannelHistory(IReadOnlyList<Manifest> Published)
             var envelope = JsonSerializer.Deserialize(sealedOne, UpdateJson.Default.Envelope);
             var body = Convert.FromBase64String(envelope?.Manifest ?? "");
             var signature = Convert.FromBase64String(envelope?.Signature ?? "");
+            // A history holds at least one manifest, so a manifest's signed body, which shares the envelope, is none.
             return ManifestEnvelope.Verifies(release, body, signature) || ManifestEnvelope.Verifies(backup, body, signature)
-                ? JsonSerializer.Deserialize(body, UpdateJson.Default.ChannelHistory)
+                ? JsonSerializer.Deserialize(body, UpdateJson.Default.ChannelHistory) is { Published.Count: > 0 } history ? history : null
                 : null;
         }
         catch (Exception ex) when (ex is JsonException or FormatException)

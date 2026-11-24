@@ -25,10 +25,11 @@ public sealed record UpdateState
     public const string FileName = "state.json";
 
     /// <summary>
-    /// The copy of the state users read, as the overlay and About do: the service's own is no user's to open, so none can
-    /// hold it open against a write. A user holding this one keeps only their own view old.
+    /// The start of the copies of the state users read, as the overlay and About do, the newest of them: the service's own
+    /// is no user's to open, so none can hold it open against a write, and each copy is a new file, so a user holding one
+    /// keeps no one's view old.
     /// </summary>
-    public const string SharedFileName = "status.json";
+    public const string SharedPrefix = "status-";
 
     /// <summary>The version the launchers start.</summary>
     public ReleaseVersion? Installed { get; init; }
@@ -66,6 +67,12 @@ public sealed record UpdateState
     /// version built with another release key runs.
     /// </summary>
     public string? RevokedKey { get; init; }
+
+    /// <summary>
+    /// The SHA-256 of the last zip refused for what it holds, as a catalog this build cannot trust: never fetched again,
+    /// while another zip is.
+    /// </summary>
+    public string? Refused { get; init; }
 
     /// <summary>The state <paramref name="text"/> holds; a file broken or missing is a PC that knows nothing yet. Never throws.</summary>
     public static UpdateState Read(string? text)

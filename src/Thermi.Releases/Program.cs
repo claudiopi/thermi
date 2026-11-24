@@ -53,14 +53,22 @@ internal static class Program
             foreach (var name in new[] { "release", "backup" })
             {
                 using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-                File.WriteAllText(Path.Combine(folder.FullName, name + ".key.pem"), key.ExportPkcs8PrivateKeyPem());
-                File.WriteAllText(Path.Combine(folder.FullName, name + ".pub.pem"), key.ExportSubjectPublicKeyInfoPem());
+                // Never over a key there: the backup pair is the one every PC trusts once a release key is revoked.
+                New(Path.Combine(folder.FullName, name + ".key.pem"), key.ExportPkcs8PrivateKeyPem());
+                New(Path.Combine(folder.FullName, name + ".pub.pem"), key.ExportSubjectPublicKeyInfoPem());
             }
 
             Console.WriteLine($"Wrote release and backup keys to {folder.FullName}. Keep the backup's private key offline.");
             return 0;
         });
         return command;
+    }
+
+    private static void New(string path, string text)
+    {
+        using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+        using var writer = new StreamWriter(file);
+        writer.Write(text);
     }
 
     private static Command Publish()

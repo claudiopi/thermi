@@ -92,6 +92,23 @@ public sealed class UpdaterTests
         Assert.Equal(taken ? UpdatePc.Built : null, pc.State.Ready);
         Assert.Equal(taken ? [UpdatePc.Running, UpdatePc.Built] : [UpdatePc.Running], pc.Versions);
         Assert.Equal(!taken, pc.Events.Skip(logged).Any(logged => logged.Type is EventLogEntryType.Warning or EventLogEntryType.Error));
+        var copy = Assert.Single(Directory.GetFiles(pc.Folder().Update, UpdateState.SharedPrefix + "*"));
+        Assert.Equal(pc.Folder().StateText(), await File.ReadAllTextAsync(copy, TestContext.Current.CancellationToken));
+    }
+
+    // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again; a download that failed is.
+    [Fact]
+    public async Task AZipRefusedForWhatItHoldsIsNotFetchedAgain()
+    {
+        await using var pc = new UpdatePc();
+        pc.Folder().Write(pc.State.WithSequence(Manifest.Stable, 2));
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)), at: Manifest.Stable);
+        using var updater = pc.Updater(pc.Build(catalog: true), trusted: true);
+
+        await updater.CheckAsync(TestContext.Current.CancellationToken);
+        await updater.CheckAsync(TestContext.Current.CancellationToken);
+
+        Assert.Single(pc.Channel.Paths, path => path.EndsWith(".zip", StringComparison.Ordinal));
     }
 
     [Fact]

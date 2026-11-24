@@ -121,7 +121,7 @@ public sealed class InstallationTests : IAsyncDisposable
             _pc.Lay(Later);
             _system.Images[Sensors] = Service(Later);
             _pc.Folder().PlaceLaunchers(Later);
-            var earlier = new AdoptUndo(UpdatePc.Built.ToString(), Service(UpdatePc.Running), null, VersionThere: true, State: null, App: null);
+            var earlier = new AdoptUndo(Service(UpdatePc.Running), null, VersionThere: true, State: null, App: null);
             Directory.CreateDirectory(_pc.Folder().Update);
             await File.WriteAllTextAsync(Path.Combine(_pc.Folder().Update, "adopt-undo.json"), earlier.ToJson(), TestContext.Current.CancellationToken);
         }
