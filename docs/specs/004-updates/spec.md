@@ -1,10 +1,10 @@
-# 004. thermi keeps itself up to date, safely
+# 004. thermi keeps itself up to date, silently and safely
 
 **Status**: draft
 
 ## Why
 
-Today thermi is built and installed from the repo by `scripts/install.ps1`. A public release needs a signed installer people trust, and a way to get fixes to them without a UAC prompt or a visit to GitHub. The service that would install them runs as LocalSystem, so this is the riskiest change thermi makes: it must be impossible to make it install anything but a newer thermi, signed by its author.
+Today thermi is built and installed from the repo by `scripts/install.ps1`. A public release needs an installer people trust, and fixes that reach every PC without a UAC prompt, a visit to a website or a gap in the overlay, as Chrome updates itself; and its owner needs Mi Basket's levers to stage a release, stop it and take it back within a minute. The service that installs runs as LocalSystem, so it must be impossible to make it run anything but a release signed by thermi's author.
 
 The decisions, the threat model and the alternatives are in `docs/adr/0008-updates.md`.
 
@@ -12,75 +12,71 @@ The decisions, the threat model and the alternatives are in `docs/adr/0008-updat
 
 Getting thermi
 
-- R1. Each release is one signed MSI per processor, x64 and Arm64, on GitHub Releases and on winget. It installs thermi, its service and the start at sign-in, with no other download.
-- R2. Every file the installer puts on disk has a valid Authenticode signature: thermi's, or its maker's for the .NET runtime.
-- R3. Installing over an earlier version, by hand, through winget or by an update, keeps each user's settings, saved styles, log and "Start with Windows" choice.
-- R4. A build made by `scripts/install.ps1` never checks for updates, and says so in the General tab.
+- R1. Each release is one MSI per processor, x64 and Arm64, that installs thermi for the whole PC: the two launchers, one version's folder, both services, the Start menu entry and the start at sign-in of whoever installs it, with no other download. Uninstalling removes every version and leaves each user's settings.
+- R2. In a release, every executable and library thermi installs or unpacks carries a valid Authenticode signature: thermi's, or its maker's.
+- R3. Installing over a version, an update and a rollback each keep every user's settings, saved styles, log, "Start with Windows" and the tray icons they chose to show.
+- R4. `scripts/install.ps1` installs the same layout as the MSI. Its builds never check for updates unless it is given a manifest's address and public key, and the window says that this build does not update itself.
 
 Checking
 
-- R5. The service checks for a new version 5 minutes after it starts, then once a day at a random time.
-- R6. A check is one HTTPS GET of a fixed address, with no query, no cookie, no identifier and `thermi` as the whole User-Agent.
-- R7. The stable channel offers stable releases; the beta channel offers the newer of the latest beta and the latest stable. Going back to stable never installs an older version: thermi waits for a stable that is newer.
-- R8. On a metered connection nothing downloads in the background; "Update now" still downloads.
-- R9. Offline, or behind a proxy the service cannot pass, a check fails quietly and the next one tries again. After 14 days without a successful check, the General tab says since when, with a link to the releases page.
+- R5. The service checks a minute after it starts, every 4 hours, and after Windows resumes when its last check is 4 hours old or more.
+- R6. A check is one HTTPS GET of the channel's fixed address, with no query, no cookie, no identifier and `thermi` as the whole User-Agent.
+- R7. Under `HKLM\SOFTWARE\Policies\thermi`, `UpdateChannel` = `beta` follows the beta channel, anything else the stable one, and `Updates` = 0 turns checking off.
+- R8. On a metered network the service checks, but downloads only a version marked urgent.
 
 Trust
 
-- R10. The service installs a file only when, checked on the downloaded file before anything installed changes: a manifest lists it, signed by a key built into thermi; it has the size and SHA-256 the manifest gives; and it is signed by thermi's pinned Authenticode identity.
-- R11. The service never installs a version lower than or equal to the installed one or the highest it ever installed, and never accepts a manifest published before the last one it accepted. Its own rollback (R17) is the one exception.
-- R12. Downloads and the update's state live in a folder only SYSTEM and administrators can write. Its owner, its access and the absence of links are checked before each use; a folder that fails is not used, nothing is installed, and the event log says why.
-- R13. Nothing in thermi loads code, UI or markup from the network: the update is the only download. Release notes show as plain text.
+- R9. The service takes a manifest only when its envelope is at most 64 KB and signed by a key built into thermi, it names the PC's channel, and its sequence is not below the last one taken.
+- R10. A zip is unpacked only when the file the service holds open has the size and SHA-256 the manifest gives; in a release build, every executable and library it unpacks must pass Authenticode, thermi's own pinned to its signer, before the version can run. Any refusal leaves everything installed as it was, and the event log says which check failed.
+- R11. The service never takes a version at or below the installed one, nor one that failed on this PC. When the manifest withdraws the installed version, the PC goes back to the previous version it kept, and stays where it is without one.
+- R12. Every entry of a zip lands inside its version's new folder. The update reads and writes only under `C:\Program Files\thermi`, which it checks before each use to be a real folder that only administrators, SYSTEM and Windows' installer may change; a check that fails changes nothing and is logged.
+- R13. The PC draws a number from 0 to 99 once and keeps it, and takes a version only when that number is below the manifest's rollout percentage.
 
-Applying
+Switching
 
-- R14. A downloaded update applies, with no UAC prompt: when the service starts and no overlay runs, when a user picks "Update now", or when the only session with an overlay has had no input for 15 minutes and no full-screen app in front.
-- R15. Applying closes thermi's overlays and window, installs, and starts the overlay again in each session that had one, as that user and unelevated. After "Update now", the overlay is back within 60 s.
-- R16. Readings never stop because the overlay or the window and the service are of different versions: a service also serves the pipe protocol of the release before it, and an overlay reads both.
-- R17. Within 10 minutes of an update, if the new service does not start, stops with an error twice, or no overlay of the new version connects within 2 minutes in a session that had one, the service reinstalls the previous version by itself, and the overlay says why. A version rolled back is tried again after 24 hours, at most 3 times.
-- R18. A new version migrates each user's settings once, at its first start, keeping the earlier file as a copy. After a rollback, the earlier version starts from that copy, and keeps the newer file beside it.
+- R14. A ready version switches when the service starts, when an overlay says its session is quiet (no settings window and no drag, and three minutes without input, the session locked or every overlay hidden), or at once when the manifest marks it urgent. Nothing asks for administrator rights.
+- R15. The switch replaces only the two launchers in `C:\Program Files\thermi`; a process that runs keeps its version until it switches.
+- R16. Once the service switched, each overlay switches at its own quiet moment, or at once for an urgent version unless its window is open or a drag is under way: the new version shows the same overlays before the old one exits, so the overlays never blink.
+- R17. The new service passes when it serves a snapshot within 120 polls of its pipe, one a second, and fails when it does not, or stops with an error twice within 10 minutes of its switch. A new overlay passes when it shows its overlays within 60 of the old overlay's ticks, and fails when it exits first or never shows them. A failure on the PC or in any session takes the whole PC back to the previous version and marks the failed one, never to be taken again. Time Windows spends asleep never counts.
+- R18. The service keeps the installed version and the previous one, and deletes every other version's folder that no process runs from.
+- R19. A version that finds the settings in a newer format than it reads, with the copy it kept of them in its own format beside them, reads that copy and keeps the newer file beside it.
+- R20. A service serves the pipe of the release before it: the lines it writes for a recording are held to a golden file, which a change of format must replace on purpose.
+
+The owner
+
+- R21. `scripts/updates.ps1` publishes a build to a channel with a rollout and an urgent flag, promotes beta's version to stable, rolls a channel back, turns it off and shows every channel; each is a new manifest signed with the next sequence. `publish` and `promote` refuse a version below the channel's, and a version reaching stable reaches beta too when beta is behind. A merge to main publishes to beta, once the repo holds the key.
+- R22. The manifests are served with a 60-second cache and the zips as immutable, so a lever reaches a PC at its next check.
 
 The user
 
-- R19. While an update is ready, the overlay's menu and thermi's tray menu show "Update to <version>". Nothing pops up before an update. After one, a single Windows notice says thermi is now <version>; clicking it opens what's new.
-- R20. The General tab shows the version, the channel, whether updates are automatic, the last check, "Check now" or "Update now", and what's new in the ready or the last update.
-- R21. With automatic updates off, nothing is checked or downloaded until "Check now". The channel and the switch are for the whole PC, the tab says so, and changing either asks for administrator rights once.
-- R22. A policy value, `Updates` = 0 under `HKLM\SOFTWARE\Policies\thermi`, turns updates off and hides their switches and menu items. Installing by hand or through winget still works.
-- R23. Each check, download, update, rollback and refusal goes to the event log under `thermi-sensors`. At rest, the service stays under the 80 MB of ADR 0011.
+- R23. About shows the version, and one line on updates: up to date and when it last checked, a version ready and that it switches when the PC is quiet, updates turned off by the PC's policy, the beta channel, no successful check for 14 days, or a build that does not update itself. Nothing else ever shows an update.
+- R24. Each check that finds a version, each download, switch, rollback and refusal goes to the event log under `thermi-sensors`, and the service stays under the 80 MB of `docs/adr/0011-sensor-service-memory-budget.md`.
 
 ## Design
 
-**The installer** is a WiX MSI, built in a new installer project in `src`, from the same Release publish as today but self-contained, so it needs no runtime installed and ships the one it was tested with. One MSI per processor, per-machine, into `C:\Program Files\thermi` as today, and a major upgrade on every release with one upgrade code, so winget, an update and a double-click are the same install. MSI compares three fields, so a SemVer version maps to `major.minor.(patch × 1000 + n)`, n being the beta number or 999 for a stable: 1.3.0-beta.2 is 1.3.2, 1.3.0 is 1.3.999. The MSI registers the service with today's recovery and event log source, creates `%ProgramData%\thermi` with SYSTEM and administrators as its only writers, and grants interactive users only query and user-defined control on the service. It writes nothing in a user's profile: the overlay's first start in a profile turns on "Start with Windows" unless that profile turned it off before (`src/Thermi/Ui/StartWithWindows.cs`). `scripts/install.ps1` builds the MSI unsigned, with updates compiled off, and installs it, so every developer install exercises the real installer.
+**Layout.** `C:\Program Files\thermi` holds `thermi.exe` and `thermi-sensors.exe`, .NET app hosts that the build writes to start `<version>\thermi.dll` and `<version>\thermi-sensors.dll`, beside a folder per kept version and `update\` with the service's `state.json` and its downloads. Each version's folder is a self-contained publish of both programs and carries its own launchers in `<version>\launchers\`, which the switch copies to the top. The build makes them with the SDK's own `CreateAppHost` task, from the same app host and resources it gives the program, in `src/Thermi/Launcher.targets`, which both programs import. Everything that names thermi's path, the Run value, the services, the Start menu and the tray icons' registration, names the fixed one; `src/Thermi/Ui/StartWithWindows.cs` writes the launcher's path rather than its own process's.
 
-**The release** is a GitHub Actions workflow on a version tag, in an environment that waits for the owner's approval. It runs `scripts/check.ps1`, signs thermi's files and the MSIs through OIDC with no secret stored anywhere, signs the manifest with a non-exportable HSM key, attaches build provenance, publishes the release and the manifest, and opens the winget pull request.
+**Core** gains `src/Thermi.Core/Updates`: the envelope and the manifest and their checks (`Manifest.cs`), versions and their order (`ReleaseVersion.cs`), what the service takes from a manifest given its state (`UpdatePlan.cs`), when to check and when to switch (`UpdateSchedule.cs`), the health of a switch by counted polls, ticks and errors (`Probation.cs`), the state file (`UpdateState.cs`), the levers on a channel (`Levers.cs`), and the line About shows (`UpdateStatus.cs`). Each is pure and table-tested.
 
-**The manifest**, `releases.json` at a fixed address on the project's GitHub Pages, lists the last 20 releases, each with its version, channel, notes in English and Spanish, and per processor its URL on GitHub Releases, size and SHA-256, plus when it was published. Beside it, `releases.json.sig` is an ECDSA P-256 signature of its exact bytes. The service holds two public keys: the HSM's, and an offline backup that can replace it. Both files are capped at 64 KB, the MSI at the size listed.
+**Trust on Windows** moves to a library of its own, `src/Thermi.Trust`, since the driver's install and the updater now both need it: whether a folder is one only administrators change (today in `src/Thermi/Commands/DriverFolder.cs`) and whether a file passes Authenticode (today in `src/Thermi/Commands/WindowsInstaller.cs`), with the signer's pin.
 
-**The service's updater** lives in `src/Thermi.SensorHost`, apart from the sensors' code. It downloads with BITS as SYSTEM, which uses the machine's WinHTTP proxy and auto-detection, resumes across reboots and knows a metered network. It verifies in order: the manifest's signature and date, the version rules, the size and hash, then the Authenticode signature with `WinVerifyTrust`, pinned to the signer's validated identity rather than a thumbprint, since the signing service's certificates last days. It holds the verified file open, shared for reading only, until the install ends, so nothing can swap it between the check and `msiexec`. It never uses `%TEMP%`, which users can write, and runs `%SystemRoot%\System32\msiexec.exe` by full path. Decisions (channels, versions, retries, probation) are in Core, tested on a fake clock; BITS, `WinVerifyTrust` and `msiexec` are behind interfaces, so tests fake them.
+**The service** gains `src/Thermi.SensorHost/Updates`: the check and download (`ManifestClient.cs`), the unpacking (`Unpacker.cs`), the switch and the watchdog (`Switcher.cs`, `thermi-sensors --switch <from> <to>`, hidden), the control codes (`SensorService.OnCustomCommand`), and the updater's loop (`Updater.cs`). Its events go to the event log as today. The service's access list gains user-defined control for interactive users.
 
-**Commands** reach the service as user-defined service control codes, integers carried by Windows: 128 check now, 129 update now, 134 "this session is quiet", which the overlay sends for R14. A code carries no sender, so the service acts on 134 only while one session runs an overlay. Each code is acted on at most once a minute. The channel and the automatic switch are not codes: they live in `%ProgramData%\thermi\update\settings.json`, which only administrators can write, and the window changes them by starting `thermi updates` elevated, one UAC prompt. The service still never reads its pipe, and never reads a file a user can write: its state is `%ProgramData%\thermi\update\state.json`, readable by users.
+**The overlay** gains `src/Thermi/Updates`: it reads `state.json` when its tick sees the file changed. While the file names a version ready, it sends code 128 at its quiet moment; once the installed version is not its own, it hands over to it at its quiet moment: it releases `Local\thermi-overlay`, starts the fixed `thermi.exe` with `--taking-over <pid>`, and exits when the new one posts it `thermi-took-over` after showing its overlays; it counts its ticks meanwhile, and on a failure kills the new one, takes the mutex back and sends code 129. Its quiet moment is decided in Core from the window's mutex, the drag, `GetLastInputInfo`, the session's lock and the overlays' visibility.
 
-**The pipe, version 2.** Its first line is `{"kind":"hello","protocol":2,"version":"…"}`, and `{"kind":"update",…}` lines carry the update's state, version and notes. A line without `kind` is a snapshot, as today. Readers ignore kinds and fields they do not know, and today's reader already drops lines without `sensors`, so v0.x overlays keep working (`src/Thermi.Core/Sensors/Snapshot.cs`). A change that breaks a reader takes a new pipe name, and the service keeps serving the old one for one more release.
+**The window** shows the update line in About from `UpdateStatus`, through the bridge's `About`.
 
-**Applying.** The service sends an `update` line saying it is closing thermi; overlays and the window exit within 5 s, and Restart Manager closes any older one that does not understand. It records which sessions had an overlay, then starts `msiexec`, which outlives the service it stops. Windows Installer rolls back the whole install if the new service does not reach running, and the service reports running only once its sensors and pipe are up. The new service starts the overlay in each recorded session with `WTSQueryUserToken`, the session user's unelevated token, and the fixed path under Program Files.
+**The levers** are `src/Thermi.Releases`, a console tool that `scripts/updates.ps1` runs: `keys`, `pack`, `publish`, `promote`, `rollback`, `disable`, `status` and `serve`, over a folder or the R2 bucket through its S3 API, signing with a private key from a file or `THERMI_UPDATES_KEY`. `serve` answers a folder over HTTP on localhost, for a test build. The tool and Core share the manifest's code; nothing of it ships.
 
-**Probation and rollback.** Before applying, the service keeps the MSI of the installed version in its folder, downloaded and verified from the manifest if it does not have it; no update applies without it. For 10 minutes after an update, each start of the service counts itself before loading the sensors; a third start, or the overlay missing as R17 says, reinstalls the kept MSI. A rollback can only reach the exact version that was installed before.
+**Settings.** `src/Thermi/Overlay/ConfigStore.cs` already keeps the file of an earlier format beside it when it writes the new one, as `config.v<N>.json`; it gains the way back of R19.
 
-**Settings.** `src/Thermi.Core/Settings/ConfigMigration.cs` already migrates on read. Before its first write of a new format, the overlay copies the file to `config.v<N>.json`, N being the old version, once. A version that finds the file newer than it understands and a `config.v<N>.json` of its own beside it renames the newer file to `config.newer.json`, uses its own copy, and says so. That rule ships in the first updatable release, so every later rollback has it.
+**Builds.** `ThermiUpdates` in `Directory.Build.props` is `Off` by default. The release workflow builds with the real manifest address and both public keys from `src/Thermi.SensorHost/Updates/keys`, and Authenticode required; `scripts/install.ps1 -UpdatesFrom <url> -UpdatesKey <pem>` builds a test install that trusts that key, with Authenticode not required.
 
-**The window on WebView2.** If the window moves to React on WebView2 (ADR 0007, to be written), its built files are embedded in `thermi.exe` and served from memory to a host name of its own, with every other navigation refused. They are signed and updated with it, and nothing is fetched at run time. The WebView2 runtime is Windows' own, kept current by Windows.
+**The MSI** is `src/Thermi.Installer`, a WiX project built by `dotnet build`, which lays down the launchers, the first version's folder, both services with today's settings (recovery, privileges, the young generation, the event source, the access lists), `update\`, the Start menu entry and the policy-free defaults, and on uninstall removes `C:\Program Files\thermi` whole. The release workflow builds and signs it.
 
-**Files that change**, besides the new installer project, the release workflow and the updater's folder:
+**Files that change**, besides those above: `scripts/install.ps1` (the layout, the launchers, the test switches), `Directory.Build.props`, `.github/workflows/ci.yml` (the MSIs on every PR) and a new `.github/workflows/release.yml`, `src/Thermi/Tray/ThermiTray.cs` (the icons' ids from the fixed path), `src/Thermi/Program.cs` (`--taking-over`), `src/Thermi.Core/Bridge/WindowFacts.cs` (About's line), the translations, `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/QUICKSTART.md`, the READMEs, and a privacy note.
 
-- `src/Thermi.SensorHost/Program.cs` and `src/Thermi.SensorHost/SensorPipeServer.cs`: the updater, control codes, the hello and update lines, the second pipe name when one exists;
-- `src/Thermi.Core/Sensors/SnapshotLines.cs`: line kinds; Core gains the manifest, its signature, the version and channel rules, and the probation;
-- `src/Thermi/Overlay/OverlayHost.cs` and `src/Thermi/Tray/TrayIcons.cs`: the menu item, the notice, the quiet moment, exiting for an update;
-- `src/Thermi/Overlay/ConfigStore.cs`: the copy before migrating and the rollback rule;
-- `src/Thermi.Settings.Web/src/settings/SettingsPage.tsx`: the Updates section; the translations gain its texts;
-- `scripts/install.ps1`, `.github/workflows/ci.yml` (builds the MSI on every PR), `BannedSymbols.txt` and `RepoRulesTests`: no network API outside the updater, a rule `AGENTS.md` lists;
-- the docs: `docs/ARCHITECTURE.md`, `docs/QUICKSTART.md`, the READMEs, and a privacy note saying what a check sends.
-
-**Rejected:** Velopack. It updates well and quickly, but installs per user into `%LOCALAPPDATA%`, a folder the user can write; a LocalSystem service there could be replaced by any program the user runs (`docs/adr/0003-sensor-service.md`). The others are in the ADR.
+**Rejected:** an MSI for every update, as this spec first had it: thermi would vanish for seconds at each update, and the service would need back the privilege to start programs in users' sessions. The others are in the ADR.
 
 ## Acceptance
 

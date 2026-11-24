@@ -3,290 +3,106 @@
   "steps": [
     {
       "id": "A1",
-      "covers": [
-        "R1"
-      ],
-      "description": "Given a published release, when the author runs its x64 MSI from GitHub Releases on a clean Windows 11 PC with no .NET installed, then thermi, its service and the start at sign-in are installed, with one UAC prompt and nothing else downloaded; the same holds for the Arm64 MSI on an Arm64 PC.",
+      "covers": ["R1", "R2"],
+      "description": "Given a published release, when the author runs its MSI on a clean Windows 11 PC, x64 and then Arm64, then thermi, both services, the Start menu entry and the start at sign-in are installed with one UAC prompt and nothing downloaded, every executable and library under C:\\Program Files\\thermi is Valid for Get-AuthenticodeSignature, and uninstalling removes the folder whole and leaves %APPDATA%\\thermi.",
       "check": "by hand",
       "passes": false
     },
     {
       "id": "A2",
-      "covers": [
-        "R1"
-      ],
-      "description": "Given a published release, when the author runs `winget install` for thermi on a clean PC, then the same signed MSI installs.",
+      "covers": ["R3"],
+      "description": "Given the previous release installed and used, with a saved style, \"Start with Windows\" off and a tray value shown in the taskbar, when the new MSI installs over it, then an update and a rollback run, then each time the settings, the style, the log, the start choice and the shown tray value are as they were.",
       "check": "by hand",
       "passes": false
     },
     {
       "id": "A3",
-      "covers": [
-        "R2"
-      ],
-      "description": "Given thermi installed from a published release, when every file under its folder is checked with Get-AuthenticodeSignature, then each is Valid, signed by thermi's identity or by Microsoft for the runtime.",
-      "check": "by hand",
+      "covers": ["R4", "R5", "R7", "R8"],
+      "description": "Given a fake clock, when the service runs with updates built in, then it checks a minute after it starts, every 4 hours and after a resume past 4 hours, at the beta address only with the beta policy, never with Updates = 0 or in a build without a key, and on a metered network downloads only an urgent version.",
+      "check": "ChecksFollowTheScheduleThePolicyAndTheNetwork",
       "passes": false
     },
     {
       "id": "A4",
-      "covers": [
-        "R3"
-      ],
-      "description": "Given the built MSI, when its tables are read, then nothing it installs, writes or removes is under a user profile or HKCU.",
-      "check": "TheInstallerTouchesNoUserProfile",
-      "passes": false
-    },
-    {
-      "id": "A5",
-      "covers": [
-        "R3"
-      ],
-      "description": "Given the previous release installed and used, with saved styles and \"Start with Windows\" off, when the new one is installed by hand, through winget, and by an update, then each time the settings, styles, log and the start choice are as they were.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A6",
-      "covers": [
-        "R4"
-      ],
-      "description": "Given a build made by scripts/install.ps1, when the service runs for a day on a fake clock, then it never checks, and the General tab says this build does not update itself.",
-      "check": "ADevelopmentBuildNeverChecks",
-      "passes": false
-    },
-    {
-      "id": "A7",
-      "covers": [
-        "R5"
-      ],
-      "description": "Given updates on, when the service starts and runs on a fake clock, then it checks 5 minutes after its start and then once in every day, at a time that differs from one day to the next.",
-      "check": "TheServiceChecksAfterItsStartThenDaily",
-      "passes": false
-    },
-    {
-      "id": "A8",
-      "covers": [
-        "R6"
-      ],
-      "description": "Given a check, when the request handed to the downloader is read, then it is one HTTPS GET of the fixed address, with no query, no cookie, no identifier and the User-Agent `thermi`.",
+      "covers": ["R6"],
+      "description": "Given a check, when the request the service sends is read, then it is one HTTPS GET of the channel's fixed address, with no query, no cookie, no identifier and the User-Agent `thermi`.",
       "check": "ACheckSendsNothingThatIdentifies",
       "passes": false
     },
     {
+      "id": "A5",
+      "covers": ["R9", "R10", "R12"],
+      "description": "Given an update folder, when the manifest is too long, signed by no key or another, of another channel or an older sequence, or the zip is longer, of another hash, holds an entry that leaves its folder or an executable without thermi's signature in a release build, or the folder is a link or writable by users, then nothing under the folder changes, no version runs, and the event log names the check that failed.",
+      "check": "TheUpdaterTakesOnlyWhatPassesEveryCheck",
+      "passes": false
+    },
+    {
+      "id": "A6",
+      "covers": ["R11", "R13"],
+      "description": "Given an installed version and a manifest, when the service plans, then it takes only a higher version that has not failed here and whose rollout reaches the PC's number, raising the rollout adds PCs and drops none, and a withdrawn installed version goes back to the kept previous one or stays without it.",
+      "check": "TheUpdaterNeverGoesBackButToItsOwnPrevious",
+      "passes": false
+    },
+    {
+      "id": "A7",
+      "covers": ["R14", "R16"],
+      "description": "Given a version ready, when a session is busy, has its window open, a drag, input within three minutes, or is locked, idle or has every overlay hidden, then the service and the overlay switch only at a quiet moment, and an urgent version waits only for the window and the drag.",
+      "check": "AVersionSwitchesOnlyAtAQuietMoment",
+      "passes": false
+    },
+    {
+      "id": "A8",
+      "covers": ["R15", "R18"],
+      "description": "Given an install folder with a running process started from its launcher, when the switch runs, then only the two launchers change, the process goes on, the next start runs the new version, and only folders of versions neither kept nor running are deleted.",
+      "check": "TheSwitchSwapsOnlyTheLaunchers",
+      "passes": false
+    },
+    {
       "id": "A9",
-      "covers": [
-        "R7"
-      ],
-      "description": "Given manifests with stable and beta releases, when each channel picks, then stable takes the newest stable, beta the newer of the newest beta and stable, and a switch from beta to stable takes nothing until a stable is newer than the installed beta.",
-      "check": "ChannelsOfferTheNewerReleaseAndNeverAnOlderOne",
+      "covers": ["R17"],
+      "description": "Given a switch in probation, when the new service serves no snapshot in 120 polls, stops with an error twice in 10 minutes, or an overlay reports its handover failed, then the PC goes back to the previous version and never takes the failed one again; a sleep of any length in between counts as nothing.",
+      "check": "AFailedSwitchGoesBackByWhatHappenedNotByTheClock",
       "passes": false
     },
     {
       "id": "A10",
-      "covers": [
-        "R8"
-      ],
-      "description": "Given a metered network, when an update is found in the background, then nothing downloads; when the user picks \"Update now\", it downloads.",
-      "check": "NothingDownloadsInTheBackgroundOnAMeteredNetwork",
+      "covers": ["R19"],
+      "description": "Given settings a newer version wrote, with the earlier format's copy kept beside them, when the earlier version reads them, then it reads its copy and keeps the newer file beside it.",
+      "check": "SettingsSurviveARollback",
       "passes": false
     },
     {
       "id": "A11",
-      "covers": [
-        "R9"
-      ],
-      "description": "Given checks that fail, when they fail for 13 days, then nothing tells the user; at 14 days the General tab says since when, with the link to the releases page.",
-      "check": "FailedChecksStayQuietForFourteenDays",
+      "covers": ["R20"],
+      "description": "Given a recording, when the service writes its pipe's lines for it, then they are the golden file's, byte for byte.",
+      "check": "ThePipeKeepsItsLines",
       "passes": false
     },
     {
       "id": "A12",
-      "covers": [
-        "R9"
-      ],
-      "description": "Given a PC whose only way out is a proxy set with `netsh winhttp set proxy`, when the service checks, then it finds the update; with the network unplugged, the check fails and nothing shows.",
-      "check": "by hand",
+      "covers": ["R21"],
+      "description": "Given channels with history, when the owner publishes, promotes, rolls back and disables, then each makes the next signed manifest, a version below the channel's is refused, stable reaching past beta lifts beta, and rollback withdraws the version and offers the one before it.",
+      "check": "LeversNeverSendAPcBackward",
       "passes": false
     },
     {
       "id": "A13",
-      "covers": [
-        "R10"
-      ],
-      "description": "Given a downloaded update, when the manifest's signature is wrong or by another key, the size or the hash differ, or the MSI is unsigned or signed by another identity, then the update is refused and the event log says which check failed.",
-      "check": "TheUpdaterRefusesAFileThatFailsAnyCheck",
+      "covers": ["R23"],
+      "description": "Given each state of the updates, when About shows them, then it says up to date and when, a version ready, turned off by policy, the beta channel, no check for 14 days, or a build that does not update itself.",
+      "check": "TheUpdateLineSaysWhatThisPcDoes",
       "passes": false
     },
     {
       "id": "A14",
-      "covers": [
-        "R10"
-      ],
-      "description": "Given an update that fails any check, when the refusal is done, then msiexec was never started and no file under the install folder changed.",
-      "check": "NothingInstalledChangesBeforeTheChecksPass",
-      "passes": false
-    },
-    {
-      "id": "A15",
-      "covers": [
-        "R11"
-      ],
-      "description": "Given an installed version, when a manifest offers a lower or equal version, one lower than the highest ever installed, or is published before the last accepted one, then nothing is taken; the kept previous version is taken only by a rollback.",
-      "check": "TheUpdaterNeverGoesBack",
-      "passes": false
-    },
-    {
-      "id": "A16",
-      "covers": [
-        "R12"
-      ],
-      "description": "Given the update folder owned by a user, writable by users, or reached through a junction, when the service is about to use it, then it refuses, installs nothing, and logs why.",
-      "check": "AFolderUsersCanWriteIsNeverUsed",
-      "passes": false
-    },
-    {
-      "id": "A17",
-      "covers": [
-        "R13"
-      ],
-      "description": "Given the code in src, when the repo rules run, then no network API is used outside the updater, and no web view, script or markup is loaded from anywhere but thermi's own files.",
-      "check": "OnlyTheUpdaterTouchesTheNetwork",
-      "passes": false
-    },
-    {
-      "id": "A18",
-      "covers": [
-        "R13"
-      ],
-      "description": "Given release notes holding markup, links and scripts, when the General tab shows them, then it shows their characters as plain text.",
-      "check": "ReleaseNotesShowAsPlainText",
-      "passes": false
-    },
-    {
-      "id": "A19",
-      "covers": [
-        "R14"
-      ],
-      "description": "Given an update ready, when the service starts with no overlay, a user picks \"Update now\", or the only session with an overlay reports 15 quiet minutes, then it applies; with two sessions running an overlay, a quiet report does not apply it.",
-      "check": "AnUpdateAppliesOnlyAtTheRightMoment",
-      "passes": false
-    },
-    {
-      "id": "A20",
-      "covers": [
-        "R14",
-        "R15"
-      ],
-      "description": "Given a signed beta on the beta channel, when the author picks \"Update now\", then no UAC prompt shows, the overlay is back within 60 s as the new version, and Task Manager shows it not elevated.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A21",
-      "covers": [
-        "R15"
-      ],
-      "description": "Given two users signed in, each with an overlay, when an update applies, then both overlays come back, each as its own user.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A22",
-      "covers": [
-        "R16"
-      ],
-      "description": "Given a stream from a version 2 service, when today's reader reads it, then it reads every snapshot; given a version 1 stream, when the new reader reads it, then it reads every snapshot too.",
-      "check": "OldAndNewPipesReadEachOther",
-      "passes": false
-    },
-    {
-      "id": "A23",
-      "covers": [
-        "R17"
-      ],
-      "description": "Given an update in probation, when the new service never reaches running, stops with an error twice, or no overlay of its version connects within 2 minutes in a session that had one, then the kept version is reinstalled, and the rolled-back version is tried again after 24 hours, at most 3 times.",
-      "check": "ProbationRollsBackAFailingUpdate",
-      "passes": false
-    },
-    {
-      "id": "A24",
-      "covers": [
-        "R17"
-      ],
-      "description": "Given a signed beta built to fail at start, on the beta channel of a test PC, when it is installed by an update, then thermi goes back to the previous version by itself and the overlay says why.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A25",
-      "covers": [
-        "R18"
-      ],
-      "description": "Given a settings file of the previous format, when the new version starts twice, then it migrates once and keeps one copy of the old file; when the previous version then starts, it uses that copy, keeps the newer file as config.newer.json and says so.",
-      "check": "SettingsMigrateOnceAndSurviveARollback",
-      "passes": false
-    },
-    {
-      "id": "A26",
-      "covers": [
-        "R19"
-      ],
-      "description": "Given an update ready, when the overlay's menu and thermi's tray menu open, then both offer \"Update to <version>\"; with none ready, neither does.",
-      "check": "TheMenusOfferTheReadyUpdate",
-      "passes": false
-    },
-    {
-      "id": "A27",
-      "covers": [
-        "R19"
-      ],
-      "description": "Given an update that applied, when the overlay comes back, then one Windows notice says thermi is now that version, and clicking it opens what's new; before the update, nothing popped up.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A28",
-      "covers": [
-        "R20"
-      ],
-      "description": "Given the service's update state, when the General tab shows, then it shows the version, channel, automatic switch, last check, the right button and the notes of the ready or last update.",
-      "check": "TheGeneralTabShowsTheUpdates",
-      "passes": false
-    },
-    {
-      "id": "A29",
-      "covers": [
-        "R21"
-      ],
-      "description": "Given automatic updates off, when the service runs for a week on a fake clock, then nothing is checked or downloaded until \"Check now\", the tab says the switch is for the whole PC, and changing the channel or the switch starts `thermi updates` elevated.",
-      "check": "WithUpdatesOffNothingIsChecked",
-      "passes": false
-    },
-    {
-      "id": "A30",
-      "covers": [
-        "R22"
-      ],
-      "description": "Given the policy value Updates = 0, when the service runs and the tab and menus show, then nothing is checked, and no update switch, button or menu item shows.",
-      "check": "APolicyTurnsUpdatesOff",
-      "passes": false
-    },
-    {
-      "id": "A31",
-      "covers": [
-        "R23"
-      ],
-      "description": "Given a check, a download, an update, a rollback and a refusal, when each happens, then the event log has one entry for it under thermi-sensors.",
+      "covers": ["R24"],
+      "description": "Given a check that finds a version, a download, a switch, a rollback and a refusal, when each happens, then the event log has one entry for it under thermi-sensors.",
       "check": "EveryUpdateEventIsLogged",
       "passes": false
     },
     {
-      "id": "A32",
-      "covers": [
-        "R23"
-      ],
-      "description": "Given the service a day after an update, at rest with an overlay connected, when its private memory is measured, then it is under 80 MB.",
+      "id": "A15",
+      "covers": ["R14", "R15", "R16", "R17", "R22", "R24"],
+      "description": "Given thermi installed for a test channel served from this PC, when a newer build is published, then it switches with no prompt while the author is away and the overlay never blinks; when the channel is rolled back, the PC goes back within a check; when a build made to fail at start is published, the PC goes back by itself and the event log says why; the service stays under 80 MB a day later; and once on R2, curl shows the manifest's max-age of 60 and the zip's immutable cache.",
       "check": "by hand",
       "passes": false
     }
