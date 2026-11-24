@@ -42,6 +42,7 @@ The overlay and the settings window.
 | Serilog.Sinks.File | Apache-2.0 | https://github.com/serilog/serilog-sinks-file |
 | System.CommandLine | MIT | https://github.com/dotnet/dotnet |
 | System.Diagnostics.DiagnosticSource | MIT | https://github.com/dotnet/dotnet |
+| System.ServiceProcess.ServiceController | MIT | https://github.com/dotnet/dotnet |
 
 ## The settings window's page
 

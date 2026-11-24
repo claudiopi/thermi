@@ -1,7 +1,7 @@
 # 004-updates: Tasks
 
-> Progress: 15 / 28
-> Current block: B6
+> Progress: 16 / 28
+> Current block: B7
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
 
@@ -45,7 +45,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 ## B6: Proof on this PC
 
-- [ ] **T21** Covers R14–R17, R22, R24: the live run of A15 against a channel served from this PC.
+- [x] **T21** Covers R14–R17, R22, R24: the live run of A15 against a channel served from this PC.
 
 ## B7: Installer and release
 
@@ -74,3 +74,4 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - The levers are a .NET tool beside Core rather than PowerShell alone, so they and the service read and write the same manifest code.
 - The live run on this PC (B6) found that a version whose service crashes as it starts made Windows refuse the start, which the watchdog took for a switch that never began: it dropped the switch, the old version tried again each minute, and each try counted as a crash of the old version, whose probation then sent the PC back a version. Once the watchdog points the service at the new version, that version ran, so a refused start now marks it failed, and the watchdog's own stop of the old version counts as a stop.
 - About's line is worded in C#, in the window's language, and the page reads About again when the language changes.
+- B6, live on this PC on 2026-11-24, against a channel served from it: 0.9.0 switched to 0.9.1, service and overlay, 5 s after the check, with no prompt; a 0.9.2 and a 0.9.4 whose service cannot start were failed and the PC stayed where it was (0.9.4, after the fix above, without counting a crash of the old version); a channel rolled back from 0.9.5 sent the PC back to 0.9.3 at its next check and failed 0.9.5; a turned-off channel left the PC on 0.9.3 with 0.9.6 offered; pruning removed every version neither kept nor running; the service held 65 MB private.
