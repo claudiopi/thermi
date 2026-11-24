@@ -156,7 +156,7 @@ internal sealed class OverlayWindow : IDisposable
             case PInvoke.WM_SETCURSOR:
                 return CornerCursor(overlay);
             case PInvoke.WM_TIMER when wParam == OverlayFade.TimerId:
-                _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Drag is not null, _shown);
+                _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Drag is not null, _shown, _gestures.Drag?.Merging == true);
                 return true;
             case PInvoke.WM_TIMER when _shown && _scene is { } scene && _index < scene.Config.Overlays.Count:
                 Repaint(scene);
@@ -194,7 +194,7 @@ internal sealed class OverlayWindow : IDisposable
         Tips(scene, input, shown, floatsAbove: row is { Left: null });
         var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running, row) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
-        _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown);
+        _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Drag is not null, _shown, _gestures.Drag?.Merging == true);
         if (!_shown)
         {
             const SET_WINDOW_POS_FLAGS Shown = SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE

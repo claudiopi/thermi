@@ -102,7 +102,7 @@ Why these packages and no others, and why the service takes the fewest, since it
 | How a tray icon is drawn, added and retried | `src/Thermi/Tray/TrayPainter.cs` and `src/Thermi/Tray/TrayIcons.cs`, then `tests/Thermi.Windows.Tests/TrayIconsTests.cs` |
 | How a hotkey is written, registered and reported | `src/Thermi.Core/Hotkeys.cs` and `src/Thermi/Overlay/HotkeyRegistry.cs` |
 | The default overlay or thresholds | `src/Thermi.Core/Settings/OverlayConfig.cs` |
-| A field of the settings file | `src/Thermi.Core/Settings/OverlayConfig.cs` or `src/Thermi.Core/Settings/StyleConfig.cs`, its range in `src/Thermi.Core/Settings/ConfigRules.cs`, its undo in `src/Thermi.Core/Editing/ConfigFields.cs`, then `tests/Thermi.Tests/Configs/v3.json` |
+| A field of the settings file | `src/Thermi.Core/Settings/OverlayConfig.cs` or `src/Thermi.Core/Settings/StyleConfig.cs`, its range in `src/Thermi.Core/Settings/ConfigRules.cs`, its undo in `src/Thermi.Core/Editing/ConfigFields.cs`, then `tests/Thermi.Tests/Configs/v4.json` |
 | What the window may change, and why it refuses | `src/Thermi.Core/Editing/ItemEdits.cs`, `src/Thermi.Core/Editing/PowerEdits.cs`, `src/Thermi.Core/Editing/OverlayEdits.cs` |
 | An item's minimum, maximum, average, smoothing or graph | `src/Thermi.Core/Look/ItemHistory.cs` |
 | The style file, or how saved styles are kept | `src/Thermi.Core/Look/StyleFile.cs`, `src/Thermi.Core/Look/SavedStyles.cs` |

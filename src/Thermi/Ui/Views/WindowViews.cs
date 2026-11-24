@@ -43,7 +43,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         var items = new Dictionary<string, ItemView>(StringComparer.Ordinal);
         foreach (var overlay in config.Overlays)
         {
-            var now = snapshot is null ? NoReadings : SensorMap.Read(snapshot, overlay);
+            var now = snapshot is null ? NoReadings : readings.ReadOf(snapshot, overlay);
             var shown = OverlayLayout.Build(
                 overlay with { Style = overlay.Style with { Units = true } },
                 now,
@@ -53,7 +53,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
                 windowOpen: true);
             pills.Add([.. OverlayLayout.Groups(shown, overlay.Style.Layout)
                 .Select(pill => new PillView(pill[0].Label ?? "", [.. pill.Select(item => item.Id)]))]);
-            var chosen = SensorMap.Chosen(known, overlay);
+            var chosen = readings.ChosenOf(known, overlay);
             foreach (var item in overlay.Items)
             {
                 items[item.Id] = ItemOf(item, shown.FirstOrDefault(each => each.Id == item.Id), (known, catalog), chosen, (texts, config.SensorNames));

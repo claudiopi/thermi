@@ -16,6 +16,7 @@ public sealed class OverlayTests
     [Fact]
     public void ShowsTheDefaultOverlayFromARecording()
     {
+        // The loads' graphs are lists, which records compare by reference; SettingsFileTests says which items have one.
         var items = OverlayLayout.Build(new OverlayConfig(), SensorMap.Read(Desktop, NoSources), English);
 
         Assert.Equal(
@@ -27,7 +28,7 @@ public sealed class OverlayTests
                 new OverlayItem("GPU", "3 %", Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
                 new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id },
             ],
-            items);
+            items.Select(item => item with { Graph = null }));
     }
 
     [Fact]
@@ -46,7 +47,7 @@ public sealed class OverlayTests
                 new OverlayItem("GPU", "3 %", Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
                 new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id },
             ],
-            items);
+            items.Select(item => item with { Graph = null }));
     }
 
     // A sensor that is gone, or named for a metric of another kind, leaves the metric missing: never another sensor's

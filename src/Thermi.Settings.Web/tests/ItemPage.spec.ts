@@ -225,9 +225,13 @@ test.describe('TheItemPageEditsTheItem', () => {
     await openWindow(page);
     await page.setViewportSize({ width: 1920, height: 1080 });
     await select(page, text('MetricName.CpuTemperature'));
-    // A window just tall enough for the page, so More options makes it scroll.
+    // A window just tall enough for the rows beside the chart, which fills the pane's height, so More options makes it scroll.
     const main = page.getByRole('main');
-    const spare = await main.evaluate((pane) => pane.clientHeight - (pane.firstElementChild?.getBoundingClientRect().height ?? 0));
+    const more = await main.getByRole('button', { name: text('UiText.MoreOptions') }).boundingBox();
+    const spare = await main.evaluate(
+      (pane, bottom) => pane.getBoundingClientRect().top + pane.clientHeight - bottom - 24,
+      (more?.y ?? 0) + (more?.height ?? 0),
+    );
     await page.setViewportSize({ width: 1920, height: Math.ceil(1080 - spare + 4) });
     const chart = page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
     await expect.poll(() => main.evaluate((pane) => pane.scrollHeight > pane.clientHeight)).toBe(false);

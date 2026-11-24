@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
 
@@ -15,7 +16,7 @@ namespace Thermi.Core.Settings;
 /// </summary>
 public sealed record ThermiConfig
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public const int MaxOverlays = 4;
 
@@ -93,13 +94,24 @@ public sealed record OverlayConfig(double Size = 1)
     [JsonIgnore]
     public SnapConfig? Snapped => Snap ?? (Position is null ? new SnapConfig(SnapSpot.TaskbarRight) : null);
 
-    private static ItemConfig Default(Metric metric, Metric? meter = null) => new()
+    /// <summary>
+    /// Whether an item starts with its graph: a load metered by itself, whose last minute says more than the value alone,
+    /// as hardware monitors' overlays show it.
+    /// </summary>
+    public static bool GraphsByDefault(ItemConfig item, SensorKind? kind = null) =>
+        OverlayLayout.MetersItself(item) && (kind ?? Metrics.Find(item.Metric ?? item.Auto)?.Kind) == SensorKind.Load;
+
+    private static ItemConfig Default(Metric metric, Metric? meter = null)
     {
-        Id = metric.Id,
-        Metric = metric.Id,
-        Meter = meter is null ? null : new MeterConfig { Metric = meter.Id },
-        Threshold = meter is null ? null : Threshold.Default(meter),
-    };
+        var item = new ItemConfig
+        {
+            Id = metric.Id,
+            Metric = metric.Id,
+            Meter = meter is null ? null : new MeterConfig { Metric = meter.Id },
+            Threshold = meter is null ? null : Threshold.Default(meter),
+        };
+        return item with { Graph = GraphsByDefault(item) };
+    }
 }
 
 /// <summary>

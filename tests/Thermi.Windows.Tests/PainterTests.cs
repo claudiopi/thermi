@@ -36,9 +36,10 @@ public sealed class PainterTests
     public void AGraphMeterIsThirtyPixelsWideAndEveryFontHasItsOwnWidth()
     {
         using var painter = new Painter();
-        var plain = Layout(9);
-        var graphed = OverlayLayout.Build(
-            PowerEdits.SetGraph(new ThermiConfig(), "cpu.load", graph: true).Config.Overlays[0],
+        // The CPU load starts with its graph.
+        var graphed = Layout(9);
+        var plain = OverlayLayout.Build(
+            PowerEdits.SetGraph(new ThermiConfig(), "cpu.load", graph: false).Config.Overlays[0],
             Readings(9),
             CultureInfo.GetCultureInfo("en-US"));
 

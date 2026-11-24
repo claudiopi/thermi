@@ -262,7 +262,7 @@ public sealed class PowerItemTests
     [Fact]
     public void AFileHoldsUpToFourOverlays()
     {
-        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v3.json"));
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v4.json"));
         var twoAlike = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {} ] }").Config;
         var (_, fiveProblem) = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {}, {}, {}, {} ] }");
 

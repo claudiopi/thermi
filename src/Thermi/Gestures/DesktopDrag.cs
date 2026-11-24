@@ -62,11 +62,14 @@ internal sealed class DesktopDrag : IDisposable
     public OverlayConfig Shown(OverlayConfig overlay) =>
         Preview is var (size, orientation) ? overlay with { Size = size, Style = overlay.Style with { Orientation = orientation } } : overlay;
 
+    /// <summary>Whether the overlay is moved over another, which a drop there merges into.</summary>
+    public bool Merging { get; private set; }
+
     /// <summary>
-    /// The press moved, with the overlay's corner where the drag has it, or null while still a click; true when the overlay
-    /// must paint again.
+    /// The press moved, with the overlay's corner where the drag has it, or null while still a click, and
+    /// <paramref name="over"/> another overlay; true when the overlay must paint again.
     /// </summary>
-    public bool Moved(Position? dragged)
+    public bool Moved(Position? dragged, bool over = false)
     {
         _dropped = dragged;
         if (dragged is not { } at)
@@ -93,10 +96,12 @@ internal sealed class DesktopDrag : IDisposable
 
         // Its first move paints the overlay again, with the background a drag gives it.
         var orientation = _settings.Config.Overlays[_overlay].Style.Orientation;
-        var first = _marks is null;
+        var changed = _marks is null || Merging != over;
+        Merging = over;
         _marks ??= new SnapMarks(_screens, orientation, _start.Size, _start.Scale, _window, Rows);
-        _marks.Light(Snaps.Near(_screens, orientation, _start.Size.Width, _start.Size.Height, at, Rows));
-        return first;
+        // Over another overlay the drop merges, wherever a snap would be, so no mark is lit.
+        _marks.Light(over ? null : Snaps.Near(_screens, orientation, _start.Size.Width, _start.Size.Height, at, Rows));
+        return changed;
     }
 
     /// <summary>

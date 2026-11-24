@@ -80,7 +80,8 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
                 SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
-        if (Drag?.Moved(dragged) == true)
+        var over = Drag?.Moves == true && dragged is not null && actions.OverlayAt(index, actions.Cursor()) is not null;
+        if (Drag?.Moved(dragged, over) == true)
         {
             actions.RequestPaint();
         }
@@ -90,8 +91,14 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     public void Release(Press press, DragDistance distance)
     {
         var cursor = actions.Cursor();
+        var merging = Drag?.Merging == true;
         Drag?.Release(press, cursor, distance, actions.OverlayAt(index, cursor), actions.Gestures);
         Let();
+        // A merge refused writes nothing that would paint it whole again.
+        if (merging)
+        {
+            actions.RequestPaint();
+        }
     }
 
     /// <summary>Ends the press's drag, whatever it did.</summary>

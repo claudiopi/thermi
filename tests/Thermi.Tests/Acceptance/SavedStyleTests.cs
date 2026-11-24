@@ -13,14 +13,14 @@ namespace Thermi.Tests.Acceptance;
 /// </summary>
 public sealed class SavedStyleTests
 {
-    private static StyleConfig Night => ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config.Overlays[0].Style;
+    private static StyleConfig Night => ThermiConfigJson.Read(TestFiles.Config("v4.json")).Config.Overlays[0].Style;
 
     private static List<string?> Names(SavedStyles styles) => [.. styles.List().Select(style => style.Name)];
 
     [Fact]
     public void AStyleIsTheLookAlone()
     {
-        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v3.json"));
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v4.json"));
 
         var style = config.Overlays[0].Style;
 

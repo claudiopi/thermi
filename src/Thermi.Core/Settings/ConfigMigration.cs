@@ -95,6 +95,20 @@ internal static class ConfigMigration
         })],
     };
 
+    /// <summary>
+    /// A load metered by itself with no lines, as thermi made it, shows its graph, as a new one does; one whose look was
+    /// changed keeps it.
+    /// </summary>
+    public static ThermiConfig FromVersion3(ThermiConfig config) => config with
+    {
+        Overlays = [.. config.Overlays.Select(overlay => overlay with
+        {
+            Items = [.. overlay.Items.Select(item => OverlayConfig.GraphsByDefault(item) && item is { Threshold: null, AlertOnly: false }
+                ? item with { Graph = true }
+                : item)],
+        })],
+    };
+
     // Every name earlier builds gave an overlay from where it sat, in every language thermi ships.
     private static readonly HashSet<string> OverlayNamesThermiGave = [.. Texts.Languages.Select(Texts.Of).SelectMany(texts => new[]
     {

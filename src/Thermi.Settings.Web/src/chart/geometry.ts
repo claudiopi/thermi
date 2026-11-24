@@ -16,11 +16,11 @@ const aroundChart = 240;
 /**
  * The chart's height: 40 % of the pane, at most half its width, between 140 and 640 px, so a large pane is not left half
  * empty. `beside` the cards, in a wide pane, nothing waits under it: it fills the pane's height but for its heading and
- * foot, at most 3/4 as high as wide.
+ * foot, at most as high as wide, so a maximized window leaves no empty band under it.
  */
 export function chartHeight(width: number, paneHeight: number, beside = false): number {
   const share = Math.max(140, Math.min(paneHeight * 0.4, width / 2, 640));
-  return Math.round(beside ? Math.max(share, Math.min(paneHeight - aroundChart, width * 0.75)) : share);
+  return Math.round(beside ? Math.max(share, Math.min(paneHeight - aroundChart, width)) : share);
 }
 
 export interface Plot {
@@ -77,19 +77,17 @@ function stretches(plot: Plot): Stretch[] {
   return runs.filter((run) => run.to > run.from);
 }
 
-/** The line as smooth curves through the readings, broken where a reading is missing. */
-export function linePath(plot: Plot): string {
-  return stretches(plot)
-    .map((run) => run.path)
-    .join('');
-}
-
-/** The area under the line, for its soft fill: each stretch closed straight down to the bottom at its own ends. */
-export function fillPath(plot: Plot): string {
+/**
+ * The line as smooth curves through the readings, broken where a reading is missing, and the area under it for its soft
+ * fill, each stretch closed straight down to the bottom at its own ends. Both from one pass, as the chart redraws each second.
+ */
+export function plotPaths(plot: Plot): { line: string; fill: string } {
   const bottom = plot.height.toFixed(1);
-  return stretches(plot)
-    .map((run) => `${run.path}L${run.to.toFixed(1)},${bottom}L${run.from.toFixed(1)},${bottom}Z`)
-    .join('');
+  const runs = stretches(plot);
+  return {
+    line: runs.map((run) => run.path).join(''),
+    fill: runs.map((run) => `${run.path}L${run.to.toFixed(1)},${bottom}L${run.from.toFixed(1)},${bottom}Z`).join(''),
+  };
 }
 
 /** Each color stop as an offset of the gradient, bottom up, as the line's gradient takes it. */

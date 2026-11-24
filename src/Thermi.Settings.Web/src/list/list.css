@@ -162,14 +162,16 @@
   padding: 0 12px 0 16px;
 }
 
+/* Two columns of three dots, the handle Windows drags rows by: the icon font's gripper is one bar, which reads as a text
+   cursor beside the name. */
 .t-grip {
-  display: grid;
-  place-items: center;
   flex: none;
+  box-sizing: border-box;
   width: 20px;
   height: 20px;
-  font-size: 12px;
+  padding: 4px 6px;
   color: var(--thermi-text3);
+  background: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 1.4px) 0 0 / 4px 4px repeat content-box;
   visibility: hidden;
   cursor: grab;
 }

@@ -58,7 +58,7 @@ function NumberTools({ item, set }: { item: Item; set: SetField }) {
   );
 }
 
-/** What More options holds once open: what it shows, smoothing, decimals, a speed in bits, graph, only on alert, offset, color, combine. */
+/** What More options holds once open: what it shows, smoothing, decimals, a speed in bits, only on alert, offset, color, combine. */
 function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen'>) {
   const t = useText();
   const { item } = placed;
@@ -67,7 +67,7 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
   const set: SetField = (field, value) => edit({ kind: 'item', item: item.id, field, value });
   const range = offsetRange(type);
   const metered = item.meter !== undefined;
-  // A graph and only on alert follow a meter, so an item that can have none is offered neither.
+  // Only on alert follows a meter, so an item that can have none is not offered it.
   const meterable = (data.view.items[item.id]?.meters.length ?? 0) > 0;
   return (
     <>
@@ -79,9 +79,6 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
           checked={item.bits === true}
           onChange={(on) => void set('bits', on ? true : null)}
         />
-      )}
-      {range !== null && meterable && (
-        <SwitchLine label={t('UiText.MeterGraph')} checked={item.graph === true} onChange={(on) => void set('graph', on ? true : null)} />
       )}
       {meterable && (
         <SwitchLine

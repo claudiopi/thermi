@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ChartView, ColorStop } from '../bridge/bridge.g';
-import { chartHeight, colorAt, fillPath, knobTops, linePath, nearestLine, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, colorAt, knobTops, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
 
 // A plot 300 wide and 124 high draws 0 to 100 on the 100 px between its 12 px pads: value v sits at y = 112 - v.
 function plot(chart: Partial<ChartView> = {}): Plot {
@@ -37,8 +37,8 @@ describe('the chart', () => {
     [300, 1000, 150],
     [100, 100, 140],
     [1000, 1001.25, 401],
-    // Beside the cards, in a maximized window, it fills the pane but for its heading and foot, at most 3/4 as high as wide.
-    [780, 1330, 585, true],
+    // Beside the cards, in a maximized window, it fills the pane but for its heading and foot, at most as high as wide.
+    [780, 1330, 780, true],
     [1000, 900, 660, true],
   ] as [number, number, number, boolean?][])('is %d wide in a pane %d high: %d high', (width, pane, height, beside) => {
     expect(chartHeight(width, pane, beside)).toBe(height);
@@ -75,7 +75,7 @@ describe('the chart', () => {
     { readings: [null, 100, 0], path: 'M150.0,12.0C175.0,28.7 275.0,95.3 300.0,112.0' },
     { readings: [100, 50, 0, 50], path: 'M0.0,12.0C16.7,20.3 66.7,45.3 100.0,62.0C133.3,78.7 166.7,112.0 200.0,112.0C233.3,112.0 283.3,70.3 300.0,62.0' },
   ])('draws the readings $readings', ({ readings, path }) => {
-    expect(linePath(plot({ readings }))).toBe(path);
+    expect(plotPaths(plot({ readings })).line).toBe(path);
   });
 
   // Each stretch between gaps closes straight down to the bottom at its own first and last reading.
@@ -86,7 +86,7 @@ describe('the chart', () => {
     { readings: [100, null, 0], fill: '' },
     { readings: [50, null, 50, 50], fill: 'M200.0,62.0C216.7,62.0 283.3,62.0 300.0,62.0L300.0,124.0L200.0,124.0Z' },
   ])('fills under $readings', ({ readings, fill }) => {
-    expect(fillPath(plot({ readings }))).toBe(fill);
+    expect(plotPaths(plot({ readings })).fill).toBe(fill);
   });
 
   test.each([

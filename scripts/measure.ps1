@@ -78,12 +78,18 @@ function Get-Instance([int]$Id) {
 
 $opened = $null
 if ($Window -and -not (Get-Thermi).Window) {
+    # One settings window runs at a time, whichever thermi.exe opened it: asked of another, it only comes to the front,
+    # and the window measured would be none.
+    $other = Get-CimInstance Win32_Process -Filter "Name='thermi.exe'" |
+        Where-Object { $_.ExecutablePath -ne $Exe -and $_.CommandLine -match '\ssettings(\s|$)' } | Select-Object -First 1
+    if ($other) { throw "The settings window of $($other.ExecutablePath) is open; close it first." }
     $opened = Start-Process $Exe -ArgumentList 'settings' -PassThru
     Start-Sleep -Seconds $Settle
 }
 
 try {
     $found = Get-Thermi
+    if ($Window -and -not $found.Window) { throw "No settings window of $Exe opened." }
     $instance = if ($found.Service) { Get-Instance $found.Service }
     $parts = 'Overlay', 'Window', 'WebView2'
     $before = @{}; foreach ($part in $parts) { $before[$part] = Get-Cpu $found.$part }

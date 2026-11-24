@@ -4,7 +4,7 @@ import { bridge } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
 import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
-import { chartHeight, colorAt, fillPath, knobColumn, knobTops, linePath, nearestLine, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, colorAt, knobColumn, knobTops, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
 import { Knob } from './Knob';
 import './chart.css';
 
@@ -164,7 +164,7 @@ export function Chart({ item, name, chart, edit, metered, options }: ChartProps)
   };
 
   const tops = knobTops(plot);
-  const line = linePath(plot);
+  const paths = plotPaths(plot);
   const now = [...chart.readings].reverse().find((value) => value !== null);
   return (
     <section className="t-chart" ref={box}>
@@ -193,8 +193,8 @@ export function Chart({ item, name, chart, edit, metered, options }: ChartProps)
           {chart.empty === null && (
             <>
               <Tints plot={plot} />
-              <path d={fillPath(plot)} fill={`url(#t-fill-${item})`} />
-              <path className="t-line" d={line} stroke={`url(#t-line-${item})`} />
+              <path d={paths.fill} fill={`url(#t-fill-${item})`} />
+              <path className="t-line" d={paths.line} stroke={`url(#t-line-${item})`} />
               {now !== undefined && <circle cx={plot.width} cy={yOf(plot, now)} r="3.5" style={{ fill: `var(--thermi-${colorAt(chart, now)})` }} />}
             </>
           )}

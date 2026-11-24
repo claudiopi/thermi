@@ -285,11 +285,14 @@ public static class SensorMap
             [Follow.Adapter] = BusiestAdapter(snapshot),
             [Follow.Drive] = drive ?? BusiestDriveNow(snapshot),
         };
+        // Grouped once, since every metric looks only at its own kinds of device, and the window and the overlay pick
+        // every second.
+        var byHardware = snapshot.Sensors.ToLookup(sensor => sensor.HardwareType, StringComparer.Ordinal);
         foreach (var metric in Metrics.All)
         {
             chosen[metric.Id] = sources.TryGetValue(metric.Id, out var id)
                 ? Find(snapshot, id) is { } named && KindOf(named) == metric.Kind ? named : null
-                : Pick(metric, snapshot, chosen, devices);
+                : Pick(metric, snapshot, byHardware, chosen, devices);
         }
 
         return chosen;
@@ -315,7 +318,12 @@ public static class SensorMap
         return sources;
     }
 
-    private static RawSensor? Pick(Metric metric, Snapshot snapshot, Dictionary<string, RawSensor?> chosen, Dictionary<Follow, string?> devices)
+    private static RawSensor? Pick(
+        Metric metric,
+        Snapshot snapshot,
+        ILookup<string, RawSensor> byHardware,
+        Dictionary<string, RawSensor?> chosen,
+        Dictionary<Follow, string?> devices)
     {
         if (metric == Metrics.CpuFanDuty)
         {
@@ -327,8 +335,7 @@ public static class SensorMap
         var rule = Rules[metric.Id];
         var device = devices.GetValueOrDefault(rule.Device);
         var candidates = rule.HardwareTypes
-            .SelectMany(type => snapshot.Sensors.Where(sensor =>
-                sensor.HardwareType == type && Picks(rule, sensor) && (device is null || DeviceIdOf(sensor) == device)))
+            .SelectMany(type => byHardware[type].Where(sensor => Picks(rule, sensor) && (device is null || DeviceIdOf(sensor) == device)))
             .ToList();
         return rule.PreferredNames.Select(name => candidates.FirstOrDefault(sensor => sensor.Name == name)).FirstOrDefault(sensor => sensor is not null)
             ?? (rule.OnlyPreferred ? null : candidates.FirstOrDefault());
@@ -341,16 +348,32 @@ public static class SensorMap
 
     // The adapter that has moved the most data, as the library counts it: a physical one while any moves data, so a VPN
     // or a virtual switch, which carries the same traffic again, never wins; any one when none does.
+    // In one pass, without grouping, since it runs with every pick: of equal ones, the first listed wins.
     private static string? BusiestAdapter(Snapshot snapshot)
     {
-        var moved = snapshot.Sensors
-            .Where(sensor => sensor is { HardwareType: Network, Type: nameof(SensorKind.Data) })
-            .GroupBy(DeviceIdOf, StringComparer.Ordinal)
-            .Select(adapter => (Id: adapter.Key, Data: adapter.Sum(sensor => sensor.Value is { } value && double.IsFinite(value) ? value : 0)))
-            .ToList();
-        var physical = moved.Where(adapter => !(snapshot.VirtualAdapters ?? []).Contains(adapter.Id, StringComparer.Ordinal)).ToList();
-        var pool = physical.Exists(adapter => adapter.Data > 0) ? physical : moved;
-        return pool.OrderByDescending(adapter => adapter.Data).Select(adapter => adapter.Id).FirstOrDefault();
+        var moved = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var sensor in snapshot.Sensors)
+        {
+            if (sensor is { HardwareType: Network, Type: nameof(SensorKind.Data) })
+            {
+                var id = DeviceIdOf(sensor);
+                moved[id] = moved.GetValueOrDefault(id) + (sensor.Value is { } value && double.IsFinite(value) ? value : 0);
+            }
+        }
+
+        var virtuals = snapshot.VirtualAdapters ?? [];
+        var physicalMoves = moved.Any(adapter => adapter.Value > 0 && !virtuals.Contains(adapter.Key, StringComparer.Ordinal));
+        string? busiest = null;
+        var most = double.NegativeInfinity;
+        foreach (var (id, data) in moved)
+        {
+            if (data > most && !(physicalMoves && virtuals.Contains(id, StringComparer.Ordinal)))
+            {
+                (busiest, most) = (id, data);
+            }
+        }
+
+        return busiest;
     }
 
     private static string? BusiestDriveNow(Snapshot snapshot) =>

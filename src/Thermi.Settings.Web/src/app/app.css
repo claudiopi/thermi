@@ -55,6 +55,7 @@
 
 /* Windows draws the caption buttons, 138 px, at the row's end and takes the rest of the row as caption. */
 .t-title {
+  position: relative;
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
@@ -67,10 +68,25 @@
   app-region: no-drag;
 }
 
-/* A dialog's smoke starts under the row, beside Windows' caption buttons that the page cannot dim, so the row and the
-   buttons stay one undimmed band; the row's own controls take no clicks while it shows. */
+/* A dialog's smoke starts under the row, beside Windows' caption buttons that the page cannot dim; the row gets a smoke of
+   its own up to those buttons and takes no clicks while it shows, so only the caption buttons read as live. */
 body:has([data-modal]) .t-title > * {
   pointer-events: none;
+}
+
+body:has([data-modal]) .t-title::after {
+  content: '';
+  position: absolute;
+  inset: 0 138px 0 0;
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+/* Forced colors draw no smoke: it would take the canvas's color and hide the row. */
+@media (forced-colors: active) {
+  body:has([data-modal]) .t-title::after {
+    display: none;
+  }
 }
 
 .t-app {
@@ -195,8 +211,11 @@ body:has([data-modal]) .t-title > * {
   padding-bottom: 16px;
 }
 
+/* The pane's view ends above the toast's band while it shows, so no control shows half under it; nothing moves, and what
+   the band hides scrolls into view above it. */
 .t-window:has(.t-toast-room:not(:empty)) .t-pane {
   scroll-padding-bottom: 88px;
+  clip-path: inset(0 0 72px 0);
 }
 
 .t-window:has(.t-toast-room:not(:empty)) .t-pane-in {

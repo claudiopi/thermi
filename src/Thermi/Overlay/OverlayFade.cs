@@ -15,6 +15,8 @@ internal sealed class OverlayFade(HWND hwnd, Func<Position> cursor) : IDisposabl
 
     private const uint Every = 100;
 
+    private const double Merging = 0.5;
+
     /// <summary>The opacity the overlay shows at, 255 for whole, which every paint keeps.</summary>
     public byte Alpha { get; private set; } = 255;
 
@@ -24,7 +26,7 @@ internal sealed class OverlayFade(HWND hwnd, Func<Position> cursor) : IDisposabl
     /// After a paint at <paramref name="scale"/>: the pointer is read only while the overlay may fade, so one without it
     /// costs nothing.
     /// </summary>
-    public void Watch(OverlayConfig overlay, float? scale, bool windowOpen, bool held, bool shown)
+    public void Watch(OverlayConfig overlay, float? scale, bool windowOpen, bool held, bool shown, bool merging)
     {
         if (overlay.Fade && !overlay.ClickThrough)
         {
@@ -35,11 +37,11 @@ internal sealed class OverlayFade(HWND hwnd, Func<Position> cursor) : IDisposabl
             PInvoke.KillTimer(hwnd, TimerId);
         }
 
-        Now(overlay, scale, windowOpen, held, shown);
+        Now(overlay, scale, windowOpen, held, shown, merging);
     }
 
     /// <summary>The opacity for where the pointer is now, given to the window at once when it shows; none before a paint, without a scale.</summary>
-    public void Now(OverlayConfig overlay, float? scale, bool windowOpen, bool held, bool shown)
+    public void Now(OverlayConfig overlay, float? scale, bool windowOpen, bool held, bool shown, bool merging)
     {
         if (scale is not { } painted || !PInvoke.GetWindowRect(hwnd, out var rect))
         {
@@ -47,7 +49,9 @@ internal sealed class OverlayFade(HWND hwnd, Func<Position> cursor) : IDisposabl
         }
 
         var at = new PixelRect(rect.left, rect.top, rect.right, rect.bottom);
-        var alpha = (byte)Math.Round(PointerFade.Opacity(overlay, at, cursor(), painted, windowOpen, held) * 255);
+        // Moved over another overlay, which a drop merges into, it shows through, so the one under it still reads.
+        var opacity = merging ? Merging : PointerFade.Opacity(overlay, at, cursor(), painted, windowOpen, held);
+        var alpha = (byte)Math.Round(opacity * 255);
         if (alpha == Alpha)
         {
             return;

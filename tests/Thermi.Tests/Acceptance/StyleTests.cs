@@ -21,7 +21,9 @@ public sealed class StyleTests
     private static IReadOnlyList<IReadOnlyList<OverlayItem>> Pills(ThermiConfig config)
     {
         var overlay = config.Overlays[0];
-        return OverlayLayout.Groups(OverlayLayout.Build(overlay, SensorMap.Read(Desktop, overlay), English), overlay.Style.Layout);
+        // Without the loads' graphs, lists that records compare by reference.
+        var shown = OverlayLayout.Build(overlay, SensorMap.Read(Desktop, overlay), English).Select(item => item with { Graph = null });
+        return OverlayLayout.Groups([.. shown], overlay.Style.Layout);
     }
 
     private static List<string> Labels(IReadOnlyList<OverlayItem> pill) => [.. pill.Select(item => item.Label).OfType<string>()];
@@ -282,7 +284,7 @@ public sealed class StyleTests
         Assert.Equal(
             [ReadingFormatter.Format(new Reading(SensorKind.Load, 0), English), ReadingFormatter.Format(new Reading(SensorKind.Load, 100), English)],
             shown.Where((_, at) => at is 2 or 4).Select(item => item.Value));
-        Assert.Equal([true, false, false, false, false, false], shown.Select(item => item.Graph is not null));
+        Assert.Equal([true, false, true, false, true, false], shown.Select(item => item.Graph is not null));
     }
 
     // An item going critical, back to normal and critical again; and another going critical while the first glows. With

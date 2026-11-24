@@ -131,7 +131,7 @@ public sealed class SettingsFileTests
         Assert.Same(named, PageSettings.Of(named, Texts.English, Desktop));
 
         // A copied overlay's items take the next free number of their ids; an id made from a sensor is its sensor again.
-        var two = ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config;
+        var two = ThermiConfigJson.Read(TestFiles.Config("v4.json")).Config;
         var copied = OverlayEdits.Duplicate(OverlayEdits.Add(two).Config, 0).Config;
         Assert.Equal(
             ["fan.cpu-3", "cpu.temperature-4", "/amdcpu/0/temperature/3", "/gpu-nvidia/0/power/0-2"],
@@ -156,14 +156,16 @@ public sealed class SettingsFileTests
     // What earlier builds wrote unchosen takes this version's: 0.1's default critical line its lines, thermi's names in any
     // language no name, so they read in the window's, and a custom look's 10 px labels Standard's.
     [Fact]
-    public void AVersionTwoFileMigratesToVersionThree()
+    public void AVersionTwoFileMigratesToVersionFour()
     {
         var spanish = Texts.Of("es");
         var file = $$"""
             { "version": 2, "overlays": [
               { "name": "{{spanish.Of(NameText.Taskbar)}} 2", "style": { "preset": "custom", "label": { "size": 10, "weight": "regular" } },
                 "items": [ { "name": "{{spanish.Of(MetricName.CpuTemperature)}}", "metric": "cpu.temperature" },
-                  { "metric": "ram.used", "meter": { "metric": "ram.load" }, "threshold": { "warning": 69, "critical": 80 } } ] },
+                  { "metric": "ram.used", "meter": { "metric": "ram.load" }, "threshold": { "warning": 69, "critical": 80 } },
+                  { "metric": "cpu.load", "meter": { "metric": "cpu.load" } },
+                  { "metric": "gpu.load", "meter": { "metric": "gpu.load" }, "threshold": { "warning": 50 } } ] },
               { "name": "{{Texts.English.Of(SnapSpot.TaskbarRight)}}",
                 "style": { "preset": "custom", "label": { "size": 10, "weight": "regular" }, "value": { "size": 16, "weight": "bold" } } } ] }
             """;
@@ -186,12 +188,18 @@ public sealed class SettingsFileTests
 
         // QA r4 (R4-04): a warning nudged under 0.1's critical line goes with it, as a new RAM item starts without lines.
         Assert.Null(other.Overlays[0].Items[1].Threshold);
+
+        // The owner: a load as thermi made it shows its graph, as a new one does; one given lines keeps its look.
+        Assert.Equal([false, false, true, false], other.Overlays[0].Items.Select(item => item.Graph));
+        Assert.Equal(
+            [Metrics.CpuLoad.Id, Metrics.GpuLoad.Id],
+            new OverlayConfig().Items.Where(item => item.Graph).Select(item => item.Id));
     }
 
     [Fact]
-    public void AVersionThreeFileRoundTrips()
+    public void AVersionFourFileRoundTrips()
     {
-        var file = TestFiles.Config("v3.json");
+        var file = TestFiles.Config("v4.json");
 
         var (config, problem) = ThermiConfigJson.Read(file);
 

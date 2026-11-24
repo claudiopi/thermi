@@ -105,8 +105,9 @@ public static class ThermiConfigJson
 
         var read = version switch
         {
-            1 => ConfigMigration.FromVersion1(root.Deserialize(Version1Json.Default.Version1Config)),
-            2 => ConfigMigration.FromVersion2(Complete(root.Deserialize(Context.ThermiConfig))),
+            1 => ConfigMigration.FromVersion3(ConfigMigration.FromVersion1(root.Deserialize(Version1Json.Default.Version1Config))),
+            2 => ConfigMigration.FromVersion3(ConfigMigration.FromVersion2(Complete(root.Deserialize(Context.ThermiConfig)))),
+            3 => ConfigMigration.FromVersion3(Complete(root.Deserialize(Context.ThermiConfig))),
             ThermiConfig.CurrentVersion => Complete(root.Deserialize(Context.ThermiConfig)),
             _ => null,
         };

@@ -127,9 +127,7 @@ function ListRowDrawn({
         </span>
       )}
       {row.kind === 'item' && (
-        <span className="t-grip" aria-hidden="true">
-          <Icon name="grip" />
-        </span>
+        <span className="t-grip" aria-hidden="true" />
       )}
       {renaming ? <RenameBox row={row} label={t('UiText.Rename')} onRename={onRename} /> : <span className="t-name">{row.name}</span>}
       <RowValue row={row} />

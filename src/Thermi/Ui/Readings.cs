@@ -13,6 +13,12 @@ internal sealed class Readings(TimeProvider time)
     private static readonly Snapshot Nothing = new([]);
 
     private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
+
+    // Each overlay's readings and picks of the last snapshot, by the overlay as the settings hold it, which the history,
+    // the charts and the view all read each second.
+    private readonly Dictionary<OverlayConfig, IReadOnlyDictionary<string, Reading>> _reads = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<OverlayConfig, IReadOnlyDictionary<string, RawSensor?>> _picks = new(ReferenceEqualityComparer.Instance);
+    private Snapshot? _readOf;
     private Snapshot? _built;
     private IReadOnlyList<CatalogDevice> _catalog = [];
 
@@ -43,6 +49,14 @@ internal sealed class Readings(TimeProvider time)
         return _catalog;
     }
 
+    /// <summary>What an overlay reads of a snapshot, as <see cref="SensorMap.Read(Snapshot, OverlayConfig, string?)"/>, read once per snapshot.</summary>
+    public IReadOnlyDictionary<string, Reading> ReadOf(Snapshot snapshot, OverlayConfig overlay) =>
+        Kept(_reads, snapshot, overlay, () => SensorMap.Read(snapshot, overlay));
+
+    /// <summary>The sensor each metric of an overlay reads, as <see cref="SensorMap.Chosen(Snapshot, OverlayConfig, string?)"/>, once per snapshot.</summary>
+    public IReadOnlyDictionary<string, RawSensor?> ChosenOf(Snapshot snapshot, OverlayConfig overlay) =>
+        Kept(_picks, snapshot, overlay, () => SensorMap.Chosen(snapshot, overlay));
+
     /// <summary>What names sensors and their types: the snapshot now, or while none comes the last fresh one, or none at all.</summary>
     public Snapshot Known(Snapshot? now) => now ?? Last ?? Nothing;
 
@@ -50,7 +64,7 @@ internal sealed class Readings(TimeProvider time)
     public void Record(Snapshot snapshot, OverlayConfig overlay)
     {
         Last = snapshot;
-        var readings = new Dictionary<string, Reading>(SensorMap.Read(snapshot, overlay), StringComparer.Ordinal);
+        var readings = new Dictionary<string, Reading>(ReadOf(snapshot, overlay), StringComparer.Ordinal);
         foreach (var sensor in CatalogOf(snapshot).SelectMany(device => device.Sensors))
         {
             readings[sensor.Id] = sensor.Reading;
@@ -61,5 +75,22 @@ internal sealed class Readings(TimeProvider time)
         }
 
         History.Add(readings);
+    }
+
+    private T Kept<T>(Dictionary<OverlayConfig, T> kept, Snapshot snapshot, OverlayConfig overlay, Func<T> read)
+    {
+        if (!ReferenceEquals(snapshot, _readOf))
+        {
+            _readOf = snapshot;
+            _reads.Clear();
+            _picks.Clear();
+        }
+
+        if (!kept.TryGetValue(overlay, out var value))
+        {
+            kept[overlay] = value = read();
+        }
+
+        return value;
     }
 }

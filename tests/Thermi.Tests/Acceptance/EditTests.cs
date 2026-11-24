@@ -49,9 +49,12 @@ public sealed class EditTests
         // The recording has two sensors under one id, as the library reports them; an item names the first.
         foreach (var sensor in Desktop.Sensors.DistinctBy(sensor => sensor.Id, StringComparer.Ordinal))
         {
-            var shown = Shown(Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, sensor.Id)), Desktop);
+            var added = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, sensor.Id));
+            var shown = Shown(added, Desktop);
 
             var item = Assert.Single(shown, each => each.Id == sensor.Id);
+            // The owner: a load added starts with its graph, as the defaults' loads do.
+            Assert.Equal(sensor.Type == "Load", added.Overlays[0].Items.Single(each => each.Id == sensor.Id).Graph);
             Assert.EndsWith(units[sensor.Type], item.Room, StringComparison.Ordinal);
             Assert.True(
                 item.Value == ReadingFormatter.Missing ? sensor.Value is null : item.Value.EndsWith(units[sensor.Type], StringComparison.Ordinal),
@@ -188,7 +191,8 @@ public sealed class EditTests
         var sensorItem = Done(ItemEdits.AddSensor(config, 0, Desktop, FanTwo));
 
         Assert.Equal(File(config), File(auto));
-        Assert.Equal(Shown(config, Desktop), Shown(auto, Desktop));
+        // A load's graph is a list, which records compare by reference.
+        Assert.Equal(Shown(config, Desktop).Select(item => item with { Graph = null }), Shown(auto, Desktop).Select(item => item with { Graph = null }));
         Assert.Equal(Refusal.NoAuto, ItemEdits.BackToAuto(sensorItem, FanTwo).Refused);
     }
 

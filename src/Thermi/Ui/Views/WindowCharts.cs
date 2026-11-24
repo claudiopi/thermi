@@ -36,7 +36,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     {
         if (sensors.Latest is { } snapshot)
         {
-            _own.Add([.. editor.Config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
+            _own.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))]);
         }
     }
 

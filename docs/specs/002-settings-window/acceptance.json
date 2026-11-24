@@ -1242,6 +1242,26 @@
       "description": "Given the window in dark and in light, when the author types in the catalog's search and in a Sensor dropdown's filter, then each row marks what matched on a faint accent, readable in both themes and under high contrast; the dropdown's status line says the count, a row says when nothing matches, and Enter takes the first.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A303",
+      "covers": [
+        "R43",
+        "R90"
+      ],
+      "description": "Given a version 2 file with a load metered by itself and no lines and a load given a warning, when it is read, then it becomes version 4, the first showing its graph and the second as it was; and the default overlay's CPU and GPU loads show theirs.",
+      "check": "AVersionTwoFileMigratesToVersionFour",
+      "passes": true
+    },
+    {
+      "id": "A304",
+      "covers": [
+        "R90",
+        "R109"
+      ],
+      "description": "Given two overlays, when one is dragged over the other, then it shows through at half opacity and no snap mark lights; and on a load's item page, Graph is a row after Meter and turning it off keeps it off after a restart.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

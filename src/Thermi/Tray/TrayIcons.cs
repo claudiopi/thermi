@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Thermi.Core.Tray;
 using Thermi.Logging;
+using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Shell;
@@ -157,6 +158,13 @@ internal sealed class TrayIcons(HWND hwnd, NotifyShell shell, TimeProvider time,
     {
         if (!slot.Added)
         {
+            return;
+        }
+
+        // A new tooltip brings Windows' own back over a menu that shows, so it waits for the next refresh after the menu.
+        if (Topmost.MenuShowing)
+        {
+            slot.Pending |= flags;
             return;
         }
 

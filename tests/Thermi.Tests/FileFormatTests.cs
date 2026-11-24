@@ -97,7 +97,7 @@ public sealed class FileFormatTests
     [InlineData("{ broken", null)]
     [InlineData("[1,2,3]", null)]
     [InlineData("{\"items\":[{\"metric\":\"cpu.load\",\"threshold\":{\"warning\":90,\"critical\":80}}]}", null)]
-    [InlineData("{\"version\":4}", null)]
+    [InlineData("{\"version\":5}", null)]
     [InlineData("{\"version\":0}", null)]
     [InlineData("{\"version\":\"two\"}", null)]
     [InlineData("{\"version\":2,\"overlays\":[]}", "overlays holds 0")]

@@ -107,6 +107,10 @@ public static class SensorCatalog
     {
         var language = texts ?? Texts.English;
         var chosen = SensorMap.Chosen(snapshot, new OverlayConfig { Items = [] });
+        // Each sensor's metrics, found once rather than asked of every metric for every sensor, as the window does each second.
+        var feeds = Metrics.All
+            .Where(metric => chosen.GetValueOrDefault(metric.Id) is not null)
+            .ToLookup(metric => chosen[metric.Id], metric => language.Of(metric.Name));
         return
         [
             .. SensorNames.All(snapshot, own, texts)
@@ -114,12 +118,7 @@ public static class SensorCatalog
                     ? row with
                     {
                         Line = SensorNames.NoteOf(row.Name, language, CultureInfo.InvariantCulture) ?? language.Of(row.Reading.Kind),
-                        Feeds =
-                        [
-                            .. Metrics.All
-                                .Where(metric => Equals(chosen.GetValueOrDefault(metric.Id), named.Sensor))
-                                .Select(metric => language.Of(metric.Name)),
-                        ],
+                        Feeds = [.. feeds[named.Sensor]],
                     }
                     : null)
                 .OfType<CatalogSensor>()

@@ -40,6 +40,14 @@
   }
 }
 
+/* A wide pane gives the chart the larger share: the cards' rows need no more than this, and their column would stay half
+   empty beside a chart squeezed to half the pane. */
+@container (min-width: 1400px) {
+  .t-item {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
 .t-sensor-box.t-sensor-box {
   width: 230px;
   min-width: 0;

@@ -44,7 +44,7 @@ public static class ItemEdits
                 Meter = itself,
                 Threshold = itself is null ? null : Threshold.Default(itself, snapshot),
             };
-            return Insert(config, overlay, sensor, item, language);
+            return Insert(config, overlay, sensor, item with { Graph = OverlayConfig.GraphsByDefault(item, SensorMap.KindOf(sensor)) }, language);
         });
 
     // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one, returned here: a

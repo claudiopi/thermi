@@ -8,7 +8,6 @@ const glyphs = {
   chevronRight: '',
   close: '',
   delete: '',
-  grip: '',
   menu: '',
   more: '',
   redo: '',

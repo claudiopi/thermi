@@ -5,7 +5,7 @@ import { SwitchLine, type SwitchLineProps } from '../app/SwitchLine';
 import { Card, CardRow, Dropdown, TextField, type Find } from '../kit';
 import { useText } from '../texts/Texts';
 import { FinderRow } from './FinderRow';
-import { meterChoices, sensorChoices, showAllSensors, type Placed } from './itemModel';
+import { meterChoices, offsetRange, sensorChoices, showAllSensors, type Placed } from './itemModel';
 
 export interface ItemRowsProps {
   data: WindowData;
@@ -82,7 +82,7 @@ function sensorNoteOf(data: WindowData, item: Item, current: Sensor | undefined,
   return item.sensor === undefined ? t('UiText.AutoFollows', current.hardware) : current.hardware;
 }
 
-/** The item page's rows above More options: Sensor, Label, Meter, Notify me, Separate pill and Tray icon. */
+/** The item page's rows above More options: Sensor, Label, Meter, the graph, Notify me, Separate pill and Tray icon. */
 export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
   const t = useText();
   const describe = useId();
@@ -148,6 +148,10 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
             <Dropdown className="t-meter-box" label={t('UiText.MeterField')} choices={metered.choices} value={metered.value} onChange={meter} />
           </CardRow>
         </Card>
+      )}
+      {/* Beside the meter it draws: a graph of a number's last minute, which an item that can have no meter cannot. */}
+      {metered.row && offsetRange(data.view.items[item.id]?.type ?? '') !== null && (
+        <SwitchRow label={t('UiText.MeterGraph')} checked={item.graph === true} onChange={(on) => set('graph', on ? true : null)} />
       )}
       {item.threshold?.critical !== undefined && (
         <SwitchRow label={t('UiText.NotifyMe')} checked={item.notify === true} onChange={(on) => set('notify', on ? true : null)} />

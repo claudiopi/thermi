@@ -17,7 +17,7 @@ public sealed class BridgeTests
     // error of "*" is one whose words are the bridge's, which only a log reads: that it fails is the behavior, and an
     // exception's own message crosses as it is.
     [Theory]
-    [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":3,"temperature":"f","overlays":[]}}""")]
+    [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":4,"temperature":"f","overlays":[]}}""")]
     [InlineData(
         """{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""",
         """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]

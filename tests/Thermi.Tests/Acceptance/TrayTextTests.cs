@@ -181,7 +181,7 @@ public sealed class TrayTextTests
     public void TrayIconsKeepTheirIdentityPerInstall()
     {
         const string Elsewhere = @"C:\Program Files\thermi-build\thermi.exe";
-        var ids = ThermiConfigJson.Read(TestFiles.Config("v3.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
+        var ids = ThermiConfigJson.Read(TestFiles.Config("v4.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
 
         List<Guid> Made(string path)
         {
