@@ -176,9 +176,9 @@ test.describe('TheItemPageEditsTheItem', () => {
 
   test('A speed in bits, offered only for a speed', async ({ page }) => {
     const state = fakeState({ sensors: recording('admin-net-disk') });
-    const speed = state.sensors.find((sensor) => sensor.type === 'Throughput' && sensor.value !== null);
+    const speed = state.sensors.find((sensor) => sensor.type === 'Throughput' && sensor.hardwareType === 'Network' && sensor.value !== null);
     if (speed === undefined) {
-      throw new Error('The recording has no network or drive speed.');
+      throw new Error('The recording has no network speed.');
     }
     state.settings.overlays[0]?.items.push({ id: speed.id, name: speed.name, sensor: speed.id });
     await openWindow(page, state);
@@ -268,7 +268,8 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
   const state = fakeState();
   const temperature = state.settings.overlays[0]?.items.find((item) => item.id === 'cpu.temperature');
   if (temperature !== undefined) {
-    temperature.threshold = { warning: 70, critical: 85 };
+    // Not v0.1's 70/85, which a version 2 file trades for this version's defaults.
+    temperature.threshold = { warning: 70, critical: 84 };
   }
   await openWindow(page, state);
   await select(page, text('MetricName.CpuTemperature'));
@@ -277,8 +278,8 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
   const lines = async (): Promise<unknown> => (await itemIn(page, 'cpu.temperature')).threshold;
 
   const keys: { keys: string[]; type?: string; expected: { warning?: number; critical?: number } }[] = [
-    { keys: ['ArrowUp'], expected: { warning: 71, critical: 85 } },
-    { keys: ['PageUp'], expected: { warning: 81, critical: 85 } },
+    { keys: ['ArrowUp'], expected: { warning: 71, critical: 84 } },
+    { keys: ['PageUp'], expected: { warning: 81, critical: 84 } },
     { keys: ['Shift+ArrowUp'], expected: { warning: 86, critical: 91 } },
     { keys: ['ArrowDown'], expected: { warning: 85, critical: 91 } },
     { keys: ['Home'], expected: { warning: 0, critical: 91 } },

@@ -84,12 +84,17 @@
   }
 }
 
+/* A name too long for the row, as a long translation's, takes a second line rather than losing its end. */
 .t-name {
+  display: -webkit-box;
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 16px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .t-fold {

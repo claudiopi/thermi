@@ -155,6 +155,7 @@ export interface ItemView {
   meters: MeterChoice[];
   meterName: string | null;
   bits: boolean;
+  offsetShown?: string;
 }
 
 export interface Language {

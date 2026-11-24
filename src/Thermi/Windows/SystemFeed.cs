@@ -18,6 +18,8 @@ internal sealed class SystemFeed : ISensorFeed
     // Any address beyond the local network: connecting a datagram socket only picks the route, and sends nothing.
     private static readonly IPEndPoint Beyond = new(IPAddress.Parse("192.0.2.1"), 9);
 
+    private static readonly Snapshot NoSensors = new([]);
+
     private readonly ISensorFeed _sensors;
     private readonly TimeProvider _time;
     private readonly Lock _gate = new();
@@ -38,34 +40,34 @@ internal sealed class SystemFeed : ISensorFeed
         remove => _sensors.Received -= value;
     }
 
-    public Snapshot? Latest
-    {
-        get
-        {
-            if (_sensors.Latest is not { } read)
-            {
-                return null;
-            }
+    public Snapshot? Latest => _sensors.Latest is { } read ? With(read) : null;
 
-            var now = _time.GetLocalNow();
-            var second = now.ToUnixTimeSeconds();
-            lock (_gate)
-            {
-                if (_last is { } last && ReferenceEquals(last.Read, read) && last.Second == second)
-                {
-                    return last.With;
-                }
-
-                var with = SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now));
-                _last = (read, second, with);
-                return with;
-            }
-        }
-    }
+    /// <summary>
+    /// What the overlay shows: the latest snapshot, or while the service sends none, one of no sensors but what Windows
+    /// itself says, so the clock, the uptime and the address never wait on the service.
+    /// </summary>
+    public Snapshot Shown => With(_sensors.Latest ?? NoSensors);
 
     public ServiceState State => _sensors.State;
 
     public Task RunAsync(CancellationToken stop) => _sensors.RunAsync(stop);
+
+    private Snapshot With(Snapshot read)
+    {
+        var now = _time.GetLocalNow();
+        var second = now.ToUnixTimeSeconds();
+        lock (_gate)
+        {
+            if (_last is { } last && ReferenceEquals(last.Read, read) && last.Second == second)
+            {
+                return last.With;
+            }
+
+            var with = SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now));
+            _last = (read, second, with);
+            return with;
+        }
+    }
 
     private void AddressChanged(object? sender, EventArgs e)
     {

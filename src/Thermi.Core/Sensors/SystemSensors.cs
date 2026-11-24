@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Settings;
 
 namespace Thermi.Core.Sensors;
 
@@ -39,6 +40,22 @@ public static class SystemSensors
         ],
     };
 
+    /// <summary>The PC's own sensors of a snapshot, which hold while the service sends nothing, or none without one.</summary>
+    public static Snapshot Only(Snapshot? snapshot) =>
+        snapshot is null ? new Snapshot([]) : snapshot with { Sensors = [.. snapshot.Sensors.Where(IsOwn)] };
+
+    /// <summary>Whether a snapshot holds anything the sensor service read, beyond what Windows itself says.</summary>
+    public static bool HasServiceSensors(Snapshot snapshot) => snapshot.Sensors.Any(sensor => !IsOwn(sensor));
+
+    /// <summary>Whether an item reads only what Windows itself says, so it never waits on the sensor service.</summary>
+    public static bool Reads(ItemConfig item)
+    {
+        IReadOnlyList<string> ids = item.Sensor is { } one ? [one] : item.Sensors ?? [];
+        return ids.Count > 0
+            ? ids.All(id => id.StartsWith(Device + "/", StringComparison.Ordinal))
+            : Metrics.Find(item.Metric ?? item.Auto) is { } metric && Metrics.DeviceOf(metric) == DeviceKind.System;
+    }
+
     /// <summary>An IPv4 address's four bytes as one number, the first highest, as a snapshot carries it.</summary>
     public static uint AddressOf(ReadOnlySpan<byte> bytes) => ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
 
@@ -54,6 +71,8 @@ public static class SystemSensors
         DateTime.MinValue.AddSeconds(Math.Clamp(Math.Floor(seconds), 0, SecondsPerDay - 1)).ToString("T", culture);
 
     // An id as the library makes them, its device, its type and its index, so its type is known from it alone.
+    private static bool IsOwn(RawSensor sensor) => sensor.HardwareType == HardwareType;
+
     private static RawSensor Sensor(SensorKind kind, string type, string name, double? value) =>
         new($"{Device}/{type}/0", HardwareType, Hardware, kind.ToString(), name, value);
 }

@@ -72,6 +72,11 @@
   .t-cat-kinds {
     display: block;
   }
+
+  /* With so little room, a row keeps to its name, as the panel keeps to its title, and to why it reads nothing. */
+  .t-cat-d:not(.t-cat-why) {
+    display: none;
+  }
 }
 
 .t-cat-list {
@@ -161,13 +166,12 @@
   overflow-wrap: anywhere;
 }
 
+/* Its second line wraps too, as the items that show it, named in a long translation, may need. */
 .t-cat-d {
   font-size: 12px;
   line-height: 16px;
   color: var(--thermi-text3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .t-cat-v {

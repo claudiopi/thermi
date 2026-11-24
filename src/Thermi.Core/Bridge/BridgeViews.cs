@@ -58,6 +58,9 @@ public sealed record ItemView(
 {
     /// <summary>Whether it can show its speed in bits per second: a network's, as its plans are sold, never a drive's.</summary>
     public bool Bits { get; init; }
+
+    /// <summary>Its offset with the unit it is typed in, as "2 °C", or null for a type that takes none.</summary>
+    public string? OffsetShown { get; init; }
 }
 
 /// <summary>A meter an item is offered, with the name its Meter dropdown shows.</summary>

@@ -45,23 +45,21 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
-        var pills = OverlayLayout.Groups(items, look.Layout, look.Labels)
-            .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale))
-            .ToList();
-        return Painted(pills, look, scale, glow, mark: false);
+        return Painted(PillsOf(items, look, scale, fonts, measure), look, scale, glow, mark: false);
     }
 
     /// <summary>
-    /// The one pill that stands in for every item while the sensor service is stopped: thermi's mark, then
-    /// <paramref name="text"/>.
+    /// The one pill that stands in for every item the sensor service reads while it is stopped: thermi's mark, then
+    /// <paramref name="text"/>; the items <paramref name="beside"/> it, which never wait on the service, follow in pills
+    /// of their own.
     /// </summary>
-    public Bitmap PaintStopped(string text, OverlayLook look, float scale)
+    public Bitmap PaintStopped(string text, OverlayLook look, float scale, IReadOnlyList<OverlayItem>? beside = null)
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
         var width = (measure.MeasureString(text, fonts.Label, 0, PainterFonts.Typographic).Width / scale) + PainterShapes.MarkWidth + LabelGap;
         var item = new OverlayItem(null, text, Level.Normal, text);
-        return Painted([new Pill([item], [width * scale], scale)], look, scale, glow: null, mark: true);
+        return Painted([new Pill([item], [width * scale], scale), .. PillsOf(beside ?? [], look, scale, fonts, measure)], look, scale, glow: null, mark: true);
     }
 
     public void Dispose()
@@ -69,6 +67,10 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         _fonts?.Dispose();
         _canvas?.Dispose();
     }
+
+    private static List<Pill> PillsOf(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, PainterFonts fonts, Graphics measure) =>
+        [.. OverlayLayout.Groups(items, look.Layout, look.Labels)
+            .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale))];
 
     private Bitmap Painted(List<Pill> pills, OverlayLook look, float scale, Func<string, double>? glow, bool mark)
     {
@@ -79,13 +81,12 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         {
             var boxes = arranged.Pills.Select(box => new RectangleF((float)box.Left, (float)box.Top, (float)box.Width, (float)box.Height)).ToList();
             DrawPills(bitmap, boxes, look, scale);
+
+            // The stopped pill's place goes first, as its tooltip does.
+            DrawItems(bitmap, mark ? pills[1..] : pills, mark ? boxes[1..] : boxes, look, scale, glow);
             if (mark)
             {
                 DrawStopped(bitmap, pills[0].Items[0].Value, boxes[0], look, scale);
-            }
-            else
-            {
-                DrawItems(bitmap, pills, boxes, look, scale, glow);
             }
 
             Alpha.Scale(bitmap, look.Opacity);
@@ -267,13 +268,12 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         using var g = Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-        _places.Clear();
         var x = box.Left + ((PainterShapes.OuterPadding + InnerPadding) * scale);
         var middle = box.Top + (box.Height / 2);
         PainterShapes.Mark(g, look.LabelColor.Color, new PointF(x, middle), scale);
         x += (PainterShapes.MarkWidth + LabelGap) * scale;
         DrawText(g, text, _fonts!.Label, look.LabelColor.Color, new PointF(x, middle), look, scale);
-        _places.Add(new PaintedItem("", box, box) { Pill = box });
+        _places.Insert(0, new PaintedItem("", box, box) { Pill = box });
     }
 
     // The outline is the text's own shape stroked and then filled, so the two always line up.

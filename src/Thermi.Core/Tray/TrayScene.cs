@@ -88,12 +88,10 @@ public static class TrayScene
 {
     private const string ThermiName = "thermi";
 
-    private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
-
     public static IReadOnlyList<TrayIcon> Of(ThermiConfig config, TrayInput input)
     {
-        var snapshot = input.Service == ServiceState.Running ? input.Snapshot : null;
-        var readings = config.Overlays.Select(overlay => snapshot is null ? NoReadings : SensorMap.Read(snapshot, overlay)).ToList();
+        var snapshot = ThermiMark.Live(input);
+        var readings = config.Overlays.Select(overlay => ThermiMark.Readable(overlay, input)).ToList();
         var scene = new Scene(
             config,
             input with { Service = snapshot is null ? StateWithout(input.Service) : ServiceState.Running },
@@ -148,7 +146,9 @@ public static class TrayScene
     private static TrayIcon ItemIcon(Scene scene, int overlay, ItemConfig item, string? label)
     {
         var id = IdOf(item.Id, scene.Input.ExePath);
-        var (service, texts, numbers) = (scene.Input.Service, scene.Input.Texts, scene.Input.Numbers);
+        // What Windows itself says shows whether the sensor service runs or not.
+        var service = SystemSensors.Reads(item) ? ServiceState.Running : scene.Input.Service;
+        var (texts, numbers) = (scene.Input.Texts, scene.Input.Numbers);
         var now = OverlayLayout.ReadingOf(item, scene.Readings[overlay]);
         var reading = scene.Input.History?.Shown(item, now) ?? now;
         var tooltip = TrayTexts.ItemTooltip(label, reading, service, texts, numbers, scene.Config.Temperature, item.Decimals);

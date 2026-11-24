@@ -62,7 +62,8 @@ function NumberTools({ item, set }: { item: Item; set: SetField }) {
 function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen'>) {
   const t = useText();
   const { item } = placed;
-  const type = data.view.items[item.id]?.type ?? '';
+  const view = data.view.items[item.id];
+  const type = view?.type ?? '';
   const set: SetField = (field, value) => edit({ kind: 'item', item: item.id, field, value });
   const range = offsetRange(type);
   const metered = item.meter !== undefined;
@@ -98,6 +99,7 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
             value={item.offset ?? 0}
             min={-range}
             max={range}
+            {...(view?.offsetShown == null ? {} : { shown: view.offsetShown })}
             onCommit={(value) => void set('offset', value === 0 ? null : value)}
           />
         </CardRow>

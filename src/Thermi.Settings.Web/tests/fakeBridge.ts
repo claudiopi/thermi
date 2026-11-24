@@ -32,9 +32,10 @@ function installFake(initial: FakeState): void {
     };
   };
   let steps: UndoSteps = { undo: null, redo: null };
-  // The settings' changes, and the last of them the page has read: a test reads the settings only once the page has.
+  // The settings' changes, and the last of them the page has read, none before its first read: a test reads the
+  // settings only once the page has.
   let changes = 0;
-  let read = 0;
+  let read = -1;
   // As C# tells it, with whether the sensors or the service may have changed.
   const changed = (sensors = false): void => {
     changes += 1;
@@ -220,6 +221,9 @@ export async function openWindow(page: Page, state: FakeState = fakeState()): Pr
   await page.addInitScript(installFakeWindow);
   await page.addInitScript(installLateReplies);
   await page.goto('/');
+  // A person's first key comes once the window shows its settings, not while the page is still starting.
+  await page.waitForFunction(() => window.thermiFake?.caughtUp() === true, undefined, { timeout: 10_000 });
+  await page.evaluate(async () => new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn))));
 }
 
 /** Lets the answers a late fake holds go, the newest first. */
@@ -236,14 +240,15 @@ export async function windowWith(context: BrowserContext, state: FakeState): Pro
 
 /**
  * What the fake holds now: the settings the page's edits left, and the rest of the C# side, once the page has read
- * them, so the test's next key lands on the page as it shows them, as a person's does.
+ * them and drawn what it read, so the test's next key lands on the page as it shows them, as a person's does.
  */
 export async function fakeOf(page: Page): Promise<FakeState> {
   await page.waitForFunction(() => window.thermiFake?.caughtUp() !== false, undefined, { timeout: 5000 });
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
     if (window.thermiFake === undefined) {
       throw new Error('The fake bridge is not installed.');
     }
+    await new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)));
     return window.thermiFake.state;
   });
 }

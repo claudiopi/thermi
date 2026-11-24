@@ -99,7 +99,7 @@ internal static class Program
         using var store = new ConfigStore(ConfigStore.DefaultPath, time);
         await using (var settings = new Settings(store, time, logs.CreateLogger<Settings>()))
         {
-            using var host = new OverlayHost(settings, () => feed.Latest, CultureInfo.CurrentCulture, time, logs.CreateLogger<OverlayHost>())
+            using var host = new OverlayHost(settings, () => feed.Shown, CultureInfo.CurrentCulture, time, logs.CreateLogger<OverlayHost>())
             {
                 Service = () => sensors.State,
                 FirstStart = firstStart,

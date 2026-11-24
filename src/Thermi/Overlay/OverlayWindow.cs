@@ -183,13 +183,13 @@ internal sealed class OverlayWindow : IDisposable
         _glow.Update(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
         var bitmap = shown.SensorsStopped
-            ? _painter.PaintStopped(texts.Of(OverlayText.SensorsStopped), look, scale)
+            ? _painter.PaintStopped(texts.Of(OverlayText.SensorsStopped), look, scale, items)
             : _painter.Paint(items, look, scale, _glow.Glowing ? _glow.Of : null);
 #pragma warning restore CA2000
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
         Tips(scene, input, shown);
         Glow();
-        _painted = new PaintedOverlay(items, look, scale, bitmap.Size);
+        _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
         var row = scene.Row(_index, () => shown.SensorsStopped ? bitmap.Width : TaskbarRoom.Width(_painter, items, look, scale, bitmap.Width),
             _actions.RequestPaint);
@@ -382,15 +382,15 @@ internal sealed class OverlayWindow : IDisposable
     /// </summary>
     internal Bitmap? Picture()
     {
-        if (_painted is not { } painted || _scene is not { } scene)
+        if (_painted is not { } painted || _scene is null)
         {
             return null;
         }
 
         using var painter = new Painter();
         IReadOnlyList<OverlayItem> items = [.. painted.Items.Where(item => item.Id.Length > 0)];
-        return scene.Service == ServiceState.Stopped || items.Count == 0
-            ? painter.PaintStopped(Translations.Of(OverlayText.SensorsStopped), painted.Look, painted.Scale)
+        return painted.Stopped || items.Count == 0
+            ? painter.PaintStopped(Translations.Of(OverlayText.SensorsStopped), painted.Look, painted.Scale, items)
             : painter.Paint(items, painted.Look, painted.Scale);
     }
 

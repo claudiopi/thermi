@@ -10,7 +10,6 @@ import {
   openWindow,
   pseudo,
   recording,
-  select,
   selectedRow,
   setFake,
   test,
@@ -35,8 +34,8 @@ interface View {
 }
 
 const pages: View[] = [
-  // The overlay's row names it in its own text, in the long language too.
-  { name: 'an overlay', open: (page) => list(page).getByRole('treeitem', { name: /^\[?Taskbar/ }).first().click() },
+  // The first overlay's row, named in the window's language, the long one too.
+  { name: 'an overlay', open: (page) => list(page).getByRole('treeitem', { level: 1 }).first().click() },
   { name: 'an item', open: () => Promise.resolve() },
   { name: "an item's more options", open: (page, say) => page.getByRole('button', { name: say('UiText.MoreOptions') }).click() },
   { name: 'Settings', open: (page) => page.keyboard.press('Control+Comma') },
@@ -46,7 +45,7 @@ const dialogsAndMenus: View[] = [
   { name: 'the catalog', open: (page) => page.keyboard.press('Control+N') },
   // Over the Placement column, whose map draws its spots above the page.
   { name: 'the catalog over an overlay', open: async (page) => {
-    await list(page).getByRole('treeitem', { name: /^\[?Taskbar/ }).first().click();
+    await list(page).getByRole('treeitem', { level: 1 }).first().click();
     await page.keyboard.press('Control+N');
   } },
   // Opened narrow, it stays open as the window widens and narrows again.
@@ -87,7 +86,8 @@ const barsAndToasts: View[] = [
 async function openOn(page: Page, view: View, say: Say = text): Promise<void> {
   // A broken file shows only its page, with no list to select in.
   if (view.state?.problem === undefined) {
-    await select(page, text('MetricName.CpuTemperature'));
+    // The first item, the CPU temperature, named in the window's language, the long one too.
+    await list(page).getByRole('treeitem', { level: 3 }).first().click();
   } else {
     await page.getByRole('heading', { level: 2 }).waitFor();
   }
@@ -185,6 +185,8 @@ test.describe('TheFocusContractHolds', () => {
     await openWindow(page, run.start());
     await page.setViewportSize(run.size);
     await page.emulateMedia({ colorScheme: run.colorScheme, reducedMotion: run.motion === true ? 'no-preference' : 'reduce' });
+    // The first key comes once the page has drawn itself at its size, as a person sees the window before typing.
+    await page.evaluate(async () => new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn))));
     for (const step of run.steps.filter((one) => one.frame !== true && one.waits === undefined)) {
       await test.step(step.name, async () => {
         for (const act of step.acts) {

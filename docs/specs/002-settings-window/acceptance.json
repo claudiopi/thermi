@@ -610,6 +610,16 @@
       "passes": true
     },
     {
+      "id": "A266",
+      "covers": [
+        "R140",
+        "R182"
+      ],
+      "description": "Given an overlay with a clock among the sensors' items and the service stopped, so the feed holds nothing but what Windows itself says, when the overlay and the tray icons are decided, then the \"Sensors stopped\" pill stands in for the sensors' items only, the clock shows its time beside it and in its tray icon, and thermi's mark still says the sensors stopped.",
+      "check": "TheOverlayAndThermisIconSayWhatTheyShow",
+      "passes": true
+    },
+    {
       "id": "A225",
       "covers": [
         "R76",

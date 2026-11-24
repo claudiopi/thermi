@@ -145,8 +145,13 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
                 && (sensor?.HardwareType == "Network"
                     || (item.Metric ?? item.Auto) == Metrics.NetDownload.Id
                     || (item.Metric ?? item.Auto) == Metrics.NetUpload.Id),
+            OffsetShown = OffsetOf(item, kind, names.Texts),
         };
     }
+
+    // The file keeps an offset in °C, so it is typed and shown in °C whatever the overlay shows.
+    private static string? OffsetOf(ItemConfig item, SensorKind? kind, Texts texts) =>
+        kind is { } some ? ReadingFormatter.Format(some, item.Offset, new ValueFormat(texts, CultureInfo.CurrentCulture), units: true, difference: true) : null;
 
     // A sensor of its own is named as the catalog names it, one the service no longer reads by the user's name or its id;
     // else its metric's name.

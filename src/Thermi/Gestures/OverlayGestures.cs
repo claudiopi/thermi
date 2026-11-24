@@ -14,7 +14,11 @@ using Windows.Win32.UI.WindowsAndMessaging;
 namespace Thermi.Gestures;
 
 /// <summary>What an overlay's last paint drew, which a pill carried off is painted from.</summary>
-internal sealed record PaintedOverlay(IReadOnlyList<OverlayItem> Items, OverlayLook Look, float Scale, Size Size);
+internal sealed record PaintedOverlay(IReadOnlyList<OverlayItem> Items, OverlayLook Look, float Scale, Size Size)
+{
+    /// <summary>Whether the "Sensors stopped" pill led the items.</summary>
+    public bool Stopped { get; init; }
+}
 
 /// <summary>
 /// An overlay's desktop gestures: the overlay moved onto a snap mark or into another overlay, a pill dragged off with

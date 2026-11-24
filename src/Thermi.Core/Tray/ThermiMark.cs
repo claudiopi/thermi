@@ -45,8 +45,6 @@ public static class ThermiMark
     private const string Name = "thermi";
     private const string Separator = " · ";
 
-    private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
-
     public static MarkState Of(ThermiConfig config, TrayInput input, bool highContrast)
     {
         if (highContrast)
@@ -69,20 +67,18 @@ public static class ThermiMark
     }
 
     /// <summary>
-    /// An overlay's scene. While the service is stopped, one pill stands in for its items; while its data is stale, the
-    /// items show as missing. A missing value says why: the driver when a CPU temperature reads zero, else that it reads
-    /// nothing. Until the window has opened once, a value's tooltip offers to set thermi up.
+    /// An overlay's scene. While the service is stopped, one pill stands in for the items it reads; while its data is
+    /// stale, they show as missing. The items that read only what Windows itself says, as the clock, show live either way.
+    /// A missing value says why: the driver when a CPU temperature reads zero, else that it reads nothing. Until the window
+    /// has opened once, a value's tooltip offers to set thermi up.
     /// </summary>
     public static OverlayScene Overlay(ThermiConfig config, int overlay, TrayInput input, bool windowOpenedOnce)
     {
-        if (input.Service == ServiceState.Stopped)
-        {
-            return new OverlayScene([], SensorsStopped: true, [new ValueTooltip(null, Level.Normal, ValueHint.SensorsStopped)]);
-        }
-
-        var shown = config.Overlays[overlay];
+        var all = config.Overlays[overlay];
+        var stopped = input.Service == ServiceState.Stopped;
+        var shown = stopped ? all with { Items = [.. all.Items.Where(SystemSensors.Reads)] } : all;
         var snapshot = Live(input);
-        var readings = snapshot is null ? NoReadings : SensorMap.Read(snapshot, shown);
+        var readings = Readable(shown, input);
         var built = OverlayLayout.Build(shown, readings, input.Numbers, input.Texts, config.Temperature, input.History, input.WindowOpen);
         var driver = snapshot is not null && SensorMap.DriverMayBeMissing(snapshot);
         var throttled = snapshot is not null && Throttling.Of(snapshot, shown, input.BaseClock) is not null;
@@ -90,10 +86,20 @@ public static class ThermiMark
         var tooltips = configs.Select(item => new ValueTooltip(
             item.Id,
             OverlayLayout.LevelOf(item, OverlayLayout.MeterOf(item, readings)),
-            snapshot is null ? ValueHint.SensorsStopped : HintOf(OverlayLayout.ReadingOf(item, readings), driver, windowOpenedOnce))).ToList();
+            snapshot is null && !SystemSensors.Reads(item)
+                ? ValueHint.SensorsStopped
+                : HintOf(OverlayLayout.ReadingOf(item, readings), driver, windowOpenedOnce))).ToList();
         var items = built.Select((drawn, at) => snapshot is null ? drawn : Marked(drawn, configs[at], tooltips[at].Hint, throttled, snapshot, input.Texts));
-        return new OverlayScene([.. items], SensorsStopped: false, tooltips);
+        var standsIn = stopped && (all.Items.Count == 0 || shown.Items.Count < all.Items.Count);
+        return new OverlayScene([.. items], standsIn, standsIn ? [new ValueTooltip(null, Level.Normal, ValueHint.SensorsStopped), .. tooltips] : tooltips);
     }
+
+    /// <summary>
+    /// An overlay's readings as they can show now: all of them while the service's are fresh, else only what Windows
+    /// itself says.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, Reading> Readable(OverlayConfig overlay, TrayInput input) =>
+        SensorMap.Read(Live(input) ?? SystemSensors.Only(input.Snapshot), overlay);
 
     /// <summary>Whether an item reads one of the CPU's temperatures, powers or clocks, which read zero without thermi's driver.</summary>
     internal static bool ReadsWithTheDriver(ItemConfig item, Snapshot snapshot) =>
@@ -152,8 +158,9 @@ public static class ThermiMark
         return TrayTexts.Fit([string.Join(Separator, parts)]);
     }
 
-    // The snapshot when it can be shown: fresh, from a service that runs.
-    internal static Snapshot? Live(TrayInput input) => input.Service == ServiceState.Running ? input.Snapshot : null;
+    // The snapshot when it can be shown: fresh, from a service that runs, and holding what the service read.
+    internal static Snapshot? Live(TrayInput input) =>
+        input.Service == ServiceState.Running && input.Snapshot is { } snapshot && SystemSensors.HasServiceSensors(snapshot) ? snapshot : null;
 
     // The value at the worst level, a temperature before any other and the hottest of them first, as its overlay shows it.
     private static string? Hottest(ThermiConfig config, Snapshot snapshot, TrayInput input)

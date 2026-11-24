@@ -13,8 +13,6 @@ public static class ValueTooltips
 {
     private const string MemoryAvailable = "Memory Available";
 
-    private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
-
     /// <summary>The tooltip's lines, one per line break, of a tooltip <see cref="ThermiMark.Overlay"/> gave for the overlay.</summary>
     public static string Text(ThermiConfig config, int overlay, TrayInput input, ValueTooltip tooltip)
     {
@@ -33,7 +31,7 @@ public static class ValueTooltips
         }
 
         var snapshot = ThermiMark.Live(input);
-        var readings = snapshot is null ? NoReadings : SensorMap.Read(snapshot, shown);
+        var readings = ThermiMark.Readable(shown, input);
         var now = OverlayLayout.ReadingOf(item, readings);
         var history = input.History;
         string Value(ItemStat stat, bool units = true)

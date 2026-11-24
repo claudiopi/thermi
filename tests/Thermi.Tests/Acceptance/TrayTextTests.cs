@@ -225,7 +225,8 @@ public sealed class TrayTextTests
     // A state's words: the CPU temperature at warning or critical, the recording without the driver, the CPU fan reading
     // nothing, the service stopped or stale, an overlay hidden, click-through, high contrast, an overlay with nothing to
     // show, four overlays all critical, the window never opened yet, and the PC asleep past the stale limit, then woken by
-    // a fresh snapshot. The hint is the first value tooltip's that has one.
+    // a fresh snapshot, and a clock among the items, which Windows reads with no service at all. The hint is the first
+    // value tooltip's that has one.
     [Theory]
     [InlineData("", MarkState.Calm, false, ValueHint.None)]
     [InlineData("warning", MarkState.Warm, false, ValueHint.None)]
@@ -234,6 +235,7 @@ public sealed class TrayTextTests
     [InlineData("no-driver", MarkState.Calm, false, ValueHint.NeedsDriver)]
     [InlineData("reads-nothing", MarkState.Calm, false, ValueHint.ReadsNothing)]
     [InlineData("critical stopped", MarkState.Stopped, true, ValueHint.SensorsStopped)]
+    [InlineData("critical stopped clock", MarkState.Stopped, true, ValueHint.SensorsStopped)]
     [InlineData("critical stale", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("hidden", MarkState.Calm, false, ValueHint.None)]
     [InlineData("click-through", MarkState.Calm, false, ValueHint.None)]
@@ -254,18 +256,23 @@ public sealed class TrayTextTests
         Assert.Equal(mark, ThermiMark.Of(config, input, highContrast: words.Contains("high-contrast")));
         Assert.InRange(thermi.Tooltip.Length, 1, TrayTexts.MaxTooltip);
         Assert.Equal(stoppedPill, scene.SensorsStopped);
-        Assert.True(!stoppedPill || scene.Items.Count == 0, "While sensors are stopped, the one pill stands in for every item.");
+        var clock = scene.Items.Where(item => item.Id == Metrics.Clock.Id).ToList();
+        Assert.True(!stoppedPill || scene.Items.Count == clock.Count, "While sensors are stopped, the one pill stands in for every sensor's item.");
         Assert.True(
-            hint != ValueHint.SensorsStopped || scene.Items.All(item => item.Value == ReadingFormatter.Missing),
+            hint != ValueHint.SensorsStopped || scene.Items.Except(clock).All(item => item.Value == ReadingFormatter.Missing),
             "No value from before the gap shows as live.");
+        Assert.True(
+            !words.Contains("clock")
+                || (clock is [{ Value: not ReadingFormatter.Missing }] && Icon(TrayScene.Of(config, input), Metrics.Clock.Id).Text != ReadingFormatter.Missing),
+            "The clock never waits on the sensor service.");
         Assert.Equal(hint, scene.Tooltips.Select(tooltip => tooltip.Hint).FirstOrDefault(each => each != ValueHint.None));
-        Assert.All(scene.Tooltips, tooltip => Assert.Equal(TooltipLines(hint, tooltip), ValueTooltips.Text(config, 0, input, tooltip).Split('\n').Length));
+        Assert.All(scene.Tooltips, tooltip => Assert.Equal(TooltipLines(tooltip), ValueTooltips.Text(config, 0, input, tooltip).Split('\n').Length));
     }
 
     // A value's tooltip says its name and value, the CPU's or GPU's model it is read from, its minimum and maximum, and how
     // to edit it; a missing one only why and what to do.
-    private static int TooltipLines(ValueHint hint, ValueTooltip tooltip) =>
-        hint is ValueHint.SensorsStopped || tooltip.Hint is ValueHint.NeedsDriver or ValueHint.ReadsNothing ? 1
+    private static int TooltipLines(ValueTooltip tooltip) =>
+        tooltip.Hint is ValueHint.SensorsStopped or ValueHint.NeedsDriver or ValueHint.ReadsNothing ? 1
         : tooltip.ItemId is { } id && (id.StartsWith("cpu.", StringComparison.Ordinal) || id.StartsWith("gpu.", StringComparison.Ordinal)) ? 4
         : 3;
 
@@ -302,16 +309,21 @@ public sealed class TrayTextTests
 
         var threshold = words.Contains("critical") ? new Threshold(60, 75) : words.Contains("warning") ? new Threshold(70, 90) : null;
         var empty = words.Contains("empty");
+        ItemConfig[] clock = words.Contains("clock") ? [new ItemConfig { Id = Metrics.Clock.Id, Metric = Metrics.Clock.Id, Tray = true }] : [];
         IReadOnlyList<ItemConfig> Items(OverlayConfig overlay)
         {
             return empty
                 ? []
-                : [.. overlay.Items.Select(item => item.Id != Metrics.CpuTemperature.Id || threshold is null ? item : item with { Threshold = threshold })];
+                : [
+                    .. overlay.Items.Select(item => item.Id != Metrics.CpuTemperature.Id || threshold is null ? item : item with { Threshold = threshold }),
+                    .. clock,
+                ];
         }
 
         return config with { Overlays = [.. config.Overlays.Select(each => each with { Items = Items(each) })] };
     }
 
+    // A stopped service sends no snapshot, so with a clock the feed holds no sensors but what Windows itself says.
     private static Snapshot SnapshotOf(string[] words) =>
         words.Contains("no-driver") ? TestRecordings.Read(TestRecordings.NoAdmin)
         : words.Contains("reads-nothing")
@@ -319,5 +331,7 @@ public sealed class TrayTextTests
             {
                 Sensors = [.. Desktop.Sensors.Select(sensor => sensor.Id == "/lpc/it8689e/0/fan/0" ? sensor with { Value = null } : sensor)],
             }
+        : words.Contains("clock")
+            ? SystemSensors.With(new Snapshot([]), new WindowsFacts(TimeSpan.FromHours(2), null, DateTimeOffset.UnixEpoch.AddHours(12)))
         : Desktop;
 }

@@ -161,7 +161,7 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
                 >
                   <span className="t-cat-name">
                     <span className="t-cat-n">{row.name}</span>
-                    <span className="t-cat-d">{under(row)}</span>
+                    <span className={`t-cat-d${row.why === null ? '' : ' t-cat-why'}`}>{under(row)}</span>
                   </span>
                   <Sparkline minute={row.minute} kind={row.kind} />
                   <span className={`t-cat-v${row.value === null || row.why !== null ? ' t-cat-off' : ''}`}>{row.value}</span>
