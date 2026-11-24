@@ -722,7 +722,7 @@
         "R138",
         "R141"
       ],
-      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, a graph on and off), when the overlay is laid out, then each value carries its row's mark, a graphed value at warning none, since its bars show it, percentages are held between 0 and 100, and only a graph item holds a meter.",
+      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, a graph on and off), when the overlay is laid out, then each value carries its row's mark, a graphed value at warning none, since its line shows it, percentages are held between 0 and 100, and a metered item holds its graph or else its lit meter, and the power neither.",
       "check": "ALevelShowsOnTheValueNeverByColorAlone",
       "passes": true
     },
@@ -1343,8 +1343,28 @@
         "R61",
         "R90"
       ],
-      "description": "Given the recorded CPU load series replayed as `thermi preview` replays it, on dark and on light pills, when the overlay is painted at a scale where a second is a pixel, then the CPU load's graph draws every second it read in the normal level's green, with no seam of its track between columns.",
-      "check": "AGraphDrawsEachSecondInItsLevelsColor",
+      "description": "Given the recorded CPU load series replayed as `thermi preview` replays it, on dark and on light pills, when the overlay is painted at 100 % and 150 %, then the CPU load's graph is 24 px wide at 100 % and draws each second it read as a line in the normal level's green over a light fill of it, never a block.",
+      "check": "AGraphDrawsItsSecondsAsALineOverALightFill",
+      "passes": true
+    },
+    {
+      "id": "A314",
+      "covers": [
+        "R60",
+        "R61",
+        "R90"
+      ],
+      "description": "Given the admin recording's CPU temperature, 77 °C, metered by itself, when the overlay is painted at 100 % on the pills of a dark taskbar, and at 150 % past a warning line on the pills of a light one, then its meter is five segments 12 px wide at 100 %, the four lowest lit in its level's color and the top one a faint track.",
+      "check": "AMeterLightsItsSegmentsFromTheBottomInItsLevelsColor",
+      "passes": true
+    },
+    {
+      "id": "A315",
+      "covers": [
+        "R90"
+      ],
+      "description": "Given the RAM's load at 0, 3 and 50 % and reading nothing, when the overlay is laid out, then its meter lights 0, 1 and 3 of its five segments, and none while it reads nothing.",
+      "check": "AMeterLightsTheSegmentsItsValueRoundsTo",
       "passes": true
     }
   ]

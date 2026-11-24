@@ -98,11 +98,18 @@ export function hexColor(typed: string): string | null {
   return /^#[0-9a-f]{6}$/i.test(hex) ? hex.toUpperCase() : null;
 }
 
-/** The sizes of a sample pill, as the overlay computes them at 100 %. */
-export function pillSizes(style: ShownStyle): { height: number; radius: number; padding: number; gap: number } {
+/** Core's `OverlayLayout.Segments`. */
+export const meterSegments = 5;
+
+/**
+ * The sizes of a sample pill, as the overlay computes them at 100 %: the meter as tall as the value, in segments of
+ * whole pixels.
+ */
+export function pillSizes(style: ShownStyle): { height: number; radius: number; padding: number; gap: number; segment: number } {
   const height = Math.round(style.value.size * 1.5 + 11);
   const radius = style.corners === 'round' ? height / 2 : style.corners === 'soft' ? height / 4 : 2;
-  return { height, radius, padding: Math.round(height * 0.32), gap: Math.round(style.value.size * 0.45) };
+  const segment = Math.max(1, Math.round((style.value.size - (meterSegments - 1)) / meterSegments));
+  return { height, radius, padding: Math.round(height * 0.32), gap: Math.round(style.value.size * 0.45), segment };
 }
 
 export const fontFamilies: Record<StyleFont, string> = {

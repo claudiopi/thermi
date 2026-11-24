@@ -86,6 +86,17 @@ export function installFakeViews(): void {
     const { warning, critical } = item.threshold ?? {};
     return critical !== undefined && value >= critical ? 'critical' : warning !== undefined && value >= warning ? 'warning' : 'normal';
   };
+  // As Core's OverlayLayout: of a meter's five segments, those its value rounds to, at least one above zero; none for an
+  // item without a meter or with its graph.
+  const litOf = (item: Item): number | undefined => {
+    if (item.meter === undefined || item.graph === true) {
+      return undefined;
+    }
+    const read = meterOf(item);
+    const value = live(read) ?? 0;
+    const fill = Math.min(1, Math.max(0, value / (read?.type === 'Fan' ? 10_000 : read?.type === 'Throughput' ? 100e9 : 100)));
+    return fill > 0 ? Math.max(1, Math.round(fill * 5)) : 0;
+  };
   const meterable = ['Temperature', 'Load', 'Control', 'Fan', 'Throughput'];
   // A metric's name as Core's MetricName says it: "ram.load" is RamLoad, and the fan's metrics name the CPU first.
   const metricName = (metric: string): string => {
@@ -135,7 +146,9 @@ export function installFakeViews(): void {
     const value = live(read);
     const missing = value === null || (value === 0 && read?.hardwareType === 'Cpu' && read.type !== 'Load');
     const type = read?.type ?? 'Temperature';
+    const lit = litOf(item);
     return {
+      ...(lit === undefined ? {} : { lit }),
       offer: offerOf(read, type),
       value: missing ? null : format(type, value),
       level: levelOf(item),

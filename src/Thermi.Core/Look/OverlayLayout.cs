@@ -20,9 +20,15 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
 
     /// <summary>
     /// A graph meter's last minute, a value a second and oldest first, null where one was missing;
-    /// null without a graph, as a pill draws no other meter.
+    /// null without a graph.
     /// </summary>
     public IReadOnlyList<GraphPoint?>? Graph { get; init; }
+
+    /// <summary>
+    /// How many of its meter's <see cref="OverlayLayout.Segments"/> are lit from the bottom, in its level's color; null for
+    /// an item without a meter or with its graph, which draws its meter in its place.
+    /// </summary>
+    public int? Lit { get; init; }
 
     /// <summary>What <see cref="Value"/> is: the value now, or a minimum, maximum or average, which the stage marks as since the window opened.</summary>
     public ItemStat Stat { get; init; }
@@ -37,6 +43,8 @@ public readonly record struct GraphPoint(double Fill, Level Level);
 /// <summary>Turns an overlay's settings and the current readings into what it shows. Pixels are the painter's job.</summary>
 public static class OverlayLayout
 {
+    public const int Segments = 5;
+
     /// <summary>
     /// What the overlay shows: numbers in <paramref name="culture"/>, the regional format, default labels in the language of
     /// <paramref name="texts"/>, English when there are none, and temperatures in the chosen unit. With a
@@ -79,6 +87,7 @@ public static class OverlayLayout
                 Id = item.Id,
                 Color = item.Color,
                 Graph = GraphOf(item, meter, history),
+                Lit = LitOf(item, meter),
                 Stat = item.Stat,
             });
             shownLabel = label;
@@ -208,6 +217,18 @@ public static class OverlayLayout
         !item.Graph || item.Meter is null ? null
         : history is not null ? history.Graph(item)
         : [meter is { Usable: { } value } read ? new GraphPoint(FillOf(value, read.Kind), LevelOf(item, meter)) : null];
+
+    // Any value above zero lights a segment, so a meter that shows none reads as zero or nothing read.
+    private static int? LitOf(ItemConfig item, Reading? meter)
+    {
+        if (item.Graph || item.Meter is null)
+        {
+            return null;
+        }
+
+        var fill = meter is { Usable: { } value } read ? FillOf(value, read.Kind) : 0;
+        return fill > 0 ? Math.Max(1, (int)Math.Round(fill * Segments, MidpointRounding.AwayFromZero)) : 0;
+    }
 
     // A sensor the snapshot lacks has no known unit, so it keeps only the room of the missing mark. A network's speed shows
     // which way it goes by an arrow before it, the same in every language, so a pill reads "NET ↓ 12.4 MB/s ↑ 1.2 MB/s".

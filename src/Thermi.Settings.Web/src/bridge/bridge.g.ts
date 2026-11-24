@@ -174,6 +174,7 @@ export interface ItemView {
   meters: MeterChoice[];
   meterName: string | null;
   bits: boolean;
+  lit?: number;
   offsetShown?: string;
   offer?: SensorOffer;
 }

@@ -83,10 +83,10 @@ describe('a look', () => {
   });
 
   test.each([
-    { size: 13.5, corners: 'round', sizes: { height: 31, radius: 15.5, padding: 10, gap: 6 } },
-    { size: 13.5, corners: 'soft', sizes: { height: 31, radius: 7.75, padding: 10, gap: 6 } },
-    { size: 13.5, corners: 'square', sizes: { height: 31, radius: 2, padding: 10, gap: 6 } },
-    { size: 12, corners: 'round', sizes: { height: 29, radius: 14.5, padding: 9, gap: 5 } },
+    { size: 13.5, corners: 'round', sizes: { height: 31, radius: 15.5, padding: 10, gap: 6, segment: 2 } },
+    { size: 13.5, corners: 'soft', sizes: { height: 31, radius: 7.75, padding: 10, gap: 6, segment: 2 } },
+    { size: 13.5, corners: 'square', sizes: { height: 31, radius: 2, padding: 10, gap: 6, segment: 2 } },
+    { size: 17, corners: 'round', sizes: { height: 37, radius: 18.5, padding: 12, gap: 8, segment: 3 } },
   ] as const)('sizes a sample pill of $size px text, $corners', ({ size, corners, sizes }) => {
     const style = { ...shownStyle({ corners }), value: { size, weight: 'bold' } as const };
 

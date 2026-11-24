@@ -21,12 +21,12 @@ public sealed class OverlayTests
 
         Assert.Equal(
             [
-                new OverlayItem("CPU", "77 °C", Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id },
-                new OverlayItem(null, "1,087 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id },
+                new OverlayItem("CPU", "77 °C", Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id, Lit = 4 },
+                new OverlayItem(null, "1,087 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 1 },
                 new OverlayItem(null, "9 %", Level.Normal, "100 %") { Id = Metrics.CpuLoad.Id },
                 new OverlayItem(null, "71 W", Level.Normal, "888 W") { Id = Metrics.CpuPower.Id },
                 new OverlayItem("GPU", "3 %", Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
-                new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id },
+                new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id, Lit = 2 },
             ],
             items.Select(item => item with { Graph = null }));
     }
@@ -40,12 +40,12 @@ public sealed class OverlayTests
 
         Assert.Equal(
             [
-                new OverlayItem("CPU", ReadingFormatter.Missing, Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id },
-                new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id },
+                new OverlayItem("CPU", ReadingFormatter.Missing, Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id, Lit = 0 },
+                new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 0 },
                 new OverlayItem(null, "10 %", Level.Normal, "100 %") { Id = Metrics.CpuLoad.Id },
                 new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "888 W") { Id = Metrics.CpuPower.Id },
                 new OverlayItem("GPU", "3 %", Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
-                new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id },
+                new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id, Lit = 2 },
             ],
             items.Select(item => item with { Graph = null }));
     }

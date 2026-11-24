@@ -60,8 +60,8 @@ public sealed class SettingsFileTests
         Assert.Equal(Texts.Of("es").Of(MetricName.CpuTemperature), ItemNames(PageSettings.Of(config, Texts.Of("es"), Desktop))[1]);
         Assert.Equal(
             [
-                new OverlayItem("CPU", ReadingFormatter.Missing, Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id },
-                new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id },
+                new OverlayItem("CPU", ReadingFormatter.Missing, Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 0 },
+                new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id, Lit = 0 },
             ],
             Shown(wrongType));
         Assert.Equal(

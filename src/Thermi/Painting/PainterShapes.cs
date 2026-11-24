@@ -8,12 +8,16 @@ namespace Thermi.Painting;
 internal static class PainterShapes
 {
     public const float OuterPadding = 4;
-    public const float GraphWidth = 30;
+    public const float GraphWidth = 24;
+    public const float MeterWidth = 12;
 
     /// <summary>The width of thermi's mark on the "Sensors stopped" pill.</summary>
     public const float MarkWidth = 16;
 
-    private const float MeterHeight = 14;
+    private const float GraphLine = 1.5f;
+
+    // How much of its level's color a graph's fill takes, of 255: light, so the line reads first.
+    private const int GraphFill = 77;
     private const float ReversedPadding = 3;
     private const float ReversedRadius = 3;
     private const float GlowWidth = 2;
@@ -88,41 +92,86 @@ internal static class PainterShapes
     }
 
     /// <summary>
-    /// The last minute, a column a second with the newest at the right, each in its level's color. A missing second leaves
-    /// its column empty, and a zero still shows a pixel, so a gap never reads as a zero.
+    /// A meter at <paramref name="at"/>, its left middle: <see cref="OverlayLayout.Segments"/> stacked a pixel apart, the
+    /// lowest <paramref name="lit"/> in <paramref name="color"/> and the rest in the faint track's.
+    /// </summary>
+    public static void Meter(Graphics g, int lit, Rgb color, OverlayLook look, PointF at, float scale)
+    {
+        var (box, segment, gap) = Frame(at, MeterWidth, look, scale);
+        using var on = new SolidBrush(Drawn(color));
+        using var off = new SolidBrush(Drawn(look.Pills.MeterOff));
+        var smoothing = g.SmoothingMode;
+        g.SmoothingMode = SmoothingMode.None;
+        for (var fromBottom = 0; fromBottom < OverlayLayout.Segments; fromBottom++)
+        {
+            g.FillRectangle(fromBottom < lit ? on : off, box.Left, box.Bottom - ((fromBottom + 1) * segment) - (fromBottom * gap), box.Width, segment);
+        }
+
+        g.SmoothingMode = smoothing;
+    }
+
+    /// <summary>
+    /// The last minute, newest at the right, as a line over a light fill, each second in its level's color, on the meter's
+    /// track. A missing second breaks both, and a zero still shows the line, so a gap never reads as a zero.
     /// </summary>
     public static void Graph(Graphics g, IReadOnlyList<GraphPoint?> points, OverlayLook look, PointF at, float scale)
     {
-        var box = new RectangleF(at.X, at.Y - (MeterHeight * scale / 2), GraphWidth * scale, MeterHeight * scale);
+        var (box, _, _) = Frame(at, GraphWidth, look, scale);
         using var off = new SolidBrush(Drawn(look.Pills.MeterOff));
+
+        // Whole pixels then cover whole pixels, so the track's edges stay as sharp as the meter's.
+        var offset = g.PixelOffsetMode;
+        g.PixelOffsetMode = PixelOffsetMode.Half;
         g.FillRectangle(off, box);
         var first = Seconds - points.Count;
         var second = Math.Max(0, -first);
         while (second < points.Count)
         {
-            second = points[second] is { } point ? Run(g, points, second, first, look.MeterColor(point.Level), box, scale) : second + 1;
+            second = points[second] is { } point ? Run(g, points, second, first, look.MeterColor(point.Level), box, GraphLine * scale) : second + 1;
         }
+
+        g.PixelOffsetMode = offset;
     }
 
-    // A column is under a pixel wide, so the seconds of one level are filled as one shape: columns filled one by one
-    // blend at their shared edges into seams of the track's color. Gives the second after the run.
-    private static int Run(Graphics g, IReadOnlyList<GraphPoint?> points, int start, int first, Rgb color, RectangleF box, float scale)
+    // As tall as the value's text, on whole pixels so the segments' edges stay sharp; the graph takes the same height.
+    private static (Rectangle Box, int Segment, int Gap) Frame(PointF at, float width, OverlayLook look, float scale)
     {
-        var column = box.Width / Seconds;
-        var outline = new List<PointF> { new(box.Left + ((first + start) * column), box.Bottom) };
+        const int Segments = OverlayLayout.Segments;
+        var gap = Math.Max(1, (int)scale);
+        var segment = Math.Max(1, (int)Math.Round(((look.Value.Size * scale) - (gap * (Segments - 1))) / Segments, MidpointRounding.AwayFromZero));
+        var height = (segment * Segments) + (gap * (Segments - 1));
+        var box = new Rectangle((int)Math.Round(at.X), (int)Math.Round(at.Y - (height / 2f)), (int)Math.Round(width * scale), height);
+        return (box, segment, gap);
+    }
+
+    // A second is under a pixel wide, so the seconds of one level are filled as one shape and stroked as one line: seconds
+    // drawn one by one blend at their shared edges into seams. The line runs on to the next second's height, so a change of
+    // level never breaks it. Gives the second after the run.
+    private static int Run(Graphics g, IReadOnlyList<GraphPoint?> points, int start, int first, Rgb color, Rectangle box, float line)
+    {
+        var column = (float)box.Width / Seconds;
+        var tops = new List<PointF>();
         var second = start;
         for (; second < points.Count && points[second] is { } point && point.Level == points[start]!.Value.Level; second++)
         {
-            var (left, top) = (box.Left + ((first + second) * column), box.Bottom - Math.Max(scale, (float)point.Fill * box.Height));
-            outline.Add(new PointF(left, top));
-            outline.Add(new PointF(left + column, top));
+            var (left, top) = (box.Left + ((first + second) * column), Top(point, box, line));
+            tops.Add(new PointF(left, top));
+            tops.Add(new PointF(left + column, top));
         }
 
-        outline.Add(new PointF(outline[^1].X, box.Bottom));
-        using var brush = new SolidBrush(Drawn(color));
-        g.FillPolygon(brush, [.. outline]);
+        using var fill = new SolidBrush(Color.FromArgb(GraphFill, Drawn(color)));
+        g.FillPolygon(fill, [new PointF(tops[0].X, box.Bottom), .. tops, new PointF(tops[^1].X, box.Bottom)]);
+        if (second < points.Count && points[second] is { } next)
+        {
+            tops.Add(new PointF(tops[^1].X, Top(next, box, line)));
+        }
+
+        using var pen = new Pen(Drawn(color), line) { LineJoin = LineJoin.Round };
+        g.DrawLines(pen, [.. tops]);
         return second;
     }
+
+    private static float Top(GraphPoint point, Rectangle box, float line) => box.Bottom - (line / 2) - ((float)point.Fill * (box.Height - line));
 
     /// <summary>A radius of half the height is the round pill, two half circles; none is a plain rectangle.</summary>
     public static GraphicsPath Rounded(RectangleF rect, float radius)

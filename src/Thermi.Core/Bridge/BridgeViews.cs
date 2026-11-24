@@ -68,6 +68,9 @@ public sealed record ItemView(
     /// <summary>Whether it can show its speed in bits per second: a network's, as its plans are sold, never a drive's.</summary>
     public bool Bits { get; init; }
 
+    /// <summary>How many of its meter's segments the overlay lights, as a look's sample shows them, or null where it draws none.</summary>
+    public int? Lit { get; init; }
+
     /// <summary>Its offset with the unit it is typed in, as "2 °C", or null for a type that takes none.</summary>
     public string? OffsetShown { get; init; }
 

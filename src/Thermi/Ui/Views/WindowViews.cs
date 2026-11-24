@@ -159,6 +159,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
                 && (sensor?.HardwareType == "Network"
                     || (item.Metric ?? item.Auto) == Metrics.NetDownload.Id
                     || (item.Metric ?? item.Auto) == Metrics.NetUpload.Id),
+            Lit = shown?.Lit,
             OffsetShown = OffsetOf(item, kind, names.Texts),
             Offer = SensorOffer.Of(from.Catalog, type, read, item.Sensor),
         };

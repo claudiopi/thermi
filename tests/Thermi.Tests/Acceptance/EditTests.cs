@@ -168,14 +168,14 @@ public sealed class EditTests
         var changedAgain = Done(ItemEdits.ChangeSensor(changed, Metrics.CpuFan.Id, desktop, "/lpc/it8689e/0/fan/0"));
 
         Assert.Equal(new MeterConfig { Sensor = FanTwoDuty, Auto = Metrics.CpuFanDuty.Id }, Item(changed, Metrics.CpuFan.Id).Meter);
-        Assert.Equal(new OverlayItem(null, "0 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id }, Shown(changed, desktop)[1]);
+        Assert.Equal(new OverlayItem(null, "0 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 2 }, Shown(changed, desktop)[1]);
         Assert.Equal(0.4, MeterNow(changed, Metrics.CpuFan.Id, desktop));
         Assert.Equal(new MeterConfig { Sensor = "/lpc/it8689e/0/control/0", Auto = Metrics.CpuFanDuty.Id }, Item(changedAgain, Metrics.CpuFan.Id).Meter);
 
         // Without its duty sensor, the fan's meter shows as missing.
         var noDuty = new Snapshot([.. Desktop.Sensors.Where(sensor => sensor.Id != FanTwoDuty)]);
         var withoutDuty = Done(ItemEdits.ChangeSensor(byDuty, Metrics.CpuFan.Id, noDuty, FanTwo));
-        Assert.Equal(new OverlayItem(null, "0 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id }, Shown(withoutDuty, noDuty)[1]);
+        Assert.Equal(new OverlayItem(null, "0 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 0 }, Shown(withoutDuty, noDuty)[1]);
         Assert.Equal(
             new MeterConfig { Sensor = FanTwo },
             Item(Done(ItemEdits.ChangeSensor(itself, "/lpc/it8689e/0/fan/0", desktop, FanTwo)), "/lpc/it8689e/0/fan/0").Meter);

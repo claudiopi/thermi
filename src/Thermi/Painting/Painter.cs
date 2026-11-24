@@ -19,9 +19,9 @@ namespace Thermi.Painting;
 internal sealed class Painter(bool reuse = false) : IDisposable
 {
     private const float Height = 38;
-    private const float InnerPadding = 14;
+    private const float InnerPadding = 10;
     private const float LabelGap = 10;
-    private const float MeterGap = 9;
+    private const float MeterGap = 6;
     private const float ItemGap = 14;
     private const float UnderlineGap = 2;
     private const float UnderlineHeight = 2;
@@ -216,8 +216,14 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         var width = Math.Max(
             g.MeasureString(item.Value, fonts.Value, 0, PainterFonts.Typographic).Width,
             g.MeasureString(item.Room, fonts.Value, 0, PainterFonts.Typographic).Width) / scale;
-        return item.Graph is null ? width : width + PainterShapes.GraphWidth + MeterGap;
+        return width + MeterRoom(item);
     }
+
+    // In unscaled pixels: a graph's or a meter's width and its gap to the value, or nothing.
+    private static float MeterRoom(OverlayItem item) =>
+        item.Graph is not null ? PainterShapes.GraphWidth + MeterGap
+        : item.Lit is not null ? PainterShapes.MeterWidth + MeterGap
+        : 0;
 
     // Gives where the value starts.
     private float DrawItem(Graphics g, OverlayItem item, OverlayLook look, PointF at, float scale)
@@ -232,9 +238,13 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         if (item.Graph is { } graph)
         {
             PainterShapes.Graph(g, graph, look, new PointF(x, at.Y), scale);
-            x += (PainterShapes.GraphWidth + MeterGap) * scale;
+        }
+        else if (item.Lit is { } lit)
+        {
+            PainterShapes.Meter(g, lit, look.MeterColor(item.Level), look, new PointF(x, at.Y), scale);
         }
 
+        x += MeterRoom(item) * scale;
         DrawValue(g, item, fonts.Value, look, new PointF(x, at.Y), scale);
         return x;
     }

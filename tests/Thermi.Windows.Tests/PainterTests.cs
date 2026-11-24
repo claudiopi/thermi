@@ -29,24 +29,25 @@ public sealed class PainterTests
         Assert.Equal(first.Width, second.Width);
     }
 
+    // A graph is 24 px wide and a meter 12, each 6 px from its value.
     [Fact]
-    public void AGraphMeterIsThirtyPixelsWideAndEveryFontHasItsOwnWidth()
+    public void AGraphIsTwelvePixelsWiderThanAMeterAndEveryFontHasItsOwnWidth()
     {
         using var painter = new Painter();
-        // The CPU load starts with its graph.
+        // The CPU load starts with its graph; without it, it draws its meter.
         var graphed = Layout(9);
-        var plain = OverlayLayout.Build(
+        var metered = OverlayLayout.Build(
             PowerEdits.SetGraph(new ThermiConfig(), "cpu.load", graph: false).Config.Overlays[0],
             Readings(9),
             CultureInfo.GetCultureInfo("en-US"));
 
-        using var withoutGraph = painter.Paint(plain, Look, 1);
+        using var withMeter = painter.Paint(metered, Look, 1);
         using var withGraph = painter.Paint(graphed, Look, 1);
         var widths = new[] { StyleFont.Segoe, StyleFont.Bahnschrift, StyleFont.Consolas }
-            .Select(font => Width(painter, plain, OverlayLook.Of(new StyleConfig { Font = font }, lightTaskbar: false)))
+            .Select(font => Width(painter, metered, OverlayLook.Of(new StyleConfig { Font = font }, lightTaskbar: false)))
             .ToList();
 
-        Assert.InRange(withGraph.Width - withoutGraph.Width, 38, 40);
+        Assert.InRange(withGraph.Width - withMeter.Width, 11, 13);
         Assert.Equal(3, widths.Distinct().Count());
     }
 

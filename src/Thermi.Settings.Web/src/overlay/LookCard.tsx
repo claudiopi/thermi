@@ -1,11 +1,11 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import type { Style, Value } from '../bridge/bridge.g';
+import type { Level, Style, Value } from '../bridge/bridge.g';
 import { asOneStep, bridge, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
-import { fontFamilies, levelDefaults, pillSizes, shownStyle, weights } from './lookModel';
+import { fontFamilies, levelDefaults, meterSegments, pillSizes, shownStyle, weights, type ShownStyle } from './lookModel';
 import { useLooks } from './useOverlayReads';
 
 export interface LookCardProps {
@@ -16,8 +16,29 @@ export interface LookCardProps {
 /** The fields a look holds, which Default takes back to Core's defaults. */
 const lookFields = ['name', 'preset', 'label', 'value', 'opacity', 'pills', 'colors', 'font', 'corners', 'gap', 'effect', 'units'];
 
-/** A look's sample pill: the overlay's first label and value, in the look's theme, colors, sizes, font and corners. */
-function Sample({ look, label, value }: { look: Style; label: string; value: string }) {
+interface Metered {
+  lit: number;
+  level: Level | null;
+}
+
+/**
+ * The sample item's meter as the overlay lights it: its lowest segments in its level's color, the look's own or the
+ * pill's default, and the rest the pill's track.
+ */
+function SampleMeter({ look, metered, segment }: { look: ShownStyle; metered: Metered; segment: number }) {
+  const own = metered.level === null ? undefined : look.colors[metered.level];
+  const lit = `var(--t-pill-${metered.level ?? 'normal'})`;
+  return (
+    <span className="t-pill-meter" style={{ gridTemplateRows: `repeat(${meterSegments}, ${segment}px)` }}>
+      {Array.from({ length: meterSegments }, (_, at) => meterSegments - at).map((fromBottom) => (
+        <i key={fromBottom} style={fromBottom <= metered.lit ? { background: own ?? lit } : undefined} />
+      ))}
+    </span>
+  );
+}
+
+/** A look's sample pill: the overlay's first label, meter and value, in the look's theme, colors, sizes, font and corners. */
+function Sample({ look, label, value, metered }: { look: Style; label: string; value: string; metered: Metered | null }) {
   const shown = shownStyle(look);
   const sizes = pillSizes(shown);
   const warning = shown.colors.warning;
@@ -34,6 +55,7 @@ function Sample({ look, label, value }: { look: Style; label: string; value: str
       <span className="t-pill-label" style={{ fontSize: shown.label.size, fontWeight: weights[shown.label.weight], color: shown.colors.label }}>
         {label}
       </span>
+      {metered !== null && <SampleMeter look={shown} metered={metered} segment={sizes.segment} />}
       <span
         className="t-pill-value"
         style={{ fontSize: shown.value.size, fontWeight: weights[shown.value.weight], color: ownWarning ? warning : shown.colors.value }}
@@ -58,7 +80,9 @@ export function LookCard({ data, overlay }: LookCardProps) {
   const many = data.settings.overlays.length > 1;
   const sampleItem = one?.items.find((item) => item.id === 'cpu.temperature') ?? one?.items[0];
   const label = data.view.pills[overlay]?.find((pill) => pill.items.includes(sampleItem?.id ?? ''))?.label ?? '';
-  const value = data.view.items[sampleItem?.id ?? '']?.value ?? '';
+  const sampleView = data.view.items[sampleItem?.id ?? ''];
+  const value = sampleView?.value ?? '';
+  const metered = sampleView?.lit === undefined ? null : { lit: sampleView.lit, level: sampleView.level };
   const names = Object.keys(looks);
   const chosen = worn !== undefined && names.includes(worn) ? worn : null;
 
@@ -140,7 +164,7 @@ export function LookCard({ data, overlay }: LookCardProps) {
         className={`t-look${on ? ' t-on' : ''}`}
         onClick={() => choose(name)}
       >
-        <Sample look={name === null ? {} : (looks[name] ?? {})} label={label} value={value} />
+        <Sample look={name === null ? {} : (looks[name] ?? {})} label={label} value={value} metered={metered} />
         <span className="t-look-name">{shown}</span>
       </button>
     );

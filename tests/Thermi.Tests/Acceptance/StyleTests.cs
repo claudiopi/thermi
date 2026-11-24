@@ -282,6 +282,27 @@ public sealed class StyleTests
             [ReadingFormatter.Format(new Reading(SensorKind.Load, 0), English), ReadingFormatter.Format(new Reading(SensorKind.Load, 100), English)],
             shown.Where((_, at) => at is 2 or 4).Select(item => item.Value));
         Assert.Equal([true, false, true, false, true, false], shown.Select(item => item.Graph is not null));
+        // A metered item without its graph lights its meter instead; the power, without a meter, draws neither.
+        Assert.Equal([null, 1, null, null, null, 2], shown.Select(item => item.Lit));
+    }
+
+    // The RAM's meter, its load: of five segments, those its value rounds to, at least one for any value above zero, a
+    // half rounding up; none at zero or while it reads nothing.
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(3, 1)]
+    [InlineData(50, 3)]
+    [InlineData(double.NaN, 0)]
+    public void AMeterLightsTheSegmentsItsValueRoundsTo(double load, int lit)
+    {
+        var readings = new Dictionary<string, Reading>(TrayTextTests.Quiet, StringComparer.Ordinal)
+        {
+            [Metrics.RamLoad.Id] = new(SensorKind.Load, load),
+        };
+
+        var ram = OverlayLayout.Build(new OverlayConfig(), readings, English).Single(item => item.Id == Metrics.RamUsed.Id);
+
+        Assert.Equal(lit, ram.Lit);
     }
 
     // An item going critical, back to normal and critical again; and another going critical while the first glows. With
