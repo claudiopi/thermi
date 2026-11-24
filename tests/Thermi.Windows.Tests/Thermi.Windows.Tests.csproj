@@ -1,24 +1,48 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Tests that need Windows: real named pipes. Core's behavior is tested in Thermi.Tests. -->
+  <!-- Tests that need Windows: real named pipes and windows. Core's behavior is tested in Thermi.Tests. -->
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
+    <!-- CsWin32 needs it, for the calls only the tests make. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <CsWin32PlatformTarget>x64</CsWin32PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- A pool thread holds a USER object from its first window call until it ends, and an idle one ends after 20 s:
+       kept alive, those of earlier tests never retire while the leak test counts the process's handles. -->
   <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.ThreadsToKeepAlive" Value="-1" />
+  </ItemGroup>
+
+  <!-- The test platform's telemetry, which xunit.v3 brings, starts an HTTP client some 30 s into the run, inside the
+       leak tests' count: over a hundred handles of threads, events and registry keys that are none of thermi's. -->
+  <ItemGroup>
+    <TestingPlatformBuilderHook Remove="98058041-B5B6-4A75-9834-58E6DF796A22" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.MTP" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\Thermi.Tests\Recordings\ryzen-9950x-rtx-5060-ti-admin.json" Link="Recordings\ryzen-9950x-rtx-5060-ti-admin.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Thermi.Tests\Recordings\ryzen-9950x-rtx-5060-ti-no-admin.json" Link="Recordings\ryzen-9950x-rtx-5060-ti-no-admin.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Thermi\Thermi.csproj" />
-    <ProjectReference Include="..\..\src\Thermi.SensorHost\Thermi.SensorHost.csproj" />
+    <!-- Both thermi and thermi-sensors show the tests their own CsWin32 types, so the service's sit behind an alias,
+         or the tests' own generated code could not tell the two apart. -->
+    <ProjectReference Include="..\..\src\Thermi.SensorHost\Thermi.SensorHost.csproj" Aliases="sensors" />
   </ItemGroup>
 
 </Project>

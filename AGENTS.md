@@ -9,10 +9,13 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | Path | What lives there |
 | --- | --- |
 | `src/Thermi.Core` | Everything that does not need Windows: readings, sensor mapping, config and layout. No dependencies. |
-| `src/Thermi` | The overlay app, as the user: the window, painting, the pipe client. |
+| `src/Thermi` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
+| `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
+| `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys. |
 | `src/Thermi.SensorHost` | The `thermi-sensors` service, the only elevated process and the only one that loads LibreHardwareMonitor. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
-| `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe. |
+| `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |
+| `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |
 | `docs/QUICKSTART.md`, `docs/ARCHITECTURE.md` | What thermi is, as a story, and how it is built, with the real names. |
 | `docs/specs` | What each feature must do, with its acceptance checks. Read the spec before working on a feature. |
 | `docs/adr` | Why things are the way they are. Read before changing architecture. |
@@ -21,12 +24,17 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 
 Requires the .NET SDK in `global.json` and PowerShell 7.
 
-- `pwsh scripts/check.ps1`: restore, format, Release build, tests and coverage. The CI runs the same script. Run it before every PR.
+- `pwsh scripts/check.ps1`: restore, format, the test count, Release build, tests and coverage, then the settings page's type check, lint, react-doctor, unit tests, dead code (knip) and Playwright tests with axe. The CI runs the same script, each half in a job of its own (`-Part DotNet`, `-Part Web`). Run it before every PR.
+- `pwsh scripts/check.ps1 -Mutation`: the same, then Stryker.NET's mutation score of `Thermi.Core`'s tests and StrykerJS's of the page's logic, which measure them better than coverage. Slow: run it when you change Core, the page's logic or their tests. `pwsh scripts/mutation.ps1 --disable-bail` runs Stryker.NET alone and lists every test that kills each mutant.
+- `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]`: open the real settings window (the installed one by default) with WebView2's debugging port, click through every screen, and fail on any error the page shows or logs. Run it before a person gets a build; close any open settings window first.
+- `pwsh scripts/mark-icon.ps1`: draw the program's icon, `src/Thermi/thermi.ico`, from thermi's mark again, after changing the mark.
 - `dotnet test --project tests/Thermi.Tests -- --filter-method "*Threshold*"`: run only some tests while you work.
 - `dotnet format whitespace thermi.slnx`: fix formatting.
 - `pwsh scripts/install.ps1` (as yourself; it asks for admin rights once): install this build on your PC. `-Uninstall` removes it.
 - `thermi-sensors --dump <file>`: save what the sensors read now, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case.
-- `thermi preview <snapshot> <png> [scale]`: paint the overlay for a saved snapshot without showing it. It is a windowed program: in PowerShell, wrap it in `Start-Process -Wait`.
+- `thermi-sensors --dump <file> --seconds <n>`: record a series, one snapshot per second. For the fans' answer to a CPU load, run `thermi-sensors --dump <file> --seconds 45` as administrator, wait 5 s, run `Start-Process -Wait thermi -ArgumentList cpu-load,30` (a windowed program, like `preview`), and let the recording finish.
+- `thermi preview <snapshot> <png> [scale] [settings]`: paint the first overlay for a saved snapshot without showing it, at a scale from 0.25 to 8, with your settings or those of the file given. It is a windowed program: in PowerShell, wrap it in `Start-Process -Wait`; what it refuses shows in the terminal.
+- `thermi settings [--overlay <n>]`: open the settings window on overlay n, counted from 1, or bring the open one to the front. `--pseudo` makes its texts 40 % longer, to see what a long translation does; `--trace`, on the window or the overlay, adds each paint, input and the window's first frame to `%LOCALAPPDATA%\thermi\thermi.log`, where errors always go.
 
 ## Rules and what enforces them
 
@@ -37,24 +45,34 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Warnings are errors, nullable is on, analyzers are strict. | `Directory.Build.props`, `Thermi.globalconfig` |
 | Methods up to 40 lines, cognitive complexity up to 15, nesting up to 3, up to 7 parameters. | Sonar, `SonarLint.xml` |
 | Code files up to 400 lines. | `RepoRulesTests` |
+| Code lives in folders by topic, at most 12 C# files directly in any folder, and a namespace follows its folder. | `RepoRulesTests`, IDE0130 |
 | `Thermi.Core` depends on nothing, Windows included. | its target framework, `RepoRulesTests` |
+| No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
 | Every project has a `README.md` saying what lives there, beyond its title. | `RepoRulesTests` |
 | `Thermi.Core` keeps 90 % line and branch coverage. | `scripts/check.ps1` |
-| Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
+| A new field of the settings goes into `src/Thermi.Core/Editing/ConfigFields.cs`, or undo cannot take it back. | `UndoRulesTests` |
+| Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
+| Every class logs through an injected `ILogger`, each event a `[LoggerMessage]`; no static log, `Trace` or `Debug`. | `BannedSymbols.txt`, CA1848, CA2254 |
+| Win32 calls are generated by CsWin32 from `NativeMethods.txt`, never declared by hand. | `RepoRulesTests` |
 | No TODOs in code: open an issue. | MA0026 |
 | Comments say why, never what. No process history (issue numbers, "for now") in production code. | `RepoRulesTests`, comment-trimmer |
 | Docs only cite paths that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |
 | A rule is turned off only in `Thermi.globalconfig`, with the reason above it. In code, a suppression says why on the same line. NuGet warnings are never suppressed: update the package. | `RepoRulesTests` |
 | Package versions live in `Directory.Packages.props`; lock files are committed; packages come only from nuget.org. | NuGet, `nuget.config`, `--locked-mode` in CI |
 | Every agent brief pins its model. | `RepoRulesTests` |
+| Every text a user reads is a member of an enum marked `[Translated]`, and every translation has every text of the English one, with the same blanks, and no others. None is blank or names the driver's product. | `RepoRulesTests` |
 | A spec is a folder with `spec.md`, `tasks.md` and `acceptance.json`. Every requirement has an acceptance step, every check is a real test (once approved) or `by hand`, and `done` means every step passes. | `RepoRulesTests` |
 | PR titles follow Conventional Commits (they become the squash commit). | CI `pr-title` |
+| One behavior, one test, at the cheapest layer that proves it. Its first test is written red at the unit's edge, as its acceptance step. | the ratchet: `scripts/test-count.ps1` holds the count of `[Fact]`, `[Theory]` and Playwright tests to `tests/test-count.json`, raised only in a change of its own |
+| Near-identical cases are one table-driven test; a bug's reproduction is a new row when the behavior has its test. | the ratchet |
+| Inner tests only for pure logic with real decisions. A test that drove a small step goes at the refactor once an edge test covers it and no new mutant survives without it. Characterization tests and oracles go when their spec passes. | the ratchet, `scripts/mutation.ps1` |
 
 These need judgment, so review enforces them:
 
-- Test behavior at the edges (recorded sensor data in, what the overlay shows out), not one test per class.
+- The edges are recorded sensor data in and what the overlay shows out, never one test per class.
+- No test asserts a UI text, the DOM's structure or that something was called.
 - Fakes are never kinder than real hardware: missing sensors, NaN, frozen values, no driver, no admin rights.
-- A bug fix starts with a test that reproduces the bug.
+- A bug fix starts with a test that reproduces the bug, red before the fix.
 - When you replace something, delete the old one in the same change. No dead code, no stale docs.
 - The second copy of the same logic is when you extract it.
 - Anything touching drivers, admin rights or architecture needs an ADR first.
@@ -68,4 +86,4 @@ These need judgment, so review enforces them:
 4. A different agent than the author reviews, once per round: `.claude/agents/reviewer.md`. With a tool other than Claude Code, paste that brief into a fresh session, ideally on another model.
 5. A person tests it and merges. Agents commit, push and merge only when a person asks, and never with `--admin`.
 
-Everything in the repo is in English.
+Everything in the repo is in English, except the translations themselves in `src/Thermi.Core/Translations`.

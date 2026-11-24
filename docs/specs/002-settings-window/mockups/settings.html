@@ -92,7 +92,7 @@
   .spot { position: absolute; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffffa0; background: #2b2b2b; transform: translate(-50%, -50%); }
   .spot.on { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 4px #60cdff40; }
   .mini { position: absolute; height: 5px; width: 46px; border-radius: 3px; background: #efefee; right: 14px; bottom: 15px; }
-  .place-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-top: 14px; color: var(--text-2); }
+  .place-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-top: 6px; color: var(--text-2); }
   .slider { width: 190px; height: 4px; border-radius: 2px; background: #ffffff30; position: relative; }
   .slider::before { content: ""; position: absolute; left: 0; width: 26%; top: 0; bottom: 0; background: var(--accent); border-radius: 2px; }
   .slider::after { content: ""; position: absolute; left: 26%; top: 50%; width: 18px; height: 18px; border-radius: 50%; transform: translate(-50%, -50%); background: var(--accent); border: 4px solid #454545; }
@@ -155,7 +155,7 @@
 <i id="style"></i><i id="general"></i>
 <div class="window" id="catalog">
   <div class="title">
-    <div class="logo"></div><b>thermi</b> settings
+    <div class="logo"></div><b>thermi</b> settings <span class="sel2" style="margin-left:14px;height:24px">Overlay 1 · Main taskbar</span>
     <div class="spacer"></div>
     <span class="status"><span class="dot"></span>Sensors live · 173 sensors</span>
     <span class="icon-btn" title="Undo (Ctrl+Z)">↶</span><span class="icon-btn dim" title="Redo (Ctrl+Y)">↷</span>
@@ -177,7 +177,7 @@
       <div class="pill"><div class="in"><div class="item"><span class="lbl">RAM</span><span class="meter g"><i></i><i></i><i></i><i class="on"></i><i class="on"></i></span><span class="val">27.3 GB</span></div></div></div>
       <div class="add">+</div>
     </div>
-    <div class="taskbar"><div class="apps"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="tray" style="display:flex;align-items:center;gap:14px"><span title="CPU 78 °C" style="font:700 12px 'Segoe UI';color:var(--warn);letter-spacing:-0.5px">78</span><span title="FAN 1,174 RPM" style="font:700 11px 'Segoe UI';color:var(--warn);letter-spacing:-0.8px">1174</span><span>9:41 PM<br>11/21/2026</span></div></div>
+    <div class="taskbar"><div class="apps"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="tray" style="display:flex;align-items:center;gap:6px"><span title="CPU 78 °C" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font:700 13px Bahnschrift;font-stretch:condensed;color:var(--warn);letter-spacing:-0.3px">78</span><span title="FAN 1,174 RPM" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font:700 13px Bahnschrift;font-stretch:condensed;color:var(--warn);letter-spacing:-0.3px">1174</span><span>9:41 PM<br>11/21/2026</span></div></div>
   </div>
 
   <div class="panes">
@@ -187,7 +187,7 @@
       <div class="row"><span>Sensor</span><div class="inline"><div class="field" style="flex:1">Auto <span class="muted">· Core (Tctl/Tdie) · Ryzen 9 9950X</span><span class="live">78 °C</span></div><span class="btn">Change…</span></div></div>
       <div class="row"><span>Label</span><div class="inline"><div class="field" style="width:120px">CPU</div><span class="muted" style="color:var(--text-3);font-size:12px">The label of the whole pill: temperature, load and power</span></div></div>
       <div class="row"><span>Meter</span><div class="inline"><div class="seg"><b>None</b><b class="on">This value</b><b>Another…</b></div></div></div>
-      <div class="row"><span>Also</span><div class="inline"><span class="own" style="margin-left:0">Its own pill <span class="toggle off"></span></span><span class="own" style="margin-left:22px">Its own tray icon <span class="toggle"></span></span></div></div>
+      <div class="row"><span>Also</span><div class="inline"><span class="own" style="margin-left:0">Its own pill <span class="toggle off"></span></span><span class="own" style="margin-left:22px">Its own tray icon <span class="toggle"></span></span><span class="link" style="margin-left:18px">More options…</span></div></div>
       <div class="track-wrap">
         <div class="track-head"><span>Colors · bars: time at each value since you opened this, 4 min</span><span>min <b>61 °C</b> · max <b>84 °C</b></span></div>
         <div class="track">
@@ -215,6 +215,9 @@
         <span class="spot" style="left: 37px; top: 36px"></span><span class="spot" style="left: 157px; top: 36px"></span><span class="spot" style="left: 37px; top: 100px"></span><span class="spot" style="left: 157px; top: 100px"></span>
         <span class="spot" style="left: 201px; top: 36px"></span><span class="spot" style="left: 321px; top: 36px"></span><span class="spot" style="left: 201px; top: 100px"></span><span class="spot" style="left: 321px; top: 100px"></span>
       </div>
+      <div class="place-row"><span>Show the overlay</span><span class="sel2">Always</span></div>
+      <div class="place-row"><span>Lock position</span><span class="toggle off"></span></div>
+      <div class="place-row"><span>Click-through</span><span class="toggle off"></span></div>
       <div class="place-row"><span>Size, over the monitor's scale</span><span class="inline"><span class="slider"></span><b style="color:var(--text);width:52px;text-align:right">100 %</b></span></div>
       </div>
       <div class="t-style">
@@ -224,6 +227,7 @@
           <div class="tile"><div class="mp"><i style="width:14px"></i><i style="width:14px"></i><i style="width:14px"></i><i style="width:14px"></i><i style="width:14px"></i></div>One per value</div>
           <div class="tile"><div class="mp"><i style="width:84px"></i></div>One bar</div>
         </div>
+        <div class="srow"><span>Units</span><span class="toggle"></span></div>
         <div class="srow"><span>Direction</span><div class="seg"><b class="on">Horizontal</b><b>Vertical</b></div></div>
         <div class="srow"><span>Text</span><span class="link" style="margin:0">Customize ▴</span></div>
         <div class="srow"><span>Labels</span><span class="inline"><span class="sel2">13 px</span><span class="sel2">Semibold</span></span></div>
@@ -236,7 +240,7 @@
       </div>
       <div class="t-general">
         <div class="srow"><span>Language</span><span class="sel2">English · from Windows</span></div>
-        <div class="srow"><span>Show the overlay</span><span class="sel2">Always</span></div>
+        <div class="srow"><span>Temperature</span><div class="seg"><b class="on">°C</b><b>°F</b></div></div>
         <div class="srow"><span>Hide or show hotkey</span><span class="sel2">Ctrl + Alt + T</span></div>
         <div class="srow"><span>Next style hotkey</span><span class="sel2">Off</span></div>
         <div class="srow"><span>Start with Windows</span><span class="toggle"></span></div>

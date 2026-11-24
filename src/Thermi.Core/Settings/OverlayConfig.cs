@@ -1,0 +1,257 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Thermi.Core.Sensors;
+using Thermi.Core.Translations;
+
+namespace Thermi.Core.Settings;
+
+// The generated reader sets an init property the file leaves out to its type's default, but keeps a
+// constructor parameter's own default: so a field whose default is not its type's is a parameter.
+// A flag or choice at its default is left out of the file, so a hand edit sees only what was chosen.
+
+/// <summary>
+/// The settings file: thermi's own fields, and its overlays. Every change to its shape gets a new
+/// <see cref="Version"/> and a migration, and every item id is unique in the whole file.
+/// </summary>
+public sealed record ThermiConfig
+{
+    public const int CurrentVersion = 2;
+
+    public const int MaxOverlays = 4;
+
+    public int Version { get; init; } = CurrentVersion;
+
+    public HotkeysConfig? Hotkeys { get; init; }
+
+    /// <summary>A language code, or null to follow Windows.</summary>
+    public string? Language { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public TemperatureUnit Temperature { get; init; }
+
+    /// <summary>The names the user gave sensors, by the id an item names each by; null while none has one.</summary>
+    public IReadOnlyDictionary<string, string>? SensorNames { get; init; }
+
+    public IReadOnlyList<OverlayConfig> Overlays { get; init; } = [new OverlayConfig()];
+}
+
+/// <summary>One overlay: its items, where it sits, its look, and when it shows. <see cref="Size"/> is a factor over the monitor's scale.</summary>
+public sealed record OverlayConfig(double Size = 1)
+{
+    public const double MinSize = 0.75;
+
+    public const double MaxSize = 2;
+
+    /// <summary>The default overlay's name, in English, since the defaults have no language; overlays made in the window are named in its.</summary>
+    public static string DefaultName { get; } = Texts.English.Of(NameText.Taskbar);
+
+    // Named in English, as the default overlay is.
+    public static IReadOnlyList<ItemConfig> DefaultItems { get; } =
+    [
+        Default(Metrics.CpuTemperature, Metrics.CpuTemperature),
+        Default(Metrics.CpuFan, Metrics.CpuFan),
+        Default(Metrics.CpuLoad, Metrics.CpuLoad),
+        Default(Metrics.CpuPower),
+        Default(Metrics.GpuLoad, Metrics.GpuLoad),
+        Default(Metrics.RamUsed, Metrics.RamLoad),
+    ];
+
+    /// <summary>The overlay's name, given when it is made from where it sits; null in a file written by hand without one.</summary>
+    public string? Name { get; init; } = DefaultName;
+
+    /// <summary>Wins over <see cref="Position"/> when the file has both.</summary>
+    public SnapConfig? Snap { get; init; }
+
+    /// <summary>A free position, in physical pixels of the whole desktop (all monitors).</summary>
+    public Position? Position { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Visibility Visibility { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ClickThrough { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Locked { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Oled { get; init; }
+
+    /// <summary>True when the overlay fades as the pointer comes near it.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Fade { get; init; }
+
+    /// <summary>True while it is hidden on its own, which is saved, unlike the "Hide overlays" flag.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Hidden { get; init; }
+
+    public StyleConfig Style { get; init; } = new();
+
+    public IReadOnlyList<ItemConfig> Items { get; init; } = DefaultItems;
+
+    /// <summary>Where the overlay is snapped, or null when it sits at its free <see cref="Position"/>. With neither, it snaps to the right of the primary monitor's taskbar.</summary>
+    [JsonIgnore]
+    public SnapConfig? Snapped => Snap ?? (Position is null ? new SnapConfig(SnapSpot.TaskbarRight) : null);
+
+    private static ItemConfig Default(Metric metric, Metric? meter = null) => new()
+    {
+        Id = metric.Id,
+        Name = Texts.English.Of(metric.Name),
+        Metric = metric.Id,
+        Meter = meter is null ? null : new MeterConfig { Metric = meter.Id },
+        Threshold = meter is null ? null : Threshold.Default(meter),
+    };
+}
+
+/// <summary>
+/// One entry in an overlay. It shows a <see cref="Metric"/> (its sensor picked per machine), a
+/// <see cref="Sensor"/>, or several <see cref="Sensors"/> of one type joined by <see cref="Combine"/>. An item
+/// made from a metric keeps it as <see cref="Auto"/> when it names a sensor, so it can go back.
+/// </summary>
+public sealed record ItemConfig
+{
+    public string Id { get; init; } = "";
+
+    /// <summary>What the window calls the item, given when it is added; null in a file written by hand without one.</summary>
+    public string? Name { get; init; }
+
+    public string? Metric { get; init; }
+
+    public string? Sensor { get; init; }
+
+    public IReadOnlyList<string>? Sensors { get; init; }
+
+    public Combine? Combine { get; init; }
+
+    public string? Auto { get; init; }
+
+    /// <summary>The label of the run of items it belongs to, or null for its metric's.</summary>
+    public string? Label { get; init; }
+
+    /// <summary>True when the item starts a pill of its own.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Own { get; init; }
+
+    /// <summary>True when the item also shows as a tray icon of its own.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Tray { get; init; }
+
+    /// <summary>The value's own color as #RRGGBB, over the style's.</summary>
+    public string? Color { get; init; }
+
+    public MeterConfig? Meter { get; init; }
+
+    public Threshold? Threshold { get; init; }
+
+    /// <summary>Added to the value, in its unit; a temperature's in °C.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double Offset { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ItemStat Stat { get; init; }
+
+    /// <summary>Seconds to average the value over, 0 for off.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int Smooth { get; init; }
+
+    /// <summary>Decimals to show, or null for its type's own.</summary>
+    public int? Decimals { get; init; }
+
+    /// <summary>True when a throughput shows in bits per second; its lines stay in bytes.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Bits { get; init; }
+
+    /// <summary>True for a graph of the last minute instead of a bar.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Graph { get; init; }
+
+    /// <summary>True when the item shows only while its meter is at warning or critical.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool AlertOnly { get; init; }
+
+    /// <summary>True when Windows tells once the item has been critical for a while.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Notify { get; init; }
+}
+
+/// <summary>What drives an item's meter: a <see cref="Metric"/>, or a <see cref="Sensor"/> that keeps the metric it came from as <see cref="Auto"/>.</summary>
+public sealed record MeterConfig
+{
+    public string? Metric { get; init; }
+
+    public string? Sensor { get; init; }
+
+    public string? Auto { get; init; }
+}
+
+/// <summary>A spot on a monitor, which is left out for the primary one.</summary>
+public sealed record SnapConfig(SnapSpot Spot, string? Monitor = null);
+
+public sealed record Position(int X, int Y);
+
+/// <summary>Each combination like "Ctrl+Alt+T", or null for off.</summary>
+public sealed record HotkeysConfig
+{
+    public string? Toggle { get; init; }
+
+    public string? NextStyle { get; init; }
+
+    public string? ClickThrough { get; init; }
+
+    public string? ResetMinMax { get; init; }
+}
+
+[JsonConverter(typeof(ConfigEnum<TemperatureUnit>))]
+public enum TemperatureUnit
+{
+    [JsonStringEnumMemberName("c")]
+    Celsius,
+
+    [JsonStringEnumMemberName("f")]
+    Fahrenheit,
+}
+
+[Translated]
+[JsonConverter(typeof(ConfigEnum<Visibility>))]
+public enum Visibility
+{
+    Always,
+    HideInFullscreen,
+    OnlyInFullscreen,
+}
+
+[Translated]
+[JsonConverter(typeof(ConfigEnum<SnapSpot>))]
+public enum SnapSpot
+{
+    TaskbarLeft,
+    TaskbarCenter,
+    TaskbarRight,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+[Translated]
+[JsonConverter(typeof(ConfigEnum<Combine>))]
+public enum Combine
+{
+    Max,
+    Average,
+    Sum,
+}
+
+[Translated]
+[JsonConverter(typeof(ConfigEnum<ItemStat>))]
+public enum ItemStat
+{
+    Now,
+    Min,
+    Max,
+    Average,
+}
+
+/// <summary>Choices are written as words, never numbers, and a word thermi does not know breaks the file instead of meaning something else.</summary>
+internal sealed class ConfigEnum<T>() : JsonStringEnumConverter<T>(JsonNamingPolicy.KebabCaseLower, allowIntegerValues: false)
+    where T : struct, Enum;

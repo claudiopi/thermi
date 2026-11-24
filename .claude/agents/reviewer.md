@@ -12,7 +12,7 @@ Check, in this order:
 1. **Bugs.** Wrong behavior. Sensor states not handled: missing, NaN, frozen, no driver, no admin. Leaked handles or undisposed `IDisposable`.
 2. **Duplication.** Does the diff add a concept that already exists under another name? Search the repo for it.
 3. **Dead code and stale docs.** Code nothing calls. Comments or docs the change made false. Replaced code that was not deleted.
-4. **Tests.** New logic without a behavior test. Tests that mock what they could replay from real data.
+4. **Tests.** New logic without a behavior test. Tests that mock what they could replay from real data. Is any test killing no mutant of its own? Is any behavior tested at two layers?
 
 Out of scope: architecture (that belongs in an ADR) and anything the build already enforces.
 

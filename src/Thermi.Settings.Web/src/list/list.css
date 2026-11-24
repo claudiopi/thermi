@@ -1,0 +1,219 @@
+/* The list, as the design prototype draws it: 40 px rows 2 px apart, 22 px pill headers, the selected row tinted
+   with a 3 × 16 px accent bar at its start, and Settings at the foot. */
+
+.t-list {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 4px 8px 12px 16px;
+}
+
+.t-list-head {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 46px;
+  box-sizing: border-box;
+  padding: 4px 4px 10px 0;
+}
+
+.t-tree {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.t-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  /* The scrollbar's room is kept while it does not show, so the rows never shift when it comes. */
+  scrollbar-gutter: stable;
+}
+
+.t-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 40px;
+  border-radius: 4px;
+  cursor: default;
+  user-select: none;
+  outline: none;
+}
+
+.t-row:hover,
+.t-row.t-selected,
+.t-row.t-pointed {
+  background: var(--thermi-subtle-hover);
+}
+
+.t-row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--colorStrokeFocus2);
+}
+
+.t-row.t-selected::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 12px;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--colorCompoundBrandBackground);
+}
+
+@media (forced-colors: active) {
+  .t-row.t-selected {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  .t-row.t-selected::before {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+}
+
+.t-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.t-fold {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--thermi-text2);
+}
+
+.t-fold:hover {
+  background: var(--thermi-subtle-hover);
+}
+
+.t-row-overlay .t-name {
+  font-weight: 600;
+}
+
+.t-row-overlay {
+  gap: 6px;
+}
+
+/* A hidden overlay, which shows only in the window: its name dimmed, and "Hidden" where an item shows its value. */
+.t-row-hidden .t-name,
+.t-hidden-mark {
+  color: var(--thermi-text3);
+}
+
+.t-hidden-mark {
+  margin-inline-end: 12px;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.t-row-pill {
+  height: 22px;
+  align-items: flex-end;
+  gap: 0;
+  padding: 0 0 2px 4px;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  color: var(--thermi-text3);
+}
+
+.t-row-pill:hover {
+  background: none;
+}
+
+.t-row-pill .t-fold {
+  width: 24px;
+  height: 20px;
+  margin-inline-start: -4px;
+  font-size: 8px;
+}
+
+.t-row-pill.t-selected::before {
+  top: 3px;
+}
+
+.t-row-item {
+  padding: 0 12px 0 16px;
+}
+
+.t-grip {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  color: var(--thermi-text3);
+  visibility: hidden;
+  cursor: grab;
+}
+
+.t-row-item:hover .t-grip {
+  visibility: visible;
+}
+
+.t-value {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A value that reads nothing shows the overlay's dash; Narrator hears nothing for it. */
+.t-value:empty::after {
+  content: '–';
+}
+
+.t-value.t-warning {
+  color: var(--thermi-warning);
+}
+
+.t-value.t-critical {
+  color: var(--thermi-critical);
+}
+
+.t-settings {
+  gap: 12px;
+  margin-top: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.t-settings > i {
+  font-size: 16px;
+}
+
+.t-rename {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-bottom-color: var(--colorCompoundBrandStroke);
+  border-radius: 4px;
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  font: inherit;
+  outline: none;
+}

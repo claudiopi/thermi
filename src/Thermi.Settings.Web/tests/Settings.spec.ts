@@ -1,0 +1,68 @@
+import { expect, test } from '@playwright/test';
+import { chooseByKeys, fakeOf, fakeState, list, openWindow, settingsOf, startingWith, text, texts } from './fakeBridge';
+
+// A211: the Settings page changes thermi's own fields; Start with Windows stays outside undo, hotkeys are recorded, refused,
+// cleared and cancelled while thermi's rest, and Reset asks with Cancel as its default.
+test('TheSettingsPageChangesThermi', async ({ page }) => {
+  await openWindow(page, fakeState({ heldHotkeys: ['Ctrl+Alt+J'], failingHotkeys: ['Ctrl+Alt+K'] }));
+  await list(page).waitFor();
+  await page.keyboard.press('Control+Comma');
+  const pane = page.getByRole('main');
+  const hotkey = pane.getByRole('button', { name: text('WindowText.HotkeyToggle'), exact: true });
+  const open = (key: string): Promise<void> => pane.getByRole('button', { name: startingWith(text(key)), expanded: false }).click();
+  const toggle = async (): Promise<string | undefined> => (await settingsOf(page)).hotkeys?.toggle;
+
+  await test.step('language', async () => {
+    await chooseByKeys(page, pane.getByRole('combobox', { name: text('UiText.LanguageField') }), texts('es')['UiText.LanguageName'] ?? '');
+    await expect.poll(async () => (await settingsOf(page)).language).toBe('es');
+    await chooseByKeys(page, pane.getByRole('combobox', { name: text('UiText.LanguageField') }), text('UiText.LanguageFromWindows', text('UiText.LanguageName')));
+    await expect.poll(async () => (await settingsOf(page)).language).toBeUndefined();
+  });
+
+  await test.step('the unit, and Start with Windows outside undo', async () => {
+    await pane.getByRole('radio', { name: /°F/ }).press('Space');
+    await expect.poll(async () => (await settingsOf(page)).temperature).toBe('f');
+    await pane.getByRole('switch', { name: text('UiText.StartWithWindows') }).press('Space');
+    await expect.poll(async () => (await fakeOf(page)).startWithWindows).toBe(true);
+    await page.keyboard.press('Control+Z');
+    await expect.poll(async () => (await settingsOf(page)).temperature).toBeUndefined();
+    expect((await fakeOf(page)).startWithWindows).toBe(true);
+  });
+
+  const presses: { name: string; keys: string[]; expected: string | undefined }[] = [
+    { name: 'recorded', keys: ['Control+Alt+H'], expected: 'Ctrl+Alt+H' },
+    { name: 'refused as a common shortcut', keys: ['Control+C'], expected: 'Ctrl+Alt+H' },
+    { name: 'refused as another app\'s', keys: ['Control+Alt+J'], expected: 'Ctrl+Alt+H' },
+    { name: 'recorded when Windows cannot tell whether another app holds it', keys: ['Control+Alt+K'], expected: 'Ctrl+Alt+K' },
+    { name: 'cancelled', keys: ['Escape'], expected: 'Ctrl+Alt+K' },
+    { name: 'cleared', keys: ['Backspace'], expected: undefined },
+  ];
+  await open('WindowText.HotkeysField');
+  for (const press of presses) {
+    await test.step(`a hotkey ${press.name}`, async () => {
+      await hotkey.press('Enter');
+      await expect.poll(async () => (await fakeOf(page)).hotkeysResting).toBe(true);
+      for (const key of press.keys) {
+        await page.keyboard.press(key);
+      }
+      await expect.poll(toggle).toBe(press.expected);
+      await expect.poll(async () => (await fakeOf(page)).hotkeysResting).toBe(false);
+      await expect(hotkey).toBeFocused();
+    });
+  }
+
+  await test.step('Reset asked and cancelled, then done', async () => {
+    const before = await settingsOf(page);
+    await open('WindowText.FileAndReset');
+    await pane.getByRole('button', { name: text('UiText.ResetToDefaults') }).press('Enter');
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByRole('button', { name: text('UiText.Cancel') })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeHidden();
+    expect(await settingsOf(page)).toEqual(before);
+
+    await pane.getByRole('button', { name: text('UiText.ResetToDefaults') }).press('Enter');
+    await dialog.getByRole('button', { name: text('WindowText.Reset'), exact: true }).press('Enter');
+    await expect.poll(async () => (await settingsOf(page)).overlays.length).toBe(1);
+  });
+});

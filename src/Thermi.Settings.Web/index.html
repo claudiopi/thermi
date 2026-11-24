@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Fluent's styles go into empty style elements, filled through the CSS object model: the hash is the empty
+         element's, so no inline style written in the page can apply. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The window's icon is native; an empty one keeps the page from asking for a favicon. -->
+    <link rel="icon" href="data:," />
+    <title>thermi</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>

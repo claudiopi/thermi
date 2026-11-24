@@ -9,7 +9,7 @@
       "metric": "fan.cpu",
       "meter": "fan.cpu.duty",
       "threshold": {
-        "warning": 60,
+        "warning": 65,
         "critical": 85
       }
     },

@@ -17,3 +17,28 @@ M:System.Diagnostics.Stopwatch.StartNew ; Use TimeProvider.GetTimestamp and GetE
 M:System.Diagnostics.Stopwatch.GetTimestamp ; Use TimeProvider.GetTimestamp
 M:System.Environment.Exit(System.Int32) ; Return from Main so windows and the driver are released cleanly
 M:System.Environment.FailFast(System.String) ; Return from Main so windows and the driver are released cleanly
+T:Serilog.Log ; Inject an ILogger: tests give theirs, so none writes the user's thermi.log
+T:System.Diagnostics.Trace ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.Print(System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.Print(System.String,System.Object[]) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.Write(System.Object) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.Write(System.Object,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.Write(System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.Write(System.String,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteIf(System.Boolean,System.Diagnostics.Debug.WriteIfInterpolatedStringHandler@) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteIf(System.Boolean,System.Diagnostics.Debug.WriteIfInterpolatedStringHandler@,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteIf(System.Boolean,System.Object) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteIf(System.Boolean,System.Object,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteIf(System.Boolean,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteIf(System.Boolean,System.String,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLine(System.Object) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLine(System.Object,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLine(System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLine(System.String,System.Object[]) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLine(System.String,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLineIf(System.Boolean,System.Diagnostics.Debug.WriteIfInterpolatedStringHandler@) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLineIf(System.Boolean,System.Diagnostics.Debug.WriteIfInterpolatedStringHandler@,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLineIf(System.Boolean,System.Object) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLineIf(System.Boolean,System.Object,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLineIf(System.Boolean,System.String) ; Inject an ILogger and log at debug, which --trace turns on
+M:System.Diagnostics.Debug.WriteLineIf(System.Boolean,System.String,System.String) ; Inject an ILogger and log at debug, which --trace turns on

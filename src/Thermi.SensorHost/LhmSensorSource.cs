@@ -1,15 +1,17 @@
 using LibreHardwareMonitor.Hardware;
-using Thermi.Core;
+using Thermi.Core.Sensors;
 
 namespace Thermi.SensorHost;
 
-/// <summary>The only class that talks to LibreHardwareMonitor.</summary>
-internal sealed class LhmSensorSource : IDisposable
+/// <summary>
+/// The only class that talks to LibreHardwareMonitor. Drives are updated every <see cref="StorageEvery"/> and send their
+/// last values between: each of their updates reads SMART and opens every volume, about 3 ms of CPU and a round of disk
+/// requests, for values that change slowly.
+/// </summary>
+internal sealed class LhmSensorSource(TimeProvider time) : ISensorSource
 {
-    // The sensor types thermi can show. The rest (voltages, throughput, ...) never leave this process.
-    private static readonly HashSet<SensorType> Shown = [SensorType.Temperature, SensorType.Load, SensorType.Clock, SensorType.Power, SensorType.Fan, SensorType.Control, SensorType.Data];
+    public static readonly TimeSpan StorageEvery = TimeSpan.FromSeconds(5);
 
-    // Storage and network stay off: they cost the most to read, and thermi has no metric for them.
     private readonly Computer _computer = new()
     {
         IsCpuEnabled = true,
@@ -17,10 +19,17 @@ internal sealed class LhmSensorSource : IDisposable
         IsMemoryEnabled = true,
         IsMotherboardEnabled = true,
         IsControllerEnabled = true,
+        IsNetworkEnabled = true,
+        IsStorageEnabled = true,
+        IsBatteryEnabled = true,
     };
+
+    private readonly NetworkAdapters _adapters = new();
 
     // Stopping the service may close the library while a read is still running on another thread.
     private readonly Lock _lock = new();
+    private readonly ReadPace _reads = new(time, TimeSpan.Zero);
+    private readonly ReadPace _drives = new(time, StorageEvery);
     private bool _open;
 
     public Snapshot Read()
@@ -33,13 +42,24 @@ internal sealed class LhmSensorSource : IDisposable
                 _open = true;
             }
 
+            var adapters = _adapters.Of([.. _computer.Hardware.Where(hardware => hardware.HardwareType == HardwareType.Network).Select(hardware => hardware.Identifier.ToString())]);
             var sensors = new List<RawSensor>();
-            foreach (var hardware in _computer.Hardware)
+            var drivesDue = _drives.Due;
+            _reads.Updated();
+            if (drivesDue)
             {
-                Collect(hardware, sensors);
+                _drives.Updated();
             }
 
-            return new Snapshot(sensors);
+            // A filter's layer repeats its adapter's traffic, and a PC has a few for each adapter: it is neither read nor sent.
+            foreach (var hardware in _computer.Hardware.Where(hardware => adapters.GetValueOrDefault(hardware.Identifier.ToString()) != AdapterKind.Layer))
+            {
+                var pace = hardware.HardwareType == HardwareType.Storage ? _drives : _reads;
+                Collect(hardware, sensors, update: pace == _reads || drivesDue, pace.SpeedsHold);
+            }
+
+            List<string> virtualAdapters = [.. adapters.Where(adapter => adapter.Value == AdapterKind.Virtual).Select(adapter => adapter.Key)];
+            return new Snapshot(sensors) { VirtualAdapters = virtualAdapters.Count > 0 ? virtualAdapters : null };
         }
     }
 
@@ -55,11 +75,15 @@ internal sealed class LhmSensorSource : IDisposable
         }
     }
 
-    private static void Collect(IHardware hardware, List<RawSensor> sensors)
+    // A hardware not updated now sends its last values; with speeds that do not hold, it sends no speed.
+    private static void Collect(IHardware hardware, List<RawSensor> sensors, bool update, bool speedsHold)
     {
         try
         {
-            hardware.Update();
+            if (update)
+            {
+                hardware.Update();
+            }
         }
 #pragma warning disable CA1031 // Drivers fail in many ways (a GPU driver reset, a busy bus); one device must not silence the rest.
         catch (Exception)
@@ -69,20 +93,27 @@ internal sealed class LhmSensorSource : IDisposable
             return;
         }
 
-        foreach (var sensor in hardware.Sensors.Where(sensor => Shown.Contains(sensor.SensorType)))
+        foreach (var sensor in hardware.Sensors)
         {
-            sensors.Add(new RawSensor(
+            var speed = sensor.SensorType == SensorType.Throughput;
+            var raw = new RawSensor(
                 sensor.Identifier.ToString(),
                 hardware.HardwareType.ToString(),
                 hardware.Name,
                 sensor.SensorType.ToString(),
                 sensor.Name,
-                sensor.Value));
+                speed && !speedsHold ? null : sensor.Value);
+
+            // The types thermi cannot show (voltages, currents, energy, ...) never leave this process.
+            if (SensorMap.KindOf(raw) is not null)
+            {
+                sensors.Add(raw);
+            }
         }
 
         foreach (var sub in hardware.SubHardware)
         {
-            Collect(sub, sensors);
+            Collect(sub, sensors, update, speedsHold);
         }
     }
 }

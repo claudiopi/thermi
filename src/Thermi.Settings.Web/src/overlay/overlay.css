@@ -1,0 +1,444 @@
+/* The overlay page: Appearance beside Placement, in the columns of app.css. The doubled classes outweigh Fluent's
+   own, which it adds after this sheet. */
+
+.t-ov {
+  --t-accent: var(--colorBrandBackground);
+  --t-accent-soft: color-mix(in srgb, var(--colorBrandBackground) 35%, transparent);
+}
+
+.t-page-head.t-ov-head {
+  align-items: flex-end;
+}
+
+/* The Position row keeps its name at its top, over the map. */
+.t-map-card > div:first-child {
+  align-items: flex-start;
+}
+
+.t-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.t-pane-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* An overlay that does not fit beside the taskbar's apps, under the title. */
+.t-crowd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--thermi-text2);
+}
+
+.t-crowd-icon {
+  color: var(--colorBrandForeground1);
+}
+
+.t-crowd-text {
+  min-width: 0;
+}
+
+/* Look: its row joined to its tiles, each a sample pill over its name. */
+.t-look-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 0 16px;
+}
+
+.t-look-title {
+  flex: 1;
+}
+
+.t-looks {
+  display: grid;
+  grid-auto-rows: 88px;
+  gap: 8px;
+  padding: 4px 16px 18px;
+}
+
+.t-look {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  height: 88px;
+  padding: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, currentColor 7%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  color: inherit;
+  font: inherit;
+}
+
+.t-look:hover {
+  background: var(--thermi-subtle-hover);
+}
+
+.t-look:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: 2px;
+}
+
+.t-look.t-on {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--t-accent);
+}
+
+.t-look-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.t-look.t-on .t-look-name {
+  color: var(--thermi-text);
+  font-weight: 600;
+}
+
+.t-look-wrap {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.t-look-wrap .t-look-more.t-look-more {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  opacity: 0;
+}
+
+.t-look-wrap:hover .t-look-more.t-look-more,
+.t-look-wrap .t-look-more.t-look-more:focus-visible,
+.t-look-wrap .t-look-more.t-look-more[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.t-pill {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  border: 1px solid;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.t-pill-dark,
+.t-ov .t-pill-system {
+  border-color: #31312f;
+  background: #20201e;
+  color: #efefee;
+}
+
+.t-pill-dark .t-pill-label,
+.t-ov .t-pill-system .t-pill-label {
+  color: #a9a9a7;
+}
+
+.t-pill-light {
+  border-color: #dadad8;
+  background: #f3f3f1;
+  color: #1a1a1a;
+}
+
+.t-pill-light .t-pill-label {
+  color: #5c5c5a;
+}
+
+@media (prefers-color-scheme: light) {
+  .t-ov .t-pill-system {
+    border-color: #dadad8;
+    background: #f3f3f1;
+    color: #1a1a1a;
+  }
+
+  .t-ov .t-pill-system .t-pill-label {
+    color: #5c5c5a;
+  }
+}
+
+@container col (max-width: 519px) {
+  .t-look .t-pill {
+    transform: scale(0.85);
+  }
+}
+
+/* The controls' own widths, as the prototype's rows give them. */
+.t-slider.t-slider {
+  width: 160px;
+  min-width: 0;
+}
+
+.t-slider-short.t-slider-short {
+  width: 140px;
+  min-width: 0;
+}
+
+.t-size-box.t-size-box {
+  width: 96px;
+  min-width: 0;
+}
+
+.t-layout-box.t-layout-box {
+  min-width: 160px;
+}
+
+.t-weight-box.t-weight-box {
+  width: 120px;
+  min-width: 0;
+}
+
+.t-font-box.t-font-box {
+  width: 220px;
+  min-width: 0;
+}
+
+.t-effect-box.t-effect-box {
+  width: 140px;
+  min-width: 0;
+}
+
+.t-when-box.t-when-box {
+  width: 260px;
+  min-width: 0;
+}
+
+.t-reset-row.t-reset-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: 8px 16px;
+}
+
+/* Colors: a swatch per color, which opens its hex box and choices. */
+.t-color-row {
+  display: inline-flex;
+  gap: 4px;
+  margin-inline-end: 4px;
+}
+
+.t-color-row i,
+.t-color-swatch i,
+.t-color-choice i {
+  display: block;
+  border-radius: 3px;
+}
+
+.t-color-row i {
+  width: 12px;
+  height: 12px;
+}
+
+.t-ov i.t-neutral {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--thermi-text3);
+}
+
+.t-color-swatch {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  padding: 3px;
+  box-sizing: border-box;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: 4px;
+  background: var(--colorNeutralBackground1);
+}
+
+.t-color-swatch:hover {
+  background: var(--colorNeutralBackground1Hover);
+}
+
+.t-color-swatch:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: 1px;
+}
+
+.t-color-choices {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+}
+
+.t-hex {
+  order: -1;
+}
+
+.t-color-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+.t-color-choice:hover,
+.t-color-choice[aria-checked='true'] {
+  background: var(--thermi-subtle-hover);
+}
+
+.t-color-choice:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: -2px;
+}
+
+.t-color-choice i {
+  width: 14px;
+  height: 14px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 20%);
+}
+
+/* The map: the displays drawn to scale, each spot a radio. */
+.t-map-block {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 16px;
+}
+
+.t-map {
+  position: relative;
+  margin-top: 4px;
+}
+
+.t-mon {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, currentColor 54.5%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.t-mon.t-on {
+  border-color: var(--t-accent);
+  box-shadow: inset 0 0 0 1px var(--t-accent);
+}
+
+.t-mon-name {
+  position: absolute;
+  inset: 50% 0 auto;
+  margin-top: -16px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-line;
+  color: var(--thermi-text3);
+}
+
+.t-mon.t-on .t-mon-name {
+  color: var(--thermi-text);
+  font-weight: 600;
+}
+
+.t-mon-bar {
+  position: absolute;
+  inset: auto 0 0;
+  box-sizing: border-box;
+  border-top: 1px solid var(--thermi-divider);
+  border-radius: 0 0 5px 5px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.t-spot {
+  position: absolute;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1.5px solid var(--thermi-text3);
+  border-radius: 50%;
+  background: var(--thermi-panel);
+}
+
+.t-spot::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+}
+
+.t-spot.t-spot-bar {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+}
+
+.t-spot:hover {
+  border-color: var(--thermi-text);
+  transform: scale(1.2);
+}
+
+.t-spot.t-on {
+  border: 0;
+  background: var(--t-accent);
+  box-shadow: 0 0 0 3px var(--t-accent-soft);
+}
+
+/* A hidden overlay's spot, dimmed: it sits there, but shows only in the window. */
+.t-spot.t-on.t-hidden {
+  opacity: 0.4;
+}
+
+.t-spot:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  .t-spot {
+    forced-color-adjust: none;
+    border-color: ButtonText;
+    background: Canvas;
+  }
+
+  .t-spot.t-on {
+    background: Highlight;
+    box-shadow: 0 0 0 2px Canvas, 0 0 0 4px Highlight;
+  }
+
+  .t-mon.t-on {
+    border-color: Highlight;
+  }
+
+  .t-look.t-on {
+    outline: 2px solid Highlight;
+    outline-offset: 1px;
+  }
+
+  .t-color-row i,
+  .t-color-swatch i,
+  .t-color-choice i {
+    forced-color-adjust: none;
+    outline: 1px solid CanvasText;
+  }
+}

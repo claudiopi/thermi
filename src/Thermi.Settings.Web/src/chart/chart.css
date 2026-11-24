@@ -1,0 +1,209 @@
+/* The chart, as the design prototype draws it: no frame or grid, a 1.5 px line over a soft fill, the bands above
+   the lines tinted at 7 %, and the knobs in a 64 px column beside the plot, 8 px from it. */
+
+.t-chart {
+  min-width: 0;
+  margin-bottom: 16px;
+}
+
+.t-chart-row {
+  position: relative;
+  display: flex;
+}
+
+.t-plot {
+  display: block;
+  flex: none;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.t-line {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.t-threshold {
+  stroke-width: 1;
+}
+
+.t-threshold.t-warning,
+.t-tint-warning {
+  stroke: var(--thermi-warning);
+  fill: var(--thermi-warning);
+}
+
+.t-threshold.t-critical,
+.t-tint-critical {
+  stroke: var(--thermi-critical);
+  fill: var(--thermi-critical);
+}
+
+.t-tint-warning,
+.t-tint-critical {
+  stroke: none;
+  opacity: 0.07;
+}
+
+.t-chart-empty-mark {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  color: var(--thermi-text3);
+}
+
+/* Without readings: no line, no tints and no axis, the mark asleep beside why, over the plot. */
+.t-chart-empty {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0 24px;
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text3);
+  pointer-events: none;
+}
+
+.t-knobs {
+  position: relative;
+  flex: none;
+  width: 64px;
+}
+
+.t-knob-place {
+  position: absolute;
+  left: 8px;
+  transform: translateY(-50%);
+}
+
+.t-knob {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 24px;
+  min-width: 52px;
+  padding: 0 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--thermi-on-level);
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.t-knob::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 8px;
+  height: 1px;
+}
+
+.t-warning .t-knob,
+.t-warning .t-knob::before {
+  background: var(--thermi-warning);
+}
+
+.t-critical .t-knob,
+.t-critical .t-knob::before {
+  background: var(--thermi-critical);
+}
+
+.t-knob:focus-visible {
+  box-shadow: 0 0 0 2px var(--colorStrokeFocus2);
+}
+
+@media (forced-colors: active) {
+  .t-knob {
+    border: 1px solid CanvasText;
+  }
+}
+
+.t-box-wrap {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 2;
+  transform: translateY(-50%);
+}
+
+.t-box {
+  width: 64px;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-bottom: 2px solid var(--colorCompoundBrandStroke);
+  border-radius: 4px;
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  font: inherit;
+  outline: none;
+}
+
+.t-box[aria-invalid='true'] {
+  border-bottom-color: var(--colorPaletteRedBorder2);
+}
+
+.t-box-refused {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  width: 220px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--colorNeutralBackground1);
+  box-shadow: var(--shadow8);
+  color: var(--colorPaletteRedForeground1);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.t-chart-foot {
+  margin-top: 6px;
+}
+
+.t-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text3);
+}
+
+.t-chart-title {
+  margin-bottom: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+}
+
+.t-stats,
+.t-pushed {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+}
+
+.t-adds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}

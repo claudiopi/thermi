@@ -1,5 +1,7 @@
 using System.Globalization;
-using Thermi.Core;
+using Thermi.Core.Look;
+using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
 
 namespace Thermi.Tests;
 
@@ -9,15 +11,7 @@ public sealed class OverlayTests
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
     private static readonly Dictionary<string, string> NoSources = new(StringComparer.Ordinal);
 
-    private static Snapshot Recording(string name) =>
-        SnapshotJson.Read(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Recordings", name)).ReplaceLineEndings(""))
-        ?? throw new InvalidOperationException($"{name} is not a valid snapshot.");
-
-    private static Snapshot Desktop => Recording("ryzen-9950x-rtx-5060-ti-admin.json");
-
-    // Sensors report single-precision values, so fills carry float noise.
-    private static List<OverlayItem> Rounded(IEnumerable<OverlayItem> items) =>
-        [.. items.Select(item => item with { Fill = item.Fill is { } fill ? Math.Round(fill, 4) : null })];
+    private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
     [Fact]
     public void ShowsTheDefaultOverlayFromARecording()
@@ -26,54 +20,57 @@ public sealed class OverlayTests
 
         Assert.Equal(
             [
-                new OverlayItem("FAN", "1,087 RPM", 0.64, Level.Warning, "8,888 RPM"),
-                new OverlayItem("CPU", "77 °C", 0.7663, Level.Warning, "100 °C"),
-                new OverlayItem(null, "9 %", 0.0879, Level.Normal, "100 %"),
-                new OverlayItem(null, "71 W", null, Level.Normal, "888 W"),
-                new OverlayItem("GPU", "3 %", 0.03, Level.Normal, "100 %"),
-                new OverlayItem("RAM", "27.2 GB", 0.4412, Level.Normal, "888.8 GB"),
+                new OverlayItem("CPU", "77 °C", Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id },
+                new OverlayItem(null, "1,087 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id },
+                new OverlayItem(null, "9 %", Level.Normal, "100 %") { Id = Metrics.CpuLoad.Id },
+                new OverlayItem(null, "71 W", Level.Normal, "888 W") { Id = Metrics.CpuPower.Id },
+                new OverlayItem("GPU", "3 %", Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
+                new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id },
             ],
-            Rounded(items));
+            items);
     }
 
     [Fact]
     public void WithoutAdminRightsTheCpuShowsAsMissingNotAsZero()
     {
-        var recording = Recording("ryzen-9950x-rtx-5060-ti-no-admin.json");
+        var recording = TestRecordings.Read(TestRecordings.NoAdmin);
 
         var items = OverlayLayout.Build(new OverlayConfig(), SensorMap.Read(recording, NoSources), English);
 
         Assert.Equal(
             [
-                new OverlayItem("FAN", ReadingFormatter.Missing, 0, Level.Normal, "8,888 RPM"),
-                new OverlayItem("CPU", ReadingFormatter.Missing, 0, Level.Normal, "100 °C"),
-                new OverlayItem(null, "10 %", 0.098, Level.Normal, "100 %"),
-                new OverlayItem(null, ReadingFormatter.Missing, null, Level.Normal, "888 W"),
-                new OverlayItem("GPU", "3 %", 0.03, Level.Normal, "100 %"),
-                new OverlayItem("RAM", "27.2 GB", 0.4405, Level.Normal, "888.8 GB"),
+                new OverlayItem("CPU", ReadingFormatter.Missing, Level.Normal, "100 °C") { Id = Metrics.CpuTemperature.Id },
+                new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id },
+                new OverlayItem(null, "10 %", Level.Normal, "100 %") { Id = Metrics.CpuLoad.Id },
+                new OverlayItem(null, ReadingFormatter.Missing, Level.Normal, "888 W") { Id = Metrics.CpuPower.Id },
+                new OverlayItem("GPU", "3 %", Level.Normal, "100 %") { Id = Metrics.GpuLoad.Id },
+                new OverlayItem("RAM", "27.2 GB", Level.Normal, "888.8 GB") { Id = Metrics.RamUsed.Id },
             ],
-            Rounded(items));
+            items);
     }
 
-    [Fact]
-    public void EachLabelStartsItsOwnPill()
+    // A sensor that is gone, or named for a metric of another kind, leaves the metric missing: never another sensor's
+    // value, nor one in the wrong unit. Without a metric, every metric is.
+    [Theory]
+    [InlineData("the desktop without Memory Used", null, null, "ram.used")]
+    [InlineData("the desktop", "cpu.temperature", "/lpc/it8689e/0/fan/0", "cpu.temperature")]
+    [InlineData("the desktop", "cpu.temperature", "/amdcpu/9/temperature/9", "cpu.temperature")]
+    [InlineData("a fan's control alone", "fan.cpu", "/lpc/it8689e/0/control/0", "fan.cpu.duty")]
+    [InlineData("nothing", null, null, null)]
+    public void AMetricWithoutItsSensorIsMissingNeverGuessed(string snapshot, string? named, string? sensor, string? metric)
     {
-        var items = OverlayLayout.Build(new OverlayConfig(), SensorMap.Read(Desktop, NoSources), English);
+        var read = snapshot switch
+        {
+            "the desktop" => Desktop,
+            "the desktop without Memory Used" => new Snapshot([.. Desktop.Sensors.Where(each => each.Name != "Memory Used")]),
+            "a fan's control alone" => new Snapshot([new RawSensor("/lpc/it8689e/0/control/0", "SuperIO", "ITE IT8689E", "Control", "Fan #1", 42)]),
+            _ => new Snapshot([]),
+        };
+        var sources = named is null ? NoSources : new Dictionary<string, string>(StringComparer.Ordinal) { [named] = sensor! };
 
-        var groups = OverlayLayout.Groups(items);
+        var readings = SensorMap.Read(read, sources);
 
-        Assert.Equal(["FAN", "CPU", "GPU", "RAM"], groups.Select(group => group[0].Label));
-        Assert.Equal([1, 3, 1, 1], groups.Select(group => group.Count));
-    }
-
-    [Fact]
-    public void RamUsedIsNeverGuessedFromAnotherSize()
-    {
-        var withoutUsed = new Snapshot([.. Desktop.Sensors.Where(sensor => sensor.Name != "Memory Used")]);
-
-        var readings = SensorMap.Read(withoutUsed, NoSources);
-
-        Assert.Null(readings[Metrics.RamUsed.Id].Value);
+        Assert.All(metric is null ? Metrics.All.Select(each => each.Id) : [metric], id => Assert.Null(readings[id].Value));
     }
 
     [Fact]
@@ -104,23 +101,26 @@ public sealed class OverlayTests
     }
 
     [Fact]
-    public void ANamedSensorOfAnotherKindShowsAsMissingNotWithTheWrongUnit()
+    public void ItemsThatKeepTheSameMetricAsAutoEachShowTheirOwnSensor()
     {
-        var sources = new Dictionary<string, string>(StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = "/lpc/it8689e/0/fan/0" };
+        const string Ccd1 = "/amdcpu/0/temperature/3";
+        const string Ccd2 = "/amdcpu/0/temperature/4";
+        var ccd2Meter = new MeterConfig { Sensor = Ccd2, Auto = Metrics.CpuTemperature.Id };
+        var overlay = new OverlayConfig
+        {
+            Items =
+            [
+                new ItemConfig { Id = "ccd1", Sensor = Ccd1, Auto = Metrics.CpuTemperature.Id, Label = "CCD1" },
+                new ItemConfig { Id = "ccd2", Sensor = Ccd2, Auto = Metrics.CpuTemperature.Id, Label = "CCD2", Meter = ccd2Meter, Threshold = new Threshold(40, 60) },
+                new ItemConfig { Id = "load", Metric = Metrics.CpuLoad.Id, Label = "LOAD", Meter = ccd2Meter, Threshold = new Threshold(40, 60) },
+            ],
+        };
 
-        var readings = SensorMap.Read(Desktop, sources);
+        var items = OverlayLayout.Build(overlay, SensorMap.Read(Desktop, overlay), English);
 
-        Assert.Null(readings[Metrics.CpuTemperature.Id].Value);
-    }
+        Assert.Equal(["72 °C", "47 °C", "9 %"], items.Select(item => item.Value));
 
-    [Fact]
-    public void ANamedSensorThatIsGoneShowsAsMissing()
-    {
-        var sources = new Dictionary<string, string>(StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = "/amdcpu/9/temperature/9" };
-
-        var items = OverlayLayout.Build(new OverlayConfig(), SensorMap.Read(Desktop, sources), English);
-
-        Assert.Equal(new OverlayItem("CPU", ReadingFormatter.Missing, 0, Level.Normal, "100 °C"), items[1]);
+        Assert.Equal([Level.Normal, Level.Warning, Level.Warning], items.Select(item => item.Level));
     }
 
     [Fact]
@@ -129,16 +129,8 @@ public sealed class OverlayTests
         var items = OverlayLayout.Build(new OverlayConfig(), new Dictionary<string, Reading>(StringComparer.Ordinal), English);
 
         Assert.All(items, item => Assert.Equal(ReadingFormatter.Missing, item.Value));
-        Assert.All(items, item => Assert.True(item.Fill is null or 0));
+
         Assert.All(items, item => Assert.Equal(Level.Normal, item.Level));
-    }
-
-    [Fact]
-    public void AnEmptySnapshotLeavesEveryMetricMissing()
-    {
-        var readings = SensorMap.Read(new Snapshot([]), NoSources);
-
-        Assert.All(Metrics.All, metric => Assert.Null(readings[metric.Id].Value));
     }
 
     [Fact]
@@ -148,31 +140,31 @@ public sealed class OverlayTests
         {
             [Metrics.CpuFan.Id] = new(SensorKind.Fan, 2400),
             [Metrics.CpuFanDuty.Id] = new(SensorKind.Control, 90),
-            [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 76),
+            [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 96),
             [Metrics.CpuLoad.Id] = new(SensorKind.Load, 140),
         };
 
         var items = OverlayLayout.Build(new OverlayConfig(), hot, English);
 
+        Assert.Equal(Level.Normal, items[1].Level);
         Assert.Equal(Level.Critical, items[0].Level);
-        Assert.Equal(Level.Warning, items[1].Level);
-        Assert.Equal(1.0, items[2].Fill);
+
     }
 
     [Fact]
     public void SkipsItemsForMetricsThisVersionDoesNotKnow()
     {
-        var config = new OverlayConfig { Items = [new ItemConfig("gpu.hotspot"), new ItemConfig(Metrics.RamLoad.Id)] };
+        var config = new OverlayConfig { Items = [new ItemConfig { Metric = "gpu.hotspot" }, new ItemConfig { Metric = Metrics.RamLoad.Id }] };
 
         var items = OverlayLayout.Build(config, SensorMap.Read(Desktop, NoSources), English);
 
-        Assert.Equal([new OverlayItem("RAM", "44 %", null, Level.Normal, "100 %")], items);
+        Assert.Equal([new OverlayItem("RAM", "44 %", Level.Normal, "100 %")], items);
     }
 
     [Fact]
     public void AnItemWithoutAThresholdIsNeverAlarming()
     {
-        var config = new OverlayConfig { Items = [new ItemConfig(Metrics.CpuLoad.Id, Meter: Metrics.CpuLoad.Id)] };
+        var config = new OverlayConfig { Items = [new ItemConfig { Metric = Metrics.CpuLoad.Id, Meter = new MeterConfig { Metric = Metrics.CpuLoad.Id } }] };
         var readings = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuLoad.Id] = new(SensorKind.Load, 99) };
 
         Assert.Equal(Level.Normal, OverlayLayout.Build(config, readings, English)[0].Level);

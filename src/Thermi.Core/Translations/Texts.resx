@@ -1,0 +1,1977 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="UiText.ClickThrough" xml:space="preserve">
+    <value>Click-through</value>
+  </data>
+  <data name="HostText.ClickThroughOnTitle" xml:space="preserve">
+    <value>The overlay now lets clicks through</value>
+  </data>
+  <data name="HostText.ClickThroughOnText" xml:space="preserve">
+    <value>To change it, right-click thermi's icon here or open Settings. Click this notice to undo.</value>
+  </data>
+  <data name="UiText.LockPosition" xml:space="preserve">
+    <value>Lock position</value>
+  </data>
+  <data name="UiText.Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="OverlayText.ConfigLabel" xml:space="preserve">
+    <value>CONFIG</value>
+  </data>
+  <data name="OverlayText.ConfigError" xml:space="preserve">
+    <value>error</value>
+  </data>
+  <data name="UiText.OverlayName" xml:space="preserve">
+    <value>Overlay {0}</value>
+  </data>
+  <data name="UiText.OverlayPlace" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PlaceText.OnMonitor" xml:space="preserve">
+    <value>{0}, monitor {1}</value>
+  </data>
+  <data name="PlaceText.FreePosition" xml:space="preserve">
+    <value>where it was dropped</value>
+  </data>
+  <data name="UiText.Catalog" xml:space="preserve">
+    <value>Sensors</value>
+  </data>
+  <data name="UiText.CatalogSearch" xml:space="preserve">
+    <value>Search sensors, devices or types</value>
+  </data>
+  <data name="UiText.Auto" xml:space="preserve">
+    <value>Auto</value>
+  </data>
+  <data name="UiText.AddItem" xml:space="preserve">
+    <value>Add item</value>
+  </data>
+  <data name="UiText.Combine" xml:space="preserve">
+    <value>Combine…</value>
+  </data>
+  <data name="CatalogText.FanFinderWaiting" xml:space="preserve">
+    <value>Waiting for fresh readings…</value>
+  </data>
+  <data name="CatalogText.FanFinderLoading" xml:space="preserve">
+    <value>Loading every core, up to 30 s</value>
+  </data>
+  <data name="UiText.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="UiText.OverlayNotRunning" xml:space="preserve">
+    <value>The overlay is not running, so changes show only here.</value>
+  </data>
+  <data name="UiText.StartOverlay" xml:space="preserve">
+    <value>Start the overlay</value>
+  </data>
+  <data name="UiText.GeneralTab" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="UiText.Undo" xml:space="preserve">
+    <value>Undo (Ctrl+Z)</value>
+  </data>
+  <data name="UiText.Redo" xml:space="preserve">
+    <value>Redo (Ctrl+Y)</value>
+  </data>
+  <data name="UiText.StageItems" xml:space="preserve">
+    <value>The overlay's items</value>
+  </data>
+  <data name="UiText.SensorField" xml:space="preserve">
+    <value>Sensor</value>
+  </data>
+  <data name="UiText.LabelField" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="UiText.MeterField" xml:space="preserve">
+    <value>Meter</value>
+  </data>
+  <data name="UiText.MeterNone" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="UiText.MeterItself" xml:space="preserve">
+    <value>This value</value>
+  </data>
+  <data name="UiText.OwnPill" xml:space="preserve">
+    <value>Separate pill</value>
+  </data>
+  <data name="UiText.OwnTrayIcon" xml:space="preserve">
+    <value>Tray icon</value>
+  </data>
+  <data name="UiText.MoreOptions" xml:space="preserve">
+    <value>More options</value>
+  </data>
+  <data name="UiText.WarningFrom" xml:space="preserve">
+    <value>Warning line</value>
+  </data>
+  <data name="UiText.CriticalFrom" xml:space="preserve">
+    <value>Critical line</value>
+  </data>
+  <data name="UiText.ResetThreshold" xml:space="preserve">
+    <value>Reset thresholds</value>
+  </data>
+  <data name="UiText.ValueColor" xml:space="preserve">
+    <value>Value color</value>
+  </data>
+  <data name="UiText.StyleColor" xml:space="preserve">
+    <value>Use the style's</value>
+  </data>
+  <data name="UiText.CatalogLive" xml:space="preserve">
+    <value>Everything the sensor service reads, live</value>
+  </data>
+  <data name="CatalogText.AllKinds" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="UiText.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="UiText.FindingCpuFan" xml:space="preserve">
+    <value>Finding your CPU fan…</value>
+  </data>
+  <data name="CatalogText.FindCpuFanHint" xml:space="preserve">
+    <value>Not sure it is the CPU fan? thermi loads the CPU for up to 30 s, so your fans speed up, and watches which one answers.</value>
+  </data>
+  <data name="CatalogText.AddTo" xml:space="preserve">
+    <value>Add to {0}</value>
+  </data>
+  <data name="CatalogText.CatalogOverlay" xml:space="preserve">
+    <value>Overlay to add to</value>
+  </data>
+  <data name="CatalogText.KindField" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="CatalogText.SensorCount" xml:space="preserve">
+    <value>{0} sensors</value>
+  </data>
+  <data name="CatalogText.OneSensor" xml:space="preserve">
+    <value>1 sensor</value>
+  </data>
+  <data name="CatalogText.CountSaid" xml:space="preserve">
+    <value>{0}. Down arrow to browse, Enter adds the first.</value>
+  </data>
+  <data name="CatalogText.NoMatchFor" xml:space="preserve">
+    <value>No sensor matches “{0}”.</value>
+  </data>
+  <data name="CatalogText.TryOneWord" xml:space="preserve">
+    <value>Try one word, like “{0}”.</value>
+  </data>
+  <data name="CatalogText.RowNeedsDriver" xml:space="preserve">
+    <value>Needs the driver</value>
+  </data>
+  <data name="CatalogText.RowStopped" xml:space="preserve">
+    <value>Stopped or not connected</value>
+  </data>
+  <data name="CatalogText.RowReadsNothing" xml:space="preserve">
+    <value>Reads nothing</value>
+  </data>
+  <data name="CatalogText.ShownAs" xml:space="preserve">
+    <value>Shown: {0}</value>
+  </data>
+  <data name="CatalogText.GroupNetwork" xml:space="preserve">
+    <value>Network</value>
+  </data>
+  <data name="CatalogText.GroupDisk" xml:space="preserve">
+    <value>Disk</value>
+  </data>
+  <data name="CatalogText.GroupBattery" xml:space="preserve">
+    <value>Battery</value>
+  </data>
+  <data name="CatalogText.Added" xml:space="preserve">
+    <value>Added {0} to {1}.</value>
+  </data>
+  <data name="CatalogText.CatalogEmpty" xml:space="preserve">
+    <value>The sensor service reads no sensors yet</value>
+  </data>
+  <data name="CatalogText.CatalogEmptyHint" xml:space="preserve">
+    <value>It may still be starting. If this stays, restart thermi-sensors in Windows Services.</value>
+  </data>
+  <data name="CatalogText.FindIt" xml:space="preserve">
+    <value>Find it</value>
+  </data>
+  <data name="CatalogText.UseIt" xml:space="preserve">
+    <value>Use it</value>
+  </data>
+  <data name="CatalogText.Dismiss" xml:space="preserve">
+    <value>Dismiss</value>
+  </data>
+  <data name="CatalogText.FinderStarted" xml:space="preserve">
+    <value>Finding your CPU fan: thermi loads the CPU for up to 30 seconds.</value>
+  </data>
+  <data name="CatalogText.FinderStopped" xml:space="preserve">
+    <value>Stopped. The fans are back to normal.</value>
+  </data>
+  <data name="CatalogText.AlreadyUsed" xml:space="preserve">
+    <value>thermi already uses it.</value>
+  </data>
+  <data name="CatalogText.FanRose" xml:space="preserve">
+    <value>It rose {0:N0} RPM under load.</value>
+  </data>
+  <data name="CatalogText.ClearSearch" xml:space="preserve">
+    <value>Clear the search</value>
+  </data>
+  <data name="CatalogText.LikelyNote" xml:space="preserve">
+    <value>Likely · {0}</value>
+  </data>
+  <data name="CatalogText.LikelyDuty" xml:space="preserve">
+    <value>{0} duty</value>
+  </data>
+  <data name="CatalogText.InputNote" xml:space="preserve">
+    <value>{0} · input {1}</value>
+  </data>
+  <data name="CatalogText.LikelyTip" xml:space="preserve">
+    <value>{0} calls this {1}. On most boards with this chip it reads the {2}, but boards differ: rename it if you know better.</value>
+  </data>
+  <data name="CatalogText.InputTip" xml:space="preserve">
+    <value>{0} only numbers its inputs, and what each one reads depends on the board. Rename it once you know.</value>
+  </data>
+  <data name="CatalogText.HiddenCount" xml:space="preserve">
+    <value>{0} · {1} hidden</value>
+  </data>
+  <data name="CatalogText.ShowAll" xml:space="preserve">
+    <value>Show all</value>
+  </data>
+  <data name="CatalogText.RenameSensor" xml:space="preserve">
+    <value>Rename {0}</value>
+  </data>
+  <data name="CatalogText.SensorNameBox" xml:space="preserve">
+    <value>Name of {0}</value>
+  </data>
+  <data name="LikelyName.System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="LikelyName.Chipset" xml:space="preserve">
+    <value>Chipset</value>
+  </data>
+  <data name="LikelyName.Cpu" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="LikelyName.PcieSlot" xml:space="preserve">
+    <value>PCIe slot</value>
+  </data>
+  <data name="LikelyName.Vrm" xml:space="preserve">
+    <value>VRM</value>
+  </data>
+  <data name="LikelyName.CpuFan" xml:space="preserve">
+    <value>CPU fan</value>
+  </data>
+  <data name="LikelyName.SystemFan1" xml:space="preserve">
+    <value>System fan 1</value>
+  </data>
+  <data name="LikelyName.SystemFan2" xml:space="preserve">
+    <value>System fan 2</value>
+  </data>
+  <data name="ChangedField.SensorName" xml:space="preserve">
+    <value>Sensor name</value>
+  </data>
+  <data name="Refusal.SensorNameTooLong" xml:space="preserve">
+    <value>A sensor's name can be up to 40 characters.</value>
+  </data>
+  <data name="CatalogText.FanRising" xml:space="preserve">
+    <value>{0} is rising: +{1:N0} RPM, +{2:N0} %</value>
+  </data>
+  <data name="UiText.MonitorMap" xml:space="preserve">
+    <value>Position</value>
+  </data>
+  <data name="UiText.SizeField" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="UiText.StartWithWindows" xml:space="preserve">
+    <value>Start with Windows</value>
+  </data>
+  <data name="UiText.ResetToDefaults" xml:space="preserve">
+    <value>Reset to defaults</value>
+  </data>
+  <data name="UiText.LookField" xml:space="preserve">
+    <value>Look</value>
+  </data>
+  <data name="UiText.LayoutField" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="UiText.UnitsField" xml:space="preserve">
+    <value>Show units</value>
+  </data>
+  <data name="UiText.DirectionField" xml:space="preserve">
+    <value>Direction</value>
+  </data>
+  <data name="UiText.LabelsField" xml:space="preserve">
+    <value>Labels</value>
+  </data>
+  <data name="UiText.ValuesField" xml:space="preserve">
+    <value>Values</value>
+  </data>
+  <data name="UiText.BackgroundField" xml:space="preserve">
+    <value>Background opacity</value>
+  </data>
+  <data name="UiText.TextColorsField" xml:space="preserve">
+    <value>Text colors</value>
+  </data>
+  <data name="UiText.MeterColorsField" xml:space="preserve">
+    <value>Meter colors</value>
+  </data>
+  <data name="UiText.ResetColors" xml:space="preserve">
+    <value>Reset colors</value>
+  </data>
+  <data name="UiText.RenameStyle" xml:space="preserve">
+    <value>Rename…</value>
+  </data>
+  <data name="UiText.DeleteStyle" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="UiText.ExportStyle" xml:space="preserve">
+    <value>Export…</value>
+  </data>
+  <data name="UiText.ImportStyle" xml:space="preserve">
+    <value>Import…</value>
+  </data>
+  <data name="UiText.StyleNameField" xml:space="preserve">
+    <value>Look name</value>
+  </data>
+  <data name="UiText.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="UiText.SaveAsMyStyle" xml:space="preserve">
+    <value>Save as my look</value>
+  </data>
+  <data name="UiText.StyleFiles" xml:space="preserve">
+    <value>thermi styles</value>
+  </data>
+  <data name="UiText.LanguageField" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="UiText.LanguageName" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="UiText.LanguageFromWindows" xml:space="preserve">
+    <value>Windows' language · {0}</value>
+  </data>
+  <data name="UiText.TemperatureField" xml:space="preserve">
+    <value>Temperature</value>
+  </data>
+  <data name="HotkeyText.HotkeyOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="HotkeyText.HotkeyListening" xml:space="preserve">
+    <value>Press a combination…</value>
+  </data>
+  <data name="HotkeyText.HotkeyHeld" xml:space="preserve">
+    <value>Another app holds {0}.</value>
+  </data>
+  <data name="HotkeyText.HotkeysNeedOverlay" xml:space="preserve">
+    <value>Hotkeys work only while the overlay runs.</value>
+  </data>
+  <data name="UiText.DuplicateOverlay" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="UiText.StatField" xml:space="preserve">
+    <value>Shows</value>
+  </data>
+  <data name="UiText.SmoothField" xml:space="preserve">
+    <value>Smoothing</value>
+  </data>
+  <data name="UiText.SmoothSeconds" xml:space="preserve">
+    <value>{0} s</value>
+  </data>
+  <data name="UiText.DecimalsField" xml:space="preserve">
+    <value>Decimals</value>
+  </data>
+  <data name="UiText.OffsetField" xml:space="preserve">
+    <value>Offset</value>
+  </data>
+  <data name="UiText.MeterGraph" xml:space="preserve">
+    <value>Graph</value>
+  </data>
+  <data name="UiText.AlertOnly" xml:space="preserve">
+    <value>Only on alert</value>
+  </data>
+  <data name="UiText.AlertOnlyNeedsMeter" xml:space="preserve">
+    <value>Only an item with a meter shows only on alert: it shows while its meter is at warning or critical.</value>
+  </data>
+  <data name="UiText.CombineField" xml:space="preserve">
+    <value>Combine as</value>
+  </data>
+  <data name="UiText.CombineAdd" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="OverlayPageText.FontField" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="OverlayPageText.GapField" xml:space="preserve">
+    <value>Gap between pills</value>
+  </data>
+  <data name="OverlayPageText.EffectField" xml:space="preserve">
+    <value>Text effect</value>
+  </data>
+  <data name="OverlayPageText.ColorblindSafe" xml:space="preserve">
+    <value>Colorblind-safe</value>
+  </data>
+  <data name="OverlayPageText.OledCare" xml:space="preserve">
+    <value>OLED care</value>
+  </data>
+  <data name="OverlayPageText.AppearanceSection" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="OverlayPageText.PlacementSection" xml:space="preserve">
+    <value>Placement</value>
+  </data>
+  <data name="OverlayPageText.OverlayHeadItems" xml:space="preserve">
+    <value>{0} items · {1}</value>
+  </data>
+  <data name="OverlayPageText.OverlayHeadOneItem" xml:space="preserve">
+    <value>1 item · {0}</value>
+  </data>
+  <data name="UiText.HideThisOverlay" xml:space="preserve">
+    <value>Hide this overlay</value>
+  </data>
+  <data name="UiText.ShowThisOverlay" xml:space="preserve">
+    <value>Show this overlay</value>
+  </data>
+  <data name="UiText.DeleteThisOverlay" xml:space="preserve">
+    <value>Delete this overlay</value>
+  </data>
+  <data name="OverlayPageText.LookTile" xml:space="preserve">
+    <value>{0} look</value>
+  </data>
+  <data name="OverlayPageText.DefaultLook" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="OverlayPageText.SaveAsMyLook" xml:space="preserve">
+    <value>Save as my look…</value>
+  </data>
+  <data name="OverlayPageText.LookFileActions" xml:space="preserve">
+    <value>Import or export a look</value>
+  </data>
+  <data name="OverlayPageText.LookActions" xml:space="preserve">
+    <value>{0}: rename, export or delete</value>
+  </data>
+  <data name="OverlayPageText.UseOnAllOverlays" xml:space="preserve">
+    <value>Use on all overlays</value>
+  </data>
+  <data name="OverlayPageText.LookKeeps" xml:space="preserve">
+    <value>Saves colors, theme, opacity, text and shape. Not position or layout.</value>
+  </data>
+  <data name="OverlayPageText.MyLook" xml:space="preserve">
+    <value>My look</value>
+  </data>
+  <data name="OverlayPageText.RenameLook" xml:space="preserve">
+    <value>Rename the look</value>
+  </data>
+  <data name="OverlayPageText.ThemeField" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="OverlayPageText.ShadowBelow" xml:space="preserve">
+    <value>Text gets a shadow to stay readable</value>
+  </data>
+  <data name="OverlayPageText.TextAndShape" xml:space="preserve">
+    <value>Text and shape</value>
+  </data>
+  <data name="OverlayPageText.TextAndShapeHint" xml:space="preserve">
+    <value>Sizes, weights, font, corners, gap, units</value>
+  </data>
+  <data name="OverlayPageText.LabelWeight" xml:space="preserve">
+    <value>Label weight</value>
+  </data>
+  <data name="OverlayPageText.ValueWeight" xml:space="preserve">
+    <value>Value weight</value>
+  </data>
+  <data name="OverlayPageText.CornersField" xml:space="preserve">
+    <value>Corners</value>
+  </data>
+  <data name="OverlayPageText.UnitsHint" xml:space="preserve">
+    <value>77 °C instead of 77</value>
+  </data>
+  <data name="OverlayPageText.ShowLabels" xml:space="preserve">
+    <value>Show labels</value>
+  </data>
+  <data name="OverlayPageText.ShowLabelsHint" xml:space="preserve">
+    <value>CPU 77 °C instead of 77 °C</value>
+  </data>
+  <data name="OverlayPageText.ColorsField" xml:space="preserve">
+    <value>Colors</value>
+  </data>
+  <data name="OverlayPageText.ColorblindHint" xml:space="preserve">
+    <value>Blue, orange and vermilion, told apart by every kind of color vision</value>
+  </data>
+  <data name="OverlayPageText.TextColorsAuto" xml:space="preserve">
+    <value>Auto: readable on the pills</value>
+  </data>
+  <data name="OverlayPageText.TextColorsOwn" xml:space="preserve">
+    <value>Labels and values</value>
+  </data>
+  <data name="OverlayPageText.HexHint" xml:space="preserve">
+    <value>Hex, like #4CC2FF</value>
+  </data>
+  <data name="OverlayPageText.HexFormat" xml:space="preserve">
+    <value>Use #RRGGBB</value>
+  </data>
+  <data name="OverlayPageText.ColorNeutral" xml:space="preserve">
+    <value>Neutral</value>
+  </data>
+  <data name="OverlayPageText.ColorSky" xml:space="preserve">
+    <value>Sky</value>
+  </data>
+  <data name="OverlayPageText.ColorBlue" xml:space="preserve">
+    <value>Blue</value>
+  </data>
+  <data name="OverlayPageText.ColorYellow" xml:space="preserve">
+    <value>Yellow</value>
+  </data>
+  <data name="OverlayPageText.ColorAmber" xml:space="preserve">
+    <value>Amber</value>
+  </data>
+  <data name="OverlayPageText.ColorOrange" xml:space="preserve">
+    <value>Orange</value>
+  </data>
+  <data name="OverlayPageText.ColorRed" xml:space="preserve">
+    <value>Red</value>
+  </data>
+  <data name="OverlayPageText.ColorRose" xml:space="preserve">
+    <value>Rose</value>
+  </data>
+  <data name="OverlayPageText.ColorVermilion" xml:space="preserve">
+    <value>Vermilion</value>
+  </data>
+  <data name="OverlayPageText.ColorWhite" xml:space="preserve">
+    <value>White</value>
+  </data>
+  <data name="OverlayPageText.ColorGray" xml:space="preserve">
+    <value>Gray</value>
+  </data>
+  <data name="OverlayPageText.ColorBlack" xml:space="preserve">
+    <value>Black</value>
+  </data>
+  <data name="OverlayPageText.AboveTaskbar" xml:space="preserve">
+    <value>Above the taskbar (vertical doesn't fit in it)</value>
+  </data>
+  <data name="OverlayPageText.FreeHint" xml:space="preserve">
+    <value>Drag it on your desktop, or Alt+arrows on its row</value>
+  </data>
+  <data name="OverlayPageText.DisplayName" xml:space="preserve">
+    <value>Display {0}</value>
+  </data>
+  <data name="OverlayPageText.MainDisplay" xml:space="preserve">
+    <value>Display {0} · main</value>
+  </data>
+  <data name="OverlayPageText.DisplaySize" xml:space="preserve">
+    <value>{0} × {1}</value>
+  </data>
+  <data name="OverlayPageText.DisplayScaled" xml:space="preserve">
+    <value>{0} × {1} · {2} %</value>
+  </data>
+  <data name="OverlayPageText.SpotOnMonitor" xml:space="preserve">
+    <value>{0}, display {1}</value>
+  </data>
+  <data name="OverlayPageText.TopSpotHint" xml:space="preserve">
+    <value>Moved down so it never covers window buttons.</value>
+  </data>
+  <data name="OverlayPageText.WhenToShowField" xml:space="preserve">
+    <value>When to show</value>
+  </data>
+  <data name="OverlayPageText.LockGroup" xml:space="preserve">
+    <value>Lock, click-through and OLED care</value>
+  </data>
+  <data name="OverlayPageText.AllOff" xml:space="preserve">
+    <value>All off</value>
+  </data>
+  <data name="OverlayPageText.Locked" xml:space="preserve">
+    <value>Locked</value>
+  </data>
+  <data name="OverlayPageText.ClickThroughHint" xml:space="preserve">
+    <value>Turn it off from thermi's icon by the clock</value>
+  </data>
+  <data name="OverlayPageText.OledHint" xml:space="preserve">
+    <value>Moves it 1 px every 3 minutes</value>
+  </data>
+  <data name="OverlayPageText.SummaryJoin" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="UiText.MoveToDisplay" xml:space="preserve">
+    <value>Move to display</value>
+  </data>
+  <data name="UiText.MergeInto" xml:space="preserve">
+    <value>Merge into</value>
+  </data>
+  <data name="UiText.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="OverlayPageText.OverlayAdded" xml:space="preserve">
+    <value>Overlay added.</value>
+  </data>
+  <data name="OverlayPageText.OverlayDeleted" xml:space="preserve">
+    <value>Deleted {0}. Ctrl+Z brings it back.</value>
+  </data>
+  <data name="OverlayPageText.OverlayMerged" xml:space="preserve">
+    <value>Merged {0} into {1}.</value>
+  </data>
+  <data name="OverlayPageText.OverlayHiddenSaid" xml:space="preserve">
+    <value>{0} hidden.</value>
+  </data>
+  <data name="OverlayPageText.OverlayShownSaid" xml:space="preserve">
+    <value>{0} shown.</value>
+  </data>
+  <data name="UiText.RestoreSettings" xml:space="preserve">
+    <value>Restore last good settings</value>
+  </data>
+  <data name="UiText.SomethingWentWrong" xml:space="preserve">
+    <value>Something went wrong.</value>
+  </data>
+  <data name="UiText.Reload" xml:space="preserve">
+    <value>Reload</value>
+  </data>
+  <data name="UiText.SettingsPage" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="UiText.KeyboardShortcuts" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+  </data>
+  <data name="UiText.MoreActions" xml:space="preserve">
+    <value>thermi menu</value>
+  </data>
+  <data name="UiText.ShowList" xml:space="preserve">
+    <value>Navigation</value>
+  </data>
+  <data name="UiText.NotifyMe" xml:space="preserve">
+    <value>Notify me when critical</value>
+  </data>
+  <data name="UiText.AlreadyOwnPill" xml:space="preserve">
+    <value>Already starts its own pill</value>
+  </data>
+  <data name="UiText.HexColor" xml:space="preserve">
+    <value>Hex color</value>
+  </data>
+  <data name="UiText.ChartOf" xml:space="preserve">
+    <value>{0}, last 10 minutes</value>
+  </data>
+  <data name="UiText.AddWarningLine" xml:space="preserve">
+    <value>Add warning line</value>
+  </data>
+  <data name="UiText.AddCriticalLine" xml:space="preserve">
+    <value>Add critical line</value>
+  </data>
+  <data name="UiText.ChartSensorsStopped" xml:space="preserve">
+    <value>Sensors stopped: the chart comes back when they start.</value>
+  </data>
+  <data name="UiText.ChartNeedsDriver" xml:space="preserve">
+    <value>Needs thermi's driver: the chart starts once it is installed.</value>
+  </data>
+  <data name="UiText.ChartNoReadings" xml:space="preserve">
+    <value>No readings to draw yet. The thresholds apply as soon as this sensor reads.</value>
+  </data>
+  <data name="UiText.ChartActions" xml:space="preserve">
+    <value>Chart options</value>
+  </data>
+  <data name="UiText.ChartStart" xml:space="preserve">
+    <value>10 min ago</value>
+  </data>
+  <data name="UiText.ChartNow" xml:space="preserve">
+    <value>now</value>
+  </data>
+  <data name="UiText.MoveToNewOverlay" xml:space="preserve">
+    <value>Move to a new overlay</value>
+  </data>
+  <data name="UiText.MoveToOverlay" xml:space="preserve">
+    <value>Move to {0}</value>
+  </data>
+  <data name="UiText.Rename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="UiText.EditPillLabel" xml:space="preserve">
+    <value>Edit pill label</value>
+  </data>
+  <data name="UiText.Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="UiText.Collapse" xml:space="preserve">
+    <value>Collapse</value>
+  </data>
+  <data name="UiText.Expand" xml:space="preserve">
+    <value>Expand</value>
+  </data>
+  <data name="UiText.NewOverlay" xml:space="preserve">
+    <value>New overlay</value>
+  </data>
+  <data name="UiText.ExitThermi" xml:space="preserve">
+    <value>Exit thermi</value>
+  </data>
+  <data name="UiText.PillName" xml:space="preserve">
+    <value>{0} pill</value>
+  </data>
+  <data name="UiText.PillItems" xml:space="preserve">
+    <value>{0} pill, {1} items</value>
+  </data>
+  <data name="UiText.PillOneItem" xml:space="preserve">
+    <value>{0} pill, 1 item</value>
+  </data>
+  <data name="UiText.OverlayItems" xml:space="preserve">
+    <value>{0}, {1} items</value>
+  </data>
+  <data name="UiText.OverlayOneItem" xml:space="preserve">
+    <value>{0}, 1 item</value>
+  </data>
+  <data name="UiText.OverlayHidden" xml:space="preserve">
+    <value>Hidden</value>
+  </data>
+  <data name="UiText.ItemMoved" xml:space="preserve">
+    <value>{0} moved, {1} of {2}, in the {3} pill</value>
+  </data>
+  <data name="UiText.FilterSensors" xml:space="preserve">
+    <value>Filter {0} sensors</value>
+  </data>
+  <data name="UiText.AutoFollows" xml:space="preserve">
+    <value>Auto · {0}</value>
+  </data>
+  <data name="UiText.SensorOn" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="UiText.MoreOptionsHint" xml:space="preserve">
+    <value>Min or max, smoothing, decimals, graph, offset, color</value>
+  </data>
+  <data name="UiText.ShortcutFind" xml:space="preserve">
+    <value>Go to an item: type its name in the list</value>
+  </data>
+  <data name="UiText.ShortcutAdd" xml:space="preserve">
+    <value>Add an item</value>
+  </data>
+  <data name="UiText.ShortcutUndo" xml:space="preserve">
+    <value>Undo, redo</value>
+  </data>
+  <data name="UiText.ShortcutSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="UiText.ShortcutSheet" xml:space="preserve">
+    <value>This sheet</value>
+  </data>
+  <data name="UiText.ShortcutRename" xml:space="preserve">
+    <value>Rename the item or overlay</value>
+  </data>
+  <data name="UiText.ShortcutMove" xml:space="preserve">
+    <value>Move the item</value>
+  </data>
+  <data name="UiText.ShortcutRemove" xml:space="preserve">
+    <value>Remove it (from the list)</value>
+  </data>
+  <data name="UiText.ShortcutMenu" xml:space="preserve">
+    <value>The row's menu</value>
+  </data>
+  <data name="UiText.AppName" xml:space="preserve">
+    <value>thermi</value>
+  </data>
+  <data name="UiText.SmoothHint" xml:space="preserve">
+    <value>Average of the last seconds</value>
+  </data>
+  <data name="UiText.AlertOnlyHint" xml:space="preserve">
+    <value>Shows while yellow or red</value>
+  </data>
+  <data name="ChangedField.Warning" xml:space="preserve">
+    <value>Warning</value>
+  </data>
+  <data name="ChangedField.Critical" xml:space="preserve">
+    <value>Critical</value>
+  </data>
+  <data name="ChangedField.Thresholds" xml:space="preserve">
+    <value>Thresholds</value>
+  </data>
+  <data name="ChangedField.Meter" xml:space="preserve">
+    <value>Meter</value>
+  </data>
+  <data name="ChangedField.Graph" xml:space="preserve">
+    <value>Graph</value>
+  </data>
+  <data name="ChangedField.AlertOnly" xml:space="preserve">
+    <value>Only on alert</value>
+  </data>
+  <data name="ChangedField.NotifyMe" xml:space="preserve">
+    <value>Notify me when critical</value>
+  </data>
+  <data name="ChangedField.Sensor" xml:space="preserve">
+    <value>Sensor</value>
+  </data>
+  <data name="ChangedField.Label" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="ChangedField.SeparatePill" xml:space="preserve">
+    <value>Separate pill</value>
+  </data>
+  <data name="ChangedField.TrayIcon" xml:space="preserve">
+    <value>Tray icon</value>
+  </data>
+  <data name="ChangedField.ValueColor" xml:space="preserve">
+    <value>Value color</value>
+  </data>
+  <data name="ChangedField.Offset" xml:space="preserve">
+    <value>Offset</value>
+  </data>
+  <data name="ChangedField.Shows" xml:space="preserve">
+    <value>Shows</value>
+  </data>
+  <data name="ChangedField.Smoothing" xml:space="preserve">
+    <value>Smoothing</value>
+  </data>
+  <data name="ChangedField.Decimals" xml:space="preserve">
+    <value>Decimals</value>
+  </data>
+  <data name="ChangedField.ItemName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ChangedField.Place" xml:space="preserve">
+    <value>Place</value>
+  </data>
+  <data name="ChangedField.ItemAdded" xml:space="preserve">
+    <value>Add item</value>
+  </data>
+  <data name="ChangedField.ItemRemoved" xml:space="preserve">
+    <value>Remove item</value>
+  </data>
+  <data name="ChangedField.OverlayName" xml:space="preserve">
+    <value>Overlay name</value>
+  </data>
+  <data name="ChangedField.Position" xml:space="preserve">
+    <value>Position</value>
+  </data>
+  <data name="ChangedField.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="ChangedField.WhenToShow" xml:space="preserve">
+    <value>When to show</value>
+  </data>
+  <data name="ChangedField.Hidden" xml:space="preserve">
+    <value>Hide this overlay</value>
+  </data>
+  <data name="ChangedField.ClickThrough" xml:space="preserve">
+    <value>Click-through</value>
+  </data>
+  <data name="ChangedField.Lock" xml:space="preserve">
+    <value>Lock position</value>
+  </data>
+  <data name="ChangedField.OledCare" xml:space="preserve">
+    <value>OLED care</value>
+  </data>
+  <data name="ChangedField.Look" xml:space="preserve">
+    <value>Look</value>
+  </data>
+  <data name="ChangedField.Layout" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="ChangedField.Direction" xml:space="preserve">
+    <value>Direction</value>
+  </data>
+  <data name="ChangedField.Labels" xml:space="preserve">
+    <value>Labels</value>
+  </data>
+  <data name="ChangedField.TextSize" xml:space="preserve">
+    <value>Text size</value>
+  </data>
+  <data name="ChangedField.Opacity" xml:space="preserve">
+    <value>Background opacity</value>
+  </data>
+  <data name="ChangedField.Theme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="ChangedField.Colors" xml:space="preserve">
+    <value>Colors</value>
+  </data>
+  <data name="ChangedField.Units" xml:space="preserve">
+    <value>Units</value>
+  </data>
+  <data name="ChangedField.Font" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="ChangedField.Corners" xml:space="preserve">
+    <value>Corners</value>
+  </data>
+  <data name="ChangedField.Gap" xml:space="preserve">
+    <value>Gap</value>
+  </data>
+  <data name="ChangedField.TextEffect" xml:space="preserve">
+    <value>Text effect</value>
+  </data>
+  <data name="ChangedField.OverlayAdded" xml:space="preserve">
+    <value>New overlay</value>
+  </data>
+  <data name="ChangedField.OverlayRemoved" xml:space="preserve">
+    <value>Delete overlay</value>
+  </data>
+  <data name="ChangedField.Merge" xml:space="preserve">
+    <value>Merge overlays</value>
+  </data>
+  <data name="ChangedField.Hotkeys" xml:space="preserve">
+    <value>Hotkeys</value>
+  </data>
+  <data name="ChangedField.Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="ChangedField.TemperatureUnit" xml:space="preserve">
+    <value>Temperature unit</value>
+  </data>
+  <data name="ChangedField.Changes" xml:space="preserve">
+    <value>Changes</value>
+  </data>
+  <data name="ChartText.OutOfRange" xml:space="preserve">
+    <value>Between {0} and {1}</value>
+  </data>
+  <data name="ChartText.NotANumber" xml:space="preserve">
+    <value>Type a number, like {0}, or leave it empty for Off</value>
+  </data>
+  <data name="ChartText.WarningPushed" xml:space="preserve">
+    <value>Warning moved to {0} to stay below Critical.</value>
+  </data>
+  <data name="ChartText.CriticalPushed" xml:space="preserve">
+    <value>Critical moved to {0} to stay above Warning.</value>
+  </data>
+  <data name="ChartText.Stats" xml:space="preserve">
+    <value>Min {0} · Avg {1} · Max {2}</value>
+  </data>
+  <data name="ChartText.Summary" xml:space="preserve">
+    <value>Last 10 minutes: between {0} and {1}, now {2}.</value>
+  </data>
+  <data name="ChartText.DutyTitle" xml:space="preserve">
+    <value>Fan duty, % of full speed</value>
+  </data>
+  <data name="Combine.Max" xml:space="preserve">
+    <value>Highest</value>
+  </data>
+  <data name="Combine.Average" xml:space="preserve">
+    <value>Average</value>
+  </data>
+  <data name="Combine.Sum" xml:space="preserve">
+    <value>Sum</value>
+  </data>
+  <data name="ConfigProblemKind.Broken" xml:space="preserve">
+    <value>The settings file is broken</value>
+  </data>
+  <data name="ConfigProblemKind.Newer" xml:space="preserve">
+    <value>The settings file is from a newer thermi</value>
+  </data>
+  <data name="ConfigProblemKind.Locked" xml:space="preserve">
+    <value>The settings file cannot be opened</value>
+  </data>
+  <data name="ConfigProblemKind.Missing" xml:space="preserve">
+    <value>The settings file is gone and cannot be made again</value>
+  </data>
+  <data name="ConfigProblemText.AtLine" xml:space="preserve">
+    <value>Line {0}: {1}</value>
+  </data>
+  <data name="ConfigProblemText.Newer" xml:space="preserve">
+    <value>It is version {0}; this thermi reads up to version {1}.</value>
+  </data>
+  <data name="ConfigProblemText.OneLine" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="CornerStyle.Round" xml:space="preserve">
+    <value>Round</value>
+  </data>
+  <data name="CornerStyle.Soft" xml:space="preserve">
+    <value>Soft</value>
+  </data>
+  <data name="CornerStyle.Square" xml:space="preserve">
+    <value>Square</value>
+  </data>
+  <data name="DeviceKind.Cpu" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="DeviceKind.Gpu" xml:space="preserve">
+    <value>GPU</value>
+  </data>
+  <data name="DeviceKind.Ram" xml:space="preserve">
+    <value>RAM</value>
+  </data>
+  <data name="DeviceKind.Board" xml:space="preserve">
+    <value>BOARD</value>
+  </data>
+  <data name="DeviceKind.Ssd" xml:space="preserve">
+    <value>SSD</value>
+  </data>
+  <data name="DeviceKind.Network" xml:space="preserve">
+    <value>NET</value>
+  </data>
+  <data name="DeviceKind.Battery" xml:space="preserve">
+    <value>BAT</value>
+  </data>
+  <data name="FanFinderOutcome.Found" xml:space="preserve">
+    <value>{0} is your CPU fan.</value>
+  </data>
+  <data name="FanFinderOutcome.NoFanRose" xml:space="preserve">
+    <value>No fan sped up with the load. Your fans may follow a curve set by fan-control software; you can pick the CPU fan by hand in the Sensor dropdown.</value>
+  </data>
+  <data name="FanFinderOutcome.TwoRoseAlike" xml:space="preserve">
+    <value>Two fans sped up alike, so thermi cannot tell which one cools the CPU; you can pick it by hand in the Sensor dropdown.</value>
+  </data>
+  <data name="FanFinderOutcome.LoadDidNotReachTheCpu" xml:space="preserve">
+    <value>The CPU load stayed under 80 %, so the fans had nothing to answer; try again.</value>
+  </data>
+  <data name="FanFinderOutcome.ReadingsStopped" xml:space="preserve">
+    <value>The sensor readings stopped during the run, so no fan was picked.</value>
+  </data>
+  <data name="FanFinderOutcome.Cancelled" xml:space="preserve">
+    <value>Cancelled: no fan was picked.</value>
+  </data>
+  <data name="FanFinderRefusal.NoBoardFans" xml:space="preserve">
+    <value>Only the GPUs report fans: the board reports none, so there is no CPU fan to find.</value>
+  </data>
+  <data name="FanFinderRefusal.DriverMayBeMissing" xml:space="preserve">
+    <value>Only the GPUs report fans, and the CPU temperature reads zero: thermi's sensor driver may be missing.</value>
+  </data>
+  <data name="FitText.DoesNotFit" xml:space="preserve">
+    <value>Doesn't fit in the taskbar beside your apps.</value>
+  </data>
+  <data name="FitText.HideLabels" xml:space="preserve">
+    <value>Hide labels</value>
+  </data>
+  <data name="HostText.ShowTheOverlay" xml:space="preserve">
+    <value>Show the overlay</value>
+  </data>
+  <data name="HostText.Show" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="HostText.Hide" xml:space="preserve">
+    <value>Hide</value>
+  </data>
+  <data name="HostText.ClickThroughAll" xml:space="preserve">
+    <value>Click-through on all overlays</value>
+  </data>
+  <data name="HostText.LockAll" xml:space="preserve">
+    <value>Lock all overlays</value>
+  </data>
+  <data name="HostText.FirstRunTitle" xml:space="preserve">
+    <value>thermi is running</value>
+  </data>
+  <data name="HostText.FirstRun" xml:space="preserve">
+    <value>Double-click the overlay to choose what it shows, or drag it anywhere.</value>
+  </data>
+  <data name="HostText.OverlaysHiddenTitle" xml:space="preserve">
+    <value>Overlays hidden</value>
+  </data>
+  <data name="HostText.OverlaysHidden" xml:space="preserve">
+    <value>Click thermi's icon by the clock to bring them back. Click here to show them.</value>
+  </data>
+  <data name="HostText.OverlaysHiddenHotkey" xml:space="preserve">
+    <value>Click thermi's icon by the clock, or press {0}, to bring them back. Click here to show them.</value>
+  </data>
+  <data name="HostText.OverlayHiddenTitle" xml:space="preserve">
+    <value>{0} hidden</value>
+  </data>
+  <data name="HostText.OverlayHiddenByFlag" xml:space="preserve">
+    <value>Click thermi's icon by the clock to bring it back. Click here to show it.</value>
+  </data>
+  <data name="HostText.OverlayHiddenByFlagHotkey" xml:space="preserve">
+    <value>Click thermi's icon by the clock, or press {0}, to bring it back. Click here to show it.</value>
+  </data>
+  <data name="HostText.OverlayHidden" xml:space="preserve">
+    <value>Show it again from the menu of thermi's icon by the clock. Click here to show it.</value>
+  </data>
+  <data name="HostText.CriticalTitle" xml:space="preserve">
+    <value>{0} is critical</value>
+  </data>
+  <data name="HostText.Critical" xml:space="preserve">
+    <value>{0} for {1}. thermi tells you once until it cools down.</value>
+  </data>
+  <data name="HostText.CriticalWhilePlayingTitle" xml:space="preserve">
+    <value>{0} was critical</value>
+  </data>
+  <data name="HostText.CriticalWhilePlaying" xml:space="preserve">
+    <value>While you played, {0} reached {1} (critical) for {2}.</value>
+  </data>
+  <data name="HostText.Seconds" xml:space="preserve">
+    <value>{0} seconds</value>
+  </data>
+  <data name="HotkeyRefusal.NeedsCtrlOrAlt" xml:space="preserve">
+    <value>Add Ctrl or Alt: a key alone, or with Shift, types in every app. F13 to F24 work alone.</value>
+  </data>
+  <data name="HotkeyRefusal.WithWin" xml:space="preserve">
+    <value>Combinations with Win belong to Windows.</value>
+  </data>
+  <data name="HotkeyRefusal.AltWithCharacter" xml:space="preserve">
+    <value>Alt with a letter or a digit opens the menus of the app in front.</value>
+  </data>
+  <data name="HotkeyRefusal.CommonShortcut" xml:space="preserve">
+    <value>Apps use this shortcut to copy, paste, undo, save and the like.</value>
+  </data>
+  <data name="HotkeyRefusal.SystemKeys" xml:space="preserve">
+    <value>Windows keeps this combination for itself.</value>
+  </data>
+  <data name="HotkeyRefusal.WindowShortcut" xml:space="preserve">
+    <value>thermi's window uses this combination.</value>
+  </data>
+  <data name="HotkeyRefusal.AltGrCharacter" xml:space="preserve">
+    <value>On your keyboard, Ctrl+Alt with this key types a character.</value>
+  </data>
+  <data name="HotkeyRefusal.OtherHotkey" xml:space="preserve">
+    <value>Another hotkey already uses this combination.</value>
+  </data>
+  <data name="HotkeyRefusal.Unreadable" xml:space="preserve">
+    <value>thermi cannot read this combination.</value>
+  </data>
+  <data name="ItemStat.Now" xml:space="preserve">
+    <value>Value now</value>
+  </data>
+  <data name="ItemStat.Min" xml:space="preserve">
+    <value>Minimum</value>
+  </data>
+  <data name="ItemStat.Max" xml:space="preserve">
+    <value>Maximum</value>
+  </data>
+  <data name="ItemStat.Average" xml:space="preserve">
+    <value>Average</value>
+  </data>
+  <data name="MenuEntry.SettingsBroken" xml:space="preserve">
+    <value>The settings file is broken</value>
+  </data>
+  <data name="MenuEntry.StartSensors" xml:space="preserve">
+    <value>Start sensors</value>
+  </data>
+  <data name="MenuEntry.ShowOverlays" xml:space="preserve">
+    <value>Show overlays</value>
+  </data>
+  <data name="MenuEntry.ShowOverlay" xml:space="preserve">
+    <value>Show {0}</value>
+  </data>
+  <data name="MenuEntry.ShowHiddenOverlays" xml:space="preserve">
+    <value>Show hidden overlays</value>
+  </data>
+  <data name="MenuEntry.UndoGesture" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="MenuEntry.Settings" xml:space="preserve">
+    <value>Settings…</value>
+  </data>
+  <data name="MenuEntry.Look" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="MenuEntry.Vertical" xml:space="preserve">
+    <value>Vertical</value>
+  </data>
+  <data name="MenuEntry.HideOverlays" xml:space="preserve">
+    <value>Hide overlays</value>
+  </data>
+  <data name="MenuEntry.HideThisOverlay" xml:space="preserve">
+    <value>Hide this overlay</value>
+  </data>
+  <data name="MenuEntry.ClickThrough" xml:space="preserve">
+    <value>Click-through</value>
+  </data>
+  <data name="MenuEntry.Lock" xml:space="preserve">
+    <value>Lock position</value>
+  </data>
+  <data name="MenuEntry.ResetMinMax" xml:space="preserve">
+    <value>Reset min and max</value>
+  </data>
+  <data name="MenuEntry.Overlay" xml:space="preserve">
+    <value>{0}</value>
+  </data>
+  <data name="MenuEntry.Update" xml:space="preserve">
+    <value>Install the update</value>
+  </data>
+  <data name="MenuEntry.Exit" xml:space="preserve">
+    <value>Exit thermi</value>
+  </data>
+  <data name="MetricLabel.Cpu" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="MetricLabel.Gpu" xml:space="preserve">
+    <value>GPU</value>
+  </data>
+  <data name="MetricLabel.Ram" xml:space="preserve">
+    <value>RAM</value>
+  </data>
+  <data name="MetricLabel.Net" xml:space="preserve">
+    <value>NET</value>
+  </data>
+  <data name="MetricLabel.Ssd" xml:space="preserve">
+    <value>SSD</value>
+  </data>
+  <data name="MetricLabel.Read" xml:space="preserve">
+    <value>READ</value>
+  </data>
+  <data name="MetricLabel.Write" xml:space="preserve">
+    <value>WRITE</value>
+  </data>
+  <data name="MetricLabel.Bat" xml:space="preserve">
+    <value>BAT</value>
+  </data>
+  <data name="MetricName.CpuTemperature" xml:space="preserve">
+    <value>CPU temperature</value>
+  </data>
+  <data name="MetricName.CpuLoad" xml:space="preserve">
+    <value>CPU load</value>
+  </data>
+  <data name="MetricName.CpuPower" xml:space="preserve">
+    <value>CPU power</value>
+  </data>
+  <data name="MetricName.CpuClock" xml:space="preserve">
+    <value>CPU clock</value>
+  </data>
+  <data name="MetricName.GpuTemperature" xml:space="preserve">
+    <value>GPU temperature</value>
+  </data>
+  <data name="MetricName.GpuLoad" xml:space="preserve">
+    <value>GPU load</value>
+  </data>
+  <data name="MetricName.GpuPower" xml:space="preserve">
+    <value>GPU power</value>
+  </data>
+  <data name="MetricName.RamLoad" xml:space="preserve">
+    <value>RAM load</value>
+  </data>
+  <data name="MetricName.RamUsed" xml:space="preserve">
+    <value>RAM used</value>
+  </data>
+  <data name="MetricName.CpuFan" xml:space="preserve">
+    <value>CPU fan</value>
+  </data>
+  <data name="MetricName.CpuFanDuty" xml:space="preserve">
+    <value>CPU fan duty</value>
+  </data>
+  <data name="MetricName.NetDownload" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="MetricName.NetUpload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="MetricName.DiskActivity" xml:space="preserve">
+    <value>Disk activity</value>
+  </data>
+  <data name="MetricName.DiskRead" xml:space="preserve">
+    <value>Disk read</value>
+  </data>
+  <data name="MetricName.DiskWrite" xml:space="preserve">
+    <value>Disk write</value>
+  </data>
+  <data name="MetricName.BatteryCharge" xml:space="preserve">
+    <value>Battery charge</value>
+  </data>
+  <data name="MetricName.BatteryRate" xml:space="preserve">
+    <value>Battery rate</value>
+  </data>
+  <data name="MetricName.BatteryTime" xml:space="preserve">
+    <value>Battery time remaining</value>
+  </data>
+  <data name="NameText.Taskbar" xml:space="preserve">
+    <value>Taskbar</value>
+  </data>
+  <data name="NameText.Floating" xml:space="preserve">
+    <value>Floating</value>
+  </data>
+  <data name="NameText.Numbered" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="NameText.AfterSensor" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="NameText.OfSensor" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="NameText.TopLeft" xml:space="preserve">
+    <value>Top left</value>
+  </data>
+  <data name="NameText.TopRight" xml:space="preserve">
+    <value>Top right</value>
+  </data>
+  <data name="NameText.BottomLeft" xml:space="preserve">
+    <value>Bottom left</value>
+  </data>
+  <data name="NameText.BottomRight" xml:space="preserve">
+    <value>Bottom right</value>
+  </data>
+  <data name="NoValue.ReadsNothing" xml:space="preserve">
+    <value>reads nothing</value>
+  </data>
+  <data name="NoValue.DriverMayBeMissing" xml:space="preserve">
+    <value>reads nothing: thermi's sensor driver may be missing</value>
+  </data>
+  <data name="NoValue.Stopped" xml:space="preserve">
+    <value>stopped or not connected</value>
+  </data>
+  <data name="Orientation.Horizontal" xml:space="preserve">
+    <value>Horizontal</value>
+  </data>
+  <data name="Orientation.Vertical" xml:space="preserve">
+    <value>Vertical</value>
+  </data>
+  <data name="OverlayText.SensorsStopped" xml:space="preserve">
+    <value>Sensors stopped</value>
+  </data>
+  <data name="OverlayText.NameAndValue" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="OverlayText.MinAndMax" xml:space="preserve">
+    <value>Min {0} · max {1}</value>
+  </data>
+  <data name="OverlayText.DoubleClickToEdit" xml:space="preserve">
+    <value>Double-click to edit</value>
+  </data>
+  <data name="OverlayText.NeedsDriver" xml:space="preserve">
+    <value>{0} needs thermi's driver. Double-click to fix.</value>
+  </data>
+  <data name="OverlayText.SensorsStoppedHint" xml:space="preserve">
+    <value>Sensors stopped. Double-click to see why.</value>
+  </data>
+  <data name="OverlayText.ReadsNothing" xml:space="preserve">
+    <value>{0} reads nothing. Double-click to change its sensor.</value>
+  </data>
+  <data name="OverlayText.SetUp" xml:space="preserve">
+    <value>Double-click to set up · drag to move</value>
+  </data>
+  <data name="OverlayText.UndoMove" xml:space="preserve">
+    <value>Undo move</value>
+  </data>
+  <data name="OverlayText.UndoResize" xml:space="preserve">
+    <value>Undo resize</value>
+  </data>
+  <data name="OverlayText.UndoDragOff" xml:space="preserve">
+    <value>Undo drag off</value>
+  </data>
+  <data name="OverlayText.UndoMerge" xml:space="preserve">
+    <value>Undo merge</value>
+  </data>
+  <data name="PillLayout.Pills" xml:space="preserve">
+    <value>Pills</value>
+  </data>
+  <data name="PillLayout.Each" xml:space="preserve">
+    <value>One per value</value>
+  </data>
+  <data name="PillLayout.One" xml:space="preserve">
+    <value>One bar</value>
+  </data>
+  <data name="PillTheme.System" xml:space="preserve">
+    <value>Match taskbar</value>
+  </data>
+  <data name="PillTheme.Dark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="PillTheme.Light" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="Refusal.NotFound" xml:space="preserve">
+    <value>That item is no longer in the settings: they were changed outside the window.</value>
+  </data>
+  <data name="Refusal.SensorNotFound" xml:space="preserve">
+    <value>That sensor is not among those the sensor service reads.</value>
+  </data>
+  <data name="Refusal.SensorOfAnotherType" xml:space="preserve">
+    <value>An item's sensor can only change to another of the same type.</value>
+  </data>
+  <data name="Refusal.TypeUnknown" xml:space="preserve">
+    <value>This item's sensor is not read now, so thermi cannot tell which sensors are of its type.</value>
+  </data>
+  <data name="Refusal.NoAuto" xml:space="preserve">
+    <value>Only an item that started from Auto can go back to it.</value>
+  </data>
+  <data name="Refusal.WarningAboveCritical" xml:space="preserve">
+    <value>The warning value cannot be above the critical one.</value>
+  </data>
+  <data name="Refusal.ThresholdOutOfRange" xml:space="preserve">
+    <value>A threshold must lie on the track.</value>
+  </data>
+  <data name="Refusal.NoMeter" xml:space="preserve">
+    <value>Thresholds color a meter, and this item has none.</value>
+  </data>
+  <data name="Refusal.CannotBeMeter" xml:space="preserve">
+    <value>A meter shows a temperature, a load, a duty, a fan speed or a throughput.</value>
+  </data>
+  <data name="Refusal.CannotMeterItself" xml:space="preserve">
+    <value>A combined item has no single sensor to meter itself with.</value>
+  </data>
+  <data name="Refusal.LabelEmpty" xml:space="preserve">
+    <value>A label cannot be empty.</value>
+  </data>
+  <data name="Refusal.NameEmpty" xml:space="preserve">
+    <value>A name cannot be empty.</value>
+  </data>
+  <data name="Refusal.SizeOutOfRange" xml:space="preserve">
+    <value>The size goes from 75 % to 200 %.</value>
+  </data>
+  <data name="Refusal.TooManyOverlays" xml:space="preserve">
+    <value>There can be up to 4 overlays.</value>
+  </data>
+  <data name="Refusal.LastOverlay" xml:space="preserve">
+    <value>The last overlay cannot be deleted.</value>
+  </data>
+  <data name="Refusal.UnknownLanguage" xml:space="preserve">
+    <value>thermi has no translation for that language.</value>
+  </data>
+  <data name="Refusal.MeterNeeded" xml:space="preserve">
+    <value>This item has no meter: showing only on alert and the graph both follow one.</value>
+  </data>
+  <data name="Refusal.OffsetOutOfRange" xml:space="preserve">
+    <value>That offset is past the range of the item's type.</value>
+  </data>
+  <data name="Refusal.CombineNeedsTwo" xml:space="preserve">
+    <value>Combining takes at least two sensors.</value>
+  </data>
+  <data name="Refusal.SumOfTemperatures" xml:space="preserve">
+    <value>Temperatures can be combined as their highest or their average, never as a sum.</value>
+  </data>
+  <data name="Refusal.SumOfUnknown" xml:space="preserve">
+    <value>This item's sensors are not read now, so thermi cannot tell whether a sum of them means anything.</value>
+  </data>
+  <data name="Refusal.StyleNameEmpty" xml:space="preserve">
+    <value>A style needs a name.</value>
+  </data>
+  <data name="Refusal.StyleNameTooLong" xml:space="preserve">
+    <value>A style's name has up to 40 characters.</value>
+  </data>
+  <data name="Refusal.StyleNameTaken" xml:space="preserve">
+    <value>There is already a style with that name: choose another.</value>
+  </data>
+  <data name="Refusal.StyleNotFound" xml:space="preserve">
+    <value>That style is no longer among your styles.</value>
+  </data>
+  <data name="Refusal.BrokenStyle" xml:space="preserve">
+    <value>This style cannot be used: {0}</value>
+  </data>
+  <data name="Refusal.NewerStyle" xml:space="preserve">
+    <value>This style was made by a newer thermi: update thermi to use it.</value>
+  </data>
+  <data name="Refusal.Hotkey" xml:space="preserve">
+    <value>This combination cannot be a hotkey.</value>
+  </data>
+  <data name="Refusal.StyleFileFailed" xml:space="preserve">
+    <value>The style file could not be written or read: {0}</value>
+  </data>
+  <data name="Refusal.StyleTooLarge" xml:space="preserve">
+    <value>That is no style: a style file is a few kilobytes, and this is over 1 MB.</value>
+  </data>
+  <data name="Refusal.PasteFailed" xml:space="preserve">
+    <value>Windows would not hand over what was pasted or dropped, as while another app holds the clipboard. Try again in a moment.</value>
+  </data>
+  <data name="Refusal.Invalid" xml:space="preserve">
+    <value>The settings would break a rule of the file: {0}</value>
+  </data>
+  <data name="Refusal.SettingsBroken" xml:space="preserve">
+    <value>The settings file cannot be used, so nothing changes until it is fixed or restored.</value>
+  </data>
+  <data name="SensorKind.Temperature" xml:space="preserve">
+    <value>Temperature</value>
+  </data>
+  <data name="SensorKind.Load" xml:space="preserve">
+    <value>Load</value>
+  </data>
+  <data name="SensorKind.Clock" xml:space="preserve">
+    <value>Clock</value>
+  </data>
+  <data name="SensorKind.Power" xml:space="preserve">
+    <value>Power</value>
+  </data>
+  <data name="SensorKind.Fan" xml:space="preserve">
+    <value>Fan</value>
+  </data>
+  <data name="SensorKind.Control" xml:space="preserve">
+    <value>Duty</value>
+  </data>
+  <data name="SensorKind.Data" xml:space="preserve">
+    <value>Memory</value>
+  </data>
+  <data name="SensorKind.Throughput" xml:space="preserve">
+    <value>Throughput</value>
+  </data>
+  <data name="SensorKind.Duration" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="ServiceState.Running" xml:space="preserve">
+    <value>Reading the sensors.</value>
+  </data>
+  <data name="ServiceState.Stopped" xml:space="preserve">
+    <value>The sensor service is not running.</value>
+  </data>
+  <data name="ServiceState.Stale" xml:space="preserve">
+    <value>The sensor service has sent no fresh readings for a few seconds.</value>
+  </data>
+  <data name="SnapSpot.TaskbarLeft" xml:space="preserve">
+    <value>left of the taskbar</value>
+  </data>
+  <data name="SnapSpot.TaskbarCenter" xml:space="preserve">
+    <value>center of the taskbar</value>
+  </data>
+  <data name="SnapSpot.TaskbarRight" xml:space="preserve">
+    <value>right of the taskbar</value>
+  </data>
+  <data name="SnapSpot.TopLeft" xml:space="preserve">
+    <value>top left corner</value>
+  </data>
+  <data name="SnapSpot.TopRight" xml:space="preserve">
+    <value>top right corner</value>
+  </data>
+  <data name="SnapSpot.BottomLeft" xml:space="preserve">
+    <value>bottom left corner</value>
+  </data>
+  <data name="SnapSpot.BottomRight" xml:space="preserve">
+    <value>bottom right corner</value>
+  </data>
+  <data name="StyleColor.Normal" xml:space="preserve">
+    <value>Normal level color</value>
+  </data>
+  <data name="StyleColor.Warning" xml:space="preserve">
+    <value>Warning level color</value>
+  </data>
+  <data name="StyleColor.Critical" xml:space="preserve">
+    <value>Critical level color</value>
+  </data>
+  <data name="StyleColor.Label" xml:space="preserve">
+    <value>Label color</value>
+  </data>
+  <data name="StyleColor.Value" xml:space="preserve">
+    <value>Value color</value>
+  </data>
+  <data name="StyleFont.Segoe" xml:space="preserve">
+    <value>Segoe UI Variable</value>
+  </data>
+  <data name="StyleFont.Bahnschrift" xml:space="preserve">
+    <value>Bahnschrift</value>
+  </data>
+  <data name="StyleFont.Consolas" xml:space="preserve">
+    <value>Consolas</value>
+  </data>
+  <data name="StylePreset.Standard" xml:space="preserve">
+    <value>Standard</value>
+  </data>
+  <data name="StylePreset.Compact" xml:space="preserve">
+    <value>Compact</value>
+  </data>
+  <data name="StylePreset.Large" xml:space="preserve">
+    <value>Large</value>
+  </data>
+  <data name="StylePreset.Custom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="Synonyms.Temperature" xml:space="preserve">
+    <value>temp heat hot degrees celsius fahrenheit thermal</value>
+  </data>
+  <data name="Synonyms.Load" xml:space="preserve">
+    <value>usage use utilization busy percent</value>
+  </data>
+  <data name="Synonyms.Clock" xml:space="preserve">
+    <value>frequency mhz ghz</value>
+  </data>
+  <data name="Synonyms.Power" xml:space="preserve">
+    <value>watts wattage energy consumption draw</value>
+  </data>
+  <data name="Synonyms.Fan" xml:space="preserve">
+    <value>rpm cooler cooling</value>
+  </data>
+  <data name="Synonyms.Control" xml:space="preserve">
+    <value>pwm percent</value>
+  </data>
+  <data name="Synonyms.Data" xml:space="preserve">
+    <value>gb size space used</value>
+  </data>
+  <data name="Synonyms.Throughput" xml:space="preserve">
+    <value>speed rate bandwidth transfer bytes</value>
+  </data>
+  <data name="Synonyms.Duration" xml:space="preserve">
+    <value>remaining hours minutes runtime</value>
+  </data>
+  <data name="Synonyms.Cpu" xml:space="preserve">
+    <value>processor</value>
+  </data>
+  <data name="Synonyms.Gpu" xml:space="preserve">
+    <value>graphics video card</value>
+  </data>
+  <data name="Synonyms.Ram" xml:space="preserve">
+    <value>memory</value>
+  </data>
+  <data name="Synonyms.Board" xml:space="preserve">
+    <value>motherboard mainboard chipset</value>
+  </data>
+  <data name="Synonyms.Ssd" xml:space="preserve">
+    <value>ssd disk drive hdd nvme storage</value>
+  </data>
+  <data name="Synonyms.Network" xml:space="preserve">
+    <value>net internet ethernet wifi wi-fi wireless lan bandwidth adapter</value>
+  </data>
+  <data name="Synonyms.Battery" xml:space="preserve">
+    <value>battery charge laptop</value>
+  </data>
+  <data name="TextEffect.Auto" xml:space="preserve">
+    <value>Auto</value>
+  </data>
+  <data name="TextEffect.Shadow" xml:space="preserve">
+    <value>Shadow</value>
+  </data>
+  <data name="TextEffect.Outline" xml:space="preserve">
+    <value>Outline</value>
+  </data>
+  <data name="TextEffect.None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="TextWeight.Regular" xml:space="preserve">
+    <value>Regular</value>
+  </data>
+  <data name="TextWeight.Semibold" xml:space="preserve">
+    <value>Semibold</value>
+  </data>
+  <data name="TextWeight.Bold" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="TrayText.AtLevel" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="TrayText.Warning" xml:space="preserve">
+    <value>warning</value>
+  </data>
+  <data name="TrayText.Critical" xml:space="preserve">
+    <value>critical</value>
+  </data>
+  <data name="TrayText.OverlayHidden" xml:space="preserve">
+    <value>{0} hidden</value>
+  </data>
+  <data name="TrayText.OverlaysHidden" xml:space="preserve">
+    <value>overlays hidden</value>
+  </data>
+  <data name="TrayText.ClickThroughOn" xml:space="preserve">
+    <value>click-through on</value>
+  </data>
+  <data name="TrayText.SensorsStopped" xml:space="preserve">
+    <value>sensors stopped</value>
+  </data>
+  <data name="UndoText.Undo" xml:space="preserve">
+    <value>Undo {0}</value>
+  </data>
+  <data name="UndoText.Redo" xml:space="preserve">
+    <value>Redo {0}</value>
+  </data>
+  <data name="UndoText.Change" xml:space="preserve">
+    <value>{0} {1} → {2}</value>
+  </data>
+  <data name="UndoText.BackTo" xml:space="preserve">
+    <value>Undone: {0} back to {1}.</value>
+  </data>
+  <data name="UndoText.Again" xml:space="preserve">
+    <value>Undone: {0} is {1} again.</value>
+  </data>
+  <data name="UndoText.Undone" xml:space="preserve">
+    <value>Undone: {0}.</value>
+  </data>
+  <data name="UndoText.On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="UndoText.Off" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="UnitText.BytesPerSecond" xml:space="preserve">
+    <value>B/s</value>
+  </data>
+  <data name="UnitText.KilobytesPerSecond" xml:space="preserve">
+    <value>KB/s</value>
+  </data>
+  <data name="UnitText.MegabytesPerSecond" xml:space="preserve">
+    <value>MB/s</value>
+  </data>
+  <data name="UnitText.GigabytesPerSecond" xml:space="preserve">
+    <value>GB/s</value>
+  </data>
+  <data name="UnitText.Hours" xml:space="preserve">
+    <value>h</value>
+  </data>
+  <data name="UnitText.HoursMinutes" xml:space="preserve">
+    <value>{0} h {1} min</value>
+  </data>
+  <data name="UnitText.Minutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="Visibility.Always" xml:space="preserve">
+    <value>Always</value>
+  </data>
+  <data name="Visibility.HideInFullscreen" xml:space="preserve">
+    <value>Hide in full screen (games, videos)</value>
+  </data>
+  <data name="Visibility.OnlyInFullscreen" xml:space="preserve">
+    <value>Only in full screen</value>
+  </data>
+  <data name="WindowText.AboutSection" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="WindowText.HotkeysField" xml:space="preserve">
+    <value>Hotkeys</value>
+  </data>
+  <data name="WindowText.HotkeysSet" xml:space="preserve">
+    <value>{0} set · they work anywhere in Windows</value>
+  </data>
+  <data name="WindowText.HotkeysOff" xml:space="preserve">
+    <value>All off · they work anywhere in Windows</value>
+  </data>
+  <data name="WindowText.HotkeyToggle" xml:space="preserve">
+    <value>Hide or show the overlays</value>
+  </data>
+  <data name="WindowText.HotkeyNextLook" xml:space="preserve">
+    <value>Next look on all overlays</value>
+  </data>
+  <data name="WindowText.HotkeyClickThrough" xml:space="preserve">
+    <value>Click-through on all overlays</value>
+  </data>
+  <data name="WindowText.HotkeyResetMinMax" xml:space="preserve">
+    <value>Reset min and max</value>
+  </data>
+  <data name="WindowText.HotkeyCapturing" xml:space="preserve">
+    <value>Esc cancels · Backspace clears</value>
+  </data>
+  <data name="WindowText.ClickThroughHotkeyHint" xml:space="preserve">
+    <value>Without one, thermi’s icon by the clock turns it off</value>
+  </data>
+  <data name="WindowText.ClearHotkey" xml:space="preserve">
+    <value>Clear {0}</value>
+  </data>
+  <data name="WindowText.FileAndReset" xml:space="preserve">
+    <value>Settings file and reset</value>
+  </data>
+  <data name="WindowText.SettingsFile" xml:space="preserve">
+    <value>Settings file</value>
+  </data>
+  <data name="WindowText.OpenInEditor" xml:space="preserve">
+    <value>Open in editor</value>
+  </data>
+  <data name="WindowText.ResetKeeps" xml:space="preserve">
+    <value>Language, hotkeys and units stay</value>
+  </data>
+  <data name="WindowText.ResetAsk" xml:space="preserve">
+    <value>Reset…</value>
+  </data>
+  <data name="WindowText.ResetTitle" xml:space="preserve">
+    <value>Reset to defaults?</value>
+  </data>
+  <data name="WindowText.ResetBody" xml:space="preserve">
+    <value>Items, labels, meters, thresholds, placement and style go back to how thermi starts. Language, hotkeys and the temperature unit stay. Ctrl+Z undoes it.</value>
+  </data>
+  <data name="WindowText.Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="WindowText.AboutThermi" xml:space="preserve">
+    <value>About thermi</value>
+  </data>
+  <data name="WindowText.AboutVersion" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="WindowText.SourceCode" xml:space="preserve">
+    <value>Source code</value>
+  </data>
+  <data name="WindowText.ReportProblem" xml:space="preserve">
+    <value>Report a problem</value>
+  </data>
+  <data name="WindowText.ThirdPartyNotices" xml:space="preserve">
+    <value>Third-party notices</value>
+  </data>
+  <data name="WindowText.License" xml:space="preserve">
+    <value>MIT license · Sensors by LibreHardwareMonitor</value>
+  </data>
+  <data name="WindowText.ServiceStopped" xml:space="preserve">
+    <value>The sensor service stopped.</value>
+  </data>
+  <data name="WindowText.ServiceStoppedMore" xml:space="preserve">
+    <value>Live values come back as soon as it runs.</value>
+  </data>
+  <data name="WindowText.StartIt" xml:space="preserve">
+    <value>Start it</value>
+  </data>
+  <data name="WindowText.ReadingsStale" xml:space="preserve">
+    <value>Readings stopped a few seconds ago.</value>
+  </data>
+  <data name="WindowText.ReadingsStaleMore" xml:space="preserve">
+    <value>Live values come back on their own.</value>
+  </data>
+  <data name="WindowText.DriverNeeded" xml:space="preserve">
+    <value>CPU temperature, power and clocks need a small signed driver.</value>
+  </data>
+  <data name="WindowText.DriverAsks" xml:space="preserve">
+    <value>Windows asks for permission once.</value>
+  </data>
+  <data name="WindowText.InstallDriver" xml:space="preserve">
+    <value>Install driver</value>
+  </data>
+  <data name="WindowText.WhatIsThis" xml:space="preserve">
+    <value>What is this?</value>
+  </data>
+  <data name="WindowText.DriverInstalling" xml:space="preserve">
+    <value>Installing the driver…</value>
+  </data>
+  <data name="WindowText.DriverInstalled" xml:space="preserve">
+    <value>Driver installed.</value>
+  </data>
+  <data name="WindowText.DriverReading" xml:space="preserve">
+    <value>CPU temperature is reading now.</value>
+  </data>
+  <data name="WindowText.DriverRefused" xml:space="preserve">
+    <value>The driver was not installed.</value>
+  </data>
+  <data name="WindowText.DriverRefusedMore" xml:space="preserve">
+    <value>Windows did not get permission, so nothing changed.</value>
+  </data>
+  <data name="WindowText.TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
+  <data name="WindowText.DriverTitle" xml:space="preserve">
+    <value>thermi’s sensor driver</value>
+  </data>
+  <data name="WindowText.DriverReads" xml:space="preserve">
+    <value>Windows keeps the CPU’s temperature, power and clock sensors behind a driver. thermi uses a small open-source one, signed so Windows trusts it. It only reads sensors: it never changes clocks, voltages or fan speeds.</value>
+  </data>
+  <data name="WindowText.DriverInstallLead" xml:space="preserve">
+    <value>Installing</value>
+  </data>
+  <data name="WindowText.DriverInstallText" xml:space="preserve">
+    <value>asks for administrator rights once. You can remove it any time from Windows’ Installed apps; thermi keeps working, without CPU temperature.</value>
+  </data>
+  <data name="WindowText.DriverAntiCheatLead" xml:space="preserve">
+    <value>Games with anti-cheat.</value>
+  </data>
+  <data name="WindowText.DriverAntiCheat" xml:space="preserve">
+    <value>Some anti-cheat systems refuse to start, or warn, while a driver that reads hardware is loaded. If a game you play complains, remove the driver while you play it.</value>
+  </data>
+  <data name="WindowText.BrokenKeeps" xml:space="preserve">
+    <value>The overlay keeps the last good settings until the file is fixed. Restoring keeps the broken file beside it, under a dated name.</value>
+  </data>
+  <data name="WindowText.Removed" xml:space="preserve">
+    <value>Removed {0}.</value>
+  </data>
+  <data name="WindowText.UndoLink" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="WindowText.LookApplied" xml:space="preserve">
+    <value>Applied “{0}” (not saved)</value>
+  </data>
+  <data name="WindowText.UndoStep" xml:space="preserve">
+    <value>Undo {0} (Ctrl+Z)</value>
+  </data>
+  <data name="WindowText.RedoStep" xml:space="preserve">
+    <value>Redo {0} (Ctrl+Y)</value>
+  </data>
+  <data name="WindowText.ShortcutPaste" xml:space="preserve">
+    <value>Apply a copied look file</value>
+  </data>
+  <data name="WindowText.CopyLookToAll" xml:space="preserve">
+    <value>Copy this whole look to all overlays</value>
+  </data>
+  <data name="WindowText.SaveLook" xml:space="preserve">
+    <value>Save as my look</value>
+  </data>
+  <data name="SheetText.AnywhereInWindows" xml:space="preserve">
+    <value>Anywhere in Windows · set them in Settings</value>
+  </data>
+  <data name="SheetText.InThisWindow" xml:space="preserve">
+    <value>In this window</value>
+  </data>
+  <data name="SheetText.OnYourDesktop" xml:space="preserve">
+    <value>On your desktop</value>
+  </data>
+  <data name="SheetText.SelectOnDesktop" xml:space="preserve">
+    <value>Select a value, or an overlay by its edge</value>
+  </data>
+  <data name="SheetText.Click" xml:space="preserve">
+    <value>Click</value>
+  </data>
+  <data name="SheetText.OpenOnDesktop" xml:space="preserve">
+    <value>Open its settings</value>
+  </data>
+  <data name="SheetText.DoubleClick" xml:space="preserve">
+    <value>Double-click</value>
+  </data>
+  <data name="SheetText.PlacePill" xml:space="preserve">
+    <value>Place a pill anywhere</value>
+  </data>
+  <data name="SheetText.DragOff" xml:space="preserve">
+    <value>Ctrl+drag it off</value>
+  </data>
+  <data name="SheetText.ResizeOverlay" xml:space="preserve">
+    <value>Resize a floating overlay</value>
+  </data>
+  <data name="SheetText.ItsCorner" xml:space="preserve">
+    <value>Its corner</value>
+  </data>
+  <data name="MetricLabel.Up" xml:space="preserve">
+    <value>UP</value>
+  </data>
+  <data name="MetricLabel.Ip" xml:space="preserve">
+    <value>IP</value>
+  </data>
+  <data name="MetricLabel.Time" xml:space="preserve">
+    <value>TIME</value>
+  </data>
+  <data name="DeviceKind.System" xml:space="preserve">
+    <value>PC</value>
+  </data>
+  <data name="MetricName.Uptime" xml:space="preserve">
+    <value>Uptime</value>
+  </data>
+  <data name="MetricName.LocalIp" xml:space="preserve">
+    <value>Local IP</value>
+  </data>
+  <data name="MetricName.Clock" xml:space="preserve">
+    <value>Clock</value>
+  </data>
+  <data name="SensorKind.Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="SensorKind.Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="Synonyms.Time" xml:space="preserve">
+    <value>clock hour time seconds</value>
+  </data>
+  <data name="Synonyms.Address" xml:space="preserve">
+    <value>ip ipv4 lan address network</value>
+  </data>
+  <data name="Synonyms.System" xml:space="preserve">
+    <value>pc windows computer system</value>
+  </data>
+  <data name="UnitText.BitsPerSecond" xml:space="preserve">
+    <value>bps</value>
+  </data>
+  <data name="UnitText.KilobitsPerSecond" xml:space="preserve">
+    <value>Kbps</value>
+  </data>
+  <data name="UnitText.MegabitsPerSecond" xml:space="preserve">
+    <value>Mbps</value>
+  </data>
+  <data name="UnitText.GigabitsPerSecond" xml:space="preserve">
+    <value>Gbps</value>
+  </data>
+  <data name="ChangedField.Bits" xml:space="preserve">
+    <value>Bits per second</value>
+  </data>
+  <data name="ChangedField.Fade" xml:space="preserve">
+    <value>Fade near the pointer</value>
+  </data>
+  <data name="MenuEntry.TaskManager" xml:space="preserve">
+    <value>Open Task Manager</value>
+  </data>
+  <data name="MenuEntry.CopyImage" xml:space="preserve">
+    <value>Copy as image</value>
+  </data>
+  <data name="OverlayText.Driver" xml:space="preserve">
+    <value>Driver</value>
+  </data>
+  <data name="OverlayText.Throttling" xml:space="preserve">
+    <value>Throttling: {0}, under its {1} base clock, at {2}.</value>
+  </data>
+  <data name="OverlayText.BusiestCpu" xml:space="preserve">
+    <value>Busiest now: {0}, {1} of the CPU. Open Task Manager from the overlay's menu.</value>
+  </data>
+  <data name="OverlayText.BusiestGpu" xml:space="preserve">
+    <value>Busiest now: {0}, {1} of the GPU. Open Task Manager from the overlay's menu.</value>
+  </data>
+  <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
+    <value>Your taskbar is on a side, so the overlay floats beside it.</value>
+  </data>
+  <data name="OverlayPageText.TaskbarHides" xml:space="preserve">
+    <value>Your taskbar hides itself, so the overlay floats clear of it.</value>
+  </data>
+  <data name="OverlayPageText.Fade" xml:space="preserve">
+    <value>Fade near the pointer</value>
+  </data>
+  <data name="OverlayPageText.FadeHint" xml:space="preserve">
+    <value>Shows what lies under it as the pointer comes near</value>
+  </data>
+  <data name="UiText.Bits" xml:space="preserve">
+    <value>Show in bits per second</value>
+  </data>
+  <data name="UiText.BitsHint" xml:space="preserve">
+    <value>As 99.2 Mbps; its lines stay in bytes</value>
+  </data>
+</root>

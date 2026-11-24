@@ -1,8 +1,8 @@
+using System.Buffers;
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using System.Text;
-using Thermi.Core;
+using Thermi.Core.Sensors;
 
 namespace Thermi.SensorHost;
 
@@ -15,8 +15,13 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
 {
     public const int MaxClients = 4;
 
+    // ERROR_NO_DATA as an HRESULT: the client closed its end.
+    private const int PipeBeingClosed = unchecked((int)0x800700E8);
+
     // A client that stops reading is dropped after this long, and never delays the others meanwhile.
     public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(2);
+
+    private static readonly PipeSecurity Security = Secure();
 
     private readonly List<Client> _clients = [];
     private readonly Lock _lock = new();
@@ -26,6 +31,10 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
 
     // A slot per client: past the limit, new clients wait for one to leave.
     private readonly SemaphoreSlim _slots = new(MaxClients);
+
+    // The line of each second, written straight as UTF-8: a snapshot as a string and then as bytes would be two objects
+    // near the large object heap's size every second.
+    private ArrayBufferWriter<byte> _line = new();
 
     public async Task RunAsync(CancellationToken stop)
     {
@@ -59,19 +68,27 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         while (!stop.IsCancellationRequested)
         {
             await _slots.WaitAsync(stop);
+            bool accepted;
             try
             {
-                await AcceptOneAsync(stop);
+                accepted = await AcceptOneAsync(stop);
             }
             catch
             {
                 _slots.Release();
                 throw;
             }
+
+            if (!accepted)
+            {
+                _slots.Release();
+            }
         }
     }
 
-    private async Task AcceptOneAsync(CancellationToken stop)
+    // False for a client that left before it was taken in: Windows says so as the pipe "being closed", which is no failure
+    // of the server's.
+    private async Task<bool> AcceptOneAsync(CancellationToken stop)
     {
 #pragma warning disable CA2000 // Disposed on failure here; once connected, _clients owns it and Drop or RunAsync dispose it.
         var pipe = CreatePipe();
@@ -79,6 +96,12 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         try
         {
             await pipe.WaitForConnectionAsync(stop);
+        }
+        catch (IOException ex) when (ex.HResult == PipeBeingClosed)
+        {
+            await pipe.DisposeAsync();
+            Closed();
+            return false;
         }
         catch
         {
@@ -91,6 +114,8 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         {
             _clients.Add(new Client(pipe));
         }
+
+        return true;
     }
 
     private async Task BroadcastAsync(CancellationToken stop)
@@ -99,9 +124,11 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         while (await timer.WaitForNextTickAsync(stop))
         {
             Client[] ready;
+            bool anySending;
             lock (_lock)
             {
                 ready = [.. _clients.Where(client => client.Sending.IsCompleted)];
+                anySending = ready.Length < _clients.Count;
             }
 
             if (ready.Length == 0)
@@ -109,15 +136,25 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
                 continue;
             }
 
-            var line = Encoding.UTF8.GetBytes(SnapshotJson.Write(read()) + "\n");
+            // A client still writing the last line reads it from the buffer, so it is reused only once none does.
+            if (anySending)
+            {
+                _line = new ArrayBufferWriter<byte>(_line.Capacity);
+            }
+            else
+            {
+                _line.ResetWrittenCount();
+            }
+
+            SnapshotJson.WriteLine(read(), _line);
             foreach (var client in ready)
             {
-                client.Sending = SendAsync(client, line);
+                client.Sending = SendAsync(client, _line.WrittenMemory);
             }
         }
     }
 
-    private async Task SendAsync(Client client, byte[] line)
+    private async Task SendAsync(Client client, ReadOnlyMemory<byte> line)
     {
         using var timeout = new CancellationTokenSource(WriteTimeout, time);
         try
@@ -155,8 +192,7 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         }
     }
 
-    // Local interactive users may read; SYSTEM, administrators and whoever runs the host may do more; the
-    // network gets nothing. The first instance must be new: a pipe someone else created is not ours to join.
+    // The first instance must be new: a pipe someone else created is not ours to join.
     private NamedPipeServerStream CreatePipe()
     {
         bool first;
@@ -166,22 +202,30 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
             _instances++;
         }
 
-        var security = new PipeSecurity();
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(WindowsIdentity.GetCurrent().User!, PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.InteractiveSid, null), PipeAccessRights.Read | PipeAccessRights.Synchronize, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null), PipeAccessRights.FullControl, AccessControlType.Deny));
         var options = PipeOptions.Asynchronous | (first ? PipeOptions.FirstPipeInstance : PipeOptions.None);
         try
         {
-            return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, security);
+            return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, Security);
         }
         catch
         {
             Closed();
             throw;
         }
+    }
+
+    // Local interactive users may read; SYSTEM, administrators and whoever runs the host may do more; the network gets
+    // nothing. Built once: whoever runs the host never changes, and each identity asked for holds a token handle.
+    private static PipeSecurity Secure()
+    {
+        using var host = WindowsIdentity.GetCurrent();
+        var security = new PipeSecurity();
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(host.User!, PipeAccessRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.InteractiveSid, null), PipeAccessRights.Read | PipeAccessRights.Synchronize, AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null), PipeAccessRights.FullControl, AccessControlType.Deny));
+        return security;
     }
 
     private sealed class Client(NamedPipeServerStream pipe) : IDisposable

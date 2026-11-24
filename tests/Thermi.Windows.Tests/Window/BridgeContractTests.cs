@@ -1,0 +1,91 @@
+using Thermi.Core.Bridge;
+using Thermi.Core.Look;
+using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
+using Thermi.Core.Translations;
+using Thermi.Ui;
+using Thermi.Ui.Editor;
+using Thermi.Ui.Web;
+
+namespace Thermi.Windows.Tests.Window;
+
+/// <summary>
+/// What the real bridge gives the page, over the recorded PC, held to what the page renders and the Playwright fake gives
+/// it: every item and overlay named, every value with its level, each meter's chart in its own unit, the catalog, the
+/// finder, the status and About filled, and the item it opened on. The fake is kinder than C# wherever this test is the only one that sees it.
+/// </summary>
+public sealed class BridgeContractTests
+{
+    // A version 2 file without names, as written by hand or by a build before names, its fan metered by its duty.
+    private const string Unnamed = """
+        {
+          "version": 2,
+          "overlays": [ {
+            "name": "Floating 2",
+            "snap": { "spot": "taskbar-right" },
+            "items": [
+              { "id": "fan.cpu", "metric": "fan.cpu", "meter": { "metric": "fan.cpu.duty" }, "threshold": { "warning": 60, "critical": 85 } },
+              { "id": "cpu.temperature", "metric": "cpu.temperature", "meter": { "metric": "cpu.temperature" } },
+              { "id": "cpu.power", "metric": "cpu.power" },
+              { "id": "ram.used", "metric": "ram.used", "meter": { "metric": "ram.load" } }
+            ]
+          } ]
+        }
+        """;
+
+    private static readonly Snapshot Recorded = TestRecordings.Read(TestRecordings.Admin);
+
+    [Theory]
+    [InlineData("defaults", "RPM", false)]
+    [InlineData(Unnamed, "%", true)]
+    public async Task TheRealBridgeFillsEveryFieldThePageRenders(string file, string fanUnit, bool fanTitled)
+    {
+        using var folder = new SettingsFolder();
+        folder.Write(file == "defaults" ? ThermiConfigJson.Write(new ThermiConfig()) : file);
+        await using var settings = folder.Settings();
+        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
+        var turn = new Queue<Action>();
+        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log);
+        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
+        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), new TestFeed { Latest = Recorded }, startup) { Screens = () => [] };
+        using var bridge = new WindowBridge(new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id }, editor, new ChartHistory(folder.Clock), turn.Enqueue);
+        for (var second = 0; second < 3; second++)
+        {
+            folder.Clock.Advance(TimeSpan.FromSeconds(1));
+            bridge.Arrived();
+        }
+
+        var config = await bridge.Settings();
+        var view = await bridge.View();
+        var items = config.Overlays.SelectMany(overlay => overlay.Items).ToList();
+
+        Assert.All(config.Overlays, overlay => Assert.False(string.IsNullOrWhiteSpace(overlay.Name)));
+        Assert.All(items, item => Assert.Equal(Texts.English.Of(Metrics.Find(item.Metric ?? item.Auto)!.Name), item.Name));
+        Assert.Equal(config.Overlays.Select(overlay => overlay.Items.Select(item => item.Id)), view.Pills.Select(pills => pills.SelectMany(pill => pill.Items)));
+        Assert.All(view.Pills.SelectMany(pills => pills), pill => Assert.False(string.IsNullOrWhiteSpace(pill.Label)));
+        Assert.All(items, item => Assert.True(view.Items[item.Id] is { Value: not null, Type.Length: > 0 } shown && (item.Meter is null) == (shown.Level is null), item.Id));
+        Assert.All(items, item => Assert.Equal(item.Meter?.Metric is { } metric ? Texts.English.Of(Metrics.Find(metric)!.Name) : null, view.Items[item.Id].MeterName));
+        foreach (var item in items.Where(item => item.Meter is not null))
+        {
+            var chart = await bridge.Chart(item.Id);
+            Assert.True(chart is { Empty: null, Stats: not null }, item.Id);
+            var unit = chart.Stats.Split(' ')[^1];
+            Assert.All(new[] { chart.WarningText, chart.CriticalText }.OfType<string>(), line => Assert.EndsWith($" {unit}", line, StringComparison.Ordinal));
+            if (item.Id == Metrics.CpuFan.Id)
+            {
+                Assert.Equal((fanUnit, fanTitled), (unit, chart.Title == Texts.English.Of(ChartText.DutyTitle)));
+            }
+        }
+
+        var catalog = await bridge.Catalog("", [], all: true);
+        Assert.True(catalog.Count > 0);
+        Assert.All(catalog.Groups, group => Assert.False(string.IsNullOrWhiteSpace(group.Name)));
+        Assert.All(catalog.Groups.SelectMany(group => group.Sensors), row => Assert.True(row is { Name.Length: > 0, Minute.Count: > 0 } && (row.Value ?? row.Why?.ToString()) is not null, row.Id));
+        Assert.Equal(new FinderView(FinderPhase.Idle, null), await bridge.Finder());
+        Assert.Null((await bridge.Status()).Problem);
+        Assert.Equal(new UndoSteps(null, null), await bridge.Steps());
+        Assert.True((await bridge.About()) is { Version.Length: > 0, Languages.Count: > 1, Windows.Length: > 0 });
+        // Opened from a double-click on a value, the page starts on that item of the first overlay.
+        Assert.True((await bridge.Start()) is { Overlay: 0, Item: "cpu.temperature" });
+    }
+}

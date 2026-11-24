@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "vitest": { "dir": "src" },
+  "mutate": [
+    "src/chart/geometry.ts",
+    "src/item/itemModel.ts",
+    "src/list/rows.ts",
+    "src/overlay/lookModel.ts",
+    "src/overlay/overlayEdits.ts",
+    "src/overlay/placeModel.ts",
+    "src/settings/combination.ts"
+  ],
+  "coverageAnalysis": "perTest",
+  "thresholds": { "high": 90, "low": 78, "break": 78 },
+  "reporters": ["clear-text", "html"],
+  "htmlReporter": { "fileName": "../../TestResults/mutation-web/mutation-report.html" },
+  "tempDirName": "../../TestResults/stryker-tmp",
+  "cleanTempDir": "always"
+}

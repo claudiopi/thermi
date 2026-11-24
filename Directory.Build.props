@@ -21,6 +21,9 @@
 
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Packages' own messages, such as System.CommandLine's help, only in English: thermi's command line is for
+         people and agents setting it up, and a folder per language would ship for its help alone. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,5 +39,13 @@
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)SonarLint.xml" Visible="false" />
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)Thermi.globalconfig" />
   </ItemGroup>
+
+  <!-- WebView2's package references its WPF and Windows Forms controls in every project that reaches it; thermi hosts its
+       Core controller in a window of its own and builds on neither, so no project references them. -->
+  <Target Name="DropWebView2Controls" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf' Or '%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
+    </ItemGroup>
+  </Target>
 
 </Project>

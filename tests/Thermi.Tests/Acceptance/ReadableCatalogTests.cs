@@ -1,0 +1,135 @@
+using System.Globalization;
+using Thermi.Core.Editing;
+using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
+using Thermi.Core.Translations;
+using static Thermi.Tests.Acceptance.Edited;
+
+namespace Thermi.Tests.Acceptance;
+
+/// <summary>
+/// The catalog names what a board's chip only numbers, hides what nobody would add, and takes the names people give.
+/// </summary>
+public sealed class ReadableCatalogTests
+{
+    private const string Ite = "/lpc/it8689e/0";
+
+    private const string Nuvoton = "/lpc/nct6798d/0/temperature/0";
+
+    private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
+
+    private static Snapshot NoAdmin => TestRecordings.Read(TestRecordings.NoAdmin);
+
+    // The recording's board sensor of the CPU reads what the CPU does, 76 °C, which bears out the third input of the table.
+    [Fact]
+    public void TheCatalogNamesBoardInputsLikelyAndSaysSo()
+    {
+        var withNuvoton = new Snapshot([.. Desktop.Sensors, new RawSensor(Nuvoton, "SuperIO", "Nuvoton NCT6798D", "Temperature", "Temperature #1", 41)]);
+        var devices = SensorCatalog.Build(withNuvoton);
+        var rows = devices.SelectMany(device => device.Sensors).ToList();
+        var spanish = Texts.Of("es");
+
+        Assert.Equal(
+            [
+                ("/temperature/0", Texts.English.Of(LikelyName.System), "Temperature #1"),
+                ("/temperature/1", Texts.English.Of(LikelyName.Chipset), "Temperature #2"),
+                ("/temperature/2", Texts.English.Of(LikelyName.Cpu), "Temperature #3"),
+                ("/temperature/3", Texts.English.Of(LikelyName.PcieSlot), "Temperature #4"),
+                ("/temperature/4", Texts.English.Of(LikelyName.Vrm), "Temperature #5"),
+                ("/fan/0", Texts.English.Of(LikelyName.CpuFan), "Fan #1"),
+                ("/fan/1", Texts.English.Of(LikelyName.SystemFan1), "Fan #2"),
+                ("/fan/2", Texts.English.Of(LikelyName.SystemFan2), "Fan #3"),
+                ("/control/0", Duty(LikelyName.CpuFan), "Fan #1"),
+                ("/control/1", Duty(LikelyName.SystemFan1), "Fan #2"),
+                ("/control/2", Duty(LikelyName.SystemFan2), "Fan #3"),
+            ],
+            rows.Where(row => row.Name.From == NameFrom.Likely).Select(row => (row.Id[Ite.Length..], row.Name.Shown, row.Name.Library)));
+        Assert.All(rows.Where(row => row.Name.From == NameFrom.Likely), row => Assert.Equal(("ITE IT8689E", int.Parse(row.Name.Library.Split('#')[1], CultureInfo.InvariantCulture)), (row.Name.Chip, row.Name.Input)));
+        Assert.Equal(
+            [($"{Ite}/temperature/5", 6), ($"{Ite}/fan/3", 4), ($"{Ite}/fan/4", 5), ($"{Ite}/control/3", 4), ($"{Ite}/control/4", 5), ($"{Ite}/control/5", 6), (Nuvoton, 1)],
+            rows.Where(row => row.Name is { From: NameFrom.Library, Chip: not null }).Select(row => (row.Id, row.Name.Input!.Value)));
+        Assert.All(rows.Where(row => row.Name.Chip is not null), row => Assert.Equal(row.Sensor.Hardware, row.Name.Chip));
+        Assert.All(rows.Where(row => !row.Id.StartsWith("/lpc/", StringComparison.Ordinal)), row => Assert.Equal(new SensorName(row.Sensor.Name, NameFrom.Library, row.Sensor.Name), row.Name));
+
+        var cpu = SensorCatalog.Build(Desktop, texts: spanish).SelectMany(device => device.Sensors).Single(row => row.Id == $"{Ite}/temperature/2");
+        Assert.Equal(spanish.Of(LikelyName.Cpu), cpu.Name.Shown);
+        Assert.Equal([$"{Ite}/temperature/4"], SensorCatalog.Filter(devices, Texts.English.Of(LikelyName.Vrm).ToLowerInvariant(), []).SelectMany(device => device.Sensors).Select(row => row.Id));
+        // The word its note starts with finds every probable name, as the row reads it.
+        var likelyWord = Texts.English.Of(CatalogText.LikelyNote).Split(' ')[0];
+        Assert.Equal(rows.Where(row => row.Name.From == NameFrom.Likely).Select(row => row.Id), SensorCatalog.Filter(devices, likelyWord, []).SelectMany(device => device.Sensors).Select(row => row.Id));
+    }
+
+    [Fact]
+    public void TheCatalogHidesWhatNobodyWouldAddAndCountsIt()
+    {
+        var devices = SensorCatalog.Build(Desktop);
+        var rows = devices.SelectMany(device => device.Sensors).ToList();
+        var layers = rows.Where(row => row.Sensor.HardwareType.StartsWith("Gpu", StringComparison.Ordinal) && row.Sensor.Name.StartsWith("D3D ", StringComparison.Ordinal)).Select(row => row.Id).ToList();
+
+        const string LowLimit = "/memory/dimm/1/temperature/2";
+        var (shown, hidden) = SensorCatalog.Hide(devices, new HashSet<string>(StringComparer.Ordinal));
+        var seen = SensorCatalog.Hide(devices, new HashSet<string>([$"{Ite}/fan/1", LowLimit], StringComparer.Ordinal)).Shown.SelectMany(device => device.Sensors);
+        var (searched, searchHidden) = SensorCatalog.Hide(SensorCatalog.Filter(devices, "d3d", []), new HashSet<string>(StringComparer.Ordinal));
+        var noAdmin = SensorCatalog.Hide(SensorCatalog.Build(NoAdmin), new HashSet<string>(StringComparer.Ordinal)).Shown.SelectMany(device => device.Sensors).ToList();
+
+        string[] nothing = [.. Enumerable.Range(1, 5).Select(index => $"{Ite}/control/{index}")];
+        string[] stopped = [.. Enumerable.Range(1, 4).Select(index => $"{Ite}/fan/{index}"), "/gpu-nvidia/0/fan/1"];
+        // A memory module's resolution and low limits, which read 0 °C for good.
+        string[] zeros = [.. new[] { 1, 3 }.SelectMany(dimm => new[] { 1, 2, 4 }.Select(index => $"/memory/dimm/{dimm}/temperature/{index}"))];
+        Assert.Equal(24, layers.Count);
+        Assert.Equal(
+            nothing.Concat(stopped).Concat(layers).Concat(zeros).Order(StringComparer.Ordinal),
+            rows.Select(row => row.Id).Except(shown.SelectMany(device => device.Sensors).Select(row => row.Id), StringComparer.Ordinal).Order(StringComparer.Ordinal));
+        Assert.Equal(nothing.Length + stopped.Length + layers.Count + zeros.Length, hidden);
+        Assert.DoesNotContain(shown, device => device.Sensors.Count == 0);
+        Assert.Contains(seen, row => row is { Id: $"{Ite}/fan/1", Why: NoValue.Stopped });
+        Assert.Contains(seen, row => row.Id == LowLimit);
+
+        // Of the recorded adapters only the Ethernet one moves data; the idle ones show once they have moved any.
+        Assert.Equal([MadeUpHardware.Ethernet], Adapters(new HashSet<string>(StringComparer.Ordinal)));
+        Assert.Equal([MadeUpHardware.Ethernet, MadeUpHardware.WiFi], Adapters(new HashSet<string>([$"{MadeUpHardware.WiFi}/throughput/8"], StringComparer.Ordinal)));
+        Assert.Equal((0, layers.Count), (searched.Count, searchHidden));
+        Assert.Equal(36, noAdmin.Count(row => row.Why == NoValue.DriverMayBeMissing));
+        Assert.DoesNotContain(noAdmin, row => row.Why == NoValue.ReadsNothing);
+    }
+
+    // A fan's duty keeps its type in its name, so it never reads as the fan itself.
+    private static string Duty(LikelyName name) => Texts.English.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, Texts.English.Of(name));
+
+    // The recorded adapters the catalog shows, given the sensors seen moving since it opened.
+    private static string[] Adapters(IReadOnlySet<string> moved) =>
+        [.. SensorCatalog.Hide(SensorCatalog.Build(TestRecordings.Read(TestRecordings.NetDisk)), moved).Shown.Where(device => device.Kind == DeviceKind.Network).Select(device => device.Id)];
+
+    // Two items of one board sensor, the second renamed by hand, beside the CPU fan item, whose metric picks the board's first fan.
+    [Fact]
+    public void ASensorRenamedInTheCatalogIsNamedSoEverywhere()
+    {
+        const string Chipset = $"{Ite}/temperature/1";
+        var history = new UndoHistory();
+        var twice = Done(ItemEdits.AddSensor(Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, Chipset)), 0, Desktop, Chipset));
+        var ids = twice.Overlays[0].Items.Where(item => item.Sensor == Chipset).Select(item => item.Id).ToList();
+        var start = Done(ItemEdits.Rename(twice, ids[1], "Desk"));
+
+        var renamed = Done(history, start, config => ThermiEdits.RenameSensor(config, Desktop, Chipset, "  Fan hub  "));
+        var fan = Done(history, renamed, config => ThermiEdits.RenameSensor(config, Desktop, $"{Ite}/fan/0", "Front intake"));
+        var row = SensorCatalog.Build(Desktop, renamed.SensorNames).SelectMany(device => device.Sensors).Single(each => each.Id == Chipset);
+        var added = Done(ItemEdits.AddSensor(renamed, 0, Desktop, Chipset)).Overlays[0].Items.Single(item => item.Sensor == Chipset && !ids.Contains(item.Id));
+        var cleared = Done(ThermiEdits.RenameSensor(renamed, Desktop, Chipset, " "));
+
+        Assert.Equal(new Dictionary<string, string>(StringComparer.Ordinal) { [Chipset] = "Fan hub" }, renamed.SensorNames);
+        Assert.Equal(("Fan hub", "Desk"), (Item(renamed, ids[0]).Name, Item(renamed, ids[1]).Name));
+        Assert.Equal(new SensorName("Fan hub", NameFrom.Own, "Temperature #2", "ITE IT8689E", 2), row.Name);
+        Assert.Equal([Chipset], SensorCatalog.Filter(SensorCatalog.Build(Desktop, renamed.SensorNames), "hub", []).SelectMany(device => device.Sensors).Select(each => each.Id));
+        Assert.Equal(Texts.English.Of(Metrics.CpuFan.Name), Item(fan, Metrics.CpuFan.Id).Name);
+        Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, NameText.Numbered, "Fan hub", 2), added.Name);
+        Assert.Equal((null, Item(start, ids[0]).Name), (cleared.SensorNames, Item(cleared, ids[0]).Name));
+        Assert.Equal(Refusal.SensorNameTooLong, ThermiEdits.RenameSensor(renamed, Desktop, Chipset, new string('x', SensorNames.MaxLength + 1)).Refused);
+        Assert.Equal(Refusal.SensorNotFound, ThermiEdits.RenameSensor(renamed, Desktop, "/lpc/it8689e/0/temperature/9", "Gone").Refused);
+        Assert.Equal(renamed.SensorNames, Done(OverlayEdits.Reset(renamed)).SensorNames);
+
+        var undone = history.Undo(fan)!;
+        var first = history.Undo(undone.Config)!;
+        Assert.Equal((File(renamed), File(start)), (File(undone.Config), File(first.Config)));
+        Assert.Equal(File(fan), File(history.Redo(history.Redo(first.Config)!.Config)!.Config));
+    }
+}

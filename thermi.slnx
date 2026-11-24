@@ -3,9 +3,9 @@
     <Project Path="src/Thermi.Core/Thermi.Core.csproj" />
     <Project Path="src/Thermi/Thermi.csproj" />
     <Project Path="src/Thermi.SensorHost/Thermi.SensorHost.csproj" />
+    <Project Path="src/Thermi.Settings.Types/Thermi.Settings.Types.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Thermi.Tests/Thermi.Tests.csproj" />
-    <Project Path="tests/Thermi.Windows.Tests/Thermi.Windows.Tests.csproj" />
-  </Folder>
+    <Project Path="tests/Thermi.Windows.Tests/Thermi.Windows.Tests.csproj" />  </Folder>
 </Solution>

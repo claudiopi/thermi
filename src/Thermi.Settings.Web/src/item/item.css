@@ -1,0 +1,158 @@
+/* The item page, as the design prototype lays it out: one column of at most 720 px, two from 864 px of pane, the
+   chart beside the rows, growing with the pane up to 880 px each, as the pages of cards do (R119). The doubled
+   classes outweigh Fluent's own, which it adds after this sheet. */
+
+.t-item {
+  display: grid;
+  grid-template-columns: minmax(0, 720px);
+  column-gap: 24px;
+  align-items: start;
+}
+
+/* In one column the rows keep a little more room under the chart's foot than beside it. */
+.t-item > .t-chart {
+  margin-bottom: 28px;
+}
+
+@container (min-width: 864px) {
+  .t-item {
+    grid-template-columns: repeat(2, minmax(0, 880px));
+  }
+
+  .t-item-head,
+  .t-item > .t-chart {
+    grid-column: 1;
+  }
+
+  .t-item > .t-chart {
+    margin-bottom: 16px;
+  }
+
+  .t-item > .t-item-rows {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .t-item.t-no-chart > .t-item-rows {
+    grid-column: 1;
+  }
+}
+
+.t-sensor-box.t-sensor-box {
+  width: 230px;
+  min-width: 0;
+}
+
+.t-meter-box.t-meter-box {
+  min-width: 180px;
+}
+
+.t-option-box.t-option-box {
+  width: 140px;
+  min-width: 0;
+}
+
+.t-label-box.t-label-box input,
+.t-label-box.t-label-box > span {
+  width: 120px;
+}
+
+.t-combine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.t-combine-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* "Find it" under the CPU fan's sensor, as the prototype's finder row: a hint and a small button, then the run with
+   its bar, then the fan found in a success bar. */
+.t-finder-idle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px 12px;
+}
+
+.t-finder-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text3);
+}
+
+.t-finder-small.t-finder-small {
+  height: 28px;
+  min-width: 0;
+  padding: 0 10px;
+  flex: none;
+}
+
+.t-finder-run,
+.t-finder-done {
+  margin: 0 16px 16px;
+}
+
+.t-finder-run {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--thermi-divider);
+}
+
+.t-finder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.t-finder-msg {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.t-finder-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--thermi-card-stroke);
+  background: var(--thermi-card);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.t-finder-ok {
+  background: var(--thermi-ok-bg);
+}
+
+.t-finder-icon {
+  margin-top: 2px;
+  font-size: 16px;
+}
+
+.t-finder-ok .t-finder-icon {
+  color: var(--thermi-ok);
+}
+
+.t-finder-result {
+  flex: 1;
+  min-width: 0;
+}
+
+.t-finder-result b {
+  font-weight: 600;
+}
+
+.t-finder-done button {
+  margin: -4px 0;
+}

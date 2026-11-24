@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // The bridge's files are written from Core at each build, whole, so a type the page does not read yet is no dead code.
+  "ignore": ["src/bridge/*.g.ts"],
+  "ignoreExportsUsedInFile": true,
+  // The kit's props types are its contract with the pages, beside each control; a control no page uses is still reported.
+  "ignoreIssues": { "src/kit/index.ts": ["types"] }
+}

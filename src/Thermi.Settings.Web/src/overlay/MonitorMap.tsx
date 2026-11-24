@@ -1,0 +1,139 @@
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
+import type { Monitor, SnapSpot } from '../bridge/bridge.g';
+import { useText } from '../texts/Texts';
+import { cornerSpots, displayName, spotKey, taskbarSpots, type Placed } from './placeModel';
+
+export interface MonitorMapProps {
+  /** The displays, the main one first, as the window numbers them. */
+  shown: readonly Monitor[];
+  /** Where the overlay sits now, or null for one dropped anywhere. */
+  placed: Placed | null;
+  vertical: boolean;
+  /** Hidden, the overlay's spot shows dimmed and says so. */
+  hidden: boolean;
+  onSnap: (spot: SnapSpot, display: Monitor) => void;
+}
+
+/** The map's width in units for all its displays together, and the room between two, as the prototype draws them. */
+const units = 400;
+const between = 16;
+
+/** The block's width, followed as the pane changes. */
+function useWidth(): [RefObject<HTMLDivElement | null>, number] {
+  const block = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const element = block.current;
+    if (element === null) {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [block, width];
+}
+
+interface Spot {
+  spot: SnapSpot;
+  display: number;
+  x: number;
+  y: number;
+}
+
+/** A display's spots, from its top left: four corners, and three on its taskbar unless the overlay is vertical. */
+function spotsOf(display: number, width: number, height: number, bar: number, onTaskbar: boolean): Spot[] {
+  const corners: [number, number][] = [
+    [12, 12],
+    [width - 12, 12],
+    [12, height - bar - 12],
+    [width - 12, height - bar - 12],
+  ];
+  const bars = [14, width / 2, width - 14];
+  return [
+    ...(onTaskbar ? taskbarSpots.map((spot, index) => ({ spot, display, x: bars[index] ?? 0, y: height - bar / 2 })) : []),
+    ...cornerSpots.map((spot, index) => ({ spot, display, x: corners[index]?.[0] ?? 0, y: corners[index]?.[1] ?? 0 })),
+  ];
+}
+
+interface Box {
+  index: number;
+  one: Monitor;
+  x: number;
+  w: number;
+  h: number;
+}
+
+/** The displays as drawn, left to right as Windows places them, at the map's scale, and the map's size. */
+function layoutOf(shown: readonly Monitor[], scale: number): { drawn: Box[]; wide: number; tallest: number } {
+  const unit = (units / shown.reduce((sum, one) => sum + one.bounds.width, 0)) * scale;
+  const order = shown.map((one, index) => ({ one, index })).sort((a, b) => a.one.bounds.x - b.one.bounds.x);
+  const drawn: Box[] = [];
+  for (const { one, index } of order) {
+    const last = drawn.at(-1);
+    const x = last === undefined ? 0 : last.x + last.w + between * scale;
+    drawn.push({ index, one, x, w: one.bounds.width * unit, h: one.bounds.height * unit });
+  }
+  const end = drawn.at(-1);
+  return { drawn, wide: end === undefined ? 0 : end.x + end.w, tallest: Math.max(0, ...drawn.map((box) => box.h)) };
+}
+
+export function MonitorMap({ shown, placed, vertical, hidden, onSnap }: MonitorMapProps) {
+  const t = useText();
+  const [block, width] = useWidth();
+  const group = useRef<HTMLDivElement>(null);
+  const scale = Math.min(2, Math.max(0.8, Math.floor(((width - 32) / (units + between)) * 10) / 10));
+  const { drawn, wide, tallest } = layoutOf(shown, scale);
+  const bar = 14 * scale;
+  const all = drawn.flatMap((box) => spotsOf(box.index, box.w, box.h, box.one.taskbar ? bar : 0, box.one.taskbar && !vertical));
+  const isOn = (spot: Spot): boolean => placed !== null && placed.spot === spot.spot && placed.display === spot.display;
+  const tabStop = all.find(isOn) ?? all[0];
+  const keyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+    const at = all.findIndex((spot) => spot === tabStop);
+    const next = step === undefined ? undefined : all[(at + step + all.length) % all.length];
+    const display = next === undefined ? undefined : shown[next.display];
+    if (next !== undefined && display !== undefined) {
+      event.preventDefault();
+      onSnap(next.spot, display);
+      group.current?.querySelectorAll<HTMLElement>('[role="radio"]')[all.indexOf(next)]?.focus();
+    }
+  };
+  const label = (one: Monitor, index: number): string => {
+    const size = one.scale === 1 ? t('OverlayPageText.DisplaySize', one.bounds.width, one.bounds.height) : t('OverlayPageText.DisplayScaled', one.bounds.width, one.bounds.height, Math.round(one.scale * 100));
+    return `${displayName(one, index, t)}\n${size}`;
+  };
+  return (
+    <div ref={block} className="t-map-block">
+      <div ref={group} className="t-map" role="radiogroup" aria-label={t('UiText.MonitorMap')} style={{ width: wide, height: tallest }} onKeyDown={keyDown}>
+        {drawn.map((box) => {
+          const style: CSSProperties = { left: box.x, top: tallest - box.h, width: box.w, height: box.h };
+          const mine = placed?.display === box.index;
+          return (
+            <div key={box.one.id} className={`t-mon${mine ? ' t-on' : ''}`} style={style}>
+              <span className="t-mon-name">{label(box.one, box.index)}</span>
+              {box.one.taskbar && <i className="t-mon-bar" style={{ height: bar }} />}
+              {all
+                .filter((spot) => spot.display === box.index)
+                .map((spot) => (
+                  <button
+                    key={spot.spot}
+                    type="button"
+                    role="radio"
+                    aria-checked={isOn(spot)}
+                    aria-label={t('OverlayPageText.SpotOnMonitor', t(spotKey(spot.spot)), box.index + 1)}
+                    aria-description={hidden && isOn(spot) ? t('UiText.OverlayHidden') : undefined}
+                    title={spot.spot.startsWith('top') ? t('OverlayPageText.TopSpotHint') : undefined}
+                    tabIndex={spot === tabStop ? 0 : -1}
+                    className={`t-spot${spot.spot.startsWith('taskbar') ? ' t-spot-bar' : ''}${isOn(spot) ? ' t-on' : ''}${hidden && isOn(spot) ? ' t-hidden' : ''}`}
+                    style={{ left: spot.x, top: spot.y }}
+                    onClick={() => onSnap(spot.spot, box.one)}
+                  />
+                ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # The settings window's page: a pull request a week for its npm packages, each pinned exactly with its lockfile, and
+  # only versions out for a week, so one pulled back after a bad release never reaches a pull request.
+  - package-ecosystem: npm
+    directory: /src/Thermi.Settings.Web
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5

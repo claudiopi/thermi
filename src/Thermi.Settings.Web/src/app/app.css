@@ -1,0 +1,404 @@
+/* The shortcut sheet: a section per place, each row its words and its keys, a gesture or Off in plain words. */
+.t-sheet-head {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--thermi-text2);
+}
+
+.t-sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.t-sheet-keys {
+  display: inline-flex;
+  flex: none;
+  gap: 8px;
+}
+
+.t-sheet-word {
+  flex: none;
+  color: var(--thermi-text2);
+}
+
+/* The window's frame, from the design prototype: a 48 px title row, the bars, then the list and the pane. The list is
+   344 px from a 1500 px window, 32 % of it between 240 and 296 px below that, and folds under 860 px (R119). */
+
+.t-window {
+  position: relative;
+  display: grid;
+  grid-template-rows: 48px auto minmax(0, 1fr);
+  grid-template-columns: clamp(240px, 32vw, 296px) minmax(0, 1fr);
+  height: 100%;
+  color: var(--thermi-text);
+  /* Clipped, never scrolled: the catalog slides in from beyond the right edge, and the focus it takes on the way would
+     scroll a hidden overflow sideways, the whole window with it. */
+  overflow: clip;
+}
+
+@media (min-width: 1500px) {
+  .t-window {
+    grid-template-columns: 344px minmax(0, 1fr);
+  }
+}
+
+.t-window.t-narrow {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Windows draws the caption buttons, 138 px, at the row's end and takes the rest of the row as caption. */
+.t-title {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 170px 0 16px;
+  app-region: drag;
+}
+
+.t-title button {
+  app-region: no-drag;
+}
+
+.t-app {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.t-narrow .t-app {
+  margin-inline-start: 8px;
+}
+
+.t-mark {
+  width: 16px;
+  height: 16px;
+  color: var(--thermi-text);
+}
+
+.t-grow {
+  flex: 1;
+}
+
+.t-tool > button {
+  width: 40px;
+  min-width: 40px;
+  height: 32px;
+  padding: 0;
+  color: var(--thermi-text);
+  font-size: 16px;
+}
+
+.t-tool > button i {
+  font-size: 16px;
+}
+
+.t-narrow .t-tool:first-child > button {
+  margin-inline-start: -8px;
+}
+
+.t-window.t-broken-window {
+  grid-template-rows: 48px minmax(0, 1fr);
+}
+
+/* The page that failed to draw: one line and its button, in the middle of the window. */
+.t-failed {
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.t-side {
+  grid-row: 3;
+  margin-top: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The narrow list opens over the pane, which then takes no input, from the top of the pane's row, as the prototype's
+   flyout does: the row is the box it is placed in, so it covers the page's heading at any text size. The smoke behind
+   it dims the pane as the catalog's light smoke does, and a click on it folds the list. */
+.t-narrow .t-side {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  margin-top: 0;
+  padding-top: 8px;
+  width: min(320px, 85vw);
+  background: var(--thermi-flyout);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.26), inset -1px 0 0 var(--thermi-flyout-stroke);
+  border-start-end-radius: 8px;
+}
+
+.t-smoke {
+  grid-row: 3;
+  grid-column: 1 / -1;
+  position: absolute;
+  z-index: 9;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+@media (forced-colors: active) {
+  .t-narrow .t-side {
+    background: Canvas;
+    border-inline-end: 1px solid CanvasText;
+  }
+}
+
+.t-pane {
+  grid-row: 3;
+  margin-top: 8px;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  /* The scrollbar's room is kept while it does not show, so the chart and the cards never shift when it comes. */
+  scrollbar-gutter: stable;
+  container-type: inline-size;
+  background: var(--thermi-layer);
+  border-start-start-radius: 8px;
+  box-shadow: inset 1px 1px 0 var(--thermi-layer-stroke);
+}
+
+.t-pane-in {
+  padding: 8px 24px 24px 16px;
+}
+
+.t-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 20px;
+}
+
+.t-heading {
+  margin: 0;
+  font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+}
+
+.t-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+}
+
+.t-head-text {
+  min-width: 0;
+}
+
+/* A page of cards in columns, as the design prototype lays out the overlay page and Settings: one column of at most
+   720 px, two from 864 px of pane (R119). The two grow with the pane up to 880 px each, where the prototype held them at
+   720 px until 2000 px: a maximized window on a 1920 px screen left a strip empty on the right. */
+.t-page > * {
+  max-width: 720px;
+}
+
+.t-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 720px);
+  gap: 12px 24px;
+  align-items: start;
+}
+
+@container (min-width: 864px) {
+  .t-page > * {
+    max-width: 1784px;
+  }
+
+  .t-cols {
+    grid-template-columns: repeat(2, minmax(0, 880px));
+  }
+}
+
+.t-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  container: col / inline-size;
+}
+
+.t-pane-h {
+  margin: 20px 0 8px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.t-dialog-text {
+  margin: 0 0 12px;
+}
+
+.t-dialog-text:last-child {
+  margin-bottom: 0;
+}
+
+.t-title-name {
+  margin-inline-start: -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: text;
+}
+
+.t-title-name:hover {
+  background: var(--thermi-subtle-hover);
+}
+
+.t-title-box {
+  width: 100%;
+  margin-inline-start: -6px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-bottom: 2px solid var(--colorCompoundBrandStroke);
+  border-radius: 4px;
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  font: inherit;
+  outline: none;
+}
+
+.t-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: 2px;
+}
+
+.t-announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.t-keys {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.t-key {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+}
+
+.t-key dt,
+.t-key dd {
+  margin: 0;
+}
+
+.t-key kbd {
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.t-app {
+  margin: 0;
+  font-weight: 400;
+}
+
+/* An expander: a card whose first row opens the rest under it, as More options and Text and shape do. */
+.t-card {
+  box-shadow: inset 0 0 0 1px var(--thermi-card-stroke);
+  border-radius: 4px;
+  background: var(--thermi-card);
+  background-clip: padding-box;
+}
+
+.t-more-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: default;
+}
+
+.t-more-row:hover {
+  background: var(--thermi-subtle-hover);
+}
+
+.t-more-row:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: -2px;
+}
+
+.t-more-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.t-more-hint {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+}
+
+.t-more-chevron {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-inline-end: -8px;
+  font-size: 12px;
+}
+
+.t-more-rows > div {
+  border-top: 1px solid var(--thermi-divider);
+}
+
+.t-more-rows.t-more-rows > div {
+  min-height: 52px;
+  padding-block: 10px;
+}
+
+.t-more-rows.t-roomy.t-roomy > div {
+  min-height: 64px;
+  padding-block: 12px;
+}
+
+/* The prototype's small buttons, for actions inside a page: 28 px tall, as wide as their text. */
+.t-small-button.t-small-button {
+  height: 28px;
+  min-width: 0;
+  padding: 0 10px;
+}

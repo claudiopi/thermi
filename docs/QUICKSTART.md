@@ -19,11 +19,13 @@ If anything is missing, thermi shows `–`, never a zero and never an old number
 
 ## The journey of a setting
 
-The settings are a JSON file in the user's profile. When it changes, the overlay reloads it at once. If it is broken, the overlay keeps the last good settings, shows "CONFIG error", and never writes over the user's file. A settings window will edit the same file (spec 002).
+The settings are a JSON file in the user's profile. When it changes, the overlay reloads it at once. If it is broken, the overlay keeps the last good settings, shows "CONFIG error", and never writes over the user's file.
+
+The settings window edits the same file, in a process of its own that closes with it. It is a web page, the same on any PC, shown by a plain window through WebView2, the browser engine Windows ships. The page decides nothing: it asks C# what to show and hands each change back through one typed bridge, and C# checks it against the same rules the overlay follows, keeps it for undo, and never writes over a broken file.
 
 ## Five ideas you need
 
-- **Two processes.** The service has admin rights and reads hardware; the overlay has none and draws. Each does one job, and a crash in one never takes the other down.
+- **Separate processes.** The service has admin rights and reads hardware; the overlay has none and draws; the settings window, while open, edits. Each does one job, and a crash in one never takes another down.
 - **Core knows no Windows.** Everything that can be decided without Windows, which metric is which sensor, how a value reads, what the overlay shows, lives in Core and is tested without hardware.
 - **Recordings, not mocks.** Tests replay snapshots recorded on real PCs, with and without admin rights. Fakes kinder than real hardware hide the bugs users hit.
 - **Missing is not zero.** Without its driver, a CPU reports 0 °C. thermi treats that as missing, because no running chip is at 0 °C.

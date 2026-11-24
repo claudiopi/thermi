@@ -1,4 +1,6 @@
-using Thermi.Core;
+using System.Globalization;
+using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
 
 namespace Thermi.Tests;
 
@@ -41,6 +43,8 @@ public sealed class FileFormatTests
     [InlineData("{\"sensors\":[{\"id\":\"/a\",\"value\":\"hot\"}]}")]
     [InlineData("[1,2,3]")]
     [InlineData("{\"sensors\":[")]
+    [InlineData("{\"sensors\":[{\"hardwareType\":\"SuperIO\",\"hardware\":\"x\",\"type\":\"Fan\",\"name\":\"CPU Fan\",\"value\":1}]}")]
+    [InlineData("{\"sensors\":[{\"id\":\"/a\",\"hardwareType\":\"SuperIO\",\"hardware\":\"x\",\"type\":\"Fan\",\"value\":1}]}")]
     public void AMalformedLineIsNotASnapshot(string? line)
     {
         Assert.Null(SnapshotJson.Read(line));
@@ -55,81 +59,132 @@ public sealed class FileFormatTests
     [Fact]
     public void TheConfigSurvivesASaveAndALoad()
     {
-        var config = new OverlayConfig
+        var overlay = new OverlayConfig
         {
             Position = new Position(-1200, 1402),
-            Sources = new Dictionary<string, string>(StringComparer.Ordinal) { [Metrics.CpuFan.Id] = "/lpc/it8689e/0/fan/1" },
+            Items = [new ItemConfig { Id = Metrics.CpuFan.Id, Sensor = "/lpc/it8689e/0/fan/1", Auto = Metrics.CpuFan.Id }],
         };
 
-        var (back, problem) = OverlayConfigJson.Read(OverlayConfigJson.Write(config));
+        var (back, problem) = ThermiConfigJson.Read(ThermiConfigJson.Write(new ThermiConfig { Overlays = [overlay] }));
 
         Assert.Null(problem);
-        Assert.Equal(config.Position, back.Position);
-        Assert.Equal(config.Items, back.Items);
-        Assert.Equal(config.Sources, back.Sources);
+        Assert.Equal(overlay.Position, back.Overlays[0].Position);
+        Assert.Equal(overlay.Items, back.Overlays[0].Items);
     }
 
-    // A file as version 1 wrote it, committed: every later version must still read it the same way.
-    [Fact]
-    public void AVersionOneFileStillReads()
-    {
-        var (config, problem) = OverlayConfigJson.Read(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Configs", "v1.json")));
-
-        Assert.Null(problem);
-        Assert.Equal(new Position(1665, 1402), config.Position);
-        Assert.Equal(
-            [
-                new ItemConfig(Metrics.CpuFan.Id, Metrics.CpuFanDuty.Id, new Threshold(60, 85)),
-                new ItemConfig(Metrics.CpuTemperature.Id, Metrics.CpuTemperature.Id, new Threshold(70, 90)),
-                new ItemConfig(Metrics.RamLoad.Id),
-            ],
-            config.Items);
-        Assert.Equal("/lpc/it8689e/0/fan/0", config.Sources[Metrics.CpuFan.Id]);
-    }
-
+    // Read meanwhile, an editor's save may find a file empty or cut short: only text broken before its end is broken for good.
     [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    public void NoConfigMeansTheDefaults(string? json)
-    {
-        var (config, problem) = OverlayConfigJson.Read(json);
+    [InlineData(null, true)]
+    [InlineData(" \r\n", true)]
+    [InlineData("{ \"version\": 2, \"overlays\": [ { \"items\": [", true)]
+    [InlineData("{ \"version\": 2, \"show\": \"tr", true)]
+    [InlineData("[1, 2", true)]
+    [InlineData("{ \"version\": 2 }", false)]
+    [InlineData("{ \"version\": 2 }\r\n", false)]
+    [InlineData("[1, 2]", false)]
+    [InlineData("null", false)]
+    [InlineData("{ broken", false)]
+    [InlineData("{ \"version\": 2 } and more", false)]
+    public void AFileCutShortIsToldFromABrokenOne(string? json, bool unfinished) =>
+        Assert.Equal(unfinished, ThermiConfigJson.IsUnfinished(json));
 
-        Assert.Null(problem);
-        Assert.Equal(new OverlayConfig().Items, config.Items);
-        Assert.Null(config.Position);
-    }
-
+    // With the field a broken rule names, when it is one.
     [Theory]
-    [InlineData("{ broken")]
-    [InlineData("{\"items\":[{\"metric\":\"cpu.load\",\"threshold\":{\"warning\":90,\"critical\":80}}]}")]
-    [InlineData("{\"version\":2}")]
-    public void ABrokenOrNewerConfigGivesTheDefaultsAndSaysWhy(string json)
+    [InlineData("{ broken", null)]
+    [InlineData("[1,2,3]", null)]
+    [InlineData("{\"items\":[{\"metric\":\"cpu.load\",\"threshold\":{\"warning\":90,\"critical\":80}}]}", null)]
+    [InlineData("{\"version\":3}", null)]
+    [InlineData("{\"version\":0}", null)]
+    [InlineData("{\"version\":\"two\"}", null)]
+    [InlineData("{\"version\":2,\"overlays\":[]}", "overlays holds 0")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"size\":2.5}]}", "overlays[0].size")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"snap\":{\"monitor\":\"DEL-41A8\"}}]}", "spot")]
+    [InlineData("{\"version\":2,\"temperature\":\"k\"}", "temperature")]
+    [InlineData("{\"version\":2,\"temperature\":1}", "temperature")]
+    [InlineData("{\"version\":2,\"sensorNames\":{\"/a\":\" \"}}", "sensorNames")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"sensor\":\"/a\"}]}]}", "items[0] must name one")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"auto\":\"cpu.load\"}]}]}", "items[0].auto")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"sensors\":[\"/a\",\"/b\"]}]}]}", "items[0].combine")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"combine\":\"max\"}]}]}", "items[0].combine")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"smooth\":1}]}]}", "items[0].smooth")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"decimals\":3}]}]}", "items[0].decimals")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"color\":\"red\"}]}]}", "items[0].color")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"cpu.load\",\"sensor\":\"/a\"}}]}]}", "items[0].meter must name one")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"cpu.load\",\"auto\":\"cpu.load\"}}]}]}", "items[0].meter.auto")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"name\":\"\"}}]}", "style.name")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"label\":{\"size\":21,\"weight\":\"bold\"}}}]}", "style.label.size")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"value\":{\"size\":13.25,\"weight\":\"bold\"}}}]}", "style.value.size")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"opacity\":{\"background\":1.5}}}]}", "style.opacity.background")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"opacity\":{\"overlay\":0.1}}}]}", "style.opacity.overlay")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"gap\":17}}]}", "style.gap")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"colors\":{\"value\":\"#12345\"}}}]}", "style.colors.value")]
+    public void ABrokenOrNewerConfigGivesTheDefaultsAndSaysWhy(string json, string? field)
     {
-        var (config, problem) = OverlayConfigJson.Read(json);
+        var (config, problem) = ThermiConfigJson.Read(json);
 
         Assert.NotNull(problem);
-        Assert.Equal(new OverlayConfig().Items, config.Items);
+        Assert.Contains(field ?? "", problem.Reason, StringComparison.Ordinal);
+        Assert.Equal(OverlayConfig.DefaultItems, Assert.Single(config.Overlays).Items);
     }
 
+    // No file, or nulls written by hand, read as if left out: the defaults, or what is left of the items.
     [Theory]
+    [InlineData(null, 6)]
+    [InlineData("", 6)]
+    [InlineData("null", 6)]
     [InlineData("{\"items\":null,\"sources\":null}", 6)]
     [InlineData("{\"items\":[null,{\"metric\":null},{\"metric\":\"ram.load\"}]}", 1)]
-    public void NullsWrittenByHandAreTreatedAsLeftOut(string json, int items)
+    [InlineData("{\"sources\":{\"fan.cpu\":null},\"items\":[{\"metric\":\"fan.cpu\",\"meter\":\"fan.cpu.duty\"}]}", 1)]
+    [InlineData("{\"sources\":{\"fan.cpu\":null,\"cpu.load\":null},\"items\":[{\"metric\":\"fan.cpu\"},{\"metric\":\"cpu.load\",\"meter\":\"cpu.load\"}]}", 2)]
+    [InlineData("{\"version\":2,\"overlays\":null}", 6)]
+    [InlineData("{\"version\":2,\"overlays\":[null,{\"style\":null,\"items\":null}]}", 6)]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"opacity\":null},\"items\":[null,{\"metric\":null},{\"sensors\":[null]},{\"metric\":\"ram.load\"}]}]}", 1)]
+    public void NoConfigOrNullsWrittenByHandMeanTheDefaults(string? json, int items)
     {
-        var (config, problem) = OverlayConfigJson.Read(json);
+        var (config, problem) = ThermiConfigJson.Read(json);
 
         Assert.Null(problem);
-        Assert.Equal(items, config.Items.Count);
-        Assert.Empty(config.Sources);
+        Assert.Equal(items, Assert.Single(config.Overlays).Items.Count);
+        Assert.True(items != OverlayConfig.DefaultItems.Count || config.Overlays[0].Items.SequenceEqual(OverlayConfig.DefaultItems), "Some items, but not the defaults.");
+        Assert.All(config.Overlays[0].Items, item => Assert.Null(item.Sensor));
+        Assert.Equal(new StyleConfig(), config.Overlays[0].Style);
+        Assert.Null(config.Overlays[0].Position);
     }
 
     [Fact]
     public void AConfigWithOnlySomeSettingsKeepsTheDefaultsForTheRest()
     {
-        var (config, problem) = OverlayConfigJson.Read("{\"position\":{\"x\":10,\"y\":20}}");
+        var (config, problem) = ThermiConfigJson.Read("{\"position\":{\"x\":10,\"y\":20}}");
 
         Assert.Null(problem);
-        Assert.Equal(new Position(10, 20), config.Position);
-        Assert.Equal(new OverlayConfig().Items, config.Items);
+        Assert.Equal(new Position(10, 20), config.Overlays[0].Position);
+        Assert.Equal(OverlayConfig.DefaultItems, config.Overlays[0].Items);
+    }
+
+    // R40: a file that is no JSON says where, its line counted from 1, and why, without .NET's own place; a value of the
+    // wrong kind names its line too; a newer file says which version; every problem reads as one line in either language.
+    [Fact]
+    public void ABrokenFileSaysItsLineAndReason()
+    {
+        var (_, syntax) = ThermiConfigJson.Read("{\n  \"version\": 2,\n  \"overlays\": [ { \"items\": [ { ] } ]\n}");
+        var (_, kind) = ThermiConfigJson.Read("{\n  \"version\": 2,\n  \"overlays\": [\n    { \"locked\": \"yes\" }\n  ]\n}");
+        var (_, newer) = ThermiConfigJson.Read("{ \"version\": 99 }");
+        var english = Core.Translations.Texts.English;
+        var spanish = Core.Translations.Texts.Of("es");
+        var numbers = CultureInfo.InvariantCulture;
+        string OneLine(Core.Translations.Texts texts, ConfigProblemKind title, string detail)
+        {
+            return texts.Format(numbers, ConfigProblemText.OneLine, texts.Of(title), detail);
+        }
+
+
+        Assert.Equal((ConfigProblemKind.Broken, 3L), (syntax!.Kind, syntax.Line));
+        Assert.DoesNotContain("LineNumber", syntax.Reason, StringComparison.Ordinal);
+        Assert.Equal(OneLine(english, ConfigProblemKind.Broken, english.Format(numbers, ConfigProblemText.AtLine, 3, syntax.Reason)), syntax.OneLine(english, numbers));
+        Assert.Equal((ConfigProblemKind.Broken, 4L), (kind!.Kind, kind.Line));
+        Assert.Equal(english.Format(numbers, ConfigProblemText.Newer, 99, ThermiConfig.CurrentVersion), newer!.Detail(english, numbers));
+        Assert.Equal(OneLine(spanish, ConfigProblemKind.Newer, spanish.Format(numbers, ConfigProblemText.Newer, 99, ThermiConfig.CurrentVersion)), newer.OneLine(spanish, numbers));
+        Assert.Equal(OneLine(english, ConfigProblemKind.Locked, "in use"), ConfigProblem.Locked("in use").OneLine(english, numbers));
+        Assert.Equal(english.Of(ConfigProblemKind.Missing), ConfigProblem.Missing.OneLine(english, numbers));
     }
 }

@@ -1,0 +1,191 @@
+/* The catalog, from the design prototype: a title with the overlay it adds to, the search, the type chips, the count,
+   and the sensors by device in rows of name, last minute and value. */
+
+.t-cat-h {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.t-cat-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  /* A flex line drops the space between "Add to" and the overlay's picker unless spaces are kept. */
+  white-space: break-spaces;
+}
+
+.t-cat-title input {
+  font-weight: 600;
+}
+
+/* The prototype's close is a small glyph in a full-size button. */
+.t-cat-close {
+  font-size: 12px;
+}
+
+.t-cat-sub,
+.t-cat-count {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text2);
+}
+
+.t-cat-count {
+  margin: 0 0 0 2px;
+  color: var(--thermi-text3);
+}
+
+/* The count and, when the catalog hides some, "Show all" at its end, in the count's own line. */
+.t-cat-count-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -4px 0 -6px;
+}
+
+/* The chip overhangs the count's line, so the list starts where the prototype's does with it or without it. */
+.t-cat-count-row > button {
+  margin: -4px 0;
+}
+
+.t-cat-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -12px;
+  padding: 0 12px 16px;
+  overflow-y: auto;
+}
+
+.t-cat-dev {
+  margin: 14px 0 4px 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--thermi-text2);
+}
+
+.t-cat-list > :first-child > .t-cat-dev {
+  margin-top: 2px;
+}
+
+.t-cat-row {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 84px 28px;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: default;
+}
+
+.t-cat-row:hover {
+  background: var(--thermi-subtle-hover);
+}
+
+/* The pencil sits at the row's end, in room of its own, and shows only while the row is pointed at: in the middle of the
+   row, over the name or the last minute, it took the clicks that add the sensor. */
+.t-cat-pencil {
+  display: flex;
+  visibility: hidden;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--thermi-text2);
+}
+
+.t-cat-row:hover .t-cat-pencil {
+  visibility: visible;
+}
+
+.t-cat-pencil:hover {
+  color: var(--thermi-text);
+  background: var(--thermi-subtle-hover);
+}
+
+.t-cat-renaming {
+  display: flex;
+}
+
+.t-cat-rename-box {
+  height: 32px;
+}
+
+.t-cat-row:focus-visible {
+  outline: 2px solid var(--thermi-text);
+  outline-offset: -2px;
+}
+
+
+.t-cat-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A long name wraps between words, as R75 asks, where the row's end keeps room for the pencil. */
+.t-cat-n {
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.t-cat-d {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.t-cat-v {
+  text-align: right;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.t-cat-off {
+  font-weight: 400;
+  color: var(--thermi-text3);
+}
+
+/* A sensor without a value shows the dash the overlay shows; the reason under its name says why. */
+.t-cat-off:empty::after {
+  content: "–";
+}
+
+.t-spark-flat {
+  stroke: var(--thermi-text3);
+  stroke-width: 1.5;
+  opacity: 0.6;
+}
+
+.t-cat-empty {
+  padding: 24px 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--thermi-text2);
+}
+
+@media (forced-colors: active) {
+  .t-spark polyline {
+    stroke: CanvasText;
+  }
+}

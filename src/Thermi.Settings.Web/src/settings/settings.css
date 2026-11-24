@@ -1,0 +1,115 @@
+/* The Settings page's own controls, as the design prototype draws them. */
+
+.t-language-box.t-language-box {
+  min-width: 230px;
+}
+
+/* A hotkey: its keys as keycaps and a pen, or Off, in a box that records the next combination once clicked. */
+.t-hk {
+  box-sizing: border-box;
+  height: 32px;
+  min-width: 160px;
+  padding: 0 8px 0 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--thermi-control-stroke);
+  background: var(--thermi-control);
+  color: var(--colorNeutralForeground1);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.t-hk:hover {
+  background: var(--thermi-control-hover);
+}
+
+
+.t-hk:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: 0;
+}
+
+.t-hk-pen {
+  font-size: 12px;
+  color: var(--colorNeutralForeground2);
+}
+
+.t-hk-text {
+  padding-left: 8px;
+}
+
+.t-hk-capturing {
+  padding: 0 12px;
+  border: 2px solid var(--colorBrandStroke1);
+  color: var(--colorNeutralForeground2);
+}
+
+.t-kbd {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.t-kbd kbd {
+  box-sizing: border-box;
+  height: 22px;
+  min-width: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  display: inline-grid;
+  place-items: center;
+  font: 600 12px/16px var(--fontFamilyBase);
+  background: var(--colorNeutralBackground1Hover);
+  color: var(--colorNeutralForeground1);
+  box-shadow: inset 0 0 0 1px var(--colorNeutralStroke1), inset 0 -1px 0 var(--colorNeutralStroke2);
+}
+
+.t-hk-x.t-hk-x {
+  flex: none;
+  display: inline-grid;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.t-hk-error {
+  color: var(--colorPaletteRedForeground1);
+}
+
+.t-about-mark {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  color: var(--colorNeutralForeground1);
+}
+
+.t-about-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 30px;
+}
+
+.t-about-license {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--colorNeutralForeground3);
+}
+
+.t-about {
+  padding: 12px 16px 16px 56px;
+}
+
+@media (forced-colors: active) {
+  .t-hk-capturing {
+    border-color: Highlight;
+  }
+
+  .t-kbd kbd {
+    border: 1px solid CanvasText;
+  }
+}

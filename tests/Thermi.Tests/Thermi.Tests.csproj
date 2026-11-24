@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Thermi.Windows.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,8 +17,13 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <!-- The Windows tests' reading of a recording, shared rather than copied. -->
   <ItemGroup>
-    <None Include="Recordings\*.json;Configs\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="..\Thermi.Windows.Tests\TestRecordings.cs" Link="Shared\TestRecordings.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Recordings\*.json;Recordings\*.jsonl;Configs\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

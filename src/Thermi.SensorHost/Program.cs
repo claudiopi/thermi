@@ -1,41 +1,89 @@
+using System.CommandLine;
 using System.Diagnostics;
 using System.ServiceProcess;
-using Thermi.Core;
+using Thermi.Core.Sensors;
 
 namespace Thermi.SensorHost;
 
 /// <summary>
 /// The <c>thermi-sensors</c> Windows service. <c>--console</c> serves readings in a terminal, and
-/// <c>--dump &lt;file&gt;</c> saves one snapshot, for test recordings.
+/// <c>--dump &lt;file&gt;</c> saves one snapshot, and <c>--dump &lt;file&gt; --seconds &lt;n&gt;</c> a series, for test recordings.
+/// Arguments that make no sense say why and exit with 2, before the sensors are opened.
 /// </summary>
 internal static class Program
 {
-    private static async Task<int> Main(string[] args)
+    private static Task<int> Main(string[] args) => RunAsync(args, SensorHostEnvironment.Default, CancellationToken.None);
+
+    /// <summary>What <c>thermi-sensors</c> does with <paramref name="args"/>; <paramref name="stop"/> ends serving in a terminal, as Ctrl+C does.</summary>
+    internal static async Task<int> RunAsync(IReadOnlyList<string> args, SensorHostEnvironment environment, CancellationToken stop)
     {
-        using var source = new LhmSensorSource();
-        if (args is ["--dump", var path])
+        var request = SensorCommands.Parse(args, out var errors);
+        if (request is null)
         {
-            await File.WriteAllTextAsync(path, SnapshotJson.Write(source.Read()));
+            foreach (var error in errors)
+            {
+                await environment.Error.WriteLineAsync(error);
+            }
+
+            return 2;
+        }
+
+        if (request is SensorBuiltIn builtIn)
+        {
+            return await builtIn.Parsed.InvokeAsync(new InvocationConfiguration { Output = environment.Out, Error = environment.Error }, stop);
+        }
+
+        using var source = environment.Open();
+        if (request is SensorDump dump)
+        {
+            await DumpAsync(source, dump, environment.Time);
             return 0;
         }
 
-        using var server = new SensorPipeServer(source.Read, TimeProvider.System);
-        if (!args.Contains("--console", StringComparer.Ordinal))
+        using var server = new SensorPipeServer(source.Read, environment.Time, environment.PipeName);
+        if (request is not SensorServe { Console: true })
         {
-            using var service = new SensorService(server.RunAsync);
+            using var service = new SensorService(server.RunAsync, resumed: () => _ = source.Read());
             ServiceBase.Run(service);
             return service.ExitCode;
         }
 
-        using var stop = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
+        await ServeAsync(server, environment.Out, stop);
+        return 0;
+    }
+
+    private static async Task DumpAsync(ISensorSource source, SensorDump dump, TimeProvider time)
+    {
+        if (dump.Seconds is not { } seconds)
+        {
+            await File.WriteAllTextAsync(dump.File, SnapshotJson.Write(source.Read()));
+            return;
+        }
+
+        await using var writer = new StreamWriter(dump.File);
+        await SeriesRecorder.RecordAsync(source.Read, writer, seconds, time, CancellationToken.None);
+    }
+
+    // Ctrl+C stops serving, and only serving: a dump it ends as it ends any program.
+    private static async Task ServeAsync(SensorPipeServer server, TextWriter output, CancellationToken stop)
+    {
+        using var serving = CancellationTokenSource.CreateLinkedTokenSource(stop);
+        void Stop(object? sender, ConsoleCancelEventArgs e)
         {
             e.Cancel = true;
-            stop.Cancel();
-        };
-        Console.WriteLine("thermi-sensors is serving readings. Ctrl+C stops it.");
-        await server.RunAsync(stop.Token);
-        return 0;
+            serving.Cancel();
+        }
+
+        Console.CancelKeyPress += Stop;
+        try
+        {
+            await output.WriteLineAsync("thermi-sensors is serving readings. Ctrl+C stops it.");
+            await server.RunAsync(serving.Token);
+        }
+        finally
+        {
+            Console.CancelKeyPress -= Stop;
+        }
     }
 }
 
@@ -45,16 +93,20 @@ internal sealed class SensorService : ServiceBase
 
     private readonly Func<CancellationToken, Task> _run;
     private readonly Action _stopOnFailure;
+    private readonly Action? _resumed;
     private readonly CancellationTokenSource _stop = new();
     private Task _running = Task.CompletedTask;
 
     /// <param name="run">The server, until the token stops it.</param>
     /// <param name="stopOnFailure">How to stop after a failure; the service's own <see cref="ServiceBase.Stop"/> unless a test says otherwise.</param>
-    public SensorService(Func<CancellationToken, Task> run, Action? stopOnFailure = null)
+    /// <param name="resumed">What runs on waking from sleep; without it, the service asks Windows for no power events.</param>
+    public SensorService(Func<CancellationToken, Task> run, Action? stopOnFailure = null, Action? resumed = null)
     {
         _run = run;
         _stopOnFailure = stopOnFailure ?? Stop;
+        _resumed = resumed;
         ServiceName = Name;
+        CanHandlePowerEvent = resumed is not null;
     }
 
     /// <summary>
@@ -78,6 +130,17 @@ internal sealed class SensorService : ServiceBase
     }
 
     protected override void OnStart(string[] args) => _running = RunAsync();
+
+    // Windows waits on this answer, and the library may take a while to read, so the read on waking runs apart.
+    protected override bool OnPowerEvent(PowerBroadcastStatus powerStatus)
+    {
+        if (powerStatus == PowerBroadcastStatus.ResumeAutomatic && _resumed is { } resumed)
+        {
+            _ = Task.Run(resumed, CancellationToken.None);
+        }
+
+        return true;
+    }
 
     protected override void OnStop()
     {

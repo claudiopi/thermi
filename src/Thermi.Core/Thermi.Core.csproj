@@ -4,6 +4,11 @@
        No package or project references (checked by RepoRulesTests). -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- The translations fall back to English, the resources in the assembly itself. -->
+    <NeutralLanguage>en</NeutralLanguage>
+    <!-- Texts.cs sits beside Texts.resx: without this, MSBuild names the resources after the first type in Texts.cs,
+         not after their folder, and Texts finds none. -->
+    <EmbeddedResourceUseDependentUponConvention>false</EmbeddedResourceUseDependentUponConvention>
   </PropertyGroup>
 
 </Project>

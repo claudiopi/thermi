@@ -1,0 +1,52 @@
+/* Windows' animation effects reach the page as reduced motion. Then nothing moves at all, not even for a few
+   milliseconds, so no change of state is ever caught halfway. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Edge draws scrollbars in the scheme declared around them, so they follow the window's mode instead of staying light.
+   It is the provider's, whose classes its portals share, not the root's, which would paint the page's canvas over Mica. */
+.fui-FluentProvider {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fui-FluentProvider {
+    color-scheme: dark;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Fluent gives the root's classes to its portals too, which a tooltip's stays in, so only the root fills the page. */
+#root > .fui-FluentProvider {
+  height: 100%;
+}
+
+/* Over Windows' Mica the page lets it show, so the title row and the list match the caption buttons' place, which
+   Windows draws. Where Windows refused Mica, as Windows 10 does, the host marks the page, which then sits on Windows'
+   own opaque window background, the one Windows' apps fall back to, in light or dark as the page is. */
+html[data-backdrop='mica'] {
+  --thermi-solid: transparent;
+}
+
+html[data-backdrop='solid'] {
+  --thermi-solid: #f3f3f3;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-backdrop='solid'] {
+    --thermi-solid: #202020;
+  }
+}
