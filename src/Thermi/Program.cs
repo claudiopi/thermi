@@ -125,7 +125,12 @@ internal static class Program
                     break;
                 }
 
-                mutex = new Mutex(initiallyOwned: true, OverlayMutex, out _);
+                // Another overlay took the name while this one was away: it is the one that runs.
+                mutex = new Mutex(initiallyOwned: true, OverlayMutex, out var created);
+                if (!created)
+                {
+                    break;
+                }
             }
             while (true);
         }
@@ -159,16 +164,20 @@ internal static class Program
     private static SessionFacts Facts(OverlayHost? host)
     {
         bool hidden;
+        bool dragging;
         try
         {
-            hidden = host is not null && host.Overlays.All(overlay => !overlay.OnScreen);
+            // An overlay with none on screen yet, before its first paint, is no hidden one.
+            var overlays = host?.Overlays.ToList() ?? [];
+            hidden = overlays.Count > 0 && overlays.TrueForAll(overlay => !overlay.OnScreen);
+            dragging = overlays.Exists(overlay => overlay.Dragging);
         }
         catch (InvalidOperationException)
         {
-            hidden = false;
+            (hidden, dragging) = (false, true);
         }
 
-        return new SessionFacts(host is null || HostEnvironment.Default.WindowOpen(), Dragging: false, Desktop.SinceInput(), Desktop.Locked(), hidden);
+        return new SessionFacts(host is null || HostEnvironment.Default.WindowOpen(), dragging, Desktop.SinceInput(), Desktop.Locked(), hidden);
     }
 
     // As the tray's "Exit thermi": the host closes on its own thread, its settings saved.

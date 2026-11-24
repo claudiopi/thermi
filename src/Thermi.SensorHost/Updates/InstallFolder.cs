@@ -19,16 +19,14 @@ internal sealed class InstallFolder(string top)
     private string Trash => Path.Combine(Update, "trash");
 
     /// <summary>
-    /// The layout a process in <paramref name="baseDirectory"/> runs in: a folder named after its version, beside the
-    /// launchers. Null outside one, as a build run from the repo, which never updates itself.
+    /// The layout a process in <paramref name="baseDirectory"/> runs in: a folder named after its version, which the
+    /// launchers beside it start, even when one is missing, since the service puts them back. Null outside one.
     /// </summary>
     public static InstallFolder? Of(string baseDirectory, ReleaseVersion self)
     {
         var own = Path.TrimEndingDirectorySeparator(baseDirectory);
         var top = Path.GetDirectoryName(own);
-        return top is not null && ReleaseVersion.Parse(Path.GetFileName(own)) == self && File.Exists(Path.Combine(top, "thermi-sensors.exe"))
-            ? new InstallFolder(top)
-            : null;
+        return top is not null && ReleaseVersion.Parse(Path.GetFileName(own)) == self ? new InstallFolder(top) : null;
     }
 
     public string VersionOf(ReleaseVersion version) => Path.Combine(top, version.ToString());
@@ -77,6 +75,12 @@ internal sealed class InstallFolder(string top)
             {
                 removed.Add(version);
             }
+        }
+
+        // What a download or an unpack left when the PC lost power or the service was ended midway.
+        foreach (var left in Directory.EnumerateFileSystemEntries(Update, "unpack-*").Concat(Directory.EnumerateFiles(Update, "download-*.zip")))
+        {
+            SetAside(left);
         }
 
         EmptyTrash();

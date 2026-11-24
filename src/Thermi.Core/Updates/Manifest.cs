@@ -36,8 +36,8 @@ public sealed record Manifest
 
     public DateTimeOffset Expires { get; init; }
 
-    /// <summary>The release key is revoked: honored only from the backup key.</summary>
-    public bool Revokes { get; init; }
+    /// <summary>The SHA-256 of the release key this revokes, honored only from the backup key.</summary>
+    public string? RevokedKey { get; init; }
 
     public ReleaseVersion? Version { get; init; }
 
@@ -116,7 +116,7 @@ public static class ManifestEnvelope
             return new ManifestRead(null, ManifestProblem.Invalid);
         }
 
-        return manifest is not null && Valid(manifest) && (byBackup || !manifest.Revokes)
+        return manifest is not null && Valid(manifest) && (byBackup || manifest.RevokedKey is null)
             ? new ManifestRead(manifest, null, byBackup)
             : new ManifestRead(null, ManifestProblem.Invalid);
     }

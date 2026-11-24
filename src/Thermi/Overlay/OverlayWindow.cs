@@ -47,6 +47,8 @@ internal sealed class OverlayWindow : IDisposable
     private readonly long _started;
     public bool OnScreen { get; private set; }
 
+    public bool Dragging => _mouse.Dragged is not null || _gestures.Drag is not null;
+
     // The last scene painted, which the glow's frames paint again, and what it drew.
     private OverlayScene? _scene;
     private PaintedOverlay? _painted;

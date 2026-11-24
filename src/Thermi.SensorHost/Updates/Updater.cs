@@ -13,45 +13,47 @@ namespace Thermi.SensorHost.Updates;
 internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestClient client, TimeProvider time, Action<string, EventLogEntryType> say)
     : IDisposable
 {
-    public const int QuietCode = 128;
-
-    private static readonly TimeSpan QuietEvery = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan Tick = TimeSpan.FromMinutes(1);
 
     private readonly Switcher _switcher = new(folder, time, say);
     private readonly SemaphoreSlim _busy = new(1, 1);
     private volatile bool _checkSoon;
+    private volatile bool _switchSoon;
+    private volatile bool _goBack;
     private DateTimeOffset _lastQuiet = DateTimeOffset.MinValue;
 
     /// <summary>
-    /// At the service's start: finishes or undoes a switch left written down, counts a run that never stopped, puts the
-    /// launchers of this version back, and goes back to the previous version when this one failed its probation.
+    /// At the service's start: finishes or undoes a switch left written down, counts a run that never stopped and puts the
+    /// launchers of this version back, before the state says which version runs, so an overlay that reads it starts this
+    /// one. A version that failed its probation goes back, and a version ready switches, once the service has started.
     /// </summary>
     public void Started()
     {
-        if (Switcher.UnderWay() || !Trusted())
+        if (_switcher.UnderWay() || !Trusted())
         {
             return;
         }
 
         var (state, step) = SwitchHealth.Started(folder.Read(), build.Version, time.GetUtcNow());
-        folder.Write(state);
         if (folder.PlaceLaunchers(build.Version))
         {
             say($"thermi put back the launchers of {build.Version}.", EventLogEntryType.Information);
         }
 
-        if (step == StartStep.RollBack && state.Previous is { } previous)
+        folder.Write(state);
+        if (step == StartStep.RollBack)
         {
-            say($"thermi {build.Version} ended without stopping twice since it was installed, so the PC goes back to {previous}.", EventLogEntryType.Warning);
-            _switcher.Begin(state, previous, build.Version);
+            say($"thermi {build.Version} ended without stopping twice since it was installed, so the PC goes back to {state.Previous}.", EventLogEntryType.Warning);
         }
+
+        _goBack = step == StartStep.RollBack;
+        _switchSoon = _goBack || state.Ready is not null;
     }
 
     /// <summary>At a stop asked for, which is never a crash.</summary>
     public void Stopped()
     {
-        if (!Switcher.UnderWay() && Trusted())
+        if (!_switcher.UnderWay() && Trusted())
         {
             folder.Write(SwitchHealth.Stopped(folder.Read()));
         }
@@ -69,7 +71,7 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
     public void Quiet()
     {
         var now = time.GetUtcNow();
-        if (now - _lastQuiet < QuietEvery || !_busy.Wait(0))
+        if (now - _lastQuiet < UpdateSchedule.QuietEvery || !_busy.Wait(0))
         {
             return;
         }
@@ -77,11 +79,7 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         _lastQuiet = now;
         try
         {
-            var state = folder.Read();
-            if (!Switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && Trusted())
-            {
-                _switcher.Begin(state, ready, build.Version);
-            }
+            SwitchReady();
         }
         finally
         {
@@ -102,7 +100,12 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
             while (!stop.IsCancellationRequested)
             {
                 await Task.Delay(Tick, time, stop);
-                if (time.GetUtcNow() >= due || _checkSoon)
+                if (_switchSoon)
+                {
+                    _switchSoon = false;
+                    await SwitchOnStartAsync(stop);
+                }
+                else if (time.GetUtcNow() >= due || _checkSoon)
                 {
                     _checkSoon = false;
                     due = time.GetUtcNow() + UpdateSchedule.Every;
@@ -122,13 +125,12 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         try
         {
             var policy = build.Policy();
-            if (policy.Checks && !Switcher.UnderWay() && Trusted())
+            if (policy.Checks && !_switcher.UnderWay() && Trusted())
             {
                 await CheckAsync(policy.Channel, stop);
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or InvalidOperationException
-            or System.ComponentModel.Win32Exception or OperationCanceledException && !stop.IsCancellationRequested)
+        catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested) // A check never ends the updater: what it met is logged, and the next check tries again.
         {
             say($"thermi could not check for updates: {ex.Message}", EventLogEntryType.Warning);
         }
@@ -168,9 +170,12 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
         state = state.WithSequence(channel, manifest.Sequence) with
         {
             LastSuccess = now,
-            RevokedKey = read.Backup && manifest.Revokes ? build.ReleaseKeyHash : state.RevokedKey,
+            RevokedKey = read.Backup && manifest.RevokedKey is { } revoked && revoked == build.ReleaseKeyHash ? revoked : state.RevokedKey,
         };
         var (next, switchTo) = await ApplyAsync(state, plan, stop);
+
+        // A stop while the check ran wrote the probation; the check's own state never takes it back.
+        next = next with { Probation = folder.Read().Probation };
         folder.Write(next);
         Prune(next);
         if (switchTo is { } to)
@@ -205,6 +210,13 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
 
     private async Task<bool> FetchAsync(ReleaseVersion version, Package package, CancellationToken stop)
     {
+        if (build.Catalog)
+        {
+            // A release build takes only files its signed catalog lists, which this build cannot check yet.
+            say($"thermi refused {version}: this build cannot check its catalog. Nothing installed changed.", EventLogEntryType.Warning);
+            return false;
+        }
+
         var download = await client.DownloadAsync(package, folder, stop);
         await using var zip = download.Zip;
         var refused = zip is null ? download.Refused : Unpacker.Unpack(zip, folder, version, catalog: null);
@@ -216,6 +228,45 @@ internal sealed class Updater(UpdateBuild build, InstallFolder folder, ManifestC
 
         say($"thermi {version} is ready, and switches when the PC is quiet.", EventLogEntryType.Information);
         return true;
+    }
+
+    // A version ready switches when a quiet overlay says so, or when the service starts; a PC no one signs in to has no overlay.
+    private void SwitchReady()
+    {
+        var state = folder.Read();
+        if (build.Policy().Checks && !_switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && Trusted())
+        {
+            _switcher.Begin(state, ready, build.Version);
+        }
+    }
+
+    // After OnStart returned, so the watchdog may stop the service: a failed probation goes back, else a version ready switches.
+    private async Task SwitchOnStartAsync(CancellationToken stop)
+    {
+        await _busy.WaitAsync(stop);
+        try
+        {
+            var state = folder.Read();
+            if (_goBack && state.Previous is { } previous)
+            {
+                if (!_switcher.UnderWay() && Trusted())
+                {
+                    _switcher.Begin(state, previous, build.Version, back: true);
+                }
+            }
+            else
+            {
+                SwitchReady();
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested) // As a check: logged, never the updater's end.
+        {
+            say($"thermi could not switch as it started: {ex.Message}", EventLogEntryType.Warning);
+        }
+        finally
+        {
+            _busy.Release();
+        }
     }
 
     private void Prune(UpdateState state)

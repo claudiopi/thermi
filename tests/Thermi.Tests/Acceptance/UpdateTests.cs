@@ -46,6 +46,7 @@ public sealed class UpdateTests
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0-beta.1 100", "", false, "Download 1.3.0-beta.1")]
     [InlineData("1.3.0 - - - 10 1", "stable 2 1.3.0-rc.2 100", "", false, "Nothing")]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 expired", "", false, "Refuse")]
+    [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 far", "", false, "Refuse")]
     public void TheUpdaterNeverGoesBackButToItsOwnPrevious(string state, string manifest, string withdrawn, bool disabled, string plan)
     {
         var s = state.Split(' ');
@@ -67,7 +68,7 @@ public sealed class UpdateTests
             Rollout = int.Parse(m[3], System.Globalization.CultureInfo.InvariantCulture),
             Withdrawn = [.. withdrawn.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(V)],
             Disabled = disabled,
-            Expires = m.Length > 4 ? Now.AddMinutes(-1) : Now.AddDays(30),
+            Expires = m.Length < 5 ? Now.AddDays(30) : m[4] == "far" ? Now + Manifest.Lifetime + TimeSpan.FromDays(2) : Now.AddMinutes(-1),
         };
 
         var decided = UpdatePlan.Decide(before, new ManifestRead(offered, null), Manifest.Stable, "x64", Now);
@@ -115,6 +116,7 @@ public sealed class UpdateTests
         var (second, step) = SwitchHealth.Started(done, V("1.3.0"), Now.AddSeconds(5));
         Assert.Equal(StartStep.Serve, step);
         Assert.Equal(StartStep.RollBack, SwitchHealth.Started(second, V("1.3.0"), Now.AddMinutes(1)).Step);
+        Assert.Equal(StartStep.Serve, SwitchHealth.Started(second with { Failed = [V("1.2.0")] }, V("1.3.0"), Now.AddMinutes(1)).Step);
 
         // A run that ends past the window, as when the PC slept, fails nothing; a stop asked for is never a crash.
         Assert.Equal(StartStep.Serve, SwitchHealth.Started(second, V("1.3.0"), Now.AddHours(9)).Step);
@@ -141,6 +143,17 @@ public sealed class UpdateTests
 
         // A reboot with no switch under way changes nothing.
         Assert.Equal(cut, SwitchHealth.Started(cut, V("1.2.0"), Now).State);
+
+        // A rollback cut twice is dropped, and says nothing against the version it went back to.
+        var running = new UpdateState { Installed = V("1.3.0"), Previous = V("1.2.0") };
+        var backCut = SwitchHealth.Started(SwitchHealth.Begin(running, V("1.2.0"), back: true), V("1.3.0"), Now).State;
+        var backCutTwice = SwitchHealth.Started(SwitchHealth.Begin(backCut, V("1.2.0"), back: true), V("1.3.0"), Now).State;
+        Assert.Empty(backCutTwice.Failed);
+        Assert.Null(backCutTwice.Switch);
+
+        // A version that came urgent stays urgent for the overlays still on the one before.
+        Assert.True(SwitchHealth.Done(SwitchHealth.Begin(ready with { ReadyUrgent = true }, V("1.3.0")), Now).InstalledUrgent);
+        Assert.False(finished.InstalledUrgent);
     }
 
     [Fact]
@@ -194,8 +207,11 @@ public sealed class UpdateTests
             Assert.Equal(manifest, ManifestEnvelope.Open(ManifestEnvelope.Seal(manifest, key), release, backup).Manifest, ManifestComparer.Instance);
         }
 
-        // Only the backup key may revoke the release key, and once revoked only the backup key opens a manifest.
-        var revoking = channels[Manifest.Stable].Current! with { Revokes = true };
+        // Only the backup key may revoke the release key, which it names, and once revoked only the backup key opens a manifest.
+        var releaseHash = Convert.ToHexStringLower(SHA256.HashData(release));
+        Assert.NotNull(Levers.Revoke(channels, Manifest.Stable, "not a hash", Now).Refused);
+        var revoking = Done(Levers.Revoke(channels, Manifest.Stable, releaseHash, Now))[Manifest.Stable].Current!;
+        Assert.Equal(releaseHash, revoking.RevokedKey);
         Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), release, backup).Problem);
         Assert.True(ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, backupKey), release, backup).Backup);
         Assert.Equal(ManifestProblem.NotSigned, ManifestEnvelope.Open(ManifestEnvelope.Seal(revoking, key), null, backup).Problem);
@@ -215,6 +231,22 @@ public sealed class UpdateTests
         Assert.Equal(history.Published, ChannelHistory.Read(history.Write()).Published, ManifestComparer.Instance);
         Assert.Empty(ChannelHistory.Read(null).Published);
         Assert.Throws<JsonException>(() => ChannelHistory.Read("{"));
+
+        // A history keeps its last manifests and a manifest its last withdrawn versions, so neither grows without end.
+        for (var refresh = 0; refresh < ChannelHistory.Kept; refresh++)
+        {
+            channels = Done(Levers.Refresh(channels, Manifest.Stable, Now));
+        }
+
+        Assert.Equal(ChannelHistory.Kept, channels[Manifest.Stable].Published.Count);
+        var crowded = channels[Manifest.Stable].Current! with { Version = V("2.0.0"), Withdrawn = [.. Enumerable.Range(1, Levers.WithdrawnKept).Select(n => V($"1.9.{n}"))] };
+        IReadOnlyDictionary<string, ChannelHistory> full = new Dictionary<string, ChannelHistory>(channels, StringComparer.Ordinal)
+        {
+            [Manifest.Stable] = new([.. channels[Manifest.Stable].Published, crowded]),
+        };
+        var withdrawn = Done(Levers.RollBack(full, Manifest.Stable, Now))[Manifest.Stable].Current!.Withdrawn;
+        Assert.Equal(Levers.WithdrawnKept, withdrawn.Count);
+        Assert.Equal(V("2.0.0"), withdrawn[^1]);
     }
 
     // Signed is not enough: a manifest the release key signed by mistake, or of a newer schema, is refused whole.
@@ -256,14 +288,20 @@ public sealed class UpdateTests
         Assert.Null(adopted.Ready);
         Assert.Null(adopted.Probation);
         Assert.Equal(V("1.3.1"), SwitchHealth.Started(state with { Ready = V("1.3.1") }, V("1.3.0"), Now).State.Ready);
-        Assert.True(UpdateSchedule.DueOnResume(Now, null) && UpdateSchedule.DueOnResume(Now, Now - UpdateSchedule.Every));
-        Assert.False(UpdateSchedule.DueOnResume(Now, Now.AddHours(-1)));
     }
 
-    // The service's own files and the folders it names: a version is read strictly, since it names a folder, a state file
-    // broken or missing is a PC that knows nothing yet, and a version rolled back to finds its settings' copy again.
+    // A resume checks again only once the last check is as old as the schedule's; a metered network downloads only what is urgent.
     [Fact]
-    public void WhatTheUpdaterReadsBackIsReadStrictly()
+    public void AResumeAndAMeteredNetworkWaitForTheSchedule()
+    {
+        Assert.True(UpdateSchedule.DueOnResume(Now, null) && UpdateSchedule.DueOnResume(Now, Now - UpdateSchedule.Every));
+        Assert.False(UpdateSchedule.DueOnResume(Now, Now.AddHours(-1)));
+        Assert.Equal([true, true, false, true], new[] { (false, false), (false, true), (true, false), (true, true) }.Select(each => UpdateSchedule.MayDownload(each.Item1, each.Item2)));
+    }
+
+    // A version names a folder, so it is read strictly, and ordered as SemVer orders them.
+    [Fact]
+    public void AVersionIsReadStrictly()
     {
         Assert.All(
             (string?[])[null, "", "1.2", "1.2.3.4", "01.2.3", "1.2.x", "1.2.3-alpha.1", "1.2.3-rc.0", "1.2.3-beta", @"..\1.2.3", new string('1', 41)],
@@ -271,7 +309,12 @@ public sealed class UpdateTests
         Assert.True(V("1.2.3-beta.2") < V("1.2.3-rc.1") && V("1.2.3-rc.1") < V("1.2.3") && V("1.2.3") < V("1.10.0"));
         Assert.True(V("1.0.0") > null && V("1.0.0") >= V("1.0.0") && V("1.0.0") <= V("1.0.0"));
         Assert.Equal("1.2.3-rc.4", V("1.2.3-rc.4").ToString());
+    }
 
+    // A state file broken or missing is a PC that knows nothing yet.
+    [Fact]
+    public void TheStateFileReadsBackOrStartsOver()
+    {
         var state = new UpdateState { Installed = V("1.2.0"), Previous = V("1.1.0"), Failed = [V("1.3.0")] }.WithSequence(Manifest.Beta, 7);
         var read = UpdateState.Read(state.Write());
         Assert.Equal(
@@ -279,7 +322,12 @@ public sealed class UpdateTests
             (read.Installed, read.Previous, read.SequenceOf(Manifest.Beta), read.SequenceOf(Manifest.Stable)));
         Assert.Equal(state.Failed, read.Failed);
         Assert.All((string?[])[null, "", "{", "null", """{ "installed": "../x" }"""], text => Assert.Null(UpdateState.Read(text).Installed));
+    }
 
+    // A version rolled back to finds the copy of the settings kept in its format, and a new copy never takes an old one's name.
+    [Fact]
+    public void ASettingsCopyIsFoundAgainByItsFormat()
+    {
         var file = Path.Combine("settings", "config.json");
         string[] kept =
         [

@@ -45,7 +45,7 @@
     <ProjectReference Include="..\Thermi.Trust\Thermi.Trust.csproj" />
   </ItemGroup>
 
-  <!-- GDI+, which paints the overlay and the tray, from the Windows Desktop runtime the installer already needs: its
+  <!-- GDI+, which paints the overlay and the tray, from the Windows Desktop runtime each version's folder carries: its
        Windows Forms profile, the smallest that holds System.Drawing.Common, and no WPF. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />

@@ -119,6 +119,16 @@ public static class Levers
     public static LeverResult Refresh(IReadOnlyDictionary<string, ChannelHistory> channels, string channel, DateTimeOffset now) =>
         Again(channels, channel, now, manifest => manifest);
 
+    /// <summary>
+    /// The channel's manifest again, naming the release key whose SHA-256 is <paramref name="keyHash"/> as revoked: only
+    /// the backup key's signature makes PCs honor it, and they then trust the backup key alone until a build with another
+    /// release key runs.
+    /// </summary>
+    public static LeverResult Revoke(IReadOnlyDictionary<string, ChannelHistory> channels, string channel, string keyHash, DateTimeOffset now) =>
+        keyHash.Length == 64 && keyHash.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f')
+            ? Again(channels, channel, now, manifest => manifest with { RevokedKey = keyHash })
+            : new LeverResult(channels, "the key's SHA-256 is 64 lowercase hex digits");
+
     private static LeverResult Again(
         IReadOnlyDictionary<string, ChannelHistory> channels, string channel, DateTimeOffset now, Func<Manifest, Manifest> change)
     {
@@ -132,7 +142,7 @@ public static class Levers
     }
 
     private static Manifest Next(Manifest? current, string channel, DateTimeOffset now) =>
-        (current ?? new Manifest { Channel = channel }) with { Sequence = (current?.Sequence ?? 0) + 1, Expires = now + Manifest.Lifetime, Revokes = false };
+        (current ?? new Manifest { Channel = channel }) with { Sequence = (current?.Sequence ?? 0) + 1, Expires = now + Manifest.Lifetime, RevokedKey = null };
 
     private static bool SamePackages(IReadOnlyDictionary<string, Package> one, IReadOnlyDictionary<string, Package> other) =>
         one.Count == other.Count && one.All(package => other.TryGetValue(package.Key, out var same) && same == package.Value);

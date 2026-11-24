@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Pipes;
+using System.Runtime.CompilerServices;
 using System.Security.Principal;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
@@ -16,37 +17,41 @@ namespace Thermi.SensorHost.Updates;
 /// </summary>
 internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<string, EventLogEntryType> say)
 {
-    /// <summary>Held by the watchdog while a switch is under way: only services and administrators may make one of the name.</summary>
-    public const string MutexName = @"Global\thermi-switch";
-
     public const string Option = "--switch";
 
     private static readonly SecurityIdentifier LocalSystem = new(WellKnownSidType.LocalSystemSid, null);
     private static readonly SecurityIdentifier Administrators = new(WellKnownSidType.BuiltinAdministratorsSid, null);
 
+    // Held open by the watchdog while it switches, in update\, which only administrators change: a named mutex would be
+    // one any user could make first, and so stop every switch.
+    private string LockPath => Path.Combine(folder.Update, "switch.lock");
+
     /// <summary>Whether a watchdog is switching now, so the state is its own until it is done.</summary>
-    public static bool UnderWay()
+    public bool UnderWay()
     {
         try
         {
-            if (!Mutex.TryOpenExisting(MutexName, out var mutex))
-            {
-                return false;
-            }
-
-            mutex.Dispose();
-            return true;
+            using var free = new FileStream(LockPath, FileMode.Open, FileAccess.Read, FileShare.None);
+            return false;
         }
-        catch (UnauthorizedAccessException)
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (IOException)
         {
             return true;
         }
     }
 
-    public void Begin(UpdateState state, ReleaseVersion to, ReleaseVersion self)
+    /// <summary>
+    /// Writes the switch to <paramref name="to"/> down and starts its watchdog: this version's for a step forward, and for
+    /// a step back after a failed probation the version it goes back to, which ran here before.
+    /// </summary>
+    public void Begin(UpdateState state, ReleaseVersion to, ReleaseVersion self, bool back = false)
     {
-        folder.Write(SwitchHealth.Begin(state, to));
-        var start = new ProcessStartInfo(folder.ServiceOf(self)) { UseShellExecute = false, CreateNoWindow = true };
+        folder.Write(SwitchHealth.Begin(state, to, back));
+        var start = new ProcessStartInfo(folder.ServiceOf(back ? to : self)) { UseShellExecute = false, CreateNoWindow = true };
         start.ArgumentList.Add(Option);
         start.ArgumentList.Add(to.ToString());
         Process.Start(start)?.Dispose();
@@ -56,20 +61,21 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
     /// <summary>The watchdog: 0 when the PC runs <paramref name="to"/> for good, 1 when it went back, 2 when there was nothing to do.</summary>
     public async Task<int> WatchAsync(ReleaseVersion to, string pipeName, CancellationToken stop)
     {
-        using var owned = new Mutex(initiallyOwned: true, MutexName, out var created);
+        using var owned = await HoldAsync(stop);
         var state = folder.Read();
-        if (!created || state.Switch is not { Running: true } pending || pending.To != to)
+        if (owned is null || state.Switch is not { Running: true } pending || pending.To != to)
         {
             return 2;
         }
 
         var services = new ServiceConfig(folder);
         var started = false;
+        var squatted = new StrongBox<bool>();
         try
         {
             ServiceConfig.Stop();
             StartOnce(services, pending, ref started);
-            if (await PollAsync(to, pipeName, stop) == Verdict.Passed)
+            if (await PollAsync(to, pipeName, squatted, stop) == Verdict.Passed)
             {
                 services.Point(to);
                 folder.PlaceLaunchers(to);
@@ -78,7 +84,11 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
                 return 0;
             }
 
-            say($"thermi {to} served no readings in {SwitchHealth.ServicePolls} tries, so the PC went back to {pending.From}.", EventLogEntryType.Warning);
+            // A pipe another program held tells nothing of the version, which is tried again later rather than failed.
+            started &= !squatted.Value;
+            say(squatted.Value
+                ? $"Another program held thermi's pipe while {to} started, so the PC went back to {pending.From} and tries again later."
+                : $"thermi {to} served no readings in {SwitchHealth.ServicePolls} tries, so the PC went back to {pending.From}.", EventLogEntryType.Warning);
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException
             or System.ServiceProcess.TimeoutException)
@@ -123,18 +133,43 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         folder.PlaceLaunchers(pending.From);
         var state = folder.Read();
         folder.Write(SwitchHealth.Stopped(started ? SwitchHealth.Failed(state) : state with { Switch = null }));
-        ServiceConfig.Start();
+        try
+        {
+            ServiceConfig.Start();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ServiceProcess.TimeoutException)
+        {
+            say($"thermi {pending.From} did not start again after the switch: {ex.Message}", EventLogEntryType.Error);
+        }
+    }
+
+    // A service asking whether a switch is under way opens the lock for a moment, so a few tries tell it from a watchdog.
+    private async Task<FileStream?> HoldAsync(CancellationToken stop)
+    {
+        for (var tries = 0; tries < 5; tries++)
+        {
+            try
+            {
+                return new FileStream(LockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
+            }
+            catch (IOException)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(200), time, stop);
+            }
+        }
+
+        return null;
     }
 
     // One poll a second, counted, never timed: a PC that sleeps in between loses no tries.
-    private async Task<Verdict> PollAsync(ReleaseVersion to, string pipeName, CancellationToken stop)
+    private async Task<Verdict> PollAsync(ReleaseVersion to, string pipeName, StrongBox<bool> squatted, CancellationToken stop)
     {
         var polls = 0;
         var verdict = Verdict.Waiting;
         while (verdict == Verdict.Waiting)
         {
             polls++;
-            verdict = SwitchHealth.Service(polls, await ServesAsync(to, pipeName, stop));
+            verdict = SwitchHealth.Service(polls, await ServesAsync(to, pipeName, squatted, stop));
             if (verdict == Verdict.Waiting)
             {
                 await Task.Delay(TimeSpan.FromSeconds(1), time, stop);
@@ -145,7 +180,7 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
     }
 
     // A snapshot from the pipe, served by the new version's own process: the old one, restarted by Windows, proves nothing.
-    private async Task<bool> ServesAsync(ReleaseVersion to, string pipeName, CancellationToken stop)
+    private async Task<bool> ServesAsync(ReleaseVersion to, string pipeName, StrongBox<bool> squatted, CancellationToken stop)
     {
         using var poll = new CancellationTokenSource(TimeSpan.FromSeconds(5), time);
         using var both = CancellationTokenSource.CreateLinkedTokenSource(poll.Token, stop);
@@ -153,7 +188,9 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
         {
             await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In, PipeOptions.Asynchronous);
             await pipe.ConnectAsync(both.Token);
-            if (!Ours(pipe, to))
+            var ours = Ours(pipe, to);
+            squatted.Value |= ours is null;
+            if (ours != true)
             {
                 return false;
             }
@@ -161,16 +198,23 @@ internal sealed class Switcher(InstallFolder folder, TimeProvider time, Action<s
             using var reader = new StreamReader(pipe);
             return SnapshotJson.Read(await reader.ReadLineAsync(both.Token)) is not null;
         }
-        catch (Exception ex) when (ex is IOException or OperationCanceledException or UnauthorizedAccessException && !stop.IsCancellationRequested)
+        catch (Exception ex) when (ex is IOException or OperationCanceledException or UnauthorizedAccessException or ArgumentException
+            or InvalidOperationException or Win32Exception && !stop.IsCancellationRequested)
         {
             return false;
         }
     }
 
-    private bool Ours(NamedPipeClientStream pipe, ReleaseVersion to)
+    // True when the new version's own process serves the pipe, false when another of thermi's does, and null when a
+    // program no administrator started holds it.
+    private bool? Ours(NamedPipeClientStream pipe, ReleaseVersion to)
     {
-        if (pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier owner || (owner != LocalSystem && owner != Administrators)
-            || !SensorPInvoke.GetNamedPipeServerProcessId(pipe.SafePipeHandle, out var id))
+        if (pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier owner || (owner != LocalSystem && owner != Administrators))
+        {
+            return null;
+        }
+
+        if (!SensorPInvoke.GetNamedPipeServerProcessId(pipe.SafePipeHandle, out var id))
         {
             return false;
         }

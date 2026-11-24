@@ -42,9 +42,9 @@ public static class SwitchHealth
     public static Verdict Overlay(int ticks, bool cameUp, bool exited) =>
         cameUp ? Verdict.Passed : exited || ticks >= OverlayTicks ? Verdict.Failed : Verdict.Waiting;
 
-    public static UpdateState Begin(UpdateState state, ReleaseVersion to) => state with
+    public static UpdateState Begin(UpdateState state, ReleaseVersion to, bool back = false) => state with
     {
-        Switch = new PendingSwitch(state.Installed ?? to, to, state.Switch is { } cut && cut.To == to ? cut.Cuts : 0, Running: true),
+        Switch = new PendingSwitch(state.Installed ?? to, to, state.Switch is { } cut && cut.To == to ? cut.Cuts : 0, Running: true, back),
     };
 
     public static UpdateState Done(UpdateState state, DateTimeOffset now)
@@ -57,6 +57,7 @@ public static class SwitchHealth
             Previous = rollback ? null : pending.From,
             Ready = state.Ready == pending.To ? null : state.Ready,
             ReadyUrgent = state.Ready != pending.To && state.ReadyUrgent,
+            InstalledUrgent = !rollback && state.Ready == pending.To && state.ReadyUrgent,
             Failed = rollback ? [.. state.Failed.Append(pending.From).Distinct()] : state.Failed,
             Switch = null,
             Probation = rollback ? null : new Probation(pending.From, now, Stopped: false),
@@ -103,7 +104,13 @@ public static class SwitchHealth
     private static UpdateState Cut(UpdateState state, PendingSwitch pending)
     {
         var cut = pending with { Cuts = pending.Cuts + 1, Running = false };
-        return cut.Cuts >= Cuts ? Failed(state with { Switch = cut }) : state with { Switch = cut };
+        if (cut.Cuts < Cuts)
+        {
+            return state with { Switch = cut };
+        }
+
+        // A rollback cut twice says nothing against the version it goes back to, which ran here before.
+        return pending.Back ? state with { Switch = null } : Failed(state with { Switch = cut });
     }
 
     private static UpdateState Adopted(UpdateState state, ReleaseVersion self)
@@ -125,7 +132,7 @@ public static class SwitchHealth
         }
 
         var next = probation with { Crashes = probation.Crashes + (probation.Stopped ? 0 : 1), Stopped = false };
-        return next.Crashes >= 2 && state.Previous is not null
+        return next.Crashes >= 2 && state.Previous is { } previous && !state.Failed.Contains(previous)
             ? (state with { Probation = next }, StartStep.RollBack)
             : (state with { Probation = next }, StartStep.Serve);
     }

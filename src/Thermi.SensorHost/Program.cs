@@ -71,6 +71,11 @@ internal static class Program
     {
         var build = UpdateBuild.Of(typeof(Program).Assembly);
         var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version);
+        if (build.Built && folder is null)
+        {
+            SensorService.Say(events, $"thermi runs from {AppContext.BaseDirectory}, which is no version's folder, so it does not update itself.", EventLogEntryType.Warning);
+        }
+
         using var client = new ManifestClient();
         using var updater = folder is null ? null : new Updater(build, folder, client, time, (message, type) => SensorService.Say(events, message, type));
         using var service = new SensorService(
@@ -226,7 +231,7 @@ internal sealed class SensorService : ServiceBase
     // Code 128 from an overlay whose session is quiet: Windows waits on this answer, so the switch runs apart.
     protected override void OnCustomCommand(int command)
     {
-        if (command == Updater.QuietCode && Updates is { } updates)
+        if (command == UpdateSchedule.QuietCode && Updates is { } updates)
         {
             _ = Task.Run(() => Update(_ => updates.Quiet()), CancellationToken.None);
         }

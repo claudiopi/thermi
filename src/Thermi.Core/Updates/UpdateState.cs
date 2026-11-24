@@ -10,9 +10,10 @@ public sealed record Probation(ReleaseVersion From, DateTimeOffset At, int Crash
 
 /// <summary>
 /// A switch written down before it starts, so a service that starts with it still there can tell whether it was done,
-/// from the version it is: whether it is under way, and how many times one to the same version was cut before it was done.
+/// from the version it is: whether it is under way, how many times one to the same version was cut before it was done,
+/// and whether it goes back after a failed probation, which a cut never turns against the version it goes back to.
 /// </summary>
-public sealed record PendingSwitch(ReleaseVersion From, ReleaseVersion To, int Cuts = 0, bool Running = false);
+public sealed record PendingSwitch(ReleaseVersion From, ReleaseVersion To, int Cuts = 0, bool Running = false, bool Back = false);
 
 /// <summary>
 /// What the service knows of its updates, in <c>update\state.json</c>, which only it writes and the overlay and the window
@@ -32,6 +33,9 @@ public sealed record UpdateState
     public ReleaseVersion? Ready { get; init; }
 
     public bool ReadyUrgent { get; init; }
+
+    /// <summary>The installed version came urgent, so an overlay still on the one before switches without waiting for idle input.</summary>
+    public bool InstalledUrgent { get; init; }
 
     public IReadOnlyList<ReleaseVersion> Failed { get; init; } = [];
 

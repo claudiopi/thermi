@@ -23,6 +23,12 @@ public sealed record UpdatePolicy(bool Built, bool TurnedOff, string Channel)
 
 public static class UpdateSchedule
 {
+    /// <summary>The service's control code an overlay sends when its session is quiet: Windows lets any signed-in user send it.</summary>
+    public const int QuietCode = 128;
+
+    /// <summary>How often an overlay says so, and the service heeds it, at most.</summary>
+    public static readonly TimeSpan QuietEvery = TimeSpan.FromMinutes(1);
+
     /// <summary>After the service starts: long enough to stay out of Windows' own start.</summary>
     public static readonly TimeSpan FirstCheck = TimeSpan.FromMinutes(1);
 

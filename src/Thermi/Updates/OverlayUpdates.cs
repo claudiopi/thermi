@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.ServiceProcess;
 using Microsoft.Extensions.Logging;
+using Thermi.Commands;
 using Thermi.Core.Updates;
 using Thermi.Logging;
 using Thermi.Windows;
@@ -20,8 +21,6 @@ namespace Thermi.Updates;
 /// </summary>
 internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, TimeProvider time, ILogger log)
 {
-    private static readonly TimeSpan QuietEvery = TimeSpan.FromMinutes(1);
-
     private readonly string? _state = ThermiPaths.State;
     private readonly ReleaseVersion? _own = ReleaseVersion.Parse(
         typeof(OverlayUpdates).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
@@ -46,14 +45,14 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
             var state = Read();
             if (state.Installed is { } installed && installed != _own && !_left.Contains(installed))
             {
-                if (UpdateSchedule.Quiet(facts(), urgent: false))
+                if (UpdateSchedule.Quiet(facts(), state.InstalledUrgent))
                 {
                     log.HandingOver(_own, installed);
                     Leaving = installed;
                     close();
                 }
             }
-            else if (state.Ready is not null && state.Installed == _own && time.GetUtcNow() - _told >= QuietEvery
+            else if (state.Ready is not null && state.Installed == _own && time.GetUtcNow() - _told >= UpdateSchedule.QuietEvery
                 && UpdateSchedule.Quiet(facts(), state.ReadyUrgent))
             {
                 _told = time.GetUtcNow();
@@ -74,7 +73,10 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
     {
         var to = Leaving!;
         Leaving = null;
-        _left.Add(to);
+        lock (_lock)
+        {
+            _left.Add(to);
+        }
         Process? successor;
         try
         {
@@ -105,7 +107,9 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
             log.HandoverFailed(to, "no overlay of it came up in time");
             if (successor is { HasExited: false })
             {
+                // Gone before this overlay runs again, so the two never show at once.
                 successor.Kill();
+                successor.WaitForExit(TimeSpan.FromSeconds(5));
             }
 
             return false;
@@ -156,8 +160,8 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
     {
         try
         {
-            using var service = new ServiceController("thermi-sensors");
-            service.ExecuteCommand(128);
+            using var service = new ServiceController(StartSensors.Service);
+            service.ExecuteCommand(UpdateSchedule.QuietCode);
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {

@@ -31,8 +31,11 @@ public sealed record Plan(PlanKind Kind, ReleaseVersion? Version = null, Package
 /// </summary>
 public static class UpdatePlan
 {
+    // A PC's clock a day behind still takes a manifest signed today.
+    private static readonly TimeSpan ClockSlack = TimeSpan.FromDays(1);
+
     /// <summary>
-    /// What to do with <paramref name="read"/>'s manifest at <paramref name="now"/>. One the backup key signed to revoke the
+    /// What to do with <paramref name="read"/>'s manifest at <paramref name="now"/>. One the backup key signed to revoke a
     /// release key is taken whatever its sequence, since that key may have pushed the sequence out of reach.
     /// </summary>
     public static Plan Decide(UpdateState state, ManifestRead read, string channel, string processor, DateTimeOffset now)
@@ -67,11 +70,13 @@ public static class UpdatePlan
     private static string? Refusal(UpdateState state, ManifestRead read, string channel, DateTimeOffset now)
     {
         var manifest = read.Manifest!;
-        var reset = read.Backup && manifest.Revokes;
+        var reset = read.Backup && manifest.RevokedKey is not null;
         return !string.Equals(manifest.Channel, channel, StringComparison.Ordinal) ? $"it is of the {manifest.Channel} channel"
             : manifest.Sequence < state.SequenceOf(channel) && !reset
                 ? string.Create(CultureInfo.InvariantCulture, $"its sequence {manifest.Sequence} is older than {state.SequenceOf(channel)}")
             : now > manifest.Expires ? string.Create(CultureInfo.InvariantCulture, $"it expired on {manifest.Expires:u}")
+            : manifest.Expires > now + Manifest.Lifetime + ClockSlack
+                ? string.Create(CultureInfo.InvariantCulture, $"it expires on {manifest.Expires:u}, further ahead than a manifest may")
             : null;
     }
 
