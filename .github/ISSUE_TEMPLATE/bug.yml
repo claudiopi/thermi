@@ -2,20 +2,16 @@ name: Bug report
 description: Something shows a wrong value, crashes, or looks broken.
 labels: [bug]
 body:
-  - type: textarea
-    id: what
+  - type: markdown
     attributes:
-      label: What happened, and what did you expect?
-    validations:
-      required: true
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to reproduce
+      value: >-
+        Thanks. Every field here helps us reproduce the bug on a PC like yours.
+        Before you attach a file, look it over: the logs name files under your profile, so they may show your Windows user name.
   - type: input
     id: version
     attributes:
       label: thermi version
+      description: The settings window's About shows it.
     validations:
       required: true
   - type: input
@@ -32,8 +28,33 @@ body:
       description: CPU, GPU and motherboard. Sensor bugs depend on them.
     validations:
       required: true
-  - type: dropdown
-    id: pawnio
+  - type: textarea
+    id: expected
     attributes:
-      label: Is PawnIO installed?
-      options: ["Yes", "No", "Don't know"]
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: seen
+    attributes:
+      label: What did you see instead?
+      description: A screenshot of the overlay or the window helps most. Paste it here.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: dumps
+    attributes:
+      label: What the sensors read
+      description: >-
+        For a wrong or missing value: run `thermi-sensors --dump admin.json` in a terminal opened as administrator, and
+        `thermi-sensors --dump user.json` in a normal one, and attach both files.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        Attach `thermi.log` and, for the settings window, `thermi-window.log`, from `%LOCALAPPDATA%\thermi`.

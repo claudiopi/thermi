@@ -10,4 +10,4 @@ Thanks for helping. thermi is small on purpose, and so is this guide.
 
 PRs written with AI tools are welcome, as long as you ran the change, understand it, and can explain it.
 
-Bug reports: use the bug template, and include your hardware. Sensor bugs depend on it.
+Bug reports: use the bug template, and include your hardware, since sensor bugs depend on it. How a bug gets fixed: [docs/BUGS.md](docs/BUGS.md).

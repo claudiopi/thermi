@@ -22,6 +22,7 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |
 | `docs/QUICKSTART.md`, `docs/ARCHITECTURE.md` | What thermi is, as a story, and how it is built, with the real names. |
 | `docs/agents` | The contract `thermi-cli` answers AI agents and other programs, with its JSON Schemas. |
+| `docs/BUGS.md` | How a bug goes from a report to a fix. |
 | `docs/specs` | What each feature must do, with its acceptance checks. Read the spec before working on a feature. |
 | `docs/adr` | Why things are the way they are. Read before changing architecture. |
 
@@ -111,5 +112,7 @@ These need judgment, so review enforces them:
 3. `pwsh scripts/check.ps1` passes.
 4. A different agent than the author reviews, once per round: `.claude/agents/reviewer.md`. With a tool other than Claude Code, paste that brief into a fresh session, ideally on another model.
 5. A person tests it and merges. Agents commit, push and merge only when a person asks, and never with `--admin`.
+
+A bug follows the same loop from a report and a red test, with no spec: `docs/BUGS.md`.
 
 Everything in the repo is in English, except the translations themselves in `src/Thermi.Core/Translations`.

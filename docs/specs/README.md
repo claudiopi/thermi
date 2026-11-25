@@ -2,7 +2,7 @@
 
 Every feature, and every change to what thermi does, starts with a spec: a contract that a person approves before any code is written. It says what must be true when the work is done, and each of those truths is checked by a test or, when only a person can check it, by hand.
 
-Bug fixes, dependency updates and docs need no spec: a bug fix starts with a test that reproduces the bug.
+Bug fixes, dependency updates and docs need no spec: a bug fix starts with a test that reproduces the bug (`docs/BUGS.md`).
 
 ## The folder
 
