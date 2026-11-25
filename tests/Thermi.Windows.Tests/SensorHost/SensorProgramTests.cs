@@ -1,8 +1,11 @@
 extern alias sensors;
 
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost;
+using sensors::Thermi.SensorHost.User;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Windows.Tests.SensorHost;
@@ -132,9 +135,53 @@ public sealed class SensorProgramTests : IAsyncDisposable
         Assert.True(_sensors.Closed);
     }
 
+    // Spec 004, A21: the pipe named for the user, owned by the user and shut to the rest but SYSTEM and administrators, and
+    // a host that ends once its last client left, or when none came within 30 s.
+    [Fact]
+    public async Task AUsersHostServesItsUserUntilTheLastClientLeaves()
+    {
+        using var user = WindowsIdentity.GetCurrent();
+        var serving = RunAsync(["--user"]);
+        await using var client = new NamedPipeClientStream(".", _pipeName + "-" + user.User!.Value, PipeDirection.In, PipeOptions.Asynchronous);
+        await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
+        var snapshot = await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+        var security = client.GetAccessControl();
+        var readers = security.GetAccessRules(true, false, typeof(SecurityIdentifier)).Cast<PipeAccessRule>()
+            .Where(rule => rule.AccessControlType == AccessControlType.Allow).Select(rule => ((SecurityIdentifier)rule.IdentityReference).Value).Order();
+        await client.DisposeAsync();
+        await PassAsync(TimeSpan.FromSeconds(3), serving);
+        var served = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        var lonely = RunAsync(["--user"]);
+        var early = await PassAsync(UserMode.FirstClient - TimeSpan.FromSeconds(1), lonely);
+        await PassAsync(TimeSpan.FromSeconds(3), lonely);
+        var alone = await lonely.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FakeSensors.Recorded.Sensors, snapshot.Sensors.Where(sensor => sensor.Id != FakeSensors.Counter));
+        Assert.Equal(user.User, security.GetOwner(typeof(SecurityIdentifier)));
+        Assert.Equal(new[] { "S-1-5-18", "S-1-5-32-544", user.User.Value }.Order(), readers);
+        Assert.Equal((0, false, 0), (served, early, alone));
+    }
+
+    // Moves the clock a second at a time, giving the run a moment at each; whether it had ended by then.
+    private async Task<bool> PassAsync(TimeSpan time, Task run)
+    {
+        for (var passed = TimeSpan.Zero; passed < time; passed += TimeSpan.FromSeconds(1))
+        {
+            _clock.Advance(TimeSpan.FromSeconds(1));
+            await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        return run.IsCompleted;
+    }
+
     private Task<int> RunAsync(string[] args)
     {
-        var environment = new SensorHostEnvironment(_ => _sensors.Open(), _clock, _out, _error) { PipeName = _pipeName };
+        var environment = new SensorHostEnvironment(_ => _sensors.Open(), _clock, _out, _error)
+        {
+            PipeName = _pipeName,
+            UserLog = Path.Combine(_folder, "thermi-sensors.log"),
+        };
         var run = Task.Run(
             () => sensors::Thermi.SensorHost.Program.RunAsync(
                 [.. args.Select(arg => arg == "dump.json" ? File : arg)],

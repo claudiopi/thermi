@@ -13,7 +13,8 @@ namespace Thermi.SensorHost;
 /// the pipe: there is no client input to trust. If either loop fails, the whole server fails, so the service stops and
 /// Windows restarts it instead of leaving it alive and silent.
 /// </summary>
-internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> read, TimeProvider time, string pipeName = SnapshotJson.PipeName)
+internal sealed class SensorPipeServer(
+    Func<CancellationToken, Task<Snapshot>> read, TimeProvider time, string pipeName = SnapshotJson.PipeName, PipeSecurity? security = null)
     : IDisposable
 {
     /// <summary>Clients connected at once, across sessions; past it, new ones wait for one to leave.</summary>
@@ -37,7 +38,9 @@ internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> r
     /// <summary>How long one read of the sensors may take: a drive's SMART or a rescan of the hardware takes seconds, never this.</summary>
     public static readonly TimeSpan ReadLimit = TimeSpan.FromSeconds(60);
 
-    private static readonly PipeSecurity Security = Secure();
+    private static readonly PipeSecurity Everyone = ForEveryone();
+
+    private readonly PipeSecurity _security = security ?? Everyone;
 
     private readonly List<Client> _clients = [];
     private readonly Lock _lock = new();
@@ -66,6 +69,18 @@ internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> r
 
     // Whether Squatted was said since the pipe was last created.
     private bool _squatSaid;
+
+    /// <summary>Clients connected now; one that left counts until the next second's write to it fails.</summary>
+    public int Clients
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _clients.Count;
+            }
+        }
+    }
 
     public async Task RunAsync(CancellationToken stop)
     {
@@ -283,7 +298,7 @@ internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> r
         var options = PipeOptions.Asynchronous | (first ? PipeOptions.FirstPipeInstance : PipeOptions.None);
         try
         {
-            return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, Security);
+            return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, _security);
         }
         catch (UnauthorizedAccessException) when (first)
         {
@@ -297,11 +312,32 @@ internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> r
         }
     }
 
+    /// <summary>
+    /// The user's own host's pipe (docs/adr/0016-admin-on-demand.md): owned by <paramref name="user"/>, whom the overlay
+    /// checks, and open to that user, SYSTEM and administrators alone; the network gets nothing.
+    /// </summary>
+    public static PipeSecurity ForUser(SecurityIdentifier user)
+    {
+        var security = Owned(user);
+        security.SetOwner(user);
+        return security;
+    }
+
     // Local interactive users may read; SYSTEM, administrators and whoever runs the host may do more; the network gets
     // nothing. Built once: whoever runs the host never changes, and each identity asked for holds a token handle.
-    private static PipeSecurity Secure()
+    private static PipeSecurity ForEveryone()
     {
         using var host = WindowsIdentity.GetCurrent();
+        var security = Owned(host.User!);
+        security.AddAccessRule(new PipeAccessRule(
+            new SecurityIdentifier(WellKnownSidType.InteractiveSid, null),
+            PipeAccessRights.Read | PipeAccessRights.Synchronize,
+            AccessControlType.Allow));
+        return security;
+    }
+
+    private static PipeSecurity Owned(SecurityIdentifier host)
+    {
         var security = new PipeSecurity();
         security.AddAccessRule(new PipeAccessRule(
             new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
@@ -311,11 +347,7 @@ internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> r
             new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
             PipeAccessRights.FullControl,
             AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(host.User!, PipeAccessRights.FullControl, AccessControlType.Allow));
-        security.AddAccessRule(new PipeAccessRule(
-            new SecurityIdentifier(WellKnownSidType.InteractiveSid, null),
-            PipeAccessRights.Read | PipeAccessRights.Synchronize,
-            AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(host, PipeAccessRights.FullControl, AccessControlType.Allow));
         security.AddAccessRule(new PipeAccessRule(
             new SecurityIdentifier(WellKnownSidType.NetworkSid, null),
             PipeAccessRights.FullControl,

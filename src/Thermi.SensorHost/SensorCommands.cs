@@ -7,8 +7,11 @@ namespace Thermi.SensorHost;
 
 internal interface ISensorRequest;
 
-/// <summary>Serve readings: as the Windows service, or with <c>--console</c> in a terminal.</summary>
-internal sealed record SensorServe(bool Console) : ISensorRequest;
+/// <summary>
+/// Serve readings: as the Windows service, with <c>--console</c> in a terminal, or with <c>--user</c> as the user, when the
+/// service is not installed (docs/adr/0016-admin-on-demand.md).
+/// </summary>
+internal sealed record SensorServe(bool Console, bool User = false) : ISensorRequest;
 
 /// <summary><c>--dump &lt;file&gt;</c>, one snapshot, or with <c>--seconds &lt;n&gt;</c> a series of one a second.</summary>
 internal sealed record SensorDump(string File, int? Seconds) : ISensorRequest;
@@ -48,7 +51,7 @@ internal static class SensorCommands
         var root = new RootCommand("thermi-sensors: the service that reads the sensors for thermi.")
         {
             options.Console, options.Dump, options.Seconds, options.Elevated, options.Watch, options.Adopt, options.Product, options.Undo, options.Forget,
-            options.Remove,
+            options.Remove, options.User,
         };
         root.Validators.Add(result => Validate(result, root, options));
         var parsed = root.Parse(args);
@@ -73,7 +76,7 @@ internal static class SensorCommands
             result.AddError("--product needs --adopt.");
         }
 
-        foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Undo, options.Forget, options.Remove })
+        foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Undo, options.Forget, options.Remove, options.User })
         {
             Alone(result, mode, [.. root.Options.Where(other => other != mode && (mode != options.Adopt || other != options.Product))]);
         }
@@ -122,12 +125,14 @@ internal static class SensorCommands
 
         public Option<bool> Remove { get; } = new("--remove") { Description = "Takes thermi off the PC.", Hidden = true };
 
+        public Option<bool> User { get; } = new("--user") { Description = "Serves readings as this user, which the overlay starts.", Hidden = true };
+
         public ISensorRequest Request(ParseResult parsed) =>
             parsed.GetValue(Elevated) ? new SensorElevated()
             : parsed.GetValue(Watch) is { } to ? new SensorSwitch(to)
             : InstallOf(parsed) is { } install ? install
             : parsed.GetValue(Dump) is { } file ? new SensorDump(file, parsed.GetValue(Seconds))
-            : new SensorServe(parsed.GetValue(Console));
+            : new SensorServe(parsed.GetValue(Console), parsed.GetValue(User));
 
         private SensorInstall? InstallOf(ParseResult parsed) =>
             parsed.GetValue(Adopt) ? new SensorInstall(InstallMode.Adopt, parsed.GetValue(Product)?.ToString("B").ToUpperInvariant())

@@ -20,4 +20,8 @@ internal sealed record SensorHostEnvironment(
         new(slow => new LhmSensorSource(TimeProvider.System, slow), TimeProvider.System, Console.Out, Console.Error);
 
     public string PipeName { get; init; } = SnapshotJson.PipeName;
+
+    /// <summary>Where the user's host logs (docs/adr/0016-admin-on-demand.md).</summary>
+    public string UserLog { get; init; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "thermi", "thermi-sensors.log");
 }

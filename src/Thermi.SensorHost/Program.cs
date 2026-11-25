@@ -6,6 +6,7 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Install;
 using Thermi.SensorHost.Updates;
+using Thermi.SensorHost.User;
 
 namespace Thermi.SensorHost;
 
@@ -40,6 +41,11 @@ internal static class Program
         if (request is SensorElevated or SensorSwitch or SensorInstall)
         {
             return await RunModeAsync(request, environment, stop);
+        }
+
+        if (request is SensorServe { User: true })
+        {
+            return await UserMode.RunAsync(environment, stop);
         }
 
         using var events = new EventLog("Application") { Source = SensorService.Name };
