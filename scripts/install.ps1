@@ -291,7 +291,7 @@ function Assert-NoCodeLoadingVariable([string[]]$Names) {
 # written whole to $Script before the prompt, with its arguments in it, and loads modules only from PowerShell's own. The
 # command line, which Windows caps at 32,767 characters, carries only its SHA-256: the administrator reads the file once
 # and runs those bytes only if they match, so a file swapped while the prompt waits runs nothing.
-function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [bool]$SensorsOnly, [string]$Script) {
+function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [string]$Script, [bool]$SensorsOnly) {
     $quoted = { param([string]$Text) "'$($Text -replace "'", "''")'" }
     $names = 'Stop-Overlay', 'Remove-Service', 'Register-Service', 'Install-Service', 'Restore-Service',
         'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Set-MachinePath', 'Set-InstallChoice', 'Install-Elevated'
@@ -328,7 +328,7 @@ function Invoke-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2, [bool
         (Get-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').Property)
     $script = Join-Path ([IO.Path]::GetTempPath()) "thermi-install-$([guid]::NewGuid()).ps1"
     try {
-        $arguments = @('-NoProfile', '-EncodedCommand', (Get-ElevatedCommand $From $Hash $HasWebView2 $SensorsOnly $script))
+        $arguments = @('-NoProfile', '-EncodedCommand', (Get-ElevatedCommand $From $Hash $HasWebView2 $script $SensorsOnly))
         $elevated = Start-Process $pwsh -Verb RunAs -Wait -PassThru -ArgumentList $arguments
     }
     finally {

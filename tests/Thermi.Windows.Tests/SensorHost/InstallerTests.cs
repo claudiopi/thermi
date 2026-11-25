@@ -73,6 +73,7 @@ public sealed class InstallerTests : IDisposable
         {
             exit = await PwshAsync(
                 $"$target = '{target}'; $service = 'thermi-tests-none'; function Remove-Service {{ }}; "
+                + "function Set-MachinePath { }; function Set-InstallChoice { }; "
                 + $"function Register-Service {{ {refuse}; Set-Content '{registered}' 'yes' }}; "
                 + $"Install-Elevated '{build}' (Get-TreeHash '{build}') $true");
         }
