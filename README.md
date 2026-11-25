@@ -9,8 +9,8 @@ A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltag
 - Shows the values you pick, such as temperatures, loads, power, clocks, voltages, memory, fan speeds and the FPS of the game in front, in small pills, and keeps them on top, the taskbar included.
 - Colors a value at its warning and critical thresholds, and shows `–` for one it cannot read, never a zero or an old number that looks live.
 - A settings window, "Settings…" in the overlay's menu or `thermi settings`, picks the values and their sensors, the look, the position, the thresholds and the hotkeys, with undo. English and Spanish.
-- Reads the sensors in a small Windows service, `thermi-sensors`, so the overlay and the window never run as administrator.
-- CPU temperature, power and clocks need a small signed driver. When they read nothing, the settings window offers to install it, behind one Windows permission prompt.
+- Reads the sensors in a small Windows service, `thermi-sensors`, so the overlay and the window never run as administrator. Installed without admin rights, for one user, it reads them in a process of that user's instead: what those rights allow, without the CPU's temperature, power and clocks, the board's fans, the drives' health or the FPS.
+- CPU temperature, power and clocks need a small signed driver. When they read nothing, the settings window offers to install it, behind one Windows permission prompt; installed for one user, it offers to install thermi for everyone with the driver, behind that one prompt.
 - AI agents and other programs read the sensors and change the settings with `thermi-cli`, from any shell or as an MCP server, with or without an overlay: [thermi for agents](docs/agents/README.md). For Claude Code, `claude mcp add thermi -- thermi-cli mcp`.
 - Keeps itself up to date, silently, as a browser does: a new version is downloaded, checked against thermi's signatures and switched to at a quiet moment, with no prompt. A version that fails is set aside and the PC stays on the one that worked.
 

@@ -11,7 +11,7 @@ How thermi is built, with the real names, so you can find any piece and change i
  ┌─ thermi-sensors (src/Thermi.SensorHost) ── Windows service, LocalSystem ────┐
  │ LhmSensorSource reads ─► SensorPipeServer: the catalog once, then values    │
  └──────────────────────────────┬──────────────────────────────────────────────┘
-                                ▼ named pipe "thermi-sensors": read-only, owner checked
+                                ▼ named pipe "thermi-sensors": read-only, owner checked (per user: "thermi-sensors-<SID>")
  ┌─ thermi.exe (src/Thermi) ── the user's process, no admin rights ────────────┐
  │ SensorClient ─► LatestSnapshot ─► SensorMap ─► OverlayLayout ─► Painter      │
  │                                    (Core)    (Core, with Look)   (GDI+)      │
@@ -40,15 +40,18 @@ How thermi is built, with the real names, so you can find any piece and change i
 | Project | Runs as | Depends on | Job |
 | --- | --- | --- | --- |
 | `src/Thermi.Core` | a library | nothing | Snapshots, metrics, sensor mapping, formatting, thresholds, config, edits, undo, layout, look and snaps, OLED care, power items and their history, saved styles, visibility, the tray's texts, hotkeys and their status, the translations, and the window's catalog, history and fan finder. |
-| `src/Thermi.SensorHost` | `thermi-sensors.exe`, a service | Core, LibreHardwareMonitor, System.CommandLine, System.ServiceProcess.ServiceController | Reads the sensors and serves snapshots. |
-| `src/Thermi` | `thermi.exe` and `thermi-cli.exe`, the user | Core, the Windows Desktop runtime (GDI+ only), WebView2, Serilog under Microsoft.Extensions.Logging, System.CommandLine, ModelContextProtocol.Core, and CsWin32 at build time only | The overlay, its settings file, `thermi preview`, as `thermi settings` the window that hosts the page, in a process of its own, and as `thermi-cli` the agents' commands and MCP server. |
+| `src/Thermi.SensorHost` | `thermi-sensors.exe`, a service, or the user's own process in a per-user install | Core, Thermi.Trust, LibreHardwareMonitor, System.CommandLine, System.ServiceProcess.ServiceController, and CsWin32 at build time only | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down or takes thermi off for the MSI and `scripts/install.ps1`. |
+| `src/Thermi` | `thermi.exe` and `thermi-cli.exe`, the user | Core, Thermi.Trust, the Windows Desktop runtime (GDI+ only), WebView2, Serilog under Microsoft.Extensions.Logging, System.CommandLine, ModelContextProtocol.Core, and CsWin32 at build time only | The overlay, its settings file, `thermi preview`, as `thermi settings` the window that hosts the page, in a process of its own, and as `thermi-cli` the agents' commands and MCP server. |
 | `src/Thermi.Settings.Web` | the page in the window's WebView2, embedded in `thermi.exe` | React, Fluent UI React v9, built by Vite | The settings window's page, which holds no logic of its own: it reads and edits through the bridge. |
 | `src/Thermi.Settings.Types` | the build | Core | Writes the page's TypeScript from Core: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
 | `src/Thermi.Client` | a library other programs ship, `net10.0` | nothing | The .NET SDK of the agents' contract, which starts `thermi-cli`. |
+| `src/Thermi.Trust` | a library | CsWin32 at build time only | Windows' own checks: a folder only administrators change, Authenticode signatures, signed catalogs and a held switch lock. |
+| `src/Thermi.Releases` | `thermi-releases.exe`, the owner | Core, System.CommandLine | The owner's levers on the update channels, which sign each channel's manifest. |
+| `src/Thermi.Installer` | the MSIs, built by `scripts/updates.ps1` | WiX 5 and its util extension | The machine's and the per-user installer of a published version. |
 | `tests/Thermi.Tests` | the test runner | Core | Behavior from recordings, file formats and the repo rules. |
 | `tests/Thermi.Windows.Tests` | the test runner | all of the above | Real pipes, the service, the painter, the settings file and the window's side of the bridge. |
 
-Why these packages and no others, and why the service takes the fewest, since it runs as LocalSystem: `docs/adr/0006-proven-libraries-for-logging-and-win32.md`. Both executables are published ReadyToRun for the PC's own processor, x64 or Arm64, by `scripts/install.ps1`.
+Why these packages and no others, and why the service takes the fewest, since it runs as LocalSystem: `docs/adr/0006-proven-libraries-for-logging-and-win32.md`. Both programs are published self-contained and ReadyToRun for one processor, x64 or Arm64, by `scripts/publish.ps1`, which `scripts/install.ps1` and the release's pack and MSIs share.
 
 ## Names
 
