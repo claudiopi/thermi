@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The .NET SDK of the agents' contract (docs/agents/README.md): a thin library that starts thermi-cli and reads its
-       JSON. net8.0, the oldest .NET still supported, so any program on a current .NET can take it; no package or project
+       JSON. net10.0, the one .NET still supported, so any program on a current .NET can take it; no package or project
        references and no native code (checked by ContractTests), so it adds nothing to whoever ships it. -->
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <PackageId>Thermi.Client</PackageId>
     <Authors>Claudio Pi</Authors>

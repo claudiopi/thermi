@@ -48,13 +48,19 @@ public sealed class AgentDoorTests : IDisposable
             _ => throw new ArgumentOutOfRangeException(nameof(shell)),
         };
 
-        var (code, said) = await DesktopProcess.RunAsync(exe, args, TimeSpan.FromSeconds(60));
+        var (code, said) = await DesktopProcess.RunAsync(exe, args, TimeSpan.FromSeconds(60), _folder.Profile);
 
         Assert.Equal(2, code);
         Assert.Contains("monitors", said, StringComparison.Ordinal);
         var answer = JsonNode.Parse(await File.ReadAllTextAsync(captured, TestContext.Current.CancellationToken))!;
         Assert.Equal(AgentSchema.Current, (int)answer["schema"]!);
         Assert.NotEmpty(answer["monitors"]!.AsArray());
+
+        // The door runs the agents' commands alone, and its help goes where no JSON is read.
+        Assert.Equal(2, (await DesktopProcess.RunAsync(Cli, ["elevated", "start-sensors"], TimeSpan.FromSeconds(60), _folder.Profile)).Code);
+        var (helped, help) = await DesktopProcess.RunAsync(Cli, ["--help"], TimeSpan.FromSeconds(60), _folder.Profile);
+        Assert.Equal(0, helped);
+        Assert.Contains("monitors", help, StringComparison.Ordinal);
     }
 
     private static string Script(string folder, string name, string text)

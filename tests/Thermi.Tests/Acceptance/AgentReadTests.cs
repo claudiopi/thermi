@@ -37,6 +37,8 @@ public sealed class AgentReadTests
             var temperature = Assert.Single(all.Values, value => value is { Id: "cpu.temperature", Source: ValueSource.Metric });
             Assert.Null(temperature.Value);
             Assert.Equal(NoValue.DriverMayBeMissing, temperature.Why);
+            var item = Assert.Single(all.Values, value => value is { Id: "cpu.temperature", Source: ValueSource.Item });
+            Assert.Equal((temperature.Sensor, NoValue.DriverMayBeMissing), (item.Sensor, item.Why));
         }
 
         var shown = OverlayLayout.Build(config.Overlays[0], SensorMap.Read(snapshot, config.Overlays[0]), CultureInfo.InvariantCulture, windowOpen: true);

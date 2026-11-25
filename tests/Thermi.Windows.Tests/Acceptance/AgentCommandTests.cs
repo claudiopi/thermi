@@ -39,8 +39,6 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Done, 2, "read", "no.such.metric")]
     [InlineData(Ending.Done, 2, "watch", "no.such.metric")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
-    [InlineData(Ending.Done, 2, "edit", """{"kind":"item","item":"cpu.load","field":"nothing","value":1}""")]
-    [InlineData(Ending.Done, 2, "status", "--schema", "0")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
     [InlineData(Ending.Stopped, 0, "status")]
     [InlineData(Ending.Stopped, 3, "read")]
@@ -92,6 +90,14 @@ public sealed class AgentCommandTests : IDisposable
         Assert.False((bool)status["overlay"]!);
         Assert.Equal(problem is { } code ? [System.Text.Json.JsonNamingPolicy.KebabCaseLower.ConvertName(code.ToString())] : [],
             status["problems"]!.AsArray().Select(each => (string)each!["code"]!));
+
+        // With the sensors alone, there is no menu or window to send the person to, so a fix that names one says otherwise.
+        _rig.SensorsOnly = true;
+        var sensorsOnly = (await _rig.RunAsync("status")).Json;
+        _rig.SensorsOnly = false;
+        Assert.Equal(
+            problem is AgentProblem.ServiceStopped or AgentProblem.DriverMissing,
+            (string?)sensorsOnly["problems"]!.AsArray().FirstOrDefault()?["fix"] != (string?)status["problems"]!.AsArray().FirstOrDefault()?["fix"]);
         if (recording is not null)
         {
             string[][] commands = [["read"], ["sensors"], ["config"], ["edit", """{"kind":"item","item":"cpu.load","field":"name","value":"Load"}"""]];
@@ -154,40 +160,18 @@ public sealed class AgentCommandTests : IDisposable
     [Fact]
     public async Task AgentEditsWriteTheFileOrLeaveIt()
     {
+        // An item added from the service's reading, so the edit reads it as the window does.
         var snapshot = TestRecordings.Read(TestRecordings.Admin);
         var clock = snapshot.Sensors.First(sensor => sensor.Type == "Clock").Id;
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        var texts = Texts.English;
-        var expected = new ThermiConfig();
-        var edits = new (string Json, Func<ThermiConfig, EditResult> Window)[]
-        {
-            ("""{"kind":"item","item":"cpu.temperature","field":"name","value":"Tdie"}""",
-                PageEdits.Of(
-                    new ItemFieldEdit("cpu.temperature", "name", System.Text.Json.JsonSerializer.SerializeToElement("Tdie")),
-                    snapshot,
-                    texts,
-                    () => new HashSet<int>())),
-            (
-                """{"item":"cpu.temperature","warning":70,"critical":90,"kind":"threshold"}""",
-                config => ItemEdits.SetThreshold(config, "cpu.temperature", 70, 90)),
-            ("""{"kind":"newOverlay"}""", PageEdits.Of(new NewOverlayEdit(), snapshot, texts, () => new HashSet<int>())),
-            ($$"""{"kind":"addItem","overlay":0,"sensor":"{{clock}}"}""", PageEdits.Of(new AddItemEdit(0, clock), snapshot, texts, () => new HashSet<int>())),
-        };
+        var added = PageEdits.Of(new AddItemEdit(0, clock), snapshot, Texts.English, () => new HashSet<int>())(new ThermiConfig()).Config;
 
-        foreach (var (json, window) in edits)
-        {
-            expected = window(expected).Config;
-            Assert.Equal(0, (await _rig.RunAsync("edit", json)).Exit);
-            Assert.Equal(ThermiConfigJson.Write(expected), ThermiConfigJson.Write(_rig.Folder.Read()));
-        }
+        Assert.Equal(0, (await _rig.RunAsync("edit", $$"""{"kind":"addItem","overlay":0,"sensor":"{{clock}}"}""")).Exit);
+        Assert.Equal(ThermiConfigJson.Write(added), ThermiConfigJson.Write(_rig.Folder.Read()));
 
         var written = _rig.Folder.Text();
-        foreach (var json in new[] { TooHigh, """{"kind":"threshold","item":"nobody","warning":70}""" })
-        {
-            var end = await _rig.RunAsync("edit", json);
-            Assert.Equal(1, end.Exit);
-            Assert.Equal(written, _rig.Folder.Text());
-        }
+        Assert.Equal(1, (await _rig.RunAsync("edit", TooHigh)).Exit);
+        Assert.Equal(written, _rig.Folder.Text());
     }
 
     // The overlay's own writes, as a drop, go out through its throttle as changes of whatever the file holds then, and an

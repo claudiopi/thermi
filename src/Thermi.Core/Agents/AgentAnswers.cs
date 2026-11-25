@@ -51,7 +51,10 @@ public sealed record ValueAnswer(string Id, ValueSource Source, string Name, Sen
     /// <summary>The overlay an item is in, counted from 0 as the settings list them.</summary>
     public int? Overlay { get; init; }
 
-    /// <summary>The value as the overlay shows it, in its unit and the invariant culture's numbers.</summary>
+    /// <summary>
+    /// This moment's reading as the overlay writes it, in its unit and decimals and the invariant culture's numbers; an
+    /// item that shows a minimum, maximum, average or smoothed value over its own history shows here the reading it is made of.
+    /// </summary>
     public string? Shown { get; init; }
 
     public Level? Level { get; init; }

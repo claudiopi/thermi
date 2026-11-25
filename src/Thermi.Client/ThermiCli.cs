@@ -36,7 +36,7 @@ internal sealed class ProcessCli : ICli
         }
         catch (OperationCanceledException)
         {
-            process.Kill();
+            End(process);
             throw;
         }
 
@@ -58,8 +58,11 @@ internal sealed class ProcessCli : ICli
         }
         finally
         {
+            // A line thermi-cli is still writing would block it before it sees stdin close, so what is left is read away.
             process.StandardInput.Close();
+            var rest = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, CancellationToken.None);
             await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            await rest.ConfigureAwait(false);
             ended(new CliEnd(process.ExitCode, "", await error.ConfigureAwait(false)));
         }
     }
@@ -81,6 +84,26 @@ internal sealed class ProcessCli : ICli
             start.ArgumentList.Add(argument);
         }
 
-        return Process.Start(start) ?? throw new ThermiException($"{exe} did not start.", exitCode: -1);
+        try
+        {
+            return Process.Start(start) ?? throw new ThermiException($"{exe} did not start.", exitCode: -1);
+        }
+        catch (System.Runtime.InteropServices.ExternalException ex)
+        {
+            throw new ThermiException($"{exe} did not start: {ex.Message}", exitCode: -1);
+        }
+    }
+
+    // A process that ended on its own as it was cancelled has nothing left to end.
+    private static void End(Process process)
+    {
+        try
+        {
+            process.Kill();
+        }
+        catch (InvalidOperationException)
+        {
+            // It had exited already.
+        }
     }
 }

@@ -2187,4 +2187,13 @@
   <data name="AgentText.SettingsBrokenFix" xml:space="preserve">
     <value>Ask the person to fix the file, or to choose Restore last good settings in thermi's settings window.</value>
   </data>
+  <data name="AgentText.ServiceStoppedFixSensorsOnly" xml:space="preserve">
+    <value>Ask the person to start the thermi-sensors service in Windows' Services, as administrator, or to run thermi's installer again. Do not start it yourself.</value>
+  </data>
+  <data name="AgentText.DriverMissingFixSensorsOnly" xml:space="preserve">
+    <value>Ask the person to run thermi's installer again, which installs the driver with administrator rights once.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenFixSensorsOnly" xml:space="preserve">
+    <value>Ask the person to fix or delete thermi's settings file, %APPDATA%\thermi\config.json.</value>
+  </data>
 </root>

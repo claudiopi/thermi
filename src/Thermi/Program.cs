@@ -32,16 +32,18 @@ internal static class Program
             return 2;
         }
 
+        // The console door runs the agents' commands alone: never the overlay, the window or the elevated mode.
+        var door = ThermiCommands.IsConsoleDoor(Environment.ProcessPath);
         return request switch
         {
-            OverlayRequest when ThermiCommands.IsConsoleDoor(Environment.ProcessPath) => await HelpAsync(),
+            AgentRequest agent => await RunAgentAsync(agent, time),
+            BuiltInRequest builtIn => await AnswerAsync(builtIn, door),
+            _ when door => await HelpAsync(),
             OverlayRequest overlay => await RunOverlayAsync(overlay.Trace, time),
             SettingsRequest window => await RunWindowAsync(window, time),
             PreviewRequest preview => await Preview.RunAsync(preview, time),
             CpuLoadRequest load => await CpuLoad.RunAsync(load.Seconds, time),
             ElevatedRequest elevated => await RunElevatedAsync(elevated.Verb, time),
-            BuiltInRequest builtIn => await AnswerAsync(builtIn),
-            AgentRequest agent => await RunAgentAsync(agent, time),
             _ => 2,
         };
     }
@@ -109,10 +111,17 @@ internal static class Program
         return 2;
     }
 
-    private static Task<int> AnswerAsync(BuiltInRequest builtIn)
+    // The console door's stdout carries JSON alone, so its help and version go to stderr.
+    private static Task<int> AnswerAsync(BuiltInRequest builtIn, bool door)
     {
-        CommandLineOutput.Borrow(STD_HANDLE.STD_OUTPUT_HANDLE);
-        return builtIn.Parsed.InvokeAsync();
+        if (!door)
+        {
+            CommandLineOutput.Borrow(STD_HANDLE.STD_OUTPUT_HANDLE);
+            return builtIn.Parsed.InvokeAsync();
+        }
+
+        CommandLineOutput.Borrow(STD_HANDLE.STD_ERROR_HANDLE);
+        return builtIn.Parsed.InvokeAsync(new System.CommandLine.InvocationConfiguration { Output = Console.Error });
     }
 
     private static async Task<int> RunHostAsync(ILoggerFactory logs, TimeProvider time)

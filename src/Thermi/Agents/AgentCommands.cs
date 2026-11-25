@@ -45,7 +45,7 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
         AgentVerb.Monitors =>
             Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
         AgentVerb.Looks => Task.FromResult(Looks()),
-        AgentVerb.Edit => OneAtATimeAsync(() => EditAsync(request.Text ?? "", stop), stop),
+        AgentVerb.Edit => EditAsync(request.Text ?? "", stop),
         AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request), stop),
         AgentVerb.FindCpuFan => FindCpuFanAsync(request.Switch == true, stop),
         AgentVerb.StartWithWindows => Task.FromResult(StartWithWindows(request.Switch)),
@@ -143,8 +143,14 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
             AgentExit.BadArguments,
             Error: $"No metric, sensor or item is named {string.Join(", ", answer.Unknown)}; sensors lists the sensors, config the items.");
 
+    // No file yet, as on the sensors alone until a first edit, is the defaults at once, with no settle to wait out.
     private async Task<ConfigRead> SettingsAsync()
     {
+        if (!File.Exists(environment.SettingsPath))
+        {
+            return new ConfigRead(new ThermiConfig(), null, Outside: true);
+        }
+
         using var store = new ConfigStore(environment.SettingsPath, time);
         return await store.ReadOnlyAsync();
     }

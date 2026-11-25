@@ -89,7 +89,7 @@ internal static class ThermiCommands
 
         // A root with commands and no action of its own must be given one of them; thermi's runs the overlay.
         root.SetAction(_ => 0);
-        var parsed = root.Parse(args);
+        var parsed = root.Parse(args, new ParserConfiguration { ResponseFileTokenReplacer = null });
         errors = [.. parsed.Errors.Select(error => error.Message), .. OnlyItsVerb(parsed, elevated, args)];
         return errors.Count > 0 ? null
             : parsed.Action is not null && parsed.Action != root.Action ? new BuiltInRequest(parsed)

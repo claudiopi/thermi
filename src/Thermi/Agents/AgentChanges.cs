@@ -41,8 +41,14 @@ internal sealed partial class AgentCommands
 
     private async Task<AgentReply> EditAsync(string json, CancellationToken stop)
     {
+        // The reading is taken before the edit waits its turn, so a service that does not answer holds up no other change.
         var (samples, _, _) = await AgentSamples.TakeAsync(environment.Sensors(), 1, time, stop);
         var snapshot = samples.Count > 0 ? samples[^1] : new Snapshot([]);
+        return await OneAtATimeAsync(() => EditOfAsync(json, snapshot), stop);
+    }
+
+    private async Task<AgentReply> EditOfAsync(string json, Snapshot snapshot)
+    {
         var settings = await SettingsAsync();
         Func<ThermiConfig, EditResult> edit;
         try
@@ -105,9 +111,24 @@ internal sealed partial class AgentCommands
             return FileRefused(ex);
         }
 
-        return renamed.Refused is { } refused ? Refused(refused)
-            : ConfigEdits.Replay(settings.Config, renamed.Config) is { } replay ? await WriteAsync(config => new EditResult(replay(config)), keep: false)
-            : Done();
+        if (renamed.Refused is { } refused)
+        {
+            return Refused(refused);
+        }
+
+        if (ConfigEdits.Replay(settings.Config, renamed.Config) is not { } replay)
+        {
+            return Done();
+        }
+
+        // The overlays that wore it could not follow the file's new name, so the file takes its old name back.
+        var written = await WriteAsync(config => new EditResult(replay(config)), keep: false);
+        if (written.Exit != AgentExit.Done)
+        {
+            Filed(() => saved.Rename(renamed.Config, History, to.Trim(), from).Refused);
+        }
+
+        return written;
     }
 
     private AgentReply StartWithWindows(bool? on)

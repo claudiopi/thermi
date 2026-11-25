@@ -102,7 +102,7 @@ public static class AgentViews
     {
         Library = row.Name.Shown == row.Sensor.Name ? null : row.Sensor.Name,
         Value = row.Reading.Kind == SensorKind.Address ? null : row.Reading.Usable,
-        Text = row.Reading.Kind == SensorKind.Address && row.Reading.Usable is { } address ? AgentReads.AddressOf(address) : null,
+        Text = row.Reading.Kind == SensorKind.Address && row.Reading.Usable is { } address ? SystemSensors.AddressText(address) : null,
         Why = row.Why,
     };
 }

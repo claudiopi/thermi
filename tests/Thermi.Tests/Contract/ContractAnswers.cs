@@ -24,6 +24,7 @@ internal static class ContractAnswers
             yield return ("sensors", AgentJson.Write(AgentViews.Sensors(snapshot, config, "cpu", [SensorKind.Temperature, SensorKind.Fan])));
             var running = new AgentFacts(ServiceState.Running, Installed: true, Taken: false, snapshot, ConfigProblem.Missing);
             yield return ("status", AgentJson.Write(AgentStatus.Of(running)));
+            yield return ("status", AgentJson.Write(AgentStatus.Of(running with { Settings = ConfigProblem.Locked("locked"), SensorsOnly = true })));
         }
 
         foreach (var series in new[] { TestRecordings.CpuLoad, TestRecordings.IntelCpuLoad }.Select(TestFiles.Series))
@@ -32,11 +33,18 @@ internal static class ContractAnswers
         }
 
         // Each problem the service can have, with a settings file that cannot be used, an overlay and a sensors-only install.
-        (ServiceState State, bool Installed, bool Taken)[] services =
-            [(ServiceState.Stopped, true, false), (ServiceState.Stale, true, false), (ServiceState.Stopped, true, true), (ServiceState.Stopped, false, false)];
-        foreach (var (state, installed, taken) in services)
+        (ServiceState State, bool Installed, bool Taken, bool SensorsOnly)[] services =
+        [
+            (ServiceState.Stopped, true, false, false), (ServiceState.Stale, true, false, false), (ServiceState.Stopped, true, true, false),
+            (ServiceState.Stopped, false, false, true), (ServiceState.Stopped, true, false, true),
+        ];
+        foreach (var (state, installed, taken, sensorsOnly) in services)
         {
-            var facts = new AgentFacts(state, installed, taken, Latest: null, ConfigProblem.Locked("locked")) { Overlay = true, SensorsOnly = !installed };
+            var facts = new AgentFacts(state, installed, taken, Latest: null, ConfigProblem.Locked("locked"))
+            {
+                Overlay = !sensorsOnly,
+                SensorsOnly = sensorsOnly,
+            };
             yield return ("status", AgentJson.Write(AgentStatus.Of(facts)));
         }
     }

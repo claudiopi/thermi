@@ -1,6 +1,6 @@
 # thermi
 
-A light, always-on-top hardware monitor for Windows: CPU, GPU, RAM and fans (FPS later), in a small overlay you place anywhere on screen. AI agents will be able to configure it through a CLI and MCP.
+A light, always-on-top hardware monitor for Windows: CPU, GPU, RAM and fans (FPS later), in a small overlay you place anywhere on screen. AI agents read it and configure it through a CLI and MCP.
 
 This is the one guide for people and AI agents alike. Keep it short. New here? Read `docs/QUICKSTART.md`, then `docs/ARCHITECTURE.md`.
 
@@ -12,7 +12,7 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
 | `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
-| `src/Thermi.Client` | The .NET SDK of the agents' contract, which starts `thermi-cli`: `net8.0`, MIT, no dependencies. |
+| `src/Thermi.Client` | The .NET SDK of the agents' contract, which starts `thermi-cli`: `net10.0`, MIT, no dependencies. |
 | `src/Thermi.SensorHost` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor, and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |

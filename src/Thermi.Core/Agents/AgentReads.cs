@@ -100,7 +100,9 @@ public static class AgentReads
         var kind = readings[^1]?.Kind ?? Threshold.KindOf(item) ?? SensorKind.Load;
         var shown = OverlayLayout.Build(overlay with { Items = [item] }, now, CultureInfo.InvariantCulture, temperature: config.Temperature, windowOpen: true);
         var judged = Threshold.Judges(item) ? item.Threshold : null;
-        var sensor = item.Sensor is { } id ? SensorMap.Find(last, id) : null;
+        var sensor = item.Sensor is { } id ? SensorMap.Find(last, id)
+            : (item.Metric ?? item.Auto) is { } metric ? SensorMap.Chosen(last, overlay).GetValueOrDefault(metric)
+            : null;
         var answer = new ValueAnswer(item.Id, ValueSource.Item, item.Name ?? Names.OfUnnamed(item, last, Texts.English), kind, UnitOf(kind))
         {
             Overlay = at,
@@ -124,7 +126,7 @@ public static class AgentReads
             Sensor = sensor?.Id,
             Device = sensor?.Hardware,
             Value = answer.Type == SensorKind.Address ? null : last?.Usable,
-            Text = answer.Type == SensorKind.Address && last?.Usable is { } address ? AddressOf(address) : null,
+            Text = answer.Type == SensorKind.Address && last?.Usable is { } address ? SystemSensors.AddressText(address) : null,
             Why = why,
             Samples = usable.Count,
             Min = many ? usable.Min() : null,
@@ -133,9 +135,4 @@ public static class AgentReads
         };
     }
 
-    internal static string AddressOf(double address)
-    {
-        var number = (uint)address;
-        return string.Create(CultureInfo.InvariantCulture, $"{number >> 24}.{(number >> 16) & 255}.{(number >> 8) & 255}.{number & 255}");
-    }
 }

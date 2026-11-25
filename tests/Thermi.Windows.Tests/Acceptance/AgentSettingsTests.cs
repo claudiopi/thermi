@@ -54,8 +54,9 @@ public sealed class AgentSettingsTests : IDisposable
         Assert.Null(saved.Save(new StyleConfig(Gap: 10, Units: false), "Loud"));
 
         Assert.Equal(["Calm", "Loud"], (await _rig.RunAsync("looks")).Json["looks"]!.AsArray().Select(name => (string)name!));
-        Assert.Equal(0, (await _rig.RunAsync("look", "save", "Mine", "--overlay", "1")).Exit);
-        Assert.Equal(3, saved.Named("Mine")!.Gap);
+        // A name that starts with @ is a name, never a file of arguments to read.
+        Assert.Equal(0, (await _rig.RunAsync("look", "save", "@Mine", "--overlay", "1")).Exit);
+        Assert.Equal(3, saved.Named("@Mine")!.Gap);
 
         Assert.Equal(0, (await _rig.RunAsync("look", "wear", "Calm")).Exit);
         config = StyleEdits.Wear(config, overlay: null, saved.Named("Calm")!).Config;
@@ -66,7 +67,7 @@ public sealed class AgentSettingsTests : IDisposable
             Assert.Equal(4, (await _rig.RunAsync("look", "rename", "Calm", "Quiet")).Exit);
         }
 
-        Assert.Equal(["Calm", "Loud", "Mine"], saved.List().Select(style => style.Name));
+        Assert.Equal(["@Mine", "Calm", "Loud"], saved.List().Select(style => style.Name));
 
         var taken = await _rig.RunAsync("look", "rename", "Calm", "Loud");
         Assert.Equal((1, Texts.Key(Refusal.StyleNameTaken)), (taken.Exit, (string)taken.Json["refusal"]!));
@@ -121,6 +122,15 @@ public sealed class AgentSettingsTests : IDisposable
         var found = await _rig.RunAsync("find-cpu-fan", "--use");
 
         Assert.Equal(answers ? 0 : 1, found.Exit);
+        if (answers)
+        {
+            // A PC whose board reports no fan: the finder cannot start, says why, and loads nothing.
+            _rig.Sensors = () => new RecordedFeed([new Snapshot([.. series[0].Sensors.Where(sensor => sensor.Type != nameof(SensorKind.Fan))])]);
+            var none = await _rig.RunAsync("find-cpu-fan");
+            Assert.Equal((1, false), (none.Exit, none.Json["cannotStart"] is null));
+            _rig.Sensors = () => new RecordedFeed(series, pace: _rig.Folder.Clock);
+        }
+
         var (started, ended) = Assert.Single(_rig.Loads);
         Assert.InRange(_rig.Folder.Clock.GetElapsedTime(started, ended!.Value), TimeSpan.Zero, FanFinder.MaxRun);
         if (!answers)

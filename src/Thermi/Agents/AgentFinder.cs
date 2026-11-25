@@ -11,8 +11,24 @@ internal sealed partial class AgentCommands
 {
     private async Task<AgentReply> FindCpuFanAsync(bool use, CancellationToken stop)
     {
+        // The window's finder lives on the window's thread; here its timer and this loop take turns under one gate.
         var gate = new Lock();
-        using var finder = new WindowFinder(environment.Load, time, turn => { lock (gate) { turn(); } }, () => { });
+        var finder = new WindowFinder(environment.Load, time, turn => { lock (gate) { turn(); } }, () => { });
+        try
+        {
+            return await FindAsync(finder, gate, use, stop);
+        }
+        finally
+        {
+            lock (gate)
+            {
+                finder.Dispose();
+            }
+        }
+    }
+
+    private async Task<AgentReply> FindAsync(WindowFinder finder, Lock gate, bool use, CancellationToken stop)
+    {
         Snapshot? last = null;
         var feed = environment.Sensors();
         await foreach (var snapshot in AgentSamples.StreamAsync(feed, time, stop))
@@ -42,13 +58,21 @@ internal sealed partial class AgentCommands
                 last = snapshot;
             }
 
-            if (finder.Result is not null)
+            if (ResultOf(finder, gate) is not null)
             {
                 break;
             }
         }
 
-        return finder.Result is { } result ? await FoundAsync(result, last!, use, stop) : Unread(feed.State, feed.Taken, last);
+        return ResultOf(finder, gate) is { } result ? await FoundAsync(result, last!, use, stop) : Unread(feed.State, feed.Taken, last);
+    }
+
+    private static FanFinderResult? ResultOf(WindowFinder finder, Lock gate)
+    {
+        lock (gate)
+        {
+            return finder.Result;
+        }
     }
 
     private async Task<AgentReply> FoundAsync(FanFinderResult result, Snapshot snapshot, bool use, CancellationToken stop)

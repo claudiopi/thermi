@@ -39,6 +39,9 @@ public enum AgentText
     DriverMissingFix,
     SettingsBrokenCause,
     SettingsBrokenFix,
+    ServiceStoppedFixSensorsOnly,
+    DriverMissingFixSensorsOnly,
+    SettingsBrokenFixSensorsOnly,
 }
 
 /// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
@@ -84,7 +87,7 @@ public static class AgentStatus
             problems.Add(AgentProblem.SettingsBroken);
         }
 
-        return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. problems.Select(Said)])
+        return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. problems.Select(problem => Said(problem, facts.SensorsOnly))])
         {
             Settings = facts.Settings is { Kind: not ConfigProblemKind.Missing } problem ? problem.Kind : null,
         };
@@ -94,11 +97,15 @@ public static class AgentStatus
     public static ProblemAnswer? Unread(AgentFacts facts) =>
         Of(facts).Problems.FirstOrDefault(problem => problem.Code is not (AgentProblem.DriverMissing or AgentProblem.SettingsBroken));
 
-    public static ProblemAnswer Said(AgentProblem problem)
+    /// <summary>A problem's cause and fix; with the sensors alone installed, a fix sends the person to no menu or window.</summary>
+    public static ProblemAnswer Said(AgentProblem problem, bool sensorsOnly = false)
     {
         var (cause, fix) = problem switch
         {
             AgentProblem.ServiceMissing => (AgentText.ServiceMissingCause, AgentText.ServiceMissingFix),
+            AgentProblem.ServiceStopped when sensorsOnly => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixSensorsOnly),
+            AgentProblem.DriverMissing when sensorsOnly => (AgentText.DriverMissingCause, AgentText.DriverMissingFixSensorsOnly),
+            AgentProblem.SettingsBroken when sensorsOnly => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFixSensorsOnly),
             AgentProblem.ServiceStopped => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFix),
             AgentProblem.ServiceStale => (AgentText.ServiceStaleCause, AgentText.ServiceStaleFix),
             AgentProblem.PipeTaken => (AgentText.PipeTakenCause, AgentText.PipeTakenFix),

@@ -4,8 +4,10 @@ using ModelContextProtocol.Protocol;
 using Thermi.Agents;
 using Thermi.Commands;
 using Thermi.Core.Editing;
+using Thermi.Core.Look;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
+using Thermi.Overlay;
 using Thermi.Windows.Tests.Agents;
 using Thermi.Windows.Tests.Processes;
 
@@ -51,6 +53,12 @@ public sealed class AgentMcpTests : IDisposable
             Assert.True(refused);
             Assert.Contains(Core.Translations.Texts.Key(Refusal.WarningAboveCritical), why, StringComparison.Ordinal);
 
+            // The tools with their own arguments answer as their commands do.
+            var (_, exported) = await session.CallAsync("look", new() { ["action"] = "export", ["overlay"] = 0 });
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse((await _rig.RunAsync("look", "export", "--overlay", "0")).Out), JsonNode.Parse(exported)));
+            var (_, start) = await session.CallAsync("start_with_windows");
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse((await _rig.RunAsync("start-with-windows")).Out), JsonNode.Parse(start)));
+
             _rig.Sensors = () => new RecordedFeed([], ServiceState.Stopped);
             var (unread, said) = await session.CallAsync("read");
             Assert.True(unread);
@@ -58,7 +66,7 @@ public sealed class AgentMcpTests : IDisposable
         });
 
         // The built door, over its stdio, on a desktop of its own; monitors reads no settings.
-        using var process = DesktopProcess.Start(Path.Combine(AppContext.BaseDirectory, "thermi-cli.exe"), ["mcp"], talks: true);
+        using var process = DesktopProcess.Start(Path.Combine(AppContext.BaseDirectory, "thermi-cli.exe"), ["mcp"], _rig.Folder.Profile, talks: true);
         await using var client = await McpClient.CreateAsync(
             new StreamClientTransport(process.Input.BaseStream, process.Output.BaseStream),
             cancellationToken: TestContext.Current.CancellationToken);
@@ -72,23 +80,28 @@ public sealed class AgentMcpTests : IDisposable
     {
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
 
-        // Changes go one at a time: an undo called while an edit is still under way waits for it, and takes it back.
+        // Changes go one at a time: an undo called while a look is being worn, the file's mutex held, waits for it and takes it back.
+        Assert.Null(new SavedStyles(ConfigStore.StylesFolder(_rig.Folder.File)).Save(new StyleConfig(Gap: 12), "Calm"));
         using (var commands = new AgentCommands(_rig.Environment, _rig.Folder.Clock))
         {
-            var named = """{"kind":"item","item":"cpu.temperature","field":"name","value":"Raced"}""";
-            var edit = commands.RunAsync(new AgentRequest(AgentVerb.Edit) { Text = named }, TestContext.Current.CancellationToken);
-            var undo = commands.UndoAsync(TestContext.Current.CancellationToken);
+            Task<AgentReply> wear, undo;
+            using (MutexHolder.Holding(_rig.Folder.MutexName))
+            {
+                wear = commands.RunAsync(new AgentRequest(AgentVerb.Look) { Look = LookAction.Wear, Text = "Calm" }, TestContext.Current.CancellationToken);
+                undo = commands.UndoAsync(TestContext.Current.CancellationToken);
+            }
 
-            for (var step = 0; !(edit.IsCompleted && undo.IsCompleted) && step < 2000; step++)
+            for (var step = 0; !(wear.IsCompleted && undo.IsCompleted) && step < 2000; step++)
             {
                 _rig.Folder.Clock.Advance(TimeSpan.FromMilliseconds(100));
                 await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
             }
 
-            Assert.Equal(AgentExit.Done, (await edit).Exit);
+            Assert.Equal(AgentExit.Done, (await wear).Exit);
             Assert.True((bool)JsonNode.Parse((await undo).Json!)!["done"]!);
-            Assert.Null(NameOf("cpu.temperature"));
+            Assert.Equal(ThermiConfigJson.Write(new ThermiConfig()), ThermiConfigJson.Write(_rig.Folder.Read()));
         }
+
         await McpSession.RunAsync(_rig, async session =>
         {
             // Two edits of one field are two steps, however soon the second comes.

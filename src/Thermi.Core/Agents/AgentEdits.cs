@@ -68,13 +68,21 @@ public static class AgentEdits
             _ => PageEdits.Of(edit, snapshot, texts, altGrKeys),
         };
 
-    // Both lines are set as given, null taking one out, and Core refuses a warning past the critical.
+    // A line given is set, null taking it out; a line left out stays as it is. Core refuses a warning past the critical.
     private static Func<ThermiConfig, EditResult> Lines(JsonObject edit)
     {
         var item = Required(edit, "item").GetValue<string>();
         var warning = edit["warning"]?.GetValue<double>();
         var critical = edit["critical"]?.GetValue<double>();
-        return config => ItemEdits.SetThreshold(config, item, warning, critical);
+        return config =>
+        {
+            var now = ConfigEdits.Item(config, item)?.Threshold;
+            return ItemEdits.SetThreshold(
+                config,
+                item,
+                edit.ContainsKey("warning") ? warning : now?.Warning,
+                edit.ContainsKey("critical") ? critical : now?.Critical);
+        };
     }
 
     private static Func<ThermiConfig, EditResult> Placed(JsonObject edit)

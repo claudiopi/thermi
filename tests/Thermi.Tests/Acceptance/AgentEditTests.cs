@@ -43,9 +43,9 @@ public sealed class AgentEditTests
         Assert.Equal(ThermiConfigJson.Write(OverlayEdits.Drop(config, 0, new Position(2400, 300)).Config), ThermiConfigJson.Write(placed));
         var lines = Edit("""{"kind":"threshold","item":"cpu.temperature","warning":70,"critical":90}""", config);
         Assert.Equal(new Threshold(70, 90), lines.Overlays[0].Items[0].Threshold);
-        // A line left out goes.
-        Assert.Equal(new Threshold(70), Edit("""{"kind":"threshold","item":"cpu.temperature","warning":70}""", config).Overlays[0].Items[0].Threshold);
-        var critical = Edit("""{"kind":"threshold","item":"cpu.temperature","critical":90}""", config);
+        // A line left out stays; null takes it out.
+        Assert.Equal(new Threshold(75, 90), Edit("""{"kind":"threshold","item":"cpu.temperature","warning":75}""", lines).Overlays[0].Items[0].Threshold);
+        var critical = Edit("""{"kind":"threshold","item":"cpu.temperature","warning":null}""", lines);
         Assert.Equal(new Threshold(critical: 90), critical.Overlays[0].Items[0].Threshold);
         Assert.Equal(config.Overlays[0].Items[0].Threshold, Edit("""{"kind":"resetLines","item":"cpu.temperature"}""", lines).Overlays[0].Items[0].Threshold);
         Assert.Equal(ThermiConfigJson.Write(config), ThermiConfigJson.Write(Edit("""{"kind":"reset"}""", Edit("""{"kind":"newOverlay"}""", lines))));

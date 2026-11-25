@@ -6,7 +6,7 @@
       "covers": [
         "R1"
       ],
-      "description": "Given the built thermi-cli, when it is run with config from PowerShell, cmd and Git Bash, each without Start-Process, then the shell waits for it, its JSON is what the shell captured, and its exit code is the shell's; with no command, it prints its help on stderr, exits 2 and starts no overlay.",
+      "description": "Given the built thermi-cli, when it is run with monitors from PowerShell, cmd and Git Bash, each without Start-Process, then the shell waits for it, its JSON is what the shell captured, and its exit code is the shell's; with no command, it prints its help on stderr, exits 2 and starts no overlay.",
       "check": "TheCliWaitsAndAnswersInEveryShell",
       "passes": true
     },
@@ -72,7 +72,7 @@
       "covers": [
         "R11"
       ],
-      "description": "Given settings and a recording, when edit runs with an item's name, a threshold, a new overlay and an item added, and then with a threshold whose warning is above its critical and an unknown item, then the first four are written as the window writes them, and each of the others exits 1 with its refusal's key and English text and leaves the file byte for byte.",
+      "description": "Given every edit the settings window's tests make, with the window's answers to them, when each is made as an agent's edit, then it changes the settings as the window's does or is refused with the same key, a field or value no edit has is a bad argument, and a threshold's line left out stays.",
       "check": "AgentEditsAreTheWindowsEdits",
       "passes": true
     },
@@ -108,7 +108,7 @@
       "covers": [
         "R15"
       ],
-      "description": "Given an MCP session's commands, an undo called while an edit is still under way waits for it and takes it back. Given an MCP session that set one item's name twice and another's once, the other renamed since by hand, when an undo is kept from writing by the file's lock, then the next undo is still that step, and finds nothing of its own left to take back; the next takes back only the second name, the hand edit stays, and redo sets it again.",
+      "description": "Given an MCP session's commands, an undo called while a look is being worn and waits for the settings file waits for it and takes it back. Given an MCP session that set one item's name twice and another's once, the other renamed since by hand, when an undo is kept from writing by the file's lock, then the next undo is still that step, and finds nothing of its own left to take back; the next takes back only the second name, the hand edit stays, and redo sets it again.",
       "check": "McpUndoTakesBackOnlyItsOwn",
       "passes": true
     },
@@ -145,7 +145,7 @@
       "covers": [
         "R20"
       ],
-      "description": "Given every answer of status, read, sensors and watch that the command tests produce, from every recording and every way they end, when each is validated against the contract's JSON Schemas, then all pass, and the schemas name every field the answers hold.",
+      "description": "Given every answer of status, read, sensors and watch that Core gives for every recording and every way the service ends, when each is validated against the contract's JSON Schemas, then all pass, and the schemas name every field the answers hold.",
       "check": "AnswersKeepTheContract",
       "passes": true
     },
@@ -199,7 +199,7 @@
       "covers": [
         "R26"
       ],
-      "description": "Given a settings folder with two saved looks, when looks runs and then look saves overlay 1's look under a new name, wears a saved one on every overlay, renames one while Windows holds its file, which leaves the one look and changes nothing, renames one to a name taken, exports one, deletes one, and imports the exported text and a broken text, then each changes what the window's same action changes, the taken name and the broken text are refused with their keys, and no file outside the looks' folder is read or written.",
+      "description": "Given a settings folder with two saved looks, when looks runs and then look saves, under a name that starts with @ and is no file to read, overlay 1's look under a new name, wears a saved one on every overlay, renames one while Windows holds its file, which leaves the one look and changes nothing, renames one to a name taken, exports one, deletes one, and imports the exported text and a broken text, then each changes what the window's same action changes, the taken name and the broken text are refused with their keys, and no file outside the looks' folder is read or written.",
       "check": "AgentLooksAreTheWindowsLooks",
       "passes": true
     },

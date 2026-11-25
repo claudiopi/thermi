@@ -225,7 +225,7 @@ function Set-MachinePath([bool]$On) {
 # With no settings window to offer the driver, a sensors-only install starts the window's own fix, which downloads its
 # signed setup as SYSTEM (docs/adr/0010-driver-and-service-from-the-window.md) and goes on after the prompt closes.
 function Set-InstallChoice([bool]$SensorsOnly) {
-    New-Item $installKey -Force | Out-Null
+    if (-not (Test-Path $installKey)) { New-Item $installKey | Out-Null }
     Set-ItemProperty $installKey -Name SensorsOnly -Value ([int]$SensorsOnly) -Type DWord
     if ($SensorsOnly -and -not (Test-Path $driverKey)) {
         sc.exe start $elevatedService install-driver | Out-Null
@@ -342,7 +342,7 @@ function Invoke-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2, [bool
     elseif ($elevated.ExitCode -ne 0) { throw "The administrator step failed (exit code $($elevated.ExitCode)); its window said why." }
 }
 
-$firstInstall = -not (Test-Path (Join-Path $target 'thermi.exe'))
+$firstInstall = -not (Test-Path (Join-Path $target 'thermi.exe')) -or (Get-ItemProperty $installKey -ErrorAction SilentlyContinue).SensorsOnly -eq 1
 $startsWithWindows = $null -ne (Get-ItemProperty $runKey -Name thermi -ErrorAction SilentlyContinue)
 
 if ($Uninstall) {
