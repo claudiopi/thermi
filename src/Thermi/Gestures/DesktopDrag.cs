@@ -30,9 +30,12 @@ internal sealed record DragStart(Held Held, Carried? Carried, RectangleF PillBox
 /// <summary>
 /// One press on an overlay, from its capture to its release, as a desktop gesture: the overlay moved over snap marks and
 /// other overlays, a pill or an item held still until it lifts and then carried off as a picture of itself, or the
-/// corner's size previewed. Its release writes one edit, offered for undo and told to the window; a click writes nothing.
+/// corner's size previewed. Its release writes one edit, settled by <c>settle</c>, which may refuse it, offered for undo
+/// and told to the window; a click writes nothing.
 /// </summary>
-internal sealed class DesktopDrag(int overlay, Settings settings, DragStart start, IReadOnlyList<Screen> screens, HWND window) : IDisposable
+internal sealed class DesktopDrag(
+    int overlay, Settings settings, DragStart start, IReadOnlyList<Screen> screens, HWND window, Func<ThermiConfig, ThermiConfig, EditResult> settle)
+    : IDisposable
 {
     // Pixels at 100 % a lifted pill rises above its place.
     private const int Rise = 4;
@@ -96,10 +99,10 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     }
 
     /// <summary>
-    /// The press moved, with the overlay's corner where the drag has it, or null while still a click, the overlays' windows
-    /// boxed as <paramref name="shown"/>, and <paramref name="over"/> another overlay; true when the overlay must paint again.
+    /// The press moved, with the overlay's corner where the drag has it, or null while still a click, and
+    /// <paramref name="over"/> another overlay; true when the overlay must paint again.
     /// </summary>
-    public bool Moved(Position? dragged, IReadOnlyList<PixelRect?> shown, bool over = false)
+    public bool Moved(Position? dragged, bool over = false)
     {
         Dropped = dragged;
         if (dragged is not { } at)
@@ -124,7 +127,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         {
             Carry(PillAt(at));
             _marks ??= new SnapMarks(screens, Orientation.Horizontal, _pill, start.Scale, _ghost);
-            _marks.Light(Room(over ? null : Near(PillAt(at), Orientation.Horizontal, _pill), _pill, shown));
+            _marks.Light(Room(over ? null : Near(at), at));
             return false;
         }
 
@@ -133,19 +136,28 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         var changed = _marks is null;
         _marks ??= new SnapMarks(screens, orientation, start.Size, start.Scale, window);
         // Over another overlay the drop merges, wherever a snap would be, so no mark is lit.
-        _marks.Light(Room(over ? null : Near(at, orientation, start.Size), start.Size, shown));
+        _marks.Light(Room(over ? null : Near(at), at));
         return changed;
     }
 
-    // Alt held as the move or the drop was sent drops it where it is, whatever mark is in reach.
-    private SnapConfig? Near(Position at, Orientation orientation, Size size) =>
-        Snaps.Near(screens, orientation, size.Width, size.Height, at, magnets: !AltHeld());
-
-    // A place on a taskbar without room for what the drag carries, which its drop is refused at, lights no mark, and the
-    // pointer says so until the drag leaves it.
-    private SnapConfig? Room(SnapConfig? near, Size size, IReadOnlyList<PixelRect?> shown)
+    // The mark in reach of what the drag carries, the overlay or a lifted pill, with the overlay's corner at at. Alt held
+    // as the move or the drop was sent drops it where it is, whatever mark is in reach.
+    private SnapConfig? Near(Position at)
     {
-        var crowded = near is { Spot: SnapSpot.Taskbar } snap && Crowded(snap, size, shown);
+        var (corner, orientation, size) = Lifted || Refused
+            ? (PillAt(at), Orientation.Horizontal, _pill)
+            : (at, settings.Config.Overlays[overlay].Style.Orientation, start.Size);
+        return Snaps.Near(screens, orientation, size.Width, size.Height, corner, magnets: !AltHeld());
+    }
+
+    // A place on a taskbar whose drop the settle refuses, as the others leave no room there for what the drag carries,
+    // lights no mark, and the pointer says so until the drag leaves it: the drop is asked as the release asks it.
+    private SnapConfig? Room(SnapConfig? near, Position at)
+    {
+        var before = settings.Config;
+        var crowded = near is { Spot: SnapSpot.Taskbar }
+            && Drop(before, at, default, near) is { Result.Refused: null } drop
+            && settle(before, drop.Result.Config).Refused == Refusal.NoRoomOnTaskbar;
         if (crowded != _crowded)
         {
             _crowded = crowded;
@@ -155,24 +167,17 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         return crowded ? null : near;
     }
 
-    private bool Crowded(SnapConfig snap, Size size, IReadOnlyList<PixelRect?> shown)
-    {
-        var before = settings.Config.Overlays;
-        var moved = Lifted ? before.Count : overlay;
-        List<OverlayConfig> after = Lifted
-            ? [.. before, new OverlayConfig { Snap = snap }]
-            : [.. before.Select((each, at) => at == moved ? each with { Snap = snap, Position = null } : each)];
-        List<PixelRect?> natural = [.. after.Select((_, at) => at == moved ? new PixelRect(0, 0, size.Width, size.Height) : shown.ElementAtOrDefault(at))];
-        return TaskbarRow.Crowded(before, after, screens, natural, shown);
-    }
+    private DesktopDrop Drop(ThermiConfig before, Position at, DropTarget target, SnapConfig? mark) =>
+        Lifted || Refused
+            ? DesktopGestures.Release(before, overlay, start.Carried, Kept(PillAt(at), _pill), target, mark)
+            : DesktopGestures.Release(before, overlay, null, Kept(at, start.Size), target, mark);
 
     /// <summary>
     /// The press let go: a drag writes its gesture as one edit, the plain move through <see cref="Settings.Release"/> so it
-    /// stays where it was dropped until written. The overlays it pushes along a taskbar keep their new places, as
-    /// <paramref name="done"/>'s settle gives them, in the same edit, which its undo takes back.
+    /// stays where it was dropped until written. The overlays it pushes along a taskbar keep their new places, as the
+    /// settle gives them, in the same edit, which <paramref name="undo"/> takes back.
     /// </summary>
-    public void Release(
-        Press press, Position cursor, DragDistance distance, DropTarget target, (GestureUndo? Undo, Func<ThermiConfig, ThermiConfig, EditResult> Settle) done)
+    public void Release(Press press, Position cursor, DragDistance distance, DropTarget target, GestureUndo? undo)
     {
         if (Dropped is not { } at)
         {
@@ -180,14 +185,10 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         }
 
         var before = settings.Config;
-        var pill = PillAt(at);
         var drop = start.Held == Held.Corner
             ? new DesktopDrop(GestureKind.Resize, OverlayEdits.Resize(before, overlay, Preview!.Value.Size, Preview.Value.Orientation))
-            : Lifted || Refused
-                ? DesktopGestures.Release(before, overlay, start.Carried, Kept(pill, _pill), target, Near(pill, Orientation.Horizontal, _pill))
-                : DesktopGestures.Release(
-                    before, overlay, null, Kept(at, start.Size), target, Near(at, before.Overlays[overlay].Style.Orientation, start.Size));
-        var after = drop.Result.Refused is null ? done.Settle(before, drop.Result.Config).Config : before;
+            : Drop(before, at, target, Near(at));
+        var after = drop.Result.Refused is null ? settle(before, drop.Result.Config).Config : before;
         if (ConfigEdits.Replay(before, after) is not { } change)
         {
             return;
@@ -208,7 +209,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
             settings.Edit(change);
         }
 
-        done.Undo?.Add(drop.Kind, before, after);
+        undo?.Add(drop.Kind, before, after);
     }
 
     /// <summary>Where the overlay's corner was last dragged to, which its release drops at; null while still a click.</summary>

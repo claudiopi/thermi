@@ -4,7 +4,7 @@ namespace Thermi.Core.Sensors;
 
 /// <summary>
 /// The values read since the window opened, one a second, up to ten minutes: the last minute for sparklines and
-/// all ten for the threshold histogram. Each series is a fixed ring of slots, so memory never grows with time. A
+/// all ten for the charts. Each series is a fixed ring of slots, so memory never grows with time. A
 /// second without a reading (the service stopped, or its data went stale) stays empty, never filled with the last value.
 /// The overlay's items keep a minute the same way, in <see cref="ItemHistory"/>.
 /// </summary>
@@ -126,29 +126,6 @@ public sealed class SensorHistory
         {
             _series.Remove(id);
         }
-    }
-
-    /// <summary>
-    /// How many seconds of the last ten minutes the value spent at each of <paramref name="levels"/> equal levels from 0 to
-    /// 100, <paramref name="offset"/> added to each, as an item's offset is to the value it meters.
-    /// </summary>
-    public IReadOnlyList<int> Histogram(string id, int levels, double offset = 0)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(levels);
-        var seconds = new int[levels];
-        foreach (var value in Values(id, _slots).OfType<double>())
-        {
-            seconds[Math.Clamp((int)Math.Floor((value + offset) / 100 * levels), 0, levels - 1)]++;
-        }
-
-        return seconds;
-    }
-
-    /// <summary>The lowest and the highest value of the last ten minutes, or null when there was none.</summary>
-    public (double Min, double Max)? Range(string id)
-    {
-        var values = Values(id, _slots).OfType<double>().ToList();
-        return values.Count == 0 ? null : (values.Min(), values.Max());
     }
 
     private List<double?> Values(string id, int count)

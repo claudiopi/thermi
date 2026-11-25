@@ -69,7 +69,8 @@ public sealed class MessagesWindowsTests : IDisposable
         });
 
         Assert.True(delivered);
-        var message = Assert.Single(received);
+        // The overlay answers a question for the history with it, which the window receives too.
+        var message = Assert.Single(received, each => each.GetType() == sent.GetType());
         Assert.Equal(WindowMessages.Encode(sent), WindowMessages.Encode(message));
         Assert.Equal(raises, raised.Count == 1);
     }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { flushSync } from 'react-dom';
 
 /** A block's width inside its padding, followed as the pane changes. */
 export function useWidth(): [RefObject<HTMLDivElement | null>, number] {
@@ -9,7 +10,9 @@ export function useWidth(): [RefObject<HTMLDivElement | null>, number] {
     if (element === null) {
       return;
     }
-    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
+    // Drawn at the new width in the frame that resized, before it paints: left to React's scheduler, the render can come
+    // a frame or more later on a busy PC, which shows the map or the preview a frame at the old width, cut.
+    const observer = new ResizeObserver(([entry]) => flushSync(() => setWidth(entry?.contentRect.width ?? 0)));
     observer.observe(element);
     return () => observer.disconnect();
   }, []);

@@ -94,7 +94,8 @@ internal static class UserMode
         using var client = new ManifestClient(time);
         using var updater = folder is null ? null : new Updater(build, folder, client, time, log.Say, target: each => new UserTarget(each, pipe, user));
         var machine = folder is null || updater is null ? null : new MachineInstaller(build, folder, client, UpdateHost.Windows, time, log, updater.Busy);
-        using var source = environment.Open((device, took, error) => log.Say($"{device} took {took}: {error?.Message}", EventLogEntryType.Warning));
+        using var source = environment.Open(
+            (device, took, error) => log.Say($"{device} took {took}: {error?.Message}", EventLogEntryType.Warning), DeviceUpdates.Patience);
         using var server = new SensorPipeServer(source.ReadAsync, time, pipe, SensorPipeServer.ForUser(user))
         {
             Squatted = () => log.Say($"Another program holds the {pipe} pipe, so this host serves nothing until it closes it.", EventLogEntryType.Warning),

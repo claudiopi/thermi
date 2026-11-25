@@ -1,6 +1,13 @@
+using Thermi.Core.Editing;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Placement;
+
+/// <summary>
+/// The box overlay <paramref name="overlay"/> shows at, as its painter measures it: within <paramref name="room"/>, which
+/// gives the width it may take at a size, or at its own size when null.
+/// </summary>
+public delegate PixelRect OverlayFit(int overlay, Func<(int Width, int Height), int?>? room);
 
 /// <summary>
 /// Overlays that share a horizontal taskbar, laid out together so none covers another: one that overlaps the next pushes
@@ -55,6 +62,45 @@ public static class TaskbarRow
                 Room(overlays, index, screens, size, shown),
                 (int)Math.Ceiling(size.Width / Math.Max(1, Snaps.SizeShown(overlays[index], screens))))
             : null;
+
+    /// <summary>
+    /// The settings after an edit or a gesture, with each overlay it pushed along a taskbar given the place it shows at as
+    /// its own (<see cref="Settle"/>), the overlays fitted as <see cref="Fitted"/> fits them from how they showed,
+    /// <paramref name="shown"/>; refused when it moved one onto a taskbar without room for it (<see cref="Crowded"/>). The
+    /// window's edits, the overlays' gestures and a drag's preview of its drop all ask this.
+    /// </summary>
+    public static EditResult Settled(ThermiConfig before, ThermiConfig after, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown, OverlayFit fit)
+    {
+        var (fitted, natural) = Fitted(after.Overlays, screens, shown, fit);
+        if (Crowded(before.Overlays, after.Overlays, screens, natural, shown))
+        {
+            return new EditResult(before, Refusal.NoRoomOnTaskbar);
+        }
+
+        var overlays = Settle(after.Overlays, screens, fitted);
+        return new EditResult(overlays.SequenceEqual(after.Overlays) ? after : after with { Overlays = overlays });
+    }
+
+    /// <summary>
+    /// Each overlay's box as its own window fits it, each in its turn: one grown past the room the others leave on its
+    /// taskbar shows smaller, the others not yet fitted counted as they showed, <paramref name="shown"/>, or at their own
+    /// size. With each one's own size; null for a hidden one, whose window shows nowhere and takes no room from the others.
+    /// </summary>
+    public static (List<PixelRect?> Fitted, List<PixelRect?> Natural) Fitted(
+        IReadOnlyList<OverlayConfig> overlays, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown, OverlayFit fit)
+    {
+        var natural = overlays.Select((overlay, at) => overlay.Hidden ? null : (PixelRect?)fit(at, null)).ToList();
+        var sizes = natural.Select((size, at) => size is null ? null : shown.ElementAtOrDefault(at) ?? size).ToList();
+        for (var at = 0; at < sizes.Count; at++)
+        {
+            if (sizes[at] is not null)
+            {
+                sizes[at] = RoomOf(overlays, at, screens, sizes) is { } room ? fit(at, room) : natural[at];
+            }
+        }
+
+        return (sizes, natural);
+    }
 
     /// <summary>
     /// The overlays after a gesture or an edit, with each one on a taskbar that shows pushed along by another, at the sizes
@@ -161,20 +207,22 @@ public static class TaskbarRow
     private static int End(List<(int At, int Left, int Width)> row, Screen screen, PixelRect bar) =>
         Math.Min(bar.Right, Math.Max(row[^1].Left + row[^1].Width, Snaps.RightEnd(screen, bar)));
 
-    // Each pushed along by the one before it, toward the notification area only.
+    // Each that the one before it overlaps pushed along, a margin away, toward the notification area only; touching is no overlap.
     private static int[] Along(List<(int At, int Left, int Width)> row, int gap)
     {
         var lefts = row.Select(each => each.Left).ToArray();
         for (var at = 1; at < row.Count; at++)
         {
-            lefts[at] = Math.Max(lefts[at], lefts[at - 1] + row[at - 1].Width + gap);
+            var end = lefts[at - 1] + row[at - 1].Width;
+            lefts[at] = lefts[at] < end ? end + gap : lefts[at];
         }
 
         return lefts;
     }
 
     // Overlays fitted to their room never pass the end; one that still would, as while another's new size has not shown
-    // yet, is held at the end, and those before it back, so none covers another or leaves the taskbar.
+    // yet, is held at the end, and those before it that then overlap it back, a margin away, so none covers another or
+    // leaves the taskbar.
     private static int[] Apart(List<(int At, int Left, int Width)> row, Screen screen, PixelRect bar)
     {
         var gap = Snaps.Scaled(Snaps.Margin, screen);
@@ -183,7 +231,7 @@ public static class TaskbarRow
         lefts[^1] = Math.Min(lefts[^1], end - row[^1].Width);
         for (var at = row.Count - 2; at >= 0; at--)
         {
-            lefts[at] = Math.Min(lefts[at], lefts[at + 1] - gap - row[at].Width);
+            lefts[at] = lefts[at] + row[at].Width > lefts[at + 1] ? lefts[at + 1] - gap - row[at].Width : lefts[at];
         }
 
         return [.. lefts.Select(left => Math.Max(bar.Left, left))];

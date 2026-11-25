@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Globalization;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
@@ -21,75 +20,44 @@ internal static class OverlayPlaces
 {
     public static IReadOnlyList<Rect?> Of(ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens)
     {
-        var shown = Sizes(config, input, screens, []).Fitted;
+        using var painter = new Painter();
+        var shown = TaskbarRow.Fitted(config.Overlays, screens, [], Fit(painter, config, input, screens)).Fitted;
         return [.. shown.Select((size, at) => size is { } box && TaskbarRow.Locate(config.Overlays, at, screens, (box.Width, box.Height), shown) is { } corner
             ? new Rect(corner.X, corner.Y, box.Width, box.Height)
             : null)];
     }
 
     /// <summary>
-    /// The settings after an edit or a gesture, with each overlay it pushed along a taskbar given the place it shows at as its
-    /// own (<see cref="TaskbarRow.Settle"/>), the others measured as they showed <paramref name="before"/> it, as each overlay
-    /// fits itself beside the others' windows; refused when it moved one onto a taskbar without room for it (<see cref="TaskbarRow.Crowded"/>).
+    /// The settings after an edit or a gesture, as <see cref="TaskbarRow.Settled"/> gives them, the others measured as they
+    /// showed <paramref name="before"/> it, as each overlay fits itself beside the others' windows.
     /// </summary>
-    public static EditResult Settled(ThermiConfig before, ThermiConfig after, TrayInput input, IReadOnlyList<Screen> screens) =>
-        Settled(before, after, input, screens, Sizes(before, input, screens, []).Fitted);
+    public static EditResult Settled(ThermiConfig before, ThermiConfig after, TrayInput input, IReadOnlyList<Screen> screens)
+    {
+        using var painter = new Painter();
+        var shown = TaskbarRow.Fitted(before.Overlays, screens, [], Fit(painter, before, input, screens)).Fitted;
+        return TaskbarRow.Settled(before, after, screens, shown, Fit(painter, after, input, screens));
+    }
 
     /// <summary>
     /// As <see cref="Settled(ThermiConfig, ThermiConfig, TrayInput, IReadOnlyList{Screen})"/>, from the overlays' own
     /// process: the others as their windows, <paramref name="shown"/>, box them now.
     /// </summary>
     public static EditResult Settled(
-        ThermiConfig before, ThermiConfig after, Overlay.OverlayScene scene, CultureInfo culture, IReadOnlyList<PixelRect?> shown) =>
-        Settled(
-            before,
-            after,
-            new TrayInput(scene.Snapshot, scene.Service, culture, Texts.For(after.Language, CultureInfo.CurrentUICulture), scene.LightTaskbar, ""),
-            scene.Screens,
-            shown);
-
-    private static EditResult Settled(ThermiConfig before, ThermiConfig after, TrayInput input, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown)
+        ThermiConfig before, ThermiConfig after, Overlay.OverlayScene scene, CultureInfo culture, IReadOnlyList<PixelRect?> shown)
     {
-        var (fitted, natural) = Sizes(after, input, screens, shown);
-        if (TaskbarRow.Crowded(before.Overlays, after.Overlays, screens, natural, shown))
-        {
-            return new EditResult(before, Refusal.NoRoomOnTaskbar);
-        }
-
-        var overlays = TaskbarRow.Settle(after.Overlays, screens, fitted);
-        return new EditResult(overlays.SequenceEqual(after.Overlays) ? after : after with { Overlays = overlays });
-    }
-
-    // Each in its turn, one grown past the room the others leave on its taskbar shows smaller, as the overlays draw it; the
-    // others not yet fitted count as they showed, or at their own size. With each shown one's own size, null for a hidden one.
-    private static (List<PixelRect?> Fitted, List<PixelRect?> Natural) Sizes(
-        ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown)
-    {
+        var input = new TrayInput(scene.Snapshot, scene.Service, culture, Texts.For(after.Language, CultureInfo.CurrentUICulture), scene.LightTaskbar, "");
         using var painter = new Painter();
-        var drawn = Enumerable.Range(0, config.Overlays.Count).Select(at =>
-        {
-            var overlay = config.Overlays[at];
-            var items = ThermiMark.Overlay(config, at, input, windowOpenedOnce: true).Items;
-            return (Items: items, Look: OverlayLook.Of(overlay.Style, input.LightTaskbar), Scale: OverlayWindow.ScaleOf(96, overlay, screens));
-        }).ToList();
-
-        // A hidden overlay's window shows nowhere, so it takes no room from the others on its taskbar.
-        var natural = drawn.Select((each, at) => config.Overlays[at].Hidden ? null : Box(painter.Measure(each.Items, each.Look, each.Scale))).ToList();
-        var sizes = natural.Select((size, at) => size is null ? null : shown.ElementAtOrDefault(at) ?? size).ToList();
-        for (var at = 0; at < sizes.Count; at++)
-        {
-            if (sizes[at] is null)
-            {
-                continue;
-            }
-
-            var (items, look, scale) = drawn[at];
-            var fitted = painter.Within(items, look, scale, TaskbarRow.RoomOf(config.Overlays, at, screens, sizes));
-            sizes[at] = fitted < scale ? Box(painter.Measure(items, look, fitted)) : natural[at];
-        }
-
-        return (sizes, natural);
+        return TaskbarRow.Settled(before, after, scene.Screens, shown, Fit(painter, after, input, scene.Screens));
     }
 
-    private static PixelRect? Box(Size size) => new PixelRect(0, 0, size.Width, size.Height);
+    // Each overlay's items measured as its painter keeps their room at its monitor's scale: at its own size, or within a room.
+    private static OverlayFit Fit(Painter painter, ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens) => (at, room) =>
+    {
+        var overlay = config.Overlays[at];
+        var items = ThermiMark.Overlay(config, at, input, windowOpenedOnce: true).Items;
+        var look = OverlayLook.Of(overlay.Style, input.LightTaskbar);
+        var scale = OverlayWindow.ScaleOf(96, overlay, screens);
+        var size = painter.Measure(items, look, room is null ? scale : painter.Within(items, look, scale, room));
+        return new PixelRect(0, 0, size.Width, size.Height);
+    };
 }

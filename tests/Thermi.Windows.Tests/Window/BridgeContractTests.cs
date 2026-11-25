@@ -239,7 +239,7 @@ public sealed class BridgeContractTests
             onOverlay.Add(overlay, readings);
             if (second == series.Count / 3)
             {
-                chart.Take((History)WindowMessages.Decode(WindowMessages.Encode(onOverlay.Sent(config)!))!);
+                chart.Take((History)WindowMessages.Decode(WindowMessages.Encode(onOverlay.Sent(config)))!);
             }
 
             if (second >= series.Count / 3)

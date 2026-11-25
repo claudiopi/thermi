@@ -39,11 +39,10 @@ public sealed class HistoryTests
         time.Advance(TimeSpan.FromMinutes(2) + Second);
         Run(history, time, Enumerable.Repeat(95.0, 6 * 60));
 
-        var levels = history.Histogram(Cpu, 10);
+        var kept = history.TenMinutes(Cpu);
 
-        Assert.Equal([120, 0, 0, 0, 0, 0, 0, 0, 0, 360], levels);
-        Assert.Equal(Enumerable.Repeat(0, 4), history.Histogram("gpu.temperature", 4));
-        Assert.Throws<ArgumentOutOfRangeException>(() => history.Histogram(Cpu, 0));
+        Assert.Equal([.. Enumerable.Repeat<double?>(5, 120), .. Enumerable.Repeat<double?>(null, 120), .. Enumerable.Repeat<double?>(95, 360)], kept);
+        Assert.All(history.TenMinutes("gpu.temperature"), Assert.Null);
     }
 
     // Readings, "-" for none, with the seconds between their arrivals, and the last minute kept. A reading within half a
@@ -71,23 +70,6 @@ public sealed class HistoryTests
 
         var shown = history.LastMinute(Cpu).Select(value => value is { } some ? some.ToString(CultureInfo.InvariantCulture) : "-");
         Assert.Equal(kept, string.Join(' ', shown));
-    }
-
-    // The inspector's histogram is of what the meter shows, an item's offset included, and says the range it spans.
-    [Fact]
-    public void TheHistogramTakesAnOffsetAndTheRangeSpansTheKeptMinutes()
-    {
-        var time = new FakeTimeProvider();
-        var history = new SensorHistory(time);
-        Assert.Null(history.Range(Cpu));
-
-        Run(history, time, [40, 70, 55]);
-
-        Assert.Equal((40, 70), history.Range(Cpu));
-        Assert.Equal([0, 0, 2, 1], history.Histogram(Cpu, 4, offset: 10));
-        Assert.Equal([0, 0, 0, 3], history.Histogram(Cpu, 4, offset: 100));
-        time.Advance(SensorHistory.Kept);
-        Assert.Null(history.Range(Cpu));
     }
 
     // One reading a second, the first one now.

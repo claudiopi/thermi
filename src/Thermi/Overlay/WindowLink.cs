@@ -89,17 +89,8 @@ internal sealed class WindowLink(LinkParts parts)
         return new LRESULT(1);
     }
 
-    /// <summary>
-    /// Answers the window's question for the history, and tells an open window of a reset, unless no item has any, where
-    /// the window starts empty.
-    /// </summary>
-    public void SendHistory()
-    {
-        if (parts.History.Sent(parts.Settings.Config) is { } history)
-        {
-            HiddenWindow.Send(HiddenWindow.WindowClass, history);
-        }
-    }
+    /// <summary>Answers the window's question for the history, and tells an open window of a reset.</summary>
+    public void SendHistory() => HiddenWindow.Send(HiddenWindow.WindowClass, parts.History.Sent(parts.Settings.Config));
 
     /// <summary>A value or an edge clicked or pointed at on the desktop, which only an open window takes.</summary>
     public void Selected(Select select)

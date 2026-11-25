@@ -26,16 +26,18 @@ public sealed class FanFinderTests
 
     /// <summary>
     /// Fan-control software drives the fan, late: it rises about 166 RPM under 30 s of full load, and about 250 more in the
-    /// 10 s after it. Its last reading repeats for the fans to be watched.
+    /// 10 s after it. Once the recording ends, its readings go on for the fans to be watched, the fan falling back.
     /// </summary>
-    private static IReadOnlyList<Snapshot> Software
+    private static List<Snapshot> Software
     {
         get
         {
             var recorded = TestFiles.Series(TestRecordings.CpuLoad);
-            return [.. recorded, .. Enumerable.Repeat(recorded[^1], Watched)];
+            return FallingBack([.. recorded, .. Enumerable.Repeat(recorded[^1], Watched)], recorded.Count, BoardFan, 200);
         }
     }
+
+    private static int Recorded => Software.Count - Watched;
 
     /// <summary>The real series with the board's fan held at its speed before the load from then on: no fan answers.</summary>
     private static List<Snapshot> Unanswered =>
@@ -160,8 +162,8 @@ public sealed class FanFinderTests
     }
 
     // A series, and what the finder gives: Found, an outcome when it picks nothing, or why it cannot start. NoFanRose is the
-    // outcome whose words mention fan-control software and picking the fan by hand. "Use it" keeps the item's meter and
-    // adds no item, as one undo step.
+    // outcome whose words mention fan-control software and picking the fan by hand. "Use it", which changes the sensor of
+    // the item the finder ran from, keeps the item's meter and adds no item, as one undo step.
     // On the Intel desktop's recorded series the board drives its CPU fan, and the Nuvoton's second input answers the load,
     // the one the CPU fan item reads already. On the Ryzen's, software drives it and it answers after the load.
     [Theory]
@@ -176,6 +178,7 @@ public sealed class FanFinderTests
     [InlineData("board-jitter", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("gpu-fan-answers", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("two-alike", nameof(FanFinderOutcome.TwoRoseAlike))]
+    [InlineData("two-alike-falling-apart", nameof(FanFinderOutcome.TwoRoseAlike))]
     [InlineData("light-load", nameof(FanFinderOutcome.LoadDidNotReachTheCpu))]
     [InlineData("unread-load", nameof(FanFinderOutcome.LoadDidNotReachTheCpu))]
     [InlineData("no-driver", nameof(FanFinderRefusal.DriverMayBeMissing))]
@@ -211,14 +214,14 @@ public sealed class FanFinderTests
         Assert.Equal(fan, SensorMap.Chosen(pc, new OverlayConfig())[Metrics.CpuFan.Id]?.Id);
         var history = new UndoHistory();
         var config = new ThermiConfig();
-        var used = Done(history, config, current => ItemEdits.UseCpuFan(current, 0, pc, result.Fan));
+        var used = Done(history, config, current => ItemEdits.ChangeSensor(current, Metrics.CpuFan.Id, pc, result.Fan));
         Assert.Equal(Item(config, Metrics.CpuFan.Id) with { Sensor = fan, Metric = null, Auto = Metrics.CpuFan.Id }, Item(used, Metrics.CpuFan.Id));
         Assert.Equal(Ids(config.Overlays[0]), Ids(used.Overlays[0]));
         Assert.Equal(File(config), File(history.Undo(used)!.Config));
         Assert.False(history.CanUndo);
     }
 
-    private static IReadOnlyList<Snapshot> SeriesOf(string name) => name switch
+    private static List<Snapshot> SeriesOf(string name) => name switch
     {
         "three-times-faster" => ThreeTimesFaster(Software),
         "answering-at-once" => AnsweringAt(Software, LoadStart),
@@ -230,6 +233,9 @@ public sealed class FanFinderTests
         // A GPU's fan never cools the CPU, however it answers a load that also warms the GPU.
         "gpu-fan-answers" => Derived(Unanswered, GpuFan, (_, index) => 3 * Value(Software[index], BoardFan)),
         "two-alike" => Derived(ThreeTimesFaster(Software), SecondFan, (snapshot, _) => Value(snapshot, BoardFan) * 0.6),
+
+        // Two that rose alike stay alike, however unlike they fall once the load ends: the second falls 50 RPM a second.
+        "two-alike-falling-apart" => FallingBack(SeriesOf("two-alike"), Recorded, SecondFan, 50),
         "light-load" => Derived(Unanswered, CpuTotal, (snapshot, _) => Value(snapshot, CpuTotal) * 0.75),
         "unread-load" => Derived(Unanswered, CpuTotal, (_, _) => null),
         _ => Software,
@@ -287,7 +293,7 @@ public sealed class FanFinderTests
     /// Derived as <see cref="ThreeTimesFaster"/>, but from the load on it keeps its speed from before it until the reading
     /// <paramref name="from"/>, during the load or after it, and then jumps to its last loaded speed.
     /// </summary>
-    private static List<Snapshot> AnsweringAt(IReadOnlyList<Snapshot> series, int from)
+    private static List<Snapshot> AnsweringAt(List<Snapshot> series, int from)
     {
         var loadEnd = LoadStart + 29;
         return Derived(series, BoardFan, (snapshot, index) => 3 * Value(
@@ -361,6 +367,17 @@ public sealed class FanFinderTests
             ];
             return Derived(Derived([.. Enumerable.Repeat(Desktop, fan.Length)], BoardFan, (_, at) => fan[at]), CpuTotal, (_, at) => load[at]);
         }
+    }
+
+    /// <summary>
+    /// The series with <paramref name="fan"/> falling back from the reading <paramref name="ended"/> on, by
+    /// <paramref name="rpm"/> a second, to its speed before the load: a fan never holds where the load left it.
+    /// </summary>
+    private static List<Snapshot> FallingBack(List<Snapshot> series, int ended, string fan, double rpm)
+    {
+        var before = Value(series[LoadStartOf(series) - 1], fan)!.Value;
+        var last = Value(series[ended - 1], fan)!.Value;
+        return Derived(series, fan, (snapshot, index) => index < ended ? Value(snapshot, fan) : Math.Max(before, last - ((index - ended + 1) * rpm)));
     }
 
     private static List<Snapshot> Derived(IReadOnlyList<Snapshot> series, string id, Func<Snapshot, int, double?> value) =>

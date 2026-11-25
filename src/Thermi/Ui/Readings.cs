@@ -6,7 +6,7 @@ namespace Thermi.Ui;
 /// <summary>
 /// What the window has read since it opened: ten minutes of every sensor the catalog lists and every metric of the overlay
 /// shown, under the ids items and meters name them by, in Core's fixed rings. Every sensor is kept, not only those chosen,
-/// so a sensor or meter chosen later shows its sparkline and histogram from the window's opening.
+/// so a sensor or meter chosen later shows its sparkline and chart from the window's opening.
 /// </summary>
 internal sealed class Readings(TimeProvider time)
 {

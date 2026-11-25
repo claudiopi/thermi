@@ -58,14 +58,20 @@ public sealed class SensorProgramTests : IAsyncDisposable
         Directory.Delete(_folder, recursive: true);
     }
 
+    // Its device of the counter takes a second to update, longer than the service waits for one: the dump waits for it.
     [Fact]
     public async Task ADumpSavesWhatTheSensorsReadNow()
     {
-        var exit = await RunAsync(["--dump", File]);
+        _sensors.FirstUpdate = TimeSpan.FromSeconds(1);
+        var running = RunAsync(["--dump", File]);
+        await _sensors.ReadCountAsync(1);
+        _clock.Advance(_sensors.FirstUpdate);
+        var exit = await running.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, exit);
         var saved = SnapshotJson.Read(await System.IO.File.ReadAllTextAsync(File, TestContext.Current.CancellationToken))!.Sensors;
         Assert.Equal(FakeSensors.Recorded.Sensors, saved.Where(sensor => sensor.Id != FakeSensors.Counter));
+        Assert.Equal(1, saved.Single(sensor => sensor.Id == FakeSensors.Counter).Value);
         Assert.Equal((1, 1, true), (_sensors.Opened, _sensors.Reads, _sensors.Closed));
     }
 
@@ -203,7 +209,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
     private Task<int> RunAsync(string[] args)
     {
-        var environment = new SensorHostEnvironment(_ => _sensors.Open(), _clock, _out, _error)
+        var environment = new SensorHostEnvironment((_, patience) => _sensors.Open(_clock, patience), _clock, _out, _error)
         {
             PipeName = _pipeName,
             UserLog = Path.Combine(_folder, "thermi-sensors.log"),
@@ -220,7 +226,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
     /// <summary>
     /// The sensors of the author's PC as a user without admin rights reads them, many of them missing, with one more that
-    /// counts the reads.
+    /// counts the reads, on a device updated as the service updates its devices, missing when it did not update in time.
     /// </summary>
     private sealed class FakeSensors : ISensorSource
     {
@@ -236,17 +242,27 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
         public bool Closed { get; private set; }
 
-        public FakeSensors Open()
+        /// <summary>How long the counter's device takes to update the first time, as a device slow to answer does.</summary>
+        public TimeSpan FirstUpdate { get; set; }
+
+        private DeviceUpdates? _updates;
+        private TimeProvider _clock = TimeProvider.System;
+
+        public FakeSensors Open(TimeProvider clock, TimeSpan patience)
         {
             Opened++;
+            (_clock, _updates) = (clock, new DeviceUpdates(clock, (_, _, _) => { }, () => { }, patience));
             return this;
         }
 
-        public Task<Snapshot> ReadAsync(CancellationToken stop)
+        public async Task<Snapshot> ReadAsync(CancellationToken stop)
         {
-            Reads++;
+            var reads = ++Reads;
             _read.Release();
-            return Task.FromResult(new Snapshot([.. Recorded.Sensors, new RawSensor(Counter, "Test", "Test", "Load", "Reads", Reads)]));
+            var read = await _updates!.UpdateAsync(
+                [new DeviceUpdate("/test", "Test", () => Task.Delay(reads == 1 ? FirstUpdate : TimeSpan.Zero, _clock, stop), Due: true)], stop);
+            var counter = read["/test"] == DeviceRead.Updated ? reads : (double?)null;
+            return new Snapshot([.. Recorded.Sensors, new RawSensor(Counter, "Test", "Test", "Load", "Reads", counter)]);
         }
 
         /// <summary>Waits for the read numbered <paramref name="count"/>, from 1.</summary>
