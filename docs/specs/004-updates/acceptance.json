@@ -132,7 +132,7 @@
       "covers": ["R25"],
       "description": "Given thermi installed for a test channel served from this PC, when About opens with a newer build published, then it says it checks, then that the version is ready with Restart to update, which switches and closes the window; reopened within a minute, it checks nothing more.",
       "check": "by hand",
-      "passes": false
+      "passes": true
     }
   ]
 }
