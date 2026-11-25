@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Thermi.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
@@ -21,10 +22,13 @@ internal sealed partial class AgentCommands
 
     /// <summary>Takes back the last edit this session made, where what it wrote is still there.</summary>
     public Task<AgentReply> UndoAsync(CancellationToken stop) =>
-        OneAtATimeAsync(() => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, History.CancelUndo), stop);
+        OneAtATimeAsync(() => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, History.CancelUndo, "undo"), stop);
 
     public Task<AgentReply> RedoAsync(CancellationToken stop) =>
-        OneAtATimeAsync(() => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo), stop);
+        OneAtATimeAsync(() => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo, "redo"), stop);
+
+    /// <summary>Where the settings as they were before an agent's last write are kept, so a person can take any change back.</summary>
+    public static string PreviousOf(string settingsPath) => Path.ChangeExtension(settingsPath, ".before-agent.json");
 
     private async Task<AgentReply> OneAtATimeAsync(Func<Task<AgentReply>> change, CancellationToken stop)
     {
@@ -185,6 +189,7 @@ internal sealed partial class AgentCommands
                     History.Record(before, after.Config);
                 }
 
+                KeepPrevious(before);
                 return Edited(after);
             }
         }
@@ -199,7 +204,26 @@ internal sealed partial class AgentCommands
             : "The settings file stayed locked by another program; nothing was written. Try again.");
 
     // A step taken but never written goes back where it was, so the next undo or redo is still that one.
-    private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name, Action back)
+    private void KeepPrevious(ThermiConfig before)
+    {
+        try
+        {
+            File.WriteAllText(PreviousOf(environment.SettingsPath), ThermiConfigJson.Write(before));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The change is made; only its copy of what was before is lost, which the log says.
+            PreviousLost(environment.Log, ex);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The settings as they were before an agent's change could not be kept")]
+    private static partial void PreviousLost(ILogger log, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An agent's {Step} changed the settings")]
+    private static partial void Stepped(ILogger log, string step);
+
+    private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name, Action back, string what)
     {
         if (step is null)
         {
@@ -231,6 +255,11 @@ internal sealed partial class AgentCommands
             }
 
             return reply;
+        }
+
+        if (taken is { Applied: > 0 })
+        {
+            Stepped(environment.Log, what);
         }
 
         // Done only where something was taken back: a step whose every change someone else has since changed takes nothing.

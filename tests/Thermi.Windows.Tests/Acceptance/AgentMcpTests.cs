@@ -38,6 +38,13 @@ public sealed class AgentMcpTests : IDisposable
             Assert.Equal(
                 ReadOnly.Order(StringComparer.Ordinal),
                 tools.Where(tool => tool.ProtocolTool.Annotations?.ReadOnlyHint == true).Select(tool => tool.Name).Order(StringComparer.Ordinal));
+            // Destructive where undo cannot take it back; a hint left out means destructive, so every other tool says it is not.
+            Assert.Equal(
+                ["edit", "look", "start_with_windows"],
+                tools.Where(tool => tool.ProtocolTool.Annotations?.DestructiveHint != false).Select(tool => tool.Name).Order(StringComparer.Ordinal));
+            Assert.Equal(
+                ReadOnly.Append("start_with_windows").Order(StringComparer.Ordinal),
+                tools.Where(tool => tool.ProtocolTool.Annotations?.IdempotentHint == true).Select(tool => tool.Name).Order(StringComparer.Ordinal));
 
             var (_, config) = await session.CallAsync("config");
             Assert.True(JsonNode.DeepEquals(JsonNode.Parse((await _rig.RunAsync("config")).Out), JsonNode.Parse(config)));

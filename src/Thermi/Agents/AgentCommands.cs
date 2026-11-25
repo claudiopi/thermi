@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Bridge;
@@ -36,7 +37,33 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
 
     public void Dispose() => _changing.Dispose();
 
-    public Task<AgentReply> RunAsync(AgentRequest request, CancellationToken stop) => request.Verb switch
+    public async Task<AgentReply> RunAsync(AgentRequest request, CancellationToken stop)
+    {
+        var reply = await AnswerAsync(request, stop);
+        if (reply.Exit == AgentExit.Done && Change(request) is { } change)
+        {
+            Changed(environment.Log, request.Verb, change);
+        }
+
+        return reply;
+    }
+
+    // What a command changed, for the log, or null for one that only read or said; a look file's text is not repeated.
+    private static string? Change(AgentRequest request) => request switch
+    {
+        { Verb: AgentVerb.Edit } => request.Text,
+        { Verb: AgentVerb.Look, Look: LookAction.Export } => null,
+        { Verb: AgentVerb.Look, Look: LookAction.Import } => $"import on overlay {request.Overlay ?? 0}",
+        { Verb: AgentVerb.Look } => $"{request.Look} {request.Text} {request.To} {request.Overlay}".TrimEnd(),
+        { Verb: AgentVerb.FindCpuFan, Switch: true } => "its fan as the CPU fan",
+        { Verb: AgentVerb.StartWithWindows, Switch: { } on } => on ? "on" : "off",
+        _ => null,
+    };
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An agent's {Verb} changed: {Change}")]
+    private static partial void Changed(ILogger log, AgentVerb verb, string change);
+
+    private Task<AgentReply> AnswerAsync(AgentRequest request, CancellationToken stop) => request.Verb switch
     {
         AgentVerb.Status => StatusAsync(stop),
         AgentVerb.Read => ReadAsync(request, stop),

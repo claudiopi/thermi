@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using Thermi.Agents;
+using Thermi.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -96,7 +98,8 @@ public sealed class AgentSettingsTests : IDisposable
         var broken = await _rig.RunAsync("look", "import", "{ not a look");
         Assert.Equal((1, Texts.Key(StyleEdits.Import(config, 0, "{ not a look").Refused!.Value)), (broken.Exit, (string)broken.Json["refusal"]!));
 
-        Assert.Equal(["config.json"], _rig.Folder.Files);
+        // Beside the settings, only what they were before the agent's last change.
+        Assert.Equal(["config.before-agent.json", "config.json"], _rig.Folder.Files.Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -121,13 +124,16 @@ public sealed class AgentSettingsTests : IDisposable
         Assert.Equal(ThermiConfigJson.Write(OverlayEdits.Drop(config, 1, new Position(2400, 300)).Config), ThermiConfigJson.Write(_rig.Folder.Read()));
     }
 
-    // The Intel desktop's board fan answers its load; on the Ryzen, fan software holds the fans to a curve.
+    // The Intel desktop's board fan answers its load; the Ryzen's, its fans held where they were before it, answers nothing.
     [Theory]
     [InlineData(TestRecordings.IntelCpuLoad, true)]
     [InlineData(TestRecordings.CpuLoad, false)]
     public async Task AgentsFindTheCpuFan(string recording, bool answers)
     {
-        var series = TestRecordings.Series(recording);
+        var recorded = TestRecordings.Series(recording);
+        // Its readings go on after the recording, for the fans to be watched once the load ends.
+        var series = answers ? recorded
+            : [.. recorded.Select(snapshot => Held(snapshot, recorded[0])), .. Enumerable.Repeat(Held(recorded[^1], recorded[0]), (int)FanFinder.Afterwards.TotalSeconds)];
         _rig.Sensors = () => new RecordedFeed(series, pace: _rig.Folder.Clock);
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         var before = _rig.Folder.Text();
@@ -135,6 +141,11 @@ public sealed class AgentSettingsTests : IDisposable
         var found = await _rig.RunAsync("find-cpu-fan", "--use");
 
         Assert.Equal(answers ? 0 : 1, found.Exit);
+
+        // An agent's loop cannot keep the CPU busy: a run so soon after the last loads nothing and says when the next can.
+        var resting = await _rig.RunAsync("find-cpu-fan");
+        Assert.Equal((1, true, 1), (resting.Exit, (int?)resting.Json["runsAgainIn"] > 0, _rig.Loads.Count));
+        _rig.Folder.Clock.Advance(TimeSpan.FromMinutes(2));
         if (answers)
         {
             // A PC whose board reports no fan: the finder cannot start, says why, and loads nothing.
@@ -164,7 +175,25 @@ public sealed class AgentSettingsTests : IDisposable
         Assert.Equal(
             (1, fan, false, Texts.Key(Refusal.NotFound)),
             (unused.Exit, (string?)unused.Json["fan"], (bool)unused.Json["used"]!, (string?)unused.Json["refusal"]));
+
+        // The finder is a change as the others are: one called while it runs waits for it.
+        _rig.Folder.Clock.Advance(TimeSpan.FromMinutes(2));
+        using var commands = new AgentCommands(_rig.Environment, _rig.Folder.Clock);
+        var finding = commands.RunAsync(new AgentRequest(AgentVerb.FindCpuFan), TestContext.Current.CancellationToken);
+        var redo = commands.RedoAsync(TestContext.Current.CancellationToken);
+        for (var step = 0; !redo.IsCompleted && step < 2000; step++)
+        {
+            _rig.Folder.Clock.Advance(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        Assert.True(finding.IsCompleted);
     }
+
+    private static Snapshot Held(Snapshot snapshot, Snapshot before) => snapshot with
+    {
+        Sensors = [.. snapshot.Sensors.Select(sensor => sensor.Type == nameof(SensorKind.Fan) ? before.Sensors.Single(each => each.Id == sensor.Id) : sensor)],
+    };
 
     [Fact]
     public async Task AgentsSetStartWithWindows()

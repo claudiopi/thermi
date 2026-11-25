@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using Thermi.Commands;
 using Thermi.Core.Sensors;
+using Thermi.Logging;
 using Thermi.Core.Placement;
 using Thermi.Overlay;
 using Thermi.Ui;
@@ -13,7 +14,7 @@ namespace Thermi.Agents;
 /// What an agent's command reaches outside its process, which tests replace: the settings file, the sensors, read from the
 /// pipe as the overlay reads them with a new connection for each read, whether the service is installed, whether an overlay
 /// runs, whether this install is the sensors alone, the start at sign-in, the monitors, the keys AltGr types with, and the
-/// fan finder's load.
+/// fan finder's load and the file that says when it last ran.
 /// </summary>
 internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> Sensors, StartWithWindows Startup, ILogger Log)
 {
@@ -43,6 +44,8 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     // The window's load: a thermi cpu-load of its own, at idle priority, so the PC stays as it was for the person using it.
     public Action<CancellationToken> Load { get; init; } =
         stop => CpuLoad.Start(BesideThisDoor("thermi.exe"), (int)FanFinder.MaxRun.TotalSeconds, stop);
+
+    public string FinderRan { get; init; } = Path.Combine(UserFolders.Local, "thermi", "fan-finder-ran.txt");
 
     public string StylesFolder => ConfigStore.StylesFolder(SettingsPath);
 

@@ -44,7 +44,7 @@
         "R6",
         "R8"
       ],
-      "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item, then those three alone; the CPU fan is the chosen one; each value has its unit; a CPU temperature of 0 in the no-driver recording is null with why; and each item's level and thresholds are what the overlay's layout gives for the same snapshot.",
+      "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item but network addresses, then those three alone, and every type has its unit; the CPU fan is the chosen one; each value has its unit; a CPU temperature of 0 in the no-driver recording is null with why; and each item's level and thresholds are what the overlay's layout gives for the same snapshot.",
       "check": "ReadGivesWhatTheOverlayShows",
       "passes": true
     },
@@ -81,7 +81,7 @@
       "covers": [
         "R12"
       ],
-      "description": "Given an overlay host running on the test's own settings, when an agent's edit and an overlay drag are written at once, many times, then the file holds both every time, and the overlay paints the agent's change within 1 s.",
+      "description": "Given an overlay host running on the test's own settings, when an agent's edit and an overlay drag are written at once, many times, then the file holds both every time, the overlay paints the agent's change within 1 s, the log names it, and the settings as they were before it are kept beside them.",
       "check": "AgentEditsKeepOthersChanges",
       "passes": true
     },
@@ -99,7 +99,7 @@
       "covers": [
         "R14"
       ],
-      "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, monitors, looks, edit, look, find_cpu_fan, start_with_windows, undo and redo, the first six marked read-only, each answers the command's JSON, and a refused edit or a stopped service is a tool error saying why.",
+      "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, monitors, looks, edit, look, find_cpu_fan, start_with_windows, undo and redo, the first six marked read-only and edit, look and start_with_windows destructive, each answers the command's JSON, and a refused edit or a stopped service is a tool error saying why.",
       "check": "McpToolsAreTheCommands",
       "passes": true
     },
@@ -217,7 +217,7 @@
       "covers": [
         "R28"
       ],
-      "description": "Given a recorded series of a CPU load with its fan answering, and one where no fan answers, fed as the pipe would, when find-cpu-fan runs on a fake clock, then the first names that fan and the load ran no longer than the window's finder runs it, the second says why none answered, and with --use the first overlay's CPU fan is that fan, one edit; with settings that have no CPU fan item, --use exits 1 and still names the fan with the edit's refusal key.",
+      "description": "Given a recorded series of a CPU load with its fan answering, and one where no fan answers, fed as the pipe would, when find-cpu-fan runs on a fake clock, then the first names that fan and the load ran no longer than the window's finder runs it, the second says why none answered, and with --use the first overlay's CPU fan is that fan, one edit; with settings that have no CPU fan item, --use exits 1 and still names the fan with the edit's refusal key; a run within 2 minutes of the last load exits 1 with runsAgainIn and loads nothing, and a change called while the finder runs waits for it.",
       "check": "AgentsFindTheCpuFan",
       "passes": true
     },

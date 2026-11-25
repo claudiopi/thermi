@@ -126,8 +126,9 @@ internal sealed class AgentRig : IDisposable
         Folder.File,
         () => Sensors(),
         Startup,
-        NullLogger.Instance)
+        Folder.Log)
     {
+        FinderRan = Path.Combine(Path.GetDirectoryName(Folder.File)!, "fan-finder-ran.txt"),
         Installed = () => Installed,
         Overlay = () => Overlay,
         SensorsOnly = () => SensorsOnly,

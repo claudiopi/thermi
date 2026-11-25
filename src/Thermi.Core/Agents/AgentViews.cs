@@ -76,6 +76,9 @@ public sealed record FinderAnswer(FanFinderOutcome? Outcome, bool Used)
 
     /// <summary>Why the fan found did not become the CPU fan, as an edit's refusal key, as with no CPU fan item to take it.</summary>
     public string? Refusal { get; init; }
+
+    /// <summary>Seconds until the finder runs again, when it ran too lately to load the CPU once more.</summary>
+    public int? RunsAgainIn { get; init; }
 }
 
 /// <summary>Whether the overlay starts at sign-in, and whether there is an overlay to start.</summary>

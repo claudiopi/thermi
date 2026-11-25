@@ -27,9 +27,12 @@ public sealed class AgentReadTests
 
         Assert.Empty(all.Unknown);
         Assert.Equal(
-            [.. Metrics.All.Select(metric => metric.Id), .. config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id)],
+            [
+                .. Metrics.All.Where(metric => metric.Kind != SensorKind.Address).Select(metric => metric.Id),
+                .. config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id),
+            ],
             all.Values.Select(value => value.Id));
-        Assert.All(all.Values, value => Assert.False(string.IsNullOrEmpty(value.Unit), $"{value.Id} has no unit."));
+        Assert.All(Enum.GetValues<SensorKind>(), kind => Assert.False(string.IsNullOrEmpty(AgentReads.UnitOf(kind)), $"{kind} has no unit."));
         Assert.All(all.Values, value => Assert.True(value.Value is not null || value.Why is not null, $"{value.Id} has no value and no why."));
         Assert.Equal(fan, Assert.Single(all.Values, value => value is { Id: "fan.cpu", Source: ValueSource.Metric }).Sensor);
         if (SensorMap.DriverMayBeMissing(snapshot))
@@ -61,6 +64,8 @@ public sealed class AgentReadTests
         var networked = SystemSensors.With(snapshot, facts);
         var dropped = snapshot.Sensors[0].Id;
         var later = networked with { Sensors = [.. networked.Sensors.Where(sensor => sensor.Id != dropped)] };
+        // The address says where the PC is: only an id asks for it.
+        Assert.DoesNotContain(AgentReads.Read([networked], config, []).Values, value => value.Type == SensorKind.Address);
         var address = Assert.Single(AgentReads.Read([networked, later], config, [Metrics.LocalIp.Id]).Values);
         Assert.Equal(("192.168.1.2", null, null), (address.Text, address.Min, address.Average));
         var missing = Assert.Single(AgentReads.Read([later], config, [dropped], earlier: snapshot).Values);

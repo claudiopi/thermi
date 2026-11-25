@@ -17,8 +17,9 @@ public static class AgentReads
     public const string ItemPrefix = "item:";
 
     /// <summary>
-    /// The ids asked for, or with none every metric and then every item of every overlay; a sensor none of the samples has
-    /// but <paramref name="earlier"/> does reads as missing.
+    /// The ids asked for, or with none every metric and then every item of every overlay but network addresses, which say
+    /// where the PC is to whoever reads the answer, so only an id asks for one; a sensor none of the samples has but
+    /// <paramref name="earlier"/> does reads as missing.
     /// </summary>
     public static ReadAnswer Read(IReadOnlyList<Snapshot> samples, ThermiConfig config, IReadOnlyList<string> ids, Snapshot? earlier = null)
     {
@@ -42,6 +43,11 @@ public static class AgentReads
             {
                 unknown.Add(id);
             }
+        }
+
+        if (ids.Count == 0)
+        {
+            values.RemoveAll(value => value.Type == SensorKind.Address);
         }
 
         return new ReadAnswer(values, unknown);

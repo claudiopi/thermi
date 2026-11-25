@@ -18,7 +18,7 @@ The door
 Reading
 
 - R5. `status` says whether the sensor service runs and its data is fresh, whether the driver looks missing, whether an overlay runs, and why the settings file cannot be used, if it cannot; each problem says, for an agent, its cause and what a person does to fix it.
-- R6. `read` with no ids gives every metric and every item of every overlay; with ids, those alone, each a metric (`cpu.temperature`), a sensor id or an item id. A metric reads as the first overlay maps it, the CPU fan it was given included. Each value has its unit, and one that cannot be read is null with why, never 0.
+- R6. `read` with no ids gives every metric and every item of every overlay but network addresses, which only an id asks for; with ids, those alone, each a metric (`cpu.temperature`), a sensor id or an item id. A metric reads as the first overlay maps it, the CPU fan it was given included. Each value has its unit, and one that cannot be read is null with why, never 0.
 - R7. `read --seconds n`, n from 1 to 60, samples once a second for n seconds and gives each value's minimum, maximum, average and number of samples, beside the last.
 - R8. Each item read gives its level as the overlay judges it: normal, warning or critical, with the thresholds that decide it.
 - R9. `sensors` lists every sensor the service reads, by device, with its id, name, type, unit and value, filtered by `--search` as the window's search finds and by `--type`.
@@ -27,16 +27,16 @@ Reading
 Changing
 
 - R11. `edit <json>` applies one edit of the settings window's own vocabulary, or a `threshold` edit setting an item's warning and critical, through the same rules as the window. A refused edit writes nothing, exits 1 and says the refusal's key and its English text.
-- R12. An edit made while an overlay or the window writes the file keeps both changes, and a running overlay shows it within 1 s.
+- R12. An edit made while an overlay or the window writes the file keeps both changes, and a running overlay shows it within 1 s; each change an agent makes is logged, and the settings as they were before its last write are kept beside them.
 - R13. While the settings file is broken, every edit exits 4 and the file is left as it is.
 - R26. `looks` lists the saved looks; `look` wears one on an overlay or on all, saves an overlay's look under a name, renames or deletes a saved one, gives an overlay's or a saved look's file as text, and wears a look from such text; each with the window's rules and refusals, and no path to read or write.
 - R27. `monitors` lists the monitors with their ids, bounds and taskbars, in Windows' pixels, and a `place` edit leaves an overlay where a drag let go at that point would, off its snap.
-- R28. `find-cpu-fan` loads the CPU as the window's finder does, for no longer, and says which fan answered, or why none did; with `--use`, that fan becomes the first overlay's CPU fan, one edit, or the answer still names it with the edit's refusal.
+- R28. `find-cpu-fan` loads the CPU as the window's finder does, at idle priority, for no longer, one at a time with the other changes and at most once in 2 minutes, and says which fan answered, or why none did; with `--use`, that fan becomes the first overlay's CPU fan, one edit, or the answer still names it with the edit's refusal.
 - R29. `start-with-windows [on|off]` says or sets whether the overlay starts at sign-in, as the window's switch does; on a sensors-only install it says there is no overlay to start.
 
 MCP
 
-- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `monitors`, `looks`, `edit`, `look`, `find_cpu_fan`, `start_with_windows`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are marked read-only.
+- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `monitors`, `looks`, `edit`, `look`, `find_cpu_fan`, `start_with_windows`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are marked read-only, and `edit`, `look` and `start_with_windows` destructive.
 - R15. `undo` takes back the session's last edit, and `redo` makes it again, each only where what it wrote is still there; a change made since by someone else stays.
 - R16. Added to Claude Code with one command from the README, an agent answers "how hot is my CPU?" with the value the overlay shows, and sets a warning that then shows on the overlay. The same works in Claude Desktop.
 
