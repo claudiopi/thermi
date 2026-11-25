@@ -2151,4 +2151,40 @@
   <data name="UiText.BitsHint" xml:space="preserve">
     <value>As 99.2 Mbps; its lines stay in bytes</value>
   </data>
+  <data name="AgentText.ServiceMissingCause" xml:space="preserve">
+    <value>thermi's sensor service is not installed on this PC, so nothing reads the sensors.</value>
+  </data>
+  <data name="AgentText.ServiceMissingFix" xml:space="preserve">
+    <value>Ask the person to install thermi, or its sensors alone, from https://github.com/claudiopi/thermi/releases.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedCause" xml:space="preserve">
+    <value>thermi's sensor service is installed but not running.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedFix" xml:space="preserve">
+    <value>Ask the person to choose Start sensors in thermi's menu, which asks for administrator rights once. Do not start it yourself.</value>
+  </data>
+  <data name="AgentText.ServiceStaleCause" xml:space="preserve">
+    <value>thermi's sensor service runs, but has sent no readings for a few seconds.</value>
+  </data>
+  <data name="AgentText.ServiceStaleFix" xml:space="preserve">
+    <value>Wait a few seconds and read again; Windows restarts the service if it stays stuck.</value>
+  </data>
+  <data name="AgentText.PipeTakenCause" xml:space="preserve">
+    <value>Another program holds the name of thermi's sensor pipe, so its readings cannot be trusted.</value>
+  </data>
+  <data name="AgentText.PipeTakenFix" xml:space="preserve">
+    <value>Ask the person to restart the PC, or to close the program that took the pipe's name.</value>
+  </data>
+  <data name="AgentText.DriverMissingCause" xml:space="preserve">
+    <value>The CPU's temperature, power and clock read zero: the driver that reads them may be missing.</value>
+  </data>
+  <data name="AgentText.DriverMissingFix" xml:space="preserve">
+    <value>Ask the person to open thermi's settings, where it offers to install the driver, with administrator rights once.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenCause" xml:space="preserve">
+    <value>thermi's settings file cannot be used, so no change can be written to it.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenFix" xml:space="preserve">
+    <value>Ask the person to fix the file, or to choose Restore last good settings in thermi's settings window.</value>
+  </data>
 </root>

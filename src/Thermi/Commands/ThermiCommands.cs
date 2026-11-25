@@ -48,6 +48,12 @@ internal static class ThermiCommands
 
     public const float MaxScale = 8;
 
+    /// <summary>The console door's name, the apphost every shell waits for, beside the windowed <c>thermi.exe</c>.</summary>
+    public const string ConsoleDoor = "thermi-cli";
+
+    public static bool IsConsoleDoor(string? processPath) =>
+        string.Equals(Path.GetFileNameWithoutExtension(processPath), ConsoleDoor, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The request, or null with <paramref name="errors"/> saying why the arguments make no sense.</summary>
     public static IThermiRequest? Parse(IReadOnlyList<string> args, out IReadOnlyList<string> errors)
     {
@@ -72,16 +78,6 @@ internal static class ThermiCommands
         var verb = new Argument<string>("verb").AcceptOnlyFromAmong([.. Elevated.Verbs]);
         var elevated = ElevatedCommand(verb);
         var root = new RootCommand("thermi: a light, always-on-top hardware monitor.") { trace, pseudo, settings, preview, cpuLoad, elevated };
-
-        // A root with commands and no action of its own must be given one of them; thermi's runs the overlay.
-        root.SetAction(_ => 0);
-        var parsed = root.Parse(args);
-        errors = [.. parsed.Errors.Select(error => error.Message), .. OnlyItsVerb(parsed, elevated, args)];
-        if (errors.Count > 0)
-        {
-            return null;
-        }
-
         var requests = new Dictionary<Command, Func<ParseResult, IThermiRequest>>
         {
             [settings] = it => new SettingsRequest(it.GetValue(overlay), it.GetValue(trace), it.GetValue(pseudo)) { Item = it.GetValue(item) },
@@ -89,7 +85,14 @@ internal static class ThermiCommands
             [cpuLoad] = it => new CpuLoadRequest(it.GetValue(seconds)),
             [elevated] = it => new ElevatedRequest(it.GetValue(verb)!),
         };
-        return parsed.Action is not null && parsed.Action != root.Action ? new BuiltInRequest(parsed)
+        AgentCommandLine.Add(root, requests);
+
+        // A root with commands and no action of its own must be given one of them; thermi's runs the overlay.
+        root.SetAction(_ => 0);
+        var parsed = root.Parse(args);
+        errors = [.. parsed.Errors.Select(error => error.Message), .. OnlyItsVerb(parsed, elevated, args)];
+        return errors.Count > 0 ? null
+            : parsed.Action is not null && parsed.Action != root.Action ? new BuiltInRequest(parsed)
             : requests.TryGetValue(parsed.CommandResult.Command, out var request) ? request(parsed) : new OverlayRequest(parsed.GetValue(trace));
     }
 

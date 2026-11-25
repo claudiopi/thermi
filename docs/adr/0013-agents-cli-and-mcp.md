@@ -1,6 +1,6 @@
 # 0013. Agents and other programs read thermi through a console door, MCP and thin SDKs
 
-**Status**: Proposed
+**Status**: Accepted
 
 ## Context
 

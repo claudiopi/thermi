@@ -32,6 +32,9 @@ internal static class ThermiLog
 
     public static string WindowPath { get; } = Path.Combine(Folder, "thermi-window.log");
 
+    // The agents' commands are many short processes at once: they share one file, and log only what went wrong.
+    public static string AgentsPath { get; } = Path.Combine(Folder, "thermi-agents.log");
+
     public static ILoggerFactory Create(string path, TimeProvider time, bool trace)
     {
         var logger = new LoggerConfiguration()

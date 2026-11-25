@@ -43,6 +43,23 @@ public static class StyleEdits
         ConfigEdits.OnOverlay(config, overlay, () => ConfigEdits.Apply(config, current =>
             ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Style = style.WornOn(current.Overlays[overlay].Style) })));
 
+    /// <summary>A saved look worn by one overlay, or by every overlay when none is named, as one step; none changes if one is refused.</summary>
+    public static EditResult Wear(ThermiConfig config, int? overlay, StyleConfig style)
+    {
+        if (overlay is { } one)
+        {
+            return Choose(config, one, style);
+        }
+
+        var result = new EditResult(config);
+        for (var each = 0; each < config.Overlays.Count && result.Refused is null; each++)
+        {
+            result = Choose(result.Config, each, style);
+        }
+
+        return result.Refused is null ? result : new EditResult(config, result.Refused, result.Problem);
+    }
+
     /// <summary>Applies a style file's text, dropped or pasted, at once; one that is broken, newer or out of range changes nothing and says why.</summary>
     public static EditResult Import(ThermiConfig config, int overlay, string text)
     {

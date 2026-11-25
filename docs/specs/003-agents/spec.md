@@ -1,6 +1,6 @@
 # 003. AI agents and other programs read the sensors and configure thermi
 
-**Status**: draft
+**Status**: approved
 
 ## Why
 
@@ -29,10 +29,14 @@ Changing
 - R11. `edit <json>` applies one edit of the settings window's own vocabulary, or a `threshold` edit setting an item's warning and critical, through the same rules as the window. A refused edit writes nothing, exits 1 and says the refusal's key and its English text.
 - R12. An edit made while an overlay or the window writes the file keeps both changes, and a running overlay shows it within 1 s.
 - R13. While the settings file is broken, every edit exits 4 and the file is left as it is.
+- R26. `looks` lists the saved looks; `look` wears one on an overlay or on all, saves an overlay's look under a name, renames or deletes a saved one, gives an overlay's or a saved look's file as text, and wears a look from such text; each with the window's rules and refusals, and no path to read or write.
+- R27. `monitors` lists the monitors with their ids, bounds and taskbars, in Windows' pixels, and a `place` edit leaves an overlay where a drag let go at that point would, off its snap.
+- R28. `find-cpu-fan` loads the CPU as the window's finder does, for no longer, and says which fan answered, or why none did; with `--use`, that fan becomes the first overlay's CPU fan, one edit.
+- R29. `start-with-windows [on|off]` says or sets whether the overlay starts at sign-in, as the window's switch does; on a sensors-only install it says there is no overlay to start.
 
 MCP
 
-- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `edit`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. Every tool but `edit`, `undo` and `redo` is marked read-only.
+- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `monitors`, `looks`, `edit`, `look`, `find_cpu_fan`, `start_with_windows`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are marked read-only.
 - R15. `undo` takes back the session's last edit, and `redo` makes it again, each only where what it wrote is still there; a change made since by someone else stays.
 - R16. Added to Claude Code with one command from the README, an agent answers "how hot is my CPU?" with the value the overlay shows, and sets a warning that then shows on the overlay. The same works in Claude Desktop.
 
@@ -65,7 +69,7 @@ Later, each its own spec on this contract: a Node package on npm and a Python pa
 
 **Commands** join `src/Thermi/Commands/ThermiCommands.cs`. What they decide lives in Core, in a new `Agents` folder: the answers' records and their JSON (a source-generated context with stable camel-case names and kebab-case choices, like the bridge's), the reads from snapshots and settings (on `SensorMap`, `SensorCatalog` and `OverlayLayout`'s level), the samples' minimum, maximum and average, and the parse of an edit. The Windows side, in an `Agents` folder of `src/Thermi`, connects to the pipe through `SensorClient` for one read, checks the overlay's mutex for `status`, and writes through `ConfigStore`.
 
-**Edits.** `src/Thermi/Ui/Web/PageEdits.cs` moves to Core's `Editing` folder, unchanged, and the window calls it there. An agent's edit is a `PageEdit` as the bridge's JSON writes it, or `{"kind": "threshold", "item", "warning", "critical"}`; the chart's line edits and saved looks stay the window's. Applied with `ConfigEdits.Apply` over the file read under its mutex, then written by `ConfigStore.WriteAsync`, it keeps whatever else is in the file.
+**Edits.** `src/Thermi/Ui/Web/PageEdits.cs` moves to Core's `Editing` folder, unchanged, and the window calls it there. An agent's edit is a `PageEdit` as the bridge's JSON writes it, or `{"kind": "threshold", "item", "warning", "critical"}`; or `{"kind": "place", "overlay", "x", "y"}`, which is `OverlayEdits.Drop`; the chart's own line gestures stay the window's. The saved looks go through `SavedStyles` and `StyleEdits` as `WindowLooks` does, with text in and out in place of the window's file dialogs and clipboard; the finder is `FanFinder` fed by the same pipe reads, with the load of `CpuLoad`; the start at sign-in is `StartWithWindows`. What the window and the agents share of these moves out of `src/Thermi/Ui` so neither copies the other. Applied with `ConfigEdits.Apply` over the file read under its mutex, then written by `ConfigStore.WriteAsync`, it keeps whatever else is in the file.
 
 **MCP.** `McpServer`, in the app's `Agents` folder, hosts the tools with `ModelContextProtocol.Core` on stdio, each tool a call of the same command code, with an `UndoHistory` for the session. The package goes into `Directory.Packages.props` and the notices.
 

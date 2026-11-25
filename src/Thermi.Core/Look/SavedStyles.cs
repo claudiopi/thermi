@@ -25,6 +25,9 @@ public sealed class SavedStyles(string folder)
     public IReadOnlyList<StyleConfig> List() =>
         [.. Files().Select(saved => saved.Style).OrderBy(style => style.Name, StringComparer.OrdinalIgnoreCase)];
 
+    /// <summary>The saved style of that name, in any case, or null when none is saved under it.</summary>
+    public StyleConfig? Named(string name) => Find(name)?.Style;
+
     /// <summary>Saves a copy of the style under the name, which is trimmed; the settings are not changed.</summary>
     public Refusal? Save(StyleConfig style, string name)
     {

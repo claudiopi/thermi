@@ -99,7 +99,7 @@
       "covers": [
         "R14"
       ],
-      "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, edit, undo and redo, each answers the command's JSON, and a refused edit or a stopped service is a tool error saying why.",
+      "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, monitors, looks, edit, look, find_cpu_fan, start_with_windows, undo and redo, the first six marked read-only, each answers the command's JSON, and a refused edit or a stopped service is a tool error saying why.",
       "check": "McpToolsAreTheCommands",
       "passes": false
     },
@@ -192,6 +192,42 @@
       ],
       "description": "Given a sensors-only install of a signed beta, when spec 004's update to the next beta applies, then the sensors alone are installed after it, at the new version, and no overlay starts.",
       "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A22",
+      "covers": [
+        "R26"
+      ],
+      "description": "Given a settings folder with two saved looks, when looks runs and then look saves overlay 1's look under a new name, wears a saved one on every overlay, renames one to a name taken, exports one, deletes one, and imports the exported text and a broken text, then each changes what the window's same action changes, the taken name and the broken text are refused with their keys, and no file outside the looks' folder is read or written.",
+      "check": "AgentLooksAreTheWindowsLooks",
+      "passes": false
+    },
+    {
+      "id": "A23",
+      "covers": [
+        "R27"
+      ],
+      "description": "Given two monitors of the test's own, when monitors runs and a place edit leaves overlay 1 at a point of the second, then monitors gives both with their ids, bounds and taskbars, and the file holds the overlay off its snap at that point, as OverlayEdits.Drop writes it.",
+      "check": "AgentsPlaceOverlaysOnMonitors",
+      "passes": false
+    },
+    {
+      "id": "A24",
+      "covers": [
+        "R28"
+      ],
+      "description": "Given a recorded series of a CPU load with its fan answering, and one where no fan answers, fed as the pipe would, when find-cpu-fan runs on a fake clock, then the first names that fan and the load ran no longer than the window's finder runs it, the second says why none answered, and with --use the first overlay's CPU fan is that fan, one edit.",
+      "check": "AgentsFindTheCpuFan",
+      "passes": false
+    },
+    {
+      "id": "A25",
+      "covers": [
+        "R29"
+      ],
+      "description": "Given a Run key of the test's own, when start-with-windows runs with off, with nothing and with on, then it writes and reads it as the window's switch does; and on a sensors-only install, it says there is no overlay to start and writes nothing.",
+      "check": "AgentsSetStartWithWindows",
       "passes": false
     }
   ]

@@ -1,0 +1,115 @@
+using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
+using Thermi.Core.Translations;
+using Thermi.Core.Tray;
+
+namespace Thermi.Core.Agents;
+
+/// <summary>What stops an agent's answers, each said to the agent with its cause and what a person does about it.</summary>
+public enum AgentProblem
+{
+    /// <summary>No sensor service on this PC.</summary>
+    ServiceMissing,
+
+    /// <summary>The service is installed and not running.</summary>
+    ServiceStopped,
+
+    /// <summary>The service runs and sent nothing for a while.</summary>
+    ServiceStale,
+
+    /// <summary>Another program holds the service's pipe.</summary>
+    PipeTaken,
+
+    /// <summary>A CPU temperature, power or clock of exactly zero.</summary>
+    DriverMissing,
+
+    /// <summary>The settings file cannot be used.</summary>
+    SettingsBroken,
+}
+
+/// <summary>Each problem's cause and fix, as an agent reads them; the contract answers them in English.</summary>
+[Translated]
+public enum AgentText
+{
+    ServiceMissingCause,
+    ServiceMissingFix,
+    ServiceStoppedCause,
+    ServiceStoppedFix,
+    ServiceStaleCause,
+    ServiceStaleFix,
+    PipeTakenCause,
+    PipeTakenFix,
+    DriverMissingCause,
+    DriverMissingFix,
+    SettingsBrokenCause,
+    SettingsBrokenFix,
+}
+
+/// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
+public sealed record ProblemAnswer(AgentProblem Code, string Cause, string Fix);
+
+/// <summary>Whether the service runs and sends fresh readings, an overlay runs, and what stops the answers.</summary>
+public sealed record StatusAnswer(ServiceState Service, bool Overlay, bool SensorsOnly, IReadOnlyList<ProblemAnswer> Problems)
+{
+    public int Schema { get; init; } = AgentSchema.Current;
+
+    /// <summary>The settings file's problem, or null when it can be used.</summary>
+    public ConfigProblemKind? Settings { get; init; }
+}
+
+/// <summary>What the service, the pipe, the readings and the settings say, as the status decides it.</summary>
+public sealed record AgentFacts(ServiceState Service, bool Installed, bool Taken, Snapshot? Latest, ConfigProblem? Settings)
+{
+    public bool Overlay { get; init; }
+
+    public bool SensorsOnly { get; init; }
+}
+
+public static class AgentStatus
+{
+    public static StatusAnswer Of(AgentFacts facts)
+    {
+        var problems = new List<AgentProblem>();
+        problems.AddRange(facts switch
+        {
+            { Installed: false } => [AgentProblem.ServiceMissing],
+            { Taken: true } => [AgentProblem.PipeTaken],
+            { Service: ServiceState.Stopped } => [AgentProblem.ServiceStopped],
+            { Service: ServiceState.Stale } => [AgentProblem.ServiceStale],
+            _ => [],
+        });
+        if (facts.Latest is { } latest && SensorMap.DriverMayBeMissing(latest))
+        {
+            problems.Add(AgentProblem.DriverMissing);
+        }
+
+        if (facts.Settings is { Kind: not ConfigProblemKind.Missing })
+        {
+            problems.Add(AgentProblem.SettingsBroken);
+        }
+
+        return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. problems.Select(Said)])
+        {
+            Settings = facts.Settings is { Kind: not ConfigProblemKind.Missing } problem ? problem.Kind : null,
+        };
+    }
+
+    /// <summary>The problem that keeps the service's readings from a read, or null when they are fresh.</summary>
+    public static ProblemAnswer? Unread(AgentFacts facts) =>
+        Of(facts).Problems.FirstOrDefault(problem => problem.Code is not (AgentProblem.DriverMissing or AgentProblem.SettingsBroken));
+
+    public static ProblemAnswer Said(AgentProblem problem)
+    {
+        var (cause, fix) = problem switch
+        {
+            AgentProblem.ServiceMissing => (AgentText.ServiceMissingCause, AgentText.ServiceMissingFix),
+            AgentProblem.ServiceStopped => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFix),
+            AgentProblem.ServiceStale => (AgentText.ServiceStaleCause, AgentText.ServiceStaleFix),
+            AgentProblem.PipeTaken => (AgentText.PipeTakenCause, AgentText.PipeTakenFix),
+            AgentProblem.DriverMissing => (AgentText.DriverMissingCause, AgentText.DriverMissingFix),
+            AgentProblem.SettingsBroken => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFix),
+            _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, "Unknown problem."),
+        };
+        return new ProblemAnswer(problem, Texts.English.Of(cause), Texts.English.Of(fix));
+    }
+}

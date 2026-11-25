@@ -20,6 +20,9 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     /// <summary>The window's single-instance mutex, which exists while the window is open.</summary>
     public const string WindowMutexName = @"Local\thermi-window";
 
+    /// <summary>The overlay's single-instance mutex, which exists while an overlay runs in this session.</summary>
+    public const string OverlayMutexName = @"Local\thermi-overlay";
+
     public static HostEnvironment Default { get; } = new(
         WindowMutexName,
         Environment.ProcessPath ?? "thermi.exe",

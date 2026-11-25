@@ -308,7 +308,7 @@ public static class SensorCatalog
         || (sensor.Id.Contains(MemoryModule, StringComparison.Ordinal)
             && Array.Exists(ModuleConstants, word => sensor.Name.Contains(word, StringComparison.Ordinal)));
 
-    private static NoValue? Why(RawSensor sensor, Reading reading) =>
+    internal static NoValue? Why(RawSensor sensor, Reading reading) =>
         SensorMap.ZeroIsMissing(sensor) ? NoValue.DriverMayBeMissing
         : reading.Usable is null ? NoValue.ReadsNothing
         : reading is not { Kind: SensorKind.Fan, Usable: 0 } ? null
