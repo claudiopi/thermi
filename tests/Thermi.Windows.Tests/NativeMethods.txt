@@ -49,3 +49,9 @@ SetKeyboardState
 GetGUIThreadInfo
 GetWindowThreadProcessId
 IsChild
+// A pipe labelled low, as a sandboxed process's
+ConvertStringSecurityDescriptorToSecurityDescriptor
+GetSecurityDescriptorSacl
+SetSecurityInfo
+SDDL_REVISION_1
+LocalFree

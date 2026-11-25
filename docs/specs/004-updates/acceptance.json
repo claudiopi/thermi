@@ -223,14 +223,14 @@
       "covers": ["R28"],
       "description": "Given a real pipe with no label and one labelled low, as a sandboxed process makes it, when the overlay reads its server, then it reads the server's image and integrity as Windows has them, and the pipe's label as medium and low.",
       "check": "ThePipesServerIsReadAsWindowsHasIt",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A33",
       "covers": ["R30"],
       "description": "Given the driver installed already, when the elevated mode's install-driver runs, then it downloads and runs nothing, and only starts the sensors again.",
       "check": "OnlyThePinnedInstallerRunsAndTheSensorsStartAgain",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A34",

@@ -3,6 +3,10 @@ using System.IO.Pipes;
 using System.Security.Principal;
 using Thermi.Core.Install;
 using Thermi.Install;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.Security;
+using Windows.Win32.Security.Authorization;
 
 namespace Thermi.Windows.Tests.Overlay;
 
@@ -20,19 +24,45 @@ public sealed class UserPipeTrustTests
     {
         var name = $"thermi-test-{Guid.NewGuid():N}";
         using var user = WindowsIdentity.GetCurrent();
-        var security = new PipeSecurity();
-        security.SetSecurityDescriptorSddlForm($"O:{user.User!.Value}D:(A;;GA;;;{user.User.Value}){label}");
         await using var server = NamedPipeServerStreamAcl.Create(
-            name, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, security);
+            name, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, null, HandleInheritability.None,
+            PipeAccessRights.ChangePermissions | PipeAccessRights.TakeOwnership);
+        if (label.Length > 0)
+        {
+            Label(server, label);
+        }
+
         var waiting = server.WaitForConnectionAsync(TestContext.Current.CancellationToken);
         await using var client = new NamedPipeClientStream(".", name, PipeDirection.In, PipeOptions.Asynchronous);
         await client.ConnectAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         await waiting;
 
-        var seen = SensorPipes.ServerOf(client, user.User.Value);
+        var seen = SensorPipes.ServerOf(client, user.User!.Value);
 
         using var self = Process.GetCurrentProcess();
         Assert.Equal((self.MainModule!.FileName, read), (seen?.Image, seen?.Label));
         Assert.True(seen!.Integrity >= UserHost.Medium);
+    }
+
+    // A label below the process's own, which its owner may set on the pipe after it is made.
+    private static unsafe void Label(NamedPipeServerStream pipe, string sddl)
+    {
+        Assert.True(TestPInvoke.ConvertStringSecurityDescriptorToSecurityDescriptor(sddl, TestPInvoke.SDDL_REVISION_1, out var descriptor, out _));
+        try
+        {
+            BOOL present;
+            BOOL defaulted;
+            ACL* sacl;
+            Assert.True(TestPInvoke.GetSecurityDescriptorSacl(descriptor, &present, &sacl, &defaulted));
+#pragma warning disable S3869 // CsWin32's overload that takes the handle safely copies only the list's header, which Windows refuses.
+            Assert.Equal(WIN32_ERROR.ERROR_SUCCESS, TestPInvoke.SetSecurityInfo(
+                (HANDLE)pipe.SafePipeHandle.DangerousGetHandle(), SE_OBJECT_TYPE.SE_KERNEL_OBJECT, OBJECT_SECURITY_INFORMATION.LABEL_SECURITY_INFORMATION,
+                default, default, null, sacl));
+#pragma warning restore S3869
+        }
+        finally
+        {
+            TestPInvoke.LocalFree((HLOCAL)descriptor.Value);
+        }
     }
 }
