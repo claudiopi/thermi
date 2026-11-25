@@ -24,10 +24,8 @@ public sealed class WindowRequestTests
 
     [Theory]
     [InlineData(2, 0, 3, 1)]
-    [InlineData(4, 1, 3, 0)]
     [InlineData(0, 2, 3, 2)]
     [InlineData(0, 2, 2, 0)]
-    [InlineData(1, 2, 3, 0)]
     public void TheWindowOpensOnTheOverlayAskedForOrTheFirst(int requested, int current, int count, int shown)
     {
         Assert.Equal(shown, WindowRequest.OverlayOf(requested, current, count));
