@@ -30,6 +30,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     {
         if (sensors.Latest is { } snapshot)
         {
+            chart.Follow(editor.Config, ReadBefore);
             chart.Items.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))]);
         }
     }
@@ -37,7 +38,21 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     /// <summary>The window's history of its items, the overlay's taken in, for their minimum, maximum, average and smoothing.</summary>
     public ItemHistory Own => chart.Items;
 
-    public IReadOnlyList<double?> History(string id) => chart.Of(id, chart.Items.TenMinutes(id));
+    // An edit or its undo that changes what an item meters shows at once, never with the seconds of what it metered before.
+    public IReadOnlyList<double?> History(string id)
+    {
+        chart.Follow(editor.Config, ReadBefore);
+        return chart.Of(id, chart.Items.TenMinutes(id));
+    }
+
+    // What the window read of an item's new meter since it opened: a sensor or a metric, which it keeps every second, the
+    // item's offset added to its own reading as the item meters it; nothing for sensors combined.
+    private IReadOnlyList<double?>? ReadBefore(ItemConfig item)
+    {
+        var meter = item.WarnBy ?? (item.Sensors is null ? Threshold.Own(item) : null);
+        var offset = item.WarnBy is null ? item.Offset : 0;
+        return (meter?.Sensor ?? meter?.Metric) is { } id ? [.. readings.History.TenMinutes(id).Select(value => value + offset)] : null;
+    }
 
     /// <summary>An item's line as the overlay draws it: the last minute of its chart, so it shows whole from the window's opening.</summary>
     public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) => ItemHistory.GraphOf(item, History(item.Id));

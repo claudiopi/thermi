@@ -87,7 +87,7 @@ export type Edit =
   | { kind: 'overlay'; overlay: number; field: string; value: Value }
   | { kind: 'style'; overlay: number; field: string; value: Value }
   | { kind: 'item'; item: string; field: string; value: Value }
-  | { kind: 'look'; overlay: number | null; name: string }
+  | { kind: 'look'; overlay: number | null; name: string | null }
   | { kind: 'addItem'; overlay: number; sensor: string }
   | { kind: 'removeItem'; item: string }
   | { kind: 'moveItem'; item: string; overlay: number | null; index: number }

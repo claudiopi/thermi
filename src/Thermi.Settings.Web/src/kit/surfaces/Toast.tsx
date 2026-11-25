@@ -1,5 +1,5 @@
 import { makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
-import { useLayoutEffect, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { space, surface } from '../theme/look';
 
 export interface ToastProps {
@@ -37,20 +37,48 @@ const useStyles = makeStyles({
   actions: { display: 'flex', alignItems: 'center', gap: '8px', paddingInlineStart: '8px' },
 });
 
+const clearance = 16;
+
 /**
- * Passing news floating at the foot of the page, under any dialog, which moves nothing and takes no focus; the control
- * that has the focus is scrolled clear of it as it comes.
+ * Passing news floating at the foot of the page, under any dialog, which moves nothing and takes no focus. Where the
+ * control that has the focus lies in the foot's band, it floats at the top instead, marked `data-at="top"`, so the page
+ * never scrolls for it; only where the control fills both bands is it scrolled clear.
  */
 export function Toast({ message, actions, onHold, className }: ToastProps) {
   const styles = useStyles();
+  const region = useRef<HTMLDivElement>(null);
   const shown = message !== undefined;
   useLayoutEffect(() => {
-    if (shown && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
-      document.activeElement.scrollIntoView({ block: 'nearest' });
+    const room = region.current;
+    if (room === null) {
+      return undefined;
     }
+    const place = (focused: Element | null, clear: boolean): void => {
+      delete room.dataset['at'];
+      if (!shown || !(focused instanceof HTMLElement) || focused === document.body) {
+        return;
+      }
+      const band = room.offsetHeight + clearance;
+      const at = focused.getBoundingClientRect();
+      const inFoot = at.bottom > window.innerHeight - band;
+      if (inFoot && at.top > band) {
+        room.dataset['at'] = 'top';
+      } else if (inFoot && clear) {
+        focused.scrollIntoView({ block: 'nearest' });
+      }
+    };
+    place(document.activeElement, true);
+    // The focus moving on, to another page or up the list, takes the toast back to the foot, off the title it would hide.
+    const moved = (event: FocusEvent): void => {
+      if (!(event.target instanceof Node && room.contains(event.target))) {
+        place(event.target instanceof Element ? event.target : null, false);
+      }
+    };
+    document.addEventListener('focusin', moved);
+    return () => document.removeEventListener('focusin', moved);
   }, [shown, message]);
   return (
-    <div role="status" className={mergeClasses(styles.region, className)}>
+    <div ref={region} role="status" className={mergeClasses(styles.region, className)}>
       {message !== undefined && (
         <div
           className={styles.toast}

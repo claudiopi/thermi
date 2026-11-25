@@ -18,7 +18,7 @@ namespace Thermi.Painting;
 /// </param>
 internal sealed class Painter(bool reuse = false) : IDisposable
 {
-    private const float Height = 38;
+    private const float Height = OverlayLook.PillHeight;
     private const float InnerPadding = 10;
     private const float LabelGap = 10;
     private const float MeterGap = 6;
@@ -85,8 +85,9 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     private static List<Pill> PillsOf(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, PainterFonts fonts, Graphics measure)
     {
         var runs = OverlayLayout.InnerPills(items, look.Layout);
+        var up = runs is not null && look.Orientation == Orientation.Vertical;
         return [.. OverlayLayout.Groups(items, look.Layout, look.Labels)
-            .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale) { Runs = runs })];
+            .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale) { Runs = runs, Stacked = up })];
     }
 
     /// <summary>
@@ -104,7 +105,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     private static (int Width, int Height, Arrangement Arranged) SizeOf(List<Pill> pills, OverlayLook look, float scale)
     {
         var height = Math.Ceiling(Height * scale);
-        var arranged = look.Arrange([.. pills.Select(pill => (double)pill.Width)], height, scale);
+        var arranged = look.Arrange([.. pills.Select(pill => (double)pill.Width)], height, scale, [.. pills.Select(pill => pill.HeightOf(height))]);
         return (Math.Max((int)height, (int)Math.Ceiling(arranged.Width)), Math.Max((int)height, (int)Math.Ceiling(arranged.Height)), arranged);
     }
 
@@ -164,7 +165,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             g.SmoothingMode = SmoothingMode.AntiAlias;
             for (var p = 0; p < pills.Count; p++)
             {
-                PainterShapes.Pill(g, look, boxes[p], scale);
+                PainterShapes.Pill(g, look, boxes[p], scale, (float)Math.Ceiling(Height * scale));
                 var inner = pills[p].Runs is null ? [] : pills[p].PartsIn(boxes[p]);
                 foreach (var part in inner)
                 {
@@ -198,10 +199,11 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         }
     }
 
-    // Each item's place is as tall as its pill, so a drag of a run carries it off.
-    private void DrawPart(Graphics g, Pill pill, Part part, RectangleF box, OverlayLook look, float scale)
+    // Each item's place is as tall as its pill, or its row of a standing bar, so a drag of a run carries it off.
+    private void DrawPart(Graphics g, Pill pill, Part part, RectangleF outer, OverlayLook look, float scale)
     {
         var gap = ItemGap * scale;
+        var box = pill.Stacked ? part.Box : outer;
         var x = part.Start;
         for (var i = part.First; i < part.First + part.Count; i++)
         {
@@ -352,9 +354,19 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         /// <summary>In a single bar, how many of its items each pill inside it holds; null for a pill that holds none.</summary>
         public IReadOnlyList<int>? Runs { get; init; }
 
-        public float Width => (PainterShapes.OuterPadding * 2 * Scale)
-            + Spans.Sum(span => SpanWidth(span.First, span.Count))
-            + (InnerPillGap * Scale * Math.Max(0, Spans.Count - 1));
+        /// <summary>Whether a single bar stands, its pills stacked from top to bottom, all as wide as the widest.</summary>
+        public bool Stacked { get; init; }
+
+        private float Padding => PainterShapes.OuterPadding * Scale;
+
+        private float InnerGap => InnerPillGap * Scale;
+
+        public float Width => Stacked
+            ? (Padding * 2) + Spans.Max(span => SpanWidth(span.First, span.Count))
+            : (Padding * 2) + Spans.Sum(span => SpanWidth(span.First, span.Count)) + (InnerGap * Math.Max(0, Spans.Count - 1));
+
+        /// <summary>Its height, where a pill in a row is <paramref name="row"/> tall: a standing bar's holds each of its pills as a row does.</summary>
+        public double HeightOf(double row) => Stacked ? (Spans.Count * (row - (2 * Padding))) + (2 * Padding) + (InnerGap * (Spans.Count - 1)) : row;
 
         private List<(int First, int Count)> Spans =>
             Runs is null ? [(0, Items.Count)] : [.. Runs.Select((count, at) => (Runs.Take(at).Sum(), count))];
@@ -362,19 +374,20 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         /// <summary>The pill at <paramref name="box"/> itself, or each pill a single bar holds inside its padding.</summary>
         public List<Part> PartsIn(RectangleF box)
         {
-            var padding = PainterShapes.OuterPadding * Scale;
             if (Runs is null)
             {
-                return [new Part(box, box.Left + padding + (InnerPadding * Scale), 0, Items.Count)];
+                return [new Part(box, box.Left + Padding + (InnerPadding * Scale), 0, Items.Count)];
             }
 
+            var spans = Spans;
             var parts = new List<Part>();
-            var left = box.Left + padding;
-            foreach (var (first, count) in Spans)
+            var tall = Stacked ? (box.Height - (2 * Padding) - (InnerGap * (spans.Count - 1))) / spans.Count : box.Height - (2 * Padding);
+            var (left, top) = (box.Left + Padding, box.Top + Padding);
+            foreach (var (first, count) in spans)
             {
-                var width = SpanWidth(first, count);
-                parts.Add(new Part(new RectangleF(left, box.Top + padding, width, box.Height - (2 * padding)), left + (InnerPadding * Scale), first, count));
-                left += width + (InnerPillGap * Scale);
+                var width = Stacked ? box.Width - (2 * Padding) : SpanWidth(first, count);
+                parts.Add(new Part(new RectangleF(left, top, width, tall), left + (InnerPadding * Scale), first, count));
+                (left, top) = Stacked ? (left, top + tall + InnerGap) : (left + width + InnerGap, top);
             }
 
             return parts;
@@ -383,11 +396,4 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         private float SpanWidth(int first, int count) =>
             (InnerPadding * 2 * Scale) + ItemWidths.Skip(first).Take(count).Sum() + (ItemGap * Scale * Math.Max(0, count - 1));
     }
-}
-
-/// <summary>Where an item was drawn, half the gap to its neighbors included, and where its value was, in the bitmap's pixels.</summary>
-internal sealed record PaintedItem(string Id, RectangleF Item, RectangleF Value)
-{
-    /// <summary>The pill the item was drawn in, which a drag of it carries off.</summary>
-    public RectangleF Pill { get; init; }
 }

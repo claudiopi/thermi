@@ -223,6 +223,20 @@ body:has([data-modal]) .t-title::after {
   padding-bottom: 88px;
 }
 
+/* With the focused control in the foot's band, the toast floats at the pane's top and hides that band instead, so the
+   page never scrolls for it. */
+.t-toast-room[data-at='top'] {
+  align-self: start;
+  margin-top: 8px;
+  padding-top: 16px;
+  padding-bottom: 0;
+}
+
+.t-window:has(.t-toast-room[data-at='top']:not(:empty)) .t-pane {
+  scroll-padding-bottom: 0;
+  clip-path: inset(72px 0 0 0);
+}
+
 .t-pane-in {
   padding: 8px 24px 24px 16px;
 }

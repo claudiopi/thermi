@@ -49,6 +49,7 @@ internal sealed class OverlayHost : IDisposable
 
     // Every paint, the once-a-second one included, goes through it, and each comes out on the window's thread.
     private readonly Throttle<bool> _paints;
+    private bool _paintedSinceTick;
 
     // Held in a field so the garbage collector never frees it while Windows still calls it.
     private readonly WNDPROC _procedure;
@@ -293,8 +294,11 @@ internal sealed class OverlayHost : IDisposable
             _hotkeys?.Rest(false);
         }
 
-        RequestPaint();
         Raise();
+        if (!Interlocked.Exchange(ref _paintedSinceTick, false))
+        {
+            RequestPaint();
+        }
     }
 
     private void Pressed(int id)
@@ -332,6 +336,8 @@ internal sealed class OverlayHost : IDisposable
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint
         // found it: one a second at least, so asking Windows again for each reading would only repeat it.
         Tray?.Critical(config, snapshot, _fullScreen);
+        _paintedSinceTick = true;
+        RequestPaint();
     }
 
     private void Repaint()

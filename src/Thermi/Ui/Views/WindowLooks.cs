@@ -37,10 +37,16 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
 
     public string? Delete(string name) => Files(() => saved.Delete(name));
 
-    /// <summary>A saved look worn by one overlay, or by every overlay when none is named, as one step.</summary>
+    /// <summary>
+    /// A saved look, or the Default look without a name, as the overlay's menu wears it, worn by one overlay, or by every
+    /// overlay when none is named, as one step.
+    /// </summary>
     public string? Wear(LookEdit look)
     {
-        if (saved.List().FirstOrDefault(style => string.Equals(style.Name, look.Name, StringComparison.OrdinalIgnoreCase)) is not { } style)
+        var style = look.Name is null
+            ? new StyleConfig()
+            : saved.List().FirstOrDefault(style => string.Equals(style.Name, look.Name, StringComparison.OrdinalIgnoreCase));
+        if (style is null)
         {
             return Texts.Key(Refusal.StyleNotFound);
         }

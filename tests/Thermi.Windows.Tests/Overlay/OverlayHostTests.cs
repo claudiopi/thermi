@@ -49,6 +49,38 @@ public sealed class OverlayHostTests : IDisposable
         Assert.Equal((2, 2, true, 1), (shown, places, answered, after));
     }
 
+    // Night QA: the overlay painted on its own second's tick, so the window, which shows each snapshot as it comes, could
+    // show the next one. A snapshot shows on the overlay as it comes, before any tick.
+    [Fact]
+    public async Task ASnapshotShowsOnTheOverlayAsItComes()
+    {
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en" });
+        var now = HostRun.Recorded;
+        var (before, after) = ("", "");
+
+        HostRun.Run(settings, _folder, _tray.Environment(_windowMutex), host =>
+        {
+            string Shown()
+            {
+                _folder.Clock.Advance(Settings.Interval);
+                HostRun.Pump(host);
+                using var picture = host.Overlays[0].Picture();
+                using var png = new MemoryStream();
+                picture?.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+                return Convert.ToBase64String(png.ToArray());
+            }
+
+            HostRun.Tick(host);
+            before = Shown();
+            now = HostRun.Warmer;
+            host.Arrived();
+            HostRun.Pump(host);
+            after = Shown();
+        }, () => now);
+
+        Assert.NotEqual(before, after);
+    }
+
     // What each press decides is Core's; one press proves the hotkey reaches every overlay.
     [Fact]
     public async Task TheHideHotkeyHidesEveryOverlay()

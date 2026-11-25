@@ -217,7 +217,8 @@ public static class Menus
     {
         var shown = config.Overlays[overlay];
         var rows = new List<MenuRow>();
-        if (pill is not null && DesktopGestures.CanTakeOff(config, overlay, pill))
+        // A locked overlay holds its pills as it holds itself, as a hold to lift one shows.
+        if (pill is not null && !shown.Locked && DesktopGestures.CanTakeOff(config, overlay, pill))
         {
             rows.Add(new MenuRow(MenuEntry.Separate) { Item = pill });
         }

@@ -29,11 +29,14 @@ internal static class PainterShapes
 
     public static Color Drawn(Rgb color) => Color.FromArgb(color.R, color.G, color.B);
 
-    /// <summary>A pill drawn opaque and flat: its color inside its border, with the look's corners.</summary>
-    public static void Pill(Graphics g, OverlayLook look, RectangleF box, float scale)
+    /// <summary>
+    /// A pill drawn opaque and flat: its color inside its border, with the look's corners, those of a pill
+    /// <paramref name="row"/> tall at most, so a standing bar curves as the pills it holds.
+    /// </summary>
+    public static void Pill(Graphics g, OverlayLook look, RectangleF box, float scale, float row)
     {
         var outer = new RectangleF(box.Left + 0.5f, box.Top + 0.5f, box.Width - 1, box.Height - 1);
-        using var outerPath = Rounded(outer, (float)look.Radius(outer.Height));
+        using var outerPath = Rounded(outer, (float)look.Radius(Math.Min(box.Height, row) - 1));
         using var outerBrush = new SolidBrush(Drawn(look.Pills.Outer));
         using var border = new Pen(Drawn(look.Pills.Border), Math.Max(1, scale));
         g.FillPath(outerBrush, outerPath);

@@ -92,10 +92,15 @@ public sealed class MenuTests
         "update",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update | Exit",
         $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
-    // On a pill: of several, locked or not, on the taskbar or the desktop, it can be separated; not the overlay's only pill,
-    // nor once no other overlay fits, nor while the overlay is hidden.
+    // On a pill: of several, on the taskbar or the desktop, it can be separated; not the overlay's only pill, nor once no
+    // other overlay fits, nor while the overlay is hidden or locked, which a hold to lift the pill is not either.
     [InlineData(
         "{}",
+        "on:gpu.load",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"EditItem* Settings | Separate {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    [InlineData(
+        "{'position':{'x':100,'y':100}}",
         "on:gpu.load",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
         $"EditItem* Settings | Separate {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
@@ -103,7 +108,7 @@ public sealed class MenuTests
         "{'locked':true,'position':{'x':100,'y':100}}",
         "on:gpu.load",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock+ HideOverlays | Exit",
-        $"EditItem* Settings | Separate {Graph} Vertical Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
+        $"EditItem* Settings | {Graph} Vertical Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature'},{'id':'cpu.load','metric':'cpu.load'}]}",
         "on:cpu.load",
@@ -162,13 +167,19 @@ public sealed class MenuTests
     }
 
     // Each entry of one menu gets its own key, from the start of a word first, whatever its case or language, and an
-    // entry without a letter or a digit left gets none; an "&" of the text stays one.
+    // entry without a letter or a digit left gets none, nor a grayed one, written after "-", which nothing chooses; an
+    // "&" of the text stays one.
     [Theory]
     [InlineData("Alpha one|Alpha two|beta|Ölfarbe|öl", "&Alpha one|Alpha &two|&beta|&Ölfarbe|ö&l")]
     [InlineData("R&D|Rd|…", "&R&&D|R&d|…")]
     [InlineData("ab|ba|ab", "&ab|&ba|ab")]
-    public void EachEntryOfAMenuHasItsOwnAccessKey(string texts, string marked) =>
-        Assert.Equal(marked, string.Join('|', AccessKeys.Mark(texts.Split('|'))));
+    [InlineData("Line|-Some & own|Settings", "&Line|Some && own|&Settings")]
+    public void EachEntryOfAMenuHasItsOwnAccessKey(string texts, string marked)
+    {
+        var entries = texts.Split('|');
+        var grayed = entries.Select(entry => entry.StartsWith('-')).ToArray();
+        Assert.Equal(marked, string.Join('|', AccessKeys.Mark([.. entries.Select(entry => entry.TrimStart('-'))], grayed)));
+    }
 
     private static string Describe(IReadOnlyList<MenuRow> rows) => string.Join(' ', rows.Select((row, at) => string.Concat(
         row.Starts && at > 0 ? "| " : "",

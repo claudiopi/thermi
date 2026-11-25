@@ -57,7 +57,7 @@ internal static class ThermiMenus
 
     private static void Fill(SafeHandle menu, IReadOnlyList<MenuRow> rows, MenuPlace place, List<MenuRow> all, bool submenu)
     {
-        var texts = AccessKeys.Mark([.. rows.Select(row => TextOf(row, place, submenu))]);
+        var texts = AccessKeys.Mark([.. rows.Select(row => TextOf(row, place, submenu))], [.. rows.Select(row => row.Heading)]);
         for (var at = 0; at < rows.Count; at++)
         {
             var row = rows[at];

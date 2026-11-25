@@ -4,6 +4,7 @@ using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Messages;
+using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
 namespace Thermi.Tests.Bridge;
@@ -95,6 +96,45 @@ public sealed class BridgeTests
 
         Assert.Equal(600, values.Count);
         Assert.Equal(expected, values[at]);
+    }
+
+    // An item's chart, and its minimum, after what it meters or reads changes and back by undo: only seconds of the reading
+    // it draws now, what the overlay sent and the window kept of the one before dropped, and what the window read of the new
+    // one taken in. RAM used, 30 GB, meters its load, 56 %, then nothing; the CPU temperature, 70 °C, reads a DIMM, 34 °C.
+    [Fact]
+    public void AChartDrawsOnlyTheReadingItShows()
+    {
+        var time = new FakeTimeProvider();
+        var chart = new ChartHistory(time);
+        var ram = new ItemConfig { Id = "ram", Metric = Metrics.RamUsed.Id, WarnBy = new WarnByConfig { Metric = Metrics.RamLoad.Id } };
+        var cpu = new ItemConfig { Id = "cpu", Metric = Metrics.CpuTemperature.Id, Stat = ItemStat.Min };
+        var before = new OverlayConfig { Items = [ram, cpu] };
+        var after = new OverlayConfig { Items = [ram with { WarnBy = null }, cpu with { Metric = null, Sensor = "dimm", Auto = Metrics.CpuTemperature.Id }] };
+        var readings = new Dictionary<string, Reading>(StringComparer.Ordinal)
+        {
+            [Metrics.RamUsed.Id] = new(Metrics.RamUsed.Kind, 30),
+            [Metrics.RamLoad.Id] = new(SensorKind.Load, 56),
+            [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 70),
+            ["dimm"] = new(SensorKind.Temperature, 34),
+        };
+        chart.Take(new History([new Thermi.Core.Messages.ItemHistory("ram", time.GetTimestamp(), [.. Enumerable.Repeat(56f, 600)])]));
+        string Drawn(OverlayConfig overlay)
+        {
+            for (var second = 0; second < 3; second++)
+            {
+                chart.Follow(new ThermiConfig { Overlays = [overlay] }, item => [readings[item.WarnBy?.Metric ?? item.Sensor ?? item.Metric!].Value]);
+                chart.Items.Add(overlay, readings);
+                time.Advance(TimeSpan.FromSeconds(1));
+            }
+
+            var shown = chart.Items.Shown(overlay.Items[1], new Reading(SensorKind.Temperature, 70))?.Value;
+            return string.Join(
+                ' ',
+                overlay.Items.Select(item => string.Join(',', chart.Of(item.Id, chart.Items.TenMinutes(item.Id)).OfType<double>().Distinct())))
+                + $" min {shown}";
+        }
+
+        Assert.Equal(["56 70 min 70", "30 34 min 34", "56 70 min 70"], new[] { before, after, before }.Select(Drawn));
     }
 
     /// <summary>A bridge whose every answer is fixed, which echoes the edit it was given.</summary>

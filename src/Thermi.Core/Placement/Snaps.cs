@@ -1,3 +1,4 @@
+using Thermi.Core.Look;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Placement;
@@ -92,6 +93,18 @@ public static class Snaps
         var (x, y) = overlay.Oled ? OledCare.Shift(spot, running) : (0, 0);
         return new Position(place.X + x, place.Y + y);
     }
+
+    /// <summary>
+    /// The size an overlay shows at: its own, but on a taskbar at most what keeps it within the taskbar's height, as a pill
+    /// <see cref="OverlayLook.PillHeight"/> pixels high at 100 % grows with it, so it is never cut.
+    /// </summary>
+    public static double SizeShown(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
+        overlay.Snapped is { Spot: SnapSpot.Taskbar } snap
+        && overlay.Style.Orientation == Orientation.Horizontal
+        && ScreenOf(snap, screens) is { } screen
+        && TaskbarOf(screen) is { } bar
+            ? Math.Min(overlay.Size, (bar.Height - 0.01) / (OverlayLook.PillHeight * screen.Scale))
+            : overlay.Size;
 
     /// <summary>The monitor a snap shows on: the one it names, or the primary one when it names none or one not connected; null with none.</summary>
     public static Screen? ScreenOf(SnapConfig snap, IReadOnlyList<Screen> screens) =>

@@ -69,11 +69,14 @@ function stretches(plot: Plot): Stretch[] {
       runs.push({ path: `M${point[0].toFixed(1)},${point[1].toFixed(1)}`, from: point[0], to: point[0] });
       return;
     }
-    // Catmull-Rom through the neighbours, as cubic Béziers, so the line bends without overshooting much.
+    // Catmull-Rom through the neighbours, as cubic Béziers, each bend held between its two readings, so the line never
+    // swings past them, under the floor of a fan stopped or over 100 %.
     const earlier = points[index - 2] ?? before;
     const after = points[index + 1] ?? point;
-    const c1 = [before[0] + (point[0] - earlier[0]) / 6, before[1] + (point[1] - earlier[1]) / 6];
-    const c2 = [point[0] - (after[0] - before[0]) / 6, point[1] - (after[1] - before[1]) / 6];
+    const [low, high] = [Math.min(before[1], point[1]), Math.max(before[1], point[1])];
+    const held = (y: number): number => Math.min(high, Math.max(low, y));
+    const c1 = [before[0] + (point[0] - earlier[0]) / 6, held(before[1] + (point[1] - earlier[1]) / 6)];
+    const c2 = [point[0] - (after[0] - before[0]) / 6, held(point[1] - (after[1] - before[1]) / 6)];
     run.path += `C${c1.map((n) => n.toFixed(1)).join(',')} ${c2.map((n) => n.toFixed(1)).join(',')} ${point[0].toFixed(1)},${point[1].toFixed(1)}`;
     run.to = point[0];
   });

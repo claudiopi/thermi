@@ -24,6 +24,7 @@ public sealed class ItemHistory(TimeProvider time)
     private readonly SensorHistory _values = new(time, Kept);
     private readonly SensorHistory _meters = new(time, SensorHistory.Kept);
     private readonly Dictionary<string, Stats> _stats = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Value, string Meter)> _sources = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Keeps what each item of every overlay reads now, each overlay with its own readings, and its meter: once per fresh
@@ -31,6 +32,7 @@ public sealed class ItemHistory(TimeProvider time)
     /// </summary>
     public void Add(IReadOnlyList<(OverlayConfig Overlay, IReadOnlyDictionary<string, Reading> Readings)> overlays)
     {
+        Follow(overlays.SelectMany(overlay => overlay.Overlay.Items));
         var values = new Dictionary<string, Reading>(StringComparer.Ordinal);
         var meters = new Dictionary<string, Reading>(StringComparer.Ordinal);
         foreach (var (overlay, readings) in overlays)
@@ -52,6 +54,11 @@ public sealed class ItemHistory(TimeProvider time)
             _stats.Remove(id);
         }
 
+        foreach (var id in _sources.Keys.Where(id => !ids.Contains(id)).ToList())
+        {
+            _sources.Remove(id);
+        }
+
         foreach (var item in overlays.SelectMany(overlay => overlay.Overlay.Items))
         {
             if (Smoothed(item) is { } value)
@@ -63,6 +70,47 @@ public sealed class ItemHistory(TimeProvider time)
 
     /// <summary>As <see cref="Add(IReadOnlyList{ValueTuple{OverlayConfig, IReadOnlyDictionary{string, Reading}}})"/>, with one overlay.</summary>
     public void Add(OverlayConfig overlay, IReadOnlyDictionary<string, Reading> readings) => Add([(overlay, readings)]);
+
+    /// <summary>
+    /// Follows what each of <paramref name="items"/> reads: one that reads another value or meter than it last did, by an
+    /// edit or its undo, forgets the seconds, minimum, maximum and average it kept of the one before, so no chart, graph or
+    /// statistic mixes two readings. Gives the items whose meter changed.
+    /// </summary>
+    public IReadOnlyList<ItemConfig> Follow(IEnumerable<ItemConfig> items)
+    {
+        var changed = new List<ItemConfig>();
+        foreach (var item in items)
+        {
+            var source = SourceOf(item);
+            if (_sources.TryGetValue(item.Id, out var was) && was.Value != source.Value)
+            {
+                _values.Forget(item.Id);
+                _stats.Remove(item.Id);
+            }
+
+            if (was.Meter is not null && was.Meter != source.Meter)
+            {
+                _meters.Forget(item.Id);
+                changed.Add(item);
+            }
+
+            _sources[item.Id] = source;
+        }
+
+        return changed;
+    }
+
+    /// <summary>Starts an item's meter again from <paramref name="values"/>, a value a second, oldest first and ending now, as read elsewhere.</summary>
+    public void Refill(string id, IReadOnlyList<double?> values) =>
+        _meters.Seed(id, [.. values.Select(value => value ?? double.NaN)], time.GetTimestamp());
+
+    // What an item's value and its meter are read from. An offset corrects the same sensor, so its seconds stay.
+    private static (string Value, string Meter) SourceOf(ItemConfig item)
+    {
+        var value = string.Join('|', item.Metric, item.Auto, item.Sensor, item.Sensors is { } sensors ? string.Join(',', sensors) : null, item.Combine);
+        return (value, item.WarnBy is { } other ? string.Join('|', "by", other.Metric, other.Sensor, other.Auto) : value);
+    }
+
 
     /// <summary>After a reset, so an open window starts its minimums, maximums and averages again with the overlay's.</summary>
     public event EventHandler? WasReset;

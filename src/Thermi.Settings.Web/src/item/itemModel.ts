@@ -27,6 +27,15 @@ export function placeOf(settings: Settings, view: WindowView, id: string): Place
   return null;
 }
 
+/**
+ * Whether "Separate pill" is offered: not on a pill's first item, which starts one already, nor while the overlay lays its
+ * items out in one bar or one pill each, which ignore it, unless it is on, so it can be turned off.
+ */
+export function offersOwnPill(settings: Settings, overlay: number, item: Item | undefined, firstOfPill: boolean): boolean {
+  const layout = settings.overlays[overlay]?.style?.layout ?? 'pills';
+  return item?.own === true || (!firstOfPill && layout === 'pills');
+}
+
 const followsDevice = ['Network', 'Storage'];
 
 /** The Sensor dropdown's last choice while other devices' sensors wait, which lists them; no sensor has it. */

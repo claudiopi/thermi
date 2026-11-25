@@ -245,22 +245,26 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     }
 
     /// <summary>
-    /// "Separate" from the overlay's menu, as one gesture; <paramref name="box"/> is the pill's in the overlay's pixels,
-    /// empty when it was not drawn.
+    /// "Separate" from the overlay's menu, as one gesture: the pill lands as the overlay a drag of it carries, at its size;
+    /// nothing before the overlay first painted.
     /// </summary>
-    public void Separate(string pill, RectangleF box, IReadOnlyList<Screen> screens)
+    public void Separate(string pill, PaintedOverlay? painted, IReadOnlyList<Screen> screens)
     {
+        if (painted is null)
+        {
+            return;
+        }
+
         PInvoke.GetWindowRect(hwnd, out var rect);
         var shown = new PixelRect(rect.left, rect.top, rect.right, rect.bottom);
-        var drawn = box.IsEmpty
-            ? shown
-            : new PixelRect(
-                rect.left + (int)box.Left,
-                rect.top + (int)box.Top,
-                rect.left + (int)Math.Ceiling(box.Right),
-                rect.top + (int)Math.Ceiling(box.Bottom));
+        Size made;
+        using (var picture = PillPicture(pill, painted))
+        {
+            made = picture.Size;
+        }
+
         var before = settings.Config;
-        var drop = DesktopGestures.Separate(before, index, pill, shown, drawn, screens);
+        var drop = DesktopGestures.Separate(before, index, pill, shown, (made.Width, made.Height), screens);
         if (drop.Result.Refused is null && ConfigEdits.Replay(before, drop.Result.Config) is { } change)
         {
             settings.Edit(change);

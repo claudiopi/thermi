@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, type RefObject } from 'react';
 
 /**
  * Puts the focus on an element as a menu or dialog opens. Fluent focuses the first element in its own effect, which
@@ -13,25 +13,28 @@ export function useFocusOnOpen(open: boolean, target: RefObject<HTMLElement | nu
 }
 
 /**
- * Gives the focus back to what had it when a dialog opened, once it closes, unless the action that closed it already
- * put the focus outside the dialog. The opener is read in a layout effect, before Fluent moves the focus in.
+ * Gives the focus back to what had it when a dialog opened, once it closes or goes, unless the action that closed it
+ * already put the focus outside the dialog. The opener is read in a layout effect, before Fluent moves the focus in, and
+ * the focus goes back before the dialog leaves the page, so Fluent never sends it to a control it last remembered.
  */
 export function useFocusBack(open: boolean, surface: RefObject<HTMLElement | null>): void {
-  const opener = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
-    if (open) {
-      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      return;
+    if (!open) {
+      return undefined;
     }
-    const back = opener.current;
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const inside = surface.current;
-    opener.current = null;
-    queueMicrotask(() => {
+    const giveBack = (): void => {
       const active = document.activeElement;
-      const lost = active === null || active === document.body || inside?.contains(active) === true;
+      const lost = active === null || active === document.body || inside?.contains(active) === true || surface.current?.contains(active) === true;
       if (lost && back?.isConnected === true) {
         back.focus();
       }
-    });
+    };
+    return () => {
+      // Once more after the close, for an opener that could not take the focus yet, as one under a panel still inert.
+      giveBack();
+      queueMicrotask(giveBack);
+    };
   }, [open, surface]);
 }

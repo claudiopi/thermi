@@ -75,6 +75,8 @@ describe('the chart', () => {
     { readings: [100, null, 0], path: '' },
     { readings: [null, 100, 0], path: 'M150.0,12.0C175.0,28.7 275.0,95.3 300.0,112.0' },
     { readings: [100, 50, 0, 50], path: 'M0.0,12.0C16.7,20.3 66.7,45.3 100.0,62.0C133.3,78.7 166.7,112.0 200.0,112.0C233.3,112.0 283.3,70.3 300.0,62.0' },
+    // Night QA: a fan's dip to 0 RPM bent the curve under the chart's floor; each bend stays between its two readings.
+    { readings: [100, 0, 0, 100], path: 'M0.0,12.0C16.7,28.7 66.7,95.3 100.0,112.0C133.3,112.0 166.7,112.0 200.0,112.0C233.3,95.3 283.3,28.7 300.0,12.0' },
   ])('draws the readings $readings', ({ readings, path }) => {
     expect(plotPaths(plot({ readings })).line).toBe(path);
   });

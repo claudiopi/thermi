@@ -88,12 +88,12 @@ internal sealed class OverlayWindow : IDisposable
     };
 
     /// <summary>
-    /// The scale the overlay is drawn at, times its own size: the monitor's it is about to show on among
+    /// The scale the overlay is drawn at, times the size it shows at: the monitor's it is about to show on among
     /// <paramref name="screens"/>, so a snap to a monitor of another scale paints right at once, or its window's,
     /// <paramref name="dpi"/>, while it knows none.
     /// </summary>
     internal static float ScaleOf(uint dpi, OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
-        (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * overlay.Size);
+        (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * Snaps.SizeShown(overlay, screens));
 
     public void Dispose()
     {
@@ -384,8 +384,7 @@ internal sealed class OverlayWindow : IDisposable
         _tips.Quiet(false);
     }
 
-    internal void Separate(string item) =>
-        _gestures.Separate(item, _painter.Places.FirstOrDefault(place => place.Id == item)?.Pill ?? RectangleF.Empty, _scene?.Screens ?? []);
+    internal void Separate(string item) => _gestures.Separate(item, _painted, _scene?.Screens ?? []);
 
     /// <summary>
     /// The overlay as its last paint drew it, painted afresh without what only the open window or a broken file adds; the

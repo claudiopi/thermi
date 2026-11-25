@@ -5,7 +5,7 @@ import { SwitchLine, type SwitchLineProps } from '../app/SwitchLine';
 import { Card, CardRow, Dropdown, TextField, type Find } from '../kit';
 import { useText } from '../texts/Texts';
 import { FinderRow } from './FinderRow';
-import { graphChoices, offsetRange, sensorChoices, showAllSensors, type Placed } from './itemModel';
+import { graphChoices, offersOwnPill, offsetRange, sensorChoices, showAllSensors, type Placed } from './itemModel';
 
 export interface ItemRowsProps {
   data: WindowData;
@@ -126,7 +126,7 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
   const choices = sensorChoices(item, data.view, data.sensors, t, allFor === item.id);
   const current = sensors.find((sensor) => sensor.id === (item.sensor ?? data.view.items[item.id]?.auto));
   const sensorNote = sensorNoteOf(data, item, current, t);
-  const ownOff = placed.firstOfPill && item.own !== true;
+  const ownOff = !offersOwnPill(data.settings, placed.overlay, item, placed.firstOfPill);
   return (
     <>
       <Card>

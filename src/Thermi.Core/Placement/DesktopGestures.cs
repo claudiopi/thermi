@@ -106,11 +106,13 @@ public static class DesktopGestures
         && !(from == overlay && ItemEdits.PillOf(config.Overlays[from], index) == (0, config.Overlays[from].Items.Count - 1));
 
     /// <summary>
-    /// "Separate" from the overlay's menu: drops <paramref name="pill"/> (drawn at <paramref name="box"/>) beside the overlay
-    /// <paramref name="shown"/>, as Alt held would, so no mark pulls it back: before a horizontal overlay, after it when that
-    /// leaves the work area, below a vertical one, else above.
+    /// "Separate" from the overlay's menu: drops <paramref name="pill"/>, an overlay of the size <paramref name="made"/>
+    /// once on its own, as a drag carries it, beside the overlay <paramref name="shown"/>, as Alt
+    /// held would, so no mark pulls it back: the margin away, before a horizontal overlay and level with its middle, after it
+    /// when that leaves the work area, below a vertical one and in line with its left edge, else above.
     /// </summary>
-    public static DesktopDrop Separate(ThermiConfig config, int overlay, string pill, PixelRect shown, PixelRect box, IReadOnlyList<Screen> screens)
+    public static DesktopDrop Separate(
+        ThermiConfig config, int overlay, string pill, PixelRect shown, (int Width, int Height) made, IReadOnlyList<Screen> screens)
     {
         if (!ConfigEdits.HasOverlay(config, overlay) || screens.Count == 0 || !CanTakeOff(config, overlay, pill))
         {
@@ -119,12 +121,13 @@ public static class DesktopGestures
 
         var screen = Snaps.ScreenOf(config.Overlays[overlay], screens)!;
         var gap = (int)Math.Round(Snaps.Margin * screen.Scale);
-        var work = screen.Work;
-        var at = config.Overlays[overlay].Style.Orientation == Orientation.Vertical
-            ? new Position(box.Left, shown.Bottom + gap + box.Height <= work.Bottom ? shown.Bottom + gap : shown.Top - gap - box.Height)
-            : new Position(shown.Left - gap - box.Width >= work.Left ? shown.Left - gap - box.Width : shown.Right + gap, box.Top);
-        var mark = Snaps.Near(screens, Orientation.Horizontal, box.Width, box.Height, at, magnets: false);
-        return Release(config, overlay, pill, Snaps.Inside(at, screens, box.Width, box.Height), onto: null, mark);
+        var (work, (width, height)) = (screen.Work, made);
+        var orientation = config.Overlays[overlay].Style.Orientation;
+        var at = orientation == Orientation.Vertical
+            ? new Position(shown.Left, shown.Bottom + gap + height <= work.Bottom ? shown.Bottom + gap : shown.Top - gap - height)
+            : new Position(shown.Left - gap - width >= work.Left ? shown.Left - gap - width : shown.Right + gap, shown.Top + ((shown.Height - height) / 2));
+        var mark = Snaps.Near(screens, orientation, width, height, at, magnets: false);
+        return Release(config, overlay, pill, Snaps.Inside(at, screens, width, height), onto: null, mark);
     }
 
     /// <summary>The ids of the items a drag of that item's pill takes off, in their order; none for an item the settings lack.</summary>

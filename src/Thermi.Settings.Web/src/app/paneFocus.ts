@@ -1,4 +1,55 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
+
+// The room a page that grew shorter keeps under it, from the pane's own content.
+function holdRoom(content: HTMLElement, height: string): void {
+  content.style.minHeight = height;
+}
+
+/**
+ * Keeps the control that has the focus where it shows whatever changes the page's height, an edit, an undo, a redo, new
+ * readings or news coming and going, as rows above it come or go: the pane scrolls by what it moved before it paints.
+ * Scrolled to its foot, a page that grows shorter keeps its height as room under it, or the pane could not scroll back
+ * far enough; a new page drops that room. Where the person scrolls, the place goes with them.
+ */
+export function useAnchorKept(main: RefObject<HTMLElement | null>, page: string): void {
+  useLayoutEffect(() => {
+    const pane = main.current;
+    const inner = pane?.firstElementChild;
+    if (pane == null || !(inner instanceof HTMLElement)) {
+      return undefined;
+    }
+    holdRoom(inner, '');
+    let kept: { control: Element; top: number } | null = null;
+    const keep = (): void => {
+      const control = document.activeElement;
+      kept = control !== null && control !== pane && pane.contains(control) ? { control, top: control.getBoundingClientRect().top } : null;
+    };
+    const follow = (): void => {
+      if (kept !== null && kept.control.isConnected && kept.control === document.activeElement) {
+        const moved = kept.control.getBoundingClientRect().top - kept.top;
+        const short = pane.scrollTop + moved + pane.clientHeight - pane.scrollHeight;
+        // A page at its top stays there, its title in view, as one just opened fills in under it.
+        if (Math.abs(moved) >= 1 && pane.scrollTop > 0 && pane.scrollTop + moved >= 0) {
+          if (short > 0) {
+            holdRoom(inner, `${inner.offsetHeight + short}px`);
+          }
+          pane.scrollBy({ top: moved, behavior: 'instant' });
+        }
+      }
+      keep();
+    };
+    const resized = new ResizeObserver(follow);
+    resized.observe(inner);
+    pane.addEventListener('scroll', keep, { passive: true });
+    document.addEventListener('focusin', keep);
+    keep();
+    return () => {
+      resized.disconnect();
+      pane.removeEventListener('scroll', keep);
+      document.removeEventListener('focusin', keep);
+    };
+  }, [main, page]);
+}
 
 /** The first thing the pane can focus, for Enter on a row. */
 export function focusPane(): void {

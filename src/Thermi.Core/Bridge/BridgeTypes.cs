@@ -45,8 +45,10 @@ public sealed record StyleFieldEdit(int Overlay, string Field, JsonElement Value
 
 public sealed record ItemFieldEdit(string Item, string Field, JsonElement Value) : PageEdit;
 
-/// <summary>A saved look worn by one overlay, or by every overlay when none is named.</summary>
-public sealed record LookEdit([property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? Overlay, string Name) : PageEdit;
+/// <summary>A saved look worn by one overlay, or by every overlay when none is named; without a name, the Default look.</summary>
+public sealed record LookEdit(
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? Overlay,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Name) : PageEdit;
 
 public sealed record AddItemEdit(int Overlay, string Sensor) : PageEdit;
 

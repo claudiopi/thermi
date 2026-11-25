@@ -1,5 +1,6 @@
 using Thermi.Core.Messages;
 using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
 
 namespace Thermi.Core.Look;
 
@@ -26,6 +27,23 @@ public sealed class ChartHistory(TimeProvider time)
         }
 
         Items.Take(history);
+    }
+
+    /// <summary>
+    /// Follows what each item of <paramref name="config"/> reads, as <see cref="ItemHistory.Follow"/> does: an item whose
+    /// meter changed, by an edit or its undo, drops what the overlay sent of the one before too, and starts again from
+    /// what <paramref name="read"/> gives of the new one, its seconds ending now, when it knows them.
+    /// </summary>
+    public void Follow(ThermiConfig config, Func<ItemConfig, IReadOnlyList<double?>?> read)
+    {
+        foreach (var item in Items.Follow(config.Overlays.SelectMany(overlay => overlay.Items)))
+        {
+            _sent.Remove(item.Id);
+            if (read(item) is { } values)
+            {
+                Items.Refill(item.Id, values);
+            }
+        }
     }
 
     /// <summary>

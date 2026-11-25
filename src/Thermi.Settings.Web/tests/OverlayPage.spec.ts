@@ -37,12 +37,26 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
     await pressOn(pane.getByRole('button', { name: text('OverlayPageText.LookActions', look) }), 'Enter');
     await page.getByRole('menuitem', { name: text(entry) }).press('Enter');
   };
+  const tile = (look: string): Locator => control('radio', 'OverlayPageText.LookTile', look);
+  const checkedTiles = (): Locator => pane.getByRole('radiogroup', { name: text('UiText.LookField') }).getByRole('radio', { checked: true });
+  let savedFrom = 0;
   const rows: { name: string; act: () => Promise<void>; read: (state: FakeState) => unknown; expected: unknown }[] = [
     {
       name: 'a Look tile',
       act: () => pressOn(control('radio', 'OverlayPageText.LookTile', 'Night'), 'Space'),
       read: (state) => overlayOf(state.settings, 0).style?.name,
       expected: 'Night',
+    },
+    // Night QA: Default takes the whole look back as one step, and is the tile checked only while the overlay wears it.
+    {
+      name: 'the Default tile',
+      act: () => pressOn(tile(text('OverlayPageText.DefaultLook')), 'Space'),
+      read: async (state) => [
+        overlayOf(state.settings, 0).style?.name,
+        overlayOf(state.settings, 0).style?.pills,
+        await tile(text('OverlayPageText.DefaultLook')).isChecked(),
+      ],
+      expected: [undefined, undefined, true],
     },
     {
       name: 'Size',
@@ -53,8 +67,8 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
     {
       name: 'Theme',
       act: () => pressOn(control('radio', 'PillTheme.Light'), 'Space'),
-      read: (state) => overlayOf(state.settings, 0).style?.pills,
-      expected: 'light',
+      read: async (state) => [overlayOf(state.settings, 0).style?.pills, await checkedTiles().count()],
+      expected: ['light', 0],
     },
     {
       name: 'Use on all overlays',
@@ -138,10 +152,16 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       read: (state) => overlayOf(state.settings, 0).style?.colors?.normal,
       expected: '#0072B2',
     },
+    // Saved, the look is the one the overlay wears, and the page stays where it was.
     { name: 'Save as my look', act: async () => {
       await pressOn(control('button', 'OverlayPageText.SaveAsMyLook'), 'Enter');
+      savedFrom = await pane.evaluate((main) => main.scrollTop);
       await nameAndEnter(page, 'Mine');
-    }, read: (state) => Object.keys(state.looks).includes('Mine'), expected: true },
+    }, read: async (state) => [
+      Object.keys(state.looks).includes('Mine'),
+      await tile('Mine').isChecked(),
+      await pane.evaluate((main) => main.scrollTop) - savedFrom,
+    ], expected: [true, true, 0] },
     { name: 'a look\'s Rename', act: async () => {
       await lookMenu('Mine', 'UiText.RenameStyle');
       await nameAndEnter(page, 'Evening');

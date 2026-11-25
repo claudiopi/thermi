@@ -8,7 +8,7 @@
         "R136",
         "R196"
       ],
-      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, a locked overlay on the taskbar or the desktop, items with a graph of their own or none judged), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
+      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, an overlay on the desktop, locked, which then offers no Separate, items with a graph of their own or none judged), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -190,7 +190,7 @@
         "R114",
         "R195"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows, Smoothing, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
+      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows, Smoothing, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, the control looked at staying where it shows through Warn by turned off and its undo, which take the Graph row above it away and back, and through a switch at the pane's foot and its undo, under the news that floats there, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },
@@ -330,7 +330,7 @@
         "R93",
         "R96"
       ],
-      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size, Theme and Use on all overlays, Layout and direction, Graph, opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe, Save as my look and each look's menu, Export), when each is changed by keys, then the settings hold the row's change.",
+      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size, Theme and Use on all overlays, Layout and direction, Graph, opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe, Save as my look and each look's menu, Export), when each is changed by keys, then the settings hold the row's change; Default takes the whole look back, its tile checked, no tile is checked once the look changed, and a look saved is the one checked, the page not moving.",
       "check": "TheAppearancePageChangesTheLook",
       "passes": true
     },
@@ -1459,7 +1459,7 @@
       "covers": [
         "R196"
       ],
-      "description": "Given the default overlay on the taskbar, free on the desktop, at the monitor's left edge, vertical, and vertical near the work area's bottom, when \"Separate\" is chosen on its GPU pill, then the pill becomes an overlay of its own 8 px before it on the taskbar or free, after it, below it, or above it.",
+      "description": "Given the default overlay on the taskbar, free on the desktop, at the monitor's left edge, vertical, and vertical near the work area's bottom, when \"Separate\" is chosen on its GPU pill, an overlay of its own as wide as a drag of it carries, wider out of one bar, then the pill becomes an overlay of its own 8 px before it on the taskbar or free, level with its middle, after it, below it, or above it.",
       "check": "SeparateDropsThePillBesideItsOverlay",
       "passes": true
     },
@@ -1469,7 +1469,7 @@
         "R196",
         "R47"
       ],
-      "description": "Given a table of a menu's entries (words sharing first letters, letters of any case and language, an \"&\" of the text, none to take), when their access keys are marked, then each entry gets a key no entry above it took, from a word's start first, or none, and an \"&\" of the text stays one.",
+      "description": "Given a table of a menu's entries (words sharing first letters, letters of any case and language, an \"&\" of the text, none to take, a grayed note), when their access keys are marked, then each entry gets a key no entry above it took, from a word's start first, or none, a grayed note none, and an \"&\" of the text stays one.",
       "check": "EachEntryOfAMenuHasItsOwnAccessKey",
       "passes": true
     },
@@ -1544,10 +1544,38 @@
     {
       "id": "A333",
       "covers": [
-        "R55"
+        "R55",
+        "R56"
       ],
-      "description": "Given the default overlay in one bar with the admin recording's readings, at 100 % on dark pills and at 150 % on light ones, when it is painted, then the bar holds three pills, CPU, GPU and RAM, in the inner color, 4 px inside its edge and 4 px apart at 100 %, and each item's pill is its run's.",
+      "description": "Given the default overlay in one bar with the admin recording's readings, at 100 % on dark pills and at 150 % on light ones, and vertical at 150 %, when it is painted, then the bar holds three pills, CPU, GPU and RAM, in the inner color, 4 px inside its edge and 4 px apart at 100 %, side by side or, vertical, stacked from top to bottom and as wide as the widest, and each item's pill is its run's.",
       "check": "OneBarHoldsAPillPerRun",
+      "passes": true
+    },
+    {
+      "id": "A334",
+      "covers": [
+        "R25"
+      ],
+      "description": "Given the overlay's ten minutes of the RAM in use metered by its load and the window's seconds of it and of the CPU temperature showing its minimum, when Warn by turns off and the CPU temperature reads a DIMM, and both are undone, then each chart draws only the reading it draws now, what the window read of it before taken in, and the minimum is of that reading alone.",
+      "check": "AChartDrawsOnlyTheReadingItShows",
+      "passes": true
+    },
+    {
+      "id": "A335",
+      "covers": [
+        "R36"
+      ],
+      "description": "Given an overlay at 100 % and 200 % on a 48 px taskbar at 100 %, at 200 % on a 72 px taskbar at 150 %, and at 200 % free or vertical, when the size it shows at is worked out, then on a taskbar it is at most the taskbar's height, and elsewhere its own.",
+      "check": "AnOverlayOnTheTaskbarNeverOverflowsIt",
+      "passes": true
+    },
+    {
+      "id": "A336",
+      "covers": [
+        "R103"
+      ],
+      "description": "Given a host that painted the recording on its tick, when a warmer snapshot comes and no tick has come since, then the overlay already shows it, as the open window does.",
+      "check": "ASnapshotShowsOnTheOverlayAsItComes",
       "passes": true
     }
   ]

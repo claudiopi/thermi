@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 
@@ -105,36 +106,41 @@ public sealed class TaskbarDropTests
         Assert.Equal(joins, target is var (onto, at) ? string.Create(CultureInfo.InvariantCulture, $"{onto} {at.X},{at.Y}") : "none");
     }
 
-    // "Separate" on the GPU's pill, 100 × 38 or, vertical, 100 × 50, of the default overlay shown at `shown`, on the
-    // taskbar or free where it says, its pill at `pill`: the pill is dropped beside it, 8 px away, as a drag with Alt held
-    // drops it, and becomes an overlay of its own there. Its snap, where it shows and its items.
+    // "Separate" on the GPU's pill of the default overlay shown at `shown`, on the taskbar or free where it says, the pill
+    // an overlay of `made` pixels once on its own, as a drag carries it: 100 × 38, or 108 × 38 out of one bar, whose pill
+    // is drawn 4 px inside the bar. It is dropped beside it, 8 px away and level with it, as a drag with Alt held drops it,
+    // and becomes an overlay of its own there. Its snap, where it shows and its items.
     [Theory]
-    // On the taskbar it lands on the taskbar, before the overlay.
-    [InlineData("taskbar 1652,1397,2202,1435 1900,1397", "Taskbar 1544,1397 gpu.load")]
-    // Free, before it, or after it where before is off the monitor.
-    [InlineData("free 1000,500,1550,538 1200,500", "free 892,500 gpu.load")]
-    [InlineData("free 0,500,550,538 200,500", "free 558,500 gpu.load")]
-    // Vertical, below it, or above it where below is off the work area.
-    [InlineData("vertical 1000,500,1100,800 1000,600", "free 1000,808 gpu.load")]
-    [InlineData("vertical 1000,1100,1100,1380 1000,1200", "free 1000,1042 gpu.load")]
+    // On the taskbar it lands on the taskbar, before the overlay, centered across it.
+    [InlineData("taskbar 1652,1397,2202,1435 100x38", "Taskbar 1544,1397 gpu.load")]
+    [InlineData("taskbar 1652,1397,2202,1435 108x38", "Taskbar 1536,1397 gpu.load")]
+    // Free, before it, or after it where before is off the monitor, level with its middle.
+    [InlineData("free 1000,500,1550,538 100x38", "free 892,500 gpu.load")]
+    [InlineData("free 1000,500,1550,538 108x38", "free 884,500 gpu.load")]
+    [InlineData("free 1000,500,1550,538 108x30", "free 884,504 gpu.load")]
+    [InlineData("free 0,500,550,538 100x38", "free 558,500 gpu.load")]
+    // Vertical, below it, or above it where below is off the work area, in line with its left edge.
+    [InlineData("vertical 1000,500,1100,800 100x50", "free 1000,808 gpu.load")]
+    [InlineData("vertical 1000,1100,1100,1380 100x50", "free 1000,1042 gpu.load")]
     public void SeparateDropsThePillBesideItsOverlay(string separated, string lands)
     {
         var words = separated.Split(' ');
-        var (shown, at) = (Numbers(words[1]), Numbers(words[2]));
+        var shown = Numbers(words[1]);
+        var size = words[2].Split('x').Select(each => int.Parse(each, CultureInfo.InvariantCulture)).ToArray();
         var vertical = words[0] == "vertical";
         var overlay = new OverlayConfig
         {
             Position = words[0] == "taskbar" ? null : new Position(shown[0], shown[1]),
             Style = new StyleConfig { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal },
         };
-        var (width, height) = (100, vertical ? 50 : 38);
+        var (width, height) = (size[0], size[1]);
 
         var drop = DesktopGestures.Separate(
             new ThermiConfig { Overlays = [overlay] },
             0,
             "gpu.load",
             new PixelRect(shown[0], shown[1], shown[2], shown[3]),
-            new PixelRect(at[0], at[1], at[0] + width, at[1] + height),
+            (width, height),
             [Pc]);
 
         Assert.Null(drop.Result.Refused);
@@ -142,6 +148,30 @@ public sealed class TaskbarDropTests
         var landed = Snaps.Locate(made, [Pc], width, height)!;
         var items = string.Join(',', made.Items.Select(item => item.Id));
         Assert.Equal(lands, string.Create(CultureInfo.InvariantCulture, $"{made.Snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y} {items}"));
+    }
+
+    // Night QA: at 200 % an overlay on the 48 px taskbar was 76 px high and cut. On a taskbar it shows at most as high as
+    // the taskbar, at 100 % and on a 72 px taskbar at 150 %; free, or vertical above the taskbar, at its own size.
+    [Theory]
+    [InlineData("taskbar 1", 38)]
+    [InlineData("taskbar 2", 48)]
+    [InlineData("taskbar 2 150%", 72)]
+    [InlineData("free 2", 76)]
+    [InlineData("vertical 2", 76)]
+    public void AnOverlayOnTheTaskbarNeverOverflowsIt(string overlay, int high)
+    {
+        var words = overlay.Split(' ');
+        var scaled = words.Length > 2;
+        var screen = scaled ? Pc with { Scale = 1.5, Work = Pc.Work with { Bottom = 1368 }, Taskbar = new PixelRect(0, 1368, 2560, 1440) } : Pc;
+        var shown = new OverlayConfig(double.Parse(words[1], CultureInfo.InvariantCulture))
+        {
+            Position = words[0] == "free" ? new Position(100, 100) : null,
+            Style = new StyleConfig { Orientation = words[0] == "vertical" ? Orientation.Vertical : Orientation.Horizontal },
+        };
+
+        var size = Snaps.SizeShown(shown, [screen]);
+
+        Assert.Equal(high, (int)Math.Ceiling(OverlayLook.PillHeight * screen.Scale * size));
     }
 
     private static int[] Numbers(string word) => [.. word.Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture))];
