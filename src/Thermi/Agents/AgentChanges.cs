@@ -101,7 +101,7 @@ internal sealed partial class AgentCommands
             return Broken(problem);
         }
 
-        var was = saved.List().FirstOrDefault(style => string.Equals(style.Name, from.Trim(), StringComparison.OrdinalIgnoreCase))?.Name;
+        var was = saved.Named(from)?.Name;
         EditResult renamed;
         try
         {
