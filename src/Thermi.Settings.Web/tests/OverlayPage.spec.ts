@@ -166,6 +166,10 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       read: (state) => overlayOf(state.settings, 0).style?.colors?.normal,
       expected: '#0072B2',
     },
+    { name: 'Reset colors', act: () => pressOn(control('button', 'UiText.ResetColors'), 'Enter'), read: async (state) => [
+      overlayOf(state.settings, 0).style?.colors ?? {},
+      await control('button', 'UiText.ResetColors').count(),
+    ], expected: [{}, 0] },
     // Saved, the look is the one the overlay wears, and the page stays where it was.
     { name: 'Save as my look', act: async () => {
       await pressOn(control('button', 'OverlayPageText.SaveAsMyLook'), 'Enter');

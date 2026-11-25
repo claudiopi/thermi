@@ -66,6 +66,9 @@
   <data name="CatalogText.FanFinderLoading" xml:space="preserve">
     <value>Loading every core, up to 30 s</value>
   </data>
+  <data name="CatalogText.FanFinderWatching" xml:space="preserve">
+    <value>Load ended; watching the fans for up to 15 s more</value>
+  </data>
   <data name="UiText.Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
@@ -1450,7 +1453,7 @@
     <value>Undo graph</value>
   </data>
   <data name="OverlayText.UndoOrientation" xml:space="preserve">
-    <value>Undo orientation</value>
+    <value>Undo vertical</value>
   </data>
   <data name="OverlayText.UndoLock" xml:space="preserve">
     <value>Undo lock</value>

@@ -232,7 +232,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, the recorded one where software drives it, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (derived ones where the board's fan answers, the recorded one where software drives it and the fan answers after the load, one where no fan answers, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -1613,6 +1613,15 @@
       ],
       "description": "Given an overlay whose frame fades while the window edits another, dark pills over a white backdrop and light ones over a black one, when it is painted, then each value keeps 3:1 against what borders it.",
       "check": "AFadedFramesValuesReadOnAnyBackdrop",
+      "passes": true
+    },
+    {
+      "id": "A341",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given the board's fan answering only 5 s after a full 30 s load, and readings that stop for 10 s under the load before the fan answers after it, when the finder replays each, then the first load runs 30 s and the second ends once the readings have been gone 8.5 s, and both pick the fan while watching after the load.",
+      "check": "AFanThatAnswersOnlyAfterTheLoadIsStillFound",
       "passes": true
     }
   ]

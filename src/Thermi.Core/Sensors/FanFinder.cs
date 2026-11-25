@@ -46,10 +46,11 @@ public sealed record FanRise(string Fan, double Rpm, double Share);
 
 /// <summary>
 /// Finds the fan that cools the CPU: it waits for 3 s of readings, asks for a load on every core, and watches which
-/// fan answers it. Every fan outside the GPUs is a candidate: a GPU's never cools the CPU. The load itself is the window's, which keeps it
-/// running while <see cref="Loading"/> says so; the finder decides on the snapshots it is given and the injected
-/// clock alone, so a recorded series replays the same every time. Give it every new snapshot once, with
-/// <see cref="Add"/>, and call <see cref="Tick"/> often, so a service that goes silent stops the load too.
+/// fan answers it, during the load and for <see cref="Afterwards"/> after it. Every fan outside the GPUs is a candidate: a
+/// GPU's never cools the CPU. The load itself is the window's, which keeps it running while <see cref="Loading"/> says so;
+/// the finder decides on the snapshots it is given and the injected clock alone, so a recorded series replays the same
+/// every time. Give it every new snapshot once, with <see cref="Add"/>, and call <see cref="Tick"/> often, so a service
+/// that goes silent stops the load too.
 /// </summary>
 public sealed class FanFinder
 {
@@ -60,11 +61,18 @@ public sealed class FanFinder
     public static readonly TimeSpan MaxRun = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// How long the readings may be missing before the run stops, as readings gone: a pause of a few seconds, as a PC
-    /// busy on every core may make, only leaves the averages fewer readings. Halfway between whole seconds, so jitter
-    /// never decides.
+    /// How long the readings may be missing before they count as gone: a pause of a few seconds, as a PC busy on every
+    /// core may make, only leaves the averages fewer readings. Gone during the load, they end it, since the load may be
+    /// what holds them back, and get as long again to come back while the fans are watched. Halfway between whole
+    /// seconds, so jitter never decides.
     /// </summary>
     public static readonly TimeSpan MaxGap = TimeSpan.FromSeconds(8.5);
+
+    /// <summary>
+    /// How long it keeps watching the fans once the load has ended: a fan-control curve slow to answer, as on the owner's
+    /// PC, raises the fan up to 12 s after the load, and the fan then meets the rule for 3 s.
+    /// </summary>
+    public static readonly TimeSpan Afterwards = TimeSpan.FromSeconds(15);
 
     // Each average spans 3 s, and a fan meets the rule for as long before it is picked.
     private static readonly TimeSpan Span = TimeSpan.FromSeconds(3);
@@ -83,6 +91,8 @@ public sealed class FanFinder
     private readonly List<Sample> _samples = [];
     private long _readAt;
     private long? _loadAt;
+    private long? _loadEndedAt;
+    private bool _readingsStopped;
     private (string Fan, long Since)? _leader;
 
     /// <summary>Starts with the snapshot the window shows now, which has to pass <see cref="CannotStart"/>.</summary>
@@ -97,12 +107,15 @@ public sealed class FanFinder
         _startedAt = _readAt = time.GetTimestamp();
     }
 
-    public bool Loading => _loadAt is not null && Result is null;
+    public bool Loading => _loadAt is not null && _loadEndedAt is null && Result is null;
+
+    /// <summary>True once the load has ended while the finder still watches the fans, for <see cref="Afterwards"/> at most.</summary>
+    public bool Watching => _loadEndedAt is not null && Result is null;
 
     /// <summary>How the run ended, or null while it runs.</summary>
     public FanFinderResult? Result { get; private set; }
 
-    /// <summary>The fan that has risen most so far during the load, whether or not it meets the rule yet; null before any rose.</summary>
+    /// <summary>The fan that has risen most so far since the load started, whether or not it meets the rule yet; null before any rose.</summary>
     public FanRise? Rising { get; private set; }
 
     /// <summary>Why the finder cannot start on this snapshot, or null when it can: it needs a fan outside the GPUs.</summary>
@@ -134,13 +147,13 @@ public sealed class FanFinder
         }
     }
 
-    /// <summary>Stops the run when the readings stopped, or when the load has run its longest.</summary>
+    /// <summary>Ends the load when the readings stopped or it has run its longest, and the run once the fans have been watched.</summary>
     public void Tick()
     {
         var now = _time.GetTimestamp();
-        if (!Ended(now) && _loadAt is { } loadAt && Since(loadAt, now) >= MaxRun)
+        if (!Ended(now) && _loadAt is { } loadAt)
         {
-            Result = Judge(loadAt, now, Leader(loadAt, now));
+            Decide(loadAt, now, Leader(loadAt, now));
         }
     }
 
@@ -148,45 +161,76 @@ public sealed class FanFinder
 
     private bool Ended(long now)
     {
-        if (Result is null && Since(_readAt, now) > MaxGap)
+        var heard = _loadEndedAt is { } ended && ended > _readAt ? ended : _readAt;
+        if (Result is null && Since(heard, now) > MaxGap)
         {
-            Result = new FanFinderResult(FanFinderOutcome.ReadingsStopped);
+            if (Loading)
+            {
+                (_loadEndedAt, _readingsStopped) = (now, true);
+            }
+            else
+            {
+                Result = new FanFinderResult(FanFinderOutcome.ReadingsStopped);
+            }
         }
 
         return Result is not null;
     }
 
-    // Once past the minimum, a fan that has met the rule for 3 s in a row ends the run; at the longest, the last 3 s decide.
     private void Follow(long loadAt, long now)
     {
-        var run = Since(loadAt, now);
-        if (run < Span)
+        if (Since(loadAt, now) < Span)
         {
             return;
         }
 
         var leader = Leader(loadAt, now);
         _leader = leader is null ? null : _leader is { } kept && kept.Fan == leader ? kept : (leader, now);
-        if (run >= MaxRun)
+        Decide(loadAt, now, leader);
+    }
+
+    // A fan that has met the rule for 3 s in a row ends the run, during the load once past its minimum, or after it. At
+    // the load's longest the last 3 s pick a fan, or the load ends; once the fans have been watched, the last 3 s decide.
+    private void Decide(long loadAt, long now, string? leader)
+    {
+        if (_loadEndedAt is null && Since(loadAt, now) >= MaxRun)
         {
-            Result = Judge(loadAt, now, leader);
+            if (leader is not null)
+            {
+                Result = new FanFinderResult(FanFinderOutcome.Found, leader);
+                return;
+            }
+
+            _loadEndedAt = now;
         }
-        else if (run >= MinRun && _leader is { } met && Since(met.Since, now) >= Span)
+
+        var watched = _loadEndedAt is { } ended ? Since(ended, now) : (TimeSpan?)null;
+        if ((watched is not null || Since(loadAt, now) >= MinRun) && _leader is { } met && met.Fan == leader && Since(met.Since, now) >= Span)
         {
             Result = new FanFinderResult(FanFinderOutcome.Found, met.Fan);
         }
+        else if (_loadEndedAt is { } end && watched >= Afterwards)
+        {
+            Result = Judge(loadAt, end);
+        }
     }
 
-    private FanFinderResult Judge(long loadAt, long now, string? leader)
+    // The last 3 s of readings decide, though the last came a few seconds before the watch ended.
+    private FanFinderResult Judge(long loadAt, long loadEndedAt)
     {
-        if (leader is not null)
+        if (Leader(loadAt, _readAt) is { } leader)
         {
             return new FanFinderResult(FanFinderOutcome.Found, leader);
         }
 
-        var loads = _samples.Where(sample => Since(loadAt, sample.At) > LoadSettles).Select(sample => sample.Load).OfType<double>().ToList();
-        return loads.Count == 0 || loads.Average() < MinLoad ? new FanFinderResult(FanFinderOutcome.LoadDidNotReachTheCpu)
-            : Rises(loadAt, now).Any(Rose) ? new FanFinderResult(FanFinderOutcome.TwoRoseAlike)
+        var loads = _samples
+            .Where(sample => Since(loadAt, sample.At) > LoadSettles && sample.At <= loadEndedAt)
+            .Select(sample => sample.Load)
+            .OfType<double>()
+            .ToList();
+        return _readingsStopped ? new FanFinderResult(FanFinderOutcome.ReadingsStopped)
+            : loads.Count == 0 || loads.Average() < MinLoad ? new FanFinderResult(FanFinderOutcome.LoadDidNotReachTheCpu)
+            : Rises(loadAt, _readAt).Any(Rose) ? new FanFinderResult(FanFinderOutcome.TwoRoseAlike)
             : new FanFinderResult(FanFinderOutcome.NoFanRose);
     }
 

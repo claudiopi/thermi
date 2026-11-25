@@ -177,8 +177,9 @@ public sealed class PowerItemTests
         Assert.Equal(new GraphPoint(0.7, Level.Warning), graph[7]);
         Assert.Equal(new GraphPoint(0.9, Level.Critical), graph[9]);
         Assert.Equal([4, 11, 18, 25, 32, 39, 46, 53], graph.Select((point, at) => (point, at)).Where(each => each.point is null).Select(each => each.at));
-        // A fan's line reads on its own scale, not as a load: the night QA saw 1,000 RPM pinned at the top.
-        Assert.Equal(new GraphPoint(0.1, Level.Normal), shown.Single(item => item.Id == Metrics.CpuFan.Id).Graph![^1]);
+        // A fan's line reads on the scale the window's chart gives the same readings, 0 to 1,500 RPM, not as a load: the
+        // night QA saw 1,000 RPM pinned at the top, and then nearly flat on a scale to 10,000.
+        Assert.Equal(new GraphPoint(1000.0 / 1500, Level.Normal), shown.Single(item => item.Id == Metrics.CpuFan.Id).Graph![^1]);
         Assert.Equal(
             [new GraphPoint(0.03, Level.Normal)],
             OverlayLayout.Build(overlay, TrayTextTests.Quiet, English).Single(item => item.Label == "GPU").Graph);

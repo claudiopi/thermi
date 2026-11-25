@@ -112,9 +112,10 @@ public sealed class FinderTests : IAsyncDisposable
         Assert.Equal(before, ThermiConfigJson.Write(_editor.Config));
     }
 
-    // R19, R22: no fan answers, so the load ends at 30 s and the finder says why; the readings stop, and so does the load.
+    // R19, R22: no fan answers, so the load ends at 30 s, and the finder says why once it has watched the fans after it;
+    // the readings stop, and so does the load, and they never come back.
     [Theory]
-    [InlineData(false, 40, FanFinderOutcome.NoFanRose)]
+    [InlineData(false, 45, FanFinderOutcome.NoFanRose)]
     [InlineData(true, 0, FanFinderOutcome.ReadingsStopped)]
     public async Task WhenNoFanAnswersOrTheReadingsStopTheLoadEndsAndTheFinderSaysWhy(bool answers, int more, FanFinderOutcome outcome)
     {
@@ -126,6 +127,7 @@ public sealed class FinderTests : IAsyncDisposable
         _loads.Single().Register(() => stopped = _folder.Clock.GetElapsedTime(loadStart));
 
         Feed(seconds: more, answers, from: 4);
+        Tick(FanFinder.MaxGap + TimeSpan.FromSeconds(0.5));
         Tick(FanFinder.MaxGap + TimeSpan.FromSeconds(0.5));
         var done = await _bridge.Finder();
 

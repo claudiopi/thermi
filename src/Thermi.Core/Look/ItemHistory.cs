@@ -214,10 +214,14 @@ public sealed class ItemHistory(TimeProvider time)
     /// </summary>
     public static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, IReadOnlyList<double?> meters)
     {
-        // A fan's speed fills on its own scale, not as a load's percent.
+        // A fan or throughput fills on the window chart's range, not up to its possible maximum, where a line lies flat.
         var kind = Threshold.JudgedKind(item) ?? SensorKind.Load;
-        return [.. meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).Select(value => value is { } read
-            ? new GraphPoint(OverlayLayout.FillOf(read, kind), item.Threshold?.LevelOf(new Reading(kind, read)) ?? Level.Normal)
+        var minute = meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).ToList();
+        var top = kind is SensorKind.Fan or SensorKind.Throughput
+            ? MeterChart.Range(new MeterScale(kind, item.Threshold?.Warning, item.Threshold?.Critical, 1, 1), [.. minute.OfType<double>()]).To
+            : Threshold.MaxOf(kind);
+        return [.. minute.Select(value => value is { } read
+            ? new GraphPoint(Math.Clamp(read / top, 0, 1), item.Threshold?.LevelOf(new Reading(kind, read)) ?? Level.Normal)
             : (GraphPoint?)null)];
     }
 

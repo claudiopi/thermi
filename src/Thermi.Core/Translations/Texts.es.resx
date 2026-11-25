@@ -66,6 +66,9 @@
   <data name="CatalogText.FanFinderLoading" xml:space="preserve">
     <value>Cargando todos los núcleos, hasta 30 s</value>
   </data>
+  <data name="CatalogText.FanFinderWatching" xml:space="preserve">
+    <value>Carga terminada; observando los ventiladores hasta 15 s más</value>
+  </data>
   <data name="UiText.Cancel" xml:space="preserve">
     <value>Cancelar</value>
   </data>
@@ -1450,7 +1453,7 @@
     <value>Deshacer gráfico</value>
   </data>
   <data name="OverlayText.UndoOrientation" xml:space="preserve">
-    <value>Deshacer orientación</value>
+    <value>Deshacer vertical</value>
   </data>
   <data name="OverlayText.UndoLock" xml:space="preserve">
     <value>Deshacer bloqueo</value>
