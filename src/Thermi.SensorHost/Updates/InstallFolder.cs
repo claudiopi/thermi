@@ -28,11 +28,11 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
     /// The layout a process in <paramref name="baseDirectory"/> runs in: a folder named after its version, which the
     /// launchers beside it start, even when one is missing, since the service puts them back. Null outside one.
     /// </summary>
-    public static InstallFolder? Of(string baseDirectory, ReleaseVersion self)
+    public static InstallFolder? Of(string baseDirectory, ReleaseVersion self, FolderAccess? access = null)
     {
         var own = Path.TrimEndingDirectorySeparator(baseDirectory);
         var top = Path.GetDirectoryName(own);
-        return top is not null && ReleaseVersion.Parse(Path.GetFileName(own)) == self ? new InstallFolder(top) : null;
+        return top is not null && ReleaseVersion.Parse(Path.GetFileName(own)) == self ? new InstallFolder(top, access) : null;
     }
 
     public string VersionOf(ReleaseVersion version) => Path.Combine(top, version.ToString());

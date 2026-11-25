@@ -13,7 +13,8 @@ namespace Thermi.SensorHost.Updates;
 /// tried again at the next check.
 /// </summary>
 internal sealed class Updater(
-    UpdateBuild build, InstallFolder folder, ManifestClient client, TimeProvider time, Action<string, EventLogEntryType> say, UpdateHost? host = null)
+    UpdateBuild build, InstallFolder folder, ManifestClient client, TimeProvider time, Action<string, EventLogEntryType> say,
+    UpdateHost? host = null, Func<InstallFolder, ISwitchTarget>? target = null)
     : IDisposable
 {
     private static readonly TimeSpan Tick = TimeSpan.FromMinutes(1);
@@ -21,7 +22,7 @@ internal sealed class Updater(
     private static readonly TimeSpan AfterStart = TimeSpan.FromMinutes(1);
 
     private readonly UpdateHost _host = host ?? UpdateHost.Windows;
-    private readonly Switcher _switcher = new(folder, time, say, (host ?? UpdateHost.Windows).Start);
+    private readonly Switcher _switcher = new(folder, time, say, (host ?? UpdateHost.Windows).Start, target: target);
     private readonly SemaphoreSlim _busy = new(1, 1);
     private volatile bool _checkSoon;
     private volatile bool _switchSoon;

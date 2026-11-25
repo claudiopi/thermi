@@ -1,4 +1,5 @@
 using System.Security.AccessControl;
+using System.Security.Principal;
 using Thermi.Trust;
 
 namespace Thermi.SensorHost.Updates;
@@ -9,5 +10,10 @@ namespace Thermi.SensorHost.Updates;
 /// </summary>
 internal sealed record FolderAccess(Func<string, bool> AdminsOnly, Func<string, string, string?> Fresh, Func<FileSecurity?> Private)
 {
-    public static FolderAccess Admins { get; } = new(AdminFolder.AdminsOnly, AdminFolder.Fresh, AdminFolder.PrivateFile);
+    public static FolderAccess Admins { get; } =
+        new(path => AdminFolder.AdminsOnly(path), (parent, prefix) => AdminFolder.Fresh(parent, prefix), () => AdminFolder.PrivateFile());
+
+    /// <summary>A per-user install's: only <paramref name="user"/>, SYSTEM and administrators write it (docs/adr/0016-admin-on-demand.md).</summary>
+    public static FolderAccess ForUser(SecurityIdentifier user) =>
+        new(path => AdminFolder.AdminsOnly(path, user), (parent, prefix) => AdminFolder.Fresh(parent, prefix, user), () => AdminFolder.PrivateFile(user));
 }

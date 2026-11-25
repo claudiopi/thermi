@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Principal;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
-using Thermi.Trust;
 using Windows.Win32;
 
 namespace Thermi.SensorHost.Updates;
@@ -22,7 +21,8 @@ internal sealed class Switcher(
     TimeProvider time,
     Action<string, EventLogEntryType> say,
     Action<ProcessStartInfo>? start = null,
-    Action<ReleaseVersion>? shown = null)
+    Action<ReleaseVersion>? shown = null,
+    Func<InstallFolder, ISwitchTarget>? target = null)
 {
     public const string Option = "--switch";
 
@@ -37,6 +37,8 @@ internal sealed class Switcher(
 
     private readonly SwitchLock _lock = new(folder, time);
 
+    private readonly ISwitchTarget _target = (target ?? (each => new ServiceTarget(each)))(folder);
+
     /// <summary>Whether a watchdog is switching now, so the state is its own until it is done.</summary>
     public bool UnderWay() => _lock.Held();
     /// <summary>
@@ -49,6 +51,11 @@ internal sealed class Switcher(
         var watchdog = new ProcessStartInfo(folder.ServiceOf(back ? to : self)) { UseShellExecute = false, CreateNoWindow = true };
         watchdog.ArgumentList.Add(Option);
         watchdog.ArgumentList.Add(to.ToString());
+        if (_target.Argument is { } argument)
+        {
+            watchdog.ArgumentList.Add(argument);
+        }
+
         (start ?? (info => Process.Start(info)?.Dispose()))(watchdog);
         say($"thermi is switching from {self} to {to}.", EventLogEntryType.Information);
     }
@@ -68,20 +75,19 @@ internal sealed class Switcher(
             return 2;
         }
 
-        var services = new ServiceConfig(folder);
         var started = false;
         var timedOut = false;
         var squatted = new StrongBox<bool>();
         try
         {
-            ServiceConfig.Stop();
+            _target.Stop();
             folder.ForgetPipeHeld();
-            StartOnce(services, pending, ref started, ref timedOut);
+            StartOnce(pending, ref started, ref timedOut);
             if (await PollAsync(to, pipeName, squatted, stop) == Verdict.Passed)
             {
                 // Pointed for good, the version has passed: what fails after this is never held against it.
                 started = false;
-                services.Point(to);
+                _target.Point(to);
                 await FinishAsync(to, stop);
                 return 0;
             }
@@ -100,7 +106,7 @@ internal sealed class Switcher(
             say($"Switching to {to} failed, so the PC stays on {pending.From}: {ex.Message} {ex.InnerException?.Message}", EventLogEntryType.Warning);
         }
 
-        GoBack(services, pending, Outcome(started, timedOut));
+        GoBack(pending, Outcome(started, timedOut));
         return 1;
     }
 
@@ -139,13 +145,13 @@ internal sealed class Switcher(
 
     // Started and pointed back in one step, so the service is pointed at the new version only while it starts. Once
     // pointed, the new version ran, even if Windows then says it could not start it: it crashed as it began.
-    private static void StartOnce(ServiceConfig services, PendingSwitch pending, ref bool started, ref bool timedOut)
+    private void StartOnce(PendingSwitch pending, ref bool started, ref bool timedOut)
     {
-        services.Point(pending.To);
+        _target.Point(pending.To);
         started = true;
         try
         {
-            ServiceConfig.Start();
+            _target.Start(pending.To);
         }
         catch (InvalidOperationException ex) when (ex.InnerException is Win32Exception { NativeErrorCode: ServiceTimedOut or ShuttingDown })
         {
@@ -157,7 +163,7 @@ internal sealed class Switcher(
         }
         finally
         {
-            services.Point(pending.From);
+            _target.Point(pending.From);
         }
     }
 
@@ -168,11 +174,11 @@ internal sealed class Switcher(
 
     // A version that started and failed is never taken again; a switch that never started it is only dropped, to try later.
     // The watchdog stopped the old version itself, which is no crash of it.
-    private void GoBack(ServiceConfig services, PendingSwitch pending, Func<UpdateState, UpdateState> outcome)
+    private void GoBack(PendingSwitch pending, Func<UpdateState, UpdateState> outcome)
     {
         try
         {
-            ServiceConfig.Stop();
+            _target.Stop();
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ServiceProcess.TimeoutException)
         {
@@ -181,7 +187,7 @@ internal sealed class Switcher(
 
         try
         {
-            services.Point(pending.From);
+            _target.Point(pending.From);
             folder.PlaceLaunchers(pending.From);
             var state = folder.Read();
             folder.Write(SwitchHealth.Stopped(outcome(state)));
@@ -197,9 +203,9 @@ internal sealed class Switcher(
     {
         try
         {
-            ServiceConfig.Start();
+            _target.Start(pending.From);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ServiceProcess.TimeoutException)
+        catch (Exception ex) when (ex is InvalidOperationException or System.ServiceProcess.TimeoutException or Win32Exception)
         {
             say($"thermi {pending.From} did not start again after the switch: {ex.Message}", EventLogEntryType.Error);
         }
@@ -256,7 +262,7 @@ internal sealed class Switcher(
     // program no administrator started holds it.
     private bool? Ours(NamedPipeClientStream pipe, ReleaseVersion to)
     {
-        if (pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier owner || !AdminFolder.IsAdministrator(owner))
+        if (pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier owner || !_target.Owns(owner))
         {
             return null;
         }

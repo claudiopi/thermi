@@ -64,7 +64,7 @@ The per-user switch runs through the watchdog, `thermi-sensors --switch <v> --us
 
 A cut at any step leaves the launchers on a version that served, and the switch written down is finished or undone at the host's next start, as the service's is. The overlay hands over as it does now.
 
-About's check and restart, ADR 0008's codes 129 and 130, reach the user's host as two named events in the user's session. The stop event is a third. Each is created by the host, with an access list for the user alone. A host that finds any of them already there (`ERROR_ALREADY_EXISTS`) does not run and logs why, so a process that made the name first never holds the host's stop. Unlike a pipe, an event carries no data to parse.
+ADR 0008's codes, the overlay's quiet moment (128) and About's check and restart (129, 130), reach the user's host as named events in the user's session, `Local\thermi-sensors-<user SID>-<code>`. The stop event, `-stop`, is a fourth. Each is created by the host, with an access list for the user alone. A host that finds any of them already there (`ERROR_ALREADY_EXISTS`) does not run and logs why, so a process that made the name first never holds the host's stop. Unlike a pipe, an event carries no data to parse.
 
 ## Rejected
 
@@ -74,7 +74,7 @@ About's check and restart, ADR 0008's codes 129 and 130, reach the user's host a
 - **One dual-purpose MSI** (`Scope="perUserOrMachine"`). Windows Installer keeps the two contexts apart, so an upgrade across them still needs a second install, and the choice moves into a property a person must know.
 - **`thermi.exe` behind `runas` doing the install.** That is the hole ADR 0010 closes.
 - **Reading the sensors in the overlay's process.** LibreHardwareMonitor would sit in the overlay's 48 MB budget and take it down when a device's read hangs (`docs/adr/0015-a-stalled-device-holds-back-none.md`).
-- **A control pipe for the user's host.** It would be a second server that parses bytes, for three signals that carry no data.
+- **A control pipe for the user's host.** It would be a second server that parses bytes, for four signals that carry no data.
 
 ## Consequences
 

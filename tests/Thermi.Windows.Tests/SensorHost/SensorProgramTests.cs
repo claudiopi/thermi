@@ -163,6 +163,30 @@ public sealed class SensorProgramTests : IAsyncDisposable
         Assert.Equal((0, false, 0), (served, early, alone));
     }
 
+    // Spec 004, A24: the host's stop event ends it while a client still reads, and an event someone made before the host
+    // keeps it from running at all, so no other process steers it.
+    [Fact]
+    public async Task TheUsersHostIsSteeredOnlyByItsOwnEvents()
+    {
+        using var user = WindowsIdentity.GetCurrent();
+        var pipe = _pipeName + "-" + user.User!.Value;
+        var serving = RunAsync(["--user"]);
+        await using var client = new NamedPipeClientStream(".", pipe, PipeDirection.In, PipeOptions.Asynchronous);
+        await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
+        await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+        using (var stop = EventWaitHandle.OpenExisting(UserMode.EventOf(pipe, UserMode.StopEvent)))
+        {
+            stop.Set();
+        }
+
+        await PassAsync(TimeSpan.FromSeconds(2), serving);
+        var stopped = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        using var first = new EventWaitHandle(false, EventResetMode.AutoReset, UserMode.EventOf(pipe, "129"));
+        var refused = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        Assert.Equal((0, UserMode.Taken), (stopped, refused));
+    }
+
     // Moves the clock a second at a time, giving the run a moment at each; whether it had ended by then.
     private async Task<bool> PassAsync(TimeSpan time, Task run)
     {

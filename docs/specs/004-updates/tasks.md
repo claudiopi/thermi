@@ -1,7 +1,7 @@
 # 004-updates: Tasks
 
-> Progress: 26 / 35
-> Current block: B10
+> Progress: 29 / 35
+> Current block: B12
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
 
@@ -70,8 +70,8 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 ## B11: The user's host
 
-- [ ] **T31** Covers R27, R28: Core's choice of pipe and the overlay's owner check, A20 red first; `thermi-sensors --user` on the user's pipe, ending with its last client, A21.
-- [ ] **T32** Covers R32: the updater on the user's folder, its watchdog as the user, and the three named events, A23 and A24.
+- [x] **T31** Covers R27, R28: Core's choice of pipe and the overlay's owner check, A20 red first; `thermi-sensors --user` on the user's pipe, ending with its last client, A21.
+- [x] **T32** Covers R32: the updater on the user's folder, its watchdog as the user, and the three named events, A23 and A24.
 
 ## B12: Install for everyone
 

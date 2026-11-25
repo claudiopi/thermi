@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Reflection;
 using System.ServiceProcess;
 using Microsoft.Win32;
 using Thermi.Commands;
 using Thermi.Core.Updates;
+using Thermi.Install;
 
 namespace Thermi.Updates;
 
@@ -22,9 +24,27 @@ internal static class UpdatesHere
         return UpdateStatus.Of(policy, State(), now, asked);
     }
 
-    /// <summary>Sends the service one of its update codes, which any signed-in user may; throws as Windows refuses.</summary>
+    /// <summary>
+    /// Sends the service one of its update codes, which any signed-in user may, or in a per-user install sets the user's own
+    /// host's event of it (docs/adr/0016-admin-on-demand.md); throws as Windows refuses, or when no host made the event.
+    /// </summary>
     public static void Tell(int code)
     {
+        if (!SensorPipes.ServiceInstalled() && SensorPipes.UserPipe is { } pipe)
+        {
+            if (!EventWaitHandle.TryOpenExisting(@"Local\" + pipe + "-" + code.ToString(CultureInfo.InvariantCulture), out var told))
+            {
+                throw new InvalidOperationException("No sensor host of this user's runs to be told.");
+            }
+
+            using (told)
+            {
+                told.Set();
+            }
+
+            return;
+        }
+
         using var service = new ServiceController(StartSensors.Service);
         service.ExecuteCommand(code);
     }

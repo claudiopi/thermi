@@ -132,6 +132,7 @@ internal static class Program
     // The modes that read no sensors.
     private static async Task<int> RunModeAsync(ISensorRequest request, SensorHostEnvironment environment, CancellationToken stop) => request switch
     {
+        SensorSwitch { User: true } watch => await UserMode.WatchAsync(watch.To, environment, stop),
         SensorSwitch watch => await WatchAsync(watch.To, environment, stop),
         SensorInstall install => await InstallAsync(install, environment, stop),
         _ => RunElevated(environment.Time),

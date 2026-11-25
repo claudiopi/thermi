@@ -19,8 +19,11 @@ internal sealed record SensorDump(string File, int? Seconds) : ISensorRequest;
 /// <summary><c>--elevated</c>: the <c>thermi-elevated</c> service, which runs one of the window's fixes as SYSTEM.</summary>
 internal sealed record SensorElevated : ISensorRequest;
 
-/// <summary><c>--switch &lt;version&gt;</c>: the watchdog of a switch to that version, which the service starts (docs/adr/0008-updates.md).</summary>
-internal sealed record SensorSwitch(ReleaseVersion To) : ISensorRequest;
+/// <summary>
+/// <c>--switch &lt;version&gt;</c>: the watchdog of a switch to that version, which the service starts (docs/adr/0008-updates.md),
+/// or with <c>--user</c> the user's own host (docs/adr/0016-admin-on-demand.md).
+/// </summary>
+internal sealed record SensorSwitch(ReleaseVersion To, bool User = false) : ISensorRequest;
 
 /// <summary>
 /// <c>--adopt</c>, with the MSI's product code when the MSI runs it: lays this version down as the one the PC runs;
@@ -78,7 +81,7 @@ internal static class SensorCommands
 
         foreach (var mode in new Option[] { options.Elevated, options.Watch, options.Adopt, options.Undo, options.Forget, options.Remove, options.User })
         {
-            Alone(result, mode, [.. root.Options.Where(other => other != mode && (mode != options.Adopt || other != options.Product))]);
+            Alone(result, mode, [.. root.Options.Where(other => other != mode && !options.Goes(mode, other))]);
         }
     }
     // The service manager's own modes take nothing else.
@@ -127,9 +130,13 @@ internal static class SensorCommands
 
         public Option<bool> User { get; } = new("--user") { Description = "Serves readings as this user, which the overlay starts.", Hidden = true };
 
+        /// <summary>Whether <paramref name="other"/> may go with the mode <paramref name="mode"/>: an MSI's product, or a switch as the user.</summary>
+        public bool Goes(Option mode, Option other) =>
+            (mode == Adopt && other == Product) || (mode == Watch && other == User) || (mode == User && other == Watch);
+
         public ISensorRequest Request(ParseResult parsed) =>
             parsed.GetValue(Elevated) ? new SensorElevated()
-            : parsed.GetValue(Watch) is { } to ? new SensorSwitch(to)
+            : parsed.GetValue(Watch) is { } to ? new SensorSwitch(to, parsed.GetValue(User))
             : InstallOf(parsed) is { } install ? install
             : parsed.GetValue(Dump) is { } file ? new SensorDump(file, parsed.GetValue(Seconds))
             : new SensorServe(parsed.GetValue(Console), parsed.GetValue(User));

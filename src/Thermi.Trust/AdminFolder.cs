@@ -24,20 +24,23 @@ public static class AdminFolder
 
     /// <summary>
     /// A new folder in <paramref name="parent"/>, named <paramref name="prefix"/> and a part nobody can guess, made with
-    /// administrators' access from the start and failing rather than reusing one that is there: nobody else ever held it.
-    /// Null when <paramref name="parent"/> is not one only administrators change; the parent is only read.
+    /// administrators' access from the start, and <paramref name="user"/>'s for a per-user install, failing rather than
+    /// reusing one that is there: nobody else ever held it. Null when <paramref name="parent"/> is not one only they change;
+    /// the parent is only read.
     /// </summary>
-    public static string? Fresh(string parent, string prefix)
+    public static string? Fresh(string parent, string prefix, SecurityIdentifier? user = null)
     {
         var fresh = Path.Combine(parent, prefix + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)));
-        return AdminsOnly(parent) && Create(fresh) ? fresh : null;
+        return AdminsOnly(parent, user) && Create(fresh, user) ? fresh : null;
     }
 
     /// <summary>
-    /// Whether <paramref name="path"/> is a real folder, owned by administrators, that nobody else may write to. A rule
-    /// only its children inherit is no access to it. Read only, and never throws.
+    /// Whether <paramref name="path"/> is a real folder, owned by administrators, that nobody else may write to; with
+    /// <paramref name="user"/>, a per-user install's, which that user may own and write too, since anyone who can write it
+    /// already runs as them (docs/adr/0016-admin-on-demand.md). A rule only its children inherit is no access to it. Read
+    /// only, and never throws.
     /// </summary>
-    public static bool AdminsOnly(string path)
+    public static bool AdminsOnly(string path, SecurityIdentifier? user = null)
     {
         try
         {
@@ -48,13 +51,13 @@ public static class AdminFolder
             }
 
             var now = folder.GetAccessControl();
-            return Trusted(now.GetOwner(typeof(SecurityIdentifier)))
+            return Trusted(now.GetOwner(typeof(SecurityIdentifier)), user)
                 && now.GetAccessRules(includeExplicit: true, includeInherited: true, typeof(SecurityIdentifier))
                     .Cast<FileSystemAccessRule>()
                     .All(rule => rule.AccessControlType == AccessControlType.Deny
                         || rule.PropagationFlags.HasFlag(PropagationFlags.InheritOnly)
                         || ((int)rule.FileSystemRights & (int)Writes) == 0
-                        || Trusted(rule.IdentityReference));
+                        || Trusted(rule.IdentityReference, user));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -62,9 +65,9 @@ public static class AdminFolder
         }
     }
 
-    private static unsafe bool Create(string path)
+    private static unsafe bool Create(string path, SecurityIdentifier? user)
     {
-        fixed (byte* descriptor = Protected().GetSecurityDescriptorBinaryForm())
+        fixed (byte* descriptor = Protected(user).GetSecurityDescriptorBinaryForm())
         {
             var attributes = new SECURITY_ATTRIBUTES { nLength = (uint)sizeof(SECURITY_ATTRIBUTES), lpSecurityDescriptor = descriptor };
             return PInvoke.CreateDirectory(path, attributes);
@@ -74,21 +77,29 @@ public static class AdminFolder
     /// <summary>Whether <paramref name="who"/> is SYSTEM or the administrators, as owns what a service or an administrator made.</summary>
     public static bool IsAdministrator(IdentityReference? who) => who is SecurityIdentifier sid && (sid == System || sid == Administrators);
 
-    /// <summary>A file's access for SYSTEM and administrators alone, which no user can open, even to read, and so hold open.</summary>
-    public static FileSecurity PrivateFile()
+    /// <summary>
+    /// A file's access for SYSTEM and administrators alone, and <paramref name="user"/> in a per-user install, which no other
+    /// user can open, even to read, and so hold open.
+    /// </summary>
+    public static FileSecurity PrivateFile(SecurityIdentifier? user = null)
     {
         var security = new FileSecurity();
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
         security.AddAccessRule(new FileSystemAccessRule(System, FileSystemRights.FullControl, AccessControlType.Allow));
         security.AddAccessRule(new FileSystemAccessRule(Administrators, FileSystemRights.FullControl, AccessControlType.Allow));
+        if (user is not null)
+        {
+            security.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.FullControl, AccessControlType.Allow));
+        }
+
         return security;
     }
 
     // Program Files' own owner and writer is TrustedInstaller, which only Windows' servicing runs as.
-    private static bool Trusted(IdentityReference? who) =>
-        who is SecurityIdentifier sid && (sid == System || sid == Administrators || sid == Installer);
+    private static bool Trusted(IdentityReference? who, SecurityIdentifier? user) =>
+        who is SecurityIdentifier sid && (sid == System || sid == Administrators || sid == Installer || sid == user);
 
-    private static DirectorySecurity Protected()
+    private static DirectorySecurity Protected(SecurityIdentifier? user)
     {
         var security = new DirectorySecurity();
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
@@ -96,7 +107,9 @@ public static class AdminFolder
         security.AddAccessRule(new FileSystemAccessRule(System, FileSystemRights.FullControl, All, PropagationFlags.None, AccessControlType.Allow));
         security.AddAccessRule(
             new FileSystemAccessRule(Administrators, FileSystemRights.FullControl, All, PropagationFlags.None, AccessControlType.Allow));
-        security.AddAccessRule(new FileSystemAccessRule(Users, FileSystemRights.ReadAndExecute, All, PropagationFlags.None, AccessControlType.Allow));
+        security.AddAccessRule(user is null
+            ? new FileSystemAccessRule(Users, FileSystemRights.ReadAndExecute, All, PropagationFlags.None, AccessControlType.Allow)
+            : new FileSystemAccessRule(user, FileSystemRights.FullControl, All, PropagationFlags.None, AccessControlType.Allow));
         return security;
     }
 }

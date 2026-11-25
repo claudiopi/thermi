@@ -1,7 +1,11 @@
 extern alias sensors;
 
 using System.Diagnostics;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
+using sensors::Thermi.SensorHost.Updates;
+using sensors::Thermi.SensorHost.User;
 using Thermi.Core.Updates;
 
 namespace Thermi.Windows.Tests.Updates;
@@ -113,6 +117,38 @@ public sealed class UpdaterTests
         updater.Quiet();
 
         Assert.Equal((UpdatePc.Built, 0, 1), (ready, before, pc.Watchdogs.Count));
+    }
+
+    // Spec 004, A23: a per-user install takes a version by the service's rules, only from a folder no one but its user,
+    // SYSTEM and administrators writes, and switches through its own watchdog, which runs as the user.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AUserInstallUpdatesItselfThroughItsWatchdog(bool othersWrite)
+    {
+        using var user = WindowsIdentity.GetCurrent();
+        await using var pc = new UpdatePc();
+        var security = new DirectorySecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        const InheritanceFlags All = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+        var writers = othersWrite ? [user.User!, new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null)] : new[] { user.User! };
+        foreach (var writer in writers)
+        {
+            security.AddAccessRule(new FileSystemAccessRule(writer, FileSystemRights.FullControl, All, PropagationFlags.None, AccessControlType.Allow));
+        }
+
+        new DirectoryInfo(pc.Top).SetAccessControl(security);
+        pc.Access = FolderAccess.ForUser(user.User!);
+        pc.Target = folder => new UserTarget(folder, "thermi-test-" + Guid.NewGuid().ToString("N"), user.User!);
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
+        using var updater = pc.Updater();
+
+        await updater.CheckAsync(TestContext.Current.CancellationToken);
+        updater.Quiet();
+
+        Assert.Equal(
+            othersWrite ? (null, "") : (UpdatePc.Built, $"--switch {UpdatePc.Built} --user"),
+            (pc.State.Ready, string.Join('|', pc.WatchdogArguments)));
     }
 
     // About's ask checks at once, and at most once a minute however often it opens.

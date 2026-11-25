@@ -111,9 +111,13 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
         }
     }
 
+    /// <summary>The user's own host's pipe in a per-user install, null outside one, which names its events too.</summary>
+    public static string? UserPipe => Folder is null ? null : UserHost.Pipe(serviceInstalled: false, User);
+
     private static bool Locked() => File.Exists(Path.Combine(Folder!, "update", "switch.lock"));
 
-    private static bool ServiceInstalled()
+    /// <summary>Whether the <c>thermi-sensors</c> service is installed, whose pipe and codes then are the only ones.</summary>
+    public static bool ServiceInstalled()
     {
         using var service = new ServiceController(StartSensors.Service);
         try

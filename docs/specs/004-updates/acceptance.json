@@ -146,7 +146,7 @@
       "covers": ["R27"],
       "description": "Given the user's host started as the user, when an overlay connects and later leaves, then it serves the same lines on the pipe named for the user's SID, owned by that SID and closed to other users and remote clients, and ends with the Stopped mark once its last client left.",
       "check": "AUsersHostServesItsUserUntilTheLastClientLeaves",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A22",
@@ -158,16 +158,16 @@
     {
       "id": "A23",
       "covers": ["R32"],
-      "description": "Given a per-user install and a channel offering a newer version, when the user's host checks, then it takes it by the same rules, its watchdog places the launchers only once the new host serves, starts the old host again when it never does, and a cut at each step leaves the launchers on a version that served.",
+      "description": "Given a per-user install and a channel offering a newer version, when the user's host checks, then it takes it by the same rules, only from a folder no one but the user, SYSTEM and administrators writes, and switches through its own watchdog, run as the user; the watchdog's placing the launchers only once the new host serves is A28's, by hand, as A15 is for the service.",
       "check": "AUserInstallUpdatesItselfThroughItsWatchdog",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A24",
       "covers": ["R32"],
-      "description": "Given the user's host, when About sets its check or restart event, or the watchdog its stop event, then each reaches its own action, and the events are the user's alone.",
-      "check": "EachOfTheUsersHostEventsReachesItsAction",
-      "passes": false
+      "description": "Given the user's host serving a client, when the watchdog sets its stop event, then it ends; and given an event of its name someone made first, then the host does not run, so no other process steers it.",
+      "check": "TheUsersHostIsSteeredOnlyByItsOwnEvents",
+      "passes": true
     },
     {
       "id": "A25",
@@ -193,7 +193,7 @@
     {
       "id": "A28",
       "covers": ["R27", "R32"],
-      "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; and the user's host measures within the service's budget, 80 MB and 3 % of a core.",
+      "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; the watchdog places the launchers only once the new host serves, and puts the old host back when a build that never serves is published; and the user's host measures within the service's budget, 80 MB and 3 % of a core.",
       "check": "by hand",
       "passes": false
     },

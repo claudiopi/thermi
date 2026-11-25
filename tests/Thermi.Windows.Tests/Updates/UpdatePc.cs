@@ -102,7 +102,16 @@ internal sealed class UpdatePc : IAsyncDisposable
     public string LauncherAtTop(string program) => File.ReadAllText(Path.Combine(Top, program + ".exe"));
 
     /// <summary>The folder as the updater sees it, trusted unless it is to meet the real check of a folder a user can write.</summary>
-    public InstallFolder Folder(bool trusted = true) => new(Top, trusted ? Anyone : null);
+    public InstallFolder Folder(bool trusted = true) => new(Top, trusted ? Access : null);
+
+    /// <summary>How the folder is checked: as anyone's by default, since the tests run without admin rights.</summary>
+    public FolderAccess Access { get; set; } = Anyone;
+
+    /// <summary>What a switch stops and starts: the services unless a test says otherwise, as a per-user install's host.</summary>
+    public Func<InstallFolder, ISwitchTarget>? Target { get; set; }
+
+    /// <summary>The arguments of each watchdog the service would have started, joined by spaces.</summary>
+    public List<string> WatchdogArguments { get; } = [];
 
     /// <summary>A build with the test's keys built in, or one without, which never updates itself.</summary>
     public UpdateBuild Build(bool keys = true, bool catalog = false, ReleaseVersion? version = null) => keys
@@ -122,8 +131,12 @@ internal sealed class UpdatePc : IAsyncDisposable
     {
         // A clock of its own, never stepped: the updater's counts each wait, and a download's idle limit is no wait of its.
         var client = new ManifestClient(new FakeTimeProvider());
-        var host = new UpdateHost(() => Policy, () => Metered, watchdog => Watchdogs.Add(watchdog.FileName));
-        var updater = new Updater(build ?? Build(), Folder(trusted), client, Clock, Say, host);
+        var host = new UpdateHost(() => Policy, () => Metered, watchdog =>
+        {
+            Watchdogs.Add(watchdog.FileName);
+            WatchdogArguments.Add(string.Join(' ', watchdog.ArgumentList));
+        });
+        var updater = new Updater(build ?? Build(), Folder(trusted), client, Clock, Say, host, Target);
         _owned.Add(updater);
         _owned.Add(client);
         return updater;
