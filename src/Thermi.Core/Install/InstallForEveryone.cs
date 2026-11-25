@@ -26,7 +26,6 @@ public sealed record MachineInstall(MachineInstallOutcome Outcome, DateTimeOffse
 /// </summary>
 public static class InstallForEveryone
 {
-
     public const string PerUserUpgradeCode = "{E64A26FA-E001-4EDF-A31C-40957EC23FAB}";
 
     /// <summary>The machine MSI's property that adds the driver on its first install.</summary>

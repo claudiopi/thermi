@@ -5,7 +5,7 @@ namespace Thermi.SensorHost.Updates;
 
 /// <summary>
 /// The lock a watchdog holds while it switches versions, and an install while it changes the services: a file in
-/// <c>update\</c>, which only administrators change, since a named mutex would be one any user could make first and so
+/// <c>update\</c>, which only its owners change, administrators or a per-user install's user, since a named mutex would be one any user could make first and so
 /// stop every switch.
 /// </summary>
 internal sealed class SwitchLock(InstallFolder folder, TimeProvider time)

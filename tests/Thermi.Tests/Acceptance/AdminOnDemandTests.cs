@@ -129,11 +129,12 @@ public sealed class AdminOnDemandTests
     {
         var wix = XDocument.Load(Path.Combine(Root(), "src", "Thermi.Installer", "Package.wxs"));
 
-        var codes = wix.DescendantNodes().OfType<XProcessingInstruction>()
-            .Where(define => define.Target == "define" && define.Data.StartsWith("UpgradeCode", StringComparison.Ordinal))
-            .Select(define => define.Data.Split('"')[1]);
+        var code = wix.DescendantNodes().OfType<XProcessingInstruction>()
+            .SkipWhile(each => each.Target != "if" || !each.Data.Contains("\"perUser\"", StringComparison.Ordinal))
+            .First(each => each.Target == "define" && each.Data.StartsWith("UpgradeCode", StringComparison.Ordinal))
+            .Data.Split('"')[1];
 
-        Assert.Equal(InstallForEveryone.PerUserUpgradeCode, codes.First());
+        Assert.Equal(InstallForEveryone.PerUserUpgradeCode, code);
     }
 
     private static string Root()

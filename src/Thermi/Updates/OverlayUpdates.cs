@@ -87,6 +87,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException or Win32Exception)
         {
             log.MoveFailed(ex.Message);
+            _moved = true;
             _perUser = null;
             return false;
         }

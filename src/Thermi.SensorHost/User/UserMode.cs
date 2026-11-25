@@ -38,7 +38,6 @@ internal static class UserMode
 
     public static string PipeOf(string pipeName, SecurityIdentifier user) => UserHost.PipeOf(pipeName, user.Value);
 
-
     public static async Task<int> RunAsync(SensorHostEnvironment environment, CancellationToken stop)
     {
         using var identity = WindowsIdentity.GetCurrent();
