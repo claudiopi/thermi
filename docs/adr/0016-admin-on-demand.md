@@ -19,7 +19,7 @@ winget offers both, by its `Scope`. AppLocker's default rules and the `DisableUs
 
 - It is a hidden process of the user's, with the same host and LibreHardwareMonitor, reading what the user's rights allow.
 - It serves the same lines on the pipe `thermi-sensors-<user SID>`. It creates the pipe as the first instance and rejects remote clients, as ADR 0003's pipe does. It sets the user's SID as the pipe's owner, and an access list that lets only that user, SYSTEM and administrators open it.
-- It runs only while a client is connected and ends when the last one leaves, writing the Stopped mark first, as the service's stop does. A run that ends without the mark counts as a crash, by ADR 0008's rule.
+- It runs only while a client is connected and ends when the last one leaves, writing the Stopped mark first, as the service's stop does. A host that has had no client yet waits 30 s for its first. A host running an install or a switch stays until that ends. A run that ends without the mark counts as a crash, by ADR 0008's rule.
 - It logs to `%LOCALAPPDATA%\thermi\thermi-sensors.log`, since only an administrator can register an event source.
 
 The overlay reads the service's pipe whenever the service is installed, and the user's pipe only when the service is not. It trusts the user's pipe only if three things hold:
@@ -34,17 +34,17 @@ So neither another user nor a sandboxed process of the same user who takes the n
 
 - It reads the channel's manifest and takes the machine MSI of the version it offers, when that version is the running one or later. Each version's entry lists its machine MSIs' URLs, sizes and SHA-256s.
 - It downloads the MSI into its own folder, checks size and hash, and keeps the file open, shared only for reading, until `msiexec` exits, as ADR 0010 does with the driver's installer.
-- It runs `msiexec.exe /i <msi> ADDDRIVER=1 /passive` without `runas`. The per-machine package asks Windows Installer to elevate, and its UAC prompt names the package's signer, thermi.
+- It runs `msiexec.exe /i <msi> ADDDRIVER=1 /passive` without `runas`. The per-machine package asks Windows Installer to elevate, and its UAC prompt names the package's signer, thermi. The overlay or window that asked first calls `AllowSetForegroundWindow` for the host, so the prompt comes to the front rather than flashing on the taskbar.
 - `/passive` keeps the UI level below the one at which the MSI's `StartOverlay` runs, so no .NET program of thermi's ever starts elevated with the user's environment.
 - A refused prompt (1223), a failed download or a wrong hash changes nothing, and the window says so. A channel turned off, a running version withdrawn, or the policy `Updates` = 0 has no MSI to offer. The fix then opens thermi's download page instead.
 
-The machine MSI's `ADDDRIVER` is not a secure property, so a standard user cannot pass it to a repair. Its action runs only on a first install (`NOT Installed AND ADDDRIVER = 1`) and only when the driver is missing. It starts the `thermi-elevated` service with `install-driver`, so the driver comes through ADR 0010's path, as SYSTEM with the machine's environment, never from the action itself. It returns `ignore`: a driver that fails or needs a restart (3010) leaves thermi installed and writes why to the event log, and the window keeps offering its fix.
+The machine MSI's `ADDDRIVER` is a secure property, so it reaches the elevated part when a standard user starts `msiexec` and an administrator consents. Its action runs only on a first install (`NOT Installed AND ADDDRIVER = 1`), which always needs that consent, while a repair sets `Installed`; and only when the driver is missing. A test reads the condition and the secure flag from `Package.wxs`. It starts the `thermi-elevated` service with `install-driver`, so the driver comes through ADR 0010's path, as SYSTEM with the machine's environment, never from the action itself. It returns `ignore`: a driver that fails or needs a restart (3010) leaves thermi installed and writes why to the event log, and the window keeps offering its fix.
 
 **The move to the machine install** happens in this order:
 
 1. The per-user overlay sees the service serve. It writes the user's Run value to the machine's launcher only if the value existed, so a start at sign-in that was turned off stays off. It marks the machine's Active Setup as done in this profile, so Active Setup never turns that start back on.
 2. It starts `C:\Program Files\thermi\thermi.exe` and exits once that overlay is up, as ADR 0008's handover does. The per-user host ends as its last client leaves.
-3. The machine overlay, finding a per-user product of this user, looks it up by the per-user UpgradeCode in the user's unmanaged context only. It removes it with `msiexec /x <product> /qn` once no process runs from the per-user folder. That removal needs no rights.
+3. The machine overlay, finding a per-user product of this user, looks it up by the per-user UpgradeCode in the user's unmanaged context only. It removes it with `msiexec /x <product> /qn` once no process runs from the per-user folder. That removal needs no rights. Its `--remove --user` deletes the user's Run value only while it still names the per-user launcher.
 
 The settings, saved styles and log, in `%APPDATA%\thermi` and `%LOCALAPPDATA%\thermi`, are shared by both scopes and stay.
 
@@ -64,7 +64,7 @@ The per-user switch runs through the watchdog, `thermi-sensors --switch <v> --us
 
 A cut at any step leaves the launchers on a version that served, and the switch written down is finished or undone at the host's next start, as the service's is. The overlay hands over as it does now.
 
-About's check and restart, ADR 0008's codes 129 and 130, reach the user's host as two named events in the user's session. The stop event is a third. Each is created by the host, with an access list for the user alone. Unlike a pipe, an event carries no data to parse.
+About's check and restart, ADR 0008's codes 129 and 130, reach the user's host as two named events in the user's session. The stop event is a third. Each is created by the host, with an access list for the user alone. A host that finds any of them already there (`ERROR_ALREADY_EXISTS`) does not run and logs why, so a process that made the name first never holds the host's stop. Unlike a pipe, an event carries no data to parse.
 
 ## Rejected
 

@@ -196,6 +196,13 @@
       "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; and the user's host measures within the service's budget, 80 MB and 3 % of a core.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A29",
+      "covers": ["R30"],
+      "description": "Given the machine MSI's source, when its driver action is read, then ADDDRIVER is a secure property and the action runs only under NOT Installed AND ADDDRIVER = 1, so no repair adds the driver.",
+      "check": "TheDriverPropertyActsOnlyOnAFirstInstall",
+      "passes": false
     }
   ]
 }
