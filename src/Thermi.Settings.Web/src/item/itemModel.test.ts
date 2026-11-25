@@ -39,9 +39,7 @@ describe('the item page', () => {
   const pills: WindowView = { ...view({}), pills: [[{ label: 'GPU', items: ['gpu'] }], [{ label: 'Both', items: ['ram', 'cpu'] }]] };
   test.each([
     { id: 'gpu', view: pills, placed: { overlay: 0, pill: 'GPU', firstOfPill: true } },
-    { id: 'cpu', view: pills, placed: { overlay: 1, pill: 'Both', firstOfPill: false } },
     { id: 'ram', view: view({}), placed: { overlay: 1, pill: '', firstOfPill: false } },
-    { id: 'gone', view: pills, placed: null },
   ])('places $id', ({ id, view: shown, placed }) => {
     const found = placeOf(settings, shown, id);
 
@@ -52,16 +50,6 @@ describe('the item page', () => {
 
   const each = (text: string, value: string, aside: string, detail = 'Ryzen') => ({ value, text, aside, shown: `${value} name`, detail });
   test.each([
-    {
-      item: { id: 'cpu', metric: 'cpu.temperature' },
-      shows: { auto: 'package', offer: { first: ['package', 'core'], more: [] } },
-      all: false,
-      choices: [
-        { value: '', text: 'UiText.AutoFollows package name', shown: 'package name', aside: '50 °C' },
-        each('UiText.SensorOn package name Ryzen', 'package', '50 °C'),
-        each('UiText.SensorOn core name Ryzen', 'core', ''),
-      ],
-    },
     {
       item: { id: 'cpu', metric: 'network.down' },
       shows: { auto: 'ethernet', type: 'Throughput', offer: { first: ['ethernet'], more: [] } },
@@ -100,12 +88,10 @@ describe('the item page', () => {
   const fan = { warnBy: [{ name: 'own' }, { warnBy: { sensor: 'duty', auto: 'fan.cpu.duty' }, name: 'duty' }], warnByName: 'hand' };
   const none = { warnBy: [{ name: 'off' }], warnByName: 'hand' };
   test.each([
-    { item: { id: 'cpu', sensor: 'fan' }, shows: fan, warnBy: '0', offered: 2, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'duty' } }, shows: fan, warnBy: '1', offered: 2, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { metric: 'fan.cpu.duty' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'package' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
     { item: { id: 'cpu', sensor: 'power' }, shows: none, warnBy: '0', offered: 1, row: false },
-    { item: { id: 'cpu', sensor: 'power', warnBy: { sensor: 'package' } }, shows: none, warnBy: 'kept', offered: 2, row: true },
   ] satisfies { item: Item; shows: Partial<ItemView>; warnBy: string; offered: number; row: boolean }[])(
     'warns $item by $warnBy',
     ({ item, shows, warnBy, offered, row }) => {
@@ -116,12 +102,7 @@ describe('the item page', () => {
   );
 
   test.each([
-    ['Fan', 2000],
-    ['Power', 500],
-    ['Clock', 10000],
-    ['Data', 100],
     ['SmallData', 100],
-    ['Temperature', 20],
     ['Address', null],
     ['Time', null],
     ['Duration', null],

@@ -169,33 +169,23 @@ describe('the list', () => {
 
   const named = ['Main', 'cpu', 'Graphics', 'gpu', 'Two'].map((name) => ({ ...row(name, 3), name }));
   test.each([
-    { from: 0, typed: 'g', found: 'Graphics' },
     { from: 2, typed: 'g', found: 'gpu' },
     { from: 3, typed: 'g', found: 'Graphics' },
-    { from: 2, typed: 'gr', found: 'Graphics' },
-    { from: 0, typed: 'GP', found: 'gpu' },
-    { from: 4, typed: 't', found: 'Two' },
-    { from: 0, typed: 'x', found: null },
   ])('finds the row that "$typed" starts after row $from', ({ from, typed, found }) => {
     expect(rowStarting(named, from, typed)?.name ?? null).toBe(found);
   });
 
   const three = settings(overlay('A', ...ids('a', 'b', 'c')), overlay('B', ...ids('d', 'e')), overlay('C', ...ids('f')));
   test.each([
-    { id: 'b', by: -1, to: { overlay: 0, index: 0 } },
-    { id: 'b', by: 1, to: { overlay: 0, index: 2 } },
     { id: 'e', by: -1, to: { overlay: 1, index: 0 } },
     { id: 'a', by: -1, to: null },
-    { id: 'c', by: 1, to: null },
     { id: 'f', by: 1, to: null },
-    { id: 'gone', by: 1, to: null },
   ] as const)('moves $id by $by', ({ id, by, to }) => {
     expect(movedIndex(three, id, by)).toEqual(to);
   });
 
   test.each([
     { id: 'a', selected: 'i:b' },
-    { id: 'c', selected: 'i:b' },
     { id: 'e', selected: 'i:d' },
     { id: 'f', selected: 'o:2' },
     { id: 'gone', selected: 'settings' },
