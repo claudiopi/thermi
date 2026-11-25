@@ -107,12 +107,11 @@ internal sealed class MachineInstaller(
 
         var policy = host.Policy(build);
         var manifest = policy.Checks ? await ManifestAsync(policy.Channel, stop) : null;
-        if (InstallForEveryone.WithoutMsi(policy.Checks, manifest, build.Version, build.Processor) is { } outcome)
+        var (outcome, msi) = InstallForEveryone.MsiToRun(policy.Checks, manifest, build.Version, build.Processor);
+        if (msi is null)
         {
             return outcome;
         }
-
-        var msi = InstallForEveryone.Msi(manifest!, build.Version, build.Processor)!;
 
         var path = Path.Combine(folder.Update, "machine-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)) + ".msi");
         try

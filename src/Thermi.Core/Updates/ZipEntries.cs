@@ -1,3 +1,5 @@
+using Thermi.Core.Install;
+
 namespace Thermi.Core.Updates;
 
 /// <summary>Which entries of an update's zip may be unpacked: each must land inside the folder it is unpacked into.</summary>
@@ -12,12 +14,9 @@ public static class ZipEntries
     /// Whether the entry <paramref name="name"/>, with <paramref name="externalAttributes"/>, lands inside
     /// <paramref name="folder"/>: never a rooted path, one naming a drive or a stream, one that climbs out, or a link.
     /// </summary>
-    public static bool LandsInside(string folder, string name, int externalAttributes)
-    {
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar;
-        return !Path.IsPathRooted(name)
-            && !name.Contains(':', StringComparison.Ordinal)
-            && Path.GetFullPath(Path.Combine(folder, name)).StartsWith(root, StringComparison.OrdinalIgnoreCase)
-            && unchecked((uint)externalAttributes) / TypeUnit != LinkType;
-    }
+    public static bool LandsInside(string folder, string name, int externalAttributes) =>
+        !Path.IsPathRooted(name)
+        && !name.Contains(':', StringComparison.Ordinal)
+        && InstallLayout.Inside(Path.Combine(folder, name), folder)
+        && unchecked((uint)externalAttributes) / TypeUnit != LinkType;
 }

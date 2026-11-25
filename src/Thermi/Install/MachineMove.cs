@@ -30,7 +30,7 @@ internal static class MachineMove
     public static string? MachineLauncher(string ownTop)
     {
         // The registry first: a machine install, or a PC with no service, never asks the service manager each second.
-        if (MachineTop() is not { } top || SamePath(top, ownTop) || !Serves() || Installing())
+        if (MachineTop() is not { } top || InstallLayout.Same(top, ownTop) || !Serves() || Installing())
         {
             return null;
         }
@@ -39,7 +39,7 @@ internal static class MachineMove
         return File.Exists(launcher) ? launcher : null;
     }
 
-    public static bool IsMachines(string ownTop) => MachineTop() is { } top && SamePath(top, ownTop);
+    public static bool IsMachines(string ownTop) => MachineTop() is { } top && InstallLayout.Same(top, ownTop);
 
     /// <summary>
     /// Points the user's start at sign-in at <paramref name="launcher"/> only when there is one, so one turned off stays off,
@@ -145,8 +145,4 @@ internal static class MachineMove
                 == (uint)WIN32_ERROR.ERROR_SUCCESS;
         }
     }
-
-    private static bool SamePath(string one, string other) =>
-        string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(one)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(other)),
-            StringComparison.OrdinalIgnoreCase);
 }

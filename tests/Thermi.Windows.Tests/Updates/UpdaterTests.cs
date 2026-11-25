@@ -17,54 +17,71 @@ public sealed class UpdaterTests
 {
     private static readonly TimeSpan Minute = TimeSpan.FromMinutes(1);
 
-    // A fresh install, with no update folder yet, and an urgent version: the first check, a minute after the start, takes
-    // it over the loopback and switches at once. Which channel the policy picks, a build without keys and a metered
-    // network are Core's UpdatePolicy and UpdateSchedule rows.
-    [Fact]
-    public async Task ChecksFollowTheSchedule()
+    // Keys built in, the policy's Updates and channel, a fresh install with no update folder yet, a metered network and
+    // an urgent version; what the first check asks for, a minute after the start. Which channel a policy's values pick and
+    // what a metered network downloads are Core's; these rows are their way through the loop, the registry's values and
+    // the channel's address.
+    [Theory]
+    [InlineData(true, null, null, true, false, true, "stable zip")]
+    [InlineData(true, 1, "beta", false, false, false, "beta zip")]
+    [InlineData(true, 0, "beta", false, false, false, "")]
+    [InlineData(false, null, null, false, false, false, "")]
+    [InlineData(true, null, null, false, true, false, "stable")]
+    [InlineData(true, null, null, false, true, true, "stable zip")]
+    public async Task ChecksFollowTheScheduleThePolicyAndTheNetwork(
+        bool keys, int? updates, string? channel, bool fresh, bool metered, bool urgent, string asked)
     {
-        await using var pc = new UpdatePc(fresh: true);
-        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Urgent = true });
-        using var updater = pc.Updater();
+        await using var pc = new UpdatePc(fresh) { Policy = (updates, channel), Metered = metered };
+        var zip = pc.Zip(UpdatePc.Built);
+        pc.Publish(pc.Offer(UpdatePc.Built, zip) with { Urgent = urgent });
+        pc.Publish(pc.Offer(UpdatePc.Built, zip) with { Channel = Manifest.Beta, Urgent = urgent });
+        using var updater = pc.Updater(pc.Build(keys));
         using var stop = new CancellationTokenSource();
         updater.Started();
         var running = updater.RunAsync(stop.Token);
 
-        await pc.Clock.StepAsync(Minute - TimeSpan.FromSeconds(1));
-        Assert.Empty(pc.Channel.Requests);
-        pc.Clock.Advance(TimeSpan.FromSeconds(1));
-        await pc.Clock.SettledAsync();
+        if (!running.IsCompleted)
+        {
+            await pc.Clock.StepAsync(Minute - TimeSpan.FromSeconds(1));
+            Assert.Empty(pc.Channel.Requests);
+            pc.Clock.Advance(TimeSpan.FromSeconds(1));
+            await pc.Clock.SettledAsync();
+        }
 
-        Assert.Equal(("stable zip", 1), (Asked(pc), pc.Watchdogs.Count));
+        Assert.Equal(asked, Asked(pc));
+        Assert.Equal(urgent && asked.Contains("zip", StringComparison.Ordinal), pc.Watchdogs.Count > 0);
 
         // Every four hours after; a resume an hour on asks nothing more, and a PC that slept past a check asks once as it wakes.
-        await StepAsync(pc, UpdateSchedule.Every - Minute, minutes: true);
-        Assert.Equal(1, Manifests(pc));
-        await StepAsync(pc, Minute);
+        var checks = Manifests(pc);
+        await StepAsync(pc, running, UpdateSchedule.Every - Minute, minutes: true);
+        Assert.Equal(checks, Manifests(pc));
+        await StepAsync(pc, running, Minute);
         updater.Resumed();
-        await StepAsync(pc, Minute);
-        Assert.Equal(2, Manifests(pc));
-        await StepAsync(pc, TimeSpan.FromHours(5));
-        Assert.Equal(3, Manifests(pc));
+        await StepAsync(pc, running, Minute);
+        Assert.Equal(checks * 2, Manifests(pc));
+        await StepAsync(pc, running, TimeSpan.FromHours(5));
+        Assert.Equal(checks * 3, Manifests(pc));
 
         await stop.CancelAsync();
         await running;
     }
 
-    // What a server, a cache or a user could make the service see that only the PC can check; "nothing" is a version that
-    // passes every check. What the manifest's signature, channel, sequence and expiry, the zip's hash and its entries'
-    // paths decide is Core's.
+    // What a server, a cache or a user could make the service see, as far as the service's own wiring takes it; "nothing"
+    // is a version that passes every check. A manifest's channel, sequence and expiry, an envelope's size and signature,
+    // and a zip's hash are Core's rows.
     [Theory]
     [InlineData("nothing")]
     [InlineData("a zip longer than signed")]
+    [InlineData("an entry leaving its folder")]
     [InlineData("an older release relabelled")]
     [InlineData("a release build without its signed catalog")]
     [InlineData("a folder users write to")]
+    [InlineData("the release key revoked")]
     public async Task TheUpdaterTakesOnlyWhatPassesEveryCheck(string wrong)
     {
         await using var pc = new UpdatePc();
         var installed = pc.Installed;
-        var (build, trusted) = Serve(pc, wrong);
+        var (build, trusted) = await ServeAsync(pc, wrong);
         using var updater = pc.Updater(build, trusted);
         var logged = pc.Events.Count;
 
@@ -111,6 +128,26 @@ public sealed class UpdaterTests
             (pc.State.Ready, string.Join('|', pc.WatchdogArguments)));
     }
 
+    // About's ask checks at once, and at most once a minute however often it opens.
+    [Fact]
+    public async Task AnAskChecksAtOnceAtMostOnceAMinute()
+    {
+        await using var pc = new UpdatePc();
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
+        using var updater = pc.Updater();
+        var stop = TestContext.Current.CancellationToken;
+
+        await updater.AskedAsync(stop);
+        var first = Manifests(pc);
+        pc.Clock.Advance(TimeSpan.FromSeconds(59));
+        await updater.AskedAsync(stop);
+        var within = Manifests(pc);
+        pc.Clock.Advance(TimeSpan.FromSeconds(1));
+        await updater.AskedAsync(stop);
+
+        Assert.Equal((1, 1, 2), (first, within, Manifests(pc)));
+    }
+
     // About's restart switches even within a minute of a quiet session's code, and waits out a check under way.
     [Fact]
     public async Task ARestartSwitchesAtOnce()
@@ -129,21 +166,24 @@ public sealed class UpdaterTests
         Assert.Equal((0, 1), (before, pc.Watchdogs.Count));
     }
 
-    // A zip refused for the PC's reasons, as its version's folder held open, is fetched again at the next check; one
-    // refused for what it holds is not, which Core's UpdatePlan.Apply decides.
-    [Fact]
-    public async Task AZipRefusedForAFolderInUseIsFetchedAgain()
+    // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again by this build; one
+    // refused for the PC's reasons, as its version's folder held open, is. What each leaves in the state is Core's
+    // UpdatePlan.Apply; which refusal is which is the unpacker's.
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 2)]
+    public async Task AZipRefusedForWhatItHoldsIsNotFetchedAgain(bool catalog, int fetched)
     {
         await using var pc = new UpdatePc();
         pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
         Directory.CreateDirectory(pc.Folder().VersionOf(UpdatePc.Built));
         await using var held = File.Create(Path.Combine(pc.Folder().VersionOf(UpdatePc.Built), "held"));
-        using var updater = pc.Updater();
+        using var updater = pc.Updater(pc.Build(catalog: catalog));
 
         await updater.CheckAsync(TestContext.Current.CancellationToken);
         await updater.CheckAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, pc.Channel.Paths.Count(path => path.EndsWith(".zip", StringComparison.Ordinal)));
+        Assert.Equal(fetched, pc.Channel.Paths.Count(path => path.EndsWith(".zip", StringComparison.Ordinal)));
         Assert.Null(pc.State.Ready);
     }
 
@@ -203,23 +243,39 @@ public sealed class UpdaterTests
         return pc.Events.Count - before;
     }
 
-    private static (sensors::Thermi.SensorHost.Updates.UpdateBuild Build, bool Trusted) Serve(UpdatePc pc, string wrong)
+    private static async Task<(sensors::Thermi.SensorHost.Updates.UpdateBuild Build, bool Trusted)> ServeAsync(UpdatePc pc, string wrong)
     {
         var zip = pc.Zip(UpdatePc.Built);
+        var offer = pc.Offer(UpdatePc.Built, zip);
         var relabelled = UpdatePc.Built with { Patch = UpdatePc.Built.Patch + 1 };
         pc.Publish(wrong switch
         {
             "a zip longer than signed" => pc.Offer(UpdatePc.Built, zip with { Size = zip.Size - 1 }),
+            "an entry leaving its folder" => pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built, archive => archive.CreateEntry("../outside.txt"))),
             "an older release relabelled" => pc.Offer(relabelled, pc.Zip(relabelled)),
-            _ => pc.Offer(UpdatePc.Built, zip),
+            _ => offer,
         });
+
+        if (wrong == "the release key revoked")
+        {
+            // The backup key's manifest, which revokes the release key; then the release key's offer, signed as before.
+            using var revoking = pc.Updater();
+            pc.Publish(pc.Offer(UpdatePc.Running, zip, sequence: 3) with { RevokedKey = pc.ReleaseKeyHash }, backup: true);
+            await revoking.CheckAsync(TestContext.Current.CancellationToken);
+            pc.Publish(offer with { Sequence = 4 });
+        }
 
         return (pc.Build(catalog: wrong == "a release build without its signed catalog"), wrong != "a folder users write to");
     }
 
-    // Steps the clock once the updater waits on it, and waits for that tick's work.
-    private static async Task StepAsync(UpdatePc pc, TimeSpan step, bool minutes = false)
+    // Steps the clock once the updater waits on it, and waits for that tick's work; a build that never updates has no loop.
+    private static async Task StepAsync(UpdatePc pc, Task running, TimeSpan step, bool minutes = false)
     {
+        if (running.IsCompleted)
+        {
+            return;
+        }
+
         await (minutes ? pc.Clock.PassAsync(step) : pc.Clock.StepAsync(step));
         await pc.Clock.SettledAsync();
     }

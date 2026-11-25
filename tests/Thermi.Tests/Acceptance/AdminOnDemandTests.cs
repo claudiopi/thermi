@@ -89,18 +89,20 @@ public sealed class AdminOnDemandTests
     }
 
     // Before any MSI runs: the download page with checks turned off by the policy or no MSI offered, and a failure when no
-    // manifest could be taken; none when there is an MSI to run.
+    // manifest could be taken; the offered MSI, running, when there is one.
     [Theory]
     [InlineData(false, "1.3.0", MachineInstallOutcome.DownloadPage)]
     [InlineData(true, null, MachineInstallOutcome.Failed)]
     [InlineData(true, "1.1.0", MachineInstallOutcome.DownloadPage)]
-    [InlineData(true, "1.3.0", null)]
-    public void InstallForEveryoneRunsAnMsiOnlyWhenTheChannelOffersOne(bool checks, string? offered, MachineInstallOutcome? outcome)
+    [InlineData(true, "1.3.0", MachineInstallOutcome.Running)]
+    public void InstallForEveryoneRunsAnMsiOnlyWhenTheChannelOffersOne(bool checks, string? offered, MachineInstallOutcome outcome)
     {
         var msis = new Dictionary<string, Package> { ["x64"] = new(new Uri("https://u/v1/thermi.msi"), 40_000_000, new string('a', 64)) };
         var manifest = offered is null ? null : new Manifest { Channel = Manifest.Stable, Sequence = 1, Version = ReleaseVersion.Parse(offered), Msis = msis };
 
-        Assert.Equal(outcome, InstallForEveryone.WithoutMsi(checks, manifest, ReleaseVersion.Parse("1.2.0")!, "x64"));
+        Assert.Equal(
+            (outcome, outcome == MachineInstallOutcome.Running ? msis["x64"] : null),
+            InstallForEveryone.MsiToRun(checks, manifest, ReleaseVersion.Parse("1.2.0")!, "x64"));
     }
 
     // The pinned driver or a later one is never installed over; an older one, or one whose version cannot be read, is.

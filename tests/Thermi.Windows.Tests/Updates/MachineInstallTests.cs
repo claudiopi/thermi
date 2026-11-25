@@ -16,19 +16,21 @@ public sealed class MachineInstallTests
 {
     private static readonly byte[] Msi = RandomNumberGenerator.GetBytes(4096);
 
-    // The MSI offered; one while a switch holds the state, when no outcome is written over it; and one thermi's certificate
-    // did not sign, in a release build: what the install came to, with the bytes msiexec got and whether anyone could
-    // change them while it ran. msiexec runs under the updater's lock. Which MSI a manifest offers, what a policy, a
-    // manifest missing, a file of other bytes and msiexec's exit come to are Core's InstallForEveryone and Package rows.
+    // The MSI offered; one while a switch holds the state, when no outcome is written over it; a file of other bytes than
+    // the manifest signed; and one thermi's certificate did not sign, in a release build: what the install came to, with
+    // the bytes msiexec got and whether anyone could change them while it ran. msiexec runs under the updater's lock.
+    // Which MSI a manifest offers, and what a policy, a manifest missing and msiexec's exit come to, are Core's
+    // InstallForEveryone rows.
     [Theory]
     [InlineData("offered", MachineInstallOutcome.Installed, true)]
     [InlineData("switch held", null, true)]
+    [InlineData("other bytes", MachineInstallOutcome.Failed, false)]
     [InlineData("unsigned", MachineInstallOutcome.Failed, false)]
     public async Task InstallForEveryoneRunsOnlyTheCheckedMsi(string channel, MachineInstallOutcome? outcome, bool ran)
     {
         await using var pc = new UpdatePc();
         var package = new Package(new Uri(pc.Channel.Address, "msis/thermi.msi"), Msi.Length, Convert.ToHexStringLower(SHA256.HashData(Msi)));
-        pc.Channel.Serve("/v1/msis/thermi.msi", Msi);
+        pc.Channel.Serve("/v1/msis/thermi.msi", channel == "other bytes" ? [.. Msi.Reverse()] : Msi);
         pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Msis = new Dictionary<string, Package> { ["x64"] = package } });
         using var client = new ManifestClient(pc.Clock);
         var host = new UpdateHost(() => pc.Policy, () => false, _ => { });

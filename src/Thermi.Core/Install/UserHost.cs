@@ -31,7 +31,7 @@ public static class UserHost
     /// only such a host updates itself and offers to install for everyone, and only its window offers that.
     /// </summary>
     public static bool PerUserInstall(string top, string localAppData) =>
-        Inside(Path.Combine(top, "thermi.exe"), localAppData);
+        InstallLayout.Inside(Path.Combine(top, "thermi.exe"), localAppData);
 
     /// <summary>
     /// Whether the window's fix installs thermi for everyone: in a per-user install while it reads <paramref name="pipeRead"/>,
@@ -60,7 +60,7 @@ public static class UserHost
         && ownIntegrity > 0
         && server.Integrity >= ownIntegrity
         && server.Label >= Math.Min(ownIntegrity, Medium)
-        && Inside(server.Image, installFolder);
+        && InstallLayout.Inside(server.Image, installFolder);
 
     /// <summary>
     /// How long the overlay waits before it starts a host again, after one that ran for <paramref name="ran"/> and the wait
@@ -70,10 +70,4 @@ public static class UserHost
         locked ? null
         : ran < QuickEnd && waited is { } last ? TimeSpan.FromTicks(Math.Min(last.Ticks * 2, Longest.Ticks))
         : First;
-
-    private static bool Inside(string image, string folder)
-    {
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar;
-        return Path.GetFullPath(image).StartsWith(root, StringComparison.OrdinalIgnoreCase);
-    }
 }

@@ -19,7 +19,7 @@
       "id": "A3",
       "covers": ["R4", "R5", "R7", "R8"],
       "description": "Given a fake clock, when the service runs with updates built in, then it checks a minute after it starts, every 4 hours and after a resume past 4 hours, at the beta address only with the beta policy, never with Updates = 0 or in a build without a key, and on a metered network downloads only an urgent version.",
-      "check": "ChecksFollowTheSchedule",
+      "check": "ChecksFollowTheScheduleThePolicyAndTheNetwork",
       "passes": false
     },
     {
@@ -32,7 +32,7 @@
     {
       "id": "A5",
       "covers": ["R9", "R10", "R12"],
-      "description": "Given an update folder, when the manifest is too long, signed by no key or another, of another channel, an older sequence or expired, or the zip is longer, of another hash, holds an entry that leaves its folder or versions that are not the manifest's, or, in a release build, a file its catalog does not list, or the folder is a link or writable by users, then nothing under the folder changes, no version runs, and the event log names the check that failed; and a manifest signed by the backup key revokes the release key.",
+      "description": "Given an update folder and a version that passes every check, when the zip served is longer than the manifest signed, holds an entry that leaves its folder or versions that are not the manifest's, or, in a release build, comes without its signed catalog, or the folder is writable by users, or the release key signed the manifest after one the backup key signed revoked it, then nothing under the folder changes, no version runs, and the event log names the check that failed; the version that passes is taken.",
       "check": "TheUpdaterTakesOnlyWhatPassesEveryCheck",
       "passes": false
     },
@@ -151,7 +151,7 @@
     {
       "id": "A22",
       "covers": ["R29"],
-      "description": "Given a per-user install's host, a channel offering a machine MSI, a manifest that cannot be read, the policy Updates = 0, a download whose bytes are not the manifest's, and a prompt refused with 1223, when it is asked to install for everyone, then msiexec starts only for the checked file the manifest names, held open so no one changes it while it runs, a manifest that cannot be read or a download refused changes nothing, and the policy opens the download page; each outcome is written for the window.",
+      "description": "Given a per-user install's host and a channel offering a machine MSI, when it is asked to install for everyone, then msiexec starts only for the file the manifest names, with its bytes and, in a release build, thermi's signature, held open so no one changes it while it runs and under the updater's lock; a download of other bytes or an MSI not signed changes nothing and fails; each outcome is written for the window, but over a switch under way.",
       "check": "InstallForEveryoneRunsOnlyTheCheckedMsi",
       "passes": true
     },
@@ -238,6 +238,34 @@
       "description": "Given a per-user install whose host serves, when the user signs out or restarts Windows, then the host's run ends with the Stopped mark in update\\state.json, and no crash is counted at the next start.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A35",
+      "covers": ["R9"],
+      "description": "Given a state with a sequence and a manifest of another channel, an older sequence, expired, or expiring more than 45 days and a day ahead, when the service plans, then it refuses it, and takes one expiring just within that.",
+      "check": "TheUpdaterNeverGoesBackButToItsOwnPrevious",
+      "passes": false
+    },
+    {
+      "id": "A36",
+      "covers": ["R10"],
+      "description": "Given a downloaded file of the package's size and SHA-256, one shorter, one longer and one of another hash, when the service checks it, then only the first is the package, and the refusal names the size or the hash that differs.",
+      "check": "AFileIsThePackageOnlyAtItsSizeAndHash",
+      "passes": false
+    },
+    {
+      "id": "A37",
+      "covers": ["R12"],
+      "description": "Given zip entries inside the version's folder, rooted, naming a drive or a stream, climbing out, or a link, when the service unpacks the zip, then only those that land inside the folder pass.",
+      "check": "AZipsEntryLandsOnlyInsideItsFolder",
+      "passes": false
+    },
+    {
+      "id": "A38",
+      "covers": ["R29"],
+      "description": "Given the policy Updates = 0, a manifest that cannot be read, a channel offering no MSI for the running version or later, or one offering it, when the user's host is asked to install for everyone, then the policy and no MSI open the download page, no manifest fails, and only the MSI offered runs.",
+      "check": "InstallForEveryoneRunsAnMsiOnlyWhenTheChannelOffersOne",
+      "passes": true
     }
   ]
 }

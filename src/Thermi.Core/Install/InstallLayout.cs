@@ -13,8 +13,8 @@ public static class InstallLayout
     /// <summary>The folder the MSI installs a version in, beside the ones the service keeps, and which only the MSI removes.</summary>
     public const string Setup = "setup";
 
-    /// <summary>The start of the folder scripts/install.ps1 copies a build to before it adopts it.</summary>
-    public const string InstallPrefix = "install-";
+    // The start of the folder scripts/install.ps1 copies a build to before it adopts it.
+    private const string InstallPrefix = "install-";
 
     public static IReadOnlyList<string> Launchers => ["thermi.exe", "thermi-sensors.exe"];
 
@@ -56,6 +56,10 @@ public static class InstallLayout
 
     /// <summary>Whether two paths name the same file or folder, as Windows compares them.</summary>
     public static bool Same(string one, string other) => string.Equals(Full(one), Full(other), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether <paramref name="path"/> lies inside <paramref name="folder"/>, as Windows compares paths.</summary>
+    public static bool Inside(string path, string folder) =>
+        Path.GetFullPath(path).StartsWith(Full(folder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
     private static bool VersionOrCopy(string name) =>
         name.StartsWith(InstallPrefix, StringComparison.OrdinalIgnoreCase) || ReleaseVersion.Parse(name) is not null;
