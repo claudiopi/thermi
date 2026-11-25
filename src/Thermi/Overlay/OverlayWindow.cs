@@ -46,7 +46,6 @@ internal sealed class OverlayWindow : IDisposable
     // OLED care moves the overlay by how long it has run.
     private readonly long _started;
     public bool OnScreen { get; private set; }
-
     public bool Dragging => _mouse.Dragged is not null || _gestures.Drag is not null;
 
     // The last scene painted, which the glow's frames paint again, and what it drew.
@@ -81,8 +80,7 @@ internal sealed class OverlayWindow : IDisposable
     // The display language is read once, at start; the settings' language whenever they reload.
     private Texts Translations => Texts.For(_settings.Config.Language, CultureInfo.CurrentUICulture);
 
-    // Without a class cursor Windows leaves whatever cursor was last shown, often the busy one. Without CS_DBLCLKS
-    // a double-click comes as a second press, and never opens the settings.
+    // Without a class cursor Windows leaves the last cursor shown, often the busy one; without CS_DBLCLKS, a double-click is two presses.
     internal static WNDCLASSEXW WindowClass(WNDPROC procedure, PCWSTR className) => HiddenWindow.Plain(procedure, className) with
     {
         style = WNDCLASS_STYLES.CS_DBLCLKS,
