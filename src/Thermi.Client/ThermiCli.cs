@@ -94,7 +94,6 @@ internal sealed class ProcessCli : ICli
         }
     }
 
-    // A process that ended on its own as it was cancelled has nothing left to end.
     private static void End(Process process)
     {
         try

@@ -143,7 +143,7 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
             AgentExit.BadArguments,
             Error: $"No metric, sensor or item is named {string.Join(", ", answer.Unknown)}; sensors lists the sensors, config the items.");
 
-    // No file yet, as on the sensors alone until a first edit, is the defaults at once, with no settle to wait out.
+    // No file yet is the defaults at once, with no settle to wait out.
     private async Task<ConfigRead> SettingsAsync()
     {
         if (!File.Exists(environment.SettingsPath))
