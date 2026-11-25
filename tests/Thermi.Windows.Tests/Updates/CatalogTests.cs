@@ -30,12 +30,12 @@ public sealed class CatalogTests : IDisposable
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
-    // What could be done to a version's files after the catalog was made over them.
+    // What could be done to a version's files after the catalog was made over them; a file moved is one added where no
+    // member names it, as "a file added" is.
     [Theory]
     [InlineData("nothing", true)]
     [InlineData("a file changed", false)]
     [InlineData("a file added", false)]
-    [InlineData("a file moved", false)]
     [InlineData("a file deleted", false)]
     [InlineData("the catalog gone", false)]
     public void AVersionRunsOnlyWhatItsCatalogLists(string done, bool listed)
@@ -48,9 +48,6 @@ public sealed class CatalogTests : IDisposable
                 break;
             case "a file added":
                 File.WriteAllText(Path.Combine(_folder, "settings", "extra.js"), "fetch('https://example.com')");
-                break;
-            case "a file moved":
-                File.Move(page, Path.Combine(_folder, "index.html"));
                 break;
             case "a file deleted":
                 File.Delete(page);

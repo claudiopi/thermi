@@ -131,6 +131,13 @@ public static class SwitchHealth
     public static bool MaySwitch(UpdateState state, DateTimeOffset now) =>
         state.SwitchAfter is not { } after || after <= now || after - now > UpdateSchedule.Every + UpdatePlan.ClockSlack;
 
+    /// <summary>
+    /// The version ready that <paramref name="self"/> switches to at a quiet moment or About's restart, or null: only a
+    /// later one, while <paramref name="self"/> is the version installed and no hold stops the switch.
+    /// </summary>
+    public static ReleaseVersion? ReadyFor(UpdateState state, ReleaseVersion self, DateTimeOffset now) =>
+        state.Installed == self && state.Ready is { } ready && ready > self && MaySwitch(state, now) ? ready : null;
+
     private static UpdateState Cut(UpdateState state) => Cut(state, state.Switch ?? throw new InvalidOperationException("No switch was written down."));
 
     private static UpdateState Cut(UpdateState state, PendingSwitch pending)

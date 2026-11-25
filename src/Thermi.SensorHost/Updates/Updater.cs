@@ -230,9 +230,9 @@ internal sealed class Updater(
             LastSuccess = now,
             RevokedKey = UpdatePlan.Revokes(state, read, build.ReleaseKeyHash) ? manifest.RevokedKey : state.RevokedKey,
         };
-        var (next, switchTo) = await ApplyAsync(state, plan, stop);
+        var (next, switchTo) = UpdatePlan.Apply(state, plan, await CarryOutAsync(state, plan, stop), build.Version, now);
         next = WriteAfterCheck(next);
-        if (switchTo is { } to && (to < build.Version || SwitchHealth.MaySwitch(next, now)))
+        if (switchTo is { } to)
         {
             // From the state as it is now: a stop's mark written since the check's own write is kept. A start that
             // throws leaves the prune to the next check.
@@ -264,36 +264,28 @@ internal sealed class Updater(
         return written;
     }
 
-    private async Task<(UpdateState State, ReleaseVersion? SwitchTo)> ApplyAsync(UpdateState state, Plan plan, CancellationToken stop)
+    // What the plan asks of the PC: a download, or only a word in the event log. What it leaves in the state is Core's.
+    private async Task<Fetched> CarryOutAsync(UpdateState state, Plan plan, CancellationToken stop)
     {
-        switch (plan.Kind)
+        if (plan is { Kind: PlanKind.Download, Version: { } version, Package: { } package })
         {
-            case PlanKind.Download when plan is { Version: { } version, Package: { } package }:
-                var metered = !UpdateSchedule.MayDownload(_host.Metered(), plan.Urgent);
-                say(
-                    metered ? $"thermi found {version}, and downloads it once the network is not metered." : $"thermi found {version}, and downloads it.",
-                    EventLogEntryType.Information);
-                return (metered ? Fetched.Later : await FetchAsync(version, package, stop)) switch
-                {
-                    Fetched.Ready => (state with { Ready = version, ReadyUrgent = plan.Urgent, Refused = null }, plan.Urgent ? version : null),
-                    Fetched.Refused => (state with { Refused = package.Sha256 }, null),
-                    Fetched.Later => (state, null),
-                    _ => (state, null),
-                };
-            case PlanKind.Keep:
-                return (state with { ReadyUrgent = plan.Urgent }, plan.Urgent ? state.Ready : null);
-            case PlanKind.DropReady:
-                say($"thermi {state.Ready} is no longer offered, so it is deleted.", EventLogEntryType.Information);
-                return (state with { Ready = null, ReadyUrgent = false }, null);
-            case PlanKind.RollBack:
-                say($"thermi {state.Installed} was withdrawn, so the PC goes back to {plan.Version}.", EventLogEntryType.Warning);
-                return (state, plan.Version);
-            case PlanKind.Download:
-            case PlanKind.Nothing:
-            case PlanKind.Refuse:
-            default:
-                return (state, null);
+            var metered = !UpdateSchedule.MayDownload(_host.Metered(), plan.Urgent);
+            say(
+                metered ? $"thermi found {version}, and downloads it once the network is not metered." : $"thermi found {version}, and downloads it.",
+                EventLogEntryType.Information);
+            return metered ? Fetched.Later : await FetchAsync(version, package, stop);
         }
+
+        if (plan.Kind == PlanKind.DropReady)
+        {
+            say($"thermi {state.Ready} is no longer offered, so it is deleted.", EventLogEntryType.Information);
+        }
+        else if (plan.Kind == PlanKind.RollBack)
+        {
+            say($"thermi {state.Installed} was withdrawn, so the PC goes back to {plan.Version}.", EventLogEntryType.Warning);
+        }
+
+        return Fetched.Later;
     }
 
     // A refused zip stays refused, as a download again cannot change it; a failed download is retried at the next check.
@@ -331,13 +323,6 @@ internal sealed class Updater(
         return Fetched.Ready;
     }
 
-    private enum Fetched
-    {
-        Later,
-        Ready,
-        Refused,
-    }
-
     // A release build takes a version only when thermi's certificate signed its catalog and the catalog lists every file.
     private Func<string, string?>? Catalog() => build.Signers is { Count: > 0 } signers
         ? unpacked => Authenticode.SignedBy(Path.Combine(unpacked, FileCatalog.Name), signers)
@@ -349,8 +334,7 @@ internal sealed class Updater(
     private void SwitchReady()
     {
         var state = folder.Read();
-        if (_host.Policy(build).Checks && !_switcher.UnderWay() && state.Installed == build.Version && state.Ready is { } ready && ready > build.Version
-            && SwitchHealth.MaySwitch(state, time.GetUtcNow()) && Trusted())
+        if (_host.Policy(build).Checks && !_switcher.UnderWay() && SwitchHealth.ReadyFor(state, build.Version, time.GetUtcNow()) is { } ready && Trusted())
         {
             _switcher.Begin(state, ready, build.Version);
         }

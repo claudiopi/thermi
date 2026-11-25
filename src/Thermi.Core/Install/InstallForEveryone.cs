@@ -49,6 +49,17 @@ public static class InstallForEveryone
     };
 
     /// <summary>
+    /// What the install comes to before any MSI runs, or null when <see cref="Msi"/> gives one to run: the download page
+    /// when the policy turned checks off or the manifest offers none, and a failure when no manifest of the channel's could
+    /// be taken, <paramref name="manifest"/> being null.
+    /// </summary>
+    public static MachineInstallOutcome? WithoutMsi(bool checks, Manifest? manifest, ReleaseVersion running, string processor) =>
+        !checks ? MachineInstallOutcome.DownloadPage
+        : manifest is null ? MachineInstallOutcome.Failed
+        : Msi(manifest, running, processor) is null ? MachineInstallOutcome.DownloadPage
+        : null;
+
+    /// <summary>
     /// The machine MSI to run: that of the version <paramref name="manifest"/> offers when it is <paramref name="running"/>
     /// or later and lists one for <paramref name="processor"/>; null, as for a channel turned off or a running version
     /// withdrawn, leaves none to trust, and the fix opens the download page.

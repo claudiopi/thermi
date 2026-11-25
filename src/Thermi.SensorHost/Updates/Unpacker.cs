@@ -20,9 +20,6 @@ internal static class Unpacker
     /// <summary>The programs whose version must be the manifest's, each with its launcher.</summary>
     public static readonly IReadOnlyList<string> Programs = ["thermi-sensors", "thermi"];
 
-    // A Unix link's type in the high half of a zip entry's external attributes.
-    private const int LinkMode = 0xA000;
-
     /// <summary>
     /// Null when <paramref name="version"/> is unpacked into its folder, else why it was refused. <paramref name="catalog"/>
     /// checks a release's signed catalog over the folder, and is null in a build that needs none.
@@ -68,16 +65,15 @@ internal static class Unpacker
             return "the zip holds more than a version could";
         }
 
-        var root = Path.TrimEndingDirectorySeparator(fresh) + Path.DirectorySeparatorChar;
         var left = MaxBytes;
         foreach (var entry in archive.Entries)
         {
-            var target = Path.GetFullPath(Path.Combine(fresh, entry.FullName));
-            if (Path.IsPathRooted(entry.FullName) || entry.FullName.Contains(':', StringComparison.Ordinal)
-                || !target.StartsWith(root, StringComparison.OrdinalIgnoreCase) || ((entry.ExternalAttributes >> 16) & 0xF000) == LinkMode)
+            if (!ZipEntries.LandsInside(fresh, entry.FullName, entry.ExternalAttributes))
             {
                 return $"the zip's entry {entry.FullName} would land outside its folder";
             }
+
+            var target = Path.GetFullPath(Path.Combine(fresh, entry.FullName));
 
             if (entry.FullName.EndsWith('/'))
             {

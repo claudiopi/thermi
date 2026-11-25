@@ -33,24 +33,19 @@ public sealed class SwitchCutTests
         Assert.Equal((false, true), (left, held));
     }
 
-    // How many of the new version's launchers were placed, whether Windows started the new version next, and whether the
-    // switch was marked done. The PC runs whole the version Windows started.
+    // A switch cut with one of the new version's launchers placed, and Windows starting the new version next or the old
+    // one: the PC runs whole the version Windows started, each launcher replaced while an overlay runs from the other.
+    // What the state makes of the cut, done or tried once more, is Core's SwitchHealth rows.
     [Theory]
-    [InlineData(0, false, false)]
-    [InlineData(0, true, false)]
-    [InlineData(1, true, false)]
-    [InlineData(1, false, false)]
-    [InlineData(2, true, true)]
-    public async Task ASwitchCutAtAnyStepLeavesOneVersionWhole(int placed, bool startsNew, bool done)
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ASwitchCutAtAnyStepLeavesOneVersionWhole(bool startsNew)
     {
         await using var pc = new UpdatePc();
         pc.Lay(UpdatePc.Built);
-        var begun = SwitchHealth.Begin(pc.State with { Ready = UpdatePc.Built }, UpdatePc.Built);
-        pc.Folder().Write(done ? SwitchHealth.Done(begun, pc.Clock.GetUtcNow()) : begun);
-        foreach (var program in Unpacker.Programs.Take(placed))
-        {
-            File.Copy(Path.Combine(pc.Top, UpdatePc.Built.ToString(), "launchers", program + ".exe"), Path.Combine(pc.Top, program + ".exe"), overwrite: true);
-        }
+        pc.Folder().Write(SwitchHealth.Begin(pc.State with { Ready = UpdatePc.Built }, UpdatePc.Built));
+        var placed = Unpacker.Programs[0];
+        File.Copy(Path.Combine(pc.Top, UpdatePc.Built.ToString(), "launchers", placed + ".exe"), Path.Combine(pc.Top, placed + ".exe"), overwrite: true);
 
         // An overlay that runs from the launcher at the top, which Windows lets be renamed but not deleted or rewritten.
         await using var running = new FileStream(Path.Combine(pc.Top, "thermi.exe"), FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);

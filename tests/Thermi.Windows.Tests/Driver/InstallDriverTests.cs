@@ -19,7 +19,7 @@ public sealed class InstallDriverTests : IDisposable
     // Each row: what the download gives, whether it is signed, what the installer exits with (none when it never ends),
     // the service's states as the manager gives them, one a poll, and the mode's exit code. A planted file is one an
     // attacker left in the folder, which Windows would load beside the installer as administrator. The pinned driver
-    // present already is never installed over.
+    // present already is never installed over; which versions count as it is Core's DriverVersion rows.
     [Theory]
     [InlineData("pinned", true, 0, "RSSR", InstallDriver.Installed)]
     [InlineData("pinned", true, 3010, "RSSR", InstallDriver.RestartNeeded)]
@@ -67,16 +67,6 @@ public sealed class InstallDriverTests : IDisposable
         Assert.Equal((exit, runs), (await run, ran.Ran));
         Assert.False(Directory.Exists(fresh));
     }
-
-    // The pinned version or a later one is never installed over; an older one, or one whose version cannot be read, is. No
-    // driver at all is every row above but "present".
-    [Theory]
-    [InlineData("2.2.0", true)]
-    [InlineData("2.3", true)]
-    [InlineData("2.1.9", false)]
-    [InlineData("two", false)]
-    public void OnlyAnOlderDriverIsInstalledOver(string installed, bool covered) =>
-        Assert.Equal(covered, new DriverSetup(new Uri("https://example.invalid/setup.exe"), 1, "", [], new Version(2, 2, 0)).Covers(installed));
 
     private static string Fresh(string folder, string download)
     {

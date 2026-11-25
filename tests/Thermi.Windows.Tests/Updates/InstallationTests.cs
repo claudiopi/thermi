@@ -2,6 +2,7 @@ extern alias sensors;
 
 using sensors::Thermi.SensorHost.Install;
 using sensors::Thermi.SensorHost.Updates;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 
 namespace Thermi.Windows.Tests.Updates;
@@ -33,17 +34,16 @@ public sealed class InstallationTests : IAsyncDisposable
 
     private static string Elevated => "thermi-elevated";
 
-    private string Setup => Path.Combine(_pc.Top, Installation.Setup);
+    private string Setup => Path.Combine(_pc.Top, InstallLayout.Setup);
 
-    // What was there before: nothing, a build from before the version folders, a later version an update switched to,
-    // this version built again with other files, or an earlier version ready, which the PC must not switch down to.
+    // What was there before, each moved or replaced on the disk: nothing, a build from before the version folders, or this
+    // version built again with other files. Which version a later one an update switched to leaves running, and what a
+    // version ready earlier than this one becomes, are Core's InstallLayout and SwitchHealth rows.
     [Theory]
-    [InlineData("nothing", "0.9.0", "0.9.0")]
-    [InlineData("an earlier version ready", "0.9.0", "0.9.0")]
-    [InlineData("a flat build", "0.9.0", "0.9.0")]
-    [InlineData("a later version", "0.9.5", "0.9.5")]
-    [InlineData("this version built again", "0.9.0", "0.9.0")]
-    public async Task AnInstallRunsItsVersionBesideTheOthers(string before, string runs, string shown)
+    [InlineData("nothing")]
+    [InlineData("a flat build")]
+    [InlineData("this version built again")]
+    public async Task AnInstallRunsItsVersionBesideTheOthers(string before)
     {
         var flat = Path.Combine(_pc.Top, "runtimes", "thermi.dll");
         switch (before)
@@ -58,13 +58,6 @@ public sealed class InstallationTests : IAsyncDisposable
                 await File.WriteAllTextAsync(flat, "flat", TestContext.Current.CancellationToken);
                 _system.Images[Sensors] = $"\"{Path.Combine(_pc.Top, "thermi-sensors.exe")}\"";
                 break;
-            case "a later version":
-                _pc.Lay(Later);
-                _system.Images[Sensors] = Service(Later);
-                break;
-            case "an earlier version ready":
-                _pc.Folder().Write(new UpdateState { Installed = UpdatePc.Running, Ready = new ReleaseVersion(0, 8, 5) });
-                break;
             default:
                 _pc.Lay(UpdatePc.Built);
                 var built = Path.Combine(_pc.Top, UpdatePc.Built.ToString(), "thermi.exe");
@@ -74,22 +67,17 @@ public sealed class InstallationTests : IAsyncDisposable
 
         var exit = await AdoptAsync();
 
-        var version = ReleaseVersion.Parse(runs)!;
-        var laid = await File.ReadAllTextAsync(Path.Combine(_pc.Top, runs, "thermi.exe"), TestContext.Current.CancellationToken);
+        var laid = await File.ReadAllTextAsync(Path.Combine(_pc.Top, UpdatePc.Built.ToString(), "thermi.exe"), TestContext.Current.CancellationToken);
         Assert.Equal(
-            (0, Service(version), UpdatePc.Launcher("thermi", version == UpdatePc.Built ? version : UpdatePc.Running), $"thermi {runs}", false, shown, null),
-            (exit, _system.Images[Sensors], _pc.LauncherAtTop("thermi"), laid, File.Exists(flat), _system.Shown?.Version, _pc.Folder().Read().Ready));
+            (0, Service(UpdatePc.Built), UpdatePc.Launcher("thermi", UpdatePc.Built), $"thermi {UpdatePc.Built}", false, UpdatePc.Built.ToString()),
+            (exit, _system.Images[Sensors], _pc.LauncherAtTop("thermi"), laid, File.Exists(flat), _system.Shown?.Version));
     }
 
-    // A step that fails at each state the install leaves on the way, over a thermi or on a PC with none: what was there
-    // stays, services, launchers, versions, state and Installed apps' entry. Over a thermi, the steps between the sensors'
-    // service repointed and the environment change nothing more, and the environment fails with another exception.
+    // A step that fails over a thermi, with an exception of the registry's, or on a PC with none, with the service
+    // manager's: what was there stays, services, launchers, versions, state and Installed apps' entry.
     [Theory]
-    [InlineData("config", false)]
     [InlineData("environment", false)]
-    [InlineData("sdset", false)]
     [InlineData("create", true)]
-    [InlineData("failure", true)]
     public async Task AFailedStepLeavesWhatWasThere(string failing, bool fresh)
     {
         if (fresh)
@@ -107,16 +95,11 @@ public sealed class InstallationTests : IAsyncDisposable
     // with what an install before it recorded still in update\; once the install committed, a later rollback keeps it.
     [Theory]
     [InlineData("a thermi", false)]
-    [InlineData("nothing", false)]
     [InlineData("a later version", false)]
     [InlineData("a thermi", true)]
     public async Task AnInstallRolledBackLeavesWhatWasThere(string there, bool committed)
     {
-        if (there == "nothing")
-        {
-            Fresh();
-        }
-        else if (there == "a later version")
+        if (there == "a later version")
         {
             _pc.Lay(Later);
             _system.Images[Sensors] = Service(Later);
@@ -154,21 +137,18 @@ public sealed class InstallationTests : IAsyncDisposable
         Assert.Equal((before, 0, Service(UpdatePc.Built)), (meanwhile, await install, _system.Images[Sensors]));
     }
 
-    // From the MSI's own folder, and from a version's, as scripts/install.ps1 runs it; anything else is refused whole.
-    [Theory]
-    [InlineData("setup", "setup", 0)]
-    [InlineData("0.8.0", "0.8.0 setup", 0)]
-    [InlineData("elsewhere", "0.8.0 0.9.5 elsewhere setup thermi-sensors.exe thermi.exe update", 1)]
-    public async Task ARemoveTakesThermiOffButTheFolderItRunsFrom(string own, string left, int exit)
+    // From the MSI's own folder, which stays for the MSI to remove. Which folders an install runs from and which entries a
+    // removal takes are Core's InstallLayout rows.
+    [Fact]
+    public async Task ARemoveTakesThermiOffButTheFolderItRunsFrom()
     {
         _pc.Lay(Later);
-        Directory.CreateDirectory(Path.Combine(_pc.Top, own));
 
-        var removed = await Install().RemoveAsync(Path.Combine(_pc.Top, own), TestContext.Current.CancellationToken);
+        var removed = await Install().RemoveAsync(Setup, TestContext.Current.CancellationToken);
 
         var entries = string.Join(" ", Directory.EnumerateFileSystemEntries(_pc.Top).Select(Path.GetFileName).Order(StringComparer.Ordinal));
-        Assert.Equal((exit, left), (removed, entries));
-        Assert.Equal(exit == 0, _system.Images.Count == 0 && _system.Sources.Count == 0 && _system.Shown is null && _system.Ended);
+        Assert.Equal((0, InstallLayout.Setup), (removed, entries));
+        Assert.True(_system.Images.Count == 0 && _system.Sources.Count == 0 && _system.Shown is null && _system.Ended);
     }
 
     public ValueTask DisposeAsync() => _pc.DisposeAsync();

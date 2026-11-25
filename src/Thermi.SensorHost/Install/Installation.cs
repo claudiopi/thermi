@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Updates;
 
@@ -23,12 +24,6 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
     /// <summary>A 2 MB young generation, in hex, which keeps the service in docs/adr/0011-sensor-service-memory-budget.md's budget.</summary>
     public const string YoungGeneration = "DOTNET_GCgen0size=200000";
 
-    /// <summary>The folder the MSI installs a version in, beside the ones the service keeps, and which only the MSI removes.</summary>
-    public const string Setup = "setup";
-
-    /// <summary>The start of the folder scripts/install.ps1 copies a build to before it adopts it.</summary>
-    public const string InstallPrefix = "install-";
-
     private const string Sensors = SensorService.Name;
     private const string Elevated = ServiceConfig.Elevated;
 
@@ -38,18 +33,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
 
     private const string Switching = "An update is switching thermi's version, so nothing was changed: try again in a few minutes.";
 
-    private static readonly string[] Launchers = ["thermi.exe", "thermi-sensors.exe"];
-
     private string UndoPath => Path.Combine(folder.Update, "adopt-undo.json");
-
-    /// <summary>Whether <paramref name="own"/> is a folder an install runs from: the MSI's, the script's or a version's.</summary>
-    public static bool InstallsFrom(string own)
-    {
-        var name = Path.GetFileName(Full(own));
-        return string.Equals(name, Setup, StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith(InstallPrefix, StringComparison.OrdinalIgnoreCase)
-            || ReleaseVersion.Parse(name) is not null;
-    }
 
     /// <summary>
     /// Lays <paramref name="version"/> down from <paramref name="from"/>; 0 when it runs, 1 when a step failed, which puts
@@ -76,7 +60,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         var undo = new AdoptUndo(system.ImagePath(Sensors), system.ImagePath(Elevated), there, folder.StateText(), system.App());
         await WriteUndoAsync(undo, stop);
         var shownBy = product ?? undo.App?.Product;
-        if (Running(undo.Sensors) is { } running && running > version && Directory.Exists(folder.VersionOf(running)))
+        if (InstallLayout.Later(folder.Top, undo.Sensors, version) is { } running && Directory.Exists(folder.VersionOf(running)))
         {
             Show(shownBy, running);
             return 0;
@@ -152,7 +136,9 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             }
         }
 
-        foreach (var entry in Directory.EnumerateFileSystemEntries(folder.Top).Where(entry => Owned(entry) && !SamePath(entry, own)))
+        var removed = Directory.EnumerateFileSystemEntries(folder.Top)
+            .Where(entry => InstallLayout.Removes(Path.GetFileName(entry), Directory.Exists(entry)) && !InstallLayout.Same(entry, own));
+        foreach (var entry in removed)
         {
             InstallFolder.Delete(entry);
         }
@@ -265,13 +251,13 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
 
     private void PutLaunchersBack(AdoptUndo undo)
     {
-        if (Running(undo.Sensors) is { } running && Directory.Exists(folder.VersionOf(running)))
+        if (InstallLayout.Running(folder.Top, undo.Sensors) is { } running && Directory.Exists(folder.VersionOf(running)))
         {
             folder.PlaceLaunchers(running);
         }
         else if (undo.Sensors is null)
         {
-            foreach (var launcher in Launchers)
+            foreach (var launcher in InstallLayout.Launchers)
             {
                 folder.SetAside(Path.Combine(folder.Top, launcher));
             }
@@ -301,7 +287,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
     // Only from a folder of thermi's, in a folder only its owners change: its parent is what it removes from.
     private bool Refuses(string own)
     {
-        if (InstallsFrom(own) && SamePath(Path.GetDirectoryName(Full(own)) ?? "", folder.Top) && folder.Trusted())
+        if (InstallLayout.InstallsFrom(own, folder.Top) && folder.Trusted())
         {
             return false;
         }
@@ -310,20 +296,12 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         return true;
     }
 
-    private bool Owned(string entry)
-    {
-        var name = Path.GetFileName(entry);
-        return Directory.Exists(entry)
-            ? SamePath(entry, folder.Update) || name.StartsWith(InstallPrefix, StringComparison.OrdinalIgnoreCase) || ReleaseVersion.Parse(name) is not null
-            : Launchers.Contains(name, StringComparer.OrdinalIgnoreCase);
-    }
-
     // A version already there with the same files stays, as an update unpacked it; one built again with other files is
     // replaced, which Windows refuses while anything runs from it.
     private void Copy(string from, ReleaseVersion version)
     {
         var to = folder.VersionOf(version);
-        if (SamePath(from, to) || Same(from, to))
+        if (InstallLayout.Same(from, to) || Same(from, to))
         {
             return;
         }
@@ -370,15 +348,6 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         system.Sc("sdset", Elevated, ElevatedRights);
     }
 
-    // The version of a service run from a version's folder; null for one run from anywhere else, as a build before
-    // these folders ran.
-    private ReleaseVersion? Running(string? imagePath)
-    {
-        var exe = imagePath?.Split('"', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-        var parent = exe is null ? null : Path.GetDirectoryName(exe);
-        return parent is not null && SamePath(Path.GetDirectoryName(parent) ?? "", folder.Top) ? ReleaseVersion.Parse(Path.GetFileName(parent)) : null;
-    }
-
     // What a build from before the version folders left at the top: only the names this version ships, launchers aside.
     private void Tidy(string from)
     {
@@ -386,14 +355,10 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         {
             var name = Path.GetFileName(entry);
             var shipped = File.Exists(Path.Combine(from, name)) || Directory.Exists(Path.Combine(from, name));
-            if (shipped && !Launchers.Contains(name, StringComparer.OrdinalIgnoreCase))
+            if (shipped && !InstallLayout.Launchers.Contains(name, StringComparer.OrdinalIgnoreCase))
             {
                 folder.SetAside(entry);
             }
         }
     }
-
-    private static bool SamePath(string one, string other) => string.Equals(Full(one), Full(other), StringComparison.OrdinalIgnoreCase);
-
-    private static string Full(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 }

@@ -19,7 +19,7 @@
       "id": "A3",
       "covers": ["R4", "R5", "R7", "R8"],
       "description": "Given a fake clock, when the service runs with updates built in, then it checks a minute after it starts, every 4 hours and after a resume past 4 hours, at the beta address only with the beta policy, never with Updates = 0 or in a build without a key, and on a metered network downloads only an urgent version.",
-      "check": "ChecksFollowTheScheduleThePolicyAndTheNetwork",
+      "check": "ChecksFollowTheSchedule",
       "passes": false
     },
     {
@@ -116,8 +116,8 @@
     {
       "id": "A17",
       "covers": ["R25"],
-      "description": "Given the service, when About asks it for a check twice within a minute and once after, then it checks at once and then once more.",
-      "check": "AnAskChecksAtOnceAtMostOnceAMinute",
+      "description": "Given About's last ask never made, made 59 s or 60 s ago, or made ahead of a clock set back, when the service hears a new ask, then it checks at once, not within the minute, again once the minute passed, and at once after the clock was set back.",
+      "check": "AboutAsksOnceAMinute",
       "passes": false
     },
     {

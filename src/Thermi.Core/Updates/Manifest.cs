@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -5,7 +6,18 @@ using System.Text.Json.Serialization;
 namespace Thermi.Core.Updates;
 
 /// <summary>One processor's zip or MSI of a version: where it is, and the size and SHA-256 it must have.</summary>
-public sealed record Package(Uri Url, long Size, string Sha256);
+public sealed record Package(Uri Url, long Size, string Sha256)
+{
+    /// <summary>
+    /// Why a file of <paramref name="bytes"/> bytes, hashed as <paramref name="sha256"/> in lowercase hex, is not this
+    /// package, or null when it is. A file longer than its size is refused first, as a download stops reading there.
+    /// </summary>
+    public string? Refusal(long bytes, string sha256) =>
+        bytes > Size ? string.Create(CultureInfo.InvariantCulture, $"the file is longer than its {Size} bytes")
+            : bytes != Size ? string.Create(CultureInfo.InvariantCulture, $"the file has {bytes} bytes, not {Size}")
+            : !string.Equals(sha256, Sha256, StringComparison.Ordinal) ? "the file's SHA-256 is not the manifest's"
+            : null;
+}
 
 /// <summary>A version's files by processor: the zips an update unpacks, and the machine MSIs a per-user install runs.</summary>
 public sealed record VersionFiles(IReadOnlyDictionary<string, Package> Zips, IReadOnlyDictionary<string, Package> Msis)

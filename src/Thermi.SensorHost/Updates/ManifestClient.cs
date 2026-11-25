@@ -127,7 +127,7 @@ internal sealed class ManifestClient : IDisposable
             total += got;
             if (total > package.Size)
             {
-                return $"the file is longer than its {package.Size} bytes";
+                break;
             }
 
             hash.AppendData(buffer, 0, got);
@@ -135,9 +135,6 @@ internal sealed class ManifestClient : IDisposable
         }
 
         await zip.FlushAsync(stop);
-        return total != package.Size ? $"the file has {total} bytes, not {package.Size}"
-            : !string.Equals(Convert.ToHexStringLower(hash.GetHashAndReset()), package.Sha256, StringComparison.Ordinal)
-                ? "the file's SHA-256 is not the manifest's"
-            : null;
+        return package.Refusal(total, Convert.ToHexStringLower(hash.GetHashAndReset()));
     }
 }

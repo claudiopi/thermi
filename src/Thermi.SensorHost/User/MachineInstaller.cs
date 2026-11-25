@@ -105,21 +105,14 @@ internal sealed class MachineInstaller(
             return MachineInstallOutcome.Failed;
         }
 
-        if (!host.Policy(build).Checks)
+        var policy = host.Policy(build);
+        var manifest = policy.Checks ? await ManifestAsync(policy.Channel, stop) : null;
+        if (InstallForEveryone.WithoutMsi(policy.Checks, manifest, build.Version, build.Processor) is { } outcome)
         {
-            return MachineInstallOutcome.DownloadPage;
+            return outcome;
         }
 
-        var manifest = await ManifestAsync(stop);
-        if (manifest is null)
-        {
-            return MachineInstallOutcome.Failed;
-        }
-
-        if (InstallForEveryone.Msi(manifest, build.Version, build.Processor) is not { } msi)
-        {
-            return MachineInstallOutcome.DownloadPage;
-        }
+        var msi = InstallForEveryone.Msi(manifest!, build.Version, build.Processor)!;
 
         var path = Path.Combine(folder.Update, "machine-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)) + ".msi");
         try
@@ -147,9 +140,8 @@ internal sealed class MachineInstaller(
     }
 
     // The channel's current manifest, as the updater would take it; null, said in the log, when none could be read or taken.
-    private async Task<Manifest?> ManifestAsync(CancellationToken stop)
+    private async Task<Manifest?> ManifestAsync(string channel, CancellationToken stop)
     {
-        var channel = host.Policy(build).Channel;
         var state = folder.Read();
         var envelope = await client.EnvelopeAsync(build.ManifestOf(channel), stop);
         var read = envelope is null ? null : build.Open(envelope, state);
@@ -186,8 +178,7 @@ internal sealed class MachineInstaller(
     private async Task<int?> RunCheckedAsync(Package msi, string path, Func<string, Task<int>> msiexec, CancellationToken stop)
     {
         await using var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
-        var hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(held, stop));
-        if (held.Length != msi.Size || !string.Equals(hash, msi.Sha256, StringComparison.OrdinalIgnoreCase))
+        if (msi.Refusal(held.Length, Convert.ToHexStringLower(await SHA256.HashDataAsync(held, stop))) is not null)
         {
             log.Say("The machine MSI changed after its check, so thermi did not run it. Nothing changed.", EventLogEntryType.Error);
             return null;

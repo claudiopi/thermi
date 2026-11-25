@@ -24,6 +24,19 @@ public enum PlanKind
 
 public sealed record Plan(PlanKind Kind, ReleaseVersion? Version = null, Package? Package = null, bool Urgent = false, string? Refused = null);
 
+/// <summary>What became of a download a plan asked for.</summary>
+public enum Fetched
+{
+    /// <summary>Not fetched, or refused for the PC's reasons, as a network down or a folder in use: the next check tries again.</summary>
+    Later,
+
+    /// <summary>Checked and unpacked: the version is ready.</summary>
+    Ready,
+
+    /// <summary>Refused for what the zip holds, which fetching it again cannot change.</summary>
+    Refused,
+}
+
 /// <summary>
 /// What the service takes from a channel's manifest, given what it runs and keeps. It never goes below or to the installed
 /// version, nor to one that failed here; a withdrawn installed version goes back only to the previous version this PC ran
@@ -68,6 +81,37 @@ public static class UpdatePlan
 
         return state.Ready == offered.Version ? offered with { Kind = PlanKind.Keep, Package = null } : offered;
     }
+
+    /// <summary>
+    /// The state a check leaves once <paramref name="plan"/> was carried out by <paramref name="self"/> at
+    /// <paramref name="now"/>, <paramref name="fetched"/> saying what became of its download, and the version to switch to
+    /// now, if any: one made ready switches at once only when urgent, and forward only while no hold stops it; a rollback
+    /// goes back whatever holds.
+    /// </summary>
+    public static (UpdateState State, ReleaseVersion? SwitchTo) Apply(UpdateState state, Plan plan, Fetched fetched, ReleaseVersion self, DateTimeOffset now)
+    {
+        var (next, to) = Carried(state, plan, fetched);
+        return (next, to is { } target && (target < self || SwitchHealth.MaySwitch(next, now)) ? target : null);
+    }
+
+    private static (UpdateState State, ReleaseVersion? SwitchTo) Carried(UpdateState state, Plan plan, Fetched fetched)
+    {
+        if (plan is { Kind: PlanKind.Download, Version: { } version, Package: { } package })
+        {
+            return Downloaded(state, version, package, plan.Urgent, fetched);
+        }
+
+        return plan.Kind == PlanKind.Keep ? (state with { ReadyUrgent = plan.Urgent }, plan.Urgent ? state.Ready : null)
+            : plan.Kind == PlanKind.DropReady ? (state with { Ready = null, ReadyUrgent = false }, null)
+            : plan.Kind == PlanKind.RollBack ? (state, plan.Version)
+            : (state, null);
+    }
+
+    private static (UpdateState State, ReleaseVersion? SwitchTo) Downloaded(
+        UpdateState state, ReleaseVersion version, Package package, bool urgent, Fetched fetched) =>
+        fetched == Fetched.Ready ? (state with { Ready = version, ReadyUrgent = urgent, Refused = null }, urgent ? version : null)
+            : fetched == Fetched.Refused ? (state with { Refused = package.Sha256 }, null)
+            : (state, null);
 
     /// <summary>
     /// Whether <paramref name="read"/> revokes this build's release key now: signed by the backup key, naming that key, and

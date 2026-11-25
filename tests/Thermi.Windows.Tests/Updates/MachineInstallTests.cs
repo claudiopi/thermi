@@ -16,29 +16,20 @@ public sealed class MachineInstallTests
 {
     private static readonly byte[] Msi = RandomNumberGenerator.GetBytes(4096);
 
-    // The channel, the file it serves and the policy; what msiexec answers; and what the install came to, with the bytes
-    // msiexec got and whether anyone could change them while it ran, no outcome written while a switch holds the state, and
-    // in a release build none run that thermi's certificate did not sign. msiexec runs under the updater's lock.
-    // Which MSI a manifest offers is Core's, and its tests'.
+    // The MSI offered; one while a switch holds the state, when no outcome is written over it; and one thermi's certificate
+    // did not sign, in a release build: what the install came to, with the bytes msiexec got and whether anyone could
+    // change them while it ran. msiexec runs under the updater's lock. Which MSI a manifest offers, what a policy, a
+    // manifest missing, a file of other bytes and msiexec's exit come to are Core's InstallForEveryone and Package rows.
     [Theory]
-    [InlineData("offered", 0, MachineInstallOutcome.Installed, true)]
-    [InlineData("offered", 1223, MachineInstallOutcome.Refused, true)]
-    [InlineData("other bytes", 0, MachineInstallOutcome.Failed, false)]
-    [InlineData("no manifest", 0, MachineInstallOutcome.Failed, false)]
-    [InlineData("policy off", 0, MachineInstallOutcome.DownloadPage, false)]
-    [InlineData("switch held", 0, null, true)]
-    [InlineData("unsigned", 0, MachineInstallOutcome.Failed, false)]
-    public async Task InstallForEveryoneRunsOnlyTheCheckedMsi(string channel, int answer, MachineInstallOutcome? outcome, bool ran)
+    [InlineData("offered", MachineInstallOutcome.Installed, true)]
+    [InlineData("switch held", null, true)]
+    [InlineData("unsigned", MachineInstallOutcome.Failed, false)]
+    public async Task InstallForEveryoneRunsOnlyTheCheckedMsi(string channel, MachineInstallOutcome? outcome, bool ran)
     {
         await using var pc = new UpdatePc();
         var package = new Package(new Uri(pc.Channel.Address, "msis/thermi.msi"), Msi.Length, Convert.ToHexStringLower(SHA256.HashData(Msi)));
-        pc.Channel.Serve("/v1/msis/thermi.msi", channel == "other bytes" ? [.. Msi.Reverse()] : Msi);
-        if (channel != "no manifest")
-        {
-            pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Msis = new Dictionary<string, Package> { ["x64"] = package } });
-        }
-
-        pc.Policy = channel == "policy off" ? (0, null) : (null, null);
+        pc.Channel.Serve("/v1/msis/thermi.msi", Msi);
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Msis = new Dictionary<string, Package> { ["x64"] = package } });
         using var client = new ManifestClient(pc.Clock);
         var host = new UpdateHost(() => pc.Policy, () => false, _ => { });
         var log = new FileLog(Path.Combine(pc.Top, "thermi-sensors.log"), pc.Clock);
@@ -60,7 +51,7 @@ public sealed class MachineInstallTests
                 seen = await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken);
                 changed = Writable(path);
                 held = busy.CurrentCount;
-                return answer;
+                return 0;
             },
             TestContext.Current.CancellationToken,
             worked: () => worked = busy.CurrentCount == 0);

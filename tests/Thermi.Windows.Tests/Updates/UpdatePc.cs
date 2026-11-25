@@ -57,8 +57,6 @@ internal sealed class UpdatePc : IAsyncDisposable
     /// <summary>The program of each watchdog the service would have started; none starts.</summary>
     public List<string> Watchdogs { get; } = [];
 
-    public string ReleaseKeyHash => Convert.ToHexStringLower(SHA256.HashData(_release.ExportSubjectPublicKeyInfo()));
-
     public IReadOnlyList<(string Message, EventLogEntryType Type)> Events
     {
         get
@@ -143,7 +141,7 @@ internal sealed class UpdatePc : IAsyncDisposable
     }
 
     /// <summary>A zip of <paramref name="version"/> made of the test build's programs, served under <c>zips\</c>, and its package.</summary>
-    public Package Zip(ReleaseVersion version, Action<ZipArchive>? change = null)
+    public Package Zip(ReleaseVersion version)
     {
         using var bytes = new MemoryStream();
         using (var zip = new ZipArchive(bytes, ZipArchiveMode.Create, leaveOpen: true))
@@ -154,8 +152,6 @@ internal sealed class UpdatePc : IAsyncDisposable
                 Write(zip, program + ".exe", $"{program} {version}");
                 Write(zip, $"launchers/{program}.exe", Launcher(program, version));
             }
-
-            change?.Invoke(zip);
         }
 
         var path = $"/v1/zips/{version}/thermi-{version}-x64.zip";
@@ -173,9 +169,9 @@ internal sealed class UpdatePc : IAsyncDisposable
         Packages = new Dictionary<string, Package>(StringComparer.Ordinal) { ["x64"] = package },
     };
 
-    /// <summary>Serves <paramref name="manifest"/> as its channel's envelope, sealed with the release key, the backup or <paramref name="other"/>.</summary>
-    public void Publish(Manifest manifest, bool backup = false, ECDsa? other = null, string? at = null) =>
-        Channel.Serve($"/v1/{at ?? manifest.Channel}.json", ManifestEnvelope.Seal(manifest, other ?? (backup ? _backup : _release)));
+    /// <summary>Serves <paramref name="manifest"/> as its channel's envelope, sealed with the release key.</summary>
+    public void Publish(Manifest manifest) =>
+        Channel.Serve($"/v1/{manifest.Channel}.json", ManifestEnvelope.Seal(manifest, _release));
 
     public async ValueTask DisposeAsync()
     {

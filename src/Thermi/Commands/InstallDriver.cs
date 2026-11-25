@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Install;
 
 namespace Thermi.Commands;
 
@@ -17,12 +18,6 @@ internal sealed record DriverSetup(Uri Url, long Size, string Sha256, IReadOnlyL
         "1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032",
         ["-install", "-silent"],
         new Version(2, 2, 0));
-
-    /// <summary>
-    /// Whether a driver installed as <paramref name="displayVersion"/> is this one or a later one, which is never installed
-    /// over; an older one, or one whose version cannot be read, is.
-    /// </summary>
-    public bool Covers(string? displayVersion) => Version.TryParse(displayVersion, out var installed) && installed >= Version;
 }
 
 /// <summary>The download, which tests replace: the file at the URL into the stream, false when it fails or runs past the size.</summary>
@@ -109,7 +104,7 @@ internal static class InstallDriver
     {
         // The pinned one or a later one, as another tool's, is never installed over, and an older one is, as the sensors may
         // not open it: the sensors only start again, as a per-user install made for everyone asks whatever the driver.
-        if (parts.Setup.Covers(parts.Installed()))
+        if (DriverVersion.Covers(parts.Setup.Version, parts.Installed()))
         {
             return await StartSensors.RestartAsync(parts.Services, time).ConfigureAwait(false);
         }
