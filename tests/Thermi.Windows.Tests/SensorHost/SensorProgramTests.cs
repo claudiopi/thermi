@@ -1,5 +1,6 @@
 extern alias sensors;
 
+using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -27,6 +28,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
     private readonly string _pipeName = $"thermi-test-{Guid.NewGuid():N}";
     private readonly CancellationTokenSource _stop = new();
     private readonly List<Task<int>> _runs = [];
+    private readonly ConcurrentQueue<string> _logged = new();
 
     public SensorProgramTests()
     {
@@ -173,7 +175,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
     // Spec 004, A24: the host's stop event ends it while a client still reads, or while another program holds its pipe's
     // name, and an event someone made before the host, even one that shuts the user out, keeps it from running at all, so
-    // no other process steers it.
+    // no other process steers it. What it says goes to its own file, never to the service's log.
     [Fact]
     public async Task TheUsersHostIsSteeredOnlyByItsOwnEvents()
     {
@@ -211,6 +213,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
         var shutOut = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.Equal((0, 0, UserMode.Taken, UserMode.Taken), (stopped, squatted, refused, shutOut));
+        Assert.Empty(_logged);
     }
 
     // Sets a host's stop event once it said another program holds its pipe, so it waits to try again as it hears it.
@@ -254,7 +257,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
     private Task<int> RunAsync(string[] args)
     {
-        var environment = new SensorHostEnvironment((_, patience) => _sensors.Open(_clock, patience), _clock, _out, _error, (_, _) => { })
+        var environment = new SensorHostEnvironment((_, patience) => _sensors.Open(_clock, patience), _clock, _out, _error, (said, _) => _logged.Enqueue(said))
         {
             PipeName = _pipeName,
             UserLog = Path.Combine(_folder, "thermi-sensors.log"),

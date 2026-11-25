@@ -64,17 +64,7 @@ internal sealed class WindowsSetup : ISystemSetup
         key.SetValue("Environment", variables.ToArray(), RegistryValueKind.MultiString);
     }
 
-    public void EventSource(string service, bool registered)
-    {
-        if (registered && !EventLog.SourceExists(service))
-        {
-            EventLog.CreateEventSource(service, "Application");
-        }
-        else if (!registered && EventLog.SourceExists(service))
-        {
-            EventLog.DeleteEventSource(service);
-        }
-    }
+    public void EventSource(string service, bool registered) => ApplicationLog.Register(service, registered);
 
     public InstalledApp? App() => AppOf(Registry.LocalMachine);
 
