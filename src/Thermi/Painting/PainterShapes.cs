@@ -40,6 +40,20 @@ internal static class PainterShapes
         g.DrawPath(border, outerPath);
     }
 
+    /// <summary>A pill a single bar holds; where its color is the bar's, as under high contrast, a border sets it apart.</summary>
+    public static void InnerPill(Graphics g, OverlayLook look, RectangleF box, float scale)
+    {
+        var padding = OuterPadding * scale;
+        using var path = Rounded(box, (float)look.InnerRadius(box.Height + (2 * padding), padding));
+        using var brush = new SolidBrush(Drawn(look.Pills.Inner));
+        g.FillPath(brush, path);
+        if (look.Pills.Inner == look.Pills.Outer)
+        {
+            using var border = new Pen(Drawn(look.Pills.Border), Math.Max(1, scale));
+            g.DrawPath(border, path);
+        }
+    }
+
     /// <summary>
     /// The once-only glow of a pill whose item first went critical: its border and a tint in the critical color, at
     /// <paramref name="strength"/>, 0 to 1.

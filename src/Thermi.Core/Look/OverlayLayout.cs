@@ -34,6 +34,9 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     public bool Throttled { get; init; }
 }
 
+/// <summary>A pill: its label and the indexes of its first and last item.</summary>
+public readonly record struct Run(string? Label, int First, int Last);
+
 /// <summary>One second of a line: its fill, 0 to 1, and the level the item's lines give it.</summary>
 public readonly record struct GraphPoint(double Fill, Level Level);
 
@@ -60,6 +63,7 @@ public static class OverlayLayout
     {
         var items = new List<OverlayItem>();
         var labels = RunLabels(overlay.Items, texts);
+        var starts = Runs(overlay.Items, overlay.Style.Layout, texts).Select(run => run.First).ToHashSet();
         string? shownLabel = null;
         for (var index = 0; index < overlay.Items.Count; index++)
         {
@@ -78,7 +82,8 @@ public static class OverlayLayout
                 continue;
             }
 
-            var labeled = Labeled(overlay.Style.Layout, item, label != shownLabel);
+            // A pill whose first item is left out, shown only on alert, is labeled at its first item shown.
+            var labeled = starts.Contains(index) || label != shownLabel;
             var drawn = DrawnOf(overlay, item);
             items.Add(new OverlayItem(labeled ? Tagged(item, label, culture, texts) : null, value, level, room)
             {
@@ -132,6 +137,29 @@ public static class OverlayLayout
         return labels;
     }
 
+    /// <summary>The overlay's pills: runs of one label, which an own item breaks with pills, or every item alone with each.</summary>
+    public static IReadOnlyList<Run> Runs(OverlayConfig overlay, Texts? texts = null) => Runs(overlay.Items, overlay.Style.Layout, texts);
+
+    /// <summary>The pills of <paramref name="items"/> in <paramref name="layout"/>.</summary>
+    public static IReadOnlyList<Run> Runs(IReadOnlyList<ItemConfig> items, PillLayout layout, Texts? texts = null)
+    {
+        var labels = RunLabels(items, texts);
+        var runs = new List<Run>();
+        for (var at = 0; at < items.Count; at++)
+        {
+            if (at == 0 || layout == PillLayout.Each || (layout == PillLayout.Pills && items[at].Own) || labels[at] != labels[at - 1])
+            {
+                runs.Add(new Run(labels[at], at, at));
+            }
+            else
+            {
+                runs[^1] = runs[^1] with { Last = at };
+            }
+        }
+
+        return runs;
+    }
+
     /// <summary>
     /// What an item reads now, its sensors combined and its offset added, or null when it names sensors the snapshot lacks.
     /// A combined item leaves out its sensors without a value, and is missing when none is left.
@@ -169,6 +197,10 @@ public static class OverlayLayout
         : (item.Graph ?? overlay.Graph) is var chosen and not GraphStyle.Auto ? chosen
         : kind == SensorKind.Load && item.WarnBy is null ? GraphStyle.Line
         : GraphStyle.Bars;
+
+    /// <summary>The pills a single bar holds, each as its item count, one per run; null in the other layouts.</summary>
+    public static IReadOnlyList<int>? InnerPills(IReadOnlyList<OverlayItem> items, PillLayout layout) =>
+        layout == PillLayout.One ? [.. Groups(items).Select(group => group.Count)] : null;
 
     /// <summary>
     /// The groups the overlay paints as separate pills. With pills, each label starts one, and the unlabeled items after
@@ -236,9 +268,6 @@ public static class OverlayLayout
         item.Label is null && label is not null && LabelOf(item, texts) == label && TagOf(item, culture, texts) is { } tag
             ? (texts ?? Texts.English).Format(culture, OverlayText.TaggedLabel, label, tag)
             : label;
-
-    private static bool Labeled(PillLayout layout, ItemConfig item, bool newLabel) =>
-        layout == PillLayout.Each || newLabel || (layout == PillLayout.Pills && item.Own);
 
     // Without a history, a graph has only the value now.
     private static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, Reading? meter, ItemHistory? history) =>

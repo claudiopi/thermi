@@ -6,9 +6,11 @@
   margin-bottom: 16px;
 }
 
+/* A press beside a knob drags nothing, so it must not select the scale's numbers either. */
 .t-chart-row {
   position: relative;
   display: flex;
+  user-select: none;
 }
 
 .t-plot {

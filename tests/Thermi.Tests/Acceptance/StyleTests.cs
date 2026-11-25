@@ -233,10 +233,13 @@ public sealed class StyleTests
         Assert.Equal(
             lightPills ? ["#0F7B0F", "#9D5D00", "#C42B1C"] : ["#6CCB5F", OverlayLook.DefaultWarning.ToString(), OverlayLook.DefaultCritical.ToString()],
             levels.Select(level => look.MeterColor(level).ToString()));
-        // Each level's color is a mark of its own on the pill and on a graph's unlit track.
+        // Each level's color is a mark of its own on the pill, on a pill a single bar holds and on a graph's unlit track; the
+        // pills a bar holds stand from it at 1.5:1, and no more than 2:1, so the runs read apart quietly.
+        Rgb[] unders = [look.Pills.Outer, look.Pills.Inner, look.Pills.MeterOff];
         Assert.All(
-            levels.SelectMany(level => new[] { look.Pills.Outer, look.Pills.MeterOff }.Select(under => look.MeterColor(level).ContrastWith(under))),
+            levels.SelectMany(level => unders.Select(under => look.MeterColor(level).ContrastWith(under))),
             contrast => Assert.True(contrast >= OverlayLook.MinContrast, $"{contrast:0.00}:1"));
+        Assert.InRange(look.Pills.Inner.ContrastWith(look.Pills.Outer), 1.5, 2);
         Assert.Equal((StylePreset.Custom, new TextStyle(15, TextWeight.Bold)), (resized.Preset, StylePresets.Text(resized).Value));
         Assert.Equal(style, resized with { Preset = style.Preset, Label = style.Label, Value = style.Value });
         // Its tile's sample is three pills, the CPU's temperature and load, the GPU and the RAM, each value with its bars, in the look.

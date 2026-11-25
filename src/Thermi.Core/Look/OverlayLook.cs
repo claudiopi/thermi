@@ -29,13 +29,15 @@ public readonly record struct Rgb(byte R, byte G, byte B)
     private static byte Channel(string hex, int at) => byte.Parse(hex.AsSpan(at, 2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
 }
 
-/// <summary>One kind of flat pill: its color inside its border, its border, a graph's unlit background, and its Auto label and value colors.</summary>
-public sealed record PillColors(Rgb Outer, Rgb Border, Rgb MeterOff, Rgb Label, Rgb Value)
+/// <summary>One kind of flat pill: its colors inside and border, a graph's unlit background, Auto label and value, and the pills a single bar holds.</summary>
+public sealed record PillColors(Rgb Outer, Rgb Border, Rgb MeterOff, Rgb Label, Rgb Value, Rgb Inner)
 {
-    public static PillColors Dark { get; } = new(Rgb.Parse("#20201E"), Rgb.Parse("#31312F"), Rgb.Parse("#2E2E2C"), Rgb.Parse("#A9A9A7"), Rgb.Parse("#EFEFEE"));
+    // The inner pills stand 1.5:1 from the bar, lighter on dark and darker on light, so the runs read apart quietly.
+    public static PillColors Dark { get; } =
+        new(Rgb.Parse("#20201E"), Rgb.Parse("#31312F"), Rgb.Parse("#2E2E2C"), Rgb.Parse("#A9A9A7"), Rgb.Parse("#EFEFEE"), Rgb.Parse("#3E3E3B"));
 
     public static PillColors Light { get; } =
-        new(Rgb.Parse("#F3F3F1"), Rgb.Parse("#DADAD8"), Rgb.Parse("#D5D5D3"), Rgb.Parse("#5C5C5A"), Rgb.Parse("#1A1A1A"));
+        new(Rgb.Parse("#F3F3F1"), Rgb.Parse("#DADAD8"), Rgb.Parse("#D5D5D3"), Rgb.Parse("#5C5C5A"), Rgb.Parse("#1A1A1A"), Rgb.Parse("#C8C8C6"));
 }
 
 /// <summary>
@@ -145,7 +147,7 @@ public sealed record OverlayLook
         var look = Styled(style, lightTaskbar);
         return highContrast is not { } system ? look : look with
         {
-            Pills = new PillColors(system.Window, system.WindowText, system.Window, system.WindowText, system.WindowText),
+            Pills = new PillColors(system.Window, system.WindowText, system.Window, system.WindowText, system.WindowText, system.Window),
             LabelColor = new TextColor(system.WindowText),
             ValueColor = new TextColor(system.WindowText),
             Normal = system.WindowText,
@@ -163,6 +165,9 @@ public sealed record OverlayLook
         CornerStyle.Square => 0,
         _ => 0,
     };
+
+    /// <summary>The inner pill's corner radius: the bar's less the padding, so both curves share a center and the band stays even.</summary>
+    public double InnerRadius(double barHeight, double padding) => Math.Max(0, Radius(barHeight) - padding);
 
     private static OverlayLook Styled(StyleConfig style, bool lightTaskbar)
     {

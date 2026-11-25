@@ -134,7 +134,7 @@ public static class OverlayEdits
         }
 
         var target = config.Overlays[into];
-        var merged = Joined(target, Labeled(config.Overlays[overlay].Items), before);
+        var merged = Joined(target, Labeled(config.Overlays[overlay].Items), before, Starts(target, config.Overlays[overlay]));
         return ConfigEdits.Apply(config, current => current with
         {
             Overlays = [.. current.Overlays.Select((each, at) => at == into ? merged : each).Where((_, at) => at != overlay)],
@@ -232,13 +232,14 @@ public static class OverlayEdits
     private static EditResult Split(ThermiConfig config, int from, int first, int last, Landing landing)
     {
         var source = config.Overlays[from];
+        var starts = Starts(landing.Into is { } into ? [source, config.Overlays[into]] : [source]);
         var items = Labeled(source.Items);
         var moved = items.Skip(first).Take(last - first + 1).ToList();
-        var left = items.Where((_, at) => at < first || at > last).ToList();
+        var left = Kept([.. items.Where((_, at) => at < first || at > last)], starts);
         var overlays = config.Overlays.Select((each, at) => at == from ? each with { Items = left } : each).ToList();
         if (landing.Into is { } target)
         {
-            overlays[target] = Joined(overlays[target], moved, landing.Before);
+            overlays[target] = Joined(overlays[target], moved, landing.Before, starts);
         }
         else
         {
@@ -256,17 +257,30 @@ public static class OverlayEdits
     }
 
     // Before a pill, never inside one, and its labels written, so every pill of the overlay shows as it did.
-    private static OverlayConfig Joined(OverlayConfig overlay, List<ItemConfig> moved, string? before)
+    private static OverlayConfig Joined(OverlayConfig overlay, List<ItemConfig> moved, string? before, HashSet<string> starts)
     {
         var found = before is null ? -1 : overlay.Items.ToList().FindIndex(item => item.Id == before);
         if (found < 0)
         {
-            return overlay with { Items = [.. overlay.Items, .. moved] };
+            return overlay with { Items = Kept([.. overlay.Items, .. moved], starts) };
         }
 
         var at = ItemEdits.PillOf(overlay, found).First;
         var items = Labeled(overlay.Items);
-        return overlay with { Items = [.. items.Take(at), .. moved, .. items.Skip(at)] };
+        return overlay with { Items = Kept([.. items.Take(at), .. moved, .. items.Skip(at)], starts) };
+    }
+
+    // The items that start a pill, as pills lay them out whatever the layout, which keeps them for when it comes back.
+    private static HashSet<string> Starts(params OverlayConfig[] overlays) =>
+        [.. overlays.SelectMany(overlay => OverlayLayout.Runs(overlay.Items, PillLayout.Pills).Select(run => overlay.Items[run.First].Id))];
+
+    // An item that started a pill and now follows one of its label starts its own, so a join or a split never merges two
+    // pills that showed apart.
+    private static List<ItemConfig> Kept(List<ItemConfig> items, HashSet<string> starts)
+    {
+        var labels = OverlayLayout.RunLabels(items);
+        return [.. items.Select((item, at) =>
+            at > 0 && !item.Own && starts.Contains(item.Id) && labels[at - 1] == labels[at] ? item with { Own = true } : item)];
     }
 
     // The items that also show in the order's metrics take, among their own places, the order those give them; the rest

@@ -35,11 +35,15 @@ export function yOf(plot: Plot, value: number): number {
   return pad + ((to - value) / span) * (plot.height - 2 * pad);
 }
 
-/** The value at a height of the plot, on the knobs' steps and within their track. */
+/**
+ * The value at a height of the plot, on the knobs' steps, within their track and the span the plot shows.
+ */
 export function valueAt(plot: Plot, y: number): number {
   const { from, to, step, max } = plot.chart;
   const raw = to - ((y - pad) / (plot.height - 2 * pad)) * (to - from);
-  return Math.min(max, Math.max(0, Math.round(raw / step) * step));
+  const low = Math.max(0, Math.ceil(from / step) * step);
+  const high = Math.min(max, Math.floor(to / step) * step);
+  return Math.min(high, Math.max(low, Math.round(raw / step) * step));
 }
 
 /** One stretch of the line between missing readings: its path and where it starts and ends across. */

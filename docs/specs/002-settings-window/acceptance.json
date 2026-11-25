@@ -1521,6 +1521,34 @@
       "description": "Given the installed build at 100 % and 150 %, when the overlay page is open on the taskbar overlay, then the preview and the look tiles look as the overlay does on screen, each edit shows within a second, and the idle window stays within R191's budget.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A331",
+      "covers": [
+        "R111"
+      ],
+      "description": "Given the CPU fan's page, its fan at about 1,100 RPM and no lines, when a warning line is added, moved by the arrows, dragged up while held and a press beside the knobs drags across the chart, then the line comes above the fan's speed and under one and a half times it, moves a step each way, its knob stays under the pointer while the range holds, and no text is selected.",
+      "check": "AFansLineStaysOnItsScale",
+      "passes": true
+    },
+    {
+      "id": "A332",
+      "covers": [
+        "R54",
+        "R55"
+      ],
+      "description": "Given a file joined by hand into one bar of GPU, CPU and RAM items, a CPU item starting its own pill, and the same file in the pills and each layouts, a GPU pill between two of the CPU's dragged off, and an overlay of the RAM merged after the RAM's pill, when the window lists the first overlay, then its pills are the runs the overlay labels in each layout, and the join or split keeps the pills that showed apart.",
+      "check": "TheWindowListsThePillsTheOverlayLabels",
+      "passes": true
+    },
+    {
+      "id": "A333",
+      "covers": [
+        "R55"
+      ],
+      "description": "Given the default overlay in one bar with the admin recording's readings, at 100 % on dark pills and at 150 % on light ones, when it is painted, then the bar holds three pills, CPU, GPU and RAM, in the inner color, 4 px inside its edge and 4 px apart at 100 %, and each item's pill is its run's.",
+      "check": "OneBarHoldsAPillPerRun",
+      "passes": true
     }
   ]
 }

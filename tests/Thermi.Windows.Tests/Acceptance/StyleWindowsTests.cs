@@ -88,6 +88,30 @@ public sealed class StyleWindowsTests
         Assert.DoesNotContain(value, pixel => Near(pixel, look.Warning, 0));
     }
 
+    // In one bar, each run, CPU, GPU and RAM, is a pill of its own inside it, in the inner color, 4 px inside the bar's
+    // edge and 4 px apart at 100 %, and an item's pill is its run's; at 100 % on dark pills and at 150 % on light ones.
+    [Theory]
+    [InlineData(1f, PillTheme.Dark)]
+    [InlineData(1.5f, PillTheme.Light)]
+    public void OneBarHoldsAPillPerRun(float scale, PillTheme pills)
+    {
+        var overlay = StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills, Layout = PillLayout.One }).Config.Overlays[0];
+        var look = OverlayLook.Of(overlay.Style, lightTaskbar: false);
+        var readings = SensorMap.Read(TestRecordings.Read(TestRecordings.Admin), overlay);
+        using var painter = new Painter();
+
+        using var bitmap = painter.Paint(OverlayLayout.Build(overlay, readings, CultureInfo.GetCultureInfo("en-US")), look, scale);
+
+        var inner = painter.Places.Select(place => place.Pill).Distinct().ToList();
+        var y = (int)Math.Round(8 * scale);
+        var row = Enumerable.Range(0, bitmap.Width).Where(x => Near(bitmap.GetPixel(x, y), look.Pills.Inner, 0)).ToList();
+        Assert.Equal(3, inner.Count);
+        Assert.Equal(3, row.Count(x => !row.Contains(x - 1)));
+        Assert.All(inner, box => Assert.Equal(4 * scale, box.Top, 0.01));
+        Assert.Equal(4 * scale, inner[0].Left, 0.01);
+        Assert.All(inner.Zip(inner.Skip(1)), pair => Assert.Equal(4 * scale, pair.Second.Left - pair.First.Right, 0.01));
+    }
+
     // The pixels of a strip of the given width that ends where the item's value starts.
     private static List<(int X, int Y, Color Color)> Before(Bitmap bitmap, PaintedItem item, float width) =>
         [.. Enumerable.Range((int)Math.Floor(item.Value.Left - width), (int)Math.Ceiling(width))

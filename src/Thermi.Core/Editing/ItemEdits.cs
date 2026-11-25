@@ -261,7 +261,7 @@ public static class ItemEdits
 
         var items = config.Overlays[overlay].Items;
         var labels = OverlayLayout.RunLabels(items);
-        var (first, last) = PillAround(items, labels, index, config.Overlays[overlay].Style.Layout);
+        var (first, last) = PillOf(config.Overlays[overlay], index);
         var followers = last + 1;
         while (followers < items.Count && OverlayLayout.LabelOf(items[followers]) is null)
         {
@@ -275,31 +275,10 @@ public static class ItemEdits
     }
 
     /// <summary>The first and last item of the pill the item at <paramref name="index"/> is in, those a rename of its label changes.</summary>
-    public static (int First, int Last) PillOf(OverlayConfig overlay, int index) =>
-        PillAround(overlay.Items, OverlayLayout.RunLabels(overlay.Items), index, overlay.Style.Layout);
-
-    // A pill is a run of one label; with pills, an item that starts a pill of its own breaks the run.
-    private static (int First, int Last) PillAround(IReadOnlyList<ItemConfig> items, IReadOnlyList<string?> labels, int index, PillLayout layout)
+    public static (int First, int Last) PillOf(OverlayConfig overlay, int index)
     {
-        if (layout == PillLayout.Each)
-        {
-            return (index, index);
-        }
-
-        var breaks = layout == PillLayout.Pills;
-        var first = index;
-        while (first > 0 && !(breaks && items[first].Own) && labels[first - 1] == labels[index])
-        {
-            first--;
-        }
-
-        var last = index;
-        while (last + 1 < items.Count && !(breaks && items[last + 1].Own) && labels[last + 1] == labels[index])
-        {
-            last++;
-        }
-
-        return (first, last);
+        var run = OverlayLayout.Runs(overlay).First(each => each.First <= index && index <= each.Last);
+        return (run.First, run.Last);
     }
 
     private static bool WarnedByItsDuty(ItemConfig item) => item.WarnBy is { } warnBy

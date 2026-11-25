@@ -102,12 +102,19 @@ function EmptyNote({ why, width }: { why: ChartEmpty; width: number }) {
   );
 }
 
-/** An item's chart: its meter's last minutes, the lines with their knobs, what the minutes held, and its options. */
-export function Chart({ item, name, chart, edit, metered, options }: ChartProps) {
+type Held = Pick<ChartView, 'from' | 'to' | 'fromText' | 'toText'>;
+
+/**
+ * An item's chart: its meter's last minutes, the lines with their knobs, what the minutes held, and its options. A drag
+ * keeps the span the chart had when pressed: a line over every reading sets the span's top, which would move with it.
+ */
+export function Chart({ item, name, chart: given, edit, metered, options }: ChartProps) {
   const t = useText();
   const [box, size] = useSize();
+  const [held, setHeld] = useState<Held | null>(null);
+  const chart: ChartView = held === null ? given : { ...given, ...held };
   const plot: Plot = { width: Math.max(0, size.width - knobColumn), height: size.height, chart };
-  const focus = useFocusHandOver(chart);
+  const focus = useFocusHandOver(given);
   const queue = useRef<Promise<unknown> | null>(null);
   const later = (work: () => Promise<unknown>): void => {
     queue.current = (queue.current ?? Promise.resolve()).then(work);
@@ -131,6 +138,7 @@ export function Chart({ item, name, chart, edit, metered, options }: ChartProps)
       }
       if (!dragging) {
         dragging = true;
+        setHeld({ from: chart.from, to: chart.to, fromText: chart.fromText, toText: chart.toText });
         later(() => bridge()?.gesture(true) ?? Promise.resolve());
       }
       const value = valueAt(plot, moving.clientY - top);
@@ -143,6 +151,7 @@ export function Chart({ item, name, chart, edit, metered, options }: ChartProps)
       target.removeEventListener('pointermove', onMove);
       target.removeEventListener('pointerup', onUp);
       if (dragging) {
+        setHeld(null);
         later(() => bridge()?.gesture(false) ?? Promise.resolve());
       } else {
         open();

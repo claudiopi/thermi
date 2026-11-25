@@ -59,7 +59,8 @@ describe('the chart', () => {
     { y: 112, value: 0, chart: {} },
     { y: 64, value: 50, chart: {} },
     { y: 66, value: 45, chart: {} },
-    { y: 0, value: 100, chart: {} },
+    // A fan's track ends at 10,000 RPM, far over its chart: a drag past the plot's top stops at the chart's.
+    { y: 0, value: 1500, chart: { to: 1500, step: 50, max: 10000 } },
     { y: 200, value: 0, chart: {} },
     { y: 12, value: 90, chart: { max: 90 } },
     { y: 62, value: 60, chart: { from: 20, to: 100, step: 10 } },

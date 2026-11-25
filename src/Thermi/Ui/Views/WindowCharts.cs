@@ -136,7 +136,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         {
             LineEdit moved => moved.Value,
             TypedLineEdit typed => Typed(scale, typed.Typed, format),
-            _ => Added(scale, item.Threshold, line),
+            _ => MeterChart.Added(scale, item.Threshold, line, [.. History(id).OfType<double>()]),
         };
         var lines = MeterChart.Pushed(
             scale,
@@ -187,11 +187,6 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         var shown = double.Parse(typed, NumberStyles.Float, format.Numbers);
         return scale.Kind == SensorKind.Temperature ? Temperatures.Kept(shown, format.Temperature) : shown;
     }
-
-    // A line added comes back at its default, or without one a push beyond the other, or near the top of an empty track.
-    private static double Added(MeterScale scale, Threshold? lines, ChartLine line) => line == ChartLine.Warning
-        ? scale.Warning ?? (lines?.Critical is { } critical ? Math.Max(critical - scale.Push, 0) : scale.Max * 0.8)
-        : scale.Critical ?? (lines?.Warning is { } warning ? Math.Min(warning + scale.Push, scale.Max) : scale.Max * 0.9);
 
     private ChartEmpty? EmptyOf(WarnByConfig meter, int values) =>
         sensors.State == ServiceState.Stopped ? ChartEmpty.Stopped

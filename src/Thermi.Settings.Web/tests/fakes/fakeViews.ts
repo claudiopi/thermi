@@ -80,15 +80,14 @@ export function installFakeViews(): void {
     };
     return say(byMetric[kind ?? ''] ?? byDevice[sensorOf(item)?.hardwareType ?? ''] ?? 'DeviceKind.Board');
   };
-  // As Core's OverlayLayout.Groups: a pill is a run of one label, each item one of its own, or the whole bar one; a tag
-  // only says what its first value is.
+  // Mirrors Core's OverlayLayout.Runs; a tag only says what its first value is.
   const pillsOf = (overlay: Overlay): PillView[] => {
-    const layout = overlay.style?.layout;
     const pills: (PillView & { run: string })[] = [];
+    const layout = overlay.style?.layout ?? 'pills';
     for (const item of overlay.items) {
       const run = labelOf(item);
       const current = pills.at(-1);
-      if (current !== undefined && layout !== 'each' && (layout === 'one' || (current.run === run && item.own !== true))) {
+      if (current !== undefined && current.run === run && layout !== 'each' && (layout === 'one' || item.own !== true)) {
         current.items.push(item.id);
       } else {
         pills.push({ run, label: itemView(item, overlay).label ?? run, items: [item.id] });
