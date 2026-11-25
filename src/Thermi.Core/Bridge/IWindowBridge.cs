@@ -41,6 +41,15 @@ public interface IWindowBridge
     /// <summary>What Core decides the overlays show now: their pills, each item's value and level, and each sensor's value.</summary>
     Task<WindowView> View();
 
+    /// <summary>
+    /// The overlay painted as its own window paints it now, with the same scene, look, scale and painter as "Copy as image",
+    /// its lines drawing the minute the overlay sent; null for an overlay the settings lack.
+    /// </summary>
+    Task<OverlayPicture?> Preview(int overlay);
+
+    /// <summary>Each look's sample for its tile, painted as the overlay paints <see cref="Look.LookSample"/> in it.</summary>
+    Task<LookSamples> LookSamples();
+
     /// <summary>An item's chart, or null when its meter has none.</summary>
     Task<ChartView?> Chart(string id);
 

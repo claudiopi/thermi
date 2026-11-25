@@ -172,6 +172,22 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
   }
 });
 
+// A328: the preview at the top of Appearance shows an edit of the look as C# paints it, and its undo.
+test('ThePreviewShowsEachEditOfTheOverlay', async ({ page }) => {
+  await openWindow(page);
+  await select(page, 'Taskbar');
+  const pane = page.getByRole('main');
+  const preview = pane.getByRole('img', { name: text('OverlayPageText.Preview', 'Taskbar') });
+  const picture = async (): Promise<string> => (await preview.screenshot()).toString('base64');
+  const before = await picture();
+
+  await pressOn(pane.getByRole('radio', { name: text('PillTheme.Light') }), 'Space');
+  await expect.poll(picture).not.toBe(before);
+
+  await page.keyboard.press('Control+Z');
+  await expect.poll(picture).toBe(before);
+});
+
 // A209: each control of Placement, chosen by keys on two monitors, lands in the settings.
 test('ThePlacementPageMovesTheOverlay', async ({ context }) => {
   const spot = (key: string, monitor?: string): { spot: string; monitor?: string } => {

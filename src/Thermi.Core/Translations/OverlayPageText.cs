@@ -19,6 +19,9 @@ public enum OverlayPageText
     OverlayHeadItems,
     OverlayHeadOneItem,
 
+    /// <summary>What Narrator hears of the preview at the top of Appearance, from the overlay's name.</summary>
+    Preview,
+
     /// <summary>A Look tile's name, from the look's.</summary>
     LookTile,
 

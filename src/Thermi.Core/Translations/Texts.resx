@@ -480,6 +480,9 @@
   <data name="UiText.DeleteThisOverlay" xml:space="preserve">
     <value>Delete this overlay</value>
   </data>
+  <data name="OverlayPageText.Preview" xml:space="preserve">
+    <value>Preview of {0}</value>
+  </data>
   <data name="OverlayPageText.LookTile" xml:space="preserve">
     <value>{0} look</value>
   </data>

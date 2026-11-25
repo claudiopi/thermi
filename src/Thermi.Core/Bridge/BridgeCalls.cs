@@ -197,6 +197,8 @@ internal sealed class BridgeEnums : JsonConverterFactory
 [JsonSerializable(typeof(IReadOnlyList<Found>))]
 [JsonSerializable(typeof(WindowView))]
 [JsonSerializable(typeof(ChartView))]
+[JsonSerializable(typeof(OverlayPicture))]
+[JsonSerializable(typeof(LookSamples))]
 [JsonSerializable(typeof(DesktopPickEventArgs))]
 [JsonSerializable(typeof(WindowChangeEventArgs))]
 [JsonSerializable(typeof(WindowReadingsEventArgs))]

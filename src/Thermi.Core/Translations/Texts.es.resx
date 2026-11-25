@@ -480,6 +480,9 @@
   <data name="UiText.DeleteThisOverlay" xml:space="preserve">
     <value>Eliminar esta superposición</value>
   </data>
+  <data name="OverlayPageText.Preview" xml:space="preserve">
+    <value>Vista previa de {0}</value>
+  </data>
   <data name="OverlayPageText.LookTile" xml:space="preserve">
     <value>Aspecto {0}</value>
   </data>

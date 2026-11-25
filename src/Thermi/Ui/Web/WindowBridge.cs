@@ -37,6 +37,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly WindowEditor _editor;
     private readonly WindowViews _views;
     private readonly WindowCharts _charts;
+    private readonly WindowPreviews _previews;
     private readonly WindowFinder _finder;
     private readonly WindowLooks _looks;
     private readonly PageWatch _watch;
@@ -52,6 +53,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         var readings = new Readings(start.Time);
         _views = new WindowViews(editor, start.Environment.Sensors, readings, chart.Items);
         _charts = new WindowCharts(editor, chart, start.Environment.Sensors, readings);
+        _previews = new WindowPreviews(editor, start.Environment.Sensors, _charts, start.Environment.Screens);
         _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);
@@ -144,6 +146,15 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     public Task<WindowView> View() => Ready(() => _views.View(_texts));
+
+    public Task<OverlayPicture?> Preview(int overlay) => Ready(() => _previews.Preview(overlay, _texts));
+
+    // The samples are as sharp as the window's monitor shows them.
+    public Task<LookSamples> LookSamples()
+    {
+        var dpi = PInvoke.GetDpiForWindow(Window);
+        return Ready(() => _previews.Samples(_looks.Looks(), _texts, (dpi == 0 ? 96 : dpi) / 96.0));
+    }
 
     public Task<ChartView?> Chart(string id) => Task.FromResult(_charts.Chart(id, _views.Format(_texts)));
 

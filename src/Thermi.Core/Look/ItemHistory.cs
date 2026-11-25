@@ -158,8 +158,14 @@ public sealed class ItemHistory(TimeProvider time)
     }
 
     /// <summary>What the item warns by over its last minute, a value a second and oldest first, each colored by its lines; null where it was missing.</summary>
-    public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) =>
-        [.. _meters.LastMinute(item.Id).Select(value => value is { } read
+    public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) => GraphOf(item, _meters.LastMinute(item.Id));
+
+    /// <summary>
+    /// The line of <see cref="Graph"/> for the last minute of <paramref name="meters"/>, what the item warns by a second
+    /// and oldest first, as the window draws the minute the overlay sent it.
+    /// </summary>
+    public static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, IReadOnlyList<double?> meters) =>
+        [.. meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).Select(value => value is { } read
             ? new GraphPoint(OverlayLayout.FillOf(read), item.Threshold?.LevelOf(new Reading(SensorKind.Load, read)) ?? Level.Normal)
             : (GraphPoint?)null)];
 

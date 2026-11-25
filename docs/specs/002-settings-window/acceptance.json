@@ -473,7 +473,7 @@
         "R57",
         "R61"
       ],
-      "description": "Given the default settings, when the look is read and one size then changes, then it is Standard text on pills that match the taskbar with green meters at normal and the darker level colors on light pills, each at 3:1 against its pill and a graph's unlit track, and then it becomes the overlay's own, keeping the rest.",
+      "description": "Given the default settings, when the look is read and one size then changes, then it is Standard text on pills that match the taskbar with green meters at normal and the darker level colors on light pills, each at 3:1 against its pill and a graph's unlit track, and then it becomes the overlay's own, keeping the rest; and a look's tile samples it as three pills, CPU temperature and load, GPU load and RAM used, each lit, in the look's own pills.",
       "check": "TheDefaultLookIsStandardTextOnPillsThatMatchTheTaskbar",
       "passes": true
     },
@@ -1489,6 +1489,36 @@
         "R196"
       ],
       "description": "Given the installed build, the window open, and the overlay on the taskbar and on the desktop, in English and Spanish, light, dark and high contrast, when the author right-clicks a pill and the edge, and from an item's tray icon, and chooses each entry by mouse and by its key, then each changes what it says at once, the window shows it, its Undo in the menu and Ctrl+Z in the window take it back, and no entry offered does nothing.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A328",
+      "covers": [
+        "R197"
+      ],
+      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the change and then its picture before it.",
+      "check": "ThePreviewShowsEachEditOfTheOverlay",
+      "passes": true
+    },
+    {
+      "id": "A329",
+      "covers": [
+        "R188",
+        "R197"
+      ],
+      "description": "Given a recorded snapshot and an overlay in a light look with soft corners, its background at 60 % and bars, when the window previews it, then its picture is pixel for pixel the one \"Copy as image\" puts on the clipboard.",
+      "check": "ThePreviewIsTheOverlaysOwnPicture",
+      "passes": true
+    },
+    {
+      "id": "A330",
+      "covers": [
+        "R57",
+        "R191",
+        "R197"
+      ],
+      "description": "Given the installed build at 100 % and 150 %, when the overlay page is open on the taskbar overlay, then the preview and the look tiles look as the overlay does on screen, each edit shows within a second, and the idle window stays within R191's budget.",
       "check": "by hand",
       "passes": false
     }

@@ -239,6 +239,14 @@ public sealed class StyleTests
             contrast => Assert.True(contrast >= OverlayLook.MinContrast, $"{contrast:0.00}:1"));
         Assert.Equal((StylePreset.Custom, new TextStyle(15, TextWeight.Bold)), (resized.Preset, StylePresets.Text(resized).Value));
         Assert.Equal(style, resized with { Preset = style.Preset, Label = style.Label, Value = style.Value });
+        // Its tile's sample is three pills, the CPU's temperature and load, the GPU and the RAM, each value with its bars, in the look.
+        var sample = LookSample.Of(style);
+        var sampled = OverlayLayout.Groups(OverlayLayout.Build(sample, SensorMap.Read(Desktop, sample), English), sample.Style.Layout);
+        Assert.Equal(
+            [[Metrics.CpuTemperature.Id, Metrics.CpuLoad.Id], [Metrics.GpuLoad.Id], [Metrics.RamUsed.Id]],
+            sampled.Select(pill => pill.Select(item => item.Id)));
+        Assert.All(sampled.SelectMany(pill => pill), item => Assert.NotNull(item.Lit));
+        Assert.Equal(style.Pills, sample.Style.Pills);
     }
 
     // Each level on dark, light and high contrast pills, and the mark its value carries; percentages held between 0 and

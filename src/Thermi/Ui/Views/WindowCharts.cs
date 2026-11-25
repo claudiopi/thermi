@@ -34,7 +34,13 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         }
     }
 
+    /// <summary>The window's history of its items, the overlay's taken in, for their minimum, maximum, average and smoothing.</summary>
+    public ItemHistory Own => chart.Items;
+
     public IReadOnlyList<double?> History(string id) => chart.Of(id, chart.Items.TenMinutes(id));
+
+    /// <summary>An item's line as the overlay draws it: the last minute of its chart, so it shows whole from the window's opening.</summary>
+    public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) => ItemHistory.GraphOf(item, History(item.Id));
 
     /// <summary>
     /// The item's chart: its meter's, or without a meter its own reading's with no lines; null for a reading that is no

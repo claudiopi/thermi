@@ -4,6 +4,7 @@ import { Button, Card, CardRow, CardStack, Dropdown, Segmented, Slider } from '.
 import { useText } from '../texts/Texts';
 import { LookCard } from './LookCard';
 import { enumChoices as choicesOf, shownStyle } from './lookModel';
+import { Preview } from './Preview';
 
 export interface AppearanceProps {
   data: WindowData;
@@ -33,6 +34,7 @@ export function Appearance({ data, overlay }: AppearanceProps) {
   return (
     <section className="t-col t-col-look" aria-label={t('OverlayPageText.AppearanceSection')}>
       <h3 className="t-pane-h">{t('OverlayPageText.AppearanceSection')}</h3>
+      <Preview data={data} overlay={overlay} />
       <LookCard data={data} overlay={overlay} />
       <CardStack>
         <Card>
