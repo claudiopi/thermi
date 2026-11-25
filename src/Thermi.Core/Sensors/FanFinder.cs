@@ -60,10 +60,11 @@ public sealed class FanFinder
     public static readonly TimeSpan MaxRun = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// One lost reading still leaves two in each 3 s average; two in a row is a gap.
-    /// Halfway between whole seconds, so jitter never decides.
+    /// How long the readings may be missing before the run stops, as readings gone: a pause of a few seconds, as a PC
+    /// busy on every core may make, only leaves the averages fewer readings. Halfway between whole seconds, so jitter
+    /// never decides.
     /// </summary>
-    public static readonly TimeSpan MaxGap = TimeSpan.FromSeconds(2.5);
+    public static readonly TimeSpan MaxGap = TimeSpan.FromSeconds(8.5);
 
     // Each average spans 3 s, and a fan meets the rule for as long before it is picked.
     private static readonly TimeSpan Span = TimeSpan.FromSeconds(3);

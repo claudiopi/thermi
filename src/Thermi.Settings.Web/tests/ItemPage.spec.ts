@@ -91,13 +91,18 @@ test.describe('TheItemPageEditsTheItem', () => {
       await page.getByRole('textbox', { name: text('UiText.HexColor') }).fill('#FFB000');
       await page.keyboard.press('Enter');
     }, read: (item) => item.color, expected: '#FFB000' },
+    // Night QA: the dialog starts with what the item reads checked, and once used, the Sensor box says the combination.
     { name: 'Combine', more: true, act: async (page) => {
       await fieldOf(page, 'button', 'UiText.Combine').press('Enter');
       const dialog = page.getByRole('dialog');
+      const reading = dialog.getByRole('checkbox', { checked: true });
+      await expect(reading).toHaveCount(1);
+      await reading.press('Space');
       await dialog.getByRole('checkbox', { name: ccd1.name }).press('Space');
       await dialog.getByRole('checkbox', { name: ccd2.name }).press('Space');
       await chooseByKeys(page, dialog.getByRole('combobox', { name: text('UiText.CombineField') }), text('Combine.Max'));
-      await dialog.getByRole('button', { name: text('UiText.CombineAdd') }).press('Enter');
+      await dialog.getByRole('button', { name: text('UiText.CombineUse') }).press('Enter');
+      await expect(fieldOf(page, 'combobox', 'UiText.SensorField')).not.toHaveValue('');
     }, read: (item) => [item.sensors, item.combine], expected: [[ccd1.id, ccd2.id], 'max'] },
     {
       name: 'No graph',

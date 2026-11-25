@@ -95,6 +95,7 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
         <CardRow label={t('UiText.Combine')}>
           <CombineButton
             item={item}
+            current={item.sensors ?? [item.sensor ?? data.view.items[item.id]?.auto].flatMap((id) => id ?? [])}
             type={type}
             sensors={data.sensors.sensors.filter((sensor) => sensor.type === type && data.view.values[sensor.id] !== undefined)}
             set={(field, value) => set(field, value)}

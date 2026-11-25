@@ -170,7 +170,16 @@ internal sealed class SensorService : ServiceBase
         }
     }
 
-    protected override void OnStart(string[] args) => _running = RunAsync();
+    // Above normal, so a PC busy on every core, which is when its readings matter most, still gets them each second.
+    protected override void OnStart(string[] args)
+    {
+        using (var self = Process.GetCurrentProcess())
+        {
+            self.PriorityClass = ProcessPriorityClass.AboveNormal;
+        }
+
+        _running = RunAsync();
+    }
 
     // Windows waits on this answer, and the library may take a while to read, so the read on waking runs apart.
     protected override bool OnPowerEvent(PowerBroadcastStatus powerStatus)

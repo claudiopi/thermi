@@ -438,8 +438,11 @@
   <data name="UiText.CombineField" xml:space="preserve">
     <value>Combine as</value>
   </data>
-  <data name="UiText.CombineAdd" xml:space="preserve">
-    <value>Add</value>
+  <data name="UiText.CombineUse" xml:space="preserve">
+    <value>Use these</value>
+  </data>
+  <data name="UiText.SensorCombined" xml:space="preserve">
+    <value>{0} of {1}</value>
   </data>
   <data name="OverlayPageText.FontField" xml:space="preserve">
     <value>Font</value>

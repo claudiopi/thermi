@@ -126,7 +126,7 @@ public sealed class FinderTests : IAsyncDisposable
         _loads.Single().Register(() => stopped = _folder.Clock.GetElapsedTime(loadStart));
 
         Feed(seconds: more, answers, from: 4);
-        Tick(TimeSpan.FromSeconds(3));
+        Tick(FanFinder.MaxGap + TimeSpan.FromSeconds(0.5));
         var done = await _bridge.Finder();
 
         Assert.True(_loads.Single().IsCancellationRequested);

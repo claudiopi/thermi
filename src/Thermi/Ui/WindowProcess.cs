@@ -68,13 +68,19 @@ internal sealed record WindowEnvironment(
 /// </summary>
 internal sealed record WindowStart(int Overlay, Settings Settings, Texts Texts, WindowEnvironment Environment, TimeProvider Time)
 {
-    public Action<CancellationToken> Load { get; init; } = CpuLoad.Run;
+    public Action<CancellationToken> Load
+    {
+        get => field ?? StartLoad;
+        init;
+    }
 
     /// <summary>True with <c>--pseudo</c>, whose texts stay whatever language the settings choose.</summary>
     public bool Pseudo { get; init; }
 
     /// <summary>The item of <see cref="Overlay"/> the window opens on, as a double-click on a value asks, or null for the overlay.</summary>
     public string? Item { get; init; }
+
+    private void StartLoad(CancellationToken stop) => CpuLoad.Start(Environment.ExePath, (int)Core.Sensors.FanFinder.MaxRun.TotalSeconds, stop);
 }
 
 /// <summary>

@@ -1577,6 +1577,15 @@
       "description": "Given a host that painted the recording on its tick, when a warmer snapshot comes and no tick has come since, then the overlay already shows it, as the open window does.",
       "check": "ASnapshotShowsOnTheOverlayAsItComes",
       "passes": true
+    },
+    {
+      "id": "A337",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs below normal priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
+      "check": "UnderALoadOnEveryCoreTheReadingsKeepComing",
+      "passes": true
     }
   ]
 }

@@ -61,19 +61,25 @@ public sealed class FanFinderTests
         Assert.Equal((FanFinderOutcome.NoFanRose, 3.0, 33.0), (checkedAtTheEnd.Result.Outcome, checkedAtTheEnd.LoadFrom, checkedAtTheEnd.LoadTo));
     }
 
+    // Night QA: on the owner's PC the readings paused a few seconds as the load started, and the finder gave up on a fan
+    // that answered. A pause leaves the averages fewer readings, no less true; only readings gone past MaxGap stop it.
     [Fact]
-    public void AGapInTheReadingsStopsTheFinder()
+    public void OnlyALongGapInTheReadingsStopsTheFinder()
     {
-        var cut = Software.Select((snapshot, index) => index is >= 15 and < 20 ? null : snapshot).ToList();
+        var paused = ThreeTimesFaster(Software).Select((snapshot, index) => index >= LoadStart && index < LoadStart + 4 ? null : snapshot).ToList();
+        var cut = Software.Select((snapshot, index) => index is >= 15 and < 25 ? null : snapshot).ToList();
         var time = new FakeTimeProvider();
         var silent = new FanFinder(Desktop, time);
 
+        var answered = Replay(paused);
         var run = Replay(cut);
-        time.Advance(TimeSpan.FromSeconds(3));
+        time.Advance(FanFinder.MaxGap + Half);
         silent.Add(Desktop);
 
-        // The last reading before the gap is at 13 s, and the readings come back at 19 s.
-        Assert.Equal((FanFinderOutcome.ReadingsStopped, 3.0, 16.0), (run.Result.Outcome, run.LoadFrom, run.LoadTo));
+        Assert.Equal(new FanFinderResult(FanFinderOutcome.Found, BoardFan), answered.Result);
+
+        // The last reading before the gap is at 13 s, and the readings come back at 24 s.
+        Assert.Equal((FanFinderOutcome.ReadingsStopped, 3.0, 22.0), (run.Result.Outcome, run.LoadFrom, run.LoadTo));
         Assert.Equal((FanFinderOutcome.ReadingsStopped, false), (silent.Result?.Outcome, silent.Loading));
     }
 

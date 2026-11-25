@@ -5,7 +5,7 @@ import { SwitchLine, type SwitchLineProps } from '../app/SwitchLine';
 import { Card, CardRow, Dropdown, TextField, type Find } from '../kit';
 import { useText } from '../texts/Texts';
 import { FinderRow } from './FinderRow';
-import { graphChoices, offersOwnPill, offsetRange, sensorChoices, showAllSensors, type Placed } from './itemModel';
+import { combinedSensors, graphChoices, offersOwnPill, offsetRange, sensorChoices, sensorValue, showAllSensors, type Placed } from './itemModel';
 
 export interface ItemRowsProps {
   data: WindowData;
@@ -108,6 +108,10 @@ function sensorNoteOf(data: WindowData, item: Item, current: Sensor | undefined,
   if (data.sensors.service === 'running' && data.view.items[item.id]?.value === null) {
     return t(data.status.driver ? 'CatalogText.RowNeedsDriver' : 'CatalogText.RowReadsNothing');
   }
+  if (item.sensors !== undefined) {
+    const devices = new Set(item.sensors.flatMap((id) => data.sensors.sensors.find((sensor) => sensor.id === id)?.hardware ?? []));
+    return devices.size === 0 ? undefined : [...devices].join(', ');
+  }
   if (current === undefined) {
     return undefined;
   }
@@ -127,6 +131,14 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
   const current = sensors.find((sensor) => sensor.id === (item.sensor ?? data.view.items[item.id]?.auto));
   const sensorNote = sensorNoteOf(data, item, current, t);
   const ownOff = !offersOwnPill(data.settings, placed.overlay, item, placed.firstOfPill);
+  // The combination is what the item reads already: picking it again changes nothing.
+  const pickSensor = (value: string): void => {
+    if (value === showAllSensors) {
+      setAllFor(item.id);
+    } else if (value !== combinedSensors) {
+      set('sensor', value === '' ? null : value);
+    }
+  };
   return (
     <>
       <Card>
@@ -138,7 +150,7 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
               wide
               label={t('UiText.SensorField')}
               choices={choices}
-              value={item.sensor ?? ''}
+              value={sensorValue(item)}
               {...(choices.length >= filterFrom
                 ? {
                     filter: t('UiText.FilterSensors', choices.length),
@@ -148,7 +160,7 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
                   }
                 : {})}
               {...(sensorNote === undefined ? {} : { describedBy: describe })}
-              onChange={(value) => (value === showAllSensors ? setAllFor(item.id) : set('sensor', value === '' ? null : value))}
+              onChange={pickSensor}
             />
           </CardRow>
           {item.metric === cpuFan && (
