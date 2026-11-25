@@ -13,7 +13,7 @@ public sealed partial class RepoRulesTests
     public void EveryoneNamesTheServicesAsTheirOwnCodeDoes()
     {
         var sensors = Name(Read("src", "Thermi.Sensors.Windows", "Program.cs"));
-        var elevated = Name(Read("src", "Thermi.Sensors.Windows", "ElevatedService.cs"));
+        var elevated = Name(Read("src", "Thermi.Sensors.Windows", "Service", "ElevatedService.cs"));
         var installation = Read("src", "Thermi.Sensors.Windows", "Install", "Installation.cs");
         var script = Read("scripts", "install.ps1");
 

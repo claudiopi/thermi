@@ -1,6 +1,6 @@
 extern alias sensors;
 
-using sensors::Thermi.Sensors.Windows;
+using sensors::Thermi.Sensors.Windows.Service;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Windows.Tests.Sensors;

@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.ServiceProcess;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Service;
 
 /// <summary>
 /// The <c>thermi-elevated</c> service: one of the window's two fixes, run as SYSTEM

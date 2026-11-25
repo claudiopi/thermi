@@ -1,6 +1,7 @@
 using Thermi.Core.Sensors;
+using Thermi.Sensors.Windows.Pipe;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Reading;
 
 /// <summary>How a device's sensors go out in a read.</summary>
 internal enum DeviceRead

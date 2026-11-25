@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Thermi.Core.Frames;
 using Thermi.Core.Sensors;
+using Thermi.Sensors.Windows.Service;
 
 namespace Thermi.Sensors.Windows.Frames;
 

@@ -3,8 +3,9 @@ using System.Diagnostics;
 using System.Security;
 using Thermi.Core.Sensors;
 using Thermi.Sensors.Windows.Frames;
+using Thermi.Sensors.Windows.Reading;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Service;
 
 /// <summary>What the sensors read now: LibreHardwareMonitor's, or in tests a recording's.</summary>
 internal interface ISensorSource : IDisposable

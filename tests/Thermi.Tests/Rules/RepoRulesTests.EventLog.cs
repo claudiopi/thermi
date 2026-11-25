@@ -7,7 +7,7 @@ public sealed partial class RepoRulesTests
     // The only code that writes to Windows' Event Log, each the sink its program's Main hands down.
     private static readonly string[] EventLogSinks =
     [
-        Path.Combine("src", "Thermi.Sensors.Windows", "SensorHostEnvironment.cs"),
+        Path.Combine("src", "Thermi.Sensors.Windows", "Service", "SensorHostEnvironment.cs"),
         Path.Combine("src", "Thermi.Windows", "Logging", "EventLogger.cs"),
     ];
 

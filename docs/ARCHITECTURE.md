@@ -136,9 +136,9 @@ Why these packages and no others, and why the service takes the fewest, since it
 | "Start with Windows" | `src/Thermi.Windows/Ui/StartWithWindows.cs`, `scripts/install.ps1`, then `tests/Thermi.Windows.Tests/Window/StartWithWindowsTests.cs` |
 | Saved styles, export and import | `src/Thermi.Windows/Ui/Views/WindowLooks.cs`, `src/Thermi.Core/Look/SavedStyles.cs`, `src/Thermi.Core/Look/StyleFile.cs`, then `tests/Thermi.Tests/Acceptance/SavedStyleTests.cs` |
 | How the settings file is read and written by two processes | `src/Thermi.Windows/Overlay/ConfigStore.cs`, then `tests/Thermi.Windows.Tests/Acceptance/SettingsFileWindowsTests.cs` |
-| What the service reads | `src/Thermi.Sensors.Windows/LhmSensorSource.cs` |
-| How the service waits for each device | `src/Thermi.Sensors.Windows/DeviceUpdates.cs`, then `tests/Thermi.Windows.Tests/Sensors/DeviceUpdatesTests.cs` |
-| What `thermi-sensors` does with its arguments | `src/Thermi.Sensors.Windows/Program.cs`, `src/Thermi.Sensors.Windows/SensorCommands.cs`, then `tests/Thermi.Windows.Tests/Sensors/SensorProgramTests.cs` |
+| What the service reads | `src/Thermi.Sensors.Windows/Reading/LhmSensorSource.cs` |
+| How the service waits for each device | `src/Thermi.Sensors.Windows/Reading/DeviceUpdates.cs`, then `tests/Thermi.Windows.Tests/Sensors/DeviceUpdatesTests.cs` |
+| What `thermi-sensors` does with its arguments | `src/Thermi.Sensors.Windows/Program.cs`, `src/Thermi.Sensors.Windows/Service/SensorCommands.cs`, then `tests/Thermi.Windows.Tests/Sensors/SensorProgramTests.cs` |
 | How the overlay stays above the taskbar | `src/Thermi.Windows/Win32/Topmost.cs`, then `tests/Thermi.Windows.Tests/OnTop/TopmostTests.cs` |
 | What an agent's command answers | `src/Thermi.Core/Agents`, then `tests/Thermi.Tests/Acceptance/ContractTests.cs`; the Windows side in `src/Thermi.Windows/Agents`, then `tests/Thermi.Windows.Tests/Acceptance/AgentCommandTests.cs` |
 | Install and uninstall | `scripts/install.ps1` |

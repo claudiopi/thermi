@@ -1,7 +1,9 @@
 using LibreHardwareMonitor.Hardware;
 using Thermi.Core.Sensors;
+using Thermi.Sensors.Windows.Pipe;
+using Thermi.Sensors.Windows.Service;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Reading;
 
 /// <summary>
 /// The only class that talks to LibreHardwareMonitor. Drives are updated every <see cref="StorageEvery"/> and send their

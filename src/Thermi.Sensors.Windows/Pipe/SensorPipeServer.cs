@@ -5,7 +5,7 @@ using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Windows.Win32;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Pipe;
 
 /// <summary>
 /// Writes one snapshot per second to every connected client, whole on connecting and on any change of its sensors and its

@@ -2,7 +2,7 @@ extern alias sensors;
 
 using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.Sensors.Windows;
+using sensors::Thermi.Sensors.Windows.Reading;
 using sensors::Windows.Win32;
 using sensors::Windows.Win32.NetworkManagement.IpHelper;
 using Thermi.Core.Sensors;

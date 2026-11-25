@@ -4,7 +4,7 @@ using System.IO.Pipes;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.Sensors.Windows;
+using sensors::Thermi.Sensors.Windows.Pipe;
 using Thermi.Core.Agents;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;

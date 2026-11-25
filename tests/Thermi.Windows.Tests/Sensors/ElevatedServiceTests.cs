@@ -2,7 +2,7 @@ extern alias sensors;
 
 using System.ComponentModel;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.Sensors.Windows;
+using sensors::Thermi.Sensors.Windows.Service;
 
 namespace Thermi.Windows.Tests.Sensors;
 

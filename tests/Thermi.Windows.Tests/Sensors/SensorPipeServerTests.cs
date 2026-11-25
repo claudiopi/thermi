@@ -2,7 +2,7 @@ extern alias sensors;
 
 using System.IO.Pipes;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.Sensors.Windows;
+using sensors::Thermi.Sensors.Windows.Pipe;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Windows.Tests.Sensors;

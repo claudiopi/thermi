@@ -1,6 +1,6 @@
 using Thermi.Core.Sensors;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Reading;
 
 /// <summary>
 /// When a kind of hardware is updated, and whether the speeds of its last update are speeds now. The library's speeds are

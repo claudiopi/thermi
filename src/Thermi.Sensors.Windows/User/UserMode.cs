@@ -7,6 +7,9 @@ using Thermi.Core.Install;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
 using Thermi.Sensors.Windows.Install;
+using Thermi.Sensors.Windows.Pipe;
+using Thermi.Sensors.Windows.Reading;
+using Thermi.Sensors.Windows.Service;
 using Thermi.Sensors.Windows.Updates;
 
 namespace Thermi.Sensors.Windows.User;

@@ -1,6 +1,6 @@
 using Thermi.Core.Sensors;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Recording;
 
 /// <summary>
 /// Records a series for tests that replay time, like the fan finder's: one snapshot per second, one line

@@ -3,7 +3,7 @@ using System.CommandLine.Parsing;
 using System.Globalization;
 using Thermi.Core.Updates;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Service;
 
 internal interface ISensorRequest;
 

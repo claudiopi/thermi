@@ -1,4 +1,4 @@
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Reading;
 
 /// <summary>
 /// The threads the library's devices are updated on, one update at a time, on a thread of the service's own and never the

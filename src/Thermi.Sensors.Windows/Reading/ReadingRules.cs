@@ -1,6 +1,6 @@
 using Thermi.Core.Sensors;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Reading;
 
 /// <summary>What the service mends in what the library reads, before it sends it.</summary>
 internal static class ReadingRules

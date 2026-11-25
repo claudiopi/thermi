@@ -3,6 +3,7 @@ using System.Security;
 using Microsoft.Win32;
 using Thermi.Core.Install;
 using Thermi.Core.Updates;
+using Thermi.Sensors.Windows.Service;
 using Thermi.Sensors.Windows.Updates;
 
 namespace Thermi.Sensors.Windows.Install;

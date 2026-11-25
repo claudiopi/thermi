@@ -2,7 +2,7 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.NetworkManagement.IpHelper;
 
-namespace Thermi.Sensors.Windows;
+namespace Thermi.Sensors.Windows.Reading;
 
 /// <summary>What Windows says a network adapter is.</summary>
 internal enum AdapterKind

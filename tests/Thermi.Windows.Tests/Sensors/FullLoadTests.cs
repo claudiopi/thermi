@@ -2,7 +2,7 @@ extern alias sensors;
 
 using System.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
-using sensors::Thermi.Sensors.Windows;
+using sensors::Thermi.Sensors.Windows.Pipe;
 using Thermi.Windows.Overlay;
 using Thermi.Windows.Tests.Processes;
 
