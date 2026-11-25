@@ -268,11 +268,15 @@ Stop-Overlay
 Invoke-Elevated $staging (Get-TreeHash $staging) (Test-WebView2)
 
 $overlay = Join-Path $target 'thermi.exe'
-Start-Process $overlay
+$started = Start-Process $overlay -PassThru
 if ($firstInstall -or $startsWithWindows) {
     Set-ItemProperty $runKey -Name thermi -Value "`"$overlay`""
     Write-Host "thermi is installed in $target and starts when you sign in."
 }
 else {
     Write-Host "thermi is installed in $target. It does not start with Windows, as its settings say."
+}
+# From an elevated console the overlay refuses to run and exits at once with 1, saying why on this console.
+if ($started.WaitForExit(3000) -and $started.ExitCode -eq 1) {
+    throw 'thermi did not start: it runs only unelevated, and this console is elevated. Start it from Start.'
 }

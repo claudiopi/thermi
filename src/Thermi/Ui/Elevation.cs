@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Windows.Win32;
 using Windows.Win32.Security;
 
@@ -12,10 +11,16 @@ namespace Thermi.Ui;
 /// </summary>
 internal static class Elevation
 {
+    /// <summary>What a refused start says on the terminal's error stream, the only place it writes.</summary>
+    public const string Refusal =
+        "thermi was started elevated, so it exits: its overlay and settings window run only unelevated. Start it from Start or a terminal that is not elevated.";
+
     public static unsafe bool Raised()
     {
-        using var self = Process.GetCurrentProcess();
-        if (!PInvoke.OpenProcessToken(self.SafeHandle, TOKEN_ACCESS_MASK.TOKEN_QUERY, out var token))
+        // A token can always be queried by its own process, so this fails only where nothing is to be learned; refusing
+        // then would stop the overlay without a word.
+        using var self = PInvoke.GetCurrentProcess_SafeHandle();
+        if (!PInvoke.OpenProcessToken(self, TOKEN_ACCESS_MASK.TOKEN_QUERY, out var token))
         {
             return false;
         }

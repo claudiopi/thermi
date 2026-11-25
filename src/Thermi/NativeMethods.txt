@@ -236,6 +236,7 @@ GetNamedPipeServerProcessId
 GetSecurityInfo
 GetSecurityDescriptorLength
 LocalFree
+GetCurrentProcess
 OpenProcessToken
 GetTokenInformation
 TOKEN_ELEVATION_TYPE

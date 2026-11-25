@@ -40,9 +40,11 @@ internal static class Program
 
         // Before any window, WebView2 or file: an install's start of the overlay can still come with an elevated client's
         // token where no shell runs to start it unelevated, and a log written then would be an elevated write into the
-        // user's folder, which a link there sends anywhere.
+        // user's folder, which a link there sends anywhere. The terminal's error stream is no file.
         if (request is OverlayRequest or SettingsRequest && Elevation.Raised())
         {
+            CommandLineOutput.Borrow(STD_HANDLE.STD_ERROR_HANDLE);
+            await Console.Error.WriteLineAsync(Elevation.Refusal);
             return 1;
         }
 
