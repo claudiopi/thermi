@@ -23,6 +23,32 @@ import {
 
 const ids = (settings: Settings, overlay: number): string[] => overlayOf(settings, overlay).items.map((item) => item.id);
 
+// The browser draws the same row a level or two apart from one frame to the next on a busy run, as it rasterizes the
+// backdrop's gradient and the text again; no person sees that, while a focus ring is far past it.
+const unseen = 2;
+
+/** How far apart two shots of the same size are: the most any channel of any pixel differs, in levels of 255. */
+async function levelsApart(page: Page, one: string, other: string): Promise<number> {
+  return page.evaluate(async (shots) => {
+    const pixels = await Promise.all(
+      shots.map(async (shot) => {
+        const picture = new Image();
+        picture.src = `data:image/png;base64,${shot}`;
+        await picture.decode();
+        const canvas = new OffscreenCanvas(picture.width, picture.height);
+        const context = canvas.getContext('2d')!;
+        context.drawImage(picture, 0, 0);
+        return context.getImageData(0, 0, picture.width, picture.height).data;
+      }),
+    );
+    const [first, second] = pixels as [Uint8ClampedArray, Uint8ClampedArray];
+    if (first.length !== second.length) return 255;
+    let most = 0;
+    for (let at = 0; at < first.length; at++) most = Math.max(most, Math.abs(first[at]! - second[at]!));
+    return most;
+  }, [one, other]);
+}
+
 // A203: the list by keys alone, then a drag out to its own pill; each row is a step on the same page.
 test('TheListWorksWithTheKeyboard', async ({ page }) => {
   await openWindow(page);
@@ -91,10 +117,11 @@ test('TheListWorksWithTheKeyboard', async ({ page }) => {
     const focused = await looks();
     await selectedRow(page).evaluate((row) => (row as HTMLElement).blur());
     const unfocused = await looks();
-    expect(focused).toBe(unfocused);
+    expect(await levelsApart(page, focused, unfocused)).toBeLessThanOrEqual(unseen);
     await selectedRow(page).evaluate((row) => (row as HTMLElement).focus());
     await page.keyboard.press('Home');
-    await expect.poll(looks).not.toBe(unfocused);
+    await expect.poll(() => selectedRow(page).evaluate((row) => row.matches(':focus-visible'))).toBe(true);
+    expect(await levelsApart(page, await looks(), unfocused)).toBeGreaterThan(unseen);
   });
 
   await select(page, 'Taskbar');
