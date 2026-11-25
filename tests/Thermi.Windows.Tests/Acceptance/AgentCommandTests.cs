@@ -235,7 +235,7 @@ public sealed class AgentCommandTests : IDisposable
         Assert.NotEmpty(end.Error);
         Assert.Equal(Broken, _rig.Folder.Text());
 
-        // A file another program keeps locked through every try is the same: nothing written, and 4.
+        // A file whose mutex another thermi process holds through every try is the same: nothing written, and 4.
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         var written = _rig.Folder.Text();
         using (MutexHolder.Holding(_rig.Folder.MutexName))

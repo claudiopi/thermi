@@ -132,6 +132,13 @@ public sealed class AgentSettingsTests : IDisposable
 
         var fan = (string)found.Json["fan"]!;
         Assert.Equal(ThermiConfigJson.Write(ItemEdits.UseCpuFan(new ThermiConfig(), 0, series[^1], fan).Config), ThermiConfigJson.Write(_rig.Folder.Read()));
+
+        // Settings with no CPU fan item to take it: the finder still says which fan it found, and why it was not used.
+        var defaults = new ThermiConfig();
+        var noFanItem = defaults.Overlays[0] with { Items = [.. defaults.Overlays[0].Items.Where(item => (item.Metric ?? item.Auto) != Metrics.CpuFan.Id)] };
+        _rig.Folder.Write(ThermiConfigJson.Write(defaults with { Overlays = [noFanItem] }));
+        var unused = await _rig.RunAsync("find-cpu-fan", "--use");
+        Assert.Equal((1, fan, false), (unused.Exit, (string?)unused.Json["fan"], (bool)unused.Json["used"]!));
     }
 
     [Fact]

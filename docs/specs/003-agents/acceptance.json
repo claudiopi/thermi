@@ -90,7 +90,7 @@
       "covers": [
         "R13"
       ],
-      "description": "Given a settings file broken by hand, or one another program keeps locked, when edit runs, then it exits 4 with the problem and the file is unchanged byte for byte.",
+      "description": "Given a settings file broken by hand, or one whose mutex another thermi process holds through every try, when edit runs, then it exits 4 with the problem and the file is unchanged byte for byte.",
       "check": "ABrokenFileRefusesAgentEdits",
       "passes": true
     },

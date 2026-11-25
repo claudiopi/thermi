@@ -24,7 +24,7 @@ The tools are the commands below, `find-cpu-fan` and `start-with-windows` as `fi
 | `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. |
 | `looks`, `look wear/save/rename/delete/export/import` | The saved looks, with the settings window's rules; a look file goes in and out as text. |
 | `edit <json>` | One change of the settings, by the settings window's rules. |
-| `find-cpu-fan [--use]` | Loads the CPU for up to 30 s and says which fan answered; with `--use`, it becomes the first overlay's CPU fan. |
+| `find-cpu-fan [--use]` | Loads the CPU for up to 30 s and says which fan answered; with `--use`, it becomes the first overlay's CPU fan, or the answer says which fan it found and the refusal's key. |
 | `start-with-windows [on\|off]` | Says or sets whether the overlay starts at sign-in. |
 
 An edit is a JSON object with its `kind`, in any order: the settings window's own (`thermi`, `overlay`, `style` and `item` set one field, `addItem`, `removeItem`, `moveItem`, `newOverlay`, `duplicateOverlay`, `mergeOverlay`, `deleteOverlay`, `nudgeOverlay`, `reset`, `resetLines`, `sensorName`), or one of two the window makes by a gesture: `{"kind": "threshold", "item", "warning", "critical"}` sets an item's lines at once, null taking one out, and `{"kind": "place", "overlay", "x", "y"}` leaves an overlay where a drag let go at that point would. Their fields are in `src/Thermi.Core/Bridge/BridgeTypes.cs`. An edit made while an overlay or the window writes the file keeps both changes.

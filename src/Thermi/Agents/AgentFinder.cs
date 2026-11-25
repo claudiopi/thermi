@@ -65,7 +65,18 @@ internal sealed partial class AgentCommands
                 : new AgentReply(AgentExit.Done, AgentJson.Write(answer));
         }
 
-        var used = await OneAtATimeAsync(() => WriteAsync(config => ItemEdits.UseCpuFan(config, 0, snapshot, found)), stop);
-        return used.Exit == AgentExit.Done ? used with { Json = AgentJson.Write(answer with { Used = true }) } : used;
+        // A fan found that the settings refuse to take, as with no CPU fan item, is still the finder's answer, with why.
+        Refusal? refused = null;
+        var used = await OneAtATimeAsync(
+            () => WriteAsync(config =>
+            {
+                var edit = ItemEdits.UseCpuFan(config, 0, snapshot, found);
+                refused = edit.Refused;
+                return edit;
+            }),
+            stop);
+        return used.Exit == AgentExit.Done ? used with { Json = AgentJson.Write(answer with { Used = true }) }
+            : used.Exit == AgentExit.Refused && refused is { } why ? used with { Json = AgentJson.Write(answer with { Refusal = Texts.Key(why) }) }
+            : used;
     }
 }
