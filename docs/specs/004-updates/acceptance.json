@@ -280,6 +280,20 @@
       "description": "Given msiexec's exit after the UAC prompt, when the user's host reads it, then 0 and 3010 are installed, 1223, a refused prompt, and 1602 are refused, and any other is a failure.",
       "check": "MsiexecsExitIsWhatTheInstallCameTo",
       "passes": true
+    },
+    {
+      "id": "A41",
+      "covers": ["R34"],
+      "description": "Given both MSIs' source, when their custom actions are read, then each runs its program through the util extension's DLL native to the package's processor, WixQuietExec or, for the overlay, WixShellExec, none as a plain executable action, and the overlay starts only under NOT AdminUser with MSIUSEREALADMINDETECTION set.",
+      "check": "TheMsiRunsNoProgramInAWindowNorTheOverlayElevated",
+      "passes": true
+    },
+    {
+      "id": "A42",
+      "covers": ["R34"],
+      "description": "Given the machine MSI, when an administrator runs msiexec /i on it from an elevated console, then it installs and starts no overlay, which starts at the next sign-in; when the same administrator runs it from a console that is not elevated, it still asks to elevate, installs for the whole PC and starts the overlay unelevated, and the per-user host's install for everyone still prompts and installs; and when a standard user runs msiexec /fa on the installed product, no console window shows, the repair works, and both services and the launchers are back after one was deleted. The per-user MSI from an elevated console starts no overlay either.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

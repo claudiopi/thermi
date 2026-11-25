@@ -44,6 +44,14 @@ The overlay and the settings window.
 | System.Diagnostics.DiagnosticSource | MIT | https://github.com/dotnet/dotnet |
 | System.ServiceProcess.ServiceController | MIT | https://github.com/dotnet/dotnet |
 
+## The MSIs
+
+The custom actions each MSI carries and runs while it installs.
+
+| Library | License | Source |
+| --- | --- | --- |
+| WixToolset.Util.wixext | MS-RL | https://github.com/wixtoolset/wix |
+
 ## The settings window's page
 
 Built into thermi.exe; only what the page imports ends up in it.

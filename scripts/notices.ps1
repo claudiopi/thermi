@@ -22,7 +22,7 @@ $declared = @{
 
 # Analyzers and code generators, referenced with PrivateAssets="all", run in the build and ship nothing.
 function Get-BuildOnly([string]$Folder) {
-    foreach ($file in @(Join-Path $root 'Directory.Build.props') + (Get-ChildItem $Folder -Filter *.csproj).FullName) {
+    foreach ($file in @(Join-Path $root 'Directory.Build.props') + @(Get-ChildItem $Folder -Filter *.csproj | ForEach-Object FullName)) {
         ([xml](Get-Content $file -Raw)).SelectNodes('//PackageReference[@PrivateAssets="all"]') | ForEach-Object Include
     }
 }
@@ -93,6 +93,7 @@ $text = @(
     ''
     Format-Table 'thermi-sensors' 'The sensor service.' (Get-NuGetRows 'Thermi.SensorHost')
     Format-Table 'thermi' 'The overlay and the settings window.' (Get-NuGetRows 'Thermi')
+    Format-Table 'The MSIs' 'The custom actions each MSI carries and runs while it installs.' (Get-NuGetRows 'Thermi.Installer')
     Format-Table 'The settings window''s page' 'Built into thermi.exe; only what the page imports ends up in it.' (Get-NpmRows)
     ('thermi does not ship the PawnIO driver that LibreHardwareMonitor uses, nor the WebView2 runtime: the driver comes from its own release ' +
         'when the window installs it (`docs/adr/0010-driver-and-service-from-the-window.md`), ' +

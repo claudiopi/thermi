@@ -81,27 +81,46 @@
     </Feature>
 <?endif?>
 
+    <!-- Every program runs through the util extension's DLL native to this package's processor, never as a plain
+         executable action, so none gets a console window: one shown as SYSTEM on the desktop, as a repair a standard user
+         starts with msiexec /fa would show it, is a SYSTEM process that user could drive. A deferred action's command
+         line is the property of its name. -->
+<?define UtilCA = "Wix4UtilCA_$(sys.BUILDARCHSHORT)" ?>
     <!-- As SYSTEM, from the bootstrap: Windows' installer service runs it, so nothing of the user's loads into it; a
-         per-user install's run as the user, who owns its folder. -->
-    <CustomAction Id="Adopt" Directory="setupfolder" Execute="deferred" Impersonate="$(var.Impersonate)" Return="check"
-                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --adopt$(var.User) --product [ProductCode]" />
+         per-user install's run as the user, who owns its folder. A repair runs it too, as only it puts back the services
+         and the launchers, which are none of the MSI's components. -->
+    <SetProperty Id="Adopt" Before="Adopt" Sequence="execute"
+                 Value="&quot;[setupfolder]thermi-sensors.exe&quot; --adopt$(var.User) --product [ProductCode]" />
+    <CustomAction Id="Adopt" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="deferred" Impersonate="$(var.Impersonate)"
+                  Return="check" />
     <!-- A rollback of the install, after Adopt or when it failed, puts back what Adopt found. -->
-    <CustomAction Id="Undo" Directory="setupfolder" Execute="rollback" Impersonate="$(var.Impersonate)" Return="ignore"
-                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --undo$(var.User)" />
+    <SetProperty Id="Undo" Before="Undo" Sequence="execute" Value="&quot;[setupfolder]thermi-sensors.exe&quot; --undo$(var.User)" />
+    <CustomAction Id="Undo" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="rollback" Impersonate="$(var.Impersonate)"
+                  Return="ignore" />
     <!-- Once the install committed, its record is no later install's to put back. -->
-    <CustomAction Id="Forget" Directory="setupfolder" Execute="commit" Impersonate="$(var.Impersonate)" Return="ignore"
-                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --forget$(var.User)" />
-    <CustomAction Id="TakeOff" Directory="setupfolder" Execute="deferred" Impersonate="$(var.Impersonate)" Return="check"
-                  ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --remove$(var.User)" />
+    <SetProperty Id="Forget" Before="Forget" Sequence="execute" Value="&quot;[setupfolder]thermi-sensors.exe&quot; --forget$(var.User)" />
+    <CustomAction Id="Forget" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="commit" Impersonate="$(var.Impersonate)"
+                  Return="ignore" />
+    <SetProperty Id="TakeOff" Before="TakeOff" Sequence="execute" Value="&quot;[setupfolder]thermi-sensors.exe&quot; --remove$(var.User)" />
+    <CustomAction Id="TakeOff" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="deferred" Impersonate="$(var.Impersonate)"
+                  Return="check" />
     <!-- The driver comes through the thermi-elevated service, as the window's fix does (docs/adr/0010-driver-and-service-from-the-window.md),
          never from the install itself; a driver that fails leaves thermi installed and the fix offered. -->
 <?if $(var.Scope) = "perMachine" ?>
-    <CustomAction Id="InstallDriver" Directory="setupfolder" Execute="deferred" Impersonate="no" Return="ignore"
-                  ExeCommand="&quot;[System64Folder]sc.exe&quot; start thermi-elevated install-driver" />
+    <SetProperty Id="InstallDriver" Before="InstallDriver" Sequence="execute"
+                 Value="&quot;[System64Folder]sc.exe&quot; start thermi-elevated install-driver" />
+    <CustomAction Id="InstallDriver" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no"
+                  Return="ignore" />
 <?endif?>
-    <!-- The overlay of the person who ran the MSI by hand; a silent install, as Intune's, starts none as SYSTEM. -->
-    <CustomAction Id="StartOverlay" Directory="installfolder" Execute="immediate" Impersonate="yes" Return="asyncNoWait"
-                  ExeCommand="&quot;[installfolder]thermi.exe&quot;" />
+    <!-- The overlay of the person who ran the MSI by hand, through ShellExecute, since a quiet action waits for its
+         program to exit. A silent install, as Intune's, starts none as SYSTEM, and an elevated client, as from an
+         administrator's console, none elevated with the user's environment (docs/adr/0016-admin-on-demand.md): it starts
+         at the next sign-in. Only with MSIUSEREALADMINDETECTION does AdminUser follow the client's real token; without
+         it, every per-machine client under UAC has it. -->
+    <Property Id="MSIUSEREALADMINDETECTION" Value="1" />
+    <SetProperty Id="WixShellExecTarget" Before="StartOverlay" Sequence="execute" Value="[installfolder]thermi.exe" />
+    <CustomAction Id="StartOverlay" BinaryRef="$(var.UtilCA)" DllEntry="WixShellExec" Execute="immediate" Impersonate="yes"
+                  Return="ignore" />
 
     <InstallExecuteSequence>
       <Custom Action="TakeOff" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
@@ -112,7 +131,7 @@
 <?if $(var.Scope) = "perMachine" ?>
       <Custom Action="InstallDriver" After="Forget" Condition="NOT Installed AND ADDDRIVER = 1" />
 <?endif?>
-      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
+      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3 AND NOT AdminUser" />
     </InstallExecuteSequence>
   </Package>
 </Wix>

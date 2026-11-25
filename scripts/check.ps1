@@ -142,7 +142,11 @@ function Get-Rate([hashtable]$Hits) {
 }
 
 function Invoke-DotNet {
-    Invoke-Step 'restore' { dotnet restore thermi.slnx $(if ($Ci) { '--locked-mode' }) }
+    # The installer too, outside thermi.slnx, whose custom actions' package the notices list.
+    Invoke-Step 'restore' {
+        dotnet restore thermi.slnx $(if ($Ci) { '--locked-mode' })
+        if ($LASTEXITCODE -eq 0) { dotnet restore src/Thermi.Installer $(if ($Ci) { '--locked-mode' }) }
+    }
     Invoke-Step 'format' { dotnet format whitespace thermi.slnx --verify-no-changes } -Explain {
         Write-Host '  Fix it with: dotnet format whitespace thermi.slnx'
     }
