@@ -42,9 +42,10 @@
       "id": "A5",
       "covers": [
         "R6",
-        "R8"
+        "R8",
+        "R9"
       ],
-      "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item but network addresses, then those three alone, and every type has its unit; the CPU fan is the chosen one; each value has its unit; a CPU temperature of 0 in the no-driver recording is null with why; and each item's level and thresholds are what the overlay's layout gives for the same snapshot.",
+      "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item but network addresses, and sensors an address's text only when its type is asked for, then those three alone, and every type has its unit; the CPU fan is the chosen one; each value has its unit; a CPU temperature of 0 in the no-driver recording is null with why; and each item's level and thresholds are what the overlay's layout gives for the same snapshot.",
       "check": "ReadGivesWhatTheOverlayShows",
       "passes": true
     },

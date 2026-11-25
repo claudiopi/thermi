@@ -205,7 +205,7 @@ internal sealed partial class AgentCommands
         }
 
         // A write that changed nothing keeps the copy from before the last one that did.
-        if (after.Refused is null && ThermiConfigJson.Write(before) != ThermiConfigJson.Write(after.Config))
+        if (after.Refused is null && ConfigEdits.Replay(before, after.Config) is not null)
         {
             KeepPrevious(before);
         }

@@ -21,7 +21,7 @@ Reading
 - R6. `read` with no ids gives every metric and every item of every overlay but network addresses, which only an id asks for; with ids, those alone, each a metric (`cpu.temperature`), a sensor id or an item id. A metric reads as the first overlay maps it, the CPU fan it was given included. Each value has its unit, and one that cannot be read is null with why, never 0.
 - R7. `read --seconds n`, n from 1 to 60, samples once a second for n seconds and gives each value's minimum, maximum, average and number of samples, beside the last.
 - R8. Each item read gives its level as the overlay judges it: normal, warning or critical, with the thresholds that decide it.
-- R9. `sensors` lists every sensor the service reads, by device, with its id, name, type, unit and value, filtered by `--search` as the window's search finds and by `--type`.
+- R9. `sensors` lists every sensor the service reads, by device, with its id, name, type, unit and value, filtered by `--search` as the window's search finds and by `--type`; an address's text comes only with `--type address`.
 - R10. `config` gives the settings as thermi reads them, each overlay and item with its id.
 
 Changing

@@ -16,6 +16,10 @@ internal sealed partial class AgentCommands
     // the file of when the last one started keeps across the agents' processes.
     private static readonly TimeSpan FinderRest = TimeSpan.FromMinutes(2);
 
+    // Windows' errors for a file another process holds: only these mean a run is under way elsewhere.
+    private const int SharingViolation = 32;
+    private const int LockViolation = 33;
+
     // One at a time with the other changes, as its pick may be one.
     private Task<AgentReply> FindCpuFanAsync(bool use, CancellationToken stop) => OneAtATimeAsync(() => ClaimedAsync(use, stop), stop);
 
@@ -163,9 +167,14 @@ internal sealed partial class AgentCommands
             FinderRanLost(environment.Log, ex);
             return null;
         }
-        catch (IOException)
+        catch (IOException ex) when ((ex.HResult & 0xFFFF) is SharingViolation or LockViolation)
         {
             taken = true;
+            return null;
+        }
+        catch (IOException ex)
+        {
+            FinderRanLost(environment.Log, ex);
             return null;
         }
     }
@@ -194,7 +203,17 @@ internal sealed partial class AgentCommands
     private async Task<TimeSpan?> RestLeftAsync(FileStream claim, CancellationToken stop)
     {
         using var reader = new StreamReader(claim, leaveOpen: true);
-        var said = await reader.ReadToEndAsync(stop);
+        string said;
+        try
+        {
+            said = await reader.ReadToEndAsync(stop);
+        }
+        catch (IOException ex)
+        {
+            FinderRanLost(environment.Log, ex);
+            return null;
+        }
+
         if (!DateTimeOffset.TryParse(said, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var ran))
         {
             return null;

@@ -128,7 +128,7 @@ internal static class AgentCommandLine
         {
             [new Command("edit", "Makes one change of the settings, by the settings window's rules.") { edit }] = it =>
                 new AgentRequest(AgentVerb.Edit) { Text = it.GetValue(edit) },
-            [new Command("find-cpu-fan", "Loads the CPU for up to 30 s and finds the fan that answers.") { use }] = it =>
+            [new Command("find-cpu-fan", "Loads the CPU for up to 30 s, at most once in 2 minutes, and finds the fan that answers.") { use }] = it =>
                 new AgentRequest(AgentVerb.FindCpuFan) { Switch = it.GetValue(use) },
             [new Command("start-with-windows", "Says or sets whether the overlay starts at sign-in.") { on }] = it =>
                 new AgentRequest(AgentVerb.StartWithWindows) { Switch = it.GetValue(on) is { } said ? said == "on" : null },
