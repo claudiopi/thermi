@@ -50,14 +50,14 @@ internal static class ThermiMenus
         return menu;
     }
 
-    // A heading names what the menu is about and does nothing, so it shows grayed.
+    // A heading, or an entry refused now, does nothing, so it shows grayed.
     private static MENU_ITEM_FLAGS StateOf(MenuRow row) =>
         (row.Checked ? MENU_ITEM_FLAGS.MF_CHECKED : MENU_ITEM_FLAGS.MF_UNCHECKED)
         | (row.Heading ? MENU_ITEM_FLAGS.MF_GRAYED : MENU_ITEM_FLAGS.MF_ENABLED);
 
     private static void Fill(SafeHandle menu, IReadOnlyList<MenuRow> rows, MenuPlace place, List<MenuRow> all, bool submenu)
     {
-        var texts = AccessKeys.Mark([.. rows.Select(row => TextOf(row, place, submenu))]);
+        var texts = AccessKeys.Mark([.. rows.Select(row => TextOf(row, place, submenu))], [.. rows.Select(row => row.Heading)]);
         for (var at = 0; at < rows.Count; at++)
         {
             var row = rows[at];
@@ -68,7 +68,7 @@ internal static class ThermiMenus
 
             all.Add(row);
             var id = (nuint)all.Count;
-            var text = texts[at] + (row.Hotkey is { } hotkey ? "\t" + hotkey : "");
+            var text = texts[at] + Beside(row, place.Texts);
             if (row.Entries.Count > 0)
             {
                 Submenu(menu, row, place, all, text);
@@ -87,6 +87,10 @@ internal static class ThermiMenus
             }
         }
     }
+
+    // Right-aligned after a tab, as Windows shows a shortcut: the hotkey, or why the entry is grayed.
+    private static string Beside(MenuRow row, Texts texts) =>
+        row.Hotkey is { } hotkey ? "\t" + hotkey : row.Note is { } note ? "\t" + texts.Of(note) : "";
 
     /// <summary>
     /// A row's text: the translation of its entry, or a variant that depends on where the menu is shown.

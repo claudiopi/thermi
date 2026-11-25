@@ -2,6 +2,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 import type { Bridge, DesktopPick, Edit, FakeState, Item, OracleCall, Overlay, Settings, Undone, UndoSteps, WindowReadings } from './bridgeTypes';
 import { installFakeCatalog } from './fakes/fakeCatalog';
 import { installFakeLooks } from './fakes/fakeLooks';
+import { installFakePictures } from './fakes/fakePictures';
 import { fakeState } from './fakes/fakeState';
 import { installFakeViews } from './fakes/fakeViews';
 import { installFakeWindow } from './fakes/fakeWindow';
@@ -50,6 +51,7 @@ function installFake(initial: FakeState): void {
     }
     state.settings = answer.settings ?? state.settings;
     state.looks = answer.looks ?? state.looks;
+    state.worn = answer.worn ?? state.worn;
     steps = answer.steps;
     changed();
     if (answer.error !== undefined) {
@@ -81,7 +83,7 @@ function installFake(initial: FakeState): void {
     caughtUp: () => read === changes,
   };
 
-  // The views, the look files, the catalog, the finder and the window's status are each installed apart, after this.
+  // The views, the look files, the pictures, the catalog, the finder and the window's status are each installed apart, after this.
   const notInstalled = async (): Promise<never> => Promise.reject(new Error('A part of the fake is not installed.'));
   window.thermi = {
     settings: async () => {
@@ -94,6 +96,8 @@ function installFake(initial: FakeState): void {
       await ask('gesture', active);
     },
     view: notInstalled,
+    preview: notInstalled,
+    lookSamples: notInstalled,
     chart: async () => null,
     exitThermi: async () => undefined,
     undo: async () => (await ask('undo')) as Undone | null,
@@ -122,6 +126,7 @@ function installFake(initial: FakeState): void {
     places: async () => state.places,
     report: async () => undefined,
     looks: async () => state.looks,
+    worn: async () => state.worn,
     saveLook: async (overlay, name) => (await ask('saveLook', overlay, name)) as string | null,
     renameLook: async (name, to) => (await ask('renameLook', name, to)) as string | null,
     deleteLook: async (name) => (await ask('deleteLook', name)) as string | null,
@@ -230,6 +235,7 @@ export async function openWindow(page: Page, state: FakeState = fakeState()): Pr
   await page.addInitScript(installFake, await askOracle(page, state));
   await page.addInitScript(installFakeViews);
   await page.addInitScript(installFakeLooks);
+  await page.addInitScript(installFakePictures);
   await page.addInitScript(installFakeCatalog);
   await page.addInitScript(installFakeWindow);
   await page.addInitScript(installLateReplies);

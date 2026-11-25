@@ -1,7 +1,6 @@
 import type {
   ChartView,
   ColorStop,
-  GraphStyle,
   Item,
   ItemView,
   MarkState,
@@ -16,7 +15,8 @@ import type {
 
 // The C# side's views of the settings and the readings, as the fake gives them: the pills, each item's value and
 // level, and its chart. Core decides these for real and tests them; the fake follows the same rules in rough form,
-// only so the page has something true to show. It runs in the page after the fake, so it may use nothing but types.
+// only so the page has something true to show, and only the fields the page reads: what it never reads, as an item's
+// bars, it leaves out. It runs in the page after the fake, so it may use nothing but types.
 export function installFakeViews(): void {
   const fake = window.thermiFake;
   const bridge = window.thermi;
@@ -80,18 +80,17 @@ export function installFakeViews(): void {
     };
     return say(byMetric[kind ?? ''] ?? byDevice[sensorOf(item)?.hardwareType ?? ''] ?? 'DeviceKind.Board');
   };
-  // As Core's OverlayLayout.Groups: a pill is a run of one label, each item one of its own, or the whole bar one; a tag
-  // only says what its first value is.
+  // Mirrors Core's OverlayLayout.Runs; a tag only says what its first value is.
   const pillsOf = (overlay: Overlay): PillView[] => {
-    const layout = overlay.style?.layout;
     const pills: (PillView & { run: string })[] = [];
+    const layout = overlay.style?.layout ?? 'pills';
     for (const item of overlay.items) {
       const run = labelOf(item);
       const current = pills.at(-1);
-      if (current !== undefined && layout !== 'each' && (layout === 'one' || (current.run === run && item.own !== true))) {
+      if (current !== undefined && current.run === run && layout !== 'each' && (layout === 'one' || item.own !== true)) {
         current.items.push(item.id);
       } else {
-        pills.push({ run, label: itemView(item, overlay).label ?? run, items: [item.id] });
+        pills.push({ run, label: itemView(item).label ?? run, items: [item.id] });
       }
     }
     return pills.map(({ label, items: ids }) => ({ label, items: ids }));
@@ -106,23 +105,6 @@ export function installFakeViews(): void {
     }
     const { warning, critical } = item.threshold ?? {};
     return critical !== undefined && value >= critical ? 'critical' : warning !== undefined && value >= warning ? 'warning' : 'normal';
-  };
-  // As Core's OverlayLayout.DrawnOf: the item's own choice, else its overlay's, whose Auto is a line for a load judged by
-  // its own reading and bars for the rest; nothing for an item thresholds cannot judge.
-  const drawnOf = (item: Item, overlay: Overlay): GraphStyle => {
-    const chosen = item.graph ?? overlay.graph ?? 'auto';
-    return !judged(item) ? 'none' : chosen !== 'auto' ? chosen : meterOf(item)?.type === 'Load' && item.warnBy === undefined ? 'line' : 'bars';
-  };
-  // As Core's OverlayLayout: of the bars' five segments, those its value rounds to, at least one above zero; none for an
-  // item that draws no bars.
-  const litOf = (item: Item, overlay: Overlay): number | undefined => {
-    if (drawnOf(item, overlay) !== 'bars') {
-      return undefined;
-    }
-    const read = meterOf(item);
-    const value = live(read) ?? 0;
-    const fill = Math.min(1, Math.max(0, value / (read?.type === 'Fan' ? 10_000 : read?.type === 'Throughput' ? 100e9 : 100)));
-    return fill > 0 ? Math.max(1, Math.round(fill * 5)) : 0;
   };
   // A metric's name as Core's MetricName says it: "ram.load" is RamLoad, and the fan's metrics name the CPU first.
   const metricName = (metric: string): string => {
@@ -164,23 +146,21 @@ export function installFakeViews(): void {
       more: ofType.filter((one) => !own(one) && (type !== 'Data' || one.hardwareType === read?.hardwareType)).map((one) => one.id),
     };
   };
-  // As Core's OverlayLayout.TagOf: what the value is when not the value now, which a default label says after it.
+  // As Core's OverlayLayout.TagOf: what the value is when not the value now, said after it.
   const tagOf = (item: Item): string | undefined => {
     const stats: Record<string, string> = { min: 'OverlayText.MinTag', max: 'OverlayText.MaxTag', average: 'OverlayText.AverageTag' };
     const stat = stats[item.stat ?? ''];
     return stat !== undefined ? say(stat) : (item.smooth ?? 0) > 0 ? say('OverlayText.SmoothTag', String(item.smooth)) : undefined;
   };
-  const itemView = (item: Item, overlay: Overlay): ItemView => {
+  const itemView = (item: Item): ItemView => {
     const read = sensorOf(item);
     const value = live(read);
     const missing = value === null || (value === 0 && read?.hardwareType === 'Cpu' && read.type !== 'Load');
     const type = read?.type ?? 'Temperature';
-    const lit = litOf(item, overlay);
     const tag = tagOf(item);
     return {
-      ...(lit === undefined ? {} : { lit }),
       ...(tag === undefined ? {} : { tag }),
-      label: tag === undefined || item.label !== undefined ? labelOf(item) : say('OverlayText.TaggedLabel', labelOf(item), tag),
+      label: labelOf(item),
       offer: offerOf(read, type),
       value: missing ? null : format(type, value),
       level: levelOf(item),
@@ -207,7 +187,7 @@ export function installFakeViews(): void {
     const items = state.settings.overlays.flatMap((overlay) => overlay.items);
     return {
       pills: state.settings.overlays.map(pillsOf),
-      items: Object.fromEntries(state.settings.overlays.flatMap((overlay) => overlay.items.map((item) => [item.id, itemView(item, overlay)]))),
+      items: Object.fromEntries(state.settings.overlays.flatMap((overlay) => overlay.items.map((item) => [item.id, itemView(item)]))),
       values: Object.fromEntries(state.sensors.flatMap((one) => (live(one) === null ? [] : [[one.id, format(one.type, one.value ?? 0)]]))),
       mark: markOf(items),
     };

@@ -45,6 +45,9 @@ internal sealed class SensorClient(
     // The last pipe reached was not the service's.
     private bool _taken;
 
+    // When the last snapshot came, on the reader's thread alone; null before the first of a connection.
+    private long? _heardAt;
+
     public event EventHandler? Received;
 
     public Snapshot? Latest => _latest.Current;
@@ -62,10 +65,12 @@ internal sealed class SensorClient(
             try
             {
                 await ReadAsync(round.Token);
+                Lost("the service closed it");
             }
             catch (Exception ex) when (ex is IOException or TimeoutException or UnauthorizedAccessException or InvalidDataException)
             {
                 // Host gone, restarting, not ours or unusable: retry.
+                Lost(ex.Message);
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested)
             {
@@ -74,7 +79,8 @@ internal sealed class SensorClient(
             catch (OperationCanceledException)
             {
                 // Windows woke: the pipe is read again from a new connection at once. The service ran all along, so it is not
-                // lost, and the snapshot from before the sleep ages out on its own, as stale.
+                // lost, and the snapshot from before the sleep ages out on its own, as stale; the sleep was no pause of it.
+                _heardAt = null;
                 continue;
             }
 #pragma warning disable CA1031 // Anything else unexpected must not end the reader for good: note it and reconnect.
@@ -108,10 +114,28 @@ internal sealed class SensorClient(
         }
     }
 
+    // A pause long enough to show as stale is said once it ends, so the log tells a service that paused from one that went.
     private void Receive(Snapshot snapshot)
     {
+        var now = time.GetTimestamp();
+        if (_heardAt is { } heard && time.GetElapsedTime(heard, now) is var gap && gap > LatestSnapshot.MaxAge)
+        {
+            log.ReadingsPaused(Math.Round(gap.TotalSeconds, 1));
+        }
+
+        _heardAt = now;
         _latest.Set(snapshot);
         Received?.Invoke(this, EventArgs.Empty);
+    }
+
+    // Said only for a pipe that was read, so a service that stays stopped is not said again at every retry.
+    private void Lost(string reason)
+    {
+        if (_heardAt is { } heard)
+        {
+            log.SensorPipeLost(Math.Round(time.GetElapsedTime(heard).TotalSeconds, 1), reason);
+            _heardAt = null;
+        }
     }
 
     private async Task ReadAsync(CancellationToken stop)

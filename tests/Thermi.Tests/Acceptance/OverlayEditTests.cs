@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Editing;
+using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -78,7 +79,7 @@ public sealed class OverlayEditTests
     [InlineData("one", "desk 0 edge 400 300 0", "400,300:6", "same")]
     [InlineData("one", "desk 0 edge 1300 1375", "Taskbar@1300:6", "same")]
     [InlineData("free", "desk 0 edge 1500 1380", "Taskbar:6", "same")]
-    [InlineData("four", "desk 0 hold500+cpu.load 400 300", "400,300:6 TopRight:6 BottomRight:6 BottomLeft:6", "same")]
+    [InlineData("four", "desk 0 hold500+cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("free", "corner 400 38 -300 200", "400,300:6v0.75", "same")]
     [InlineData("free", "corner 400 38 199 5", "400,300:61.5", "same")]
     public void OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach(string start, string edit, string expected, string named)
@@ -157,7 +158,7 @@ public sealed class OverlayEditTests
         var pressed = time.GetTimestamp();
         time.Advance(TimeSpan.FromMilliseconds(plus < 0 ? 0 : int.Parse(words[2][4..plus], CultureInfo.InvariantCulture)));
         var pill = words[2][(plus + 1)..];
-        var takenOff = DesktopGestures.Lifts(config, overlay, pill == "edge" ? null : pill, time.GetElapsedTime(pressed)) ? pill : null;
+        var takenOff = DesktopGestures.Holds(config, overlay, pill == "edge" ? null : pill, time.GetElapsedTime(pressed)) ? pill : null;
         return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark, words.Length > 6 ? words[6] : null).Result;
     }
 
@@ -178,6 +179,36 @@ public sealed class OverlayEditTests
         var after = Done(Edit(before, ["desk", .. words]));
 
         Assert.Equal(items, string.Join(' ', after.Overlays[int.Parse(words[4], CultureInfo.InvariantCulture)].Items.Select(item => item.Id)));
+    }
+
+    // The window lists the pills the overlay labels, in every layout, and a join or a split leaves every pill a start of
+    // its own: a file joined by hand with its single bar over GPU, CPU and RAM; the GPU pill between two of the CPU's
+    // dragged off; an overlay of the RAM merged after the RAM's pill. Where it starts, the edit, then the first overlay's
+    // pills after it as each one's label and its items' count.
+    [Theory]
+    [InlineData("joined", "", "GPU:2 CPU:4 RAM:1")]
+    [InlineData("joined pills", "", "GPU:2 CPU:3 CPU:1 RAM:1")]
+    [InlineData("joined each", "", "GPU:1 GPU:1 CPU:1 CPU:1 CPU:1 CPU:1 RAM:1")]
+    [InlineData("between", "drag gpu.load 400 300", "CPU:2 CPU:2 RAM:1")]
+    [InlineData("ram", "merge 1 0", "CPU:4 GPU:1 RAM:1 RAM:1")]
+    public void TheWindowListsThePillsTheOverlayLabels(string start, string edit, string expected)
+    {
+        var joined = ThermiConfigJson.Read(TestFiles.Config("joined.json")).Config;
+        var before = start.Split(' ') switch
+        {
+            ["joined", var layout] =>
+                WithOverlay(joined, 0, overlay => overlay with { Style = overlay.Style with { Layout = Enum.Parse<PillLayout>(layout, true) } }),
+            ["joined"] => joined,
+            ["between"] => Done(ItemEdits.Move(One, Metrics.GpuLoad.Id, 2)),
+            _ => WithOverlay(Two, 1, overlay => overlay with { Items = [new ItemConfig { Id = "ram2", Metric = Metrics.RamUsed.Id }] }),
+        };
+
+        var after = edit.Length == 0 ? before : Done(Edit(before, edit.Split(' ')));
+        var runs = OverlayLayout.Runs(after.Overlays[0], Texts.English);
+        var drawn = OverlayLayout.Build(after.Overlays[0], TrayTextTests.Quiet, CultureInfo.InvariantCulture, Texts.English, windowOpen: true);
+
+        Assert.Equal(expected, string.Join(' ', runs.Select(run => $"{run.Label}:{run.Last - run.First + 1}")));
+        Assert.Equal(runs.Select(run => run.Label), drawn.Select(item => item.Label).OfType<string>());
     }
 
     private static string Summary(ThermiConfig config, OverlayConfig overlay, int at)

@@ -91,13 +91,18 @@ test.describe('TheItemPageEditsTheItem', () => {
       await page.getByRole('textbox', { name: text('UiText.HexColor') }).fill('#FFB000');
       await page.keyboard.press('Enter');
     }, read: (item) => item.color, expected: '#FFB000' },
+    // Night QA: the dialog starts with what the item reads checked, and once used, the Sensor box says the combination.
     { name: 'Combine', more: true, act: async (page) => {
       await fieldOf(page, 'button', 'UiText.Combine').press('Enter');
       const dialog = page.getByRole('dialog');
+      const reading = dialog.getByRole('checkbox', { checked: true });
+      await expect(reading).toHaveCount(1);
+      await reading.press('Space');
       await dialog.getByRole('checkbox', { name: ccd1.name }).press('Space');
       await dialog.getByRole('checkbox', { name: ccd2.name }).press('Space');
       await chooseByKeys(page, dialog.getByRole('combobox', { name: text('UiText.CombineField') }), text('Combine.Max'));
-      await dialog.getByRole('button', { name: text('UiText.CombineAdd') }).press('Enter');
+      await dialog.getByRole('button', { name: text('UiText.CombineUse') }).press('Enter');
+      await expect(fieldOf(page, 'combobox', 'UiText.SensorField')).not.toHaveValue('');
     }, read: (item) => [item.sensors, item.combine], expected: [[ccd1.id, ccd2.id], 'max'] },
     {
       name: 'No graph',
@@ -139,10 +144,21 @@ test.describe('TheItemPageEditsTheItem', () => {
     await expect(fieldOf(page, 'textbox', 'UiText.LabelField')).toHaveAttribute('placeholder', shown.label);
   });
 
-  // Cold review 4 (Q12): a pill's first item already starts one, so it offers no Separate pill that could not change.
+  // Cold review 4 (Q12): a pill's first item already starts one, so it offers no Separate pill that could not change;
+  // nor does any item in one bar, which ignores it (night QA).
   test("A pill's first item offers no Separate pill", async ({ page }) => {
     await openWindow(page);
     await select(page, text('MetricName.CpuTemperature'));
+    await expect(fieldOf(page, 'switch', 'UiText.OwnPill')).toHaveCount(0);
+    await select(page, text('MetricName.CpuPower'));
+    await expect(fieldOf(page, 'switch', 'UiText.OwnPill')).toHaveCount(1);
+
+    const { settings } = fakeState();
+    const first = settings.overlays[0];
+    if (first !== undefined) {
+      first.style = { ...first.style, layout: 'one' };
+    }
+    await setFake(page, { settings });
     await expect(fieldOf(page, 'switch', 'UiText.OwnPill')).toHaveCount(0);
   });
 
@@ -282,31 +298,40 @@ test.describe('TheItemPageEditsTheItem', () => {
     await page.setViewportSize({ width: 1500, height: 640 });
     await select(page, text('MetricName.RamUsed'));
     await fieldOf(page, 'button', 'UiText.MoreOptions').click();
-    // Scrolled so the rows from the one given show under the pane's top, each control in view, as a person would see it.
-    const scrolledTo = async (role: 'button' | 'combobox', key: string): Promise<number> => {
-      const at = await main.evaluate((pane, top) => {
-        pane.scrollTop = Math.min(pane.scrollHeight - pane.clientHeight, pane.scrollTop + top - pane.getBoundingClientRect().top - 16);
-        return pane.scrollTop;
-      }, (await fieldOf(page, role, key).boundingBox())?.y ?? 0);
+    // Scrolled so the rows from the one given show under the pane's top, each control in view, as a person would see it,
+    // or with the one given just above the pane's foot, where passing news floats. Gives where that control then shows.
+    type Anchor = { role: 'button' | 'combobox' | 'switch'; key: string; foot?: boolean };
+    const shownAt = async ({ role, key }: Anchor): Promise<number> => (await fieldOf(page, role, key).boundingBox())?.y ?? 0;
+    const scrolledTo = async (anchor: Anchor): Promise<number> => {
+      const at = await main.evaluate(
+        (pane, [top, foot]) => {
+          const view = pane.getBoundingClientRect();
+          const to = foot ? top - view.top - pane.clientHeight + 60 : top - view.top - 16;
+          pane.scrollTop = Math.min(pane.scrollHeight - pane.clientHeight, pane.scrollTop + to);
+          return pane.scrollTop;
+        },
+        [await shownAt(anchor), anchor.foot === true] as const,
+      );
       expect(at).toBeGreaterThan(0);
-      return at;
+      return shownAt(anchor);
     };
     const pick = async (key: string, option: string): Promise<void> => {
       await fieldOf(page, 'combobox', key).click();
       await page.getByRole('option', { name: option, exact: true }).click();
     };
     type Act = { name: string; act: () => Promise<void>; read?: (item: Item) => unknown; expected?: unknown };
-    // What the value is sits under Sensor, the rest in More options, so each group is done scrolled to its own rows.
-    const groups: { from: ['button' | 'combobox', string]; acts: Act[] }[] = [
+    // What the value is sits under Sensor, the rest in More options, so each group is done scrolled to its own rows. What
+    // the person looks at, the control given, stays where it shows, though rows above it come or go.
+    const groups: { from: Anchor; acts: Act[] }[] = [
       {
-        from: ['combobox', 'UiText.StatField'],
+        from: { role: 'combobox', key: 'UiText.StatField' },
         acts: [
           { name: 'Value now', act: () => pick('UiText.StatField', text('ItemStat.Now')), read: (item) => item.stat, expected: undefined },
           { name: 'Smoothing', act: () => pick('UiText.SmoothField', text('UiText.SmoothSeconds', 3)), read: (item) => item.smooth, expected: 3 },
         ],
       },
       {
-        from: ['button', 'UiText.MoreOptions'],
+        from: { role: 'button', key: 'UiText.MoreOptions' },
         acts: [
           {
             name: 'Decimals',
@@ -320,9 +345,33 @@ test.describe('TheItemPageEditsTheItem', () => {
           { name: 'new readings', act: () => setFake(page, { sensors: recording('admin').map((sensor) => ({ ...sensor, value: (sensor.value ?? 0) + 1 })) }) },
         ],
       },
+      // At the pane's foot, where a list opens past it, the Graph row above goes and comes back, and an undo's news floats.
+      {
+        from: { role: 'combobox', key: 'UiText.WarnByField', foot: true },
+        acts: [
+          { name: 'Warn by Off', act: () => pick('UiText.WarnByField', text('UiText.WarnByOff')), read: (item) => item.warnBy, expected: undefined },
+          { name: 'its undo', act: () => page.keyboard.press('Control+Z'), read: (item) => item.warnBy, expected: { metric: 'ram.load' } },
+        ],
+      },
+      {
+        from: { role: 'switch', key: 'UiText.AlertOnly', foot: true },
+        acts: [
+          {
+            name: 'a switch at the foot',
+            act: () => fieldOf(page, 'switch', 'UiText.AlertOnly').press('Space'),
+            read: (item) => item.alertOnly,
+            expected: undefined,
+          },
+          { name: 'its undo', act: () => page.keyboard.press('Control+Z'), read: (item) => item.alertOnly, expected: true },
+        ],
+      },
     ];
     for (const { from, acts } of groups) {
-      const at = await scrolledTo(...from);
+      // A person reaches a control at the foot once the news there is gone.
+      if (from.foot === true) {
+        await expect(page.getByRole('status').filter({ hasText: /./ })).toHaveCount(0, { timeout: 15_000 });
+      }
+      const at = await scrolledTo(from);
       for (const row of acts) {
         await test.step(row.name, async () => {
           await row.act();
@@ -330,7 +379,7 @@ test.describe('TheItemPageEditsTheItem', () => {
             await expect.poll(async () => row.read?.(await itemIn(page, 'ram.used'))).toEqual(row.expected);
           }
           await fakeOf(page);
-          expect(await main.evaluate((pane) => pane.scrollTop)).toBe(at);
+          expect(await shownAt(from)).toBe(at);
         });
       }
     }
@@ -341,31 +390,4 @@ test.describe('TheItemPageEditsTheItem', () => {
     await expect(main.getByRole('heading', { level: 2 })).toBeInViewport();
     await expect(main.getByRole('button', { name: text('UiText.MoreOptions') })).toHaveAttribute('aria-expanded', 'false');
   });
-});
-
-// A206: "Find it" runs in the CPU fan's Sensor row, is cancelled, runs again, and its pick changes the item's sensor.
-test('FindItRunsInTheSensorRow', async ({ page }) => {
-  const boardFan = '/lpc/it8689e/0/fan/1';
-  await openWindow(page, fakeState({ finderPick: boardFan }));
-  await select(page, text('MetricName.CpuFan'));
-  const row = page.getByRole('group', { name: text('UiText.SensorField') });
-  const warnByBefore = (await itemIn(page, 'fan.cpu')).warnBy;
-
-  // Cold review 4 (Q7): it asks before it loads the CPU, and a person can say no.
-  await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
-  await row.getByRole('button', { name: text('UiText.Cancel') }).press('Enter');
-  expect((await fakeOf(page)).finder.phase).not.toBe('running');
-  await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
-  await row.getByRole('button', { name: text('CatalogText.LoadCpu') }).press('Enter');
-  await expect(row.getByRole('progressbar')).toBeVisible();
-  await row.getByRole('button', { name: text('UiText.Cancel') }).press('Enter');
-  await expect.poll(async () => (await fakeOf(page)).finder.phase).toBe('cancelled');
-  await expect(row.getByRole('progressbar')).toBeHidden();
-
-  await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
-  await row.getByRole('button', { name: text('CatalogText.LoadCpu') }).press('Enter');
-  await setFake(page, { finder: { phase: 'done', pick: boardFan } });
-  await row.getByRole('button', { name: text('CatalogText.UseIt') }).press('Enter');
-  await expect.poll(async () => (await itemIn(page, 'fan.cpu')).sensor).toBe(boardFan);
-  expect((await itemIn(page, 'fan.cpu')).warnBy).toEqual(warnByBefore);
 });

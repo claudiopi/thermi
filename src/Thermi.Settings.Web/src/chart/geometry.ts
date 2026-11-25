@@ -5,8 +5,11 @@ import type { ChartView, Level, Line } from '../bridge/bridge.g';
 
 /** The knobs' column beside the plot, as wide as the widest knob's text. */
 export const knobColumn = 64;
-/** Room above and under the line inside the plot, so the line and its dot never touch the edge. */
-const pad = 12;
+/**
+ * Room above and under the line inside the plot, so the line and its dot never touch the edge, and the scale's numbers,
+ * 14 px high at the plot's top and bottom (chart.css), sit clear of the line wherever it runs.
+ */
+const pad = 16;
 /** The least distance between two knobs' centers, so they never cover each other. */
 const knobsApart = 26;
 
@@ -35,11 +38,15 @@ export function yOf(plot: Plot, value: number): number {
   return pad + ((to - value) / span) * (plot.height - 2 * pad);
 }
 
-/** The value at a height of the plot, on the knobs' steps and within their track. */
+/**
+ * The value at a height of the plot, on the knobs' steps, within their track and the span the plot shows.
+ */
 export function valueAt(plot: Plot, y: number): number {
   const { from, to, step, max } = plot.chart;
   const raw = to - ((y - pad) / (plot.height - 2 * pad)) * (to - from);
-  return Math.min(max, Math.max(0, Math.round(raw / step) * step));
+  const low = Math.max(0, Math.ceil(from / step) * step);
+  const high = Math.min(max, Math.floor(to / step) * step);
+  return Math.min(high, Math.max(low, Math.round(raw / step) * step));
 }
 
 /** One stretch of the line between missing readings: its path and where it starts and ends across. */
@@ -65,11 +72,14 @@ function stretches(plot: Plot): Stretch[] {
       runs.push({ path: `M${point[0].toFixed(1)},${point[1].toFixed(1)}`, from: point[0], to: point[0] });
       return;
     }
-    // Catmull-Rom through the neighbours, as cubic Béziers, so the line bends without overshooting much.
+    // Catmull-Rom through the neighbours, as cubic Béziers, each bend held between its two readings, so the line never
+    // swings past them, under the floor of a fan stopped or over 100 %.
     const earlier = points[index - 2] ?? before;
     const after = points[index + 1] ?? point;
-    const c1 = [before[0] + (point[0] - earlier[0]) / 6, before[1] + (point[1] - earlier[1]) / 6];
-    const c2 = [point[0] - (after[0] - before[0]) / 6, point[1] - (after[1] - before[1]) / 6];
+    const [low, high] = [Math.min(before[1], point[1]), Math.max(before[1], point[1])];
+    const held = (y: number): number => Math.min(high, Math.max(low, y));
+    const c1 = [before[0] + (point[0] - earlier[0]) / 6, held(before[1] + (point[1] - earlier[1]) / 6)];
+    const c2 = [point[0] - (after[0] - before[0]) / 6, held(point[1] - (after[1] - before[1]) / 6)];
     run.path += `C${c1.map((n) => n.toFixed(1)).join(',')} ${c2.map((n) => n.toFixed(1)).join(',')} ${point[0].toFixed(1)},${point[1].toFixed(1)}`;
     run.to = point[0];
   });
@@ -79,10 +89,11 @@ function stretches(plot: Plot): Stretch[] {
 
 /**
  * The line as smooth curves through the readings, broken where a reading is missing, and the area under it for its soft
- * fill, each stretch closed straight down to the bottom at its own ends. Both from one pass: the chart redraws each second.
+ * fill, each stretch closed straight down to the scale's floor at its own ends, so a line at it fills nothing under it. Both
+ * from one pass: the chart redraws each second.
  */
 export function plotPaths(plot: Plot): { line: string; fill: string } {
-  const bottom = plot.height.toFixed(1);
+  const bottom = yOf(plot, plot.chart.from).toFixed(1);
   const runs = stretches(plot);
   return {
     line: runs.map((run) => run.path).join(''),

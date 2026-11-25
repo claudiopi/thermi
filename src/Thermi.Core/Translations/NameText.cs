@@ -34,3 +34,20 @@ public enum NameText
     /// <summary>The label of the pill of a second GPU, as the graphics chip in a CPU beside a graphics card.</summary>
     OtherGpu,
 }
+
+/// <summary>
+/// A new item's name with no metric's to take, from its device's kind: what it reads, {0}, of that device, which a language
+/// may say with an article, the same its metrics' names say it with.
+/// </summary>
+[Translated]
+public enum OfDevice
+{
+    Cpu,
+    Gpu,
+    Ram,
+    Board,
+    Ssd,
+    Network,
+    Battery,
+    System,
+}

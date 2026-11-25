@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
@@ -110,7 +111,8 @@ public sealed class SensorClientTests : IAsyncDisposable
         Assert.Empty(_log.Entries);
     }
 
-    // Stopped once the host is gone; then the client waits 2 s on the clock and reads again from the host that came back.
+    // Stopped once the host is gone, which the log says; then the client waits 2 s on the clock and reads again from the
+    // host that came back.
     // When a host that stays connected counts as stale is the snapshot's, in PipeTests.
     [Fact]
     public async Task WhenTheHostGoesTheClientSaysSoAndReconnectsTwoSecondsLater()
@@ -137,7 +139,7 @@ public sealed class SensorClientTests : IAsyncDisposable
         Assert.Equal(NoAdmin.Sensors, again?.Sensors);
         Assert.Equal([ServiceState.Stopped, ServiceState.Running], states);
         Assert.False(client.Taken);
-        Assert.Empty(_log.Entries);
+        Assert.Equal(LogLevel.Warning, Assert.Single(_log.Entries).Level);
     }
 
     // Windows woke after an hour asleep: the client reads from a new connection at once, without the 2 s wait, and while it

@@ -1,9 +1,12 @@
+using System.Drawing;
+using System.Drawing.Imaging;
 using Thermi.Commands;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Overlay;
+using Thermi.Windows.Tests.Window;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
 
@@ -153,6 +156,46 @@ public sealed class OverlayMenuTests : IDisposable
 
         Assert.Equal(shown, copied);
         Assert.True(visible > 0, "The picture is blank.");
+    }
+
+    // The window's preview is the overlay's own picture, pixel for pixel, as "Copy as image" takes it from the running
+    // overlay on the recorded readings, in a look of its own.
+    [Fact]
+    public async Task ThePreviewIsTheOverlaysOwnPicture()
+    {
+        var look = new StyleConfig { Pills = PillTheme.Light, Corners = CornerStyle.Soft, Opacity = new OpacityConfig(Background: 0.6) };
+        var overlay = new OverlayConfig { Graph = GraphStyle.Bars, Style = look };
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [overlay] });
+        byte[] copied = [];
+        var environment = _tray.Environment(_windowMutex) with { CopyImage = (_, picture) => copied = Pixels(picture) };
+        HostRun.Run(settings, _folder, environment, host => HostMenus.Choose(host, 0, "Copy as image"));
+
+        var window = _folder.Window(new TestFeed { Latest = HostRun.Recorded }) with { Screens = Desktop.Screens };
+        using var bridge = _folder.Bridge(settings, window, new System.Collections.Concurrent.ConcurrentQueue<Action>(), overlay: 1);
+        bridge.Arrived();
+        var preview = await bridge.Preview(0, 0);
+        using var png = new Bitmap(new MemoryStream(Convert.FromBase64String(preview!.Png[(preview.Png.IndexOf(',', StringComparison.Ordinal) + 1)..])));
+
+        Assert.NotEmpty(copied);
+        Assert.Equal(copied, Pixels(png));
+    }
+
+    // Its size, then each pixel's bytes, as GDI+ holds a picture in memory.
+    private static byte[] Pixels(Bitmap picture)
+    {
+        var data = picture.LockBits(new Rectangle(0, 0, picture.Width, picture.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try
+        {
+            var bytes = new byte[8 + (Math.Abs(data.Stride) * picture.Height)];
+            BitConverter.TryWriteBytes(bytes.AsSpan(0, 4), picture.Width);
+            BitConverter.TryWriteBytes(bytes.AsSpan(4, 4), picture.Height);
+            System.Runtime.InteropServices.Marshal.Copy(data.Scan0, bytes, 8, bytes.Length - 8);
+            return bytes;
+        }
+        finally
+        {
+            picture.UnlockBits(data);
+        }
     }
 
     // The once-a-second raise that keeps an overlay above the taskbar never lifts it over its own menu while that is open.

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Style } from '../bridge/bridge.g';
 import { sayKeys } from '../testSay';
-import { enumChoices, hexColor, isColorblindSafe, pillSizes, pillsShown, shownStyle } from './lookModel';
+import { enumChoices, hexColor, isColorblindSafe, pillsShown, shownStyle } from './lookModel';
 
 const standard = { label: { size: 13, weight: 'semibold' }, value: { size: 13.5, weight: 'bold' } };
 const defaults = {
@@ -80,17 +80,6 @@ describe('a look', () => {
     ['', null],
   ])('takes "%s" in the hex box as %s', (typed, color) => {
     expect(hexColor(typed)).toBe(color);
-  });
-
-  test.each([
-    { size: 13.5, corners: 'round', sizes: { height: 31, radius: 15.5, padding: 10, gap: 6, segment: 2 } },
-    { size: 13.5, corners: 'soft', sizes: { height: 31, radius: 7.75, padding: 10, gap: 6, segment: 2 } },
-    { size: 13.5, corners: 'square', sizes: { height: 31, radius: 2, padding: 10, gap: 6, segment: 2 } },
-    { size: 17, corners: 'round', sizes: { height: 37, radius: 18.5, padding: 12, gap: 8, segment: 3 } },
-  ] as const)('sizes a sample pill of $size px text, $corners', ({ size, corners, sizes }) => {
-    const style = { ...shownStyle({ corners }), value: { size, weight: 'bold' } as const };
-
-    expect(pillSizes(style)).toEqual(sizes);
   });
 
   // A sample draws its pills as the overlay does: "Match taskbar" in the taskbar's mode, never the window's.

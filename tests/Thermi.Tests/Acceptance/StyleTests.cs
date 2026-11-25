@@ -74,11 +74,14 @@ public sealed class StyleTests
 
         var stacked = vertical.Arrange(widths, 38, 2);
         var inARow = horizontal.Arrange(widths, 38, 2);
+        var standing = vertical.Arrange(widths, 38, 2, [38, 120, 38]);
 
         Assert.Equal(widths.Max(), stacked.Width);
         Assert.Equal((3 * 38) + (2 * 16), stacked.Height);
         Assert.All(stacked.Pills, pill => Assert.Equal(widths.Max(), pill.Width));
         Assert.Equal([0.0, 54, 108], stacked.Pills.Select(pill => pill.Top));
+        Assert.Equal([(0.0, 38.0), (54, 120), (190, 38)], standing.Pills.Select(pill => (pill.Top, pill.Height)));
+        Assert.Equal(38 + 120 + 38 + (2 * 16), standing.Height);
         Assert.Equal(widths.Sum() + (2 * 16), inARow.Width);
         Assert.Equal(38, inARow.Height);
         Assert.Equal(widths[0] + 16, inARow.Pills[1].Left);
@@ -233,12 +236,23 @@ public sealed class StyleTests
         Assert.Equal(
             lightPills ? ["#0F7B0F", "#9D5D00", "#C42B1C"] : ["#6CCB5F", OverlayLook.DefaultWarning.ToString(), OverlayLook.DefaultCritical.ToString()],
             levels.Select(level => look.MeterColor(level).ToString()));
-        // Each level's color is a mark of its own on the pill and on a graph's unlit track.
+        // Each level's color is a mark of its own on the pill, on a pill a single bar holds and on a graph's unlit track; the
+        // pills a bar holds stand from it at 1.5:1, and no more than 2:1, so the runs read apart quietly.
+        Rgb[] unders = [look.Pills.Outer, look.Pills.Inner, look.Pills.MeterOff];
         Assert.All(
-            levels.SelectMany(level => new[] { look.Pills.Outer, look.Pills.MeterOff }.Select(under => look.MeterColor(level).ContrastWith(under))),
+            levels.SelectMany(level => unders.Select(under => look.MeterColor(level).ContrastWith(under))),
             contrast => Assert.True(contrast >= OverlayLook.MinContrast, $"{contrast:0.00}:1"));
+        Assert.InRange(look.Pills.Inner.ContrastWith(look.Pills.Outer), 1.5, 2);
         Assert.Equal((StylePreset.Custom, new TextStyle(15, TextWeight.Bold)), (resized.Preset, StylePresets.Text(resized).Value));
         Assert.Equal(style, resized with { Preset = style.Preset, Label = style.Label, Value = style.Value });
+        // Its tile's sample is three pills, the CPU's temperature and load, the GPU and the RAM, each value with its bars, in the look.
+        var sample = LookSample.Of(style);
+        var sampled = OverlayLayout.Groups(OverlayLayout.Build(sample, SensorMap.Read(Desktop, sample), English), sample.Style.Layout);
+        Assert.Equal(
+            [[Metrics.CpuTemperature.Id, Metrics.CpuLoad.Id], [Metrics.GpuLoad.Id], [Metrics.RamUsed.Id]],
+            sampled.Select(pill => pill.Select(item => item.Id)));
+        Assert.All(sampled.SelectMany(pill => pill), item => Assert.NotNull(item.Lit));
+        Assert.Equal(style.Pills, sample.Style.Pills);
     }
 
     // Each level on dark, light and high contrast pills, and the mark its value carries; percentages held between 0 and

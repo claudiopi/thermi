@@ -1,4 +1,3 @@
-using System.Globalization;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -28,14 +27,12 @@ public static class ItemEdits
             // A battery's rate is a few watts, so whole watts would hide most of its change.
             var language = texts ?? Texts.English;
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
-            var name = Names.OfItem(config, sensor, sensorId, language);
             var read = OtherGpu(config.Overlays[overlay], snapshot, sensor);
             var chip = read is not null && SensorMap.GpuAfter(sensor, read);
 
             var item = new ItemConfig
             {
                 Sensor = sensorId,
-                Name = read is null ? name : language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware),
                 Label = chip ? language.Of(NameText.OtherGpu) : null,
                 Decimals = decimals,
                 Own = read is not null && !chip,
@@ -48,7 +45,7 @@ public static class ItemEdits
     // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one, returned here: a
     // sensor of the other is named by its GPU and goes to a pill of its own, never reading as the pill's. The chip's pill
     // is the iGPU one, which its later sensors join; a card's, beside a GPU pill set to read the chip, starts a GPU pill.
-    private static RawSensor? OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
+    internal static RawSensor? OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
         SensorMap.IsGpu(sensor)
         && SensorMap.Chosen(snapshot, overlay).GetValueOrDefault(Metrics.GpuLoad.Id) is { } read
         && read.Hardware != sensor.Hardware ? read : null;
@@ -261,7 +258,7 @@ public static class ItemEdits
 
         var items = config.Overlays[overlay].Items;
         var labels = OverlayLayout.RunLabels(items);
-        var (first, last) = PillAround(items, labels, index, config.Overlays[overlay].Style.Layout);
+        var (first, last) = PillOf(config.Overlays[overlay], index);
         var followers = last + 1;
         while (followers < items.Count && OverlayLayout.LabelOf(items[followers]) is null)
         {
@@ -275,31 +272,10 @@ public static class ItemEdits
     }
 
     /// <summary>The first and last item of the pill the item at <paramref name="index"/> is in, those a rename of its label changes.</summary>
-    public static (int First, int Last) PillOf(OverlayConfig overlay, int index) =>
-        PillAround(overlay.Items, OverlayLayout.RunLabels(overlay.Items), index, overlay.Style.Layout);
-
-    // A pill is a run of one label; with pills, an item that starts a pill of its own breaks the run.
-    private static (int First, int Last) PillAround(IReadOnlyList<ItemConfig> items, IReadOnlyList<string?> labels, int index, PillLayout layout)
+    public static (int First, int Last) PillOf(OverlayConfig overlay, int index)
     {
-        if (layout == PillLayout.Each)
-        {
-            return (index, index);
-        }
-
-        var breaks = layout == PillLayout.Pills;
-        var first = index;
-        while (first > 0 && !(breaks && items[first].Own) && labels[first - 1] == labels[index])
-        {
-            first--;
-        }
-
-        var last = index;
-        while (last + 1 < items.Count && !(breaks && items[last + 1].Own) && labels[last + 1] == labels[index])
-        {
-            last++;
-        }
-
-        return (first, last);
+        var run = OverlayLayout.Runs(overlay).First(each => each.First <= index && index <= each.Last);
+        return (run.First, run.Last);
     }
 
     private static bool WarnedByItsDuty(ItemConfig item) => item.WarnBy is { } warnBy

@@ -43,7 +43,9 @@ export interface DropdownProps {
 const useStyles = makeStyles({
   dropdown: {
     minWidth: '160px',
-    // Overflowing past the box makes it the scroll parent Fluent scrolls into view, instead of the pane, which jumped on open.
+    // Overflowing past the box makes it the parent Fluent's findScrollableParent scrolls an option into view in, instead of
+    // the pane, which jumped on open; check it again with each Fluent update. The list stays inline, not in a portal, which
+    // would leave its options outside every landmark.
     '::before': { content: '""', position: 'absolute', top: '0', bottom: '-4px', width: '1px', visibility: 'hidden', pointerEvents: 'none' },
   },
   option: { display: 'flex', gap: '12px', width: '100%' },
@@ -206,7 +208,8 @@ function DropdownBoxDrawn({
       inlinePopup
       listbox={{ className: mergeClasses(styles.listbox, wide && styles.wide) }}
       {...(wide ? { positioning: 'below-end' as const } : {})}
-      input={{ className: mergeClasses(styles.input, inline && styles.inlineInput) }}
+      // A sensor's name, as "Core (Tctl/Tdie)", is no word to check.
+      input={{ className: mergeClasses(styles.input, inline && styles.inlineInput), spellCheck: false }}
       aria-label={label}
       aria-describedby={describedBy}
       value={typed ?? current?.shown ?? current?.text ?? ''}

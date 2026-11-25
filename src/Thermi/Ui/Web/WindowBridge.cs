@@ -38,6 +38,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly WindowEditor _editor;
     private readonly WindowViews _views;
     private readonly WindowCharts _charts;
+    private readonly WindowPreviews _previews;
     private readonly WindowFinder _finder;
     private readonly WindowLooks _looks;
     private readonly PageWatch _watch;
@@ -54,11 +55,13 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         var readings = new Readings(start.Time);
         _views = new WindowViews(editor, start.Environment.Sensors, readings, chart.Items);
         _charts = new WindowCharts(editor, chart, start.Environment.Sensors, readings);
-        _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell);
+        _previews = new WindowPreviews(editor, start.Environment.Sensors, _charts, start.Environment.Screens);
+        _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell, start.Environment.Log, () => start.Environment.Sensors.State);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);
         _fixes = new WindowFixes(start.Environment, start.Time);
         _updates = new WindowUpdates(start.Time, start.Environment.Log);
+        editor.Settle = (before, after) => _views.Settled(before, after, _texts, start.Environment.Screens());
         editor.Changed += (_, _) => Edited();
     }
 
@@ -129,7 +132,11 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
         var snapshot = _start.Environment.Sensors.Latest ?? new Snapshot([]);
         var result = _editor.Edit(edit.GetType().Name, PageEdits.Of(edit, snapshot, _texts, _start.Environment.AltGrKeys));
-        return Task.FromResult(result.Refused is { } refused ? Core.Translations.Texts.Key(refused) : null);
+        // A refused hotkey says why, as "another hotkey uses it", not only that it cannot be one.
+        return Task.FromResult(
+            result.Hotkey is { } why ? Core.Translations.Texts.Key(why)
+            : result.Refused is { } refused ? Core.Translations.Texts.Key(refused)
+            : null);
     }
 
     public Task Gesture(bool active)
@@ -147,6 +154,10 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     public Task<WindowView> View() => Ready(() => _views.View(_texts));
+
+    public Task<OverlayPicture?> Preview(int overlay, int room) => Ready(() => _previews.Preview(overlay, room, _texts));
+
+    public Task<LookSamples> LookSamples(double scale) => Ready(() => _previews.Samples(_looks.Looks(), _texts, scale));
 
     public Task<ChartView?> Chart(string id) => Task.FromResult(_charts.Chart(id, _views.Format(_texts)));
 
@@ -225,7 +236,6 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             screen.Taskbar is not null,
             Snaps.Floats(screen)))]);
 
-
     public Task Report(string error)
     {
         _start.Environment.Log.PageThrew(error);
@@ -233,6 +243,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     public Task<IReadOnlyDictionary<string, StyleConfig>> Looks() => Task.FromResult(_looks.Looks());
+
+    public Task<IReadOnlyList<WornLook?>> Worn() => Task.FromResult(_looks.Worn());
 
     public Task<string?> SaveLook(int overlay, string name) => Task.FromResult(_looks.Save(overlay, name));
 

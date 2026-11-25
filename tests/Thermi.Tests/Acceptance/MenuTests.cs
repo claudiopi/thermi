@@ -65,8 +65,8 @@ public sealed class MenuTests
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','stat':'max'}]}",
         "",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock ResetMinMax HideOverlays | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager ResetMinMax | HideOverlays | Exit")]
+        "Settings* TaskManager CopyImage ClickThrough Lock ResetMinMax HideOverlays | Exit",
+        $"Settings* | {Graph} Lock | CopyImage TaskManager ResetMinMax | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "hotkeys",
@@ -87,15 +87,26 @@ public sealed class MenuTests
         "looks",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
         $"Settings* | {Graph} Look Look+ Look Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // The look worn is the one the overlay draws as, as the window's tile checks it: Ocean, just saved from it, unnamed.
+    [InlineData(
+        "{'style':{'gap':2}}",
+        "looks",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Look Look Look+ Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "update",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update | Exit",
         $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
-    // On a pill: of several, locked or not, on the taskbar or the desktop, it can be separated; not the overlay's only pill,
-    // nor once no other overlay fits, nor while the overlay is hidden.
+    // On a pill: of several, on the taskbar or the desktop, it can be separated; not the overlay's only pill, nor while the
+    // overlay is hidden or locked, which a hold to lift the pill is not either; once no other overlay fits, grayed with why.
     [InlineData(
         "{}",
+        "on:gpu.load",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"EditItem* Settings | Separate {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    [InlineData(
+        "{'position':{'x':100,'y':100}}",
         "on:gpu.load",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
         $"EditItem* Settings | Separate {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
@@ -103,19 +114,19 @@ public sealed class MenuTests
         "{'locked':true,'position':{'x':100,'y':100}}",
         "on:gpu.load",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock+ HideOverlays | Exit",
-        $"EditItem* Settings | Separate {Graph} Vertical Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
+        $"EditItem* Settings | {Graph} Vertical Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature'},{'id':'cpu.load','metric':'cpu.load'}]}",
         "on:cpu.load",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"EditItem* Settings | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        "Settings* TaskManager CopyImage ClickThrough Lock HideOverlays | Exit",
+        $"EditItem* Settings | {Graph} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}|{}|{}|{}",
         "on:gpu.load",
         "Settings* TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
-        $"EditItem* Settings | {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
+        $"EditItem* Settings | Separate-(SeparateFull) {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
     [InlineData(
         "{'hidden':true}|{}",
         "on:gpu.load",
@@ -131,8 +142,14 @@ public sealed class MenuTests
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','graph':'none'},{'id':'cpu.power','metric':'cpu.power'}]}",
         "",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        "Settings* | Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        "Settings* TaskManager CopyImage ClickThrough Lock HideOverlays | Exit",
+        "Settings* | Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // Vertical is offered while it stacks pills, or while it is on, so it can be turned off; one bar of one run stacks nothing.
+    [InlineData(
+        "{'style':{'layout':'one','orientation':'vertical'},'items':[{'id':'cpu.temperature','metric':'cpu.temperature'}]}",
+        "",
+        "Settings* TaskManager CopyImage Vertical+ ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical+ Lock | CopyImage TaskManager | HideOverlays | Exit")]
     public void MenusHaveTheirEntriesInOrder(string overlays, string state, string thermis, string overlaysMenu)
     {
         var words = state.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -147,7 +164,7 @@ public sealed class MenuTests
             FileBroken: words.Contains("broken"),
             Service: words.Contains("stopped") ? ServiceState.Stopped : ServiceState.Running,
             SinceGesture: gesture,
-            SavedLooks: words.Contains("looks") ? ["Night", "Ocean"] : [],
+            SavedLooks: words.Contains("looks") ? [new StyleConfig { Name = "Night" }, new StyleConfig(Gap: 2) { Name = "Ocean" }] : [],
             UpdateReady: words.Contains("update"));
 
         Assert.Null(problem);
@@ -162,20 +179,30 @@ public sealed class MenuTests
     }
 
     // Each entry of one menu gets its own key, from the start of a word first, whatever its case or language, and an
-    // entry without a letter or a digit left gets none; an "&" of the text stays one.
+    // entry without a letter or a digit left gets none, nor a grayed one, written after "-", which nothing chooses; an
+    // "&" of the text stays one.
     [Theory]
     [InlineData("Alpha one|Alpha two|beta|Ölfarbe|öl", "&Alpha one|Alpha &two|&beta|&Ölfarbe|ö&l")]
     [InlineData("R&D|Rd|…", "&R&&D|R&d|…")]
     [InlineData("ab|ba|ab", "&ab|&ba|ab")]
-    public void EachEntryOfAMenuHasItsOwnAccessKey(string texts, string marked) =>
-        Assert.Equal(marked, string.Join('|', AccessKeys.Mark(texts.Split('|'))));
+    [InlineData("Line|-Some & own|Settings", "&Line|Some && own|&Settings")]
+    public void EachEntryOfAMenuHasItsOwnAccessKey(string texts, string marked)
+    {
+        var entries = texts.Split('|');
+        var grayed = entries.Select(entry => entry.StartsWith('-')).ToArray();
+        Assert.Equal(marked, string.Join('|', AccessKeys.Mark([.. entries.Select(entry => entry.TrimStart('-'))], grayed)));
+    }
 
     private static string Describe(IReadOnlyList<MenuRow> rows) => string.Join(' ', rows.Select((row, at) => string.Concat(
         row.Starts && at > 0 ? "| " : "",
         row.Graph?.ToString() ?? row.Entry.ToString(),
+        Marks(row),
+        row.Entries.Count == 0 ? "" : $"[{Describe(row.Entries)}]")));
+
+    private static string Marks(MenuRow row) => string.Concat(
         row.Default ? "*" : "",
         row.Heading ? "-" : "",
         row.Checked ? "+" : "",
         row.Hotkey is null ? "" : "@",
-        row.Entries.Count == 0 ? "" : $"[{Describe(row.Entries)}]")));
+        row.Note is { } note ? $"({note})" : "");
 }

@@ -8,6 +8,9 @@ public enum CatalogText
 
     FanFinderLoading,
 
+    /// <summary>Once the load has ended, while the finder still watches the fans, as some answer only after it.</summary>
+    FanFinderWatching,
+
     /// <summary>The chip that shows every type.</summary>
     AllKinds,
 

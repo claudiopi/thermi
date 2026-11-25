@@ -1,4 +1,5 @@
 import type { Edit, Monitor, Settings } from '../bridge/bridge.g';
+import { offersOwnPill } from '../item/itemModel';
 import type { MenuEntry } from '../kit';
 import { displayName, moveToDisplay, placedOf } from '../overlay/placeModel';
 import type { TextKey } from '../texts/Texts';
@@ -49,8 +50,7 @@ function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): M
   return [
     { kind: 'action', id: 'rename', text: say('UiText.Rename'), keys: 'F2', onRun: () => run.rename(row) },
     { kind: 'action', id: 'label', text: say('UiText.EditPillLabel'), onRun: () => run.editLabel(id) },
-    // The first item of a pill already starts one, so, as on its page, a check that could not change is not offered.
-    ...(firstOfPill && item?.own !== true
+    ...(!offersOwnPill(settings, row.overlay, item, firstOfPill)
       ? []
       : [
           {

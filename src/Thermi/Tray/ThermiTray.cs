@@ -95,10 +95,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         var numbers = Actions.Culture;
         foreach (var (item, reading, notice) in _notifyMe.Add(config, snapshot, fullScreen))
         {
-            var name = item.Name
-                ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? texts.Of(metric.Name) : null)
-                ?? OverlayLayout.LabelOf(item, texts)
-                ?? item.Id;
+            var name = Names.Of(config, item, snapshot, texts);
             var value = ReadingFormatter.Format(reading with { Value = notice.Value }, numbers, units: true, config.Temperature, item.Decimals, texts);
             var length = LengthOf(notice.Length, texts, numbers);
             _icons.Notify(
@@ -174,7 +171,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
             Settings.Problem is not null,
             parts.Service(),
             undo is null ? null : TimeSpan.Zero,
-            [.. _choices.Looks().Select(style => style.Name).OfType<string>()],
+            _choices.Looks(),
             UpdateReady: false);
         var texts = Translations;
         var rows = overlay is { } shown ? Menus.OfOverlay(config, shown, state, item, fromTray) : Menus.Thermis(config, state);
@@ -218,7 +215,8 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
                 parts.Visibility.HideOverlays = false;
                 break;
             case NoticeKind.OverlayHidden:
-                Settings.Edit(config => notice.Overlays.Aggregate(config, (current, at) => OverlayEdits.SetHidden(current, at, hidden: false).Config));
+                Settings.Edit(config =>
+                    Actions.Settle(notice.Overlays.Aggregate(config, (current, at) => OverlayEdits.SetHidden(current, at, hidden: false).Config)));
                 break;
             case NoticeKind.ClickThrough or NoticeKind.ClickThroughAll:
                 Settings.Edit(config => Notices.Undo(config, notice));

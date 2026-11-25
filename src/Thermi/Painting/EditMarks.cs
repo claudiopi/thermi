@@ -42,11 +42,12 @@ internal sealed record EditMarks(Fade Fade, string? Selected, string? Pointed, R
 
     /// <summary>
     /// The look with its fade, or, <paramref name="held"/> in a drag over other overlays and the window's fades, with a
-    /// background of its own whatever the look's opacity.
+    /// background of its own whatever the look's opacity. A faded frame outlines the text in the pill's color, so the
+    /// values keep their contrast over any backdrop the pill no longer hides.
     /// </summary>
     public OverlayLook Applied(OverlayLook look, bool held = false) => held ? look with { Background = 1, Opacity = 1 } : Fade switch
     {
-        Fade.Frame => look with { Background = look.Background * FrameFade },
+        Fade.Frame => look with { Background = look.Background * FrameFade, Effect = TextEffect.Outline },
         Fade.Whole => look with { Opacity = look.Opacity * WholeFade },
         Fade.None => look,
         _ => look,

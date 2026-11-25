@@ -5,9 +5,9 @@ import type { FakeState, OracleAnswer, OracleCall, OracleStart, PureCall, Sensor
 import { pseudo, recording, texts } from './pageChecks';
 
 // The C# side's answers to the page's edits, undos and looks, which the fake replays instead of deciding them: a table
-// of calls from a start, each with what the real bridge answered, the settings it then showed, its saved looks and its
-// undo steps. A call whose answer holds whatever came before it, as a search, is kept apart, by itself, so a list read
-// again any number of times asks the same. Thermi.Windows.Tests' BridgeOracleTests runs every call through the real
+// of calls from a start, each with what the real bridge answered, the settings it then showed, its saved looks, the look
+// each overlay wears and its undo steps. A call whose answer holds whatever came before it, as a search, is kept apart,
+// by itself, so a list read again any number of times asks the same. Thermi.Windows.Tests' BridgeOracleTests runs every call through the real
 // WindowBridge and fails when an answer here is stale; a call the table lacks fails the test that made it, and
 // `pwsh scripts/oracle.ps1` asks C#.
 
@@ -17,7 +17,7 @@ interface OracleCase {
 }
 
 interface Golden {
-  starts: Record<string, OracleStart & { shown: FakeState['settings'] }>;
+  starts: Record<string, OracleStart & { shown: FakeState['settings']; worn: FakeState['worn'] }>;
   cases: OracleCase[];
   /** The answers to calls that hold whatever came before them, as a search, from any start. */
   pure?: (PureCall & { answer: unknown })[];
@@ -113,12 +113,14 @@ function askPure(asked: PureCall, testId: string): { result: unknown } | { missi
 
 /**
  * Answers the page's calls on <paramref name="page"/> from the table, for a fake starting at <paramref name="state"/>,
- * and gives that state the settings as C# shows them. A call the table lacks answers that it is missing, and fails the test.
+ * and gives that state the settings as C# shows them and the looks it says they wear. A call the table lacks answers
+ * that it is missing, and fails the test.
  */
 export async function askOracle(page: Page, state: FakeState): Promise<FakeState> {
   const start = startOf(state);
   const id = createHash('sha256').update(canonical(start)).digest('hex').slice(0, 16);
   const shown = golden.starts[id]?.shown;
+  const worn = golden.starts[id]?.worn ?? state.worn;
   starts.add(id);
   const cases = golden.cases.flatMap((one, index) =>
     one.start === id
@@ -157,7 +159,7 @@ export async function askOracle(page: Page, state: FakeState): Promise<FakeState
     return answer ?? miss(`${call.method} as call ${at + 1}`);
   });
   await page.exposeBinding('thermiPure', (_source, call: PureCall) => askPure(call, info.testId));
-  return shown === undefined ? state : { ...state, settings: shown };
+  return shown === undefined ? state : { ...state, settings: shown, worn };
 }
 
 /** The tests of the page: each fails when its fake asked the oracle for a call it lacks. */

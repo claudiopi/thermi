@@ -21,8 +21,15 @@ public sealed class FanFinderTests
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
-    /// <summary>The fan barely answers: fan-control software drives it, and it rises about 166 RPM under 30 s of full load.</summary>
+    /// <summary>
+    /// Fan-control software drives the fan, late: it rises about 166 RPM under 30 s of full load, and about 250 more in the
+    /// 10 s after it.
+    /// </summary>
     private static IReadOnlyList<Snapshot> Software => TestFiles.Series(TestRecordings.CpuLoad);
+
+    /// <summary>The real series with the board's fan held at its speed before the load from then on: no fan answers.</summary>
+    private static List<Snapshot> Unanswered =>
+        Derived(Software, BoardFan, (snapshot, index) => Value(index < LoadStart ? snapshot : Software[LoadStart - 1], BoardFan));
 
     /// <summary>The board drives the fan: it rises from about 740 to 1,490 RPM a few seconds into the load.</summary>
     private static IReadOnlyList<Snapshot> Intel => TestFiles.Series(TestRecordings.IntelCpuLoad);
@@ -51,8 +58,8 @@ public sealed class FanFinderTests
     [Fact]
     public void WhenNoFanMeetsTheRuleTheLoadRunsThirtySeconds()
     {
-        var series = Software.ToList();
-        var withoutTheLastLoadedReading = Software.Select((snapshot, index) => index == LoadStart + 29 ? null : snapshot).ToList();
+        var series = Unanswered;
+        var withoutTheLastLoadedReading = Unanswered.Select((snapshot, index) => index == LoadStart + 29 ? null : snapshot).ToList();
 
         var run = Replay(series);
         var checkedAtTheEnd = Replay(withoutTheLastLoadedReading);
@@ -61,20 +68,42 @@ public sealed class FanFinderTests
         Assert.Equal((FanFinderOutcome.NoFanRose, 3.0, 33.0), (checkedAtTheEnd.Result.Outcome, checkedAtTheEnd.LoadFrom, checkedAtTheEnd.LoadTo));
     }
 
+    // Night QA: on the owner's PC the readings paused a few seconds as the load started, and the finder gave up on a fan
+    // that answered. A pause leaves the averages fewer readings, no less true; only readings gone past MaxGap stop it.
     [Fact]
-    public void AGapInTheReadingsStopsTheFinder()
+    public void OnlyALongGapInTheReadingsStopsTheFinder()
     {
-        var cut = Software.Select((snapshot, index) => index is >= 15 and < 20 ? null : snapshot).ToList();
+        var paused = ThreeTimesFaster(Software).Select((snapshot, index) => index >= LoadStart && index < LoadStart + 4 ? null : snapshot).ToList();
+        var cut = Unanswered.Select((snapshot, index) => index is >= 15 and < 25 ? null : snapshot).ToList();
         var time = new FakeTimeProvider();
         var silent = new FanFinder(Desktop, time);
 
+        var answered = Replay(paused);
         var run = Replay(cut);
-        time.Advance(TimeSpan.FromSeconds(3));
+        time.Advance(FanFinder.MaxGap + Half);
         silent.Add(Desktop);
 
-        // The last reading before the gap is at 13 s, and the readings come back at 19 s.
-        Assert.Equal((FanFinderOutcome.ReadingsStopped, 3.0, 16.0), (run.Result.Outcome, run.LoadFrom, run.LoadTo));
+        Assert.Equal(new FanFinderResult(FanFinderOutcome.Found, BoardFan), answered.Result);
+
+        // The last reading before the gap is at 13 s, and the readings come back at 24 s.
+        Assert.Equal((FanFinderOutcome.ReadingsStopped, 3.0, 22.0), (run.Result.Outcome, run.LoadFrom, run.LoadTo));
         Assert.Equal((FanFinderOutcome.ReadingsStopped, false), (silent.Result?.Outcome, silent.Loading));
+    }
+
+    // Night QA 3: on the owner's PC the CPU fan rose 4 to 12 s after the load ended, and the readings stopped under the
+    // load for seconds at a time. The finder watches the fans for a while after the load, which a long gap ends early too.
+    [Fact]
+    public void AFanThatAnswersOnlyAfterTheLoadIsStillFound()
+    {
+        var loadEnd = LoadStart + 29;
+        var late = Replay(AnsweringAt(Software, loadEnd + 5));
+        var gap = AnsweringAt(Software, LoadStart + 16).Select((snapshot, index) => index > LoadStart + 2 && index < LoadStart + 13 ? null : snapshot).ToList();
+        var stalled = Replay(gap);
+
+        Assert.Equal((new FanFinderResult(FanFinderOutcome.Found, BoardFan), 3.0, 33.0), (late.Result, late.LoadFrom, late.LoadTo));
+
+        // The last reading before the gap is at 6 s, so the load ends at the first check past 8.5 s on; the fan answers at 20 s.
+        Assert.Equal((new FanFinderResult(FanFinderOutcome.Found, BoardFan), 3.0, 15.0), (stalled.Result, stalled.LoadFrom, stalled.LoadTo));
     }
 
     // The window shows which fan rises most while the finder runs, before any meets the rule.
@@ -124,12 +153,16 @@ public sealed class FanFinderTests
     // outcome whose words mention fan-control software and picking the fan by hand. "Use it" keeps the item's meter and
     // adds no item, as one undo step.
     // On the Intel desktop's recorded series the board drives its CPU fan, and the Nuvoton's second input answers the load,
-    // the one the CPU fan item reads already.
+    // the one the CPU fan item reads already. On the Ryzen's, software drives it and it answers after the load.
     [Theory]
     [InlineData("board-answers", "Found")]
     [InlineData("three-times-faster", "Found")]
     [InlineData("answering-at-once", "Found")]
-    [InlineData("software", nameof(FanFinderOutcome.NoFanRose))]
+    [InlineData("software", "Found")]
+    [InlineData("falling-after-a-run", "Found")]
+    [InlineData("rising-a-third", "Found")]
+    [InlineData("unanswered", nameof(FanFinderOutcome.NoFanRose))]
+    [InlineData("board-jitter", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("gpu-fan-answers", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("two-alike", nameof(FanFinderOutcome.TwoRoseAlike))]
     [InlineData("light-load", nameof(FanFinderOutcome.LoadDidNotReachTheCpu))]
@@ -151,8 +184,10 @@ public sealed class FanFinderTests
             return;
         }
 
-        var intel = series == "board-answers";
-        var result = (intel ? Replay(Intel, LoadStartOf(Intel)) : Replay(SeriesOf(series))).Result;
+        var intel = series.StartsWith("board-", StringComparison.Ordinal);
+        var result = (intel ? Replay(series == "board-jitter" ? BoardJitter : Intel, LoadStartOf(Intel))
+            : series == "falling-after-a-run" ? Replay(FallingAfterARun(), loadStart: 4)
+            : Replay(SeriesOf(series))).Result;
         var fan = intel ? IntelFan : BoardFan;
         Assert.Equal(expected, result.Outcome.ToString());
         Assert.Equal(expected == nameof(FanFinderOutcome.Found) ? fan : null, result.Fan);
@@ -176,12 +211,15 @@ public sealed class FanFinderTests
     {
         "three-times-faster" => ThreeTimesFaster(Software),
         "answering-at-once" => AnsweringAt(Software, LoadStart),
+        "rising-a-third" => RisingAThird,
+
+        "unanswered" => Unanswered,
 
         // A GPU's fan never cools the CPU, however it answers a load that also warms the GPU.
-        "gpu-fan-answers" => Derived(Software, GpuFan, (snapshot, _) => 3 * Value(snapshot, BoardFan)),
+        "gpu-fan-answers" => Derived(Unanswered, GpuFan, (_, index) => 3 * Value(Software[index], BoardFan)),
         "two-alike" => Derived(ThreeTimesFaster(Software), SecondFan, (snapshot, _) => Value(snapshot, BoardFan) * 0.6),
-        "light-load" => Derived(Software, CpuTotal, (snapshot, _) => Value(snapshot, CpuTotal) * 0.75),
-        "unread-load" => Derived(Software, CpuTotal, (_, _) => null),
+        "light-load" => Derived(Unanswered, CpuTotal, (snapshot, _) => Value(snapshot, CpuTotal) * 0.75),
+        "unread-load" => Derived(Unanswered, CpuTotal, (_, _) => null),
         _ => Software,
     };
 
@@ -189,7 +227,7 @@ public sealed class FanFinderTests
 
     // The finder starts on the fourth reading before the recorded load, so its 3 s baseline ends on the last reading
     // before it and the window's load lines up with the recorded one. A reading comes on each whole second, a null
-    // being one that never came, and the window checks on each half second.
+    // being one that never came, and the window checks on each half second, past the series' end too.
     private static Run Replay(IReadOnlyList<Snapshot?> series) => Replay(series, LoadStart);
 
     private static Run Replay(IReadOnlyList<Snapshot?> series, int loadStart)
@@ -199,20 +237,12 @@ public sealed class FanFinderTests
         var finder = new FanFinder(series[loadStart - 4]!, time);
         double? from = null;
         double? to = null;
-        for (var index = loadStart - 3; index < series.Count && finder.Result is null; index++)
+        for (var index = loadStart - 3; finder.Result is null && index < series.Count + 60; index++)
         {
-            foreach (var reading in new[] { null, series[index] })
+            foreach (var reading in new[] { null, series.ElementAtOrDefault(index) })
             {
                 time.Advance(Half);
-                if (reading is null)
-                {
-                    finder.Tick();
-                }
-                else
-                {
-                    finder.Add(reading);
-                }
-
+                Check(finder, reading);
                 var at = time.GetElapsedTime(start).TotalSeconds;
                 from ??= finder.Loading ? at : null;
                 to ??= from is not null && !finder.Loading ? at : null;
@@ -220,6 +250,18 @@ public sealed class FanFinderTests
         }
 
         return new Run(finder.Result ?? throw new InvalidOperationException("The series ended before the finder did."), from, to);
+    }
+
+    private static void Check(FanFinder finder, Snapshot? reading)
+    {
+        if (reading is null)
+        {
+            finder.Tick();
+        }
+        else
+        {
+            finder.Add(reading);
+        }
     }
 
     /// <summary>
@@ -230,15 +272,59 @@ public sealed class FanFinderTests
         Derived(series, BoardFan, (snapshot, _) => 3 * Value(snapshot, BoardFan));
 
     /// <summary>
-    /// Derived as <see cref="ThreeTimesFaster"/>, but during the load it keeps its speed from before it until the reading
-    /// <paramref name="from"/>, and then jumps to its last loaded speed.
+    /// Derived as <see cref="ThreeTimesFaster"/>, but from the load on it keeps its speed from before it until the reading
+    /// <paramref name="from"/>, during the load or after it, and then jumps to its last loaded speed.
     /// </summary>
     private static List<Snapshot> AnsweringAt(IReadOnlyList<Snapshot> series, int from)
     {
         var loadEnd = LoadStart + 29;
         return Derived(series, BoardFan, (snapshot, index) => 3 * Value(
-            index < LoadStart || index > loadEnd ? snapshot : series[index >= from ? loadEnd : LoadStart - 1],
+            index < LoadStart ? snapshot : series[index >= from ? loadEnd : LoadStart - 1],
             BoardFan));
+    }
+
+    /// <summary>
+    /// QA round 4: started again right after a run, the fan was still falling from 847 RPM, and the 3 s before the load
+    /// averaged so high that its rise from 543 to 800 read as none. Here <see cref="ThreeTimesFaster"/> comes after 6 s in
+    /// which the fan falls 200 RPM a second, and the finder starts as it begins to fall.
+    /// </summary>
+    private static List<Snapshot> FallingAfterARun()
+    {
+        var series = ThreeTimesFaster(Software);
+        var settled = Value(series[0], BoardFan)!.Value;
+        return [.. Derived([.. Enumerable.Repeat(series[0], 6)], BoardFan, (_, index) => settled + ((6 - index) * 200)), .. series];
+    }
+
+    /// <summary>
+    /// The Intel desktop's series with its CPU fan at its idle speeds, the 10 s before the load over and over, starting so the
+    /// 3 s before the load are the lowest: its 3 s averages then jitter up to 85 RPM and 12 % over them, which is no rise.
+    /// Its last second repeats for the fans to be watched after the load.
+    /// </summary>
+    private static List<Snapshot> BoardJitter
+    {
+        get
+        {
+            var start = LoadStartOf(Intel) - 3;
+            return Derived([.. Intel, .. Enumerable.Repeat(Intel[^1], 15)], IntelFan, (_, at) => Value(Intel[(((at - start) % 10) + 10) % 10], IntelFan));
+        }
+    }
+
+    /// <summary>
+    /// QA round 5, run 2 on the owner's PC, rebuilt from the window's list a second at a time: the CPU fan rose from 545 to
+    /// 739 RPM, 36 % but 194 RPM, and the finder, which then asked for 200 RPM, said no fan rose.
+    /// </summary>
+    private static List<Snapshot> RisingAThird
+    {
+        get
+        {
+            double[] fan =
+            [
+                545, 545, 544, 546, 545, 546, 545, 543, 543, 544, 553, 601, 618, 624, 628, 628, 631, 630, 627, 631, 628, 630, 628, 638, 694, 722,
+                732, 734, 736, 734, 734, 734, 736, 735, 735, 735, 739, 738, 739, 739, 739, 735, 736, 728, 664, 594, 563, 553, 550, 546, 545, 545,
+            ];
+            double[] load = [2, 3, 3, 1, 2, 88, .. Enumerable.Repeat(100.0, 29), 13, 3, 3, 2, 2, 2, 4, 5, 4, 4, 4, 6, 8, 3, 2, 1, 2];
+            return Derived(Derived([.. Enumerable.Repeat(Desktop, fan.Length)], BoardFan, (_, at) => fan[at]), CpuTotal, (_, at) => load[at]);
+        }
     }
 
     private static List<Snapshot> Derived(IReadOnlyList<Snapshot> series, string id, Func<Snapshot, int, double?> value) =>

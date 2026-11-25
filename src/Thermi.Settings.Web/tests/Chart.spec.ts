@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, fakeState, itemOf, openWindow, select, settingsOf, setFake, test, text, type Item } from './fakeBridge';
+import { expect, fakeState, itemOf, openWindow, recording, select, settingsOf, setFake, test, text, type Item } from './fakeBridge';
 
 const itemIn = async (page: Page, id: string): Promise<Item> => itemOf(await settingsOf(page), id);
 
@@ -53,12 +53,18 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     if (box === null) {
       throw new Error('The warning knob is not shown.');
     }
+    const now = async (): Promise<number> => (await itemIn(page, 'cpu.temperature')).threshold?.warning ?? 0;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2, box.y - 10, { steps: 5 });
-    await page.mouse.move(box.x + box.width / 2, box.y - 20, { steps: 5 });
+    // Whole moves, each landed before the next: Edge merges moves that come faster than it draws, as on a busy PC, and the
+    // page then sends fewer edits than the oracle recorded.
+    for (const above of [10, 20]) {
+      const before = await now();
+      await page.mouse.move(box.x + box.width / 2, box.y - above);
+      await expect.poll(now).toBeGreaterThan(before);
+    }
     await page.mouse.up();
-    await expect.poll(async () => ((await itemIn(page, 'cpu.temperature')).threshold?.warning ?? 0) > 80).toBe(true);
+    await expect.poll(now).toBeGreaterThan(80);
     await page.keyboard.press('Control+Z');
     await expect.poll(lines).toEqual({ warning: 80, critical: 91 });
   });
@@ -81,4 +87,48 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     await setFake(page, { service: 'stopped' });
     await expect(warning).toBeVisible();
   });
+});
+
+// A207 on a fan, whose track ends far past its speed: a line added comes above the speed, the keys move it a step, and
+// a drag keeps the knob under the pointer while the scale holds, selecting nothing on the way.
+test('AFansLineStaysOnItsScale', async ({ page }) => {
+  await openWindow(page);
+  await select(page, text('MetricName.CpuFan'));
+  const speed = recording('admin').find((sensor) => sensor.id === '/lpc/it8689e/0/fan/0')?.value ?? 0;
+  const warning = page.getByRole('slider', { name: text('UiText.WarningFrom') });
+  const line = async (): Promise<number> => itemOf(await settingsOf(page), 'fan.cpu').threshold?.warning ?? 0;
+  const middle = async (): Promise<{ x: number; y: number }> => {
+    const box = await warning.boundingBox();
+    if (box === null) {
+      throw new Error('The warning knob is not shown.');
+    }
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+
+  await page.getByRole('button', { name: text('UiText.AddWarningLine') }).press('Enter');
+  await expect.poll(line).toBeGreaterThan(speed);
+  const added = await line();
+  expect(added).toBeLessThan(speed * 1.5);
+
+  await warning.press('ArrowUp');
+  await expect.poll(line).toBe(added + 50);
+  await warning.press('ArrowDown');
+  await expect.poll(line).toBe(added);
+
+  const from = await middle();
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (const by of [-12, -24, -36]) {
+    await page.mouse.move(from.x, from.y + by, { steps: 4 });
+    await expect.poll(async () => Math.abs((await middle()).y - (from.y + by))).toBeLessThan(9);
+  }
+  await page.mouse.up();
+  expect(await line()).toBeGreaterThan(added);
+
+  // A press under the knob, in its column, and a drag from it across the chart.
+  await page.mouse.move(from.x, from.y + 80);
+  await page.mouse.down();
+  await page.mouse.move(from.x - 200, from.y + 120, { steps: 4 });
+  await page.mouse.up();
+  expect(await page.evaluate(() => document.getSelection()?.toString() ?? '')).toBe('');
 });

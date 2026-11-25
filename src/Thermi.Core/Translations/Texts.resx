@@ -61,10 +61,13 @@
     <value>Combine…</value>
   </data>
   <data name="CatalogText.FanFinderWaiting" xml:space="preserve">
-    <value>Waiting for fresh readings…</value>
+    <value>Waiting for the fans to settle…</value>
   </data>
   <data name="CatalogText.FanFinderLoading" xml:space="preserve">
     <value>Loading every core, up to 30 s</value>
+  </data>
+  <data name="CatalogText.FanFinderWatching" xml:space="preserve">
+    <value>Load ended; watching the fans for up to 15 s more</value>
   </data>
   <data name="UiText.Cancel" xml:space="preserve">
     <value>Cancel</value>
@@ -312,6 +315,9 @@
   <data name="UiText.SizeField" xml:space="preserve">
     <value>Size</value>
   </data>
+  <data name="UiText.SizeOnTaskbar" xml:space="preserve">
+    <value>On the taskbar it never grows taller than the taskbar.</value>
+  </data>
   <data name="UiText.StartWithWindows" xml:space="preserve">
     <value>Start with Windows</value>
   </data>
@@ -438,8 +444,11 @@
   <data name="UiText.CombineField" xml:space="preserve">
     <value>Combine as</value>
   </data>
-  <data name="UiText.CombineAdd" xml:space="preserve">
-    <value>Add</value>
+  <data name="UiText.CombineUse" xml:space="preserve">
+    <value>Use these</value>
+  </data>
+  <data name="UiText.SensorCombined" xml:space="preserve">
+    <value>{0} of {1}</value>
   </data>
   <data name="OverlayPageText.FontField" xml:space="preserve">
     <value>Font</value>
@@ -479,6 +488,9 @@
   </data>
   <data name="UiText.DeleteThisOverlay" xml:space="preserve">
     <value>Delete this overlay</value>
+  </data>
+  <data name="OverlayPageText.Preview" xml:space="preserve">
+    <value>Preview of {0}</value>
   </data>
   <data name="OverlayPageText.LookTile" xml:space="preserve">
     <value>{0} look</value>
@@ -1266,6 +1278,9 @@
   <data name="MenuEntry.GraphOwn" xml:space="preserve">
     <value>Some items have their own</value>
   </data>
+  <data name="MenuEntry.SeparateFull" xml:space="preserve">
+    <value>4 overlays at most</value>
+  </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
   </data>
@@ -1399,7 +1414,7 @@
     <value>{0} of {1}</value>
   </data>
   <data name="OverlayText.MinAndMax" xml:space="preserve">
-    <value>Min {0} · max {1}</value>
+    <value>Min {0} · Max {1}</value>
   </data>
   <data name="OverlayText.DoubleClickToEdit" xml:space="preserve">
     <value>Double-click to edit</value>
@@ -1438,7 +1453,7 @@
     <value>Undo graph</value>
   </data>
   <data name="OverlayText.UndoOrientation" xml:space="preserve">
-    <value>Undo orientation</value>
+    <value>Undo vertical</value>
   </data>
   <data name="OverlayText.UndoLock" xml:space="preserve">
     <value>Undo lock</value>
@@ -2127,9 +2142,6 @@
   <data name="OverlayText.SmoothTag" xml:space="preserve">
     <value>{0}s avg</value>
   </data>
-  <data name="OverlayText.TaggedLabel" xml:space="preserve">
-    <value>{0} {1}</value>
-  </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Your taskbar is on a side, so the overlay floats beside it.</value>
   </data>
@@ -2141,6 +2153,9 @@
   </data>
   <data name="OverlayPageText.FadeHint" xml:space="preserve">
     <value>Shows what lies under it as the pointer comes near</value>
+  </data>
+  <data name="OverlayPageText.DirectionOnePill" xml:space="preserve">
+    <value>Vertical stacks pills, and this overlay has one</value>
   </data>
   <data name="UiText.Bits" xml:space="preserve">
     <value>Show in bits per second</value>
@@ -2177,5 +2192,29 @@
   </data>
   <data name="WindowText.UpdatesBeta" xml:space="preserve">
     <value>{0} · Beta channel</value>
+  </data>
+  <data name="OfDevice.Cpu" xml:space="preserve">
+    <value>CPU {0}</value>
+  </data>
+  <data name="OfDevice.Gpu" xml:space="preserve">
+    <value>GPU {0}</value>
+  </data>
+  <data name="OfDevice.Ram" xml:space="preserve">
+    <value>RAM {0}</value>
+  </data>
+  <data name="OfDevice.Board" xml:space="preserve">
+    <value>BOARD {0}</value>
+  </data>
+  <data name="OfDevice.Ssd" xml:space="preserve">
+    <value>SSD {0}</value>
+  </data>
+  <data name="OfDevice.Network" xml:space="preserve">
+    <value>NET {0}</value>
+  </data>
+  <data name="OfDevice.Battery" xml:space="preserve">
+    <value>BAT {0}</value>
+  </data>
+  <data name="OfDevice.System" xml:space="preserve">
+    <value>PC {0}</value>
   </data>
 </root>

@@ -68,9 +68,10 @@ internal static class Preview
 
     /// <summary>
     /// Writes the picture through a file of its own, so a folder that is not there is named as such, not as GDI+'s generic
-    /// error; a picture that fails midway leaves no file, since a partial PNG would pass for one.
+    /// error; a picture that fails midway leaves no file, since a partial PNG would pass for one. Why goes to <paramref name="said"/>,
+    /// the terminal's error output when none is given.
     /// </summary>
-    internal static async Task<int> WriteAsync(string path, Action<Stream> save)
+    internal static async Task<int> WriteAsync(string path, Action<Stream> save, TextWriter? said = null)
     {
         var created = false;
         try
@@ -87,7 +88,8 @@ internal static class Preview
                 Delete(path);
             }
 
-            await SayAsync($"{path} could not be written: {ex.Message}");
+            var reason = $"{path} could not be written: {ex.Message}";
+            await (said is null ? SayAsync(reason) : said.WriteLineAsync(reason));
             return 1;
         }
     }

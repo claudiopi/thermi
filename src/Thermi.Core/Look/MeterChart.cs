@@ -79,6 +79,8 @@ public static class MeterChart
     private const double Headroom = 1.15;
     private const double FanChartStep = 500;
 
+    private const double CriticalAbove = 1.3;
+
     // A throughput's chart ends at 1 KB/s at least, so an idle line lies flat at the bottom instead of filling it with noise.
     private const double SmallestThroughputTop = 1000;
 
@@ -194,6 +196,36 @@ public static class MeterChart
         return moved == ChartLine.Warning
             ? new MovedLines(low, Math.Min(low + scale.Push, scale.Max), ChartLine.Critical)
             : new MovedLines(Math.Max(high - scale.Push, 0), high, ChartLine.Warning);
+    }
+
+    /// <summary>
+    /// Where a line added to the chart comes: at its default, else <see cref="MeterScale.Push"/> beyond the other line, else
+    /// near the top of the track. A fan's or a throughput's track ends far past any reading, so there it goes over the
+    /// highest of <paramref name="readings"/>: a warning 15 % over, a critical 30 %, rounded up to the knobs' step.
+    /// </summary>
+    public static double Added(MeterScale scale, Threshold? lines, ChartLine line, IReadOnlyList<double> readings)
+    {
+        var warning = line == ChartLine.Warning;
+        if ((warning ? scale.Warning : scale.Critical) is { } made)
+        {
+            return made;
+        }
+
+        if ((warning ? lines?.Critical : lines?.Warning) is { } other)
+        {
+            return Math.Clamp(warning ? other - scale.Push : other + scale.Push, 0, scale.Max);
+        }
+
+        if (scale.Kind is not (SensorKind.Fan or SensorKind.Throughput))
+        {
+            return scale.Max * (warning ? 0.8 : 0.9);
+        }
+
+        var least = scale.Kind == SensorKind.Fan ? FanChartStep : SmallestThroughputTop;
+        var highest = Math.Max(least, readings.Where(double.IsFinite).DefaultIfEmpty(0).Max());
+        // A product a hair over a whole step, as 1,087 × 1.15, is that step.
+        var steps = Math.Ceiling(Math.Round(highest * (warning ? Headroom : CriticalAbove) / scale.Step, 6));
+        return Math.Min(steps * scale.Step, scale.Max);
     }
 
     /// <summary>

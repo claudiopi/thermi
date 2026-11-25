@@ -54,17 +54,20 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
                 config.Temperature,
                 history,
                 windowOpen: true);
-            pills.Add([.. OverlayLayout.Groups(shown, overlay.Style.Layout)
-                .Select(pill => new PillView(pill[0].Label ?? "", [.. pill.Select(item => item.Id)]))]);
+            var runs = OverlayLayout.Runs(overlay, texts);
+            var labels = runs.Select(run => LabelOf(ItemsOf(overlay, run), run, shown)).ToList();
+            pills.Add([.. runs.Select((run, at) => new PillView(labels[at] ?? "", [.. ItemsOf(overlay, run).Select(item => item.Id)]))]);
             var chosen = readings.ChosenOf(known, overlay);
-            var runs = RunsOf(shown);
-            foreach (var item in overlay.Items)
+            foreach (var (run, at) in runs.Select((run, at) => (run, at)))
             {
-                items[item.Id] = ItemOf(item, shown.FirstOrDefault(each => each.Id == item.Id), (known, catalog), chosen, (texts, config.SensorNames)) with
+                foreach (var item in ItemsOf(overlay, run))
                 {
-                    Tag = OverlayLayout.TagOf(item, CultureInfo.CurrentCulture, texts),
-                    Label = runs.GetValueOrDefault(item.Id) ?? OverlayLayout.LabelOf(item, texts),
-                };
+                    items[item.Id] = ItemOf(item, shown.FirstOrDefault(each => each.Id == item.Id), (known, catalog), chosen, (texts, config.SensorNames)) with
+                    {
+                        Tag = OverlayLayout.TagOf(item, CultureInfo.CurrentCulture, texts),
+                        Label = labels[at] ?? OverlayLayout.LabelOf(item, texts),
+                    };
+                }
             }
         }
 
@@ -89,14 +92,17 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
     }
 
     /// <summary>Where each overlay shows on <paramref name="screens"/>, as its own window places it while the window is open.</summary>
-    public IReadOnlyList<Rect?> Places(Texts texts, IReadOnlyList<Screen> screens) =>
-        OverlayPlaces.Of(
-            editor.Config,
-            new TrayInput(sensors.Latest, sensors.State, CultureInfo.CurrentCulture, texts, LightTaskbar: false, ExePath: "") { WindowOpen = true },
-            screens);
+    public IReadOnlyList<Rect?> Places(Texts texts, IReadOnlyList<Screen> screens) => OverlayPlaces.Of(editor.Config, Input(texts), screens);
+
+    /// <summary>An edit's settings with each overlay it pushed along a taskbar keeping the place it was pushed to, as the overlays show it.</summary>
+    public ThermiConfig Settled(ThermiConfig before, ThermiConfig after, Texts texts, IReadOnlyList<Screen> screens) =>
+        OverlayPlaces.Settled(before, after, Input(texts), screens);
+
+    private TrayInput Input(Texts texts) =>
+        new(sensors.Latest, sensors.State, CultureInfo.CurrentCulture, texts, LightTaskbar: false, ExePath: "") { WindowOpen = true };
 
     /// <summary>Numbers in the regional format, texts in the window's language, temperatures in the unit the settings choose.</summary>
-    public ValueFormat Format(Texts texts) => new(texts, CultureInfo.CurrentCulture, editor.Config.Temperature);
+    public ValueFormat Format(Texts texts) => new(texts, CultureInfo.CurrentCulture, editor.Config.Temperature) { Known = readings.Known(sensors.Latest) };
 
     /// <summary>A reading as the window writes it, with its unit; a missing one as the overlay's dash.</summary>
     public static string Text(Reading reading, ValueFormat format) =>
@@ -137,19 +143,11 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             .Where(sensor => sensor.Reading.Usable is not null)
             .ToDictionary(sensor => sensor.Id, sensor => Text(sensor.Reading, format), StringComparer.Ordinal);
 
-    // The label each value is drawn under: its own, or the last one drawn before it, as a run in a bar of one pill shows it.
-    private static Dictionary<string, string?> RunsOf(IReadOnlyList<OverlayItem> shown)
-    {
-        var runs = new Dictionary<string, string?>(StringComparer.Ordinal);
-        string? run = null;
-        foreach (var item in shown)
-        {
-            run = item.Label ?? run;
-            runs[item.Id] = run;
-        }
+    private static IEnumerable<ItemConfig> ItemsOf(OverlayConfig overlay, Run run) => overlay.Items.Skip(run.First).Take(run.Last - run.First + 1);
 
-        return runs;
-    }
+    // A pill is drawn under the label its first value shown carries, with that value's tag; under its run's own while none shows.
+    private static string? LabelOf(IEnumerable<ItemConfig> pill, Run run, IReadOnlyList<OverlayItem> shown) =>
+        pill.Select(item => shown.FirstOrDefault(each => each.Id == item.Id)?.Label).FirstOrDefault(label => label is not null) ?? run.Label;
 
     // A value of the dash alone, an arrow before it or not, reads nothing; a level needs a reading lines judge and a value.
     private static ItemView ItemOf(

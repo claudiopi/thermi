@@ -14,6 +14,7 @@ import type {
   Settings,
   Style,
   UndoSteps,
+  WornLook,
 } from '../src/bridge/bridge.g';
 
 export type * from '../src/bridge/bridge.g';
@@ -33,6 +34,8 @@ export interface FakeState {
   /** Where each overlay shows, as C# works it out; with none, as before C# answers, the map's taskbar spot sits at the offset. */
   places: (Rect | null)[];
   looks: Record<string, Style>;
+  /** The look each overlay wears, as C# decides it from the settings and the saved looks. */
+  worn: (WornLook | null)[];
   exported: string | null;
   /** The text of the look file Windows' dialog picks for an import, or null when it is cancelled. */
   importFile: string | null;
@@ -78,12 +81,16 @@ export interface CatalogFound {
   sensors: { id: string; marks: Mark[]; lineMarks: Mark[]; alias?: string | null; aliasMarks: Mark[] }[];
 }
 
-/** What the real bridge answered a call, the settings it then showed and its looks when they changed, and its undo steps. */
+/**
+ * What the real bridge answered a call, the settings it then showed, its looks and the looks the overlays wear when they
+ * changed, and its undo steps.
+ */
 export interface OracleAnswer {
   result?: unknown;
   error?: string;
   settings?: Settings;
   looks?: Record<string, Style>;
+  worn?: (WornLook | null)[];
   steps: UndoSteps;
 }
 

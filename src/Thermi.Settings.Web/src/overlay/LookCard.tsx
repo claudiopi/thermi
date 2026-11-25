@@ -1,78 +1,21 @@
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import type { Level, Style, Value } from '../bridge/bridge.g';
+import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import type { Value } from '../bridge/bridge.g';
 import { asOneStep, bridge, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
-import { fontFamilies, levelDefaults, meterSegments, pillSizes, pillsShown, shownStyle, weights, type ShownStyle } from './lookModel';
-import { useLooks } from './useOverlayReads';
+import { useDevicePixels } from './pixels';
+import { Picture } from './Preview';
+import { useLooks, useLookSamples, useWorn } from './useOverlayReads';
 
 export interface LookCardProps {
   data: WindowData;
   overlay: number;
 }
 
-/** The fields a look holds, which Default takes back to Core's defaults. */
+/** The fields a look holds, which Copy to all copies. */
 const lookFields = ['name', 'preset', 'label', 'value', 'opacity', 'pills', 'colors', 'font', 'corners', 'gap', 'effect', 'units'];
-
-interface Metered {
-  lit: number;
-  level: Level | null;
-}
-
-/**
- * The sample item's meter as the overlay lights it: its lowest segments in its level's color, the look's own or the
- * pill's default, and the rest the pill's track.
- */
-function SampleMeter({ look, metered, segment }: { look: ShownStyle; metered: Metered; segment: number }) {
-  const own = metered.level === null ? undefined : look.colors[metered.level];
-  const lit = `var(--t-pill-${metered.level ?? 'normal'})`;
-  return (
-    <span className="t-pill-meter" style={{ gridTemplateRows: `repeat(${meterSegments}, ${segment}px)` }}>
-      {Array.from({ length: meterSegments }, (_, at) => meterSegments - at).map((fromBottom) => (
-        <i key={fromBottom} style={fromBottom <= metered.lit ? { background: own ?? lit } : undefined} />
-      ))}
-    </span>
-  );
-}
-
-/** A look's sample pill: the overlay's first label, meter and value, in the look's theme, colors, sizes, font and corners. */
-interface SampleProps {
-  look: Style;
-  label: string;
-  value: string;
-  metered: Metered | null;
-  lightTaskbar: boolean;
-}
-
-function Sample({ look, label, value, metered, lightTaskbar }: SampleProps) {
-  const shown = shownStyle(look);
-  const sizes = pillSizes(shown);
-  const warning = shown.colors.warning;
-  const ownWarning = warning !== undefined && warning.toLowerCase() !== levelDefaults.warning.toLowerCase();
-  const pill: CSSProperties = {
-    height: sizes.height,
-    borderRadius: sizes.radius,
-    paddingInline: sizes.padding,
-    gap: sizes.gap,
-    fontFamily: fontFamilies[shown.font],
-  };
-  return (
-    <span className={`t-pill t-pill-${pillsShown(shown.pills, lightTaskbar)}`} style={pill} aria-hidden="true">
-      <span className="t-pill-label" style={{ fontSize: shown.label.size, fontWeight: weights[shown.label.weight], color: shown.colors.label }}>
-        {label}
-      </span>
-      {metered !== null && <SampleMeter look={shown} metered={metered} segment={sizes.segment} />}
-      <span
-        className="t-pill-value"
-        style={{ fontSize: shown.value.size, fontWeight: weights[shown.value.weight], color: ownWarning ? warning : shown.colors.value }}
-      >
-        {value}
-      </span>
-    </span>
-  );
-}
 
 type Asking = { kind: 'save' } | { kind: 'rename'; name: string } | null;
 
@@ -80,32 +23,18 @@ export function LookCard({ data, overlay }: LookCardProps) {
   const t = useText();
   const edit = useEdit();
   const looks = useLooks(data.changes);
+  const worn = useWorn(data.changes)[overlay];
+  const samples = useLookSamples(useDevicePixels(), data.changes);
   const [asking, setAsking] = useState<Asking>(null);
   const news = useNews();
   const tiles = useRef<HTMLDivElement>(null);
   const one = data.settings.overlays[overlay];
-  const worn = one?.style?.name;
   const many = data.settings.overlays.length > 1;
-  const sampleItem = one?.items.find((item) => item.id === 'cpu.temperature') ?? one?.items[0];
-  const label = data.view.pills[overlay]?.find((pill) => pill.items.includes(sampleItem?.id ?? ''))?.label ?? '';
-  const sampleView = data.view.items[sampleItem?.id ?? ''];
-  const value = sampleView?.value ?? '';
-  const metered = sampleView?.lit === undefined ? null : { lit: sampleView.lit, level: sampleView.level };
   const names = Object.keys(looks);
-  const chosen = worn !== undefined && names.includes(worn) ? worn : null;
+  // Default is null, none is undefined.
+  const chosen = worn === undefined || worn === null ? undefined : (worn.saved ?? null);
 
-  const choose = (name: string | null): void => {
-    if (name === null) {
-      void asOneStep(() =>
-        lookFields.reduce<Promise<unknown>>(
-          (done, field) => done.then(() => edit({ kind: 'style', overlay, field, value: null })),
-          Promise.resolve(),
-        ),
-      );
-    } else {
-      void edit({ kind: 'look', overlay, name });
-    }
-  };
+  const choose = (name: string | null): void => void edit({ kind: 'look', overlay, name });
   const tileKeys = (event: KeyboardEvent<HTMLDivElement>): void => {
     const all = [null, ...names];
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
@@ -113,7 +42,7 @@ export function LookCard({ data, overlay }: LookCardProps) {
       return;
     }
     event.preventDefault();
-    const next = all[(all.indexOf(chosen) + step + all.length) % all.length] ?? null;
+    const next = all[((chosen === undefined ? -1 : all.indexOf(chosen)) + step + all.length) % all.length] ?? null;
     choose(next);
     tiles.current?.querySelectorAll<HTMLElement>('[role="radio"]')[all.indexOf(next)]?.focus();
   };
@@ -168,12 +97,14 @@ export function LookCard({ data, overlay }: LookCardProps) {
         role="radio"
         aria-checked={on}
         aria-label={t('OverlayPageText.LookTile', shown)}
-        tabIndex={on ? 0 : -1}
+        tabIndex={on || (chosen === undefined && name === null) ? 0 : -1}
         className={`t-look${on ? ' t-on' : ''}`}
         onClick={() => choose(name)}
       >
-        <Sample look={name === null ? {} : (looks[name] ?? {})} label={label} value={value} metered={metered} lightTaskbar={data.status.lightTaskbar} />
         <span className="t-look-name">{shown}</span>
+        <span className="t-look-sample">
+          <Picture picture={(name === null ? samples?.default : samples?.saved[name]) ?? null} />
+        </span>
       </button>
     );
   };
@@ -189,7 +120,6 @@ export function LookCard({ data, overlay }: LookCardProps) {
         className="t-looks"
         role="radiogroup"
         aria-label={t('UiText.LookField')}
-        style={{ gridTemplateColumns: `repeat(${Math.max(4, names.length + 1)}, minmax(0, 1fr))` }}
         onKeyDown={tileKeys}
       >
         {tile(null)}

@@ -35,21 +35,21 @@ public sealed class ChartTests
     // of that sensor is offered, = for itself: only readings of the item, a fan's duty beside its speed and the other way
     // round, never another device's or another kind's.
     [Theory]
-    [InlineData("/amdcpu/0/temperature/2", SensorKind.Temperature, 90.0, 95.0, 1.0, 5.0, "70 100|0|100 °C#=")]
-    [InlineData(IntelPackage, SensorKind.Temperature, 95.0, 100.0, 1.0, 5.0, "50 100|0|100 °C#=")]
-    [InlineData("/gpu-nvidia/0/temperature/0", SensorKind.Temperature, 80.0, 88.0, 1.0, 5.0, "30 95|0|100 °C#=")]
-    [InlineData("/lpc/it8689e/0/temperature/0", SensorKind.Temperature, 70.0, 80.0, 1.0, 5.0, "20 85|0|100 °C#=")]
-    [InlineData("/amdcpu/0/load/0", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=")]
-    [InlineData("/lpc/it8689e/0/control/0", SensorKind.Control, 85.0, null, 1.0, 5.0, "0 100|0|100 %#= /lpc/it8689e/0/fan/0")]
-    [InlineData("/lpc/it8689e/0/fan/0", SensorKind.Fan, null, null, 50.0, 100.0, "0 1500|0|10,000 RPM#= /lpc/it8689e/0/control/0")]
-    [InlineData("/amdcpu/0/power/0", null, null, null, 0.0, 0.0, "0 100|#")]
-    [InlineData("/amdcpu/0/clock/1", null, null, null, 0.0, 0.0, "0 10000|#")]
-    [InlineData("/ram/data/0", null, null, null, 0.0, 0.0, "0 50|#")]
-    [InlineData($"{MadeUpHardware.Samsung}/temperature/0", SensorKind.Temperature, 70.0, 80.0, 1.0, 5.0, "40 85|0|100 °C#=")]
-    [InlineData($"{MadeUpHardware.Ethernet}/throughput/8", SensorKind.Throughput, null, null, 100e3, 1e6, "0 100000000|0|100 GB/s#=")]
-    [InlineData($"{MadeUpHardware.Samsung}/load/53", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=")]
-    [InlineData($"{MadeUpHardware.Battery}/level/0", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=")]
-    [InlineData($"{MadeUpHardware.Battery}/timespan/0", null, null, null, 0.0, 0.0, "0 0|#")]
+    [InlineData("/amdcpu/0/temperature/2", SensorKind.Temperature, 90.0, 95.0, 1.0, 5.0, "70 100|0|100 °C#=#90 95")]
+    [InlineData(IntelPackage, SensorKind.Temperature, 95.0, 100.0, 1.0, 5.0, "50 100|0|100 °C#=#95 100")]
+    [InlineData("/gpu-nvidia/0/temperature/0", SensorKind.Temperature, 80.0, 88.0, 1.0, 5.0, "30 95|0|100 °C#=#80 88")]
+    [InlineData("/lpc/it8689e/0/temperature/0", SensorKind.Temperature, 70.0, 80.0, 1.0, 5.0, "20 85|0|100 °C#=#70 80")]
+    [InlineData("/amdcpu/0/load/0", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=#80 90")]
+    [InlineData("/lpc/it8689e/0/control/0", SensorKind.Control, 85.0, null, 1.0, 5.0, "0 100|0|100 %#= /lpc/it8689e/0/fan/0#85 90")]
+    [InlineData("/lpc/it8689e/0/fan/0", SensorKind.Fan, null, null, 50.0, 100.0, "0 1500|0|10,000 RPM#= /lpc/it8689e/0/control/0#1250 1450")]
+    [InlineData("/amdcpu/0/power/0", null, null, null, 0.0, 0.0, "0 100|##")]
+    [InlineData("/amdcpu/0/clock/1", null, null, null, 0.0, 0.0, "0 10000|##")]
+    [InlineData("/ram/data/0", null, null, null, 0.0, 0.0, "0 50|##")]
+    [InlineData($"{MadeUpHardware.Samsung}/temperature/0", SensorKind.Temperature, 70.0, 80.0, 1.0, 5.0, "40 85|0|100 °C#=#70 80")]
+    [InlineData($"{MadeUpHardware.Ethernet}/throughput/8", SensorKind.Throughput, null, null, 100e3, 1e6, "0 100000000|0|100 GB/s#=#85100000 96200000")]
+    [InlineData($"{MadeUpHardware.Samsung}/load/53", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=#80 90")]
+    [InlineData($"{MadeUpHardware.Battery}/level/0", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=#80 90")]
+    [InlineData($"{MadeUpHardware.Battery}/timespan/0", null, null, null, 0.0, 0.0, "0 0|##")]
     public void ThresholdsAndTheChartFollowTheMetersType(
         string sensor,
         SensorKind? kind,
@@ -59,7 +59,7 @@ public sealed class ChartTests
         double push,
         string chart)
     {
-        var (lines, meters) = (chart.Split('#')[0], chart.Split('#')[1]);
+        var (lines, meters, added) = (chart.Split('#')[0], chart.Split('#')[1], chart.Split('#')[2]);
         var (range, ends) = (lines.Split('|')[0], lines.Split('|')[1..]);
         var snapshot = WithIntel;
         var value = snapshot.Sensors.First(each => each.Id == sensor).Value!.Value;
@@ -96,6 +96,10 @@ public sealed class ChartTests
         Assert.Equal((warning, critical, step, push), (scale.Warning, scale.Critical, scale.Step, scale.Push));
         var (from, to) = MeterChart.Range(scale, [value]);
         Assert.Equal(range, string.Create(CultureInfo.InvariantCulture, $"{from} {to}"));
+
+        // A line added alone comes at its default, else near the top of a track of a fixed top, else above the readings.
+        var (adds, addsHigh) = (MeterChart.Added(scale, null, ChartLine.Warning, [value]), MeterChart.Added(scale, null, ChartLine.Critical, [value]));
+        Assert.Equal(added, string.Create(CultureInfo.InvariantCulture, $"{adds} {addsHigh}"));
         Assert.Equal(LevelsWithLines(warning, critical), Bands(scale));
         Assert.Equal((value, value, value), MeterChart.Summary([value, null, double.NaN]));
 

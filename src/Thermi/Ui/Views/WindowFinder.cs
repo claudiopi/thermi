@@ -1,21 +1,32 @@
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Thermi.Core.Bridge;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
+using Thermi.Core.Tray;
+using Thermi.Logging;
 
 namespace Thermi.Ui.Views;
 
 /// <summary>
 /// "Find it" in the CPU fan's Sensor row: Core's <see cref="FanFinder"/> fed every fresh snapshot once and ticked four
 /// times a second on the injected clock, the load on every core while the finder asks for it, ended by the finder, a
-/// cancel or 30 s at most. Its pick changes nothing: "Use it" on the page makes the item show it. Its result stays until
-/// it is put away. Used on the window's thread alone.
+/// cancel or 30 s at most, and its ticks on while the finder watches the fans after the load. Its pick changes nothing:
+/// "Use it" on the page makes the item show it. Its result stays until it is put away. Used on the window's thread alone.
 /// </summary>
-/// <param name="load">Spins every core until its token is cancelled; <see cref="Commands.CpuLoad.Run"/>, or the tests' own.</param>
+/// <param name="load">Spins every core until its token is cancelled; <see cref="Commands.CpuLoad.Start"/>, or the tests' own.</param>
 /// <param name="time">The clock the finder, its ticks and the load's longest run follow.</param>
 /// <param name="onTurn">Runs an action on the window's thread, where the clock's ticks are taken.</param>
 /// <param name="changed">Tells the page that where the finder stands changed.</param>
-internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider time, Action<Action> onTurn, Action changed) : IDisposable
+/// <param name="log">Where how each run ended goes, with how long since the last reading and how the service stood.</param>
+/// <param name="state">How the sensor service stands, which the log says when a run ends.</param>
+internal sealed class WindowFinder(
+    Action<CancellationToken> load,
+    TimeProvider time,
+    Action<Action> onTurn,
+    Action changed,
+    ILogger log,
+    Func<ServiceState> state) : IDisposable
 {
     // Often enough that a silent service or the longest run ends the load well within a second.
     private static readonly TimeSpan TickEvery = TimeSpan.FromMilliseconds(250);
@@ -24,7 +35,9 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
     private ITimer? _ticks;
     private CancellationTokenSource? _stop;
     private Snapshot? _last;
+    private long _heardAt;
     private long _loadedAt;
+    private long? _endedAt;
 
     private bool Running => _finder is { Result: null };
 
@@ -36,7 +49,7 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
             return;
         }
 
-        (_finder, _last) = (new FanFinder(now, time), now);
+        (_finder, _last, _heardAt, _endedAt) = (new FanFinder(now, time), now, time.GetTimestamp(), null);
         _ticks = time.CreateTimer(_ => onTurn(Tick), null, TickEvery, TickEvery);
         changed();
     }
@@ -46,7 +59,7 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
     {
         if (_finder is { Result: null } finder)
         {
-            _last = snapshot;
+            (_last, _heardAt) = (snapshot, time.GetTimestamp());
             finder.Add(snapshot);
             Follow(finder);
         }
@@ -102,10 +115,19 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
             _loadedAt = time.GetTimestamp();
             load(_stop.Token);
         }
+        else if (finder.Watching && _endedAt is null)
+        {
+            _endedAt = time.GetTimestamp();
+            _stop?.Cancel();
+        }
 
-        if (finder.Result is not null)
+        if (finder.Result is { } result)
         {
             Stop();
+            if (log.IsEnabled(LogLevel.Information))
+            {
+                log.FanFinderEnded(result.Outcome, Math.Round(time.GetElapsedTime(_heardAt).TotalSeconds, 1), state());
+            }
         }
 
         changed();
@@ -120,7 +142,7 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
         _stop = null;
     }
 
-    // Waiting for 3 s of readings, then the load, how far it has run and the fan rising most.
+    // Waiting for 3 s of readings, then the load, then the watch after it: how far each has run and the fan rising most.
     private FinderView Run(Texts texts, IFormatProvider numbers, IReadOnlyDictionary<string, string>? own)
     {
         if (_stop is null)
@@ -128,7 +150,9 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
             return new FinderView(FinderPhase.Running, null, Progress: 0, Text: texts.Of(CatalogText.FanFinderWaiting));
         }
 
-        var text = texts.Of(CatalogText.FanFinderLoading);
+        var (text, progress) = _endedAt is { } ended
+            ? (texts.Of(CatalogText.FanFinderWatching), time.GetElapsedTime(ended) / FanFinder.Afterwards)
+            : (texts.Of(CatalogText.FanFinderLoading), time.GetElapsedTime(_loadedAt) / FanFinder.MaxRun);
         if (_finder?.Rising is { } rising)
         {
             text += " · " + texts.Format(
@@ -139,7 +163,7 @@ internal sealed class WindowFinder(Action<CancellationToken> load, TimeProvider 
                 Math.Round(rising.Share * 100));
         }
 
-        return new FinderView(FinderPhase.Running, null, Progress: Math.Min(1, time.GetElapsedTime(_loadedAt) / FanFinder.MaxRun), Text: text);
+        return new FinderView(FinderPhase.Running, null, Progress: Math.Min(1, progress), Text: text);
     }
 
     // The fan as the catalog and the Sensor dropdown name it, so one fan never reads by two names.

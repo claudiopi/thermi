@@ -98,6 +98,20 @@ public sealed record WindowView(
     IReadOnlyDictionary<string, string> Values,
     MarkState Mark);
 
+/// <summary>
+/// An overlay, or a look's sample, painted as the overlay paints it: a PNG as a data URL, its size in its own pixels, which
+/// the page shows one to each of its device pixels, so it is never resampled, and the color of the taskbar it sits on as
+/// #RRGGBB, or null where it sits on none.
+/// </summary>
+public sealed record OverlayPicture(
+    string Png,
+    double Width,
+    double Height,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Taskbar);
+
+/// <summary>Each look's tile sample: Default's, and each saved look's by its name.</summary>
+public sealed record LookSamples(OverlayPicture Default, IReadOnlyDictionary<string, OverlayPicture> Saved);
+
 /// <summary>Why a chart has no readings to draw: the service stopped, a CPU sensor needs thermi's driver, or none yet.</summary>
 public enum ChartEmpty
 {

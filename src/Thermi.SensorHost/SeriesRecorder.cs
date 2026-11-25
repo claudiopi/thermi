@@ -8,7 +8,8 @@ namespace Thermi.SensorHost;
 /// </summary>
 internal static class SeriesRecorder
 {
-    public static async Task RecordAsync(Func<Snapshot> read, TextWriter writer, int seconds, TimeProvider time, CancellationToken cancel)
+    public static async Task RecordAsync(
+        Func<CancellationToken, Task<Snapshot>> read, TextWriter writer, int seconds, TimeProvider time, CancellationToken cancel)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(seconds);
         using var tick = new PeriodicTimer(TimeSpan.FromSeconds(1), time);
@@ -19,7 +20,7 @@ internal static class SeriesRecorder
                 await tick.WaitForNextTickAsync(cancel);
             }
 
-            await writer.WriteLineAsync(SnapshotJson.Write(read()).AsMemory(), cancel);
+            await writer.WriteLineAsync(SnapshotJson.Write(await read(cancel)).AsMemory(), cancel);
             await writer.FlushAsync(cancel);
         }
     }

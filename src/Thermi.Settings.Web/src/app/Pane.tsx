@@ -5,7 +5,7 @@ import { ItemPage } from '../item/ItemPage';
 import { settingsKey } from '../list/rows';
 import { OverlayPage } from '../overlay/OverlayPage';
 import { SettingsPage } from '../settings/SettingsPage';
-import { useFocusKept } from './paneFocus';
+import { useAnchorKept, useFocusKept } from './paneFocus';
 
 export interface PaneProps {
   data: WindowData;
@@ -26,6 +26,7 @@ export function Pane({ data, selected, inert, labelAsked, onOverlayEdit }: PaneP
   useLayoutEffect(() => {
     main.current?.scrollTo({ top: 0 });
   }, [selected]);
+  useAnchorKept(main, selected);
   const [kind, overlay] = selected.split(':');
   const item = kind === 'i' ? selected.slice(2) : null;
   return (

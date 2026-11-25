@@ -126,9 +126,12 @@ internal static class PageEdits
     {
         var fields = JsonSerializer.SerializeToNode(style, BridgeCalls.Options)?.AsObject() ?? [];
         fields.Remove(field);
-        if (value.ValueKind != JsonValueKind.Null)
+        var set = value.ValueKind != JsonValueKind.Null
+            ? JsonNode.Parse(value.GetRawText())
+            : JsonSerializer.SerializeToNode(new StyleConfig(), BridgeCalls.Options)?[field]?.DeepClone();
+        if (set is not null)
         {
-            fields[field] = JsonNode.Parse(value.GetRawText());
+            fields[field] = set;
         }
 
         return fields.Deserialize<StyleConfig>(BridgeCalls.Options) ?? style;

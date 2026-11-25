@@ -89,7 +89,7 @@ export type Edit =
   | { kind: 'overlay'; overlay: number; field: string; value: Value }
   | { kind: 'style'; overlay: number; field: string; value: Value }
   | { kind: 'item'; item: string; field: string; value: Value }
-  | { kind: 'look'; overlay: number | null; name: string }
+  | { kind: 'look'; overlay: number | null; name: string | null }
   | { kind: 'addItem'; overlay: number; sensor: string }
   | { kind: 'removeItem'; item: string }
   | { kind: 'moveItem'; item: string; overlay: number | null; index: number }
@@ -195,6 +195,11 @@ export type Level = 'normal' | 'warning' | 'critical';
 
 export type Line = 'warning' | 'critical';
 
+export interface LookSamples {
+  default: OverlayPicture;
+  saved: Record<string, OverlayPicture>;
+}
+
 export interface Mark {
   from: number;
   to: number;
@@ -239,6 +244,13 @@ export interface Overlay {
   graph?: GraphStyle;
   style?: Style;
   items: Item[];
+}
+
+export interface OverlayPicture {
+  png: string;
+  width: number;
+  height: number;
+  taskbar: string | null;
 }
 
 export type PillLayout = 'pills' | 'each' | 'one';
@@ -407,12 +419,18 @@ export interface WindowView {
   mark: MarkState;
 }
 
+export interface WornLook {
+  saved: string | null;
+}
+
 export interface Bridge {
   settings(): Promise<Settings>;
   problem(): Promise<Problem | null>;
   edit(edit: Edit): Promise<string | null>;
   gesture(active: boolean): Promise<void>;
   view(): Promise<WindowView>;
+  preview(overlay: number, room: number): Promise<OverlayPicture | null>;
+  lookSamples(scale: number): Promise<LookSamples>;
   chart(id: string): Promise<ChartView | null>;
   exitThermi(): Promise<void>;
   undo(): Promise<Undone | null>;
@@ -431,6 +449,7 @@ export interface Bridge {
   places(): Promise<(Rect | null)[]>;
   report(error: string): Promise<void>;
   looks(): Promise<Record<string, Style>>;
+  worn(): Promise<(WornLook | null)[]>;
   saveLook(overlay: number, name: string): Promise<string | null>;
   renameLook(name: string, to: string): Promise<string | null>;
   deleteLook(name: string): Promise<string | null>;

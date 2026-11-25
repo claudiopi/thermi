@@ -14,7 +14,7 @@ namespace Thermi.Windows.Tests.Window;
 public sealed class WindowEditorTests : IAsyncDisposable
 {
     private readonly SettingsFolder _folder = new();
-    private readonly Queue<Action> _turn = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _turn = new();
     private readonly Settings _settings;
     private readonly WindowEditor _editor;
 

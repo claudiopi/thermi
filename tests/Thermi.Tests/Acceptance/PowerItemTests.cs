@@ -109,6 +109,8 @@ public sealed class PowerItemTests
         var time = new FakeTimeProvider();
         var history = new ItemHistory(time);
         var overlay = Temperature(item => item with { Stat = ItemStat.Max });
+        var sent = 0;
+        history.WasReset += (_, _) => sent++;
 
         var before = Feed(history, time, overlay, 60, 75, 70);
 
@@ -119,15 +121,18 @@ public sealed class PowerItemTests
             [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 65),
         };
         history.Add([(other, TrayTextTests.Quiet), (overlay, cooler)]);
-        history.Reset(other);
+        history.Reset([other]);
         var moved = OverlayLayout.Build(overlay, cooler, English, history: history).Single().Value;
         time.Advance(TimeSpan.FromSeconds(1));
-        history.Reset();
+        history.Reset([other, overlay]);
         var after = Feed(history, time, overlay, 65, 62);
 
         Assert.Equal(["60 °C", "75 °C", "75 °C"], before);
         Assert.Equal("75 °C", moved);
         Assert.Equal(["65 °C", "65 °C"], after);
+
+        // An open window is sent the whole history once a reset, however many overlays it starts again.
+        Assert.Equal(2, sent);
     }
 
     // NaN for a value the sensor did not give; what shows when nothing is left to average is the missing value.
@@ -156,7 +161,7 @@ public sealed class PowerItemTests
         var history = new ItemHistory(time);
         var lined = Done(ItemEdits.SetThreshold(new ThermiConfig(), Metrics.GpuLoad.Id, 60, 80));
         var config = Done(PowerEdits.SetGraph(lined, Metrics.GpuLoad.Id, GraphStyle.Line));
-        var overlay = config.Overlays[0];
+        var overlay = Done(PowerEdits.SetGraph(config, Metrics.CpuFan.Id, GraphStyle.Line)).Overlays[0];
         IReadOnlyList<OverlayItem> shown = [];
 
         for (var second = 0; second < 70; second++)
@@ -164,6 +169,7 @@ public sealed class PowerItemTests
             var readings = new Dictionary<string, Reading>(TrayTextTests.Quiet, StringComparer.Ordinal)
             {
                 [Metrics.GpuLoad.Id] = new(SensorKind.Load, second % 7 == 0 ? double.NaN : second % 10 * 10),
+                [Metrics.CpuFan.Id] = new(SensorKind.Fan, 1000),
             };
             history.Add(overlay, readings);
             shown = OverlayLayout.Build(overlay, readings, English, history: history);
@@ -176,7 +182,9 @@ public sealed class PowerItemTests
         Assert.Equal(new GraphPoint(0.7, Level.Warning), graph[7]);
         Assert.Equal(new GraphPoint(0.9, Level.Critical), graph[9]);
         Assert.Equal([4, 11, 18, 25, 32, 39, 46, 53], graph.Select((point, at) => (point, at)).Where(each => each.point is null).Select(each => each.at));
-        Assert.Null(shown.Single(item => item.Id == Metrics.CpuFan.Id).Graph);
+        // A fan's line reads on the scale the window's chart gives the same readings, 0 to 1,500 RPM, not as a load: the
+        // night QA saw 1,000 RPM pinned at the top, and then nearly flat on a scale to 10,000.
+        Assert.Equal(new GraphPoint(1000.0 / 1500, Level.Normal), shown.Single(item => item.Id == Metrics.CpuFan.Id).Graph![^1]);
         Assert.Equal(
             [new GraphPoint(0.03, Level.Normal)],
             OverlayLayout.Build(overlay, TrayTextTests.Quiet, English).Single(item => item.Label == "GPU").Graph);

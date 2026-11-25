@@ -127,7 +127,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
                 SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
-        var target = Drag?.Resizes != false ? default : Target(actions.Cursor(), dragged);
+        var target = Drag is null or { Resizes: true } or { Refused: true } ? default : Target(actions.Cursor(), dragged);
         var moved = Drag?.Moved(dragged, target.Onto is not null) == true;
         // The overlay a drop would join marks where, which it paints.
         var previewed = actions.Preview.Over(target);
@@ -141,7 +141,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     public void Release(Press press, DragDistance distance)
     {
         var cursor = actions.Cursor();
-        Drag?.Release(press, cursor, distance, Target(cursor, Drag.Dropped), actions.Gestures);
+        Drag?.Release(press, cursor, distance, Target(cursor, Drag.Dropped), (actions.Gestures, actions.Settle));
         Let();
     }
 
@@ -209,11 +209,12 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         }
 
         var before = settings.Config;
-        var after = OverlayEdits.Resize(before, index, 1, overlay.Style.Orientation);
-        if (after.Refused is null && ConfigEdits.Replay(before, after.Config) is { } change)
+        var resized = OverlayEdits.Resize(before, index, 1, overlay.Style.Orientation);
+        var after = resized.Refused is null ? actions.Settle(resized.Config) : before;
+        if (ConfigEdits.Replay(before, after) is { } change)
         {
             settings.Edit(change);
-            actions.Gestures?.Add(GestureKind.Resize, before, after.Config);
+            actions.Gestures?.Add(GestureKind.Resize, before, after);
         }
 
         return true;
@@ -231,10 +232,37 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         return true;
     }
 
+    /// <summary>
+    /// Makes a floating overlay's resizing corner take a press across its whole square: a layered window lets clicks through
+    /// its fully transparent pixels, which a round pill leaves there, so they get an alpha of 1/255, which shows nothing.
+    /// </summary>
+    public static void HoldCorner(Bitmap bitmap, OverlayConfig overlay, float scale)
+    {
+        if (!Resizable(overlay))
+        {
+            return;
+        }
+
+        var side = (int)Math.Ceiling(CornerSize * scale);
+        var unseen = Color.FromArgb(1, 0, 0, 0);
+        for (var y = Math.Max(0, bitmap.Height - side); y < bitmap.Height; y++)
+        {
+            for (var x = Math.Max(0, bitmap.Width - side); x < bitmap.Width; x++)
+            {
+                if (bitmap.GetPixel(x, y).A == 0)
+                {
+                    bitmap.SetPixel(x, y, unseen);
+                }
+            }
+        }
+    }
+
+    private static bool Resizable(OverlayConfig overlay) => overlay.Snapped is null && !overlay.Locked;
+
     /// <summary>Whether <paramref name="cursor"/> is on the resizing corner of a floating overlay at <paramref name="at"/>.</summary>
     public static bool InCorner(OverlayConfig overlay, PaintedOverlay? painted, Position at, Position cursor)
     {
-        if (overlay.Snapped is not null || overlay.Locked || painted is null)
+        if (!Resizable(overlay) || painted is null)
         {
             return false;
         }
@@ -245,26 +273,38 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     }
 
     /// <summary>
-    /// "Separate" from the overlay's menu, as one gesture; <paramref name="box"/> is the pill's in the overlay's pixels,
-    /// empty when it was not drawn.
+    /// "Separate" from the overlay's menu, as one gesture: the pill lands as the overlay a drag of it carries, at its size,
+    /// beside the overlay as the rest of its items will draw it; nothing before the overlay first painted.
     /// </summary>
-    public void Separate(string pill, RectangleF box, IReadOnlyList<Screen> screens)
+    public void Separate(string pill, PaintedOverlay? painted, IReadOnlyList<Screen> screens)
     {
+        if (painted is null)
+        {
+            return;
+        }
+
         PInvoke.GetWindowRect(hwnd, out var rect);
         var shown = new PixelRect(rect.left, rect.top, rect.right, rect.bottom);
-        var drawn = box.IsEmpty
-            ? shown
-            : new PixelRect(
-                rect.left + (int)box.Left,
-                rect.top + (int)box.Top,
-                rect.left + (int)Math.Ceiling(box.Right),
-                rect.top + (int)Math.Ceiling(box.Bottom));
+        Size made;
+        using (var picture = PillPicture(pill, painted))
+        {
+            made = picture.Size;
+        }
+
+        var ids = DesktopGestures.PillItems(settings.Config, pill);
+        Size rest;
+        using (var painter = new Painter())
+        {
+            rest = painter.Measure([.. painted.Items.Where(each => !ids.Contains(each.Id))], painted.Look, painted.Scale);
+        }
+
         var before = settings.Config;
-        var drop = DesktopGestures.Separate(before, index, pill, shown, drawn, screens);
-        if (drop.Result.Refused is null && ConfigEdits.Replay(before, drop.Result.Config) is { } change)
+        var drop = DesktopGestures.Separate(before, index, pill, shown, (made.Width, made.Height), (rest.Width, rest.Height), screens);
+        var after = drop.Result.Refused is null ? actions.Settle(drop.Result.Config) : before;
+        if (ConfigEdits.Replay(before, after) is { } change)
         {
             settings.Edit(change);
-            actions.Gestures?.Add(drop.Kind, before, drop.Result.Config, OverlayText.UndoSeparate);
+            actions.Gestures?.Add(drop.Kind, before, after, OverlayText.UndoSeparate);
             actions.RequestPaint();
         }
     }

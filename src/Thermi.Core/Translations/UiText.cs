@@ -89,6 +89,9 @@ public enum UiText
 
     SizeField,
 
+    /// <summary>Under Size, for an overlay on a horizontal taskbar, which it never outgrows whatever the size says.</summary>
+    SizeOnTaskbar,
+
     StartWithWindows,
 
     ResetToDefaults,
@@ -172,7 +175,11 @@ public enum UiText
     BitsHint,
     CombineField,
 
-    CombineAdd,
+    /// <summary>The Combine dialog's button, which makes the item read the sensors checked in place of its own.</summary>
+    CombineUse,
+
+    /// <summary>A combined item's Sensor box: how it combines, as "Highest", then its sensors' names.</summary>
+    SensorCombined,
 
     HideThisOverlay,
     ShowThisOverlay,

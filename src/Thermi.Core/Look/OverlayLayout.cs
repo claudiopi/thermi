@@ -19,6 +19,12 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     public string? Color { get; init; }
 
     /// <summary>
+    /// What the value is when it is not the value now, as "max", drawn small after it; null for the value now. After the
+    /// value rather than the label, so each item of a pill says its own.
+    /// </summary>
+    public string? Tag { get; init; }
+
+    /// <summary>
     /// The last minute its line draws, a value a second and oldest first, null where one was missing; null unless it draws
     /// a line.
     /// </summary>
@@ -33,6 +39,9 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     /// <summary>Whether the value is marked as the CPU throttling, a dashed line over it, at any level.</summary>
     public bool Throttled { get; init; }
 }
+
+/// <summary>A pill: its label and the indexes of its first and last item.</summary>
+public readonly record struct Run(string? Label, int First, int Last);
 
 /// <summary>One second of a line: its fill, 0 to 1, and the level the item's lines give it.</summary>
 public readonly record struct GraphPoint(double Fill, Level Level);
@@ -60,6 +69,7 @@ public static class OverlayLayout
     {
         var items = new List<OverlayItem>();
         var labels = RunLabels(overlay.Items, texts);
+        var starts = Runs(overlay.Items, overlay.Style.Layout, texts).Select(run => run.First).ToHashSet();
         string? shownLabel = null;
         for (var index = 0; index < overlay.Items.Count; index++)
         {
@@ -78,12 +88,14 @@ public static class OverlayLayout
                 continue;
             }
 
-            var labeled = Labeled(overlay.Style.Layout, item, label != shownLabel);
+            // A pill whose first item is left out, shown only on alert, is labeled at its first item shown.
+            var labeled = starts.Contains(index) || label != shownLabel;
             var drawn = DrawnOf(overlay, item);
-            items.Add(new OverlayItem(labeled ? Tagged(item, label, culture, texts) : null, value, level, room)
+            items.Add(new OverlayItem(labeled ? label : null, value, level, room)
             {
                 Id = item.Id,
                 Color = item.Color,
+                Tag = TagOf(item, culture, texts),
                 Graph = drawn == GraphStyle.Line ? GraphOf(item, meter, history) : null,
                 Lit = drawn == GraphStyle.Bars ? LitOf(meter) : null,
             });
@@ -101,8 +113,8 @@ public static class OverlayLayout
         item.Label ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? (texts ?? Texts.English).Of(metric.Label) : null);
 
     /// <summary>
-    /// What an item shows when it is not its value now, said after its default label and beside its value in the window:
-    /// its minimum, maximum or average, or its smoothing; null for the value now.
+    /// What an item shows when it is not its value now, said after its value on the overlay and in the window: its minimum,
+    /// maximum or average, or its smoothing; null for the value now.
     /// </summary>
     public static string? TagOf(ItemConfig item, IFormatProvider culture, Texts? texts = null)
     {
@@ -131,6 +143,32 @@ public static class OverlayLayout
 
         return labels;
     }
+
+    /// <summary>The overlay's pills: runs of one label, which an own item breaks with pills, or every item alone with each.</summary>
+    public static IReadOnlyList<Run> Runs(OverlayConfig overlay, Texts? texts = null) => Runs(overlay.Items, overlay.Style.Layout, texts);
+
+    /// <summary>The pills of <paramref name="items"/> in <paramref name="layout"/>.</summary>
+    public static IReadOnlyList<Run> Runs(IReadOnlyList<ItemConfig> items, PillLayout layout, Texts? texts = null)
+    {
+        var labels = RunLabels(items, texts);
+        var runs = new List<Run>();
+        for (var at = 0; at < items.Count; at++)
+        {
+            if (at == 0 || layout == PillLayout.Each || (layout == PillLayout.Pills && items[at].Own) || labels[at] != labels[at - 1])
+            {
+                runs.Add(new Run(labels[at], at, at));
+            }
+            else
+            {
+                runs[^1] = runs[^1] with { Last = at };
+            }
+        }
+
+        return runs;
+    }
+
+    /// <summary>Whether the overlay has more than one pill, or run in one bar, so that standing it vertical stacks them.</summary>
+    public static bool Stacks(OverlayConfig overlay) => Runs(overlay).Count > 1;
 
     /// <summary>
     /// What an item reads now, its sensors combined and its offset added, or null when it names sensors the snapshot lacks.
@@ -169,6 +207,10 @@ public static class OverlayLayout
         : (item.Graph ?? overlay.Graph) is var chosen and not GraphStyle.Auto ? chosen
         : kind == SensorKind.Load && item.WarnBy is null ? GraphStyle.Line
         : GraphStyle.Bars;
+
+    /// <summary>The pills a single bar holds, each as its item count, one per run; null in the other layouts.</summary>
+    public static IReadOnlyList<int>? InnerPills(IReadOnlyList<OverlayItem> items, PillLayout layout) =>
+        layout == PillLayout.One ? [.. Groups(items).Select(group => group.Count)] : null;
 
     /// <summary>
     /// The groups the overlay paints as separate pills. With pills, each label starts one, and the unlabeled items after
@@ -229,16 +271,6 @@ public static class OverlayLayout
         };
         return new Reading(found[0].Kind, value);
     }
-
-    // A label the user typed says what they chose; a default one says what its own item shows when that is not the value
-    // now. The tag never decides the pills, which the edits keep by the labels alone.
-    private static string? Tagged(ItemConfig item, string? label, IFormatProvider culture, Texts? texts) =>
-        item.Label is null && label is not null && LabelOf(item, texts) == label && TagOf(item, culture, texts) is { } tag
-            ? (texts ?? Texts.English).Format(culture, OverlayText.TaggedLabel, label, tag)
-            : label;
-
-    private static bool Labeled(PillLayout layout, ItemConfig item, bool newLabel) =>
-        layout == PillLayout.Each || newLabel || (layout == PillLayout.Pills && item.Own);
 
     // Without a history, a graph has only the value now.
     private static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, Reading? meter, ItemHistory? history) =>

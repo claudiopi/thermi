@@ -1,0 +1,82 @@
+{
+  "version": 5,
+  "overlays": [
+    {
+      "size": 0.9,
+      "snap": {
+        "spot": "taskbar"
+      },
+      "style": {
+        "gap": 8,
+        "units": true,
+        "layout": "one",
+        "opacity": {
+          "background": 1,
+          "overlay": 1
+        }
+      },
+      "items": [
+        {
+          "id": "gpu.load",
+          "metric": "gpu.load",
+          "meter": {
+            "metric": "gpu.load"
+          }
+        },
+        {
+          "id": "/gpu-nvidia/0/fan/1",
+          "name": "GPU fan",
+          "sensor": "/gpu-nvidia/0/fan/1",
+          "label": "GPU",
+          "meter": {
+            "sensor": "/gpu-nvidia/0/fan/1"
+          }
+        },
+        {
+          "id": "cpu.temperature",
+          "metric": "cpu.temperature",
+          "meter": {
+            "metric": "cpu.temperature"
+          },
+          "threshold": {
+            "warning": 81,
+            "critical": 95
+          }
+        },
+        {
+          "id": "fan.cpu",
+          "metric": "fan.cpu",
+          "meter": {
+            "metric": "fan.cpu"
+          },
+          "threshold": {
+            "warning": 8400
+          }
+        },
+        {
+          "id": "cpu.load",
+          "metric": "cpu.load",
+          "meter": {
+            "metric": "cpu.load"
+          }
+        },
+        {
+          "id": "cpu.power",
+          "metric": "cpu.power",
+          "own": true
+        },
+        {
+          "id": "ram.used",
+          "sensor": "/ram/data/0",
+          "auto": "ram.used",
+          "meter": {
+            "metric": "ram.load"
+          },
+          "threshold": {
+            "warning": 70
+          }
+        }
+      ]
+    }
+  ]
+}

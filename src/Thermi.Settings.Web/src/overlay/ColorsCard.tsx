@@ -200,11 +200,14 @@ export function ColorsCard({ overlay, style, lightTaskbar, open, onOpen }: Color
       >
         {textKeys.map(swatch)}
       </CardRow>
-      <div className="t-reset-row">
-        <Button kind="subtle" onClick={() => setColors({})}>
-          {t('UiText.ResetColors')}
-        </Button>
-      </div>
+      {/* At the defaults already, a reset would do nothing, so it is not offered. */}
+      {Object.values(colors).some((color) => color !== undefined) && (
+        <div className="t-reset-row">
+          <Button kind="subtle" onClick={() => setColors({})}>
+            {t('UiText.ResetColors')}
+          </Button>
+        </div>
+      )}
     </Expander>
   );
 }

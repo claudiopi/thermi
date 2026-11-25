@@ -19,6 +19,9 @@ public enum OverlayPageText
     OverlayHeadItems,
     OverlayHeadOneItem,
 
+    /// <summary>What Narrator hears of the preview at the top of Appearance, from the overlay's name.</summary>
+    Preview,
+
     /// <summary>A Look tile's name, from the look's.</summary>
     LookTile,
 
@@ -137,4 +140,7 @@ public enum OverlayPageText
     /// <summary>The switch that fades the overlay near the pointer, and what it does.</summary>
     Fade,
     FadeHint,
+
+    /// <summary>Why Direction is grayed: one pill has nothing to stack.</summary>
+    DirectionOnePill,
 }

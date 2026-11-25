@@ -119,7 +119,7 @@ public static class ThermiConfigJson
         }
 
         var config = ItemIds.Assign(version < ThermiConfig.CurrentVersion ? ConfigMigration.FromVersion5(read) : read);
-        return ConfigRules.Problem(config) is { } problem ? Broken(problem) : (config, null);
+        return ConfigRules.Problem(config, version) is { } problem ? Broken(problem) : (config, null);
     }
 
     // Versions 2 to 4 named three places on the taskbar, which this version reads as its one, and versions 2 to 5 gave an

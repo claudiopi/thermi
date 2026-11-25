@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import type { Monitor, Rect, SnapSpot } from '../bridge/bridge.g';
 import { useText } from '../texts/Texts';
+import { useWidth } from './pixels';
 import { alongOf, cornerSpots, displayName, spotKey, type Placed } from './placeModel';
 
 export interface MonitorMapProps {
@@ -19,22 +20,6 @@ export interface MonitorMapProps {
 /** The map's width in units for all its displays together, and the room between two, as the prototype draws them. */
 const units = 400;
 const between = 16;
-
-/** The block's width, followed as the pane changes. */
-function useWidth(): [RefObject<HTMLDivElement | null>, number] {
-  const block = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const element = block.current;
-    if (element === null) {
-      return;
-    }
-    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  return [block, width];
-}
 
 interface Spot {
   spot: SnapSpot;

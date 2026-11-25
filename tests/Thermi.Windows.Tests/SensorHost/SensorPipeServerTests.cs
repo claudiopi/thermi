@@ -173,7 +173,7 @@ public sealed class SensorPipeServerTests : IAsyncDisposable
 
     private Task Start(Func<Snapshot> read, Action? hung = null, Action? squatted = null)
     {
-        _server = new SensorPipeServer(read, _clock, _pipeName)
+        _server = new SensorPipeServer(_ => Task.FromResult(read()), _clock, _pipeName)
         {
             Hung = hung ?? (() => Assert.Fail("No read should hang.")),
             Squatted = squatted ?? (() => { }),

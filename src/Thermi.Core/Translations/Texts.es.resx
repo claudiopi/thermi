@@ -61,10 +61,13 @@
     <value>Combinar…</value>
   </data>
   <data name="CatalogText.FanFinderWaiting" xml:space="preserve">
-    <value>Esperando lecturas nuevas…</value>
+    <value>Esperando que los ventiladores se estabilicen…</value>
   </data>
   <data name="CatalogText.FanFinderLoading" xml:space="preserve">
     <value>Cargando todos los núcleos, hasta 30 s</value>
+  </data>
+  <data name="CatalogText.FanFinderWatching" xml:space="preserve">
+    <value>Carga terminada; observando los ventiladores hasta 15 s más</value>
   </data>
   <data name="UiText.Cancel" xml:space="preserve">
     <value>Cancelar</value>
@@ -312,6 +315,9 @@
   <data name="UiText.SizeField" xml:space="preserve">
     <value>Tamaño</value>
   </data>
+  <data name="UiText.SizeOnTaskbar" xml:space="preserve">
+    <value>En la barra de tareas nunca queda más alto que la barra.</value>
+  </data>
   <data name="UiText.StartWithWindows" xml:space="preserve">
     <value>Iniciar con Windows</value>
   </data>
@@ -438,8 +444,11 @@
   <data name="UiText.CombineField" xml:space="preserve">
     <value>Combinar como</value>
   </data>
-  <data name="UiText.CombineAdd" xml:space="preserve">
-    <value>Agregar</value>
+  <data name="UiText.CombineUse" xml:space="preserve">
+    <value>Usar estos</value>
+  </data>
+  <data name="UiText.SensorCombined" xml:space="preserve">
+    <value>{0} de {1}</value>
   </data>
   <data name="OverlayPageText.FontField" xml:space="preserve">
     <value>Fuente</value>
@@ -479,6 +488,9 @@
   </data>
   <data name="UiText.DeleteThisOverlay" xml:space="preserve">
     <value>Eliminar esta superposición</value>
+  </data>
+  <data name="OverlayPageText.Preview" xml:space="preserve">
+    <value>Vista previa de {0}</value>
   </data>
   <data name="OverlayPageText.LookTile" xml:space="preserve">
     <value>Aspecto {0}</value>
@@ -1266,6 +1278,9 @@
   <data name="MenuEntry.GraphOwn" xml:space="preserve">
     <value>Algunos elementos tienen el suyo</value>
   </data>
+  <data name="MenuEntry.SeparateFull" xml:space="preserve">
+    <value>4 superposiciones como máximo</value>
+  </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
   </data>
@@ -1399,7 +1414,7 @@
     <value>{0} de {1}</value>
   </data>
   <data name="OverlayText.MinAndMax" xml:space="preserve">
-    <value>Mín {0} · máx {1}</value>
+    <value>Mín {0} · Máx {1}</value>
   </data>
   <data name="OverlayText.DoubleClickToEdit" xml:space="preserve">
     <value>Doble clic para editar</value>
@@ -1438,7 +1453,7 @@
     <value>Deshacer gráfico</value>
   </data>
   <data name="OverlayText.UndoOrientation" xml:space="preserve">
-    <value>Deshacer orientación</value>
+    <value>Deshacer vertical</value>
   </data>
   <data name="OverlayText.UndoLock" xml:space="preserve">
     <value>Deshacer bloqueo</value>
@@ -2127,9 +2142,6 @@
   <data name="OverlayText.SmoothTag" xml:space="preserve">
     <value>prom {0}s</value>
   </data>
-  <data name="OverlayText.TaggedLabel" xml:space="preserve">
-    <value>{0} {1}</value>
-  </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Tu barra de tareas está a un lado, así que la superposición flota junto a ella.</value>
   </data>
@@ -2141,6 +2153,9 @@
   </data>
   <data name="OverlayPageText.FadeHint" xml:space="preserve">
     <value>Deja ver lo que hay debajo cuando el puntero se acerca</value>
+  </data>
+  <data name="OverlayPageText.DirectionOnePill" xml:space="preserve">
+    <value>Vertical apila píldoras, y esta superposición tiene una</value>
   </data>
   <data name="UiText.Bits" xml:space="preserve">
     <value>Mostrar en bits por segundo</value>
@@ -2177,5 +2192,29 @@
   </data>
   <data name="WindowText.UpdatesBeta" xml:space="preserve">
     <value>{0} · Canal beta</value>
+  </data>
+  <data name="OfDevice.Cpu" xml:space="preserve">
+    <value>{0} de la CPU</value>
+  </data>
+  <data name="OfDevice.Gpu" xml:space="preserve">
+    <value>{0} de la GPU</value>
+  </data>
+  <data name="OfDevice.Ram" xml:space="preserve">
+    <value>{0} de la RAM</value>
+  </data>
+  <data name="OfDevice.Board" xml:space="preserve">
+    <value>{0} de la placa</value>
+  </data>
+  <data name="OfDevice.Ssd" xml:space="preserve">
+    <value>{0} del SSD</value>
+  </data>
+  <data name="OfDevice.Network" xml:space="preserve">
+    <value>{0} de la red</value>
+  </data>
+  <data name="OfDevice.Battery" xml:space="preserve">
+    <value>{0} de la batería</value>
+  </data>
+  <data name="OfDevice.System" xml:space="preserve">
+    <value>{0} del PC</value>
   </data>
 </root>

@@ -1,4 +1,6 @@
 using System.Globalization;
+using Thermi.Core.Editing;
+using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 
@@ -47,6 +49,8 @@ public sealed class TaskbarDropTests
     [InlineData("1906,64", "TopRight 2002,64")]
     [InlineData("1905,64", "free 1905,64")]
     [InlineData("1992,18", "TopRight 2002,64")]
+    // Pushed past the monitor's edge, reach counts from where it would show, kept inside it.
+    [InlineData("2300,1320", "BottomRight 2002,1346")]
     // Alt held: no mark pulls it, and off the taskbar no reach either; on it, it stays on it where it was let go.
     [InlineData("alt 1600,1397", "Taskbar 1600,1397")]
     [InlineData("alt 18,1336", "free 18,1336")]
@@ -105,44 +109,179 @@ public sealed class TaskbarDropTests
         Assert.Equal(joins, target is var (onto, at) ? string.Create(CultureInfo.InvariantCulture, $"{onto} {at.X},{at.Y}") : "none");
     }
 
-    // "Separate" on the GPU's pill, 100 × 38 or, vertical, 100 × 50, of the default overlay shown at `shown`, on the
-    // taskbar or free where it says, its pill at `pill`: the pill is dropped beside it, 8 px away, as a drag with Alt held
-    // drops it, and becomes an overlay of its own there. Its snap, where it shows and its items.
+    // "Separate" on the GPU's pill of the default overlay shown at `shown`, on the taskbar or free where it says, the pill
+    // an overlay of `made` pixels once on its own, as a drag carries it: 100 × 38, or 108 × 38 out of one bar, whose pill
+    // is drawn 4 px inside the bar. It is dropped beside it, 8 px away and level with it, as a drag with Alt held drops it,
+    // and becomes an overlay of its own there. Its snap, where it shows and its items.
     [Theory]
-    // On the taskbar it lands on the taskbar, before the overlay.
-    [InlineData("taskbar 1652,1397,2202,1435 1900,1397", "Taskbar 1544,1397 gpu.load")]
-    // Free, before it, or after it where before is off the monitor.
-    [InlineData("free 1000,500,1550,538 1200,500", "free 892,500 gpu.load")]
-    [InlineData("free 0,500,550,538 200,500", "free 558,500 gpu.load")]
-    // Vertical, below it, or above it where below is off the work area.
-    [InlineData("vertical 1000,500,1100,800 1000,600", "free 1000,808 gpu.load")]
-    [InlineData("vertical 1000,1100,1100,1380 1000,1200", "free 1000,1042 gpu.load")]
+    // On the taskbar it lands on the taskbar, before the overlay, centered across it; before the overlay as it sits once
+    // the pill has left, 450 px wide, shrunk toward the notification area.
+    [InlineData("taskbar 1652,1397,2202,1435 100x38", "Taskbar 1544,1397 gpu.load")]
+    [InlineData("taskbar 1652,1397,2202,1435 108x38", "Taskbar 1536,1397 gpu.load")]
+    [InlineData("taskbar 1652,1397,2202,1435 100x38 450x38", "Taskbar 1644,1397 gpu.load")]
+    // Free, before it, or after it where before is off the monitor, level with its middle.
+    [InlineData("free 1000,500,1550,538 100x38", "free 892,500 gpu.load")]
+    [InlineData("free 1000,500,1550,538 108x38", "free 884,500 gpu.load")]
+    [InlineData("free 1000,500,1550,538 108x30", "free 884,504 gpu.load")]
+    [InlineData("free 0,500,550,538 100x38", "free 558,500 gpu.load")]
+    // Vertical, below it, or above it where below is off the work area, in line with its left edge.
+    [InlineData("vertical 1000,500,1100,800 100x50", "free 1000,808 gpu.load")]
+    [InlineData("vertical 1000,1100,1100,1380 100x50", "free 1000,1042 gpu.load")]
+    // With as many overlays as there may be, no other fits, and the refusal says so.
+    [InlineData("full 1000,500,1550,538 100x38", "TooManyOverlays")]
     public void SeparateDropsThePillBesideItsOverlay(string separated, string lands)
     {
         var words = separated.Split(' ');
-        var (shown, at) = (Numbers(words[1]), Numbers(words[2]));
+        var shown = Numbers(words[1]);
+        var size = words[2].Split('x').Select(each => int.Parse(each, CultureInfo.InvariantCulture)).ToArray();
+        int[] rest = words.Length > 3
+            ? [.. words[3].Split('x').Select(each => int.Parse(each, CultureInfo.InvariantCulture))]
+            : [shown[2] - shown[0], shown[3] - shown[1]];
+        var others = words[0] == "full" ? ThermiConfig.MaxOverlays - 1 : 0;
         var vertical = words[0] == "vertical";
         var overlay = new OverlayConfig
         {
             Position = words[0] == "taskbar" ? null : new Position(shown[0], shown[1]),
             Style = new StyleConfig { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal },
         };
-        var (width, height) = (100, vertical ? 50 : 38);
+        var (width, height) = (size[0], size[1]);
 
         var drop = DesktopGestures.Separate(
-            new ThermiConfig { Overlays = [overlay] },
+            new ThermiConfig { Overlays = [overlay, .. Enumerable.Repeat(new OverlayConfig { Items = [] }, others)] },
             0,
             "gpu.load",
             new PixelRect(shown[0], shown[1], shown[2], shown[3]),
-            new PixelRect(at[0], at[1], at[0] + width, at[1] + height),
+            (width, height),
+            (rest[0], rest[1]),
             [Pc]);
 
-        Assert.Null(drop.Result.Refused);
         var made = drop.Result.Config.Overlays[^1];
         var landed = Snaps.Locate(made, [Pc], width, height)!;
         var items = string.Join(',', made.Items.Select(item => item.Id));
-        Assert.Equal(lands, string.Create(CultureInfo.InvariantCulture, $"{made.Snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y} {items}"));
+        var where = string.Create(CultureInfo.InvariantCulture, $"{made.Snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y} {items}");
+        Assert.Equal(lands, drop.Result.Refused?.ToString() ?? where);
     }
+
+    // Night QA: at 200 % an overlay on the 48 px taskbar was 76 px high and cut. On a taskbar it shows at most as high as
+    // the taskbar, at 100 % and on a 72 px taskbar at 150 %; free, or vertical above the taskbar, at its own size.
+    [Theory]
+    [InlineData("taskbar 1", 38)]
+    [InlineData("taskbar 2", 48)]
+    [InlineData("taskbar 2 150%", 72)]
+    [InlineData("free 2", 76)]
+    [InlineData("vertical 2", 76)]
+    public void AnOverlayOnTheTaskbarNeverOverflowsIt(string overlay, int high)
+    {
+        var words = overlay.Split(' ');
+        var scaled = words.Length > 2;
+        var screen = scaled ? Pc with { Scale = 1.5, Work = Pc.Work with { Bottom = 1368 }, Taskbar = new PixelRect(0, 1368, 2560, 1440) } : Pc;
+        var shown = new OverlayConfig(double.Parse(words[1], CultureInfo.InvariantCulture))
+        {
+            Position = words[0] == "free" ? new Position(100, 100) : null,
+            Style = new StyleConfig { Orientation = words[0] == "vertical" ? Orientation.Vertical : Orientation.Horizontal },
+        };
+
+        var size = Snaps.SizeShown(shown, [screen]);
+
+        Assert.Equal(high, (int)Math.Ceiling(OverlayLook.PillHeight * screen.Scale * size));
+    }
+
+    // Night QA: two overlays side by side on the taskbar, and one raised to 200 % covered its neighbour. Each overlay as
+    // `offset:width` along the taskbar, or `tray:width` beside the notification area, 38 px high; where each shows. One
+    // that grows pushes the next along, toward the notification area only, and the last keeps to its edge; one grown past
+    // the room the others leave there shows at that room, so none leaves the taskbar, covers another or goes back over the
+    // app buttons. Each, in order, shows at the width it has room for, beside the others as they show.
+    [Theory]
+    [InlineData("8:308 tray:319", "8 1883")]
+    [InlineData("1567:432 tray:319", "1567 1883")]
+    [InlineData("100:600 650:300", "100 708")]
+    [InlineData("1500:600 2000:500", "1500 2000")]
+    [InlineData("100:1800 tray:500", "100 1702")]
+    public void OverlaysOnOneTaskbarNeverCoverEachOther(string overlays, string shown)
+    {
+        var each = overlays.Split(' ').Select(overlay => overlay.Split(':')).ToList();
+        var configs = each.Select(words => new OverlayConfig
+        {
+            Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = words[0] == "tray" ? null : int.Parse(words[0], CultureInfo.InvariantCulture) },
+        }).ToList();
+        var widths = each.Select(words => int.Parse(words[1], CultureInfo.InvariantCulture)).ToList();
+        var boxes = widths.Select(width => (PixelRect?)new PixelRect(0, 0, width, Height)).ToList();
+        for (var index = 0; index < configs.Count; index++)
+        {
+            widths[index] = Math.Min(widths[index], TaskbarRow.RoomOf(configs, index, [Pc], boxes)?.Invoke((widths[index], Height)) ?? int.MaxValue);
+            boxes[index] = new PixelRect(0, 0, widths[index], Height);
+        }
+
+        var places = Enumerable.Range(0, configs.Count).Select(index => TaskbarRow.Locate(configs, index, [Pc], (widths[index], Height), boxes)!).ToList();
+
+        Assert.Equal(shown, string.Join(' ', places.Select(place => place.X.ToString(CultureInfo.InvariantCulture))));
+        Assert.All(places, place => Assert.Equal(1397, place.Y));
+        Assert.All(places.Skip(1), (place, at) => Assert.True(place.X >= places[at].X + widths[at], "Apart."));
+    }
+
+    // QA round 5: two overlays on one taskbar, and hiding the one beside the notification area moved the other 631 px; after
+    // another grew, the two swapped places and one covered the app buttons. An overlay moves only when the person moves it:
+    // a push goes toward the notification area only, and is stored as the pushed one's own place, as one undo step with
+    // what pushed it. Overlays 300 px wide at size 1 at an offset, `tray` or `free` at 100 100, 38 px high, then edits, each settled as the
+    // window and the overlay settle theirs: `size <i> <size>`, `move <i> <offset>`, `hide <i>`, `show <i>`. Where each shows
+    // after them, `-` for hidden, and one undo takes the last edit back whole.
+    [Theory]
+    [InlineData("1000 1400", "size 0 2", "1000 1608")]
+    [InlineData("1000 1400 free", "size 0 2,hide 0", "- 1608 100")]
+    [InlineData("1000 1400", "size 0 2,size 0 1", "1000 1608")]
+    [InlineData("1000 1400", "hide 1,size 0 2,show 1", "1000 1608")]
+    [InlineData("1000 1400", "move 0 1300,hide 0", "- 1608")]
+    [InlineData("1000 tray", "size 1 5", "1000 1308")]
+    public void AnOverlayMovesOnlyWhenThePersonMovesIt(string overlays, string edits, string shown)
+    {
+        var configs = overlays.Split(' ').Select(offset => offset == "free" ? new OverlayConfig { Position = new Position(100, 100) } : new OverlayConfig
+        {
+            Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = offset == "tray" ? null : int.Parse(offset, CultureInfo.InvariantCulture) },
+        }).ToList();
+        var history = new UndoHistory();
+        var before = configs;
+        var boxes = Fitted(configs, []);
+        foreach (var words in edits.Split(',').Select(edit => edit.Split(' ')))
+        {
+            var (at, value) = (int.Parse(words[1], CultureInfo.InvariantCulture), words.Length > 2 ? int.Parse(words[2], CultureInfo.InvariantCulture) : 0);
+            var edited = configs.ToList();
+            edited[at] = words[0] switch
+            {
+                "size" => edited[at] with { Size = value },
+                "move" => edited[at] with { Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = value } },
+                _ => edited[at] with { Hidden = words[0] == "hide" },
+            };
+            boxes = Fitted(edited, boxes);
+            (before, configs) = (configs, [.. TaskbarRow.Settle(edited, [Pc], boxes)]);
+            history.Record(new ThermiConfig { Overlays = before }, new ThermiConfig { Overlays = configs });
+        }
+
+        boxes = Fitted(configs, boxes);
+        var places = configs.Select((_, at) => boxes[at] is { } box
+            ? TaskbarRow.Locate(configs, at, [Pc], (box.Width, box.Height), boxes)!.X.ToString(CultureInfo.InvariantCulture)
+            : "-");
+        Assert.Equal(shown, string.Join(' ', places));
+        Assert.Equal(Edited.File(new ThermiConfig { Overlays = before }), Edited.File(history.Undo(new ThermiConfig { Overlays = configs })!.Config));
+    }
+
+    // Each shown overlay in turn at the width its size asks for, or the room the others leave it as they showed before,
+    // as each overlay fits itself beside the others' windows.
+    private static List<PixelRect?> Fitted(List<OverlayConfig> configs, List<PixelRect?> before)
+    {
+        var boxes = configs.Select((config, at) => config.Hidden ? null : (PixelRect?)(before.ElementAtOrDefault(at) ?? Natural(config))).ToList();
+        for (var at = 0; at < configs.Count; at++)
+        {
+            if (boxes[at] is not null)
+            {
+                var width = Natural(configs[at]).Width;
+                boxes[at] = new PixelRect(0, 0, Math.Min(width, TaskbarRow.RoomOf(configs, at, [Pc], boxes)?.Invoke((width, Height)) ?? int.MaxValue), Height);
+            }
+        }
+
+        return boxes;
+    }
+
+    private static PixelRect Natural(OverlayConfig config) => new(0, 0, (int)(300 * config.Size), Height);
 
     private static int[] Numbers(string word) => [.. word.Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture))];
 }
