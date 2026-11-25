@@ -16,7 +16,7 @@ internal sealed class WindowUpdates(TimeProvider time, ILogger log)
     {
         var now = time.GetUtcNow();
         if (UpdatesHere.Line(now).Kind is not (UpdateLineKind.NotUpdating or UpdateLineKind.TurnedOff)
-            && (_asked is not { } asked || now - asked >= UpdateSchedule.AskEvery)
+            && UpdateSchedule.MayAsk(_asked, now)
             && Tell(UpdateSchedule.CheckCode))
         {
             _asked = now;

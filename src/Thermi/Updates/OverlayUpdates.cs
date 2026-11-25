@@ -51,9 +51,8 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
                     close();
                 }
             }
-            else if (state.Ready is not null && state.Installed == _own && time.GetUtcNow() - _told >= UpdateSchedule.QuietEvery
-                && SwitchHealth.MaySwitch(state, time.GetUtcNow())
-                && UpdateSchedule.Quiet(facts(), state.ReadyUrgent))
+            else if (state.Installed == _own && time.GetUtcNow() - _told >= UpdateSchedule.QuietEvery
+                && UpdateSchedule.SaysQuiet(state, facts(), time.GetUtcNow()))
             {
                 _told = time.GetUtcNow();
                 TellService();

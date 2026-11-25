@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.AccessControl;
 using Thermi.Core.Updates;
 
@@ -147,6 +148,30 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
             {
                 _ = ex;
             }
+        }
+    }
+
+    /// <summary>
+    /// Deletes every version but <paramref name="build"/>, the state's and the one the launcher at the top starts, which
+    /// overlays and sign-ins still run while a program holds it: with that launcher unreadable, none until it can be read.
+    /// </summary>
+    public void Prune(UpdateState state, ReleaseVersion build, Action<string, EventLogEntryType> say)
+    {
+        ReleaseVersion? atTop;
+        try
+        {
+            atTop = AtTop();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            say($"thermi could not read the launcher at the top, so it deletes no version until it can: {ex.Message}", EventLogEntryType.Warning);
+            return;
+        }
+
+        HashSet<ReleaseVersion> keep = [build, .. new[] { state.Installed, state.Previous, state.Ready, atTop }.OfType<ReleaseVersion>()];
+        foreach (var removed in Prune(keep))
+        {
+            say($"thermi deleted {removed}, which it no longer keeps.", EventLogEntryType.Information);
         }
     }
 

@@ -47,6 +47,16 @@ public static class UpdateSchedule
     /// <summary>How often About asks, and the service heeds it, at most: reopening it never hammers the channel.</summary>
     public static readonly TimeSpan AskEvery = TimeSpan.FromMinutes(1);
 
+    /// <summary>Whether About may ask again, last asking at <paramref name="last"/>: a clock set back asks at once.</summary>
+    public static bool MayAsk(DateTimeOffset? last, DateTimeOffset now) => last is not { } asked || now - asked >= AskEvery || now < asked;
+
+    /// <summary>
+    /// Whether an overlay tells the service its session is quiet: a version is ready, its switch is not held and the
+    /// session lets it switch.
+    /// </summary>
+    public static bool SaysQuiet(UpdateState state, SessionFacts session, DateTimeOffset now) =>
+        state.Ready is not null && SwitchHealth.MaySwitch(state, now) && Quiet(session, state.ReadyUrgent);
+
     /// <summary>How often an overlay says so, and the service heeds it, at most.</summary>
     public static readonly TimeSpan QuietEvery = TimeSpan.FromMinutes(1);
 

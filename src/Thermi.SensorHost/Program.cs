@@ -251,7 +251,17 @@ internal sealed class SensorService : ServiceBase
 
     protected override void OnStart(string[] args)
     {
-        Update(updates => updates.Started());
+        try
+        {
+            Update(updates => updates.Started());
+        }
+        catch (Exception ex)
+        {
+            // With AutoLog off, Windows logs no reason of its own for a start that failed.
+            _report(ex);
+            throw;
+        }
+
         _running = RunAsync();
     }
 
@@ -264,7 +274,7 @@ internal sealed class SensorService : ServiceBase
         }
         else if (command == UpdateSchedule.RestartCode && Updates is { } restart)
         {
-            _ = Task.Run(() => Update(_ => restart.Quiet(asked: true)), CancellationToken.None);
+            _ = Task.Run(() => restart.RestartAsync(_stop.Token), CancellationToken.None);
         }
         else if (command == UpdateSchedule.CheckCode && Updates is { } asked)
         {

@@ -34,14 +34,23 @@ internal static class UpdatesHere
 
     private static UpdateState State()
     {
-        try
+        for (var tries = 1; tries <= 3; tries++)
         {
-            return UpdateState.Read(ThermiPaths.State() is { } path ? File.ReadAllText(path) : null);
+            try
+            {
+                return UpdateState.Read(ThermiPaths.State() is { } path ? File.ReadAllText(path) : null);
+            }
+            catch (FileNotFoundException) when (tries < 3)
+            {
+                // The service writes a newer copy, then deletes this one: the next look finds the newer.
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A read that keeps missing it says no check was made yet.
+                return new UpdateState();
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // The service writes it whole by a move; a read that meets it mid-move says no check was made yet.
-            return new UpdateState();
-        }
+
+        return new UpdateState();
     }
 }

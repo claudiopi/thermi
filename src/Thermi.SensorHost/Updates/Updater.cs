@@ -25,7 +25,8 @@ internal sealed class Updater(
     private volatile bool _checkSoon;
     private volatile bool _switchSoon;
     private DateTimeOffset _lastQuiet = DateTimeOffset.MinValue;
-    private DateTimeOffset _lastAsked = DateTimeOffset.MinValue;
+    private DateTimeOffset? _lastAsked;
+    private int _restarting;
 
     /// <summary>
     /// At the service's start: finishes or undoes a switch left written down, counts a run that never stopped and puts the
@@ -88,11 +89,11 @@ internal sealed class Updater(
 
     public void Resumed() => _checkSoon |= UpdateSchedule.DueOnResume(time.GetUtcNow(), folder.Read().LastCheck);
 
-    /// <summary>Code 128, a quiet session: a ready version may switch now, at most once a minute; 130, About's restart, at once.</summary>
-    public void Quiet(bool asked = false)
+    /// <summary>Code 128: an overlay's session is quiet, so a ready version may switch now; at most once a minute.</summary>
+    public void Quiet()
     {
         var now = time.GetUtcNow();
-        if ((!asked && now - _lastQuiet < UpdateSchedule.QuietEvery) || !_busy.Wait(0))
+        if (now - _lastQuiet < UpdateSchedule.QuietEvery || !_busy.Wait(0))
         {
             return;
         }
@@ -111,13 +112,29 @@ internal sealed class Updater(
     /// <summary>Code 129: About opened, so a check runs now; at most once a minute.</summary>
     public Task AskedAsync(CancellationToken stop)
     {
-        if (time.GetUtcNow() - _lastAsked < UpdateSchedule.AskEvery)
+        if (!UpdateSchedule.MayAsk(_lastAsked, time.GetUtcNow()))
         {
             return Task.CompletedTask;
         }
 
         _lastAsked = time.GetUtcNow();
         return CheckAsync(stop);
+    }
+
+    /// <summary>Code 130, About's restart: a person asked, so it waits out a check under way, one restart at a time.</summary>
+    public async Task RestartAsync(CancellationToken stop)
+    {
+        if (Interlocked.Exchange(ref _restarting, 1) == 0)
+        {
+            try
+            {
+                await SwitchReadyAsync(stop);
+            }
+            finally
+            {
+                _restarting = 0;
+            }
+        }
     }
 
     public async Task RunAsync(CancellationToken stop)
@@ -137,7 +154,7 @@ internal sealed class Updater(
                 if (_switchSoon)
                 {
                     _switchSoon = false;
-                    await SwitchOnStartAsync(stop);
+                    await SwitchReadyAsync(stop);
                 }
                 else if (time.GetUtcNow() >= due || _checkSoon)
                 {
@@ -217,7 +234,7 @@ internal sealed class Updater(
             _switcher.Begin(folder.Read(), to, build.Version, back: to < build.Version);
         }
 
-        Prune(next);
+        folder.Prune(next, build.Version, say);
     }
 
     // A check that could not reach the channel still counts, so About tells a PC that never could.
@@ -323,7 +340,7 @@ internal sealed class Updater(
             : $"its {FileCatalog.Name} is not signed by thermi's certificate"
         : null;
 
-    // A version ready switches when a quiet overlay says so, or when the service starts; a PC no one signs in to has no overlay.
+    // A version ready switches when a quiet overlay or About's restart says so, or when the service starts; a PC no one signs in to has no overlay.
     private void SwitchReady()
     {
         var state = folder.Read();
@@ -334,8 +351,8 @@ internal sealed class Updater(
         }
     }
 
-    // After OnStart returned, so the watchdog may stop the service.
-    private async Task SwitchOnStartAsync(CancellationToken stop)
+    // After OnStart returned, so the watchdog may stop the service, or once a check under way is done.
+    private async Task SwitchReadyAsync(CancellationToken stop)
     {
         await _busy.WaitAsync(stop);
         try
@@ -344,7 +361,7 @@ internal sealed class Updater(
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested) // As a check: logged, never the updater's end.
         {
-            say($"thermi could not switch as it started: {ex.Message}", EventLogEntryType.Warning);
+            say($"thermi could not switch to the version ready: {ex.Message}", EventLogEntryType.Warning);
         }
         finally
         {
@@ -352,26 +369,6 @@ internal sealed class Updater(
         }
     }
 
-    private void Prune(UpdateState state)
-    {
-        // The version the launcher at the top starts, which overlays and sign-ins still run while a program holds it.
-        ReleaseVersion? atTop;
-        try
-        {
-            atTop = folder.AtTop();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            say($"thermi could not read the launcher at the top, so it deletes no version until it can: {ex.Message}", EventLogEntryType.Warning);
-            return;
-        }
-
-        HashSet<ReleaseVersion> keep = [build.Version, .. new[] { state.Installed, state.Previous, state.Ready, atTop }.OfType<ReleaseVersion>()];
-        foreach (var removed in folder.Prune(keep))
-        {
-            say($"thermi deleted {removed}, which it no longer keeps.", EventLogEntryType.Information);
-        }
-    }
 
     private bool Trusted()
     {

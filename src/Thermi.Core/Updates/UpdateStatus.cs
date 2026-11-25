@@ -55,7 +55,7 @@ public static class UpdateStatus
             return new UpdateLine(UpdateLineKind.TurnedOff, beta);
         }
 
-        if (asked is { } ask && now - ask < CheckWait && (state.LastCheck is not { } check || check < ask - UpdateSchedule.AskEvery))
+        if (asked is { } ask && now >= ask && now - ask < CheckWait && (state.LastCheck is not { } check || check < ask - UpdateSchedule.AskEvery))
         {
             return new UpdateLine(UpdateLineKind.Checking, beta);
         }

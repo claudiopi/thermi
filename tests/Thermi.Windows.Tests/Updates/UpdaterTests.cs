@@ -134,19 +134,20 @@ public sealed class UpdaterTests
         Assert.Equal((start, start.AddMinutes(1)), (again, pc.State.LastCheck));
     }
 
-    // About's restart switches at once, even within a minute of a quiet session's code.
+    // About's restart switches even within a minute of a quiet session's code, and waits out a check under way.
     [Fact]
     public async Task ARestartSwitchesAtOnce()
     {
         await using var pc = new UpdatePc();
         pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
         using var updater = pc.Updater();
+        var stop = TestContext.Current.CancellationToken;
         updater.Quiet();
 
-        await updater.CheckAsync(TestContext.Current.CancellationToken);
+        await updater.CheckAsync(stop);
         updater.Quiet();
         var before = pc.Watchdogs.Count;
-        updater.Quiet(asked: true);
+        await Task.WhenAll(updater.CheckAsync(stop), updater.RestartAsync(stop));
 
         Assert.Equal((0, 1), (before, pc.Watchdogs.Count));
     }
