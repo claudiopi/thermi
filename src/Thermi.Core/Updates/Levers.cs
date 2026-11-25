@@ -65,7 +65,7 @@ public static class Levers
     public const int WithdrawnKept = 10;
 
     public static LeverResult Publish(
-        IReadOnlyDictionary<string, ChannelHistory> channels, string channel, ReleaseVersion version, IReadOnlyDictionary<string, Package> packages,
+        IReadOnlyDictionary<string, ChannelHistory> channels, string channel, ReleaseVersion version, VersionFiles files,
         int rollout, bool urgent, DateTimeOffset now)
     {
         var current = channels[channel].Current;
@@ -74,9 +74,9 @@ public static class Levers
             return new LeverResult(channels, $"{channel} offers {offered}, above {version}: a channel never goes back; use rollback.");
         }
 
-        if (current?.Version == version && !SamePackages(current.Packages, packages))
+        if (current?.Version == version && !(Same(current.Packages, files.Zips) && Same(current.Msis, files.Msis)))
         {
-            return new LeverResult(channels, $"{version} was published with other files: a version's zips never change; publish a new version.");
+            return new LeverResult(channels, $"{version} was published with other files: a version's files never change; publish a new version.");
         }
 
         if (rollout is < 0 or > 100)
@@ -87,7 +87,8 @@ public static class Levers
         var next = Next(current, channel, now) with
         {
             Version = version,
-            Packages = packages,
+            Packages = files.Zips,
+            Msis = files.Msis,
             Rollout = rollout,
             Urgent = urgent,
             Disabled = false,
@@ -99,7 +100,8 @@ public static class Levers
             result[Manifest.Beta] = channels[Manifest.Beta].With(Next(beta, Manifest.Beta, now) with
             {
                 Version = version,
-                Packages = packages,
+                Packages = files.Zips,
+                Msis = files.Msis,
                 Rollout = 100,
                 Urgent = urgent,
                 Disabled = false,
@@ -114,7 +116,7 @@ public static class Levers
         IReadOnlyDictionary<string, ChannelHistory> channels, string from, string to, int rollout, bool? urgent, DateTimeOffset now)
     {
         return channels[from].Current is { Version: { } version } source
-            ? Publish(channels, to, version, source.Packages, rollout, urgent ?? source.Urgent, now)
+            ? Publish(channels, to, version, VersionFiles.Of(source), rollout, urgent ?? source.Urgent, now)
             : new LeverResult(channels, $"{from} offers no version to promote.");
     }
 
@@ -139,6 +141,7 @@ public static class Levers
         {
             Version = before.Version,
             Packages = before.Packages,
+            Msis = before.Msis,
             Rollout = 100,
             Urgent = false,
             Disabled = false,
@@ -186,6 +189,6 @@ public static class Levers
     private static Manifest Next(Manifest? current, string channel, DateTimeOffset now) =>
         (current ?? new Manifest { Channel = channel }) with { Sequence = checked((current?.Sequence ?? 0) + 1), Expires = now + Manifest.Lifetime };
 
-    private static bool SamePackages(IReadOnlyDictionary<string, Package> one, IReadOnlyDictionary<string, Package> other) =>
+    private static bool Same(IReadOnlyDictionary<string, Package> one, IReadOnlyDictionary<string, Package> other) =>
         one.Count == other.Count && one.All(package => other.TryGetValue(package.Key, out var same) && same == package.Value);
 }

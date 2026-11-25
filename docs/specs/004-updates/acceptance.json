@@ -174,14 +174,14 @@
       "covers": ["R33"],
       "description": "Given a version published with its MSIs, when the manifest is read, then each processor's machine MSI has its URL, size and SHA-256, and a manifest without them still reads.",
       "check": "TheManifestListsEachVersionsMachineMsi",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A26",
       "covers": ["R31"],
       "description": "Given the user's installed products, per-user and machine, of thermi and others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi by its per-user UpgradeCode.",
       "check": "OnlyTheUsersOwnPerUserProductIsRemoved",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A27",
@@ -202,7 +202,7 @@
       "covers": ["R30"],
       "description": "Given the machine MSI's source, when its driver action is read, then ADDDRIVER is a secure property and the action runs only under NOT Installed AND ADDDRIVER = 1, so no repair adds the driver.",
       "check": "TheDriverPropertyActsOnlyOnAFirstInstall",
-      "passes": false
+      "passes": true
     }
   ]
 }

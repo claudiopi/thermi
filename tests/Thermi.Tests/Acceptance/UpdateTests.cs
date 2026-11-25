@@ -166,8 +166,8 @@ public sealed class UpdateTests
         var release = key.ExportSubjectPublicKeyInfo();
         using var backupKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var backup = backupKey.ExportSubjectPublicKeyInfo();
-        var zips = new Dictionary<string, Package>(StringComparer.Ordinal) { ["x64"] = Zip };
-        var other = new Dictionary<string, Package>(StringComparer.Ordinal) { ["x64"] = Zip with { Sha256 = new string('b', 64) } };
+        var zips = new VersionFiles(new Dictionary<string, Package>(StringComparer.Ordinal) { ["x64"] = Zip }, new Dictionary<string, Package>());
+        var other = zips with { Zips = new Dictionary<string, Package>(StringComparer.Ordinal) { ["x64"] = Zip with { Sha256 = new string('b', 64) } } };
         IReadOnlyDictionary<string, ChannelHistory> channels = new Dictionary<string, ChannelHistory>(StringComparer.Ordinal)
         {
             [Manifest.Stable] = new([]),
@@ -384,14 +384,15 @@ public sealed class UpdateTests
         $"{channels[Manifest.Stable].Current?.Version} {channels[Manifest.Beta].Current?.Version}";
 
     // Records compare their collections by reference; a manifest read back holds new ones.
-    private sealed class ManifestComparer : IEqualityComparer<Manifest?>
+    internal sealed class ManifestComparer : IEqualityComparer<Manifest?>
     {
         public static readonly ManifestComparer Instance = new();
 
         public bool Equals(Manifest? x, Manifest? y) =>
             x is not null && y is not null
-            && (x with { Packages = y.Packages, Withdrawn = y.Withdrawn }) == y
+            && (x with { Packages = y.Packages, Msis = y.Msis, Withdrawn = y.Withdrawn }) == y
             && x.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).SequenceEqual(y.Packages.OrderBy(p => p.Key, StringComparer.Ordinal))
+            && x.Msis.OrderBy(p => p.Key, StringComparer.Ordinal).SequenceEqual(y.Msis.OrderBy(p => p.Key, StringComparer.Ordinal))
             && x.Withdrawn.SequenceEqual(y.Withdrawn);
 
         public int GetHashCode(Manifest? obj) => obj?.Sequence.GetHashCode() ?? 0;

@@ -11,7 +11,7 @@ A release names the SHA-256 thumbprints of the certificates, separated by semico
 Every other command goes to thermi-releases (src/Thermi.Releases), which writes the channel's next signed manifest into
 a channels folder laid out as the server is:
   keys --out <folder>
-  publish --folder <channels> --channel beta --version 0.9.1 --zip x64=<zip> arm64=<zip> --base-url <url> [--rollout 10] [--urgent]
+  publish --folder <channels> --channel beta --version 0.9.1 --zip x64=<zip> arm64=<zip> [--msi x64=<msi> arm64=<msi>] --base-url <url> [--rollout 10] [--urgent]
   promote --folder <channels> [--from beta --to stable] [--rollout 100]
   rollback | disable | refresh | unrevoke --folder <channels> --channel stable
   revoke --folder <channels> --channel stable --release-key <release.pub.pem> --backup-key <backup.key.pem>

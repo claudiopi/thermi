@@ -4,8 +4,14 @@ using System.Text.Json.Serialization;
 
 namespace Thermi.Core.Updates;
 
-/// <summary>One processor's zip of a version: where it is, and the size and SHA-256 it must have.</summary>
+/// <summary>One processor's zip or MSI of a version: where it is, and the size and SHA-256 it must have.</summary>
 public sealed record Package(Uri Url, long Size, string Sha256);
+
+/// <summary>A version's files by processor: the zips an update unpacks, and the machine MSIs a per-user install runs.</summary>
+public sealed record VersionFiles(IReadOnlyDictionary<string, Package> Zips, IReadOnlyDictionary<string, Package> Msis)
+{
+    public static VersionFiles Of(Manifest manifest) => new(manifest.Packages, manifest.Msis);
+}
 
 /// <summary>
 /// What a channel offers now, signed by thermi's release key: its version and each processor's zip, the rollout's
@@ -42,6 +48,9 @@ public sealed record Manifest
     public ReleaseVersion? Version { get; init; }
 
     public IReadOnlyDictionary<string, Package> Packages { get; init; } = new Dictionary<string, Package>(StringComparer.Ordinal);
+
+    /// <summary>Each processor's machine MSI of the version, which a per-user install runs to install for everyone.</summary>
+    public IReadOnlyDictionary<string, Package> Msis { get; init; } = new Dictionary<string, Package>(StringComparer.Ordinal);
 
     public int Rollout { get; init; } = 100;
 
@@ -148,7 +157,11 @@ public static class ManifestEnvelope
         && Manifest.Channels.Contains(manifest.Channel, StringComparer.Ordinal)
         && manifest.Sequence > 0
         && manifest.Rollout is >= 0 and <= 100
-        && manifest.Packages.All(package => Manifest.Processors.Contains(package.Key, StringComparer.Ordinal) && Valid(package.Value));
+        && Valid(manifest.Packages)
+        && Valid(manifest.Msis);
+
+    private static bool Valid(IReadOnlyDictionary<string, Package> packages) =>
+        packages.All(package => Manifest.Processors.Contains(package.Key, StringComparer.Ordinal) && Valid(package.Value));
 
     // Over HTTPS, or HTTP to this PC alone, for a test channel: trust rests on the signature and the hash, never the transport.
     private static bool Valid(Package package) =>

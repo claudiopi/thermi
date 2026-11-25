@@ -70,16 +70,27 @@ internal static class Program
             Required = true,
             AllowMultipleArgumentsPerToken = true,
         };
+        var msis = new Option<string[]>("--msi")
+        {
+            Description = "processor=path of each machine MSI, which a per-user install runs to install for everyone.",
+            AllowMultipleArgumentsPerToken = true,
+        };
         var baseUrl = new Option<string>("--base-url") { Description = "Where the folder is served, ending in /v1/.", Required = true };
-        var command = new Command("publish", "Puts a build on a channel.") { Folder, Trust, Key, Channel, version, zips, baseUrl, Rollout, Urgent };
+        var command = new Command("publish", "Puts a build on a channel.") { Folder, Trust, Key, Channel, version, zips, msis, baseUrl, Rollout, Urgent };
         command.SetAction(parsed => Run(parsed, (channels, folder, now) =>
         {
             var release = ReleaseVersion.Parse(parsed.GetValue(version)) ?? throw new InvalidOperationException("--version is not a release version.");
-            var packages = parsed.GetValue(zips)!.Select(zip => zip.Split('=', 2)).ToDictionary(
-                pair => pair[0],
-                pair => folder.Add(release, pair[0], pair[1], new Uri(parsed.GetValue(baseUrl)!)),
-                StringComparer.Ordinal);
-            return Levers.Publish(channels, parsed.GetValue(Channel)!, release, packages, parsed.GetValue(Rollout), parsed.GetValue(Urgent), now);
+            var served = new Uri(parsed.GetValue(baseUrl)!);
+            Dictionary<string, Package> Added(string[]? files, bool msi)
+            {
+                return (files ?? []).Select(file => file.Split('=', 2)).ToDictionary(
+                    pair => pair[0],
+                    pair => folder.Add(release, pair[0], pair[1], served, msi),
+                    StringComparer.Ordinal);
+            }
+
+            var files = new VersionFiles(Added(parsed.GetValue(zips), msi: false), Added(parsed.GetValue(msis), msi: true));
+            return Levers.Publish(channels, parsed.GetValue(Channel)!, release, files, parsed.GetValue(Rollout), parsed.GetValue(Urgent), now);
         }));
         return command;
     }

@@ -12,7 +12,7 @@ The update server is static files: each channel's signed envelope, `stable.json`
 
 | Lever | What PCs do |
 | --- | --- |
-| `publish --channel beta --version <v> --zip x64=<zip> arm64=<zip> --base-url <url> [--rollout 10] [--urgent]` | Take the version as their rollout number allows. Urgent skips waiting for idle time. |
+| `publish --channel beta --version <v> --zip x64=<zip> arm64=<zip> [--msi x64=<msi> arm64=<msi>] --base-url <url> [--rollout 10] [--urgent]` | Take the version as their rollout number allows. Urgent skips waiting for idle time. The machine MSIs are what a per-user install runs to install for everyone (`docs/adr/0016-admin-on-demand.md`). |
 | `promote [--from beta --to stable] [--rollout 100]` | Stable takes beta's version. |
 | `rollback --channel stable` | The version is withdrawn: PCs on it go back to the version they kept, and the one before is offered. |
 | `disable --channel stable` | PCs stop taking anything until the next publish. |

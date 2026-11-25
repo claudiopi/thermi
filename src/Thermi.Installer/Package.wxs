@@ -12,6 +12,8 @@
                   DowngradeErrorMessage="A newer thermi is installed. Uninstall it from Installed apps first." />
     <MediaTemplate EmbedCab="yes" />
     <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+    <!-- Secure, so it reaches the elevated part when a standard user starts msiexec and an administrator consents. -->
+    <Property Id="ADDDRIVER" Secure="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="installfolder" Name="thermi">
@@ -60,6 +62,10 @@
                   ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --forget" />
     <CustomAction Id="TakeOff" Directory="setupfolder" Execute="deferred" Impersonate="no" Return="check"
                   ExeCommand="&quot;[setupfolder]thermi-sensors.exe&quot; --remove" />
+    <!-- The driver comes through the thermi-elevated service, as the window's fix does (docs/adr/0010-driver-and-service-from-the-window.md),
+         never from the install itself; a driver that fails leaves thermi installed and the fix offered. -->
+    <CustomAction Id="InstallDriver" Directory="setupfolder" Execute="deferred" Impersonate="no" Return="ignore"
+                  ExeCommand="&quot;[System64Folder]sc.exe&quot; start thermi-elevated install-driver" />
     <!-- The overlay of the person who ran the MSI by hand; a silent install, as Intune's, starts none as SYSTEM. -->
     <CustomAction Id="StartOverlay" Directory="installfolder" Execute="immediate" Impersonate="yes" Return="asyncNoWait"
                   ExeCommand="&quot;[installfolder]thermi.exe&quot;" />
@@ -69,6 +75,8 @@
       <Custom Action="Undo" After="InstallFiles" Condition="NOT REMOVE" />
       <Custom Action="Adopt" After="Undo" Condition="NOT REMOVE" />
       <Custom Action="Forget" After="Adopt" Condition="NOT REMOVE" />
+      <!-- A first install alone, which always needs an administrator's consent: a repair sets Installed. -->
+      <Custom Action="InstallDriver" After="Forget" Condition="NOT Installed AND ADDDRIVER = 1" />
       <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
     </InstallExecuteSequence>
   </Package>

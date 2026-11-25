@@ -69,17 +69,18 @@ internal sealed class ChannelFolder(string root, byte[] release, byte[] backup)
     }
 
     /// <summary>
-    /// Copies a processor's zip of <paramref name="version"/> into the folder, where it is served from
-    /// <paramref name="baseUrl"/>: a zip already there must be the same bytes, since a version's zips never change.
+    /// Copies a processor's zip, or with <paramref name="msi"/> its machine MSI, of <paramref name="version"/> into the
+    /// folder, where it is served from <paramref name="baseUrl"/>: a file already there must be the same bytes, since a
+    /// version's files never change.
     /// </summary>
-    public Package Add(ReleaseVersion version, string processor, string zip, Uri baseUrl)
+    public Package Add(ReleaseVersion version, string processor, string file, Uri baseUrl, bool msi = false)
     {
-        var name = $"zips/{version}/thermi-{version}-{processor}.zip";
+        var name = msi ? $"msis/{version}/thermi-{version}-{processor}.msi" : $"zips/{version}/thermi-{version}-{processor}.zip";
         var target = Path.Combine(root, name.Replace('/', Path.DirectorySeparatorChar));
-        var bytes = File.ReadAllBytes(zip);
+        var bytes = File.ReadAllBytes(file);
         if (File.Exists(target) && !File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))
         {
-            throw new InvalidOperationException($"{name} was published with other bytes: a version's zips never change.");
+            throw new InvalidOperationException($"{name} was published with other bytes: a version's files never change.");
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
