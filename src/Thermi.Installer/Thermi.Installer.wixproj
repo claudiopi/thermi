@@ -1,6 +1,7 @@
 <Project Sdk="WixToolset.Sdk/5.0.2">
   <!-- The MSI of one version for one processor (docs/adr/0008-updates.md), built from that version's published folder:
-       `pwsh scripts/updates.ps1 pack` builds it, given its MSI option. Outside thermi.slnx, since it needs a publish first.
+       `pwsh scripts/updates.ps1 pack` builds it, given its MSI option.
+       thermi.slnx lists its files but never builds it, since it needs a publish first.
        ThermiScope perUser builds the per-user MSI of docs/adr/0016-admin-on-demand.md, named with -user. -->
   <PropertyGroup>
     <ThermiScope Condition="'$(ThermiScope)' == ''">perMachine</ThermiScope>

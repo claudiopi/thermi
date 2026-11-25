@@ -8,7 +8,30 @@
     <Project Path="src/Thermi.Client/Thermi.Client.csproj" />
     <Project Path="src/Thermi.Trust/Thermi.Trust.csproj" />
   </Folder>
+  <!-- The MSI needs a published version first and WiX's Visual Studio extension to load, so it is here as its files;
+       scripts/updates.ps1 builds it. -->
+  <Folder Name="/src/Thermi.Installer/">
+    <File Path="src/Thermi.Installer/Package.wxs" />
+    <File Path="src/Thermi.Installer/README.md" />
+    <File Path="src/Thermi.Installer/Thermi.Installer.wixproj" />
+  </Folder>
+  <!-- The settings page is an npm project, which the .NET build of Thermi.Windows builds; its top files are here, and
+       src/Thermi.Settings.Web/README.md maps its folders. -->
+  <Folder Name="/src/Thermi.Settings.Web/">
+    <File Path="src/Thermi.Settings.Web/.gitignore" />
+    <File Path="src/Thermi.Settings.Web/.npmrc" />
+    <File Path="src/Thermi.Settings.Web/eslint.config.js" />
+    <File Path="src/Thermi.Settings.Web/index.html" />
+    <File Path="src/Thermi.Settings.Web/knip.jsonc" />
+    <File Path="src/Thermi.Settings.Web/package.json" />
+    <File Path="src/Thermi.Settings.Web/playwright.config.ts" />
+    <File Path="src/Thermi.Settings.Web/README.md" />
+    <File Path="src/Thermi.Settings.Web/stryker.config.json" />
+    <File Path="src/Thermi.Settings.Web/tsconfig.json" />
+    <File Path="src/Thermi.Settings.Web/vite.config.ts" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Thermi.Tests/Thermi.Tests.csproj" />
-    <Project Path="tests/Thermi.Windows.Tests/Thermi.Windows.Tests.csproj" />  </Folder>
+    <Project Path="tests/Thermi.Windows.Tests/Thermi.Windows.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -142,7 +142,7 @@ function Get-Rate([hashtable]$Hits) {
 }
 
 function Invoke-DotNet {
-    # The installer too, outside thermi.slnx, whose custom actions' package the notices list.
+    # The installer too, which thermi.slnx lists but never builds, whose custom actions' package the notices list.
     Invoke-Step 'restore' {
         dotnet restore thermi.slnx $(if ($Ci) { '--locked-mode' })
         if ($LASTEXITCODE -eq 0) { dotnet restore src/Thermi.Installer $(if ($Ci) { '--locked-mode' }) }
