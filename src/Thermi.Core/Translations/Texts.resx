@@ -741,6 +741,15 @@
   <data name="UiText.ChartNow" xml:space="preserve">
     <value>now</value>
   </data>
+  <data name="UiText.ChartPoint" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="UiText.ChartNoReading" xml:space="preserve">
+    <value>No reading</value>
+  </data>
+  <data name="UiText.ChartMinutesSecondsAgo" xml:space="preserve">
+    <value>{0} min {1} s ago</value>
+  </data>
   <data name="UiText.MoveToNewOverlay" xml:space="preserve">
     <value>Move to a new overlay</value>
   </data>

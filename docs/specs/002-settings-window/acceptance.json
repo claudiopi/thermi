@@ -1716,6 +1716,15 @@
       "description": "Given the installed thermi, when an item's value in the CPU pill is held, dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its pill and before the pill elsewhere, and the pill's label held lifts the whole pill as before.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A352",
+      "covers": [
+        "R200"
+      ],
+      "description": "Given the CPU temperature's page, with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot at a second in the gap and at one 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label says that second's reading as the bridge words it, or that it has none, and how long ago it came, above Min · Avg · Max; a screen reader hears it after each key and not after the pointer's moves; and Esc hides it.",
+      "check": "AChartsPointSaysItsReadingAndWhen",
+      "passes": true
     }
   ]
 }

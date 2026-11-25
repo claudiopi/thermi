@@ -97,6 +97,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             from,
             to,
             span,
+            [.. span.Select(value => value is { } read ? Said(read) : null)],
             warning,
             critical,
             warning is { } low ? Said(low) : null,

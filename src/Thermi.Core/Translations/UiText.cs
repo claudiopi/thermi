@@ -235,6 +235,14 @@ public enum UiText
     /// <summary>The chart's axis at its end.</summary>
     ChartNow,
 
+    /// <summary>A point of the chart: its second's reading, or <see cref="ChartNoReading"/>, and how long ago it came.</summary>
+    ChartPoint,
+
+    ChartNoReading,
+
+    /// <summary>How long ago a point of the chart came, past a minute: its minutes and seconds.</summary>
+    ChartMinutesSecondsAgo,
+
     MoveToNewOverlay,
 
     /// <summary>A row menu's entry that moves the item to another overlay: the overlay's name.</summary>

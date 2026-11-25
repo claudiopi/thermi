@@ -92,6 +92,9 @@ public sealed class BridgeContractTests
             Assert.True(chart is { Empty: null, Stats: not null } && (Threshold.Judges(item) || chart is { Warning: null, Critical: null }), item.Id);
             var unit = chart.Stats.Split(' ')[^1];
             Assert.All(new[] { chart.WarningText, chart.CriticalText }.OfType<string>(), line => Assert.EndsWith($" {unit}", line, StringComparison.Ordinal));
+            Assert.Equal(
+                chart.Readings.Select(reading => reading is not null),
+                chart.ReadingTexts.Select(said => said?.EndsWith($" {unit}", StringComparison.Ordinal) == true));
             if (item.Id == Metrics.CpuFan.Id)
             {
                 Assert.Equal((fanUnit, fanTitled), (unit, chart.Title == Texts.English.Of(ChartText.DutyTitle)));
