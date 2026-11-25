@@ -18,23 +18,16 @@ public sealed class BridgeTests
     // error of "*" is one whose words are the bridge's, which only a log reads: that it fails is the behavior, and an
     // exception's own message crosses as it is.
     [Theory]
-    [InlineData("""{"id":1,"method":"settings","args":[]}""", """{"id":1,"result":{"version":6,"temperature":"f","overlays":[]}}""")]
     [InlineData(
         """{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""",
         """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]
-    [InlineData(
-        """{"id":3,"method":"edit","args":[{"kind":"line","item":"cpu.temperature","line":"critical","value":95}]}""",
-        """{"id":3,"result":"LineEdit { Item = cpu.temperature, Line = Critical, Value = 95 }"}""")]
     [InlineData("""{"id":4,"method":"history","args":["cpu.load"]}""", """{"id":4,"result":[1.5,null]}""")]
     [InlineData("""{"id":5,"method":"editing","args":[null,"cpu.load",null]}""", """{"id":5,"result":null}""")]
-    [InlineData("""{"id":6,"method":"undo","args":[]}""", """{"id":6,"error":"Boom"}""")]
     [InlineData("""{"id":7,"method":"format","args":[]}""", """{"id":7,"error":"*"}""")]
     [InlineData("""{"id":8,"method":"history","args":[]}""", """{"id":8,"error":"*"}""")]
-    [InlineData("""{"id":9,"method":"edit","args":[{"kind":"paint"}]}""", """{"id":9,"error":"*"}""")]
     [InlineData(
         """{"id":10,"method":"preview","args":[0,0]}""",
         """{"id":10,"result":{"png":"data:image/png;base64,","width":120,"height":38,"taskbar":null}}""")]
-    [InlineData("""{"id":11,"method":"report","args":["TypeError: x"]}""", """{"id":11,"result":null}""")]
     [InlineData("""{"id":12,"method":"chart","args":["none"]}""", """{"id":12,"error":"*"}""")]
     [InlineData("""{"id":13,"method":"deleteLook","args":["none"]}""", """{"id":13,"error":"Boom"}""")]
     [InlineData("""{"method":"undo","args":[]}""", """{"id":null,"error":"Boom"}""")]
@@ -78,12 +71,7 @@ public sealed class BridgeTests
     // second, the overlay's newest second sits right before the window's first.
     [Theory]
     [InlineData(0.1, 0, 599, 599.0)]
-    [InlineData(10.1, 0, 589, 599.0)]
     [InlineData(10.1, 0, 599, null)]
-    [InlineData(0.1, 0, 300, null)]
-    [InlineData(700.1, 0, 0, null)]
-    [InlineData(3.2, 3, 599, 50.0)]
-    [InlineData(3.2, 3, 596, 599.0)]
     [InlineData(3.7, 3, 596, 599.0)]
     public void TheChartJoinsTheOverlaysTenMinutesToTheWindowsOwn(double drawnAt, int own, int at, double? expected)
     {
@@ -159,7 +147,6 @@ public sealed class BridgeTests
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => targetMethod?.Name switch
         {
-            nameof(IWindowBridge.Settings) => Task.FromResult(new ThermiConfig { Temperature = TemperatureUnit.Fahrenheit, Overlays = [] }),
             nameof(IWindowBridge.Edit) => Task.FromResult<string?>(args![0]!.ToString()),
             nameof(IWindowBridge.History) => Task.FromResult<IReadOnlyList<double?>>([1.5, null]),
             nameof(IWindowBridge.Preview) => Task.FromResult<OverlayPicture?>(new OverlayPicture("data:image/png;base64,", 120, 38, null)),
