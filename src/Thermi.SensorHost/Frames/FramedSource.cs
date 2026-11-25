@@ -14,10 +14,11 @@ namespace Thermi.SensorHost.Frames;
 internal sealed class FramedSource : ISensorSource
 {
     /// <summary>
-    /// How far behind now a second closes: a real-time trace delivers its presents within a second, well after its flush,
-    /// and a present that comes after its second closed is lost.
+    /// How far behind now a second closes: a present that comes after its second closed is lost, and a real-time trace
+    /// delivers its presents well after its flush, 0.41 s after they happen at the median and 0.74 s at most on a game at
+    /// 160 FPS, as <c>--frames</c> records them.
     /// </summary>
-    public static readonly TimeSpan Lag = TimeSpan.FromSeconds(1);
+    public static readonly TimeSpan Lag = TimeSpan.FromMilliseconds(900);
 
     public static readonly TimeSpan Idle = TimeSpan.FromSeconds(5);
 
