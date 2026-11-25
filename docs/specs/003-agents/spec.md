@@ -11,7 +11,7 @@ thermi exists because AI agents running for hours cooked their owner's PC. The a
 The door
 
 - R1. `thermi-cli` runs from PowerShell, cmd and Git Bash once thermi is installed: the shell waits for it, it prints to that shell, and it exits with its code. With no command it prints its help; it never starts an overlay.
-- R2. Every command prints one JSON document on stdout, with `"schema": 1`, and nothing else; errors and help go to stderr. Exit codes: 0 done, 1 refused by thermi's rules, 2 bad arguments, 3 the sensor service unreachable, stopped or stale, 4 the settings file broken.
+- R2. A command that ends with 0 or 1 prints one JSON document on stdout, with `"schema": 1`, and nothing else; one that ends with 2, 3 or 4 prints only what it had printed before, as a watch's lines, or `config`'s settings as read. Errors and help go to stderr. Exit codes: 0 done, 1 refused by thermi's rules, 2 bad arguments, 3 the sensor service unreachable, stopped or stale, 4 the settings file broken, newer or locked, or a write of it or of a saved look's file refused by Windows.
 - R3. Every command works the same with no overlay and no settings window running.
 - R4. Nothing `thermi-cli` does runs elevated, asks for administrator rights, starts the sensor service or installs the driver.
 

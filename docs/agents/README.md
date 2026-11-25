@@ -31,7 +31,7 @@ An edit is a JSON object with its `kind`, in any order: the settings window's ow
 
 ## The contract
 
-A command that ends with 0 or 1 prints one JSON document on stdout, with `"schema": 1`, and nothing else; one that ends with 2, 3 or 4 prints nothing there, `config` aside, which still shows the settings it could read. Errors and help go to stderr. The documents of `status`, `read` and `sensors`, and each line of `watch`, are the contract other programs build on, with a JSON Schema each in `schema/`, written in the build from the records that answer them, so the two cannot differ.
+A command that ends with 0 or 1 prints one JSON document on stdout, with `"schema": 1`, and nothing else; one that ends with 2, 3 or 4 prints nothing there but what it had printed before, as the lines of a `watch` the service stopped answering, and `config`, which still shows the settings it could read. Errors and help go to stderr. The documents of `status`, `read` and `sensors`, and each line of `watch`, are the contract other programs build on, with a JSON Schema each in `schema/`, written in the build from the records that answer them, so the two cannot differ.
 
 | Exit | Means |
 | --- | --- |

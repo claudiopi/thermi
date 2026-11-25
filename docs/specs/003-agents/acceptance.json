@@ -90,7 +90,7 @@
       "covers": [
         "R13"
       ],
-      "description": "Given a settings file broken by hand, when edit runs, then it exits 4 with the problem and the file is unchanged byte for byte.",
+      "description": "Given a settings file broken by hand, or one another program keeps locked, when edit runs, then it exits 4 with the problem and the file is unchanged byte for byte.",
       "check": "ABrokenFileRefusesAgentEdits",
       "passes": true
     },
@@ -108,7 +108,7 @@
       "covers": [
         "R15"
       ],
-      "description": "Given an MCP session's commands, an undo called while an edit waits for the settings file takes that edit back once it is written. Given an MCP session that set one item's name twice and another's once, the other renamed since by hand, when an undo is kept from writing by the file's lock, then the next undo is still that step, and finds nothing of its own left to take back; the next takes back only the second name, the hand edit stays, and redo sets it again.",
+      "description": "Given an MCP session's commands, an undo called while an edit is still under way waits for it and takes it back. Given an MCP session that set one item's name twice and another's once, the other renamed since by hand, when an undo is kept from writing by the file's lock, then the next undo is still that step, and finds nothing of its own left to take back; the next takes back only the second name, the hand edit stays, and redo sets it again.",
       "check": "McpUndoTakesBackOnlyItsOwn",
       "passes": true
     },

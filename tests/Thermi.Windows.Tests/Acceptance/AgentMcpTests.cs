@@ -72,16 +72,12 @@ public sealed class AgentMcpTests : IDisposable
     {
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
 
-        // Changes go one at a time: an undo called while an edit waits for the file takes that edit back.
+        // Changes go one at a time: an undo called while an edit is still under way waits for it, and takes it back.
         using (var commands = new AgentCommands(_rig.Environment, _rig.Folder.Clock))
         {
-            Task<AgentReply> edit, undo;
-            using (MutexHolder.Holding(_rig.Folder.MutexName))
-            {
-                var named = """{"kind":"item","item":"cpu.temperature","field":"name","value":"Raced"}""";
-                edit = commands.RunAsync(new AgentRequest(AgentVerb.Edit) { Text = named }, TestContext.Current.CancellationToken);
-                undo = commands.UndoAsync(TestContext.Current.CancellationToken);
-            }
+            var named = """{"kind":"item","item":"cpu.temperature","field":"name","value":"Raced"}""";
+            var edit = commands.RunAsync(new AgentRequest(AgentVerb.Edit) { Text = named }, TestContext.Current.CancellationToken);
+            var undo = commands.UndoAsync(TestContext.Current.CancellationToken);
 
             for (var step = 0; !(edit.IsCompleted && undo.IsCompleted) && step < 2000; step++)
             {
