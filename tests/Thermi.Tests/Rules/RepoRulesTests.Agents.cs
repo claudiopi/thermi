@@ -10,7 +10,12 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void AgentsNeverElevate()
     {
-        string[] agents = [Path.Combine("src", "Thermi", "Agents"), Path.Combine("src", "Thermi.Core", "Agents"), Path.Combine("src", "Thermi", "Commands", "AgentCommandLine.cs")];
+        string[] agents =
+        [
+            Path.Combine("src", "Thermi", "Agents"),
+            Path.Combine("src", "Thermi.Core", "Agents"),
+            Path.Combine("src", "Thermi", "Commands", "AgentCommandLine.cs"),
+        ];
         var reached = RepoFiles([".cs"])
             .Where(path => agents.Any(part => Relative(path).StartsWith(part, StringComparison.Ordinal)))
             .SelectMany(path => File.ReadLines(path)
@@ -23,6 +28,9 @@ public sealed partial class RepoRulesTests
         AssertNone(reached);
     }
 
-    [GeneratedRegex(@"\bElevated\w*|runas|ServiceController|IServiceManager|WindowsServices|DriverParts|InstallDriver|StartSensors\.(?!Service\b)\w+|ShellExecute", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex(
+        @"\bElevated\w*|runas|ServiceController|IServiceManager|WindowsServices|DriverParts|InstallDriver|StartSensors\.(?!Service\b)\w+|ShellExecute",
+        RegexOptions.None,
+        matchTimeoutMilliseconds: 1000)]
     private static partial Regex Elevating();
 }

@@ -7,7 +7,8 @@ using Thermi.Settings.Types;
 if (args is not [var folder, var schemas])
 {
     await Console.Error.WriteLineAsync(
-        "thermi-settings-types <folder> <schemas>: writes bridge.g.ts, texts.g.ts and client.g.ts into the first, and the agents' JSON Schemas into the second.");
+        "thermi-settings-types <folder> <schemas>: writes bridge.g.ts, texts.g.ts and client.g.ts into the first, "
+            + "and the agents' JSON Schemas into the second.");
     return 2;
 }
 

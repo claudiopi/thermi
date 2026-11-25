@@ -36,7 +36,10 @@ public sealed class AgentDoorTests : IDisposable
         {
             Shell.PowerShell => ("pwsh", new[]
             {
-                "-NoProfile", "-NonInteractive", "-Command", $"& '{Cli}' monitors > '{captured}'; if ($LASTEXITCODE) {{ exit 9 }}; & '{Cli}'; exit $LASTEXITCODE",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                $"& '{Cli}' monitors > '{captured}'; if ($LASTEXITCODE) {{ exit 9 }}; & '{Cli}'; exit $LASTEXITCODE",
             }),
             Shell.Cmd => ("cmd", ["/d", "/c", Script(folder, "door.cmd",
                 $"@\"{Cli}\" monitors > \"{captured}\"\r\n@if errorlevel 1 exit /b 9\r\n@\"{Cli}\"\r\n@exit /b %errorlevel%\r\n")]),

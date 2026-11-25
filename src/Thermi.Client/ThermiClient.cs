@@ -102,7 +102,8 @@ public sealed class ThermiClient
 
     private static string? Locate()
     {
-        var folders = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var folders = (Environment.GetEnvironmentVariable("PATH") ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "thermi"));
         return folders.Select(folder => Path.Combine(folder, Cli)).FirstOrDefault(File.Exists);
     }

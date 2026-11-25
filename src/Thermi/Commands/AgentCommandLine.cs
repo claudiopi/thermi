@@ -95,7 +95,12 @@ internal static class AgentCommandLine
             Arity = ArgumentArity.ZeroOrMore,
             Description = $"Metrics as cpu.temperature, sensor ids, or items as {AgentReads.ItemPrefix}<id>; every metric and item when none.",
         };
-        var seconds = new Option<int>("--seconds") { Description = "Samples once a second for this long, 1 to 60.", DefaultValueFactory = _ => 1, CustomParser = Seconds };
+        var seconds = new Option<int>("--seconds")
+        {
+            Description = "Samples once a second for this long, 1 to 60.",
+            DefaultValueFactory = _ => 1,
+            CustomParser = Seconds,
+        };
         var watched = new Argument<string[]>("ids") { Arity = ArgumentArity.ZeroOrMore, Description = ids.Description };
         var search = new Option<string?>("--search") { Description = "Finds sensors as the settings window's search does." };
         var types = new Option<SensorKind[]>("--type") { Description = "Only sensors of these types.", AllowMultipleArgumentsPerToken = true };

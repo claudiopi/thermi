@@ -11,12 +11,14 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi.Core` | Everything that does not need Windows: readings, sensor mapping, config and layout. No dependencies. |
 | `src/Thermi` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
-| `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys. |
+| `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
+| `src/Thermi.Client` | The .NET SDK of the agents' contract, which starts `thermi-cli`: `net8.0`, MIT, no dependencies. |
 | `src/Thermi.SensorHost` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor, and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |
 | `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |
 | `docs/QUICKSTART.md`, `docs/ARCHITECTURE.md` | What thermi is, as a story, and how it is built, with the real names. |
+| `docs/agents` | The contract `thermi-cli` answers AI agents and other programs, with its JSON Schemas. |
 | `docs/specs` | What each feature must do, with its acceptance checks. Read the spec before working on a feature. |
 | `docs/adr` | Why things are the way they are. Read before changing architecture. |
 
@@ -64,6 +66,8 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Docs only cite paths that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |
 | A rule is turned off only in `Thermi.globalconfig`, with the reason above it. In code, a suppression says why on the same line. NuGet warnings are never suppressed: update the package. | `RepoRulesTests` |
 | Package versions live in `Directory.Packages.props`; lock files are committed; packages come only from nuget.org. | NuGet, `nuget.config`, `--locked-mode` in CI |
+| `thermi-cli` never elevates, starts a service or installs anything. | `RepoRulesTests` |
+| Every answer of the agents' contract validates against its schema, and a schema only grows. | `ContractTests` |
 | `THIRD-PARTY-NOTICES.md` lists every package that ships, NuGet and npm, with its license. | `scripts/notices.ps1 -Check` in `scripts/check.ps1` |
 | thermi's version lives only in `Directory.Build.props`, and About shows it. | `BridgeContractTests` |
 | Every agent brief pins its model. | `RepoRulesTests` |

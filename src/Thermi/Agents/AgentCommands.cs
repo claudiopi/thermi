@@ -36,7 +36,8 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
         AgentVerb.Read => ReadAsync(request, stop),
         AgentVerb.Sensors => SensorsAsync(request, stop),
         AgentVerb.Config => ConfigAsync(),
-        AgentVerb.Monitors => Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
+        AgentVerb.Monitors =>
+            Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
         AgentVerb.Looks => Task.FromResult(Looks()),
         AgentVerb.Edit => EditAsync(request.Text ?? "", stop),
         AgentVerb.Look => LookAsync(request),
@@ -130,7 +131,9 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
     }
 
     private static AgentReply UnknownIds(ReadAnswer answer) =>
-        new(AgentExit.BadArguments, Error: $"No metric, sensor or item is named {string.Join(", ", answer.Unknown)}; sensors lists the sensors, config the items.");
+        new(
+            AgentExit.BadArguments,
+            Error: $"No metric, sensor or item is named {string.Join(", ", answer.Unknown)}; sensors lists the sensors, config the items.");
 
     private async Task<ConfigRead> SettingsAsync()
     {

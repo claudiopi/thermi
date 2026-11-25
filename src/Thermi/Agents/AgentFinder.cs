@@ -25,7 +25,8 @@ internal sealed partial class AgentCommands
             {
                 if (last is null && FanFinder.CannotStart(snapshot) is { } refused)
                 {
-                    return new AgentReply(AgentExit.Refused, AgentJson.Write(new FinderAnswer(Outcome: null, Used: false) { Refused = refused }), Texts.English.Of(refused));
+                    var answer = new FinderAnswer(Outcome: null, Used: false) { Refused = refused };
+                    return new AgentReply(AgentExit.Refused, AgentJson.Write(answer), Texts.English.Of(refused));
                 }
 
                 if (last is null)
@@ -58,7 +59,9 @@ internal sealed partial class AgentCommands
         };
         if (!use || result.Fan is not { } found)
         {
-            return new AgentReply(result.Fan is null ? AgentExit.Refused : AgentExit.Done, AgentJson.Write(answer), result.Fan is null ? Texts.English.Of(result.Outcome) : null);
+            return result.Fan is null
+                ? new AgentReply(AgentExit.Refused, AgentJson.Write(answer), Texts.English.Of(result.Outcome))
+                : new AgentReply(AgentExit.Done, AgentJson.Write(answer));
         }
 
         var used = await WriteAsync(config => ItemEdits.UseCpuFan(config, 0, snapshot, found));

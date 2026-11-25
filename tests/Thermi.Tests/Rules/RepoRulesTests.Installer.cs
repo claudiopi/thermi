@@ -38,5 +38,15 @@ public sealed partial class RepoRulesTests
         Assert.Contains($"$elevatedService = '{elevated}'", script, StringComparison.Ordinal);
         Assert.Contains("New-Service $elevatedService -BinaryPathName \"`\"$sensors`\" --elevated\"", script, StringComparison.Ordinal);
         Assert.Contains("sc.exe delete $elevatedService", script, StringComparison.Ordinal);
+
+        // thermi-cli reads what was installed from the value the installer writes, and runs from any shell through the
+        // machine's PATH, which an install sets and an uninstall takes back, with the value.
+        var agents = File.ReadAllText(Path.Combine(Root, "src", "Thermi", "Agents", "AgentEnvironment.cs"));
+        Assert.Contains("private const string InstallKey = @\"SOFTWARE\\thermi\";", agents, StringComparison.Ordinal);
+        Assert.Contains("public const string SensorsOnlyValue = \"SensorsOnly\";", agents, StringComparison.Ordinal);
+        Assert.Contains("$installKey = 'HKLM:\\SOFTWARE\\thermi'", script, StringComparison.Ordinal);
+        Assert.Contains("Set-ItemProperty $installKey -Name SensorsOnly -Value ([int]$SensorsOnly) -Type DWord", script, StringComparison.Ordinal);
+        Assert.Contains("Remove-Item $installKey -Recurse", script, StringComparison.Ordinal);
+        Assert.Contains("Set-MachinePath ([bool]$From)", script, StringComparison.Ordinal);
     }
 }

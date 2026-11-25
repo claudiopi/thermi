@@ -20,10 +20,12 @@ public sealed class ContractTests
     {
         foreach (var (name, schema) in AgentSchemas.Current)
         {
-            Assert.True(JsonNode.DeepEquals(schema, Schema(Schemas, name)), $"docs/agents/schema/{name}.schema.json is stale: build src/Thermi to write it again.");
+            Assert.True(
+                JsonNode.DeepEquals(schema, Schema(Schemas, name)), $"docs/agents/schema/{name}.schema.json is stale: build src/Thermi to write it again.");
         }
 
-        var findings = ContractAnswers.All().SelectMany(answer => SchemaCheck.Findings(Schema(Schemas, answer.Schema), JsonNode.Parse(answer.Json), answer.Schema));
+        var findings = ContractAnswers.All()
+            .SelectMany(answer => SchemaCheck.Findings(Schema(Schemas, answer.Schema), JsonNode.Parse(answer.Json), answer.Schema));
 
         Assert.Empty(findings);
     }
@@ -52,7 +54,9 @@ public sealed class ContractTests
             return [$"{path} is gone"];
         }
 
-        var typed = JsonNode.DeepEquals(shipped["type"], now["type"]) ? [] : new[] { $"{path} was {shipped["type"]?.ToJsonString()}, now {now["type"]?.ToJsonString()}" };
+        var typed = JsonNode.DeepEquals(shipped["type"], now["type"])
+            ? []
+            : new[] { $"{path} was {shipped["type"]?.ToJsonString()}, now {now["type"]?.ToJsonString()}" };
         var choices = (shipped["enum"]?.AsArray() ?? []).Where(choice => now["enum"]?.AsArray().Any(each => JsonNode.DeepEquals(each, choice)) != true)
             .Select(choice => $"{path} lost the choice {choice?.ToJsonString() ?? "null"}");
         var fields = (shipped["properties"]?.AsObject() ?? []).SelectMany(field => Kept(field.Value, now["properties"]?[field.Key], $"{path}.{field.Key}"));

@@ -30,6 +30,7 @@ The overlay and the settings window.
 
 | Library | License | Source |
 | --- | --- | --- |
+| Microsoft.Extensions.AI.Abstractions | MIT | https://github.com/dotnet/extensions |
 | Microsoft.Extensions.DependencyInjection | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Extensions.DependencyInjection.Abstractions | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Extensions.Logging | MIT | https://github.com/dotnet/dotnet |
@@ -37,6 +38,7 @@ The overlay and the settings window.
 | Microsoft.Extensions.Options | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Extensions.Primitives | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Web.WebView2 | BSD-3-Clause | https://aka.ms/webview |
+| ModelContextProtocol.Core | Apache-2.0 | https://github.com/modelcontextprotocol/csharp-sdk |
 | Serilog | Apache-2.0 | https://github.com/serilog/serilog |
 | Serilog.Extensions.Logging | Apache-2.0 | https://github.com/serilog/serilog-extensions-logging |
 | Serilog.Sinks.File | Apache-2.0 | https://github.com/serilog/serilog-sinks-file |

@@ -1,0 +1,51 @@
+# thermi for AI agents and other programs
+
+`thermi-cli` reads the PC's sensors and changes thermi's settings, from any shell, with or without an overlay on screen. It is installed with thermi, or with its sensors alone (`scripts/install.ps1 -SensorsOnly`), and is on the machine's `PATH`. It never runs elevated, never asks for administrator rights and never installs or starts anything: when the sensors cannot be read, `status` says why and what a person does about it. Why it is built this way: `docs/adr/0013-agents-cli-and-mcp.md`.
+
+## As an MCP server
+
+```
+claude mcp add thermi -- thermi-cli mcp
+```
+
+In Claude Desktop, the same under `mcpServers` in its config: `"thermi": { "command": "thermi-cli", "args": ["mcp"] }`.
+
+The tools are the commands below, `find-cpu-fan` and `start-with-windows` as `find_cpu_fan` and `start_with_windows`, with `undo` and `redo` of the session's own edits. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are read-only. A refusal or a service that cannot be read is a tool error that says why. Between calls the server holds no connection to the sensors.
+
+## Commands
+
+| Command | What it answers |
+| --- | --- |
+| `status` | Whether the sensor service runs and its data is fresh, whether the driver looks missing, whether an overlay runs, why the settings file cannot be used; each problem with its cause and fix. |
+| `read [ids] [--seconds n]` | Metrics (`cpu.temperature`), sensor ids and items (`item:<id>`), every metric and item when none. With n from 2 to 60, sampled once a second, with each value's minimum, maximum and average. |
+| `watch [ids]` | `read`'s document, one line a second, until its stdin closes. |
+| `sensors [--search text] [--type t]` | Every sensor the service reads, by device, found as the settings window's search finds. |
+| `config` | The settings as thermi reads them. |
+| `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. |
+| `looks`, `look wear/save/rename/delete/export/import` | The saved looks, with the settings window's rules; a look file goes in and out as text. |
+| `edit <json>` | One change of the settings, by the settings window's rules. |
+| `find-cpu-fan [--use]` | Loads the CPU for up to 30 s and says which fan answered; with `--use`, it becomes the first overlay's CPU fan. |
+| `start-with-windows [on\|off]` | Says or sets whether the overlay starts at sign-in. |
+
+An edit is a JSON object with its `kind`, in any order: the settings window's own (`thermi`, `overlay`, `style` and `item` set one field, `addItem`, `removeItem`, `moveItem`, `newOverlay`, `duplicateOverlay`, `mergeOverlay`, `deleteOverlay`, `nudgeOverlay`, `reset`, `resetLines`, `sensorName`), or one of two the window makes by a gesture: `{"kind": "threshold", "item", "warning", "critical"}` sets an item's lines at once, null taking one out, and `{"kind": "place", "overlay", "x", "y"}` leaves an overlay where a drag let go at that point would. Their fields are in `src/Thermi.Core/Bridge/BridgeTypes.cs`. An edit made while an overlay or the window writes the file keeps both changes.
+
+## The contract
+
+Every command prints one JSON document on stdout, with `"schema": 1`, and nothing else; errors and help go to stderr. The documents of `status`, `read` and `sensors`, and each line of `watch`, are the contract other programs build on, with a JSON Schema each in `schema/`, written in the build from the records that answer them, so the two cannot differ.
+
+| Exit | Means |
+| --- | --- |
+| 0 | Done. |
+| 1 | Refused by thermi's rules: nothing was written, and stderr says the refusal's key and its English text. |
+| 2 | Bad arguments. |
+| 3 | The sensor service is not installed, stopped, stale or held by another program. |
+| 4 | The settings file is broken, newer than this thermi or locked; nothing was written. |
+
+Each value is in its type's fixed unit, whatever the overlay shows it in: °C, % (load and fan duty), MHz, W, RPM, GB, B/s, seconds, and `ipv4` for an address, whose `text` holds it. A value that cannot be read is null, with `why`, never 0. A choice, as a type or a problem's code, is a word in kebab-case; a reader should take a word it does not know as unknown, not as an error.
+
+Within a schema, fields are only added. A change that removes, renames or changes the meaning of one is a new schema, and `--schema n` keeps answering the one before for two years after the new one ships. `tests/Thermi.Tests/Contract/shipped-1` holds schema 1 as the last release shipped it, and a test fails when a field it has is gone or changed.
+
+## Libraries
+
+- .NET: `src/Thermi.Client`, the `Thermi.Client` package, MIT and of .NET alone, which starts `thermi-cli`.
+- Node and Python: later, each as thin, on this contract.

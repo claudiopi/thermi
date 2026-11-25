@@ -125,7 +125,8 @@ public sealed class AgentCommandTests : IDisposable
         var config = new ThermiConfig();
         foreach (var (id, value) in ids.Zip(end.Json["values"]!.AsArray()))
         {
-            var each = series.Take(10).Select(sample => AgentReads.Read([sample], config, [id]) is { Values: [var one] } ? one.Value : null).OfType<double>().ToList();
+            var each = series.Take(10)
+                .Select(sample => AgentReads.Read([sample], config, [id]) is { Values: [var one] } ? one.Value : null).OfType<double>().ToList();
             Assert.Equal(9, each.Count);
             Assert.Equal(each.Count, (int)value!["samples"]!);
             Assert.Equal(each.Min(), (double)value["min"]!, 6);
@@ -147,8 +148,14 @@ public sealed class AgentCommandTests : IDisposable
         var edits = new (string Json, Func<ThermiConfig, EditResult> Window)[]
         {
             ("""{"kind":"item","item":"cpu.temperature","field":"name","value":"Tdie"}""",
-                PageEdits.Of(new ItemFieldEdit("cpu.temperature", "name", System.Text.Json.JsonSerializer.SerializeToElement("Tdie")), snapshot, texts, () => new HashSet<int>())),
-            ("""{"item":"cpu.temperature","warning":70,"critical":90,"kind":"threshold"}""", config => ItemEdits.SetThreshold(config, "cpu.temperature", 70, 90)),
+                PageEdits.Of(
+                    new ItemFieldEdit("cpu.temperature", "name", System.Text.Json.JsonSerializer.SerializeToElement("Tdie")),
+                    snapshot,
+                    texts,
+                    () => new HashSet<int>())),
+            (
+                """{"item":"cpu.temperature","warning":70,"critical":90,"kind":"threshold"}""",
+                config => ItemEdits.SetThreshold(config, "cpu.temperature", 70, 90)),
             ("""{"kind":"newOverlay"}""", PageEdits.Of(new NewOverlayEdit(), snapshot, texts, () => new HashSet<int>())),
             ($$"""{"kind":"addItem","overlay":0,"sensor":"{{clock}}"}""", PageEdits.Of(new AddItemEdit(0, clock), snapshot, texts, () => new HashSet<int>())),
         };
@@ -161,7 +168,8 @@ public sealed class AgentCommandTests : IDisposable
         }
 
         var written = _rig.Folder.Text();
-        foreach (var (json, refusal) in new[] { (TooHigh, Refusal.WarningAboveCritical), ("""{"kind":"threshold","item":"nobody","warning":70}""", Refusal.NotFound) })
+        var refused = new[] { (TooHigh, Refusal.WarningAboveCritical), ("""{"kind":"threshold","item":"nobody","warning":70}""", Refusal.NotFound) };
+        foreach (var (json, refusal) in refused)
         {
             var end = await _rig.RunAsync("edit", json);
             Assert.Equal(1, end.Exit);

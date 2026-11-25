@@ -93,7 +93,8 @@ public sealed class AgentPipeTests : IDisposable
         {
             clients.ForEach(client => client.Dispose());
             await stop.CancelAsync();
-            await serving.WaitAsync(Patience, TimeProvider.System, CancellationToken.None).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing | ConfigureAwaitOptions.ContinueOnCapturedContext);
+            await serving.WaitAsync(Patience, TimeProvider.System, CancellationToken.None)
+                .ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing | ConfigureAwaitOptions.ContinueOnCapturedContext);
             await ticking.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing | ConfigureAwaitOptions.ContinueOnCapturedContext);
         }
     }

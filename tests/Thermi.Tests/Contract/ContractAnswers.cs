@@ -19,7 +19,8 @@ internal static class ContractAnswers
             var withFan = Done(ItemEdits.UseCpuFan(config, 0, snapshot, snapshot.Sensors.Last(sensor => sensor.Type == "Fan").Id));
             yield return ("read", AgentJson.Write(AgentReads.Read([snapshot], withFan, []) with { At = DateTimeOffset.UnixEpoch }));
             yield return ("sensors", AgentJson.Write(AgentViews.Sensors(snapshot, config, search: null, kinds: [])));
-            yield return ("status", AgentJson.Write(AgentStatus.Of(new AgentFacts(ServiceState.Running, Installed: true, Taken: false, snapshot, Settings: null))));
+            var running = new AgentFacts(ServiceState.Running, Installed: true, Taken: false, snapshot, Settings: null);
+            yield return ("status", AgentJson.Write(AgentStatus.Of(running)));
         }
 
         foreach (var series in new[] { TestRecordings.CpuLoad, TestRecordings.IntelCpuLoad }.Select(TestFiles.Series))
@@ -29,7 +30,8 @@ internal static class ContractAnswers
 
         foreach (var state in Enum.GetValues<ServiceState>())
         {
-            var facts = new AgentFacts(state, Installed: state != ServiceState.Stale, Taken: state == ServiceState.Stopped, Latest: null, ConfigProblem.Locked("locked"));
+            var facts = new AgentFacts(
+                state, Installed: state != ServiceState.Stale, Taken: state == ServiceState.Stopped, Latest: null, ConfigProblem.Locked("locked"));
             yield return ("status", AgentJson.Write(AgentStatus.Of(facts with { Overlay = true, SensorsOnly = state == ServiceState.Running })));
         }
     }

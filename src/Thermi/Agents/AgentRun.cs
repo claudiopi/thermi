@@ -19,7 +19,8 @@ internal static partial class AgentRun
         var output = new StreamWriter(console.Out, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
         await using (output)
         {
-            var reply = request.Verb == AgentVerb.Mcp ? new AgentReply((AgentExit)await McpTools.ServeAsync(commands, console.In, console.Out, logs, stop.Token))
+            var reply = request.Verb == AgentVerb.Mcp
+                ? new AgentReply((AgentExit)await McpTools.ServeAsync(commands, console.In, console.Out, logs, stop.Token))
                 : request.Verb == AgentVerb.Watch ? await WatchAsync(commands, request, console.In, output, stop)
                 : await commands.RunAsync(request, stop.Token);
             if (reply.Json is { } json)
@@ -43,7 +44,8 @@ internal static partial class AgentRun
     }
 
     // A watch ends when whoever reads it closes its stdin, as an agent's tool does when it stops listening.
-    private static async Task<AgentReply> WatchAsync(AgentCommands commands, AgentRequest request, Stream input, StreamWriter output, CancellationTokenSource stop)
+    private static async Task<AgentReply> WatchAsync(
+        AgentCommands commands, AgentRequest request, Stream input, StreamWriter output, CancellationTokenSource stop)
     {
         var closed = Task.Run(
             async () =>

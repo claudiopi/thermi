@@ -110,8 +110,10 @@ internal static class McpTools
     private static CallToolResult Result(AgentReply reply) => new()
     {
         IsError = reply.Exit != AgentExit.Done,
-        Content = [new TextContentBlock { Text = reply.Exit == AgentExit.Done ? reply.Json ?? "" : string.Join("\n", new[] { reply.Error, reply.Json }.OfType<string>()) }],
+        Content = [new TextContentBlock { Text = reply.Exit == AgentExit.Done ? reply.Json ?? "" : Said(reply) }],
     };
+
+    private static string Said(AgentReply reply) => string.Join("\n", new[] { reply.Error, reply.Json }.OfType<string>());
 
     private static string Version() =>
         typeof(McpTools).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), inherit: false)

@@ -43,7 +43,8 @@ internal sealed class ProcessCli : ICli
         return new CliEnd(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
     }
 
-    public async IAsyncEnumerable<string> LinesAsync(string exe, IReadOnlyList<string> args, Action<CliEnd> ended, [EnumeratorCancellation] CancellationToken cancel)
+    public async IAsyncEnumerable<string> LinesAsync(
+        string exe, IReadOnlyList<string> args, Action<CliEnd> ended, [EnumeratorCancellation] CancellationToken cancel)
     {
         using var process = Start(exe, args);
         using var closing = cancel.Register(process.StandardInput.Close);

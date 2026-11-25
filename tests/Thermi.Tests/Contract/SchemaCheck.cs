@@ -15,7 +15,9 @@ internal static class SchemaCheck
     {
         if (schema["enum"] is JsonArray choices)
         {
-            return choices.Any(choice => JsonNode.DeepEquals(choice, value)) ? [] : [$"{path} is {value?.ToJsonString() ?? "null"}, not one of {choices.ToJsonString()}"];
+            return choices.Any(choice => JsonNode.DeepEquals(choice, value))
+                ? []
+                : [$"{path} is {value?.ToJsonString() ?? "null"}, not one of {choices.ToJsonString()}"];
         }
 
         var types = schema["type"] switch

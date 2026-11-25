@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
@@ -21,7 +22,8 @@ public sealed class SdkTests
         Assert.Equal("MIT", project.Descendants("PackageLicenseExpression").Single().Value);
         Assert.All(
             typeof(ThermiClient).Assembly.GetReferencedAssemblies(),
-            reference => Assert.True(reference.Name is "netstandard" || reference.Name!.StartsWith("System.", StringComparison.Ordinal), $"{reference.Name} is not .NET's."));
+            reference => Assert.True(
+                reference.Name is "netstandard" || reference.Name!.StartsWith("System.", StringComparison.Ordinal), $"{reference.Name} is not .NET's."));
 
         foreach (var (schema, json) in ContractAnswers.All())
         {
@@ -81,7 +83,8 @@ public sealed class SdkTests
             return Task.FromResult(end);
         }
 
-        public async IAsyncEnumerable<string> LinesAsync(string exe, IReadOnlyList<string> args, Action<CliEnd> ended, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancel)
+        public async IAsyncEnumerable<string> LinesAsync(
+            string exe, IReadOnlyList<string> args, Action<CliEnd> ended, [EnumeratorCancellation] CancellationToken cancel)
         {
             Ran.Add(exe);
             await Task.Yield();
