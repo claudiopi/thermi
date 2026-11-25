@@ -1,0 +1,54 @@
+{
+  "spec": "005-fps",
+  "steps": [
+    {
+      "id": "A1",
+      "covers": ["R1", "R2", "R4", "R5", "R6", "R9"],
+      "description": "Given the recorded presents of a Direct3D 12 game through a loading screen and of a Vulkan game, beside a browser and the desktop, replayed into snapshots second by second, when the default overlay is laid out with the process in front given (the game, a thermi window over the game, the browser's main process, the desktop, then the other game), then FPS reads each second's frames and the longest frame, 0 FPS and a growing frame time through the 5 s of the load, the browser's frames from its child, the new game's values the second after it comes to the front, and no FPS item while nothing in front presents.",
+      "check": "TheOverlayShowsTheFramesOfTheAppInFront",
+      "passes": false
+    },
+    {
+      "id": "A2",
+      "covers": ["R6"],
+      "description": "Given snapshots whose frame slots have no values, as from a service that could not start its session, and snapshots with no slots, as from a service from before, when the default overlay is laid out with a game in front, then FPS shows as missing.",
+      "check": "FramesThatCannotBeReadShowAsMissing",
+      "passes": false
+    },
+    {
+      "id": "A3",
+      "covers": ["R8"],
+      "description": "Given FPS and frame time items with their default lines, when FPS reads 61, 60, 45, 30 and 12 and frame time 40, 50, 99 and 100, then FPS is normal, then warning at 60 and 45, then critical at 30 and 12, and frame time normal, then warning at 50 and 99, then critical at 100; and an FPS item whose critical is above its warning is refused.",
+      "check": "FrameRateWarnsLowAndFrameTimeHigh",
+      "passes": false
+    },
+    {
+      "id": "A4",
+      "covers": ["R7", "R8"],
+      "description": "Given the window with a game's snapshot, when the person adds FPS from the Game device and drags its critical line, then the item shows in the overlay's list with its value, and the critical line cannot pass above the warning.",
+      "check": "AnFpsItemIsAddedAndItsLinesSetLow",
+      "passes": false
+    },
+    {
+      "id": "A5",
+      "covers": ["R11", "R12"],
+      "description": "Given the service's frame source fed with presents of named processes, when it records with --frames and serves a client, then the recording and every line on the pipe hold process ids and numbers, and no process's name.",
+      "check": "FramesLeaveTheServiceWithoutNames",
+      "passes": false
+    },
+    {
+      "id": "A6",
+      "covers": ["R3", "R4"],
+      "description": "Given the installed build on the author's PC, when he plays a Direct3D 9, 11 and 12 game, a Vulkan and an OpenGL one, windowed, borderless and in exclusive full screen, one with frame generation on, then the window's FPS is within 2 % of each game's own counter over a minute, and it follows an alt-tab within 2 s.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A7",
+      "covers": ["R10"],
+      "description": "Given the installed build with a game presenting at 144 FPS in front, when scripts/measure.ps1 runs for 60 s, then the service stays under 3 % of one core and 80 MB, and with no client connected no thermi-frames session exists.",
+      "check": "by hand",
+      "passes": false
+    }
+  ]
+}
