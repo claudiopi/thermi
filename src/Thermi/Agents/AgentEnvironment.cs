@@ -7,6 +7,7 @@ using Thermi.Core.Placement;
 using Thermi.Install;
 using Thermi.Overlay;
 using Thermi.Ui;
+using Thermi.Updates;
 using Thermi.Windows;
 
 namespace Thermi.Agents;
@@ -50,7 +51,7 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
 
     // The window's load: a thermi cpu-load of its own, at idle priority, so the PC stays as it was for the person using it.
     public Action<CancellationToken> Load { get; init; } =
-        stop => CpuLoad.Start(BesideThisDoor("thermi.exe"), (int)FanFinder.MaxRun.TotalSeconds, stop);
+        stop => CpuLoad.Start(ThermiPaths.Own, (int)FanFinder.MaxRun.TotalSeconds, stop);
 
     public string FinderRan { get; init; } = Path.Combine(UserFolders.Local, "thermi", "fan-finder-ran.txt");
 
@@ -62,13 +63,9 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
             ConfigStore.DefaultPath,
             () => new SystemFeed(
                 new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
-            StartWithWindows.Of(BesideThisDoor("thermi.exe")),
+            StartWithWindows.Of(ThermiPaths.Launcher),
             logs.CreateLogger("Thermi.Agents"));
     }
-
-    // The overlay and the load start from thermi.exe beside this door, whichever of the two ran.
-    private static string BesideThisDoor(string exe) =>
-        Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory, exe);
 
     private static bool Exists(string key)
     {
