@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Thermi.Core.Agents;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
@@ -141,7 +142,7 @@ public sealed class AgentCommandTests : IDisposable
 
         var end = await _rig.RunAsync("watch", "/lpc/it8689e/0/fan/0");
 
-        var lines = end.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => System.Text.Json.Nodes.JsonNode.Parse(line)!["values"]![0]!).ToList();
+        var lines = end.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => JsonNode.Parse(line)!["values"]![0]!).ToList();
         Assert.Equal((3, series.Count), (end.Exit, lines.Count));
         Assert.Equal([.. Enumerable.Range(0, series.Count).Select(at => at == 9)], lines.Select(value => value["value"] is null));
         Assert.Equal("reads-nothing", (string)lines[9]["why"]!);
