@@ -47,13 +47,12 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
         await _gate.WaitAsync(stop);
         try
         {
-            var rescanned = OpenOrRescan();
+            OpenOrRescan();
             var adapters = _adapters.Of([.. _computer.Hardware
                 .Where(hardware => hardware.HardwareType == HardwareType.Network)
                 .Select(hardware => hardware.Identifier.ToString())]);
 
-            // Drives found again have no values until they are updated.
-            var drivesDue = _drives.Due || rescanned;
+            var drivesDue = _drives.Due;
             _reads.Updated();
             if (drivesDue)
             {
@@ -79,7 +78,7 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
             }
 
             List<string> virtualAdapters = [.. adapters.Where(adapter => adapter.Value == AdapterKind.Virtual).Select(adapter => adapter.Key)];
-            return new Snapshot(sensors) { VirtualAdapters = virtualAdapters.Count > 0 ? virtualAdapters : null };
+            return new Snapshot(ReadingRules.Sampled(sensors)) { VirtualAdapters = virtualAdapters.Count > 0 ? virtualAdapters : null };
         }
         finally
         {
@@ -112,23 +111,21 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
 
     private ReadPace PaceOf(IHardware hardware) => hardware.HardwareType == HardwareType.Storage ? _drives : _reads;
 
-    private bool OpenOrRescan()
+    private void OpenOrRescan()
     {
         if (!_open)
         {
             _computer.Open();
             _open = true;
             _rescans.Updated();
+            _drives.Found();
         }
 
         // Not while a stalled update runs: looking again closes the devices it may be updating.
-        var rescanned = _rescans.Due && !_updates.Busy;
-        if (rescanned)
+        if (_rescans.Due && !_updates.Busy)
         {
             Rescan();
         }
-
-        return rescanned;
     }
 
     // The library looks for a kind of hardware again when it is turned off and on, and only for it: the CPU, the board's
@@ -142,6 +139,7 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
         _computer.IsGpuEnabled = true;
         _computer.IsControllerEnabled = true;
         _computer.IsStorageEnabled = true;
+        _drives.Found();
     }
 
     // A device not updated now sends its last values, and with speeds that do not hold, no speed; one that never read
@@ -159,7 +157,7 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
             var raw = new RawSensor(
                 sensor.Identifier.ToString(),
                 device.HardwareType.ToString(),
-                device.Name,
+                ReadingRules.NameOf(device.Name),
                 sensor.SensorType.ToString(),
                 sensor.Name,
                 read == DeviceRead.Missing || (speed && !speedsHold) ? null : sensor.Value);

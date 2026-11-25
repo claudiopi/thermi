@@ -27,6 +27,12 @@ internal static class TestRecordings
     /// <summary>A snapshot a second, as administrator, while the CPU ran a 30 s load.</summary>
     public const string CpuLoad = "ryzen-9950x-rtx-5060-ti-cpu-load-fan-software.jsonl";
 
+    /// <summary>
+    /// The drives' activity and rates, a snapshot a second as the pipe sent them, across one of the service's scans for new
+    /// hardware, before it took a drive's first update for its first sample.
+    /// </summary>
+    public const string DiskRescan = "ryzen-9950x-rtx-5060-ti-disk-rescan.jsonl";
+
     public static string Path(string name) => System.IO.Path.Combine(AppContext.BaseDirectory, "Recordings", name);
 
     public static Snapshot Read(string name) =>
