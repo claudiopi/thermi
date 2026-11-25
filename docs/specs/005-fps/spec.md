@@ -1,6 +1,6 @@
 # 005. FPS and frame time of the game in front
 
-**Status**: draft
+**Status**: approved
 
 ## Why
 
@@ -41,7 +41,7 @@ The service
 
 **Files that change**: the new folders above; `src/Thermi.Core/Sensors/Metrics.cs`, `Reading.cs`, `SensorMap.cs`, `SensorCatalog.cs`; `src/Thermi.Core/Settings/Threshold.cs`, `ConfigRules.cs`, `OverlayConfig.cs`; `src/Thermi.Core/Look/ReadingFormatter.cs`; `src/Thermi.SensorHost/LhmSensorSource.cs`, `SensorCommands.cs`, `NativeMethods.txt`; `src/Thermi/Overlay/OverlayHost.cs` and the window's tick in `src/Thermi/Ui`, with `src/Thermi/NativeMethods.txt`; the chart; `AGENTS.md`'s commands; `docs/ARCHITECTURE.md` and `docs/QUICKSTART.md`.
 
-**Testing.** The edges are a recording of presents in and what the overlay shows out. A recording is made with `--frames` while the author plays: a Direct3D 12 game with a loading screen, and a Vulkan one; trimmed to the game's process and a few others, it replays through `FrameTally` into snapshots, and those through `GameSensors` and the layout with the process in front given, which is the acceptance of R1, R2, R4, R5, R6 and R9 in one table. The low lines are rows of the thresholds' existing table. The session itself, the APIs and the cost are checked by hand on the author's PC, against each game's own counter.
+**Testing.** The edges are a recording of presents in and what the overlay shows out. A recording is made with `--frames` while the author rides Zwift, his one game, an OpenGL one: into a world, through its loading screen, alt-tabbing to a browser and the desktop and back; trimmed to the game's process and a few others, it replays through `FrameTally` into snapshots, and those through `GameSensors` and the layout with the process in front given, which is the acceptance of R1, R2, R4, R5, R6 and R9 in one table. The low lines are rows of the thresholds' existing table. The session itself, the APIs and the cost are checked by hand on the author's PC: Zwift against its own counter, and the other APIs with free demos that present through them (Vulkan's `vkcube`, Direct3D 9, 11 and 12 samples), against PresentMon run beside them.
 
 **Test budget.** This spec adds at most 10 unique tests; most of its cases are rows of tables that exist.
 

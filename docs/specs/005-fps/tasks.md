@@ -1,14 +1,14 @@
 # 005-fps: Tasks
 
 > Progress: 0 / 14
-> Current block: none, waiting for approval
+> Current block: B0, decision and data
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
 
 ## B0: Decision and data
 
-- [ ] **T1** Covers R3, R10, R11: `docs/adr/0014-frames-from-etw.md` accepted, after a spike on the author's PC: a session of thermi's own sees a Direct3D 12 and a Vulkan game's presents, each FPS within 2 % of the game's own counter.
-- [ ] **T2** Covers R12: `thermi-sensors --frames <file> --seconds <n>`, listed in `AGENTS.md`; the author records a Direct3D 12 game through a loading screen and a Vulkan game, trimmed into `tests/Thermi.Tests/Recordings`.
+- [ ] **T1** Covers R3, R10, R11: `docs/adr/0014-frames-from-etw.md` accepted, after a spike on the author's PC: a session of thermi's own sees Zwift's presents (OpenGL) and a Vulkan and a Direct3D demo's, each FPS within 2 % of PresentMon's beside it.
+- [ ] **T2** Covers R12: `thermi-sensors --frames <file> --seconds <n>`, listed in `AGENTS.md`; the author records Zwift into a world through its loading screen, alt-tabbing to a browser and the desktop, trimmed into `tests/Thermi.Tests/Recordings`.
 - [ ] **T3** The acceptance tests written, waiting with `Skip` or `test.fixme`.
 
 ## B1: Core, without Windows

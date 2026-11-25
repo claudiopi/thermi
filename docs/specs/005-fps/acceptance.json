@@ -4,7 +4,7 @@
     {
       "id": "A1",
       "covers": ["R1", "R2", "R4", "R5", "R6", "R9"],
-      "description": "Given the recorded presents of a Direct3D 12 game through a loading screen and of a Vulkan game, beside a browser and the desktop, replayed into snapshots second by second, when the default overlay is laid out with the process in front given (the game, a thermi window over the game, the browser's main process, the desktop, then the other game), then FPS reads each second's frames and the longest frame, 0 FPS and a growing frame time through the 5 s of the load, the browser's frames from its child, the new game's values the second after it comes to the front, and no FPS item while nothing in front presents.",
+      "description": "Given the recorded presents of Zwift (OpenGL) entering a world through its loading screen, beside a browser and the desktop, and of a Vulkan demo, replayed into snapshots second by second, when the default overlay is laid out with the process in front given (Zwift, a thermi window over it, the browser's main process, the desktop, then the demo), then FPS reads each second's frames and the longest frame, 0 FPS and a growing frame time through the 5 s of the load, the browser's frames from its child, the demo's values the second after it comes to the front, and no FPS item while nothing in front presents.",
       "check": "TheOverlayShowsTheFramesOfTheAppInFront",
       "passes": false
     },
@@ -39,7 +39,7 @@
     {
       "id": "A6",
       "covers": ["R3", "R4"],
-      "description": "Given the installed build on the author's PC, when he plays a Direct3D 9, 11 and 12 game, a Vulkan and an OpenGL one, windowed, borderless and in exclusive full screen, one with frame generation on, then the window's FPS is within 2 % of each game's own counter over a minute, and it follows an alt-tab within 2 s.",
+      "description": "Given the installed build on the author's PC, when he rides Zwift windowed, borderless and in full screen, and free demos present through Direct3D 9, 11 and 12 and Vulkan, then the window's FPS is within 2 % of Zwift's own counter and of PresentMon's beside each demo over a minute, and it follows an alt-tab within 2 s.",
       "check": "by hand",
       "passes": false
     },

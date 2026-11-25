@@ -36,7 +36,7 @@ Three ways were weighed:
 - A game in exclusive full screen draws over every window, so the overlay cannot show there; the FPS still reads in the tray icon and the window.
 - An app framed by another process's window, as old UWP apps by `ApplicationFrameHost.exe`, matches no slot and shows nothing.
 - Any interactive user can read the pipe, so they can see which process ids present how fast in another user's session: ids alone, which `tasklist` already shows them.
-- The DxgKrnl events change between Windows versions more than DXGI's; their part is checked with a Vulkan game by hand on each major Windows update.
+- The DxgKrnl events change between Windows versions more than DXGI's; their part, which OpenGL games like Zwift may take, is checked with Zwift and a Vulkan demo by hand on each major Windows update.
 - ETW allows 64 sessions on a PC; if none is free, the service logs it to the event log and sends the slots empty, and tries again a minute later.
 
 ## What it replaces in earlier ADRs
