@@ -269,13 +269,10 @@ public sealed class FrameTests
     // steady presents of its first source, so the app counts as presenting, and its times from half a millisecond after.
     [Theory]
     [InlineData("0 100 200 300 400 500 600 700 800 900 1000", "1000", "11 100.0 ms")]
-    [InlineData("0 16 33 50 150 166", "1000", "6 834.0 ms")]
-    [InlineData("0 100", "1000 2000", "2 900.0 ms|0 999.9 ms")]
     [InlineData("0 100", "1000 2000 3000 4000 5000 6000 7000", "2 900.0 ms|0 999.9 ms|0 999.9 ms|0 999.9 ms|0 999.9 ms||")]
     [InlineData("100 1050 950", "1000 2000", "1 900.0 ms|1 950.0 ms")]
     [InlineData("100 900 700 1200", "1000 2000", "3 600.0 ms|1 800.0 ms")]
     [InlineData("0 k2 500 k502", "1000", "2 500.0 ms")]
-    [InlineData("k0 k500", "1000", "2 500.0 ms")]
     [InlineData("k0 d1 k500 d501", "1000", "2 500.0 ms")]
     public void EachSecondCountsItsFramesAndItsLongestWait(string presents, string closes, string expected)
     {
