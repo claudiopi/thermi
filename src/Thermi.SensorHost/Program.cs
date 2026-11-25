@@ -36,15 +36,14 @@ internal static class Program
 
         if (request is SensorElevated)
         {
-            return RunElevated(environment.Time);
+            return RunElevated(environment);
         }
 
-        using var events = new EventLog("Application") { Source = SensorService.Name };
         var service = request is not (SensorServe { Console: true } or SensorDump);
         // A single dump is all it reads, so it waits for every device, however slow: one it did not wait for would be missing.
         using var source = Open(
             environment,
-            service ? said => SensorService.Say(events, said, EventLogEntryType.Warning) : environment.Error.WriteLine,
+            service ? said => environment.Log(said, EventLogEntryType.Warning) : environment.Error.WriteLine,
             request is SensorDump { Seconds: null } ? Timeout.InfiniteTimeSpan : DeviceUpdates.Patience);
         if (request is SensorDump dump)
         {
@@ -52,23 +51,25 @@ internal static class Program
             return 0;
         }
 
-        return await RunOrServeAsync(source, events, environment, service, stop);
+        return await RunOrServeAsync(source, environment, service, stop);
     }
 
     private static async Task<int> RunOrServeAsync(
-        ISensorSource source, EventLog events, SensorHostEnvironment environment, bool service, CancellationToken stop)
+        ISensorSource source, SensorHostEnvironment environment, bool service, CancellationToken stop)
     {
         using var server = new SensorPipeServer(source.ReadAsync, environment.Time, environment.PipeName)
         {
-            Squatted = () => SensorService.Say(
-                events,
+            Squatted = () => environment.Log(
                 $"Another program holds the {environment.PipeName} pipe, so thermi's overlay and window get no readings. "
                     + "The service tries again every 5 s until that program closes it.",
                 EventLogEntryType.Warning),
         };
         if (service)
         {
-            using var running = new SensorService(server.RunAsync, resumed: () => _ = source.ReadAsync(CancellationToken.None));
+            using var running = new SensorService(
+                server.RunAsync,
+                error => environment.Log(error.ToString(), EventLogEntryType.Error),
+                resumed: () => _ = source.ReadAsync(CancellationToken.None));
             ServiceBase.Run(running);
             return running.ExitCode;
         }
@@ -78,9 +79,10 @@ internal static class Program
     }
 
     // Before the sensors are opened: the fixes read none.
-    private static int RunElevated(TimeProvider time)
+    private static int RunElevated(SensorHostEnvironment environment)
     {
-        using var elevated = new ElevatedService(ElevatedService.RunThermiAsync, time);
+        using var elevated = new ElevatedService(
+            ElevatedService.RunThermiAsync, environment.Time, error => environment.Log(error.ToString(), EventLogEntryType.Error));
         ServiceBase.Run(elevated);
         return elevated.ExitCode;
     }
@@ -144,15 +146,15 @@ internal sealed class SensorService : ServiceBase
     private Task _running = Task.CompletedTask;
 
     /// <param name="run">The server, until the token stops it.</param>
+    /// <param name="report">Where a failure goes: the Application log, through the sink Main hands down.</param>
     /// <param name="stopOnFailure">How to stop after a failure; the service's own <see cref="ServiceBase.Stop"/> unless a test says otherwise.</param>
     /// <param name="resumed">What runs on waking from sleep; without it, the service asks Windows for no power events.</param>
-    /// <param name="report">Where a failure goes; Windows' Application log unless a test says otherwise.</param>
-    public SensorService(Func<CancellationToken, Task> run, Action? stopOnFailure = null, Action? resumed = null, Action<Exception>? report = null)
+    public SensorService(Func<CancellationToken, Task> run, Action<Exception> report, Action? stopOnFailure = null, Action? resumed = null)
     {
         _run = run;
+        _report = report;
         _stopOnFailure = stopOnFailure ?? Stop;
         _resumed = resumed;
-        _report = report ?? (error => Report(EventLog, error));
         ServiceName = Name;
         CanHandlePowerEvent = resumed is not null;
     }
@@ -174,23 +176,6 @@ internal sealed class SensorService : ServiceBase
             ExitCode = 1;
             _ = Task.Run(_stopOnFailure, CancellationToken.None);
             _report(ex);
-        }
-    }
-
-    /// <summary>Writes <paramref name="error"/> to <paramref name="log"/>, which may refuse: what the service does next matters more.</summary>
-    internal static void Report(EventLog log, Exception error) => Say(log, error.ToString(), EventLogEntryType.Error);
-
-    /// <summary>Writes <paramref name="message"/> to <paramref name="log"/>, which may refuse: what the service does next matters more.</summary>
-    internal static void Say(EventLog log, string message, EventLogEntryType type)
-    {
-        try
-        {
-            log.WriteEntry(message, type);
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException
-            or System.ComponentModel.Win32Exception or System.Security.SecurityException)
-        {
-            // Nowhere else to report it.
         }
     }
 

@@ -53,8 +53,8 @@ public sealed class ElevatedServiceTests
                 return answer is { } code ? Task.FromResult(code) : throw new Win32Exception(2);
             },
             new FakeTimeProvider(),
-            stopped.SetResult,
-            reported.Add);
+            reported.Add,
+            stopped.SetResult);
 
         await service.RunAsync(["install-driver"]);
 

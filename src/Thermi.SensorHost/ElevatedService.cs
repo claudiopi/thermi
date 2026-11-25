@@ -31,20 +31,19 @@ internal sealed class ElevatedService : ServiceBase
 
     /// <param name="run">The elevated thermi, with its arguments, until it exits.</param>
     /// <param name="time">The clock its wait runs on.</param>
+    /// <param name="report">Where a failure goes: the Application log, through the sink Main hands down.</param>
     /// <param name="stop">How to stop once it ended; the service's own <see cref="ServiceBase.Stop"/> unless a test says otherwise.</param>
-    /// <param name="report">Where a failure goes; Windows' Application log unless a test says otherwise.</param>
-    public ElevatedService(Func<IReadOnlyList<string>, TimeProvider, Task<int>> run, TimeProvider time, Action? stop = null, Action<Exception>? report = null)
+    public ElevatedService(Func<IReadOnlyList<string>, TimeProvider, Task<int>> run, TimeProvider time, Action<Exception> report, Action? stop = null)
     {
         _run = run;
         _time = time;
+        _report = report;
         _stop = stop ?? Stop;
-        _report = report ?? (error => SensorService.Report(EventLog, error));
         ServiceName = Name;
         // Stopped halfway, a fix would leave the driver's install or the sensors' restart undone.
         CanStop = false;
-        // Its events go under the sensor service's source, which the installer registers.
+        // Windows would log its starts under its own name, a source nobody registers; its report goes under the sensor service's.
         AutoLog = false;
-        EventLog.Source = SensorService.Name;
     }
 
     /// <summary>
