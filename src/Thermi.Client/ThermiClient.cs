@@ -6,7 +6,7 @@ using System.Text.Json.Serialization.Metadata;
 namespace Thermi.Client;
 
 /// <summary>
-/// thermi's sensors as typed values, read by starting <c>thermi-cli</c>, found on <c>PATH</c> or under Program Files, with
+/// thermi's sensors as typed values, read by starting <c>thermi-cli</c>, found on <c>PATH</c> or where thermi installs it, with
 /// the contract's schema 1. It installs nothing: without thermi a call fails with a <see cref="ThermiException"/> that says
 /// so and how to install it; with its service not installed, <see cref="StatusAsync"/> lists that problem and a read fails why.
 /// </summary>
@@ -21,7 +21,7 @@ public sealed class ThermiClient
     private readonly Func<string?> _find;
     private readonly ICli _cli;
 
-    /// <summary>A client of the <c>thermi-cli</c> on <c>PATH</c>, or else under Program Files.</summary>
+    /// <summary>A client of the <c>thermi-cli</c> on <c>PATH</c>, or else where an install for everyone or for one person puts it.</summary>
     public ThermiClient()
         : this(Locate, ProcessCli.Instance)
     {
@@ -91,18 +91,28 @@ public sealed class ThermiClient
     private static string[] Args(IReadOnlyList<string> args) => [.. args, "--schema", "1"];
 
     private string Found() => _find() ?? throw new ThermiException(
-        $"thermi is not installed: {Cli} is neither on PATH nor under Program Files. Install thermi from {InstallUrl}; its sensors alone are enough.",
+        $"thermi is not installed: {Cli} is neither on PATH nor where thermi installs it. Install thermi from {InstallUrl}; its sensors alone are enough.",
         exitCode: -1);
 
     // thermi-cli says on stderr why it did not finish, and how a person fixes it when they must, as a service not installed.
     private static ThermiException Failed(CliEnd end) =>
         new(end.Error.Trim() is { Length: > 0 } said ? said : $"thermi-cli ended with {end.Exit}.", end.Exit);
 
-    private static string? Locate()
+    private static string? Locate() => Locate(
+        Environment.GetEnvironmentVariable("PATH"),
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+
+    /// <summary>
+    /// thermi-cli on <paramref name="path"/>, else where an install for everyone puts it, under <paramref name="programFiles"/>,
+    /// else where an install for one person alone does, under <paramref name="localAppData"/>.
+    /// </summary>
+    internal static string? Locate(string? path, string programFiles, string localAppData)
     {
-        var folders = (Environment.GetEnvironmentVariable("PATH") ?? "")
+        var folders = (path ?? "")
             .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "thermi"));
+            .Append(Path.Combine(programFiles, "thermi"))
+            .Append(Path.Combine(localAppData, "Programs", "thermi"));
         return folders.Select(folder => Path.Combine(folder, Cli)).FirstOrDefault(File.Exists);
     }
 }

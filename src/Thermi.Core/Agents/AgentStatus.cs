@@ -21,6 +21,9 @@ public enum AgentProblem
     DriverMissing,
 
     SettingsBroken,
+
+    /// <summary>A per-user install whose own host serves the sensors only while thermi runs, and none runs.</summary>
+    NotRunning,
 }
 
 /// <summary>Each problem's cause and fix, as an agent reads them; the contract answers them in English.</summary>
@@ -42,6 +45,8 @@ public enum AgentText
     ServiceStoppedFixSensorsOnly,
     DriverMissingFixSensorsOnly,
     SettingsBrokenFixSensorsOnly,
+    NotRunningCause,
+    NotRunningFix,
 }
 
 /// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
@@ -62,6 +67,9 @@ public sealed record AgentFacts(ServiceState Service, bool Installed, bool Taken
     public bool Overlay { get; init; }
 
     public bool SensorsOnly { get; init; }
+
+    /// <summary>Whether this is a per-user install, which has no service: the user's own host serves while thermi runs.</summary>
+    public bool PerUser { get; init; }
 }
 
 public static class AgentStatus
@@ -71,8 +79,9 @@ public static class AgentStatus
         var problems = new List<AgentProblem>();
         problems.AddRange(facts switch
         {
-            { Installed: false } => [AgentProblem.ServiceMissing],
+            { Installed: false, PerUser: false } => [AgentProblem.ServiceMissing],
             { Taken: true } => [AgentProblem.PipeTaken],
+            { Service: ServiceState.Stopped, PerUser: true } => [AgentProblem.NotRunning],
             { Service: ServiceState.Stopped } => [AgentProblem.ServiceStopped],
             { Service: ServiceState.Stale } => [AgentProblem.ServiceStale],
             _ => [],
@@ -111,6 +120,7 @@ public static class AgentStatus
             AgentProblem.PipeTaken => (AgentText.PipeTakenCause, AgentText.PipeTakenFix),
             AgentProblem.DriverMissing => (AgentText.DriverMissingCause, AgentText.DriverMissingFix),
             AgentProblem.SettingsBroken => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFix),
+            AgentProblem.NotRunning => (AgentText.NotRunningCause, AgentText.NotRunningFix),
             _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, "Unknown problem."),
         };
         return new ProblemAnswer(problem, Texts.English.Of(cause), Texts.English.Of(fix));

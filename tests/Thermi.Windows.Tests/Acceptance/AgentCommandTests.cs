@@ -71,7 +71,8 @@ public sealed class AgentCommandTests : IDisposable
         Assert.Equal(exit is 0 or 1 || args[0] == "config", end.Out.Length > 0);
     }
 
-    // The service as status finds it, with no overlay running; what the commands answer does not hang on one.
+    // The service as status finds it, with no overlay running, or a per-user install's own host, which runs only while thermi
+    // does; what the commands answer does not hang on an overlay.
     [Theory]
     [InlineData(TestRecordings.Admin, ServiceState.Running, false, true, null)]
     [InlineData(TestRecordings.NoAdmin, ServiceState.Running, false, true, AgentProblem.DriverMissing)]
@@ -79,8 +80,11 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(null, ServiceState.Stale, false, true, AgentProblem.ServiceStale)]
     [InlineData(null, ServiceState.Stopped, true, true, AgentProblem.PipeTaken)]
     [InlineData(null, ServiceState.Stopped, false, false, AgentProblem.ServiceMissing)]
-    public async Task AgentsNeedNoOverlay(string? recording, ServiceState state, bool taken, bool installed, AgentProblem? problem)
+    [InlineData(TestRecordings.NoAdmin, ServiceState.Running, false, false, AgentProblem.DriverMissing, true)]
+    [InlineData(null, ServiceState.Stopped, false, false, AgentProblem.NotRunning, true)]
+    public async Task AgentsNeedNoOverlay(string? recording, ServiceState state, bool taken, bool installed, AgentProblem? problem, bool perUser = false)
     {
+        _rig.PerUser = perUser;
         IReadOnlyList<Snapshot> snapshots = recording is null ? [] : [TestRecordings.Read(recording)];
         _rig.Sensors = () => new RecordedFeed(snapshots, state, taken);
         _rig.Installed = installed;

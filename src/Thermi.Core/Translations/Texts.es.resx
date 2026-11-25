@@ -2283,6 +2283,12 @@
   <data name="AgentText.SettingsBrokenFixSensorsOnly" xml:space="preserve">
     <value>Pedile a la persona que arregle o borre el archivo de configuración de thermi, %APPDATA%\thermi\config.json.</value>
   </data>
+  <data name="AgentText.NotRunningCause" xml:space="preserve">
+    <value>thermi no está corriendo: está instalado solo para esta persona, y sus sensores se leen solo mientras thermi corre.</value>
+  </data>
+  <data name="AgentText.NotRunningFix" xml:space="preserve">
+    <value>Pedile a la persona que inicie thermi desde el menú Inicio. No lo inicies vos.</value>
+  </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>Esta compilación no se actualiza sola</value>
   </data>

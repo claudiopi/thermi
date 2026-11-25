@@ -25,7 +25,7 @@
         "R3",
         "R5"
       ],
-      "description": "Given a recorded feed and no overlay or window running, when status, read, sensors, config and edit run, then each answers as with an overlay running, and status says no overlay runs; with the service stopped, stale, or its pipe taken, status says which, and with the no-driver recording, that the driver looks missing.",
+      "description": "Given a recorded feed and no overlay or window running, when status, read, sensors, config and edit run, then each answers as with an overlay running, and status says no overlay runs; with the service stopped, stale, or its pipe taken, status says which, and with the no-driver recording, that the driver looks missing; in a per-user install, its own host is read while it runs, and status says thermi is not running when it does not.",
       "check": "AgentsNeedNoOverlay",
       "passes": true
     },
@@ -173,8 +173,17 @@
       "covers": [
         "R23"
       ],
-      "description": "Given no thermi-cli on PATH or under Program Files, and then a thermi-cli whose status says the service is not installed, when the SDK reads, then each fails with an error saying so and how to install thermi, and nothing starts but thermi-cli.",
+      "description": "Given no thermi-cli on PATH or where an install puts it, and then a thermi-cli whose status says the service is not installed, when the SDK reads, then each fails with an error saying so and how to install thermi, and nothing starts but thermi-cli.",
       "check": "TheSdkSaysHowToInstall",
+      "passes": true
+    },
+    {
+      "id": "A26",
+      "covers": [
+        "R22"
+      ],
+      "description": "Given thermi-cli on PATH, under Program Files, or in a per-user install's %LOCALAPPDATA%\\Programs\\thermi, when the SDK looks for it, then it finds it on PATH first, then for everyone, then for one person, and none when it is in neither.",
+      "check": "TheSdkFindsThermiCliWhereEitherInstallPutsIt",
       "passes": true
     },
     {

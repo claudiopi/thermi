@@ -13,9 +13,9 @@ namespace Thermi.Agents;
 
 /// <summary>
 /// What an agent's command reaches outside its process, which tests replace: the settings file, the sensors, read from the
-/// pipe as the overlay reads them with a new connection for each read, whether the service is installed, whether an overlay
-/// runs, whether this install is the sensors alone, the start at sign-in, the monitors, the keys AltGr types with, and the
-/// fan finder's load and the file that says when it last ran.
+/// pipe as the overlay reads them with a new connection for each read, whether the service is installed or this is a per-user
+/// install, whether an overlay runs, whether this install is the sensors alone, the start at sign-in, the monitors, the keys
+/// AltGr types with, and the fan finder's load and the file that says when it last ran.
 /// </summary>
 internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> Sensors, StartWithWindows Startup, ILogger Log)
 {
@@ -28,6 +28,9 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     public const string SensorsOnlyValue = "SensorsOnly";
 
     public Func<bool> Installed { get; init; } = () => Exists(Services + StartSensors.Service);
+
+    /// <summary>Whether this is a per-user install with no service, whose own host the sensors are read from.</summary>
+    public Func<bool> PerUser { get; init; } = () => SensorPipes.UserPipe is not null && !Exists(Services + StartSensors.Service);
 
     /// <summary>Whether an overlay runs in this session: its single-instance mutex is there, which is looked at, never taken.</summary>
     public Func<bool> Overlay { get; init; } = () => NamedMutex.Exists(HostEnvironment.OverlayMutexName);

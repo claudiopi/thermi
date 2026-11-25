@@ -32,7 +32,8 @@ internal static class ContractAnswers
             yield return ("read", AgentJson.Write(AgentReads.Read([.. series.Take(10)], config, [])));
         }
 
-        // Each problem the service can have, with a settings file that cannot be used, an overlay and a sensors-only install.
+        // Each problem the service can have, with a settings file that cannot be used, an overlay and a sensors-only install,
+        // and a per-user install that is not running.
         (ServiceState State, bool Installed, bool Taken, bool SensorsOnly)[] services =
         [
             (ServiceState.Stopped, true, false, false), (ServiceState.Stale, true, false, false), (ServiceState.Stopped, true, true, false),
@@ -47,5 +48,8 @@ internal static class ContractAnswers
             };
             yield return ("status", AgentJson.Write(AgentStatus.Of(facts)));
         }
+
+        var perUser = new AgentFacts(ServiceState.Stopped, Installed: false, Taken: false, Latest: null, ConfigProblem.Missing) { PerUser = true };
+        yield return ("status", AgentJson.Write(AgentStatus.Of(perUser)));
     }
 }

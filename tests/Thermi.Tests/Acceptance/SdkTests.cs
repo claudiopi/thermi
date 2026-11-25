@@ -37,6 +37,45 @@ public sealed class SdkTests
         }
     }
 
+    // Spec 003, R22: thermi-cli on PATH first, else where an install for everyone or for one person alone puts it.
+    [Fact]
+    public void TheSdkFindsThermiCliWhereEitherInstallPutsIt()
+    {
+        var root = Directory.CreateTempSubdirectory("thermi-sdk-").FullName;
+        try
+        {
+            var onPath = Path.Combine(root, "tools");
+            var programFiles = Path.Combine(root, "Program Files");
+            var local = Path.Combine(root, "Local");
+            string[] installs = [onPath, Path.Combine(programFiles, "thermi"), Path.Combine(local, "Programs", "thermi")];
+            var found = new List<string?>();
+            for (var first = installs.Length; first >= 0; first--)
+            {
+                foreach (var (folder, at) in installs.Select((folder, at) => (folder, at)))
+                {
+                    Directory.CreateDirectory(folder);
+                    var cli = Path.Combine(folder, "thermi-cli.exe");
+                    if (at >= first)
+                    {
+                        File.WriteAllText(cli, "");
+                    }
+                    else
+                    {
+                        File.Delete(cli);
+                    }
+                }
+
+                found.Add(ThermiClient.Locate(onPath + Path.PathSeparator + Path.Combine(root, "none"), programFiles, local));
+            }
+
+            Assert.Equal([null, .. installs.Reverse().Select(folder => Path.Combine(folder, "thermi-cli.exe"))], found);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task TheSdkSaysHowToInstall()
     {

@@ -157,7 +157,12 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
     }
 
     private AgentFacts Facts(Core.Tray.ServiceState state, bool taken, Snapshot? latest, ConfigProblem? settings) =>
-        new(state, environment.Installed(), taken, latest, settings) { Overlay = environment.Overlay(), SensorsOnly = environment.SensorsOnly() };
+        new(state, environment.Installed(), taken, latest, settings)
+        {
+            Overlay = environment.Overlay(),
+            SensorsOnly = environment.SensorsOnly(),
+            PerUser = environment.PerUser(),
+        };
 
     private AgentReply Unread(Core.Tray.ServiceState state, bool taken, Snapshot? latest)
     {

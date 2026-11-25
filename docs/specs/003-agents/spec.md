@@ -53,7 +53,7 @@ The contract
 
 The SDKs
 
-- R22. A .NET package on NuGet, MIT, with no dependency beyond .NET and no native code, gives `status`, `read`, `sensors` and `watch` as typed values, by starting `thermi-cli` found on `PATH` or under Program Files.
+- R22. A .NET package on NuGet, MIT, with no dependency beyond .NET and no native code, gives `status`, `read`, `sensors` and `watch` as typed values, by starting `thermi-cli` found on `PATH`, or where an install for everyone (`C:\Program Files\thermi`) or for one person alone (`%LOCALAPPDATA%\Programs\thermi`) puts it.
 - R23. Without `thermi-cli`, or with the service not installed, the SDK fails with an error that says so and how to install thermi, and installs nothing.
 
 Installing the sensors alone

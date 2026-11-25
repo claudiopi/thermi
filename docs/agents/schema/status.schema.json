@@ -28,7 +28,8 @@
               "service-stale",
               "pipe-taken",
               "driver-missing",
-              "settings-broken"
+              "settings-broken",
+              "not-running"
             ]
           },
           "cause": {
