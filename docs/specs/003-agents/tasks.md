@@ -1,6 +1,6 @@
 # 003-agents: Tasks
 
-> Progress: 0 / 14
+> Progress: 0 / 19
 > Current block: none, waiting for approval
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -27,9 +27,20 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - [ ] **T9** Covers R14, R15, R17: the server on stdio, its tools, undo and redo of its own edits.
 - [ ] **T10** Covers R18: `scripts/measure.ps1` on the installed build; the notices.
 
-## B4: Docs, review and proof
+## B4: The contract and the SDK
 
-- [ ] **T11** Covers R16: the README's agent section, with the Claude Code and Claude Desktop setup; `AGENTS.md`, `docs/ARCHITECTURE.md` and `docs/QUICKSTART.md`.
-- [ ] **T12** The comment-trimmer, `scripts/check.ps1`, the reviewer round after round until it approves.
-- [ ] **T13** Covers R16: the `by hand` steps, with Claude Code and Claude Desktop on the author's PC.
-- [ ] **T14** `acceptance.json` all `passes: true`, and the spec moves to `done`.
+- [ ] **T11** Covers R19: `watch`, and the session's share of the pipe at 8.
+- [ ] **T12** Covers R20, R21: the contract's page and JSON Schemas, `--schema`, and the tests that hold them.
+- [ ] **T13** Covers R22, R23: the .NET SDK, packed in the CI, with the error that says how to install thermi.
+
+## B5: Sensors alone
+
+- [ ] **T14** Covers R24, R25: `scripts/install.ps1 -SensorsOnly` with the driver step; the MSI's two features agreed with spec 004.
+- [ ] **T15** Follow-ups noted: the Node and Python packages, each a spec.
+
+## B6: Docs, review and proof
+
+- [ ] **T16** Covers R16: the README's agent section, with the Claude Code and Claude Desktop setup; `AGENTS.md`, `docs/ARCHITECTURE.md` and `docs/QUICKSTART.md`.
+- [ ] **T17** The comment-trimmer, `scripts/check.ps1`, the reviewer round after round until it approves.
+- [ ] **T18** Covers R16: the `by hand` steps, with Claude Code and Claude Desktop on the author's PC.
+- [ ] **T19** `acceptance.json` all `passes: true`, and the spec moves to `done`.

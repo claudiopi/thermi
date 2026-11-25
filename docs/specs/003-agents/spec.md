@@ -1,10 +1,10 @@
-# 003. AI agents read the sensors and configure thermi
+# 003. AI agents and other programs read the sensors and configure thermi
 
 **Status**: draft
 
 ## Why
 
-thermi exists because AI agents running for hours cooked their owner's PC. The agent itself should be able to ask how hot the PC is, back off when it runs hot, and set thermi up for the person, from a command line or as an MCP server, with or without an overlay on screen. The decisions are in `docs/adr/0013-agents-cli-and-mcp.md`.
+thermi exists because AI agents running for hours cooked their owner's PC. The agent itself should be able to ask how hot the PC is, back off when it runs hot, and set thermi up for the person, from a command line or as an MCP server, with or without an overlay on screen. Other programs, a terminal's status bar, an orchestrator that throttles its agents, a desktop widget, should read the same sensors through a contract that stays stable, as HWiNFO's shared memory grew an ecosystem, with or without thermi's overlay installed. The decisions are in `docs/adr/0013-agents-cli-and-mcp.md`.
 
 ## Requirements
 
@@ -17,7 +17,7 @@ The door
 
 Reading
 
-- R5. `status` says whether the sensor service runs and its data is fresh, whether the driver looks missing, whether an overlay runs, and why the settings file cannot be used, if it cannot.
+- R5. `status` says whether the sensor service runs and its data is fresh, whether the driver looks missing, whether an overlay runs, and why the settings file cannot be used, if it cannot; each problem says, for an agent, its cause and what a person does to fix it.
 - R6. `read` with no ids gives every metric and every item of every overlay; with ids, those alone, each a metric (`cpu.temperature`), a sensor id or an item id. A metric reads as the first overlay maps it, the CPU fan it was given included. Each value has its unit, and one that cannot be read is null with why, never 0.
 - R7. `read --seconds n`, n from 1 to 60, samples once a second for n seconds and gives each value's minimum, maximum, average and number of samples, beside the last.
 - R8. Each item read gives its level as the overlay judges it: normal, warning or critical, with the thresholds that decide it.
@@ -32,7 +32,7 @@ Changing
 
 MCP
 
-- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `edit`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why.
+- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `edit`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. Every tool but `edit`, `undo` and `redo` is marked read-only.
 - R15. `undo` takes back the session's last edit, and `redo` makes it again, each only where what it wrote is still there; a change made since by someone else stays.
 - R16. Added to Claude Code with one command from the README, an agent answers "how hot is my CPU?" with the value the overlay shows, and sets a warning that then shows on the overlay. The same works in Claude Desktop.
 
@@ -40,6 +40,24 @@ Sharing the PC
 
 - R17. Between calls the MCP server holds no connection to the sensor service, and a read hangs up as soon as it has its samples, so four MCP servers running never keep an overlay from its readings.
 - R18. The overlay's and the idle window's budgets of `AGENTS.md` still hold.
+- R19. `watch [ids]` prints `read`'s document as one line each second until its stdin closes or it is ended, holding one connection to the service while it runs; a Windows session may hold 8 of them, an overlay and its window included.
+
+The contract
+
+- R20. The JSON of `status`, `read`, `sensors` and `watch` is a documented contract with a JSON Schema per document, and every answer the tests see validates against it.
+- R21. Within a schema, fields are only added. A change that removes, renames or changes the meaning of one is a new schema, and `--schema n` answers the one before for two years after the new one ships.
+
+The SDKs
+
+- R22. A .NET package on NuGet, MIT, with no dependency beyond .NET and no native code, gives `status`, `read`, `sensors` and `watch` as typed values, by starting `thermi-cli` found on `PATH` or under Program Files.
+- R23. Without `thermi-cli`, or with the service not installed, the SDK fails with an error that says so and how to install thermi, and installs nothing.
+
+Installing the sensors alone
+
+- R24. The installer installs the sensors alone (the sensor service, its elevated helper and `thermi-cli`) or with the overlay and window on top; without the overlay, it installs the driver during setup when it is missing, with the installer's one administrator prompt.
+- R25. A sensors-only install updates itself as spec 004's updates do, and an update, or installing the full thermi over it, keeps what was installed and adds only what was asked.
+
+Later, each its own spec on this contract: a Node package on npm and a Python package on PyPI, as thin as the .NET one.
 
 ## Design
 
@@ -52,6 +70,12 @@ Sharing the PC
 **MCP.** `McpServer`, in the app's `Agents` folder, hosts the tools with `ModelContextProtocol.Core` on stdio, each tool a call of the same command code, with an `UndoHistory` for the session. The package goes into `Directory.Packages.props` and the notices.
 
 **Tests.** The reads, samples, levels and edits are tested in Core from the recordings, the zero-means-missing and no-driver ones included. The commands run in-process on a recorded feed, as the window's tests do, since only a pipe owned by SYSTEM is trusted and no command takes another. The door runs the built `thermi-cli` from each shell under `DesktopProcess`, with commands that need no pipe, its settings under a profile of the test's own. The MCP tools are tested through the SDK's client over in-memory streams to the same server code, and once over stdio to the built `thermi-cli`.
+
+**The contract** is written in a new page of `docs` with its JSON Schemas beside it, and Core's answer records are their only source; a test validates every answer of the command tests against the schemas. `--schema` is a parse option that today knows only 1.
+
+**The SDK** is a new project in `src`, a `net8.0` library with no package references, which holds the contract's records again, as the public side; a test round-trips each Core answer of the recordings through them, so the two cannot drift. It finds `thermi-cli`, runs it with `--schema 1`, and reads its stdout; `watch` is an `IAsyncEnumerable`. Packed in the CI, published by a person at a release.
+
+**The sensors-only install** is two features of spec 004's MSI, sensors and overlay, with the sensors always on; winget offers both. Until that MSI lands, `scripts/install.ps1 -SensorsOnly` does it. The setup's driver step starts `thermi-elevated` with `install-driver`, as the window does today. The share of 8 is `SensorPipeServer.PerSession`.
 
 **Rejected:** reading through the overlay, which already holds a minute of history per item. The agent would get nothing while no overlay runs, which R3 rules out, and the overlay would have to answer requests, a second protocol to secure.
 
