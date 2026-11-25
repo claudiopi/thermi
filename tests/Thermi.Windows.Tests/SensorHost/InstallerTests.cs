@@ -51,61 +51,6 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal((exitCode, installed), (exit, Directory.Exists(incoming)));
     }
 
-    // The old thermi is set aside, not deleted, until the new one's service is registered: an install that fails there,
-    // or an old folder held open that cannot be set aside, puts the old files back and registers them again, and leaves
-    // nothing beside them. The service manager is faked, refusing the new build's files, so no service on this PC is
-    // touched; a service registered last is one it took.
-    [Theory]
-    [InlineData(true, false, 0, "built")]
-    [InlineData(false, false, 1, "old")]
-    [InlineData(true, true, 1, "old")]
-    public async Task AnInstallThatFailsPutsTheOldThermiBack(bool registers, bool held, int exitCode, string left)
-    {
-        var build = Path.Combine(_folder, "build");
-        var target = Path.Combine(_folder, "thermi");
-        var registered = Path.Combine(_folder, "registered");
-        Directory.CreateDirectory(target);
-        await File.WriteAllTextAsync(Path.Combine(target, "thermi-sensors.exe"), "old", TestContext.Current.CancellationToken);
-        var refuse = registers ? "" : "if ((Get-Content \"$target\\thermi-sensors.exe\") -eq 'built') { throw 'Windows refused the service.' }";
-
-        int exit;
-        using (held ? new FileStream(Path.Combine(target, "thermi-sensors.exe"), FileMode.Open, FileAccess.Read, FileShare.Read) : null)
-        {
-            exit = await PwshAsync(
-                $"$target = '{target}'; $service = 'thermi-tests-none'; function Remove-Service {{ }}; "
-                + "function Set-MachinePath { }; function Set-InstallChoice { }; "
-                + $"function Register-Service {{ {refuse}; Set-Content '{registered}' 'yes' }}; "
-                + $"Install-Elevated '{build}' (Get-TreeHash '{build}') $true");
-        }
-
-        var beside = new[] { ".old", ".new" }.Any(end => Directory.Exists(target + end));
-        var installed = File.Exists(Path.Combine(target, "thermi-sensors.exe"))
-            ? await File.ReadAllTextAsync(Path.Combine(target, "thermi-sensors.exe"), TestContext.Current.CancellationToken)
-            : "nothing";
-        Assert.Equal((exitCode, left, false, true), (exit, installed.Trim(), beside, File.Exists(registered)));
-    }
-
-    // A service Windows registered without its restarts or with all of LocalSystem's privileges would run, but not as
-    // docs/adr/0003-sensor-service.md says: each change the service manager refuses stops the registration there. The
-    // service manager and New-Service are faked, so no service on this PC is touched.
-    [Theory]
-    [InlineData("failure")]
-    [InlineData("failureflag")]
-    [InlineData("privs")]
-    public async Task AServiceManagerRefusalStopsTheRegistration(string refused)
-    {
-        var calls = Path.Combine(_folder, "calls.txt");
-
-        var exit = await PwshAsync(
-            $"$target = '{_folder}'; $service = 'thermi-tests-none'; $servicePrivileges = 'SeChangeNotifyPrivilege'; "
-            + "function New-Service { }; function New-ItemProperty { }; function Start-Service { }; "
-            + $"function sc.exe {{ Add-Content '{calls}' $args[0]; $global:LASTEXITCODE = $args[0] -eq '{refused}' ? 5 : 0 }}; "
-            + "Register-Service");
-
-        var called = await File.ReadAllLinesAsync(calls, TestContext.Current.CancellationToken);
-        Assert.Equal((1, refused), (exit, called[^1]));
-    }
-
     // The elevated half waits in a file the user can write while the UAC prompt is up: the administrator runs it only as
     // it was when its hash was taken, before the prompt.
     [Theory]

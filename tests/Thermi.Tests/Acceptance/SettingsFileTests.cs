@@ -292,4 +292,21 @@ public sealed class SettingsFileTests
             .SelectMany(overlay => overlay.GetProperty("items").EnumerateArray())
             .Select(item => item.GetProperty("id").GetString() ?? "")];
     }
+
+    // A version rolled back to finds the copy of the settings kept in its format, and a new copy never takes an old one's name.
+    [Fact]
+    public void ASettingsCopyIsFoundAgainByItsFormat()
+    {
+        var file = Path.Combine("settings", "config.json");
+        string[] kept =
+        [
+            "config.v3-2026-01-01-000000.json", "config.v4-2026-01-02-000000.json", "config.v4-2026-03-01-000000.json",
+            "config.broken-2026-04-01-000000.json",
+        ];
+        Assert.Equal("config.v4-2026-03-01-000000.json", KeptCopies.Newest(kept.Select(name => Path.Combine("settings", name)), file, 4));
+        Assert.Null(KeptCopies.Newest(kept, file, 5));
+        var taken = new HashSet<string>(StringComparer.Ordinal) { Path.Combine("settings", "config.v5-2026-11-24-210000.json") };
+        var at = new DateTimeOffset(2026, 11, 24, 21, 0, 0, TimeSpan.Zero);
+        Assert.Equal(Path.Combine("settings", "config.v5-2026-11-24-210000-2.json"), KeptCopies.Name(file, "v5", at, taken.Contains));
+    }
 }

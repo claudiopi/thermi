@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Thermi.Core.Install;
 
 namespace Thermi.Ui;
 
@@ -13,25 +14,21 @@ namespace Thermi.Ui;
 /// <param name="exePath">What the value starts at sign-in.</param>
 internal sealed class StartWithWindows(string key, string approvedKey, string exePath)
 {
-    public const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-
     public const string ApprovedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 
-    public const string ValueName = "thermi";
-
-    public static StartWithWindows Of(string exePath) => new(RunKey, ApprovedKey, exePath);
+    public static StartWithWindows Of(string exePath) => new(RunAtSignIn.Key, ApprovedKey, exePath);
 
     // A value of another path, as a thermi installed elsewhere left, starts nothing that is this one: it shows off.
     public bool On => Written && !TurnedOff;
 
-    private string Value => $"\"{exePath}\"";
+    private string Value => RunAtSignIn.Of(exePath);
 
     private bool Written
     {
         get
         {
             using var run = Registry.CurrentUser.OpenSubKey(key);
-            return run?.GetValue(ValueName) is string value && string.Equals(value, Value, StringComparison.OrdinalIgnoreCase);
+            return run?.GetValue(RunAtSignIn.Name) is string value && string.Equals(value, Value, StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -40,7 +37,7 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
         get
         {
             using var approved = Registry.CurrentUser.OpenSubKey(approvedKey);
-            return approved?.GetValue(ValueName) is byte[] { Length: > 0 } state && (state[0] & 1) == 1;
+            return approved?.GetValue(RunAtSignIn.Name) is byte[] { Length: > 0 } state && (state[0] & 1) == 1;
         }
     }
 
@@ -53,7 +50,7 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
         if (on && TurnedOff)
         {
             using var approved = Registry.CurrentUser.OpenSubKey(approvedKey, writable: true);
-            approved?.DeleteValue(ValueName, throwOnMissingValue: false);
+            approved?.DeleteValue(RunAtSignIn.Name, throwOnMissingValue: false);
         }
 
         if (on && Written)
@@ -64,11 +61,11 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
         using var run = Registry.CurrentUser.CreateSubKey(key);
         if (on)
         {
-            run.SetValue(ValueName, Value);
+            run.SetValue(RunAtSignIn.Name, Value);
         }
         else
         {
-            run.DeleteValue(ValueName, throwOnMissingValue: false);
+            run.DeleteValue(RunAtSignIn.Name, throwOnMissingValue: false);
         }
     }
 }

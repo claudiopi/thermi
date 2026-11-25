@@ -43,6 +43,7 @@ internal sealed class ConfigStore : IDisposable
     private const string Temporary = ".tmp";
 
     private static readonly ConfigWrite Again = new(WriteOutcome.Retry);
+    private static readonly ConfigWrite Left = new(WriteOutcome.Good);
 
     private readonly TimeProvider _time;
     private readonly Mutex _mutex;
@@ -84,9 +85,9 @@ internal sealed class ConfigStore : IDisposable
     internal static FileStream OpenShared(string path) => new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
     /// <summary>
-    /// The settings in the file, or the defaults and why it cannot be used. A file still missing once the retry is over
-    /// is created with the defaults, so there is something to edit; one of an earlier version is written in this one,
-    /// the old file kept beside it, so an editor opens what the window shows.
+    /// The settings in the file, or the defaults and why it cannot be used. A file still missing once the retry is over is created with the
+    /// defaults, so there is something to edit; one of an earlier version is written in this one, the old file kept beside it, so an editor
+    /// opens what the window shows; one of a newer version, after a rollback, gives way to the copy kept in this version's format.
     /// </summary>
     public async Task<ConfigRead> ReadAsync()
     {
@@ -97,6 +98,11 @@ internal sealed class ConfigStore : IDisposable
         }
 
         var read = ReadOf(found.Kind == Found.Missing ? Peek() : found);
+        if (read.Problem?.Kind == ConfigProblemKind.Newer && (await WriteAsync(Back, settled: false).ConfigureAwait(false)).Config is { } back)
+        {
+            return new ConfigRead(back, null, Outside: false);
+        }
+
         return read.Problem is null && found.Kind == Found.Whole && ThermiConfigJson.VersionOf(found.Text) < ThermiConfig.CurrentVersion
             && (await WriteAsync(Upgraded, settled: false).ConfigureAwait(false)).Config is { } upgraded
             ? read with { Config = upgraded }
@@ -131,6 +137,22 @@ internal sealed class ConfigStore : IDisposable
         return version < ThermiConfig.CurrentVersion && problem is null
             ? new Plan(config, Aside: string.Create(CultureInfo.InvariantCulture, $"v{version}"))
             : new Plan(null, new ConfigWrite(WriteOutcome.Good, problem is null ? config : null));
+    }
+
+    // After a rollback, the newer file kept beside; a file left as it is gives no settings, so the read says why it cannot be used.
+    private Plan Back(Look found)
+    {
+        var newer = found.Kind == Found.Whole ? ThermiConfigJson.VersionOf(found.Text) : null;
+        try
+        {
+            var copy = newer > ThermiConfig.CurrentVersion ? KeptCopies.Newest(Directory.EnumerateFiles(Folder), FilePath, ThermiConfig.CurrentVersion) : null;
+            var (config, problem) = copy is null ? (null, ConfigProblem.Missing) : ThermiConfigJson.Read(File.ReadAllText(Path.Combine(Folder, copy)));
+            return problem is null ? new Plan(config, Aside: string.Create(CultureInfo.InvariantCulture, $"v{newer}")) : new Plan(null, Left);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new Plan(null, Left);
+        }
     }
 
     // A lock that outlasts the settle is another program's, which may hold it for good: it is said as the file's problem
@@ -277,7 +299,7 @@ internal sealed class ConfigStore : IDisposable
     // The copy is thermi's own, so a read-only file's is made writable, or a failed write could not take it back.
     private string CopyAside(string aside)
     {
-        var kept = KeptName(aside);
+        var kept = KeptCopies.Name(FilePath, aside, _time.GetLocalNow(), File.Exists);
         File.Copy(FilePath, kept);
         File.SetAttributes(kept, File.GetAttributes(kept) & ~FileAttributes.ReadOnly);
         return kept;
@@ -333,22 +355,6 @@ internal sealed class ConfigStore : IDisposable
         {
             // Left for the next writer.
         }
-    }
-
-    private string KeptName(string aside)
-    {
-        var stamp = _time.GetLocalNow().ToString("yyyy-MM-dd-HHmmss", CultureInfo.InvariantCulture);
-        var stem = Path.Combine(Folder, $"{Path.GetFileNameWithoutExtension(FilePath)}.{aside}-{stamp}");
-        var extension = Path.GetExtension(FilePath);
-        var name = stem + extension;
-        var repeat = 1;
-        while (File.Exists(name))
-        {
-            repeat++;
-            name = string.Create(CultureInfo.InvariantCulture, $"{stem}-{repeat}{extension}");
-        }
-
-        return name;
     }
 
     private Look Peek()

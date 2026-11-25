@@ -27,6 +27,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+    <ProjectReference Include="..\Thermi.Trust\Thermi.Trust.csproj" />
   </ItemGroup>
+
+  <Import Project="..\Launchers.targets" />
 
 </Project>

@@ -1,0 +1,74 @@
+using Thermi.Core.Updates;
+
+namespace Thermi.Core.Install;
+
+public enum MachineInstallOutcome
+{
+    Running,
+    Installed,
+
+    /// <summary>The UAC prompt was refused: nothing changed.</summary>
+    Refused,
+
+    /// <summary>The download, its check or the install failed: nothing changed.</summary>
+    Failed,
+
+    /// <summary>No machine MSI to trust: the window opens thermi's download page.</summary>
+    DownloadPage,
+}
+
+/// <summary>Where the last "install for everyone" of this per-user install is, and since when, as the window reads it.</summary>
+public sealed record MachineInstall(MachineInstallOutcome Outcome, DateTimeOffset At);
+
+/// <summary>
+/// The one prompt that turns a per-user install into the machine's, with the service and the driver
+/// (docs/adr/0016-admin-on-demand.md): which MSI it runs, and what its exit says.
+/// </summary>
+public static class InstallForEveryone
+{
+    public const string PerUserUpgradeCode = "{E64A26FA-E001-4EDF-A31C-40957EC23FAB}";
+
+    /// <summary>The machine MSI's property that adds the driver on its first install.</summary>
+    public const string DriverProperty = "ADDDRIVER";
+
+    /// <summary>The user's host's event that asks it to install for everyone, beside ADR 0008's codes.</summary>
+    public const int Code = 131;
+
+    // ERROR_CANCELLED, as the UAC prompt's no, and ERROR_INSTALL_USEREXIT, as Windows Installer's own cancel.
+    private const int Cancelled = 1223;
+    private const int UserExit = 1602;
+
+    // ERROR_SUCCESS_REBOOT_REQUIRED: installed, with the driver loading once Windows restarts.
+    private const int RestartNeeded = 3010;
+
+    public static MachineInstallOutcome OutcomeOf(int exitCode) => exitCode switch
+    {
+        0 or RestartNeeded => MachineInstallOutcome.Installed,
+        Cancelled or UserExit => MachineInstallOutcome.Refused,
+        _ => MachineInstallOutcome.Failed,
+    };
+
+    /// <summary>
+    /// The MSI to run, with the install <see cref="MachineInstallOutcome.Running"/>, or none and what the install comes to
+    /// before any MSI runs: the download page when the policy turned checks off or <see cref="Msi"/> gives none, and a
+    /// failure when no manifest of the channel's could be taken, <paramref name="manifest"/> being null.
+    /// </summary>
+    public static (MachineInstallOutcome Outcome, Package? Msi) MsiToRun(bool checks, Manifest? manifest, ReleaseVersion running, string processor) =>
+        !checks ? (MachineInstallOutcome.DownloadPage, null)
+        : manifest is null ? (MachineInstallOutcome.Failed, null)
+        : Msi(manifest, running, processor) is { } msi ? (MachineInstallOutcome.Running, msi)
+        : (MachineInstallOutcome.DownloadPage, null);
+
+    /// <summary>
+    /// The machine MSI to run: that of the version <paramref name="manifest"/> offers when it is <paramref name="running"/>
+    /// or later and lists one for <paramref name="processor"/>; null, as for a channel turned off or a running version
+    /// withdrawn, leaves none to trust, and the fix opens the download page.
+    /// </summary>
+    public static Package? Msi(Manifest manifest, ReleaseVersion running, string processor) =>
+        manifest is { Disabled: false, Version: { } offered }
+        && offered.CompareTo(running) >= 0
+        && !manifest.Withdrawn.Contains(running)
+        && manifest.Msis.TryGetValue(processor, out var msi)
+            ? msi
+            : null;
+}

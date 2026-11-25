@@ -13,7 +13,10 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
 | `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
 | `src/Thermi.Client` | The .NET SDK of the agents' contract, which starts `thermi-cli`: `net10.0`, MIT, no dependencies. |
-| `src/Thermi.SensorHost` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor, and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
+| `src/Thermi.SensorHost` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor and the one that updates thermi; the same host as the user's own process in a per-user install, which updates it and installs it for everyone; and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
+| `src/Thermi.Trust` | Windows' own checks both the window's fixes and the updater trust: a folder only administrators change, Authenticode signatures, signed catalogs and a held switch lock. |
+| `src/Thermi.Releases` | `thermi-releases`, the owner's levers on the update channels, which sign each channel's manifest. |
+| `src/Thermi.Installer` | The MSI, built with WiX 5 from a published version. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |
 | `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |
@@ -36,6 +39,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 - `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"`: run only some tests while you work, through `dotnet test`, which takes what follows, one run at a time on the PC and below normal priority, like the check. `pwsh scripts/test.ps1 -Web tests/Quality.spec.ts -g "fits"` builds the page and runs only some of its Playwright tests.
 - `dotnet format whitespace thermi.slnx`: fix formatting.
 - `pwsh scripts/install.ps1` (as yourself; it asks for admin rights once): install this build on your PC. `-Uninstall` removes it.
+- `pwsh scripts/updates.ps1 <command>`: pack a version (with `--msi`, its MSI too), make keys, and publish, promote, roll back or serve update channels on this PC: `docs/RELEASES.md`.
 - `thermi-sensors --dump <file>`: save what the sensors read now, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case.
 - `thermi-sensors --dump <file> --seconds <n>`: record a series, one snapshot per second. For the fans' answer to a CPU load, run `thermi-sensors --dump <file> --seconds 45` as administrator, wait 5 s, run `Start-Process -Wait thermi -ArgumentList cpu-load,30` (a windowed program, like `preview`), and let the recording finish.
 - `thermi-sensors --frames <file> --seconds <n>`, as administrator: record every present of every process for n seconds, one JSON line each with process ids, times, the event that told of it and when it arrived, never a name, to replay frames in tests. It runs beside the service, in a session of its own.

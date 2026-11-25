@@ -3,7 +3,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.ServiceProcess;
 using Thermi.Core.Sensors;
+using Thermi.Core.Updates;
 using Thermi.SensorHost.Frames;
+using Thermi.SensorHost.Install;
+using Thermi.SensorHost.Updates;
+using Thermi.SensorHost.User;
 
 namespace Thermi.SensorHost;
 
@@ -36,9 +40,14 @@ internal static class Program
             return await builtIn.Parsed.InvokeAsync(new InvocationConfiguration { Output = environment.Out, Error = environment.Error }, stop);
         }
 
-        if (request is SensorElevated)
+        if (request is SensorElevated or SensorSwitch or SensorInstall)
         {
-            return RunElevated(environment);
+            return await RunModeAsync(request, environment, stop);
+        }
+
+        if (request is SensorServe { User: true })
+        {
+            return await UserMode.RunAsync(environment, stop);
         }
 
         if (request is SensorFrames frames)
@@ -69,26 +78,96 @@ internal static class Program
         var read = (ISensorSource?)framed ?? source;
         using var server = new SensorPipeServer(read.ReadAsync, environment.Time, environment.PipeName)
         {
-            Squatted = () => environment.Log(
-                $"Another program holds the {environment.PipeName} pipe, so thermi's overlay and window get no readings. "
-                    + "The service tries again every 5 s until that program closes it.",
-                EventLogEntryType.Warning),
+            Squatted = () => Squatted(environment),
         };
         if (service)
         {
-            using var running = new SensorService(
-                server.RunAsync,
-                error => environment.Log(error.ToString(), EventLogEntryType.Error),
-                resumed: () => _ = source.ReadAsync(CancellationToken.None));
-            ServiceBase.Run(running);
-            return running.ExitCode;
+            return RunService(server, source, environment);
         }
 
         await ServeAsync(server, environment.Out, stop);
         return 0;
     }
 
-    // Before the sensors are opened: the fixes read none.
+    // The updater runs beside the server and only in an installed layout; it never stops the service, whatever it meets.
+    private static int RunService(SensorPipeServer server, ISensorSource source, SensorHostEnvironment environment)
+    {
+        var build = UpdateBuild.Of(typeof(Program).Assembly);
+        var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version);
+        if (build.Built && folder is null)
+        {
+            var where = AppContext.BaseDirectory;
+            environment.Log($"thermi runs from {where}, which is no version's folder, so it does not update itself.", EventLogEntryType.Warning);
+        }
+
+        using var client = new ManifestClient(environment.Time);
+        using var updater = folder is null ? null : new Updater(build, folder, client, environment.Time, environment.Log);
+        using var service = new SensorService(
+            stop =>
+            {
+                _ = updater?.RunAsync(stop);
+                return server.RunAsync(stop);
+            },
+            error => environment.Log(error.ToString(), EventLogEntryType.Error),
+            resumed: () =>
+            {
+                _ = source.ReadAsync(CancellationToken.None);
+                updater?.Resumed();
+            })
+        {
+            Updates = updater,
+        };
+        ServiceBase.Run(service);
+        return service.ExitCode;
+    }
+
+    // A switch's watchdog reads the note, so a version is never failed for a pipe another program held.
+    private static void Squatted(SensorHostEnvironment environment)
+    {
+        environment.Log(
+            $"Another program holds the {environment.PipeName} pipe, so thermi's overlay and window get no readings. "
+                + "The service tries again every 5 s until that program closes it.",
+            EventLogEntryType.Warning);
+        InstallFolder.Of(AppContext.BaseDirectory, UpdateBuild.Of(typeof(Program).Assembly).Version)?.MarkPipeHeld();
+    }
+
+    private static async Task<int> WatchAsync(ReleaseVersion to, SensorHostEnvironment environment, CancellationToken stop)
+    {
+        var build = UpdateBuild.Of(typeof(Program).Assembly);
+        var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version);
+        return folder is null
+            ? 2
+            : await new Switcher(folder, environment.Time, environment.Log, shown: WindowsSetup.Show)
+                .WatchAsync(to, environment.PipeName, stop);
+    }
+
+    // The modes that read no sensors.
+    private static async Task<int> RunModeAsync(ISensorRequest request, SensorHostEnvironment environment, CancellationToken stop) => request switch
+    {
+        SensorSwitch { User: true } watch => await UserMode.WatchAsync(watch.To, environment, stop),
+        SensorSwitch watch => await WatchAsync(watch.To, environment, stop),
+        SensorInstall install => await InstallAsync(install, environment, stop),
+        _ => RunElevated(environment),
+    };
+
+    // Run from the folder the MSI or scripts/install.ps1 put this version in, beside the versions an update keeps.
+    private static Task<int> InstallAsync(SensorInstall install, SensorHostEnvironment environment, CancellationToken stop)
+    {
+        var version = UpdateBuild.Of(typeof(Program).Assembly).Version;
+        var own = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+        var installation = install.User
+            ? UserMode.Installation(Path.GetDirectoryName(own)!, environment)
+            : new Installation(new InstallFolder(Path.GetDirectoryName(own)!), new WindowsSetup(), environment.Time, environment.Error.WriteLine);
+        return install.Mode switch
+        {
+            InstallMode.Adopt => installation.AdoptAsync(version, own, install.Product, stop),
+            InstallMode.Undo => installation.UndoAsync(version, own, stop),
+            InstallMode.Forget => Task.FromResult(installation.Forget(own)),
+            InstallMode.Remove => installation.RemoveAsync(own, stop),
+            _ => throw new ArgumentOutOfRangeException(nameof(install), install.Mode, null),
+        };
+    }
+
     private static int RunElevated(SensorHostEnvironment environment)
     {
         using var elevated = new ElevatedService(
@@ -184,7 +263,13 @@ internal sealed class SensorService : ServiceBase
         _resumed = resumed;
         ServiceName = Name;
         CanHandlePowerEvent = resumed is not null;
+        // Each quiet code would log a line a minute; the service says what it does itself, and Windows logs its starts and stops.
+        AutoLog = false;
+        // A shutdown is a stop asked for: without it, a restart soon after an update would count as a crash of the new version.
+        CanShutdown = true;
     }
+
+    public Updater? Updates { get; init; }
 
     /// <summary>
     /// Runs the server. A failure stops the service with an error code, so the recovery actions restart it.
@@ -214,7 +299,53 @@ internal sealed class SensorService : ServiceBase
             self.PriorityClass = ProcessPriorityClass.AboveNormal;
         }
 
+        try
+        {
+            Update(updates => updates.Started());
+        }
+        catch (Exception ex)
+        {
+            // With AutoLog off, Windows logs no reason of its own for a start that failed.
+            _report(ex);
+            throw;
+        }
+
         _running = RunAsync();
+    }
+
+    // Windows waits on this answer, so the switch or the check runs apart.
+    protected override void OnCustomCommand(int command)
+    {
+        if (command == UpdateSchedule.QuietCode && Updates is { } updates)
+        {
+            _ = Task.Run(() => Update(_ => updates.Quiet()), CancellationToken.None);
+        }
+        else if (command == UpdateSchedule.RestartCode && Updates is { } restart)
+        {
+            _ = Task.Run(() => restart.RestartAsync(_stop.Token), CancellationToken.None);
+        }
+        else if (command == UpdateSchedule.CheckCode && Updates is { } asked)
+        {
+            _ = Task.Run(() => asked.AskedAsync(_stop.Token), CancellationToken.None);
+        }
+    }
+
+    protected override void OnShutdown() => OnStop();
+
+    // What the updater meets is written to the log and never stops the service.
+    private void Update(Action<Updater> step)
+    {
+        try
+        {
+            if (Updates is { } updates)
+            {
+                step(updates);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            _report(ex);
+        }
     }
 
     // Windows waits on this answer, and the library may take a while to read, so the read on waking runs apart.
@@ -230,6 +361,12 @@ internal sealed class SensorService : ServiceBase
 
     protected override void OnStop()
     {
+        // First: Windows gives a service only seconds at shutdown. A server failure exits with an error code, a crash on probation.
+        if (ExitCode == 0)
+        {
+            Update(updates => updates.Stopped());
+        }
+
         _stop.Cancel();
 #pragma warning disable VSTHRD002 // OnStop is synchronous: Windows expects the service to have stopped when it returns.
         _running.Wait(5000, CancellationToken.None);

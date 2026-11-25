@@ -1,0 +1,24 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!-- The MSI of one version for one processor (docs/adr/0008-updates.md), built from that version's published folder:
+       `pwsh scripts/updates.ps1 pack` builds it, given its MSI option. Outside thermi.slnx, since it needs a publish first.
+       ThermiScope perUser builds the per-user MSI of docs/adr/0016-admin-on-demand.md, named with -user. -->
+  <PropertyGroup>
+    <ThermiScope Condition="'$(ThermiScope)' == ''">perMachine</ThermiScope>
+    <OutputType>Package</OutputType>
+    <OutputName>thermi-$(ThermiVersion)-$(Platform)</OutputName>
+    <OutputName Condition="'$(ThermiScope)' == 'perUser'">$(OutputName)-user</OutputName>
+    <!-- ICE57 reads the Start menu as each person's, but a per-machine package's is everyone's, under ProgramData. -->
+    <!-- ICE61 warns of a major upgrade over the same version, which this one makes on purpose: two MSIs of one version, as
+         two builds of it, are never installed side by side. -->
+    <SuppressIces>ICE57;ICE61</SuppressIces>
+    <!-- ICE38 and ICE64 ask a per-user package's files in the profile for registry key paths and a RemoveFolder each,
+         which the version it ships cannot carry: the files are the MSI's own, and thermi-sensors.exe empties the folder
+         on its removal. ICE91 warns that a per-machine install of it would not reach each profile, which it never is. -->
+    <SuppressIces Condition="'$(ThermiScope)' == 'perUser'">$(SuppressIces);ICE38;ICE64;ICE91</SuppressIces>
+    <DefineConstants>Version=$(ThermiMsiVersion);PublishDir=$(ThermiPublishDir);Scope=$(ThermiScope)</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- WixQuietExec and WixUnelevatedShellExec, which run the MSI's programs with no console window. -->
+    <PackageReference Include="WixToolset.Util.wixext" />
+  </ItemGroup>
+</Project>

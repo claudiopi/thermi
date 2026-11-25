@@ -37,20 +37,23 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.CommandLine" />
     <PackageReference Include="ModelContextProtocol.Core" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" />
     <PackageReference Include="Microsoft.Web.WebView2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+    <ProjectReference Include="..\Thermi.Trust\Thermi.Trust.csproj" />
   </ItemGroup>
 
-  <!-- GDI+, which paints the overlay and the tray, from the Windows Desktop runtime the installer already needs: its
+  <!-- GDI+, which paints the overlay and the tray, from the Windows Desktop runtime each version's folder carries: its
        Windows Forms profile, the smallest that holds System.Drawing.Common, and no WPF. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
   <Import Project="SettingsPage.targets" />
+  <Import Project="..\Launchers.targets" />
 
   <!-- thermi-cli.exe: a second apphost of thermi.dll, of the console subsystem, so every shell waits for it and gets its
        output and exit code, which a windowed program gives none (docs/adr/0013-agents-cli-and-mcp.md). It goes wherever
@@ -75,6 +78,30 @@
                    WindowsGraphicalUserInterface="false"
                    Retries="$(CopyRetryCount)"
                    RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)" />
+  </Target>
+
+  <!-- thermi-cli's launcher, made as Launchers.targets makes thermi.exe's: the top of the install folder, which the PATH
+       names, keeps a thermi-cli that starts the version the launchers point at. -->
+  <Target Name="CreateCliLauncher" AfterTargets="CreateLauncher"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(UseAppHost)' != 'false' and Exists('$(AppHostSourcePath)') and Exists('@(IntermediateAssembly)')"
+          Inputs="@(IntermediateAssembly);$(AppHostSourcePath)" Outputs="$(IntermediateOutputPath)launcher\thermi-cli.exe">
+    <MakeDir Directories="$(IntermediateOutputPath)launcher" />
+    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
+                   AppHostDestinationPath="$(IntermediateOutputPath)launcher\thermi-cli.exe"
+                   AppBinaryName="$(Version)\$(AssemblyName)$(TargetExt)"
+                   IntermediateAssembly="@(IntermediateAssembly->'%(FullPath)')"
+                   WindowsGraphicalUserInterface="false"
+                   Retries="$(CopyRetryCount)"
+                   RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+                   DisableCetCompat="$(_DisableCetCompat)" />
+  </Target>
+
+  <Target Name="PublishCliLauncher" BeforeTargets="ComputeResolvedFilesToPublishList" DependsOnTargets="CreateCliLauncher"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(UseAppHost)' != 'false'">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(IntermediateOutputPath)launcher\thermi-cli.exe" RelativePath="launchers\thermi-cli.exe"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
   </Target>
 
 </Project>

@@ -1974,6 +1974,9 @@
   <data name="WindowText.InstallDriver" xml:space="preserve">
     <value>Instalar el driver</value>
   </data>
+  <data name="WindowText.InstallForEveryone" xml:space="preserve">
+    <value>Instalar para todos</value>
+  </data>
   <data name="WindowText.WhatIsThis" xml:space="preserve">
     <value>¿Qué es esto?</value>
   </data>
@@ -2273,6 +2276,36 @@
   </data>
   <data name="AgentText.SettingsBrokenFixSensorsOnly" xml:space="preserve">
     <value>Pedile a la persona que arregle o borre el archivo de configuración de thermi, %APPDATA%\thermi\config.json.</value>
+  </data>
+  <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
+    <value>Esta compilación no se actualiza sola</value>
+  </data>
+  <data name="WindowText.UpdatesTurnedOff" xml:space="preserve">
+    <value>Las actualizaciones están apagadas por la política de esta PC</value>
+  </data>
+  <data name="WindowText.UpdatesReady" xml:space="preserve">
+    <value>La versión {0} está lista y se instala cuando la PC está tranquila</value>
+  </data>
+  <data name="WindowText.UpdatesUnreached" xml:space="preserve">
+    <value>No se pudo buscar actualizaciones desde el {0}</value>
+  </data>
+  <data name="WindowText.UpdatesUpToDate" xml:space="preserve">
+    <value>Al día, revisado el {0}</value>
+  </data>
+  <data name="WindowText.UpdatesNotChecked" xml:space="preserve">
+    <value>Busca actualizaciones en breve</value>
+  </data>
+  <data name="WindowText.UpdatesChecking" xml:space="preserve">
+    <value>Buscando actualizaciones…</value>
+  </data>
+  <data name="WindowText.UpdatesCheckedNow" xml:space="preserve">
+    <value>Al día, revisado recién</value>
+  </data>
+  <data name="WindowText.RestartToUpdate" xml:space="preserve">
+    <value>Reiniciar para actualizar</value>
+  </data>
+  <data name="WindowText.UpdatesBeta" xml:space="preserve">
+    <value>{0} · Canal beta</value>
   </data>
   <data name="OfDevice.Cpu" xml:space="preserve">
     <value>{0} de la CPU</value>

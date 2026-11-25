@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The owner's levers on the update channels (docs/adr/0008-updates.md), which scripts/updates.ps1 runs. It shares Core's
+       manifest code with the service, and nothing of it ships. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>thermi-releases</AssemblyName>
+    <RootNamespace>Thermi.Releases</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Thermi.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+  </ItemGroup>
+
+</Project>

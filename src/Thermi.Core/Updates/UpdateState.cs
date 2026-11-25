@@ -1,0 +1,113 @@
+using System.Text.Json;
+using Thermi.Core.Install;
+
+namespace Thermi.Core.Updates;
+
+/// <summary>
+/// A switch still on probation: the version it came from, when, and how many of the new service's runs ended without
+/// stopping, counted at each start, with whether the one now running has stopped yet.
+/// </summary>
+public sealed record Probation(ReleaseVersion From, DateTimeOffset At, int Crashes = 0, bool Stopped = true);
+
+/// <summary>
+/// A switch written down before it starts, so a service that starts with it still there can tell whether it was done,
+/// from the version it is: whether it is under way, how many times one to the same version was cut before it was done,
+/// and whether it goes back after a failed probation, which a cut never turns against the version it goes back to.
+/// </summary>
+public sealed record PendingSwitch(ReleaseVersion From, ReleaseVersion To, int Cuts = 0, bool Running = false, bool Back = false);
+
+/// <summary>
+/// What the service knows of its updates, in <c>update\state.json</c>, which only it writes and the overlay and the window
+/// read: the versions installed, kept and ready, the ones that failed here, the last sequence taken of each channel, the
+/// PC's rollout number, its checks, and a switch on probation.
+/// </summary>
+public sealed record UpdateState
+{
+    public const string FileName = "state.json";
+
+    /// <summary>
+    /// The start of the copies of the state users read, as the overlay and About do, the highest numbered of them: the
+    /// service's own is no user's to open, so none can hold it open against a write, and each copy is a new file, so a user
+    /// holding one keeps no one's view old.
+    /// </summary>
+    public const string SharedPrefix = "status-";
+
+    /// <summary>The number of a users' copy, from its name, or null for no copy.</summary>
+    public static long? SharedNumber(string name) =>
+        name.StartsWith(SharedPrefix, StringComparison.Ordinal) && name.EndsWith(".json", StringComparison.Ordinal)
+        && long.TryParse(name.AsSpan(SharedPrefix.Length, name.Length - SharedPrefix.Length - ".json".Length), out var number)
+            ? number
+            : null;
+
+    /// <summary>The version the launchers start.</summary>
+    public ReleaseVersion? Installed { get; init; }
+
+    /// <summary>The version before it, kept whole for a rollback.</summary>
+    public ReleaseVersion? Previous { get; init; }
+
+    public ReleaseVersion? Ready { get; init; }
+
+    public bool ReadyUrgent { get; init; }
+
+    /// <summary>The installed version came urgent, so an overlay still on the one before switches without waiting for idle input.</summary>
+    public bool InstalledUrgent { get; init; }
+
+    public IReadOnlyList<ReleaseVersion> Failed { get; init; } = [];
+
+    public IReadOnlyDictionary<string, long> Sequences { get; init; } = new Dictionary<string, long>(StringComparer.Ordinal);
+
+    /// <summary>The PC's number from 0 to 99 against a rollout, or -1 before it was drawn.</summary>
+    public int Bucket { get; init; } = -1;
+
+    /// <summary>The PC's first check, from which failing checks count when none ever worked.</summary>
+    public DateTimeOffset? FirstCheck { get; init; }
+
+    public DateTimeOffset? LastCheck { get; init; }
+
+    public DateTimeOffset? LastSuccess { get; init; }
+
+    public Probation? Probation { get; init; }
+
+    public PendingSwitch? Switch { get; init; }
+
+    /// <summary>
+    /// The SHA-256 of the release key a manifest signed by the backup key revoked: only the backup key is trusted until a
+    /// version built with another release key runs.
+    /// </summary>
+    public string? RevokedKey { get; init; }
+
+    /// <summary>
+    /// The SHA-256 of the last zip refused for what it holds, as a catalog this build cannot trust: never fetched again
+    /// by this build, while another zip is. Another version installed, by a switch or by hand, forgets it.
+    /// </summary>
+    public string? Refused { get; init; }
+
+    /// <summary>
+    /// Before this, no switch forward begins: one went back without failing, cut by a slow start or met by a program holding
+    /// the pipe, and the old service's own start would only try it again under the same load or the same program.
+    /// </summary>
+    public DateTimeOffset? SwitchAfter { get; init; }
+
+    /// <summary>The last "install for everyone" of a per-user install (docs/adr/0016-admin-on-demand.md).</summary>
+    public MachineInstall? MachineInstall { get; init; }
+
+    /// <summary>The state <paramref name="text"/> holds; a file broken or missing is a PC that knows nothing yet. Never throws.</summary>
+    public static UpdateState Read(string? text)
+    {
+        try
+        {
+            return text is null ? new UpdateState() : JsonSerializer.Deserialize(text, UpdateJson.Default.UpdateState) ?? new UpdateState();
+        }
+        catch (JsonException)
+        {
+            return new UpdateState();
+        }
+    }
+
+    public string Write() => JsonSerializer.Serialize(this, UpdateJson.Default.UpdateState);
+
+    public long SequenceOf(string channel) => Sequences.TryGetValue(channel, out var sequence) ? sequence : 0;
+
+    public UpdateState WithSequence(string channel, long sequence) =>
+        this with { Sequences = new Dictionary<string, long>(Sequences, StringComparer.Ordinal) { [channel] = sequence } };
+}

@@ -1,12 +1,12 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    Writes THIRD-PARTY-NOTICES.md from the lock files: every package that ships in thermi-sensors, in thermi and in the
-    settings window's page, with its license, its source, and its license's text with every copyright line it carries.
-    -Check only compares, as scripts/check.ps1 runs it, so a package added, removed or updated updates the notices in
-    the same change. It reads the license files of the NuGet packages a restore downloaded and of the page's packages
-    the build installed, never the network. A package that holds no license file gets SPDX's text of the license it
-    names, from scripts/licenses, with the copyright its package states, and the notices say so.
+    Writes THIRD-PARTY-NOTICES.md from the lock files: every package that ships in thermi-sensors, in thermi, in the
+    MSIs and in the settings window's page, with its license, its source, and its license's text with every copyright
+    line it carries. -Check only compares, as scripts/check.ps1 runs it, so a package added, removed or updated updates
+    the notices in the same change. It reads the license files of the NuGet packages a restore downloaded and of the
+    page's packages the build installed, never the network. A package that holds no license file gets SPDX's text of
+    the license it names, from scripts/licenses, with the copyright its package states, and the notices say so.
 #>
 param([switch]$Check)
 
@@ -34,7 +34,7 @@ $placeholder = '<year>|\[yyyy\]|<owner>|<copyright holders>'
 
 # Analyzers and code generators, referenced with PrivateAssets="all", run in the build and ship nothing.
 function Get-BuildOnly([string]$Folder) {
-    foreach ($file in @(Join-Path $root 'Directory.Build.props') + (Get-ChildItem $Folder -Filter *.csproj).FullName) {
+    foreach ($file in @(Join-Path $root 'Directory.Build.props') + @(Get-ChildItem $Folder -Filter *.csproj | ForEach-Object FullName)) {
         ([xml](Get-Content $file -Raw)).SelectNodes('//PackageReference[@PrivateAssets="all"]') | ForEach-Object Include
     }
 }
@@ -199,10 +199,11 @@ function Format-Texts($Rows) {
 
 $sensors = @(Get-NuGetRows 'Thermi.SensorHost')
 $thermi = @(Get-NuGetRows 'Thermi')
+$msis = @(Get-NuGetRows 'Thermi.Installer')
 $page = @(Get-NpmRows)
 # Each library and version once, in one order, so the text a license shows, its first library's, is the same on every run.
 $shipped = @{}
-foreach ($row in $sensors + $thermi + $page) { $shipped["$($row.Name) $($row.Version)"] = $row }
+foreach ($row in $sensors + $thermi + $msis + $page) { $shipped["$($row.Name) $($row.Version)"] = $row }
 
 $text = @(
     '# Third-party notices'
@@ -213,6 +214,7 @@ $text = @(
     ''
     Format-Table 'thermi-sensors' 'The sensor service.' $sensors
     Format-Table 'thermi' 'The overlay and the settings window.' $thermi
+    Format-Table 'The MSIs' 'The custom actions each MSI carries and runs while it installs.' $msis
     Format-Table 'The settings window''s page' 'Built into thermi.exe; only what the page imports ends up in it.' $page
     ('thermi does not ship the PawnIO driver that LibreHardwareMonitor uses, nor the WebView2 runtime: the driver comes from its own release ' +
         'when the window installs it (`docs/adr/0010-driver-and-service-from-the-window.md`), ' +

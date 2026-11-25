@@ -6,6 +6,8 @@ export interface About {
   version: string;
   languages: Language[];
   windows: string;
+  updates: string;
+  restart: boolean;
 }
 
 export interface CatalogGroup {
@@ -408,6 +410,7 @@ export interface WindowStatus {
   failed: HotkeyRole[];
   problem: string | null;
   lightTaskbar: boolean;
+  forEveryone: boolean;
 }
 
 export type WindowTheme = 'system' | 'light' | 'dark';
@@ -438,6 +441,8 @@ export interface Bridge {
   status(): Promise<WindowStatus>;
   steps(): Promise<UndoSteps>;
   about(): Promise<About>;
+  checkUpdates(): Promise<void>;
+  restartToUpdate(): Promise<void>;
   open(what: Opened): Promise<void>;
   pasteLook(overlay: number): Promise<string | null>;
   snapshot(): Promise<SensorView>;

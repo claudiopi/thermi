@@ -32,3 +32,26 @@ EVENT_FILTER_TYPE_EVENT_ID
 CreateToolhelp32Snapshot
 Process32FirstW
 Process32NextW
+// Which version each service runs, switched by the updater (docs/adr/0008-updates.md)
+OpenSCManager
+OpenService
+ChangeServiceConfig
+SERVICE_NO_CHANGE
+SC_MANAGER_CONNECT
+SERVICE_CHANGE_CONFIG
+CloseServiceHandle
+// Whether the network is metered, so only an urgent version downloads
+NetworkListManager
+INetworkCostManager
+NLM_CONNECTION_COST
+// Which process serves the pipe, checked to be the version on trial
+GetNamedPipeServerProcessId
+// The user's host's hidden window, which Windows tells when the session ends (docs/adr/0016-admin-on-demand.md)
+RegisterClassEx
+CreateWindowEx
+GetModuleHandle
+GetMessage
+TranslateMessage
+DispatchMessage
+DefWindowProc
+WM_ENDSESSION

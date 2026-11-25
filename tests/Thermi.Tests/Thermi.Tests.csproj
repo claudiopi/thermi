@@ -23,12 +23,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Recordings\*.json;Recordings\*.jsonl;Configs\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Recordings\*.json;Recordings\*.jsonl;Configs\*.json;Golden\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Thermi.Core\Thermi.Core.csproj" />
     <ProjectReference Include="..\..\src\Thermi.Client\Thermi.Client.csproj" />
+    <ProjectReference Include="..\..\src\Thermi.Releases\Thermi.Releases.csproj" />
   </ItemGroup>
 
 </Project>

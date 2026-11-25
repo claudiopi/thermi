@@ -494,7 +494,9 @@
           "Serilog.Extensions.Logging": "[11.0.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "System.CommandLine": "[3.0.0, )",
-          "Thermi.Core": "[0.9.0, )"
+          "System.ServiceProcess.ServiceController": "[10.0.15, )",
+          "Thermi.Core": "[0.9.0, )",
+          "Thermi.Trust": "[0.9.0, )"
         }
       },
       "thermi-sensors": {
@@ -503,10 +505,14 @@
           "LibreHardwareMonitorLib": "[0.9.6, )",
           "System.CommandLine": "[3.0.0, )",
           "System.ServiceProcess.ServiceController": "[10.0.15, )",
-          "Thermi.Core": "[0.9.0, )"
+          "Thermi.Core": "[0.9.0, )",
+          "Thermi.Trust": "[0.9.0, )"
         }
       },
       "thermi.core": {
+        "type": "Project"
+      },
+      "thermi.trust": {
         "type": "Project"
       },
       "LibreHardwareMonitorLib": {

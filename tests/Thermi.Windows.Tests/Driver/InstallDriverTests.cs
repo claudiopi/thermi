@@ -18,7 +18,8 @@ public sealed class InstallDriverTests : IDisposable
 
     // Each row: what the download gives, whether it is signed, what the installer exits with (none when it never ends),
     // the service's states as the manager gives them, one a poll, and the mode's exit code. A planted file is one an
-    // attacker left in the folder, which Windows would load beside the installer as administrator.
+    // attacker left in the folder, which Windows would load beside the installer as administrator. The pinned driver
+    // present already is never installed over; which versions count as it is Core's DriverVersion rows.
     [Theory]
     [InlineData("pinned", true, 0, "RSSR", InstallDriver.Installed)]
     [InlineData("pinned", true, 3010, "RSSR", InstallDriver.RestartNeeded)]
@@ -33,15 +34,26 @@ public sealed class InstallDriverTests : IDisposable
     [InlineData("pinned", true, 1603, "RSSR", InstallDriver.NotInstalled)]
     [InlineData("pinned", true, null, "RSSR", InstallDriver.NotInstalled)]
     [InlineData("unsafe folder", true, 0, "RSSR", InstallDriver.FolderUnsafe)]
+    [InlineData("present", true, 0, "RSSR", InstallDriver.Installed)]
     public async Task OnlyThePinnedInstallerRunsAndTheSensorsStartAgain(string download, bool trusted, int? installer, string states, int exit)
     {
         var time = new FakeTimeProvider();
         var setup = new DriverSetup(
-            new Uri("https://example.invalid/setup.exe"), Pinned.Length, Convert.ToHexString(SHA256.HashData(Pinned)), ["-install", "-silent"]);
+            new Uri("https://example.invalid/setup.exe"),
+            Pinned.Length,
+            Convert.ToHexString(SHA256.HashData(Pinned)),
+            ["-install", "-silent"],
+            new Version(2, 2, 0));
         var ran = new FakeInstaller(trusted, installer);
         var fresh = Path.Combine(_folder, "fresh");
         var services = new CommandLineTests.FakeServices(states, starts: true);
-        var parts = new DriverParts(setup, () => download == "unsafe folder" ? null : Fresh(fresh, download), new FakeDownload(download), ran, services);
+        var parts = new DriverParts(
+            setup,
+            () => download == "unsafe folder" ? null : Fresh(fresh, download),
+            new FakeDownload(download),
+            ran,
+            services,
+            () => download == "present" ? "2.2.0.0" : null);
 
         var run = InstallDriver.RunAsync(parts, time);
         for (var waited = TimeSpan.Zero; !run.IsCompleted && waited <= TimeSpan.FromSeconds(30); waited += StartSensors.Poll)
@@ -50,8 +62,8 @@ public sealed class InstallDriverTests : IDisposable
         }
 
         Assert.True(run.IsCompleted);
-        var runs = exit is InstallDriver.Installed or InstallDriver.ServiceMissing or InstallDriver.SensorsFailed
-            or InstallDriver.NotInstalled or InstallDriver.RestartNeeded;
+        var runs = download != "present" && exit is InstallDriver.Installed or InstallDriver.ServiceMissing or InstallDriver.SensorsFailed
+                or InstallDriver.NotInstalled or InstallDriver.RestartNeeded;
         Assert.Equal((exit, runs), (await run, ran.Ran));
         Assert.False(Directory.Exists(fresh));
     }

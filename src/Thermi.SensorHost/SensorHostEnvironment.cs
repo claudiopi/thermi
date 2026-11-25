@@ -33,6 +33,7 @@ internal sealed record SensorHostEnvironment(
     {
         Trace = () => new PresentTrace(TimeProvider.System),
         Recording = () => new PresentTrace(TimeProvider.System, PresentTrace.RecordingName),
+        SessionEnds = User.SessionEnd.Watch,
     };
 
     /// <summary>What tells the service of the presents games make, for their FPS; without it, the service serves no frames.</summary>
@@ -42,11 +43,37 @@ internal sealed record SensorHostEnvironment(
     public Func<IPresentTrace>? Recording { get; init; }
 
     public string PipeName { get; init; } = SnapshotJson.PipeName;
+
+    /// <summary>
+    /// Tells the user's host the session ends, through a hidden window, and where to say the window could not be made; none
+    /// in tests, which show no window.
+    /// </summary>
+    public Func<Action, Action<string>, IDisposable>? SessionEnds { get; init; }
+
+    /// <summary>
+    /// Where the user's host logs, never the Application log, whose source a standard user cannot register
+    /// (docs/adr/0016-admin-on-demand.md).
+    /// </summary>
+    public string UserLog { get; init; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "thermi", "thermi-sensors.log");
 }
 
-/// <summary>Windows' Application log, under the sensor service's source, which the installer registers and removes.</summary>
+/// <summary>Windows' Application log, under the sensor service's source, which the installer registers and removes here.</summary>
 internal static class ApplicationLog
 {
+    /// <summary>Registers <paramref name="source"/> in the log, or removes it: only an administrator or SYSTEM may.</summary>
+    public static void Register(string source, bool registered)
+    {
+        if (registered && !EventLog.SourceExists(source))
+        {
+            EventLog.CreateEventSource(source, "Application");
+        }
+        else if (!registered && EventLog.SourceExists(source))
+        {
+            EventLog.DeleteEventSource(source);
+        }
+    }
+
     /// <summary>Writes <paramref name="message"/>, which the log may refuse: what the service does next matters more.</summary>
     public static void Write(string message, EventLogEntryType type)
     {

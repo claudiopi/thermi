@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Thermi.Core.Install;
 using Thermi.Ui;
 
 namespace Thermi.Windows.Tests.Window;
@@ -62,8 +63,8 @@ public sealed class StartWithWindowsTests
     {
         var script = File.ReadAllText(Path.Combine(TestRecordings.RepoRoot(), "scripts", "install.ps1"));
 
-        Assert.Contains($"$runKey = 'HKCU:\\{StartWithWindows.RunKey}'", script, StringComparison.Ordinal);
-        Assert.Contains($"Set-ItemProperty $runKey -Name {StartWithWindows.ValueName} -Value \"`\"$overlay`\"\"", script, StringComparison.Ordinal);
+        Assert.Contains($"$runKey = 'HKCU:\\{RunAtSignIn.Key}'", script, StringComparison.Ordinal);
+        Assert.Contains($"Set-ItemProperty $runKey -Name {RunAtSignIn.Name} -Value \"`\"$overlay`\"\"", script, StringComparison.Ordinal);
         Assert.Contains("if ($firstInstall -or $startsWithWindows) {", script, StringComparison.Ordinal);
         Assert.Contains($"$approvedKey = 'HKCU:\\{StartWithWindows.ApprovedKey}'", script, StringComparison.Ordinal);
     }
@@ -88,7 +89,7 @@ internal sealed class TestRunKey : IDisposable
         get
         {
             using var key = Registry.CurrentUser.OpenSubKey(_parent + @"\Run");
-            return key?.GetValue(StartWithWindows.ValueName) as string;
+            return key?.GetValue(RunAtSignIn.Name) as string;
         }
     }
 
@@ -98,21 +99,21 @@ internal sealed class TestRunKey : IDisposable
         get
         {
             using var key = Registry.CurrentUser.OpenSubKey(_parent + @"\StartupApproved");
-            return key?.GetValue(StartWithWindows.ValueName) is byte[] { Length: > 0 } bytes ? bytes[0] : null;
+            return key?.GetValue(RunAtSignIn.Name) is byte[] { Length: > 0 } bytes ? bytes[0] : null;
         }
     }
 
     public void Write(string value)
     {
         using var key = Registry.CurrentUser.CreateSubKey(_parent + @"\Run");
-        key.SetValue(StartWithWindows.ValueName, value);
+        key.SetValue(RunAtSignIn.Name, value);
     }
 
     /// <summary>Writes the entry as Task Manager does: its state, then the time it changed.</summary>
     public void Approve(byte state)
     {
         using var key = Registry.CurrentUser.CreateSubKey(_parent + @"\StartupApproved");
-        key.SetValue(StartWithWindows.ValueName, new byte[] { state, 0, 0, 0, 0x5A, 0x1E, 0x3C, 0x79, 0x9F, 0x5B, 0xDB, 0x01 }, RegistryValueKind.Binary);
+        key.SetValue(RunAtSignIn.Name, new byte[] { state, 0, 0, 0, 0x5A, 0x1E, 0x3C, 0x79, 0x9F, 0x5B, 0xDB, 0x01 }, RegistryValueKind.Binary);
     }
 
     public void Dispose() => Registry.CurrentUser.DeleteSubKeyTree(_parent, throwOnMissingSubKey: false);

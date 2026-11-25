@@ -12,6 +12,8 @@
     <AgentSchemas>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../docs/agents/schema'))</AgentSchemas>
     <DotnetHost Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</DotnetHost>
     <DotnetHost Condition="'$(DOTNET_HOST_PATH)' == ''">dotnet</DotnetHost>
+    <!-- The generator is run with the SDK's dotnet and never shipped, so thermi may be self-contained while it is not. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
   </PropertyGroup>
 
   <ItemGroup>

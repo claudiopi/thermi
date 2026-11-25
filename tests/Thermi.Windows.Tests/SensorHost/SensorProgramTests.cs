@@ -1,8 +1,13 @@
 extern alias sensors;
 
+using System.Collections.Concurrent;
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost;
+using sensors::Thermi.SensorHost.User;
+using Thermi.Core.Install;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Windows.Tests.SensorHost;
@@ -23,6 +28,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
     private readonly string _pipeName = $"thermi-test-{Guid.NewGuid():N}";
     private readonly CancellationTokenSource _stop = new();
     private readonly List<Task<int>> _runs = [];
+    private readonly ConcurrentQueue<string> _logged = new();
 
     public SensorProgramTests()
     {
@@ -138,11 +144,123 @@ public sealed class SensorProgramTests : IAsyncDisposable
         Assert.True(_sensors.Closed);
     }
 
+    // Spec 004, A21: the pipe named for the user, owned by the user and shut to the rest but SYSTEM and administrators, and
+    // a host that ends 10 s after its last client left, or when none came within 30 s.
+    [Fact]
+    public async Task AUsersHostServesItsUserUntilTheLastClientLeaves()
+    {
+        using var user = WindowsIdentity.GetCurrent();
+        var serving = RunAsync(["--user"]);
+        await using var client = new NamedPipeClientStream(".", _pipeName + "-" + user.User!.Value, PipeDirection.In, PipeOptions.Asynchronous);
+        await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
+        var snapshot = await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+        var security = client.GetAccessControl();
+        var readers = security.GetAccessRules(true, false, typeof(SecurityIdentifier)).Cast<PipeAccessRule>()
+            .Where(rule => rule.AccessControlType == AccessControlType.Allow).Select(rule => ((SecurityIdentifier)rule.IdentityReference).Value).Order();
+        await client.DisposeAsync();
+        var lingered = await PassAsync(UserMode.Linger - TimeSpan.FromSeconds(1), serving);
+        await PassAsync(TimeSpan.FromSeconds(4), serving);
+        var served = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        var lonely = RunAsync(["--user"]);
+        var early = await PassAsync(UserMode.FirstClient - TimeSpan.FromSeconds(1), lonely);
+        await PassAsync(TimeSpan.FromSeconds(3), lonely);
+        var alone = await lonely.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FakeSensors.Recorded.Sensors, snapshot.Sensors.Where(sensor => sensor.Id != FakeSensors.Counter));
+        Assert.Equal(user.User, security.GetOwner(typeof(SecurityIdentifier)));
+        Assert.Equal(new[] { "S-1-5-18", "S-1-5-32-544", user.User.Value }.Order(), readers);
+        Assert.Equal((false, 0, false, 0), (lingered, served, early, alone));
+    }
+
+    // Spec 004, A24: the host's stop event ends it while a client still reads, or while another program holds its pipe's
+    // name, and an event someone made before the host, even one that shuts the user out, keeps it from running at all, so
+    // no other process steers it. What it says goes to its own file, never to the service's log.
+    [Fact]
+    public async Task TheUsersHostIsSteeredOnlyByItsOwnEvents()
+    {
+        using var user = WindowsIdentity.GetCurrent();
+        var pipe = _pipeName + "-" + user.User!.Value;
+        var serving = RunAsync(["--user"]);
+        await using var client = new NamedPipeClientStream(".", pipe, PipeDirection.In, PipeOptions.Asynchronous);
+        await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
+        await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+        using (var stop = EventWaitHandle.OpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent)))
+        {
+            stop.Set();
+        }
+
+        await PassAsync(TimeSpan.FromSeconds(2), serving);
+        var stopped = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        int squatted;
+        await using (new NamedPipeServerStream(pipe, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous))
+        {
+            var held = RunAsync(["--user"]);
+            await StopOnceSquattedAsync(pipe, held);
+            await PassAsync(TimeSpan.FromSeconds(2), held);
+            squatted = await held.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        int refused;
+        using (new EventWaitHandle(false, EventResetMode.AutoReset, UserHost.EventOf(pipe, "129")))
+        {
+            refused = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        var deny = new EventWaitHandleSecurity();
+        deny.AddAccessRule(new EventWaitHandleAccessRule(user.User, EventWaitHandleRights.FullControl, AccessControlType.Deny));
+        using var shut = EventWaitHandleAcl.Create(false, EventResetMode.AutoReset, UserHost.EventOf(pipe, "130"), out _, deny);
+        var shutOut = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        Assert.Equal((0, 0, UserMode.Taken, UserMode.Taken), (stopped, squatted, refused, shutOut));
+        Assert.Empty(_logged);
+    }
+
+    // Sets a host's stop event once it said another program holds its pipe, so it waits to try again as it hears it.
+    private async Task StopOnceSquattedAsync(string pipe, Task held)
+    {
+        var log = Path.Combine(_folder, "thermi-sensors.log");
+        var start = TimeProvider.System.GetTimestamp();
+        while (!held.IsCompleted && !(System.IO.File.Exists(log) && Said(log, "Another program holds")))
+        {
+            Assert.True(TimeProvider.System.GetElapsedTime(start) < Patience, "The host never said another program holds its pipe.");
+            await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        if (EventWaitHandle.TryOpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent), out var stop))
+        {
+            using (stop)
+            {
+                stop.Set();
+            }
+        }
+    }
+
+    private static bool Said(string log, string what)
+    {
+        using var reading = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var text = new StreamReader(reading);
+        return text.ReadToEnd().Contains(what, StringComparison.Ordinal);
+    }
+
+    // Moves the clock a second at a time, giving the run a moment at each; whether it had ended by then.
+    private async Task<bool> PassAsync(TimeSpan time, Task run)
+    {
+        for (var passed = TimeSpan.Zero; passed < time; passed += TimeSpan.FromSeconds(1))
+        {
+            _clock.Advance(TimeSpan.FromSeconds(1));
+            await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        return run.IsCompleted;
+    }
+
     private Task<int> RunAsync(string[] args)
     {
-        var environment = new SensorHostEnvironment((_, patience) => _sensors.Open(_clock, patience), _clock, _out, _error, (_, _) => { })
+        var environment = new SensorHostEnvironment((_, patience) => _sensors.Open(_clock, patience), _clock, _out, _error, (said, _) => _logged.Enqueue(said))
         {
             PipeName = _pipeName,
+            UserLog = Path.Combine(_folder, "thermi-sensors.log"),
         };
         var run = Task.Run(
             () => sensors::Thermi.SensorHost.Program.RunAsync(

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { About } from '../bridge/bridge.g';
 import { bridge, useBridgeRead, useEdit, type WindowData } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
@@ -106,6 +106,12 @@ function FileCard({ open, onOpen }: { open: boolean; onOpen: (open: boolean) => 
 
 function AboutCard({ about, open, onOpen }: { about: About | null; open: boolean; onOpen: (open: boolean) => void }) {
   const t = useText();
+  // Opening About asks the service for a check, as Chrome's About page does; C# keeps the asks to one a minute.
+  useEffect(() => {
+    if (open) {
+      void bridge()?.checkUpdates();
+    }
+  }, [open]);
   return (
     <Expander
       label={t('WindowText.AboutThermi')}
@@ -121,6 +127,14 @@ function AboutCard({ about, open, onOpen }: { about: About | null; open: boolean
           <LinkButton onClick={() => void bridge()?.open('report')}>{t('WindowText.ReportProblem')}</LinkButton>
           <LinkButton onClick={() => void bridge()?.open('notices')}>{t('WindowText.ThirdPartyNotices')}</LinkButton>
         </div>
+        <div className="t-about-license">{about?.updates}</div>
+        {about?.restart === true && (
+          <div>
+            <Button kind="accent" onClick={() => void bridge()?.restartToUpdate()}>
+              {t('WindowText.RestartToUpdate')}
+            </Button>
+          </div>
+        )}
         <div className="t-about-license">{t('WindowText.License')}</div>
       </div>
     </Expander>
@@ -129,10 +143,11 @@ function AboutCard({ about, open, onOpen }: { about: About | null; open: boolean
 
 export function SettingsPage({ data }: { data: WindowData }) {
   const t = useText();
-  const about = useBridgeRead(readAbout, 0, 0);
   const [hotkeysOpen, setHotkeysOpen] = useState(false);
   const [fileOpen, setFileOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  // Read again in a new language, which About's line on updates is worded in, and each second while About is open, as a check runs.
+  const about = useBridgeRead(readAbout, data.settings.language ?? '', 0, aboutOpen);
   return (
     <div className="t-page">
       <div className="t-page-head">

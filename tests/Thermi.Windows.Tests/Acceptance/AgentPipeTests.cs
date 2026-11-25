@@ -42,7 +42,7 @@ public sealed class AgentPipeTests : IDisposable
         var ticking = Tick(stop.Token);
         var environment = new AgentEnvironment(
             _folder.File,
-            () => new SystemFeed(new SensorClient(_clock, NullLogger.Instance, _pipe, trusted: _ => true), _clock),
+            () => new SystemFeed(new SensorClient(_clock, NullLogger.Instance, new FixedPipe(_pipe, _ => true)), _clock),
             new StartWithWindows(@"Software\thermi-tests\unused", @"Software\thermi-tests\unused", "thermi.exe"),
             NullLogger.Instance);
         var clients = new List<NamedPipeClientStream>();

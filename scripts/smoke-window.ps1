@@ -21,6 +21,8 @@ try {
     # The page answers on the port once WebView2 has started.
     $deadline = (Get-Date).AddSeconds(30)
     while (-not (Test-NetConnection 127.0.0.1 -Port $Port -InformationLevel Quiet -WarningAction SilentlyContinue)) {
+        # From an elevated console the window refuses to run, saying why on this console.
+        if ($window.HasExited) { throw "The window exited with $($window.ExitCode) before it opened; 1 is its refusal to run elevated." }
         if ((Get-Date) -gt $deadline) { throw "The window opened no debugging port $Port within 30 s." }
         Start-Sleep -Milliseconds 500
     }

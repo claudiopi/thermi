@@ -31,7 +31,7 @@ public sealed class FullLoadTests
         var recorded = TestRecordings.Read(TestRecordings.Admin);
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         using var server = new SensorPipeServer(_ => Task.FromResult(recorded), clock, pipe) { Hung = () => Assert.Fail("No read should hang.") };
-        var client = new SensorClient(clock, NullLogger.Instance, pipe, trusted: _ => true);
+        var client = new SensorClient(clock, NullLogger.Instance, new FixedPipe(pipe, _ => true));
         var heard = new List<long>();
         var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         client.Received += (_, _) =>

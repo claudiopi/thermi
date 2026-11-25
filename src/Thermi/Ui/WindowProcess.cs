@@ -5,9 +5,11 @@ using Microsoft.Extensions.Logging;
 using Thermi.Commands;
 using Thermi.Core.Placement;
 using Thermi.Core.Translations;
+using Thermi.Install;
 using Thermi.Logging;
 using Thermi.Overlay;
 using Thermi.Ui.Web;
+using Thermi.Updates;
 using Thermi.Windows;
 
 namespace Thermi.Ui;
@@ -50,14 +52,15 @@ internal sealed record WindowEnvironment(
     public static WindowEnvironment Of(ILoggerFactory logs, TimeProvider time)
     {
         using var process = Process.GetCurrentProcess();
-        var exe = Environment.ProcessPath ?? "thermi.exe";
+        var exe = ThermiPaths.Launcher;
         return new(
             HostEnvironment.WindowMutexName,
             ConfigStore.DefaultPath,
             exe,
             logs.CreateLogger("Thermi.Ui"),
             new DateTimeOffset(process.StartTime),
-            new SystemFeed(new SensorClient(time, logs.CreateLogger<SensorClient>()), time),
+            new SystemFeed(
+                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
             StartWithWindows.Of(exe));
     }
 }

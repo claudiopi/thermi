@@ -53,3 +53,9 @@ IsChild
 GetApplicationRestartSettings
 UnregisterApplicationRestart
 RESTART_MAX_CMD_LINE
+// A pipe labelled low, as a sandboxed process's
+ConvertStringSecurityDescriptorToSecurityDescriptor
+GetSecurityDescriptorSacl
+SetSecurityInfo
+SDDL_REVISION_1
+LocalFree

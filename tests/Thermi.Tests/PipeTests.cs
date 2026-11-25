@@ -201,4 +201,31 @@ public sealed class PipeTests
         Assert.Same(Fan, fresh);
         Assert.Null(latest.Current);
     }
+
+    // A release's service serves the overlay of the release before, so the lines it writes for a recording are this file's,
+    // byte for byte, and a change of format replaces it on purpose: a run that differs writes what it got beside it.
+    [Fact]
+    public void ThePipeKeepsItsLines()
+    {
+        var series = TestFiles.Series("ryzen-9950x-rtx-5060-ti-cpu-load-fan-software.jsonl").Take(3).ToList();
+        var last = series[^1];
+        var renamed = last with { Sensors = [last.Sensors[0] with { Name = "Renamed", Value = double.NaN }, .. last.Sensors.Skip(1)] };
+        var writer = new SnapshotWriter();
+        var had = 0;
+        var got = new List<byte>();
+        foreach (var snapshot in (Snapshot[])[.. series, renamed, renamed])
+        {
+            writer.Next(snapshot, sending: false);
+            got.AddRange(writer.LineFor(had).ToArray());
+            had = writer.Catalog;
+        }
+
+        var golden = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "pipe-lines.jsonl"));
+        if (!golden.AsSpan().SequenceEqual(got.ToArray()))
+        {
+            File.WriteAllBytes(Path.Combine(AppContext.BaseDirectory, "pipe-lines.got.jsonl"), [.. got]);
+        }
+
+        Assert.Equal(golden, got);
+    }
 }

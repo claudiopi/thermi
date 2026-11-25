@@ -6,29 +6,27 @@ sensors alone, for AI agents and other programs to read through thermi-cli, with
 
 .DESCRIPTION
 Run it as yourself, not as administrator: it builds as you and asks for admin rights (UAC) only to copy
-the files to Program Files and register the thermi-sensors service and its event log source (see
-docs/adr/0003-sensor-service.md) and the thermi-elevated service that runs the window's fixes, and to install the
-WebView2 runtime the settings window needs, only where it is missing.
+the files to Program Files and have the build's thermi-sensors.exe --adopt them, as the MSI does: it registers the
+thermi-sensors service and its event log source (see docs/adr/0003-sensor-service.md) and the thermi-elevated service
+that runs the window's fixes. It also installs the WebView2 runtime the settings window needs, only where it is missing.
 A first install starts the overlay at your sign-in; a reinstall keeps "Start with Windows" as the settings window
 left it. Your config in %APPDATA%\thermi is never touched. -Uninstall removes the rest: the files, the service, the
 folder earlier builds kept the driver's installer in, %ProgramData%\thermi, and the window's data in %LOCALAPPDATA%\thermi. It leaves the sensor
 driver, which other programs may use.
+thermi is laid out as updates keep it (docs/adr/0008-updates.md): each version self-contained in a folder of its own, the
+service run from it, and launchers at the top that start it. A build never updates itself, unless -UpdatesFrom gives it a
+channel's address, as `scripts/updates.ps1 serve` answers, and -UpdatesKeys the folder whose release.pub.pem and
+backup.pub.pem it trusts, and -UpdatesSigners the SHA-256 thumbprints of the certificates, separated by semicolons,
+one of which must sign every version's catalog.
 thermi's folder goes on the machine's PATH, for thermi-cli. -SensorsOnly starts no overlay, now or at sign-in, and
 installs the sensor driver where it is missing, since no settings window will offer it.
 #>
-param([switch]$Uninstall, [switch]$SensorsOnly)
+param([switch]$Uninstall, [switch]$SensorsOnly, [string]$UpdatesFrom, [string]$UpdatesKeys, [string]$UpdatesSigners)
 
 $ErrorActionPreference = 'Stop'
 $target = Join-Path $env:ProgramFiles 'thermi'
 $service = 'thermi-sensors'
-# The one privilege the service keeps of LocalSystem's: the sensors read the same with it alone as with all of them
-# (docs/adr/0003-sensor-service.md).
-$servicePrivileges = 'SeChangeNotifyPrivilege'
-# Runs the window's fixes as SYSTEM, started through sc.exe behind a UAC prompt; only administrators and SYSTEM may start
-# it, and interactive users only read its state, the fix's exit code among it
-# (docs/adr/0010-driver-and-service-from-the-window.md).
 $elevatedService = 'thermi-elevated'
-$elevatedRights = 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLORC;;;IU)(A;;CCLCSWLORC;;;SU)'
 # The settings window's "Start with Windows" switches this same value (src/Thermi/Ui/StartWithWindows.cs), and
 # Task Manager's Startup tab turns it off in the second key without deleting it.
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -66,93 +64,40 @@ function Stop-Overlay {
     $running | Where-Object { -not $_.HasExited } | Stop-Process -Force
 }
 
-function Remove-Service {
-    # A fix running now ends on its own within minutes; it is never stopped halfway.
-    if (Get-Service $elevatedService -ErrorAction SilentlyContinue) {
-        sc.exe delete $elevatedService | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not remove the $elevatedService service (sc.exe exit code $LASTEXITCODE)." }
+# The version's own thermi-sensors.exe lays it down, as the MSI's does (docs/adr/0008-updates.md): beside the versions an
+# update kept, both services pointed at it, its launchers at the top. It runs from a copy only administrators write,
+# checked against the hash taken before the prompt.
+function Install-Version([string]$From, [string]$Hash) {
+    New-Item $target -ItemType Directory -Force | Out-Null
+    $copy = Copy-Verified $From $Hash (Join-Path $target "install-$([guid]::NewGuid().ToString('N'))")
+    try {
+        Stop-Overlay
+        & (Join-Path $copy 'thermi-sensors.exe') --adopt
+        if ($LASTEXITCODE -ne 0) { throw "thermi-sensors.exe --adopt failed (exit code $LASTEXITCODE), and left the thermi installed before." }
+        & (Join-Path $copy 'thermi-sensors.exe') --forget
+        if ($LASTEXITCODE -ne 0) { Write-Warning "thermi-sensors.exe --forget failed (exit code $LASTEXITCODE): the next install deletes its record." }
     }
-    if (Get-Service $service -ErrorAction SilentlyContinue) {
-        Stop-Service $service -Force
-        sc.exe delete $service | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not remove the $service service (sc.exe exit code $LASTEXITCODE)." }
+    finally {
+        Remove-Item $copy -Recurse -Force -ErrorAction SilentlyContinue
     }
+}
+
+# The version the service runs takes thermi off, as the MSI's uninstall has it; the folder it ran from goes once it ended.
+function Remove-Thermi {
+    # The MSI owns what it installed, and Installed apps would keep an entry whose uninstall finds nothing.
+    $app = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\thermi' -Name UninstallString -ErrorAction SilentlyContinue
+    if ($app.UninstallString -like 'MsiExec.exe*') { throw 'thermi was installed by its MSI: uninstall it from Installed apps.' }
     Stop-Overlay
-    # A stopped service's process may still be closing, holding its files; a service shown in the
-    # Services window is only marked for deletion until that window closes.
+    $image = (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\$service" -Name ImagePath -ErrorAction SilentlyContinue).ImagePath
+    $sensors = if ($image) { $image.Split('"', [StringSplitOptions]::RemoveEmptyEntries)[0] }
+    if ($sensors -and (Test-Path $sensors)) {
+        & $sensors --remove
+        if ($LASTEXITCODE -ne 0) {
+            throw "$sensors --remove failed (exit code $LASTEXITCODE). A thermi from before version folders needs this build installed first."
+        }
+    }
     Get-Process thermi, thermi-sensors -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" } | Wait-Process -Timeout 30
-    for ($wait = 0; (Get-Service $service -ErrorAction SilentlyContinue) -and $wait -lt 50; $wait++) { Start-Sleep -Milliseconds 200 }
-    if (Get-Service $service -ErrorAction SilentlyContinue) { throw "The $service service is still registered: close the Services window and try again." }
-    # The service writes its failures to the Application log under its own name.
-    if ([System.Diagnostics.EventLog]::SourceExists($service)) { [System.Diagnostics.EventLog]::DeleteEventSource($service) }
-}
-
-function Register-Service {
-    $sensors = Join-Path $target 'thermi-sensors.exe'
-    New-Service $service -BinaryPathName "`"$sensors`"" -DisplayName 'thermi sensors' -StartupType Automatic `
-        -Description 'Reads hardware sensors for the thermi overlay.' | Out-Null
-    sc.exe failure $service reset= 86400 actions= restart/5000/restart/5000/restart/60000 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not set the $service service's restarts (sc.exe exit code $LASTEXITCODE)." }
-    # A service that stops itself with an error code counts as failed too, so it gets restarted.
-    sc.exe failureflag $service 1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not have the $service service restarted after an error (sc.exe exit code $LASTEXITCODE)." }
-    sc.exe privs $service $servicePrivileges | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not limit the $service service's privileges (sc.exe exit code $LASTEXITCODE)." }
-    # A 2 MB young generation (the value is hex) keeps the service in its memory budget
-    # (docs/adr/0011-sensor-service-memory-budget.md). .NET reads it only from the environment; this one is the
-    # service's alone, and goes when its key is deleted.
-    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$service"
-    New-ItemProperty $serviceKey -Name Environment -PropertyType MultiString -Value @('DOTNET_GCgen0size=200000') | Out-Null
-    [System.Diagnostics.EventLog]::CreateEventSource($service, 'Application')
-    New-Service $elevatedService -BinaryPathName "`"$sensors`" --elevated" -DisplayName 'thermi fixes' -StartupType Manual `
-        -Description "Installs the sensor driver or starts thermi's sensors, when an administrator asks from thermi." | Out-Null
-    sc.exe sdset $elevatedService $elevatedRights | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not limit who starts the $elevatedService service (sc.exe exit code $LASTEXITCODE)." }
-    Start-Service $service
-}
-
-# The old files wait beside the new ones until the new service is registered, so an install that fails there puts them
-# back as they were, service and all.
-function Install-Service([string]$From) {
-    Remove-Service
-    $old = "$target.old"
-    if (Test-Path $old) { Remove-Item $old -Recurse -Force }
-    # Setting the old files aside fails too, when something holds one open: the service, deleted by then, comes back.
-    try {
-        if (Test-Path $target) { Move-Item $target $old }
-        if ($From) {
-            Move-Item $From $target
-            Register-Service
-        }
-    }
-    catch {
-        $failure = $_
-        Restore-Service $old
-        throw $failure
-    }
-    if (Test-Path $old) { Remove-Item $old -Recurse -Force }
-}
-
-# What failed is what the installer tells, so a restore that fails too only warns. Old files never set aside are still
-# in place, and only registered again.
-function Restore-Service([string]$Old) {
-    try {
-        Remove-Service
-        if (Test-Path $Old) {
-            Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue
-            if (Test-Path $target) {
-                # A file held open keeps the folder, as it kept a move aside that copied the rest: what went comes back
-                # from the old files, and the held one is the same old file.
-                Get-ChildItem $Old -Force | Copy-Item -Destination $target -Recurse -Force -ErrorAction SilentlyContinue
-                Remove-Item $Old -Recurse -Force
-            }
-            else { Move-Item $Old $target }
-        }
-        if (Test-Path (Join-Path $target 'thermi-sensors.exe')) { Register-Service }
-    }
-    catch {
-        Write-Warning "The thermi installed before could not be put back: $($_.Exception.Message)"
-    }
+    if (Test-Path $target) { Remove-Item $target -Recurse -Force }
 }
 
 # The settings window is a page in WebView2 (docs/adr/0007-settings-window-in-webview2-and-react.md), whose Evergreen
@@ -239,23 +184,20 @@ function Set-InstallChoice([bool]$SensorsOnly) {
 # nothing it writes may land where the user writes, where a link could send it anywhere.
 function Install-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2, [bool]$SensorsOnly) {
     try {
-        # Program Files, which only administrators write, on the same volume, so the install moves it into place.
-        if ($From) { $From = Copy-Verified $From $Hash "$target.new" }
-        Install-Service $From
-        Set-MachinePath ([bool]$From)
-        if (-not $From) {
+        if ($From) { Install-Version $From $Hash }
+        else {
+            Remove-Thermi
             Remove-Item (Join-Path $env:ProgramData 'thermi') -Recurse -Force -ErrorAction SilentlyContinue
             Remove-Item $installKey -Recurse -Force -ErrorAction SilentlyContinue
-            return
         }
-        Set-InstallChoice $SensorsOnly
-        if (-not $HasWebView2) {
+        Set-MachinePath ([bool]$From)
+        if ($From) { Set-InstallChoice $SensorsOnly }
+        if ($From -and -not $HasWebView2) {
             # thermi is installed by then, and the overlay works without the runtime: only the settings window needs it.
             try { Install-WebView2 } catch { exit 3 }
         }
     }
     catch {
-        Remove-Item "$target.new" -Recurse -Force -ErrorAction SilentlyContinue
         Write-Host "thermi's administrator step failed: $($_.Exception.Message)" -ForegroundColor Red
         # Without a console to read, as in a test, the window closes at once.
         try { Read-Host 'Press Enter to close this window' | Out-Null } catch [System.Management.Automation.PSInvalidOperationException] { }
@@ -293,8 +235,8 @@ function Assert-NoCodeLoadingVariable([string[]]$Names) {
 # and runs those bytes only if they match, so a file swapped while the prompt waits runs nothing.
 function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [string]$Script, [bool]$SensorsOnly) {
     $quoted = { param([string]$Text) "'$($Text -replace "'", "''")'" }
-    $names = 'Stop-Overlay', 'Remove-Service', 'Register-Service', 'Install-Service', 'Restore-Service',
-        'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Set-MachinePath', 'Set-InstallChoice', 'Install-Elevated'
+    $names = 'Stop-Overlay', 'Install-Version', 'Remove-Thermi', 'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Set-MachinePath',
+        'Set-InstallChoice', 'Install-Elevated'
     $functions = foreach ($name in $names) {
         "function $name {$((Get-Command $name -CommandType Function).Definition)}"
     }
@@ -303,9 +245,7 @@ function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [
         "`$ErrorActionPreference = 'Stop'"
         "`$target = $(& $quoted $target)"
         "`$service = $(& $quoted $service)"
-        "`$servicePrivileges = $(& $quoted $servicePrivileges)"
         "`$elevatedService = $(& $quoted $elevatedService)"
-        "`$elevatedRights = $(& $quoted $elevatedRights)"
         "`$installKey = $(& $quoted $installKey)"
         "`$machineEnvironment = $(& $quoted $machineEnvironment)"
         "`$driverKey = $(& $quoted $driverKey)"
@@ -357,27 +297,10 @@ if ($Uninstall) {
     return
 }
 
-$staging = Join-Path (Split-Path $PSScriptRoot -Parent) 'artifacts/publish'
-Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
-# ReadyToRun for this PC's processor, so both start without compiling their code first; the .NET runtime stays shared.
-$arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-    'X64' { 'x64' }
-    'Arm64' { 'arm64' }
-    default { throw "thermi runs on x64 or Arm64 Windows, not $_." }
-}
-foreach ($project in 'src/Thermi.SensorHost', 'src/Thermi') {
-    $path = Join-Path (Split-Path $PSScriptRoot -Parent) $project
-    # Restored apart, for both processors the project lists and with the ReadyToRun compiler, which only a restore that
-    # asks for ReadyToRun downloads: a publish's own restore would put its processor on Thermi.Core too, and rewrite
-    # Core's lock file.
-    dotnet restore $path --locked-mode -p:PublishReadyToRun=true --nologo -v quiet
-    if ($LASTEXITCODE -ne 0) { throw "Restoring $project failed." }
-    # Without symbols or API docs, which nothing installed reads.
-    dotnet publish $path -c Release -r "win-$arch" --self-contained false --no-restore -o $staging --nologo -v quiet `
-        -p:DebugType=none -p:PublishDocumentationFile=false -p:PublishReferencesDocumentationFiles=false
-    if ($LASTEXITCODE -ne 0) { throw "Publishing $project failed." }
-}
-
+$root = Split-Path $PSScriptRoot -Parent
+$staging = Join-Path $root 'artifacts/publish'
+. (Join-Path $PSScriptRoot 'publish.ps1')
+Publish-Thermi $staging (Get-Processor) '' $UpdatesFrom $UpdatesKeys $UpdatesSigners
 # Only now, so a build that fails leaves the running thermi alone.
 Stop-Overlay
 Invoke-Elevated $staging (Get-TreeHash $staging) ($SensorsOnly -or (Test-WebView2)) $SensorsOnly
@@ -390,11 +313,15 @@ if ($SensorsOnly) {
 }
 
 $overlay = Join-Path $target 'thermi.exe'
-Start-Process $overlay
+$started = Start-Process $overlay -PassThru
 if ($firstInstall -or $startsWithWindows) {
     Set-ItemProperty $runKey -Name thermi -Value "`"$overlay`""
     Write-Host "thermi is installed in $target and starts when you sign in."
 }
 else {
     Write-Host "thermi is installed in $target. It does not start with Windows, as its settings say."
+}
+# From an elevated console the overlay refuses to run and exits at once with 1, saying why on this console.
+if ($started.WaitForExit(3000) -and $started.ExitCode -eq 1) {
+    throw 'thermi did not start: it runs only unelevated, and this console is elevated. Start it from Start.'
 }

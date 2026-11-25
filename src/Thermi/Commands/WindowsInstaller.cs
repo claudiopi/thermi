@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using Windows.Win32;
-using Windows.Win32.Foundation;
-using Windows.Win32.Security.WinTrust;
+using Thermi.Trust;
 
 namespace Thermi.Commands;
 
@@ -13,31 +11,7 @@ namespace Thermi.Commands;
 internal sealed class WindowsInstaller : IDriverInstaller
 {
     // By its path: the open file shares neither writing nor deleting, so nothing can change or replace it meanwhile.
-    public unsafe bool Signed(FileStream file)
-    {
-        fixed (char* path = file.Name)
-        {
-            var info = new WINTRUST_FILE_INFO
-            {
-                cbStruct = (uint)sizeof(WINTRUST_FILE_INFO),
-                pcwszFilePath = path,
-            };
-            var data = new WINTRUST_DATA
-            {
-                cbStruct = (uint)sizeof(WINTRUST_DATA),
-                dwUIChoice = WINTRUST_DATA_UICHOICE.WTD_UI_NONE,
-                fdwRevocationChecks = WINTRUST_DATA_REVOCATION_CHECKS.WTD_REVOKE_NONE,
-                dwUnionChoice = WINTRUST_DATA_UNION_CHOICE.WTD_CHOICE_FILE,
-                dwStateAction = WINTRUST_DATA_STATE_ACTION.WTD_STATEACTION_VERIFY,
-            };
-            data.Anonymous.pFile = &info;
-            var action = PInvoke.WINTRUST_ACTION_GENERIC_VERIFY_V2;
-            var verdict = PInvoke.WinVerifyTrust(HWND.Null, ref action, &data);
-            data.dwStateAction = WINTRUST_DATA_STATE_ACTION.WTD_STATEACTION_CLOSE;
-            PInvoke.WinVerifyTrust(HWND.Null, ref action, &data);
-            return verdict == 0;
-        }
-    }
+    public bool Signed(FileStream file) => Authenticode.Trusted(file.Name);
 
     public async Task<int?> RunAsync(string path, IReadOnlyList<string> arguments, TimeSpan wait, TimeProvider time)
     {

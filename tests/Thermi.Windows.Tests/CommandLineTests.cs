@@ -265,6 +265,13 @@ public sealed class CommandLineTests : IDisposable
     [InlineData(new[] { "--dump", "load.json", "--seconds", "many" }, "--seconds needs a whole number above zero.")]
     [InlineData(new[] { "--elevated" }, "elevated")]
     [InlineData(new[] { "--elevated", "--console" }, "--elevated takes no other option.")]
+    [InlineData(new[] { "--adopt", "--product", "{db4b32af-cd73-400d-bfc1-1a144c2be80c}" }, "Adopt {DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}")]
+    [InlineData(new[] { "--adopt" }, "Adopt")]
+    [InlineData(new[] { "--remove" }, "Remove")]
+    [InlineData(new[] { "--undo" }, "Undo")]
+    [InlineData(new[] { "--forget" }, "Forget")]
+    [InlineData(new[] { "--remove", "--product", "{db4b32af-cd73-400d-bfc1-1a144c2be80c}" }, "--product needs --adopt. --remove takes no other option.")]
+    [InlineData(new[] { "--adopt", "--remove" }, "--adopt takes no other option. --remove takes no other option.")]
     public void TheSensorServiceServesDumpsOrRecordsFrames(string[] args, string expected)
     {
         var request = SensorCommands.Parse(args, out var errors);
@@ -277,6 +284,7 @@ public sealed class CommandLineTests : IDisposable
             SensorDump { Seconds: null } dump => $"dump {dump.File} once",
             SensorDump dump => $"dump {dump.File} {dump.Seconds}",
             SensorFrames frames => $"frames {frames.File} {frames.Seconds}",
+            SensorInstall install => $"{install.Mode} {install.Product}".TrimEnd(),
             _ => string.Join(" ", errors),
         });
     }

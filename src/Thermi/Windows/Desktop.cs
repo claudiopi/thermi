@@ -8,6 +8,7 @@ using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.Accessibility;
 using Windows.Win32.UI.HiDpi;
@@ -80,6 +81,20 @@ internal static class Desktop
                 : null,
         };
     }
+
+    /// <summary>
+    /// How long the session has gone without a key or the mouse. Windows counts it in its tick count, which no
+    /// <see cref="TimeProvider"/> gives, so the two are compared as they come.
+    /// </summary>
+    public static TimeSpan SinceInput()
+    {
+        var input = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
+        return PInvoke.GetLastInputInfo(ref input) ? TimeSpan.FromMilliseconds(unchecked((uint)Environment.TickCount - input.dwTime)) : TimeSpan.Zero;
+    }
+
+    /// <summary>Whether the session is locked, its screen saver on, or switched away from: nobody sees its overlays.</summary>
+    public static bool Locked() =>
+        PInvoke.SHQueryUserNotificationState(out var state).Succeeded && state == QUERY_USER_NOTIFICATION_STATE.QUNS_NOT_PRESENT;
 
     /// <summary>
     /// What Windows says the user is doing: an exclusive full-screen Direct3D app, or presentation mode, which its own

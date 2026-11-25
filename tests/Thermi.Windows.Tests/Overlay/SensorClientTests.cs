@@ -214,7 +214,7 @@ public sealed class SensorClientTests : IAsyncDisposable
 
     private SensorClient Start(Func<SecurityIdentifier?, bool>? trusted)
     {
-        var client = new SensorClient(_clock, _log, _pipeName, trusted);
+        var client = new SensorClient(_clock, _log, new FixedPipe(_pipeName, trusted ?? SensorClient.IsTrustedOwner));
         client.Received += (_, _) => _received.Writer.TryWrite(client.Latest);
         _running = Task.Run(() => client.RunAsync(_stop.Token), CancellationToken.None);
         return client;

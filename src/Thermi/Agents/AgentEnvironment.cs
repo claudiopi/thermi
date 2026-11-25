@@ -4,6 +4,7 @@ using Thermi.Commands;
 using Thermi.Core.Sensors;
 using Thermi.Logging;
 using Thermi.Core.Placement;
+using Thermi.Install;
 using Thermi.Overlay;
 using Thermi.Ui;
 using Thermi.Windows;
@@ -29,7 +30,7 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     public Func<bool> Installed { get; init; } = () => Exists(Services + StartSensors.Service);
 
     /// <summary>Whether an overlay runs in this session: its single-instance mutex is there, which is looked at, never taken.</summary>
-    public Func<bool> Overlay { get; init; } = () => HostEnvironment.MutexExists(HostEnvironment.OverlayMutexName);
+    public Func<bool> Overlay { get; init; } = () => NamedMutex.Exists(HostEnvironment.OverlayMutexName);
 
     public Func<bool> SensorsOnly { get; init; } = () =>
     {
@@ -53,7 +54,8 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     {
         return new(
             ConfigStore.DefaultPath,
-            () => new SystemFeed(new SensorClient(time, logs.CreateLogger<SensorClient>()), time),
+            () => new SystemFeed(
+                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
             StartWithWindows.Of(BesideThisDoor("thermi.exe")),
             logs.CreateLogger("Thermi.Agents"));
     }

@@ -105,6 +105,8 @@ function installFake(initial: FakeState): void {
     status: notInstalled,
     steps: async () => steps,
     about: notInstalled,
+    checkUpdates: async () => undefined,
+    restartToUpdate: async () => undefined,
     open: notInstalled,
     // Windows' clipboard, held by another app, fails the paste before C# reads any look.
     pasteLook: async (overlay) => (state.clipboard === null ? 'Refusal.PasteFailed' : ((await ask('importLook', overlay, state.clipboard)) as string | null)),

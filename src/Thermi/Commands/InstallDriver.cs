@@ -1,13 +1,14 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Install;
 
 namespace Thermi.Commands;
 
 /// <summary>
-/// The driver's official installer, as thermi's build pins it: its release's URL, size and SHA-256, and the switches that
-/// run it unattended. A new version is a change of all four together, after a person checks the release.
+/// The driver's official installer, as thermi's build pins it: its release's URL, size and SHA-256, the switches that
+/// run it unattended, and its version. A new version is a change of all five together, after a person checks the release.
 /// </summary>
-internal sealed record DriverSetup(Uri Url, long Size, string Sha256, IReadOnlyList<string> Arguments)
+internal sealed record DriverSetup(Uri Url, long Size, string Sha256, IReadOnlyList<string> Arguments, Version Version)
 {
     public static DriverSetup Pinned { get; } = new(
 #pragma warning disable S1075 // Pinned on purpose: a URL from anywhere else could be steered (docs/adr/0010-driver-and-service-from-the-window.md).
@@ -15,7 +16,8 @@ internal sealed record DriverSetup(Uri Url, long Size, string Sha256, IReadOnlyL
 #pragma warning restore S1075
         3_410_960,
         "1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032",
-        ["-install", "-silent"]);
+        ["-install", "-silent"],
+        new Version(2, 2, 0));
 }
 
 /// <summary>The download, which tests replace: the file at the URL into the stream, false when it fails or runs past the size.</summary>
@@ -36,13 +38,22 @@ internal interface IDriverInstaller
 
 /// <summary>
 /// What the driver's install reaches: the pinned setup, a new folder only administrators can write, or null, the
-/// download, the installer and the sensor service.
+/// download, the installer, the sensor service, and the version of the driver installed already, null when there is none.
 /// </summary>
 internal sealed record DriverParts(
-    DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services)
+    DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services, Func<string?> Installed)
 {
+    // Where its setup lists it, as LibreHardwareMonitor finds it.
+    private const string PawnIoKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO";
+
     public static DriverParts Windows(IServiceManager services, ILogger log) =>
-        new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(log), new WindowsInstaller(), services);
+        new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(log), new WindowsInstaller(), services, InstalledVersion);
+
+    private static string? InstalledVersion()
+    {
+        using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(PawnIoKey);
+        return key?.GetValue("DisplayVersion") as string;
+    }
 }
 
 /// <summary>
@@ -91,6 +102,13 @@ internal static class InstallDriver
 
     public static async Task<int> RunAsync(DriverParts parts, TimeProvider time)
     {
+        // The pinned one or a later one, as another tool's, is never installed over, and an older one is, as the sensors may
+        // not open it: the sensors only start again, as a per-user install made for everyone asks whatever the driver.
+        if (DriverVersion.Covers(parts.Setup.Version, parts.Installed()))
+        {
+            return await StartSensors.RestartAsync(parts.Services, time).ConfigureAwait(false);
+        }
+
         if (parts.Folder() is not { } folder)
         {
             return FolderUnsafe;

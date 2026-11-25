@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Updates;
 
 namespace Thermi.Logging;
 
@@ -117,4 +118,28 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "first frame {Milliseconds} ms")]
     public static partial void FirstFrame(this ILogger logger, long milliseconds);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "thermi {From} hands over to {To}, which the service installed")]
+    public static partial void HandingOver(this ILogger logger, ReleaseVersion from, ReleaseVersion to);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "thermi {To} came up, so this overlay exits")]
+    public static partial void HandedOver(this ILogger logger, ReleaseVersion to);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "thermi {To} could not take over, so this overlay stays and leaves it alone: {Why}")]
+    public static partial void HandoverFailed(this ILogger logger, ReleaseVersion to, string why);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The service could not be sent code {Code}: {Why}")]
+    public static partial void ServiceNotTold(this ILogger logger, int code, string why);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The user's sensor host {Path} did not start: {Why}")]
+    public static partial void UserHostNotStarted(this ILogger logger, string path, string why);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "thermi is installed for everyone now, so this per-user overlay hands over to {Launcher}")]
+    public static partial void MovingToMachine(this ILogger logger, string launcher);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Removing this user's per-user thermi, {Product}, now that thermi is installed for everyone")]
+    public static partial void RemovingPerUser(this ILogger logger, string product);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "thermi could not move to the install for everyone: {Why}")]
+    public static partial void MoveFailed(this ILogger logger, string why);
 }

@@ -4,6 +4,7 @@ using System.Globalization;
 using Thermi.Commands;
 using Thermi.Core.Settings;
 using Thermi.Tray;
+using Thermi.Updates;
 using Thermi.Windows;
 using Thermi.Windows.Clipboard;
 using Windows.Win32;
@@ -26,8 +27,11 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
 
     public static HostEnvironment Default { get; } = new(
         WindowMutexName,
-        Environment.ProcessPath ?? "thermi.exe",
+        ThermiPaths.Launcher,
         (message, in data) => PInvoke.Shell_NotifyIcon(message, data));
+
+    /// <summary>The executable the window starts from: this version's own, so the window runs the overlay's version.</summary>
+    public string WindowExe { get; init; } = ThermiPaths.Own;
 
     /// <summary>Opens the window on an overlay, by its place; null starts it as <see cref="StartWindow"/> does.</summary>
     public Action<int>? OpenSettings { get; init; }
@@ -53,26 +57,7 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     // or crashes takes it away. Any program in the session can make one of the name too: the overlay then believes the
     // window open, which only changes how it looks and rests its hotkeys, and such a program could already do worse as
     // the user.
-    public bool WindowOpen() => MutexExists(WindowMutex);
-
-    /// <summary>Whether a named mutex is there, looked at and never held; one another account made, as an elevated thermi's, is there too.</summary>
-    public static bool MutexExists(string name)
-    {
-        try
-        {
-            if (!Mutex.TryOpenExisting(name, out var mutex))
-            {
-                return false;
-            }
-
-            mutex.Dispose();
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
+    public bool WindowOpen() => NamedMutex.Exists(WindowMutex);
 
     /// <summary>
     /// Opens the window on an overlay, by its place, and an item to select, as <c>thermi settings --overlay n --item id</c>:
@@ -83,6 +68,6 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     {
         PInvoke.AllowSetForegroundWindow(PInvoke.ASFW_ANY);
         string[] arguments = ["settings", ThermiCommands.OverlayOption, (overlay + 1).ToString(CultureInfo.InvariantCulture)];
-        Program.Start(ExePath, trace, item is null ? arguments : [.. arguments, ThermiCommands.ItemOption, item]);
+        Program.Start(WindowExe, trace, item is null ? arguments : [.. arguments, ThermiCommands.ItemOption, item]);
     }
 }

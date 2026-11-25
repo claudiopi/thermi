@@ -170,14 +170,6 @@ SERVICE_STOP
 SERVICE_CONTROL_STOP
 ControlService
 WIN32_ERROR
-// The driver's installer, checked for a valid Authenticode signature before it runs
-WinVerifyTrust
-WINTRUST_DATA
-WINTRUST_FILE_INFO
-WINTRUST_ACTION_GENERIC_VERIFY_V2
-// The installer's own folder, made with administrators' access from the start, and never one that was there before
-CreateDirectory
-SECURITY_ATTRIBUTES
 // The sender of a message, checked as the same thermi.exe as the receiver (docs/adr/0009-overlay-and-window-messages.md)
 OpenProcess
 QueryFullProcessImageName
@@ -242,3 +234,22 @@ GetShellWindow
 CreateToolhelp32Snapshot
 Process32FirstW
 Process32NextW
+// How long the session has gone without input, for a quiet moment to update in
+GetLastInputInfo
+// The user's own sensor host, checked by its process (docs/adr/0016-admin-on-demand.md)
+GetNamedPipeServerProcessId
+// The user pipe's own integrity label, which a sandboxed process that made it cannot raise
+GetSecurityInfo
+GetSecurityDescriptorLength
+LocalFree
+GetCurrentProcess
+OpenProcessToken
+GetTokenInformation
+TOKEN_ELEVATION_TYPE
+TOKEN_MANDATORY_LABEL
+GetSidSubAuthority
+GetSidSubAuthorityCount
+// The per-user product the machine's overlay removes, found by its UpgradeCode in the user's own context
+MsiEnumRelatedProducts
+MsiGetProductInfoEx
+MSIINSTALLCONTEXT

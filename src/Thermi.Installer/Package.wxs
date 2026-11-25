@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  thermi's MSI (docs/adr/0008-updates.md): per machine, it owns only a bootstrap, the version it ships in
+  C:\Program Files\thermi\setup, and has that version's thermi-sensors.exe adopt it into the layout an update keeps:
+  the version beside the others, both services, the launchers and Installed apps' entry, which shows the version that
+  runs. The MSI's own entry is hidden for it. Uninstalling has thermi-sensors.exe take all of that off first.
+  Built again with Scope perUser (docs/adr/0016-admin-on-demand.md), it installs the same layout into the user's
+  %LOCALAPPDATA%\Programs\thermi without a prompt, its actions run as the user with no service, driver or Active Setup,
+  and its UpgradeCode is its own, so the two never upgrade each other.
+-->
+<?if $(var.Scope) = "perUser" ?>
+  <?define UpgradeCode = "{E64A26FA-E001-4EDF-A31C-40957EC23FAB}" ?>
+  <?define Impersonate = "yes" ?>
+  <?define User = " --user" ?>
+<?else?>
+  <?define UpgradeCode = "{DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}" ?>
+  <?define Impersonate = "no" ?>
+  <?define User = "" ?>
+<?endif?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="thermi" Manufacturer="thermi" Version="$(var.Version)" UpgradeCode="$(var.UpgradeCode)"
+           Scope="$(var.Scope)" InstallerVersion="500" Compressed="yes">
+    <MajorUpgrade AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="A newer thermi is installed. Uninstall it from Installed apps first." />
+    <MediaTemplate EmbedCab="yes" />
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+<?if $(var.Scope) = "perUser" ?>
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="programsfolder" Name="Programs">
+        <Directory Id="installfolder" Name="thermi">
+          <Directory Id="setupfolder" Name="setup" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+<?else?>
+    <!-- Secure, so it reaches the elevated part when a standard user starts msiexec and an administrator consents. -->
+    <Property Id="ADDDRIVER" Secure="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="installfolder" Name="thermi">
+        <Directory Id="setupfolder" Name="setup" />
+      </Directory>
+    </StandardDirectory>
+<?endif?>
+
+    <ComponentGroup Id="Bootstrap" Directory="setupfolder">
+      <Files Include="$(var.PublishDir)**" />
+    </ComponentGroup>
+
+    <!-- The launcher at the top, which every version's switch keeps in place. -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenu">
+        <Shortcut Id="Thermi" Name="thermi" Target="[installfolder]thermi.exe" WorkingDirectory="installfolder" />
+        <RegistryValue Root="HKMU" Key="SOFTWARE\thermi\installer" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+<?if $(var.Scope) = "perMachine" ?>
+    <!-- Starting at sign-in is each person's: Active Setup turns it on once in every profile, at its next sign-in, as the
+         window's "Start with Windows" does, and the person may turn it off for good. -->
+    <Component Id="ActiveSetup" Directory="installfolder">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Active Setup\Installed Components\thermi">
+        <RegistryValue Type="string" Value="thermi" />
+        <RegistryValue Name="StubPath" Type="expandable"
+                       Value="&quot;[System64Folder]reg.exe&quot; add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v thermi /t REG_SZ /d &quot;\&quot;[installfolder]thermi.exe\&quot;&quot; /f" />
+        <RegistryValue Name="Version" Type="string" Value="1" />
+        <RegistryValue Name="IsInstalled" Type="integer" Value="1" KeyPath="yes" />
+      </RegistryKey>
+    </Component>
+
+    <Feature Id="Thermi">
+      <ComponentGroupRef Id="Bootstrap" />
+      <ComponentRef Id="StartMenu" />
+      <ComponentRef Id="ActiveSetup" />
+    </Feature>
+<?else?>
+    <!-- The user's start at sign-in is turned on by the first install's adopt alone, so an upgrade never turns it back on. -->
+    <Feature Id="Thermi">
+      <ComponentGroupRef Id="Bootstrap" />
+      <ComponentRef Id="StartMenu" />
+    </Feature>
+<?endif?>
+
+    <!-- Every program runs through the util extension's DLL native to this package's processor, never as a plain
+         executable action, so none gets a console window: one shown as SYSTEM on the desktop, as a repair a standard user
+         starts with msiexec /fa would show it, is a SYSTEM process that user could drive. A deferred action's command
+         line is the property of its name. -->
+<?define UtilCA = "Wix4UtilCA_$(sys.BUILDARCHSHORT)" ?>
+    <!-- As SYSTEM, from the bootstrap: Windows' installer service runs it, so nothing of the user's loads into it; a
+         per-user install's run as the user, who owns its folder. A repair runs it too, as only it puts back the services
+         and the launchers, which are none of the MSI's components. -->
+    <SetProperty Id="Adopt" Before="Adopt" Sequence="execute"
+                 Value="&quot;[setupfolder]thermi-sensors.exe&quot; --adopt$(var.User) --product [ProductCode]" />
+    <CustomAction Id="Adopt" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="deferred" Impersonate="$(var.Impersonate)"
+                  Return="check" />
+    <!-- A rollback of the install, after Adopt or when it failed, puts back what Adopt found. -->
+    <SetProperty Id="Undo" Before="Undo" Sequence="execute" Value="&quot;[setupfolder]thermi-sensors.exe&quot; --undo$(var.User)" />
+    <CustomAction Id="Undo" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="rollback" Impersonate="$(var.Impersonate)"
+                  Return="ignore" />
+    <!-- Once the install committed, its record is no later install's to put back. -->
+    <SetProperty Id="Forget" Before="Forget" Sequence="execute" Value="&quot;[setupfolder]thermi-sensors.exe&quot; --forget$(var.User)" />
+    <CustomAction Id="Forget" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="commit" Impersonate="$(var.Impersonate)"
+                  Return="ignore" />
+    <SetProperty Id="TakeOff" Before="TakeOff" Sequence="execute" Value="&quot;[setupfolder]thermi-sensors.exe&quot; --remove$(var.User)" />
+    <CustomAction Id="TakeOff" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="deferred" Impersonate="$(var.Impersonate)"
+                  Return="check" />
+    <!-- The driver comes through the thermi-elevated service, as the window's fix does (docs/adr/0010-driver-and-service-from-the-window.md),
+         never from the install itself; a driver that fails leaves thermi installed and the fix offered. -->
+<?if $(var.Scope) = "perMachine" ?>
+    <SetProperty Id="InstallDriver" Before="InstallDriver" Sequence="execute"
+                 Value="&quot;[System64Folder]sc.exe&quot; start thermi-elevated install-driver" />
+    <CustomAction Id="InstallDriver" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no"
+                  Return="ignore" />
+<?endif?>
+    <!-- The overlay of the person who ran the MSI by hand, started by Explorer, which runs unelevated as that person, so
+         a client elevated from an administrator's console starts it unelevated (docs/adr/0016-admin-on-demand.md). With
+         no shell running, the action falls back to starting it with the client's token, which thermi.exe refuses when it
+         is elevated. A quiet action would wait for its program to exit. A silent install, as Intune's, starts none. -->
+    <SetProperty Id="WixUnelevatedShellExecTarget" Before="StartOverlay" Sequence="execute" Value="[installfolder]thermi.exe" />
+    <CustomAction Id="StartOverlay" BinaryRef="$(var.UtilCA)" DllEntry="WixUnelevatedShellExec" Execute="immediate"
+                  Impersonate="yes" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="TakeOff" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="Undo" After="InstallFiles" Condition="NOT REMOVE" />
+      <Custom Action="Adopt" After="Undo" Condition="NOT REMOVE" />
+      <Custom Action="Forget" After="Adopt" Condition="NOT REMOVE" />
+      <!-- A first install alone, which always needs an administrator's consent: a repair sets Installed. -->
+<?if $(var.Scope) = "perMachine" ?>
+      <Custom Action="InstallDriver" After="Forget" Condition="NOT Installed AND ADDDRIVER = 1" />
+<?endif?>
+      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

@@ -1,14 +1,21 @@
 using System.ComponentModel;
 using Thermi.Commands;
 using Thermi.Core.Bridge;
+using Thermi.Core.Install;
 using Thermi.Core.Sensors;
+using Thermi.Install;
 using Thermi.Logging;
+using Thermi.Ui.Web;
+using Thermi.Updates;
+using Windows.Win32;
 
 namespace Thermi.Ui.Views;
 
 /// <summary>
 /// The two fixes the window runs through thermi's elevated mode, behind one UAC prompt each: installing the driver and
-/// starting the sensor service (docs/adr/0010-driver-and-service-from-the-window.md).
+/// starting the sensor service (docs/adr/0010-driver-and-service-from-the-window.md). In a per-user install, which has
+/// neither service, the driver's fix installs thermi for everyone behind msiexec's one prompt, and the sensors' starts
+/// the user's own host with none (docs/adr/0016-admin-on-demand.md).
 /// </summary>
 internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider time)
 {
@@ -17,20 +24,34 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
 
     private static readonly TimeSpan DriverPoll = TimeSpan.FromMilliseconds(500);
 
+    // A download of the machine MSI, the prompt and the install, on a slow network.
+    private static readonly TimeSpan InstallWithin = TimeSpan.FromMinutes(10);
+
     /// <summary>
-    /// Installed only once a CPU temperature, power or clock reads, after the sensor service opened the new driver; a
-    /// driver that loads only once Windows restarts says so, since nothing reads before then.
+    /// Installed only once a CPU temperature, power or clock reads, after the sensor service opened the new driver, or after
+    /// a per-user install was made for everyone and the window came back to the service; a driver that loads only once
+    /// Windows restarts says so, since nothing reads before then.
     /// </summary>
     public async Task<DriverInstall> InstallDriver()
     {
-        var code = await ElevateAsync(Commands.InstallDriver.Verb);
-        if (code is not Commands.InstallDriver.Installed)
+        var perUser = SensorPipes.InstallsForEveryone;
+        if (perUser)
+        {
+            // The user's host ends once the install worked, and the window reads the service's pipe instead.
+            if (!await InstallForEveryoneAsync())
+            {
+                return DriverInstall.NotInstalled;
+            }
+        }
+        else if (await ElevateAsync(Commands.InstallDriver.Verb) is var code && code is not Commands.InstallDriver.Installed)
         {
             return code is Commands.InstallDriver.RestartNeeded ? DriverInstall.RestartWindows : DriverInstall.NotInstalled;
         }
 
         var start = time.GetTimestamp();
-        for (; time.GetElapsedTime(start) < DriverReadsWithin; await Task.Delay(DriverPoll, time))
+        // After an install for everyone, the driver's own download and install go on once msiexec is done.
+        var within = perUser ? DriverReadsWithin + Commands.InstallDriver.DownloadWait + Commands.InstallDriver.InstallWait : DriverReadsWithin;
+        for (; time.GetElapsedTime(start) < within; await Task.Delay(DriverPoll, time))
         {
             if (environment.Sensors.Latest is { } snapshot && !SensorMap.DriverMayBeMissing(snapshot))
             {
@@ -41,8 +62,42 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
         return DriverInstall.NotInstalled;
     }
 
+    // A per-user install has neither the service nor the driver: its host installs thermi for everyone, behind one prompt
+    // that names thermi, and the window waits for what it came to (docs/adr/0016-admin-on-demand.md).
+    private async Task<bool> InstallForEveryoneAsync()
+    {
+        var asked = time.GetUtcNow();
+        try
+        {
+            // The prompt msiexec shows comes to the front, as the click that asked allows.
+            PInvoke.AllowSetForegroundWindow(PInvoke.ASFW_ANY);
+            UpdatesHere.Tell(InstallForEveryone.Code);
+        }
+        catch (InvalidOperationException ex)
+        {
+            environment.Log.ServiceNotTold(InstallForEveryone.Code, ex.Message);
+            return false;
+        }
+
+        var start = time.GetTimestamp();
+        for (; time.GetElapsedTime(start) < InstallWithin; await Task.Delay(DriverPoll, time))
+        {
+            if (UpdatesHere.MachineInstall() is { } done && done.At >= asked && done.Outcome != MachineInstallOutcome.Running)
+            {
+                if (done.Outcome == MachineInstallOutcome.DownloadPage)
+                {
+                    WindowLinks.OpenUrl(WindowLinks.Downloads, environment.Log);
+                }
+
+                return done.Outcome == MachineInstallOutcome.Installed;
+            }
+        }
+
+        return false;
+    }
+
     // The window recovers by seeing the pipe come back, whatever the answer.
-    public async Task<bool> StartService() => await ElevateAsync(StartSensors.Verb) is StartSensors.Started;
+    public async Task<bool> StartService() => (StartSensors.StartUsersOwn() ?? await ElevateAsync(StartSensors.Verb)) is StartSensors.Started;
 
     // Starting a process behind UAC blocks its caller until the prompt closes, so it runs off the window's thread. Null
     // when the prompt was refused or the mode could not start.

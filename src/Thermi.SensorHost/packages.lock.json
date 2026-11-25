@@ -253,6 +253,9 @@
       },
       "thermi.core": {
         "type": "Project"
+      },
+      "thermi.trust": {
+        "type": "Project"
       }
     },
     "net10.0-windows7.0/win-arm64": {

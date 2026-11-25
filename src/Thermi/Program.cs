@@ -3,10 +3,14 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Thermi.Agents;
 using Thermi.Commands;
+using Thermi.Core.Updates;
+using Thermi.Install;
 using Thermi.Logging;
 using Thermi.Overlay;
 using Thermi.Ui;
+using Thermi.Updates;
 using Thermi.Windows;
+using Windows.Win32;
 using Windows.Win32.System.Console;
 
 // Windows 10 1607 and later, which every Win32 call thermi makes needs (Thermi.csproj says why it is set here).
@@ -34,6 +38,17 @@ internal static class Program
 
         // The console door runs the agents' commands alone: never the overlay, the window or the elevated mode.
         var door = ThermiCommands.IsConsoleDoor(Environment.ProcessPath);
+
+        // Before any window, WebView2 or file: an install's start of the overlay can still come with an elevated client's
+        // token where no shell runs to start it unelevated, and a log written then would be an elevated write into the
+        // user's folder, which a link there sends anywhere. The terminal's error stream is no file.
+        if (!door && request is OverlayRequest or SettingsRequest && Elevation.Raised())
+        {
+            CommandLineOutput.Borrow(STD_HANDLE.STD_ERROR_HANDLE);
+            await Console.Error.WriteLineAsync(Elevation.Refusal);
+            return 1;
+        }
+
         return request switch
         {
             AgentRequest agent => await RunAgentAsync(agent, time),
@@ -85,7 +100,7 @@ internal static class Program
             using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, trace);
             var log = logs.CreateLogger("Thermi.Overlay");
             CrashRestart.Register(trace, log);
-            return await ThermiLog.RunLoggedAsync(log, () => RunHostAsync(logs, time));
+            return await ThermiLog.RunLoggedAsync(log, () => RunHostAsync(logs, time, single));
         }
     }
 
@@ -132,25 +147,49 @@ internal static class Program
         return builtIn.Parsed.InvokeAsync(new System.CommandLine.InvocationConfiguration { Output = Console.Error });
     }
 
-    private static async Task<int> RunHostAsync(ILoggerFactory logs, TimeProvider time)
+    private static async Task<int> RunHostAsync(ILoggerFactory logs, TimeProvider time, Mutex single)
     {
-        var sensors = new SensorClient(time, logs.CreateLogger<SensorClient>());
+        var sensors = new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: true));
         var feed = new SystemFeed(sensors, time);
         using var stop = new CancellationTokenSource();
         var reading = Task.Run(() => feed.RunAsync(stop.Token), stop.Token);
         // No settings file yet is thermi's first start, which its first notice and the values' tooltips speak to.
         var firstStart = !File.Exists(ConfigStore.DefaultPath);
-        using var store = new ConfigStore(ConfigStore.DefaultPath, time);
-        await using (var settings = new Settings(store, time, logs.CreateLogger<Settings>()))
+        OverlayHost? running = null;
+        sensors.Received += (_, _) => running?.Arrived();
+        var updates = new OverlayUpdates(() => Facts(running), () => Close(running), time, logs.CreateLogger<OverlayUpdates>());
+        using var ticks = time.CreateTimer(_ => updates.Tick(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        var mutex = single;
+        try
         {
-            using var host = new OverlayHost(settings, () => feed.Shown, CultureInfo.CurrentCulture, time, logs.CreateLogger<OverlayHost>())
+            // An overlay that closed to hand over to a new version, which did not come up, runs again as it was.
+            do
             {
-                Service = () => sensors.State,
-                FirstStart = firstStart,
-                Resumed = sensors.Resume,
-            };
-            sensors.Received += (_, _) => host.Arrived();
-            host.Run();
+                await RunHostOnceAsync(logs, time, sensors, feed, firstStart, host => running = host);
+                firstStart = false;
+                if (updates.Leaving is null)
+                {
+                    break;
+                }
+
+                mutex.Dispose();
+                if (await updates.HandOverAsync())
+                {
+                    break;
+                }
+
+                // Another overlay took the name while this one was away: it is the one that runs.
+                mutex = new Mutex(initiallyOwned: true, HostEnvironment.OverlayMutexName, out var created);
+                if (!created)
+                {
+                    break;
+                }
+            }
+            while (true);
+        }
+        finally
+        {
+            mutex.Dispose();
         }
 
         await stop.CancelAsync();
@@ -158,6 +197,50 @@ internal static class Program
         return 0;
     }
 
+    private static async Task RunHostOnceAsync(
+        ILoggerFactory logs, TimeProvider time, SensorClient sensors, SystemFeed feed, bool firstStart, Action<OverlayHost?> running)
+    {
+        using var store = new ConfigStore(ConfigStore.DefaultPath, time);
+        await using var settings = new Settings(store, time, logs.CreateLogger<Settings>());
+        using var host = new OverlayHost(settings, () => feed.Shown, CultureInfo.CurrentCulture, time, logs.CreateLogger<OverlayHost>())
+        {
+            Service = () => sensors.State,
+            FirstStart = firstStart,
+            Resumed = sensors.Resume,
+        };
+        running(host);
+        host.Run();
+        running(null);
+    }
+
+    // Read on the update's timer: a list the window's thread changes meanwhile counts as overlays shown.
+    private static SessionFacts Facts(OverlayHost? host)
+    {
+        bool hidden;
+        bool dragging;
+        try
+        {
+            // An overlay with none on screen yet, before its first paint, is no hidden one.
+            var overlays = host?.Overlays.ToList() ?? [];
+            hidden = overlays.Count > 0 && overlays.TrueForAll(overlay => !overlay.OnScreen);
+            dragging = overlays.Exists(overlay => overlay.Dragging);
+        }
+        catch (InvalidOperationException)
+        {
+            (hidden, dragging) = (false, true);
+        }
+
+        return new SessionFacts(host is null || HostEnvironment.Default.WindowOpen(), dragging, Desktop.SinceInput(), Desktop.Locked(), hidden);
+    }
+
+    // As the tray's "Exit thermi": the host closes on its own thread, its settings saved.
+    private static void Close(OverlayHost? host)
+    {
+        if (host is not null)
+        {
+            PInvoke.PostMessage(host.Hwnd, PInvoke.WM_CLOSE, 0, 0);
+        }
+    }
     private static async Task<int> RunWindowAsync(SettingsRequest request, TimeProvider time)
     {
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);

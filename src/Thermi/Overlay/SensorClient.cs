@@ -25,15 +25,35 @@ internal interface ISensorFeed
     Task RunAsync(CancellationToken stop);
 }
 
+/// <summary>Which pipe a client reads, whether it trusts what answers, and what it does when none does.</summary>
+internal interface ISensorPipe
+{
+    string Name { get; }
+
+    bool Trusts(NamedPipeClientStream pipe);
+
+    /// <summary>No pipe answered within a retry.</summary>
+    void Missing();
+}
+
+/// <summary>One pipe, trusted by its owner: the service's, or a pipe a test made itself.</summary>
+internal sealed class FixedPipe(string name, Func<SecurityIdentifier?, bool> trusted) : ISensorPipe
+{
+    public string Name => name;
+
+    public bool Trusts(NamedPipeClientStream pipe) => trusted(pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) as SecurityIdentifier);
+
+    public void Missing()
+    {
+        // The service restarts on its own.
+    }
+}
+
 /// <summary>
-/// Reads the sensor host's pipe, <paramref name="pipeName"/>, and waits 2 s between tries while it is gone. Only a pipe whose
-/// owner is <paramref name="trusted"/>, <see cref="IsTrustedOwner"/> unless a test trusts a pipe it made itself, is read.
+/// Reads the sensor host's pipe, as <paramref name="pipes"/> picks and trusts it, and waits 2 s between tries while it is
+/// gone. Any local user can create a pipe of the service's name while the service restarts, so only a trusted one is read.
 /// </summary>
-internal sealed class SensorClient(
-    TimeProvider time,
-    ILogger log,
-    string pipeName = SnapshotJson.PipeName,
-    Func<SecurityIdentifier?, bool>? trusted = null) : ISensorFeed
+internal sealed class SensorClient(TimeProvider time, ILogger log, ISensorPipe pipes) : ISensorFeed
 {
     private static readonly TimeSpan Retry = TimeSpan.FromSeconds(2);
 
@@ -67,7 +87,13 @@ internal sealed class SensorClient(
                 await ReadAsync(round.Token);
                 Lost("the service closed it");
             }
-            catch (Exception ex) when (ex is IOException or TimeoutException or UnauthorizedAccessException or InvalidDataException)
+            catch (TimeoutException ex)
+            {
+                // No host answered: the user's own is started when its time comes.
+                pipes.Missing();
+                Lost(ex.Message);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 // Host gone, restarting, not ours or unusable: retry.
                 Lost(ex.Message);
@@ -141,13 +167,13 @@ internal sealed class SensorClient(
     private async Task ReadAsync(CancellationToken stop)
     {
         // Identification: the host may learn who connects, but never act as this user.
-        await using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In, PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
+        await using var pipe = new NamedPipeClientStream(".", pipes.Name, PipeDirection.In, PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
         await ConnectAsync(pipe, stop);
-        var ours = Trusted(pipe);
+        var ours = pipes.Trusts(pipe);
         Volatile.Write(ref _taken, !ours);
         if (!ours)
         {
-            throw new UnauthorizedAccessException("The sensor pipe belongs to another program, not to the thermi-sensors service.");
+            throw new UnauthorizedAccessException("The sensor pipe belongs to another program, not to thermi's sensor host.");
         }
 
         _latest.Connected();
@@ -178,11 +204,7 @@ internal sealed class SensorClient(
         }
     }
 
-    // Any local user can create a pipe with this name while the service restarts. Only one made by the
-    // service (owned by SYSTEM) or by an administrator is the real sensor host.
-    private bool Trusted(NamedPipeClientStream pipe) =>
-        (trusted ?? IsTrustedOwner)(pipe.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) as SecurityIdentifier);
-
+    /// <summary>Whether the service's pipe is the service's: made by it, as SYSTEM, or by an administrator.</summary>
     public static bool IsTrustedOwner(SecurityIdentifier? owner) =>
         owner is not null && (owner.IsWellKnown(WellKnownSidType.LocalSystemSid) || owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid));
 }

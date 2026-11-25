@@ -10,10 +10,12 @@ using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
+using Thermi.Install;
 using Thermi.Logging;
 using Thermi.Overlay;
 using Thermi.Ui.Editor;
 using Thermi.Ui.Views;
+using Thermi.Updates;
 using Thermi.Windows;
 using Thermi.Windows.Clipboard;
 using Windows.Win32;
@@ -43,6 +45,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly WindowLooks _looks;
     private readonly PageWatch _watch;
     private readonly WindowFixes _fixes;
+    private readonly WindowUpdates _updates;
     private Texts _texts;
     private bool _lightTaskbar = Desktop.LightTaskbar();
 
@@ -60,6 +63,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _watch = new PageWatch(start.Environment with { Sensors = _sensors }, start.Time, onTurn, Tell, Arrived);
         _fixes = new WindowFixes(start.Environment, start.Time);
+        _updates = new WindowUpdates(start.Time, start.Environment.Log);
         editor.Settle = (before, after) => _views.Settled(before, after, _texts, start.Environment.Screens());
         editor.Changed += (_, _) => Edited();
     }
@@ -174,7 +178,24 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<UndoSteps> Steps() => Task.FromResult(WindowFacts.Steps(_editor.UndoName, _editor.RedoName, _views.Format(_texts)));
 
-    public Task<About> About() => Task.FromResult(WindowFacts.About(Version, CultureInfo.CurrentUICulture));
+    public Task<About> About() => Task.FromResult(
+        WindowFacts.About(Version, CultureInfo.CurrentUICulture, _updates.Line(), _views.Format(_texts), _start.Time.LocalTimeZone));
+
+    public Task CheckUpdates()
+    {
+        _updates.Ask();
+        return Task.CompletedTask;
+    }
+
+    public Task RestartToUpdate()
+    {
+        if (_updates.Restart())
+        {
+            PInvoke.PostMessage(Window, PInvoke.WM_CLOSE, 0, 0);
+        }
+
+        return Task.CompletedTask;
+    }
 
     public Task Open(Opened what)
     {
@@ -340,7 +361,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             _watch.Hotkeys,
             _editor.Problem,
             _views.Format(_texts));
-        return status with { LightTaskbar = _lightTaskbar };
+        return status with { LightTaskbar = _lightTaskbar, ForEveryone = SensorPipes.InstallsForEveryone };
     }
 
     // An undo or a redo, named before it runs, and what it changed back once it did; null when it changed nothing.

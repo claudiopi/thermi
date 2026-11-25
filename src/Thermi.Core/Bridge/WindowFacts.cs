@@ -6,6 +6,7 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
+using Thermi.Core.Updates;
 
 namespace Thermi.Core.Bridge;
 
@@ -24,6 +25,13 @@ public sealed record WindowStatus(
     /// <summary>Whether Windows' taskbar is light, which a look's "Match taskbar" pills take in the window as on the overlay.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public bool LightTaskbar { get; init; }
+
+    /// <summary>
+    /// Whether this is a per-user install reading the user's own host, whose driver comes with thermi installed for everyone,
+    /// behind one prompt; once the service is read, the fix is the machine's again (docs/adr/0016-admin-on-demand.md).
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public bool ForEveryone { get; init; }
 }
 
 /// <summary>The steps Undo and Redo would take, worded as "Critical 84 → 85 °C", or null when there is none.</summary>
@@ -34,8 +42,8 @@ public sealed record UndoSteps(
 /// <summary>A language thermi ships: its code, as the settings file writes it, and its name in itself, like "Español".</summary>
 public sealed record Language(string Code, string Name);
 
-/// <summary>What About and the language dropdown show: the version, every language, and the one Windows' own gives.</summary>
-public sealed record About(string Version, IReadOnlyList<Language> Languages, string Windows);
+/// <summary><see cref="Restart"/>: About offers to switch to the version ready now.</summary>
+public sealed record About(string Version, IReadOnlyList<Language> Languages, string Windows, string Updates, bool Restart);
 
 /// <summary>What an undo or a redo changed back: the toast's words, and the item, or else the overlay, to show.</summary>
 public sealed record Undone(
@@ -95,12 +103,13 @@ public static class WindowFacts
     public static UndoSteps Steps(StepName? undo, StepName? redo, ValueFormat format) =>
         new(undo is null ? null : StepTexts.Of(undo, format), redo is null ? null : StepTexts.Of(redo, format));
 
-    /// <summary>thermi's <paramref name="version"/>, every language by its own name, and the one Windows' display language gives.</summary>
-    public static About About(string version, CultureInfo windows) =>
+    public static About About(string version, CultureInfo windows, UpdateLine updates, ValueFormat format, TimeZoneInfo zone) =>
         new(
             version,
             [.. Texts.Languages.Select(code => new Language(code, Texts.Of(code).Of(UiText.LanguageName)))],
-            Texts.For(null, windows).Of(UiText.LanguageName));
+            Texts.For(null, windows).Of(UiText.LanguageName),
+            UpdateStatus.Say(updates, format.Texts, format.Numbers, zone),
+            updates.Restart);
 
     /// <summary>
     /// What a step taken back as <paramref name="step"/>, or made again on a <paramref name="redo"/>, changed from
