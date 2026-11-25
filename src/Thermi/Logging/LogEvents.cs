@@ -53,6 +53,9 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Warning, Message = "A message {Message} that could not be read, or from another window, was dropped")]
     public static partial void MessageDropped(this ILogger logger, uint message);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Windows refused to restart the overlay should it crash or hang: HRESULT {Result}")]
+    public static partial void RestartRefused(this ILogger logger, int result);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The sensors could not be started")]
     public static partial void StartSensorsFailed(this ILogger logger, Exception error);
 

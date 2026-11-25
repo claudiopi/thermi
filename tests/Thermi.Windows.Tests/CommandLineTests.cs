@@ -4,6 +4,8 @@ using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost;
 using Thermi.Commands;
 using Thermi.Windows.Tests.Processes;
+using Windows.Win32;
+using Windows.Win32.System.Recovery;
 
 namespace Thermi.Windows.Tests;
 
@@ -46,6 +48,31 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(new OverlayRequest(trace), ThermiCommands.Parse(args, out _));
         Assert.Equal(new SettingsRequest(2, trace, Pseudo: false), ThermiCommands.Parse(["settings", .. args, "--overlay", "2"], out _));
         Assert.Equal(new SettingsRequest(0, trace, Pseudo: false), ThermiCommands.Parse([.. args, "settings"], out _));
+    }
+
+    // The overlay that crashed or hung is started again as it ran, traced or not, and never by an update of thermi or of
+    // Windows, which start it themselves: a second thermi would open the window. This process registers as the overlay
+    // does, reads back what Windows keeps, and lets go of it.
+    [Fact]
+    public void WindowsRestartsTheOverlayAsItRanButNotAfterAnUpdate()
+    {
+        var kept = new List<(string, REGISTER_APPLICATION_RESTART_FLAGS)>();
+        try
+        {
+            foreach (var trace in new[] { true, false })
+            {
+                CrashRestart.Register(trace, _folder.Log);
+                kept.Add(Registered());
+            }
+        }
+        finally
+        {
+            TestPInvoke.UnregisterApplicationRestart().ThrowOnFailure();
+        }
+
+        const REGISTER_APPLICATION_RESTART_FLAGS notAfterUpdates =
+            REGISTER_APPLICATION_RESTART_FLAGS.RESTART_NO_PATCH | REGISTER_APPLICATION_RESTART_FLAGS.RESTART_NO_REBOOT;
+        Assert.Equal([("--trace", notAfterUpdates), ("", notAfterUpdates)], kept);
     }
 
     // A word thermi does not know is an error, never an overlay started by mistake: the old command line ignored it. The
@@ -272,5 +299,15 @@ public sealed class CommandLineTests : IDisposable
         public bool Start() => starts;
 
         public bool Stop() => true;
+    }
+
+    // The command line and flags Windows keeps to restart this process, without the executable it adds.
+    private static (string, REGISTER_APPLICATION_RESTART_FLAGS) Registered()
+    {
+        var line = new char[TestPInvoke.RESTART_MAX_CMD_LINE];
+        var size = (uint)line.Length;
+        using var self = System.Diagnostics.Process.GetCurrentProcess();
+        TestPInvoke.GetApplicationRestartSettings(self.SafeHandle, line, ref size, out uint flags).ThrowOnFailure();
+        return (new string(line, 0, (int)size - 1), (REGISTER_APPLICATION_RESTART_FLAGS)flags);
     }
 }

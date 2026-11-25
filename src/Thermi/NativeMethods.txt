@@ -156,6 +156,8 @@ NOTIFYICON_VERSION_4
 NIN_BALLOONUSERCLICK
 NIN_SELECT
 DestroyIcon
+// Windows' restart of an overlay that crashed or hung (docs/adr/0017-windows-restarts-the-overlay.md)
+RegisterApplicationRestart
 // The elevated mode's service control (docs/adr/0010-driver-and-service-from-the-window.md)
 OpenSCManager
 OpenService

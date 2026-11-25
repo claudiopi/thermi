@@ -1732,6 +1732,24 @@
       "description": "Given the window's bridge on the recorded PC, when three snapshots come whose sensors Core throws on wherever it reads them, and then a good one, then the page hears nothing of the bad ones, its view keeps the last snapshot's values, the log says it once, and the good one's values show and reach the page.",
       "check": "ASnapshotTheWindowCannotReadLeavesItsLastViewUntilOneReads",
       "passes": true
+    },
+    {
+      "id": "A355",
+      "covers": [
+        "R202"
+      ],
+      "description": "Given the overlay registering for a restart, when it registers traced and untraced, then Windows keeps `--trace` or no arguments, and the flags that keep it from restarting the overlay after an update of thermi or of Windows.",
+      "check": "WindowsRestartsTheOverlayAsItRanButNotAfterAnUpdate",
+      "passes": true
+    },
+    {
+      "id": "A356",
+      "covers": [
+        "R202"
+      ],
+      "description": "Given the installed thermi running for over a minute, when its overlay process is made to crash (as by a debugger's injected access violation) and then to hang until Windows offers to close it, then Windows offers to restart it and one overlay comes back, with no settings window; when it crashes within its first minute, or is ended from Task Manager or by \"Exit thermi\", then nothing starts it again; and `scripts/install.ps1` run over it leaves one overlay.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

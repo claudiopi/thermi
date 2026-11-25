@@ -78,7 +78,9 @@ internal static class Program
         using (single)
         {
             using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, trace);
-            return await ThermiLog.RunLoggedAsync(logs.CreateLogger("Thermi.Overlay"), () => RunHostAsync(logs, time));
+            var log = logs.CreateLogger("Thermi.Overlay");
+            CrashRestart.Register(trace, log);
+            return await ThermiLog.RunLoggedAsync(log, () => RunHostAsync(logs, time));
         }
     }
 

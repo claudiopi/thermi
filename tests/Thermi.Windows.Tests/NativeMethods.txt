@@ -49,3 +49,7 @@ SetKeyboardState
 GetGUIThreadInfo
 GetWindowThreadProcessId
 IsChild
+// What Windows keeps to restart the test process, read back and taken off
+GetApplicationRestartSettings
+UnregisterApplicationRestart
+RESTART_MAX_CMD_LINE

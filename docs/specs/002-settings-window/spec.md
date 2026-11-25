@@ -260,6 +260,7 @@ Budgets and clicks
 When something fails
 
 - R201. A snapshot the window cannot read, as one Core throws on, never closes it: the window goes on showing the last snapshot it read, logs the failure once until a snapshot reads again, and shows the next one it can read.
+- R202. An overlay that crashed or hung after running a minute or more is started again by Windows, as it ran, `--trace` included, once Windows has asked, as it does for any program that stopped working (ADR 0017). Not when it was ended by hand or by "Exit thermi", nor when an update of thermi or of Windows closed it, which start it themselves; `thermi settings`, `preview` and `cpu-load` are never started again.
 
 Network and disk
 
