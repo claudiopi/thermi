@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Thermi.Commands;
 using Thermi.Core.Updates;
+using Thermi.Install;
 using Thermi.Logging;
 using Thermi.Overlay;
 using Thermi.Ui;
@@ -102,7 +103,7 @@ internal static class Program
 
     private static async Task<int> RunHostAsync(ILoggerFactory logs, TimeProvider time, Mutex single)
     {
-        var sensors = new SensorClient(time, logs.CreateLogger<SensorClient>());
+        var sensors = new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: true));
         var feed = new SystemFeed(sensors, time);
         using var stop = new CancellationTokenSource();
         var reading = Task.Run(() => sensors.RunAsync(stop.Token), stop.Token);

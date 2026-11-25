@@ -124,4 +124,7 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The service could not be sent code {Code}: {Why}")]
     public static partial void ServiceNotTold(this ILogger logger, int code, string why);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The user's sensor host {Path} did not start: {Why}")]
+    public static partial void UserHostNotStarted(this ILogger logger, string path, string why);
 }
