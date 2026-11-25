@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Thermi.Core.Frames;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Dwm;
@@ -42,6 +43,26 @@ internal sealed class FrontApp
         }
 
         return (null, false);
+    }
+
+    /// <summary>
+    /// Whether the process that presents, or the one that started it, as a browser, shows a window that fills its monitor,
+    /// never thermi's nor the shell's, which started nearly every app and whose desktop fills every monitor.
+    /// </summary>
+    public bool Filling(FrameRate rate)
+    {
+        var filling = false;
+        PInvoke.EnumWindows(
+            (window, _) =>
+            {
+                filling = PInvoke.GetWindowThreadProcessId(window, out var process) != 0
+                    && (process == (uint)rate.Process || process == (uint)rate.Parent)
+                    && Shown(window) && Fills(window)
+                    && !Ours(process) && !IsShell(process) && !Shell.Contains(HiddenWindow.ClassOf(window));
+                return !filling;
+            },
+            0);
+        return filling;
     }
 
     // Maximized, or as large as its monitor's work area, as a game full screen, borderless or in a window of the

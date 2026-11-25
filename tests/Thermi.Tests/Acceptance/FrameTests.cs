@@ -37,7 +37,11 @@ public sealed class FrameTests
 
         var seconds = Replay(TestFiles.Presents(TestRecordings.ZwiftFrames)).Zip(fronts).Select(each => string.Join(
             " | ",
-            new[] { game.Next(each.First, each.Second.Front, each.Second.Fills), terminal.Next(each.First, Terminal, false) }
+            new[]
+            {
+                game.Next(each.First, each.Second.Front, each.Second.Fills, rate => rate.Process == Zwift),
+                terminal.Next(each.First, Terminal, false, _ => false),
+            }
                 .Select(shown => Shown(overlay, Desktop, each.First, shown))
                 .Select(shown => string.Join(" ", new[] { Metrics.Fps.Id, Metrics.FrameTime.Id }.Select(shown.GetValueOrDefault).OfType<string>()))));
 
@@ -53,6 +57,20 @@ public sealed class FrameTests
                 "156 13.1 ms | ",
             ],
             seconds);
+    }
+
+    // Zwift while OBS captures it, which the kernel tells of only by copying each frame to its window: maximized in front,
+    // it counts as presenting from the third second and is the game from the fifth.
+    [Fact]
+    public void AGameThatObsCapturesShowsItsFrames()
+    {
+        const int Zwift = 16924;
+        var game = new FrontGame();
+
+        var shown = Replay(TestFiles.Presents(TestRecordings.ZwiftObsFrames)).Take(5)
+            .Select(rates => Fps(OverlayConfig.First, Desktop, rates, game.Next(rates, Zwift, true, _ => true)));
+
+        Assert.Equal([null, null, null, null, "111"], shown);
     }
 
     // A service that could not start its trace, and one from before, which sends no slots: the overlay keeps no room for
@@ -187,13 +205,22 @@ public sealed class FrameTests
     // FPS follows the game, second by second: a game that fills its monitor takes over after 3 s in front; a terminal
     // that fills its own and repaints at 35 FPS in front never takes it from a game that presents faster, even at 65 while
     // in the background; another game takes over once it presents faster, and the old one, in front again but slower, never
-    // takes it back; once the game stops presenting, the one in front takes over after its 3 s.
+    // takes it back; once the game stops presenting, the one in front takes over after its 3 s. With no game yet, as when
+    // thermi starts with a game running behind, the fastest app that fills its monitor and presents at 30 or more for 3 s
+    // is the game, in front or not, and a video in a window that does not fill its monitor never is.
     [Fact]
     public void FpsFollowsTheGameNotTheFocus()
     {
         const int Zwift = 1;
         const int Wave = 2;
         const int Other = 3;
+        const int Video = 4;
+        (int Process, double Fps)[] behind = [(Zwift, 160), (Wave, 25), (Video, 60)];
+        var started = new FrontGame();
+        Assert.Equal<int?>(
+            [null, null, Zwift, Zwift],
+            [.. Enumerable.Range(0, 4).Select(_ => started.Next(Rates(behind), Wave, true, rate => rate.Process != Video))]);
+
         (int Process, double Fps)[] zwiftInFront = [(Zwift, 160), (Wave, 20)];
         (int Process, double Fps)[] waveBusy = [(Zwift, 65), (Wave, 35)];
         (int Process, double Fps)[] twoGames = [(Zwift, 65), (Other, 90)];
@@ -207,9 +234,14 @@ public sealed class FrameTests
         ];
         var game = new FrontGame();
 
-        var shown = seconds.Select(second => game.Next([.. second.Rates.Select(rate => new FrameRate(rate.Process, 0, rate.Fps, 10))], second.Front, true));
+        var shown = seconds.Select(second => game.Next(Rates(second.Rates), second.Front, true, _ => true));
 
         Assert.Equal<int?>([null, null, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Other, Other, Other, Other, null, null, Zwift], shown);
+
+        static FrameRate[] Rates((int Process, double Fps)[] rates)
+        {
+            return [.. rates.Select(rate => new FrameRate(rate.Process, 0, rate.Fps, 10))];
+        }
     }
 
     // What the overlay shows for FPS and frame time each second, from the presents the service traced, through the slots

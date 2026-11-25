@@ -22,6 +22,12 @@ public enum PresentSource
 
     /// <summary>The kernel's copy of a frame to the screen, recorded to learn which presents reach it, never counted.</summary>
     KernelBlit,
+
+    /// <summary>
+    /// The kernel's copy of a frame into its window, the only event that tells of a game's frames while a capture, as OBS's,
+    /// redirects them.
+    /// </summary>
+    KernelBlitRect,
 }
 
 /// <summary>
@@ -69,7 +75,7 @@ public readonly record struct FrameRate(int Process, int Parent, double Fps, dou
 /// presents late and not quite in order, so each is kept until the second that holds it closes. A runtime's present
 /// reaches the kernel too, and may be told by both of its histories, so each source counts only for a process that sent
 /// none of an earlier one in the last 5 s: the runtimes', then the kernel's plain history, then its detailed one, as for
-/// Vulkan and OpenGL drivers that present on their own.
+/// Vulkan and OpenGL drivers that present on their own, then its copies into a window, as while OBS captures a game.
 /// </summary>
 public sealed class FrameTally
 {
@@ -170,6 +176,7 @@ public sealed class FrameTally
     private static int RankOf(PresentSource source) =>
         source == PresentSource.Kernel ? 1
         : source == PresentSource.KernelDetailed ? 2
+        : source == PresentSource.KernelBlitRect ? 3
         : 0;
 
     private sealed class Track
@@ -177,7 +184,7 @@ public sealed class FrameTally
         public int Parent { get; set; }
 
         // When the process last presented as told by each rank of source, which a later rank's would repeat.
-        public double?[] Seen { get; } = new double?[3];
+        public double?[] Seen { get; } = new double?[4];
 
         public List<double> Pending { get; } = [];
 

@@ -48,6 +48,12 @@ internal static class TestRecordings
     /// </summary>
     public const string ZwiftFrames = "ryzen-9950x-rtx-5060-ti-zwift-frames.jsonl";
 
+    /// <summary>
+    /// Every present for 5 s, as administrator, while OBS captured Zwift: the kernel told of its frames only by copying each
+    /// to its window, as a recording with a plain ETW session (logman) and then turned into presents.
+    /// </summary>
+    public const string ZwiftObsFrames = "ryzen-9950x-rtx-5060-ti-zwift-obs-frames.jsonl";
+
     /// <summary>Zwift's presents for 8 s, each with when the trace delivered it, from 0.42 s after it at the median to 0.74 s.</summary>
     public const string ZwiftArrived = "ryzen-9950x-rtx-5060-ti-zwift-arrived.jsonl";
 

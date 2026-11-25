@@ -49,10 +49,11 @@ internal sealed unsafe class PresentTrace(TimeProvider time, string sessionName 
     private static readonly Guid DxgKrnl = new("802EC45A-1E99-4B83-9920-87C98277BA9D");
 
     // DXGI's Present and PresentMultiplaneOverlay starts; Direct3D 9's Present start; the kernel's PresentHistory and
-    // PresentHistoryDetailed starts, and its Blit, which only a recording asks for, to learn which presents reach it.
+    // PresentHistoryDetailed starts, its BlitRect, which a capture as OBS's leaves as a game's only trace, and its Blit,
+    // which only a recording asks for, to learn which presents reach it.
     private static readonly ushort[] DxgiEvents = [0x2a, 0x37];
     private static readonly ushort[] D3d9Events = [0x01];
-    private static readonly ushort[] KernelEvents = [0xab, 0xd7, 0xa6];
+    private static readonly ushort[] KernelEvents = [0xab, 0xd7, 0xa7, 0xa6];
 
     private static readonly Dictionary<(Guid Provider, ushort Id), PresentSource> Sources = new()
     {
@@ -61,7 +62,8 @@ internal sealed unsafe class PresentTrace(TimeProvider time, string sessionName 
         [(D3d9, D3d9Events[0])] = PresentSource.D3d9,
         [(DxgKrnl, KernelEvents[0])] = PresentSource.Kernel,
         [(DxgKrnl, KernelEvents[1])] = PresentSource.KernelDetailed,
-        [(DxgKrnl, KernelEvents[2])] = PresentSource.KernelBlit,
+        [(DxgKrnl, KernelEvents[2])] = PresentSource.KernelBlitRect,
+        [(DxgKrnl, KernelEvents[3])] = PresentSource.KernelBlit,
     };
 
     private readonly double _msPerTick = 1000.0 / time.TimestampFrequency;
@@ -99,7 +101,7 @@ internal sealed unsafe class PresentTrace(TimeProvider time, string sessionName 
 
         if (!Enable(Dxgi, ulong.MaxValue, DxgiEvents)
             || !Enable(D3d9, ulong.MaxValue, D3d9Events)
-            || !Enable(DxgKrnl, KernelPresentKeywords, sessionName == RecordingName ? KernelEvents : KernelEvents[..2])
+            || !Enable(DxgKrnl, KernelPresentKeywords, sessionName == RecordingName ? KernelEvents : KernelEvents[..3])
             || !Open())
         {
             Dispose();

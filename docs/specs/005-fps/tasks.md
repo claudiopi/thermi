@@ -1,6 +1,6 @@
 # 005-fps: Tasks
 
-> Progress: 9 / 16
+> Progress: 10 / 17
 > Current block: B0, decision and data, which waits for the author's spike and recording; B1 to B3 are done but for A1
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -31,6 +31,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 - [ ] **T15** Covers R13: the kind `Voltage` in Core, its format, no offset and no lines, its texts in every language, its chip in the catalog, and A8 on the recorded desktop with the board's voltages; the author's next dumps, as administrator and without, replace those voltages with recorded ones.
 - [x] **T16** Covers R2: FPS follows the game, not the focus: `FrontGame` takes a new game only after 3 s in front, filling its monitor, presenting at 30 or more and faster than the game while it presents (A1, A10).
+- [x] **T17** Covers R3: a game's frames are counted while OBS captures it, from the kernel's `BlitRect`, the last source a process is counted by (A11).
 
 ## B4: Review and proof
 
