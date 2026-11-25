@@ -203,7 +203,6 @@ internal sealed partial class AgentCommands
             ? $"Windows refused to write the settings file; nothing was written: {failed.Message}"
             : "The settings file stayed locked by another program; nothing was written. Try again.");
 
-    // A step taken but never written goes back where it was, so the next undo or redo is still that one.
     private void KeepPrevious(ThermiConfig before)
     {
         try
@@ -212,7 +211,7 @@ internal sealed partial class AgentCommands
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // The change is made; only its copy of what was before is lost, which the log says.
+            // The change is made; only its copy of what was before is lost.
             PreviousLost(environment.Log, ex);
         }
     }
@@ -223,6 +222,7 @@ internal sealed partial class AgentCommands
     [LoggerMessage(Level = LogLevel.Information, Message = "An agent's {Step} changed the settings")]
     private static partial void Stepped(ILogger log, string step);
 
+    // A step taken but never written goes back where it was, so the next undo or redo is still that one.
     private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name, Action back, string what)
     {
         if (step is null)
