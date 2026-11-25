@@ -24,7 +24,7 @@ internal sealed record DeviceUpdate(string Id, string Name, Func<Task> Update, b
 /// Updates a source's devices one after another, as the library does, waiting for each at most <see cref="Patience"/>: one
 /// still updating then, as a board whose bus another program holds, is left to finish and holds back none after it. Until
 /// it returns it is not started again, and its last values go out while they are no older than a snapshot may be, then as
-/// missing. See docs/adr/0013-a-stalled-device-holds-back-none.md. An update that took longer than its patience is told to
+/// missing. See docs/adr/0015-a-stalled-device-holds-back-none.md. An update that took longer than its patience is told to
 /// <c>slow</c> once it returns, at most once a minute a device; one still running past
 /// <see cref="SensorPipeServer.ReadLimit"/> calls <c>hung</c>.
 /// </summary>
