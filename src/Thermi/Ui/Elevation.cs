@@ -13,7 +13,7 @@ internal static class Elevation
 {
     /// <summary>What a refused start says on the terminal's error stream, the only place it writes.</summary>
     public const string Refusal =
-        "thermi was started elevated, so it exits: its overlay and settings window run only unelevated. Start it from Start or a terminal that is not elevated.";
+        "thermi was started elevated, so it exits: its overlay and settings window run only unelevated. Start it from Start or an unelevated terminal.";
 
     public static unsafe bool Raised()
     {
