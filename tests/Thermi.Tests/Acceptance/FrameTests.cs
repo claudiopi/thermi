@@ -21,8 +21,8 @@ public sealed class FrameTests
 
     // Zwift, an OpenGL game whose frames only the kernel's detailed history tells of, each repeated by a blit that is never
     // counted, beside a terminal that presents from a child of its own and an agent that presents through Direct3D 9. FPS
-    // follows the game, not the focus: Zwift, maximized in front, counts as presenting from the third second and becomes
-    // the game after 3 s in front so, from the fifth; it stays it while the terminal, on another monitor, takes the focus,
+    // follows the game, not the focus: Zwift, maximized in front, counts as presenting from the third second and, with no
+    // game before it, is the game from then; it stays it while the terminal, on another monitor, takes the focus,
     // maximized or not, at 18 FPS, and while the desktop is in front. The terminal alone, not filling its monitor, never
     // shows FPS.
     [Fact]
@@ -49,8 +49,8 @@ public sealed class FrameTests
             [
                 " | ",
                 " | ",
-                " | ",
-                " | ",
+                "161 7.9 ms | ",
+                "151 22.5 ms | ",
                 "156 22.3 ms | ",
                 "154 17.7 ms | ",
                 "153 23.5 ms | ",
@@ -60,7 +60,7 @@ public sealed class FrameTests
     }
 
     // Zwift in its menus, as OBS captured it, which the kernel tells of only by copying each frame to its window: maximized in front,
-    // it counts as presenting from the third second and is the game from the fifth.
+    // it counts as presenting from the third second and, with no game before it, is the game from then.
     [Fact]
     public void AGameThatObsCapturesShowsItsFrames()
     {
@@ -70,7 +70,7 @@ public sealed class FrameTests
         var shown = Replay(TestFiles.Presents(TestRecordings.ZwiftObsFrames)).Take(5)
             .Select(rates => Fps(OverlayConfig.First, Desktop, rates, game.Next(rates, Zwift, true, _ => true)));
 
-        Assert.Equal([null, null, null, null, "111"], shown);
+        Assert.Equal([null, null, "67", "162", "111"], shown);
     }
 
     // Zwift tells of its frames by its detailed history while riding and by BlitRect in its menus: riding for 4 s, then
@@ -218,12 +218,12 @@ public sealed class FrameTests
         Assert.Equal([null, null, "60", "60", "60"], Seconds(Every(1000 / 60.0, 6000)));
     }
 
-    // FPS follows the game, second by second: a game that fills its monitor takes over after 3 s in front; a terminal
+    // FPS follows the game, second by second: with no game, a game that fills its monitor in front is one at once; a terminal
     // that fills its own and repaints at 35 FPS in front never takes it from a game that presents faster, even at 65 while
     // in the background; another game takes over once it presents faster, and the old one, in front again but slower, never
-    // takes it back; once the game stops presenting, the one in front takes over after its 3 s. With no game yet, as when
-    // thermi starts with a game running behind, the fastest app that fills its monitor and presents at 30 or more for 3 s
-    // is the game, in front or not, and a video in a window that does not fill its monitor never is.
+    // takes it back; once the game stops presenting, the one in front is the game at once. With no game, as when thermi
+    // starts with a game running behind, the fastest app that fills its monitor and presents at 30 or more is the game, in
+    // front or not, and a video in a window that does not fill its monitor never is.
     [Fact]
     public void FpsFollowsTheGameNotTheFocus()
     {
@@ -234,7 +234,7 @@ public sealed class FrameTests
         (int Process, double Fps)[] behind = [(Zwift, 160), (Wave, 25), (Video, 60)];
         var started = new FrontGame();
         Assert.Equal<int?>(
-            [null, null, Zwift, Zwift],
+            [Zwift, Zwift, Zwift, Zwift],
             [.. Enumerable.Range(0, 4).Select(_ => started.Next(Rates(behind), Wave, true, rate => rate.Process != Video))]);
 
         (int Process, double Fps)[] zwiftInFront = [(Zwift, 160), (Wave, 20)];
@@ -252,7 +252,7 @@ public sealed class FrameTests
 
         var shown = seconds.Select(second => game.Next(Rates(second.Rates), second.Front, true, _ => true));
 
-        Assert.Equal<int?>([null, null, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Other, Other, Other, Other, null, null, Zwift], shown);
+        Assert.Equal<int?>([Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Other, Other, Other, Other, Zwift, Zwift, Zwift], shown);
 
         static FrameRate[] Rates((int Process, double Fps)[] rates)
         {
@@ -264,8 +264,8 @@ public sealed class FrameTests
     // its snapshot carries. A second's FPS is its presents over its length; its frame time the longest wait for a frame that
     // ended in it, or the one still going; a process that stops presenting reads 0 FPS for 5 s, then takes no room; a
     // present the trace delivers after its second closed is not counted in the next; presents delivered out of order are
-    // counted in order. The kernel's presents, marked k, count only for a process that sends no runtime's, whose presents
-    // the kernel repeats, and its detailed ones, marked d, only for one that sends neither. Each row comes after 3 s of
+    // counted in order. The kernel's presents, marked k, and its detailed ones, marked d, repeat the runtime's, so a second
+    // counts the source that told of most, the runtime's on a tie. Each row comes after 3 s of
     // steady presents of its first source, so the app counts as presenting, and its times from half a millisecond after.
     [Theory]
     [InlineData("0 100 200 300 400 500 600 700 800 900 1000", "1000", "11 100.0 ms")]

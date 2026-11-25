@@ -1,10 +1,10 @@
 namespace Thermi.Core.Frames;
 
 /// <summary>
-/// Which app's frames FPS shows: the game, not the focus. An app takes over as the game after <see cref="HeldFor"/>
+/// Which app's frames FPS shows: the game, not the focus. An app takes over from the game after <see cref="HeldFor"/>
 /// seconds in a row in front with a window that fills its monitor (full screen, borderless or maximized) while presenting
-/// at <see cref="TakesOverAt"/> or more, and faster than the game while that still presents; with no game yet, the
-/// fastest app that does so in front or not. The game stays it while it presents, even as another window, as a terminal
+/// at <see cref="TakesOverAt"/> or more, and faster than the game while that still presents; with no game, the app in
+/// front that does so, or else the fastest that does so behind, is the game at once. The game stays it while it presents, even as another window, as a terminal
 /// on another monitor, takes the focus: a terminal or a browser that repaints fast for a moment, or slower than the game,
 /// never takes over.
 /// </summary>
@@ -13,7 +13,7 @@ public sealed class FrontGame
     /// <summary>The frames a second an app in front presents at to take over; a busy terminal presents some 20.</summary>
     public const double TakesOverAt = 30;
 
-    /// <summary>How many seconds in a row an app meets the rule in front before it takes over.</summary>
+    /// <summary>How many seconds in a row an app meets the rule in front before it takes over from a game.</summary>
     public const int HeldFor = 3;
 
     private int? _game;
@@ -41,10 +41,11 @@ public sealed class FrontGame
 
         var inFront = front is { } process && process != _game && fills && GameSensors.RateOf(rates, process) is { } rate
             && rate.Fps >= TakesOverAt && rate.Fps > (game?.Fps ?? 0);
-        // With no game yet, as when thermi starts with one running behind, the fastest that fills its monitor is one.
+        // With no game, as when thermi starts with one running behind, the fastest that fills its monitor is one.
         var taking = inFront ? front : _game is null ? Fastest(rates, filling) : null;
         (_taking, _held) = taking is { } next ? (next, next == _taking ? _held + 1 : 1) : ((int?)null, 0);
-        if (_held >= HeldFor)
+        // With no game, the service's own 3 s of steady frames are wait enough.
+        if (_held >= (game is null ? 1 : HeldFor))
         {
             (_game, _taking, _held) = (_taking, null, 0);
         }

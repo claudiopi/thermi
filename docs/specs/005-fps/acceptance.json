@@ -4,7 +4,7 @@
     {
       "id": "A1",
       "covers": ["R1", "R2", "R4", "R5", "R6", "R9"],
-      "description": "Given the recorded presents of Zwift (OpenGL, told only by the kernel's detailed history and its blits) beside a terminal that presents from its child and an agent through Direct3D 9, replayed into snapshots second by second, when Zwift is maximized in front, then the terminal takes the focus on another monitor, maximized or not, then the desktop, then FPS and frame time read Zwift's from its fifth second on, once it counts as presenting and has been in front 3 s so, through all of it; and the terminal alone, not filling its monitor, never shows FPS.",
+      "description": "Given the recorded presents of Zwift (OpenGL, told only by the kernel's detailed history and its blits) beside a terminal that presents from its child and an agent through Direct3D 9, replayed into snapshots second by second, when Zwift is maximized in front, then the terminal takes the focus on another monitor, maximized or not, then the desktop, then FPS and frame time read Zwift's from its third second on, once it counts as presenting, with no game before it, through all of it; and the terminal alone, not filling its monitor, never shows FPS.",
       "check": "TheOverlayShowsTheFramesOfTheAppInFront",
       "passes": false
     },
@@ -67,14 +67,14 @@
     {
       "id": "A10",
       "covers": ["R2"],
-      "description": "Given, with no game yet, a game at 160 FPS filling its monitor behind a terminal in front at 25 and a video at 60 in a window that does not fill its monitor, then, apart, a game at 160 FPS in front for 3 s, then a terminal filling its own monitor in front repainting at 35 while the game, behind, presents 65, then another game at 90 in front for 3 s, then the first game in front again at 65, then the second game stopping, when each second picks the game, then the game behind is the game from its third second, never the video; and the first game takes over at its third second, keeps it through the terminal, the second game takes over at its third second and keeps it while the first is in front, and once it stops the first takes over again after 3 s.",
+      "description": "Given, with no game yet, a game at 160 FPS filling its monitor behind a terminal in front at 25 and a video at 60 in a window that does not fill its monitor, then, apart, a game at 160 FPS in front for 3 s, then a terminal filling its own monitor in front repainting at 35 while the game, behind, presents 65, then another game at 90 in front for 3 s, then the first game in front again at 65, then the second game stopping, when each second picks the game, then the game behind is the game from its first second, never the video; and the first game is the game from its first second, keeps it through the terminal, the second game takes over at its third second and keeps it while the first is in front, and once it stops the first is the game again at once.",
       "check": "FpsFollowsTheGameNotTheFocus",
       "passes": false
     },
     {
       "id": "A11",
       "covers": ["R3"],
-      "description": "Given the recorded presents of Zwift while OBS captured it, told by the kernel only as copies of its frames into its window, replayed into snapshots second by second, when Zwift is maximized in front, then FPS reads Zwift's frames from its fifth second, as many as the recording holds in that second.",
+      "description": "Given the recorded presents of Zwift while OBS captured it, told by the kernel only as copies of its frames into its window, replayed into snapshots second by second, when Zwift is maximized in front, then FPS reads Zwift's frames from its third second, as many as the recording holds in each second.",
       "check": "AGameThatObsCapturesShowsItsFrames",
       "passes": false
     },
