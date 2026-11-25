@@ -186,7 +186,7 @@
     {
       "id": "A27",
       "covers": ["R26", "R29", "R30", "R31"],
-      "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows the GPU and the CPU's load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, to a prompt naming thermi, then the machine install, the service and the driver arrive, the CPU's temperature reads, the start at sign-in stays as it was, and the per-user install is gone with the settings kept. Run once more with the driver's download blocked: thermi installs, the event log says why, and the fix is still offered.",
+      "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows the GPU and the CPU's load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, to a prompt naming thermi that comes to the front even after a slow download, then the machine install, the service and the driver arrive, the CPU's temperature reads, the start at sign-in stays as it was, and the per-user install is gone with the settings kept. Run once more with the driver's download blocked: thermi installs, the event log says why, and the fix is still offered.",
       "check": "by hand",
       "passes": false
     },
