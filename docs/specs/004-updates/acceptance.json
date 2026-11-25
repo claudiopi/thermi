@@ -181,21 +181,21 @@
       "covers": ["R31"],
       "description": "Given the user's installed products, per-user and machine, of thermi and others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi by its per-user UpgradeCode, in the user's unmanaged context alone.",
       "check": "by hand",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A27",
       "covers": ["R26", "R29", "R30", "R31"],
       "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows the GPU and the CPU's load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, to a prompt naming thermi that comes to the front even after a slow download, then the machine install, the service and the driver arrive, the CPU's temperature reads, the start at sign-in stays as it was, and the per-user install is gone with the settings kept. Run once more with the driver's download blocked: thermi installs, the event log says why, and the fix is still offered.",
       "check": "by hand",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A28",
       "covers": ["R27", "R32"],
       "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; the watchdog places the launchers only once the new host serves, and puts the old host back when a build that never serves is published; and the user's host measures within the service's budget, 80 MB and 3 % of a core.",
       "check": "by hand",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A29",
