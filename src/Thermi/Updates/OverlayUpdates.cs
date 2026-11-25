@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Thermi.Core.Updates;
+using Thermi.Install;
 using Thermi.Logging;
 using Thermi.Windows;
 using Windows.Win32;
@@ -15,7 +16,9 @@ namespace Thermi.Updates;
 /// version ready, a quiet session tells it so with code 128. Once the service runs another version, the overlay switches
 /// itself at its own quiet moment once the fixed launcher starts that version: it closes as its tray's "Exit thermi" does,
 /// lets go of its single-instance mutex, starts the launcher, and is done once the new overlay's host window shows;
-/// past 60 of its ticks it ends that process, runs its overlay again and leaves that version alone.
+/// past 60 of its ticks it ends that process, runs its overlay again and leaves that version alone. A per-user overlay
+/// hands over the same way to the machine's launcher once thermi is installed for everyone, and the machine's overlay then
+/// removes the per-user product (docs/adr/0016-admin-on-demand.md).
 /// </summary>
 internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, TimeProvider time, ILogger log)
 {
@@ -23,11 +26,16 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
     private readonly ReleaseVersion? _own = ReleaseVersion.Parse(
         typeof(OverlayUpdates).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
+    private readonly string _top = Path.GetDirectoryName(ThermiPaths.Launcher)!;
     private readonly HashSet<ReleaseVersion> _left = [];
     private readonly Lock _lock = new();
     private (string, DateTime)? _read;
     private UpdateState _known = new();
     private DateTimeOffset _told = DateTimeOffset.MinValue;
+    private string? _to;
+    private bool _moved;
+    private string? _perUser;
+    private bool _looked;
 
     public ReleaseVersion? Leaving { get; private set; }
 
@@ -40,6 +48,11 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
 
         try
         {
+            if (Moves())
+            {
+                return;
+            }
+
             var state = Read();
             if (state.Installed is { } installed && installed != _own && !_left.Contains(installed))
             {
@@ -64,6 +77,36 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
         }
     }
 
+    // Once per run either way: a per-user overlay leaves for the machine's, or the machine's removes the per-user product.
+    private bool Moves()
+    {
+        if (!_moved && MachineMove.MachineLauncher(_top) is { } machine)
+        {
+            _moved = true;
+            log.MovingToMachine(machine);
+            MachineMove.PointStartAt(machine);
+            _to = machine;
+            Leaving = _own;
+            close();
+            return true;
+        }
+
+        if (!_looked)
+        {
+            _looked = true;
+            _perUser = MachineMove.IsMachines(_top) ? MachineMove.PerUserProduct() : null;
+        }
+
+        if (_perUser is { } product && !MachineMove.PerUserRuns())
+        {
+            _perUser = null;
+            log.RemovingPerUser(product);
+            MachineMove.Remove(product);
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Starts the launcher once the overlay closed, and waits for the new overlay by counting its own ticks: true when it
     /// came up, false when this process should run its overlay again.
@@ -79,7 +122,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
         Process? successor;
         try
         {
-            successor = Process.Start(new ProcessStartInfo(ThermiPaths.Launcher) { UseShellExecute = false });
+            successor = Process.Start(new ProcessStartInfo(_to ?? ThermiPaths.Launcher) { UseShellExecute = false });
         }
         catch (Win32Exception ex)
         {

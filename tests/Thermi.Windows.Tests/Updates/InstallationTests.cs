@@ -270,6 +270,11 @@ public sealed class InstallationTests : IAsyncDisposable
 
         public void App(InstalledApp? app, string top) => Shown = app;
 
+        public void StartAtSignIn(string top, bool on)
+        {
+            // The machine's install leaves it to Active Setup.
+        }
+
         public void EndPrograms(string top) => Ended = true;
     }
 }

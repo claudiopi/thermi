@@ -73,6 +73,7 @@ jobs:
           $version = @(([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version | Where-Object { $_ })[0]
           Publish-Thermi artifacts/ci-msi x64 $version
           Build-Msi artifacts/ci-msi x64 $version "thermi-$version-x64.msi"
+          Build-Msi artifacts/ci-msi x64 $version "thermi-$version-x64-user.msi" -PerUser
 
   pr-title:
     if: github.event_name == 'pull_request'

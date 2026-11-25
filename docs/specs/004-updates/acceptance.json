@@ -139,7 +139,7 @@
       "covers": ["R27", "R28"],
       "description": "Given the service installed or not, a user's pipe owned by the user, SYSTEM, administrators or another user, a server process inside or outside the user's folder and at a lower integrity, and hosts that ended soon after their start, when the overlay picks a pipe and its next try, then it reads the service's whenever the service is installed, the user's only when all three checks pass, waits 2 s and then doubling to a minute after quick ends, and starts no host under the switch's lock.",
       "check": "TheOverlayReadsTheServiceOrTheUsersOwnHost",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A21",

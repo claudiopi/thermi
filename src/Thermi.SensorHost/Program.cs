@@ -143,7 +143,9 @@ internal static class Program
     {
         var version = UpdateBuild.Of(typeof(Program).Assembly).Version;
         var own = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
-        var installation = new Installation(new InstallFolder(Path.GetDirectoryName(own)!), new WindowsSetup(), environment.Time, environment.Error.WriteLine);
+        var installation = install.User
+            ? UserMode.Installation(Path.GetDirectoryName(own)!, environment)
+            : new Installation(new InstallFolder(Path.GetDirectoryName(own)!), new WindowsSetup(), environment.Time, environment.Error.WriteLine);
         return install.Mode switch
         {
             InstallMode.Adopt => installation.AdoptAsync(version, own, install.Product, stop),

@@ -5,7 +5,7 @@ The owner's levers on thermi's update channels (docs/adr/0008-updates.md).
 
 .DESCRIPTION
 pack builds a version for a processor and zips its folder as an update carries it:
-  pwsh scripts/updates.ps1 pack --version 0.9.1 --out <zip> [--processor x64|arm64] [--msi <msi>]
+  pwsh scripts/updates.ps1 pack --version 0.9.1 --out <zip> [--processor x64|arm64] [--msi <msi>, and beside it <msi>-user.msi]
       [--updates-from <url> --updates-keys <folder> [--signers <thumbprints>]]
 A release names the SHA-256 thumbprints of the certificates, separated by semicolons, one of which signs every catalog.
 Every other command goes to thermi-releases (src/Thermi.Releases), which writes the channel's next signed manifest into
@@ -62,6 +62,8 @@ Remove-Item $Out -ErrorAction SilentlyContinue
 $zip = Get-Item $Out
 Write-Host "Packed $Version for $Processor into $($zip.FullName), $($zip.Length) bytes."
 if ($options['msi']) {
+    $perUser = [IO.Path]::ChangeExtension($options['msi'], $null).TrimEnd('.') + '-user.msi'
     Build-Msi $staging $Processor $Version $options['msi']
-    Write-Host "Built its MSI, $((Get-Item $options['msi']).FullName)."
+    Build-Msi $staging $Processor $Version $perUser -PerUser
+    Write-Host "Built its MSIs, $((Get-Item $options['msi']).FullName) and, per user, $((Get-Item $perUser).FullName)."
 }

@@ -1,6 +1,6 @@
 # 004-updates: Tasks
 
-> Progress: 30 / 35
+> Progress: 31 / 35
 > Current block: B12
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -76,7 +76,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 ## B12: Install for everyone
 
 - [x] **T33** Covers R29, R33: the manifest's MSI entries, A25; the download, its checks and `msiexec` started unelevated, A22; the fix's offer in the overlay and the window.
-- [ ] **T34** Covers R26, R30, R31: the per-user MSI, `ADDDRIVER`, the move to the machine install and the removal of the per-user product, A26 and A29.
+- [x] **T34** Covers R26, R30, R31: the per-user MSI, `ADDDRIVER`, the move to the machine install and the removal of the per-user product, A26 and A29.
 
 ## B13: Proof
 

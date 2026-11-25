@@ -237,3 +237,7 @@ GetTokenInformation
 TOKEN_MANDATORY_LABEL
 GetSidSubAuthority
 GetSidSubAuthorityCount
+// The per-user product the machine's overlay removes, found by its UpgradeCode in the user's own context
+MsiEnumRelatedProducts
+MsiGetProductInfoEx
+MSIINSTALLCONTEXT

@@ -25,6 +25,12 @@ internal interface ISystemSetup
     /// <summary>Writes thermi's entry in Installed apps, or with null removes it.</summary>
     void App(InstalledApp? app, string top);
 
+    /// <summary>
+    /// Turns on the start at sign-in of the launcher in <paramref name="top"/>, on a first install; with false, takes off
+    /// that start only while it still names this launcher.
+    /// </summary>
+    void StartAtSignIn(string top, bool on);
+
     /// <summary>Ends every thermi program that runs from <paramref name="top"/>, in every session, but this process.</summary>
     void EndPrograms(string top);
 }

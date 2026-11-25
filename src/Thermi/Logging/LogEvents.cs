@@ -127,4 +127,10 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The user's sensor host {Path} did not start: {Why}")]
     public static partial void UserHostNotStarted(this ILogger logger, string path, string why);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "thermi is installed for everyone now, so this per-user overlay hands over to {Launcher}")]
+    public static partial void MovingToMachine(this ILogger logger, string launcher);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Removing this user's per-user thermi, {Product}, now that thermi is installed for everyone")]
+    public static partial void RemovingPerUser(this ILogger logger, string product);
 }

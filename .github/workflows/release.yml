@@ -198,6 +198,7 @@ jobs:
           New-Item msi -ItemType Directory | Out-Null
           . ./scripts/publish.ps1
           Build-Msi signed $env:PROCESSOR $env:VERSION "msi/thermi-$env:VERSION-$env:PROCESSOR.msi"
+          Build-Msi signed $env:PROCESSOR $env:VERSION "msi/thermi-$env:VERSION-$env:PROCESSOR-user.msi" -PerUser
       - id: msi
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -261,8 +262,11 @@ jobs:
           ROLLOUT: ${{ github.event_name == 'push' && '100' || inputs.rollout }}
           FROM: ${{ vars.THERMI_UPDATES_FROM }}
         run: |
+          # A release's machine MSIs go in its manifest, for a per-user install's "install for everyone" (docs/adr/0016-admin-on-demand.md).
+          $msis = @('x64', 'arm64') | Where-Object { Test-Path "out/thermi-$env:VERSION-$_.msi" } | ForEach-Object { "$_=out/thermi-$env:VERSION-$_.msi" }
+          $msi = if ($msis) { @('--msi') + $msis } else { @() }
           pwsh scripts/updates.ps1 publish --folder channels --channel $env:CHANNEL --version $env:VERSION `
-            --zip "x64=out/thermi-$env:VERSION-x64.zip" "arm64=out/thermi-$env:VERSION-arm64.zip" --base-url $env:FROM --rollout $env:ROLLOUT
+            --zip "x64=out/thermi-$env:VERSION-x64.zip" "arm64=out/thermi-$env:VERSION-arm64.zip" --base-url $env:FROM --rollout $env:ROLLOUT @msi
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # The release with its MSIs before the manifest that offers it, so no PC runs a version with no release.
       - if: inputs.lever == 'release'

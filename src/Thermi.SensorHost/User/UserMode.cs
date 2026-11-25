@@ -4,6 +4,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using Thermi.Core.Install;
 using Thermi.Core.Updates;
+using Thermi.SensorHost.Install;
 using Thermi.SensorHost.Updates;
 
 namespace Thermi.SensorHost.User;
@@ -68,7 +69,17 @@ internal static class UserMode
         var folder = InstallFolder.Of(AppContext.BaseDirectory, UpdateBuild.Of(typeof(UserMode).Assembly).Version, FolderAccess.ForUser(user));
         return folder is null
             ? 2
-            : await new Switcher(folder, environment.Time, log.Say, target: each => new UserTarget(each, pipe, user)).WatchAsync(to, pipe, stop);
+            : await new Switcher(folder, environment.Time, log.Say, shown: UserSetup.Show, target: each => new UserTarget(each, pipe, user))
+                .WatchAsync(to, pipe, stop);
+    }
+
+    /// <summary>A per-user install's: its folder only the user, SYSTEM and administrators write, and no service to register.</summary>
+    public static Installation Installation(string top, SensorHostEnvironment environment)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var user = identity.User!;
+        var folder = new InstallFolder(top, FolderAccess.ForUser(user));
+        return new Installation(folder, new UserSetup(folder, PipeOf(environment.PipeName, user), user), environment.Time, environment.Error.WriteLine);
     }
 
     private static async Task<int> ServeAsync(

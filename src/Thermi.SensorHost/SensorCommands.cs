@@ -29,9 +29,9 @@ internal sealed record SensorSwitch(ReleaseVersion To, bool User = false) : ISen
 /// <c>--adopt</c>, with the MSI's product code when the MSI runs it: lays this version down as the one the PC runs;
 /// <c>--undo</c>, which puts back what the last one changed; <c>--forget</c>, which drops that record once the install
 /// committed; or <c>--remove</c>, which takes thermi off the PC
-/// (docs/adr/0008-updates.md).
+/// (docs/adr/0008-updates.md). With <c>--user</c>, a per-user install's (docs/adr/0016-admin-on-demand.md).
 /// </summary>
-internal sealed record SensorInstall(InstallMode Mode, string? Product) : ISensorRequest;
+internal sealed record SensorInstall(InstallMode Mode, string? Product, bool User = false) : ISensorRequest;
 
 internal enum InstallMode
 {
@@ -132,7 +132,9 @@ internal static class SensorCommands
 
         /// <summary>Whether <paramref name="other"/> may go with the mode <paramref name="mode"/>: an MSI's product, or a switch as the user.</summary>
         public bool Goes(Option mode, Option other) =>
-            (mode == Adopt && other == Product) || (mode == Watch && other == User) || (mode == User && other == Watch);
+            (mode == Adopt && other == Product)
+            || (other == User && (mode == Watch || mode == Adopt || mode == Undo || mode == Forget || mode == Remove))
+            || (mode == User && (other == Watch || other == Adopt || other == Product || other == Undo || other == Forget || other == Remove));
 
         public ISensorRequest Request(ParseResult parsed) =>
             parsed.GetValue(Elevated) ? new SensorElevated()
@@ -142,10 +144,10 @@ internal static class SensorCommands
             : new SensorServe(parsed.GetValue(Console), parsed.GetValue(User));
 
         private SensorInstall? InstallOf(ParseResult parsed) =>
-            parsed.GetValue(Adopt) ? new SensorInstall(InstallMode.Adopt, parsed.GetValue(Product)?.ToString("B").ToUpperInvariant())
-            : parsed.GetValue(Undo) ? new SensorInstall(InstallMode.Undo, null)
-            : parsed.GetValue(Forget) ? new SensorInstall(InstallMode.Forget, null)
-            : parsed.GetValue(Remove) ? new SensorInstall(InstallMode.Remove, null)
+            parsed.GetValue(Adopt) ? new SensorInstall(InstallMode.Adopt, parsed.GetValue(Product)?.ToString("B").ToUpperInvariant(), parsed.GetValue(User))
+            : parsed.GetValue(Undo) ? new SensorInstall(InstallMode.Undo, null, parsed.GetValue(User))
+            : parsed.GetValue(Forget) ? new SensorInstall(InstallMode.Forget, null, parsed.GetValue(User))
+            : parsed.GetValue(Remove) ? new SensorInstall(InstallMode.Remove, null, parsed.GetValue(User))
             : null;
 
         private static ReleaseVersion? To(ArgumentResult result)

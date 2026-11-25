@@ -75,23 +75,29 @@ internal sealed class WindowsSetup : ISystemSetup
         }
     }
 
-    public InstalledApp? App()
+    public InstalledApp? App() => AppOf(Registry.LocalMachine);
+
+    public void App(InstalledApp? app, string top) => WriteApp(Registry.LocalMachine, app, top);
+
+    /// <summary>thermi's entry in Installed apps under <paramref name="hive"/>: the machine's, or a per-user install's own.</summary>
+    public static InstalledApp? AppOf(RegistryKey hive)
     {
-        using var key = Registry.LocalMachine.OpenSubKey(InstalledAppsKey);
+        using var key = hive.OpenSubKey(InstalledAppsKey);
         return key?.GetValue("UninstallString") is string uninstall && uninstall.StartsWith(Uninstall, StringComparison.OrdinalIgnoreCase)
             ? new InstalledApp(uninstall[Uninstall.Length..], key.GetValue("DisplayVersion") as string ?? "")
             : null;
     }
 
-    public void App(InstalledApp? app, string top)
+    /// <summary>Writes thermi's entry in Installed apps under <paramref name="hive"/>, or with null removes it.</summary>
+    public static void WriteApp(RegistryKey hive, InstalledApp? app, string top)
     {
         if (app is null)
         {
-            Registry.LocalMachine.DeleteSubKeyTree(InstalledAppsKey, throwOnMissingSubKey: false);
+            hive.DeleteSubKeyTree(InstalledAppsKey, throwOnMissingSubKey: false);
             return;
         }
 
-        using var key = Registry.LocalMachine.CreateSubKey(InstalledAppsKey);
+        using var key = hive.CreateSubKey(InstalledAppsKey);
         key.SetValue("DisplayName", "thermi");
         key.SetValue("DisplayVersion", app.Version);
         key.SetValue("Publisher", "thermi");
@@ -117,6 +123,11 @@ internal sealed class WindowsSetup : ISystemSetup
         {
             _ = ex;
         }
+    }
+
+    public void StartAtSignIn(string top, bool on)
+    {
+        // The machine's MSI turns it on in each profile through Active Setup, and each person may turn it off for good.
     }
 
     public void EndPrograms(string top)

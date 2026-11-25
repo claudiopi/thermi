@@ -190,6 +190,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
 
         system.EventSource(Sensors, registered: false);
         system.App(null, folder.Top);
+        system.StartAtSignIn(folder.Top, on: false);
         system.EndPrograms(folder.Top);
     }
 
@@ -201,6 +202,11 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             Copy(from, version);
             Register(folder.ServiceOf(version), undo.Sensors is not null, undo.Elevated is not null);
             folder.PlaceLaunchers(version);
+            if (undo.Sensors is null)
+            {
+                system.StartAtSignIn(folder.Top, on: true);
+            }
+
             folder.Write(SwitchHealth.InstalledByHand(folder.Read() with { Switch = null }, version));
             Show(product, version);
             Tidy(from);
@@ -240,6 +246,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         if (undo.Sensors is null)
         {
             Try(() => system.EventSource(Sensors, registered: false));
+            Try(() => system.StartAtSignIn(folder.Top, on: false));
         }
 
         if (!undo.VersionThere)

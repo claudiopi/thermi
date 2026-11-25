@@ -50,13 +50,16 @@ function Publish-Thermi([string]$Out, [string]$Processor, [string]$Version, [str
     }
 }
 
-# The MSI of the version published in $Folder, which Windows Installer takes only with a version of numbers alone.
-function Build-Msi([string]$Folder, [string]$Processor, [string]$Version, [string]$Out) {
+# The MSI of the version published in $Folder, which Windows Installer takes only with a version of numbers alone:
+# per machine, or with -PerUser the per-user one (docs/adr/0016-admin-on-demand.md).
+function Build-Msi([string]$Folder, [string]$Processor, [string]$Version, [string]$Out, [switch]$PerUser) {
     $root = Split-Path $PSScriptRoot -Parent
     $numbers = ($Version -split '-')[0]
-    $built = Join-Path $root "artifacts/msi/$Version-$Processor"
-    dotnet build (Join-Path $root 'src/Thermi.Installer') -c Release -o $built --nologo -v quiet "-p:Platform=$Processor" `
-        "-p:ThermiVersion=$Version" "-p:ThermiMsiVersion=$numbers" "-p:ThermiPublishDir=$([IO.Path]::GetFullPath($Folder))\"
-    if ($LASTEXITCODE -ne 0) { throw "Building the MSI of $Version for $Processor failed." }
-    Copy-Item (Join-Path $built "thermi-$Version-$Processor.msi") $Out -Force
+    $scope, $suffix = if ($PerUser) { 'perUser', '-user' } else { 'perMachine', '' }
+    $built = Join-Path $root "artifacts/msi/$Version-$Processor$suffix"
+    # Built whole each time, so the other scope's build in obj\ is never taken for this one's.
+    dotnet build (Join-Path $root 'src/Thermi.Installer') -c Release -o $built --no-incremental --nologo -v quiet "-p:Platform=$Processor" `
+        "-p:ThermiVersion=$Version" "-p:ThermiMsiVersion=$numbers" "-p:ThermiPublishDir=$([IO.Path]::GetFullPath($Folder))\" "-p:ThermiScope=$scope"
+    if ($LASTEXITCODE -ne 0) { throw "Building the $scope MSI of $Version for $Processor failed." }
+    Copy-Item (Join-Path $built "thermi-$Version-$Processor$suffix.msi") $Out -Force
 }
