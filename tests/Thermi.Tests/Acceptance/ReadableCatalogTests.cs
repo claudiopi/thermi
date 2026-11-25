@@ -25,7 +25,14 @@ public sealed class ReadableCatalogTests
     [Fact]
     public void TheCatalogNamesBoardInputsLikelyAndSaysSo()
     {
-        var withNuvoton = new Snapshot([.. Desktop.Sensors, new RawSensor(Nuvoton, "SuperIO", "Nuvoton NCT6798D", "Temperature", "Temperature #1", 41)]);
+        // A GPU's voltage, of no type thermi reads, named "GPU Core" as its temperature and load are, as on the owner's PC
+        // (2026-11-25), where it ended the window while it named the catalog.
+        var gpu = Desktop.Sensors.First(sensor => sensor.Id == "/gpu-nvidia/0/temperature/0");
+        var withNuvoton = new Snapshot([
+            .. Desktop.Sensors,
+            new RawSensor(Nuvoton, "SuperIO", "Nuvoton NCT6798D", "Temperature", "Temperature #1", 41),
+            gpu with { Id = "/gpu-nvidia/0/voltage/0", Type = "Voltage", Value = 0.9 },
+        ]);
         var devices = SensorCatalog.Build(withNuvoton);
         var rows = devices.SelectMany(device => device.Sensors).ToList();
         var spanish = Texts.Of("es");

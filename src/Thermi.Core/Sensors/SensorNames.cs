@@ -117,8 +117,10 @@ public static class SensorNames
             .ToHashSet();
         return
         [
-            .. named.Select(each => shared.Contains((SensorMap.DeviceIdOf(each.Sensor), each.Name.Shown)) && each.Name.From == NameFrom.Library
-                ? (each.Id, each.Sensor, each.Name with { Shown = WithKind(each.Name.Shown, SensorMap.KindOf(each.Sensor)!.Value, language) })
+            .. named.Select(each => shared.Contains((SensorMap.DeviceIdOf(each.Sensor), each.Name.Shown))
+                && each.Name.From == NameFrom.Library
+                && SensorMap.KindOf(each.Sensor) is { } kind
+                ? (each.Id, each.Sensor, each.Name with { Shown = WithKind(each.Name.Shown, kind, language) })
                 : each),
         ];
     }
