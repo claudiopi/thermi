@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
@@ -14,11 +15,14 @@ internal sealed record MenuPlace(ThermiConfig Config, Texts Texts, IFormatProvid
 {
     /// <summary>The undo entry's text, with the last desktop gesture's name, when the overlay offers one.</summary>
     public string? UndoText { get; init; }
+
+    /// <summary>The last snapshot read, which names an item the file leaves nameless.</summary>
+    public Snapshot? Known { get; init; }
 }
 
 /// <summary>
 /// Core's menus as Windows' own popup menus, so they follow the theme, high contrast, the keyboard and Narrator: each row
-/// an id in order, its submenu's rows included, the default entry in bold and a hotkey beside its entry.
+/// gets an id in order, its submenu's rows included.
 /// </summary>
 internal static class ThermiMenus
 {
@@ -46,11 +50,6 @@ internal static class ThermiMenus
         return menu;
     }
 
-    // "Settings…", the overlays' submenus and "Exit thermi" each start a group, as Windows' own menus group entries.
-    private static bool StartsAGroup(MenuRow row, MenuRow? previous) =>
-        previous is not null
-        && (row.Entry is MenuEntry.Settings or MenuEntry.Exit || (row.Entry == MenuEntry.Overlay && previous.Entry != MenuEntry.Overlay));
-
     // A heading names what the menu is about and does nothing, so it shows grayed.
     private static MENU_ITEM_FLAGS StateOf(MenuRow row) =>
         (row.Checked ? MENU_ITEM_FLAGS.MF_CHECKED : MENU_ITEM_FLAGS.MF_UNCHECKED)
@@ -58,19 +57,18 @@ internal static class ThermiMenus
 
     private static void Fill(SafeHandle menu, IReadOnlyList<MenuRow> rows, MenuPlace place, List<MenuRow> all, bool submenu)
     {
-        MenuRow? previous = null;
-        foreach (var row in rows)
+        var texts = AccessKeys.Mark([.. rows.Select(row => TextOf(row, place, submenu))]);
+        for (var at = 0; at < rows.Count; at++)
         {
-            if (!submenu && StartsAGroup(row, previous))
+            var row = rows[at];
+            if (row.Starts && at > 0)
             {
                 PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, null);
             }
 
-            previous = row;
-
             all.Add(row);
             var id = (nuint)all.Count;
-            var text = TextOf(row, place, submenu).Replace("&", "&&", StringComparison.Ordinal) + (row.Hotkey is { } hotkey ? "\t" + hotkey : "");
+            var text = texts[at] + (row.Hotkey is { } hotkey ? "\t" + hotkey : "");
             if (row.Entries.Count > 0)
             {
                 Submenu(menu, row, place, all, text);
@@ -78,6 +76,11 @@ internal static class ThermiMenus
             }
 
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | StateOf(row), id, text);
+            if (row.Graph is not null && row.Checked)
+            {
+                PInvoke.CheckMenuRadioItem(menu, (uint)id, (uint)id, (uint)id, (uint)MENU_ITEM_FLAGS.MF_BYCOMMAND);
+            }
+
             if (row.Default)
             {
                 PInvoke.SetMenuDefaultItem(menu, (uint)id, 0);
@@ -86,8 +89,7 @@ internal static class ThermiMenus
     }
 
     /// <summary>
-    /// A row's text: the translation of its entry, or what depends on where it is, as an overlay's name, "Hide" in an
-    /// overlay's submenu, or "Lock all overlays" in thermi's menu with several.
+    /// A row's text: the translation of its entry, or a variant that depends on where the menu is shown.
     /// </summary>
     internal static string TextOf(MenuRow row, MenuPlace place, bool submenu)
     {
@@ -112,7 +114,13 @@ internal static class ThermiMenus
             return texts.Format(place.Numbers, entry, NameOf(config, row.Overlay ?? 0, texts));
         }
 
-        return entry == MenuEntry.Look && row.Look is { } look ? look
+        if (entry is MenuEntry.EditItem or MenuEntry.Separate)
+        {
+            return texts.Format(place.Numbers, entry, Menus.NameOf(config, row, place.Known, texts, place.Numbers));
+        }
+
+        return row.Graph is { } graph ? texts.Of(graph)
+            : entry == MenuEntry.Look && row.Look is { } look ? look
             : entry == MenuEntry.UndoGesture && place.UndoText is { } undo ? undo
             : texts.Of(entry);
     }
@@ -150,7 +158,7 @@ internal static class ThermiMenus
     {
         var handle = PInvoke.CreatePopupMenu();
         using var submenu = new DestroyMenuSafeHandle(handle);
-        Fill(submenu, row.Entries, place with { Overlay = row.Overlay }, all, submenu: true);
+        Fill(submenu, row.Entries, place with { Overlay = row.Overlay ?? place.Overlay }, all, submenu: true);
         if (PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_POPUP, (nuint)(nint)handle, text))
         {
             submenu.SetHandleAsInvalid();

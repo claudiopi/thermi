@@ -33,8 +33,8 @@ internal sealed record OverlayActions(
     /// <summary>The last desktop gesture, which the overlays' menus offer to undo.</summary>
     public GestureUndo? Gestures { get; init; }
 
-    /// <summary>Shows an overlay's menu, which the host builds with thermi's.</summary>
-    public Action<int> Menu { get; init; } = _ => { };
+    /// <summary>Shows an overlay's menu, on the item under the pointer or null on its edge; the host builds it with thermi's.</summary>
+    public Action<int, string?> Menu { get; init; } = (_, _) => { };
 
     /// <summary>Every overlay's items' last minute and running statistics, by item, which the tray icons show too.</summary>
     public ItemHistory History { get; init; } = new(Time);

@@ -21,4 +21,14 @@ internal static class HostMenus
         var id = Entries(host, overlay, all).Single(entry => entry.Text == text).Id;
         host.Tray!.Choose(all[(int)id - 1], overlay);
     }
+
+    /// <summary>The key that chooses <paramref name="entry"/> in the overlay's menu opened on the pill of <paramref name="item"/>.</summary>
+    public static char KeyOf(OverlayHost host, int overlay, string item, MenuEntry entry)
+    {
+        var (rows, place) = host.Tray!.RowsOf(overlay, item: item);
+        var all = new List<MenuRow>();
+        using var menu = ThermiMenus.Build(rows, place, all);
+        var id = (nuint)(all.FindIndex(row => row.Entry == entry) + 1);
+        return TestWindows.AccessKey(menu, id) ?? throw new InvalidOperationException("The entry has no access key.");
+    }
 }

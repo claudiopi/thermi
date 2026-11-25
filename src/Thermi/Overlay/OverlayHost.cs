@@ -75,7 +75,7 @@ internal sealed class OverlayHost : IDisposable
             Shown = () => DesktopDrag.Boxes(_overlays),
             ItemAfter = (overlay, cursor) => overlay < _overlays.Count ? _overlays[overlay].ItemAfter(cursor) : null,
             Gestures = new GestureUndo(time, gesture => _ = _link.WindowOpen && HiddenWindow.Send(HiddenWindow.WindowClass, gesture)),
-            Menu = overlay => Tray?.Menu(overlay),
+            Menu = (overlay, item) => Tray?.Menu(overlay, item: item),
         };
         _settings.Changed += SettingsChanged;
         _watcher = settings.Watch(log);

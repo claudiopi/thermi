@@ -380,9 +380,12 @@ internal sealed class OverlayWindow : IDisposable
     private void ShowMenu()
     {
         _tips.Quiet(true);
-        _actions.Menu(_index);
+        _actions.Menu(_index, ItemAt(_actions.Cursor()));
         _tips.Quiet(false);
     }
+
+    internal void Separate(string item) =>
+        _gestures.Separate(item, _painter.Places.FirstOrDefault(place => place.Id == item)?.Pill ?? RectangleF.Empty, _scene?.Screens ?? []);
 
     /// <summary>
     /// The overlay as its last paint drew it, painted afresh without what only the open window or a broken file adds; the

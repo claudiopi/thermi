@@ -1254,6 +1254,18 @@
   <data name="MenuEntry.Exit" xml:space="preserve">
     <value>Exit thermi</value>
   </data>
+  <data name="MenuEntry.EditItem" xml:space="preserve">
+    <value>Edit “{0}”…</value>
+  </data>
+  <data name="MenuEntry.Separate" xml:space="preserve">
+    <value>Separate “{0}”</value>
+  </data>
+  <data name="MenuEntry.Graph" xml:space="preserve">
+    <value>Graph</value>
+  </data>
+  <data name="MenuEntry.GraphOwn" xml:space="preserve">
+    <value>Some items have their own</value>
+  </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
   </data>
@@ -1418,6 +1430,30 @@
   </data>
   <data name="OverlayText.UndoMerge" xml:space="preserve">
     <value>Undo merge</value>
+  </data>
+  <data name="OverlayText.UndoSeparate" xml:space="preserve">
+    <value>Undo separate</value>
+  </data>
+  <data name="OverlayText.UndoGraph" xml:space="preserve">
+    <value>Undo graph</value>
+  </data>
+  <data name="OverlayText.UndoOrientation" xml:space="preserve">
+    <value>Undo orientation</value>
+  </data>
+  <data name="OverlayText.UndoLock" xml:space="preserve">
+    <value>Undo lock</value>
+  </data>
+  <data name="OverlayText.UndoClickThrough" xml:space="preserve">
+    <value>Undo click-through</value>
+  </data>
+  <data name="OverlayText.UndoLook" xml:space="preserve">
+    <value>Undo look</value>
+  </data>
+  <data name="OverlayText.UndoHide" xml:space="preserve">
+    <value>Undo hide</value>
+  </data>
+  <data name="OverlayText.UndoShow" xml:space="preserve">
+    <value>Undo show</value>
   </data>
   <data name="PillLayout.Pills" xml:space="preserve">
     <value>Pills</value>

@@ -105,5 +105,44 @@ public sealed class TaskbarDropTests
         Assert.Equal(joins, target is var (onto, at) ? string.Create(CultureInfo.InvariantCulture, $"{onto} {at.X},{at.Y}") : "none");
     }
 
+    // "Separate" on the GPU's pill, 100 × 38 or, vertical, 100 × 50, of the default overlay shown at `shown`, on the
+    // taskbar or free where it says, its pill at `pill`: the pill is dropped beside it, 8 px away, as a drag with Alt held
+    // drops it, and becomes an overlay of its own there. Its snap, where it shows and its items.
+    [Theory]
+    // On the taskbar it lands on the taskbar, before the overlay.
+    [InlineData("taskbar 1652,1397,2202,1435 1900,1397", "Taskbar 1544,1397 gpu.load")]
+    // Free, before it, or after it where before is off the monitor.
+    [InlineData("free 1000,500,1550,538 1200,500", "free 892,500 gpu.load")]
+    [InlineData("free 0,500,550,538 200,500", "free 558,500 gpu.load")]
+    // Vertical, below it, or above it where below is off the work area.
+    [InlineData("vertical 1000,500,1100,800 1000,600", "free 1000,808 gpu.load")]
+    [InlineData("vertical 1000,1100,1100,1380 1000,1200", "free 1000,1042 gpu.load")]
+    public void SeparateDropsThePillBesideItsOverlay(string separated, string lands)
+    {
+        var words = separated.Split(' ');
+        var (shown, at) = (Numbers(words[1]), Numbers(words[2]));
+        var vertical = words[0] == "vertical";
+        var overlay = new OverlayConfig
+        {
+            Position = words[0] == "taskbar" ? null : new Position(shown[0], shown[1]),
+            Style = new StyleConfig { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal },
+        };
+        var (width, height) = (100, vertical ? 50 : 38);
+
+        var drop = DesktopGestures.Separate(
+            new ThermiConfig { Overlays = [overlay] },
+            0,
+            "gpu.load",
+            new PixelRect(shown[0], shown[1], shown[2], shown[3]),
+            new PixelRect(at[0], at[1], at[0] + width, at[1] + height),
+            [Pc]);
+
+        Assert.Null(drop.Result.Refused);
+        var made = drop.Result.Config.Overlays[^1];
+        var landed = Snaps.Locate(made, [Pc], width, height)!;
+        var items = string.Join(',', made.Items.Select(item => item.Id));
+        Assert.Equal(lands, string.Create(CultureInfo.InvariantCulture, $"{made.Snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y} {items}"));
+    }
+
     private static int[] Numbers(string word) => [.. word.Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture))];
 }

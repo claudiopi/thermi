@@ -1,6 +1,5 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
-using Thermi.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
@@ -8,7 +7,6 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Logging;
 using Thermi.Overlay;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -45,6 +43,9 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     private readonly TrayIcons _icons = new(parts.Hwnd, parts.Environment.Shell, parts.Actions.Time, log);
     private readonly Notices _notices = new();
     private readonly NotifyMe _notifyMe = new(parts.Actions.Time);
+    private readonly TrayChoices _choices = new(parts, log);
+
+    private Snapshot? _known;
 
     private Settings Settings => parts.Settings;
 
@@ -61,6 +62,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     public void Refresh(TrayState state)
     {
         var scene = state.Scene;
+        _known = scene.Snapshot ?? _known;
         var input = new TrayInput(scene.Snapshot, parts.Service(), Actions.Culture, Translations, scene.LightTaskbar, parts.Environment.ExePath)
         {
             History = Actions.History,
@@ -130,7 +132,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         }
         else if (what == PInvoke.WM_CONTEXTMENU)
         {
-            Menu(icon.ItemId is null ? null : TrayScene.OverlayOf(config, icon.ItemId), fromTray: true);
+            Menu(icon.ItemId is null ? null : TrayScene.OverlayOf(config, icon.ItemId), fromTray: true, icon.ItemId);
         }
         else if (what == PInvoke.WM_LBUTTONDBLCLK && icon.ItemId is not null)
         {
@@ -143,17 +145,17 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     }
 
     /// <summary>
-    /// Shows thermi's menu, or with <paramref name="overlay"/> that overlay's, from the overlay or, <paramref name="fromTray"/>,
-    /// from one of its items' icons, and does what is chosen.
+    /// Shows thermi's menu, or with <paramref name="overlay"/> that overlay's, on <paramref name="item"/> when one is named,
+    /// and does what is chosen.
     /// </summary>
-    public void Menu(int? overlay, bool fromTray = false)
+    public void Menu(int? overlay, bool fromTray = false, string? item = null)
     {
         if (overlay >= Math.Min(Settings.Config.Overlays.Count, parts.Overlays.Count))
         {
             return;
         }
 
-        var (rows, place) = RowsOf(overlay, fromTray);
+        var (rows, place) = RowsOf(overlay, fromTray, item);
         if (ThermiMenus.Show(rows, place, overlay is { } owner ? parts.Overlays[owner].Hwnd : parts.Hwnd) is { } chosen)
         {
             Choose(chosen, overlay);
@@ -163,7 +165,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     public void Dispose() => _icons.Dispose();
 
     /// <summary>The rows of thermi's menu, or with <paramref name="overlay"/> that overlay's, and where they show.</summary>
-    internal (IReadOnlyList<MenuRow> Rows, MenuPlace Place) RowsOf(int? overlay, bool fromTray = false)
+    internal (IReadOnlyList<MenuRow> Rows, MenuPlace Place) RowsOf(int? overlay, bool fromTray = false, string? item = null)
     {
         var config = Settings.Config;
         var undo = Actions.Gestures?.Offered;
@@ -172,93 +174,15 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
             Settings.Problem is not null,
             parts.Service(),
             undo is null ? null : TimeSpan.Zero,
-            [.. Looks().Select(style => style.Name).OfType<string>()],
+            [.. _choices.Looks().Select(style => style.Name).OfType<string>()],
             UpdateReady: false);
         var texts = Translations;
-        var rows = overlay is { } shown ? Menus.OfOverlay(config, shown, state, fromTray) : Menus.Thermis(config, state);
-        return (rows, new MenuPlace(config, texts, Actions.Culture, overlay) { UndoText = undo is { } offered ? texts.Of(offered) : null });
+        var rows = overlay is { } shown ? Menus.OfOverlay(config, shown, state, item, fromTray) : Menus.Thermis(config, state);
+        return (rows, new MenuPlace(config, texts, Actions.Culture, overlay) { UndoText = undo is { } offered ? texts.Of(offered) : null, Known = _known });
     }
 
     /// <summary>A row chosen: in an overlay's menu, or an overlay's submenu, it acts on that overlay; in thermi's menu, on all.</summary>
-    internal void Choose(MenuRow row, int? menuOverlay)
-    {
-        var target = row.Overlay ?? menuOverlay;
-        IReadOnlyList<int> on = target is { } one ? [one] : [.. Enumerable.Range(0, Math.Min(Settings.Config.Overlays.Count, parts.Overlays.Count))];
-        switch (row.Entry)
-        {
-            case MenuEntry.SettingsBroken or MenuEntry.Settings:
-                Actions.OpenSettings(target ?? 0, null);
-                break;
-            case MenuEntry.StartSensors or MenuEntry.TaskManager or MenuEntry.CopyImage:
-                Reach(row.Entry, target ?? 0);
-                break;
-            case MenuEntry.ShowOverlays or MenuEntry.HideOverlays:
-                parts.Visibility.HideOverlays = row.Entry == MenuEntry.HideOverlays;
-                break;
-            case MenuEntry.ShowHiddenOverlays or MenuEntry.ShowOverlay or MenuEntry.HideThisOverlay:
-                Settings.Edit(config => on.Aggregate(config, (current, at) =>
-                    OverlayEdits.SetHidden(current, at, row.Entry == MenuEntry.HideThisOverlay).Config));
-                break;
-            case MenuEntry.UndoGesture:
-                parts.Overlays[target ?? 0].UndoGesture();
-                break;
-            case MenuEntry.ClickThrough:
-                Settings.Edit(config => on.Aggregate(config, (current, at) => OverlayEdits.SetClickThrough(current, at, !row.Checked).Config));
-                break;
-            case MenuEntry.Lock:
-                Settings.Edit(config => on.Aggregate(config, (current, at) => OverlayEdits.SetLocked(current, at, !row.Checked).Config));
-                break;
-            case MenuEntry.Vertical or MenuEntry.Look:
-                Restyle(row, target ?? 0);
-                break;
-            case MenuEntry.ResetMinMax:
-                on.ToList().ForEach(at => Actions.History.Reset(Settings.Config.Overlays[at]));
-                break;
-            case MenuEntry.Exit:
-                Actions.Exit();
-                break;
-            case MenuEntry.Overlay or MenuEntry.Update:
-            default:
-                break;
-        }
-
-        Actions.RequestPaint();
-    }
-
-    // What lies outside thermi: the sensor service, Task Manager, or the clipboard with the overlay's picture.
-    private void Reach(MenuEntry entry, int overlay)
-    {
-        if (entry == MenuEntry.StartSensors)
-        {
-            _ = Task.Run(StartSensorsAsync, CancellationToken.None);
-        }
-        else if (entry == MenuEntry.TaskManager)
-        {
-            parts.Environment.TaskManager();
-        }
-        else if (overlay < parts.Overlays.Count && parts.Overlays[overlay].Picture() is { } picture)
-        {
-            using (picture)
-            {
-                parts.Environment.CopyImage(parts.Overlays[overlay].Hwnd, picture);
-            }
-        }
-    }
-
-    private void Restyle(MenuRow row, int at)
-    {
-        if (row.Entry == MenuEntry.Vertical)
-        {
-            var orientation = row.Checked ? Orientation.Horizontal : Orientation.Vertical;
-            Settings.Edit(config => StyleEdits.Restyle(config, at, style => style with { Orientation = orientation }).Config);
-        }
-        else if ((row.Look is null ? new StyleConfig() : Looks().FirstOrDefault(look => look.Name == row.Look)) is { } look)
-        {
-            Settings.Edit(config => StyleEdits.Choose(config, at, look).Config);
-        }
-    }
-
-    private IReadOnlyList<StyleConfig> Looks() => new SavedStyles(ConfigStore.StylesFolder(Settings.FilePath)).List();
+    internal void Choose(MenuRow row, int? menuOverlay) => _choices.Choose(row, menuOverlay);
 
     // Windows' notices from an icon have no buttons of their own: a click on one does what its first button says, and
     // closing it is "Got it".
@@ -304,25 +228,6 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         }
 
         Actions.RequestPaint();
-    }
-
-    // On a thread of its own: starting a process behind UAC blocks its caller until the prompt closes, and the host's thread
-    // must keep painting. The pipe coming back is what shows the service ran.
-    private async Task StartSensorsAsync()
-    {
-        try
-        {
-            if (await parts.Environment.StartSensors().ConfigureAwait(false) is { } code and not StartSensors.Started)
-            {
-                log.StartSensorsEnded(code);
-            }
-        }
-#pragma warning disable CA1031 // A start that fails leaves the sensors stopped, which the menu still offers to fix.
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            log.StartSensorsFailed(ex);
-        }
     }
 
     private static string LengthOf(TimeSpan length, Texts texts, IFormatProvider numbers) =>

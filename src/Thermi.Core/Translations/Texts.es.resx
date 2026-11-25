@@ -1254,6 +1254,18 @@
   <data name="MenuEntry.Exit" xml:space="preserve">
     <value>Salir de thermi</value>
   </data>
+  <data name="MenuEntry.EditItem" xml:space="preserve">
+    <value>Editar “{0}”…</value>
+  </data>
+  <data name="MenuEntry.Separate" xml:space="preserve">
+    <value>Separar “{0}”</value>
+  </data>
+  <data name="MenuEntry.Graph" xml:space="preserve">
+    <value>Gráfico</value>
+  </data>
+  <data name="MenuEntry.GraphOwn" xml:space="preserve">
+    <value>Algunos elementos tienen el suyo</value>
+  </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
   </data>
@@ -1418,6 +1430,30 @@
   </data>
   <data name="OverlayText.UndoMerge" xml:space="preserve">
     <value>Deshacer unir</value>
+  </data>
+  <data name="OverlayText.UndoSeparate" xml:space="preserve">
+    <value>Deshacer separar</value>
+  </data>
+  <data name="OverlayText.UndoGraph" xml:space="preserve">
+    <value>Deshacer gráfico</value>
+  </data>
+  <data name="OverlayText.UndoOrientation" xml:space="preserve">
+    <value>Deshacer orientación</value>
+  </data>
+  <data name="OverlayText.UndoLock" xml:space="preserve">
+    <value>Deshacer bloqueo</value>
+  </data>
+  <data name="OverlayText.UndoClickThrough" xml:space="preserve">
+    <value>Deshacer dejar pasar los clics</value>
+  </data>
+  <data name="OverlayText.UndoLook" xml:space="preserve">
+    <value>Deshacer aspecto</value>
+  </data>
+  <data name="OverlayText.UndoHide" xml:space="preserve">
+    <value>Deshacer ocultar</value>
+  </data>
+  <data name="OverlayText.UndoShow" xml:space="preserve">
+    <value>Deshacer mostrar</value>
   </data>
   <data name="PillLayout.Pills" xml:space="preserve">
     <value>Píldoras</value>

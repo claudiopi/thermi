@@ -228,7 +228,7 @@ public sealed class OverlayHostTests : IDisposable
 
         Assert.Equal([1], opened);
         Assert.Equal([(false, false), (false, true)], _folder.Read().Overlays.Select(overlay => (overlay.ClickThrough, overlay.Locked)));
-        Assert.Equal(menus[0].Select(entry => entry.Text == Texts.English.Of(MenuEntry.Lock)), menus[1].Select(entry => entry.Checked));
+        Assert.Equal([[], [Texts.English.Of(MenuEntry.Lock)]], menus.Select(menu => menu.Where(entry => entry.Checked).Select(entry => entry.Text).ToList()));
     }
 
     // An overlay that lets clicks through cannot take them back, and an item's icon may sit in the overflow: only

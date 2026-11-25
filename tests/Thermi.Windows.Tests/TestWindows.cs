@@ -99,19 +99,46 @@ internal static class TestWindows
             TestPInvoke.GetGuiResources(process.SafeHandle, GET_GUI_RESOURCES_FLAGS.GR_USEROBJECTS));
     }
 
-    /// <summary>A menu's entries, top to bottom: each one's id, text and whether it is checked; a separator has no text.</summary>
+    /// <summary>
+    /// A menu's entries, top to bottom: each one's id, text as it reads, without its access key's mark, and whether it is
+    /// checked; a separator has no text.
+    /// </summary>
     public static List<(nuint Id, string Text, bool Checked)> MenuEntries(SafeHandle menu)
     {
         var entries = new List<(nuint, string, bool)>();
-        Span<char> text = stackalloc char[256];
         for (var at = 0; at < TestPInvoke.GetMenuItemCount(menu); at++)
         {
-            var length = TestPInvoke.GetMenuString(menu, (uint)at, text, MENU_ITEM_FLAGS.MF_BYPOSITION);
             var state = (MENU_ITEM_STATE)TestPInvoke.GetMenuState(menu, (uint)at, MENU_ITEM_FLAGS.MF_BYPOSITION);
-            entries.Add((TestPInvoke.GetMenuItemID(menu, at), new string(text[..length]), state.HasFlag(MENU_ITEM_STATE.MFS_CHECKED)));
+            var (text, _) = MenuText(menu, (uint)at, MENU_ITEM_FLAGS.MF_BYPOSITION);
+            entries.Add((TestPInvoke.GetMenuItemID(menu, at), text, state.HasFlag(MENU_ITEM_STATE.MFS_CHECKED)));
         }
 
         return entries;
+    }
+
+    /// <summary>The access key of the entry of that id, as its text marks it.</summary>
+    public static char? AccessKey(SafeHandle menu, nuint id) => MenuText(menu, (uint)id, MENU_ITEM_FLAGS.MF_BYCOMMAND).Key;
+
+    // An "&" marks the access key after it, and "&&" is an "&" of the text itself.
+    private static (string Text, char? Key) MenuText(SafeHandle menu, uint item, MENU_ITEM_FLAGS by)
+    {
+        Span<char> marked = stackalloc char[256];
+        marked = marked[..TestPInvoke.GetMenuString(menu, item, marked, by)];
+        var (text, key, mark) = (new System.Text.StringBuilder(), (char?)null, false);
+        foreach (var each in marked)
+        {
+            if (each == '&' && !mark)
+            {
+                mark = true;
+                continue;
+            }
+
+            key ??= mark && each != '&' ? each : null;
+            mark = false;
+            text.Append(each);
+        }
+
+        return (text.ToString(), key);
     }
 }
 

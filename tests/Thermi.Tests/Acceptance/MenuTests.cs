@@ -8,95 +8,140 @@ namespace Thermi.Tests.Acceptance;
 /// </summary>
 public sealed class MenuTests
 {
-    // Overlays as JSON objects between '|', with ' for ", and words for the rest of the state. An entry is written as its
-    // name, then * for the bold default, - for a heading, + for checked and @ for a hotkey beside it; a submenu's entries go in [].
+    private const string Graph = "Graph[Auto+ None Bars Line]";
+
+    // Overlays as JSON objects between '|', with ' for ", and words for the rest of the state, "on:" naming the item whose
+    // pill the overlay's menu opens on. An entry is written as its name, a graph's choice as its graph, then * for the bold
+    // default, - for a heading, + for checked and @ for a hotkey beside it; | starts a group and a submenu's entries go in [].
     [Theory]
     [InlineData(
         "{}",
         "",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}|{}",
         "",
-        "Settings* TaskManager ClickThrough Lock HideOverlays Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
-            + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideThisOverlay Exit")]
+        "Settings* TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
     [InlineData(
         "{}",
         "flag",
-        "ShowOverlays* Settings TaskManager CopyImage Vertical ClickThrough Lock Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "ShowOverlays* | Settings TaskManager CopyImage Vertical ClickThrough Lock | Exit",
+        $"Settings* | {Graph} Vertical Lock | TaskManager | ShowOverlays | Exit")]
     [InlineData(
         "{'hidden':true}",
         "",
-        "ShowOverlay* Settings TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "ShowOverlay* | Settings TaskManager CopyImage Vertical ClickThrough Lock | Exit",
+        $"Settings* | {Graph} Vertical Lock | TaskManager | ShowOverlay | Exit")]
     [InlineData(
         "{}|{'hidden':true}",
         "",
-        "ShowOverlay* Settings TaskManager ClickThrough Lock HideOverlays Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
-            + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideThisOverlay Exit")]
+        "ShowOverlay* | Settings TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
     [InlineData(
         "{'hidden':true}|{'hidden':true}",
         "",
-        "ShowHiddenOverlays* Settings TaskManager ClickThrough Lock HideOverlays Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] "
-            + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideThisOverlay Exit")]
+        "ShowHiddenOverlays* | Settings TaskManager ClickThrough Lock | Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] | Exit",
+        $"Settings* | {Graph} Vertical Lock | TaskManager | ShowOverlay | Exit")]
     [InlineData(
         "{}",
         "broken",
-        "SettingsBroken Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
-        "SettingsBroken Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "SettingsBroken | Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"SettingsBroken | Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "stopped",
-        "StartSensors Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "StartSensors | Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'clickThrough':true,'locked':true,'style':{'orientation':'vertical'}}",
         "",
-        "Settings* TaskManager CopyImage Vertical+ ClickThrough+ Lock+ HideOverlays Exit",
-        "Settings* TaskManager CopyImage Vertical+ Lock+ HideOverlays Exit")]
+        "Settings* TaskManager CopyImage Vertical+ ClickThrough+ Lock+ HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical+ Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','stat':'max'}]}",
         "",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock ResetMinMax HideOverlays Exit",
-        "Settings* TaskManager CopyImage Vertical Lock ResetMinMax HideOverlays Exit")]
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock ResetMinMax HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager ResetMinMax | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "hotkeys",
-        "Settings* TaskManager CopyImage Vertical ClickThrough@ Lock ResetMinMax@ HideOverlays@ Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideOverlays@ Exit")]
+        "Settings* TaskManager CopyImage Vertical ClickThrough@ Lock ResetMinMax@ HideOverlays@ | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays@ | Exit")]
     [InlineData(
         "{}",
         "gesture10",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
-        "UndoGesture Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"UndoGesture | Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "gesture31",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'style':{'name':'Night'}}",
         "looks",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Exit",
-        "Settings* TaskManager CopyImage Look Look+ Look Vertical Lock HideOverlays Exit")]
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Look Look+ Look Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "update",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update Exit",
-        "Settings* TaskManager CopyImage Vertical Lock HideOverlays Exit")]
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update | Exit",
+        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // On a pill: of several, locked or not, on the taskbar or the desktop, it can be separated; not the overlay's only pill,
+    // nor once no other overlay fits, nor while the overlay is hidden.
+    [InlineData(
+        "{}",
+        "on:gpu.load",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"EditItem* Settings | Separate {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    [InlineData(
+        "{'locked':true,'position':{'x':100,'y':100}}",
+        "on:gpu.load",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock+ HideOverlays | Exit",
+        $"EditItem* Settings | Separate {Graph} Vertical Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
+    [InlineData(
+        "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature'},{'id':'cpu.load','metric':'cpu.load'}]}",
+        "on:cpu.load",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"EditItem* Settings | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    [InlineData(
+        "{}|{}|{}|{}",
+        "on:gpu.load",
+        "Settings* TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
+        $"EditItem* Settings | {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
+    [InlineData(
+        "{'hidden':true}|{}",
+        "on:gpu.load",
+        "ShowOverlay* | Settings TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] "
+            + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
+        $"EditItem* Settings | {Graph} Vertical Lock | TaskManager | ShowOverlay HideOverlays | Exit")]
+    // The overlay's graph, while an item it judges follows it, says when some items keep their own.
+    [InlineData(
+        "{'graph':'line','items':[{'id':'cpu.temperature','metric':'cpu.temperature','graph':'bars'},{'id':'gpu.load','metric':'gpu.load'}]}",
+        "",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        "Settings* | Graph[Auto None Bars Line+ | GraphOwn-] Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    [InlineData(
+        "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','graph':'none'},{'id':'cpu.power','metric':'cpu.power'}]}",
+        "",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        "Settings* | Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     public void MenusHaveTheirEntriesInOrder(string overlays, string state, string thermis, string overlaysMenu)
     {
         var words = state.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var hotkeys = words.Contains("hotkeys") ? ",'hotkeys':{'toggle':'Ctrl+Alt+H','clickThrough':'Ctrl+Alt+C','resetMinMax':'Ctrl+Alt+R'}" : "";
-        var (config, problem) = ThermiConfigJson.Read($"{{'version':2{hotkeys},'overlays':[{overlays.Replace('|', ',')}]}}".Replace('\'', '"'));
+        var (config, problem) = ThermiConfigJson.Read($"{{'version':6{hotkeys},'overlays':[{overlays.Replace('|', ',')}]}}".Replace('\'', '"'));
         var gesture = words.FirstOrDefault(word => word.StartsWith("gesture", StringComparison.Ordinal)) is { } ago
             ? TimeSpan.FromSeconds(int.Parse(ago["gesture".Length..], System.Globalization.CultureInfo.InvariantCulture))
             : (TimeSpan?)null;
+        var item = words.FirstOrDefault(word => word.StartsWith("on:", StringComparison.Ordinal))?["on:".Length..];
         var menu = new MenuState(
             HideOverlays: words.Contains("flag"),
             FileBroken: words.Contains("broken"),
@@ -107,17 +152,27 @@ public sealed class MenuTests
 
         Assert.Null(problem);
         Assert.Equal(thermis, Describe(Menus.Thermis(config, menu)));
-        Assert.Equal(overlaysMenu, Describe(Menus.OfOverlay(config, 0, menu)));
+        Assert.Equal(overlaysMenu, Describe(Menus.OfOverlay(config, 0, menu, item)));
 
         // From an item's tray icon, away from the overlay, the menu says which overlay it acts on and offers click-through.
         var clickThrough = config.Overlays[0].ClickThrough ? "ClickThrough+" : "ClickThrough";
         Assert.Equal(
-            "Overlay- " + overlaysMenu.Replace(" Lock", $" {clickThrough} Lock", StringComparison.Ordinal),
-            Describe(Menus.OfOverlay(config, 0, menu, fromTray: true)));
+            "Overlay- | " + overlaysMenu.Replace(" Lock", $" {clickThrough} Lock", StringComparison.Ordinal),
+            Describe(Menus.OfOverlay(config, 0, menu, item, fromTray: true)));
     }
 
-    private static string Describe(IReadOnlyList<MenuRow> rows) => string.Join(' ', rows.Select(row => string.Concat(
-        row.Entry.ToString(),
+    // Each entry of one menu gets its own key, from the start of a word first, whatever its case or language, and an
+    // entry without a letter or a digit left gets none; an "&" of the text stays one.
+    [Theory]
+    [InlineData("Alpha one|Alpha two|beta|Ölfarbe|öl", "&Alpha one|Alpha &two|&beta|&Ölfarbe|ö&l")]
+    [InlineData("R&D|Rd|…", "&R&&D|R&d|…")]
+    [InlineData("ab|ba|ab", "&ab|&ba|ab")]
+    public void EachEntryOfAMenuHasItsOwnAccessKey(string texts, string marked) =>
+        Assert.Equal(marked, string.Join('|', AccessKeys.Mark(texts.Split('|'))));
+
+    private static string Describe(IReadOnlyList<MenuRow> rows) => string.Join(' ', rows.Select((row, at) => string.Concat(
+        row.Starts && at > 0 ? "| " : "",
+        row.Graph?.ToString() ?? row.Entry.ToString(),
         row.Default ? "*" : "",
         row.Heading ? "-" : "",
         row.Checked ? "+" : "",

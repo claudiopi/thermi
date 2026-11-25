@@ -12,7 +12,7 @@ public enum SelectHow
     PointOut,
 }
 
-/// <summary>The desktop gestures, each of which the window takes as a step of its own history.</summary>
+/// <summary>The desktop gestures and the edits chosen from a menu, each of which the window takes as a step of its own history.</summary>
 public enum GestureKind
 {
     Move,
@@ -20,6 +20,7 @@ public enum GestureKind
     Nudge,
     DragOff,
     Merge,
+    Menu,
 }
 
 /// <summary>

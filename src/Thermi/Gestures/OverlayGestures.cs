@@ -4,6 +4,7 @@ using Thermi.Core.Look;
 using Thermi.Core.Messages;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Overlay;
 using Thermi.Painting;
 using Windows.Win32;
@@ -241,6 +242,31 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         var side = CornerSize * painted.Scale;
         var (x, y) = (cursor.X - at.X, cursor.Y - at.Y);
         return x >= painted.Size.Width - side && y >= painted.Size.Height - side && x < painted.Size.Width && y < painted.Size.Height;
+    }
+
+    /// <summary>
+    /// "Separate" from the overlay's menu, as one gesture; <paramref name="box"/> is the pill's in the overlay's pixels,
+    /// empty when it was not drawn.
+    /// </summary>
+    public void Separate(string pill, RectangleF box, IReadOnlyList<Screen> screens)
+    {
+        PInvoke.GetWindowRect(hwnd, out var rect);
+        var shown = new PixelRect(rect.left, rect.top, rect.right, rect.bottom);
+        var drawn = box.IsEmpty
+            ? shown
+            : new PixelRect(
+                rect.left + (int)box.Left,
+                rect.top + (int)box.Top,
+                rect.left + (int)Math.Ceiling(box.Right),
+                rect.top + (int)Math.Ceiling(box.Bottom));
+        var before = settings.Config;
+        var drop = DesktopGestures.Separate(before, index, pill, shown, drawn, screens);
+        if (drop.Result.Refused is null && ConfigEdits.Replay(before, drop.Result.Config) is { } change)
+        {
+            settings.Edit(change);
+            actions.Gestures?.Add(drop.Kind, before, drop.Result.Config, OverlayText.UndoSeparate);
+            actions.RequestPaint();
+        }
     }
 
     /// <summary>Takes back the last desktop gesture, as the overlay's menu offers.</summary>

@@ -45,6 +45,16 @@ public enum OverlayText
     /// <summary>The overlay's menu entry that takes back an overlay dropped into another.</summary>
     UndoMerge,
 
+    /// <summary>The overlay's menu entry that takes back each edit chosen from a menu, by what the edit was.</summary>
+    UndoSeparate,
+    UndoGraph,
+    UndoOrientation,
+    UndoLock,
+    UndoClickThrough,
+    UndoLook,
+    UndoHide,
+    UndoShow,
+
     /// <summary>The label of the overlay's entry that says the settings file is broken.</summary>
     ConfigLabel,
 

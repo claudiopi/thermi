@@ -1,6 +1,7 @@
 using Thermi.Commands;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Overlay;
 using Windows.Win32;
@@ -178,6 +179,46 @@ public sealed class OverlayMenuTests : IDisposable
         });
 
         Assert.True(above, "The overlay rose over its own menu.");
+    }
+
+    // A right-click on a pill opens the overlay's menu on it, where typing an entry's access key chooses it: "Separate" makes
+    // the pill an overlay of its own, and the menu's Undo then takes it back, as one step.
+    [Fact]
+    public async Task TheMenuOnAPillSeparatesItByItsKeyAndUndoTakesItBack()
+    {
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en" });
+        var gpu = Metrics.GpuLoad.Id;
+        var cursor = new Position(0, 0);
+        var separated = new List<string>();
+
+        HostRun.Run(settings, _folder, _tray.Environment(_windowMutex) with { Cursor = () => cursor }, host =>
+        {
+            cursor = OverlayDragTests.PillOf(host.Overlays[0], gpu);
+            var key = HostMenus.KeyOf(host, 0, gpu, MenuEntry.Separate);
+            var typed = false;
+            using (new MenuWatcher(() =>
+            {
+                if (!typed && MenuWatcher.OpenMenu() is { } menu)
+                {
+                    typed = PInvoke.PostMessage(menu, TestPInvoke.WM_CHAR, key, 0);
+                }
+
+                return typed && MenuWatcher.OpenMenu() is null;
+            }))
+            {
+                // Sent, not posted: the menu's own loop would take the message a pump waits for.
+                PInvoke.SendMessage(host.Overlays[0].Hwnd, PInvoke.WM_RBUTTONUP, 0, 0);
+            }
+
+            HostRun.Until(host, _folder.Clock, () => _folder.Read().Overlays.Count == 2);
+            separated.AddRange(_folder.Read().Overlays.Select(overlay => string.Join(',', overlay.Items.Select(item => item.Id))));
+            HostMenus.Choose(host, 0, Texts.English.Of(OverlayText.UndoSeparate));
+            HostRun.Until(host, _folder.Clock, () => _folder.Read().Overlays.Count == 1);
+        });
+
+        var ids = OverlayConfig.DefaultItems.Select(item => item.Id).ToList();
+        Assert.Equal([string.Join(',', ids.Where(id => id != gpu)), gpu], separated);
+        Assert.Equal(ids, _folder.Read().Overlays.Single().Items.Select(item => item.Id));
     }
 
     private static double? Temperature(Snapshot snapshot) =>

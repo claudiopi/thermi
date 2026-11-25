@@ -5,9 +5,10 @@
       "id": "A1",
       "covers": [
         "R1",
-        "R136"
+        "R136",
+        "R196"
       ],
-      "description": "Given a table of states (one or several overlays, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready), when thermi's menu and the overlay's menu are built, then each row's entries, their order, their checks and their bold default are the table's.",
+      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, a locked overlay on the taskbar or the desktop, items with a graph of their own or none judged), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -1086,7 +1087,7 @@
         "R184",
         "R188"
       ],
-      "description": "Given a table of states, when thermi's menu and an overlay's menu are built, then \"Open Task Manager\" follows \"Settings…\" in both, and \"Copy as image\" follows it in the overlay's.",
+      "description": "Given a table of states, when thermi's menu and an overlay's menu are built, then \"Open Task Manager\" follows \"Settings…\" in thermi's, and \"Copy as image\" in the overlay's.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -1452,6 +1453,44 @@
       "description": "Given the page with the fake bridge and the default overlay laid out as one bar, when the RAM's Shows is set to Average by keys, then its row in the list says the value the bridge gives followed by its tag, and its Label box offers the label the bridge says the overlay draws for it.",
       "check": "TheListAndTheLabelBoxSayWhatTheOverlayDraws",
       "passes": true
+    },
+    {
+      "id": "A324",
+      "covers": [
+        "R196"
+      ],
+      "description": "Given the default overlay on the taskbar, free on the desktop, at the monitor's left edge, vertical, and vertical near the work area's bottom, when \"Separate\" is chosen on its GPU pill, then the pill becomes an overlay of its own 8 px before it on the taskbar or free, after it, below it, or above it.",
+      "check": "SeparateDropsThePillBesideItsOverlay",
+      "passes": true
+    },
+    {
+      "id": "A325",
+      "covers": [
+        "R196",
+        "R47"
+      ],
+      "description": "Given a table of a menu's entries (words sharing first letters, letters of any case and language, an \"&\" of the text, none to take), when their access keys are marked, then each entry gets a key no entry above it took, from a word's start first, or none, and an \"&\" of the text stays one.",
+      "check": "EachEntryOfAMenuHasItsOwnAccessKey",
+      "passes": true
+    },
+    {
+      "id": "A326",
+      "covers": [
+        "R196",
+        "R150"
+      ],
+      "description": "Given a real overlay host on a test desktop with the default overlay, when its GPU pill is right-clicked and the access key of \"Separate\" is typed in the menu that opens, then the file holds the pill as an overlay of its own, and the menu's Undo puts it back as it was, in one step.",
+      "check": "TheMenuOnAPillSeparatesItByItsKeyAndUndoTakesItBack",
+      "passes": true
+    },
+    {
+      "id": "A327",
+      "covers": [
+        "R196"
+      ],
+      "description": "Given the installed build, the window open, and the overlay on the taskbar and on the desktop, in English and Spanish, light, dark and high contrast, when the author right-clicks a pill and the edge, and from an item's tray icon, and chooses each entry by mouse and by its key, then each changes what it says at once, the window shows it, its Undo in the menu and Ctrl+Z in the window take it back, and no entry offered does nothing.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

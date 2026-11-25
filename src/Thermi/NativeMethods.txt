@@ -106,6 +106,7 @@ TrackPopupMenuEx
 TRACK_POPUP_MENU_FLAGS
 DestroyMenu
 SetMenuDefaultItem
+CheckMenuRadioItem
 // The menus' dark mode, which uxtheme gives only by ordinal
 LoadLibraryEx
 GetProcAddress

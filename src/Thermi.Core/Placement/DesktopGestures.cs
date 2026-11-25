@@ -78,13 +78,13 @@ public static class DesktopGestures
         return (Math.Clamp(stepped, OverlayConfig.MinSize, OverlayConfig.MaxSize), high > wide ? Orientation.Vertical : Orientation.Horizontal);
     }
 
-    /// <summary>The overlay's menu entry that takes the gesture back.</summary>
+    /// <summary>The overlay's menu entry that takes the gesture back; an edit chosen from a menu is named by its entry instead.</summary>
     public static OverlayText UndoOf(GestureKind kind) => kind switch
     {
         GestureKind.Resize => OverlayText.UndoResize,
         GestureKind.DragOff => OverlayText.UndoDragOff,
         GestureKind.Merge => OverlayText.UndoMerge,
-        GestureKind.Move or GestureKind.Nudge => OverlayText.UndoMove,
+        GestureKind.Move or GestureKind.Nudge or GestureKind.Menu => OverlayText.UndoMove,
         _ => OverlayText.UndoMove,
     };
 
@@ -96,8 +96,36 @@ public static class DesktopGestures
     /// drop moves the overlay instead.
     /// </summary>
     public static bool Lifts(ThermiConfig config, int overlay, string? pill, TimeSpan held) =>
-        held >= Hold && pill is not null && config.Overlays.Count < ThermiConfig.MaxOverlays && ConfigEdits.Find(config, pill) is var (from, index)
+        held >= Hold && pill is not null && CanTakeOff(config, overlay, pill);
+
+    /// <summary>
+    /// False when the pill is the whole overlay or no other overlay fits.
+    /// </summary>
+    public static bool CanTakeOff(ThermiConfig config, int overlay, string pill) =>
+        config.Overlays.Count < ThermiConfig.MaxOverlays && ConfigEdits.Find(config, pill) is var (from, index)
         && !(from == overlay && ItemEdits.PillOf(config.Overlays[from], index) == (0, config.Overlays[from].Items.Count - 1));
+
+    /// <summary>
+    /// "Separate" from the overlay's menu: drops <paramref name="pill"/> (drawn at <paramref name="box"/>) beside the overlay
+    /// <paramref name="shown"/>, as Alt held would, so no mark pulls it back: before a horizontal overlay, after it when that
+    /// leaves the work area, below a vertical one, else above.
+    /// </summary>
+    public static DesktopDrop Separate(ThermiConfig config, int overlay, string pill, PixelRect shown, PixelRect box, IReadOnlyList<Screen> screens)
+    {
+        if (!ConfigEdits.HasOverlay(config, overlay) || screens.Count == 0 || !CanTakeOff(config, overlay, pill))
+        {
+            return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.NotFound));
+        }
+
+        var screen = Snaps.ScreenOf(config.Overlays[overlay], screens)!;
+        var gap = (int)Math.Round(Snaps.Margin * screen.Scale);
+        var work = screen.Work;
+        var at = config.Overlays[overlay].Style.Orientation == Orientation.Vertical
+            ? new Position(box.Left, shown.Bottom + gap + box.Height <= work.Bottom ? shown.Bottom + gap : shown.Top - gap - box.Height)
+            : new Position(shown.Left - gap - box.Width >= work.Left ? shown.Left - gap - box.Width : shown.Right + gap, box.Top);
+        var mark = Snaps.Near(screens, Orientation.Horizontal, box.Width, box.Height, at, magnets: false);
+        return Release(config, overlay, pill, Snaps.Inside(at, screens, box.Width, box.Height), onto: null, mark);
+    }
 
     /// <summary>The ids of the items a drag of that item's pill takes off, in their order; none for an item the settings lack.</summary>
     public static IReadOnlyList<string> PillItems(ThermiConfig config, string pill)

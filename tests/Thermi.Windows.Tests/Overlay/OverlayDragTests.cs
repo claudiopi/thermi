@@ -212,8 +212,8 @@ public sealed class OverlayDragTests : IDisposable
     private static Position Middle(HWND window) =>
         PInvoke.GetWindowRect(window, out var rect) ? new Position((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) : new Position(0, 0);
 
-    // The middle of the run of the overlay's middle row the item's pill is drawn on.
-    private static Position PillOf(OverlayWindow overlay, string item)
+    /// <summary>The middle of the run of the overlay's middle row the item's pill is drawn on.</summary>
+    internal static Position PillOf(OverlayWindow overlay, string item)
     {
         PInvoke.GetWindowRect(overlay.Hwnd, out var rect);
         var y = (rect.top + rect.bottom) / 2;

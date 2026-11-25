@@ -14,7 +14,8 @@ EnumWindows
 GetGuiResources
 // Where a point of a window's frame is
 HTCLOSE
-// A menu's entries, and a menu shown closed
+// A menu's entries, an entry's access key typed, and a menu shown closed
+WM_CHAR
 EndMenu
 GetMenuItemCount
 GetMenuItemID
