@@ -6,7 +6,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.System.Memory;
 using Windows.Win32.System.Ole;
 
-namespace Thermi.Windows;
+namespace Thermi.Windows.Clipboard;
 
 /// <summary>A picture put on Windows' clipboard, as a PNG for the apps that keep its transparency and as a bitmap for the rest.</summary>
 internal static class ClipboardImage

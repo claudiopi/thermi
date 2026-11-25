@@ -10,14 +10,21 @@ public enum Level
     Critical,
 }
 
-/// <summary>An item's lines, in the unit of what it warns by: a warning, a critical, or both, the warning never above the critical.</summary>
+/// <summary>
+/// An item's lines, in the unit of what it warns by: a warning, a critical, or both. The warning is never past the
+/// critical: below it, or above it for a reading whose trouble is a low value (<see cref="WarnsLow"/>), which the file's
+/// rules check, since only they know what the item reads.
+/// </summary>
 public sealed record Threshold
 {
-    /// <summary>The highest line a fan's speed takes, in RPM; every other meter's lines run from 0 to 100 but a throughput's.</summary>
+    /// <summary>The highest line a fan's speed takes, in RPM; every other meter's lines run from 0 to 100 but a throughput's and a game's frames'.</summary>
     public const double MaxFanSpeed = 10_000;
 
     /// <summary>The highest line a throughput takes, in bytes per second: 100 GB/s, past any drive or network a PC has.</summary>
     public const double MaxThroughput = 100e9;
+
+    /// <summary>The highest line a frame rate or a frame time takes, in frames per second or milliseconds.</summary>
+    public const double MaxFrames = 1000;
 
     // A CPU's limit when nothing says otherwise: AMD's, which the defaults also take, having no machine to ask.
     private const double DefaultCpuLimit = 100;
@@ -25,9 +32,9 @@ public sealed record Threshold
     // Each line is optional in the file, where a meter that only warns has no critical.
     public Threshold(double? warning = null, double? critical = null)
     {
-        if ((warning is null && critical is null) || !Finite(warning) || !Finite(critical) || warning > critical)
+        if ((warning is null && critical is null) || !Finite(warning) || !Finite(critical))
         {
-            throw new ArgumentException($"Expected one or two finite values with warning <= critical, got {warning} and {critical}.", nameof(warning));
+            throw new ArgumentException($"Expected one or two finite values, got {warning} and {critical}.", nameof(warning));
         }
 
         Warning = warning;
@@ -38,9 +45,17 @@ public sealed record Threshold
 
     public double? Critical { get; }
 
-    /// <summary>Whether lines can judge that type: a temperature, a load, a duty, a fan's speed or a throughput.</summary>
+    /// <summary>Whether lines can judge that type: a temperature, a load, a duty, a fan's speed, a throughput or frames.</summary>
     public static bool CanMeter(SensorKind kind) =>
-        kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Fan or SensorKind.Throughput;
+        kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Fan or SensorKind.Throughput
+            or SensorKind.FrameRate or SensorKind.FrameTime;
+
+    /// <summary>Whether a reading of that type is in trouble when low, as a frame rate, so its lines warn below a value.</summary>
+    public static bool WarnsLow(SensorKind kind) => kind == SensorKind.FrameRate;
+
+    /// <summary>Whether the lines are in order for that type: the warning not past the critical.</summary>
+    public bool InOrderFor(SensorKind kind) =>
+        Warning is not { } warning || Critical is not { } critical || (WarnsLow(kind) ? warning >= critical : warning <= critical);
 
     /// <summary>
     /// What else than its own reading an item of <paramref name="kind"/> can warn by: the item itself in its other form,
@@ -98,6 +113,7 @@ public sealed record Threshold
     public static double MaxOf(SensorKind kind) =>
         kind == SensorKind.Fan ? MaxFanSpeed
         : kind == SensorKind.Throughput ? MaxThroughput
+        : kind is SensorKind.FrameRate or SensorKind.FrameTime ? MaxFrames
         : 100;
 
     /// <summary>The lines a metric starts with on any machine, or null for none; a CPU's limit is taken as AMD's.</summary>
@@ -109,7 +125,7 @@ public sealed record Threshold
     /// <summary>
     /// The lines a reading starts with on the machine the snapshot is from, or null for none: a CPU temperature warns 10 °C
     /// under the CPU's limit and is critical 5 under it, a GPU's at 80 and 88 °C, any other temperature at 70 and 80 °C, and a
-    /// fan's duty warns at 85 %. Loads and fan speeds have none.
+    /// fan's duty warns at 85 %. Loads, fan speeds and frames have none: a game's FPS is fine at 40 in one and poor in another.
     /// </summary>
     public static Threshold? Default(WarnByConfig meter, Snapshot snapshot)
     {
@@ -129,6 +145,7 @@ public sealed record Threshold
     public Level LevelOf(Reading reading, int? decimals = null) => Shown(reading, decimals) switch
     {
         null => Level.Normal,
+        var value when WarnsLow(reading.Kind) => value <= Critical ? Level.Critical : value <= Warning ? Level.Warning : Level.Normal,
         var value when value >= Critical => Level.Critical,
         var value when value >= Warning => Level.Warning,
         _ => Level.Normal,
@@ -137,10 +154,11 @@ public sealed record Threshold
     // Only the types that show in the unit their lines are kept in, a temperature in °C, round here as they show.
     private static double? Shown(Reading reading, int? decimals) =>
         reading.Usable is { } value && reading.Kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Power or SensorKind.Fan
-            ? Math.Round(value, decimals ?? 0, MidpointRounding.AwayFromZero)
+            or SensorKind.FrameRate or SensorKind.FrameTime
+            ? Math.Round(value, decimals ?? (reading.Kind == SensorKind.FrameTime ? 1 : 0), MidpointRounding.AwayFromZero)
             : reading.Usable;
 
-    // A line warns above a value, and a battery's trouble is below one, which Windows warns of itself.
+    // A line warns above a value but a frame rate's, and a battery's trouble is below one, which Windows warns of itself.
     private static Threshold? Default(SensorKind kind, DeviceKind? device, double cpuLimit) => (kind, device) switch
     {
         (_, DeviceKind.Battery) => null,

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Frames;
 using Thermi.Core.Search;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -23,6 +24,9 @@ public enum Synonyms
     Duration,
     Time,
     Address,
+    FrameRate,
+    FrameTime,
+    Voltage,
     Cpu,
     Gpu,
     Ram,
@@ -31,6 +35,7 @@ public enum Synonyms
     Network,
     Battery,
     System,
+    Game,
 }
 
 /// <summary>Why a sensor has no usable value. The window says each in words of its own from the translations.</summary>
@@ -48,6 +53,12 @@ public enum NoValue
 
     /// <summary>A GPU's fan at 0 RPM: a GPU stops its fans while it is cool, so it is at rest, not missing.</summary>
     Resting,
+
+    /// <summary>The game's sensors, which read only while an app in front presents frames.</summary>
+    NoFrames,
+
+    /// <summary>The game's sensors while the service cannot read frames: one from before them, or no trace session free.</summary>
+    FramesUnread,
 }
 
 /// <summary>
@@ -308,9 +319,14 @@ public static class SensorCatalog
         || (sensor.Id.Contains(MemoryModule, StringComparison.Ordinal)
             && Array.Exists(ModuleConstants, word => sensor.Name.Contains(word, StringComparison.Ordinal)));
 
+    private static NoValue NothingRead(RawSensor sensor) =>
+        !GameSensors.Is(sensor) ? NoValue.ReadsNothing
+        : sensor.Value is double.NaN ? NoValue.FramesUnread
+        : NoValue.NoFrames;
+
     private static NoValue? Why(RawSensor sensor, Reading reading) =>
         SensorMap.ZeroIsMissing(sensor) ? NoValue.DriverMayBeMissing
-        : reading.Usable is null ? NoValue.ReadsNothing
+        : reading.Usable is null ? NothingRead(sensor)
         : reading is not { Kind: SensorKind.Fan, Usable: 0 } ? null
         : SensorMap.IsGpu(sensor) ? NoValue.Resting
         : NoValue.Stopped;

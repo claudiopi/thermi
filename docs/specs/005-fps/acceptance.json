@@ -1,0 +1,89 @@
+{
+  "spec": "005-fps",
+  "steps": [
+    {
+      "id": "A1",
+      "covers": ["R1", "R2", "R4", "R5", "R6", "R9"],
+      "description": "Given the recorded presents of Zwift (OpenGL, told only by the kernel's detailed history and its blits) beside a terminal that presents from its child and an agent through Direct3D 9, replayed into snapshots second by second, when Zwift is maximized in front, then the terminal takes the focus on another monitor, maximized or not, then the desktop, then FPS and frame time read Zwift's from its third second on, once it counts as presenting, with no game before it, through all of it; and the terminal alone, not filling its monitor, never shows FPS.",
+      "check": "TheOverlayShowsTheFramesOfTheAppInFront",
+      "passes": false
+    },
+    {
+      "id": "A2",
+      "covers": ["R6"],
+      "description": "Given snapshots whose frame slots have no values, as from a service that could not start its session, and snapshots with no slots, as from a service from before, when the default overlay and the window's items are laid out with a game in front, then the overlay shows no FPS item and the window shows FPS as missing.",
+      "check": "FramesThatCannotBeReadShowAsMissing",
+      "passes": false
+    },
+    {
+      "id": "A3",
+      "covers": ["R8"],
+      "description": "Given a new file's FPS item and one added from the catalog, which have no lines, lines added in the chart at 60 and 30 FPS and at 50 and 100 ms, when FPS reads 144, 61, 60, 45, 30 and 12 and frame time 7, 40, 50, 99, 100 and 200, in the value and in its line, then FPS is normal, then warning at 60 and 45, then critical at 30 and 12, and frame time normal, then warning at 50 and 99, then critical at 100; and an FPS item whose critical is above its warning is refused.",
+      "check": "FrameRateWarnsLowAndFrameTimeHigh",
+      "passes": false
+    },
+    {
+      "id": "A4",
+      "covers": ["R7", "R8"],
+      "description": "Given the window with a game's snapshot, when the person adds FPS from the Game device, adds its warning and critical lines and drags the critical, then the item shows in the overlay's list with its value and no lines, the critical line comes under the warning, and cannot pass above it.",
+      "check": "AnFpsItemIsAddedAndItsLinesSetLow",
+      "passes": false
+    },
+    {
+      "id": "A5",
+      "covers": ["R11", "R12"],
+      "description": "Given the service's frame source fed with presents of named processes, when it records with --frames and serves a client, then the recording and every line on the pipe hold process ids and numbers, and no process's name.",
+      "check": "FramesLeaveTheServiceWithoutNames",
+      "passes": false
+    },
+    {
+      "id": "A6",
+      "covers": ["R3", "R4"],
+      "description": "Given the installed build on the author's PC, when he rides Zwift windowed, borderless and in full screen, and free demos present through Direct3D 9, 11 and 12 and Vulkan, then the window's FPS is within 2 % of Zwift's own counter and of PresentMon's beside each demo over a minute, and it keeps showing Zwift while a terminal on the other monitor has the focus.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A7",
+      "covers": ["R10"],
+      "description": "Given the installed build with a game presenting at 144 FPS in front, when scripts/measure.ps1 runs for 60 s, then the service stays under 3 % of one core and 80 MB, and with no client connected no thermi-frames session exists.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A8",
+      "covers": ["R13"],
+      "description": "Given the author's desktop recorded as administrator, with its board's nine voltages named as the library names them, \"Voltage #1\" to \"#7\", \"+3V Standby\" and \"CMOS Battery\", each core's VID and both GPUs' voltages, when the catalog is built and searched, then its 28 voltages are listed, the board's under the board, all found by \"volts\" and by the voltage kind, the standby rail by \"standby\", shown as 1.296 V, 3.336 V, 0.306 V and 1.045 V, and 12.10 V from 10 V on, and one added as an item shows its value with no lines and takes no offset, and a sum of two is refused; a CPU's voltage of exactly 0 is missing; no default overlay reads a voltage; and recorded without admin rights, its 19 voltages are listed, each core's VID as the driver's to read and the GPUs' with their values.",
+      "check": "VoltagesAreListedFoundAndAddedWithoutLines",
+      "passes": false
+    },
+    {
+      "id": "A9",
+      "covers": ["R6"],
+      "description": "Given the app in front presenting 5 frames a second for 6 s, as a window that redraws now and then, and then a game presenting 60, when each second's snapshot is laid out, then the first shows no FPS at all, and the game shows none for its first 2 seconds and 60 from its third.",
+      "check": "OnlyAnAppThatPresentsSteadilyShowsFrames",
+      "passes": false
+    },
+    {
+      "id": "A10",
+      "covers": ["R2"],
+      "description": "Given, with no game yet, a game at 160 FPS filling its monitor behind a terminal in front at 25 and a video at 60 in a window that does not fill its monitor, then, apart, a game at 160 FPS in front for 3 s, then a terminal filling its own monitor in front repainting at 35 while the game, behind, presents 65, then another game at 90 in front for 3 s, then the first game in front again at 65, then the second game stopping, when each second picks the game, then the game behind is the game from its first second, never the video; and the first game is the game from its first second, keeps it through the terminal, the second game takes over at its third second and keeps it while the first is in front, and once it stops the first is the game again at once.",
+      "check": "FpsFollowsTheGameNotTheFocus",
+      "passes": false
+    },
+    {
+      "id": "A11",
+      "covers": ["R3"],
+      "description": "Given the recorded presents of Zwift while OBS captured it, told by the kernel only as copies of its frames into its window, replayed into snapshots second by second, when Zwift is maximized in front, then FPS reads Zwift's frames from its third second, as many as the recording holds in each second.",
+      "check": "AGameThatObsCapturesShowsItsFrames",
+      "passes": false
+    },
+    {
+      "id": "A12",
+      "covers": ["R3"],
+      "description": "Given Zwift's recorded presents riding, told by the kernel's detailed history, spliced with its presents in its menus, told only by BlitRect, and riding again, replayed into snapshots second by second, when each second is tallied, then every second from the third reads at least 60 FPS and a frame time under 100 ms, never 0.",
+      "check": "AGameThatChangesHowItPresentsKeepsItsFrames",
+      "passes": false
+    }
+  ]
+}

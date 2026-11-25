@@ -24,7 +24,7 @@ public static class ThermiConfigJson
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            return (new ThermiConfig(), null);
+            return (ThermiConfig.New, null);
         }
 
         try

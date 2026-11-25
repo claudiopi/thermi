@@ -192,6 +192,12 @@
   <data name="CatalogText.RowReadsNothing" xml:space="preserve">
     <value>No lee nada</value>
   </data>
+  <data name="CatalogText.RowNoFrames" xml:space="preserve">
+    <value>Se lee mientras un juego o app 3D al frente dibuja cuadros</value>
+  </data>
+  <data name="CatalogText.RowFramesUnread" xml:space="preserve">
+    <value>No puede leer cuadros: actualizá thermi o reiniciá el PC</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Se muestra: {0}</value>
   </data>
@@ -1410,6 +1416,12 @@
   <data name="NoValue.Resting" xml:space="preserve">
     <value>detenido mientras la GPU está fría</value>
   </data>
+  <data name="NoValue.NoFrames" xml:space="preserve">
+    <value>se lee solo mientras la app al frente dibuja cuadros, como un juego</value>
+  </data>
+  <data name="NoValue.FramesUnread" xml:space="preserve">
+    <value>no puede leer cuadros: el servicio de sensores es anterior a ellos, o Windows no tiene una sesión de traza libre</value>
+  </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
   </data>
@@ -1527,6 +1539,9 @@
   <data name="Refusal.WarningAboveCritical" xml:space="preserve">
     <value>El valor de advertencia no puede superar al crítico.</value>
   </data>
+  <data name="Refusal.CriticalAboveWarning" xml:space="preserve">
+    <value>En los cuadros por segundo, el valor crítico va por debajo del de advertencia.</value>
+  </data>
   <data name="Refusal.ThresholdOutOfRange" xml:space="preserve">
     <value>Un umbral debe estar dentro de la escala.</value>
   </data>
@@ -1571,6 +1586,9 @@
   </data>
   <data name="Refusal.SumOfTemperatures" xml:space="preserve">
     <value>Las temperaturas se combinan por la más alta o por el promedio, nunca sumadas.</value>
+  </data>
+  <data name="Refusal.SumOfVoltages" xml:space="preserve">
+    <value>Los voltajes se combinan por el más alto o por el promedio, nunca sumados.</value>
   </data>
   <data name="Refusal.SumOfUnknown" xml:space="preserve">
     <value>Los sensores de este elemento no se leen ahora, así que thermi no puede saber si sumarlos tiene sentido.</value>
@@ -2082,8 +2100,14 @@
   <data name="MetricLabel.Time" xml:space="preserve">
     <value>HORA</value>
   </data>
+  <data name="MetricLabel.Fps" xml:space="preserve">
+    <value>FPS</value>
+  </data>
   <data name="DeviceKind.System" xml:space="preserve">
     <value>PC</value>
+  </data>
+  <data name="DeviceKind.Game" xml:space="preserve">
+    <value>Juego</value>
   </data>
   <data name="MetricName.Uptime" xml:space="preserve">
     <value>Tiempo encendido</value>
@@ -2094,11 +2118,23 @@
   <data name="MetricName.Clock" xml:space="preserve">
     <value>Reloj</value>
   </data>
+  <data name="MetricName.Fps" xml:space="preserve">
+    <value>FPS</value>
+  </data>
+  <data name="MetricName.FrameTime" xml:space="preserve">
+    <value>Tiempo por cuadro</value>
+  </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Hora</value>
   </data>
   <data name="SensorKind.Address" xml:space="preserve">
     <value>Dirección</value>
+  </data>
+  <data name="SensorKind.FrameRate" xml:space="preserve">
+    <value>Cuadros por segundo</value>
+  </data>
+  <data name="SensorKind.FrameTime" xml:space="preserve">
+    <value>Tiempo por cuadro</value>
   </data>
   <data name="Synonyms.Time" xml:space="preserve">
     <value>reloj hora tiempo segundos</value>
@@ -2108,6 +2144,21 @@
   </data>
   <data name="Synonyms.System" xml:space="preserve">
     <value>pc windows equipo computadora sistema</value>
+  </data>
+  <data name="Synonyms.FrameRate" xml:space="preserve">
+    <value>fps cuadros fotogramas tasa</value>
+  </data>
+  <data name="SensorKind.Voltage" xml:space="preserve">
+    <value>Voltaje</value>
+  </data>
+  <data name="Synonyms.Voltage" xml:space="preserve">
+    <value>voltios volts voltaje tensión</value>
+  </data>
+  <data name="Synonyms.FrameTime" xml:space="preserve">
+    <value>tiempo cuadro frametime ms tirones</value>
+  </data>
+  <data name="Synonyms.Game" xml:space="preserve">
+    <value>juego juegos jugar 3d</value>
   </data>
   <data name="UnitText.BitsPerSecond" xml:space="preserve">
     <value>bps</value>

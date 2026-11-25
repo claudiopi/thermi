@@ -224,14 +224,17 @@ public sealed class ItemHistory(TimeProvider time)
     /// </summary>
     public static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, IReadOnlyList<double?> meters)
     {
-        // A fan or throughput fills on the window chart's range, not up to its possible maximum, where a line lies flat.
+        // A fan or throughput fills on the window chart's range, not up to its possible maximum, where a line lies flat; the
+        // rest on the overlay's own scale.
         var kind = Threshold.JudgedKind(item) ?? SensorKind.Load;
         var minute = meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).ToList();
         var top = kind is SensorKind.Fan or SensorKind.Throughput
             ? MeterChart.Range(new MeterScale(kind, item.Threshold?.Warning, item.Threshold?.Critical, 1, 1), [.. minute.OfType<double>()]).To
-            : Threshold.MaxOf(kind);
+            : (double?)null;
         return [.. minute.Select(value => value is { } read
-            ? new GraphPoint(Math.Clamp(read / top, 0, 1), item.Threshold?.LevelOf(new Reading(kind, read)) ?? Level.Normal)
+            ? new GraphPoint(
+                top is { } range ? Math.Clamp(read / range, 0, 1) : OverlayLayout.FillOf(read, kind),
+                item.Threshold?.LevelOf(new Reading(kind, read)) ?? Level.Normal)
             : (GraphPoint?)null)];
     }
 

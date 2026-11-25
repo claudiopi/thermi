@@ -23,6 +23,8 @@ const reasons: Record<NoValue, TextKey> = {
   stopped: 'CatalogText.RowStopped',
   resting: 'CatalogText.RowResting',
   'reads-nothing': 'CatalogText.RowReadsNothing',
+  'no-frames': 'CatalogText.RowNoFrames',
+  'frames-unread': 'CatalogText.RowFramesUnread',
 };
 
 // A drive, an adapter or a battery is named under its group, as "Network · Intel I226-V".
@@ -32,7 +34,9 @@ const groupKeys: Partial<Record<NonNullable<CatalogGroup['kind']>, TextKey>> = {
   battery: 'CatalogText.GroupBattery',
 };
 
-const kindKey = (kind: CatalogRow['kind']): TextKey => `SensorKind.${kind.charAt(0).toUpperCase()}${kind.slice(1)}`;
+// The bridge's kinds are kebab-case, as frame-rate, and their texts' keys Pascal, as SensorKind.FrameRate.
+const kindKey = (kind: CatalogRow['kind']): TextKey =>
+  `SensorKind.${kind.replace(/(^|-)(\w)/g, (_, _dash: string, letter: string) => letter.toUpperCase())}`;
 
 function moveFocus(event: KeyboardEvent<HTMLDivElement>, onLeaveUp: () => void): boolean {
   const rows = [...(event.currentTarget.closest('[role="listbox"]')?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];

@@ -3,12 +3,14 @@ using System.Diagnostics;
 using System.Globalization;
 using System.ServiceProcess;
 using Thermi.Core.Sensors;
+using Thermi.SensorHost.Frames;
 
 namespace Thermi.SensorHost;
 
 /// <summary>
 /// The <c>thermi-sensors</c> Windows service. <c>--console</c> serves readings in a terminal, and
-/// <c>--dump &lt;file&gt;</c> saves one snapshot, and <c>--dump &lt;file&gt; --seconds &lt;n&gt;</c> a series, for test recordings.
+/// <c>--dump &lt;file&gt;</c> saves one snapshot, and <c>--dump &lt;file&gt; --seconds &lt;n&gt;</c> a series, for test recordings;
+/// <c>--frames &lt;file&gt; --seconds &lt;n&gt;</c> records presents.
 /// Arguments that make no sense say why and exit with 2, before the sensors are opened.
 /// </summary>
 internal static class Program
@@ -39,6 +41,11 @@ internal static class Program
             return RunElevated(environment);
         }
 
+        if (request is SensorFrames frames)
+        {
+            return await RecordFramesAsync(environment, frames);
+        }
+
         var service = request is not (SensorServe { Console: true } or SensorDump);
         // A single dump is all it reads, so it waits for every device, however slow: one it did not wait for would be missing.
         using var source = Open(
@@ -57,7 +64,10 @@ internal static class Program
     private static async Task<int> RunOrServeAsync(
         ISensorSource source, SensorHostEnvironment environment, bool service, CancellationToken stop)
     {
-        using var server = new SensorPipeServer(source.ReadAsync, environment.Time, environment.PipeName)
+        Action<string> say = service ? said => environment.Log(said, EventLogEntryType.Warning) : environment.Error.WriteLine;
+        using var framed = Framed(source, environment, say);
+        var read = (ISensorSource?)framed ?? source;
+        using var server = new SensorPipeServer(read.ReadAsync, environment.Time, environment.PipeName)
         {
             Squatted = () => environment.Log(
                 $"Another program holds the {environment.PipeName} pipe, so thermi's overlay and window get no readings. "
@@ -85,6 +95,23 @@ internal static class Program
             ElevatedService.RunThermiAsync, environment.Time, error => environment.Log(error.ToString(), EventLogEntryType.Error));
         ServiceBase.Run(elevated);
         return elevated.ExitCode;
+    }
+
+    private static FramedSource? Framed(ISensorSource sensors, SensorHostEnvironment environment, Action<string> say) =>
+        environment.Trace is { } trace ? new FramedSource(sensors, trace, new ProcessTable(environment.Time), environment.Time, say) : null;
+
+    // Before the sensors are opened: presents need none. A trace that cannot start says so and exits with 1.
+    private static async Task<int> RecordFramesAsync(SensorHostEnvironment environment, SensorFrames frames)
+    {
+        using var trace = (environment.Recording ?? environment.Trace)?.Invoke();
+        await using var writer = new StreamWriter(frames.File);
+        if (trace is not null && await FrameRecorder.RecordAsync(trace, new ProcessTable(environment.Time), writer, frames.Seconds, environment.Time))
+        {
+            return 0;
+        }
+
+        await environment.Error.WriteLineAsync("Presents cannot be traced: run it as administrator, with no other thermi-sensors recording.");
+        return 1;
     }
 
     private static async Task DumpAsync(ISensorSource source, SensorDump dump, TimeProvider time)

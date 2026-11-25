@@ -1,5 +1,20 @@
 import { type Page } from '@playwright/test';
-import { expect, fakeState, itemOf, openWindow, recording, select, settingsOf, setFake, test, text, type Item } from './fakeBridge';
+import {
+  expect,
+  fakeState,
+  itemOf,
+  openWindow,
+  recording,
+  select,
+  selectedRow,
+  settingsOf,
+  setFake,
+  startingWith,
+  test,
+  text,
+  withGame,
+  type Item,
+} from './fakeBridge';
 
 const itemIn = async (page: Page, id: string): Promise<Item> => itemOf(await settingsOf(page), id);
 
@@ -88,6 +103,51 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     await expect(warning).toBeVisible();
     await expect(page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) })).toHaveCount(0);
   });
+});
+
+// A4 of spec 005: FPS added from the game's device shows its value in the list with no lines, the lines added come with
+// the critical under the warning, and the critical cannot be dragged above it.
+test('AnFpsItemIsAddedAndItsLinesSetLow', async ({ page }) => {
+  const sensors = withGame();
+  const fps = sensors.find((sensor) => sensor.type === 'FrameRate');
+  if (fps === undefined) {
+    throw new Error('The game has no frame rate.');
+  }
+  await openWindow(page, fakeState({ sensors }));
+  await select(page, 'Taskbar');
+  await page.keyboard.press('Control+N');
+  const catalog = page.getByRole('dialog', { name: text('UiText.Catalog') });
+  await catalog.getByRole('group', { name: fps.hardware }).getByRole('option', { name: startingWith(fps.name) }).click();
+  await expect(catalog).toBeHidden();
+  const added = async (): Promise<Item | undefined> =>
+    (await settingsOf(page)).overlays.flatMap((overlay) => overlay.items).find((item) => item.sensor === fps.id);
+  await expect.poll(async () => (await added())?.id).toBeDefined();
+  const id = (await added())?.id ?? '';
+  expect((await added())?.threshold).toBeUndefined();
+
+  const shown = await page.evaluate(async (item) => (await window.thermi?.view())?.items[item]?.value ?? null, id);
+  expect(shown).not.toBeNull();
+  await expect(selectedRow(page)).toHaveAccessibleDescription(shown ?? '');
+
+  await page.getByRole('button', { name: text('UiText.AddWarningLine') }).click();
+  await page.getByRole('button', { name: text('UiText.AddCriticalLine') }).click();
+  const warning = page.getByRole('slider', { name: text('UiText.WarningFrom') });
+  const critical = page.getByRole('slider', { name: text('UiText.CriticalFrom') });
+  await expect(critical).toBeVisible();
+  const [from, above] = [await critical.boundingBox(), await warning.boundingBox()];
+  if (from === null || above === null) {
+    throw new Error('The knobs are not shown.');
+  }
+  expect(from.y).toBeGreaterThan(above.y);
+  // Dragged past where the warning was, the critical pushes it up ahead of itself.
+  const warned = (await added())?.threshold?.warning ?? 0;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, above.y - 40, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => (await added())?.threshold?.critical ?? 0).toBeGreaterThan(warned);
+  const lines = (await added())?.threshold;
+  expect(lines?.critical ?? 0).toBeLessThanOrEqual(lines?.warning ?? 0);
 });
 
 // A207 on a fan, whose track ends far past its speed: a line added comes above the speed, the keys move it a step, and

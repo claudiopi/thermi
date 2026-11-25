@@ -62,6 +62,7 @@ export interface ChartView {
   toText: string;
   fires: string | null;
   startText: string;
+  low?: boolean;
 }
 
 export interface ColorStop {
@@ -79,7 +80,7 @@ export interface DesktopPick {
   how: SelectHow;
 }
 
-export type DeviceKind = 'cpu' | 'gpu' | 'ram' | 'board' | 'ssd' | 'network' | 'battery' | 'system';
+export type DeviceKind = 'cpu' | 'gpu' | 'ram' | 'board' | 'ssd' | 'network' | 'battery' | 'system' | 'game';
 
 export type DriverInstall = 'installed' | 'not-installed' | 'restart-windows';
 
@@ -218,7 +219,7 @@ export interface Monitor {
 
 export type NameFrom = 'library' | 'likely' | 'own';
 
-export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting';
+export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread';
 
 export interface Opacity {
   background?: number;
@@ -286,7 +287,7 @@ export interface Sensor {
   value: number | null;
 }
 
-export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address';
+export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address' | 'frame-rate' | 'frame-time' | 'voltage';
 
 export interface SensorOffer {
   first: string[];

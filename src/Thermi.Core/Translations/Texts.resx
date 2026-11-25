@@ -192,6 +192,12 @@
   <data name="CatalogText.RowReadsNothing" xml:space="preserve">
     <value>Reads nothing</value>
   </data>
+  <data name="CatalogText.RowNoFrames" xml:space="preserve">
+    <value>Reads while a game or 3D app in front draws frames</value>
+  </data>
+  <data name="CatalogText.RowFramesUnread" xml:space="preserve">
+    <value>Can't read frames: update thermi, or restart the PC</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Shown: {0}</value>
   </data>
@@ -1410,6 +1416,12 @@
   <data name="NoValue.Resting" xml:space="preserve">
     <value>stopped while the GPU is cool</value>
   </data>
+  <data name="NoValue.NoFrames" xml:space="preserve">
+    <value>reads only while an app in front draws frames, as a game</value>
+  </data>
+  <data name="NoValue.FramesUnread" xml:space="preserve">
+    <value>can't read frames: the sensor service is from before them, or Windows has no trace session free</value>
+  </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
   </data>
@@ -1527,6 +1539,9 @@
   <data name="Refusal.WarningAboveCritical" xml:space="preserve">
     <value>The warning value cannot be above the critical one.</value>
   </data>
+  <data name="Refusal.CriticalAboveWarning" xml:space="preserve">
+    <value>For a frame rate, the critical value goes below the warning one.</value>
+  </data>
   <data name="Refusal.ThresholdOutOfRange" xml:space="preserve">
     <value>A threshold must lie on the track.</value>
   </data>
@@ -1571,6 +1586,9 @@
   </data>
   <data name="Refusal.SumOfTemperatures" xml:space="preserve">
     <value>Temperatures can be combined as their highest or their average, never as a sum.</value>
+  </data>
+  <data name="Refusal.SumOfVoltages" xml:space="preserve">
+    <value>Voltages can be combined as their highest or their average, never as a sum.</value>
   </data>
   <data name="Refusal.SumOfUnknown" xml:space="preserve">
     <value>This item's sensors are not read now, so thermi cannot tell whether a sum of them means anything.</value>
@@ -2082,8 +2100,14 @@
   <data name="MetricLabel.Time" xml:space="preserve">
     <value>TIME</value>
   </data>
+  <data name="MetricLabel.Fps" xml:space="preserve">
+    <value>FPS</value>
+  </data>
   <data name="DeviceKind.System" xml:space="preserve">
     <value>PC</value>
+  </data>
+  <data name="DeviceKind.Game" xml:space="preserve">
+    <value>Game</value>
   </data>
   <data name="MetricName.Uptime" xml:space="preserve">
     <value>Uptime</value>
@@ -2094,11 +2118,23 @@
   <data name="MetricName.Clock" xml:space="preserve">
     <value>Clock</value>
   </data>
+  <data name="MetricName.Fps" xml:space="preserve">
+    <value>FPS</value>
+  </data>
+  <data name="MetricName.FrameTime" xml:space="preserve">
+    <value>Frame time</value>
+  </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Time</value>
   </data>
   <data name="SensorKind.Address" xml:space="preserve">
     <value>Address</value>
+  </data>
+  <data name="SensorKind.FrameRate" xml:space="preserve">
+    <value>Frame rate</value>
+  </data>
+  <data name="SensorKind.FrameTime" xml:space="preserve">
+    <value>Frame time</value>
   </data>
   <data name="Synonyms.Time" xml:space="preserve">
     <value>clock hour time seconds</value>
@@ -2108,6 +2144,21 @@
   </data>
   <data name="Synonyms.System" xml:space="preserve">
     <value>pc windows computer system</value>
+  </data>
+  <data name="Synonyms.FrameRate" xml:space="preserve">
+    <value>fps frames frame rate framerate</value>
+  </data>
+  <data name="SensorKind.Voltage" xml:space="preserve">
+    <value>Voltage</value>
+  </data>
+  <data name="Synonyms.Voltage" xml:space="preserve">
+    <value>volts volt voltage rail</value>
+  </data>
+  <data name="Synonyms.FrameTime" xml:space="preserve">
+    <value>frame time frametime ms stutter</value>
+  </data>
+  <data name="Synonyms.Game" xml:space="preserve">
+    <value>game games play 3d</value>
   </data>
   <data name="UnitText.BitsPerSecond" xml:space="preserve">
     <value>bps</value>

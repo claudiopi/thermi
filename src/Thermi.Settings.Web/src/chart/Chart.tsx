@@ -5,7 +5,7 @@ import { Creature } from '../app/Creature';
 import { useMeasured } from '../app/measured';
 import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
-import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, tintsOf, valueAt, yOf, type Plot } from './geometry';
 import { Knob } from './Knob';
 import { ScrubLabel, ScrubMarks, useScrub } from './Scrub';
 import './chart.css';
@@ -75,12 +75,11 @@ function useFocusHandOver(chart: ChartView): { focused: (target: string) => void
 
 /** The warning and critical zones, faint, under the line. */
 function Tints({ plot }: { plot: Plot }) {
-  const { chart } = plot;
-  const top = chart.critical === null ? 0 : yOf(plot, chart.critical);
   return (
     <>
-      {chart.critical !== null && <rect className="t-tint-critical" x="0" y="0" width={plot.width} height={Math.max(0, top)} />}
-      {chart.warning !== null && <rect className="t-tint-warning" x="0" y={top} width={plot.width} height={Math.max(0, yOf(plot, chart.warning) - top)} />}
+      {tintsOf(plot).map((tint) => (
+        <rect key={tint.level} className={`t-tint-${tint.level}`} x="0" y={tint.top} width={plot.width} height={tint.height} />
+      ))}
     </>
   );
 }

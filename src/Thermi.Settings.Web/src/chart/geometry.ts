@@ -124,22 +124,41 @@ export function stopsOf(chart: ChartView): { offset: number; level: Level }[] {
   });
 }
 
-/** The level the line's color says at a value, for the dot at its end. */
+/** The level the line's color says at a value, for the dot at its end; a value at a low meter's line takes the level under it, as C# judges it. */
 export function levelAt(chart: ChartView, value: number): Level {
-  const below = chart.colors.filter((stop) => stop.at <= value);
+  const below = chart.colors.filter((stop) => (chart.low ? stop.at < value : stop.at <= value));
   return (below.at(-1) ?? chart.colors[0])?.level ?? 'normal';
 }
 
-/** Where each knob sits: at its line, kept inside the plot and apart from the other knob. */
+/**
+ * Where each knob sits: at its line, kept inside the plot and apart from the other knob, the higher line's above. A frame
+ * rate's critical is under its warning; at the same value the critical goes where its color is, above the line for a
+ * meter that warns high and under it for one that warns low.
+ */
 export function knobTops(plot: Plot): Record<Line, number | null> {
+  const { chart } = plot;
   const place = (value: number | null): number | null => (value === null ? null : Math.min(plot.height, Math.max(0, yOf(plot, value))));
-  const warning = place(plot.chart.warning);
-  const critical = place(plot.chart.critical);
-  if (warning === null || critical === null || warning - critical >= knobsApart) {
+  const warning = place(chart.warning);
+  const critical = place(chart.critical);
+  if (warning === null || critical === null || Math.abs(warning - critical) >= knobsApart) {
     return { warning, critical };
   }
+  const criticalUp = chart.critical === chart.warning ? !chart.low : critical < warning;
   const middle = (warning + critical) / 2;
-  return { warning: middle + knobsApart / 2, critical: middle - knobsApart / 2 };
+  const apart = (criticalUp ? knobsApart : -knobsApart) / 2;
+  return { warning: middle + apart, critical: middle - apart };
+}
+
+/** The faint bands of the warning and critical zones, top down, where the chart's colors say a level past normal. */
+export function tintsOf(plot: Plot): { level: Exclude<Level, 'normal'>; top: number; height: number }[] {
+  const { colors } = plot.chart;
+  return colors.flatMap((stop, index) => {
+    const next = colors[index + 1];
+    // The lowest band reaches the plot's bottom and the highest its top, past the pads.
+    const top = next === undefined ? 0 : Math.max(0, yOf(plot, next.at));
+    const bottom = index === 0 ? plot.height : Math.min(plot.height, yOf(plot, stop.at));
+    return stop.level === 'normal' || bottom <= top ? [] : [{ level: stop.level, top, height: bottom - top }];
+  });
 }
 
 /** The line a click at a height moves: the nearest one that is on. */

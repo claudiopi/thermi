@@ -16,6 +16,7 @@ using Thermi.Overlay;
 using Thermi.Ui.Editor;
 using Thermi.Ui.Views;
 using Thermi.Windows;
+using Thermi.Windows.Clipboard;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 

@@ -26,14 +26,17 @@ public static class PowerEdits
         // A speed or a time remaining is counted, not measured, so there is no sensor's error to correct.
         SensorKind.Throughput or SensorKind.Duration => (0, 0),
 
-        // What Windows says is no measure at all.
-        SensorKind.Time or SensorKind.Address => (0, 0),
+        // What Windows says is no measure at all, and frames are counted.
+        SensorKind.Time or SensorKind.Address or SensorKind.FrameRate or SensorKind.FrameTime => (0, 0),
+
+        // A board's divider errs by a factor, not by a sum, so an offset corrects no voltage.
+        SensorKind.Voltage => (0, 0),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
     };
 
     /// <summary>
     /// Adds an item that combines sensors of one type, as their highest, average or sum, placed and named from the first
-    /// sensor as a sensor's item is. A sum of temperatures means nothing, so it is refused.
+    /// sensor as a sensor's item is. A sum of temperatures or of voltages means nothing, so it is refused.
     /// </summary>
     public static EditResult AddCombined(
         ThermiConfig config,
@@ -59,7 +62,7 @@ public static class PowerEdits
 
     /// <summary>
     /// Makes an item show sensors of one type combined, as their highest unless it already combined others; it keeps the
-    /// metric it started from as auto, so it can go back to it. A sum of temperatures means nothing, so it is refused.
+    /// metric it started from as auto, so it can go back to it. A sum of temperatures or of voltages means nothing, so it is refused.
     /// </summary>
     public static EditResult SetSensors(ThermiConfig config, string id, Snapshot snapshot, IReadOnlyList<string> sensorIds)
     {
@@ -91,8 +94,7 @@ public static class PowerEdits
         Refusal? refusal = item.Sensors is null ? Refusal.CombineNeedsTwo
             : combine != Combine.Sum ? null
             : kind is null ? Refusal.SumOfUnknown
-            : kind == SensorKind.Temperature ? Refusal.SumOfTemperatures
-            : null;
+            : NoSum(kind.Value);
         return refusal is { } refused ? ConfigEdits.Refuse(config, refused) : ConfigEdits.Edit(config, id, each => each with { Combine = combine });
     }
 
@@ -149,7 +151,13 @@ public static class PowerEdits
         count < 2 ? Refusal.CombineNeedsTwo
         : kinds.Contains(null) ? Refusal.SensorNotFound
         : kinds.Count > 1 ? Refusal.SensorOfAnotherType
-        : kinds[0] == SensorKind.Temperature && combine == Combine.Sum ? Refusal.SumOfTemperatures
+        : combine == Combine.Sum && kinds[0] is { } kind ? NoSum(kind)
+        : null;
+
+    // Temperatures and voltages add to nothing anything has; their highest or average means something.
+    private static Refusal? NoSum(SensorKind kind) =>
+        kind == SensorKind.Temperature ? Refusal.SumOfTemperatures
+        : kind == SensorKind.Voltage ? Refusal.SumOfVoltages
         : null;
 
     private static EditResult Judged(ThermiConfig config, string id, bool on, Func<ItemConfig, ItemConfig> change) =>

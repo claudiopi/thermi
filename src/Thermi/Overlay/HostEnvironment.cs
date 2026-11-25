@@ -5,6 +5,7 @@ using Thermi.Commands;
 using Thermi.Core.Settings;
 using Thermi.Tray;
 using Thermi.Windows;
+using Thermi.Windows.Clipboard;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 

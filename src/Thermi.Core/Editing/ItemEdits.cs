@@ -175,7 +175,7 @@ public static class ItemEdits
 
     /// <summary>
     /// Sets the lines at which the item warns and is critical, in the unit of what it warns by: from 0 to 100, or to 10,000
-    /// RPM for a fan's speed. A line left null is off, and with both off the item has none.
+    /// RPM for a fan's speed, or to 1000 for a game's frames. A line left null is off, and with both off the item has none.
     /// </summary>
     public static EditResult SetThreshold(ThermiConfig config, string id, double? warning, double? critical)
     {
@@ -184,12 +184,7 @@ public static class ItemEdits
             return ConfigEdits.Refuse(config, Refusal.NotFound);
         }
 
-        var kind = Threshold.JudgedKind(item);
-        var max = kind is { } judged ? Threshold.MaxOf(judged) : 0;
-        Refusal? refusal = kind is null ? Refusal.NothingToJudge
-            : !OnTrack(warning, max) || !OnTrack(critical, max) ? Refusal.ThresholdOutOfRange
-            : warning > critical ? Refusal.WarningAboveCritical
-            : null;
+        Refusal? refusal = Threshold.JudgedKind(item) is not { } kind ? Refusal.NothingToJudge : LinesRefusal(kind, warning, critical);
         return refusal is { } refused
             ? ConfigEdits.Refuse(config, refused)
             : ConfigEdits.Edit(config, id, each => each with { Threshold = warning is null && critical is null ? null : new Threshold(warning, critical) });
@@ -212,6 +207,15 @@ public static class ItemEdits
         return KindOf(reading.Metric ?? reading.Auto, reading.Sensor, snapshot) is null
             ? ConfigEdits.Refuse(config, Refusal.SensorNotFound)
             : ConfigEdits.Edit(config, id, each => each with { Threshold = Threshold.Default(each, snapshot) });
+    }
+
+    private static Refusal? LinesRefusal(SensorKind kind, double? warning, double? critical)
+    {
+        var max = Threshold.MaxOf(kind);
+        return !OnTrack(warning, max) || !OnTrack(critical, max) ? Refusal.ThresholdOutOfRange
+            : warning is not { } first || critical is not { } second || new Threshold(first, second).InOrderFor(kind) ? null
+            : Threshold.WarnsLow(kind) ? Refusal.CriticalAboveWarning
+            : Refusal.WarningAboveCritical;
     }
 
     private static bool OnTrack(double? line, double max) => line is not { } value || (value >= 0 && value <= max);

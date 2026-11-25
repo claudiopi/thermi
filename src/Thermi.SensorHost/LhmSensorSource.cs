@@ -162,7 +162,7 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
                 sensor.Name,
                 read == DeviceRead.Missing || (speed && !speedsHold) ? null : sensor.Value);
 
-            // The types thermi cannot show (voltages, currents, energy, ...) never leave this process.
+            // The types thermi cannot show (currents, energy, ...) never leave this process.
             if (SensorMap.KindOf(raw) is not null)
             {
                 sensors.Add(raw);

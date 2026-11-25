@@ -26,7 +26,10 @@ public enum Refusal
 
     WarningAboveCritical,
 
-    /// <summary>A threshold is a number from 0 to 100, or to 10,000 RPM for a fan's speed.</summary>
+    /// <summary>For a reading in trouble when low, as a frame rate, the critical line goes below the warning.</summary>
+    CriticalAboveWarning,
+
+    /// <summary>A threshold is a number from 0 to 100, or to 10,000 RPM for a fan's speed, or to 1000 for a game's frames.</summary>
     ThresholdOutOfRange,
 
     /// <summary>Lines judge a temperature, a load, a duty, a fan speed or a throughput, so an item that warns by none has none.</summary>
@@ -67,6 +70,9 @@ public enum Refusal
 
     /// <summary>A sum of temperatures means nothing; their highest or average does.</summary>
     SumOfTemperatures,
+
+    /// <summary>A sum of voltages means nothing either: a core's and a rail's add to no voltage anything has.</summary>
+    SumOfVoltages,
 
     /// <summary>The item's sensors read nothing now, so whether they are temperatures, which no sum takes, is not known.</summary>
     SumOfUnknown,

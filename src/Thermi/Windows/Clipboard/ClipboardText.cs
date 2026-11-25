@@ -3,7 +3,7 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Ole;
 
-namespace Thermi.Windows;
+namespace Thermi.Windows.Clipboard;
 
 /// <summary>The text Windows' clipboard holds, read without taking it from the app that put it there.</summary>
 internal static class ClipboardText

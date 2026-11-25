@@ -71,6 +71,9 @@ public enum ChartText
 public sealed record MeterScale(SensorKind Kind, double? Warning, double? Critical, double Step, double Push)
 {
     public double Max => Threshold.MaxOf(Kind);
+
+    /// <summary>Whether its lines warn below a value, the critical under the warning, as a frame rate's.</summary>
+    public bool Low => Threshold.WarnsLow(Kind);
 }
 
 /// <summary>The lines after one moved, and the other when it was pushed out of the way, else null.</summary>
@@ -145,15 +148,16 @@ public static class MeterChart
 
     /// <summary>
     /// Where the chart's color changes over its range, bottom up, as the overlay's meters color their levels: normal below
-    /// the lines or without them, warning from the warning and critical from the critical. Each stop's level holds up to
-    /// the next, so the line and its fill change color where they cross a line.
+    /// the lines or without them, warning from the warning and critical from the critical; for a <paramref name="low"/>
+    /// meter, critical up to the critical, warning up to the warning and normal above. Each stop's level holds up to the
+    /// next, so the line and its fill change color where they cross a line.
     /// </summary>
-    public static IReadOnlyList<(double At, Level Level)> Stops(double from, double to, double? warning, double? critical)
+    public static IReadOnlyList<(double At, Level Level)> Stops(double from, double to, double? warning, double? critical, bool low = false)
     {
-        var stops = new List<(double At, Level Level)> { (from, LevelAt(from, warning, critical)) };
+        var stops = new List<(double At, Level Level)> { (from, low ? LevelAbove(from, warning, critical) : LevelAt(from, warning, critical)) };
         foreach (var line in new[] { warning, critical }.OfType<double>().Where(line => line > from && line <= to).Order())
         {
-            if (LevelAt(line, warning, critical) is var level && level != stops[^1].Level)
+            if ((low ? LevelAbove(line, warning, critical) : LevelAt(line, warning, critical)) is var level && level != stops[^1].Level)
             {
                 stops.Add((line, level));
             }
@@ -207,29 +211,32 @@ public static class MeterChart
     /// Whether the lowest line was reached for more than half of the last ten minutes, a second each: a line nobody would
     /// set on purpose, as one carried over from an older thermi.
     /// </summary>
-    public static bool FiresMostly(IEnumerable<double?> readings, double? warning, double? critical) =>
-        (warning ?? critical) is { } line && readings.Count(value => value >= line) * 2 > SensorHistory.Kept.TotalSeconds;
+    public static bool FiresMostly(IEnumerable<double?> readings, double? warning, double? critical, bool low = false) =>
+        (warning ?? critical) is { } line && readings.Count(value => low ? value <= line : value >= line) * 2 > SensorHistory.Kept.TotalSeconds;
 
     /// <summary>
     /// The lines once <paramref name="moved"/> is where it was put: when it went past the other, the other moves
-    /// <see cref="MeterScale.Push"/> beyond it, held on the track, so the warning stays below the critical.
+    /// <see cref="MeterScale.Push"/> beyond it, held on the track, so the warning stays below the critical, or above it on a
+    /// low meter.
     /// </summary>
     public static MovedLines Pushed(MeterScale scale, double? warning, double? critical, ChartLine moved)
     {
-        if (warning is not { } low || critical is not { } high || low <= high)
+        if (warning is not { } first || critical is not { } second || new Threshold(first, second).InOrderFor(scale.Kind))
         {
             return new MovedLines(warning, critical, null);
         }
 
+        var push = scale.Low ? -scale.Push : scale.Push;
         return moved == ChartLine.Warning
-            ? new MovedLines(low, Math.Min(low + scale.Push, scale.Max), ChartLine.Critical)
-            : new MovedLines(Math.Max(high - scale.Push, 0), high, ChartLine.Warning);
+            ? new MovedLines(first, Math.Clamp(first + push, 0, scale.Max), ChartLine.Critical)
+            : new MovedLines(Math.Clamp(second - push, 0, scale.Max), second, ChartLine.Warning);
     }
 
     /// <summary>
     /// Where a line added to the chart comes: at its default, else <see cref="MeterScale.Push"/> beyond the other line, else
-    /// near the top of the track. A fan's or a throughput's track ends far past any reading, so there it goes over the
-    /// highest of <paramref name="readings"/>: a warning 15 % over, a critical 30 %, rounded up to the knobs' step.
+    /// at 60 FPS or 30 critical and at 50 ms or 100 critical for frames, else near the top of the track. A fan's or a
+    /// throughput's track ends far past any reading, so there it goes over the highest of <paramref name="readings"/>: a
+    /// warning 15 % over, a critical 30 %, rounded up to the knobs' step.
     /// </summary>
     public static double Added(MeterScale scale, Threshold? lines, ChartLine line, IReadOnlyList<double> readings)
     {
@@ -239,9 +246,15 @@ public static class MeterChart
             return made;
         }
 
+        // A low meter's warning is above its critical, a high one's below.
         if ((warning ? lines?.Critical : lines?.Warning) is { } other)
         {
-            return Math.Clamp(warning ? other - scale.Push : other + scale.Push, 0, scale.Max);
+            return Math.Clamp(warning == scale.Low ? other + scale.Push : other - scale.Push, 0, scale.Max);
+        }
+
+        if (FramesLine(scale.Kind, warning) is { } frames)
+        {
+            return frames;
         }
 
         if (scale.Kind is not (SensorKind.Fan or SensorKind.Throughput))
@@ -255,6 +268,16 @@ public static class MeterChart
         var steps = Math.Ceiling(Math.Round(highest * (warning ? Headroom : CriticalAbove) / scale.Step, 6));
         return Math.Min(steps * scale.Step, scale.Max);
     }
+
+    // Frames have no default lines, and their track runs far past any game's: a line comes where most games are poor.
+    private static double? FramesLine(SensorKind kind, bool warning) => (kind, warning) switch
+    {
+        (SensorKind.FrameRate, true) => 60,
+        (SensorKind.FrameRate, false) => 30,
+        (SensorKind.FrameTime, true) => 50,
+        (SensorKind.FrameTime, false) => 100,
+        _ => null,
+    };
 
     /// <summary>
     /// What the box a knob opens says of the text typed in it, in the shown unit, or null for a value it keeps or for an
@@ -298,6 +321,12 @@ public static class MeterChart
     private static Level LevelAt(double value, double? warning, double? critical) =>
         value >= critical ? Level.Critical
         : value >= warning ? Level.Warning
+        : Level.Normal;
+
+    // A low meter's level just above a value: a line there belongs to the level below it.
+    private static Level LevelAbove(double value, double? warning, double? critical) =>
+        value < critical ? Level.Critical
+        : value < warning ? Level.Warning
         : Level.Normal;
 
     private static double OneTwoFive(double value)

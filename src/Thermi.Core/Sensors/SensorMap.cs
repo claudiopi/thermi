@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Frames;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Sensors;
@@ -77,6 +78,8 @@ public static class SensorMap
         [Metrics.Uptime.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Duration), [SystemSensors.Uptime], OnlyPreferred: true),
         [Metrics.LocalIp.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Address), [SystemSensors.LocalIp], OnlyPreferred: true),
         [Metrics.Clock.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Time), [SystemSensors.Clock], OnlyPreferred: true),
+        [Metrics.Fps.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.Fps], OnlyPreferred: true),
+        [Metrics.FrameTime.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameTime), [GameSensors.FrameTime], OnlyPreferred: true),
     };
 
     /// <summary>
@@ -148,12 +151,12 @@ public static class SensorMap
         KindOf(sensor) is { } kind ? new Reading(kind, ZeroIsMissing(sensor) ? null : Signed(sensor)) { Direction = DirectionOf(sensor) } : null;
 
     /// <summary>
-    /// Whether a zero means "not read". Without admin rights or the driver, the CPU's temperature, power and clocks
-    /// read exactly zero instead of nothing, and no running CPU is at 0 °C, draws 0 W or runs at 0 MHz. Every other
-    /// zero is real: a memory chip's limits, a stopped fan, an idle GPU.
+    /// Whether a zero means "not read": without admin rights or the driver, a CPU's temperature, power, clocks and voltages
+    /// read exactly zero, as no running CPU does. Every other zero is real: a memory chip's limits, a stopped fan, an idle GPU.
     /// </summary>
     public static bool ZeroIsMissing(RawSensor sensor) =>
-        sensor is { Value: 0, HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) or nameof(SensorKind.Power) or nameof(SensorKind.Clock) };
+        sensor is { Value: 0, HardwareType: "Cpu" }
+            && sensor.Type is nameof(SensorKind.Temperature) or nameof(SensorKind.Power) or nameof(SensorKind.Clock) or nameof(SensorKind.Voltage);
 
     /// <summary>Whether the sensor is a distance to TjMax, which the library types as a temperature though it falls as the core heats.</summary>
     public static bool IsDistanceToTjMax(RawSensor sensor) =>
@@ -194,6 +197,7 @@ public static class SensorMap
         Network => DeviceKind.Network,
         "Battery" => DeviceKind.Battery,
         SystemSensors.HardwareType => DeviceKind.System,
+        GameSensors.HardwareType => DeviceKind.Game,
         "Motherboard" or "SuperIO" or "EmbeddedController" => DeviceKind.Board,
         _ when IsGpu(sensor) => DeviceKind.Gpu,
         _ => null,

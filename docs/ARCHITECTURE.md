@@ -51,6 +51,7 @@ Why these packages and no others, and why the service takes the fewest, since it
 | --- | --- |
 | **Snapshot** | Every sensor of the types thermi shows, at one moment: id, hardware, type, name, value. `Snapshot.cs`. |
 | **Recording** | A snapshot saved with `thermi-sensors --dump`, replayed by tests. `tests/Thermi.Tests/Recordings`. |
+| **Frame slots** | The 8 processes that presented most in the last second, as sensors of the service's snapshot: process id, parent's id, FPS and frame time, always there and empty when frames cannot be read, so the catalog line never changes with them. The overlay and the window turn the slot of the game, the app that last filled its monitor in front while presenting (`Frames/FrontGame.cs`), into its FPS and frame time. `Frames/FrameSlots.cs`, `Frames/GameSensors.cs`, from `FrameTally.cs` (`docs/adr/0014-frames-from-etw.md`). |
 | **Catalog line** | The whole snapshot, names and all, which the pipe sends each client on connecting and on any change of its sensors; every other second it sends a values line, the values alone in that order (`docs/adr/0012-sensor-pipe-catalog-once.md`). `src/Thermi.Core/Pipe/SnapshotWriter.cs`, `SnapshotLines.cs`. |
 | **Metric** | A stable name for what the overlay shows, like `cpu.temperature`. `Metrics.cs`. |
 | **Sensor map** | The rules from a snapshot to each metric and to each sensor an item names, and the "zero means not read" rule, for a CPU temperature, power or clock only. `SensorMap.cs`. |

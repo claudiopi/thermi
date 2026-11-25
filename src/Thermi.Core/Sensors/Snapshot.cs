@@ -126,4 +126,5 @@ public static class SnapshotJson
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals)]
 [JsonSerializable(typeof(Snapshot))]
 [JsonSerializable(typeof(double?[]))]
+[JsonSerializable(typeof(Frames.Present))]
 internal sealed partial class CoreJson : JsonSerializerContext;

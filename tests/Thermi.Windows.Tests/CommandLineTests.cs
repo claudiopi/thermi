@@ -258,12 +258,14 @@ public sealed class CommandLineTests : IDisposable
     [InlineData(new[] { "--console" }, "console")]
     [InlineData(new[] { "--dump", "now.json" }, "dump now.json once")]
     [InlineData(new[] { "--dump", "load.json", "--seconds", "45" }, "dump load.json 45")]
-    [InlineData(new[] { "--seconds", "45" }, "--seconds needs --dump.")]
+    [InlineData(new[] { "--seconds", "45" }, "--seconds needs --dump or --frames.")]
+    [InlineData(new[] { "--frames", "zwift.jsonl", "--seconds", "90" }, "frames zwift.jsonl 90")]
+    [InlineData(new[] { "--frames", "zwift.jsonl" }, "--frames needs --seconds, and goes without --dump.")]
     [InlineData(new[] { "--dump", "load.json", "--seconds", "0" }, "--seconds needs a whole number above zero.")]
     [InlineData(new[] { "--dump", "load.json", "--seconds", "many" }, "--seconds needs a whole number above zero.")]
     [InlineData(new[] { "--elevated" }, "elevated")]
     [InlineData(new[] { "--elevated", "--console" }, "--elevated takes no other option.")]
-    public void TheSensorServiceServesOrDumps(string[] args, string expected)
+    public void TheSensorServiceServesDumpsOrRecordsFrames(string[] args, string expected)
     {
         var request = SensorCommands.Parse(args, out var errors);
 
@@ -274,6 +276,7 @@ public sealed class CommandLineTests : IDisposable
             SensorServe => "console",
             SensorDump { Seconds: null } dump => $"dump {dump.File} once",
             SensorDump dump => $"dump {dump.File} {dump.Seconds}",
+            SensorFrames frames => $"frames {frames.File} {frames.Seconds}",
             _ => string.Join(" ", errors),
         });
     }

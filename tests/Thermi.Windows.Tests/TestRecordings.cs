@@ -21,6 +21,15 @@ internal static class TestRecordings
 
     public const string NoAdmin = "ryzen-9950x-rtx-5060-ti-no-admin.json";
 
+    /// <summary>
+    /// As administrator, with the board's ITE IT8689E, whose voltages the library names only by their input but for the
+    /// standby rail and the CMOS battery, as it knows no layout for the board, each core's VID, and both GPUs' voltages.
+    /// </summary>
+    public const string AdminVoltages = "ryzen-9950x-rtx-5060-ti-admin-voltages.json";
+
+    /// <summary>Without admin rights: no board, and every core's VID the same 1.55 V, which no core asks for at rest.</summary>
+    public const string NoAdminVoltages = "ryzen-9950x-rtx-5060-ti-no-admin-voltages.json";
+
     /// <summary>With admin rights while a file downloaded and another was written to the drive, so the adapters and the drive read.</summary>
     public const string NetDisk = "ryzen-9950x-rtx-5060-ti-admin-net-disk.json";
 
@@ -32,6 +41,21 @@ internal static class TestRecordings
     /// hardware, before it took a drive's first update for its first sample.
     /// </summary>
     public const string DiskRescan = "ryzen-9950x-rtx-5060-ti-disk-rescan.jsonl";
+
+    /// <summary>
+    /// Every present for 8 s, as administrator, while Zwift, an OpenGL game, ran beside a terminal and an agent that presents
+    /// through Direct3D 9, as <c>thermi-sensors --frames</c> records them.
+    /// </summary>
+    public const string ZwiftFrames = "ryzen-9950x-rtx-5060-ti-zwift-frames.jsonl";
+
+    /// <summary>
+    /// Every present for 5 s, as administrator, while OBS captured Zwift: the kernel told of its frames only by copying each
+    /// to its window, as a recording with a plain ETW session (logman) and then turned into presents.
+    /// </summary>
+    public const string ZwiftObsFrames = "ryzen-9950x-rtx-5060-ti-zwift-obs-frames.jsonl";
+
+    /// <summary>Zwift's presents for 8 s, each with when the trace delivered it, from 0.42 s after it at the median to 0.74 s.</summary>
+    public const string ZwiftArrived = "ryzen-9950x-rtx-5060-ti-zwift-arrived.jsonl";
 
     public static string Path(string name) => System.IO.Path.Combine(AppContext.BaseDirectory, "Recordings", name);
 

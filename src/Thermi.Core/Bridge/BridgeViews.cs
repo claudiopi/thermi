@@ -128,8 +128,9 @@ public sealed record ColorStop(double At, Level Level);
 /// its first reading, a second each, and each as its point says it, its lines and their texts, the colors along it,
 /// its Min · Avg · Max and its summary for Narrator, why it is empty, the message of a line pushed by the other, its title,
 /// the ends of its span as its scale says them, when its lines are not the defaults and the lowest was reached for most of
-/// the ten minutes, what the button that puts the defaults back says, as "Use 90/95 °C", else null; and how long ago its
-/// first reading came, as "4 min ago".
+/// the ten minutes, what the button that puts the defaults back says, as "Use 90/95 °C", else null; how long ago its
+/// first reading came, as "4 min ago"; and whether it warns low, as a frame rate, whose critical line is under its warning
+/// and whose lines belong to the level under them.
 /// </summary>
 public sealed record ChartView(
     double Max,
@@ -151,4 +152,5 @@ public sealed record ChartView(
     string FromText,
     string ToText,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Fires,
-    string StartText);
+    string StartText,
+    bool Low = false);

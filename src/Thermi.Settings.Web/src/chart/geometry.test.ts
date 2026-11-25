@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ChartView, ColorStop } from '../bridge/bridge.g';
-import { chartHeight, knobTops, levelAt, nearestLine, plotPaths, readingAt, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, knobTops, levelAt, nearestLine, plotPaths, readingAt, stopsOf, tintsOf, valueAt, yOf, type Plot } from './geometry';
 
 // A plot 300 wide and 132 high draws 0 to 100 on the 100 px between its 16 px pads, which hold the scale's numbers clear of the
 // line (night QA: a line over the "0 %"): value v sits at y = 116 - v.
@@ -26,6 +26,7 @@ function plot(chart: Partial<ChartView> = {}): Plot {
     toText: '',
     fires: null,
     startText: '',
+    low: false,
     ...chart,
   };
   return { width: 300, height: 132, chart: view };
@@ -109,8 +110,18 @@ describe('the chart', () => {
     { value: 60, colors: stops, level: 'warning' },
     { value: 95, colors: stops, level: 'critical' },
     { value: 50, colors: [], level: 'normal' },
-  ])('colors the dot at $value $level', ({ value, colors, level }) => {
-    expect(levelAt(plot({ colors }).chart, value)).toBe(level);
+    {
+      value: 30,
+      colors: [
+        { at: 0, level: 'critical' },
+        { at: 30, level: 'warning' },
+        { at: 60, level: 'normal' },
+      ] satisfies ColorStop[],
+      level: 'critical',
+      low: true,
+    },
+  ])('colors the dot at $value $level', ({ value, colors, level, low }) => {
+    expect(levelAt(plot({ colors, low: low ?? false }).chart, value)).toBe(level);
   });
 
   test.each([
@@ -118,8 +129,30 @@ describe('the chart', () => {
     { warning: 50, critical: 60, tops: { warning: 74, critical: 48 } },
     { warning: -50, critical: 150, tops: { warning: 132, critical: 0 } },
     { warning: null, critical: 60, tops: { warning: null, critical: 56 } },
-  ])('sets the knobs of $warning and $critical apart', ({ warning, critical, tops }) => {
-    expect(knobTops(plot({ warning, critical }))).toEqual(tops);
+    // A frame rate's critical is under its warning, and its knob stays under it.
+    { warning: 60, critical: 50, tops: { warning: 48, critical: 74 } },
+    // At the same value the critical's knob goes above a high meter's lines and under a low one's.
+    { warning: 60, critical: 60, tops: { warning: 69, critical: 43 } },
+    { warning: 60, critical: 60, low: true, tops: { warning: 43, critical: 69 } },
+  ] satisfies { warning: number | null; critical: number | null; low?: boolean; tops: unknown }[])(
+    'sets the knobs of $warning and $critical apart',
+    ({ warning, critical, low, tops }) => {
+      expect(knobTops(plot({ warning, critical, low: low ?? false }))).toEqual(tops);
+    },
+  );
+
+  // The zones lie where the colors say a level past normal: over the lines, or under them for a frame rate.
+  test.each([
+    {
+      colors: [{ at: 0, level: 'normal' }, { at: 50, level: 'warning' }, { at: 90, level: 'critical' }],
+      tints: [{ level: 'warning', top: 26, height: 40 }, { level: 'critical', top: 0, height: 26 }],
+    },
+    {
+      colors: [{ at: 0, level: 'critical' }, { at: 30, level: 'warning' }, { at: 60, level: 'normal' }],
+      tints: [{ level: 'critical', top: 86, height: 46 }, { level: 'warning', top: 56, height: 30 }],
+    },
+  ] satisfies { colors: ColorStop[]; tints: ReturnType<typeof tintsOf> }[])('tints the zones of $colors', ({ colors, tints }) => {
+    expect(tintsOf(plot({ colors }))).toEqual(tints);
   });
 
   test.each([

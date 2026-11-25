@@ -36,6 +36,9 @@ public sealed record ThermiConfig
     /// <summary>The names the user gave sensors, by the id an item names each by; null while none has one.</summary>
     public IReadOnlyDictionary<string, string>? SensorNames { get; init; }
 
+    /// <summary>The settings thermi starts with where it finds no file: one overlay, <see cref="OverlayConfig.First"/>.</summary>
+    public static ThermiConfig New { get; } = new() { Overlays = [OverlayConfig.First] };
+
     public IReadOnlyList<OverlayConfig> Overlays { get; init; } = [new OverlayConfig()];
 }
 
@@ -56,6 +59,12 @@ public sealed record OverlayConfig(double Size = 1)
         Default(Metrics.GpuLoad),
         Default(Metrics.RamUsed, Metrics.RamLoad),
     ];
+
+    /// <summary>
+    /// The one overlay of a new settings file: the default items and FPS, which takes no room until an app in front
+    /// presents frames, so a game shows it with nothing set up and the desktop shows the same overlay as without it.
+    /// </summary>
+    public static OverlayConfig First { get; } = new() { Items = [.. DefaultItems, Default(Metrics.Fps)] };
 
     /// <summary>The name the user typed, or null: then it is named from where it sits, in the window's language.</summary>
     public string? Name { get; init; }
