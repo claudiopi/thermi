@@ -137,36 +137,36 @@
     {
       "id": "A20",
       "covers": ["R27", "R28"],
-      "description": "Given the service installed or not, and a user's pipe owned by the user or by another, when the overlay picks a pipe, then it reads the service's whenever the service is installed, else the user's only when the user owns it, and starts the user's host when none serves.",
+      "description": "Given the service installed or not, a user's pipe owned by the user, SYSTEM, administrators or another user, a server process inside or outside the user's folder and at a lower integrity, and hosts that ended soon after their start, when the overlay picks a pipe and its next try, then it reads the service's whenever the service is installed, the user's only when all three checks pass, waits 2 s and then doubling to a minute after quick ends, and starts no host under the switch's lock.",
       "check": "TheOverlayReadsTheServiceOrTheUsersOwnHost",
       "passes": false
     },
     {
       "id": "A21",
       "covers": ["R27"],
-      "description": "Given the user's host started as the user, when an overlay connects and later leaves, then it serves the same lines on the pipe named for the user's SID, which only that user and administrators may open, and ends once its last client left.",
+      "description": "Given the user's host started as the user, when an overlay connects and later leaves, then it serves the same lines on the pipe named for the user's SID, owned by that SID and closed to other users and remote clients, and ends with the Stopped mark once its last client left.",
       "check": "AUsersHostServesItsUserUntilTheLastClientLeaves",
       "passes": false
     },
     {
       "id": "A22",
       "covers": ["R29"],
-      "description": "Given a per-user or a machine install, a manifest with or without the version's machine MSI, and a download whose size or hash is wrong, when the fix is asked, then only a per-user install offers to install for everyone, and msiexec starts only for the file the manifest names, checked.",
+      "description": "Given a per-user or a machine install, a channel offering the running version, a later one, an earlier one or none, the policy Updates = 0, a download whose size or hash is wrong, and a prompt refused with 1223, when the fix is asked, then only a per-user install offers to install for everyone, msiexec starts only for the checked file the manifest names, held open, and every other case changes nothing and says why or opens the download page.",
       "check": "InstallForEveryoneRunsOnlyTheCheckedMsi",
       "passes": false
     },
     {
       "id": "A23",
       "covers": ["R32"],
-      "description": "Given a per-user install and a channel offering a newer version, when the user's host checks, then it takes it by the same rules, switches by its launchers through a watchdog run as the user, and goes back when the new host never serves.",
+      "description": "Given a per-user install and a channel offering a newer version, when the user's host checks, then it takes it by the same rules, its watchdog places the launchers only once the new host serves, starts the old host again when it never does, and a cut at each step leaves the launchers on a version that served.",
       "check": "AUserInstallUpdatesItselfThroughItsWatchdog",
       "passes": false
     },
     {
       "id": "A24",
       "covers": ["R32"],
-      "description": "Given the user's host, when About sends its check and restart codes on the user's control pipe, then the host acts on them as the service does, and on no other byte.",
-      "check": "TheUsersControlPipeTakesAboutsCodes",
+      "description": "Given the user's host, when About sets its check or restart event, or the watchdog its stop event, then each reaches its own action, and the events are the user's alone.",
+      "check": "EachOfTheUsersHostEventsReachesItsAction",
       "passes": false
     },
     {
@@ -178,15 +178,22 @@
     },
     {
       "id": "A26",
-      "covers": ["R26", "R29", "R30", "R31"],
-      "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows GPU and CPU load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, then the machine install, the service and the driver arrive, the CPU's temperature reads, and the per-user install is gone with the settings kept.",
-      "check": "by hand",
+      "covers": ["R31"],
+      "description": "Given the user's installed products, per-user and machine, of thermi and others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi by its per-user UpgradeCode.",
+      "check": "OnlyTheUsersOwnPerUserProductIsRemoved",
       "passes": false
     },
     {
       "id": "A27",
-      "covers": ["R32"],
-      "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host.",
+      "covers": ["R26", "R29", "R30", "R31"],
+      "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows the GPU and the CPU's load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, to a prompt naming thermi, then the machine install, the service and the driver arrive, the CPU's temperature reads, the start at sign-in stays as it was, and the per-user install is gone with the settings kept. Run once more with the driver's download blocked: thermi installs, the event log says why, and the fix is still offered.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A28",
+      "covers": ["R27", "R32"],
+      "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; and the user's host measures within the service's budget, 80 MB and 3 % of a core.",
       "check": "by hand",
       "passes": false
     }
