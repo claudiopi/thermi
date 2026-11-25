@@ -31,7 +31,7 @@ Changing
 - R13. While the settings file is broken, every edit exits 4 and the file is left as it is.
 - R26. `looks` lists the saved looks; `look` wears one on an overlay or on all, saves an overlay's look under a name, renames or deletes a saved one, gives an overlay's or a saved look's file as text, and wears a look from such text; each with the window's rules and refusals, and no path to read or write.
 - R27. `monitors` lists the monitors with their ids, bounds and taskbars, in Windows' pixels, and a `place` edit leaves an overlay where a drag let go at that point would, off its snap.
-- R28. `find-cpu-fan` loads the CPU as the window's finder does, for no longer, and says which fan answered, or why none did; with `--use`, that fan becomes the first overlay's CPU fan, one edit.
+- R28. `find-cpu-fan` loads the CPU as the window's finder does, for no longer, and says which fan answered, or why none did; with `--use`, that fan becomes the first overlay's CPU fan, one edit, or the answer still names it with the edit's refusal.
 - R29. `start-with-windows [on|off]` says or sets whether the overlay starts at sign-in, as the window's switch does; on a sensors-only install it says there is no overlay to start.
 
 MCP

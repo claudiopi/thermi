@@ -138,7 +138,9 @@ public sealed class AgentSettingsTests : IDisposable
         var noFanItem = defaults.Overlays[0] with { Items = [.. defaults.Overlays[0].Items.Where(item => (item.Metric ?? item.Auto) != Metrics.CpuFan.Id)] };
         _rig.Folder.Write(ThermiConfigJson.Write(defaults with { Overlays = [noFanItem] }));
         var unused = await _rig.RunAsync("find-cpu-fan", "--use");
-        Assert.Equal((1, fan, false), (unused.Exit, (string?)unused.Json["fan"], (bool)unused.Json["used"]!));
+        Assert.Equal(
+            (1, fan, false, Texts.Key(Refusal.NotFound)),
+            (unused.Exit, (string?)unused.Json["fan"], (bool)unused.Json["used"]!, (string?)unused.Json["refusal"]));
     }
 
     [Fact]

@@ -26,7 +26,7 @@ internal sealed partial class AgentCommands
             {
                 if (last is null && FanFinder.CannotStart(snapshot) is { } refused)
                 {
-                    var answer = new FinderAnswer(Outcome: null, Used: false) { Refused = refused };
+                    var answer = new FinderAnswer(Outcome: null, Used: false) { CannotStart = refused };
                     return new AgentReply(AgentExit.Refused, AgentJson.Write(answer), Texts.English.Of(refused));
                 }
 

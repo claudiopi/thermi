@@ -217,7 +217,7 @@
       "covers": [
         "R28"
       ],
-      "description": "Given a recorded series of a CPU load with its fan answering, and one where no fan answers, fed as the pipe would, when find-cpu-fan runs on a fake clock, then the first names that fan and the load ran no longer than the window's finder runs it, the second says why none answered, and with --use the first overlay's CPU fan is that fan, one edit.",
+      "description": "Given a recorded series of a CPU load with its fan answering, and one where no fan answers, fed as the pipe would, when find-cpu-fan runs on a fake clock, then the first names that fan and the load ran no longer than the window's finder runs it, the second says why none answered, and with --use the first overlay's CPU fan is that fan, one edit; with settings that have no CPU fan item, --use exits 1 and still names the fan with the edit's refusal key.",
       "check": "AgentsFindTheCpuFan",
       "passes": true
     },

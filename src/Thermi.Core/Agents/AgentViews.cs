@@ -71,7 +71,8 @@ public sealed record FinderAnswer(FanFinderOutcome? Outcome, bool Used)
 
     public string? Name { get; init; }
 
-    public FanFinderRefusal? Refused { get; init; }
+    /// <summary>Why the finder could not start, as with no fan to watch.</summary>
+    public FanFinderRefusal? CannotStart { get; init; }
 
     /// <summary>Why the fan found did not become the CPU fan, as an edit's refusal key, as with no CPU fan item to take it.</summary>
     public string? Refusal { get; init; }
