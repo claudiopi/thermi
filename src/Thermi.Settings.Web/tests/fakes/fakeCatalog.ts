@@ -26,7 +26,6 @@ export function installFakeCatalog(): void {
     'duration',
     'frame-rate',
     'frame-time',
-    'voltage',
   ];
   const libraryTypes: Record<string, SensorKind> = { Level: 'load', TimeSpan: 'duration' };
   const devices: Record<string, DeviceKind> = {

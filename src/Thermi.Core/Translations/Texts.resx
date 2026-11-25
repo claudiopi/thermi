@@ -1587,6 +1587,9 @@
   <data name="Refusal.SumOfTemperatures" xml:space="preserve">
     <value>Temperatures can be combined as their highest or their average, never as a sum.</value>
   </data>
+  <data name="Refusal.SumOfVoltages" xml:space="preserve">
+    <value>Voltages can be combined as their highest or their average, never as a sum.</value>
+  </data>
   <data name="Refusal.SumOfUnknown" xml:space="preserve">
     <value>This item's sensors are not read now, so thermi cannot tell whether a sum of them means anything.</value>
   </data>

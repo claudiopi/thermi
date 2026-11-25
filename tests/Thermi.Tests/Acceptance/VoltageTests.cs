@@ -44,9 +44,9 @@ public sealed class VoltageTests
         Assert.Equal(voltages, Found("", [SensorKind.Voltage]));
         Assert.Equal(voltages, Found("volts", []));
         Assert.Equal([voltages[0]], Found("vcore", []));
-        Assert.All(
-            devices.Single(device => device.Id == "/lpc/it8689e/0").Sensors.Where(row => row.Reading.Kind == SensorKind.Voltage),
-            row => Assert.Contains(row.Id, voltages));
+        Assert.Equal(
+            voltages,
+            devices.Single(device => device.Id == "/lpc/it8689e/0").Sensors.Where(row => row.Reading.Kind == SensorKind.Voltage).Select(row => row.Id));
         Assert.Equal(
             ["1.248 V", "12.10 V"],
             voltages.Select(id => ReadingFormatter.Format(SensorMap.ReadingOf(SensorMap.Find(snapshot, id)!)!.Value, English)));
@@ -58,6 +58,8 @@ public sealed class VoltageTests
         Assert.Null(item.Threshold);
         Assert.False(Threshold.Judges(item));
         Assert.Equal((0.0, 0.0), PowerEdits.OffsetRange(SensorKind.Voltage));
+        Assert.Equal(Refusal.SumOfVoltages, PowerEdits.AddCombined(ThermiConfig.New, 0, snapshot, voltages, Combine.Sum).Refused);
+        Assert.Null(SensorMap.ReadingOf(new RawSensor("/amdcpu/0/voltage/0", "Cpu", "AMD Ryzen 9 9950X", "Voltage", "Core", 0))!.Value.Value);
 
         Assert.All(
             [.. ThermiConfig.New.Overlays, new OverlayConfig()],

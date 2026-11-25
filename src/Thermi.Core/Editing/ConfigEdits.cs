@@ -71,6 +71,9 @@ public enum Refusal
     /// <summary>A sum of temperatures means nothing; their highest or average does.</summary>
     SumOfTemperatures,
 
+    /// <summary>A sum of voltages means nothing either: a core's and a rail's add to no voltage anything has.</summary>
+    SumOfVoltages,
+
     /// <summary>The item's sensors read nothing now, so whether they are temperatures, which no sum takes, is not known.</summary>
     SumOfUnknown,
 

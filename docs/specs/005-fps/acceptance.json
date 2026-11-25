@@ -53,7 +53,7 @@
     {
       "id": "A8",
       "covers": ["R13"],
-      "description": "Given the recorded desktop with the board's core and +12 V voltages, when the catalog is built and searched, then both are listed under the board, found by \"volts\" and by the voltage kind, the core's alone by \"vcore\", showing 1.248 V and 12.10 V, and one added as an item shows its value with no lines and takes no offset; and no default overlay reads a voltage.",
+      "description": "Given the recorded desktop with the board's core and +12 V voltages, when the catalog is built and searched, then both are listed under the board, found by \"volts\" and by the voltage kind, the core's alone by \"vcore\", showing 1.248 V and 12.10 V, and one added as an item shows its value with no lines and takes no offset, and their sum is refused; a CPU's voltage of exactly 0 is missing; and no default overlay reads a voltage.",
       "check": "VoltagesAreListedFoundAndAddedWithoutLines",
       "passes": false
     }

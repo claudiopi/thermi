@@ -1587,6 +1587,9 @@
   <data name="Refusal.SumOfTemperatures" xml:space="preserve">
     <value>Las temperaturas se combinan por la más alta o por el promedio, nunca sumadas.</value>
   </data>
+  <data name="Refusal.SumOfVoltages" xml:space="preserve">
+    <value>Los voltajes se combinan por el más alto o por el promedio, nunca sumados.</value>
+  </data>
   <data name="Refusal.SumOfUnknown" xml:space="preserve">
     <value>Los sensores de este elemento no se leen ahora, así que thermi no puede saber si sumarlos tiene sentido.</value>
   </data>

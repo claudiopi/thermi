@@ -29,7 +29,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 ## B3b: Voltages
 
-- [ ] **T15** Covers R13: the kind `Voltage` in Core, its format, no offset and no lines, its texts in every language, its chip in the catalog, and A8 on the recorded desktop with the board's voltages; the author's next admin dump replaces those voltages with recorded ones.
+- [ ] **T15** Covers R13: the kind `Voltage` in Core, its format, no offset and no lines, its texts in every language, its chip in the catalog, and A8 on the recorded desktop with the board's voltages; the author's next dumps, as administrator and without, replace those voltages with recorded ones.
 
 ## B4: Review and proof
 

@@ -167,7 +167,7 @@ public static class ReadingFormatter
             SensorKind.FrameTime => (value, 1, "ms", ""),
 
             // A CPU's voltage moves by thousandths, a rail's by hundredths.
-            SensorKind.Voltage => (value, Math.Abs(value) < 10 ? 3 : 2, "V", ""),
+            SensorKind.Voltage => (value, Math.Abs(Math.Round(value, 3, MidpointRounding.AwayFromZero)) < 10 ? 3 : 2, "V", ""),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
         };
 

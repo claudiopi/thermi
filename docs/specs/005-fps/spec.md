@@ -31,7 +31,7 @@ The service
 
 Voltages
 
-- R13. The voltages the library reads (a CPU's core, SoC and memory controller, the board's +12 V, +5 V and +3.3 V, a GPU's core) leave the service, and the window lists them in the catalog under their device, found by their name or by words such as "volts" or "vcore", and adds them as items, each shown in volts, as `1.248 V` under 10 V and `12.10 V` from 10 V on. They have no lines by default, and lines cannot judge them; no default overlay shows one.
+- R13. The voltages the library reads (a CPU's core, SoC and memory controller, the board's +12 V, +5 V and +3.3 V, a GPU's core) leave the service, and the window lists them in the catalog under their device, found by the name the library gives each, as "Vcore", or by words such as "volts", and adds them as items, each shown in volts, as `1.248 V` under 10 V and `12.10 V` from 10 V on. They have no lines by default, lines cannot judge them, and they combine as their highest or average, never as a sum; a CPU's voltage of exactly 0, as without the driver, is missing, as its temperature is; no default overlay shows one.
 
 ## Design
 
@@ -49,7 +49,7 @@ Voltages
 
 **Test budget.** This spec adds at most 10 unique tests; most of its cases are rows of tables that exist.
 
-**Voltages.** Core gains the sensor kind `Voltage`, which `SensorMap` takes from the library's type of the same name, so the service stops dropping voltages and the catalog, its search, the items and the charts take them as any kind: `ReadingFormatter` shows them in volts with three decimals under 10 V and two from there, they take no offset, since a board's divider errs by a factor and not by a sum, and `Threshold.CanMeter` leaves them out, so they have no lines. The window's catalog adds a chip for them, and their name and search words join the translations. Their test is the recorded desktop with the board's voltages as the library gives them, until the author's next admin dump records them, which replaces it.
+**Voltages.** Core gains the sensor kind `Voltage`, which `SensorMap` takes from the library's type of the same name, so the service stops dropping voltages and the catalog, its search, the items and the charts take them as any kind: `ReadingFormatter` shows them in volts with three decimals under 10 V and two from there, they take no offset, since a board's divider errs by a factor and not by a sum, and `Threshold.CanMeter` leaves them out, so they have no lines. The window's catalog adds a chip for them, and their name and search words join the translations. Their test is the recorded desktop with the board's voltages as the library gives them, until the author's next dumps, with and without admin rights, record them and replace it.
 
 **Rejected:** a frame-time graph of every frame, as some overlays draw, sent from the service: the pipe and the history are one value a second, and the longest frame of each second already shows every stutter as a spike in the item's line, at no cost.
 
