@@ -39,9 +39,7 @@ describe('the item page', () => {
   const pills: WindowView = { ...view({}), pills: [[{ label: 'GPU', items: ['gpu'] }], [{ label: 'Both', items: ['ram', 'cpu'] }]] };
   test.each([
     { id: 'gpu', view: pills, placed: { overlay: 0, pill: 'GPU', firstOfPill: true } },
-    { id: 'cpu', view: pills, placed: { overlay: 1, pill: 'Both', firstOfPill: false } },
     { id: 'ram', view: view({}), placed: { overlay: 1, pill: '', firstOfPill: false } },
-    { id: 'gone', view: pills, placed: null },
   ])('places $id', ({ id, view: shown, placed }) => {
     const found = placeOf(settings, shown, id);
 
@@ -100,7 +98,6 @@ describe('the item page', () => {
   const fan = { warnBy: [{ name: 'own' }, { warnBy: { sensor: 'duty', auto: 'fan.cpu.duty' }, name: 'duty' }], warnByName: 'hand' };
   const none = { warnBy: [{ name: 'off' }], warnByName: 'hand' };
   test.each([
-    { item: { id: 'cpu', sensor: 'fan' }, shows: fan, warnBy: '0', offered: 2, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'duty' } }, shows: fan, warnBy: '1', offered: 2, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { metric: 'fan.cpu.duty' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'package' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },

@@ -33,6 +33,7 @@ const useStyles = makeStyles({
     ':hover': { backgroundColor: tokens.colorSubtleBackgroundHover },
     // Fluent colors a radio's label from the input beside it: the others in the secondary text, the chosen in the first.
     '& input:enabled:not(:checked) ~ .fui-Radio__label': { color: tokens.colorNeutralForeground2 },
+    '& input:disabled ~ .fui-Radio__label': { color: tokens.colorNeutralForegroundDisabled },
   },
   // The chosen one is raised, with a short accent mark under its text, as the prototype's segments are.
   chosen: {

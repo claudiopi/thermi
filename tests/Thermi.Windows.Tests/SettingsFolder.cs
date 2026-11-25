@@ -1,7 +1,13 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Editing;
+using Thermi.Core.Look;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Overlay;
+using Thermi.Ui;
+using Thermi.Ui.Editor;
+using Thermi.Ui.Web;
 
 namespace Thermi.Windows.Tests;
 
@@ -61,6 +67,26 @@ internal sealed class SettingsFolder : IDisposable
     }
 
     public void Write(string text) => System.IO.File.WriteAllText(File, text);
+
+    /// <summary>
+    /// What a window on this file reaches, with <paramref name="sensors"/> for the pipe, a start-up entry of the tests' own,
+    /// no monitor and no overlay to answer for its hotkeys.
+    /// </summary>
+    public WindowEnvironment Window(ISensorFeed sensors)
+    {
+        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
+        return new("thermi-tests", File, "thermi.exe", Log, Clock.GetUtcNow(), sensors, startup) { Screens = () => [], HotkeyStatus = () => null };
+    }
+
+    /// <summary>
+    /// A window's bridge on <paramref name="settings"/>, opened on <paramref name="overlay"/>, its editor and its turns on
+    /// <paramref name="turn"/>, on this file's clock.
+    /// </summary>
+    public WindowBridge Bridge(Settings settings, WindowEnvironment window, ConcurrentQueue<Action> turn, int overlay = 0, ChartHistory? chart = null)
+    {
+        var start = new WindowStart(overlay, settings, Texts.English, window, Clock);
+        return new(start, new WindowEditor(settings, turn.Enqueue, Log, Clock), chart ?? new(Clock), turn.Enqueue);
+    }
 
     /// <summary>The file as written so far, or null while a write moves it into place.</summary>
     public string? Written()

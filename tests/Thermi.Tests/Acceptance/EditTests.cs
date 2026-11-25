@@ -86,13 +86,13 @@ public sealed class EditTests
         var power = Item(Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, "/gpu-nvidia/0/power/0")), "/gpu-nvidia/0/power/0");
         Assert.Equal((false, null), (Threshold.Judges(power), power.Threshold));
 
-        // Named as its metric, while the defaults store no name, so they read in the window"s language; the same sensor
-        // added again takes a number, so no two names are alike.
+        // Named as its metric, it stores no name, as the defaults do, so it reads in the window's language; the same sensor
+        // added again takes a number, in that language too, so no two names are alike.
         var names = JsonNode.Parse(File(again))!["overlays"]![0]!["items"]!.AsArray().Select(each => each!["name"]?.GetValue<string>()).ToList();
-        Assert.Equal(Texts.English.Of(MetricName.GpuTemperature), names[5]);
-        var stored = names.OfType<string>().ToList();
-        Assert.Equal(new ThermiConfig().Overlays[0].Items.Count, names.Count - stored.Count);
-        Assert.Equal(stored.Count, stored.Distinct(StringComparer.Ordinal).Count());
+        Assert.Empty(names.OfType<string>());
+        Assert.Equal(
+            Texts.English.Format(CultureInfo.InvariantCulture, NameText.Numbered, Texts.English.Of(MetricName.GpuTemperature), 2),
+            Thermi.Core.Bridge.PageSettings.Of(again, Texts.English, Desktop).Overlays[0].Items[^3].Name);
         NetworkDiskAndBatteryItemsTakeTheirLabels();
     }
 

@@ -90,26 +90,35 @@ public sealed class StyleWindowsTests
 
     // In one bar, each run, CPU, GPU and RAM, is a pill of its own inside it, in the inner color, 4 px inside the bar's
     // edge and 4 px apart at 100 %, and an item's pill is its run's; at 100 % on dark pills and at 150 % on light ones.
+    // Vertical, the bar stands and its pills stack from top to bottom, all as wide as the widest.
     [Theory]
-    [InlineData(1f, PillTheme.Dark)]
-    [InlineData(1.5f, PillTheme.Light)]
-    public void OneBarHoldsAPillPerRun(float scale, PillTheme pills)
+    [InlineData(1f, PillTheme.Dark, Orientation.Horizontal)]
+    [InlineData(1.5f, PillTheme.Light, Orientation.Horizontal)]
+    [InlineData(1.5f, PillTheme.Dark, Orientation.Vertical)]
+    public void OneBarHoldsAPillPerRun(float scale, PillTheme pills, Orientation orientation)
     {
-        var overlay = StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills, Layout = PillLayout.One }).Config.Overlays[0];
+        var overlay = StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills, Layout = PillLayout.One, Orientation = orientation })
+            .Config.Overlays[0];
         var look = OverlayLook.Of(overlay.Style, lightTaskbar: false);
         var readings = SensorMap.Read(TestRecordings.Read(TestRecordings.Admin), overlay);
         using var painter = new Painter();
 
         using var bitmap = painter.Paint(OverlayLayout.Build(overlay, readings, CultureInfo.GetCultureInfo("en-US")), look, scale);
 
+        var vertical = orientation == Orientation.Vertical;
         var inner = painter.Places.Select(place => place.Pill).Distinct().ToList();
-        var y = (int)Math.Round(8 * scale);
-        var row = Enumerable.Range(0, bitmap.Width).Where(x => Near(bitmap.GetPixel(x, y), look.Pills.Inner, 0)).ToList();
+        var across = (int)Math.Round(8 * scale);
+        var line = Enumerable.Range(0, vertical ? bitmap.Height : bitmap.Width)
+            .Where(at => Near(vertical ? bitmap.GetPixel(across, at) : bitmap.GetPixel(at, across), look.Pills.Inner, 0))
+            .ToList();
         Assert.Equal(3, inner.Count);
-        Assert.Equal(3, row.Count(x => !row.Contains(x - 1)));
-        Assert.All(inner, box => Assert.Equal(4 * scale, box.Top, 0.01));
-        Assert.Equal(4 * scale, inner[0].Left, 0.01);
-        Assert.All(inner.Zip(inner.Skip(1)), pair => Assert.Equal(4 * scale, pair.Second.Left - pair.First.Right, 0.01));
+        Assert.Equal(3, line.Count(at => !line.Contains(at - 1)));
+        Assert.All(inner, box => Assert.Equal(4 * scale, vertical ? box.Left : box.Top, 0.01));
+        Assert.Equal(4 * scale, vertical ? inner[0].Top : inner[0].Left, 0.01);
+        Assert.All(
+            inner.Zip(inner.Skip(1)),
+            pair => Assert.Equal(4 * scale, vertical ? pair.Second.Top - pair.First.Bottom : pair.Second.Left - pair.First.Right, 0.01));
+        Assert.True(!vertical || inner.Select(box => box.Width).Distinct().Count() == 1, "a standing bar's pills are as wide as the widest");
     }
 
     // The pixels of a strip of the given width that ends where the item's value starts.

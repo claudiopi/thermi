@@ -48,22 +48,37 @@ public sealed class MessageTests
 
     // The window takes the overlay's history through the message as it opens, having read a second already or not, and
     // again after a reset; from then on both read the same values, a missing one among them, and each second the
-    // window's item shows the text and the label the overlay draws, its own default label with its tag in a bar.
+    // window's item shows the text, the label and the tag the overlay draws, the tag after its value though it is not the
+    // first item of its pill. One that warns by a sensor that reads nothing has no ten minutes to send, and after a reset
+    // no maximum either: the window starts its maximum again all the same.
     [Theory]
     [InlineData(ItemStat.Average, 0, 0, false, false)]
     [InlineData(ItemStat.Min, 3, 0, true, false)]
     [InlineData(ItemStat.Now, 5, -5, true, false)]
     [InlineData(ItemStat.Max, 0, 0, false, true)]
-    public void TheWindowsHistoryShowsWhatTheOverlaysShows(ItemStat stat, int smooth, double offset, bool readFirst, bool reset)
+    [InlineData(ItemStat.Max, 0, 0, false, true, true)]
+    public void TheWindowsHistoryShowsWhatTheOverlaysShows(ItemStat stat, int smooth, double offset, bool readFirst, bool reset, bool warnsByNothing = false)
     {
         var time = new FakeTimeProvider();
-        var cpu = new ItemConfig { Id = Metrics.CpuTemperature.Id, Metric = Metrics.CpuTemperature.Id, Stat = stat, Smooth = smooth, Offset = offset };
-        var overlay = new OverlayConfig { Items = [OverlayConfig.DefaultItems[4], cpu], Style = new StyleConfig { Layout = PillLayout.One } };
+        var cpu = new ItemConfig
+        {
+            Id = Metrics.CpuTemperature.Id,
+            Metric = Metrics.CpuTemperature.Id,
+            Stat = stat,
+            Smooth = smooth,
+            Offset = offset,
+            WarnBy = warnsByNothing ? new WarnByConfig { Metric = Metrics.GpuTemperature.Id } : null,
+        };
+        var overlay = new OverlayConfig
+        {
+            Items = [OverlayConfig.DefaultItems[4], OverlayConfig.DefaultItems[2], cpu],
+            Style = new StyleConfig { Layout = PillLayout.One },
+        };
         var config = new ThermiConfig { Overlays = [overlay] };
         var (onOverlay, inWindow) = (new ItemsHistory(time), new ItemsHistory(time));
         double[] values = [61, 64, 70, double.NaN, 82, 77, 90, 58, 66, 73, 95, 49, 60, 71];
-        var drawn = new List<(string, string?)>();
-        var shown = new List<(string, string?)>();
+        var drawn = new List<(string Value, string? Label, string? Tag)>();
+        var shown = new List<(string Value, string? Label, string? Tag)>();
 
         for (var second = 0; second < values.Length; second++)
         {
@@ -98,14 +113,14 @@ public sealed class MessageTests
         }
 
         Assert.Equal(drawn, shown);
-        Assert.All(shown, item => Assert.Contains(OverlayLayout.TagOf(cpu, CultureInfo.InvariantCulture)!, item.Item2, StringComparison.Ordinal));
+        Assert.All(shown, item => Assert.Equal((null, OverlayLayout.TagOf(cpu, CultureInfo.InvariantCulture)), (item.Label, item.Tag)));
     }
 
     private static History Sent(ItemsHistory history, ThermiConfig config) =>
-        (History)WindowMessages.Decode(WindowMessages.Encode(history.Sent(config)!))!;
+        (History)WindowMessages.Decode(WindowMessages.Encode(history.Sent(config)))!;
 
-    private static (string Value, string? Label) Of(IReadOnlyList<OverlayItem> items) =>
-        items.Single(item => item.Id == Metrics.CpuTemperature.Id) is var item ? (item.Value, item.Label) : default;
+    private static (string Value, string? Label, string? Tag) Of(IReadOnlyList<OverlayItem> items) =>
+        items.Single(item => item.Id == Metrics.CpuTemperature.Id) is var item ? (item.Value, item.Label, item.Tag) : default;
 
     private static (WindowMessage Sent, byte[] Payload) Payload(string row)
     {

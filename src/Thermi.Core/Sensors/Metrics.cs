@@ -21,6 +21,7 @@ public enum MetricLabel
     Up,
     Ip,
     Time,
+    Fps,
 }
 
 /// <summary>The kind of device a sensor is on, whose pill a sensor added as an item joins, named by its label.</summary>
@@ -37,6 +38,9 @@ public enum DeviceKind
 
     /// <summary>Windows itself, whose uptime, address and clock thermi reads without a sensor.</summary>
     System,
+
+    /// <summary>The app in front, whose frames the sensor service counts.</summary>
+    Game,
 }
 
 /// <summary>What the window calls a metric, as the title of an item made from it, in the language of the translations.</summary>
@@ -65,6 +69,8 @@ public enum MetricName
     Uptime,
     LocalIp,
     Clock,
+    Fps,
+    FrameTime,
 }
 
 public static class Metrics
@@ -91,11 +97,13 @@ public static class Metrics
     public static readonly Metric Uptime = new("system.uptime", MetricLabel.Up, SensorKind.Duration, MetricName.Uptime);
     public static readonly Metric LocalIp = new("system.ip", MetricLabel.Ip, SensorKind.Address, MetricName.LocalIp);
     public static readonly Metric Clock = new("system.clock", MetricLabel.Time, SensorKind.Time, MetricName.Clock);
+    public static readonly Metric Fps = new("game.fps", MetricLabel.Fps, SensorKind.FrameRate, MetricName.Fps);
+    public static readonly Metric FrameTime = new("game.frametime", MetricLabel.Fps, SensorKind.FrameTime, MetricName.FrameTime);
 
     public static IReadOnlyList<Metric> All { get; } =
     [
         CpuTemperature, CpuLoad, CpuPower, CpuClock, GpuTemperature, GpuLoad, GpuPower, RamLoad, RamUsed, CpuFan, CpuFanDuty,
-        NetDownload, NetUpload, DiskActivity, DiskRead, DiskWrite, BatteryCharge, BatteryRate, BatteryTime, Uptime, LocalIp, Clock,
+        NetDownload, NetUpload, DiskActivity, DiskRead, DiskWrite, BatteryCharge, BatteryRate, BatteryTime, Uptime, LocalIp, Clock, Fps, FrameTime,
     ];
 
     public static Metric? Find(string? id) => All.FirstOrDefault(metric => metric.Id == id);
@@ -110,6 +118,7 @@ public static class Metrics
         MetricLabel.Ssd => DeviceKind.Ssd,
         MetricLabel.Bat => DeviceKind.Battery,
         MetricLabel.Up or MetricLabel.Ip or MetricLabel.Time => DeviceKind.System,
+        MetricLabel.Fps => DeviceKind.Game,
         _ => throw new ArgumentOutOfRangeException(nameof(metric), metric.Label, "Unknown metric label."),
     };
 }

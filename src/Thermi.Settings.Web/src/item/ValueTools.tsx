@@ -58,22 +58,24 @@ export function ValueColor({ item, edit }: { item: Item; edit: (field: string, v
 
 export interface CombineProps {
   item: Item;
+  /** The sensors it reads now, which the dialog starts with checked. */
+  current: readonly string[];
   /** The sensors of the item's type, which it can combine. */
   sensors: readonly Sensor[];
   type: string;
   set: (field: string, value: string | string[] | null) => Promise<unknown>;
 }
 
-/** "Choose sensors…" in the Combine row: several sensors of one type as their highest, average or sum, added as one undo step. */
-export function CombineButton({ item, sensors, type, set }: CombineProps) {
+/** "Choose sensors…" in the Combine row: several sensors of one type as their highest, average or sum, used as one undo step. */
+export function CombineButton({ item, current, sensors, type, set }: CombineProps) {
   const t = useText();
   const [open, setOpen] = useState(false);
-  const [chosen, setChosen] = useState<readonly string[]>(item.sensors ?? []);
+  const [chosen, setChosen] = useState<readonly string[]>(current);
   const [how, setHow] = useState<Combine>(item.combine ?? 'max');
   const picked = new Set(chosen);
   const ways: Combine[] = type === 'Temperature' ? ['max', 'average'] : ['max', 'average', 'sum'];
   const choices = ways.map((way) => ({ value: way, text: t(`Combine.${way === 'max' ? 'Max' : way === 'average' ? 'Average' : 'Sum'}`) }));
-  const add = (): void => {
+  const use = (): void => {
     setOpen(false);
     void asOneStep(async () => {
       await set('sensors', [...chosen]);
@@ -85,19 +87,19 @@ export function CombineButton({ item, sensors, type, set }: CombineProps) {
       <Button
         label={`${t('UiText.Combine')}, ${t('UiText.CombineChoose')}`}
         onClick={() => {
-          setChosen(item.sensors ?? []);
+          setChosen(current);
           setOpen(true);
         }}
       >
         {t('UiText.CombineChoose')}
       </Button>
-      <Dialog open={open} title={t('UiText.Combine')} main={t('UiText.CombineAdd')} onMain={add} cancel={t('UiText.Cancel')} onCancel={() => setOpen(false)}>
+      <Dialog open={open} title={t('UiText.Combine')} main={t('UiText.CombineUse')} onMain={use} cancel={t('UiText.Cancel')} onCancel={() => setOpen(false)}>
         <div className="t-combine">
           <div className="t-combine-list">
             {sensors.map((sensor) => (
               <Checkbox
                 key={sensor.id}
-                label={sensor.name}
+                label={t('UiText.SensorOn', sensor.name, sensor.hardware)}
                 checked={picked.has(sensor.id)}
                 onChange={(on) => setChosen((before) => (on ? [...before, sensor.id] : before.filter((id) => id !== sensor.id)))}
               />

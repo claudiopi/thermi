@@ -15,6 +15,7 @@ import { Pane } from './Pane';
 import { focusPane } from './paneFocus';
 import { AppName, TitleRow } from './TitleRow';
 import { useDesktop } from './useDesktop';
+import { useInputKind } from './useInputKind';
 import { useShortcuts } from './useShortcuts';
 import './app.css';
 
@@ -208,6 +209,7 @@ function Window({ data }: { data: WindowData }) {
     },
     (pick) => pickOnDesktop(pick.overlay, pick.item),
   );
+  useInputKind();
   useShortcuts({
     undo: () => void stepBack('undo'),
     redo: () => void stepBack('redo'),

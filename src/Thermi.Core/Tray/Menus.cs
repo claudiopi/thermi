@@ -41,6 +41,9 @@ public enum MenuEntry
 
     /// <summary>Under the overlay's Graph choices, grayed: items that chose their own keep it.</summary>
     GraphOwn,
+
+    /// <summary>The note beside a grayed "Separate": no other overlay fits.</summary>
+    SeparateFull,
 }
 
 /// <summary>
@@ -59,8 +62,14 @@ public sealed record MenuRow(MenuEntry Entry, bool Checked = false, bool Default
     /// <summary>One of the Graph submenu's choices.</summary>
     public GraphStyle? Graph { get; init; }
 
-    /// <summary>True for a row that only says what the menu acts on, shown grayed, which nothing chooses.</summary>
+    /// <summary>
+    /// True for a row shown grayed, which nothing chooses: one that only says what the menu acts on, or an entry refused
+    /// now, with its <see cref="Note"/>.
+    /// </summary>
     public bool Heading { get; init; }
+
+    /// <summary>Why an entry is grayed, shown beside it as a hotkey is.</summary>
+    public MenuEntry? Note { get; init; }
 
     /// <summary>True for the first row of a group, set apart by a separator.</summary>
     public bool Starts { get; init; }
@@ -80,7 +89,7 @@ public sealed record MenuState(
     bool FileBroken,
     ServiceState Service,
     TimeSpan? SinceGesture,
-    IReadOnlyList<string> SavedLooks,
+    IReadOnlyList<StyleConfig> SavedLooks,
     bool UpdateReady);
 
 /// <summary>
@@ -194,7 +203,7 @@ public static class Menus
         var (first, last) = row.Entry == MenuEntry.Separate ? ItemEdits.PillOf(shown, index) : (index, index);
         return first < last && OverlayLayout.RunLabels(shown.Items, texts)[first] is { } label
             ? texts.Format(numbers, UiText.PillName, label)
-            : shown.Items[index].Name ?? Names.OfUnnamed(shown.Items[index], known, texts);
+            : Names.Of(config, shown.Items[index], known, texts);
     }
 
     /// <summary>The overlay's menu entry that takes back an edit chosen from a menu, null for what is no edit of the settings.</summary>
@@ -217,9 +226,11 @@ public static class Menus
     {
         var shown = config.Overlays[overlay];
         var rows = new List<MenuRow>();
-        if (pill is not null && DesktopGestures.CanTakeOff(config, overlay, pill))
+        // A locked overlay holds its pills as it holds itself, as a hold to lift one shows; at the cap a hold lifts none.
+        if (pill is not null && !shown.Locked && DesktopGestures.IsPart(config, overlay, pill))
         {
-            rows.Add(new MenuRow(MenuEntry.Separate) { Item = pill });
+            var full = !DesktopGestures.CanTakeOff(config, overlay, pill);
+            rows.Add(new MenuRow(MenuEntry.Separate) { Item = pill, Heading = full, Note = full ? MenuEntry.SeparateFull : null });
         }
 
         if (GraphOf(shown) is { } graph)
@@ -228,7 +239,7 @@ public static class Menus
         }
 
         rows.AddRange(LooksOf(shown, state));
-        rows.Add(new MenuRow(MenuEntry.Vertical, shown.Style.Orientation == Orientation.Vertical));
+        rows.AddRange(VerticalOf(shown, null));
         if (fromTray)
         {
             rows.Add(new MenuRow(MenuEntry.ClickThrough, shown.ClickThrough) { Overlay = overlay });
@@ -286,11 +297,11 @@ public static class Menus
             return [];
         }
 
-        var worn = state.SavedLooks.FirstOrDefault(look => string.Equals(look, shown.Style.Name, StringComparison.OrdinalIgnoreCase));
+        var worn = SavedStyles.Worn(shown.Style, state.SavedLooks);
         return
         [
-            new MenuRow(MenuEntry.Look, worn is null && shown.Style.WornOn(new StyleConfig()) == new StyleConfig()),
-            .. state.SavedLooks.Select(look => new MenuRow(MenuEntry.Look, look == worn) { Look = look }),
+            new MenuRow(MenuEntry.Look, worn is { Saved: null }),
+            .. state.SavedLooks.Select(look => new MenuRow(MenuEntry.Look, worn is { Saved: { } name } && name == look.Name) { Look = look.Name }),
         ];
     }
 
@@ -298,8 +309,15 @@ public static class Menus
     private static MenuRow[] Shape(OverlayConfig overlay, int at) =>
     [
         new MenuRow(MenuEntry.CopyImage) { Overlay = at },
-        new MenuRow(MenuEntry.Vertical, overlay.Style.Orientation == Orientation.Vertical) { Overlay = at },
+        .. VerticalOf(overlay, at),
     ];
+
+    // Offered while it would stack pills, or while it is on, so it can always be turned off.
+    private static MenuRow[] VerticalOf(OverlayConfig overlay, int? at)
+    {
+        var vertical = overlay.Style.Orientation == Orientation.Vertical;
+        return vertical || OverlayLayout.Stacks(overlay) ? [new MenuRow(MenuEntry.Vertical, vertical) { Overlay = at }] : [];
+    }
 
     private static List<MenuRow> Problems(MenuState state, bool startSensors)
     {

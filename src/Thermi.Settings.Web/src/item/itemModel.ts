@@ -27,13 +27,42 @@ export function placeOf(settings: Settings, view: WindowView, id: string): Place
   return null;
 }
 
+/**
+ * Whether "Separate pill" is offered: not on a pill's first item, which starts one already, nor while the overlay lays its
+ * items out in one bar or one pill each, which ignore it, unless it is on, so it can be turned off.
+ */
+export function offersOwnPill(settings: Settings, overlay: number, item: Item | undefined, firstOfPill: boolean): boolean {
+  const layout = settings.overlays[overlay]?.style?.layout ?? 'pills';
+  return item?.own === true || (!firstOfPill && layout === 'pills');
+}
+
 const followsDevice = ['Network', 'Storage'];
 
 /** The Sensor dropdown's last choice while other devices' sensors wait, which lists them; no sensor has it. */
 export const showAllSensors = '\u0000all';
 
+/** The Sensor dropdown's choice of a combined item, which says how it combines which sensors; no sensor has it. */
+export const combinedSensors = '\u0000combined';
+
+const combineTexts = { max: 'Combine.Max', average: 'Combine.Average', sum: 'Combine.Sum' } as const;
+
+/** What the Sensor box holds: the combination, the sensor chosen, or Auto. */
+export function sensorValue(item: Item): string {
+  return item.sensors !== undefined ? combinedSensors : (item.sensor ?? '');
+}
+
+/** A combined item's sensors as their own choice, first, so the box says what the item reads. */
+function combinedChoice(item: Item, byId: Map<string, Sensor>, say: Say): Choice[] {
+  if (item.sensors === undefined) {
+    return [];
+  }
+  const names = item.sensors.map((id) => byId.get(id)?.name ?? id).join(', ');
+  const text = say('UiText.SensorCombined', say(combineTexts[item.combine ?? 'max']), names);
+  return [{ value: combinedSensors, text, shown: text }];
+}
+
 /**
- * The Sensor dropdown's choices: Auto first for an item made from a metric, then what C# offers it, its own device's
+ * The Sensor dropdown's choices: a combined item's sensors first, then Auto for an item made from a metric, then what C# offers it, its own device's
  * sensors of its type, and the other devices' once `all` asks for them, with a last choice that asks while they wait.
  */
 export function sensorChoices(item: Item, view: WindowView, read: SensorView, say: Say, all = false): Choice[] {
@@ -59,6 +88,7 @@ export function sensorChoices(item: Item, view: WindowView, read: SensorView, sa
   const listed = [...offer.first, ...(all ? offer.more : [])].flatMap((id) => byId.get(id) ?? []);
   const ask: Choice[] = all || offer.more.length === 0 ? [] : [{ value: showAllSensors, text: say('CatalogText.ShowAll'), aside: String(offer.more.length) }];
   return [
+    ...combinedChoice(item, byId, say),
     ...autoChoice,
     ...listed.map((sensor) => ({
       value: sensor.id,

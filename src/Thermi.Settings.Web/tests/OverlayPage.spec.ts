@@ -37,12 +37,26 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
     await pressOn(pane.getByRole('button', { name: text('OverlayPageText.LookActions', look) }), 'Enter');
     await page.getByRole('menuitem', { name: text(entry) }).press('Enter');
   };
+  const tile = (look: string): Locator => control('radio', 'OverlayPageText.LookTile', look);
+  const checkedTiles = (): Locator => pane.getByRole('radiogroup', { name: text('UiText.LookField') }).getByRole('radio', { checked: true });
+  let savedFrom = 0;
   const rows: { name: string; act: () => Promise<void>; read: (state: FakeState) => unknown; expected: unknown }[] = [
     {
       name: 'a Look tile',
       act: () => pressOn(control('radio', 'OverlayPageText.LookTile', 'Night'), 'Space'),
       read: (state) => overlayOf(state.settings, 0).style?.name,
       expected: 'Night',
+    },
+    // Night QA: Default takes the whole look back as one step, and is the tile checked only while the overlay wears it.
+    {
+      name: 'the Default tile',
+      act: () => pressOn(tile(text('OverlayPageText.DefaultLook')), 'Space'),
+      read: async (state) => [
+        overlayOf(state.settings, 0).style?.name,
+        overlayOf(state.settings, 0).style?.pills,
+        await tile(text('OverlayPageText.DefaultLook')).isChecked(),
+      ],
+      expected: [undefined, undefined, true],
     },
     {
       name: 'Size',
@@ -53,14 +67,28 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
     {
       name: 'Theme',
       act: () => pressOn(control('radio', 'PillTheme.Light'), 'Space'),
-      read: (state) => overlayOf(state.settings, 0).style?.pills,
-      expected: 'light',
+      read: async (state) => [overlayOf(state.settings, 0).style?.pills, await checkedTiles().count()],
+      expected: ['light', 0],
     },
     {
       name: 'Use on all overlays',
       act: () => pressOn(control('button', 'OverlayPageText.UseOnAllOverlays'), 'Enter'),
       read: (state) => overlayOf(state.settings, 1).style?.pills,
       expected: 'light',
+    },
+    // Night QA: the look's "…" menu opens over the Position map, which drew through it; the menu takes the pointer there.
+    {
+      name: 'the look file menu over the map',
+      act: async () => {
+        await page.setViewportSize({ width: 1500, height: 900 });
+        await pane.getByRole('button', { name: text('OverlayPageText.LookFileActions') }).click();
+      },
+      read: async () => {
+        await page.getByRole('menuitem', { name: text('WindowText.CopyLookToAll') }).click({ trial: true, timeout: 1000 });
+        await page.keyboard.press('Escape');
+        return true;
+      },
+      expected: true,
     },
     {
       name: 'Layout',
@@ -138,10 +166,20 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       read: (state) => overlayOf(state.settings, 0).style?.colors?.normal,
       expected: '#0072B2',
     },
+    { name: 'Reset colors', act: () => pressOn(control('button', 'UiText.ResetColors'), 'Enter'), read: async (state) => [
+      overlayOf(state.settings, 0).style?.colors ?? {},
+      await control('button', 'UiText.ResetColors').count(),
+    ], expected: [{}, 0] },
+    // Saved, the look is the one the overlay wears, and the page stays where it was.
     { name: 'Save as my look', act: async () => {
       await pressOn(control('button', 'OverlayPageText.SaveAsMyLook'), 'Enter');
+      savedFrom = await pane.evaluate((main) => main.scrollTop);
       await nameAndEnter(page, 'Mine');
-    }, read: (state) => Object.keys(state.looks).includes('Mine'), expected: true },
+    }, read: async (state) => [
+      Object.keys(state.looks).includes('Mine'),
+      await tile('Mine').isChecked(),
+      await pane.evaluate((main) => main.scrollTop) - savedFrom,
+    ], expected: [true, true, 0] },
     { name: 'a look\'s Rename', act: async () => {
       await lookMenu('Mine', 'UiText.RenameStyle');
       await nameAndEnter(page, 'Evening');
@@ -178,14 +216,42 @@ test('ThePreviewShowsEachEditOfTheOverlay', async ({ page }) => {
   await select(page, 'Taskbar');
   const pane = page.getByRole('main');
   const preview = pane.getByRole('img', { name: text('OverlayPageText.Preview', 'Taskbar') });
-  const picture = async (): Promise<string> => (await preview.screenshot()).toString('base64');
-  const before = await picture();
+  // The picture the page shows, and the one C# paints of the overlay now: the page draws none of its own.
+  const shown = async (): Promise<string | null> => preview.getAttribute('src');
+  const painted = async (): Promise<string | null> => page.evaluate(async () => (await window.thermi?.preview(0, 0))?.png ?? null);
+  await expect.poll(async () => (await shown()) === (await painted())).toBe(true);
+  const before = await shown();
 
   await pressOn(pane.getByRole('radio', { name: text('PillTheme.Light') }), 'Space');
-  await expect.poll(picture).not.toBe(before);
+  await expect.poll(shown).not.toBe(before);
+  await expect.poll(async () => (await shown()) === (await painted())).toBe(true);
 
   await page.keyboard.press('Control+Z');
-  await expect.poll(picture).toBe(before);
+  await expect.poll(shown).toBe(before);
+
+  // QA round 5: the preview was the picture shrunk to the column, and blurred. It shows one of C#'s pixels on each of the
+  // page's device pixels: as wide as the overlay where it fits, and where it does not, painted by C# as wide as it shows.
+  const pixels = async (): Promise<{ shown: number; whole: number; fitted: number; within: boolean }> => {
+    const box = (await preview.boundingBox()) ?? { x: 0, width: 0 };
+    const main = (await pane.boundingBox()) ?? { x: 0, width: 0 };
+    return page.evaluate(
+      async ({ width, within }) => {
+        const device = Math.round(width * window.devicePixelRatio);
+        const whole = (await window.thermi?.preview(0, 0))?.width ?? 0;
+        return { shown: device, whole, fitted: (await window.thermi?.preview(0, device))?.width ?? 0, within };
+      },
+      { width: box.width, within: box.x + box.width <= main.x + main.width },
+    );
+  };
+  await test.step('as wide as the overlay where it fits', async () => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await expect.poll(async () => { const now = await pixels(); return now.shown === now.whole && now.within; }).toBe(true);
+  });
+  await test.step('painted to the column where it does not', async () => {
+    await page.setViewportSize({ width: 760, height: 560 });
+    await pressOn(pane.getByRole('slider', { name: text('UiText.SizeField') }), 'End');
+    await expect.poll(async () => { const now = await pixels(); return now.shown < now.whole && now.shown === now.fitted && now.within; }).toBe(true);
+  });
 });
 
 // A209: each control of Placement, chosen by keys on two monitors, lands in the settings.

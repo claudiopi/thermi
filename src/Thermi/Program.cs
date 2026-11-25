@@ -74,6 +74,12 @@ internal static class Program
             return await RunWindowAsync(new SettingsRequest(0, trace, Pseudo: false), time);
         }
 
+        // Above normal, as the sensor service is: a PC busy on every core is when the overlay must keep painting.
+        using (var self = Process.GetCurrentProcess())
+        {
+            self.PriorityClass = ProcessPriorityClass.AboveNormal;
+        }
+
         using (single)
         {
             using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, trace);

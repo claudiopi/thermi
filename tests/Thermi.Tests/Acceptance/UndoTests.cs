@@ -14,7 +14,7 @@ namespace Thermi.Tests.Acceptance;
 /// </summary>
 public sealed class UndoTests
 {
-    private static readonly ValueFormat InEnglish = new(Texts.English, System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+    private static readonly ValueFormat InEnglish = new(Texts.English, System.Globalization.CultureInfo.GetCultureInfo("en-US")) { Known = Desktop };
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 

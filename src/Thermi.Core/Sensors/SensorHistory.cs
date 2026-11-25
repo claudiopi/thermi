@@ -4,7 +4,7 @@ namespace Thermi.Core.Sensors;
 
 /// <summary>
 /// The values read since the window opened, one a second, up to ten minutes: the last minute for sparklines and
-/// all ten for the threshold histogram. Each series is a fixed ring of slots, so memory never grows with time. A
+/// all ten for the charts. Each series is a fixed ring of slots, so memory never grows with time. A
 /// second without a reading (the service stopped, or its data went stale) stays empty, never filled with the last value.
 /// The overlay's items keep a minute the same way, in <see cref="ItemHistory"/>.
 /// </summary>
@@ -20,8 +20,15 @@ public sealed class SensorHistory
     private long _second = -1;
     private long _readAt;
 
+    // Readings handed over late fill back at most this many seconds; a longer silence was the service's, not a delay.
+    private const int MostOwed = 5;
+
     // The first second it holds: what came before was never read here or given by Seed.
     private long _start;
+
+    // The seconds a late reading skipped that readings bunched after it may still take, and how many those are, the late one's included.
+    private int _owed;
+    private int _run;
 
     public SensorHistory(TimeProvider time)
         : this(time, Kept)
@@ -38,6 +45,7 @@ public sealed class SensorHistory
     public void Add(IReadOnlyDictionary<string, Reading> readings)
     {
         var second = Now();
+        CatchUp(second);
         foreach (var series in _series.Values)
         {
             Clear(series, second);
@@ -106,6 +114,11 @@ public sealed class SensorHistory
         }
     }
 
+    internal void Forget(string id) => _series.Remove(id);
+
+    /// <summary>The values of the last ten minutes, as <see cref="LastMinute"/> gives them.</summary>
+    public IReadOnlyList<double?> TenMinutes(string id) => Values(id, _slots);
+
     /// <summary>Drops every series but those of <paramref name="ids"/>, so memory follows what is still asked for.</summary>
     internal void Keep(IReadOnlySet<string> ids)
     {
@@ -113,29 +126,6 @@ public sealed class SensorHistory
         {
             _series.Remove(id);
         }
-    }
-
-    /// <summary>
-    /// How many seconds of the last ten minutes the value spent at each of <paramref name="levels"/> equal levels from 0 to
-    /// 100, <paramref name="offset"/> added to each, as an item's offset is to the value it meters.
-    /// </summary>
-    public IReadOnlyList<int> Histogram(string id, int levels, double offset = 0)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(levels);
-        var seconds = new int[levels];
-        foreach (var value in Values(id, _slots).OfType<double>())
-        {
-            seconds[Math.Clamp((int)Math.Floor((value + offset) / 100 * levels), 0, levels - 1)]++;
-        }
-
-        return seconds;
-    }
-
-    /// <summary>The lowest and the highest value of the last ten minutes, or null when there was none.</summary>
-    public (double Min, double Max)? Range(string id)
-    {
-        var values = Values(id, _slots).OfType<double>().ToList();
-        return values.Count == 0 ? null : (values.Min(), values.Max());
     }
 
     private List<double?> Values(string id, int count)
@@ -156,6 +146,29 @@ public sealed class SensorHistory
     // Seconds are counted from the last reading, not from a fixed start, so a service whose second drifts a little
     // never skips or repeats one; a reading within half a second of the last replaces it.
     private long Now() => _second < 0 ? 0 : _second + (long)Math.Round(_time.GetElapsedTime(_readAt).TotalSeconds, MidpointRounding.AwayFromZero);
+
+    // A busy PC hands readings over late, then bunched: one late skips a second, and the next, soon after, would replace it.
+    // So a reading in the same second as the last, after one that skipped seconds, moves those since back a second each.
+    private void CatchUp(long second)
+    {
+        if (second != _second || _owed == 0)
+        {
+            (_owed, _run) = _second >= 0 && second - _second >= 2 ? ((int)Math.Min(second - _second - 1, MostOwed), 1) : (0, 0);
+            return;
+        }
+
+        foreach (var series in _series.Values)
+        {
+            for (var each = _second - _run; each < _second; each++)
+            {
+                series[Slot(each)] = series[Slot(each + 1)];
+            }
+
+            series[Slot(_second)] = double.NaN;
+        }
+
+        (_owed, _run) = (_owed - 1, _run + 1);
+    }
 
     // The seconds since the last reading had none, and their slots still hold what was read a whole ring before.
     private void Clear(double[] series, long second)

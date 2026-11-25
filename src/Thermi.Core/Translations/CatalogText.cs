@@ -8,6 +8,9 @@ public enum CatalogText
 
     FanFinderLoading,
 
+    /// <summary>Once the load has ended, while the finder still watches the fans, as some answer only after it.</summary>
+    FanFinderWatching,
+
     /// <summary>The chip that shows every type.</summary>
     AllKinds,
 
@@ -51,6 +54,12 @@ public enum CatalogText
 
     /// <summary>A catalog row's reason: any other sensor without a value.</summary>
     RowReadsNothing,
+
+    /// <summary>A catalog row's note: the game's FPS or frame time, which read only while an app in front presents frames.</summary>
+    RowNoFrames,
+
+    /// <summary>A catalog row's reason: the game's FPS or frame time while the sensor service cannot read frames.</summary>
+    RowFramesUnread,
 
     /// <summary>Under a catalog row: the items that already show it.</summary>
     ShownAs,

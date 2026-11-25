@@ -107,7 +107,7 @@ internal sealed class ConfigStore : IDisposable
     public async Task<ConfigRead> ReadOnlyAsync()
     {
         var found = await SettledAsync().ConfigureAwait(false);
-        return found.Kind == Found.Missing ? new ConfigRead(new ThermiConfig(), null, Outside: true) : ReadOf(found);
+        return found.Kind == Found.Missing ? new ConfigRead(ThermiConfig.New, null, Outside: true) : ReadOf(found);
     }
 
     /// <summary>Applies <paramref name="change"/> to the settings the file holds now and writes the result, never over a broken file.</summary>
@@ -121,7 +121,7 @@ internal sealed class ConfigStore : IDisposable
 
     public void Dispose() => _mutex.Dispose();
 
-    private static Plan Create(Look found) => new(found.Kind == Found.Missing ? new ThermiConfig() : null);
+    private static Plan Create(Look found) => new(found.Kind == Found.Missing ? ThermiConfig.New : null);
 
     // Another process may have written the file in this version first, or broken it since: then it is left as it is.
     private static Plan Upgraded(Look found)
@@ -373,7 +373,7 @@ internal sealed class ConfigStore : IDisposable
     private ConfigRead ReadOf(Look found) => found.Kind switch
     {
         Found.Locked => new ConfigRead(new ThermiConfig(), ConfigProblem.Locked(found.Text), Outside: true),
-        Found.Missing => new ConfigRead(new ThermiConfig(), ConfigProblem.Missing, Outside: true),
+        Found.Missing => new ConfigRead(ThermiConfig.New, ConfigProblem.Missing, Outside: true),
         Found.Whole or Found.Unfinished => Parsed(found.Text),
         _ => throw new ArgumentOutOfRangeException(nameof(found), found.Kind, "Unknown kind of read."),
     };

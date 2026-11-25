@@ -29,14 +29,18 @@ $appCoverage = '--results-directory', $appResults, '--', '--coverlet', '--coverl
 $appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors' }
 Set-Location $root
 
+. (Join-Path $PSScriptRoot 'check-lock.ps1')
+
 # A thermi built from this repo and still running locks its own files and breaks the build.
 # An installed thermi (the one you use every day) runs from elsewhere and is left alone.
-Get-Process thermi -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -and $_.Path.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase) } |
-    ForEach-Object {
-        Write-Host "stop thermi.exe $($_.Id), built from this repo"
-        Stop-Process -Id $_.Id -Force
-    }
+function Stop-RepoThermi {
+    Get-Process thermi -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase) } |
+        ForEach-Object {
+            Write-Host "stop thermi.exe $($_.Id), built from this repo"
+            Stop-Process -Id $_.Id -Force
+        }
+}
 
 function Invoke-Step([string]$Name, [scriptblock]$Command, [scriptblock]$Explain) {
     $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -185,6 +189,13 @@ function Invoke-Web {
     }
 }
 
-Remove-Item $results -Recurse -Force -ErrorAction SilentlyContinue
-if ($Part -ne 'Web') { Invoke-DotNet }
-if ($Part -ne 'DotNet') { Invoke-Web }
+try {
+    if (-not $Ci) { Enter-Check }
+    Stop-RepoThermi
+    Remove-Item $results -Recurse -Force -ErrorAction SilentlyContinue
+    if ($Part -ne 'Web') { Invoke-DotNet }
+    if ($Part -ne 'DotNet') { Invoke-Web }
+}
+finally {
+    if (-not $Ci) { Exit-Check }
+}

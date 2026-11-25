@@ -59,6 +59,9 @@ public static class AgentReads
         SensorKind.Throughput => "B/s",
         SensorKind.Duration or SensorKind.Time => "s",
         SensorKind.Address => "ipv4",
+        SensorKind.FrameRate => "fps",
+        SensorKind.FrameTime => "ms",
+        SensorKind.Voltage => "V",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
     };
 

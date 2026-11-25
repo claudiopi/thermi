@@ -13,7 +13,8 @@ namespace Thermi.SensorHost;
 /// the pipe: there is no client input to trust. If either loop fails, the whole server fails, so the service stops and
 /// Windows restarts it instead of leaving it alive and silent.
 /// </summary>
-internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, string pipeName = SnapshotJson.PipeName) : IDisposable
+internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> read, TimeProvider time, string pipeName = SnapshotJson.PipeName)
+    : IDisposable
 {
     /// <summary>Clients connected at once, across sessions; past it, new ones wait for one to leave.</summary>
     public const int MaxClients = 32;
@@ -55,10 +56,7 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
     /// What ends a read past <see cref="ReadLimit"/>: the process, which Windows' recovery restarts, since the stuck thread
     /// holds the library and a stop could wait on it forever. Tests end it their own way.
     /// </summary>
-    public Action Hung { get; init; } = () =>
-#pragma warning disable RS0030 // Only a process that ends frees a thread stuck in a driver, so the service manager restarts it.
-        Environment.FailFast("A sensor read did not return within its limit.");
-#pragma warning restore RS0030
+    public Action Hung { get; init; } = End;
 
     /// <summary>
     /// What says, once each time, that someone else holds the pipe's name: silent, the service would look running and
@@ -93,6 +91,12 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
             }
         }
     }
+
+    /// <summary>Ends the process for a read stuck past <see cref="ReadLimit"/>, which Windows' recovery then restarts.</summary>
+    public static void End() =>
+#pragma warning disable RS0030 // Only a process that ends frees a thread stuck in a driver, so the service manager restarts it.
+        Environment.FailFast("A sensor read did not return within its limit.");
+#pragma warning restore RS0030
 
     public void Dispose() => _slots.Dispose();
 
@@ -219,7 +223,7 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
     {
         try
         {
-            return await Task.Run(read, CancellationToken.None).WaitAsync(ReadLimit, time, stop);
+            return await Task.Run(() => read(stop), CancellationToken.None).WaitAsync(ReadLimit, time, stop);
         }
         catch (TimeoutException)
         {
@@ -279,7 +283,11 @@ internal sealed class SensorPipeServer(Func<Snapshot> read, TimeProvider time, s
         var options = PipeOptions.Asynchronous | (first ? PipeOptions.FirstPipeInstance : PipeOptions.None);
         try
         {
-            return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, Security);
+            // A security object is not safe to read from two threads at once, as two servers in one process do in tests.
+            lock (Security)
+            {
+                return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, Security);
+            }
         }
         catch (UnauthorizedAccessException) when (first)
         {

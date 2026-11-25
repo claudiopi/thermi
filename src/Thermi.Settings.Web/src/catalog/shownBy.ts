@@ -1,4 +1,4 @@
-import type { ItemView, Settings } from '../bridge/bridge.g';
+import type { CatalogRow, ItemView, Settings } from '../bridge/bridge.g';
 import { itemName, overlayName } from '../list/rows';
 import type { TextKey } from '../texts/Texts';
 
@@ -15,4 +15,17 @@ export function shownBy(settings: Settings, views: Readonly<Record<string, ItemV
       .filter((item) => item.sensor === sensor || views[item.id]?.auto === sensor)
       .map((item) => (several ? say('CatalogText.ShownOn', itemName(item), overlayName(overlay, index, say)) : itemName(item))),
   );
+}
+
+/**
+ * What a catalog row's second line says. A GPU's fan at rest is no fault, so the items that show it come before its quiet note.
+ */
+export function rowLine(row: Pick<CatalogRow, 'why' | 'alias' | 'from'>, shown: boolean): 'why' | 'alias' | 'shown' | 'note' {
+  if (row.why !== null && !(row.why === 'resting' && shown)) {
+    return 'why';
+  }
+  if (row.alias !== null) {
+    return 'alias';
+  }
+  return row.from !== 'likely' && shown ? 'shown' : 'note';
 }

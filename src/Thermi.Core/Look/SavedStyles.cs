@@ -1,8 +1,12 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using Thermi.Core.Editing;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Look;
+
+/// <summary>The look an overlay wears: a saved look by its name, or Default with none.</summary>
+public sealed record WornLook([property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Saved);
 
 /// <summary>
 /// The saved styles: one style file each in a folder, which for the window is <c>%APPDATA%\thermi\styles</c>. The name
@@ -93,13 +97,19 @@ public sealed class SavedStyles(string folder)
     }
 
     /// <summary>
-    /// The saved style the window shows as chosen: the one the style names, when it also has its look, or null for custom.
-    /// A style imported under a saved one's name, but of another look, is not that style.
+    /// The look an overlay wears: the saved look the style names, when it also draws as that look; else Default, when it
+    /// draws as Default; else a saved look it draws as; else null, once it was changed in any way. A style imported under
+    /// a saved one's name, but of another look, is not that look.
     /// </summary>
-    public static StyleConfig? Chosen(StyleConfig style, IEnumerable<StyleConfig> saved) =>
-        style.Name is null
-            ? null
-            : saved.FirstOrDefault(each => Same(each.Name, style.Name) && each.WornOn(style) with { Name = null } == style with { Name = null });
+    public static WornLook? Worn(StyleConfig style, IEnumerable<StyleConfig> saved)
+    {
+        var looks = saved.ToList();
+        var drawn = Drawn(style);
+        return looks.FirstOrDefault(each => Same(each.Name, style.Name) && Drawn(each) == drawn) is { } named ? new WornLook(named.Name)
+            : drawn == Drawn(new StyleConfig()) ? new WornLook(null)
+            : looks.FirstOrDefault(each => Drawn(each) == drawn) is { } same ? new WornLook(same.Name)
+            : null;
+    }
 
     /// <summary>
     /// The file name a style's name makes before a number is added for a taken one: the characters Windows refuses and
@@ -122,6 +132,20 @@ public sealed class SavedStyles(string folder)
     };
 
     internal static StyleConfig Renamed(StyleConfig style, string from, string to) => Same(style.Name, from) ? style with { Name = to } : style;
+
+    // A look as it draws: without its name, the layout, direction and labels, which are the overlay's, the text sizes a
+    // preset other than custom sets, and colors that leave every one out.
+    private static StyleConfig Drawn(StyleConfig style)
+    {
+        var custom = style.Preset == StylePreset.Custom;
+        return style.WornOn(new StyleConfig()) with
+        {
+            Name = null,
+            Label = custom ? style.Label : null,
+            Value = custom ? style.Value : null,
+            Colors = style.Colors == new StyleColors() ? null : style.Colors,
+        };
+    }
 
     private static Refusal? NameRefusal(string name) =>
         name.Length == 0 ? Refusal.StyleNameEmpty : name.Length > StyleConfig.MaxNameLength ? Refusal.StyleNameTooLong : null;

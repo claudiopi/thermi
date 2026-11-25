@@ -91,6 +91,7 @@ IsWindowVisible
 WM_SETCURSOR
 SetCursor
 IDC_SIZENWSE
+IDC_NO
 // Mouse and menus
 SetCapture
 ReleaseCapture
@@ -235,3 +236,7 @@ PdhCloseQuery
 PDH_FMT
 PDH_FMT_COUNTERVALUE_ITEM_W
 PDH_MORE_DATA
+GetShellWindow
+CreateToolhelp32Snapshot
+Process32FirstW
+Process32NextW

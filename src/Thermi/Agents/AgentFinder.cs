@@ -2,6 +2,7 @@ using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
+using Thermi.Overlay;
 using Thermi.Ui.Views;
 
 namespace Thermi.Agents;
@@ -13,10 +14,11 @@ internal sealed partial class AgentCommands
     {
         // The window's finder lives on the window's thread; here its timer and this loop take turns under one gate.
         var gate = new Lock();
-        var finder = new WindowFinder(environment.Load, time, turn => { lock (gate) { turn(); } }, () => { });
+        var feed = environment.Sensors();
+        var finder = new WindowFinder(environment.Load, time, turn => { lock (gate) { turn(); } }, () => { }, environment.Log, () => feed.State);
         try
         {
-            return await FindAsync(finder, gate, use, stop);
+            return await FindAsync(finder, feed, gate, use, stop);
         }
         finally
         {
@@ -27,10 +29,9 @@ internal sealed partial class AgentCommands
         }
     }
 
-    private async Task<AgentReply> FindAsync(WindowFinder finder, Lock gate, bool use, CancellationToken stop)
+    private async Task<AgentReply> FindAsync(WindowFinder finder, ISensorFeed feed, Lock gate, bool use, CancellationToken stop)
     {
         Snapshot? last = null;
-        var feed = environment.Sensors();
         await foreach (var snapshot in AgentSamples.StreamAsync(feed, time, stop))
         {
             if (snapshot is null)

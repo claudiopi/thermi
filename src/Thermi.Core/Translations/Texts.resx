@@ -61,10 +61,13 @@
     <value>Combine…</value>
   </data>
   <data name="CatalogText.FanFinderWaiting" xml:space="preserve">
-    <value>Waiting for fresh readings…</value>
+    <value>Waiting for the fans to settle…</value>
   </data>
   <data name="CatalogText.FanFinderLoading" xml:space="preserve">
     <value>Loading every core, up to 30 s</value>
+  </data>
+  <data name="CatalogText.FanFinderWatching" xml:space="preserve">
+    <value>Load ended; watching the fans for up to 40 s more</value>
   </data>
   <data name="UiText.Cancel" xml:space="preserve">
     <value>Cancel</value>
@@ -189,6 +192,12 @@
   <data name="CatalogText.RowReadsNothing" xml:space="preserve">
     <value>Reads nothing</value>
   </data>
+  <data name="CatalogText.RowNoFrames" xml:space="preserve">
+    <value>Reads while a game or 3D app in front draws frames</value>
+  </data>
+  <data name="CatalogText.RowFramesUnread" xml:space="preserve">
+    <value>Can't read frames: update thermi, or restart the PC</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Shown: {0}</value>
   </data>
@@ -311,6 +320,9 @@
   </data>
   <data name="UiText.SizeField" xml:space="preserve">
     <value>Size</value>
+  </data>
+  <data name="UiText.SizeOnTaskbar" xml:space="preserve">
+    <value>On the taskbar it never grows taller than the taskbar.</value>
   </data>
   <data name="UiText.StartWithWindows" xml:space="preserve">
     <value>Start with Windows</value>
@@ -438,8 +450,11 @@
   <data name="UiText.CombineField" xml:space="preserve">
     <value>Combine as</value>
   </data>
-  <data name="UiText.CombineAdd" xml:space="preserve">
-    <value>Add</value>
+  <data name="UiText.CombineUse" xml:space="preserve">
+    <value>Use these</value>
+  </data>
+  <data name="UiText.SensorCombined" xml:space="preserve">
+    <value>{0} of {1}</value>
   </data>
   <data name="OverlayPageText.FontField" xml:space="preserve">
     <value>Font</value>
@@ -1011,6 +1026,15 @@
   <data name="ChartText.SecondsAgo" xml:space="preserve">
     <value>{0} s ago</value>
   </data>
+  <data name="ChartText.MinutesSecondsAgo" xml:space="preserve">
+    <value>{0} min {1} s ago</value>
+  </data>
+  <data name="ChartText.Point" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="ChartText.NoReading" xml:space="preserve">
+    <value>No reading</value>
+  </data>
   <data name="Combine.Max" xml:space="preserve">
     <value>Highest</value>
   </data>
@@ -1082,6 +1106,9 @@
   </data>
   <data name="FanFinderOutcome.LoadDidNotReachTheCpu" xml:space="preserve">
     <value>The CPU load stayed under 80 %, so the fans had nothing to answer; try again.</value>
+  </data>
+  <data name="FanFinderOutcome.LoadDidNotHeatTheCpu" xml:space="preserve">
+    <value>The CPU was already busy and hot, so the load did not warm it and no fan had anything to answer. Close what loads the PC and try again.</value>
   </data>
   <data name="FanFinderOutcome.ReadingsStopped" xml:space="preserve">
     <value>The sensor readings stopped during the run, so no fan was picked.</value>
@@ -1269,6 +1296,9 @@
   <data name="MenuEntry.GraphOwn" xml:space="preserve">
     <value>Some items have their own</value>
   </data>
+  <data name="MenuEntry.SeparateFull" xml:space="preserve">
+    <value>4 overlays at most</value>
+  </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
   </data>
@@ -1386,6 +1416,12 @@
   <data name="NoValue.Resting" xml:space="preserve">
     <value>stopped while the GPU is cool</value>
   </data>
+  <data name="NoValue.NoFrames" xml:space="preserve">
+    <value>reads only while an app in front draws frames, as a game</value>
+  </data>
+  <data name="NoValue.FramesUnread" xml:space="preserve">
+    <value>can't read frames: the sensor service is from before them, or Windows has no trace session free</value>
+  </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
   </data>
@@ -1402,7 +1438,7 @@
     <value>{0} of {1}</value>
   </data>
   <data name="OverlayText.MinAndMax" xml:space="preserve">
-    <value>Min {0} · max {1}</value>
+    <value>Min {0} · Max {1}</value>
   </data>
   <data name="OverlayText.DoubleClickToEdit" xml:space="preserve">
     <value>Double-click to edit</value>
@@ -1441,7 +1477,7 @@
     <value>Undo graph</value>
   </data>
   <data name="OverlayText.UndoOrientation" xml:space="preserve">
-    <value>Undo orientation</value>
+    <value>Undo vertical</value>
   </data>
   <data name="OverlayText.UndoLock" xml:space="preserve">
     <value>Undo lock</value>
@@ -1503,6 +1539,9 @@
   <data name="Refusal.WarningAboveCritical" xml:space="preserve">
     <value>The warning value cannot be above the critical one.</value>
   </data>
+  <data name="Refusal.CriticalAboveWarning" xml:space="preserve">
+    <value>For a frame rate, the critical value goes below the warning one.</value>
+  </data>
   <data name="Refusal.ThresholdOutOfRange" xml:space="preserve">
     <value>A threshold must lie on the track.</value>
   </data>
@@ -1530,6 +1569,9 @@
   <data name="Refusal.Snapped" xml:space="preserve">
     <value>Alt+arrows move a floating overlay. Drag this one off its place to move it freely.</value>
   </data>
+  <data name="Refusal.NoRoomOnTaskbar" xml:space="preserve">
+    <value>That taskbar has no room for this overlay at its size.</value>
+  </data>
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi has no translation for that language.</value>
   </data>
@@ -1544,6 +1586,9 @@
   </data>
   <data name="Refusal.SumOfTemperatures" xml:space="preserve">
     <value>Temperatures can be combined as their highest or their average, never as a sum.</value>
+  </data>
+  <data name="Refusal.SumOfVoltages" xml:space="preserve">
+    <value>Voltages can be combined as their highest or their average, never as a sum.</value>
   </data>
   <data name="Refusal.SumOfUnknown" xml:space="preserve">
     <value>This item's sensors are not read now, so thermi cannot tell whether a sum of them means anything.</value>
@@ -2055,8 +2100,14 @@
   <data name="MetricLabel.Time" xml:space="preserve">
     <value>TIME</value>
   </data>
+  <data name="MetricLabel.Fps" xml:space="preserve">
+    <value>FPS</value>
+  </data>
   <data name="DeviceKind.System" xml:space="preserve">
     <value>PC</value>
+  </data>
+  <data name="DeviceKind.Game" xml:space="preserve">
+    <value>Game</value>
   </data>
   <data name="MetricName.Uptime" xml:space="preserve">
     <value>Uptime</value>
@@ -2067,11 +2118,23 @@
   <data name="MetricName.Clock" xml:space="preserve">
     <value>Clock</value>
   </data>
+  <data name="MetricName.Fps" xml:space="preserve">
+    <value>FPS</value>
+  </data>
+  <data name="MetricName.FrameTime" xml:space="preserve">
+    <value>Frame time</value>
+  </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Time</value>
   </data>
   <data name="SensorKind.Address" xml:space="preserve">
     <value>Address</value>
+  </data>
+  <data name="SensorKind.FrameRate" xml:space="preserve">
+    <value>Frame rate</value>
+  </data>
+  <data name="SensorKind.FrameTime" xml:space="preserve">
+    <value>Frame time</value>
   </data>
   <data name="Synonyms.Time" xml:space="preserve">
     <value>clock hour time seconds</value>
@@ -2081,6 +2144,21 @@
   </data>
   <data name="Synonyms.System" xml:space="preserve">
     <value>pc windows computer system</value>
+  </data>
+  <data name="Synonyms.FrameRate" xml:space="preserve">
+    <value>fps frames frame rate framerate</value>
+  </data>
+  <data name="SensorKind.Voltage" xml:space="preserve">
+    <value>Voltage</value>
+  </data>
+  <data name="Synonyms.Voltage" xml:space="preserve">
+    <value>volts volt voltage rail</value>
+  </data>
+  <data name="Synonyms.FrameTime" xml:space="preserve">
+    <value>frame time frametime ms stutter</value>
+  </data>
+  <data name="Synonyms.Game" xml:space="preserve">
+    <value>game games play 3d</value>
   </data>
   <data name="UnitText.BitsPerSecond" xml:space="preserve">
     <value>bps</value>
@@ -2130,9 +2208,6 @@
   <data name="OverlayText.SmoothTag" xml:space="preserve">
     <value>{0}s avg</value>
   </data>
-  <data name="OverlayText.TaggedLabel" xml:space="preserve">
-    <value>{0} {1}</value>
-  </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Your taskbar is on a side, so the overlay floats beside it.</value>
   </data>
@@ -2144,6 +2219,9 @@
   </data>
   <data name="OverlayPageText.FadeHint" xml:space="preserve">
     <value>Shows what lies under it as the pointer comes near</value>
+  </data>
+  <data name="OverlayPageText.DirectionOnePill" xml:space="preserve">
+    <value>Vertical stacks pills, and this overlay has one</value>
   </data>
   <data name="UiText.Bits" xml:space="preserve">
     <value>Show in bits per second</value>
@@ -2195,5 +2273,29 @@
   </data>
   <data name="AgentText.SettingsBrokenFixSensorsOnly" xml:space="preserve">
     <value>Ask the person to fix or delete thermi's settings file, %APPDATA%\thermi\config.json.</value>
+  </data>
+  <data name="OfDevice.Cpu" xml:space="preserve">
+    <value>CPU {0}</value>
+  </data>
+  <data name="OfDevice.Gpu" xml:space="preserve">
+    <value>GPU {0}</value>
+  </data>
+  <data name="OfDevice.Ram" xml:space="preserve">
+    <value>RAM {0}</value>
+  </data>
+  <data name="OfDevice.Board" xml:space="preserve">
+    <value>BOARD {0}</value>
+  </data>
+  <data name="OfDevice.Ssd" xml:space="preserve">
+    <value>SSD {0}</value>
+  </data>
+  <data name="OfDevice.Network" xml:space="preserve">
+    <value>NET {0}</value>
+  </data>
+  <data name="OfDevice.Battery" xml:space="preserve">
+    <value>BAT {0}</value>
+  </data>
+  <data name="OfDevice.System" xml:space="preserve">
+    <value>PC {0}</value>
   </data>
 </root>

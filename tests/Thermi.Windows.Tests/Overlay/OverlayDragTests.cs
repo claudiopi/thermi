@@ -53,8 +53,8 @@ public sealed class OverlayDragTests : IDisposable
         Assert.Equal((dropped, null), (_folder.Read().Overlays[0].Position, _folder.Read().Overlays[0].Snap));
     }
 
-    // A locked overlay takes no drag, and a double-click on it still opens the window, which its window class must let
-    // Windows send.
+    // A locked overlay takes no drag, nor a press held still on a value until it would lift, and a double-click on it still
+    // opens the window, which its window class must let Windows send.
     [Fact]
     public async Task ALockedOverlayStaysWhereItIs()
     {
@@ -68,6 +68,11 @@ public sealed class OverlayDragTests : IDisposable
             var overlay = host.Overlays[0].Hwnd;
             corners.Add(Corner(overlay));
             corners.Add(Drag(host, overlay).Dragged);
+            Post(overlay, PInvoke.WM_LBUTTONUP);
+            HostRun.Pump(host);
+            MoveTo(host, host.Overlays[0], EndOf(host.Overlays[0], Metrics.CpuLoad.Id, label: false), PInvoke.WM_LBUTTONDOWN);
+            Hold(host, host.Overlays[0]);
+            MoveTo(host, host.Overlays[0], new Position(_cursor.X + By.X, _cursor.Y + By.Y));
             Post(overlay, PInvoke.WM_LBUTTONUP);
             HostRun.Pump(host);
             HostRun.Tick(host);
@@ -135,8 +140,10 @@ public sealed class OverlayDragTests : IDisposable
     // the drag distance and came back moves the overlay whole however long it then holds; an overlay of one pill dragged onto
     // another shows whole, not faded, and joins it before the pill it is let go on, but not with Alt held; a lifted pill
     // dropped on the overlay of one pill joins it before that pill, and thrown far onto the desktop becomes an overlay of
-    // its own; and the overlay of many dragged over the one of one pill joins it with the cursor beside it. The overlays
-    // left, as their count, each one's first item and whether the first is still snapped.
+    // its own; and the overlay of many dragged over the one of one pill joins it with the cursor beside it. In the CPU pill,
+    // a value held lifts its item alone and the label the pill, and the CPU temperature's value dropped on the end of the
+    // CPU power's moves it to the end of its pill. The overlays left, as their count, each one's first item and whether the
+    // first is still snapped.
     [Theory]
     [InlineData("own", "1 gpu.load snapped")]
     [InlineData("back", "1 cpu.temperature free")]
@@ -145,6 +152,9 @@ public sealed class OverlayDragTests : IDisposable
     [InlineData("lifted", "2 cpu.temperature,gpu.load snapped")]
     [InlineData("over", "1 cpu.temperature snapped")]
     [InlineData("off", "2 cpu.temperature,gpu.load snapped")]
+    [InlineData("value", "2 cpu.temperature,cpu.load snapped")]
+    [InlineData("label", "2 gpu.load,cpu.temperature snapped")]
+    [InlineData("within", "1 fan.cpu snapped")]
     public async Task APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo(string drag, string expected)
     {
         var solo = new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight), Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] };
@@ -155,8 +165,8 @@ public sealed class OverlayDragTests : IDisposable
 
         Run(settings, host =>
         {
-            var (first, held) = (host.Overlays[0], host.Overlays[drag is "merge" or "alt" ? 1 : 0]);
-            var pressed = drag is "merge" or "alt" or "over" ? Middle(held.Hwnd) : PillOf(first, Metrics.GpuLoad.Id);
+            var held = host.Overlays[drag is "merge" or "alt" ? 1 : 0];
+            var pressed = PressedAt(host, drag);
             MoveTo(host, held, pressed, PInvoke.WM_LBUTTONDOWN);
             if (drag == "back")
             {
@@ -166,9 +176,7 @@ public sealed class OverlayDragTests : IDisposable
 
             if (drag != "over")
             {
-                _folder.Clock.Advance(DesktopGestures.Hold);
-                PInvoke.PostMessage(held.Hwnd, PInvoke.WM_TIMER, OverlayGestures.HoldTimer, 0);
-                HostRun.Pump(host);
+                Hold(host, held);
             }
 
             MoveTo(host, held, DroppedAt(host, drag, pressed));
@@ -183,15 +191,27 @@ public sealed class OverlayDragTests : IDisposable
         Assert.Equal(255, during);
     }
 
+    // An overlay in its middle, a value or the label in the CPU pill, or the GPU's pill.
+    private static Position PressedAt(OverlayHost host, string drag) => drag switch
+    {
+        "merge" or "alt" => Middle(host.Overlays[1].Hwnd),
+        "over" => Middle(host.Overlays[0].Hwnd),
+        "value" => EndOf(host.Overlays[0], Metrics.CpuLoad.Id, label: false),
+        "label" => EndOf(host.Overlays[0], Metrics.CpuTemperature.Id, label: true),
+        "within" => EndOf(host.Overlays[0], Metrics.CpuTemperature.Id, label: false),
+        _ => PillOf(host.Overlays[0], Metrics.GpuLoad.Id),
+    };
+
     // In front of the first overlay's first pill, or of the overlay of one pill, or, for the overlay of many held in its
-    // middle, 20 px left of the overlay of one pill, the overlay of many then over all of it.
+    // middle, 20 px left of the overlay of one pill, the overlay of many then over all of it; or on the CPU power's value.
     private static Position DroppedAt(OverlayHost host, string drag, Position pressed)
     {
         PInvoke.GetWindowRect(host.Overlays[drag is "lifted" or "over" ? 1 : 0].Hwnd, out var rect);
         var middle = (rect.top + rect.bottom) / 2;
         return drag switch
         {
-            "back" or "off" => new Position(pressed.X + By.X, pressed.Y + By.Y),
+            "back" or "off" or "value" or "label" => new Position(pressed.X + By.X, pressed.Y + By.Y),
+            "within" => EndOf(host.Overlays[0], Metrics.CpuPower.Id, label: false),
             "over" => new Position(rect.left - 20, middle),
             _ => new Position(rect.left + 3, middle),
         };
@@ -207,6 +227,24 @@ public sealed class OverlayDragTests : IDisposable
             _folder.Clock.Advance(Settings.Interval);
             HostRun.Pump(host);
         }
+    }
+
+    // The press held still until it lifts, as the hold's timer wakes the overlay.
+    private void Hold(OverlayHost host, OverlayWindow held)
+    {
+        _folder.Clock.Advance(DesktopGestures.Hold);
+        PInvoke.PostMessage(held.Hwnd, PInvoke.WM_TIMER, OverlayGestures.HoldTimer, 0);
+        HostRun.Pump(host);
+    }
+
+    // On the overlay's middle row, 2 px into an item: from its start, on the label of the pill it starts, or from its end,
+    // on its value.
+    private static Position EndOf(OverlayWindow overlay, string item, bool label)
+    {
+        PInvoke.GetWindowRect(overlay.Hwnd, out var rect);
+        var y = (rect.top + rect.bottom) / 2;
+        var on = Enumerable.Range(rect.left, rect.right - rect.left).Where(x => overlay.ItemAt(new Position(x, y)) == item).ToList();
+        return new Position(label ? on[0] + 2 : on[^1] - 2, y);
     }
 
     private static Position Middle(HWND window) =>

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Sensors;
 
@@ -38,49 +39,37 @@ public sealed class HistoryTests
         time.Advance(TimeSpan.FromMinutes(2) + Second);
         Run(history, time, Enumerable.Repeat(95.0, 6 * 60));
 
-        var levels = history.Histogram(Cpu, 10);
+        var kept = history.TenMinutes(Cpu);
 
-        Assert.Equal([120, 0, 0, 0, 0, 0, 0, 0, 0, 360], levels);
-        Assert.Equal(Enumerable.Repeat(0, 4), history.Histogram("gpu.temperature", 4));
-        Assert.Throws<ArgumentOutOfRangeException>(() => history.Histogram(Cpu, 0));
+        Assert.Equal([.. Enumerable.Repeat<double?>(5, 120), .. Enumerable.Repeat<double?>(null, 120), .. Enumerable.Repeat<double?>(95, 360)], kept);
+        Assert.All(history.TenMinutes("gpu.temperature"), Assert.Null);
     }
 
-    [Fact]
-    public void AReadingKeepsItsSecondThoughItArrivesLateOrEarly()
+    // Readings, "-" for none, with the seconds between their arrivals, and the last minute kept. A reading within half a
+    // second of the last replaces it; but one that arrives late, a second skipped, and the next soon after, as under a full
+    // load (night QA: the chart went blank for 15 s while the list kept changing), each keep a second of their own.
+    [Theory]
+    [InlineData("20 30 - -5 150", "1.4 0.7 1.3 0.2", "20 30 - 150")]
+    [InlineData("1 2 3 4 5 6", "1.6 0.4 1.6 0.4 1", "1 2 3 4 5 6")]
+    [InlineData("1 2 3 4 5", "3.6 0.1 0.1 1", "1 - 2 3 4 5")]
+    public void AReadingKeepsItsSecondThoughItArrivesLateOrEarly(string read, string apart, string kept)
     {
         var time = new FakeTimeProvider();
         var history = new SensorHistory(time);
-        double?[] values = [20, 30, null, -5, 150];
-        TimeSpan[] gaps = [TimeSpan.FromSeconds(1.4), TimeSpan.FromSeconds(0.7), TimeSpan.FromSeconds(1.3), TimeSpan.FromSeconds(0.2)];
+        var values = read.Split(' ').Select(value => value == "-" ? double.NaN : double.Parse(value, CultureInfo.InvariantCulture)).ToList();
+        var gaps = apart.Split(' ').Select(gap => TimeSpan.FromSeconds(double.Parse(gap, CultureInfo.InvariantCulture))).ToList();
 
-        for (var index = 0; index < values.Length; index++)
+        for (var index = 0; index < values.Count; index++)
         {
-            history.Add(new Dictionary<string, Reading>(StringComparer.Ordinal) { [Cpu] = new(SensorKind.Temperature, values[index] ?? double.NaN) });
-            if (index < gaps.Length)
+            history.Add(new Dictionary<string, Reading>(StringComparer.Ordinal) { [Cpu] = new(SensorKind.Temperature, values[index]) });
+            if (index < gaps.Count)
             {
                 time.Advance(gaps[index]);
             }
         }
 
-        Assert.Equal([20, 30, null, 150], history.LastMinute(Cpu));
-        Assert.Equal([1, 1, 0, 1], history.Histogram(Cpu, 4));
-    }
-
-    // The inspector's histogram is of what the meter shows, an item's offset included, and says the range it spans.
-    [Fact]
-    public void TheHistogramTakesAnOffsetAndTheRangeSpansTheKeptMinutes()
-    {
-        var time = new FakeTimeProvider();
-        var history = new SensorHistory(time);
-        Assert.Null(history.Range(Cpu));
-
-        Run(history, time, [40, 70, 55]);
-
-        Assert.Equal((40, 70), history.Range(Cpu));
-        Assert.Equal([0, 0, 2, 1], history.Histogram(Cpu, 4, offset: 10));
-        Assert.Equal([0, 0, 0, 3], history.Histogram(Cpu, 4, offset: 100));
-        time.Advance(SensorHistory.Kept);
-        Assert.Null(history.Range(Cpu));
+        var shown = history.LastMinute(Cpu).Select(value => value is { } some ? some.ToString(CultureInfo.InvariantCulture) : "-");
+        Assert.Equal(kept, string.Join(' ', shown));
     }
 
     // One reading a second, the first one now.

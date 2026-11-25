@@ -3,6 +3,7 @@ import { useEdit, type WindowData } from '../bridge/useWindow';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
 import { Card, CardRow, Dropdown } from '../kit';
+import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
 import { MonitorMap } from './MonitorMap';
 import { placedOf, positionHint, snapAt } from './placeModel';
@@ -39,12 +40,19 @@ function lockSummary(one: Overlay, say: (key: TextKey, ...blanks: string[]) => s
 export function Placement({ data, overlay, shown, lockOpen, onLockOpen }: PlacementProps) {
   const t = useText();
   const edit = useEdit();
+  const news = useNews();
   const places = usePlaces(data.changes);
   const one = data.settings.overlays[overlay];
   if (one === undefined) {
     return null;
   }
   const set = (field: string, value: Value): void => void edit({ kind: 'overlay', overlay, field, value });
+  const snapTo = (spot: SnapSpot, display: Monitor): void =>
+    void edit({ kind: 'overlay', overlay, field: 'snap', value: snapAt(spot, display) }).then((refusal) => {
+      if (refusal !== null) {
+        news.show({ message: t(refusal as TextKey) });
+      }
+    });
   const placed = placedOf(one, shown);
   const vertical = one.style?.orientation === 'vertical';
   const hidden = one.hidden === true;
@@ -63,7 +71,7 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen }: Placem
             place={places[overlay] ?? null}
             vertical={vertical}
             hidden={hidden}
-            onSnap={(spot: SnapSpot, display: Monitor) => set('snap', snapAt(spot, display))}
+            onSnap={snapTo}
           />
         </div>
         <Card>

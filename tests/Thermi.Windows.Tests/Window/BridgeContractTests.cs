@@ -1,6 +1,9 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using Thermi.Core.Bridge;
+using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -21,7 +24,8 @@ namespace Thermi.Windows.Tests.Window;
 /// </summary>
 public sealed class BridgeContractTests
 {
-    // A version 2 file without names, as written by hand or by a build before names, its fan metered by its duty.
+    // A version 2 file without names, as written by hand or by a build before names, its fan metered by its duty, and its CPU
+    // temperature, its fan and its RAM in two decimals.
     private const string Unnamed = """
         {
           "version": 2,
@@ -29,16 +33,25 @@ public sealed class BridgeContractTests
             "name": "Floating 2",
             "snap": { "spot": "taskbar-right" },
             "items": [
-              { "id": "fan.cpu", "metric": "fan.cpu", "meter": { "metric": "fan.cpu.duty" }, "threshold": { "warning": 60, "critical": 85 } },
-              { "id": "cpu.temperature", "metric": "cpu.temperature", "meter": { "metric": "cpu.temperature" } },
+              { "id": "fan.cpu", "metric": "fan.cpu", "meter": { "metric": "fan.cpu.duty" }, "threshold": { "warning": 60, "critical": 85 }, "decimals": 2 },
+              { "id": "cpu.temperature", "metric": "cpu.temperature", "meter": { "metric": "cpu.temperature" }, "decimals": 2 },
               { "id": "cpu.power", "metric": "cpu.power" },
-              { "id": "ram.used", "metric": "ram.used", "meter": { "metric": "ram.load" } }
+              { "id": "ram.used", "metric": "ram.used", "meter": { "metric": "ram.load" }, "decimals": 2 }
             ]
           } ]
         }
         """;
 
     private static readonly Snapshot Recorded = TestRecordings.Read(TestRecordings.Admin);
+
+    // A chart of the item's own reading says its last point as the item's value says it, in its decimals too; one of another
+    // reading, a fan's duty or the RAM's load, in that reading's own.
+    private static string? Said(ChartView chart, ItemView item) =>
+        chart.Title is null ? item.Value
+        : ReadingFormatter.Format(
+            chart.Title == Texts.English.Of(ChartText.DutyTitle) ? SensorKind.Control : SensorKind.Load,
+            chart.Readings[^1] ?? double.NaN,
+            new ValueFormat(Texts.English, CultureInfo.CurrentCulture));
 
     [Theory]
     [InlineData("defaults", "RPM", false)]
@@ -49,23 +62,11 @@ public sealed class BridgeContractTests
         folder.Write(file == "defaults" ? ThermiConfigJson.Write(new ThermiConfig()) : file);
         await using var settings = folder.Settings();
         Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new Queue<Action>();
+        var turn = new ConcurrentQueue<Action>();
+        var window = folder.Window(new TestFeed { Latest = Recorded });
+        var start = new WindowStart(1, settings, Texts.English, window, folder.Clock) { Item = Metrics.CpuTemperature.Id };
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment(
-            "thermi-tests",
-            folder.File,
-            "thermi.exe",
-            folder.Log,
-            folder.Clock.GetUtcNow(),
-            new TestFeed { Latest = Recorded },
-            startup)
-        { Screens = () => [] };
-        using var bridge = new WindowBridge(
-            new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id },
-            editor,
-            new ChartHistory(folder.Clock),
-            turn.Enqueue);
+        using var bridge = new WindowBridge(start, editor, new ChartHistory(folder.Clock), turn.Enqueue);
         for (var second = 0; second < 3; second++)
         {
             folder.Clock.Advance(TimeSpan.FromSeconds(1));
@@ -101,6 +102,8 @@ public sealed class BridgeContractTests
             Assert.True(chart is { Empty: null, Stats: not null } && (Threshold.Judges(item) || chart is { Warning: null, Critical: null }), item.Id);
             var unit = chart.Stats.Split(' ')[^1];
             Assert.All(new[] { chart.WarningText, chart.CriticalText }.OfType<string>(), line => Assert.EndsWith($" {unit}", line, StringComparison.Ordinal));
+            var now = Texts.English.Of(UiText.ChartNow);
+            Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, ChartText.Point, Said(chart, view.Items[item.Id]), now), chart.Points[^1]);
             if (item.Id == Metrics.CpuFan.Id)
             {
                 Assert.Equal((fanUnit, fanTitled), (unit, chart.Title == Texts.English.Of(ChartText.DutyTitle)));
@@ -133,27 +136,9 @@ public sealed class BridgeContractTests
     public async Task ThePageWaitsForTheFirstReadingsAndThenHearsOfEachSecondApart()
     {
         using var folder = new SettingsFolder();
-        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        await using var settings = folder.Settings();
-        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new Queue<Action>();
-        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        await using var settings = await folder.LoadedAsync(new ThermiConfig());
         var feed = new TestFeed();
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment(
-            "thermi-tests",
-            folder.File,
-            "thermi.exe",
-            folder.Log,
-            folder.Clock.GetUtcNow(),
-            feed,
-            startup)
-        { Screens = () => [], HotkeyStatus = () => null };
-        using var bridge = new WindowBridge(
-            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
-            editor,
-            new ChartHistory(folder.Clock),
-            turn.Enqueue);
+        using var bridge = folder.Bridge(settings, folder.Window(feed), new ConcurrentQueue<Action>());
         var heard = new List<string>();
         bridge.Changed += (_, _) => heard.Add(nameof(bridge.Changed));
         bridge.Readings += (_, readings) => heard.Add(readings.View.Items.Values.All(item => item.Value is not null) ? nameof(bridge.Readings) : "empty");
@@ -183,24 +168,11 @@ public sealed class BridgeContractTests
     public async Task AServiceThatGoesSilentReachesThePageWithoutASnapshot()
     {
         using var folder = new SettingsFolder();
-        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        await using var settings = folder.Settings();
-        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
+        await using var settings = await folder.LoadedAsync(new ThermiConfig());
         // The overlay's hotkeys are asked off the window's thread, which then queues the answer.
-        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
-        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        var turn = new ConcurrentQueue<Action>();
         var feed = new TestFeed { Latest = Recorded };
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
-        {
-            Screens = () => [],
-            HotkeyStatus = () => null,
-        };
-        using var bridge = new WindowBridge(
-            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
-            editor,
-            new ChartHistory(folder.Clock),
-            turn.Enqueue);
+        using var bridge = folder.Bridge(settings, folder.Window(feed), turn);
         bridge.Arrived();
         var told = new List<bool>();
         bridge.Changed += (_, change) => told.Add(change.Sensors);
@@ -218,6 +190,40 @@ public sealed class BridgeContractTests
         Assert.Equal([true], told);
     }
 
+    // The CPU temperature set to CCD2, then undone back to Auto, kept CCD2's seconds in its chart, a dip to 49 °C: the
+    // metric's own history had followed the sensor that stood in for it.
+    [Fact]
+    public async Task AChartUndoneBackToAutoShowsOnlyTheAutomaticPick()
+    {
+        const string ccd2 = "/amdcpu/0/temperature/4";
+        var cpu = Metrics.CpuTemperature.Id;
+        using var folder = new SettingsFolder();
+        await using var settings = await folder.LoadedAsync(new ThermiConfig());
+        var turn = new ConcurrentQueue<Action>();
+        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        var feed = new TestFeed();
+        var start = new WindowStart(0, settings, Texts.English, folder.Window(feed), folder.Clock);
+        using var bridge = new WindowBridge(start, editor, new ChartHistory(folder.Clock), turn.Enqueue);
+        var cold = new Snapshot([.. Recorded.Sensors.Select(sensor => sensor.Id == ccd2 ? sensor with { Value = 34 } : sensor)]);
+        void Feed(Snapshot snapshot, int seconds)
+        {
+            for (var second = 0; second < seconds; second++)
+            {
+                folder.Clock.Advance(TimeSpan.FromSeconds(1));
+                feed.Latest = snapshot;
+                bridge.Arrived();
+            }
+        }
+
+        Feed(Recorded, 3);
+        Assert.Null(editor.Edit("sensor", config => ItemEdits.ChangeSensor(config, cpu, Recorded, ccd2)).Refused);
+        Feed(cold, 4);
+        editor.Undo();
+        Feed(Recorded, 1);
+
+        Assert.DoesNotContain(34, (await bridge.History(cpu)).OfType<double>());
+    }
+
     // A323: the owner's window said "RAM used 31.8 GB" while his overlay said "RAM 40.1 GB", its average, and the label box
     // offered "GPU", the bar's first label. The overlay runs a while before the window opens, the window takes its history
     // through the message, and from then on both read the recorded series: each second, the window's item shows the very
@@ -230,23 +236,11 @@ public sealed class BridgeContractTests
         var overlay = new OverlayConfig { Items = [OverlayConfig.DefaultItems[4], cpu], Style = new StyleConfig { Layout = PillLayout.One } };
         var config = new ThermiConfig { Overlays = [overlay] };
         using var folder = new SettingsFolder();
-        folder.Write(ThermiConfigJson.Write(config));
-        await using var settings = folder.Settings();
-        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new Queue<Action>();
+        await using var settings = await folder.LoadedAsync(config);
         var feed = new TestFeed();
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
-        {
-            Screens = () => [],
-        };
         var chart = new ChartHistory(folder.Clock);
         var onOverlay = new ItemHistory(folder.Clock);
-        using var bridge = new WindowBridge(
-            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
-            new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock),
-            chart,
-            turn.Enqueue);
+        using var bridge = folder.Bridge(settings, folder.Window(feed), new ConcurrentQueue<Action>(), chart: chart);
         var drawn = new List<(string?, string?)>();
         var shown = new List<(string?, string?)>();
 
@@ -257,7 +251,7 @@ public sealed class BridgeContractTests
             onOverlay.Add(overlay, readings);
             if (second == series.Count / 3)
             {
-                chart.Take((History)WindowMessages.Decode(WindowMessages.Encode(onOverlay.Sent(config)!))!);
+                chart.Take((History)WindowMessages.Decode(WindowMessages.Encode(onOverlay.Sent(config)))!);
             }
 
             if (second >= series.Count / 3)
@@ -266,13 +260,53 @@ public sealed class BridgeContractTests
                 bridge.Arrived();
                 var painted = OverlayLayout.Build(overlay, readings, CultureInfo.CurrentCulture, Texts.English, history: onOverlay);
                 var item = (await bridge.View()).Items[cpu.Id];
-                drawn.Add((painted.Single(each => each.Id == cpu.Id).Value, painted.Single(each => each.Id == cpu.Id).Label));
+                var own = painted.Single(each => each.Id == cpu.Id);
+                drawn.Add((own.Value, own.Label));
                 shown.Add((item.Value, item.Label));
-                Assert.True(item.Tag is { Length: > 0 } tag && item.Label!.Contains(tag, StringComparison.Ordinal), item.Label);
+                Assert.True(item.Tag is { Length: > 0 } tag && tag == own.Tag && !item.Label!.Contains(tag, StringComparison.Ordinal), item.Label);
             }
         }
 
         Assert.Equal(drawn, shown);
         Assert.NotEqual(OverlayLayout.LabelOf(OverlayConfig.DefaultItems[4], Texts.English), shown[0].Item2);
+    }
+
+    // The preview is painted as high as the overlay shows, in the monitor's pixels: at size 2 on a taskbar 48 px high at
+    // 100 %, or 72 px at 150 %, no higher than the taskbar; free at 150 %, at its own size. In a column narrower than that
+    // it is painted smaller to the column's width, never as wide as the overlay and then shrunk, which blurred it.
+    [Theory]
+    [InlineData("taskbar 100%", 0, 48)]
+    [InlineData("taskbar 150%", 0, 72)]
+    [InlineData("free 150%", 0, 114)]
+    [InlineData("free 150%", 400, 0)]
+    public async Task ThePreviewIsAsHighAsTheOverlayShows(string placed, int room, double high)
+    {
+        var words = placed.Split(' ');
+        var scale = words[1] == "150%" ? 1.5 : 1;
+        var bar = (int)(48 * scale);
+        var screen = new Screen("PC", true, new PixelRect(0, 0, 2560, 1440), new PixelRect(0, 0, 2560, 1440 - bar), scale)
+        {
+            Taskbar = new PixelRect(0, 1440 - bar, 2560, 1440),
+        };
+        var overlay = new OverlayConfig(2) { Position = words[0] == "free" ? new Position(100, 100) : null };
+        using var folder = new SettingsFolder();
+        await using var settings = await folder.LoadedAsync(new ThermiConfig { Overlays = [overlay] });
+        var window = folder.Window(new TestFeed { Latest = Recorded }) with { Screens = () => [screen] };
+        using var bridge = folder.Bridge(settings, window, new ConcurrentQueue<Action>());
+        bridge.Arrived();
+
+        var whole = await bridge.Preview(0, 0);
+        var shown = await bridge.Preview(0, room);
+
+        if (room == 0)
+        {
+            Assert.Equal(high, shown!.Height, 2);
+        }
+        else
+        {
+            // Text is measured again at the smaller scale, so its width lands within a few pixels of the room, never past it.
+            Assert.True(whole!.Width > room && shown!.Width <= room && shown.Width >= room - 8, $"{whole.Width} to {shown.Width}");
+            Assert.Equal(whole.Height * shown.Width / whole.Width, shown.Height, 1.0);
+        }
     }
 }

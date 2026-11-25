@@ -19,6 +19,12 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     public string? Color { get; init; }
 
     /// <summary>
+    /// What the value is when it is not the value now, as "max", drawn small after it; null for the value now. After the
+    /// value rather than the label, so each item of a pill says its own.
+    /// </summary>
+    public string? Tag { get; init; }
+
+    /// <summary>
     /// The last minute its line draws, a value a second and oldest first, null where one was missing; null unless it draws
     /// a line.
     /// </summary>
@@ -49,8 +55,8 @@ public static class OverlayLayout
     /// What the overlay shows: numbers in <paramref name="culture"/>, the regional format, default labels in the language of
     /// <paramref name="texts"/>, English when there are none, and temperatures in the chosen unit. With a
     /// <paramref name="history"/>, items show their minimum, maximum, average or smoothed value and graphs their last
-    /// minute; without one, the value now. An item shown only on alert is left out while its meter is normal, unless the
-    /// window is open, so every item can be selected.
+    /// minute; without one, the value now. An item shown only on alert is left out while its meter is normal, and one of
+    /// frames while there are none, unless the window is open, so every item can be selected.
     /// </summary>
     public static IReadOnlyList<OverlayItem> Build(
         OverlayConfig overlay,
@@ -77,7 +83,7 @@ public static class OverlayLayout
             var meter = MeterOf(item, readings);
             var level = LevelOf(item, meter);
             var label = labels[index];
-            if (item.AlertOnly && level == Level.Normal && !windowOpen)
+            if (!windowOpen && ((item.AlertOnly && level == Level.Normal) || NoFrames(item, reading)))
             {
                 continue;
             }
@@ -85,10 +91,11 @@ public static class OverlayLayout
             // A pill whose first item is left out, shown only on alert, is labeled at its first item shown.
             var labeled = starts.Contains(index) || label != shownLabel;
             var drawn = DrawnOf(overlay, item);
-            items.Add(new OverlayItem(labeled ? Tagged(item, label, culture, texts) : null, value, level, room)
+            items.Add(new OverlayItem(labeled ? label : null, value, level, room)
             {
                 Id = item.Id,
                 Color = item.Color,
+                Tag = TagOf(item, culture, texts),
                 Graph = drawn == GraphStyle.Line ? GraphOf(item, meter, history) : null,
                 Lit = drawn == GraphStyle.Bars ? LitOf(meter) : null,
             });
@@ -106,8 +113,8 @@ public static class OverlayLayout
         item.Label ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? (texts ?? Texts.English).Of(metric.Label) : null);
 
     /// <summary>
-    /// What an item shows when it is not its value now, said after its default label and beside its value in the window:
-    /// its minimum, maximum or average, or its smoothing; null for the value now.
+    /// What an item shows when it is not its value now, said after its value on the overlay and in the window: its minimum,
+    /// maximum or average, or its smoothing; null for the value now.
     /// </summary>
     public static string? TagOf(ItemConfig item, IFormatProvider culture, Texts? texts = null)
     {
@@ -160,6 +167,14 @@ public static class OverlayLayout
         return runs;
     }
 
+    /// <summary>Whether the overlay has more than one pill, or run in one bar, so that standing it vertical stacks them.</summary>
+    public static bool Stacks(OverlayConfig overlay) => Runs(overlay).Count > 1;
+
+    // Frames read only while an app in front presents: the rest of the time there is nothing to show, not a value missing,
+    // so the item takes no room, as when the service cannot read frames at all.
+    private static bool NoFrames(ItemConfig item, Reading? reading) =>
+        Threshold.KindOf(item) is SensorKind.FrameRate or SensorKind.FrameTime && reading?.Usable is null;
+
     /// <summary>
     /// What an item reads now, its sensors combined and its offset added, or null when it names sensors the snapshot lacks.
     /// A combined item leaves out its sensors without a value, and is missing when none is left.
@@ -188,14 +203,14 @@ public static class OverlayLayout
             : Level.Normal;
 
     /// <summary>
-    /// What an item draws beside its value: its own choice, else its overlay's, whose Auto draws a line for a load judged
-    /// by its own reading, whose last minute says more than the value alone, and bars for the rest; nothing for an item
-    /// lines cannot judge, which has no level or scale to draw.
+    /// What an item draws beside its value: its own choice, else its overlay's, whose Auto draws a line for a load or a
+    /// game's frames judged by its own reading, whose last minute says more than the value alone, as a stutter's spike,
+    /// and bars for the rest; nothing for an item lines cannot judge, which has no level or scale to draw.
     /// </summary>
     public static GraphStyle DrawnOf(OverlayConfig overlay, ItemConfig item) =>
         Threshold.JudgedKind(item) is not { } kind ? GraphStyle.None
         : (item.Graph ?? overlay.Graph) is var chosen and not GraphStyle.Auto ? chosen
-        : kind == SensorKind.Load && item.WarnBy is null ? GraphStyle.Line
+        : kind is SensorKind.Load or SensorKind.FrameRate or SensorKind.FrameTime && item.WarnBy is null ? GraphStyle.Line
         : GraphStyle.Bars;
 
     /// <summary>The pills a single bar holds, each as its item count, one per run; null in the other layouts.</summary>
@@ -223,8 +238,12 @@ public static class OverlayLayout
         return groups;
     }
 
-    /// <summary>Loads, duties and temperatures all read on a 0 to 100 scale, a fan's speed on the range of its lines.</summary>
-    internal static double FillOf(double value, SensorKind kind = SensorKind.Load) => Math.Clamp(value / Threshold.MaxOf(kind), 0, 1);
+    /// <summary>
+    /// Loads, duties and temperatures all read on a 0 to 100 scale, a fan's speed on the range of its lines; a frame rate
+    /// on 0 to 240, the fastest common screen, and a frame time on 0 to 100 ms, where it turns critical by default.
+    /// </summary>
+    internal static double FillOf(double value, SensorKind kind = SensorKind.Load) =>
+        Math.Clamp(value / (kind == SensorKind.FrameRate ? 240 : kind == SensorKind.FrameTime ? 100 : Threshold.MaxOf(kind)), 0, 1);
 
     // A sensor or combined item is read from its sensors even when it keeps a metric as auto: two items that keep the
     // same one show their own.
@@ -261,13 +280,6 @@ public static class OverlayLayout
         };
         return new Reading(found[0].Kind, value);
     }
-
-    // A label the user typed says what they chose; a default one says what its own item shows when that is not the value
-    // now. The tag never decides the pills, which the edits keep by the labels alone.
-    private static string? Tagged(ItemConfig item, string? label, IFormatProvider culture, Texts? texts) =>
-        item.Label is null && label is not null && LabelOf(item, texts) == label && TagOf(item, culture, texts) is { } tag
-            ? (texts ?? Texts.English).Format(culture, OverlayText.TaggedLabel, label, tag)
-            : label;
 
     // Without a history, a graph has only the value now.
     private static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, Reading? meter, ItemHistory? history) =>

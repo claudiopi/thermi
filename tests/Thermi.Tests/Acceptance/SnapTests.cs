@@ -100,11 +100,14 @@ public sealed class SnapTests
     [Fact]
     public void TwoOverlaysOnTheTaskbarSitWhereTheyWereDroppedEvenTouching()
     {
-        var first = Placed(OnTaskbar(1000), [Main], 600, 57);
-        var second = Placed(OnTaskbar(1600), [Main], 400, 57);
+        List<OverlayConfig> overlays = [OnTaskbar(1000), OnTaskbar(1600)];
+        PixelRect?[] shown = [new PixelRect(0, 0, 600, 57), new PixelRect(0, 0, 400, 57)];
 
-        Assert.Equal((1600, 1600), (first.Right, second.Left));
-        Assert.Equal(first.Top + 0, second.Top);
+        var first = TaskbarRow.Locate(overlays, 0, [Main], (600, 57), shown)!;
+        var second = TaskbarRow.Locate(overlays, 1, [Main], (400, 57), shown)!;
+
+        Assert.Equal((1600, 1600), (first.X + 600, second.X));
+        Assert.Equal(first.Y, second.Y);
     }
 
     [Fact]

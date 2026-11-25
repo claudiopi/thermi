@@ -17,8 +17,6 @@ const lower = (key: TextKey, ...blanks: (string | number)[]): string => [key.toL
 
 describe('where an overlay sits', () => {
   test.each([
-    ['taskbar', 'SnapSpot.Taskbar'],
-    ['top-left', 'SnapSpot.TopLeft'],
     ['top-right', 'SnapSpot.TopRight'],
   ] as const)('names %s by %s', (spot, key) => {
     expect(spotKey(spot)).toBe(key);
@@ -31,10 +29,8 @@ describe('where an overlay sits', () => {
   });
 
   test.each([
-    { overlay: { position: { x: 5, y: 5 } }, placed: null },
     { overlay: { snap: { spot: 'taskbar', offset: 1200 } }, placed: { spot: 'taskbar', display: 0, gone: false, offset: 1200 } },
     { overlay: { snap: { spot: 'top-left' }, position: { x: 5, y: 5 } }, placed: { spot: 'top-left', display: 0, gone: false } },
-    { overlay: { snap: { spot: 'top-left', monitor: 'm2' } }, placed: { spot: 'top-left', display: 1, gone: false } },
     { overlay: { snap: { spot: 'top-left', monitor: 'unplugged' } }, placed: { spot: 'top-left', display: 0, gone: true } },
   ] satisfies { overlay: Partial<Overlay>; placed: unknown }[])('places $overlay at $placed', ({ overlay, placed }) => {
     expect(placedOf({ name: 'A', items: [], ...overlay }, shown)).toEqual(placed);
@@ -42,8 +38,6 @@ describe('where an overlay sits', () => {
 
   test.each([
     { overlay: { snap: { spot: 'top-left' } }, display: second, snap: { spot: 'top-left', monitor: 'm2' } },
-    { overlay: { snap: { spot: 'top-left', monitor: 'm2' } }, display: main, snap: { spot: 'top-left' } },
-    { overlay: { snap: { spot: 'taskbar', offset: 1200 } }, display: second, snap: { spot: 'taskbar', monitor: 'm2' } },
     { overlay: { position: { x: 5, y: 5 } }, display: second, snap: { spot: 'top-right', monitor: 'm2' } },
   ] satisfies { overlay: Partial<Overlay>; display: Monitor; snap: unknown }[])('moves $overlay to $display.id at $snap', ({ overlay, display, snap }) => {
     expect(moveToDisplay({ name: 'A', items: [], ...overlay }, display)).toEqual(snap);

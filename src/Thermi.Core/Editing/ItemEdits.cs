@@ -1,4 +1,3 @@
-using System.Globalization;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -28,14 +27,12 @@ public static class ItemEdits
             // A battery's rate is a few watts, so whole watts would hide most of its change.
             var language = texts ?? Texts.English;
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
-            var name = Names.OfItem(config, sensor, sensorId, language);
             var read = OtherGpu(config.Overlays[overlay], snapshot, sensor);
             var chip = read is not null && SensorMap.GpuAfter(sensor, read);
 
             var item = new ItemConfig
             {
                 Sensor = sensorId,
-                Name = read is null ? name : language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware),
                 Label = chip ? language.Of(NameText.OtherGpu) : null,
                 Decimals = decimals,
                 Own = read is not null && !chip,
@@ -48,7 +45,7 @@ public static class ItemEdits
     // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one, returned here: a
     // sensor of the other is named by its GPU and goes to a pill of its own, never reading as the pill's. The chip's pill
     // is the iGPU one, which its later sensors join; a card's, beside a GPU pill set to read the chip, starts a GPU pill.
-    private static RawSensor? OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
+    internal static RawSensor? OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
         SensorMap.IsGpu(sensor)
         && SensorMap.Chosen(snapshot, overlay).GetValueOrDefault(Metrics.GpuLoad.Id) is { } read
         && read.Hardware != sensor.Hardware ? read : null;
@@ -130,8 +127,8 @@ public static class ItemEdits
     }
 
     /// <summary>
-    /// The fan finder's pick: the first item of the overlay that shows the CPU fan names that fan, as
-    /// <see cref="ChangeSensor"/> does, so it keeps what it warns by. No item is added: the finder runs from that item's page.
+    /// An agent's pick of the fan finder's: the first item of the overlay that shows the CPU fan names that fan, as
+    /// <see cref="ChangeSensor"/> does, so it keeps what it warns by. No item is added.
     /// </summary>
     public static EditResult UseCpuFan(ThermiConfig config, int overlay, Snapshot snapshot, string fanId) =>
         ConfigEdits.OnOverlay(config, overlay, () =>
@@ -188,7 +185,7 @@ public static class ItemEdits
 
     /// <summary>
     /// Sets the lines at which the item warns and is critical, in the unit of what it warns by: from 0 to 100, or to 10,000
-    /// RPM for a fan's speed. A line left null is off, and with both off the item has none.
+    /// RPM for a fan's speed, or to 1000 for a game's frames. A line left null is off, and with both off the item has none.
     /// </summary>
     public static EditResult SetThreshold(ThermiConfig config, string id, double? warning, double? critical)
     {
@@ -197,12 +194,7 @@ public static class ItemEdits
             return ConfigEdits.Refuse(config, Refusal.NotFound);
         }
 
-        var kind = Threshold.JudgedKind(item);
-        var max = kind is { } judged ? Threshold.MaxOf(judged) : 0;
-        Refusal? refusal = kind is null ? Refusal.NothingToJudge
-            : !OnTrack(warning, max) || !OnTrack(critical, max) ? Refusal.ThresholdOutOfRange
-            : warning > critical ? Refusal.WarningAboveCritical
-            : null;
+        Refusal? refusal = Threshold.JudgedKind(item) is not { } kind ? Refusal.NothingToJudge : LinesRefusal(kind, warning, critical);
         return refusal is { } refused
             ? ConfigEdits.Refuse(config, refused)
             : ConfigEdits.Edit(config, id, each => each with { Threshold = warning is null && critical is null ? null : new Threshold(warning, critical) });
@@ -225,6 +217,15 @@ public static class ItemEdits
         return KindOf(reading.Metric ?? reading.Auto, reading.Sensor, snapshot) is null
             ? ConfigEdits.Refuse(config, Refusal.SensorNotFound)
             : ConfigEdits.Edit(config, id, each => each with { Threshold = Threshold.Default(each, snapshot) });
+    }
+
+    private static Refusal? LinesRefusal(SensorKind kind, double? warning, double? critical)
+    {
+        var max = Threshold.MaxOf(kind);
+        return !OnTrack(warning, max) || !OnTrack(critical, max) ? Refusal.ThresholdOutOfRange
+            : warning is not { } first || critical is not { } second || new Threshold(first, second).InOrderFor(kind) ? null
+            : Threshold.WarnsLow(kind) ? Refusal.CriticalAboveWarning
+            : Refusal.WarningAboveCritical;
     }
 
     private static bool OnTrack(double? line, double max) => line is not { } value || (value >= 0 && value <= max);

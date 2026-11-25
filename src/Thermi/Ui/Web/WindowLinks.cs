@@ -23,11 +23,21 @@ internal static class WindowLinks
         };
         try
         {
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose();
+            Shell(target);
         }
         catch (Win32Exception ex)
         {
             log.OpenFailed(target, ex);
         }
     }
+
+    /// <summary>
+    /// Opens a file or a link as Windows' shell does, through Explorer by its full path, never a program found on the PATH:
+    /// a link in the default browser, a file in the program it opens with.
+    /// </summary>
+    public static void Shell(string target) =>
+        Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), [target])
+        {
+            UseShellExecute = false,
+        })?.Dispose();
 }

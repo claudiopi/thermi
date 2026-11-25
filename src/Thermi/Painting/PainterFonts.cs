@@ -5,22 +5,29 @@ using Thermi.Core.Settings;
 namespace Thermi.Painting;
 
 /// <summary>
-/// The labels' and values' fonts of one look at one scale. The painter makes a set only when the style's font, sizes,
+/// The labels', values' and tags' fonts of one look at one scale. The painter makes a set only when the style's font, sizes,
 /// weights or the scale change, and releases the old one then.
 /// </summary>
 internal sealed class PainterFonts : IDisposable
 {
+    // A tag is said small and quiet after its value, so the value stays what the eye finds first.
+    private const double TagShare = 0.8;
+
     public PainterFonts(StyleFont font, TextStyle label, TextStyle value, float scale)
     {
         Key = (font, label, value, scale);
         Label = Make(font, label, scale);
+        Font? made = null;
         try
         {
-            Value = Make(font, value, scale);
+            made = Make(font, value, scale);
+            Tag = Make(font, new TextStyle(label.Size * TagShare, TextWeight.Regular), scale);
+            Value = made;
         }
         catch
         {
             Label.Dispose();
+            made?.Dispose();
             throw;
         }
     }
@@ -39,10 +46,13 @@ internal sealed class PainterFonts : IDisposable
 
     public Font Value { get; }
 
+    public Font Tag { get; }
+
     public void Dispose()
     {
         Label.Dispose();
         Value.Dispose();
+        Tag.Dispose();
     }
 
     private static Font Make(StyleFont font, TextStyle text, float scale)

@@ -7,6 +7,8 @@ import './page.css';
 const useStyles = makeStyles({
   root: {
     background: surface.mica,
+    // On the window, not the page's box, which grows as content loads and would stretch the gradient under every row.
+    backgroundAttachment: 'fixed',
     '@media (forced-colors: active)': { background: 'Canvas' },
   },
 });

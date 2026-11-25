@@ -1,13 +1,16 @@
 using System.CommandLine;
 using System.Diagnostics;
+using System.Globalization;
 using System.ServiceProcess;
 using Thermi.Core.Sensors;
+using Thermi.SensorHost.Frames;
 
 namespace Thermi.SensorHost;
 
 /// <summary>
 /// The <c>thermi-sensors</c> Windows service. <c>--console</c> serves readings in a terminal, and
-/// <c>--dump &lt;file&gt;</c> saves one snapshot, and <c>--dump &lt;file&gt; --seconds &lt;n&gt;</c> a series, for test recordings.
+/// <c>--dump &lt;file&gt;</c> saves one snapshot, and <c>--dump &lt;file&gt; --seconds &lt;n&gt;</c> a series, for test recordings;
+/// <c>--frames &lt;file&gt; --seconds &lt;n&gt;</c> records presents.
 /// Arguments that make no sense say why and exit with 2, before the sensors are opened.
 /// </summary>
 internal static class Program
@@ -38,15 +41,34 @@ internal static class Program
             return RunElevated(environment.Time);
         }
 
-        using var source = environment.Open();
+        if (request is SensorFrames frames)
+        {
+            return await RecordFramesAsync(environment, frames);
+        }
+
+        using var events = new EventLog("Application") { Source = SensorService.Name };
+        var service = request is not (SensorServe { Console: true } or SensorDump);
+        // A single dump is all it reads, so it waits for every device, however slow: one it did not wait for would be missing.
+        using var source = Open(
+            environment,
+            service ? said => SensorService.Say(events, said, EventLogEntryType.Warning) : environment.Error.WriteLine,
+            request is SensorDump { Seconds: null } ? Timeout.InfiniteTimeSpan : DeviceUpdates.Patience);
         if (request is SensorDump dump)
         {
             await DumpAsync(source, dump, environment.Time);
             return 0;
         }
 
-        using var events = new EventLog("Application") { Source = SensorService.Name };
-        using var server = new SensorPipeServer(source.Read, environment.Time, environment.PipeName)
+        return await RunOrServeAsync(source, events, environment, service, stop);
+    }
+
+    private static async Task<int> RunOrServeAsync(
+        ISensorSource source, EventLog events, SensorHostEnvironment environment, bool service, CancellationToken stop)
+    {
+        Action<string> say = service ? said => SensorService.Say(events, said, EventLogEntryType.Warning) : environment.Error.WriteLine;
+        using var framed = Framed(source, environment, say);
+        var read = (ISensorSource?)framed ?? source;
+        using var server = new SensorPipeServer(read.ReadAsync, environment.Time, environment.PipeName)
         {
             Squatted = () => SensorService.Say(
                 events,
@@ -54,11 +76,11 @@ internal static class Program
                     + "The service tries again every 5 s until that program closes it.",
                 EventLogEntryType.Warning),
         };
-        if (request is not SensorServe { Console: true })
+        if (service)
         {
-            using var service = new SensorService(server.RunAsync, resumed: () => _ = source.Read());
-            ServiceBase.Run(service);
-            return service.ExitCode;
+            using var running = new SensorService(server.RunAsync, resumed: () => _ = source.ReadAsync(CancellationToken.None));
+            ServiceBase.Run(running);
+            return running.ExitCode;
         }
 
         await ServeAsync(server, environment.Out, stop);
@@ -73,17 +95,46 @@ internal static class Program
         return elevated.ExitCode;
     }
 
+    private static FramedSource? Framed(ISensorSource sensors, SensorHostEnvironment environment, Action<string> say) =>
+        environment.Trace is { } trace ? new FramedSource(sensors, trace, new ProcessTable(environment.Time), environment.Time, say) : null;
+
+    // Before the sensors are opened: presents need none. A trace that cannot start says so and exits with 1.
+    private static async Task<int> RecordFramesAsync(SensorHostEnvironment environment, SensorFrames frames)
+    {
+        using var trace = (environment.Recording ?? environment.Trace)?.Invoke();
+        await using var writer = new StreamWriter(frames.File);
+        if (trace is not null && await FrameRecorder.RecordAsync(trace, new ProcessTable(environment.Time), writer, frames.Seconds, environment.Time))
+        {
+            return 0;
+        }
+
+        await environment.Error.WriteLineAsync("Presents cannot be traced: run it as administrator, with no other thermi-sensors recording.");
+        return 1;
+    }
+
     private static async Task DumpAsync(ISensorSource source, SensorDump dump, TimeProvider time)
     {
         if (dump.Seconds is not { } seconds)
         {
-            await File.WriteAllTextAsync(dump.File, SnapshotJson.Write(source.Read()));
+            await File.WriteAllTextAsync(dump.File, SnapshotJson.Write(await source.ReadAsync(CancellationToken.None)));
             return;
         }
 
         await using var writer = new StreamWriter(dump.File);
-        await SeriesRecorder.RecordAsync(source.Read, writer, seconds, time, CancellationToken.None);
+        await SeriesRecorder.RecordAsync(source.ReadAsync, writer, seconds, time, CancellationToken.None);
     }
+
+    private static ISensorSource Open(SensorHostEnvironment environment, Action<string> say, TimeSpan patience) =>
+        environment.Open((device, took, failed) => say(Slow(device, took, failed)), patience);
+
+    // Another program holding the board's bus, as a fan controller, is the usual cause; the log tells it from a driver that hangs.
+    private static string Slow(string device, TimeSpan took, Exception? failed) =>
+        string.Create(CultureInfo.InvariantCulture, $"Reading {device} ")
+            + (failed is null
+                ? string.Create(CultureInfo.InvariantCulture, $"took {took.TotalSeconds:0.0} s; the other devices were read without waiting for it. ")
+                : string.Create(CultureInfo.InvariantCulture, $"failed after {took.TotalSeconds:0.0} s ({failed.GetType().Name}: {failed.Message}); ")
+                    + "its last values were kept. ")
+            + "Another program that reads or controls the same hardware, as a fan controller, may be holding it.";
 
     // Ctrl+C stops serving, and only serving: a dump it ends as it ends any program.
     private static async Task ServeAsync(SensorPipeServer server, TextWriter output, CancellationToken stop)
@@ -170,7 +221,16 @@ internal sealed class SensorService : ServiceBase
         }
     }
 
-    protected override void OnStart(string[] args) => _running = RunAsync();
+    // Above normal, so a PC busy on every core, which is when its readings matter most, still gets them each second.
+    protected override void OnStart(string[] args)
+    {
+        using (var self = Process.GetCurrentProcess())
+        {
+            self.PriorityClass = ProcessPriorityClass.AboveNormal;
+        }
+
+        _running = RunAsync();
+    }
 
     // Windows waits on this answer, and the library may take a while to read, so the read on waking runs apart.
     protected override bool OnPowerEvent(PowerBroadcastStatus powerStatus)

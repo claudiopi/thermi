@@ -30,7 +30,11 @@ public enum UnitText
 /// How values and their words show: in the language of <see cref="Texts"/>, numbers in the regional format,
 /// temperatures in the chosen unit.
 /// </summary>
-public sealed record ValueFormat(Texts Texts, IFormatProvider Numbers, TemperatureUnit Temperature = TemperatureUnit.Celsius);
+public sealed record ValueFormat(Texts Texts, IFormatProvider Numbers, TemperatureUnit Temperature = TemperatureUnit.Celsius)
+{
+    /// <summary>The sensors known now, which name an item that stores no name of its own as its sensor is named.</summary>
+    public Snapshot? Known { get; init; }
+}
 
 /// <summary>Turns a reading into the short text the overlay shows.</summary>
 public static class ReadingFormatter
@@ -81,7 +85,7 @@ public static class ReadingFormatter
 
         var (number, own, unit, letter) = Parts(reading.Kind, value, temperature, language, reading.Bits);
         var text = number.ToString(reading.Kind is SensorKind.Fan or SensorKind.Data ? Grouped(decimals ?? own) : Digits(decimals ?? own), culture);
-        return units ? string.Concat(text, " ", unit) : string.Concat(text, letter);
+        return units && unit.Length > 0 ? string.Concat(text, " ", unit) : string.Concat(text, letter);
     }
 
     /// <summary>
@@ -114,7 +118,9 @@ public static class ReadingFormatter
         new Reading(kind, kind switch
         {
             SensorKind.Fan or SensorKind.Clock => 8888,
-            SensorKind.Power => 888,
+            SensorKind.Power or SensorKind.FrameRate => 888,
+            SensorKind.FrameTime => 888.8,
+            SensorKind.Voltage => 88.88,
             SensorKind.Data => 888.8,
             SensorKind.Temperature or SensorKind.Load or SensorKind.Control => 100,
             SensorKind.Throughput => 88.8e6,
@@ -155,6 +161,13 @@ public static class ReadingFormatter
             SensorKind.Throughput => Rate(value, texts, Rates, UnitText.BytesPerSecond),
             SensorKind.Duration => (value / 3600, 1, texts.Of(UnitText.Hours), ""),
             SensorKind.Time or SensorKind.Address => (value, 0, "", ""),
+
+            // Its item's label says FPS, so the number stands alone.
+            SensorKind.FrameRate => (value, 0, "", ""),
+            SensorKind.FrameTime => (value, 1, "ms", ""),
+
+            // A CPU's voltage moves by thousandths, a rail's by hundredths.
+            SensorKind.Voltage => (value, Math.Abs(Math.Round(value, 3, MidpointRounding.AwayFromZero)) < 10 ? 3 : 2, "V", ""),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
         };
 

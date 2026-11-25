@@ -24,13 +24,15 @@ public sealed class ItemHistory(TimeProvider time)
     private readonly SensorHistory _values = new(time, Kept);
     private readonly SensorHistory _meters = new(time, SensorHistory.Kept);
     private readonly Dictionary<string, Stats> _stats = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Value, string Meter)> _sources = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Keeps what each item of every overlay reads now, each overlay with its own readings, and its meter: once per fresh
+    /// Keeps what each item of every overlay reads now, each overlay with its own readings, and what it warns by: once per fresh
     /// snapshot, never for stale data. An item is kept by its id, whichever overlay holds it; items in none are forgotten.
     /// </summary>
     public void Add(IReadOnlyList<(OverlayConfig Overlay, IReadOnlyDictionary<string, Reading> Readings)> overlays)
     {
+        Follow(overlays.SelectMany(overlay => overlay.Overlay.Items));
         var values = new Dictionary<string, Reading>(StringComparer.Ordinal);
         var meters = new Dictionary<string, Reading>(StringComparer.Ordinal);
         foreach (var (overlay, readings) in overlays)
@@ -52,6 +54,11 @@ public sealed class ItemHistory(TimeProvider time)
             _stats.Remove(id);
         }
 
+        foreach (var id in _sources.Keys.Where(id => !ids.Contains(id)).ToList())
+        {
+            _sources.Remove(id);
+        }
+
         foreach (var item in overlays.SelectMany(overlay => overlay.Overlay.Items))
         {
             if (Smoothed(item) is { } value)
@@ -64,6 +71,49 @@ public sealed class ItemHistory(TimeProvider time)
     /// <summary>As <see cref="Add(IReadOnlyList{ValueTuple{OverlayConfig, IReadOnlyDictionary{string, Reading}}})"/>, with one overlay.</summary>
     public void Add(OverlayConfig overlay, IReadOnlyDictionary<string, Reading> readings) => Add([(overlay, readings)]);
 
+    /// <summary>
+    /// Follows what each of <paramref name="items"/> reads: one that reads another value, or warns by another reading, than
+    /// it last did, by an edit or its undo, forgets the seconds, minimum, maximum and average it kept of the one before, so
+    /// no chart, graph or statistic mixes two readings. Gives the items whose reading they warn by changed.
+    /// </summary>
+    public IReadOnlyList<ItemConfig> Follow(IEnumerable<ItemConfig> items)
+    {
+        var changed = new List<ItemConfig>();
+        foreach (var item in items)
+        {
+            var source = SourceOf(item);
+            if (_sources.TryGetValue(item.Id, out var was) && was.Value != source.Value)
+            {
+                _values.Forget(item.Id);
+                _stats.Remove(item.Id);
+            }
+
+            if (was.Meter is not null && was.Meter != source.Meter)
+            {
+                _meters.Forget(item.Id);
+                changed.Add(item);
+            }
+
+            _sources[item.Id] = source;
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Starts again what an item warns by from <paramref name="values"/>, a value a second, oldest first and ending now, as
+    /// read elsewhere.
+    /// </summary>
+    public void Refill(string id, IReadOnlyList<double?> values) =>
+        _meters.Seed(id, [.. values.Select(value => value ?? double.NaN)], time.GetTimestamp());
+
+    // What an item's value and what it warns by are read from. An offset corrects the same sensor, so its seconds stay.
+    private static (string Value, string Meter) SourceOf(ItemConfig item)
+    {
+        var value = string.Join('|', item.Metric, item.Auto, item.Sensor, item.Sensors is { } sensors ? string.Join(',', sensors) : null, item.Combine);
+        return (value, item.WarnBy is { } other ? string.Join('|', "by", other.Metric, other.Sensor, other.Auto) : value);
+    }
+
     /// <summary>After a reset, so an open window starts its minimums, maximums and averages again with the overlay's.</summary>
     public event EventHandler? WasReset;
 
@@ -74,10 +124,10 @@ public sealed class ItemHistory(TimeProvider time)
         WasReset?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Starts the minimum, maximum and average of that overlay's items again, as its own menu does.</summary>
-    public void Reset(OverlayConfig overlay)
+    /// <summary>Starts the minimum, maximum and average of those overlays' items again, as their menus do.</summary>
+    public void Reset(IEnumerable<OverlayConfig> overlays)
     {
-        foreach (var item in overlay.Items)
+        foreach (var item in overlays.SelectMany(overlay => overlay.Items))
         {
             _stats.Remove(item.Id);
         }
@@ -86,10 +136,10 @@ public sealed class ItemHistory(TimeProvider time)
     }
 
     /// <summary>
-    /// What the window is sent, as it opens and after a reset: every item's meter's ten minutes, its value's last minute and
-    /// its minimum, maximum and average, ending now; null when no item has any, where the window starts empty.
+    /// What the window is sent, as it opens and after a reset: the ten minutes of what every item warns by, its value's last minute and
+    /// its minimum, maximum and average, ending now, for each item that has any; an item left out has none.
     /// </summary>
-    public History? Sent(ThermiConfig config)
+    public History Sent(ThermiConfig config)
     {
         var now = time.GetTimestamp();
         var items = new List<Messages.ItemHistory>();
@@ -107,18 +157,26 @@ public sealed class ItemHistory(TimeProvider time)
             }
         }
 
-        return items.Count == 0 ? null : new History(items);
+        return new History(items);
     }
 
     /// <summary>
     /// Takes what the overlay sent: each item's minimum, maximum and average are the overlay's from here on, none after its
-    /// reset, and its value's last minute fills the seconds this history did not read, so smoothing starts where it is.
+    /// reset or where it sent none of the item, and its value's last minute and the ten of what it warns by fill the seconds
+    /// this history did not read, so smoothing and the chart start where they are.
     /// </summary>
     public void Take(History history)
     {
+        var sentIds = history.Items.Select(sent => sent.ItemId).ToHashSet(StringComparer.Ordinal);
+        foreach (var id in _stats.Keys.Where(id => !sentIds.Contains(id)).ToList())
+        {
+            _stats.Remove(id);
+        }
+
         foreach (var sent in history.Items)
         {
             _values.Seed(sent.ItemId, sent.Values, sent.Newest);
+            _meters.Seed(sent.ItemId, [.. sent.Slots.Select(slot => (double)slot)], sent.Newest);
             if (sent.Stats is { } stats)
             {
                 _stats[sent.ItemId] = new Stats(stats);
@@ -164,10 +222,21 @@ public sealed class ItemHistory(TimeProvider time)
     /// The line of <see cref="Graph"/> for the last minute of <paramref name="meters"/>, what the item warns by a second
     /// and oldest first, as the window draws the minute the overlay sent it.
     /// </summary>
-    public static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, IReadOnlyList<double?> meters) =>
-        [.. meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).Select(value => value is { } read
-            ? new GraphPoint(OverlayLayout.FillOf(read), item.Threshold?.LevelOf(new Reading(SensorKind.Load, read)) ?? Level.Normal)
+    public static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, IReadOnlyList<double?> meters)
+    {
+        // A fan or throughput fills on the window chart's range, not up to its possible maximum, where a line lies flat; the
+        // rest on the overlay's own scale.
+        var kind = Threshold.JudgedKind(item) ?? SensorKind.Load;
+        var minute = meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).ToList();
+        var top = kind is SensorKind.Fan or SensorKind.Throughput
+            ? MeterChart.Range(new MeterScale(kind, item.Threshold?.Warning, item.Threshold?.Critical, 1, 1), [.. minute.OfType<double>()]).To
+            : (double?)null;
+        return [.. minute.Select(value => value is { } read
+            ? new GraphPoint(
+                top is { } range ? Math.Clamp(read / range, 0, 1) : OverlayLayout.FillOf(read, kind),
+                item.Threshold?.LevelOf(new Reading(kind, read)) ?? Level.Normal)
             : (GraphPoint?)null)];
+    }
 
     /// <summary>
     /// What an item warns by over the last ten minutes, its own reading unless it warns by another, a value a second and

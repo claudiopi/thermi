@@ -248,7 +248,7 @@ public sealed class SettingsTests : IDisposable
     }
 
     // A picture that fails midway leaves no file that would pass for one; a file the preview could not even open, as a
-    // read-only one, is the user's and stays.
+    // read-only one, is the user's and stays. Each says why, here to the test rather than to the whole run's error output.
     [Fact]
     public async Task APreviewThatFailsLeavesNoPartialPicture()
     {
@@ -257,6 +257,7 @@ public sealed class SettingsTests : IDisposable
         await File.WriteAllTextAsync(kept, "the user's", TestContext.Current.CancellationToken);
         File.SetAttributes(kept, FileAttributes.ReadOnly);
         int failedMidway, refused;
+        using var said = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
         try
         {
             failedMidway = await Preview.WriteAsync(partial, png =>
@@ -265,15 +266,15 @@ public sealed class SettingsTests : IDisposable
 #pragma warning disable CA2201 // What GDI+ throws for a picture it could not write, which the test stands in for.
                 throw new System.Runtime.InteropServices.ExternalException("A generic error occurred in GDI+.");
 #pragma warning restore CA2201
-            });
-            refused = await Preview.WriteAsync(kept, _ => { });
+            }, said);
+            refused = await Preview.WriteAsync(kept, _ => { }, said);
         }
         finally
         {
             File.SetAttributes(kept, FileAttributes.Normal);
         }
 
-        Assert.Equal((1, 1), (failedMidway, refused));
+        Assert.Equal((1, 1, 2), (failedMidway, refused, said.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length));
         Assert.False(File.Exists(partial));
         Assert.Equal("the user's", await File.ReadAllTextAsync(kept, TestContext.Current.CancellationToken));
     }

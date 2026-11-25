@@ -56,6 +56,8 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     ],
     places: [],
     looks: { Night: { pills: 'dark', opacity: { background: 0.4 }, font: 'bahnschrift', corners: 'soft' } },
+    // C#'s, from the oracle's start.
+    worn: [],
     exported: null,
     importFile: null,
     clipboard: null,

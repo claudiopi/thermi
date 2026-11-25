@@ -31,16 +31,28 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
     public IReadOnlyDictionary<string, StyleConfig> Looks() =>
         saved.List().Where(style => style.Name is not null).ToDictionary(style => style.Name!, StringComparer.OrdinalIgnoreCase);
 
+    public IReadOnlyList<WornLook?> Worn()
+    {
+        var looks = saved.List();
+        return [.. editor.Config.Overlays.Select(overlay => SavedStyles.Worn(overlay.Style, looks))];
+    }
+
     public string? Save(int overlay, string name) => Files(() => saved.Save(StyleOf(overlay), name));
 
     public string? Rename(string name, string to) => Files(() => editor.RenameStyle(saved, name, to).Refused);
 
     public string? Delete(string name) => Files(() => saved.Delete(name));
 
-    /// <summary>A saved look worn by one overlay, or by every overlay when none is named, as one step.</summary>
+    /// <summary>
+    /// A saved look, or the Default look without a name, as the overlay's menu wears it, worn by one overlay, or by every
+    /// overlay when none is named, as one step.
+    /// </summary>
     public string? Wear(LookEdit look)
     {
-        if (saved.Named(look.Name) is not { } style)
+        var style = look.Name is null
+            ? new StyleConfig()
+            : saved.Named(look.Name);
+        if (style is null)
         {
             return Texts.Key(Refusal.StyleNotFound);
         }

@@ -8,7 +8,12 @@ namespace Thermi.Core.Settings;
 /// <summary>What valid settings hold beyond their shape: the ranges and combinations the file allows. Gives the first problem, naming its field.</summary>
 public static partial class ConfigRules
 {
-    public static string? Problem(ThermiConfig config) => Problems(config).OfType<string>().FirstOrDefault();
+    // The first version whose file says what an item warns by as warnBy; the ones before it say meter.
+    private const int WarnByVersion = 6;
+
+    /// <summary>The first problem, its fields named as a file of <paramref name="version"/> names them.</summary>
+    public static string? Problem(ThermiConfig config, int version = ThermiConfig.CurrentVersion) =>
+        Problems(config, version < WarnByVersion ? "meter" : "warnBy").OfType<string>().FirstOrDefault();
 
     /// <summary>Whether <paramref name="text"/> is a color as the file writes one, #RRGGBB.</summary>
     public static bool IsColor(string text) => HexColor().IsMatch(text);
@@ -16,20 +21,20 @@ public static partial class ConfigRules
     /// <summary>The first problem of a style alone, as a style file holds it, its fields named from <paramref name="at"/>.</summary>
     internal static string? Problem(StyleConfig style, string at) => Style(style, at).OfType<string>().FirstOrDefault();
 
-    private static IEnumerable<string?> Problems(ThermiConfig config) =>
+    private static IEnumerable<string?> Problems(ThermiConfig config, string warnBy) =>
     [
         config.Overlays.Count is >= 1 and <= ThermiConfig.MaxOverlays
             ? null
             : Say($"overlays holds {config.Overlays.Count}, not 1 to {ThermiConfig.MaxOverlays}"),
         .. (config.SensorNames ?? new Dictionary<string, string>()).Select(pair => OwnName(pair.Key, pair.Value)),
-        .. config.Overlays.SelectMany((overlay, index) => Overlay(overlay, Say($"overlays[{index}]"))),
+        .. config.Overlays.SelectMany((overlay, index) => Overlay(overlay, Say($"overlays[{index}]"), warnBy)),
     ];
 
-    private static IEnumerable<string?> Overlay(OverlayConfig overlay, string at) =>
+    private static IEnumerable<string?> Overlay(OverlayConfig overlay, string at, string warnBy) =>
     [
         Range($"{at}.size", overlay.Size, OverlayConfig.MinSize, OverlayConfig.MaxSize),
         .. Style(overlay.Style, $"{at}.style"),
-        .. overlay.Items.SelectMany((item, index) => Item(item, Say($"{at}.items[{index}]"))),
+        .. overlay.Items.SelectMany((item, index) => Item(item, Say($"{at}.items[{index}]"), warnBy)),
     ];
 
     private static IEnumerable<string?> Style(StyleConfig style, string at) =>
@@ -49,7 +54,7 @@ public static partial class ConfigRules
         Color($"{at}.colors.value", style.Colors?.Value),
     ];
 
-    private static IEnumerable<string?> Item(ItemConfig item, string at) =>
+    private static IEnumerable<string?> Item(ItemConfig item, string at, string warnBy) =>
     [
         new[] { item.Metric is not null, item.Sensor is not null, item.Sensors is not null }.Count(named => named) == 1
             ? null
@@ -60,9 +65,10 @@ public static partial class ConfigRules
         item.Decimals is null or (>= 0 and <= 2) ? null : Say($"{at}.decimals is {item.Decimals}, not 0 to 2"),
         Offset($"{at}.offset", item),
         item.AlertOnly && !Threshold.Judges(item) ? $"{at}.alertOnly goes only with a reading lines judge" : null,
+        LinesOrder(item, at),
         item.Graph == GraphStyle.Auto ? $"{at}.graph is auto, which only an overlay takes: leave it out to follow the overlay" : null,
         Color($"{at}.color", item.Color),
-        .. WarnBy(item.WarnBy, $"{at}.warnBy"),
+        .. WarnBy(item.WarnBy, $"{at}.{warnBy}"),
     ];
 
     private static IEnumerable<string?> WarnBy(WarnByConfig? warnBy, string at) => warnBy is null ? [] :
@@ -70,6 +76,15 @@ public static partial class ConfigRules
         (warnBy.Metric is null) != (warnBy.Sensor is null) ? null : $"{at} must name one of metric or sensor",
         warnBy.Auto is not null && warnBy.Metric is not null ? $"{at}.auto goes only with sensor" : null,
     ];
+
+    // What the item reads is known from the file for every item made by thermi; one written by hand naming no known type is
+    // held to the usual order.
+    private static string? LinesOrder(ItemConfig item, string at)
+    {
+        var kind = Threshold.JudgedKind(item) ?? SensorKind.Temperature;
+        return item.Threshold is not { } lines || lines.InOrderFor(kind) ? null
+            : Say($"{at}.threshold.warning is {lines.Warning}, {(Threshold.WarnsLow(kind) ? "under" : "over")} its critical {lines.Critical}");
+    }
 
     // Without a metric, the item's type is the service's to say, so the file is held only to the widest range.
     private static string? Offset(string field, ItemConfig item)

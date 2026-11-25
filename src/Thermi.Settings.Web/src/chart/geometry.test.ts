@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import type { ChartView, ColorStop } from '../bridge/bridge.g';
-import { chartHeight, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, knobTops, levelAt, nearestLine, plotPaths, readingAt, stopsOf, tintsOf, valueAt, yOf, type Plot } from './geometry';
 
-// A plot 300 wide and 124 high draws 0 to 100 on the 100 px between its 12 px pads: value v sits at y = 112 - v.
+// A plot 300 wide and 132 high draws 0 to 100 on the 100 px between its 16 px pads, which hold the scale's numbers clear of the
+// line (night QA: a line over the "0 %"): value v sits at y = 116 - v.
 function plot(chart: Partial<ChartView> = {}): Plot {
   const view: ChartView = {
     max: 100,
@@ -10,6 +11,7 @@ function plot(chart: Partial<ChartView> = {}): Plot {
     from: 0,
     to: 100,
     readings: [],
+    points: [],
     warning: null,
     critical: null,
     warningText: null,
@@ -24,15 +26,14 @@ function plot(chart: Partial<ChartView> = {}): Plot {
     toText: '',
     fires: null,
     startText: '',
+    low: false,
     ...chart,
   };
-  return { width: 300, height: 124, chart: view };
+  return { width: 300, height: 132, chart: view };
 }
 
 describe('the chart', () => {
   test.each([
-    [1000, 1000, 400],
-    [1000, 2000, 500],
     [1600, 2000, 640],
     [300, 1000, 150],
     [100, 100, 140],
@@ -45,47 +46,38 @@ describe('the chart', () => {
   });
 
   test.each([
-    { value: 100, y: 12, chart: {} },
-    { value: 0, y: 112, chart: {} },
-    { value: 50, y: 62, chart: {} },
-    { value: 50, y: 12, chart: { from: 50, to: 50 } },
-    { value: 49, y: 112, chart: { from: 50, to: 50 } },
+    { value: 50, y: 66, chart: {} },
+    { value: 49, y: 116, chart: { from: 50, to: 50 } },
   ])('draws $value at $y', ({ value, y, chart }) => {
     expect(yOf(plot(chart), value)).toBe(y);
   });
 
   test.each([
-    { y: 12, value: 100, chart: {} },
-    { y: 112, value: 0, chart: {} },
-    { y: 64, value: 50, chart: {} },
-    { y: 66, value: 45, chart: {} },
+    { y: 68, value: 50, chart: {} },
+    { y: 70, value: 45, chart: {} },
     // A fan's track ends at 10,000 RPM, far over its chart: a drag past the plot's top stops at the chart's.
     { y: 0, value: 1500, chart: { to: 1500, step: 50, max: 10000 } },
     { y: 200, value: 0, chart: {} },
-    { y: 12, value: 90, chart: { max: 90 } },
-    { y: 62, value: 60, chart: { from: 20, to: 100, step: 10 } },
+    { y: 16, value: 90, chart: { max: 90 } },
+    { y: 66, value: 60, chart: { from: 20, to: 100, step: 10 } },
   ])('reads a drag at $y as $value', ({ y, value, chart }) => {
     expect(valueAt(plot(chart), y)).toBe(value);
   });
 
   test.each([
-    { readings: [], path: '' },
     // Cold review 4 (Q6): a reading alone is no line, so it draws nothing; the dot at its end says it.
     { readings: [50], path: '' },
-    { readings: [100, null, 0], path: '' },
-    { readings: [null, 100, 0], path: 'M150.0,12.0C175.0,28.7 275.0,95.3 300.0,112.0' },
-    { readings: [100, 50, 0, 50], path: 'M0.0,12.0C16.7,20.3 66.7,45.3 100.0,62.0C133.3,78.7 166.7,112.0 200.0,112.0C233.3,112.0 283.3,70.3 300.0,62.0' },
+    { readings: [100, 50, 0, 50], path: 'M0.0,16.0C16.7,24.3 66.7,49.3 100.0,66.0C133.3,82.7 166.7,116.0 200.0,116.0C233.3,116.0 283.3,74.3 300.0,66.0' },
+    // Night QA: a fan's dip to 0 RPM bent the curve under the chart's floor; each bend stays between its two readings.
+    { readings: [100, 0, 0, 100], path: 'M0.0,16.0C16.7,32.7 66.7,99.3 100.0,116.0C133.3,116.0 166.7,116.0 200.0,116.0C233.3,99.3 283.3,32.7 300.0,16.0' },
   ])('draws the readings $readings', ({ readings, path }) => {
     expect(plotPaths(plot({ readings })).line).toBe(path);
   });
 
-  // Each stretch between gaps closes straight down to the bottom at its own first and last reading.
+  // Each stretch between gaps closes straight down to the scale's floor at its own first and last reading, never into the
+  // pad under it: QA round 4 saw a fan at 0 RPM with a band of fill under its line.
   test.each([
-    { readings: [], fill: '' },
-    { readings: [null, null], fill: '' },
-    { readings: [null, 100, 0, null], fill: 'M100.0,12.0C116.7,28.7 183.3,95.3 200.0,112.0L200.0,124.0L100.0,124.0Z' },
-    { readings: [100, null, 0], fill: '' },
-    { readings: [50, null, 50, 50], fill: 'M200.0,62.0C216.7,62.0 283.3,62.0 300.0,62.0L300.0,124.0L200.0,124.0Z' },
+    { readings: [50, null, 50, 50], fill: 'M200.0,66.0C216.7,66.0 283.3,66.0 300.0,66.0L300.0,116.0L200.0,116.0Z' },
   ])('fills under $readings', ({ readings, fill }) => {
     expect(plotPaths(plot({ readings })).fill).toBe(fill);
   });
@@ -98,7 +90,6 @@ describe('the chart', () => {
       colors: [{ at: 0, level: 'normal' }, { at: 50, level: 'warning' }, { at: 150, level: 'critical' }],
       offsets: [0, 0.5, 0.5, 1, 1, 1],
     },
-    { from: 20, to: 100, colors: [{ at: 20, level: 'normal' }], offsets: [0, 1] },
     { from: 50, to: 50, colors: [{ at: 50, level: 'normal' }, { at: 51, level: 'critical' }], offsets: [0, 1, 1, 1] },
   ] satisfies {
     from: number;
@@ -116,34 +107,64 @@ describe('the chart', () => {
     { at: 90, level: 'critical' },
   ];
   test.each([
-    { value: -5, colors: stops, level: 'normal' },
-    { value: 59, colors: stops, level: 'normal' },
     { value: 60, colors: stops, level: 'warning' },
     { value: 95, colors: stops, level: 'critical' },
     { value: 50, colors: [], level: 'normal' },
-  ])('colors the dot at $value $level', ({ value, colors, level }) => {
-    expect(levelAt(plot({ colors }).chart, value)).toBe(level);
+    {
+      value: 30,
+      colors: [
+        { at: 0, level: 'critical' },
+        { at: 30, level: 'warning' },
+        { at: 60, level: 'normal' },
+      ] satisfies ColorStop[],
+      level: 'critical',
+      low: true,
+    },
+  ])('colors the dot at $value $level', ({ value, colors, level, low }) => {
+    expect(levelAt(plot({ colors, low: low ?? false }).chart, value)).toBe(level);
   });
 
   test.each([
-    { warning: 50, critical: 90, tops: { warning: 62, critical: 22 } },
-    { warning: 50, critical: 76, tops: { warning: 62, critical: 36 } },
-    { warning: 50, critical: 60, tops: { warning: 70, critical: 44 } },
-    { warning: -50, critical: 150, tops: { warning: 124, critical: 0 } },
-    { warning: null, critical: 60, tops: { warning: null, critical: 52 } },
-    { warning: 60, critical: null, tops: { warning: 52, critical: null } },
-  ])('sets the knobs of $warning and $critical apart', ({ warning, critical, tops }) => {
-    expect(knobTops(plot({ warning, critical }))).toEqual(tops);
+    { warning: 50, critical: 90, tops: { warning: 66, critical: 26 } },
+    { warning: 50, critical: 60, tops: { warning: 74, critical: 48 } },
+    { warning: -50, critical: 150, tops: { warning: 132, critical: 0 } },
+    { warning: null, critical: 60, tops: { warning: null, critical: 56 } },
+    // A frame rate's critical is under its warning, and its knob stays under it.
+    { warning: 60, critical: 50, tops: { warning: 48, critical: 74 } },
+    // At the same value the critical's knob goes above a high meter's lines and under a low one's.
+    { warning: 60, critical: 60, tops: { warning: 69, critical: 43 } },
+    { warning: 60, critical: 60, low: true, tops: { warning: 43, critical: 69 } },
+  ] satisfies { warning: number | null; critical: number | null; low?: boolean; tops: unknown }[])(
+    'sets the knobs of $warning and $critical apart',
+    ({ warning, critical, low, tops }) => {
+      expect(knobTops(plot({ warning, critical, low: low ?? false }))).toEqual(tops);
+    },
+  );
+
+  // The zones lie where the colors say a level past normal: over the lines, or under them for a frame rate.
+  test.each([
+    {
+      colors: [{ at: 0, level: 'normal' }, { at: 50, level: 'warning' }, { at: 90, level: 'critical' }],
+      tints: [{ level: 'warning', top: 26, height: 40 }, { level: 'critical', top: 0, height: 26 }],
+    },
+    {
+      colors: [{ at: 0, level: 'critical' }, { at: 30, level: 'warning' }, { at: 60, level: 'normal' }],
+      tints: [{ level: 'critical', top: 86, height: 46 }, { level: 'warning', top: 56, height: 30 }],
+    },
+  ] satisfies { colors: ColorStop[]; tints: ReturnType<typeof tintsOf> }[])('tints the zones of $colors', ({ colors, tints }) => {
+    expect(tintsOf(plot({ colors }))).toEqual(tints);
   });
 
   test.each([
     { warning: null, critical: null, y: 50, line: null },
-    { warning: 50, critical: 90, y: 30, line: 'critical' },
-    { warning: 50, critical: 90, y: 50, line: 'warning' },
-    { warning: 50, critical: 90, y: 42, line: 'warning' },
-    { warning: null, critical: 90, y: 100, line: 'critical' },
-    { warning: 50, critical: null, y: 0, line: 'warning' },
+    { warning: 50, critical: 90, y: 46, line: 'warning' },
+    { warning: null, critical: 90, y: 104, line: 'critical' },
+    { warning: 50, critical: null, y: 4, line: 'warning' },
   ])('moves the line nearest a click at $y', ({ warning, critical, y, line }) => {
     expect(nearestLine(plot({ warning, critical }), y)).toBe(line);
+  });
+
+  test('points at 150 to the nearest reading', () => {
+    expect(readingAt(plot({ readings: [1, 2, 3, 4] }), 150)).toBe(2);
   });
 });

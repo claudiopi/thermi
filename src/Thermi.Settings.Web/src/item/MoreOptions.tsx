@@ -95,6 +95,7 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
         <CardRow label={t('UiText.Combine')}>
           <CombineButton
             item={item}
+            current={item.sensors ?? [item.sensor ?? data.view.items[item.id]?.auto].flatMap((id) => id ?? [])}
             type={type}
             sensors={data.sensors.sensors.filter((sensor) => sensor.type === type && data.view.values[sensor.id] !== undefined)}
             set={(field, value) => set(field, value)}
@@ -108,8 +109,10 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
 /** "More options": a row clicked as a whole that opens the rest of the item's settings under it. */
 export function MoreOptions({ data, placed, edit, open, onOpen }: MoreOptionsProps) {
   const t = useText();
+  // A reading that is no number holds only its value color, so the hint names only that.
+  const hint = offsetRange(data.view.items[placed.item.id]?.type ?? '') === null ? 'UiText.ValueColor' : 'UiText.MoreOptionsHint';
   return (
-    <Expander label={t('UiText.MoreOptions')} hint={t('UiText.MoreOptionsHint')} open={open} onOpen={onOpen}>
+    <Expander label={t('UiText.MoreOptions')} hint={t(hint)} open={open} onOpen={onOpen}>
       <Options data={data} placed={placed} edit={edit} />
     </Expander>
   );

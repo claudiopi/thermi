@@ -29,11 +29,15 @@ public static class SystemSensors
 
     private const int SecondsPerDay = 24 * 60 * 60;
 
+    /// <summary>
+    /// The snapshot with the PC's sensors added, and while thermi's driver may be missing, each core's VID read as 0, so as
+    /// missing: the library then reads the same VID for every core, 1.55 V on a Ryzen 9 9950X, which no core asks for at rest.
+    /// </summary>
     public static Snapshot With(Snapshot snapshot, WindowsFacts facts) => snapshot with
     {
         Sensors =
         [
-            .. snapshot.Sensors,
+            .. SensorMap.DriverMayBeMissing(snapshot) ? snapshot.Sensors.Select(Unread) : snapshot.Sensors,
             Sensor(SensorKind.Duration, "duration", Uptime, Math.Floor(facts.Uptime.TotalSeconds)),
             Sensor(SensorKind.Address, "address", LocalIp, facts.Address),
             Sensor(SensorKind.Time, "time", Clock, Math.Floor(facts.LocalNow.TimeOfDay.TotalSeconds)),
@@ -44,8 +48,11 @@ public static class SystemSensors
     public static Snapshot Only(Snapshot? snapshot) =>
         snapshot is null ? new Snapshot([]) : snapshot with { Sensors = [.. snapshot.Sensors.Where(IsOwn)] };
 
-    /// <summary>Whether a snapshot holds anything the sensor service read, beyond what Windows itself says.</summary>
-    public static bool HasServiceSensors(Snapshot snapshot) => snapshot.Sensors.Any(sensor => !IsOwn(sensor));
+    /// <summary>
+    /// Whether a snapshot holds anything the sensor service read, beyond what Windows itself says and the game's sensors,
+    /// which every reader adds.
+    /// </summary>
+    public static bool HasServiceSensors(Snapshot snapshot) => snapshot.Sensors.Any(sensor => !IsOwn(sensor) && !Frames.GameSensors.Is(sensor));
 
     /// <summary>Whether an item reads only what Windows itself says, so it never waits on the sensor service.</summary>
     public static bool Reads(ItemConfig item)
@@ -72,6 +79,11 @@ public static class SystemSensors
 
     // An id as the library makes them, its device, its type and its index, so its type is known from it alone.
     private static bool IsOwn(RawSensor sensor) => sensor.HardwareType == HardwareType;
+
+    private static RawSensor Unread(RawSensor sensor) =>
+        sensor is { HardwareType: "Cpu", Type: nameof(SensorKind.Voltage) } && sensor.Name.EndsWith(" VID", StringComparison.Ordinal)
+            ? sensor with { Value = 0 }
+            : sensor;
 
     private static RawSensor Sensor(SensorKind kind, string type, string name, double? value) =>
         new($"{Device}/{type}/0", HardwareType, Hardware, kind.ToString(), name, value);

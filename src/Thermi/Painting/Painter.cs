@@ -18,14 +18,15 @@ namespace Thermi.Painting;
 /// </param>
 internal sealed class Painter(bool reuse = false) : IDisposable
 {
-    private const float Height = 38;
-    private const float InnerPadding = 10;
+    private const float Height = OverlayLook.PillHeight;
+    internal const float InnerPadding = 10;
     private const float LabelGap = 10;
     private const float MeterGap = 6;
-    private const float ItemGap = 14;
+    internal const float ItemGap = 14;
 
     // Between the pills a single bar holds, as wide as the bar's padding around them.
-    private const float InnerPillGap = 4;
+    internal const float InnerPillGap = 4;
+    private const float TagGap = 4;
     private const float UnderlineGap = 2;
     private const float UnderlineHeight = 2;
 
@@ -36,19 +37,11 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     private PainterFonts? _fonts;
     private Bitmap? _canvas;
 
-    /// <summary>Where the last paint drew each item and its value, in its pixels, so the stage can tell what a click is on.</summary>
-    public IReadOnlyList<PaintedItem> Places => _places;
-
-    /// <summary>The item the last paint drew at a point of it, or null on the overlay's edge.</summary>
-    public string? ItemAt(PointF at) => _places.FirstOrDefault(place => place.Item.Contains(at) && place.Id.Length > 0)?.Id;
-
     /// <summary>
-    /// The first item the last paint drew whose pill's middle lies past a point of it along the overlay, so a pill dropped
-    /// there joins before that pill; null past the last.
+    /// Where the last paint drew each item, its label and its value, in its pixels, so the stage can tell what a click is
+    /// on (<see cref="PaintedPlaces"/>).
     /// </summary>
-    public string? ItemAfter(PointF at, bool vertical) =>
-        _places.FirstOrDefault(place => place.Id.Length > 0
-            && (vertical ? place.Pill.Top + (place.Pill.Height / 2) > at.Y : place.Pill.Left + (place.Pill.Width / 2) > at.X))?.Id;
+    public IReadOnlyList<PaintedItem> Places => _places;
 
     /// <summary>
     /// Paints the items in their pills. <paramref name="glow"/> gives how strongly an item's pill glows now, 0 to 1, as
@@ -72,7 +65,8 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         using var measure = Graphics.FromHwnd(0);
         var width = (measure.MeasureString(text, fonts.Label, 0, PainterFonts.Typographic).Width / scale) + PainterShapes.MarkWidth + LabelGap;
         var item = new OverlayItem(null, text, Level.Normal, text);
-        return Painted([new Pill([item], [width * scale], scale), .. PillsOf(beside ?? [], look, scale, fonts, measure)], look, scale, glow: null, mark: true);
+        List<PaintedPill> pills = [new PaintedPill([item], [width * scale], scale), .. PillsOf(beside ?? [], look, scale, fonts, measure)];
+        return Painted(pills, look, scale, glow: null, mark: true);
     }
 
     public void Dispose()
@@ -82,11 +76,16 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     }
 
     // The runs a single bar holds are read before the labels go, as no label then says where each starts.
-    private static List<Pill> PillsOf(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, PainterFonts fonts, Graphics measure)
+    private static List<PaintedPill> PillsOf(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, PainterFonts fonts, Graphics measure)
     {
         var runs = OverlayLayout.InnerPills(items, look.Layout);
+        var up = runs is not null && look.Orientation == Orientation.Vertical;
         return [.. OverlayLayout.Groups(items, look.Layout, look.Labels)
-            .Select(pill => new Pill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale) { Runs = runs })];
+            .Select(pill => new PaintedPill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale)
+            {
+                Runs = runs,
+                Stacked = up,
+            })];
     }
 
     /// <summary>
@@ -101,14 +100,30 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         return new Size(width, height);
     }
 
-    private static (int Width, int Height, Arrangement Arranged) SizeOf(List<Pill> pills, OverlayLook look, float scale)
+    /// <summary>
+    /// <paramref name="scale"/>, or the smaller one at which the items show as wide as <paramref name="room"/> allows for
+    /// their size at it, as an overlay grown past the room the others beside it on its taskbar leave; without a room, as
+    /// for one alone, <paramref name="scale"/> unmeasured.
+    /// </summary>
+    public float Within(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, Func<(int Width, int Height), int?>? room)
+    {
+        if (room is null)
+        {
+            return scale;
+        }
+
+        var size = Measure(items, look, scale);
+        return room((size.Width, size.Height)) is { } most && size.Width > most ? scale * Math.Max(1, most) / size.Width : scale;
+    }
+
+    private static (int Width, int Height, Arrangement Arranged) SizeOf(List<PaintedPill> pills, OverlayLook look, float scale)
     {
         var height = Math.Ceiling(Height * scale);
-        var arranged = look.Arrange([.. pills.Select(pill => (double)pill.Width)], height, scale);
+        var arranged = look.Arrange([.. pills.Select(pill => (double)pill.Width)], height, scale, [.. pills.Select(pill => pill.HeightOf(height))]);
         return (Math.Max((int)height, (int)Math.Ceiling(arranged.Width)), Math.Max((int)height, (int)Math.Ceiling(arranged.Height)), arranged);
     }
 
-    private Bitmap Painted(List<Pill> pills, OverlayLook look, float scale, Func<string, double>? glow, bool mark)
+    private Bitmap Painted(List<PaintedPill> pills, OverlayLook look, float scale, Func<string, double>? glow, bool mark)
     {
         var size = SizeOf(pills, look, scale);
         var bitmap = Canvas(size.Width, size.Height);
@@ -157,14 +172,14 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     }
 
     // The pills fade before anything is drawn on them, so the text and meters stay whole over a faded pill.
-    private static void DrawPills(Bitmap bitmap, List<Pill> pills, List<RectangleF> boxes, OverlayLook look, float scale)
+    private static void DrawPills(Bitmap bitmap, List<PaintedPill> pills, List<RectangleF> boxes, OverlayLook look, float scale)
     {
         using (var g = Graphics.FromImage(bitmap))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             for (var p = 0; p < pills.Count; p++)
             {
-                PainterShapes.Pill(g, look, boxes[p], scale);
+                PainterShapes.Pill(g, look, boxes[p], scale, (float)Math.Ceiling(Height * scale));
                 var inner = pills[p].Runs is null ? [] : pills[p].PartsIn(boxes[p]);
                 foreach (var part in inner)
                 {
@@ -177,7 +192,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     }
 
     // The glow is drawn over the faded pill, so it shows whole at any background opacity.
-    private void DrawItems(Bitmap bitmap, List<Pill> pills, List<RectangleF> boxes, OverlayLook look, float scale, Func<string, double>? glow)
+    private void DrawItems(Bitmap bitmap, List<PaintedPill> pills, List<RectangleF> boxes, OverlayLook look, float scale, Func<string, double>? glow)
     {
         using var g = Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -198,17 +213,22 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         }
     }
 
-    // Each item's place is as tall as its pill, so a drag of a run carries it off.
-    private void DrawPart(Graphics g, Pill pill, Part part, RectangleF box, OverlayLook look, float scale)
+    // Each item's place is as tall as its pill, or its row of a standing bar, so a drag of a run carries it off.
+    private void DrawPart(Graphics g, PaintedPill pill, PillPart part, RectangleF outer, OverlayLook look, float scale)
     {
         var gap = ItemGap * scale;
+        var box = pill.Stacked ? part.Box : outer;
         var x = part.Start;
         for (var i = part.First; i < part.First + part.Count; i++)
         {
             var (item, width) = (pill.Items[i], pill.ItemWidths[i]);
             var value = DrawItem(g, item, look, new PointF(x, box.Top + (box.Height / 2)), scale);
             var place = new RectangleF(x - (gap / 2), box.Top, width + gap, box.Height);
-            _places.Add(new PaintedItem(item.Id, place, new RectangleF(value, box.Top, x + width - value, box.Height)) { Pill = part.Box });
+            _places.Add(new PaintedItem(item.Id, place, new RectangleF(value, box.Top, x + width - value, box.Height))
+            {
+                Pill = part.Box,
+                Label = item.Label is null ? RectangleF.Empty : new RectangleF(place.Left, box.Top, value - place.Left, box.Height),
+            });
             x += width + gap;
         }
     }
@@ -238,7 +258,9 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         var width = Math.Max(
             g.MeasureString(item.Value, fonts.Value, 0, PainterFonts.Typographic).Width,
             g.MeasureString(item.Room, fonts.Value, 0, PainterFonts.Typographic).Width) / scale;
-        return width + MeterRoom(item);
+        var tag = item.Tag is null ? 0
+            : TagGap + PainterShapes.ReversedPadding + (g.MeasureString(item.Tag, fonts.Tag, 0, PainterFonts.Typographic).Width / scale);
+        return width + tag + MeterRoom(item);
     }
 
     // In unscaled pixels: a graph's or a meter's width and its gap to the value, or nothing.
@@ -267,13 +289,29 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         }
 
         x += MeterRoom(item) * scale;
-        DrawValue(g, item, fonts.Value, look, new PointF(x, at.Y), scale);
+        var end = DrawValue(g, item, fonts.Value, look, new PointF(x, at.Y), scale);
+        if (item.Tag is { } tag)
+        {
+            DrawTag(g, tag, fonts, look, new PointF(end + (TagGap * scale), at.Y), scale);
+        }
+
         return x;
     }
 
+    // On the value's baseline, so the two read as one line however small the tag is.
+    private static void DrawTag(Graphics g, string tag, PainterFonts fonts, OverlayLook look, PointF at, float scale)
+    {
+        var value = g.MeasureString(tag, fonts.Value, 0, PainterFonts.Typographic).Height;
+        var small = g.MeasureString(tag, fonts.Tag, 0, PainterFonts.Typographic).Height;
+        var baseline = at.Y - (value / 2) + Ascent(fonts.Value);
+        DrawText(g, tag, fonts.Tag, look.LabelColor.Color, new PointF(at.X, baseline - Ascent(fonts.Tag) + (small / 2)), look, scale);
+    }
+
+    private static float Ascent(Font font) => font.Size * font.FontFamily.GetCellAscent(font.Style) / font.FontFamily.GetEmHeight(font.Style);
+
     // A warning underlines the value, unless its meter or graph shows it, and a critical value is drawn reversed, on a box
-    // of its color, where the text effect has nothing to set apart.
-    private static void DrawValue(Graphics g, OverlayItem item, Font font, OverlayLook look, PointF at, float scale)
+    // of its color, where the text effect has nothing to set apart. Gives where the value ends.
+    private static float DrawValue(Graphics g, OverlayItem item, Font font, OverlayLook look, PointF at, float scale)
     {
         var mark = LevelMarks.Of(look, item);
         var size = g.MeasureString(item.Value, font, 0, PainterFonts.Typographic);
@@ -296,14 +334,16 @@ internal sealed class Painter(bool reuse = false) : IDisposable
 
         if (mark.Kind == MarkKind.Reversed)
         {
-            return;
+            return text.Right + (PainterShapes.ReversedPadding * scale);
         }
 
         if (mark.Kind == MarkKind.Underline)
         {
-            var baseline = text.Top + (font.Size * font.FontFamily.GetCellAscent(font.Style) / font.FontFamily.GetEmHeight(font.Style));
-            PainterShapes.Underline(g, mark.Color, new RectangleF(text.Left, baseline + (UnderlineGap * scale), text.Width, UnderlineHeight * scale));
+            var line = new RectangleF(text.Left, text.Top + Ascent(font) + (UnderlineGap * scale), text.Width, UnderlineHeight * scale);
+            PainterShapes.Underline(g, mark.Color, line);
         }
+
+        return text.Right;
     }
 
     private void DrawStopped(Bitmap bitmap, string text, RectangleF box, OverlayLook look, float scale)
@@ -344,50 +384,4 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         g.DrawString(text, font, brush, origin.X, origin.Y, PainterFonts.Typographic);
         return at.X + size.Width;
     }
-
-    private readonly record struct Part(RectangleF Box, float Start, int First, int Count);
-
-    private sealed record Pill(IReadOnlyList<OverlayItem> Items, List<float> ItemWidths, float Scale)
-    {
-        /// <summary>In a single bar, how many of its items each pill inside it holds; null for a pill that holds none.</summary>
-        public IReadOnlyList<int>? Runs { get; init; }
-
-        public float Width => (PainterShapes.OuterPadding * 2 * Scale)
-            + Spans.Sum(span => SpanWidth(span.First, span.Count))
-            + (InnerPillGap * Scale * Math.Max(0, Spans.Count - 1));
-
-        private List<(int First, int Count)> Spans =>
-            Runs is null ? [(0, Items.Count)] : [.. Runs.Select((count, at) => (Runs.Take(at).Sum(), count))];
-
-        /// <summary>The pill at <paramref name="box"/> itself, or each pill a single bar holds inside its padding.</summary>
-        public List<Part> PartsIn(RectangleF box)
-        {
-            var padding = PainterShapes.OuterPadding * Scale;
-            if (Runs is null)
-            {
-                return [new Part(box, box.Left + padding + (InnerPadding * Scale), 0, Items.Count)];
-            }
-
-            var parts = new List<Part>();
-            var left = box.Left + padding;
-            foreach (var (first, count) in Spans)
-            {
-                var width = SpanWidth(first, count);
-                parts.Add(new Part(new RectangleF(left, box.Top + padding, width, box.Height - (2 * padding)), left + (InnerPadding * Scale), first, count));
-                left += width + (InnerPillGap * Scale);
-            }
-
-            return parts;
-        }
-
-        private float SpanWidth(int first, int count) =>
-            (InnerPadding * 2 * Scale) + ItemWidths.Skip(first).Take(count).Sum() + (ItemGap * Scale * Math.Max(0, count - 1));
-    }
-}
-
-/// <summary>Where an item was drawn, half the gap to its neighbors included, and where its value was, in the bitmap's pixels.</summary>
-internal sealed record PaintedItem(string Id, RectangleF Item, RectangleF Value)
-{
-    /// <summary>The pill the item was drawn in, which a drag of it carries off.</summary>
-    public RectangleF Pill { get; init; }
 }

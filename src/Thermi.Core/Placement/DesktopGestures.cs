@@ -1,4 +1,5 @@
 using Thermi.Core.Editing;
+using Thermi.Core.Look;
 using Thermi.Core.Messages;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -7,6 +8,16 @@ namespace Thermi.Core.Placement;
 
 /// <summary>A desktop gesture's outcome: its kind, which names its undo, and its edit, refused as any edit can be.</summary>
 public sealed record DesktopDrop(GestureKind Kind, EditResult Result);
+
+/// <summary>What a held press takes: the pill of <see cref="Item"/>, or, <see cref="Alone"/>, that item off its pill.</summary>
+public sealed record Carried(string Item, bool Alone = false);
+
+/// <summary>
+/// Where a drag is let go: the overlay it joins, if any, before the pill of the item <see cref="Before"/>, or past its last
+/// pill for none; or, <see cref="InPill"/>, an item carried alone over its own pill, before that pill's item
+/// <see cref="Before"/>, or past the pill's last for none.
+/// </summary>
+public readonly record struct DropTarget(int? Onto, string? Before, bool InPill = false);
 
 /// <summary>
 /// What a drag on an overlay does on the desktop, as one edit each: the overlay moves whole, onto a snap mark or into
@@ -23,21 +34,29 @@ public static class DesktopGestures
 
     /// <summary>
     /// A drag let go with the pill or overlay it moved at <paramref name="dropped"/>, or on the <paramref name="mark"/> it
-    /// was dropped on. The pill of <paramref name="takenOff"/>, an item whose pill the press <see cref="Lifts"/>, joins the
-    /// overlay it was dropped <paramref name="onto"/> before the pill of the item <paramref name="before"/>, its own included,
-    /// where it moves to that place, or becomes an overlay of its own where it was dropped; without one, the overlay merges
-    /// into the overlay it was dropped onto at that place too, or goes where it was dropped.
+    /// was dropped on. What the press <see cref="Lifts"/>, <paramref name="carried"/>, joins the overlay it was dropped onto
+    /// where the <paramref name="target"/> says, its own included, where it moves to that place, or becomes an overlay of its
+    /// own where it was dropped; an item alone dropped on its own pill moves within it. Without one, the overlay merges into
+    /// the overlay it was dropped onto at that place too, or goes where it was dropped. A hold at the cap of overlays lifted
+    /// nothing, so its drop is refused wherever it lands.
     /// </summary>
-    public static DesktopDrop Release(ThermiConfig config, int overlay, string? takenOff, Position dropped, int? onto, SnapConfig? mark, string? before = null)
+    public static DesktopDrop Release(ThermiConfig config, int overlay, Carried? carried, Position dropped, DropTarget target, SnapConfig? mark)
     {
-        if (takenOff is not null)
+        if (carried is not null && config.Overlays.Count >= ThermiConfig.MaxOverlays)
         {
-            return onto is { } into
-                ? new DesktopDrop(into == overlay ? GestureKind.Move : GestureKind.Merge, OverlayEdits.PillInto(config, takenOff, into, before))
-                : new DesktopDrop(GestureKind.DragOff, OverlayEdits.DragOff(config, takenOff, dropped, mark));
+            return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.TooManyOverlays));
         }
 
-        return onto is { } target && target != overlay ? new DesktopDrop(GestureKind.Merge, OverlayEdits.Merge(config, overlay, target, before))
+        if (carried is { } off)
+        {
+            return target.Onto is { } into
+                ? new DesktopDrop(
+                    into == overlay ? GestureKind.Move : GestureKind.Merge,
+                    off.Alone ? OverlayEdits.ItemInto(config, off.Item, into, target) : OverlayEdits.PillInto(config, off.Item, into, target.Before))
+                : new DesktopDrop(GestureKind.DragOff, OverlayEdits.DragOff(config, off.Item, dropped, mark, off.Alone));
+        }
+
+        return target.Onto is { } onto && onto != overlay ? new DesktopDrop(GestureKind.Merge, OverlayEdits.Merge(config, overlay, onto, target.Before))
             : new DesktopDrop(GestureKind.Move, mark is { } snap ? OverlayEdits.Snap(config, overlay, snap) : OverlayEdits.Drop(config, overlay, dropped));
     }
 
@@ -89,42 +108,86 @@ public static class DesktopGestures
     };
 
     /// <summary>
-    /// Whether a press on that item's pill, or on the overlay's edge when none is named, held still for
-    /// <paramref name="held"/>, lifts the pill, so its drag takes the pill off its overlay instead of moving the whole
-    /// overlay: only once it has held for <see cref="Hold"/>, since a plain drag is how a person moves an overlay, and never
-    /// when the pill is the whole overlay or there is no room for another overlay, where a drag that would be refused at its
-    /// drop moves the overlay instead.
+    /// What a press on <paramref name="item"/> takes once held, null on the overlay's edge: the item alone when pressed off
+    /// its pill's label, in a pill of several items that shows one, so a value moves on its own; its pill otherwise, as
+    /// a press on the label, or anywhere on a pill of one item or without a label, takes.
     /// </summary>
-    public static bool Lifts(ThermiConfig config, int overlay, string? pill, TimeSpan held) =>
-        held >= Hold && pill is not null && CanTakeOff(config, overlay, pill);
+    public static Carried? Grip(ThermiConfig config, string? item, bool onLabel) =>
+        item is null ? null
+        : new Carried(item, Alone: !onLabel && ConfigEdits.Find(config, item) is var (from, index)
+            && !config.Overlays[from].Style.NoLabels
+            && ItemEdits.PillOf(config.Overlays[from], index) is var (first, last) && last > first
+            && OverlayLayout.RunLabels(config.Overlays[from].Items)[first] is not null);
+
+    /// <summary>
+    /// Whether a press that took <paramref name="carried"/>, or the overlay's edge for none, held still for
+    /// <paramref name="held"/>, takes hold of it instead of the whole overlay: only once it has held for
+    /// <see cref="Hold"/>, since a plain drag is how a person moves an overlay, never when the pill is the whole overlay,
+    /// and never on a locked overlay. It then <see cref="Lifts"/> it, unless no other overlay fits: there it stays and
+    /// its drag is refused, never turned into a move of the overlay the hold did not ask for.
+    /// </summary>
+    public static bool Holds(ThermiConfig config, int overlay, Carried? carried, TimeSpan held) =>
+        held >= Hold && carried is not null && ConfigEdits.HasOverlay(config, overlay) && !config.Overlays[overlay].Locked
+        && (carried.Alone || IsPart(config, overlay, carried.Item));
+
+    /// <summary>Whether a press held still for <paramref name="held"/> lifts what it took, so its drag takes it off its overlay.</summary>
+    public static bool Lifts(ThermiConfig config, int overlay, Carried? carried, TimeSpan held) =>
+        Holds(config, overlay, carried, held) && config.Overlays.Count < ThermiConfig.MaxOverlays;
 
     /// <summary>
     /// False when the pill is the whole overlay or no other overlay fits.
     /// </summary>
     public static bool CanTakeOff(ThermiConfig config, int overlay, string pill) =>
-        config.Overlays.Count < ThermiConfig.MaxOverlays && ConfigEdits.Find(config, pill) is var (from, index)
+        config.Overlays.Count < ThermiConfig.MaxOverlays && IsPart(config, overlay, pill);
+
+    /// <summary>Whether the pill is one of several of the overlay, which can come off it while another overlay fits.</summary>
+    public static bool IsPart(ThermiConfig config, int overlay, string pill) =>
+        ConfigEdits.Find(config, pill) is var (from, index)
         && !(from == overlay && ItemEdits.PillOf(config.Overlays[from], index) == (0, config.Overlays[from].Items.Count - 1));
 
     /// <summary>
-    /// "Separate" from the overlay's menu: drops <paramref name="pill"/> (drawn at <paramref name="box"/>) beside the overlay
-    /// <paramref name="shown"/>, as Alt held would, so no mark pulls it back: before a horizontal overlay, after it when that
-    /// leaves the work area, below a vertical one, else above.
+    /// "Separate" from the overlay's menu: drops <paramref name="pill"/>, an overlay of the size <paramref name="made"/>
+    /// once on its own, as a drag carries it, beside the overlay <paramref name="shown"/>, as Alt
+    /// held would, so no mark pulls it back: the margin away, before a horizontal overlay and level with its middle, after it
+    /// when that leaves the work area, below a vertical one and in line with its left edge, else above. Beside the overlay
+    /// as it sits once the pill has left, <paramref name="rest"/> in size: one snapped by its right end, as beside the
+    /// notification area, shrinks toward it. Refused as too many overlays where no other fits.
     /// </summary>
-    public static DesktopDrop Separate(ThermiConfig config, int overlay, string pill, PixelRect shown, PixelRect box, IReadOnlyList<Screen> screens)
+    public static DesktopDrop Separate(
+        ThermiConfig config,
+        int overlay,
+        string pill,
+        PixelRect shown,
+        (int Width, int Height) made,
+        (int Width, int Height) rest,
+        IReadOnlyList<Screen> screens)
     {
-        if (!ConfigEdits.HasOverlay(config, overlay) || screens.Count == 0 || !CanTakeOff(config, overlay, pill))
+        if (config.Overlays.Count >= ThermiConfig.MaxOverlays)
+        {
+            return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.TooManyOverlays));
+        }
+
+        if (!ConfigEdits.HasOverlay(config, overlay) || screens.Count == 0 || !IsPart(config, overlay, pill))
         {
             return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.NotFound));
         }
 
+        var orientation = config.Overlays[overlay].Style.Orientation;
+        if (Snaps.Locate(config.Overlays[overlay], screens, rest.Width, rest.Height) is { } then)
+        {
+            shown = orientation == Orientation.Vertical
+                ? new PixelRect(shown.Left, then.Y, shown.Right, then.Y + rest.Height)
+                : new PixelRect(then.X, shown.Top, then.X + rest.Width, shown.Bottom);
+        }
+
         var screen = Snaps.ScreenOf(config.Overlays[overlay], screens)!;
-        var gap = (int)Math.Round(Snaps.Margin * screen.Scale);
-        var work = screen.Work;
-        var at = config.Overlays[overlay].Style.Orientation == Orientation.Vertical
-            ? new Position(box.Left, shown.Bottom + gap + box.Height <= work.Bottom ? shown.Bottom + gap : shown.Top - gap - box.Height)
-            : new Position(shown.Left - gap - box.Width >= work.Left ? shown.Left - gap - box.Width : shown.Right + gap, box.Top);
-        var mark = Snaps.Near(screens, Orientation.Horizontal, box.Width, box.Height, at, magnets: false);
-        return Release(config, overlay, pill, Snaps.Inside(at, screens, box.Width, box.Height), onto: null, mark);
+        var gap = Snaps.Scaled(Snaps.Margin, screen);
+        var (work, (width, height)) = (screen.Work, made);
+        var at = orientation == Orientation.Vertical
+            ? new Position(shown.Left, shown.Bottom + gap + height <= work.Bottom ? shown.Bottom + gap : shown.Top - gap - height)
+            : new Position(shown.Left - gap - width >= work.Left ? shown.Left - gap - width : shown.Right + gap, shown.Top + ((shown.Height - height) / 2));
+        var mark = Snaps.Near(screens, orientation, width, height, at, magnets: false);
+        return Release(config, overlay, new Carried(pill), Snaps.Inside(at, screens, width, height), default, mark);
     }
 
     /// <summary>The ids of the items a drag of that item's pill takes off, in their order; none for an item the settings lack.</summary>

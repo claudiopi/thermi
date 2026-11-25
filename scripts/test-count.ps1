@@ -85,14 +85,20 @@ if ($failed) {
     exit 1
 }
 
-# The baseline where this change branched off main, when git can tell; a change that raises it raises it alone. A
+# The change is what the working tree changed since the last commit, or, with nothing changed, that commit: a change
+# that raises the baseline raises it alone, so a raise inside a commit of other work fails. Its baseline is compared with
+# the one before it, the last commit's or its parent's, else the one where this branch left main, when git can tell; a
 # baseline that counted something else then has nothing to compare with.
-$main = @('origin/main', 'main') | Where-Object { git -C $root rev-parse --verify --quiet $_ 2>$null } | Select-Object -First 1
-$base = if ($main) { git -C $root merge-base HEAD $main 2>$null }
-$before = if ($base) { git -C $root show "${base}:$baselineFile" 2>$null | ConvertFrom-Json }
+$changed = @(git -C $root status --porcelain 2>$null)
+$from = if ($changed) { 'HEAD' } elseif (git -C $root rev-parse --verify --quiet 'HEAD~1' 2>$null) { 'HEAD~1' }
+    else {
+        $main = @('origin/main', 'main') | Where-Object { git -C $root rev-parse --verify --quiet $_ 2>$null } | Select-Object -First 1
+        if ($main) { git -C $root merge-base HEAD $main 2>$null }
+    }
+$before = if ($from) { git -C $root show "${from}:$baselineFile" 2>$null | ConvertFrom-Json }
 $raised = foreach ($half in $halves.Keys) { if ($null -ne $before.$half -and $before.$half -lt $baseline.$half) { $half } }
 if ($raised) {
-    $others = @(git -C $root diff --name-only $base) + @(git -C $root ls-files --others --exclude-standard) | Where-Object { $_ -ne $baselineFile }
+    $others = @(git -C $root diff --name-only $from) + @(git -C $root ls-files --others --exclude-standard) | Where-Object { $_ -ne $baselineFile }
     if ($others) {
         Write-Host "This change raises the baseline of $($raised -join ' and ') in $baselineFile along with other files."
         Write-Host $raise

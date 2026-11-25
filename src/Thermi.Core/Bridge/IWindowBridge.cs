@@ -1,3 +1,4 @@
+using Thermi.Core.Look;
 using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -43,14 +44,16 @@ public interface IWindowBridge
 
     /// <summary>
     /// The overlay painted as its own window paints it now, with the same scene, look, scale and painter as "Copy as image",
-    /// its lines drawing the minute the overlay sent; null for an overlay the settings lack.
+    /// its lines drawing the minute the overlay sent; null for an overlay the settings lack. At most <paramref name="room"/>
+    /// pixels wide, the page's own, when it is more than 0: one wider is painted at the smaller scale that fits, never resampled.
     /// </summary>
-    Task<OverlayPicture?> Preview(int overlay);
+    Task<OverlayPicture?> Preview(int overlay, int room);
 
     /// <summary>Each look's sample for its tile, painted as the overlay paints <see cref="Look.LookSample"/> in it.</summary>
-    Task<LookSamples> LookSamples();
+    /// <param name="scale">The page's pixels for each at 100 %, so a sample shows one of its pixels in each of the page's.</param>
+    Task<LookSamples> LookSamples(double scale);
 
-    /// <summary>An item's chart, or null when its meter has none.</summary>
+    /// <summary>An item's chart, or null for one that charts nothing, as a time, an address or a duration.</summary>
     Task<ChartView?> Chart(string id);
 
     /// <summary>Ends thermi: the overlay, and then the window.</summary>
@@ -76,7 +79,7 @@ public interface IWindowBridge
 
     Task<SensorView> Snapshot();
 
-    /// <summary>An item's meter over the last ten minutes, a value a second, oldest first; null for a gap.</summary>
+    /// <summary>What an item warns by over the last ten minutes, a value a second, oldest first; null for a gap.</summary>
     Task<IReadOnlyList<double?>> History(string id);
 
     /// <summary>Every text of the window's language, keyed "Enum.Member".</summary>
@@ -95,6 +98,9 @@ public interface IWindowBridge
 
     /// <summary>The saved looks by their names.</summary>
     Task<IReadOnlyDictionary<string, StyleConfig>> Looks();
+
+    /// <summary>The look each overlay wears, as its tiles check it, or null for none once it was changed in any way.</summary>
+    Task<IReadOnlyList<WornLook?>> Worn();
 
     Task<string?> SaveLook(int overlay, string name);
 

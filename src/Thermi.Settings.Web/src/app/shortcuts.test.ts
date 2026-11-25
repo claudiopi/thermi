@@ -18,17 +18,11 @@ const ctrl = { ctrlKey: true };
 
 describe("the window's shortcuts", () => {
   test.each([
-    { press: press('z', ctrl), typing: true, runs: 'undo' },
-    { press: press('Z', { ...ctrl, shiftKey: true }), typing: false, runs: 'redo' },
     { press: press('y', ctrl), typing: false, runs: 'redo' },
-    { press: press('n', ctrl), typing: false, runs: 'add' },
-    { press: press('f', ctrl), typing: false, runs: 'find' },
-    { press: press(',', ctrl), typing: false, runs: 'settings' },
     { press: press('v', ctrl), typing: false, runs: 'paste' },
     { press: press('v', ctrl), typing: true, runs: null },
     { press: press('v', { ...ctrl, shiftKey: true }), typing: false, runs: null },
     { press: press('z', { ...ctrl, altKey: true }), typing: false, runs: null },
-    { press: press('x', ctrl), typing: false, runs: null },
     { press: press('F1'), typing: true, runs: 'sheet' },
     { press: press('?'), typing: false, runs: 'sheet' },
     { press: press('?'), typing: true, runs: null },

@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Thermi.Core.Look;
 using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -190,6 +191,7 @@ internal sealed class BridgeEnums : JsonConverterFactory
 [JsonSerializable(typeof(IReadOnlyList<Rect?>))]
 [JsonSerializable(typeof(IReadOnlyList<string>))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, StyleConfig>))]
+[JsonSerializable(typeof(IReadOnlyList<WornLook?>))]
 [JsonSerializable(typeof(FinderView))]
 [JsonSerializable(typeof(CatalogView))]
 [JsonSerializable(typeof(IReadOnlyList<SensorKind>))]

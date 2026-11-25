@@ -236,7 +236,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding-block: 2px;
+  /* In the room geometry.ts' pad leaves above and under the line's span, so no line runs through a number. */
   font-size: 11px;
   line-height: 14px;
   color: var(--thermi-text3);
@@ -248,4 +248,50 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* A point of the chart: a quiet line across the plot and a label at its top, clear of Min · Avg · Max under it. */
+.t-plot:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: 2px;
+}
+
+.t-scrub-line {
+  stroke: var(--thermi-text3);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.t-scrub-dot {
+  pointer-events: none;
+}
+
+.t-scrub-label {
+  position: absolute;
+  /* Under the scale's top number, which geometry.ts' pad holds. */
+  top: 16px;
+  width: max-content;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--thermi-flyout);
+  box-shadow: inset 0 0 0 1px var(--thermi-flyout-stroke);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--thermi-text);
+  pointer-events: none;
+}
+
+.t-scrub-left {
+  transform: translateX(-100%);
+}
+
+@media (forced-colors: active) {
+  .t-scrub-line {
+    stroke: CanvasText;
+  }
+
+  .t-scrub-label {
+    border: 1px solid CanvasText;
+  }
 }

@@ -74,7 +74,7 @@ internal static class ThermiCommands
         var file = new Argument<string?>("settings") { Arity = ArgumentArity.ZeroOrOne, Description = "A settings file other than the user's." };
         var preview = new Command("preview", "Paints the overlay for a saved snapshot, without showing it.") { snapshot, png, scale, file };
         var seconds = new Argument<int>("seconds") { CustomParser = Whole(1, MaxLoadSeconds) };
-        var cpuLoad = new Command("cpu-load", "Loads every core at below-normal priority, to record how the fans answer.") { seconds };
+        var cpuLoad = new Command("cpu-load", "Loads every core at idle priority, to record how the fans answer.") { seconds };
         var verb = new Argument<string>("verb").AcceptOnlyFromAmong([.. Elevated.Verbs]);
         var elevated = ElevatedCommand(verb);
         var root = new RootCommand("thermi: a light, always-on-top hardware monitor.") { trace, pseudo, settings, preview, cpuLoad, elevated };

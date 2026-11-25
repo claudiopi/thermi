@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type 
 import type { CatalogGroup, CatalogRow, NoValue } from '../bridge/bridge.g';
 import { HighlightedText, Icon, Tooltip } from '../kit';
 import { useText, type TextKey } from '../texts/Texts';
+import { rowLine } from './shownBy';
 import { Sparkline } from './Sparkline';
 
 export interface CatalogRowsProps {
@@ -22,6 +23,8 @@ const reasons: Record<NoValue, TextKey> = {
   stopped: 'CatalogText.RowStopped',
   resting: 'CatalogText.RowResting',
   'reads-nothing': 'CatalogText.RowReadsNothing',
+  'no-frames': 'CatalogText.RowNoFrames',
+  'frames-unread': 'CatalogText.RowFramesUnread',
 };
 
 // A drive, an adapter or a battery is named under its group, as "Network · Intel I226-V".
@@ -31,7 +34,9 @@ const groupKeys: Partial<Record<NonNullable<CatalogGroup['kind']>, TextKey>> = {
   battery: 'CatalogText.GroupBattery',
 };
 
-const kindKey = (kind: CatalogRow['kind']): TextKey => `SensorKind.${kind.charAt(0).toUpperCase()}${kind.slice(1)}`;
+// The bridge's kinds are kebab-case, as frame-rate, and their texts' keys Pascal, as SensorKind.FrameRate.
+const kindKey = (kind: CatalogRow['kind']): TextKey =>
+  `SensorKind.${kind.replace(/(^|-)(\w)/g, (_, _dash: string, letter: string) => letter.toUpperCase())}`;
 
 function moveFocus(event: KeyboardEvent<HTMLDivElement>, onLeaveUp: () => void): boolean {
   const rows = [...(event.currentTarget.closest('[role="listbox"]')?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];
@@ -139,20 +144,18 @@ export function CatalogRows({ groups, shownBy, onPick, onRename, onLeaveUp, ref 
       onRename(row.id, name.trim());
     }
   };
-  // Why it reads nothing comes first, then the metric it feeds when a search found it by that, then that its name is only
-  // likely, then the items that show it; its note or type, the line the search marks, last.
   const under = (row: CatalogRow): ReactNode => {
-    if (row.why !== null) {
-      return t(reasons[row.why]);
-    }
-    if (row.alias !== null) {
-      return <HighlightedText text={row.alias} marks={row.aliasMarks} />;
-    }
     const names = shownBy(row.id);
-    if (row.from !== 'likely' && names.length > 0) {
-      return t('CatalogText.ShownAs', names.join(', '));
+    switch (rowLine(row, names.length > 0)) {
+      case 'why':
+        return t(reasons[row.why ?? 'reads-nothing']);
+      case 'alias':
+        return <HighlightedText text={row.alias ?? ''} marks={row.aliasMarks} />;
+      case 'shown':
+        return t('CatalogText.ShownAs', names.join(', '));
+      case 'note':
+        return <HighlightedText text={row.note ?? t(kindKey(row.kind))} marks={row.lineMarks} />;
     }
-    return <HighlightedText text={row.note ?? t(kindKey(row.kind))} marks={row.lineMarks} />;
   };
   return (
     <div ref={ref} className="t-cat-list" role="listbox" aria-label={t('UiText.Catalog')}>

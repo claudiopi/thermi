@@ -37,7 +37,7 @@ public sealed class AgentPipeTests : IDisposable
     {
         _folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         using var stop = new CancellationTokenSource();
-        using var server = new SensorPipeServer(() => Sent, _clock, _pipe) { Hung = () => Assert.Fail("No read should hang.") };
+        using var server = new SensorPipeServer(_ => Task.FromResult(Sent), _clock, _pipe) { Hung = () => Assert.Fail("No read should hang.") };
         var serving = Task.Run(() => server.RunAsync(stop.Token), CancellationToken.None);
         var ticking = Tick(stop.Token);
         var environment = new AgentEnvironment(

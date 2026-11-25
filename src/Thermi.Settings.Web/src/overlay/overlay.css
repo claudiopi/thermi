@@ -50,7 +50,7 @@
 }
 
 /* The preview: the overlay as it paints, on its taskbar's color where it sits on one, with nothing around it but that.
-   Narrower than the overlay, it shrinks to the column. */
+   Narrower than the overlay, C# paints it smaller to the column's width, so the page never scales the picture. */
 .t-preview {
   display: flex;
   align-items: center;
@@ -64,7 +64,10 @@
   border-radius: 4px;
 }
 
-.t-preview img,
+.t-preview img {
+  display: block;
+}
+
 .t-look-sample img {
   display: block;
   max-width: 100%;
@@ -117,9 +120,10 @@
   outline-offset: 2px;
 }
 
+/* The ring stays inside the tile's own box: one painted outside it left a trace of its edges once the tile was unchecked. */
 .t-look.t-on {
-  border-color: transparent;
-  box-shadow: 0 0 0 2px var(--t-accent);
+  border-color: var(--t-accent);
+  box-shadow: inset 0 0 0 1px var(--t-accent);
 }
 
 /* The name wraps rather than being cut, and the sample scales down into what it leaves. */

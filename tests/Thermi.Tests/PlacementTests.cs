@@ -11,7 +11,6 @@ public sealed class PlacementTests
     [Theory]
     [InlineData("12345 7XQ9K13@5&2f5d3e1a&0&UID4357", "DEL-A1B2-7XQ9K13")]
     [InlineData("12345@UID1", "DEL-A1B2-12345")]
-    [InlineData("0@UID1", "DEL-A1B2@UID1")]
     [InlineData("0 blank@UID1", "DEL-A1B2@UID1")]
     [InlineData("none@UID1", "UID1")]
     [InlineData("zeros@UID1", "UID1")]

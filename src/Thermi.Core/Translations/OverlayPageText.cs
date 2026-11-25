@@ -140,4 +140,7 @@ public enum OverlayPageText
     /// <summary>The switch that fades the overlay near the pointer, and what it does.</summary>
     Fade,
     FadeHint,
+
+    /// <summary>Why Direction is grayed: one pill has nothing to stack.</summary>
+    DirectionOnePill,
 }

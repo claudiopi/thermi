@@ -65,6 +65,9 @@ public sealed record Arrangement(IReadOnlyList<PillBox> Pills, double Width, dou
 /// </summary>
 public sealed record OverlayLook
 {
+    /// <summary>A pill's height in pixels at 100 %.</summary>
+    public const int PillHeight = 38;
+
     /// <summary>The least contrast a chosen text color needs against its pill's color, taken as opaque.</summary>
     public const double MinContrast = 3;
 
@@ -210,19 +213,21 @@ public sealed record OverlayLook
 
     /// <summary>
     /// Places pills of the given widths and one height, in pixels at <paramref name="scale"/>: side by side, or stacked
-    /// from top to bottom and all as wide as the widest, with the style's gap between them.
+    /// from top to bottom and all as wide as the widest, with the style's gap between them. Stacked, a pill of
+    /// <paramref name="heights"/> takes its own, as a single bar standing with its pills inside it.
     /// </summary>
-    public Arrangement Arrange(IReadOnlyList<double> widths, double height, double scale)
+    public Arrangement Arrange(IReadOnlyList<double> widths, double height, double scale, IReadOnlyList<double>? heights = null)
     {
         var gap = Gap * scale;
         var across = gap * Math.Max(0, widths.Count - 1);
         if (Orientation == Orientation.Vertical)
         {
             var widest = widths.DefaultIfEmpty(0).Max();
+            var tall = widths.Select((_, at) => heights?[at] ?? height).ToList();
             return new Arrangement(
-                [.. widths.Select((_, at) => new PillBox(0, at * (height + gap), widest, height))],
+                [.. tall.Select((each, at) => new PillBox(0, tall.Take(at).Sum() + (at * gap), widest, each))],
                 widest,
-                (height * widths.Count) + across);
+                tall.Sum() + across);
         }
 
         var boxes = new List<PillBox>(widths.Count);

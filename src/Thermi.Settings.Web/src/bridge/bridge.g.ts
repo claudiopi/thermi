@@ -47,6 +47,7 @@ export interface ChartView {
   from: number;
   to: number;
   readings: (number | null)[];
+  points: string[];
   warning: number | null;
   critical: number | null;
   warningText: string | null;
@@ -61,6 +62,7 @@ export interface ChartView {
   toText: string;
   fires: string | null;
   startText: string;
+  low?: boolean;
 }
 
 export interface ColorStop {
@@ -78,7 +80,7 @@ export interface DesktopPick {
   how: SelectHow;
 }
 
-export type DeviceKind = 'cpu' | 'gpu' | 'ram' | 'board' | 'ssd' | 'network' | 'battery' | 'system';
+export type DeviceKind = 'cpu' | 'gpu' | 'ram' | 'board' | 'ssd' | 'network' | 'battery' | 'system' | 'game';
 
 export type DriverInstall = 'installed' | 'not-installed' | 'restart-windows';
 
@@ -87,7 +89,7 @@ export type Edit =
   | { kind: 'overlay'; overlay: number; field: string; value: Value }
   | { kind: 'style'; overlay: number; field: string; value: Value }
   | { kind: 'item'; item: string; field: string; value: Value }
-  | { kind: 'look'; overlay: number | null; name: string }
+  | { kind: 'look'; overlay: number | null; name: string | null }
   | { kind: 'addItem'; overlay: number; sensor: string }
   | { kind: 'removeItem'; item: string }
   | { kind: 'moveItem'; item: string; overlay: number | null; index: number }
@@ -217,7 +219,7 @@ export interface Monitor {
 
 export type NameFrom = 'library' | 'likely' | 'own';
 
-export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting';
+export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread';
 
 export interface Opacity {
   background?: number;
@@ -285,7 +287,7 @@ export interface Sensor {
   value: number | null;
 }
 
-export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address';
+export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address' | 'frame-rate' | 'frame-time' | 'voltage';
 
 export interface SensorOffer {
   first: string[];
@@ -417,14 +419,18 @@ export interface WindowView {
   mark: MarkState;
 }
 
+export interface WornLook {
+  saved: string | null;
+}
+
 export interface Bridge {
   settings(): Promise<Settings>;
   problem(): Promise<Problem | null>;
   edit(edit: Edit): Promise<string | null>;
   gesture(active: boolean): Promise<void>;
   view(): Promise<WindowView>;
-  preview(overlay: number): Promise<OverlayPicture | null>;
-  lookSamples(): Promise<LookSamples>;
+  preview(overlay: number, room: number): Promise<OverlayPicture | null>;
+  lookSamples(scale: number): Promise<LookSamples>;
   chart(id: string): Promise<ChartView | null>;
   exitThermi(): Promise<void>;
   undo(): Promise<Undone | null>;
@@ -441,6 +447,7 @@ export interface Bridge {
   places(): Promise<(Rect | null)[]>;
   report(error: string): Promise<void>;
   looks(): Promise<Record<string, Style>>;
+  worn(): Promise<(WornLook | null)[]>;
   saveLook(overlay: number, name: string): Promise<string | null>;
   renameLook(name: string, to: string): Promise<string | null>;
   deleteLook(name: string): Promise<string | null>;

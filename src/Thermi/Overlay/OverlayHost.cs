@@ -49,6 +49,7 @@ internal sealed class OverlayHost : IDisposable
 
     // Every paint, the once-a-second one included, goes through it, and each comes out on the window's thread.
     private readonly Throttle<bool> _paints;
+    private bool _paintedSinceTick;
 
     // Held in a field so the garbage collector never frees it while Windows still calls it.
     private readonly WNDPROC _procedure;
@@ -73,7 +74,8 @@ internal sealed class OverlayHost : IDisposable
             History = history,
             Select = _link.Selected,
             Shown = () => DesktopDrag.Boxes(_overlays),
-            ItemAfter = (overlay, cursor) => overlay < _overlays.Count ? _overlays[overlay].ItemAfter(cursor) : null,
+            Settle = (before, after) => Ui.Views.OverlayPlaces.Settled(before, after, Scene(after, _desktop.Screens()), culture, DesktopDrag.Boxes(_overlays)),
+            JoinAt = (overlay, cursor, alone) => overlay < _overlays.Count ? _overlays[overlay].JoinAt(cursor, alone) : new DropTarget(overlay, null),
             Gestures = new GestureUndo(time, gesture => _ = _link.WindowOpen && HiddenWindow.Send(HiddenWindow.WindowClass, gesture)),
             Menu = (overlay, item) => Tray?.Menu(overlay, item: item),
         };
@@ -112,19 +114,12 @@ internal sealed class OverlayHost : IDisposable
     public static bool Running() => !PInvoke.FindWindowEx(HWND.Null, HWND.Null, ClassName, null).IsNull;
 
     /// <summary>
-    /// Asks the running overlay which hotkeys it could not register, as the window does: an answer for
-    /// <see cref="Hotkeys.Trusted"/>, or null when no overlay answers.
+    /// Asks the running overlay which hotkeys it could not register, as the window does: <see cref="Hotkeys.Trusted"/>'s answer, or null for none.
     /// </summary>
     public static long? AskHotkeyStatus() => HiddenWindow.Ask(ClassName, HotkeyStatusMessage);
 
     /// <summary>A fresh snapshot came, on any thread: each overlay adds it to its history on the window's thread.</summary>
-    public void Arrived()
-    {
-        if (!Hwnd.IsNull)
-        {
-            PInvoke.PostMessage(Hwnd, SnapshotArrived, 0, 0);
-        }
-    }
+    public void Arrived() => Post(SnapshotArrived);
 
     public void Start()
     {
@@ -293,8 +288,13 @@ internal sealed class OverlayHost : IDisposable
             _hotkeys?.Rest(false);
         }
 
-        RequestPaint();
         Raise();
+        if (!_paintedSinceTick)
+        {
+            RequestPaint();
+        }
+
+        _paintedSinceTick = false;
     }
 
     private void Pressed(int id)
@@ -310,12 +310,16 @@ internal sealed class OverlayHost : IDisposable
     // Hotkeys are registered on the window's thread, which gets their presses.
     private void SettingsChanged(object? sender, EventArgs e)
     {
+        Post(SettingsArrived);
+        RequestPaint();
+    }
+
+    private void Post(uint message)
+    {
         if (!Hwnd.IsNull)
         {
-            PInvoke.PostMessage(Hwnd, SettingsArrived, 0, 0);
+            PInvoke.PostMessage(Hwnd, message, 0, 0);
         }
-
-        RequestPaint();
     }
 
     private void Record()
@@ -332,6 +336,8 @@ internal sealed class OverlayHost : IDisposable
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint
         // found it: one a second at least, so asking Windows again for each reading would only repeat it.
         Tray?.Critical(config, snapshot, _fullScreen);
+        _paintedSinceTick = true;
+        RequestPaint();
     }
 
     private void Repaint()

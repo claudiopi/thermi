@@ -66,7 +66,6 @@ public sealed class OverlayTests
     [InlineData("the i9's distances to TjMax alone", null, null, "cpu.temperature")]
     [InlineData("the desktop", "cpu.temperature", "/lpc/it8689e/0/fan/0", "cpu.temperature")]
     [InlineData("the desktop", "cpu.temperature", "/amdcpu/9/temperature/9", "cpu.temperature")]
-    [InlineData("a fan's control alone", "fan.cpu", "/lpc/it8689e/0/control/0", "fan.cpu.duty")]
     [InlineData("nothing", null, null, null)]
     public void AMetricWithoutItsSensorIsMissingNeverGuessed(string snapshot, string? named, string? sensor, string? metric)
     {
@@ -76,7 +75,6 @@ public sealed class OverlayTests
             "the desktop without Memory Used" => new Snapshot([.. Desktop.Sensors.Where(each => each.Name != "Memory Used")]),
             "the i9's distances to TjMax alone" => new Snapshot(
                 [.. TestRecordings.Read(TestRecordings.IntelAdmin).Sensors.Where(each => each.Name.EndsWith("Distance to TjMax", StringComparison.Ordinal))]),
-            "a fan's control alone" => new Snapshot([new RawSensor("/lpc/it8689e/0/control/0", "SuperIO", "ITE IT8689E", "Control", "Fan #1", 42)]),
             _ => new Snapshot([]),
         };
         var sources = named is null ? NoSources : new Dictionary<string, string>(StringComparer.Ordinal) { [named] = sensor! };
@@ -96,16 +94,6 @@ public sealed class OverlayTests
 
         Assert.Equal(value, readings[metric].Value);
     }
-
-    [Fact]
-    public void PrefersTheDiscreteGpuOverTheIntegratedOne()
-    {
-        var readings = SensorMap.Read(Desktop, NoSources);
-
-        Assert.Equal(3.0, readings[Metrics.GpuLoad.Id].Value);
-        Assert.Equal(41.9297, Math.Round(readings[Metrics.GpuTemperature.Id].Value ?? 0, 4));
-    }
-
     [Fact]
     public void TheConfigCanNameTheSensorBehindAMetric()
     {

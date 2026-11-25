@@ -2,10 +2,12 @@ import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, 
 import type { ChartEmpty, ChartView, Edit, Line } from '../bridge/bridge.g';
 import { bridge } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
+import { useMeasured } from '../app/measured';
 import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
-import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, tintsOf, valueAt, yOf, type Plot } from './geometry';
 import { Knob } from './Knob';
+import { ScrubLabel, ScrubMarks, useScrub } from './Scrub';
 import './chart.css';
 
 export interface ChartProps {
@@ -27,27 +29,19 @@ const empties = { stopped: 'UiText.ChartSensorsStopped', driver: 'UiText.ChartNe
 /** The pane's width from which the item page lays the chart beside its cards. */
 const besideFrom = 864;
 
-/** The chart's width, from its column, and the pane's height, which its own height follows. */
+function sizeOf(element: HTMLElement): { width: number; height: number } | null {
+  const pane = element.closest('main');
+  if (pane === null) {
+    return null;
+  }
+  const width = element.clientWidth;
+  // The item page lays the chart beside its cards from 864 px of pane on, as item.css says.
+  return { width, height: chartHeight(width, pane.clientHeight, pane.clientWidth >= besideFrom) };
+}
+
 function useSize(): [RefObject<HTMLDivElement | null>, { width: number; height: number }] {
   const box = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 480, height: 273 });
-  useLayoutEffect(() => {
-    const element = box.current;
-    const pane = element?.closest('main');
-    if (element === null || pane === null || pane === undefined) {
-      return undefined;
-    }
-    const measure = (): void => {
-      const width = element.clientWidth;
-      // The item page lays the chart beside its cards from 864 px of pane on, as item.css says.
-      setSize({ width, height: chartHeight(width, pane.clientHeight, pane.clientWidth >= besideFrom) });
-    };
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    observer.observe(pane);
-    return () => observer.disconnect();
-  }, []);
-  return [box, size];
+  return [box, useMeasured(box, sizeOf, { width: 480, height: 273 })];
 }
 
 /**
@@ -81,12 +75,11 @@ function useFocusHandOver(chart: ChartView): { focused: (target: string) => void
 
 /** The warning and critical zones, faint, under the line. */
 function Tints({ plot }: { plot: Plot }) {
-  const { chart } = plot;
-  const top = chart.critical === null ? 0 : yOf(plot, chart.critical);
   return (
     <>
-      {chart.critical !== null && <rect className="t-tint-critical" x="0" y="0" width={plot.width} height={Math.max(0, top)} />}
-      {chart.warning !== null && <rect className="t-tint-warning" x="0" y={top} width={plot.width} height={Math.max(0, yOf(plot, chart.warning) - top)} />}
+      {tintsOf(plot).map((tint) => (
+        <rect key={tint.level} className={`t-tint-${tint.level}`} x="0" y={tint.top} width={plot.width} height={tint.height} />
+      ))}
     </>
   );
 }
@@ -115,6 +108,9 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
   const chart: ChartView = held === null ? given : { ...given, ...held };
   const plot: Plot = { width: Math.max(0, size.width - knobColumn), height: size.height, chart };
   const focus = useFocusHandOver(given);
+  const scrub = useScrub(plot);
+  const live = chart.empty === null;
+  const point = live ? scrub.ago : null;
   const queue = useRef<Promise<unknown> | null>(null);
   const later = (work: () => Promise<unknown>): void => {
     queue.current = (queue.current ?? Promise.resolve()).then(work);
@@ -179,14 +175,22 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
     <section className="t-chart" ref={box}>
       {chart.title !== null && <div className="t-chart-title">{chart.title}</div>}
       <div className="t-chart-row" style={{ height: `${size.height}px` }}>
+        {/* A slider while it has readings, as screen readers pass it the arrows, Home and End that move its point, where an
+            image's they keep. */}
         <svg
           className="t-plot"
-          role="img"
+          role={live ? 'slider' : 'img'}
           aria-label={t('UiText.ChartOf', name)}
           aria-description={chart.summary}
+          aria-valuemin={live ? 0 : undefined}
+          aria-valuemax={live ? chart.points.length - 1 : undefined}
+          aria-valuenow={live ? (scrub.heard?.at ?? chart.points.length - 1) : undefined}
+          aria-valuetext={live ? (scrub.heard?.said ?? t('UiText.ChartNow')) : undefined}
           width={plot.width}
           height={plot.height}
+          tabIndex={live ? 0 : -1}
           onMouseDown={pressPlot}
+          {...scrub.handlers}
         >
           <defs>
             {/* By height, so each part of the line and its fill takes the level of the values it draws. */}
@@ -218,7 +222,9 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
               <line key={one} className={`t-threshold t-${one}`} x1="0" x2={plot.width} y1={yOf(plot, value)} y2={yOf(plot, value)} />
             );
           })}
+          {point !== null && <ScrubMarks plot={plot} ago={point} />}
         </svg>
+        {point !== null && <ScrubLabel plot={plot} ago={point} />}
         {chart.empty !== null && <EmptyNote why={chart.empty} width={plot.width} />}
         {chart.empty === null && (
           // The span's ends, quiet in the plot's corner, so the line's height reads as a value without a grid.

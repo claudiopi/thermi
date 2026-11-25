@@ -74,11 +74,14 @@ public sealed class StyleTests
 
         var stacked = vertical.Arrange(widths, 38, 2);
         var inARow = horizontal.Arrange(widths, 38, 2);
+        var standing = vertical.Arrange(widths, 38, 2, [38, 120, 38]);
 
         Assert.Equal(widths.Max(), stacked.Width);
         Assert.Equal((3 * 38) + (2 * 16), stacked.Height);
         Assert.All(stacked.Pills, pill => Assert.Equal(widths.Max(), pill.Width));
         Assert.Equal([0.0, 54, 108], stacked.Pills.Select(pill => pill.Top));
+        Assert.Equal([(0.0, 38.0), (54, 120), (190, 38)], standing.Pills.Select(pill => (pill.Top, pill.Height)));
+        Assert.Equal(38 + 120 + 38 + (2 * 16), standing.Height);
         Assert.Equal(widths.Sum() + (2 * 16), inARow.Width);
         Assert.Equal(38, inARow.Height);
         Assert.Equal(widths[0] + 16, inARow.Pills[1].Left);

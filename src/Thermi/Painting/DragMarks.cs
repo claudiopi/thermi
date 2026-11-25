@@ -42,10 +42,11 @@ internal static class DragMarks
     }
 
     /// <summary>
-    /// Rings the overlay, and draws a bar before the pill of the item <paramref name="before"/>, or past the last pill
-    /// for none, across the overlay: across its row, or its column when <paramref name="vertical"/>.
+    /// Rings the overlay, and draws a bar before the pill of the item <paramref name="at"/> names, or past the last pill
+    /// for none, across the overlay: across its row, or its column when <paramref name="vertical"/>. For an item carried
+    /// within its own pill, the bar stands in that pill, before the item named or past the pill's last.
     /// </summary>
-    public static void Join(Bitmap bitmap, IReadOnlyList<PaintedItem> places, string? before, bool vertical, Rgb accent, float scale)
+    public static void Join(Bitmap bitmap, IReadOnlyList<PaintedItem> places, (string? Before, string? Within) at, bool vertical, Rgb accent, float scale)
     {
         using var g = Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -59,16 +60,29 @@ internal static class DragMarks
         }
 
         var pills = places.Where(place => place.Id.Length > 0).ToList();
-        var at = pills.FirstOrDefault(place => place.Id == before)?.Pill;
-        var last = pills.Count == 0 ? RectangleF.Empty : pills[^1].Pill;
         var thick = Bar * scale;
-        var edge = at is { } pill ? (vertical ? pill.Top : pill.Left) - thick : vertical ? last.Bottom : last.Right;
-        var bar = vertical
-            ? new RectangleF(ring, Edge(edge, bitmap.Height, thick, ring), bitmap.Width - (2 * ring), thick)
-            : new RectangleF(Edge(edge, bitmap.Width, thick, ring), ring, thick, bitmap.Height - (2 * ring));
+        var bar = pills.FirstOrDefault(place => place.Id == at.Within)?.Pill is { } within
+            ? Between([.. pills.Where(place => place.Pill == within)], at.Before, within, thick)
+            : Before(pills, at.Before, new SizeF(bitmap.Width, bitmap.Height), vertical, thick, ring);
         using var shape = PainterShapes.Rounded(bar, thick / 2);
         using var brush = new SolidBrush(color);
         g.FillPath(brush, shape);
+    }
+
+    private static RectangleF Before(List<PaintedItem> pills, string? before, SizeF size, bool vertical, float thick, float ring)
+    {
+        var at = pills.FirstOrDefault(place => place.Id == before)?.Pill;
+        var last = pills.Count == 0 ? RectangleF.Empty : pills[^1].Pill;
+        var edge = at is { } pill ? (vertical ? pill.Top : pill.Left) - thick : vertical ? last.Bottom : last.Right;
+        return vertical
+            ? new RectangleF(ring, Edge(edge, (int)size.Height, thick, ring), size.Width - (2 * ring), thick)
+            : new RectangleF(Edge(edge, (int)size.Width, thick, ring), ring, thick, size.Height - (2 * ring));
+    }
+
+    private static RectangleF Between(List<PaintedItem> items, string? before, RectangleF pill, float thick)
+    {
+        var x = items.FirstOrDefault(place => place.Id == before)?.Item.Left ?? items[^1].Item.Right;
+        return new RectangleF(Math.Clamp(x - (thick / 2), pill.Left, pill.Right - thick), pill.Top, thick, pill.Height);
     }
 
     // Kept inside the ring, at either end.

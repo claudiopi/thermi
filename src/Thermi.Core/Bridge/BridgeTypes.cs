@@ -45,8 +45,10 @@ public sealed record StyleFieldEdit(int Overlay, string Field, JsonElement Value
 
 public sealed record ItemFieldEdit(string Item, string Field, JsonElement Value) : PageEdit;
 
-/// <summary>A saved look worn by one overlay, or by every overlay when none is named.</summary>
-public sealed record LookEdit([property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? Overlay, string Name) : PageEdit;
+/// <summary>A saved look worn by one overlay, or by every overlay when none is named; without a name, the Default look.</summary>
+public sealed record LookEdit(
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? Overlay,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Name) : PageEdit;
 
 public sealed record AddItemEdit(int Overlay, string Sensor) : PageEdit;
 
@@ -68,15 +70,15 @@ public sealed record NudgeOverlayEdit(int Overlay, int Dx, int Dy) : PageEdit;
 
 public sealed record ResetEdit : PageEdit;
 
-/// <summary>A meter's line moved to a value, or taken out with none.</summary>
+/// <summary>An item's line moved to a value, or taken out with none.</summary>
 public sealed record LineEdit(string Item, ChartLine Line, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] double? Value) : PageEdit;
 
-/// <summary>A meter's line as typed in its box, which Core reads in the window's number format.</summary>
+/// <summary>An item's line as typed in its box, which Core reads in the window's number format.</summary>
 public sealed record TypedLineEdit(string Item, ChartLine Line, string Typed) : PageEdit;
 
 public sealed record AddLineEdit(string Item, ChartLine Line) : PageEdit;
 
-/// <summary>A meter's lines back to their defaults.</summary>
+/// <summary>An item's lines back to their defaults.</summary>
 public sealed record ResetLinesEdit(string Item) : PageEdit;
 
 /// <summary>A sensor named by the user, by the id an item names it by; an empty name gives back the library's.</summary>
@@ -127,7 +129,7 @@ public enum FinderPhase
 
 /// <summary>
 /// Where "Find it" stands: the fan it picked once done; while it runs, how far, from 0 to 1; what it says, worded, as
-/// "Waiting for fresh readings…" or the fan rising, and once done the fan it found or why none; what that adds, as how
+/// "Waiting for the fans to settle…" or the fan rising, and once done the fan it found or why none; what that adds, as how
 /// much the fan rose; and while idle, why it cannot start, or null when it can.
 /// </summary>
 public sealed record FinderView(
@@ -174,16 +176,23 @@ public static class PageSettings
 {
     /// <summary>
     /// The settings, every overlay without a name the user typed named from where it sits, and every item without one
-    /// named as a new item of its sensor, which <paramref name="known"/> names.
+    /// named as <see cref="Names.OfItems"/> names it, its sensor as <paramref name="known"/> names it.
     /// </summary>
-    public static ThermiConfig Of(ThermiConfig config, Texts texts, Snapshot? known) =>
-        config.Overlays.All(overlay => overlay.Name is not null && overlay.Items.All(item => item.Name is not null)) ? config
-        : config with
+    public static ThermiConfig Of(ThermiConfig config, Texts texts, Snapshot? known)
+    {
+        if (config.Overlays.All(overlay => overlay.Name is not null && overlay.Items.All(item => item.Name is not null)))
+        {
+            return config;
+        }
+
+        var names = Names.OfItems(config, known, texts);
+        return config with
         {
             Overlays = [.. config.Overlays.Select((overlay, at) => overlay with
             {
                 Name = Names.OfOverlays(config, texts)[at],
-                Items = [.. overlay.Items.Select(item => item.Name is null ? item with { Name = Names.OfUnnamed(item, known, texts) } : item)],
+                Items = [.. overlay.Items.Select(item => item with { Name = names[item.Id] })],
             })],
         };
+    }
 }

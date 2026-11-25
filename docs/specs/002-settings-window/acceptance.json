@@ -5,10 +5,11 @@
       "id": "A1",
       "covers": [
         "R1",
+        "R56",
         "R136",
         "R196"
       ],
-      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, a locked overlay on the taskbar or the desktop, items with a graph of their own or none judged), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
+      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, an overlay on the desktop, locked, which then offers no Separate, four overlays, where Separate is grayed with why, items with a graph of their own or none judged, one pill or one bar of one run, which offers Vertical only while it is on), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -190,7 +191,7 @@
         "R114",
         "R195"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows, Smoothing, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
+      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows, Smoothing, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, the control looked at staying where it shows through Warn by turned off and its undo, which take the Graph row above it away and back, and through a switch at the pane's foot and its undo, under the news that floats there, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },
@@ -221,17 +222,18 @@
         "R20",
         "R21"
       ],
-      "description": "Given Task Manager and a board that drives the CPU fan, when the finder runs and is cancelled, then every core is loaded at below-normal priority, the load ends within a second of Cancel, and a full run picks the CPU fan.",
+      "description": "Given Task Manager and a board that drives the CPU fan, when the finder runs and is cancelled, then every core is loaded at idle priority, the load ends within a second of Cancel, and a full run picks the CPU fan.",
       "check": "by hand",
       "passes": false
     },
     {
       "id": "A35",
       "covers": [
+        "R19",
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, the recorded one where software drives it, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, every fan falling back once its recording ends, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it, one where no fan answers, one where no fan answers a load that heats the CPU, one rebuilt from a run where a game already held the CPU hot at its power limit and the fan fell through the load, one where the board's fan only jitters at idle, two fans alike that fall back alike or apart once the load ends, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -243,9 +245,10 @@
         "R27",
         "R28",
         "R110",
-        "R111"
+        "R111",
+        "R200"
       ],
-      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not.",
+      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not; and each second of the chart's span says its reading as the item words it, or none in a gap, and how long ago it came, to the second, a whole minute as minutes and the last as now, where the axis rounds the first reading's age to minutes.",
       "check": "ThresholdsAndTheChartFollowTheMetersType",
       "passes": true
     },
@@ -330,7 +333,7 @@
         "R93",
         "R96"
       ],
-      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size, Theme and Use on all overlays, Layout and direction, Graph, opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe, Save as my look and each look's menu, Export), when each is changed by keys, then the settings hold the row's change.",
+      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size, Theme and Use on all overlays, Layout and direction, Graph, opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe, Save as my look and each look's menu, Export), when each is changed by keys, then the settings hold the row's change; Default takes the whole look back, its tile checked, no tile is checked once the look changed, and a look saved is the one checked, the page not moving.",
       "check": "TheAppearancePageChangesTheLook",
       "passes": true
     },
@@ -758,7 +761,7 @@
         "R148",
         "R150"
       ],
-      "description": "Given a table of edits (new, duplicate, merge, delete, hide, move an item to another or a new overlay, a pill held 499 and 500 ms by the injected clock and dragged off, a drop that merges, a drop on the taskbar, a corner resize, Alt+arrows on a free overlay and one on the taskbar), when each is applied and undone, then the overlays are the row's, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
+      "description": "Given a table of edits (new, duplicate, merge, delete, hide, move an item to another or a new overlay, a pill held 499 and 500 ms by the injected clock and dragged off, and at four overlays held and refused, a drop that merges, a drop on the taskbar, a corner resize, Alt+arrows on a free overlay and one on the taskbar), when each is applied and undone, then the overlays are the row's, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
       "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
       "passes": true
     },
@@ -1181,7 +1184,7 @@
       "passes": true
     },
     {
-      "id": "A266",
+      "id": "A353",
       "covers": [
         "R104"
       ],
@@ -1197,7 +1200,7 @@
         "R33",
         "R143"
       ],
-      "description": "Given a taskbar with its notification area and an overlay 550 px wide, when it is dropped anywhere along the taskbar, over the app buttons, over the notification area and past its end, 96 and 97 px along it from its marks, with its edge 96 and 97 px from the taskbar, from a corner's mark, or between a top corner's mark and the top, and with Alt held on the taskbar, near a corner and off both, then on the taskbar it stays where it was let go along it, centered across it and whole on it, unless a mark is within 96 px, which it goes to; near a corner it goes to the corner's mark; and with Alt held it stays where it was let go, on the taskbar or free.",
+      "description": "Given a taskbar with its notification area and an overlay 550 px wide, when it is dropped anywhere along the taskbar, over the app buttons, over the notification area and past its end, 96 and 97 px along it from its marks, with its edge 96 and 97 px from the taskbar, from a corner's mark, or between a top corner's mark and the top, pushed past the monitor's edge toward a corner, and with Alt held on the taskbar, near a corner and off both, then on the taskbar it stays where it was let go along it, centered across it and whole on it, unless a mark is within 96 px, which it goes to; near a corner it goes to the corner's mark; and with Alt held it stays where it was let go, on the taskbar or free.",
       "check": "ADropLandsWhereItIsLetGoOrOnAMarkInReach",
       "passes": true
     },
@@ -1430,7 +1433,7 @@
         "R194",
         "R195"
       ],
-      "description": "Given a series of CPU temperatures with a missing one and an overlay laid out as one bar with the GPU's load before the CPU temperature, which shows its average, its minimum smoothed over 3 s, its value now smoothed over 5 s with an offset of -5, or its maximum reset midway, when the window's history takes the overlay's through the message after five seconds, having read one second already or none, and again after the reset, and both then read the rest, then each second the window's history lays the item out with the very value and label the overlay's does, its own default label with its tag.",
+      "description": "Given a series of CPU temperatures with a missing one and an overlay laid out as one bar with the GPU's load and the CPU's load before the CPU temperature, which shows its average, its minimum smoothed over 3 s, its value now smoothed over 5 s with an offset of -5, or its maximum reset midway, when the window's history takes the overlay's through the message after five seconds, having read one second already or none, and again after the reset, and both then read the rest, then each second the window's history lays the item out with the very value, label and tag the overlay's does, the tag after its value though the item is not the first of its pill, and no label carrying it.",
       "check": "TheWindowsHistoryShowsWhatTheOverlaysShows",
       "passes": true
     },
@@ -1440,7 +1443,7 @@
         "R194",
         "R195"
       ],
-      "description": "Given the recorded CPU load series and an overlay laid out as one bar with the GPU's load before the CPU's load, which shows its average, when the overlay reads a third of the series before the real bridge opens and takes its history through the message, and both then read the rest, then each second the bridge's item shows the very value and label the overlay draws, never the bar's first label, and its tag.",
+      "description": "Given the recorded CPU load series and an overlay laid out as one bar with the GPU's load before the CPU's load, which shows its average, when the overlay reads a third of the series before the real bridge opens and takes its history through the message, and both then read the rest, then each second the bridge's item shows the very value and label the overlay draws, never the bar's first label, and the tag the overlay draws after its value, which its label lacks.",
       "check": "TheWindowShowsEachItemAsTheOverlayDrawsIt",
       "passes": true
     },
@@ -1459,7 +1462,7 @@
       "covers": [
         "R196"
       ],
-      "description": "Given the default overlay on the taskbar, free on the desktop, at the monitor's left edge, vertical, and vertical near the work area's bottom, when \"Separate\" is chosen on its GPU pill, then the pill becomes an overlay of its own 8 px before it on the taskbar or free, after it, below it, or above it.",
+      "description": "Given the default overlay on the taskbar, free on the desktop, at the monitor's left edge, vertical, and vertical near the work area's bottom, when \"Separate\" is chosen on its GPU pill, an overlay of its own as wide as a drag of it carries, wider out of one bar, then the pill becomes an overlay of its own 8 px before it on the taskbar or free, level with its middle, after it, below it, or above it.",
       "check": "SeparateDropsThePillBesideItsOverlay",
       "passes": true
     },
@@ -1469,7 +1472,7 @@
         "R196",
         "R47"
       ],
-      "description": "Given a table of a menu's entries (words sharing first letters, letters of any case and language, an \"&\" of the text, none to take), when their access keys are marked, then each entry gets a key no entry above it took, from a word's start first, or none, and an \"&\" of the text stays one.",
+      "description": "Given a table of a menu's entries (words sharing first letters, letters of any case and language, an \"&\" of the text, none to take, a grayed note), when their access keys are marked, then each entry gets a key no entry above it took, from a word's start first, or none, a grayed note none, and an \"&\" of the text stays one.",
       "check": "EachEntryOfAMenuHasItsOwnAccessKey",
       "passes": true
     },
@@ -1497,7 +1500,7 @@
       "covers": [
         "R197"
       ],
-      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the change and then its picture before it.",
+      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the picture C# paints of the change, and then its picture before it; and it shows one of the picture's pixels on each of the page's device pixels, as wide as the overlay in a wide window and, at size 2 in a narrow one, as wide as the picture C# paints for the column.",
       "check": "ThePreviewShowsEachEditOfTheOverlay",
       "passes": true
     },
@@ -1544,10 +1547,184 @@
     {
       "id": "A333",
       "covers": [
-        "R55"
+        "R55",
+        "R56"
       ],
-      "description": "Given the default overlay in one bar with the admin recording's readings, at 100 % on dark pills and at 150 % on light ones, when it is painted, then the bar holds three pills, CPU, GPU and RAM, in the inner color, 4 px inside its edge and 4 px apart at 100 %, and each item's pill is its run's.",
+      "description": "Given the default overlay in one bar with the admin recording's readings, at 100 % on dark pills and at 150 % on light ones, and vertical at 150 %, when it is painted, then the bar holds three pills, CPU, GPU and RAM, in the inner color, 4 px inside its edge and 4 px apart at 100 %, side by side or, vertical, stacked from top to bottom and as wide as the widest, and each item's pill is its run's.",
       "check": "OneBarHoldsAPillPerRun",
+      "passes": true
+    },
+    {
+      "id": "A334",
+      "covers": [
+        "R25"
+      ],
+      "description": "Given the overlay's ten minutes of the RAM in use metered by its load and the window's seconds of it and of the CPU temperature showing its minimum, when Warn by turns off and the CPU temperature reads a DIMM, and both are undone, then each chart draws only the reading it draws now, what the window read of it before taken in, and the minimum is of that reading alone.",
+      "check": "AChartDrawsOnlyTheReadingItShows",
+      "passes": true
+    },
+    {
+      "id": "A335",
+      "covers": [
+        "R36"
+      ],
+      "description": "Given an overlay at 100 % and 200 % on a 48 px taskbar at 100 %, at 200 % on a 72 px taskbar at 150 %, and at 200 % free or vertical, when the size it shows at is worked out, then on a taskbar it is at most the taskbar's height, and elsewhere its own.",
+      "check": "AnOverlayOnTheTaskbarNeverOverflowsIt",
+      "passes": true
+    },
+    {
+      "id": "A336",
+      "covers": [
+        "R103"
+      ],
+      "description": "Given a host that painted the recording on its tick, when a warmer snapshot comes and no tick has come since, then the overlay already shows it, as the open window does.",
+      "check": "ASnapshotShowsOnTheOverlayAsItComes",
+      "passes": true
+    },
+    {
+      "id": "A337",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs at idle priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
+      "check": "UnderALoadOnEveryCoreTheReadingsKeepComing",
+      "passes": true
+    },
+    {
+      "id": "A338",
+      "covers": [
+        "R25"
+      ],
+      "description": "Given the CPU temperature item on Auto with a chart of the window's readings, when its Sensor is set to a cooler CCD for a few seconds and undone, then its chart holds only the seconds of the sensor Auto picks, none of the CCD's.",
+      "check": "AChartUndoneBackToAutoShowsOnlyTheAutomaticPick",
+      "passes": true
+    },
+    {
+      "id": "A339",
+      "covers": [
+        "R30"
+      ],
+      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, toward the notification area only, and the one beside the notification area, or dropped past it, stays there; two that do not overlap stay where their snaps put them; one grown past the room the other leaves toward that edge shows at that room, never narrower than at 100 %, so neither leaves the taskbar, covers the other or goes back over the app buttons; and on a taskbar nearly full, where the room is less, neither shows smaller and the one before is held back over the app buttons.",
+      "check": "OverlaysOnOneTaskbarNeverCoverEachOther",
+      "passes": true
+    },
+    {
+      "id": "A340",
+      "covers": [
+        "R104"
+      ],
+      "description": "Given an overlay whose frame fades while the window edits another, dark pills over a white backdrop and light ones over a black one, when it is painted, then each value keeps 3:1 against what borders it.",
+      "check": "AFadedFramesValuesReadOnAnyBackdrop",
+      "passes": true
+    },
+    {
+      "id": "A341",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given the board's fan answering only 5 s after a full 30 s load, and readings that stop for 10 s under the load before the fan answers after it, when the finder replays each, then the first load runs 30 s and the second ends once the readings have been gone 8.5 s, and both pick the fan while watching after the load.",
+      "check": "AFanThatAnswersOnlyAfterTheLoadIsStillFound",
+      "passes": true
+    },
+    {
+      "id": "A342",
+      "covers": [
+        "R197"
+      ],
+      "description": "Given an overlay at size 2 on a 48 px taskbar at 100 %, on a 72 px one at 150 %, and free at 150 %, when the window previews it, then the preview is painted as high as the overlay shows, in the monitor's pixels: 48, 72, no higher than the taskbar, and 114 free; and given a column 400 px wide, it is painted at the smaller scale that fits it, as wide as the column, never wider.",
+      "check": "ThePreviewIsAsHighAsTheOverlayShows",
+      "passes": true
+    },
+    {
+      "id": "A343",
+      "covers": [
+        "R31"
+      ],
+      "description": "Given two overlays on one taskbar, the second hidden on its own, when the window works out where the first shows, then it is where it shows alone, as the hidden one pushes no other.",
+      "check": "AHiddenOverlayPushesNoneOnTheMap",
+      "passes": true
+    },
+    {
+      "id": "A344",
+      "covers": [
+        "R198"
+      ],
+      "description": "Given three devices, the second of which blocks its update for 5 s from its second read on, when the service reads them each second, then the other two are read every second, the blocked one keeps its last values for up to 3 s from when its read came due and then reads as missing, it is never started again while it runs, and once it returns it is said to be slow, once, with how long it took, and read again.",
+      "check": "ADeviceThatBlocksHoldsBackNoneOfTheOthers",
+      "passes": true
+    },
+    {
+      "id": "A345",
+      "covers": [
+        "R198"
+      ],
+      "description": "Given a device that stalls 1.5 s and then fails at once, one that fails once, one that never reads, and a drive read every 5 s whose second read stalls and fails and whose third fails, when the service reads them each second, then the first two keep their last values throughout, the drive keeps its values between its reads and for 3 s from when its failed read came due, then reads as missing, each failure is said with how it failed at most once a minute, and the one that never read is left out without a word.",
+      "check": "ADeviceThatStallsOrFailsKeepsItsLastValuesForThreeSeconds",
+      "passes": true
+    },
+    {
+      "id": "A346",
+      "covers": [
+        "R30",
+        "R143"
+      ],
+      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; and on a taskbar nearly full, a move onto it without room for the overlay at its size is refused as having no room on the taskbar, changing nothing, and one shown again there squeezes none, the one before it held back toward the start only while it shows.",
+      "check": "AnOverlayMovesOnlyWhenThePersonMovesIt",
+      "passes": true
+    },
+    {
+      "id": "A347",
+      "covers": [
+        "R150",
+        "R199"
+      ],
+      "description": "Given the default overlay, an overlay of the CPU pill alone, one that shows no labels, one in one bar and four overlays, when an item's value or a pill's label is held until it lifts and dropped on the desktop or on a taskbar's mark, then the value lifts the item alone and the label its pill, in a pill without labels the pill, in one bar the run or the item, the item held off the CPU pill alone becomes an overlay of its own where the pill's label moves the whole overlay, at four overlays the hold is refused, and each drop is one undo step.",
+      "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
+      "passes": true
+    },
+    {
+      "id": "A348",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given an item lifted from the CPU pill, when it is dropped on its own pill before another of its items, past the pill's last, or on its own place, before another pill of its overlay, or on another overlay, then it moves within its pill, stays put, or joins as a pill of its own before the pill it was dropped in front of.",
+      "check": "ADropOnAnOverlayJoinsItWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A349",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the default overlay, and one whose second CPU pill starts apart from the first, when an item is lifted off its pill and dropped before its own pill, moved within it, or the item starting the second CPU pill is dropped on the desktop, then the pill it leaves keeps its label and stays apart, the item shows as a pill of its own, and every other pill shows as it did.",
+      "check": "TheWindowListsThePillsTheOverlayLabels",
+      "passes": true
+    },
+    {
+      "id": "A350",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the overlay on a desktop of its own, when an item's value in the CPU pill is held until it lifts and thrown far, the CPU label is held and thrown far, or the CPU temperature's value is held and dropped on the end of the CPU power's value, then the item alone, or the whole CPU pill, becomes an overlay of its own, or the CPU temperature moves to the end of its pill; and a held press on a locked overlay moves and writes nothing.",
+      "check": "APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A351",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the installed thermi, when an item's value in the CPU pill is held, dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its pill and before the pill elsewhere, and the pill's label held lifts the whole pill as before.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A352",
+      "covers": [
+        "R200"
+      ],
+      "description": "Given the CPU temperature's page, with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot at a second in the gap and at one 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label shows the bridge's point of that second, above Min · Avg · Max; the chart, a slider, takes each key's point as its value for a screen reader, and keeps it through the pointer's moves; and Esc hides the label.",
+      "check": "AChartsPointSaysItsReadingAndWhen",
       "passes": true
     }
   ]

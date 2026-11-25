@@ -1,3 +1,4 @@
+using Thermi.Core.Look;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Placement;
@@ -92,6 +93,21 @@ public static class Snaps
         var (x, y) = overlay.Oled ? OledCare.Shift(spot, running) : (0, 0);
         return new Position(place.X + x, place.Y + y);
     }
+
+    /// <summary>
+    /// The size an overlay shows at: its own, but on a taskbar at most what keeps it within the taskbar's height, as a pill
+    /// <see cref="OverlayLook.PillHeight"/> pixels high at 100 % grows with it, so it is never cut.
+    /// </summary>
+    public static double SizeShown(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
+        OnTaskbar(overlay, screens) is var (screen, bar) ? Math.Min(overlay.Size, (bar.Height - 0.01) / (OverlayLook.PillHeight * screen.Scale)) : overlay.Size;
+
+    internal static (Screen Screen, PixelRect Bar)? OnTaskbar(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
+        overlay.Snapped is { Spot: SnapSpot.Taskbar } snap
+        && overlay.Style.Orientation == Orientation.Horizontal
+        && ScreenOf(snap, screens) is { } screen
+        && TaskbarOf(screen) is { } bar
+            ? (screen, bar)
+            : null;
 
     /// <summary>The monitor a snap shows on: the one it names, or the primary one when it names none or one not connected; null with none.</summary>
     public static Screen? ScreenOf(SnapConfig snap, IReadOnlyList<Screen> screens) =>
@@ -201,9 +217,12 @@ public static class Snaps
             return null;
         }
 
+        // Pushed past a monitor's edge into its corner, the overlay is measured where it would show, kept inside.
+        var shown = Inside(at, screens, width, height);
         return Marks(screens, orientation, width, height)
                 .Where(mark => mark.Snap.Spot != SnapSpot.Taskbar)
-                .Select(mark => (mark.Snap, Distance: Distance(mark, at, ScreenOf(mark.Snap, screens)!), Reach: Scaled(Reach, ScreenOf(mark.Snap, screens)!)))
+                .Select(mark => (Mark: mark, Screen: ScreenOf(mark.Snap, screens)!))
+                .Select(each => (each.Mark.Snap, Distance: Distance(each.Mark, shown, each.Screen), Reach: Scaled(Reach, each.Screen)))
                 .Where(mark => mark.Distance <= mark.Reach)
                 .OrderBy(mark => mark.Distance)
                 .Select(mark => mark.Snap)
@@ -309,7 +328,7 @@ public static class Snaps
     }
 
     // A notification area that does not lie on its taskbar was not found where Windows draws it.
-    private static int RightEnd(Screen screen, PixelRect bar) =>
+    internal static int RightEnd(Screen screen, PixelRect bar) =>
         screen.Tray is { Width: > 0 } tray && bar.Contains(tray) ? tray.Left - Scaled(Margin, screen) : bar.Right - Scaled(Reserve, screen);
 
     // A taskbar that hides takes none of the work area, and slides over its edge when shown: the band it takes then is kept
@@ -335,8 +354,8 @@ public static class Snaps
     }
 
     // See Floats for why a side or auto-hidden taskbar does not count.
-    private static PixelRect? TaskbarOf(Screen screen) =>
+    internal static PixelRect? TaskbarOf(Screen screen) =>
         screen.Taskbar is { } bar && bar.Width > bar.Height && screen.Bounds.Overlaps(bar) && !screen.Work.Overlaps(bar) ? bar : null;
 
-    private static int Scaled(int pixels, Screen screen) => (int)Math.Round(pixels * screen.Scale);
+    internal static int Scaled(int pixels, Screen screen) => (int)Math.Round(pixels * screen.Scale);
 }

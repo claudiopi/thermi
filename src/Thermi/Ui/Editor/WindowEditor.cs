@@ -61,11 +61,22 @@ internal sealed class WindowEditor
 
     public StepName? RedoName => CanRedo ? _history.RedoName : null;
 
+    /// <summary>
+    /// What an edit's settings become from the settings before it: each overlay it pushed along a taskbar keeps the place it
+    /// was pushed to, in the edit's own undo step; or why it is refused, as a move onto a taskbar without room.
+    /// </summary>
+    public Func<ThermiConfig, ThermiConfig, EditResult> Settle { get; set; } = (_, after) => new EditResult(after);
+
     /// <summary>Makes an edit of what the window shows, as <paramref name="input"/> in the trace, and writes it unless refused.</summary>
     public EditResult Edit(string input, Func<ThermiConfig, EditResult> edit)
     {
         _log.Input(input);
         var result = Problem is null ? edit(Config) : new EditResult(Config, Refusal.SettingsBroken);
+        if (result.Refused is null)
+        {
+            result = Settle(Config, result.Config);
+        }
+
         if (result.Refused is null)
         {
             _history.Record(Config, result.Config);

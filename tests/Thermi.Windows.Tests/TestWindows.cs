@@ -11,11 +11,13 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Com;
 using Windows.Win32.System.Threading;
+using Windows.Win32.UI.Accessibility;
 using Windows.Win32.UI.HiDpi;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 [assembly: AssemblyFixture(typeof(Thermi.Windows.Tests.NoInputMethods))]
+[assembly: AssemblyFixture(typeof(Thermi.Windows.Tests.NothingOnTheUsersDesktop))]
 
 // Windows 10 1607 and later, as thermi itself (Thermi.csproj says why it is set in code).
 [assembly: System.Runtime.Versioning.SupportedOSPlatform("windows10.0.14393")]
@@ -225,6 +227,80 @@ public sealed class NoInputMethods
     public NoInputMethods()
     {
         TestPInvoke.ImmDisableIME(uint.MaxValue);
+    }
+}
+
+/// <summary>
+/// Fails the run when a test showed a window on the user's desktop, the one the test process started on, where the user
+/// would see it and DWM would compose it: what a test shows goes on a desktop of its own. Windows tells an out-of-context
+/// hook only of the windows shown on its thread's desktop, so those on the tests' own never count.
+/// </summary>
+public sealed class NothingOnTheUsersDesktop : IDisposable
+{
+    // OBJID_WINDOW: the window itself, not a part of it.
+    private const int WholeWindow = 0;
+
+    private readonly List<string> _shown = [];
+    private readonly ManualResetEventSlim _hooked = new();
+    private readonly Thread _thread;
+    private uint _threadId;
+
+    public NothingOnTheUsersDesktop()
+    {
+        _thread = new Thread(Watch) { IsBackground = true, Name = "thermi test desktop watch" };
+        _thread.Start();
+        _hooked.Wait();
+    }
+
+    public void Dispose()
+    {
+        TestPInvoke.PostThreadMessage(_threadId, TestPInvoke.WM_QUIT, 0, 0);
+        _thread.Join();
+        _hooked.Dispose();
+        lock (_shown)
+        {
+            if (_shown.Count > 0)
+            {
+#pragma warning disable S3877 // xunit fails the run on a fixture that throws as it is disposed, after every test.
+                throw new InvalidOperationException($"Tests showed windows on the user's desktop, of the classes {string.Join(", ", _shown.Distinct())}.");
+#pragma warning restore S3877
+            }
+        }
+    }
+
+    private void Watch()
+    {
+        _threadId = TestPInvoke.GetCurrentThreadId();
+        WINEVENTPROC procedure = (_, _, window, objectId, _, _, _) =>
+        {
+            if (objectId == WholeWindow)
+            {
+                Span<char> name = stackalloc char[64];
+                var length = PInvoke.GetClassName(window, name);
+                lock (_shown)
+                {
+                    _shown.Add(new string(name[..Math.Max(0, length)]));
+                }
+            }
+        };
+        using var hook = PInvoke.SetWinEventHook(
+            TestPInvoke.EVENT_OBJECT_SHOW,
+            TestPInvoke.EVENT_OBJECT_SHOW,
+            null,
+            procedure,
+            (uint)Environment.ProcessId,
+            0,
+            PInvoke.WINEVENT_OUTOFCONTEXT);
+
+        // The thread's message queue, made before anyone posts to it.
+        TestPInvoke.PeekMessage(out _, default, 0, 0, PEEK_MESSAGE_REMOVE_TYPE.PM_NOREMOVE);
+        _hooked.Set();
+        while (PInvoke.GetMessage(out var message, HWND.Null, 0, 0) > 0)
+        {
+            PInvoke.DispatchMessage(message);
+        }
+
+        GC.KeepAlive(procedure);
     }
 }
 

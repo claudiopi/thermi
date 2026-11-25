@@ -1,5 +1,20 @@
 import { type Page } from '@playwright/test';
-import { expect, fakeState, itemOf, openWindow, recording, select, settingsOf, setFake, test, text, type Item } from './fakeBridge';
+import {
+  expect,
+  fakeState,
+  itemOf,
+  openWindow,
+  recording,
+  select,
+  selectedRow,
+  settingsOf,
+  setFake,
+  startingWith,
+  test,
+  text,
+  withGame,
+  type Item,
+} from './fakeBridge';
 
 const itemIn = async (page: Page, id: string): Promise<Item> => itemOf(await settingsOf(page), id);
 
@@ -53,18 +68,24 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     if (box === null) {
       throw new Error('The warning knob is not shown.');
     }
+    const now = async (): Promise<number> => (await itemIn(page, 'cpu.temperature')).threshold?.warning ?? 0;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2, box.y - 10, { steps: 5 });
-    await page.mouse.move(box.x + box.width / 2, box.y - 20, { steps: 5 });
+    // Whole moves, each landed before the next: Edge merges moves that come faster than it draws, as on a busy PC, and the
+    // page then sends fewer edits than the oracle recorded.
+    for (const above of [10, 20]) {
+      const before = await now();
+      await page.mouse.move(box.x + box.width / 2, box.y - above);
+      await expect.poll(now).toBeGreaterThan(before);
+    }
     await page.mouse.up();
-    await expect.poll(async () => ((await itemIn(page, 'cpu.temperature')).threshold?.warning ?? 0) > 80).toBe(true);
+    await expect.poll(now).toBeGreaterThan(80);
     await page.keyboard.press('Control+Z');
     await expect.poll(lines).toEqual({ warning: 80, critical: 91 });
   });
 
   await test.step('a click in the plot moves the nearest line', async () => {
-    const plot = page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+    const plot = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
     await plot.click({ position: { x: 40, y: 4 } });
     await expect.poll(async () => (await itemIn(page, 'cpu.temperature')).threshold?.critical).not.toBe(91);
     await page.keyboard.press('Control+Z');
@@ -77,10 +98,56 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     await expect(page.getByRole('button', { name: text('UiText.AddCriticalLine') })).toBeFocused();
   });
 
-  await test.step('without readings the chart keeps its lines', async () => {
+  await test.step('without readings the chart keeps its lines, and is no slider with nothing to move along', async () => {
     await setFake(page, { service: 'stopped' });
     await expect(warning).toBeVisible();
+    await expect(page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) })).toHaveCount(0);
   });
+});
+
+// A4 of spec 005: FPS added from the game's device shows its value in the list with no lines, the lines added come with
+// the critical under the warning, and the critical cannot be dragged above it.
+test('AnFpsItemIsAddedAndItsLinesSetLow', async ({ page }) => {
+  const sensors = withGame();
+  const fps = sensors.find((sensor) => sensor.type === 'FrameRate');
+  if (fps === undefined) {
+    throw new Error('The game has no frame rate.');
+  }
+  await openWindow(page, fakeState({ sensors }));
+  await select(page, 'Taskbar');
+  await page.keyboard.press('Control+N');
+  const catalog = page.getByRole('dialog', { name: text('UiText.Catalog') });
+  await catalog.getByRole('group', { name: fps.hardware }).getByRole('option', { name: startingWith(fps.name) }).click();
+  await expect(catalog).toBeHidden();
+  const added = async (): Promise<Item | undefined> =>
+    (await settingsOf(page)).overlays.flatMap((overlay) => overlay.items).find((item) => item.sensor === fps.id);
+  await expect.poll(async () => (await added())?.id).toBeDefined();
+  const id = (await added())?.id ?? '';
+  expect((await added())?.threshold).toBeUndefined();
+
+  const shown = await page.evaluate(async (item) => (await window.thermi?.view())?.items[item]?.value ?? null, id);
+  expect(shown).not.toBeNull();
+  await expect(selectedRow(page)).toHaveAccessibleDescription(shown ?? '');
+
+  await page.getByRole('button', { name: text('UiText.AddWarningLine') }).click();
+  await page.getByRole('button', { name: text('UiText.AddCriticalLine') }).click();
+  const warning = page.getByRole('slider', { name: text('UiText.WarningFrom') });
+  const critical = page.getByRole('slider', { name: text('UiText.CriticalFrom') });
+  await expect(critical).toBeVisible();
+  const [from, above] = [await critical.boundingBox(), await warning.boundingBox()];
+  if (from === null || above === null) {
+    throw new Error('The knobs are not shown.');
+  }
+  expect(from.y).toBeGreaterThan(above.y);
+  // Dragged past where the warning was, the critical pushes it up ahead of itself.
+  const warned = (await added())?.threshold?.warning ?? 0;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, above.y - 40, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => (await added())?.threshold?.critical ?? 0).toBeGreaterThan(warned);
+  const lines = (await added())?.threshold;
+  expect(lines?.critical ?? 0).toBeLessThanOrEqual(lines?.warning ?? 0);
 });
 
 // A207 on a fan, whose track ends far past its speed: a line added comes above the speed, the keys move it a step, and
@@ -125,4 +192,47 @@ test('AFansLineStaysOnItsScale', async ({ page }) => {
   await page.mouse.move(from.x - 200, from.y + 120, { steps: 4 });
   await page.mouse.up();
   expect(await page.evaluate(() => document.getSelection()?.toString() ?? '')).toBe('');
+});
+
+// A352: a point of the chart shows the bridge's text of the second it is on, under the pointer within a second of where it
+// aims, a second being under a pixel wide, and by keys exactly; a screen reader hears the point the keys move to, as the
+// slider's value, and never the pointer's.
+test('AChartsPointSaysItsReadingAndWhen', async ({ page }) => {
+  await openWindow(page);
+  await select(page, text('MetricName.CpuTemperature'));
+  const chart = await page.evaluate(async () => window.thermi?.chart('cpu.temperature'));
+  const [points, stats] = [chart?.points ?? [], chart?.stats ?? ''];
+  const last = points.length - 1;
+  const plot = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+  const shown = page.getByRole('tooltip');
+  const near = (ago: number): string[] => [ago - 1, ago, ago + 1].map((each) => points[last - each] ?? '');
+  const aimAt = async (ago: number): Promise<void> => {
+    const box = await plot.boundingBox();
+    if (box === null) {
+      throw new Error('The chart is not shown.');
+    }
+    await page.mouse.move(box.x + ((last - ago) / last) * box.width, box.y + box.height / 2);
+  };
+
+  // 200 s ago is in the fake's gap, and 40 s ago is not.
+  for (const ago of [200, 40]) {
+    await aimAt(ago);
+    await expect.poll(async () => near(ago).includes((await shown.textContent()) ?? '')).toBe(true);
+    await expect(plot).toHaveAttribute('aria-valuetext', text('UiText.ChartNow'));
+  }
+  const under = (await page.getByText(stats).boundingBox())?.y ?? 0;
+  const label = await shown.boundingBox();
+  expect((label?.y ?? under) + (label?.height ?? 0)).toBeLessThanOrEqual(under);
+
+  await page.mouse.move(0, 0);
+  await expect(shown).toHaveCount(0);
+  await plot.focus();
+  for (const [key, ago] of [['End', 0], ['ArrowLeft', 1], ['Home', last]] as const) {
+    await page.keyboard.press(key);
+    await expect(shown).toHaveText(points[last - ago] ?? '');
+    await expect(plot).toHaveAttribute('aria-valuetext', points[last - ago] ?? '');
+    await expect(plot).toHaveAttribute('aria-valuenow', String(last - ago));
+  }
+  await page.keyboard.press('Escape');
+  await expect(shown).toHaveCount(0);
 });

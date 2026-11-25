@@ -27,8 +27,14 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
 {
     private readonly Lazy<double?> _baseClock = new(CpuWatch.ReadBaseClock);
 
-    /// <summary>The overlay at its own monitor's scale; null for one the settings lack.</summary>
-    public OverlayPicture? Preview(int overlay, Texts texts)
+    // The page asks for each preview every second; one that shows what it showed last is not painted and encoded again.
+    private readonly Dictionary<int, (Drawn Drawn, OverlayPicture Picture)> _last = [];
+
+    /// <summary>
+    /// The overlay at its own monitor's scale, or at the smaller one at which it is <paramref name="room"/> pixels wide when
+    /// that is more than 0 and it is wider; null for one the settings lack.
+    /// </summary>
+    public OverlayPicture? Preview(int overlay, int room, Texts texts)
     {
         var config = editor.Config;
         if (overlay < 0 || overlay >= config.Overlays.Count)
@@ -37,15 +43,38 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
         }
 
         var one = config.Overlays[overlay];
-        var desktop = screens();
         var light = Desktop.LightTaskbar();
         var scene = ThermiMark.Overlay(config, overlay, Input(texts, light), windowOpenedOnce: true);
         IReadOnlyList<OverlayItem> items =
             [.. scene.Items.Select(item => item.Graph is null ? item : item with { Graph = charts.Graph(one.Items.First(each => each.Id == item.Id)) })];
-        var scale = OverlayWindow.ScaleOf(96, one, desktop);
-        using var bitmap = Painted(items, scene.SensorsStopped, OverlayLook.Of(one.Style, light, Desktop.HighContrast()), scale, texts);
-        var taskbar = OnTaskbar(one, desktop, bitmap.Size) ? Taskbar.Of(light).Background.ToString() : null;
-        return PictureOf(bitmap, scale / one.Size, taskbar);
+        var drawn = new Drawn(one, screens(), items, scene.SensorsStopped, OverlayLook.Of(one.Style, light, Desktop.HighContrast()), light, texts)
+        {
+            Room = room,
+        };
+        if (_last.TryGetValue(overlay, out var last) && last.Drawn.Shows(drawn))
+        {
+            return last.Picture;
+        }
+
+        var scale = OverlayWindow.ScaleOf(96, one, drawn.Screens);
+        var bitmap = Painted(items, drawn.Stopped, drawn.Look, scale, texts);
+        var taskbar = OnTaskbar(one, drawn.Screens, bitmap.Size) ? Taskbar.Of(light).Background.ToString() : null;
+
+        // Painted again at the scale that fits, as the overlay paints itself smaller beside another; rounding up may leave a
+        // pixel over, which another round takes off.
+        for (var round = 0; room > 0 && bitmap.Width > room && round < 3; round++)
+        {
+            scale *= (float)room / bitmap.Width;
+            bitmap.Dispose();
+            bitmap = Painted(items, drawn.Stopped, drawn.Look, scale, texts);
+        }
+
+        using (bitmap)
+        {
+            var picture = PictureOf(bitmap, taskbar);
+            _last[overlay] = (drawn, picture);
+            return picture;
+        }
     }
 
     public LookSamples Samples(IReadOnlyDictionary<string, StyleConfig> looks, Texts texts, double scale)
@@ -58,7 +87,7 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
             var sample = LookSample.Of(look);
             var scene = ThermiMark.Overlay(editor.Config with { Overlays = [sample] }, 0, input, windowOpenedOnce: true);
             using var bitmap = Painted(scene.Items, scene.SensorsStopped, OverlayLook.Of(sample.Style, light, contrast), (float)scale, texts);
-            return PictureOf(bitmap, scale, taskbar: null);
+            return PictureOf(bitmap, taskbar: null);
         }
 
         return new LookSamples(Sample(new StyleConfig()), looks.ToDictionary(look => look.Key, look => Sample(look.Value), StringComparer.Ordinal));
@@ -81,11 +110,32 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
         && Snaps.ScreenOf(overlay, screens)?.Taskbar is { } bar
         && bar.Contains(new PixelRect(at.X + (size.Width / 2), at.Y + (size.Height / 2), at.X + (size.Width / 2) + 1, at.Y + (size.Height / 2) + 1));
 
-    private static OverlayPicture PictureOf(Bitmap bitmap, double scale, string? taskbar)
+    private static OverlayPicture PictureOf(Bitmap bitmap, string? taskbar)
     {
         using var png = new MemoryStream();
         bitmap.Save(png, ImageFormat.Png);
         var data = "data:image/png;base64," + Convert.ToBase64String(png.GetBuffer(), 0, (int)png.Length);
-        return new OverlayPicture(data, bitmap.Width / scale, bitmap.Height / scale, taskbar);
+        return new OverlayPicture(data, bitmap.Width, bitmap.Height, taskbar);
+    }
+
+    // Everything a preview's picture is painted from; its lines are compared second by second, not as lists.
+    private sealed record Drawn(
+        OverlayConfig Overlay,
+        IReadOnlyList<Screen> Screens,
+        IReadOnlyList<OverlayItem> Items,
+        bool Stopped,
+        OverlayLook Look,
+        bool Light,
+        Texts Texts)
+    {
+        public int Room { get; init; }
+
+        public bool Shows(Drawn other) =>
+            Overlay == other.Overlay && Room == other.Room && Stopped == other.Stopped && Look == other.Look && Light == other.Light
+            && ReferenceEquals(Texts, other.Texts) && Screens.SequenceEqual(other.Screens)
+            && Items.Count == other.Items.Count && Items.Zip(other.Items).All(each => Same(each.First, each.Second));
+
+        private static bool Same(OverlayItem one, OverlayItem other) =>
+            one with { Graph = null } == other with { Graph = null } && (one.Graph ?? []).SequenceEqual(other.Graph ?? []);
     }
 }

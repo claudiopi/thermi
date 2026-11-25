@@ -5,15 +5,16 @@ import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
+import { useDevicePixels } from './pixels';
 import { Picture } from './Preview';
-import { useLooks, useLookSamples } from './useOverlayReads';
+import { useLooks, useLookSamples, useWorn } from './useOverlayReads';
 
 export interface LookCardProps {
   data: WindowData;
   overlay: number;
 }
 
-/** The fields a look holds, which Default takes back to Core's defaults. */
+/** The fields a look holds, which Copy to all copies. */
 const lookFields = ['name', 'preset', 'label', 'value', 'opacity', 'pills', 'colors', 'font', 'corners', 'gap', 'effect', 'units'];
 
 type Asking = { kind: 'save' } | { kind: 'rename'; name: string } | null;
@@ -22,28 +23,18 @@ export function LookCard({ data, overlay }: LookCardProps) {
   const t = useText();
   const edit = useEdit();
   const looks = useLooks(data.changes);
-  const samples = useLookSamples(data.changes);
+  const worn = useWorn(data.changes)[overlay];
+  const samples = useLookSamples(useDevicePixels(), data.changes);
   const [asking, setAsking] = useState<Asking>(null);
   const news = useNews();
   const tiles = useRef<HTMLDivElement>(null);
   const one = data.settings.overlays[overlay];
-  const worn = one?.style?.name;
   const many = data.settings.overlays.length > 1;
   const names = Object.keys(looks);
-  const chosen = worn !== undefined && names.includes(worn) ? worn : null;
+  // Default is null, none is undefined.
+  const chosen = worn === undefined || worn === null ? undefined : (worn.saved ?? null);
 
-  const choose = (name: string | null): void => {
-    if (name === null) {
-      void asOneStep(() =>
-        lookFields.reduce<Promise<unknown>>(
-          (done, field) => done.then(() => edit({ kind: 'style', overlay, field, value: null })),
-          Promise.resolve(),
-        ),
-      );
-    } else {
-      void edit({ kind: 'look', overlay, name });
-    }
-  };
+  const choose = (name: string | null): void => void edit({ kind: 'look', overlay, name });
   const tileKeys = (event: KeyboardEvent<HTMLDivElement>): void => {
     const all = [null, ...names];
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
@@ -51,7 +42,7 @@ export function LookCard({ data, overlay }: LookCardProps) {
       return;
     }
     event.preventDefault();
-    const next = all[(all.indexOf(chosen) + step + all.length) % all.length] ?? null;
+    const next = all[((chosen === undefined ? -1 : all.indexOf(chosen)) + step + all.length) % all.length] ?? null;
     choose(next);
     tiles.current?.querySelectorAll<HTMLElement>('[role="radio"]')[all.indexOf(next)]?.focus();
   };
@@ -106,7 +97,7 @@ export function LookCard({ data, overlay }: LookCardProps) {
         role="radio"
         aria-checked={on}
         aria-label={t('OverlayPageText.LookTile', shown)}
-        tabIndex={on ? 0 : -1}
+        tabIndex={on || (chosen === undefined && name === null) ? 0 : -1}
         className={`t-look${on ? ' t-on' : ''}`}
         onClick={() => choose(name)}
       >

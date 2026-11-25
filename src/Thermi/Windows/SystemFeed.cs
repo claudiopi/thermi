@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using Thermi.Core.Frames;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 using Thermi.Overlay;
@@ -9,9 +10,10 @@ namespace Thermi.Windows;
 
 /// <summary>
 /// The sensor feed with what Windows itself says added to each snapshot: how long it has run, the local address of the
-/// adapter its default route takes, and the time, as Core's <see cref="SystemSensors"/>. The address is found again only
-/// when the network changes, which it listens to while it runs, so an agent's call, which runs one of its own, lets go
-/// of them as it ends; the rest is read at most once a second.
+/// adapter its default route takes, and the time, as Core's <see cref="SystemSensors"/>, and the frames of the app in
+/// front, as <see cref="GameSensors"/>. The address is found again only when the network changes, which it listens to
+/// while it runs, so an agent's call, which runs one of its own, lets go of them as it ends; the rest is read at most
+/// once a second.
 /// </summary>
 internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISensorFeed
 {
@@ -22,6 +24,8 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
 
     private readonly ISensorFeed _sensors = sensors;
     private readonly TimeProvider _time = time;
+    private readonly FrontApp _front = new();
+    private readonly FrontGame _game = new();
     private readonly Lock _gate = new();
     private uint? _address;
     private bool _addressKnown;
@@ -69,7 +73,10 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
                 return last.With;
             }
 
-            var with = SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now));
+            var (front, fills) = _front.Front();
+            var with = GameSensors.With(
+                SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now)),
+                _game.Next(FrameSlots.Read(read), front, fills, _front.Filling));
             _last = (read, second, with);
             return with;
         }

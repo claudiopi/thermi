@@ -41,7 +41,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
                 parts.Overlays[target ?? 0].Separate(item);
                 break;
             case MenuEntry.ResetMinMax:
-                On(target).ToList().ForEach(at => Actions.History.Reset(Settings.Config.Overlays[at]));
+                Actions.History.Reset(On(target).Select(at => Settings.Config.Overlays[at]));
                 break;
             case MenuEntry.Exit:
                 Actions.Exit();
@@ -50,7 +50,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
                 or MenuEntry.Graph or MenuEntry.Vertical or MenuEntry.Look:
                 Write(row, EditOf(row, On(target), target ?? 0));
                 break;
-            case MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.Overlay or MenuEntry.Update:
+            case MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull or MenuEntry.Overlay or MenuEntry.Update:
             default:
                 break;
         }
@@ -76,7 +76,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
             StyleEdits.Choose(config, at, look).Config,
         MenuEntry.SettingsBroken or MenuEntry.StartSensors or MenuEntry.ShowOverlays or MenuEntry.UndoGesture or MenuEntry.Settings
             or MenuEntry.TaskManager or MenuEntry.CopyImage or MenuEntry.HideOverlays or MenuEntry.ResetMinMax or MenuEntry.Overlay
-            or MenuEntry.Update or MenuEntry.Exit or MenuEntry.EditItem or MenuEntry.Separate or MenuEntry.GraphOwn => null,
+            or MenuEntry.Update or MenuEntry.Exit or MenuEntry.EditItem or MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull => null,
         _ => null,
     };
 
@@ -84,7 +84,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
     private void Write(MenuRow row, Func<ThermiConfig, ThermiConfig>? edit)
     {
         var before = Settings.Config;
-        var after = edit?.Invoke(before) ?? before;
+        var after = edit is null ? before : Actions.Settle(before, edit(before)).Config;
         if (ConfigEdits.Replay(before, after) is not { } change)
         {
             return;

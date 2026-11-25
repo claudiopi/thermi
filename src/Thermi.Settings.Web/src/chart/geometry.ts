@@ -1,12 +1,16 @@
 import type { ChartView, Level, Line } from '../bridge/bridge.g';
 
-// Where the chart draws what the C# side gave it: its size from the pane, each value's height, the smooth line and
-// where the knobs sit. The values, the range and the colors are the C# side's; this only places them.
+// Where the chart draws what the C# side gave it: its size from the pane, each value's height, the smooth line, where
+// the knobs sit and which second a point across it is. The values, their points' texts, the range and the colors are the
+// C# side's; this only places them.
 
 /** The knobs' column beside the plot, as wide as the widest knob's text. */
 export const knobColumn = 64;
-/** Room above and under the line inside the plot, so the line and its dot never touch the edge. */
-const pad = 12;
+/**
+ * Room above and under the line inside the plot, so the line and its dot never touch the edge, and the scale's numbers,
+ * 14 px high at the plot's top and bottom (chart.css), sit clear of the line wherever it runs.
+ */
+const pad = 16;
 /** The least distance between two knobs' centers, so they never cover each other. */
 const knobsApart = 26;
 
@@ -46,6 +50,15 @@ export function valueAt(plot: Plot, y: number): number {
   return Math.min(high, Math.max(low, Math.round(raw / step) * step));
 }
 
+/** Where a reading sits across the plot, a second each: the first at its left edge, now at its right. */
+export function xOf(plot: Plot, index: number): number {
+  return (index / Math.max(1, plot.chart.readings.length - 1)) * plot.width;
+}
+
+export function readingAt(plot: Plot, x: number): number {
+  return Math.round((x / plot.width) * (plot.chart.readings.length - 1));
+}
+
 /** One stretch of the line between missing readings: its path and where it starts and ends across. */
 interface Stretch {
   path: string;
@@ -55,9 +68,7 @@ interface Stretch {
 
 // Smooth curves through the readings, a stretch for each run between missing ones.
 function stretches(plot: Plot): Stretch[] {
-  const { readings } = plot.chart;
-  const last = Math.max(1, readings.length - 1);
-  const points = readings.map((value, index) => (value === null ? null : ([(index / last) * plot.width, yOf(plot, value)] as const)));
+  const points = plot.chart.readings.map((value, index) => (value === null ? null : ([xOf(plot, index), yOf(plot, value)] as const)));
   const runs: Stretch[] = [];
   points.forEach((point, index) => {
     if (point === null) {
@@ -69,11 +80,14 @@ function stretches(plot: Plot): Stretch[] {
       runs.push({ path: `M${point[0].toFixed(1)},${point[1].toFixed(1)}`, from: point[0], to: point[0] });
       return;
     }
-    // Catmull-Rom through the neighbours, as cubic Béziers, so the line bends without overshooting much.
+    // Catmull-Rom through the neighbours, as cubic Béziers, each bend held between its two readings, so the line never
+    // swings past them, under the floor of a fan stopped or over 100 %.
     const earlier = points[index - 2] ?? before;
     const after = points[index + 1] ?? point;
-    const c1 = [before[0] + (point[0] - earlier[0]) / 6, before[1] + (point[1] - earlier[1]) / 6];
-    const c2 = [point[0] - (after[0] - before[0]) / 6, point[1] - (after[1] - before[1]) / 6];
+    const [low, high] = [Math.min(before[1], point[1]), Math.max(before[1], point[1])];
+    const held = (y: number): number => Math.min(high, Math.max(low, y));
+    const c1 = [before[0] + (point[0] - earlier[0]) / 6, held(before[1] + (point[1] - earlier[1]) / 6)];
+    const c2 = [point[0] - (after[0] - before[0]) / 6, held(point[1] - (after[1] - before[1]) / 6)];
     run.path += `C${c1.map((n) => n.toFixed(1)).join(',')} ${c2.map((n) => n.toFixed(1)).join(',')} ${point[0].toFixed(1)},${point[1].toFixed(1)}`;
     run.to = point[0];
   });
@@ -83,10 +97,11 @@ function stretches(plot: Plot): Stretch[] {
 
 /**
  * The line as smooth curves through the readings, broken where a reading is missing, and the area under it for its soft
- * fill, each stretch closed straight down to the bottom at its own ends. Both from one pass: the chart redraws each second.
+ * fill, each stretch closed straight down to the scale's floor at its own ends, so a line at it fills nothing under it. Both
+ * from one pass: the chart redraws each second.
  */
 export function plotPaths(plot: Plot): { line: string; fill: string } {
-  const bottom = plot.height.toFixed(1);
+  const bottom = yOf(plot, plot.chart.from).toFixed(1);
   const runs = stretches(plot);
   return {
     line: runs.map((run) => run.path).join(''),
@@ -109,22 +124,41 @@ export function stopsOf(chart: ChartView): { offset: number; level: Level }[] {
   });
 }
 
-/** The level the line's color says at a value, for the dot at its end. */
+/** The level the line's color says at a value, for the dot at its end; a value at a low meter's line takes the level under it, as C# judges it. */
 export function levelAt(chart: ChartView, value: number): Level {
-  const below = chart.colors.filter((stop) => stop.at <= value);
+  const below = chart.colors.filter((stop) => (chart.low ? stop.at < value : stop.at <= value));
   return (below.at(-1) ?? chart.colors[0])?.level ?? 'normal';
 }
 
-/** Where each knob sits: at its line, kept inside the plot and apart from the other knob. */
+/**
+ * Where each knob sits: at its line, kept inside the plot and apart from the other knob, the higher line's above. A frame
+ * rate's critical is under its warning; at the same value the critical goes where its color is, above the line for a
+ * meter that warns high and under it for one that warns low.
+ */
 export function knobTops(plot: Plot): Record<Line, number | null> {
+  const { chart } = plot;
   const place = (value: number | null): number | null => (value === null ? null : Math.min(plot.height, Math.max(0, yOf(plot, value))));
-  const warning = place(plot.chart.warning);
-  const critical = place(plot.chart.critical);
-  if (warning === null || critical === null || warning - critical >= knobsApart) {
+  const warning = place(chart.warning);
+  const critical = place(chart.critical);
+  if (warning === null || critical === null || Math.abs(warning - critical) >= knobsApart) {
     return { warning, critical };
   }
+  const criticalUp = chart.critical === chart.warning ? !chart.low : critical < warning;
   const middle = (warning + critical) / 2;
-  return { warning: middle + knobsApart / 2, critical: middle - knobsApart / 2 };
+  const apart = (criticalUp ? knobsApart : -knobsApart) / 2;
+  return { warning: middle + apart, critical: middle - apart };
+}
+
+/** The faint bands of the warning and critical zones, top down, where the chart's colors say a level past normal. */
+export function tintsOf(plot: Plot): { level: Exclude<Level, 'normal'>; top: number; height: number }[] {
+  const { colors } = plot.chart;
+  return colors.flatMap((stop, index) => {
+    const next = colors[index + 1];
+    // The lowest band reaches the plot's bottom and the highest its top, past the pads.
+    const top = next === undefined ? 0 : Math.max(0, yOf(plot, next.at));
+    const bottom = index === 0 ? plot.height : Math.min(plot.height, yOf(plot, stop.at));
+    return stop.level === 'normal' || bottom <= top ? [] : [{ level: stop.level, top, height: bottom - top }];
+  });
 }
 
 /** The line a click at a height moves: the nearest one that is on. */

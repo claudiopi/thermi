@@ -24,6 +24,7 @@
               "network",
               "battery",
               "system",
+              "game",
               null
             ]
           },
@@ -50,7 +51,10 @@
                     "throughput",
                     "duration",
                     "time",
-                    "address"
+                    "address",
+                    "frame-rate",
+                    "frame-time",
+                    "voltage"
                   ]
                 },
                 "unit": {
@@ -80,6 +84,8 @@
                     "driver-may-be-missing",
                     "stopped",
                     "resting",
+                    "no-frames",
+                    "frames-unread",
                     null
                   ]
                 }

@@ -26,7 +26,7 @@ public sealed class FinderTests : IAsyncDisposable
 
     private readonly SettingsFolder _folder = new();
     private readonly TestFeed _feed = new();
-    private readonly Queue<Action> _turn = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _turn = new();
     private readonly List<CancellationToken> _loads = [];
     private readonly Settings _settings;
     private readonly WindowEditor _editor;
@@ -38,17 +38,7 @@ public sealed class FinderTests : IAsyncDisposable
         _settings = _folder.Settings();
         Assert.True(_folder.Settled(_settings.SyncAsync).IsCompletedSuccessfully);
         _editor = new WindowEditor(_settings, _turn.Enqueue, _folder.Log, _folder.Clock);
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment(
-            "thermi-tests",
-            _folder.File,
-            "thermi.exe",
-            _folder.Log,
-            _folder.Clock.GetUtcNow(),
-            _feed,
-            startup)
-        { Screens = () => [] };
-        var start = new WindowStart(1, _settings, Texts.English, environment, _folder.Clock) { Load = _loads.Add };
+        var start = new WindowStart(1, _settings, Texts.English, _folder.Window(_feed), _folder.Clock) { Load = _loads.Add };
         _bridge = new WindowBridge(start, _editor, new ChartHistory(_folder.Clock), _turn.Enqueue);
     }
 
@@ -112,9 +102,10 @@ public sealed class FinderTests : IAsyncDisposable
         Assert.Equal(before, ThermiConfigJson.Write(_editor.Config));
     }
 
-    // R19, R22: no fan answers, so the load ends at 30 s and the finder says why; the readings stop, and so does the load.
+    // R19, R22: no fan answers, so the load ends at 30 s, and the finder says why once it has watched the fans for 40 s after it;
+    // the readings stop, and so does the load, and they never come back.
     [Theory]
-    [InlineData(false, 40, FanFinderOutcome.NoFanRose)]
+    [InlineData(false, 70, FanFinderOutcome.NoFanRose)]
     [InlineData(true, 0, FanFinderOutcome.ReadingsStopped)]
     public async Task WhenNoFanAnswersOrTheReadingsStopTheLoadEndsAndTheFinderSaysWhy(bool answers, int more, FanFinderOutcome outcome)
     {
@@ -126,7 +117,8 @@ public sealed class FinderTests : IAsyncDisposable
         _loads.Single().Register(() => stopped = _folder.Clock.GetElapsedTime(loadStart));
 
         Feed(seconds: more, answers, from: 4);
-        Tick(TimeSpan.FromSeconds(3));
+        Tick(FanFinder.MaxGap + TimeSpan.FromSeconds(0.5));
+        Tick(FanFinder.MaxGap + TimeSpan.FromSeconds(0.5));
         var done = await _bridge.Finder();
 
         Assert.True(_loads.Single().IsCancellationRequested);
@@ -161,13 +153,15 @@ public sealed class FinderTests : IAsyncDisposable
         Assert.Empty(_loads);
     }
 
-    // The recorded snapshot a given second into a run: from the fourth on, the CPU at full load and, when it answers, the
-    // board's fan three times as fast, so the finder picks it.
+    // The recorded snapshot a given second into a run: from the fourth on, the CPU at full load, warmer and drawing more,
+    // as a load makes it, and, when it answers, the board's fan three times as fast, so the finder picks it.
     private static Snapshot Second(int second, bool answers) =>
         new([.. Recorded.Sensors.Select(sensor => sensor.Id switch
         {
             BoardFan when second > 3 && answers => sensor with { Value = sensor.Value * 3 },
             "/amdcpu/0/load/0" when second > 3 => sensor with { Value = 100 },
+            "/amdcpu/0/temperature/2" when second > 3 => sensor with { Value = sensor.Value + 15 },
+            "/amdcpu/0/power/0" when second > 3 => sensor with { Value = sensor.Value * 2 },
             _ => sensor,
         })]);
 

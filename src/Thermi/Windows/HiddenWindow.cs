@@ -203,13 +203,12 @@ internal static class HiddenWindow
     // sender can name a real thermi window, so nothing a message asks may need more trust than the desktop's own.
     private static bool Peer(HWND claimed, string from) => ClassOf(claimed) == from && SameProgram(claimed);
 
-    private static bool SameProgram(HWND window)
-    {
-        if (PInvoke.GetWindowThreadProcessId(window, out var id) == 0)
-        {
-            return false;
-        }
+    /// <summary>Whether <paramref name="window"/> is of a thermi like this one: this process, or another of the same program.</summary>
+    internal static bool SameProgram(HWND window) => PInvoke.GetWindowThreadProcessId(window, out var id) != 0 && SameProgram(id);
 
+    /// <summary>Whether the process is a thermi like this one: this process, or another of the same program.</summary>
+    internal static bool SameProgram(uint id)
+    {
         if (id == (uint)Environment.ProcessId)
         {
             return true;
@@ -223,7 +222,7 @@ internal static class HiddenWindow
             && string.Equals(new string(path[..(int)length]), Environment.ProcessPath, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string ClassOf(HWND window)
+    internal static string ClassOf(HWND window)
     {
         Span<char> name = stackalloc char[64];
         var length = window.IsNull ? 0 : PInvoke.GetClassName(window, name);

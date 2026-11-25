@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using Thermi.Commands;
+using Thermi.Core.Sensors;
 using Thermi.Core.Placement;
 using Thermi.Overlay;
 using Thermi.Ui;
@@ -39,20 +40,24 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
 
     public Func<IReadOnlySet<int>> AltGrKeys { get; init; } = HotkeyRegistry.AltGrKeys;
 
-    public Action<CancellationToken> Load { get; init; } = CpuLoad.Run;
+    // The window's load: a thermi cpu-load of its own, at idle priority, so the PC stays as it was for the person using it.
+    public Action<CancellationToken> Load { get; init; } =
+        stop => CpuLoad.Start(BesideThisDoor("thermi.exe"), (int)FanFinder.MaxRun.TotalSeconds, stop);
 
     public string StylesFolder => ConfigStore.StylesFolder(SettingsPath);
 
     public static AgentEnvironment Of(ILoggerFactory logs, TimeProvider time)
     {
-        // The overlay starts from thermi.exe beside this door, whichever of the two ran.
-        var overlay = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory, "thermi.exe");
         return new(
             ConfigStore.DefaultPath,
             () => new SystemFeed(new SensorClient(time, logs.CreateLogger<SensorClient>()), time),
-            StartWithWindows.Of(overlay),
+            StartWithWindows.Of(BesideThisDoor("thermi.exe")),
             logs.CreateLogger("Thermi.Agents"));
     }
+
+    // The overlay and the load start from thermi.exe beside this door, whichever of the two ran.
+    private static string BesideThisDoor(string exe) =>
+        Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory, exe);
 
     private static bool Exists(string key)
     {

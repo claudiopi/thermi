@@ -1,15 +1,11 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using Thermi.Commands;
-using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Overlay;
-using Thermi.Ui;
-using Thermi.Ui.Editor;
-using Thermi.Ui.Web;
 using Thermi.Windows.Tests.Window;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -174,20 +170,10 @@ public sealed class OverlayMenuTests : IDisposable
         var environment = _tray.Environment(_windowMutex) with { CopyImage = (_, picture) => copied = Pixels(picture) };
         HostRun.Run(settings, _folder, environment, host => HostMenus.Choose(host, 0, "Copy as image"));
 
-        var turn = new Queue<Action>();
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var feed = new TestFeed { Latest = HostRun.Recorded };
-        var window = new WindowEnvironment("thermi-tests", _folder.File, "thermi.exe", _folder.Log, _folder.Clock.GetUtcNow(), feed, startup)
-        {
-            Screens = Desktop.Screens,
-        };
-        using var bridge = new WindowBridge(
-            new WindowStart(1, settings, Texts.English, window, _folder.Clock),
-            new WindowEditor(settings, turn.Enqueue, _folder.Log, _folder.Clock),
-            new ChartHistory(_folder.Clock),
-            turn.Enqueue);
+        var window = _folder.Window(new TestFeed { Latest = HostRun.Recorded }) with { Screens = Desktop.Screens };
+        using var bridge = _folder.Bridge(settings, window, new System.Collections.Concurrent.ConcurrentQueue<Action>(), overlay: 1);
         bridge.Arrived();
-        var preview = await bridge.Preview(0);
+        var preview = await bridge.Preview(0, 0);
         using var png = new Bitmap(new MemoryStream(Convert.FromBase64String(preview!.Png[(preview.Png.IndexOf(',', StringComparison.Ordinal) + 1)..])));
 
         Assert.NotEmpty(copied);

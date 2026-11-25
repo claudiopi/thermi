@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Editing;
+using Thermi.Core.Frames;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -225,7 +226,8 @@ public sealed class TrayTextTests
     // A state's words: the CPU temperature at warning or critical, the recording without the driver, the CPU fan reading
     // nothing, the service stopped or stale, an overlay hidden, click-through, high contrast, an overlay with nothing to
     // show, four overlays all critical, the window never opened yet, and the PC asleep past the stale limit, then woken by
-    // a fresh snapshot, and a clock among the items, which Windows reads with no service at all. The hint is the first
+    // a fresh snapshot, and a clock among the items, which Windows reads with no service at all, and while the service runs
+    // but has sent nothing yet, which the game's sensors every reader adds do not stand in for. The hint is the first
     // value tooltip's that has one.
     [Theory]
     [InlineData("", MarkState.Calm, false, ValueHint.None)]
@@ -236,6 +238,7 @@ public sealed class TrayTextTests
     [InlineData("reads-nothing", MarkState.Calm, false, ValueHint.ReadsNothing)]
     [InlineData("critical stopped", MarkState.Stopped, true, ValueHint.SensorsStopped)]
     [InlineData("critical stopped clock", MarkState.Stopped, true, ValueHint.SensorsStopped)]
+    [InlineData("critical awaited clock", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("critical stale", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("hidden", MarkState.Calm, false, ValueHint.None)]
     [InlineData("click-through", MarkState.Calm, false, ValueHint.None)]
@@ -325,7 +328,8 @@ public sealed class TrayTextTests
         return config with { Overlays = [.. config.Overlays.Select(each => each with { Items = Items(each) })] };
     }
 
-    // A stopped service sends no snapshot, so with a clock the feed holds no sensors but what Windows itself says.
+    // A stopped service sends no snapshot, so with a clock the feed holds no sensors but what Windows itself says, and the
+    // game's, which read nothing without frame slots.
     private static Snapshot SnapshotOf(string[] words) =>
         words.Contains("no-driver") ? TestRecordings.Read(TestRecordings.NoAdmin)
         : words.Contains("reads-nothing")
@@ -334,6 +338,6 @@ public sealed class TrayTextTests
                 Sensors = [.. Desktop.Sensors.Select(sensor => sensor.Id == "/lpc/it8689e/0/fan/0" ? sensor with { Value = null } : sensor)],
             }
         : words.Contains("clock")
-            ? SystemSensors.With(new Snapshot([]), new WindowsFacts(TimeSpan.FromHours(2), null, DateTimeOffset.UnixEpoch.AddHours(12)))
+            ? GameSensors.With(SystemSensors.With(new Snapshot([]), new WindowsFacts(TimeSpan.FromHours(2), null, DateTimeOffset.UnixEpoch.AddHours(12))), null)
         : Desktop;
 }

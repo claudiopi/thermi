@@ -88,12 +88,12 @@ internal sealed class OverlayWindow : IDisposable
     };
 
     /// <summary>
-    /// The scale the overlay is drawn at, times its own size: the monitor's it is about to show on among
+    /// The scale the overlay is drawn at, times the size it shows at: the monitor's it is about to show on among
     /// <paramref name="screens"/>, so a snap to a monitor of another scale paints right at once, or its window's,
     /// <paramref name="dpi"/>, while it knows none.
     /// </summary>
     internal static float ScaleOf(uint dpi, OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
-        (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * overlay.Size);
+        (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * Snaps.SizeShown(overlay, screens));
 
     public void Dispose()
     {
@@ -181,8 +181,11 @@ internal sealed class OverlayWindow : IDisposable
         TopLevelWindow.ClickThrough(Hwnd, overlay.ClickThrough);
         var look = marks.Applied(OverlayLook.Of(overlay.Style, scene.LightTaskbar, scene.HighContrast), held: heldAt is not null);
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
-        var scale = ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, heldAt is null ? scene.Screens : []);
+        IReadOnlyList<Screen> screens = heldAt is null ? scene.Screens : [];
+        var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
         var items = Extras(scene, texts, shown.Items);
+        var room = TaskbarRow.RoomOf(overlays, _index, screens, _actions.Shown());
+        var scale = _painter.Within(items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), room);
         _glow.Update(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
         var bitmap = shown.SensorsStopped
@@ -191,11 +194,12 @@ internal sealed class OverlayWindow : IDisposable
 #pragma warning restore CA2000
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
         _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, marks.Accent);
+        OverlayGestures.HoldCorner(bitmap, overlay, scale);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
-        var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running) ?? WindowPosition();
+        var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, _shown);
         if (!_shown)
@@ -289,9 +293,7 @@ internal sealed class OverlayWindow : IDisposable
         _gestures.Let();
         if (_painted is { } painted && _scene is { } scene)
         {
-            var item = ItemAt(_actions.Cursor());
-            var box = item is null ? RectangleF.Empty : _painter.Places.First(place => place.Id == item).Pill;
-            _gestures.Press(overlay, painted, scene.Screens, (item, box), WindowPosition());
+            _gestures.Press(overlay, painted, scene.Screens, _painter.Places.Pressed(OnPicture(_actions.Cursor())), WindowPosition());
         }
     }
 
@@ -355,10 +357,11 @@ internal sealed class OverlayWindow : IDisposable
         _pointed = item;
     }
 
-    /// <summary>The item before which a pill dropped at a point of the screen joins this overlay; null past the last.</summary>
-    internal string? ItemAfter(Position cursor) => _painter.ItemAfter(OnPicture(cursor), _painted?.Look.Orientation == Orientation.Vertical);
+    /// <summary>Where a drop at a point of the screen joins this overlay, as <see cref="PaintedPlaces.JoinAt"/> says.</summary>
+    internal DropTarget JoinAt(Position cursor, string? alone) =>
+        _painter.Places.JoinAt(_index, OnPicture(cursor), alone, _painted?.Look.Orientation == Orientation.Vertical);
 
-    internal string? ItemAt(Position cursor) => _painter.ItemAt(OnPicture(cursor));
+    internal string? ItemAt(Position cursor) => _painter.Places.At(OnPicture(cursor))?.Id;
 
     /// <summary>The opacity the overlay shows at, 255 for whole.</summary>
     internal byte Alpha => _fade.Alpha;
@@ -384,8 +387,7 @@ internal sealed class OverlayWindow : IDisposable
         _tips.Quiet(false);
     }
 
-    internal void Separate(string item) =>
-        _gestures.Separate(item, _painter.Places.FirstOrDefault(place => place.Id == item)?.Pill ?? RectangleF.Empty, _scene?.Screens ?? []);
+    internal void Separate(string item) => _gestures.Separate(item, _painted, _scene?.Screens ?? []);
 
     /// <summary>
     /// The overlay as its last paint drew it, painted afresh without what only the open window or a broken file adds; the
