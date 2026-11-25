@@ -14,6 +14,12 @@ Built with `ThermiScope=perUser` it is the per-user MSI, `thermi-<v>-<cpu>-user.
 turns on the user's start at sign-in. The machine MSI's secure `ADDDRIVER=1` installs the driver on a first install,
 through the `thermi-elevated` service, ignoring what it answers.
 
+Both put their folder, where `thermi-cli` is, on `PATH`: the machine's, or the user's own. The machine MSI's secure
+`SENSORSONLY=1` installs the sensors alone (`docs/specs/003-agents/spec.md`): it leaves out the `Overlay` feature, with
+the Start menu entry, the Active Setup entry and the overlay's start after the install, writes `SensorsOnly` under
+`HKLM\SOFTWARE\thermi`, which thermi-cli reads, and installs the driver as `ADDDRIVER=1` does. An upgrade reads that value
+back, as features are never migrated, and `SENSORSONLY=0` installs the overlay over it.
+
 Every program both run goes through WiX's util extension, `WixToolset.Util.wixext`, from its DLL native to the package's
 processor: `WixQuietExec`, which shows no console window, and for the overlay after an install by hand
 `WixUnelevatedShellExec`, which has Explorer start it as the person, unelevated even from an elevated console. With no

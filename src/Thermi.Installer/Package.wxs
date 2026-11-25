@@ -7,20 +7,25 @@
   Built again with Scope perUser (docs/adr/0016-admin-on-demand.md), it installs the same layout into the user's
   %LOCALAPPDATA%\Programs\thermi without a prompt, its actions run as the user with no service, driver or Active Setup,
   and its UpgradeCode is its own, so the two never upgrade each other.
+  Either puts its folder, where thermi-cli is, on PATH: the machine's, or the user's own. Per machine, SENSORSONLY=1 leaves
+  out the overlay's feature, its Start menu entry and its start at sign-in, and gets the driver during setup instead of
+  from the window; an upgrade keeps that choice, and SENSORSONLY=0 installs the overlay over it (docs/specs/003-agents).
 -->
 <?if $(var.Scope) = "perUser" ?>
   <?define UpgradeCode = "{E64A26FA-E001-4EDF-A31C-40957EC23FAB}" ?>
   <?define Impersonate = "yes" ?>
   <?define User = " --user" ?>
+  <?define SystemPath = "no" ?>
 <?else?>
   <?define UpgradeCode = "{DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}" ?>
   <?define Impersonate = "no" ?>
   <?define User = "" ?>
+  <?define SystemPath = "yes" ?>
 <?endif?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="thermi" Manufacturer="thermi" Version="$(var.Version)" UpgradeCode="$(var.UpgradeCode)"
            Scope="$(var.Scope)" InstallerVersion="500" Compressed="yes">
-    <MajorUpgrade AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize"
+    <MajorUpgrade AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize" MigrateFeatures="no"
                   DowngradeErrorMessage="A newer thermi is installed. Uninstall it from Installed apps first." />
     <MediaTemplate EmbedCab="yes" />
     <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
@@ -35,6 +40,18 @@
 <?else?>
     <!-- Secure, so it reaches the elevated part when a standard user starts msiexec and an administrator consents. -->
     <Property Id="ADDDRIVER" Secure="yes" />
+    <Property Id="SENSORSONLY" Secure="yes" />
+
+    <!-- The choice the last install wrote, kept by an upgrade that does not make it again: the features are decided by it,
+         never migrated, so SENSORSONLY=0 can bring the overlay back. -->
+    <Property Id="SENSORSONLYBEFORE" Secure="yes">
+      <RegistrySearch Id="SensorsOnlyBefore" Root="HKLM" Key="SOFTWARE\thermi" Name="SensorsOnly" Type="raw" />
+    </Property>
+    <SetProperty Id="SENSORSONLY" After="AppSearch" Sequence="both" Value="1"
+                 Condition="NOT SENSORSONLY AND SENSORSONLYBEFORE = &quot;#1&quot;" />
+    <!-- The value the service's readers take the choice from, as a number. -->
+    <Property Id="SensorsChoice" Value="0" />
+    <SetProperty Id="SensorsChoice" After="SetSENSORSONLY" Sequence="both" Value="1" Condition="SENSORSONLY = 1" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="installfolder" Name="thermi">
@@ -46,6 +63,12 @@
     <ComponentGroup Id="Bootstrap" Directory="setupfolder">
       <Files Include="$(var.PublishDir)**" />
     </ComponentGroup>
+
+    <!-- The launchers' folder on PATH, for thermi-cli; Windows' installer tells running programs once it changed. -->
+    <Component Id="Path" Directory="installfolder">
+      <Environment Id="Path" Name="PATH" Value="[installfolder]" Part="last" Action="set" System="$(var.SystemPath)" Permanent="no" />
+      <RegistryValue Root="HKMU" Key="SOFTWARE\thermi\installer" Name="Path" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
 
     <!-- The launcher at the top, which every version's switch keeps in place. -->
     <StandardDirectory Id="ProgramMenuFolder">
@@ -68,15 +91,26 @@
       </RegistryKey>
     </Component>
 
-    <Feature Id="Thermi">
+    <Component Id="Choice" Directory="installfolder">
+      <RegistryValue Root="HKLM" Key="SOFTWARE\thermi" Name="SensorsOnly" Type="integer" Value="[SensorsChoice]" KeyPath="yes" />
+    </Component>
+
+    <!-- The sensors, their service and thermi-cli, always; the overlay and its window on top, unless left out. -->
+    <Feature Id="Thermi" AllowAbsent="no">
       <ComponentGroupRef Id="Bootstrap" />
-      <ComponentRef Id="StartMenu" />
-      <ComponentRef Id="ActiveSetup" />
+      <ComponentRef Id="Path" />
+      <ComponentRef Id="Choice" />
+      <Feature Id="Overlay">
+        <Level Value="0" Condition="SENSORSONLY = 1" />
+        <ComponentRef Id="StartMenu" />
+        <ComponentRef Id="ActiveSetup" />
+      </Feature>
     </Feature>
 <?else?>
     <!-- The user's start at sign-in is turned on by the first install's adopt alone, so an upgrade never turns it back on. -->
     <Feature Id="Thermi">
       <ComponentGroupRef Id="Bootstrap" />
+      <ComponentRef Id="Path" />
       <ComponentRef Id="StartMenu" />
     </Feature>
 <?endif?>
@@ -127,9 +161,9 @@
       <Custom Action="Forget" After="Adopt" Condition="NOT REMOVE" />
       <!-- A first install alone, which always needs an administrator's consent: a repair sets Installed. -->
 <?if $(var.Scope) = "perMachine" ?>
-      <Custom Action="InstallDriver" After="Forget" Condition="NOT Installed AND ADDDRIVER = 1" />
+      <Custom Action="InstallDriver" After="Forget" Condition="NOT Installed AND (ADDDRIVER = 1 OR SENSORSONLY = 1)" />
 <?endif?>
-      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
+      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3 AND NOT SENSORSONLY = 1" />
     </InstallExecuteSequence>
   </Package>
 </Wix>

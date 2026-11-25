@@ -157,7 +157,8 @@ public sealed class AdminOnDemandTests
     public void MsiexecsExitIsWhatTheInstallCameTo(int exit, MachineInstallOutcome outcome) =>
         Assert.Equal(outcome, InstallForEveryone.OutcomeOf(exit));
 
-    // The machine MSI's driver property reaches the elevated part, and its action never runs on a repair.
+    // The machine MSI's driver property reaches the elevated part, as a sensors-only install's driver comes during setup,
+    // and its action never runs on a repair.
     [Fact]
     public void TheDriverPropertyActsOnlyOnAFirstInstall()
     {
@@ -167,7 +168,8 @@ public sealed class AdminOnDemandTests
         var property = all.Single(element => element.Name.LocalName == "Property" && (string?)element.Attribute("Id") == InstallForEveryone.DriverProperty);
         var action = all.Single(element => element.Name.LocalName == "Custom" && (string?)element.Attribute("Action") == "InstallDriver");
 
-        Assert.Equal(("yes", "NOT Installed AND ADDDRIVER = 1"), ((string?)property.Attribute("Secure"), (string?)action.Attribute("Condition")));
+        Assert.Equal(
+            ("yes", "NOT Installed AND (ADDDRIVER = 1 OR SENSORSONLY = 1)"), ((string?)property.Attribute("Secure"), (string?)action.Attribute("Condition")));
     }
 
     // Every program the MSIs run goes through WiX's own DLL actions, native to the package's processor, each given its
@@ -197,8 +199,45 @@ public sealed class AdminOnDemandTests
                 ("StartOverlay", "WixUnelevatedShellExec", "WixUnelevatedShellExecTarget")],
             actions);
         Assert.Equal(
-            ("UtilCA = \"Wix4UtilCA_$(sys.BUILDARCHSHORT)\"", "immediate", "yes", "NOT REMOVE AND UILevel > 3"),
+            ("UtilCA = \"Wix4UtilCA_$(sys.BUILDARCHSHORT)\"", "immediate", "yes", "NOT REMOVE AND UILevel > 3 AND NOT SENSORSONLY = 1"),
             (binary.Data.Trim(), (string?)overlay.Attribute("Execute"), (string?)overlay.Attribute("Impersonate"), (string?)start.Attribute("Condition")));
+    }
+
+    // Spec 003, R24: either MSI puts its folder, where thermi-cli is, on PATH, the machine's or the user's own; per machine,
+    // SENSORSONLY=1, or the choice an upgrade finds written, leaves out the overlay's feature, with its Start menu entry
+    // and its start at sign-in, and writes the value the agents read; features are never migrated, so SENSORSONLY=0
+    // brings the overlay back.
+    [Fact]
+    public void TheMsiPutsThermiCliOnPathAndMayLeaveTheOverlayOut()
+    {
+        var wix = XDocument.Load(Path.Combine(Root(), "src", "Thermi.Installer", "Package.wxs"));
+        var all = wix.Descendants().ToList();
+        XElement Single(string name, string attribute, string value)
+        {
+            return all.Single(element => element.Name.LocalName == name && (string?)element.Attribute(attribute) == value);
+        }
+
+        var path = Single("Environment", "Id", "Path");
+        var scopes = wix.DescendantNodes().OfType<XProcessingInstruction>()
+            .Where(each => each.Target == "define" && each.Data.StartsWith("SystemPath", StringComparison.Ordinal)).Select(each => each.Data.Trim());
+        var overlay = Single("Feature", "Id", "Overlay");
+        var choice = Single("RegistryValue", "Name", "SensorsOnly");
+        var kept = Single("SetProperty", "Id", "SENSORSONLY");
+
+        Assert.Equal(
+            ("PATH", "[installfolder]", "last", "$(var.SystemPath)"),
+            ((string?)path.Attribute("Name"), (string?)path.Attribute("Value"), (string?)path.Attribute("Part"), (string?)path.Attribute("System")));
+        Assert.Equal(["SystemPath = \"no\"", "SystemPath = \"yes\""], scopes);
+        Assert.Equal(2, all.Count(element => element.Name.LocalName == "ComponentRef" && (string?)element.Attribute("Id") == "Path"));
+        Assert.Equal(
+            ("SENSORSONLY = 1", "StartMenu ActiveSetup"),
+            ((string?)overlay.Elements().Single(element => element.Name.LocalName == "Level").Attribute("Condition"),
+                string.Join(" ", overlay.Elements().Where(element => element.Name.LocalName == "ComponentRef")
+                    .Select(element => (string?)element.Attribute("Id")))));
+        Assert.Equal(
+            ("HKLM", @"SOFTWARE\thermi", "[SensorsChoice]", "NOT SENSORSONLY AND SENSORSONLYBEFORE = \"#1\"", "no"),
+            ((string?)choice.Attribute("Root"), (string?)choice.Attribute("Key"), (string?)choice.Attribute("Value"), (string?)kept.Attribute("Condition"),
+                (string?)all.Single(element => element.Name.LocalName == "MajorUpgrade").Attribute("MigrateFeatures")));
     }
 
     // The machine's overlay finds the per-user product to remove by the UpgradeCode the per-user MSI is built with.
