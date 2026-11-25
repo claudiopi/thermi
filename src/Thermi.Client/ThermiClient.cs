@@ -42,8 +42,8 @@ public sealed class ThermiClient
     public Task<ThermiStatus> StatusAsync(CancellationToken cancel = default) => RunAsync(["status"], ThermiJson.Default.ThermiStatus, cancel);
 
     /// <summary>
-    /// Metrics as <c>cpu.temperature</c>, sensor ids and items as <c>item:&lt;id&gt;</c>, every metric and item when none are
-    /// given; with <paramref name="seconds"/> past 1, sampled once a second, with each value's minimum, maximum and average.
+    /// Metrics as <c>cpu.temperature</c>, sensor ids and items as <c>item:&lt;id&gt;</c>, every metric and item but network
+    /// addresses when none are given; with <paramref name="seconds"/> past 1, sampled once a second, with each value's minimum, maximum and average.
     /// </summary>
     public Task<ThermiReading> ReadAsync(IEnumerable<string>? ids = null, int seconds = 1, CancellationToken cancel = default) =>
         RunAsync(["read", .. ids ?? [], "--seconds", seconds.ToString(CultureInfo.InvariantCulture)], ThermiJson.Default.ThermiReading, cancel);

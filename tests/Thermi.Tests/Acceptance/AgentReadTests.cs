@@ -64,8 +64,12 @@ public sealed class AgentReadTests
         var networked = SystemSensors.With(snapshot, facts);
         var dropped = snapshot.Sensors[0].Id;
         var later = networked with { Sensors = [.. networked.Sensors.Where(sensor => sensor.Id != dropped)] };
-        // The address says where the PC is: only an id asks for it.
-        Assert.DoesNotContain(AgentReads.Read([networked], config, []).Values, value => value.Type == SensorKind.Address);
+        // The address says where the PC is: sensors lists it, its text only when its type is asked for.
+        var listed = AgentViews.Sensors(networked, config, null, []).Devices.SelectMany(device => device.Sensors);
+        var asked = AgentViews.Sensors(networked, config, null, [SensorKind.Address]).Devices.SelectMany(device => device.Sensors);
+        Assert.Equal(
+            (true, "192.168.1.2"),
+            (listed.Any(sensor => sensor is { Type: SensorKind.Address, Text: null }), asked.Single(sensor => sensor.Type == SensorKind.Address).Text));
         var address = Assert.Single(AgentReads.Read([networked, later], config, [Metrics.LocalIp.Id]).Values);
         Assert.Equal(("192.168.1.2", null, null), (address.Text, address.Min, address.Average));
         var missing = Assert.Single(AgentReads.Read([later], config, [dropped], earlier: snapshot).Values);

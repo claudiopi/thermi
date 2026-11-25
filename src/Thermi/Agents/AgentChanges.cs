@@ -184,13 +184,7 @@ internal sealed partial class AgentCommands
 
             if (written.Outcome == WriteOutcome.Written && made is var (before, after))
             {
-                if (keep && after.Refused is null)
-                {
-                    History.Record(before, after.Config);
-                }
-
-                KeepPrevious(before);
-                return Edited(after);
+                return Wrote(before, after, keep);
             }
         }
 
@@ -202,6 +196,22 @@ internal sealed partial class AgentCommands
         Error: failed is IOException or UnauthorizedAccessException
             ? $"Windows refused to write the settings file; nothing was written: {failed.Message}"
             : "The settings file stayed locked by another program; nothing was written. Try again.");
+
+    private AgentReply Wrote(ThermiConfig before, EditResult after, bool keep)
+    {
+        if (keep && after.Refused is null)
+        {
+            History.Record(before, after.Config);
+        }
+
+        // A write that changed nothing keeps the copy from before the last one that did.
+        if (after.Refused is null && ThermiConfigJson.Write(before) != ThermiConfigJson.Write(after.Config))
+        {
+            KeepPrevious(before);
+        }
+
+        return Edited(after);
+    }
 
     private void KeepPrevious(ThermiConfig before)
     {

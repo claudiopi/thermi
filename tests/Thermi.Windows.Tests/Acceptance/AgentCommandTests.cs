@@ -200,6 +200,8 @@ public sealed class AgentCommandTests : IDisposable
         Assert.Equal(0, (await _rig.RunAsync("edit", """{"kind":"item","item":"cpu.load","field":"name","value":"Agent's"}""")).Exit);
         // The change is in the log, and the settings as they were stay beside them, so a person can see it and take it back.
         Assert.Contains(folder.Log.Entries, entry => entry.Level == LogLevel.Information && entry.Message.Contains("Agent's", StringComparison.Ordinal));
+        // An edit that changes nothing keeps the copy of the last one that did.
+        Assert.Equal(0, (await _rig.RunAsync("edit", """{"kind":"item","item":"cpu.load","field":"name","value":"Agent's"}""")).Exit);
         Assert.Equal(before, await File.ReadAllTextAsync(Path.ChangeExtension(folder.File, ".before-agent.json"), TestContext.Current.CancellationToken));
         var shown = false;
         for (var waited = TimeSpan.Zero; waited <= TimeSpan.FromSeconds(1) && !shown; waited += Settings.Interval)

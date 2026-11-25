@@ -12,24 +12,40 @@ namespace Thermi.Agents;
 /// <summary>The fan finder as the window runs it, fed by a connection of its own, its pick made the CPU fan only when asked.</summary>
 internal sealed partial class AgentCommands
 {
-    // An agent that calls the finder in a loop would keep every core busy: its load starts at most once in this long, which
-    // the file of when it last started keeps across the agents' processes.
+    // An agent that calls the finder in a loop would keep every core busy: a run starts at most once in this long, which
+    // the file of when the last one started keeps across the agents' processes.
     private static readonly TimeSpan FinderRest = TimeSpan.FromMinutes(2);
 
     // One at a time with the other changes, as its pick may be one.
-    private Task<AgentReply> FindCpuFanAsync(bool use, CancellationToken stop) => OneAtATimeAsync(
-        () => RestLeft() is { } left ? Task.FromResult(Resting(left)) : FindRestedAsync(use, stop),
-        stop);
+    private Task<AgentReply> FindCpuFanAsync(bool use, CancellationToken stop) => OneAtATimeAsync(() => ClaimedAsync(use, stop), stop);
 
-    private async Task<AgentReply> FindRestedAsync(bool use, CancellationToken stop)
+    // The file is held through the run, so a run another process starts at once finds it taken and rests too.
+    private async Task<AgentReply> ClaimedAsync(bool use, CancellationToken stop)
+    {
+        await using var claim = Claim(out var taken);
+        if (taken)
+        {
+            return Resting(FinderRest);
+        }
+
+        if (claim is not null && await RestLeftAsync(claim, stop) is { } left)
+        {
+            return Resting(left);
+        }
+
+        return await FindRestedAsync(claim, use, stop);
+    }
+
+    private async Task<AgentReply> FindRestedAsync(FileStream? claim, bool use, CancellationToken stop)
     {
         // The window's finder lives on the window's thread; here its timer and this loop take turns under one gate.
         var gate = new Lock();
         var feed = environment.Sensors();
+        // The rest counts from a load that started: a finder that cannot start loads nothing.
         var finder = new WindowFinder(
             load =>
             {
-                Started();
+                Stamp(claim);
                 environment.Load(load);
             },
             time,
@@ -133,35 +149,61 @@ internal sealed partial class AgentCommands
             $"The fan finder loaded the CPU less than {FinderRest.TotalMinutes} minutes ago; it runs again in {seconds} s.");
     }
 
-    // A file that cannot be read, or says a time to come, holds nothing back: the rest guards against a loop, not the person.
-    private TimeSpan? RestLeft()
+    // Null when another process holds it, or when Windows refuses it: the rest guards against a loop, not the person.
+    private FileStream? Claim(out bool taken)
     {
+        taken = false;
         try
         {
-            var ran = DateTimeOffset.Parse(File.ReadAllText(environment.FinderRan), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-            var left = ran + FinderRest - time.GetUtcNow();
-            return left > TimeSpan.Zero && left <= FinderRest ? left : null;
+            Directory.CreateDirectory(Path.GetDirectoryName(environment.FinderRan)!);
+            return new FileStream(environment.FinderRan, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
+        catch (UnauthorizedAccessException ex)
         {
+            FinderRanLost(environment.Log, ex);
+            return null;
+        }
+        catch (IOException)
+        {
+            taken = true;
             return null;
         }
     }
 
-    private void Started()
+    private void Stamp(FileStream? claim)
     {
+        if (claim is null)
+        {
+            return;
+        }
+
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(environment.FinderRan)!);
-            File.WriteAllText(environment.FinderRan, time.GetUtcNow().ToString("O", CultureInfo.InvariantCulture));
+            claim.SetLength(0);
+            claim.Write(System.Text.Encoding.UTF8.GetBytes(time.GetUtcNow().ToString("O", CultureInfo.InvariantCulture)));
+            claim.Flush();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
         {
-            // The load still runs: without its file, only the next run's rest is lost.
+            // The load still runs: only the next run's rest is lost.
             FinderRanLost(environment.Log, ex);
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "When the fan finder ran could not be kept")]
+    // A file empty or unreadable, or one that says a time to come, holds nothing back.
+    private async Task<TimeSpan?> RestLeftAsync(FileStream claim, CancellationToken stop)
+    {
+        using var reader = new StreamReader(claim, leaveOpen: true);
+        var said = await reader.ReadToEndAsync(stop);
+        if (!DateTimeOffset.TryParse(said, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var ran))
+        {
+            return null;
+        }
+
+        var left = ran + FinderRest - time.GetUtcNow();
+        return left > TimeSpan.Zero && left <= FinderRest ? left : null;
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "When the fan finder ran could not be read or kept")]
     private static partial void FinderRanLost(ILogger log, Exception error);
 }

@@ -89,27 +89,28 @@ public sealed record StartAnswer(bool On, bool Overlay)
 
 public static class AgentViews
 {
-    /// <summary>The catalog, with the user's names, filtered as the window's search finds and by type when either is given.</summary>
+    /// <summary>
+    /// The catalog, with the user's names, filtered as the window's search finds and by type when either is given; an
+    /// address, which says where the PC is, is listed with its text only when its type is asked for.
+    /// </summary>
     public static SensorsAnswer Sensors(Snapshot snapshot, ThermiConfig config, string? search, IReadOnlyCollection<SensorKind> kinds)
     {
         var devices = SensorCatalog.Build(snapshot, config.SensorNames, Texts.English);
         var found = string.IsNullOrWhiteSpace(search) && kinds.Count == 0 ? devices : SensorCatalog.Filter(devices, search ?? "", kinds, Texts.English);
-        return new SensorsAnswer([.. found.Select(device => new DeviceAnswer(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(Of)]))]);
+        var addresses = kinds.Contains(SensorKind.Address);
+        return new SensorsAnswer(
+            [.. found.Select(device => new DeviceAnswer(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(row => Of(row, addresses))]))]);
     }
 
-    // A refused hotkey says why, as the window does: another hotkey uses it, not only that it cannot be one.
-    public static EditAnswer Edited(EditResult result) => result switch
-    {
-        { Hotkey: { } why } => new EditAnswer(Done: false) { Refusal = Texts.Key(why), Message = Texts.English.Of(why) },
-        { Refused: { } refused } => new EditAnswer(Done: false) { Refusal = Texts.Key(refused), Message = Texts.English.Of(refused) },
-        _ => new EditAnswer(Done: true),
-    };
+    public static EditAnswer Edited(EditResult result) => result.RefusalKey is { } key
+        ? new EditAnswer(Done: false) { Refusal = key, Message = Texts.English.All[key] }
+        : new EditAnswer(Done: true);
 
-    private static SensorAnswer Of(CatalogSensor row) => new(row.Id, row.Name.Shown, row.Reading.Kind, AgentReads.UnitOf(row.Reading.Kind))
+    private static SensorAnswer Of(CatalogSensor row, bool addresses) => new(row.Id, row.Name.Shown, row.Reading.Kind, AgentReads.UnitOf(row.Reading.Kind))
     {
         Library = row.Name.Shown == row.Sensor.Name ? null : row.Sensor.Name,
         Value = row.Reading.Kind == SensorKind.Address ? null : row.Reading.Usable,
-        Text = row.Reading.Kind == SensorKind.Address && row.Reading.Usable is { } address ? SystemSensors.AddressText(address) : null,
+        Text = addresses && row.Reading.Kind == SensorKind.Address && row.Reading.Usable is { } address ? SystemSensors.AddressText(address) : null,
         Why = row.Why,
     };
 }

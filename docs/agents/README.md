@@ -19,12 +19,12 @@ The tools are the commands below but `watch`, `find-cpu-fan` and `start-with-win
 | `status` | Whether the sensor service runs and its data is fresh, whether the driver looks missing, whether an overlay runs, why the settings file cannot be used; each problem with its cause and fix. |
 | `read [ids] [--seconds n]` | Metrics (`cpu.temperature`), sensor ids and items (`item:<id>`), every metric and item when none but network addresses, which say where the PC is, so only an id asks for one. With n, from 1 to 60, sampled once a second for n seconds; from 2 on, each value has its minimum, maximum and average. |
 | `watch [ids]` | `read`'s document, one line a second, until its stdin closes, or until the service goes quiet, which ends it with exit 3. |
-| `sensors [--search text] [--type t]` | Every sensor the service reads, by device, found as the settings window's search finds. |
+| `sensors [--search text] [--type t]` | Every sensor the service reads, by device, found as the settings window's search finds; an address's text only with `--type address`. |
 | `config` | The settings as thermi reads them. |
 | `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. |
 | `looks`, `look wear/save/rename/delete/export/import` | The saved looks, with the settings window's rules; a look file goes in and out as text. |
 | `edit <json>` | One change of the settings, by the settings window's rules. |
-| `find-cpu-fan [--use]` | Loads every core for up to 30 s, at idle priority, and says which fan answered; it runs one at a time with the other changes, and its load starts at most once in 2 minutes, a run sooner refused with `runsAgainIn` seconds; with `--use`, it becomes the first overlay's CPU fan, or the answer says which fan it found and the refusal's key. |
+| `find-cpu-fan [--use]` | Loads every core for up to 30 s, at idle priority, and says which fan answered; it runs one at a time with the other changes, and a run starts at most once in 2 minutes, from any process, a run sooner or at once refused with `runsAgainIn` seconds; with `--use`, it becomes the first overlay's CPU fan, or the answer says which fan it found and the refusal's key. |
 | `start-with-windows [on\|off]` | Says or sets whether the overlay starts at sign-in. |
 
 An overlay is counted from 0 here, as in `config`, where `thermi settings --overlay` counts from 1. In Git Bash, which rewrites an argument that starts with `/` into a Windows path, run a command that names a sensor id as `MSYS_NO_PATHCONV=1 thermi-cli read /lpc/...`; PowerShell, cmd and MCP pass ids as they are.

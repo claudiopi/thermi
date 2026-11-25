@@ -91,7 +91,8 @@ internal static class AgentCommandLine
         var ids = new Argument<string[]>("ids")
         {
             Arity = ArgumentArity.ZeroOrMore,
-            Description = $"Metrics as cpu.temperature, sensor ids, or items as {AgentReads.ItemPrefix}<id>; every metric and item when none.",
+            Description =
+                $"Metrics as cpu.temperature, sensor ids, or items as {AgentReads.ItemPrefix}<id>; every metric and item but network addresses when none.",
         };
         var seconds = new Option<int>("--seconds")
         {

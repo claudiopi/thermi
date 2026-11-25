@@ -128,11 +128,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
         var snapshot = _start.Environment.Sensors.Latest ?? new Snapshot([]);
         var result = _editor.Edit(edit.GetType().Name, PageEdits.Of(edit, snapshot, _texts, _start.Environment.AltGrKeys));
-        // A refused hotkey says why, as "another hotkey uses it", not only that it cannot be one.
-        return Task.FromResult(
-            result.Hotkey is { } why ? Core.Translations.Texts.Key(why)
-            : result.Refused is { } refused ? Core.Translations.Texts.Key(refused)
-            : null);
+        return Task.FromResult(result.RefusalKey);
     }
 
     public Task Gesture(bool active)

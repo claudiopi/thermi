@@ -116,7 +116,11 @@ public enum Refusal
 /// What an edit gives: valid settings, or the settings it was given and why it could not change them; a hotkey refused
 /// also gives its own reason, as <see cref="Hotkeys.Judge"/> does.
 /// </summary>
-public sealed record EditResult(ThermiConfig Config, Refusal? Refused = null, string? Problem = null, HotkeyRefusal? Hotkey = null);
+public sealed record EditResult(ThermiConfig Config, Refusal? Refused = null, string? Problem = null, HotkeyRefusal? Hotkey = null)
+{
+    /// <summary>Why it was refused, as its text's key: a refused hotkey's own reason, as another hotkey using it, before the refusal.</summary>
+    public string? RefusalKey => Hotkey is { } why ? Texts.Key(why) : Refused is { } refused ? Texts.Key(refused) : null;
+}
 
 /// <summary>
 /// The gate every edit goes through: the window writes only what passes it. Items are found by their id,

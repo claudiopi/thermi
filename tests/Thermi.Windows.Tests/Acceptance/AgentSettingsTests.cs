@@ -150,6 +150,15 @@ public sealed class AgentSettingsTests : IDisposable
         var resting = await _rig.RunAsync("find-cpu-fan");
         Assert.Equal((1, true, 1), (resting.Exit, (int?)resting.Json["runsAgainIn"] > 0, _rig.Loads.Count));
         _rig.Folder.Clock.Advance(TimeSpan.FromMinutes(2));
+
+        // Nor can two runs at once: one another process runs holds the file, and this one rests.
+        var stamp = Path.Combine(Path.GetDirectoryName(_rig.Folder.File)!, "fan-finder-ran.txt");
+        using (File.Open(stamp, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var atOnce = await _rig.RunAsync("find-cpu-fan");
+            Assert.Equal((1, true, 1), (atOnce.Exit, (int?)atOnce.Json["runsAgainIn"] > 0, _rig.Loads.Count));
+        }
+
         if (answers)
         {
             // A PC whose board reports no fan: the finder cannot start, says why, and loads nothing.
@@ -169,7 +178,9 @@ public sealed class AgentSettingsTests : IDisposable
         }
 
         var fan = (string)found.Json["fan"]!;
-        Assert.Equal(ThermiConfigJson.Write(ItemEdits.UseCpuFan(new ThermiConfig(), 0, series[^1], fan).Config), ThermiConfigJson.Write(_rig.Folder.Read()));
+        // The fan is the CPU fan item's, as the window's Use it makes it.
+        var used = ItemEdits.ChangeSensor(new ThermiConfig(), Metrics.CpuFan.Id, series[^1], fan).Config;
+        Assert.Equal(ThermiConfigJson.Write(used), ThermiConfigJson.Write(_rig.Folder.Read()));
 
         // Settings with no CPU fan item to take it: the finder still says which fan it found, and why it was not used.
         var defaults = new ThermiConfig();
@@ -192,6 +203,7 @@ public sealed class AgentSettingsTests : IDisposable
         }
 
         Assert.True(finding.IsCompleted);
+        Assert.Equal(AgentExit.Done, (await finding).Exit);
     }
 
     private static Snapshot Held(Snapshot snapshot, Snapshot before) => snapshot with
