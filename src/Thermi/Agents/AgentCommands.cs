@@ -123,7 +123,6 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
     private AgentFacts Facts(Core.Tray.ServiceState state, bool taken, Snapshot? latest, ConfigProblem? settings) =>
         new(state, environment.Installed(), taken, latest, settings) { Overlay = environment.Overlay(), SensorsOnly = environment.SensorsOnly() };
 
-    // The service's problem, said with its cause and its fix, as status says it.
     private AgentReply Unread(Core.Tray.ServiceState state, bool taken, Snapshot? latest)
     {
         var problem = AgentStatus.Unread(Facts(state, taken, latest, settings: null)) ?? AgentStatus.Said(AgentProblem.ServiceStale);

@@ -62,7 +62,6 @@ public sealed record ThermiValue(string Id, string Source, string Name, string T
     public double? Critical { get; init; }
 }
 
-/// <summary>Every sensor the service reads, by device.</summary>
 public sealed record ThermiSensors(IReadOnlyList<ThermiDevice> Devices)
 {
     public int Schema { get; init; }

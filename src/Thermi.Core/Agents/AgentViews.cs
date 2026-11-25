@@ -90,7 +90,6 @@ public static class AgentViews
         return new SensorsAnswer([.. found.Select(device => new DeviceAnswer(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(Of)]))]);
     }
 
-    /// <summary>An edit's answer: done, or its refusal by key and in English.</summary>
     public static EditAnswer Edited(EditResult result) => result.Refused is { } refused
         ? new EditAnswer(Done: false) { Refusal = Texts.Key(refused), Message = Texts.English.Of(refused) }
         : new EditAnswer(Done: true);

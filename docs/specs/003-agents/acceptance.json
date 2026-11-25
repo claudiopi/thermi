@@ -8,7 +8,7 @@
       ],
       "description": "Given the built thermi-cli, when it is run with config from PowerShell, cmd and Git Bash, each without Start-Process, then the shell waits for it, its JSON is what the shell captured, and its exit code is the shell's; with no command, it prints its help on stderr, exits 2 and starts no overlay.",
       "check": "TheCliWaitsAndAnswersInEveryShell",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A2",
@@ -17,7 +17,7 @@
       ],
       "description": "Given each command and each way it can end (done, refused, bad arguments, no service, broken file), when it runs, then stdout holds one JSON document with schema 1 or nothing, stderr says why it did not finish, and the exit code is 0, 1, 2, 3 or 4 as spec.md lists.",
       "check": "EveryCommandEndsWithItsCode",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A3",
@@ -27,7 +27,7 @@
       ],
       "description": "Given a recorded feed and no overlay or window running, when status, read, sensors, config and edit run, then each answers as with an overlay running, and status says no overlay runs; with the service stopped, stale, or its pipe taken, status says which, and with the no-driver recording, that the driver looks missing.",
       "check": "AgentsNeedNoOverlay",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A4",
@@ -36,7 +36,7 @@
       ],
       "description": "Given the code of every command and of the MCP server, when it is searched, then none reaches the elevated mode, the runas verb, the service manager's start or the driver's install.",
       "check": "AgentsNeverElevate",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A5",
@@ -46,7 +46,7 @@
       ],
       "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item, then those three alone; the CPU fan is the chosen one; each value has its unit; a CPU temperature of 0 in the no-driver recording is null with why; and each item's level and thresholds are what the overlay's layout gives for the same snapshot.",
       "check": "ReadGivesWhatTheOverlayShows",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A6",
@@ -55,7 +55,7 @@
       ],
       "description": "Given a recorded series of 45 s, when read --seconds 10 runs on a fake clock, then each value's minimum, maximum, average and count are those of its 10 samples, a sample it could not read counts in none of them, and 0 or 61 seconds exits 2.",
       "check": "ReadSamplesGiveMinMaxAverage",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A7",
@@ -65,7 +65,7 @@
       ],
       "description": "Given a recording and settings with two overlays, when sensors runs with a search and a type, and config runs, then sensors gives the devices and sensors the window's search finds for them, each with id, name, type, unit and value, and config gives both overlays with every item's id.",
       "check": "SensorsAndConfigAnswerAsTheWindow",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A8",
@@ -74,7 +74,7 @@
       ],
       "description": "Given settings and a recording, when edit runs with an item's name, a threshold, a new overlay and an item added, and then with a threshold whose warning is above its critical and an unknown item, then the first four are written as the window writes them, and each of the others exits 1 with its refusal's key and English text and leaves the file byte for byte.",
       "check": "AgentEditsAreTheWindowsEdits",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A9",
@@ -83,7 +83,7 @@
       ],
       "description": "Given an overlay host running on the test's own settings, when an agent's edit and an overlay drag are written at once, many times, then the file holds both every time, and the overlay paints the agent's change within 1 s.",
       "check": "AgentEditsKeepOthersChanges",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A10",
@@ -92,7 +92,7 @@
       ],
       "description": "Given a settings file broken by hand, when edit runs, then it exits 4 with the problem and the file is unchanged byte for byte.",
       "check": "ABrokenFileRefusesAgentEdits",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A11",
@@ -101,7 +101,7 @@
       ],
       "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, monitors, looks, edit, look, find_cpu_fan, start_with_windows, undo and redo, the first six marked read-only, each answers the command's JSON, and a refused edit or a stopped service is a tool error saying why.",
       "check": "McpToolsAreTheCommands",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A12",
@@ -110,7 +110,7 @@
       ],
       "description": "Given an MCP session that set two items' names, and one of them renamed since by hand, when undo runs twice and redo once, then the other item's name is back, the hand edit stays, and redo sets the other name again.",
       "check": "McpUndoTakesBackOnlyItsOwn",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A13",
@@ -129,7 +129,7 @@
       ],
       "description": "Given a service pipe of the test's own with a session share of 8, four MCP servers that each made a read and wait idle, and three watch commands running, when an overlay's client connects, then it reads; a read --seconds 2 has hung up 2 s after it connected; and watch prints a line a second, each read's document, and ends when its stdin closes.",
       "check": "AgentsNeverHoldThePipe",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A15",
@@ -147,7 +147,7 @@
       ],
       "description": "Given every answer of status, read, sensors and watch that the command tests produce, from every recording and every way they end, when each is validated against the contract's JSON Schemas, then all pass, and the schemas name every field the answers hold.",
       "check": "AnswersKeepTheContract",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A17",
@@ -156,7 +156,7 @@
       ],
       "description": "Given the contract's schemas as the last release shipped them, kept in the tests, when today's answers are validated against them, then every field they had is there with its type and meaning, and --schema 1 answers as before; --schema 0 or one not known exits 2.",
       "check": "TheContractOnlyGrows",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A18",
@@ -165,7 +165,7 @@
       ],
       "description": "Given the SDK package as packed, when its dependencies and files are read, then it depends on nothing beyond .NET, holds no native code and is MIT; and given each Core answer of the recordings, when the SDK reads it, then every value it gives is the answer's.",
       "check": "TheSdkReadsEveryAnswer",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A19",
@@ -174,7 +174,7 @@
       ],
       "description": "Given no thermi-cli on PATH or under Program Files, and then a thermi-cli whose status says the service is not installed, when the SDK reads, then each fails with an error saying so and how to install thermi, and nothing starts but thermi-cli.",
       "check": "TheSdkSaysHowToInstall",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A20",
@@ -201,7 +201,7 @@
       ],
       "description": "Given a settings folder with two saved looks, when looks runs and then look saves overlay 1's look under a new name, wears a saved one on every overlay, renames one to a name taken, exports one, deletes one, and imports the exported text and a broken text, then each changes what the window's same action changes, the taken name and the broken text are refused with their keys, and no file outside the looks' folder is read or written.",
       "check": "AgentLooksAreTheWindowsLooks",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A23",
@@ -210,7 +210,7 @@
       ],
       "description": "Given two monitors of the test's own, when monitors runs and a place edit leaves overlay 1 at a point of the second, then monitors gives both with their ids, bounds and taskbars, and the file holds the overlay off its snap at that point, as OverlayEdits.Drop writes it.",
       "check": "AgentsPlaceOverlaysOnMonitors",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A24",
@@ -219,7 +219,7 @@
       ],
       "description": "Given a recorded series of a CPU load with its fan answering, and one where no fan answers, fed as the pipe would, when find-cpu-fan runs on a fake clock, then the first names that fan and the load ran no longer than the window's finder runs it, the second says why none answered, and with --use the first overlay's CPU fan is that fan, one edit.",
       "check": "AgentsFindTheCpuFan",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A25",
@@ -228,7 +228,7 @@
       ],
       "description": "Given a Run key of the test's own, when start-with-windows runs with off, with nothing and with on, then it writes and reads it as the window's switch does; and on a sensors-only install, it says there is no overlay to start and writes nothing.",
       "check": "AgentsSetStartWithWindows",
-      "passes": false
+      "passes": true
     }
   ]
 }

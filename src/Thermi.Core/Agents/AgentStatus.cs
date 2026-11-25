@@ -8,22 +8,18 @@ namespace Thermi.Core.Agents;
 /// <summary>What stops an agent's answers, each said to the agent with its cause and what a person does about it.</summary>
 public enum AgentProblem
 {
-    /// <summary>No sensor service on this PC.</summary>
     ServiceMissing,
 
-    /// <summary>The service is installed and not running.</summary>
     ServiceStopped,
 
     /// <summary>The service runs and sent nothing for a while.</summary>
     ServiceStale,
 
-    /// <summary>Another program holds the service's pipe.</summary>
     PipeTaken,
 
     /// <summary>A CPU temperature, power or clock of exactly zero.</summary>
     DriverMissing,
 
-    /// <summary>The settings file cannot be used.</summary>
     SettingsBroken,
 }
 

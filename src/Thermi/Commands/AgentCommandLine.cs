@@ -23,7 +23,6 @@ internal enum AgentVerb
     Mcp,
 }
 
-/// <summary>What a saved look's command does.</summary>
 internal enum LookAction
 {
     Wear,
@@ -72,7 +71,6 @@ internal static class AgentCommandLine
         CustomParser = SchemaOf,
     };
 
-    /// <summary>Adds the agents' commands to <paramref name="root"/>, each with what makes its request.</summary>
     public static void Add(RootCommand root, Dictionary<Command, Func<ParseResult, IThermiRequest>> requests)
     {
         root.Options.Add(Schema);
@@ -137,7 +135,6 @@ internal static class AgentCommandLine
         };
     }
 
-    // A saved look worn, saved, renamed, deleted, written out or read in, each by its own subcommand.
     private static Dictionary<Command, Func<ParseResult, IThermiRequest>> LookCommands(out Command look)
     {
         var name = new Argument<string>("name") { Description = "The saved look's name." };

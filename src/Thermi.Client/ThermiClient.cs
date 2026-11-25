@@ -12,7 +12,6 @@ namespace Thermi.Client;
 /// </summary>
 public sealed class ThermiClient
 {
-    /// <summary>Where thermi is installed from.</summary>
 #pragma warning disable S1075 // thermi's own releases, the one page a person who has no thermi yet installs it from.
     public const string InstallUrl = "https://github.com/claudiopi/thermi/releases";
 #pragma warning restore S1075
@@ -28,7 +27,6 @@ public sealed class ThermiClient
     {
     }
 
-    /// <summary>A client of the <c>thermi-cli</c> at <paramref name="path"/>.</summary>
     public ThermiClient(string path)
         : this(() => File.Exists(path) ? path : null, ProcessCli.Instance)
     {
