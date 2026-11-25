@@ -17,8 +17,8 @@ The tools are the commands below, `find-cpu-fan` and `start-with-windows` as `fi
 | Command | What it answers |
 | --- | --- |
 | `status` | Whether the sensor service runs and its data is fresh, whether the driver looks missing, whether an overlay runs, why the settings file cannot be used; each problem with its cause and fix. |
-| `read [ids] [--seconds n]` | Metrics (`cpu.temperature`), sensor ids and items (`item:<id>`), every metric and item when none. With n from 1 to 60, sampled once a second for n seconds, with each value's minimum, maximum and average. |
-| `watch [ids]` | `read`'s document, one line a second, until its stdin closes. |
+| `read [ids] [--seconds n]` | Metrics (`cpu.temperature`), sensor ids and items (`item:<id>`), every metric and item when none. With n, from 1 to 60, sampled once a second for n seconds; from 2 on, each value has its minimum, maximum and average. |
+| `watch [ids]` | `read`'s document, one line a second, until its stdin closes, or until the service goes quiet, which ends it with exit 3. |
 | `sensors [--search text] [--type t]` | Every sensor the service reads, by device, found as the settings window's search finds. |
 | `config` | The settings as thermi reads them. |
 | `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. |

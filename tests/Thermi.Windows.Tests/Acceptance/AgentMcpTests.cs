@@ -71,13 +71,16 @@ public sealed class AgentMcpTests : IDisposable
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         await McpSession.RunAsync(_rig, async session =>
         {
+            // Two edits of one field are two steps, however soon the second comes.
+            Assert.False((await session.CallAsync("edit", Name("cpu.temperature", "First"))).Error);
             Assert.False((await session.CallAsync("edit", Name("cpu.temperature", "Agent's"))).Error);
             Assert.False((await session.CallAsync("edit", Name("cpu.load", "Agent's too"))).Error);
             _rig.Folder.Write(ThermiConfigJson.Write(ItemEdits.Rename(_rig.Folder.Read(), "cpu.load", "By hand").Config));
 
+            var (_, skipped) = await session.CallAsync("undo");
+            Assert.False((bool)McpSession.Answer(skipped)["done"]!);
             Assert.False((await session.CallAsync("undo")).Error);
-            Assert.False((await session.CallAsync("undo")).Error);
-            Assert.Equal((null, "By hand"), (NameOf("cpu.temperature"), NameOf("cpu.load")));
+            Assert.Equal(("First", "By hand"), (NameOf("cpu.temperature"), NameOf("cpu.load")));
 
             Assert.False((await session.CallAsync("redo")).Error);
             Assert.Equal(("Agent's", "By hand"), (NameOf("cpu.temperature"), NameOf("cpu.load")));

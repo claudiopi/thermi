@@ -46,7 +46,7 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Stopped, 3, "read")]
     [InlineData(Ending.Stopped, 3, "sensors")]
     [InlineData(Ending.Broken, 4, "config")]
-    [InlineData(Ending.Broken, 4, "look", "save", "Night", "--overlay", "1")]
+    [InlineData(Ending.Broken, 4, "look", "save", "Night", "--overlay", "0")]
     public async Task EveryCommandEndsWithItsCode(Ending ending, int exit, params string[] args)
     {
         if (ending == Ending.Stopped)

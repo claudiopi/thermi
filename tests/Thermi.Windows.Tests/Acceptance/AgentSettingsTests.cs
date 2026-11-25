@@ -61,6 +61,11 @@ public sealed class AgentSettingsTests : IDisposable
         config = StyleEdits.Wear(config, overlay: null, saved.Named("Calm")!).Config;
         Assert.Equal(ThermiConfigJson.Write(config), ThermiConfigJson.Write(_rig.Folder.Read()));
 
+        using (File.Open(Path.Combine(Looks, "Calm" + StyleFile.Extension), FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            Assert.Equal(1, (await _rig.RunAsync("look", "rename", "Calm", "Quiet")).Exit);
+        }
+
         var taken = await _rig.RunAsync("look", "rename", "Calm", "Loud");
         Assert.Equal((1, Texts.Key(Refusal.StyleNameTaken)), (taken.Exit, (string)taken.Json["refusal"]!));
 

@@ -53,5 +53,16 @@ public sealed class AgentReadTests
             [(Metrics.GpuLoad.Id, ValueSource.Metric), (snapshot.Sensors[0].Id, ValueSource.Sensor), (shown[0].Id, ValueSource.Item)],
             some.Values.Select(value => (value.Id, value.Source)));
         Assert.Equal(["no.such"], some.Unknown);
+
+        // Over a series an address keeps no minimum or average; a sensor an earlier sample had and these lack reads as missing.
+        var facts = new WindowsFacts(TimeSpan.FromHours(1), SystemSensors.AddressOf([192, 168, 1, 2]), DateTimeOffset.UnixEpoch);
+        var networked = SystemSensors.With(snapshot, facts);
+        var dropped = snapshot.Sensors[0].Id;
+        var later = networked with { Sensors = [.. networked.Sensors.Where(sensor => sensor.Id != dropped)] };
+        var address = Assert.Single(AgentReads.Read([networked, later], config, [Metrics.LocalIp.Id]).Values);
+        Assert.Equal(("192.168.1.2", null, null), (address.Text, address.Min, address.Average));
+        var missing = Assert.Single(AgentReads.Read([later], config, [dropped], earlier: snapshot).Values);
+        Assert.Equal((null, NoValue.ReadsNothing), (missing.Value, missing.Why));
+        Assert.Equal([dropped], AgentReads.Read([later], config, [dropped]).Unknown);
     }
 }

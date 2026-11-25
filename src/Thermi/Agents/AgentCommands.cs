@@ -76,9 +76,9 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
                 await line(AgentJson.Write(answer with { At = time.GetUtcNow() }));
             }
         }
-        catch (Exception ex) when ((ex is OperationCanceledException && stop.IsCancellationRequested) || ex is IOException)
+        catch (OperationCanceledException) when (stop.IsCancellationRequested)
         {
-            // Whoever watched stopped listening, by closing stdin or stdout, which is how a watch ends.
+            // Whoever watched stopped listening, which is how a watch ends.
         }
 
         return new AgentReply(AgentExit.Done);

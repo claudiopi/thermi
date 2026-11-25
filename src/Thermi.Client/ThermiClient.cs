@@ -7,8 +7,8 @@ namespace Thermi.Client;
 
 /// <summary>
 /// thermi's sensors as typed values, read by starting <c>thermi-cli</c>, found on <c>PATH</c> or under Program Files, with
-/// the contract's schema 1. It installs nothing: without thermi, or with its service not installed, a call fails with a
-/// <see cref="ThermiException"/> that says so and how to install it.
+/// the contract's schema 1. It installs nothing: without thermi a call fails with a <see cref="ThermiException"/> that says
+/// so and how to install it; with its service not installed, <see cref="StatusAsync"/> lists that problem and a read fails why.
 /// </summary>
 public sealed class ThermiClient
 {

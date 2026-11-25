@@ -20,9 +20,11 @@ internal sealed partial class AgentCommands
     private const int Tries = 3;
 
     /// <summary>Takes back the last edit this session made, where what it wrote is still there.</summary>
-    public Task<AgentReply> UndoAsync() => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName);
+    public Task<AgentReply> UndoAsync() =>
+        StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, back: () => History.Redo(new ThermiConfig()));
 
-    public Task<AgentReply> RedoAsync() => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName);
+    public Task<AgentReply> RedoAsync() =>
+        StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, back: () => History.Undo(new ThermiConfig()));
 
     private async Task<AgentReply> EditAsync(string json, CancellationToken stop)
     {
@@ -155,7 +157,8 @@ internal sealed partial class AgentCommands
         return new AgentReply(AgentExit.Refused, Error: "The settings file stayed locked by another program; nothing was written. Try again.");
     }
 
-    private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name)
+    // A step taken but never written goes back where it was, so the next undo or redo is still that one.
+    private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name, Action back)
     {
         if (step is null)
         {
@@ -179,7 +182,18 @@ internal sealed partial class AgentCommands
                 return new EditResult(replay?.Invoke(config) ?? config);
             },
             keep: false);
-        return reply.Exit == AgentExit.Done ? reply with { Json = AgentJson.Write(new EditAnswer(taken is not null) { Step = said }) } : reply;
+        if (reply.Exit != AgentExit.Done)
+        {
+            if (taken is not null)
+            {
+                back();
+            }
+
+            return reply;
+        }
+
+        // Done only where something was taken back: a step whose every change someone else has since changed takes nothing.
+        return reply with { Json = AgentJson.Write(new EditAnswer(taken is { Applied: > 0 }) { Step = said }) };
     }
 
     // An overlay's look, the first's when none is named, from settings that read well: a broken file's defaults are no one's look.
