@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 
 namespace Thermi.SensorHost.Updates;
@@ -16,9 +17,6 @@ internal static class Unpacker
     public const long MaxBytes = 1L << 30;
 
     public const int MaxEntries = 10_000;
-
-    /// <summary>The programs whose version must be the manifest's, each with its launcher.</summary>
-    public static readonly IReadOnlyList<string> Programs = ["thermi-sensors", "thermi"];
 
     /// <summary>
     /// Null when <paramref name="version"/> is unpacked into its folder, else why it was refused. <paramref name="catalog"/>
@@ -121,7 +119,7 @@ internal static class Unpacker
     // The manifest signs the zip; the programs inside sign what they are, so a manifest cannot relabel an older release.
     private static string? Versions(string fresh, ReleaseVersion version)
     {
-        foreach (var program in Programs)
+        foreach (var program in InstallLayout.Libraries)
         {
             var library = Path.Combine(fresh, program + ".dll");
             var inside = File.Exists(library) ? ReleaseVersion.Parse(FileVersionInfo.GetVersionInfo(library).ProductVersion) : null;
@@ -129,7 +127,10 @@ internal static class Unpacker
             {
                 return $"{program}.dll is version {inside?.ToString() ?? "none"}, not {version}";
             }
+        }
 
+        foreach (var program in InstallLayout.Programs)
+        {
             if (!File.Exists(Path.Combine(fresh, "launchers", program + ".exe")) || !File.Exists(Path.Combine(fresh, program + ".exe")))
             {
                 return $"the zip has no {program}.exe or no launcher for it";

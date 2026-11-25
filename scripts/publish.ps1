@@ -48,6 +48,13 @@ function Publish-Thermi([string]$Out, [string]$Processor, [string]$Version, [str
         dotnet publish $path -c Release -r "win-$Processor" --self-contained true --no-restore -o $Out --nologo -v quiet @properties
         if ($LASTEXITCODE -ne 0) { throw "Publishing $project failed." }
     }
+
+    # Every program and its launcher, as src/Thermi.Core/Install/InstallLayout.cs lists them: an update without one is refused.
+    foreach ($program in 'thermi', 'thermi-cli', 'thermi-sensors') {
+        foreach ($file in "$program.exe", "launchers/$program.exe") {
+            if (-not (Test-Path (Join-Path $Out $file))) { throw "The publish has no $file." }
+        }
+    }
 }
 
 # The MSI of the version published in $Folder, which Windows Installer takes only with a version of numbers alone:

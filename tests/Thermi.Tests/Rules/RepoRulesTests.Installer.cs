@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Thermi.Core.Install;
 
 namespace Thermi.Tests.Rules;
 
@@ -36,6 +37,23 @@ public sealed partial class RepoRulesTests
         Assert.Contains("Set-ItemProperty $installKey -Name SensorsOnly -Value ([int]$SensorsOnly) -Type DWord", script, StringComparison.Ordinal);
         Assert.Contains("Remove-Item $installKey -Recurse", script, StringComparison.Ordinal);
         Assert.Contains("Set-MachinePath ([bool]$From)", script, StringComparison.Ordinal);
+    }
+
+    // thermi's programs, thermi-cli among them, are listed once, by the layout: what an install ends, an update requires
+    // and a publish checks, so none is left running from a folder being replaced or missing from a version.
+    [Fact]
+    public void EveryoneNamesThermisProgramsAsTheLayoutDoes()
+    {
+        var programs = string.Join(", ", InstallLayout.Programs.Select(program => $"'{program}'"));
+        string[] listed = [.. Directory.EnumerateFiles(Path.Combine(Root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => File.ReadAllText(file).Contains("GetProcessesByName(\"thermi", StringComparison.Ordinal))
+            .Select(file => Path.GetRelativePath(Root, file))];
+
+        Assert.Equal(["thermi", "thermi-cli", "thermi-sensors"], InstallLayout.Programs);
+        Assert.Contains($"$programs = {programs}", Read("scripts", "install.ps1"), StringComparison.Ordinal);
+        Assert.Contains("\"`$programs = ", Read("scripts", "install.ps1"), StringComparison.Ordinal);
+        Assert.Contains($"foreach ($program in {programs})", Read("scripts", "publish.ps1"), StringComparison.Ordinal);
+        Assert.Empty(listed);
     }
 
     private static string Read(params string[] path) => File.ReadAllText(Path.Combine([Root, .. path]));

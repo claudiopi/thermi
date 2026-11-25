@@ -1,6 +1,7 @@
 extern alias sensors;
 
 using sensors::Thermi.SensorHost.Updates;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 
 namespace Thermi.Windows.Tests.Updates;
@@ -44,7 +45,7 @@ public sealed class SwitchCutTests
         await using var pc = new UpdatePc();
         pc.Lay(UpdatePc.Built);
         pc.Folder().Write(SwitchHealth.Begin(pc.State with { Ready = UpdatePc.Built }, UpdatePc.Built));
-        var placed = Unpacker.Programs[0];
+        const string placed = "thermi-sensors";
         File.Copy(Path.Combine(pc.Top, UpdatePc.Built.ToString(), "launchers", placed + ".exe"), Path.Combine(pc.Top, placed + ".exe"), overwrite: true);
 
         // An overlay that runs from the launcher at the top, which Windows lets be renamed but not deleted or rewritten.
@@ -56,7 +57,7 @@ public sealed class SwitchCutTests
         updater.Started();
 
         Assert.Equal(started, pc.State.Installed);
-        Assert.All(Unpacker.Programs, program => Assert.Equal(UpdatePc.Launcher(program, started), pc.LauncherAtTop(program)));
+        Assert.All(InstallLayout.Programs, program => Assert.Equal(UpdatePc.Launcher(program, started), pc.LauncherAtTop(program)));
         Assert.Equal(before, Text(running));
         Assert.Equal([UpdatePc.Running, UpdatePc.Built], pc.Versions);
     }

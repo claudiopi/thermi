@@ -123,7 +123,7 @@ internal sealed class WindowsSetup : ISystemSetup
 
     public void EndPrograms(string top)
     {
-        foreach (var program in Process.GetProcessesByName("thermi").Concat(Process.GetProcessesByName("thermi-sensors")))
+        foreach (var program in InstallLayout.Programs.SelectMany(Process.GetProcessesByName))
         {
             using (program)
             {

@@ -27,6 +27,8 @@ $ErrorActionPreference = 'Stop'
 $target = Join-Path $env:ProgramFiles 'thermi'
 $service = 'thermi-sensors'
 $elevatedService = 'thermi-elevated'
+# thermi's programs, as src/Thermi.Core/Install/InstallLayout.cs lists them: each runs from the folder and holds its files.
+$programs = 'thermi', 'thermi-cli', 'thermi-sensors'
 # The settings window's "Start with Windows" switches this same value (src/Thermi/Ui/StartWithWindows.cs), and
 # Task Manager's Startup tab turns it off in the second key without deleting it.
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -37,11 +39,11 @@ $machineEnvironment = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\En
 # PawnIO's own uninstall entry, where the sensor library looks for the driver too.
 $driverKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO'
 
-# The thermi this installer started, which holds its files; one started elevated only the elevated step can see. Each
-# is asked to close first, as its tray's "Exit thermi" asks, so its tray icon goes with it and a settings write still
-# waiting lands; one still running 5 s later is ended.
+# The thermi and thermi-cli that hold the folder's files; one started elevated only the elevated step can see. Each is
+# asked to close first, as its tray's "Exit thermi" asks, so its tray icon goes with it and a settings write still
+# waiting lands; one still running 5 s later is ended, as an agent's thermi-cli, which has no window to close.
 function Stop-Overlay {
-    $running = @(Get-Process thermi -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" })
+    $running = @(Get-Process ($programs -ne $service) -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" })
     if (-not $running) { return }
     if (-not ('ThermiInstall.Windows' -as [type])) {
         Add-Type -Namespace ThermiInstall -Name Windows -MemberDefinition (
@@ -96,8 +98,12 @@ function Remove-Thermi {
             throw "$sensors --remove failed (exit code $LASTEXITCODE). A thermi from before version folders needs this build installed first."
         }
     }
-    Get-Process thermi, thermi-sensors -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" } | Wait-Process -Timeout 30
-    if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+    Get-Process $programs -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$target\*" } | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+    # What is still held stays, said, and the rest of the removal goes on: the PATH, the install's value, the profile.
+    if (Test-Path $target) {
+        Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable held
+        if ($held) { Write-Warning "Some of $target was in use and stays: delete it once nothing runs from it." }
+    }
 }
 
 # The settings window is a page in WebView2 (docs/adr/0007-settings-window-in-webview2-and-react.md), whose Evergreen
@@ -246,6 +252,7 @@ function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [
         "`$target = $(& $quoted $target)"
         "`$service = $(& $quoted $service)"
         "`$elevatedService = $(& $quoted $elevatedService)"
+        "`$programs = $(($programs | ForEach-Object { & $quoted $_ }) -join ', ')"
         "`$installKey = $(& $quoted $installKey)"
         "`$machineEnvironment = $(& $quoted $machineEnvironment)"
         "`$driverKey = $(& $quoted $driverKey)"

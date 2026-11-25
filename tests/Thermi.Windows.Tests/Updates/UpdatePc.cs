@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost.Updates;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 
 namespace Thermi.Windows.Tests.Updates;
@@ -89,7 +90,7 @@ internal sealed class UpdatePc : IAsyncDisposable
     public void Lay(ReleaseVersion version)
     {
         Directory.CreateDirectory(Path.Combine(Top, version.ToString(), "launchers"));
-        foreach (var program in Unpacker.Programs)
+        foreach (var program in InstallLayout.Programs)
         {
             File.WriteAllText(Path.Combine(Top, version.ToString(), program + ".exe"), $"{program} {version}");
             File.WriteAllText(Path.Combine(Top, version.ToString(), "launchers", program + ".exe"), Launcher(program, version));
@@ -148,9 +149,13 @@ internal sealed class UpdatePc : IAsyncDisposable
         using var bytes = new MemoryStream();
         using (var zip = new ZipArchive(bytes, ZipArchiveMode.Create, leaveOpen: true))
         {
-            foreach (var program in Unpacker.Programs)
+            foreach (var library in InstallLayout.Libraries)
             {
-                zip.CreateEntryFromFile(Path.Combine(AppContext.BaseDirectory, program + ".dll"), program + ".dll");
+                zip.CreateEntryFromFile(Path.Combine(AppContext.BaseDirectory, library + ".dll"), library + ".dll");
+            }
+
+            foreach (var program in InstallLayout.Programs)
+            {
                 Write(zip, program + ".exe", $"{program} {version}");
                 Write(zip, $"launchers/{program}.exe", Launcher(program, version));
             }

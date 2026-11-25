@@ -16,7 +16,16 @@ public static class InstallLayout
     // The start of the folder scripts/install.ps1 copies a build to before it adopts it.
     private const string InstallPrefix = "install-";
 
-    public static IReadOnlyList<string> Launchers => ["thermi.exe", "thermi-cli.exe", "thermi-sensors.exe"];
+    /// <summary>
+    /// thermi's programs, by their process names: the overlay and its window, the agents' console door to the same
+    /// thermi.dll, and the sensors. Each is in every version's folder and has its launcher at the top.
+    /// </summary>
+    public static IReadOnlyList<string> Programs => ["thermi", "thermi-cli", "thermi-sensors"];
+
+    /// <summary>The programs' libraries, each carrying the version: thermi-cli runs thermi's.</summary>
+    public static IReadOnlyList<string> Libraries => ["thermi", "thermi-sensors"];
+
+    public static IReadOnlyList<string> Launchers => [.. Programs.Select(program => program + ".exe")];
 
     /// <summary>Whether <paramref name="own"/> is a folder an install runs from in <paramref name="top"/>: the MSI's, the script's or a version's.</summary>
     public static bool InstallsFrom(string own, string top)

@@ -69,7 +69,7 @@ internal static class MachineMove
     /// <summary>Whether a thermi program still runs from the per-user folder, which its removal would have to end.</summary>
     public static bool PerUserRuns()
     {
-        var programs = Process.GetProcessesByName("thermi").Concat(Process.GetProcessesByName("thermi-sensors")).ToList();
+        var programs = InstallLayout.Programs.SelectMany(Process.GetProcessesByName).ToList();
         try
         {
             return programs.Any(RunsFromPerUser);
