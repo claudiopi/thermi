@@ -29,11 +29,11 @@ $service = 'thermi-sensors'
 $elevatedService = 'thermi-elevated'
 # thermi's programs, as src/Thermi.Core/Install/InstallLayout.cs lists them: each runs from the folder and holds its files.
 $programs = 'thermi', 'thermi-cli', 'thermi-sensors'
-# The settings window's "Start with Windows" switches this same value (src/Thermi/Ui/StartWithWindows.cs), and
+# The settings window's "Start with Windows" switches this same value (src/Thermi.Windows/Ui/StartWithWindows.cs), and
 # Task Manager's Startup tab turns it off in the second key without deleting it.
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $approvedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
-# What was installed, which thermi-cli reads to say there is no overlay to start (src/Thermi/Agents/AgentEnvironment.cs).
+# What was installed, which thermi-cli reads to say there is no overlay to start (src/Thermi.Windows/Agents/AgentEnvironment.cs).
 $installKey = 'HKLM:\SOFTWARE\thermi'
 $machineEnvironment = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
 # PawnIO's own uninstall entry, where the sensor library looks for the driver too.

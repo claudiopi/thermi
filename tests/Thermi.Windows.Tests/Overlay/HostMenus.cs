@@ -1,6 +1,6 @@
 using Thermi.Core.Tray;
-using Thermi.Overlay;
-using Thermi.Tray;
+using Thermi.Windows.Overlay;
+using Thermi.Windows.Tray;
 
 namespace Thermi.Windows.Tests.Overlay;
 

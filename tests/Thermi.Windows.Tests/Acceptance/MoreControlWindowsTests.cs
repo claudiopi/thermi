@@ -3,7 +3,7 @@ using System.Globalization;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Painting;
+using Thermi.Windows.Painting;
 using Windows.Win32.Foundation;
 
 namespace Thermi.Windows.Tests.Acceptance;

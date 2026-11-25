@@ -1,5 +1,5 @@
 using Microsoft.Web.WebView2.Core;
-using Thermi.Ui.Web;
+using Thermi.Windows.Ui.Web;
 
 namespace Thermi.Windows.Tests.Window;
 

@@ -4,10 +4,10 @@ using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Overlay;
-using Thermi.Ui;
-using Thermi.Ui.Editor;
-using Thermi.Ui.Web;
+using Thermi.Windows.Overlay;
+using Thermi.Windows.Ui;
+using Thermi.Windows.Ui.Editor;
+using Thermi.Windows.Ui.Web;
 
 namespace Thermi.Windows.Tests;
 

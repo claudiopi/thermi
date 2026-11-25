@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 using Thermi.Core.Install;
-using Thermi.Ui;
+using Thermi.Windows.Ui;
 
 namespace Thermi.Windows.Tests.Window;
 

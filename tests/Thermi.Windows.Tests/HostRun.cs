@@ -1,7 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Sensors;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 

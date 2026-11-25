@@ -20,9 +20,9 @@ On the author's PC, two tools and three scheduled tasks do what thermi should do
 
 ## Design
 
-- `src/Thermi.SensorHost`: the `thermi-sensors` service (`docs/adr/0003-sensor-service.md`).
+- `src/Thermi.Sensors.Windows`: the `thermi-sensors` service (`docs/adr/0003-sensor-service.md`).
 - `src/Thermi.Core`: sensor mapping, config, layout and the pipe's line format, all tested without Windows.
-- `src/Thermi`: the overlay, a layered Win32 window painted with GDI+, staying above the taskbar as `docs/adr/0004-above-the-taskbar.md` says.
+- `src/Thermi.Windows`: the overlay, a layered Win32 window painted with GDI+, staying above the taskbar as `docs/adr/0004-above-the-taskbar.md` says.
 - `scripts/install.ps1`: builds as the user, then installs and registers the service with one UAC prompt.
 - Rejected: a WPF window for the overlay. It costs about 60 MB and a slower start for something that only paints a strip of text; WPF waits for the settings window.
 

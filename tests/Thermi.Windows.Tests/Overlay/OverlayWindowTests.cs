@@ -1,6 +1,6 @@
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 

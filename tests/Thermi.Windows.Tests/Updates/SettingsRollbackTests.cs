@@ -1,5 +1,5 @@
 using Thermi.Core.Settings;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Updates;
 

@@ -1,8 +1,9 @@
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Gestures;
-using Thermi.Overlay;
+using Thermi.Windows.Gestures;
+using Thermi.Windows.Overlay;
+using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;

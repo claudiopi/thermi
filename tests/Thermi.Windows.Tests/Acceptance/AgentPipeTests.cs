@@ -4,15 +4,16 @@ using System.IO.Pipes;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.SensorHost;
-using Thermi.Agents;
-using Thermi.Commands;
+using sensors::Thermi.Sensors.Windows;
 using Thermi.Core.Agents;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Overlay;
-using Thermi.Ui;
-using Thermi.Windows.Tests.SensorHost;
+using Thermi.Windows.Agents;
+using Thermi.Windows.Commands;
+using Thermi.Windows.Overlay;
+using Thermi.Windows.Tests.Sensors;
+using Thermi.Windows.Ui;
+using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Tests.Acceptance;
 

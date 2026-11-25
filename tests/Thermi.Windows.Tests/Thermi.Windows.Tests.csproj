@@ -8,7 +8,7 @@
     <!-- CsWin32 needs it, for the calls only the tests make. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CsWin32PlatformTarget>x64</CsWin32PlatformTarget>
-    <!-- thermi's oldest Windows, said in TestWindows.cs as Thermi.csproj says why. -->
+    <!-- thermi's oldest Windows, said in TestWindows.cs as Thermi.Windows.csproj says why. -->
     <GenerateSupportedOSPlatformAttribute>false</GenerateSupportedOSPlatformAttribute>
   </PropertyGroup>
 
@@ -47,10 +47,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Thermi\Thermi.csproj" />
+    <ProjectReference Include="..\..\src\Thermi.Windows\Thermi.Windows.csproj" />
     <!-- Both thermi and thermi-sensors show the tests their own CsWin32 types, so the service's sit behind an alias,
          or the tests' own generated code could not tell the two apart. -->
-    <ProjectReference Include="..\..\src\Thermi.SensorHost\Thermi.SensorHost.csproj" Aliases="sensors" />
+    <ProjectReference Include="..\..\src\Thermi.Sensors.Windows\Thermi.Sensors.Windows.csproj" Aliases="sensors" />
   </ItemGroup>
 
 </Project>

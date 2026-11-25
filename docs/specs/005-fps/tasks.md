@@ -20,7 +20,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 ## B2: The service
 
-- [x] **T8** Covers R3, R10, R11: the ETW session in a new folder, `Frames`, of `src/Thermi.SensorHost`, started with the first read and stopped 5 s after the last, a stale one stopped first, no free session logged and tried again a minute later; the slots in each read.
+- [x] **T8** Covers R3, R10, R11: the ETW session in a new folder, `Frames`, of `src/Thermi.Sensors.Windows`, started with the first read and stopped 5 s after the last, a stale one stopped first, no free session logged and tried again a minute later; the slots in each read.
 
 ## B3: The overlay and the window
 

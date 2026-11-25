@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Overlay;
 

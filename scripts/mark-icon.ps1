@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    Draws the program's icon, src/Thermi/thermi.ico, from thermi's mark, with the tray's own painter, at every size
+    Draws the program's icon, src/Thermi.Windows/thermi.ico, from thermi's mark, with the tray's own painter, at every size
     Windows shows a program's icon at. Run it after changing the mark: the build embeds the file as thermi.exe's icon,
     and TrayIconsTests.TheProgramsIconIsTheMark fails while the file is not the mark.
 #>
@@ -15,4 +15,4 @@ try {
 finally {
     Remove-Item Env:THERMI_WRITE_ICON
 }
-Write-Host "ok   $(Join-Path $root 'src' 'Thermi' 'thermi.ico')"
+Write-Host "ok   $(Join-Path $root 'src' 'Thermi.Windows' 'thermi.ico')"

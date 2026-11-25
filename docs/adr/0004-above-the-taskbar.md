@@ -8,7 +8,7 @@ Sitting on the taskbar is the main use of thermi. Windows 11 lifts the taskbar o
 
 ## Decision
 
-- Windows reports every change in the order of windows. When one leaves a taskbar above the overlay, the overlay goes back on top at once (`src/Thermi/Windows/Topmost.cs`). The once-per-second tick looks too, as a safety net, and raises it on the same condition: a taskbar above it.
+- Windows reports every change in the order of windows. When one leaves a taskbar above the overlay, the overlay goes back on top at once (`src/Thermi.Windows/Win32/Topmost.cs`). The once-per-second tick looks too, as a safety net, and raises it on the same condition: a taskbar above it.
 - It reacts only to taskbars, never to other windows: two always-on-top apps answering each other would fight forever.
 - When Explorer restarts or the monitors change, the overlay goes back on top, and onto a screen if its monitor is gone.
 - **For 1.0**: the signed build sets `uiAccess="true"` in its manifest. Windows then puts the overlay in a layer above the taskbar (the one the Magnifier uses) and the re-raising becomes a fallback. It requires a signed binary under Program Files, which the installer provides.

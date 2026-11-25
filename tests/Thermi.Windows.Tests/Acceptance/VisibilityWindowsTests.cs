@@ -2,7 +2,7 @@ using System.Globalization;
 using Thermi.Core;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Acceptance;
 

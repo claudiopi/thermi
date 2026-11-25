@@ -1,4 +1,4 @@
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 using Windows.Win32.UI.Shell;
 
 namespace Thermi.Windows.Tests;

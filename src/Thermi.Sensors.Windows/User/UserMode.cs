@@ -1,0 +1,287 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using Thermi.Core.Frames;
+using Thermi.Core.Install;
+using Thermi.Core.Sensors;
+using Thermi.Core.Updates;
+using Thermi.Sensors.Windows.Install;
+using Thermi.Sensors.Windows.Updates;
+
+namespace Thermi.Sensors.Windows.User;
+
+/// <summary>
+/// <c>thermi-sensors --user</c>: the sensors as the user, when the service is not installed
+/// (docs/adr/0016-admin-on-demand.md). A hidden process of the user's that serves the pipe named for the user's SID while an
+/// overlay or window reads it, ends 10 s after the last one left, so it never outlives what it serves, and in a per-user install
+/// updates it as the service does.
+/// </summary>
+internal static class UserMode
+{
+    /// <summary>The exit code of a host that found one of its events already made: someone else could steer it at will.</summary>
+    public const int Taken = 3;
+
+    /// <summary>The event that ends the host, which a switch's watchdog sets.</summary>
+    public const string StopEvent = "stop";
+
+    public static readonly TimeSpan FirstClient = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// How long the host stays once its last client left: a switch's watchdog reads the new host and leaves before the
+    /// overlay comes back to it.
+    /// </summary>
+    public static readonly TimeSpan Linger = TimeSpan.FromSeconds(10);
+
+    // ADR 0008's codes, each an event of its own, since an event carries no data to parse.
+    private static readonly int[] Codes = [UpdateSchedule.QuietCode, UpdateSchedule.CheckCode, UpdateSchedule.RestartCode, InstallForEveryone.Code];
+
+    private static readonly TimeSpan Tick = TimeSpan.FromSeconds(1);
+
+    public static string PipeOf(string pipeName, SecurityIdentifier user) => UserHost.PipeOf(pipeName, user.Value);
+
+    public static async Task<int> RunAsync(SensorHostEnvironment environment, CancellationToken stop)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var user = identity.User!;
+        var pipe = PipeOf(environment.PipeName, user);
+        var log = new FileLog(environment.UserLog, environment.Time);
+        var events = Events(pipe, user);
+        try
+        {
+            if (events.Any(each => each.Handle is null))
+            {
+                log.Say($"One of the {pipe} events is already made, by another host of this user's or another program, so this host does not run.",
+                    EventLogEntryType.Warning);
+                return Taken;
+            }
+
+            return await ServeAsync(environment, pipe, user, log, events, stop);
+        }
+        finally
+        {
+            events.ForEach(each => each.Handle?.Dispose());
+        }
+    }
+
+    /// <summary>The watchdog of a per-user switch, run as the user: the same as the service's, on the user's host.</summary>
+    public static async Task<int> WatchAsync(ReleaseVersion to, SensorHostEnvironment environment, CancellationToken stop)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var user = identity.User!;
+        var pipe = PipeOf(environment.PipeName, user);
+        var log = new FileLog(environment.UserLog, environment.Time);
+        var folder = InstallFolder.Of(AppContext.BaseDirectory, UpdateBuild.Of(typeof(UserMode).Assembly).Version, FolderAccess.ForUser(user));
+        return folder is null
+            ? 2
+            : await new Switcher(folder, environment.Time, log.Say, shown: UserSetup.Show, target: each => new UserTarget(each, pipe, user))
+                .WatchAsync(to, pipe, stop);
+    }
+
+    /// <summary>A per-user install's: its folder only the user, SYSTEM and administrators write, and no service to register.</summary>
+    public static Installation Installation(string top, SensorHostEnvironment environment)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var user = identity.User!;
+        var folder = new InstallFolder(top, FolderAccess.ForUser(user));
+        return new Installation(folder, new UserSetup(folder, PipeOf(environment.PipeName, user), user), environment.Time, environment.Error.WriteLine);
+    }
+
+    private static async Task<int> ServeAsync(
+        SensorHostEnvironment environment, string pipe, SecurityIdentifier user, FileLog log, List<HostEvent> events, CancellationToken stop)
+    {
+        var time = environment.Time;
+        var build = UpdateBuild.Of(typeof(UserMode).Assembly);
+        var folder = PerUser(InstallFolder.Of(AppContext.BaseDirectory, build.Version, FolderAccess.ForUser(user)));
+        using var client = new ManifestClient(time);
+        using var updater = folder is null ? null : new Updater(build, folder, client, time, log.Say, target: each => new UserTarget(each, pipe, user));
+        var machine = folder is null || updater is null ? null : new MachineInstaller(build, folder, client, UpdateHost.Windows, time, log, updater.Busy);
+        using var source = environment.Open(
+            (device, took, error) => log.Say($"{device} took {took}: {error?.Message}", EventLogEntryType.Warning), DeviceUpdates.Patience);
+        using var server = new SensorPipeServer(async ct => WithoutRights(await source.ReadAsync(ct)), time, pipe, SensorPipeServer.ForUser(user))
+        {
+            Squatted = () => log.Say($"Another program holds the {pipe} pipe, so this host serves nothing until it closes it.", EventLogEntryType.Warning),
+        };
+        using var done = CancellationTokenSource.CreateLinkedTokenSource(stop);
+        Act(updater, log, updates => updates.Started());
+
+        // Windows ends the process right after: the mark is written now, or the end counts as a crash.
+        using var session = environment.SessionEnds?.Invoke(
+            () => Act(updater, log, updates => updates.Stopped()), failed => log.Say(failed, EventLogEntryType.Warning));
+        var waits = events.Select(each => Listen(each, new Steering(updater, machine, log), done)).ToList();
+        try
+        {
+            var updating = updater?.RunAsync(done.Token) ?? Task.CompletedTask;
+            var serving = server.RunAsync(done.Token);
+            await WhileReadAsync(server, () => machine?.Running == true, time, done);
+            await serving;
+            await updating.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        }
+        finally
+        {
+            // Each callback under way finishes first, so none cancels what is disposed.
+            foreach (var wait in waits)
+            {
+                using var unregistered = new ManualResetEvent(false);
+                if (wait.Unregister(unregistered))
+                {
+                    unregistered.WaitOne();
+                }
+            }
+        }
+
+        // A run that ends without the mark counts as a crash, by ADR 0008's rule.
+        Act(updater, log, updates => updates.Stopped());
+        return 0;
+    }
+
+    private static async Task WhileReadAsync(SensorPipeServer server, Func<bool> installing, TimeProvider time, CancellationTokenSource done)
+    {
+        var started = time.GetTimestamp();
+        var read = false;
+        using var timer = new PeriodicTimer(Tick, time);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(done.Token))
+            {
+                if (server.Clients > 0)
+                {
+                    read = true;
+                    started = time.GetTimestamp();
+                }
+                else if (time.GetElapsedTime(started) >= (read ? Linger : FirstClient) && !installing())
+                {
+                    await done.CancelAsync();
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Ended by the stop event, the caller, or no one left to read.
+        }
+    }
+
+    private static RegisteredWaitHandle Listen(HostEvent hostEvent, Steering steering, CancellationTokenSource done) =>
+        ThreadPool.RegisterWaitForSingleObject(
+            hostEvent.Handle!,
+            (_, _) =>
+            {
+                if (hostEvent.Code is not { } code)
+                {
+                    // Off this thread: what the cancel completes inline would otherwise wait for this very callback to return.
+                    _ = Task.Run(() => End(done), CancellationToken.None);
+                }
+                else if (!done.IsCancellationRequested)
+                {
+                    var token = done.Token;
+                    _ = Task.Run(() => TellAsync(steering, code, done, token), CancellationToken.None);
+                }
+            },
+            null,
+            Timeout.Infinite,
+            executeOnlyOnce: false);
+
+    private static async Task TellAsync(Steering steering, int code, CancellationTokenSource done, CancellationToken stop)
+    {
+        if (steering.Updater is not { } updater || steering.Machine is not { } machine)
+        {
+            return;
+        }
+
+        switch (code)
+        {
+            case InstallForEveryone.Code:
+                // The service serves now: its clients, the window's included, come back to it once this host is gone, which
+                // ends before the updater's lock is let go, so no switch begins after.
+                await machine.RunAsync(MachineInstaller.MsiexecAsync, stop, worked: () => End(done));
+                break;
+            case UpdateSchedule.CheckCode:
+                await updater.AskedAsync(stop);
+                break;
+            case UpdateSchedule.RestartCode:
+                await updater.RestartAsync(stop);
+                break;
+            default:
+                Act(updater, steering.Log, updates => updates.Quiet());
+                break;
+        }
+    }
+
+    private static void End(CancellationTokenSource done)
+    {
+        try
+        {
+            done.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The host ended meanwhile.
+        }
+    }
+
+    // A per-user install's alone: a machine install whose service is missing, started as the user, updates nothing and offers
+    // no install for everyone over itself.
+    // The user's host has no rights to trace presents, so its frames say what reads them: thermi installed for everyone.
+    private static Snapshot WithoutRights(Snapshot snapshot) => snapshot with { Sensors = [.. snapshot.Sensors, .. FrameSlots.WithoutRights()] };
+
+    private static InstallFolder? PerUser(InstallFolder? folder) =>
+        folder is not null && UserHost.PerUserInstall(folder.Top, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)) ? folder : null;
+
+    // What the updater meets is written to the log and never ends the host.
+    private static void Act(Updater? updater, FileLog log, Action<Updater> step)
+    {
+        try
+        {
+            if (updater is not null)
+            {
+                step(updater);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            log.Say($"thermi's update step failed: {ex.Message}", EventLogEntryType.Warning);
+        }
+    }
+
+    // The stop event and one per code, each the host's own; a handle is null when its name was already there.
+#pragma warning disable CA2000 // The caller disposes every handle in its finally.
+    private static List<HostEvent> Events(string pipe, SecurityIdentifier user) =>
+        [
+            new(null, Event(UserHost.EventOf(pipe, StopEvent), user)),
+            .. Codes.Select(code => new HostEvent(code, Event(UserHost.EventOf(pipe, code.ToString(CultureInfo.InvariantCulture)), user))),
+        ];
+#pragma warning restore CA2000
+
+    private static EventWaitHandle? Event(string name, SecurityIdentifier user)
+    {
+        var security = new EventWaitHandleSecurity();
+        security.AddAccessRule(new EventWaitHandleAccessRule(user, EventWaitHandleRights.FullControl, AccessControlType.Allow));
+        EventWaitHandle handle;
+        bool made;
+        try
+        {
+#pragma warning disable CA2000 // Returned to the caller, which disposes it; one already there is disposed here.
+            handle = EventWaitHandleAcl.Create(false, EventResetMode.AutoReset, name, out made, security);
+#pragma warning restore CA2000
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+        {
+            // Made first by someone who shut this user out, or not an event at all: taken all the same.
+            return null;
+        }
+
+        if (made)
+        {
+            return handle;
+        }
+
+        handle.Dispose();
+        return null;
+    }
+
+    /// <summary>One of the host's events: the stop, with no code, one of ADR 0008's codes, or "install for everyone".</summary>
+    private sealed record HostEvent(int? Code, EventWaitHandle? Handle);
+
+    /// <summary>What the events steer, both null outside a per-user install.</summary>
+    private sealed record Steering(Updater? Updater, MachineInstaller? Machine, FileLog Log);
+}

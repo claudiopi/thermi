@@ -13,9 +13,9 @@ public sealed partial class RepoRulesTests
     {
         string[] agents =
         [
-            Path.Combine("src", "Thermi", "Agents"),
+            Path.Combine("src", "Thermi.Windows", "Agents"),
             Path.Combine("src", "Thermi.Core", "Agents"),
-            Path.Combine("src", "Thermi", "Commands", "AgentCommandLine.cs"),
+            Path.Combine("src", "Thermi.Windows", "Commands", "AgentCommandLine.cs"),
         ];
         var reached = RepoFiles([".cs"])
             .Where(path => agents.Any(part => Relative(path).StartsWith(part, StringComparison.Ordinal)))

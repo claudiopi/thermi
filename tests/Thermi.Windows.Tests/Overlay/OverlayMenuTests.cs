@@ -1,12 +1,13 @@
 using System.Drawing;
 using System.Drawing.Imaging;
-using Thermi.Commands;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Overlay;
+using Thermi.Windows.Commands;
+using Thermi.Windows.Overlay;
 using Thermi.Windows.Tests.Window;
+using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
 

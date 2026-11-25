@@ -10,7 +10,7 @@ A second `thermi` started while one runs never makes a second overlay: it finds 
 
 ## Decision
 
-- The overlay process, and only it, registers with Windows Error Reporting's `RegisterApplicationRestart` once it holds the overlay's mutex (`src/Thermi/Windows/CrashRestart.cs`). `thermi settings`, `preview`, `cpu-load` and the elevated mode never register.
+- The overlay process, and only it, registers with Windows Error Reporting's `RegisterApplicationRestart` once it holds the overlay's mutex (`src/Thermi.Windows/Win32/CrashRestart.cs`). `thermi settings`, `preview`, `cpu-load` and the elevated mode never register.
 - It is restarted with the command line it ran with: none, or `--trace` when it traced, so a traced overlay that crashed traces again. Windows adds the executable itself.
 - Windows restarts it after an unhandled error and after a hang that ended it, but only once it had run 60 s, which Windows enforces: an overlay that fails as it starts is not started over and over.
 - It passes `RESTART_NO_PATCH` and `RESTART_NO_REBOOT`: it is not restarted when an installer closes it to update thermi, since `scripts/install.ps1` starts the installed overlay itself, nor when Windows restarts for an update, since the Run key starts it at sign-in. Either restart would be a second thermi, which opens the window.

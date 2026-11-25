@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.SensorHost.Updates;
+using sensors::Thermi.Sensors.Windows.Updates;
 using Thermi.Core.Install;
 using Thermi.Core.Updates;
 

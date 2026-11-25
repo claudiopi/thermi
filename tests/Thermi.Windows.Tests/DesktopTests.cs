@@ -1,3 +1,5 @@
+using Thermi.Windows.Win32;
+
 namespace Thermi.Windows.Tests;
 
 /// <summary>The monitors as the snap math gets them from Windows.</summary>

@@ -3,8 +3,8 @@ extern alias sensors;
 using System.Diagnostics;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using sensors::Thermi.SensorHost.Updates;
-using sensors::Thermi.SensorHost.User;
+using sensors::Thermi.Sensors.Windows.Updates;
+using sensors::Thermi.Sensors.Windows.User;
 using Thermi.Core.Updates;
 
 namespace Thermi.Windows.Tests.Updates;
@@ -238,7 +238,7 @@ public sealed class UpdaterTests
         Assert.Equal(2, pc.Events.Count - before);
     }
 
-    private static async Task<int> LoggedAsync(UpdatePc pc, sensors::Thermi.SensorHost.Updates.Updater updater, Manifest manifest)
+    private static async Task<int> LoggedAsync(UpdatePc pc, sensors::Thermi.Sensors.Windows.Updates.Updater updater, Manifest manifest)
     {
         pc.Publish(manifest);
         var before = pc.Events.Count;
@@ -246,7 +246,7 @@ public sealed class UpdaterTests
         return pc.Events.Count - before;
     }
 
-    private static async Task<(sensors::Thermi.SensorHost.Updates.UpdateBuild Build, bool Trusted)> ServeAsync(UpdatePc pc, string wrong)
+    private static async Task<(sensors::Thermi.Sensors.Windows.Updates.UpdateBuild Build, bool Trusted)> ServeAsync(UpdatePc pc, string wrong)
     {
         var zip = pc.Zip(UpdatePc.Built);
         var offer = pc.Offer(UpdatePc.Built, zip);

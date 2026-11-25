@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using Thermi.Logging;
+using Thermi.Windows.Logging;
 
 namespace Thermi.Windows.Tests;
 

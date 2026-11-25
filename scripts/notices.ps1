@@ -197,8 +197,8 @@ function Format-Texts($Rows) {
     }
 }
 
-$sensors = @(Get-NuGetRows 'Thermi.SensorHost')
-$thermi = @(Get-NuGetRows 'Thermi')
+$sensors = @(Get-NuGetRows 'Thermi.Sensors.Windows')
+$thermi = @(Get-NuGetRows 'Thermi.Windows')
 $msis = @(Get-NuGetRows 'Thermi.Installer')
 $page = @(Get-NpmRows)
 # Each library and version once, in one order, so the text a license shows, its first library's, is the same on every run.

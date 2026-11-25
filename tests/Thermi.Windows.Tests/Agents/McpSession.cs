@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Thermi.Agents;
+using Thermi.Windows.Agents;
 
 namespace Thermi.Windows.Tests.Agents;
 

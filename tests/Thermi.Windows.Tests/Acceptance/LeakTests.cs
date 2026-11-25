@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO.Pipes;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.SensorHost;
+using sensors::Thermi.Sensors.Windows;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Acceptance;
 

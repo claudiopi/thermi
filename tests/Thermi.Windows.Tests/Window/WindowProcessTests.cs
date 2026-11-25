@@ -1,7 +1,7 @@
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Ui;
-using Thermi.Ui.Web;
+using Thermi.Windows.Ui;
+using Thermi.Windows.Ui.Web;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;

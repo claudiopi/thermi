@@ -4,7 +4,7 @@ using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Painting;
+using Thermi.Windows.Painting;
 
 namespace Thermi.Windows.Tests;
 

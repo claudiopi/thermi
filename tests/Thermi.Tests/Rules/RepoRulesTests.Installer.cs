@@ -12,25 +12,25 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void EveryoneNamesTheServicesAsTheirOwnCodeDoes()
     {
-        var sensors = Name(Read("src", "Thermi.SensorHost", "Program.cs"));
-        var elevated = Name(Read("src", "Thermi.SensorHost", "ElevatedService.cs"));
-        var installation = Read("src", "Thermi.SensorHost", "Install", "Installation.cs");
+        var sensors = Name(Read("src", "Thermi.Sensors.Windows", "Program.cs"));
+        var elevated = Name(Read("src", "Thermi.Sensors.Windows", "ElevatedService.cs"));
+        var installation = Read("src", "Thermi.Sensors.Windows", "Install", "Installation.cs");
         var script = Read("scripts", "install.ps1");
 
         Assert.NotEmpty(sensors);
         Assert.NotEmpty(elevated);
         Assert.Contains($"$service = '{sensors}'", script, StringComparison.Ordinal);
         Assert.Contains($"$elevatedService = '{elevated}'", script, StringComparison.Ordinal);
-        Assert.Contains($"public const string Service = \"{elevated}\";", Read("src", "Thermi", "Commands", "Elevated.cs"), StringComparison.Ordinal);
+        Assert.Contains($"public const string Service = \"{elevated}\";", Read("src", "Thermi.Windows", "Commands", "Elevated.cs"), StringComparison.Ordinal);
         Assert.Contains(
-            $"public const string Elevated = \"{elevated}\";", Read("src", "Thermi.SensorHost", "Updates", "ServiceConfig.cs"), StringComparison.Ordinal);
+            $"public const string Elevated = \"{elevated}\";", Read("src", "Thermi.Sensors.Windows", "Updates", "ServiceConfig.cs"), StringComparison.Ordinal);
         Assert.Contains("public const string Privileges = \"SeChangeNotifyPrivilege\";", installation, StringComparison.Ordinal);
         Assert.Contains("public const string YoungGeneration = \"DOTNET_GCgen0size=200000\";", installation, StringComparison.Ordinal);
         Assert.Contains("system.Environment(Sensors, [YoungGeneration]);", installation, StringComparison.Ordinal);
 
         // thermi-cli reads what was installed from the value the installer writes, and runs from any shell through the
         // machine's PATH, which an install sets and an uninstall takes back, with the value.
-        var agents = Read("src", "Thermi", "Agents", "AgentEnvironment.cs");
+        var agents = Read("src", "Thermi.Windows", "Agents", "AgentEnvironment.cs");
         Assert.Contains("private const string InstallKey = @\"SOFTWARE\\thermi\";", agents, StringComparison.Ordinal);
         Assert.Contains("public const string SensorsOnlyValue = \"SensorsOnly\";", agents, StringComparison.Ordinal);
         Assert.Contains("$installKey = 'HKLM:\\SOFTWARE\\thermi'", script, StringComparison.Ordinal);

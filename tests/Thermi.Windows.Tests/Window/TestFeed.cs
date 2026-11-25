@@ -1,6 +1,6 @@
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Window;
 

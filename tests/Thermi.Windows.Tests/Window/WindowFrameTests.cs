@@ -1,6 +1,7 @@
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.Ui.Web;
+using Thermi.Windows.Ui.Web;
+using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;

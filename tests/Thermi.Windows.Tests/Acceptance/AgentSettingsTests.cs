@@ -1,6 +1,4 @@
 using System.Text.Json.Nodes;
-using Thermi.Agents;
-using Thermi.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -8,7 +6,9 @@ using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Overlay;
+using Thermi.Windows.Agents;
+using Thermi.Windows.Commands;
+using Thermi.Windows.Overlay;
 using Thermi.Windows.Tests.Agents;
 
 namespace Thermi.Windows.Tests.Acceptance;

@@ -8,9 +8,9 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Ui;
-using Thermi.Ui.Editor;
-using Thermi.Ui.Web;
+using Thermi.Windows.Ui;
+using Thermi.Windows.Ui.Editor;
+using Thermi.Windows.Ui.Web;
 using History = Thermi.Core.Messages.History;
 using WindowMessages = Thermi.Core.Messages.WindowMessages;
 

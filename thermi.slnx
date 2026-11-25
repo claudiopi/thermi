@@ -1,9 +1,9 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Thermi.Core/Thermi.Core.csproj" />
-    <Project Path="src/Thermi/Thermi.csproj" />
+    <Project Path="src/Thermi.Windows/Thermi.Windows.csproj" />
     <Project Path="src/Thermi.Releases/Thermi.Releases.csproj" />
-    <Project Path="src/Thermi.SensorHost/Thermi.SensorHost.csproj" />
+    <Project Path="src/Thermi.Sensors.Windows/Thermi.Sensors.Windows.csproj" />
     <Project Path="src/Thermi.Settings.Types/Thermi.Settings.Types.csproj" />
     <Project Path="src/Thermi.Client/Thermi.Client.csproj" />
     <Project Path="src/Thermi.Trust/Thermi.Trust.csproj" />

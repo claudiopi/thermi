@@ -8,11 +8,11 @@ How thermi is built, with the real names, so you can find any piece and change i
  Hardware (CPU, GPU, motherboard, memory, network, drives, battery)
         │ LibreHardwareMonitor, with the PawnIO driver; Windows' IP Helper for which adapters are physical
         ▼
- ┌─ thermi-sensors (src/Thermi.SensorHost) ── Windows service, LocalSystem ────┐
+ ┌─ thermi-sensors (src/Thermi.Sensors.Windows) ── Windows service, LocalSystem ────┐
  │ LhmSensorSource reads ─► SensorPipeServer: the catalog once, then values    │
  └──────────────────────────────┬──────────────────────────────────────────────┘
                                 ▼ named pipe "thermi-sensors": read-only, owner checked (per user: "thermi-sensors-<SID>")
- ┌─ thermi.exe (src/Thermi) ── the user's process, no admin rights ────────────┐
+ ┌─ thermi.exe (src/Thermi.Windows) ── the user's process, no admin rights ────────────┐
  │ SensorClient ─► LatestSnapshot ─► SensorMap ─► OverlayLayout ─► Painter      │
  │                                    (Core)    (Core, with Look)   (GDI+)      │
  │ OverlayHost: hidden "thermi-host" window · the loop, the tick, "show",      │
@@ -22,14 +22,14 @@ How thermi is built, with the real names, so you can find any piece and change i
  │ Settings + ConfigStore ◄─► %APPDATA%\thermi\config.json (watched, mutex)    │
  └───────────▲─────────────────────────────────────────────────────────────────┘
              │ "show", "hotkey status" to thermi-host · the settings file
- ┌─ thermi.exe settings (src/Thermi/Ui) ── a process of its own, no WPF ───────┐
+ ┌─ thermi.exe settings (src/Thermi.Windows/Ui) ── a process of its own, no WPF ───────┐
  │ WindowProcess: the window's mutex, an STA thread · SettingsBeacon: hidden   │
  │   "thermi-settings", raised by a second request · WebWindow over Mica       │
  │ WebPage: WebView2 ─► the page (src/Thermi.Settings.Web, React) ─► bridge    │
  │ WindowBridge (Core's IWindowBridge) ─► Views, from SensorClient + Readings  │
  │ WindowEditor ─► Core's edits and UndoHistory ─► Settings + ConfigStore      │
  └─────────────────────────────────────────────────────────────────────────────┘
- ┌─ thermi-cli.exe (src/Thermi/Agents) ── the same thermi.dll, a console door ─┐
+ ┌─ thermi-cli.exe (src/Thermi.Windows/Agents) ── the same thermi.dll, a console door ─┐
  │ a command or the MCP server ─► AgentCommands ─► Core's Agents: one JSON doc │
  │   reads through SystemFeed and hangs up · edits through Core + ConfigStore  │
  └─────────────────────────────────────────────────────────────────────────────┘
@@ -40,8 +40,8 @@ How thermi is built, with the real names, so you can find any piece and change i
 | Project | Runs as | Depends on | Job |
 | --- | --- | --- | --- |
 | `src/Thermi.Core` | a library | nothing | Snapshots, metrics, sensor mapping, formatting, thresholds, config, edits, undo, layout, look and snaps, OLED care, power items and their history, saved styles, visibility, the tray's texts, hotkeys and their status, the translations, and the window's catalog, history and fan finder. |
-| `src/Thermi.SensorHost` | `thermi-sensors.exe`, a service, or the user's own process in a per-user install | Core, Thermi.Trust, LibreHardwareMonitor, System.CommandLine, System.ServiceProcess.ServiceController, and CsWin32 at build time only | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down or takes thermi off for the MSI and `scripts/install.ps1`. |
-| `src/Thermi` | `thermi.exe` and `thermi-cli.exe`, the user | Core, Thermi.Trust, the Windows Desktop runtime (GDI+ only), WebView2, Serilog under Microsoft.Extensions.Logging, System.CommandLine, ModelContextProtocol.Core, and CsWin32 at build time only | The overlay, its settings file, `thermi preview`, as `thermi settings` the window that hosts the page, in a process of its own, and as `thermi-cli` the agents' commands and MCP server. |
+| `src/Thermi.Sensors.Windows` | `thermi-sensors.exe`, a service, or the user's own process in a per-user install | Core, Thermi.Trust, LibreHardwareMonitor, System.CommandLine, System.ServiceProcess.ServiceController, and CsWin32 at build time only | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down or takes thermi off for the MSI and `scripts/install.ps1`. |
+| `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, the user | Core, Thermi.Trust, the Windows Desktop runtime (GDI+ only), WebView2, Serilog under Microsoft.Extensions.Logging, System.CommandLine, ModelContextProtocol.Core, and CsWin32 at build time only | The overlay, its settings file, `thermi preview`, as `thermi settings` the window that hosts the page, in a process of its own, and as `thermi-cli` the agents' commands and MCP server. |
 | `src/Thermi.Settings.Web` | the page in the window's WebView2, embedded in `thermi.exe` | React, Fluent UI React v9, built by Vite | The settings window's page, which holds no logic of its own: it reads and edits through the bridge. |
 | `src/Thermi.Settings.Types` | the build | Core | Writes the page's TypeScript from Core: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
 | `src/Thermi.Client` | a library other programs ship, `net10.0` | nothing | The .NET SDK of the agents' contract, which starts `thermi-cli`. |
@@ -111,36 +111,36 @@ Why these packages and no others, and why the service takes the fewest, since it
 | How the fan finder decides | `src/Thermi.Core/Sensors/FanFinder.cs`, then a series test |
 | How a value reads (units, digits, °F) | `src/Thermi.Core/Look/ReadingFormatter.cs` |
 | A text a user reads, or a language | `src/Thermi.Core/Translations/Texts.resx` and each translation beside it, with its enum member in Core |
-| When an overlay shows or hides | `src/Thermi.Core/Placement/OverlayVisibility.cs`, fed by `src/Thermi/Overlay/OverlayHost.cs` |
+| When an overlay shows or hides | `src/Thermi.Core/Placement/OverlayVisibility.cs`, fed by `src/Thermi.Windows/Overlay/OverlayHost.cs` |
 | What a tray icon shows | `src/Thermi.Core/Tray/TrayScene.cs` and `src/Thermi.Core/Tray/TrayTexts.cs` |
-| How a tray icon is drawn, added and retried | `src/Thermi/Tray/TrayPainter.cs` and `src/Thermi/Tray/TrayIcons.cs`, then `tests/Thermi.Windows.Tests/TrayIconsTests.cs` |
-| How a hotkey is written, registered and reported | `src/Thermi.Core/Hotkeys.cs` and `src/Thermi/Overlay/HotkeyRegistry.cs` |
+| How a tray icon is drawn, added and retried | `src/Thermi.Windows/Tray/TrayPainter.cs` and `src/Thermi.Windows/Tray/TrayIcons.cs`, then `tests/Thermi.Windows.Tests/TrayIconsTests.cs` |
+| How a hotkey is written, registered and reported | `src/Thermi.Core/Hotkeys.cs` and `src/Thermi.Windows/Overlay/HotkeyRegistry.cs` |
 | The default overlay or thresholds | `src/Thermi.Core/Settings/OverlayConfig.cs` |
 | A field of the settings file | `src/Thermi.Core/Settings/OverlayConfig.cs` or `src/Thermi.Core/Settings/StyleConfig.cs`, its range in `src/Thermi.Core/Settings/ConfigRules.cs`, its undo in `src/Thermi.Core/Editing/ConfigFields.cs`, then `tests/Thermi.Tests/Configs/v6.json` |
 | What the window may change, and why it refuses | `src/Thermi.Core/Editing/ItemEdits.cs`, `src/Thermi.Core/Editing/PowerEdits.cs`, `src/Thermi.Core/Editing/OverlayEdits.cs` |
 | An item's minimum, maximum, average, smoothing or graph | `src/Thermi.Core/Look/ItemHistory.cs` |
 | What an item draws beside its value, and what it may warn by | `src/Thermi.Core/Look/OverlayLayout.cs` (`DrawnOf`), `src/Thermi.Core/Settings/Threshold.cs` |
-| An item's chart in the window | `src/Thermi.Core/Look/MeterChart.cs`, `src/Thermi.Core/Look/ChartHistory.cs`, `src/Thermi/Ui/Views/WindowCharts.cs` |
+| An item's chart in the window | `src/Thermi.Core/Look/MeterChart.cs`, `src/Thermi.Core/Look/ChartHistory.cs`, `src/Thermi.Windows/Ui/Views/WindowCharts.cs` |
 | The style file, or how saved styles are kept | `src/Thermi.Core/Look/StyleFile.cs`, `src/Thermi.Core/Look/SavedStyles.cs` |
-| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what it draws, `src/Thermi/Painting/Painter.cs` for how, checked with `thermi preview` |
-| How many overlays show, and what the overlay process answers | `src/Thermi/Overlay/OverlayHost.cs`, then `tests/Thermi.Windows.Tests/Overlay/OverlayHostTests.cs` |
-| Where the overlay snaps, and when a press moves it | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi/Windows/Desktop.cs`, `src/Thermi/Overlay/OverlayMouse.cs` and `OverlayEdits.Release` |
-| How overlays on one taskbar make room for each other | `src/Thermi.Core/Placement/TaskbarRow.cs`, used by `src/Thermi/Overlay/OverlayWindow.cs` and `src/Thermi/Ui/Views/OverlayPlaces.cs`, then `tests/Thermi.Tests/Acceptance/TaskbarDropTests.cs` |
-| What an overlay's menu offers and does | `src/Thermi.Core/Tray/Menus.cs`, `src/Thermi/Tray/TrayChoices.cs`, then `tests/Thermi.Tests/Acceptance/MenuTests.cs` and `tests/Thermi.Windows.Tests/Overlay/OverlayMenuTests.cs` |
-| The window's preview of an overlay and its look tiles | `src/Thermi/Ui/Views/WindowPreviews.cs`, `src/Thermi.Core/Look/LookSample.cs`, `src/Thermi.Settings.Web/src/overlay/Preview.tsx` |
-| How the window opens and comes to the front | `src/Thermi/Ui/WindowProcess.cs`, `src/Thermi/Ui/SettingsBeacon.cs`, `src/Thermi/Ui/Web/WebWindow.cs`, then `tests/Thermi.Windows.Tests/Window/WindowProcessTests.cs` |
+| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what it draws, `src/Thermi.Windows/Painting/Painter.cs` for how, checked with `thermi preview` |
+| How many overlays show, and what the overlay process answers | `src/Thermi.Windows/Overlay/OverlayHost.cs`, then `tests/Thermi.Windows.Tests/Overlay/OverlayHostTests.cs` |
+| Where the overlay snaps, and when a press moves it | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi.Windows/Win32/Desktop.cs`, `src/Thermi.Windows/Overlay/OverlayMouse.cs` and `OverlayEdits.Release` |
+| How overlays on one taskbar make room for each other | `src/Thermi.Core/Placement/TaskbarRow.cs`, used by `src/Thermi.Windows/Overlay/OverlayWindow.cs` and `src/Thermi.Windows/Ui/Views/OverlayPlaces.cs`, then `tests/Thermi.Tests/Acceptance/TaskbarDropTests.cs` |
+| What an overlay's menu offers and does | `src/Thermi.Core/Tray/Menus.cs`, `src/Thermi.Windows/Tray/TrayChoices.cs`, then `tests/Thermi.Tests/Acceptance/MenuTests.cs` and `tests/Thermi.Windows.Tests/Overlay/OverlayMenuTests.cs` |
+| The window's preview of an overlay and its look tiles | `src/Thermi.Windows/Ui/Views/WindowPreviews.cs`, `src/Thermi.Core/Look/LookSample.cs`, `src/Thermi.Settings.Web/src/overlay/Preview.tsx` |
+| How the window opens and comes to the front | `src/Thermi.Windows/Ui/WindowProcess.cs`, `src/Thermi.Windows/Ui/SettingsBeacon.cs`, `src/Thermi.Windows/Ui/Web/WebWindow.cs`, then `tests/Thermi.Windows.Tests/Window/WindowProcessTests.cs` |
 | What the page shows and does | `src/Thermi.Settings.Web/src`, then its Playwright tests in `src/Thermi.Settings.Web/tests` |
-| What the page may read and ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered by `src/Thermi/Ui/Web/WindowBridge.cs` and `src/Thermi/Ui/Views` |
-| How the window's edits are written and undone | `src/Thermi/Ui/Editor/WindowEditor.cs`, then `tests/Thermi.Windows.Tests/Window/WindowEditorTests.cs` |
-| How the window runs the fan finder and its load | `src/Thermi/Ui/Views/WindowFinder.cs`, `src/Thermi/Commands/CpuLoad.cs`, then `tests/Thermi.Windows.Tests/Window/FinderTests.cs` |
-| "Start with Windows" | `src/Thermi/Ui/StartWithWindows.cs`, `scripts/install.ps1`, then `tests/Thermi.Windows.Tests/Window/StartWithWindowsTests.cs` |
-| Saved styles, export and import | `src/Thermi/Ui/Views/WindowLooks.cs`, `src/Thermi.Core/Look/SavedStyles.cs`, `src/Thermi.Core/Look/StyleFile.cs`, then `tests/Thermi.Tests/Acceptance/SavedStyleTests.cs` |
-| How the settings file is read and written by two processes | `src/Thermi/Overlay/ConfigStore.cs`, then `tests/Thermi.Windows.Tests/Acceptance/SettingsFileWindowsTests.cs` |
-| What the service reads | `src/Thermi.SensorHost/LhmSensorSource.cs` |
-| How the service waits for each device | `src/Thermi.SensorHost/DeviceUpdates.cs`, then `tests/Thermi.Windows.Tests/SensorHost/DeviceUpdatesTests.cs` |
-| What `thermi-sensors` does with its arguments | `src/Thermi.SensorHost/Program.cs`, `src/Thermi.SensorHost/SensorCommands.cs`, then `tests/Thermi.Windows.Tests/SensorHost/SensorProgramTests.cs` |
-| How the overlay stays above the taskbar | `src/Thermi/Windows/Topmost.cs`, then `tests/Thermi.Windows.Tests/OnTop/TopmostTests.cs` |
-| What an agent's command answers | `src/Thermi.Core/Agents`, then `tests/Thermi.Tests/Acceptance/ContractTests.cs`; the Windows side in `src/Thermi/Agents`, then `tests/Thermi.Windows.Tests/Acceptance/AgentCommandTests.cs` |
+| What the page may read and ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered by `src/Thermi.Windows/Ui/Web/WindowBridge.cs` and `src/Thermi.Windows/Ui/Views` |
+| How the window's edits are written and undone | `src/Thermi.Windows/Ui/Editor/WindowEditor.cs`, then `tests/Thermi.Windows.Tests/Window/WindowEditorTests.cs` |
+| How the window runs the fan finder and its load | `src/Thermi.Windows/Ui/Views/WindowFinder.cs`, `src/Thermi.Windows/Commands/CpuLoad.cs`, then `tests/Thermi.Windows.Tests/Window/FinderTests.cs` |
+| "Start with Windows" | `src/Thermi.Windows/Ui/StartWithWindows.cs`, `scripts/install.ps1`, then `tests/Thermi.Windows.Tests/Window/StartWithWindowsTests.cs` |
+| Saved styles, export and import | `src/Thermi.Windows/Ui/Views/WindowLooks.cs`, `src/Thermi.Core/Look/SavedStyles.cs`, `src/Thermi.Core/Look/StyleFile.cs`, then `tests/Thermi.Tests/Acceptance/SavedStyleTests.cs` |
+| How the settings file is read and written by two processes | `src/Thermi.Windows/Overlay/ConfigStore.cs`, then `tests/Thermi.Windows.Tests/Acceptance/SettingsFileWindowsTests.cs` |
+| What the service reads | `src/Thermi.Sensors.Windows/LhmSensorSource.cs` |
+| How the service waits for each device | `src/Thermi.Sensors.Windows/DeviceUpdates.cs`, then `tests/Thermi.Windows.Tests/Sensors/DeviceUpdatesTests.cs` |
+| What `thermi-sensors` does with its arguments | `src/Thermi.Sensors.Windows/Program.cs`, `src/Thermi.Sensors.Windows/SensorCommands.cs`, then `tests/Thermi.Windows.Tests/Sensors/SensorProgramTests.cs` |
+| How the overlay stays above the taskbar | `src/Thermi.Windows/Win32/Topmost.cs`, then `tests/Thermi.Windows.Tests/OnTop/TopmostTests.cs` |
+| What an agent's command answers | `src/Thermi.Core/Agents`, then `tests/Thermi.Tests/Acceptance/ContractTests.cs`; the Windows side in `src/Thermi.Windows/Agents`, then `tests/Thermi.Windows.Tests/Acceptance/AgentCommandTests.cs` |
 | Install and uninstall | `scripts/install.ps1` |
 
 ## Next

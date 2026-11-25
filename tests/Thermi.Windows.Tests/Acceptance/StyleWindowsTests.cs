@@ -1,11 +1,11 @@
 using System.Drawing;
 using System.Globalization;
-using Thermi.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Painting;
+using Thermi.Windows.Commands;
+using Thermi.Windows.Painting;
 
 namespace Thermi.Windows.Tests.Acceptance;
 

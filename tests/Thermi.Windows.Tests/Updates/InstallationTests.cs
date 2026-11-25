@@ -1,7 +1,7 @@
 extern alias sensors;
 
-using sensors::Thermi.SensorHost.Install;
-using sensors::Thermi.SensorHost.Updates;
+using sensors::Thermi.Sensors.Windows.Install;
+using sensors::Thermi.Sensors.Windows.Updates;
 using Thermi.Core.Install;
 using Thermi.Core.Updates;
 

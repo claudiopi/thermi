@@ -5,8 +5,8 @@ using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Commands;
-using Thermi.Overlay;
+using Thermi.Windows.Commands;
+using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Overlay;
 

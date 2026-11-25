@@ -1,5 +1,6 @@
 using System.Drawing;
 using Thermi.Core.Settings;
+using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Accessibility;
@@ -26,7 +27,7 @@ public sealed class TopmostTests
 
         OnTop((overlay, _, other) =>
         {
-            using var tips = new Thermi.Overlay.ValueTips(overlay);
+            using var tips = new Thermi.Windows.Overlay.ValueTips(overlay);
             var tip = Owned(overlay);
             for (var round = 0; round < 2; round++)
             {

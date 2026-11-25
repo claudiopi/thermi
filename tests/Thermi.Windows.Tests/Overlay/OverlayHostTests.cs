@@ -6,7 +6,8 @@ using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Overlay;
+using Thermi.Windows.Overlay;
+using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.UI.Shell;
 

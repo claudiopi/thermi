@@ -7,9 +7,10 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Overlay;
-using Thermi.Painting;
-using Thermi.Tray;
+using Thermi.Windows.Overlay;
+using Thermi.Windows.Painting;
+using Thermi.Windows.Tray;
+using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Shell;
@@ -246,7 +247,7 @@ public sealed class TrayIconsTests : IDisposable
     [Fact]
     public void TheProgramsIconIsTheMark()
     {
-        var file = Path.Combine(TestRecordings.RepoRoot(), "src", "Thermi", "thermi.ico");
+        var file = Path.Combine(TestRecordings.RepoRoot(), "src", "Thermi.Windows", "thermi.ico");
         var painted = ProgramIconSizes
             .Select(size => TrayPainter.Paint(new TrayIcon(Guid.Empty, null, null, ProgramIconInk, "") { Mark = MarkState.App }, size))
             .ToList();

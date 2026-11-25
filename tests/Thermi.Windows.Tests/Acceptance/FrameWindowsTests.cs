@@ -3,11 +3,11 @@ extern alias sensors;
 using System.Diagnostics;
 using System.IO.Pipes;
 using Microsoft.Extensions.Time.Testing;
-using sensors::Thermi.SensorHost;
-using sensors::Thermi.SensorHost.Frames;
+using sensors::Thermi.Sensors.Windows;
+using sensors::Thermi.Sensors.Windows.Frames;
 using Thermi.Core.Frames;
 using Thermi.Core.Sensors;
-using Thermi.Windows.Tests.SensorHost;
+using Thermi.Windows.Tests.Sensors;
 
 namespace Thermi.Windows.Tests.Acceptance;
 
@@ -88,7 +88,7 @@ public sealed class FrameWindowsTests : IAsyncDisposable
             PipeName = _pipeName,
             Trace = () => new OwnPresents(_clock),
         };
-        var run = Task.Run(() => sensors::Thermi.SensorHost.Program.RunAsync(args, environment, _stop.Token), CancellationToken.None);
+        var run = Task.Run(() => sensors::Thermi.Sensors.Windows.Program.RunAsync(args, environment, _stop.Token), CancellationToken.None);
         _runs.Add(run);
         return run;
     }

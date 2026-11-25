@@ -37,7 +37,7 @@ function Publish-Thermi([string]$Out, [string]$Processor, [string]$Version, [str
     }
 
     Remove-Item $Out -Recurse -Force -ErrorAction SilentlyContinue
-    foreach ($project in 'src/Thermi.SensorHost', 'src/Thermi') {
+    foreach ($project in 'src/Thermi.Sensors.Windows', 'src/Thermi.Windows') {
         $path = Join-Path $root $project
         # Restored apart, for both processors the project lists and with the ReadyToRun compiler, which only a restore that
         # asks for ReadyToRun downloads: a publish's own restore would put its processor on Thermi.Core too, and rewrite

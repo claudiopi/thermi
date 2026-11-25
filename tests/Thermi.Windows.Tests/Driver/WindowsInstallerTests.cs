@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Time.Testing;
-using Thermi.Commands;
+using Thermi.Windows.Commands;
 
 namespace Thermi.Windows.Tests.Driver;
 

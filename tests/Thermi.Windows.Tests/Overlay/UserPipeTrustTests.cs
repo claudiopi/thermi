@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Principal;
 using Thermi.Core.Install;
-using Thermi.Install;
+using Thermi.Windows.Install;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Security;
