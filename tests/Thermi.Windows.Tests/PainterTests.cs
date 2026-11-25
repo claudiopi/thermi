@@ -34,10 +34,10 @@ public sealed class PainterTests
     public void AGraphIsTwelvePixelsWiderThanAMeterAndEveryFontHasItsOwnWidth()
     {
         using var painter = new Painter();
-        // The CPU load starts with its graph; without it, it draws its meter.
+        // The CPU load starts with its line; given bars, it draws them instead.
         var graphed = Layout(9);
         var metered = OverlayLayout.Build(
-            PowerEdits.SetGraph(new ThermiConfig(), "cpu.load", graph: false).Config.Overlays[0],
+            PowerEdits.SetGraph(new ThermiConfig(), "cpu.load", GraphStyle.Bars).Config.Overlays[0],
             Readings(9),
             CultureInfo.GetCultureInfo("en-US"));
 

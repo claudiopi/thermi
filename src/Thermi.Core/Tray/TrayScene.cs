@@ -165,7 +165,7 @@ public static class TrayScene
 
     private static (Level Level, Rgb Color)? MeterColor(Scene scene, int overlay, ItemConfig item)
     {
-        if (item.Meter is null || OverlayLayout.MeterOf(item, scene.Readings[overlay]) is not { Usable: not null } meter)
+        if (!Threshold.Judges(item) || OverlayLayout.MeterOf(item, scene.Readings[overlay]) is not { Usable: not null } meter)
         {
             return null;
         }

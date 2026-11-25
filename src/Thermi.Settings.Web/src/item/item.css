@@ -53,7 +53,8 @@
   min-width: 0;
 }
 
-.t-meter-box.t-meter-box {
+.t-graph-box.t-graph-box,
+.t-warn-box.t-warn-box {
   min-width: 180px;
 }
 

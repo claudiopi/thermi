@@ -70,10 +70,10 @@ export const firstRun: FocusStep[] = [
   { name: 'End on a knob, the knob keeps focus', acts: ['End'], focus: knob('UiText.CriticalFrom'), holds: (fake) => (threshold(fake).critical ?? 0) > 70 },
   {
     name: 'A menu choice returns to its opener',
-    acts: [{ focus: role('combobox', 'UiText.MeterField') }, 'Enter', 'ArrowUp', 'Enter'],
-    focus: role('combobox', 'UiText.MeterField'),
+    acts: [{ focus: role('combobox', 'UiText.GraphField') }, 'Enter', 'ArrowUp', 'Enter'],
+    focus: role('combobox', 'UiText.GraphField'),
   },
-  { name: 'Esc closes a menu back to its opener', acts: ['Enter', 'Escape'], focus: role('combobox', 'UiText.MeterField') },
+  { name: 'Esc closes a menu back to its opener', acts: ['Enter', 'Escape'], focus: role('combobox', 'UiText.GraphField') },
   {
     name: 'Delete in the list goes to the next row',
     acts: [{ focus: metric('MetricName.CpuLoad') }, 'Delete'],
@@ -161,8 +161,8 @@ export const fourthReview: FocusStep[] = [
   },
   {
     name: 'Tab in a menu closes it and moves on',
-    acts: [{ focus: role('combobox', 'UiText.MeterField') }, 'Enter', 'Tab'],
-    away: role('combobox', 'UiText.MeterField'),
+    acts: [{ focus: role('combobox', 'UiText.GraphField') }, 'Enter', 'Tab'],
+    away: role('combobox', 'UiText.GraphField'),
   },
   { name: 'Alt+Space opens the system menu', acts: [], frame: true },
   { name: 'Esc gives the focus back', acts: [], frame: true },

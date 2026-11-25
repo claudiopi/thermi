@@ -83,8 +83,9 @@ internal static class ConfigMigration
         return new ItemConfig
         {
             Metric = item.Metric,
-            Meter = item.Meter is null ? null : new MeterConfig { Metric = item.Meter },
+            WarnBy = item.Meter is null ? null : new WarnByConfig { Metric = item.Meter },
             Threshold = calm && Metrics.Find(item.Meter) is { } metered ? Threshold.Default(metered) : item.Threshold,
+            Graph = item.Meter is null ? GraphStyle.None : GraphStyle.Bars,
         };
     }
 
@@ -106,11 +107,83 @@ internal static class ConfigMigration
     {
         Overlays = [.. config.Overlays.Select(overlay => overlay with
         {
-            Items = [.. overlay.Items.Select(item => OverlayConfig.GraphsByDefault(item) && item is { Threshold: null, AlertOnly: false }
-                ? item with { Graph = true }
-                : item)],
+            Items = [.. overlay.Items.Select(item =>
+                item is { Graph: GraphStyle.Bars, WarnBy: { } meter, Threshold: null, AlertOnly: false }
+                && Threshold.IsOwn(item, meter)
+                && Metrics.Find(item.Metric ?? item.Auto)?.Kind == SensorKind.Load
+                    ? item with { Graph = GraphStyle.Line }
+                    : item)],
         })],
     };
+
+    /// <summary>
+    /// What an item of an older file drew and judged becomes this version's Graph and Warn by, so it shows as it did.
+    /// Until here, its meter is read as what it warns by and what it drew as its graph, a meter of the item itself
+    /// becomes its own reading, and an item without one draws nothing and has no lines, alert-only or notice, as it had
+    /// none; what it drew is kept only where the overlay's Auto would draw something else. An item with no graph is
+    /// already this version's, as the defaults version 1 takes.
+    /// </summary>
+    public static ThermiConfig FromVersion5(ThermiConfig config) => config with
+    {
+        Overlays = [.. config.Overlays.Select(overlay => overlay with { Items = [.. overlay.Items.Select(Version5ItemOf)] })],
+    };
+
+    /// <summary>
+    /// Whether a file of versions 2 to 5 holds what <see cref="FromVersion4"/> or <see cref="Version5Shape"/> rewrite: one of
+    /// the taskbar's three places, or an item.
+    /// </summary>
+    public static bool Reshapes(JsonElement root) =>
+        root.TryGetProperty("overlays", out var overlays) && overlays.ValueKind == JsonValueKind.Array
+        && overlays.EnumerateArray().Any(overlay => overlay.ValueKind == JsonValueKind.Object && (NamesTaskbarPlace(overlay) || HoldsItems(overlay)));
+
+    private static bool NamesTaskbarPlace(JsonElement overlay) =>
+        overlay.TryGetProperty("snap", out var snap) && snap.ValueKind == JsonValueKind.Object
+        && snap.TryGetProperty("spot", out var spot) && spot.ValueKind == JsonValueKind.String
+        && spot.GetString()!.StartsWith("taskbar-", StringComparison.Ordinal);
+
+    private static bool HoldsItems(JsonElement overlay) =>
+        overlay.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array && items.GetArrayLength() > 0;
+
+    /// <summary>
+    /// Reads a file of versions 2 to 5 as <see cref="FromVersion5"/> takes it, before the file is read: each item's meter
+    /// as what it warns by, and what it drew, nothing without a meter, bars, or the graph its switch turned on, as its graph.
+    /// </summary>
+    public static JsonNode? Version5Shape(JsonNode? root)
+    {
+        var items = (root?["overlays"] as JsonArray ?? []).SelectMany(overlay => (overlay as JsonObject)?["items"] as JsonArray ?? []);
+        foreach (var item in items.OfType<JsonObject>())
+        {
+            var meter = item["meter"];
+            var graph = item["graph"] is JsonValue on && on.GetValueKind() == JsonValueKind.True;
+            item.Remove("meter");
+            item.Remove("graph");
+            if (meter is not null)
+            {
+                item["warnBy"] = meter;
+            }
+
+            item["graph"] = meter is null ? "none" : graph ? "line" : "bars";
+        }
+
+        return root;
+    }
+
+    private static ItemConfig Version5ItemOf(ItemConfig item)
+    {
+        if (item.Graph is not { } drawn)
+        {
+            return item;
+        }
+
+        var shaped = item with { WarnBy = item.WarnBy is { } meter && Threshold.IsOwn(item, meter) ? null : item.WarnBy, Graph = null };
+        if (drawn == GraphStyle.None)
+        {
+            var bare = shaped with { WarnBy = null, Threshold = null, AlertOnly = false, Notify = false };
+            return Threshold.Judges(bare) ? bare with { Graph = GraphStyle.None } : bare;
+        }
+
+        return OverlayLayout.DrawnOf(new OverlayConfig(), shaped) == drawn ? shaped : shaped with { Graph = drawn };
+    }
 
     /// <summary>
     /// The taskbar's three places of versions 2 to 4 become the one free taskbar place, before the file is read. Its right
@@ -135,14 +208,6 @@ internal static class ConfigMigration
         return root;
     }
 
-    /// <summary>Whether a file of versions 2 to 4 names one of the taskbar's three places, which <see cref="FromVersion4"/> rewrites.</summary>
-    public static bool NamesTaskbarPlaces(JsonElement root) =>
-        root.TryGetProperty("overlays", out var overlays) && overlays.ValueKind == JsonValueKind.Array
-        && overlays.EnumerateArray().Any(overlay => overlay.ValueKind == JsonValueKind.Object
-            && overlay.TryGetProperty("snap", out var snap) && snap.ValueKind == JsonValueKind.Object
-            && snap.TryGetProperty("spot", out var spot) && spot.ValueKind == JsonValueKind.String
-            && spot.GetString()!.StartsWith("taskbar-", StringComparison.Ordinal));
-
     // Every name earlier builds gave an overlay from where it sat, in every language thermi ships.
     private static readonly HashSet<string> OverlayNamesThermiGave = [.. Texts.Languages.Select(Texts.Of).SelectMany(texts => new[]
     {
@@ -159,7 +224,7 @@ internal static class ConfigMigration
     private static ItemConfig Version2ItemOf(ItemConfig item)
     {
         var metric = Metrics.Find(item.Metric ?? item.Auto);
-        var meter = Metrics.Find(item.Meter?.Metric ?? item.Meter?.Auto);
+        var meter = Metrics.Find(item.WarnBy?.Metric ?? item.WarnBy?.Auto);
         var calm = meter is not null && item.Threshold is { } lines
             && Array.Exists(
                 Version1Defaults,
@@ -194,19 +259,19 @@ internal static class ConfigMigration
         var named = item.Metric is { } metric && sources.TryGetValue(metric, out var sensor)
             ? item with { Metric = null, Sensor = sensor, Auto = metric }
             : item;
-        return named.Meter?.Metric is { } meter ? named with { Meter = NamedMeter(meter, sources) } : named;
+        return named.WarnBy?.Metric is { } meter ? named with { WarnBy = NamedMeter(meter, sources) } : named;
     }
 
-    private static MeterConfig NamedMeter(string metric, Dictionary<string, string> sources)
+    private static WarnByConfig NamedMeter(string metric, Dictionary<string, string> sources)
     {
         if (sources.TryGetValue(metric, out var sensor))
         {
-            return new MeterConfig { Sensor = sensor, Auto = metric };
+            return new WarnByConfig { Sensor = sensor, Auto = metric };
         }
 
         return metric == Metrics.CpuFanDuty.Id && sources.TryGetValue(Metrics.CpuFan.Id, out var fan) && SensorMap.OwnDuty(fan) is { } duty
-            ? new MeterConfig { Sensor = duty, Auto = metric }
-            : new MeterConfig { Metric = metric };
+            ? new WarnByConfig { Sensor = duty, Auto = metric }
+            : new WarnByConfig { Metric = metric };
     }
 }
 

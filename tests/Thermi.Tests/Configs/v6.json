@@ -1,0 +1,160 @@
+{
+  "version": 6,
+  "hotkeys": {
+    "toggle": "Ctrl+Alt+T",
+    "nextStyle": "Ctrl+Alt+S",
+    "clickThrough": "Ctrl+Alt+C",
+    "resetMinMax": "Ctrl+Alt+R"
+  },
+  "language": "es",
+  "temperature": "f",
+  "sensorNames": {
+    "/lpc/it8689e/0/temperature/1": "Chipset"
+  },
+  "overlays": [
+    {
+      "size": 1.25,
+      "name": "Night desk",
+      "snap": {
+        "spot": "taskbar",
+        "monitor": "DEL-41A8-3132344A",
+        "offset": 1652
+      },
+      "visibility": "hide-in-fullscreen",
+      "clickThrough": true,
+      "locked": true,
+      "oled": true,
+      "fade": true,
+      "hidden": true,
+      "graph": "bars",
+      "style": {
+        "gap": 4,
+        "units": false,
+        "name": "Night",
+        "layout": "each",
+        "orientation": "vertical",
+        "noLabels": true,
+        "preset": "custom",
+        "label": {
+          "size": 12.5,
+          "weight": "regular"
+        },
+        "value": {
+          "size": 14,
+          "weight": "bold"
+        },
+        "opacity": {
+          "background": 0.4,
+          "overlay": 0.9
+        },
+        "pills": "light",
+        "colors": {
+          "normal": "#0072B2",
+          "warning": "#E69F00",
+          "critical": "#D55E00",
+          "label": "#5C5C5A",
+          "value": "#1A1A1A"
+        },
+        "font": "bahnschrift",
+        "corners": "soft",
+        "effect": "outline"
+      },
+      "items": [
+        {
+          "id": "fan.cpu",
+          "name": "Pump",
+          "sensor": "/lpc/it8689e/0/fan/0",
+          "auto": "fan.cpu",
+          "label": "FAN",
+          "tray": true,
+          "warnBy": {
+            "sensor": "/lpc/it8689e/0/control/0",
+            "auto": "fan.cpu.duty"
+          },
+          "threshold": {
+            "warning": 85
+          }
+        },
+        {
+          "id": "cpu.temperature",
+          "name": "Package",
+          "metric": "cpu.temperature",
+          "threshold": {
+            "warning": 72,
+            "critical": 88
+          },
+          "offset": -5,
+          "stat": "max",
+          "smooth": 3,
+          "decimals": 1,
+          "graph": "line",
+          "notify": true
+        },
+        {
+          "id": "ccd",
+          "name": "CCDs",
+          "sensors": [
+            "/amdcpu/0/temperature/3",
+            "/amdcpu/0/temperature/4"
+          ],
+          "combine": "average",
+          "label": "CCD",
+          "own": true,
+          "color": "#FFB000",
+          "warnBy": {
+            "sensor": "/amdcpu/0/temperature/3"
+          },
+          "threshold": {
+            "warning": 70,
+            "critical": 90
+          },
+          "alertOnly": true
+        },
+        {
+          "id": "/gpu-nvidia/0/power/0",
+          "name": "GPU power",
+          "sensor": "/gpu-nvidia/0/power/0",
+          "label": "GPU"
+        }
+      ]
+    },
+    {
+      "size": 1,
+      "name": "Side",
+      "position": {
+        "x": -1200,
+        "y": 1402
+      },
+      "style": {
+        "gap": 0,
+        "units": true,
+        "preset": "compact",
+        "opacity": {
+          "background": 0,
+          "overlay": 1
+        },
+        "pills": "dark"
+      },
+      "items": [
+        {
+          "id": "cpu.temperature-2",
+          "name": "CPU temperature 2",
+          "metric": "cpu.temperature",
+          "graph": "none"
+        },
+        {
+          "id": "ram.used",
+          "name": "Memory",
+          "metric": "ram.used",
+          "warnBy": {
+            "metric": "ram.load"
+          },
+          "threshold": {
+            "warning": 65,
+            "critical": 85
+          }
+        }
+      ]
+    }
+  ]
+}

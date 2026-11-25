@@ -5,7 +5,7 @@ import { SwitchLine, type SwitchLineProps } from '../app/SwitchLine';
 import { Card, CardRow, Dropdown, TextField, type Find } from '../kit';
 import { useText } from '../texts/Texts';
 import { FinderRow } from './FinderRow';
-import { meterChoices, offsetRange, sensorChoices, showAllSensors, type Placed } from './itemModel';
+import { graphChoices, sensorChoices, showAllSensors, type Placed } from './itemModel';
 
 export interface ItemRowsProps {
   data: WindowData;
@@ -82,7 +82,6 @@ function sensorNoteOf(data: WindowData, item: Item, current: Sensor | undefined,
   return item.sensor === undefined ? t('UiText.AutoFollows', current.hardware) : current.hardware;
 }
 
-/** The item page's rows above More options: Sensor, Label, Meter, the graph, Notify me, Separate pill and Tray icon. */
 export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
   const t = useText();
   const describe = useId();
@@ -95,15 +94,6 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
   const choices = sensorChoices(item, data.view, data.sensors, t, allFor === item.id);
   const current = sensors.find((sensor) => sensor.id === (item.sensor ?? data.view.items[item.id]?.auto));
   const sensorNote = sensorNoteOf(data, item, current, t);
-  const metered = meterChoices(item, data.view.items[item.id], t);
-  const meter = (value: string): void => {
-    const chosen = metered.meters[Number(value)];
-    if (value === 'off') {
-      set('meter', null);
-    } else if (chosen !== undefined) {
-      set('meter', { ...chosen });
-    }
-  };
   const ownOff = placed.firstOfPill && item.own !== true;
   return (
     <>
@@ -142,16 +132,19 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
         </div>
       </Card>
       <LabelRow placed={placed} edit={edit} labelAsked={labelAsked} />
-      {metered.row && (
+      {/* What it draws beside its value, which an item thresholds cannot judge has no level or scale for. */}
+      {data.view.items[item.id]?.judged === true && (
         <Card>
-          <CardRow label={t('UiText.MeterField')}>
-            <Dropdown className="t-meter-box" label={t('UiText.MeterField')} choices={metered.choices} value={metered.value} onChange={meter} />
+          <CardRow label={t('UiText.GraphField')}>
+            <Dropdown
+              className="t-graph-box"
+              label={t('UiText.GraphField')}
+              choices={graphChoices(t)}
+              value={item.graph ?? ''}
+              onChange={(value) => set('graph', value === '' ? null : value)}
+            />
           </CardRow>
         </Card>
-      )}
-      {/* Beside the meter it draws: a graph of a number's last minute, which an item that can have no meter cannot. */}
-      {metered.row && offsetRange(data.view.items[item.id]?.type ?? '') !== null && (
-        <SwitchRow label={t('UiText.MeterGraph')} checked={item.graph === true} onChange={(on) => set('graph', on ? true : null)} />
       )}
       {item.threshold?.critical !== undefined && (
         <SwitchRow label={t('UiText.NotifyMe')} checked={item.notify === true} onChange={(on) => set('notify', on ? true : null)} />

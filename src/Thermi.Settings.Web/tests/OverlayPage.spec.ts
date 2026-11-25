@@ -69,6 +69,12 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       expected: 'each',
     },
     {
+      name: 'Graph',
+      act: () => chooseByKeys(page, control('combobox', 'UiText.GraphField'), text('GraphStyle.Bars')),
+      read: (state) => overlayOf(state.settings, 0).graph,
+      expected: 'bars',
+    },
+    {
       name: 'Direction',
       act: () => pressOn(control('radio', 'Orientation.Vertical'), 'Space'),
       read: (state) => overlayOf(state.settings, 0).style?.orientation,

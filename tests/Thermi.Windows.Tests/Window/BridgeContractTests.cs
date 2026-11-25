@@ -82,18 +82,20 @@ public sealed class BridgeContractTests
         Assert.All(
             items,
             item => Assert.True(
-                view.Items[item.Id] is { Value: not null, Type.Length: > 0 } shown && (item.Meter is null) == (shown.Level is null),
+                view.Items[item.Id] is { Value: not null, Type.Length: > 0 } shown
+                    && Threshold.Judges(item) == shown.Judged
+                    && shown.Judged != (shown.Level is null),
                 item.Id));
         Assert.All(
             items,
             item => Assert.Equal(
-                item.Meter?.Metric is { } metric ? Texts.English.Of(Metrics.Find(metric)!.Name) : null,
-                view.Items[item.Id].MeterName));
-        // Every numeric item charts, one without a meter its own reading with no lines.
+                item.WarnBy?.Metric is { } metric ? Texts.English.Of(Metrics.Find(metric)!.Name) : null,
+                view.Items[item.Id].WarnByName));
+        // Every numeric item charts, one lines cannot judge its own reading with no lines.
         foreach (var item in items)
         {
             var chart = await bridge.Chart(item.Id);
-            Assert.True(chart is { Empty: null, Stats: not null } && (item.Meter is not null || chart is { Warning: null, Critical: null }), item.Id);
+            Assert.True(chart is { Empty: null, Stats: not null } && (Threshold.Judges(item) || chart is { Warning: null, Critical: null }), item.Id);
             var unit = chart.Stats.Split(' ')[^1];
             Assert.All(new[] { chart.WarningText, chart.CriticalText }.OfType<string>(), line => Assert.EndsWith($" {unit}", line, StringComparison.Ordinal));
             if (item.Id == Metrics.CpuFan.Id)

@@ -130,7 +130,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             .Where(sensor => sensor.Reading.Usable is not null)
             .ToDictionary(sensor => sensor.Id, sensor => Text(sensor.Reading, format), StringComparer.Ordinal);
 
-    // A value of the dash alone, an arrow before it or not, reads nothing; a level needs a meter and a value.
+    // A value of the dash alone, an arrow before it or not, reads nothing; a level needs a reading lines judge and a value.
     private static ItemView ItemOf(
         ItemConfig item,
         OverlayItem? shown,
@@ -145,16 +145,19 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         var read = item.Sensor ?? (item.Sensors is [var first, ..] ? first : auto);
         var sensor = read is null ? null : SensorMap.Find(known, read);
         var type = sensor?.Type ?? (kind is { } some ? TypeOf(some) : "");
-        // A meter is a reading of the item itself, so each is named by what it reads: a fan's speed or its duty, else its type.
-        IReadOnlyList<MeterChoice> meters = [.. Threshold.MetersOf(item, kind, known).Select((meter, at) =>
-            new MeterChoice(
-                meter,
-                MeterKindName(
-                    Metrics.Find(meter.Metric)?.Kind ?? (at == 0 ? kind!.Value : kind == SensorKind.Fan ? SensorKind.Control : SensorKind.Fan),
-                    names.Texts)))];
-        Level? level = item.Meter is null || value is null ? null : shown!.Level;
-        return new ItemView(value, level, type, auto, meters, MeterName(item.Meter, known, names.Texts, names.Own))
+        // What else an item warns by is a reading of the item itself, so each is named by what it reads: a fan's speed or its
+        // duty, else its type; its own reading comes first, Off for one that lines cannot judge, as the RAM in use.
+        IReadOnlyList<WarnByChoice> warnBy =
+        [
+            new(null, names.Texts.Of(kind is { } own && Threshold.CanMeter(own) ? UiText.WarnByOwn : UiText.WarnByOff)),
+            .. Threshold.WarnByOf(item, kind, known)
+                .Select(other => new WarnByChoice(other, KindName(Threshold.KindOf(other) ?? SensorKind.Load, names.Texts))),
+        ];
+        var judged = Threshold.Judges(item);
+        Level? level = !judged || value is null ? null : shown!.Level;
+        return new ItemView(value, level, type, auto, warnBy, WarnByName(item.WarnBy, known, names.Texts, names.Own))
         {
+            Judged = judged,
             Bits = kind == SensorKind.Throughput
                 && (sensor?.HardwareType == "Network"
                     || (item.Metric ?? item.Auto) == Metrics.NetDownload.Id
@@ -171,16 +174,16 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
 
     // A sensor of its own is named as the catalog names it, one the service no longer reads by the user's name or its id;
     // else its metric's name.
-    private static string? MeterName(MeterConfig? meter, Snapshot known, Texts texts, IReadOnlyDictionary<string, string>? own) =>
-        meter is null ? null
-        : meter.Sensor is { } sensor
+    private static string? WarnByName(WarnByConfig? warnBy, Snapshot known, Texts texts, IReadOnlyDictionary<string, string>? own) =>
+        warnBy is null ? null
+        : warnBy.Sensor is { } sensor
             ? (SensorMap.Find(known, sensor) is { } found
                 ? SensorNames.Of(found, sensor, own, texts).Shown
                 : own?.GetValueOrDefault(sensor) ?? sensor)
-        : Metrics.Find(meter.Metric ?? meter.Auto) is { } metric ? texts.Of(metric.Name)
-        : meter.Metric;
+        : Metrics.Find(warnBy.Metric ?? warnBy.Auto) is { } metric ? texts.Of(metric.Name)
+        : warnBy.Metric;
 
-    private static string MeterKindName(SensorKind kind, Texts texts) => kind == SensorKind.Fan ? texts.Of(UiText.MeterSpeed) : texts.Of(kind);
+    private static string KindName(SensorKind kind, Texts texts) => kind == SensorKind.Fan ? texts.Of(UiText.WarnBySpeed) : texts.Of(kind);
 
     // The library's name of a type, which the page compares sensors by: a duration is a TimeSpan there.
     private static string TypeOf(SensorKind kind) => kind == SensorKind.Duration ? "TimeSpan" : kind.ToString();

@@ -106,7 +106,7 @@ public sealed class UndoRulesTests
     [Fact]
     public void EverySettingCanBeUndone()
     {
-        var everything = ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config;
+        var everything = ThermiConfigJson.Read(TestFiles.Config("v6.json")).Config;
         var item = new ItemConfig { Id = "item", Metric = Metrics.CpuLoad.Id };
         var full = new ItemConfig
         {
@@ -120,14 +120,14 @@ public sealed class UndoRulesTests
             Own = true,
             Tray = true,
             Color = "#FFFFFF",
-            Meter = new MeterConfig { Metric = Metrics.CpuLoad.Id },
+            WarnBy = new WarnByConfig { Metric = Metrics.CpuLoad.Id },
             Threshold = new Threshold(10, 20),
             Offset = 1,
             Stat = ItemStat.Max,
             Smooth = 3,
             Decimals = 2,
             Bits = true,
-            Graph = true,
+            Graph = GraphStyle.Bars,
             AlertOnly = true,
             Notify = true,
         };

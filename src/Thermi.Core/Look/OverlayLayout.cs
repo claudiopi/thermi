@@ -19,14 +19,14 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     public string? Color { get; init; }
 
     /// <summary>
-    /// A graph meter's last minute, a value a second and oldest first, null where one was missing;
-    /// null without a graph.
+    /// The last minute its line draws, a value a second and oldest first, null where one was missing; null unless it draws
+    /// a line.
     /// </summary>
     public IReadOnlyList<GraphPoint?>? Graph { get; init; }
 
     /// <summary>
-    /// How many of its meter's <see cref="OverlayLayout.Segments"/> are lit from the bottom, in its level's color; null for
-    /// an item without a meter or with its graph, which draws its meter in its place.
+    /// How many of its bars' <see cref="OverlayLayout.Segments"/> are lit from the bottom, in its level's color; null unless
+    /// it draws bars.
     /// </summary>
     public int? Lit { get; init; }
 
@@ -37,7 +37,7 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     public bool Throttled { get; init; }
 }
 
-/// <summary>One second of a graph meter: its fill, 0 to 1, and the level the item's thresholds give it.</summary>
+/// <summary>One second of a line: its fill, 0 to 1, and the level the item's lines give it.</summary>
 public readonly record struct GraphPoint(double Fill, Level Level);
 
 /// <summary>Turns an overlay's settings and the current readings into what it shows. Pixels are the painter's job.</summary>
@@ -82,12 +82,13 @@ public static class OverlayLayout
             }
 
             var labeled = Labeled(overlay.Style.Layout, item, label != shownLabel);
+            var drawn = DrawnOf(overlay, item);
             items.Add(new OverlayItem(labeled ? label : null, value, level, room)
             {
                 Id = item.Id,
                 Color = item.Color,
-                Graph = GraphOf(item, meter, history),
-                Lit = LitOf(item, meter),
+                Graph = drawn == GraphStyle.Line ? GraphOf(item, meter, history) : null,
+                Lit = drawn == GraphStyle.Bars ? LitOf(meter) : null,
                 Stat = item.Stat,
             });
             shownLabel = label;
@@ -127,27 +128,33 @@ public static class OverlayLayout
             : null;
 
     /// <summary>
-    /// What an item's meter reads, or null when it has none or its sensor is gone. An item metered by itself meters the
-    /// value it shows, offset included, so its thresholds color what it reads.
+    /// What an item's lines judge and its graph draws: what it warns by, or its own value, offset included, so its lines
+    /// color what it shows; null when its sensor is gone.
     /// </summary>
     internal static Reading? MeterOf(ItemConfig item, IReadOnlyDictionary<string, Reading> readings) =>
-        item.Meter is not { } meter ? null
-        : MetersItself(item) ? ReadingOf(item, readings)
-        : meter.Sensor is { } sensor ? Named(sensor, meter.Auto, readings)
-        : readings.GetValueOrDefault(meter.Metric ?? "");
-
-    /// <summary>True when the item's meter is the item's own value, its metric or its sensor.</summary>
-    public static bool MetersItself(ItemConfig item) =>
-        item.Meter is { } meter && ((meter.Metric is not null && meter.Metric == item.Metric) || (meter.Sensor is not null && meter.Sensor == item.Sensor));
+        item.WarnBy is not { } other ? ReadingOf(item, readings)
+        : other.Sensor is { } sensor ? Named(sensor, other.Auto, readings)
+        : readings.GetValueOrDefault(other.Metric ?? "");
 
     /// <summary>
-    /// The level its thresholds give its meter: normal without a meter, thresholds or a value. An item metered by itself
-    /// is judged as it shows, with its own decimals.
+    /// The level its lines give what it warns by: normal for an item lines cannot judge, without lines or without a value.
+    /// An item judged by its own reading is judged as it shows, with its own decimals.
     /// </summary>
     internal static Level LevelOf(ItemConfig item, Reading? meter) =>
-        item is { Meter: not null, Threshold: { } threshold } && meter is { } reading
-            ? threshold.LevelOf(reading, MetersItself(item) ? item.Decimals : null)
+        item.Threshold is { } threshold && meter is { } reading && Threshold.Judges(item)
+            ? threshold.LevelOf(reading, item.WarnBy is null ? item.Decimals : null)
             : Level.Normal;
+
+    /// <summary>
+    /// What an item draws beside its value: its own choice, else its overlay's, whose Auto draws a line for a load judged
+    /// by its own reading, whose last minute says more than the value alone, and bars for the rest; nothing for an item
+    /// lines cannot judge, which has no level or scale to draw.
+    /// </summary>
+    public static GraphStyle DrawnOf(OverlayConfig overlay, ItemConfig item) =>
+        Threshold.JudgedKind(item) is not { } kind ? GraphStyle.None
+        : (item.Graph ?? overlay.Graph) is var chosen and not GraphStyle.Auto ? chosen
+        : kind == SensorKind.Load && item.WarnBy is null ? GraphStyle.Line
+        : GraphStyle.Bars;
 
     /// <summary>
     /// The groups the overlay paints as separate pills. With pills, each label starts one, and the unlabeled items after
@@ -213,19 +220,13 @@ public static class OverlayLayout
         layout == PillLayout.Each || newLabel || (layout == PillLayout.Pills && item.Own);
 
     // Without a history, a graph has only the value now.
-    private static IReadOnlyList<GraphPoint?>? GraphOf(ItemConfig item, Reading? meter, ItemHistory? history) =>
-        !item.Graph || item.Meter is null ? null
-        : history is not null ? history.Graph(item)
+    private static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, Reading? meter, ItemHistory? history) =>
+        history is not null ? history.Graph(item)
         : [meter is { Usable: { } value } read ? new GraphPoint(FillOf(value, read.Kind), LevelOf(item, meter)) : null];
 
-    // Any value above zero lights a segment, so a meter that shows none reads as zero or nothing read.
-    private static int? LitOf(ItemConfig item, Reading? meter)
+    // Any value above zero lights a segment, so bars that show none read as zero or nothing read.
+    private static int LitOf(Reading? meter)
     {
-        if (item.Graph || item.Meter is null)
-        {
-            return null;
-        }
-
         var fill = meter is { Usable: { } value } read ? FillOf(value, read.Kind) : 0;
         return fill > 0 ? Math.Max(1, (int)Math.Round(fill * Segments, MidpointRounding.AwayFromZero)) : 0;
     }

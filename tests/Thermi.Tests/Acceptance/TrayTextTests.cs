@@ -160,7 +160,7 @@ public sealed class TrayTextTests
                             Id = "gone",
                             Sensor = "/nowhere/0/fan/9",
                             Tray = true,
-                            Meter = new MeterConfig { Sensor = "/nowhere/0/control/9" },
+                            WarnBy = new WarnByConfig { Sensor = "/nowhere/0/control/9" },
                         },
                     ],
                 },
@@ -181,7 +181,7 @@ public sealed class TrayTextTests
     public void TrayIconsKeepTheirIdentityPerInstall()
     {
         const string Elsewhere = @"C:\Program Files\thermi-build\thermi.exe";
-        var ids = ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
+        var ids = ThermiConfigJson.Read(TestFiles.Config("v6.json")).Config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Id).ToList();
 
         List<Guid> Made(string path)
         {

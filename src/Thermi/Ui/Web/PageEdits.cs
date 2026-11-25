@@ -70,6 +70,7 @@ internal static class PageEdits
         "fade" => OverlayEdits.SetFade(config, overlay, Flag(value)),
         "hidden" => OverlayEdits.SetHidden(config, overlay, Flag(value)),
         "visibility" => OverlayEdits.SetVisibility(config, overlay, Read<Visibility>(value)),
+        "graph" => OverlayEdits.SetGraph(config, overlay, value.ValueKind == JsonValueKind.Null ? GraphStyle.Auto : Read<GraphStyle>(value)),
         "snap" => OverlayEdits.Snap(config, overlay, value.Deserialize<SnapConfig>(BridgeCalls.Options) ?? throw NoField(field)),
         _ => throw NoField(field),
     };
@@ -89,7 +90,11 @@ internal static class PageEdits
             "name" => ItemEdits.Rename(config, id, Text(value) ?? ""),
             "label" => ItemEdits.RenamePill(config, id, Text(value) ?? ""),
             "sensor" => Text(value) is { } sensor ? ItemEdits.ChangeSensor(config, id, snapshot, sensor) : ItemEdits.BackToAuto(config, id),
-            "meter" => Meter(config, id, snapshot, value),
+            "warnBy" => ItemEdits.SetWarnBy(
+                config,
+                id,
+                snapshot,
+                value.ValueKind == JsonValueKind.Null ? null : value.Deserialize<WarnByConfig>(BridgeCalls.Options)),
             "own" => ItemEdits.SetOwn(config, id, Flag(value)),
             "tray" => ItemEdits.SetTray(config, id, Flag(value)),
             "color" => ItemEdits.SetColor(config, id, Text(value)),
@@ -111,21 +116,10 @@ internal static class PageEdits
         "smooth" => PowerEdits.SetSmooth(config, id, value.ValueKind == JsonValueKind.Null ? 0 : value.GetInt32()),
         "decimals" => PowerEdits.SetDecimals(config, id, value.ValueKind == JsonValueKind.Null ? null : value.GetInt32()),
         "bits" => PowerEdits.SetBits(config, id, Flag(value)),
-        "graph" => PowerEdits.SetGraph(config, id, Flag(value)),
+        "graph" => PowerEdits.SetGraph(config, id, value.ValueKind == JsonValueKind.Null ? null : Read<GraphStyle>(value)),
         "alertOnly" => PowerEdits.SetAlertOnly(config, id, Flag(value)),
         _ => throw NoField(field),
     };
-
-    // The item's own value as its meter keeps what it started from; any other meter brings its own default lines.
-    private static EditResult Meter(ThermiConfig config, string id, Snapshot snapshot, JsonElement value)
-    {
-        var meter = value.ValueKind == JsonValueKind.Null ? null : value.Deserialize<MeterConfig>(BridgeCalls.Options);
-        var item = config.Overlays.SelectMany(overlay => overlay.Items).FirstOrDefault(each => each.Id == id);
-        var itself = meter is not null
-            && item is not null
-            && ((meter.Metric is not null && meter.Metric == item.Metric) || (meter.Sensor is not null && meter.Sensor == item.Sensor));
-        return itself ? ItemEdits.MeterItself(config, id, snapshot) : ItemEdits.SetMeter(config, id, snapshot, meter);
-    }
 
     private static StyleConfig Merged(StyleConfig style, string field, JsonElement value)
     {

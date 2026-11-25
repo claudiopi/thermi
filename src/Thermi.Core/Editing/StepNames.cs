@@ -56,31 +56,25 @@ internal static class StepNames
         return gone.SetEquals(come) ? new StepName(field, null, null) : null;
     }
 
-    /// <summary>A meter's change is named by what of it changed: the meter, a line, both lines, the graph, alert-only or the notice.</summary>
-    public static StepName OfMetering(ConfigFields.Metering before, ConfigFields.Metering after)
+    /// <summary>
+    /// A change of what an item warns by is named by what of it changed: what it warns by, a line, both lines, alert-only
+    /// or the notice; a line in the unit of what it warns by after it, the item's own <paramref name="kind"/> without another.
+    /// </summary>
+    public static StepName OfMetering(ConfigFields.Metering before, ConfigFields.Metering after, SensorKind? kind)
     {
         var (was, now) = (Lines(before.Threshold), Lines(after.Threshold));
-        var kind = after.Meter is { } meter ? KindOf(meter.Metric ?? meter.Auto, meter.Sensor) : null;
-        return (Equals(before.Meter, after.Meter), Equals(was.Warning, now.Warning), Equals(was.Critical, now.Critical)) switch
+        kind = after.WarnBy is { } other ? Threshold.KindOf(other) : kind;
+        return (Equals(before.WarnBy, after.WarnBy), Equals(was.Warning, now.Warning), Equals(was.Critical, now.Critical)) switch
         {
-            (false, _, _) => new StepName(ChangedField.Meter, null, null),
+            (false, _, _) => new StepName(ChangedField.WarnBy, null, null),
             (_, false, false) => new StepName(ChangedField.Thresholds, null, null),
             (_, false, true) => Of(ChangedField.Warning, was.Warning, now.Warning, kind),
             (_, true, false) => Of(ChangedField.Critical, was.Critical, now.Critical, kind),
-            _ => OfSwitch(before, after),
+            _ => before.AlertOnly != after.AlertOnly
+                ? Of(ChangedField.AlertOnly, before.AlertOnly, after.AlertOnly)
+                : Of(ChangedField.NotifyMe, before.Notify, after.Notify),
         };
     }
-
-    /// <summary>What an item reads, from its metric or its first sensor's id, so a step is named in its unit even while the service is not read.</summary>
-    public static SensorKind? KindOf(ItemConfig item) => KindOf(item.Metric ?? item.Auto, item.Sensor ?? (item.Sensors is [var first, ..] ? first : null));
-
-    private static SensorKind? KindOf(string? metric, string? sensor) =>
-        Metrics.Find(metric)?.Kind ?? (sensor is null ? null : SensorMap.KindOfId(sensor));
-
-    private static StepName OfSwitch(ConfigFields.Metering before, ConfigFields.Metering after) =>
-        before.Graph != after.Graph ? Of(ChangedField.Graph, before.Graph, after.Graph)
-        : before.AlertOnly != after.AlertOnly ? Of(ChangedField.AlertOnly, before.AlertOnly, after.AlertOnly)
-        : Of(ChangedField.NotifyMe, before.Notify, after.Notify);
 
     private static (double? Warning, double? Critical) Lines(Threshold? threshold) => threshold is null ? default : (threshold.Warning, threshold.Critical);
 

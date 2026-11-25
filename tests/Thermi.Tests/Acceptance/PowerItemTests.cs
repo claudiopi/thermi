@@ -155,7 +155,7 @@ public sealed class PowerItemTests
         var time = new FakeTimeProvider();
         var history = new ItemHistory(time);
         var lined = Done(ItemEdits.SetThreshold(new ThermiConfig(), Metrics.GpuLoad.Id, 60, 80));
-        var config = Done(PowerEdits.SetGraph(lined, Metrics.GpuLoad.Id, true));
+        var config = Done(PowerEdits.SetGraph(lined, Metrics.GpuLoad.Id, GraphStyle.Line));
         var overlay = config.Overlays[0];
         IReadOnlyList<OverlayItem> shown = [];
 
@@ -180,8 +180,9 @@ public sealed class PowerItemTests
         Assert.Equal(
             [new GraphPoint(0.03, Level.Normal)],
             OverlayLayout.Build(overlay, TrayTextTests.Quiet, English).Single(item => item.Label == "GPU").Graph);
-        Assert.Equal(Refusal.MeterNeeded, PowerEdits.SetGraph(config, Metrics.CpuPower.Id, true).Refused);
-        Assert.False(Item(Done(ItemEdits.SetMeter(config, Metrics.GpuLoad.Id, Desktop, null)), Metrics.GpuLoad.Id).Graph);
+        Assert.Equal(Refusal.JudgingNeeded, PowerEdits.SetGraph(config, Metrics.CpuPower.Id, GraphStyle.Line).Refused);
+        var ramBars = Done(PowerEdits.SetGraph(config, Metrics.RamUsed.Id, GraphStyle.Bars));
+        Assert.Null(Item(Done(ItemEdits.SetWarnBy(ramBars, Metrics.RamUsed.Id, Desktop, null)), Metrics.RamUsed.Id).Graph);
 
         history.Add(overlay with { Items = [.. overlay.Items.Where(item => item.Id != Metrics.GpuLoad.Id)] }, TrayTextTests.Quiet);
         Assert.Equal(Enumerable.Repeat<GraphPoint?>(null, 60), history.Graph(overlay.Items.Single(item => item.Id == Metrics.GpuLoad.Id)));
@@ -225,13 +226,14 @@ public sealed class PowerItemTests
         Assert.True(Width(overlay, calm) < Width(overlay, hot));
         Assert.Equal(RightEdge(overlay, hot), RightEdge(overlay, calm));
         Assert.Contains(open, item => item.Label == "GPU");
-        Assert.Equal(Refusal.MeterNeeded, PowerEdits.SetAlertOnly(new ThermiConfig(), Metrics.CpuPower.Id, true).Refused);
-        Assert.Equal(Refusal.MeterNeeded, PowerEdits.SetNotify(new ThermiConfig(), Metrics.CpuPower.Id, true).Refused);
+        Assert.Equal(Refusal.JudgingNeeded, PowerEdits.SetAlertOnly(new ThermiConfig(), Metrics.CpuPower.Id, true).Refused);
+        Assert.Equal(Refusal.JudgingNeeded, PowerEdits.SetNotify(new ThermiConfig(), Metrics.CpuPower.Id, true).Refused);
         Assert.True(Item(Done(PowerEdits.SetNotify(lined, Metrics.GpuLoad.Id, true)), Metrics.GpuLoad.Id).Notify);
         Assert.False(Item(Done(PowerEdits.SetAlertOnly(new ThermiConfig(), Metrics.CpuPower.Id, false)), Metrics.CpuPower.Id).AlertOnly);
-        Assert.False(Item(Done(ItemEdits.SetMeter(config, Metrics.GpuLoad.Id, Desktop, null)), Metrics.GpuLoad.Id).AlertOnly);
+        var ramAlert = Done(PowerEdits.SetAlertOnly(new ThermiConfig(), Metrics.RamUsed.Id, true));
+        Assert.False(Item(Done(ItemEdits.SetWarnBy(ramAlert, Metrics.RamUsed.Id, Desktop, null)), Metrics.RamUsed.Id).AlertOnly);
         Assert.Contains(
-            "alertOnly goes only with a meter",
+            "alertOnly goes only with a reading lines judge",
             ThermiConfigJson.Read(File(WithItem(new ThermiConfig(), Metrics.CpuPower.Id, item => item with { AlertOnly = true }))).Problem?.Reason,
             StringComparison.Ordinal);
     }
@@ -262,7 +264,7 @@ public sealed class PowerItemTests
     [Fact]
     public void AFileHoldsUpToFourOverlays()
     {
-        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v5.json"));
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v6.json"));
         var twoAlike = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {} ] }").Config;
         var (_, fiveProblem) = ThermiConfigJson.Read("{ \"version\": 2, \"overlays\": [ {}, {}, {}, {}, {} ] }");
 

@@ -29,14 +29,11 @@ public enum Refusal
     /// <summary>A threshold is a number from 0 to 100, or to 10,000 RPM for a fan's speed.</summary>
     ThresholdOutOfRange,
 
-    /// <summary>Thresholds color a meter, so an item without one has none.</summary>
-    NoMeter,
+    /// <summary>Lines judge a temperature, a load, a duty, a fan speed or a throughput, so an item that warns by none has none.</summary>
+    NothingToJudge,
 
-    /// <summary>A meter is a temperature, a load, a duty or a fan speed: the values its lines can judge.</summary>
-    CannotBeMeter,
-
-    /// <summary>A combined item has no single sensor to meter itself with.</summary>
-    CannotMeterItself,
+    /// <summary>An item warns by a temperature, a load, a duty, a fan speed or a throughput: the values lines can judge.</summary>
+    CannotWarnBy,
 
     LabelEmpty,
 
@@ -57,8 +54,8 @@ public enum Refusal
     /// <summary>thermi has no translation for the language.</summary>
     UnknownLanguage,
 
-    /// <summary>Alert-only and the graph both follow the item's meter.</summary>
-    MeterNeeded,
+    /// <summary>Alert-only, the notice and the graph all follow what lines judge, which the item reads none of.</summary>
+    JudgingNeeded,
 
     /// <summary>An offset lies within its type's range, as <see cref="PowerEdits.OffsetRange"/> gives it.</summary>
     OffsetOutOfRange,

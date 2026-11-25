@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Item, ItemView, Sensor, Settings, WindowView } from '../bridge/bridge.g';
 import { sayKeys } from '../testSay';
-import { meterChoices, offsetRange, placeOf, sensorChoices, showAllSensors } from './itemModel';
+import { offsetRange, placeOf, sensorChoices, showAllSensors, warnByChoices } from './itemModel';
 
 function sensor(id: string, type: string, hardwareType = 'Cpu', hardware = 'Ryzen'): Sensor {
   return { id, type, hardwareType, hardware, name: `${id} name`, value: 1 };
@@ -20,7 +20,9 @@ const sensors = [
 function view(shows: Partial<ItemView>): WindowView {
   return {
     pills: [],
-    items: { cpu: { value: null, level: null, type: 'Temperature', meters: [], meterName: null, bits: false, offer: { first: [], more: [] }, ...shows } },
+    items: {
+      cpu: { value: null, level: null, type: 'Temperature', warnBy: [], warnByName: null, judged: true, bits: false, offer: { first: [], more: [] }, ...shows },
+    },
     values: { package: '50 °C', ethernet: '1 MB/s' },
     mark: 'calm',
   };
@@ -93,23 +95,23 @@ describe('the item page', () => {
     },
   );
 
-  // The item's offered meters by place, Off first; a meter written by hand that is none of them shows kept. An item
-  // offered no meter, as a power or a clock, has no Meter row at all, since Off would be its only choice.
-  const fan = { meters: [{ meter: { sensor: 'fan' }, name: 'itself' }, { meter: { sensor: 'duty', auto: 'fan.cpu.duty' }, name: 'duty' }], meterName: 'hand' };
-  const none = { meters: [], meterName: 'hand' };
+  // What the item is offered to warn by, its own reading first; a reading written by hand that is none of them shows
+  // kept. An item offered nothing else, as a power or a clock, has no Warn by row at all, since Off would be its only choice.
+  const fan = { warnBy: [{ name: 'own' }, { warnBy: { sensor: 'duty', auto: 'fan.cpu.duty' }, name: 'duty' }], warnByName: 'hand' };
+  const none = { warnBy: [{ name: 'off' }], warnByName: 'hand' };
   test.each([
-    { item: { id: 'cpu', sensor: 'fan' }, shows: fan, meter: 'off', offered: 3, row: true },
-    { item: { id: 'cpu', sensor: 'fan', meter: { sensor: 'fan' } }, shows: fan, meter: '0', offered: 3, row: true },
-    { item: { id: 'cpu', sensor: 'fan', meter: { sensor: 'duty' } }, shows: fan, meter: '1', offered: 3, row: true },
-    { item: { id: 'cpu', sensor: 'fan', meter: { sensor: 'package' } }, shows: fan, meter: 'kept', offered: 4, row: true },
-    { item: { id: 'cpu', sensor: 'power' }, shows: none, meter: 'off', offered: 1, row: false },
-    { item: { id: 'cpu', sensor: 'power', meter: { sensor: 'package' } }, shows: none, meter: 'kept', offered: 2, row: true },
-  ] satisfies { item: Item; shows: Partial<ItemView>; meter: string; offered: number; row: boolean }[])(
-    'meters $item by $meter',
-    ({ item, shows, meter, offered, row }) => {
-      const shown = meterChoices(item, { ...view({}).items['cpu']!, ...shows }, sayKeys);
+    { item: { id: 'cpu', sensor: 'fan' }, shows: fan, warnBy: '0', offered: 2, row: true },
+    { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'duty' } }, shows: fan, warnBy: '1', offered: 2, row: true },
+    { item: { id: 'cpu', sensor: 'fan', warnBy: { metric: 'fan.cpu.duty' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
+    { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'package' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
+    { item: { id: 'cpu', sensor: 'power' }, shows: none, warnBy: '0', offered: 1, row: false },
+    { item: { id: 'cpu', sensor: 'power', warnBy: { sensor: 'package' } }, shows: none, warnBy: 'kept', offered: 2, row: true },
+  ] satisfies { item: Item; shows: Partial<ItemView>; warnBy: string; offered: number; row: boolean }[])(
+    'warns $item by $warnBy',
+    ({ item, shows, warnBy, offered, row }) => {
+      const shown = warnByChoices(item, { ...view({}).items['cpu']!, ...shows });
 
-      expect([shown.value, shown.choices.length, shown.row]).toEqual([meter, offered, row]);
+      expect([shown.value, shown.choices.length, shown.row]).toEqual([warnBy, offered, row]);
     },
   );
 

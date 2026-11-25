@@ -95,7 +95,7 @@ public static class MeterChart
             return null;
         }
 
-        var lines = Threshold.Default(metric is null ? new MeterConfig { Sensor = meter } : new MeterConfig { Metric = meter }, snapshot);
+        var lines = Threshold.Default(metric is null ? new WarnByConfig { Sensor = meter } : new WarnByConfig { Metric = meter }, snapshot);
         var (step, push) = known == SensorKind.Fan ? (50.0, 100.0)
             : known == SensorKind.Throughput ? (100e3, 1e6)
             : (1.0, 5.0);
@@ -103,7 +103,7 @@ public static class MeterChart
     }
 
     /// <summary>
-    /// The scale of the chart of an item's own reading, for an item that has no meter: no lines, and null for a reading
+    /// The scale of the chart of an item's own reading, for an item lines cannot judge: no lines, and null for a reading
     /// that is no number to draw, as a time of day, an address or a time since start.
     /// </summary>
     public static MeterScale? OfReading(string sensor, Snapshot snapshot)

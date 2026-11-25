@@ -18,7 +18,7 @@ public sealed class UndoTests
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
-    private static ThermiConfig Everything => ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config;
+    private static ThermiConfig Everything => ThermiConfigJson.Read(TestFiles.Config("v6.json")).Config;
 
     // Each kind of edit, from the file with every field set; the overlay snapped is a copy, made first, so its row
     // undoes two steps.
@@ -30,9 +30,10 @@ public sealed class UndoTests
         ["ChangeSensor"] = [config => ItemEdits.ChangeSensor(config, "cpu.temperature-2", Desktop, "/amdcpu/0/temperature/3")],
         ["RenamePill"] = [config => ItemEdits.RenamePill(config, "ram.used", "MEM")],
         ["RenameSensor"] = [config => ThermiEdits.RenameSensor(config, Desktop, "/lpc/it8689e/0/temperature/1", "Chipset hub")],
-        ["MeterOfASensor"] = [config => ItemEdits.SetMeter(config, "ccd", Desktop, null)],
-        ["MeterOfAMetric"] = [config => ItemEdits.SetMeter(config, "cpu.temperature", Desktop, null)],
-        ["MeterOfMemory"] = [config => ItemEdits.SetMeter(config, "ram.used", Desktop, null)],
+        ["WarnByOfACombined"] = [config => ItemEdits.SetWarnBy(config, "ccd", Desktop, null)],
+        ["WarnByOfMemory"] = [config => ItemEdits.SetWarnBy(config, "ram.used", Desktop, null)],
+        ["GraphOfAnItem"] = [config => PowerEdits.SetGraph(config, "cpu.temperature", null)],
+        ["GraphOfAnOverlay"] = [config => OverlayEdits.SetGraph(config, 1, GraphStyle.Line)],
         ["DeleteItem"] = [config => ItemEdits.Delete(config, "ccd")],
         ["Size"] = [config => OverlayEdits.SetSize(config, 1, 1.5)],
         ["Duplicate"] = [config => OverlayEdits.Duplicate(config, 1)],
@@ -77,7 +78,7 @@ public sealed class UndoTests
         Assert.Equal([.. states.SkipLast(1).Reverse().Select(File)], undone.Select(result => File(result.Config)));
         Assert.Equal([.. states.Skip(1).Select(File)], redone.Select(result => File(result.Config)));
         Assert.All(undone.Concat(redone), result => Assert.Equal(0, result.Skipped));
-        Assert.Equal(TestFiles.Config("v5.json").ReplaceLineEndings().TrimEnd(), File(undone[^1].Config).ReplaceLineEndings());
+        Assert.Equal(TestFiles.Config("v6.json").ReplaceLineEndings().TrimEnd(), File(undone[^1].Config).ReplaceLineEndings());
         Assert.Null(history.Redo(redone[^1].Config));
     }
 
@@ -178,8 +179,19 @@ public sealed class UndoTests
             (config => ItemEdits.Move(config, Metrics.GpuLoad.Id, 0), ChangedField.Place, null, null, null),
             (config => ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, 89, 95), ChangedField.Warning, "90", "89 °C", "90 °C"),
             (config => ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, 80, 85), ChangedField.Thresholds, null, null, null),
-            (config => ItemEdits.SetMeter(config, Metrics.CpuTemperature.Id, Desktop, null), ChangedField.Meter, null, null, null),
-            (config => PowerEdits.SetGraph(config, Metrics.CpuTemperature.Id, true), ChangedField.Graph, null, null, UndoText.Off),
+            (
+                config => ItemEdits.SetWarnBy(config, Metrics.CpuTemperature.Id, Desktop, new WarnByConfig { Metric = Metrics.CpuLoad.Id }),
+                ChangedField.WarnBy,
+                null,
+                null,
+                null),
+            (config => PowerEdits.SetGraph(config, Metrics.CpuTemperature.Id, GraphStyle.Line), ChangedField.Graph, null, null, null),
+            (
+                config => OverlayEdits.SetGraph(config, 0, GraphStyle.None),
+                ChangedField.Graph,
+                Texts.English.Of(GraphStyle.Auto),
+                Texts.English.Of(GraphStyle.None),
+                Texts.English.Of(GraphStyle.Auto)),
             (config => PowerEdits.SetAlertOnly(config, Metrics.CpuTemperature.Id, true), ChangedField.AlertOnly, null, null, UndoText.Off),
             (
                 config => new EditResult(WithItem(config, Metrics.CpuTemperature.Id, item => item with { Notify = true })),
@@ -259,7 +271,7 @@ public sealed class UndoTests
         // In °F, a line is a temperature and an offset a difference of two.
         var fahrenheit = InEnglish with { Temperature = TemperatureUnit.Fahrenheit };
         Assert.Equal(Say(UndoText.Change, Say(ChangedField.Critical), "203", "201 °F"), StepTexts.Of(Named(edits[0].Edit), fahrenheit));
-        Assert.Equal(Say(UndoText.Change, Say(ChangedField.Offset), "0", "-9 °F"), StepTexts.Of(Named(edits[10].Edit), fahrenheit));
+        Assert.Equal(Say(UndoText.Change, Say(ChangedField.Offset), "0", "-9 °F"), StepTexts.Of(Named(edits[11].Edit), fahrenheit));
 
         var grouped = new UndoHistory(time);
         var config = new ThermiConfig();

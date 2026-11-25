@@ -261,7 +261,7 @@ public sealed class StyleTests
             (false, null, Level.Warning, true, new LevelMark(MarkKind.None, default, default)),
             (true, null, Level.Critical, true, new LevelMark(MarkKind.Reversed, Rgb.Parse("#C42B1C"), Rgb.Parse("#FFFFFF"))),
         ];
-        var graphed = Done(PowerEdits.SetGraph(new ThermiConfig(), Metrics.CpuTemperature.Id, true));
+        var graphed = Done(PowerEdits.SetGraph(new ThermiConfig(), Metrics.CpuTemperature.Id, GraphStyle.Line));
         var readings = new Dictionary<string, Reading>(TrayTextTests.Quiet, StringComparer.Ordinal)
         {
             [Metrics.CpuLoad.Id] = new(SensorKind.Load, -3),
@@ -282,7 +282,7 @@ public sealed class StyleTests
             [ReadingFormatter.Format(new Reading(SensorKind.Load, 0), English), ReadingFormatter.Format(new Reading(SensorKind.Load, 100), English)],
             shown.Where((_, at) => at is 2 or 4).Select(item => item.Value));
         Assert.Equal([true, false, true, false, true, false], shown.Select(item => item.Graph is not null));
-        // A metered item without its graph lights its meter instead; the power, without a meter, draws neither.
+        // An item that draws no line lights its bars instead; the power, which lines cannot judge, draws neither.
         Assert.Equal([null, 1, null, null, null, 2], shown.Select(item => item.Lit));
         // Only an item with neither underlines its warning.
         var warm = new OverlayItem("CPU", "90 °C", Level.Warning, "100 °C");

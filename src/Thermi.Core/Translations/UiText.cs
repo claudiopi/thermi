@@ -40,12 +40,16 @@ public enum UiText
 
     LabelField,
 
-    MeterField,
+    /// <summary>The reading an item's lines judge and its graph draws, among its options.</summary>
+    WarnByField,
 
-    MeterNone,
+    /// <summary>Warn by's first choice for an item lines cannot judge by its own reading, as the RAM in use.</summary>
+    WarnByOff,
 
-    /// <summary>A fan item's meter by its own speed, as its other meter is its duty.</summary>
-    MeterSpeed,
+    WarnByOwn,
+
+    /// <summary>A fan item warned by its own speed, as it can be by its duty.</summary>
+    WarnBySpeed,
 
     /// <summary>Under a chart whose lines, not the defaults, were reached for most of its ten minutes.</summary>
     FiresMostly,
@@ -150,9 +154,16 @@ public enum UiText
     SmoothSeconds,
     DecimalsField,
     OffsetField,
-    MeterGraph,
+    /// <summary>What an item or an overlay draws beside a value: nothing, bars or a line.</summary>
+    GraphField,
+
+    /// <summary>An item's Graph choice that draws what its overlay's says.</summary>
+    GraphLikeOverlay,
+
+    /// <summary>Under the overlay's Graph, which each item can override.</summary>
+    GraphHint,
     AlertOnly,
-    AlertOnlyNeedsMeter,
+    AlertOnlyNeedsWarnBy,
 
     /// <summary>A network or a drive speed's switch to show it in bits per second, and what it keeps.</summary>
     Bits,

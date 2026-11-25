@@ -82,6 +82,17 @@ export function Appearance({ data, overlay }: AppearanceProps) {
           </CardRow>
         </Card>
         <Card>
+          <CardRow label={t('UiText.GraphField')} description={t('UiText.GraphHint')}>
+            <Dropdown
+              className="t-layout-box"
+              label={t('UiText.GraphField')}
+              choices={choicesOf(t, 'GraphStyle', ['auto', 'none', 'bars', 'line'])}
+              value={one.graph ?? 'auto'}
+              onChange={(value) => void edit({ kind: 'overlay', overlay, field: 'graph', value: value === 'auto' ? null : value })}
+            />
+          </CardRow>
+        </Card>
+        <Card>
           <CardRow label={t('UiText.BackgroundField')} {...(shown.background < 0.3 ? { description: t('OverlayPageText.ShadowBelow') } : {})}>
             <Slider
               className="t-slider-short"

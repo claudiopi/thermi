@@ -7,7 +7,7 @@ namespace Thermi.Core.Editing;
 
 /// <summary>
 /// The window's edits of an item's power options: combined sensors, the offset, its minimum, maximum or average, smoothing,
-/// decimals, a graph meter and alert-only. Each gives valid settings, or the settings it was given and why it could not.
+/// decimals, the graph and alert-only. Each gives valid settings, or the settings it was given and why it could not.
 /// The snapshot gives each sensor its type, which the offset's range and the sum's refusal follow.
 /// </summary>
 public static class PowerEdits
@@ -131,15 +131,19 @@ public static class PowerEdits
     /// <summary>Shows a throughput in bits per second, or back in bytes; its lines and the file stay in bytes.</summary>
     public static EditResult SetBits(ThermiConfig config, string id, bool bits) => ConfigEdits.Edit(config, id, item => item with { Bits = bits });
 
-    /// <summary>Draws the meter as a graph of its last minute, or as a bar; only an item with a meter has one to draw.</summary>
-    public static EditResult SetGraph(ThermiConfig config, string id, bool graph) => Metered(config, id, graph, item => item with { Graph = graph });
+    /// <summary>
+    /// Draws nothing, bars or a line of the last minute beside the value, or with null what its overlay draws; only an item
+    /// lines can judge has a level and a scale to draw.
+    /// </summary>
+    public static EditResult SetGraph(ThermiConfig config, string id, GraphStyle? graph) =>
+        Judged(config, id, graph is not null, item => item with { Graph = graph });
 
-    /// <summary>Shows the item only while its meter is at warning or critical; an item without a meter never would.</summary>
+    /// <summary>Shows the item only while its lines say warning or critical; an item lines cannot judge never would.</summary>
     public static EditResult SetAlertOnly(ThermiConfig config, string id, bool alertOnly) =>
-        Metered(config, id, alertOnly, item => item with { AlertOnly = alertOnly });
+        Judged(config, id, alertOnly, item => item with { AlertOnly = alertOnly });
 
-    /// <summary>Notifies once the item has been critical a while; only an item with a meter can be.</summary>
-    public static EditResult SetNotify(ThermiConfig config, string id, bool notify) => Metered(config, id, notify, item => item with { Notify = notify });
+    /// <summary>Notifies once the item has been critical a while; only an item lines can judge can be.</summary>
+    public static EditResult SetNotify(ThermiConfig config, string id, bool notify) => Judged(config, id, notify, item => item with { Notify = notify });
 
     private static Refusal? Refused(int count, List<SensorKind?> kinds, Combine combine) =>
         count < 2 ? Refusal.CombineNeedsTwo
@@ -148,6 +152,8 @@ public static class PowerEdits
         : kinds[0] == SensorKind.Temperature && combine == Combine.Sum ? Refusal.SumOfTemperatures
         : null;
 
-    private static EditResult Metered(ThermiConfig config, string id, bool on, Func<ItemConfig, ItemConfig> change) =>
-        ConfigEdits.Item(config, id) is { Meter: null } && on ? ConfigEdits.Refuse(config, Refusal.MeterNeeded) : ConfigEdits.Edit(config, id, change);
+    private static EditResult Judged(ThermiConfig config, string id, bool on, Func<ItemConfig, ItemConfig> change) =>
+        on && ConfigEdits.Item(config, id) is { } item && !Threshold.Judges(item)
+            ? ConfigEdits.Refuse(config, Refusal.JudgingNeeded)
+            : ConfigEdits.Edit(config, id, change);
 }

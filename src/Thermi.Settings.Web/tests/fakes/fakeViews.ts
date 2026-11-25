@@ -1,4 +1,18 @@
-import type { ChartView, ColorStop, Item, ItemView, MarkState, Meter, MeterChoice, PillView, Sensor, Threshold, WindowView } from '../bridgeTypes';
+import type {
+  ChartView,
+  ColorStop,
+  GraphStyle,
+  Item,
+  ItemView,
+  MarkState,
+  Overlay,
+  PillView,
+  Sensor,
+  Threshold,
+  WarnBy,
+  WarnByChoice,
+  WindowView,
+} from '../bridgeTypes';
 
 // The C# side's views of the settings and the readings, as the fake gives them: the pills, each item's value and
 // level, and its chart. Core decides these for real and tests them; the fake follows the same rules in rough form,
@@ -38,8 +52,9 @@ export function installFakeViews(): void {
   };
   const sensor = (id: string | undefined): Sensor | undefined => state.sensors.find((candidate) => candidate.id === id);
   const sensorOf = (item: Item): Sensor | undefined => sensor(item.sensor ?? item.sensors?.[0] ?? metricSensors[item.metric ?? '']);
+  // What the item warns by: another reading of itself, or its own.
   const meterOf = (item: Item): Sensor | undefined =>
-    item.meter === undefined ? undefined : sensor(item.meter.sensor ?? metricSensors[item.meter.metric ?? '']);
+    item.warnBy === undefined ? sensorOf(item) : sensor(item.warnBy.sensor ?? metricSensors[item.warnBy.metric ?? '']);
   const live = (one: Sensor | undefined): number | null => (state.service === 'stopped' || one === undefined ? null : one.value);
   const format = (type: string, value: number): string => {
     const [unit, decimals] = units[type] ?? ['', 1];
@@ -78,18 +93,27 @@ export function installFakeViews(): void {
     }
     return pills;
   };
+  const meterable = ['Temperature', 'Load', 'Control', 'Fan', 'Throughput'];
+  // As Core's Threshold.Judges: thresholds judge what it warns by when that reads a type they can judge.
+  const judged = (item: Item): boolean => meterable.includes(meterOf(item)?.type ?? '');
   const levelOf = (item: Item): ItemView['level'] => {
     const value = live(meterOf(item));
-    if (value === null || item.meter === undefined) {
+    if (value === null || !judged(item)) {
       return null;
     }
     const { warning, critical } = item.threshold ?? {};
     return critical !== undefined && value >= critical ? 'critical' : warning !== undefined && value >= warning ? 'warning' : 'normal';
   };
-  // As Core's OverlayLayout: of a meter's five segments, those its value rounds to, at least one above zero; none for an
-  // item without a meter or with its graph.
-  const litOf = (item: Item): number | undefined => {
-    if (item.meter === undefined || item.graph === true) {
+  // As Core's OverlayLayout.DrawnOf: the item's own choice, else its overlay's, whose Auto is a line for a load judged by
+  // its own reading and bars for the rest; nothing for an item thresholds cannot judge.
+  const drawnOf = (item: Item, overlay: Overlay): GraphStyle => {
+    const chosen = item.graph ?? overlay.graph ?? 'auto';
+    return !judged(item) ? 'none' : chosen !== 'auto' ? chosen : meterOf(item)?.type === 'Load' && item.warnBy === undefined ? 'line' : 'bars';
+  };
+  // As Core's OverlayLayout: of the bars' five segments, those its value rounds to, at least one above zero; none for an
+  // item that draws no bars.
+  const litOf = (item: Item, overlay: Overlay): number | undefined => {
+    if (drawnOf(item, overlay) !== 'bars') {
       return undefined;
     }
     const read = meterOf(item);
@@ -97,39 +121,35 @@ export function installFakeViews(): void {
     const fill = Math.min(1, Math.max(0, value / (read?.type === 'Fan' ? 10_000 : read?.type === 'Throughput' ? 100e9 : 100)));
     return fill > 0 ? Math.max(1, Math.round(fill * 5)) : 0;
   };
-  const meterable = ['Temperature', 'Load', 'Control', 'Fan', 'Throughput'];
   // A metric's name as Core's MetricName says it: "ram.load" is RamLoad, and the fan's metrics name the CPU first.
   const metricName = (metric: string): string => {
     const words = metric.startsWith('fan.cpu') ? ['cpu', 'fan', ...metric.split('.').slice(2)] : metric.split('.');
     return say(`MetricName.${words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join('')}`);
   };
-  const meterNameOf = (item: Item): string | null =>
-    item.meter === undefined
+  const warnByNameOf = (item: Item): string | null =>
+    item.warnBy === undefined
       ? null
-      : item.meter.sensor !== undefined
-        ? (sensor(item.meter.sensor)?.name ?? item.meter.sensor)
-        : metricName(item.meter.metric ?? '');
-  // As Core's Threshold.MetersOf: the item itself, then a fan's own duty or a duty's own fan where it is read.
-  const otherForm = (item: Item): Meter | undefined => {
+      : item.warnBy.sensor !== undefined
+        ? (sensor(item.warnBy.sensor)?.name ?? item.warnBy.sensor)
+        : metricName(item.warnBy.metric ?? '');
+  // As Core's Threshold.WarnByOf: a fan's own duty or a duty's own fan where it is read.
+  const otherForm = (item: Item): WarnBy | undefined => {
     if (item.metric === 'fan.cpu' || item.metric === 'fan.cpu.duty') {
       return { metric: item.metric === 'fan.cpu' ? 'fan.cpu.duty' : 'fan.cpu' };
     }
     const swapped = item.sensor?.includes('/fan/') === true ? item.sensor.replace('/fan/', '/control/') : item.sensor?.replace('/control/', '/fan/');
     return swapped !== undefined && swapped !== item.sensor && sensor(swapped) !== undefined ? { sensor: swapped } : undefined;
   };
-  const metersOf = (item: Item, type: string): MeterChoice[] => {
-    const self: Meter | undefined = item.metric !== undefined ? { metric: item.metric } : item.sensor !== undefined ? { sensor: item.sensor } : undefined;
-    // Each named by what it reads, as the C# side names it: a fan's speed or its duty, else its type.
-    const kindName = (of: string): string => say(of === 'Fan' ? 'UiText.MeterSpeed' : `SensorKind.${of}`);
-    // The RAM in use is judged by the RAM's load.
+  // As Core's WindowViews: its own reading first, Off where thresholds cannot judge it, then its other readings, each named
+  // by what it reads: a fan's speed or its duty, else its type; the RAM in use is judged by the RAM's load.
+  const warnByOf = (item: Item, type: string): WarnByChoice[] => {
+    const kindName = (of: string): string => say(of === 'Fan' ? 'UiText.WarnBySpeed' : `SensorKind.${of}`);
+    const own: WarnByChoice = { name: say(meterable.includes(type) ? 'UiText.WarnByOwn' : 'UiText.WarnByOff') };
     if (item.sensors === undefined && (item.metric ?? item.auto) === 'ram.used') {
-      return [{ meter: { metric: 'ram.load' }, name: kindName('Load') }];
-    }
-    if (!meterable.includes(type) || self === undefined) {
-      return [];
+      return [own, { warnBy: { metric: 'ram.load' }, name: kindName('Load') }];
     }
     const other = item.sensors === undefined ? otherForm(item) : undefined;
-    return [{ meter: self, name: kindName(type) }, ...(other === undefined ? [] : [{ meter: other, name: kindName(type === 'Fan' ? 'Control' : 'Fan') }])];
+    return [own, ...(other === undefined ? [] : [{ warnBy: other, name: kindName(type === 'Fan' ? 'Control' : 'Fan') }])];
   };
   // As Core's SensorOffer: the sensors of its type on its own device first, then, of data, only its own kind's.
   const deviceOf = (id: string): string => id.slice(0, id.lastIndexOf('/', id.lastIndexOf('/') - 1));
@@ -141,12 +161,12 @@ export function installFakeViews(): void {
       more: ofType.filter((one) => !own(one) && (type !== 'Data' || one.hardwareType === read?.hardwareType)).map((one) => one.id),
     };
   };
-  const itemView = (item: Item): ItemView => {
+  const itemView = (item: Item, overlay: Overlay): ItemView => {
     const read = sensorOf(item);
     const value = live(read);
     const missing = value === null || (value === 0 && read?.hardwareType === 'Cpu' && read.type !== 'Load');
     const type = read?.type ?? 'Temperature';
-    const lit = litOf(item);
+    const lit = litOf(item, overlay);
     return {
       ...(lit === undefined ? {} : { lit }),
       offer: offerOf(read, type),
@@ -154,8 +174,9 @@ export function installFakeViews(): void {
       level: levelOf(item),
       type,
       ...(item.metric !== undefined && metricSensors[item.metric] !== undefined ? { auto: metricSensors[item.metric] } : {}),
-      meters: metersOf(item, type),
-      meterName: meterNameOf(item),
+      warnBy: warnByOf(item, type),
+      warnByName: warnByNameOf(item),
+      judged: judged(item),
       // A network's speed, never a drive's, shows in bits.
       bits: type === 'Throughput' && (read?.hardwareType === 'Network' || item.metric === 'net.download' || item.metric === 'net.upload'),
     };
@@ -174,7 +195,7 @@ export function installFakeViews(): void {
     const items = state.settings.overlays.flatMap((overlay) => overlay.items);
     return {
       pills: state.settings.overlays.map((overlay) => pillsOf(overlay.items)),
-      items: Object.fromEntries(items.map((item) => [item.id, itemView(item)])),
+      items: Object.fromEntries(state.settings.overlays.flatMap((overlay) => overlay.items.map((item) => [item.id, itemView(item, overlay)]))),
       values: Object.fromEntries(state.sensors.flatMap((one) => (live(one) === null ? [] : [[one.id, format(one.type, one.value ?? 0)]]))),
       mark: markOf(items),
     };
@@ -218,9 +239,10 @@ export function installFakeViews(): void {
 
   bridge.chart = async (id: string): Promise<ChartView | null> => {
     const item = state.settings.overlays.flatMap((overlay) => overlay.items).find((candidate) => candidate.id === id);
-    // As Core's WindowCharts: the meter, or without one the item's own reading, with no lines, unless it is no number.
-    const meter = item === undefined ? undefined : item.meter === undefined ? sensorOf(item) : meterOf(item);
-    const charted = item?.meter === undefined ? !['Time', 'Address', 'Duration'].includes(meter?.type ?? 'Time') : meterable.includes(meter?.type ?? '');
+    // As Core's WindowCharts: what it warns by, or for an item thresholds cannot judge its own reading, with no lines,
+    // unless it is no number.
+    const meter = item === undefined ? undefined : meterOf(item);
+    const charted = meter !== undefined && !['Time', 'Address', 'Duration'].includes(meter.type);
     if (item === undefined || meter === undefined || !charted) {
       return null;
     }
@@ -229,7 +251,7 @@ export function installFakeViews(): void {
     const driver = meter.hardwareType === 'Cpu' && value === 0;
     const readings = history(driver ? null : value, meterable.includes(meter.type) ? max : Number.POSITIVE_INFINITY);
     const shown = readings.filter((reading): reading is number => reading !== null);
-    const { warning, critical } = item.meter === undefined ? {} : (item.threshold ?? {});
+    const { warning, critical } = judged(item) ? (item.threshold ?? {}) : {};
     const lines = [warning, critical].filter((line): line is number => line !== undefined);
     const all = [...shown, ...lines];
     const top = all.length === 0 ? 0 : Math.max(...all);

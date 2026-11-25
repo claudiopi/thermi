@@ -55,6 +55,6 @@ public sealed class TranslationTests
         Assert.Equal(
             Texts.Of("es").Of(Refusal.Invalid).Replace("{0}", "size", StringComparison.Ordinal),
             Texts.Of("es-UY").Format(English, Refusal.Invalid, "size"));
-        Assert.Equal("Refusal.NoMeter", Texts.Key(Refusal.NoMeter));
+        Assert.Equal("Refusal.NothingToJudge", Texts.Key(Refusal.NothingToJudge));
     }
 }

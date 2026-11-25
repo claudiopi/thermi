@@ -10,7 +10,7 @@ public enum Level
     Critical,
 }
 
-/// <summary>A meter's lines, in the unit of what it reads: a warning, a critical, or both, the warning never above the critical.</summary>
+/// <summary>An item's lines, in the unit of what it warns by: a warning, a critical, or both, the warning never above the critical.</summary>
 public sealed record Threshold
 {
     /// <summary>The highest line a fan's speed takes, in RPM; every other meter's lines run from 0 to 100 but a throughput's.</summary>
@@ -38,61 +38,80 @@ public sealed record Threshold
 
     public double? Critical { get; }
 
-    /// <summary>Whether a meter can read that type: a temperature, a load, a duty, a fan's speed or a throughput, the values lines can judge.</summary>
+    /// <summary>Whether lines can judge that type: a temperature, a load, a duty, a fan's speed or a throughput.</summary>
     public static bool CanMeter(SensorKind kind) =>
         kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Fan or SensorKind.Throughput;
 
     /// <summary>
-    /// The meters an item of <paramref name="kind"/> is offered: readings of the item itself, never of another device or
-    /// another kind. Its own metric or sensor when that type can be a meter, then its other form: a fan's own duty, or a
-    /// duty's own fan, where the service reads it; a combined item only itself, and one whose type cannot be a meter none,
-    /// but the RAM in use, judged by the RAM's load.
+    /// What else than its own reading an item of <paramref name="kind"/> can warn by: the item itself in its other form,
+    /// never another device or another kind. A fan's own duty, or a duty's own fan, where the service reads it, and the RAM
+    /// in use its load; a combined item nothing else.
     /// </summary>
-    public static IReadOnlyList<MeterConfig> MetersOf(ItemConfig item, SensorKind? kind, Snapshot known)
+    public static IReadOnlyList<WarnByConfig> WarnByOf(ItemConfig item, SensorKind? kind, Snapshot known)
     {
         // The memory in use has no lines that suit every PC in GB, so it is judged as the share of the memory it is.
         if (item is { Sensors: null } && (item.Metric ?? item.Auto) == Metrics.RamUsed.Id)
         {
-            return [new MeterConfig { Metric = Metrics.RamLoad.Id }];
+            return [new WarnByConfig { Metric = Metrics.RamLoad.Id }];
         }
 
-        if (kind is not { } type || !CanMeter(type))
-        {
-            return [];
-        }
-
-        MeterConfig? self = item.Metric is { } metric
-            ? new MeterConfig { Metric = metric }
-            : item.Sensor is { } sensor ? new MeterConfig { Sensor = sensor } : null;
-        var other = (type, item.Metric) switch
+        var other = (kind, item.Metric) switch
         {
             _ when item.Sensors is not null => null,
-            (SensorKind.Fan, { } fan) when fan == Metrics.CpuFan.Id => new MeterConfig { Metric = Metrics.CpuFanDuty.Id },
-            (SensorKind.Control, { } duty) when duty == Metrics.CpuFanDuty.Id => new MeterConfig { Metric = Metrics.CpuFan.Id },
+            (SensorKind.Fan, { } fan) when fan == Metrics.CpuFan.Id => new WarnByConfig { Metric = Metrics.CpuFanDuty.Id },
+            (SensorKind.Control, { } duty) when duty == Metrics.CpuFanDuty.Id => new WarnByConfig { Metric = Metrics.CpuFan.Id },
             (SensorKind.Fan, null) when item.Sensor is { } fan && SensorMap.OwnDuty(fan) is { } duty && SensorMap.Find(known, duty) is not null =>
-                new MeterConfig { Sensor = duty, Auto = item.Auto == Metrics.CpuFan.Id ? Metrics.CpuFanDuty.Id : null },
+                new WarnByConfig { Sensor = duty, Auto = item.Auto == Metrics.CpuFan.Id ? Metrics.CpuFanDuty.Id : null },
             (SensorKind.Control, null) when item.Sensor is { } duty && SensorMap.OwnFan(duty) is { } fan && SensorMap.Find(known, fan) is not null =>
-                new MeterConfig { Sensor = fan, Auto = item.Auto == Metrics.CpuFanDuty.Id ? Metrics.CpuFan.Id : null },
+                new WarnByConfig { Sensor = fan, Auto = item.Auto == Metrics.CpuFanDuty.Id ? Metrics.CpuFan.Id : null },
             _ => null,
         };
-        return [.. new[] { self, other }.OfType<MeterConfig>()];
+        return other is null ? [] : [other];
     }
 
-    /// <summary>The highest value a line of that meter takes, in its unit.</summary>
+    /// <summary>What an item reads, from its metric or its first sensor's id, so it is known while the service is not read.</summary>
+    public static SensorKind? KindOf(ItemConfig item) => KindOf(item.Metric ?? item.Auto, item.Sensor ?? (item.Sensors is [var first, ..] ? first : null));
+
+    /// <summary>What a reading to warn by reads, from the file alone, as <see cref="KindOf(ItemConfig)"/>.</summary>
+    public static SensorKind? KindOf(WarnByConfig warnBy) => KindOf(warnBy.Metric ?? warnBy.Auto, warnBy.Sensor);
+
+    /// <summary>
+    /// The type of the reading an item's lines judge, what it warns by or else its own, from the file alone; null when lines
+    /// can judge no such reading, as power or a clock, so it never shows a level and draws nothing beside its value.
+    /// </summary>
+    public static SensorKind? JudgedKind(ItemConfig item) =>
+        (item.WarnBy is { } other ? KindOf(other) : KindOf(item)) is { } kind && CanMeter(kind) ? kind : null;
+
+    /// <summary>Whether lines can judge the item, as <see cref="JudgedKind"/> says.</summary>
+    public static bool Judges(ItemConfig item) => JudgedKind(item) is not null;
+
+    /// <summary>Whether a reading to warn by is the item's own, its metric or its sensor.</summary>
+    public static bool IsOwn(ItemConfig item, WarnByConfig reading) =>
+        (reading.Metric is not null && reading.Metric == item.Metric) || (reading.Sensor is not null && reading.Sensor == item.Sensor);
+
+    /// <summary>The item's own reading as one to warn by: its metric, or its first sensor with the metric it keeps.</summary>
+    public static WarnByConfig Own(ItemConfig item) =>
+        item.Metric is { } metric ? new WarnByConfig { Metric = metric }
+        : new WarnByConfig { Sensor = item.Sensor ?? (item.Sensors is [var first, ..] ? first : null), Auto = item.Auto };
+
+    /// <summary>The highest value a line of a reading of that type takes, in its unit.</summary>
     public static double MaxOf(SensorKind kind) =>
         kind == SensorKind.Fan ? MaxFanSpeed
         : kind == SensorKind.Throughput ? MaxThroughput
         : 100;
 
-    /// <summary>The lines a metric's meter starts with on any machine, or null for none; a CPU's limit is taken as AMD's.</summary>
+    /// <summary>The lines a metric starts with on any machine, or null for none; a CPU's limit is taken as AMD's.</summary>
     public static Threshold? Default(Metric metric) => Default(metric.Kind, Metrics.DeviceOf(metric), DefaultCpuLimit);
 
+    /// <summary>The lines an item starts with on the machine the snapshot is from, those of what it warns by, or null for none.</summary>
+    public static Threshold? Default(ItemConfig item, Snapshot snapshot) => Judges(item) ? Default(item.WarnBy ?? Own(item), snapshot) : null;
+
     /// <summary>
-    /// The lines a meter starts with on the machine the snapshot is from, or null for none: a CPU temperature warns 10 °C
+    /// The lines a reading starts with on the machine the snapshot is from, or null for none: a CPU temperature warns 10 °C
     /// under the CPU's limit and is critical 5 under it, a GPU's at 80 and 88 °C, any other temperature at 70 and 80 °C, and a
     /// fan's duty warns at 85 %. Loads and fan speeds have none.
     /// </summary>
-    public static Threshold? Default(MeterConfig meter, Snapshot snapshot)
+    public static Threshold? Default(WarnByConfig meter, Snapshot snapshot)
     {
         var metric = Metrics.Find(meter.Metric ?? meter.Auto);
         var sensor = meter.Sensor is { } id ? SensorMap.Find(snapshot, id)
@@ -149,4 +168,6 @@ public sealed record Threshold
     }
 
     private static bool Finite(double? value) => value is not { } number || double.IsFinite(number);
+
+    private static SensorKind? KindOf(string? metric, string? sensor) => Metrics.Find(metric)?.Kind ?? (sensor is null ? null : SensorMap.KindOfId(sensor));
 }

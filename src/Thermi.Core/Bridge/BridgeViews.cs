@@ -53,22 +53,26 @@ public sealed record CatalogView(
 public sealed record PillView(string Label, IReadOnlyList<string> Items);
 
 /// <summary>
-/// An item as the overlay shows it: its value as text, or null while it reads nothing; its meter's level, or null with no
-/// meter or no reading; the type of its sensor; the sensor its metric picks; the meters it is offered, readings of the
-/// item itself alone; and its meter's name, as "CPU fan duty" or a sensor's own, or null without a meter.
+/// An item as the overlay shows it: its value as text, or null while it reads nothing; its level, or null while lines
+/// cannot judge it or it reads nothing; the type of its sensor; the sensor its metric picks; what its Warn by dropdown
+/// offers, its own reading first, then its other readings alone; and the name of what it warns by, as "CPU fan duty" or a
+/// sensor's own, or null while it warns by its own reading.
 /// </summary>
 public sealed record ItemView(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Value,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] Level? Level,
     string Type,
     string? Auto,
-    IReadOnlyList<MeterChoice> Meters,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? MeterName)
+    IReadOnlyList<WarnByChoice> WarnBy,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? WarnByName)
 {
+    /// <summary>Whether lines judge what it warns by: it then has lines, a graph, only on alert and the notice.</summary>
+    public bool Judged { get; init; }
+
     /// <summary>Whether it can show its speed in bits per second: a network's, as its plans are sold, never a drive's.</summary>
     public bool Bits { get; init; }
 
-    /// <summary>How many of its meter's segments the overlay lights, as a look's sample shows them, or null where it draws none.</summary>
+    /// <summary>How many of its bars' segments the overlay lights, as a look's sample shows them, or null where it draws none.</summary>
     public int? Lit { get; init; }
 
     /// <summary>Its offset with the unit it is typed in, as "2 °C", or null for a type that takes none.</summary>
@@ -78,8 +82,8 @@ public sealed record ItemView(
     public SensorOffer Offer { get; init; } = SensorOffer.None;
 }
 
-/// <summary>A meter an item is offered, with the name its Meter dropdown shows.</summary>
-public sealed record MeterChoice(MeterConfig Meter, string Name);
+/// <summary>A reading an item can warn by, null for its own, with the name its Warn by dropdown shows.</summary>
+public sealed record WarnByChoice(WarnByConfig? WarnBy, string Name);
 
 /// <summary>Every overlay's pills, every item by its id, every sensor's value as text, by the sensor's id, and thermi's mark as the tray shows it.</summary>
 public sealed record WindowView(

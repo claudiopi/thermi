@@ -148,8 +148,13 @@ public sealed class ChartTests
 
     private static string Format(ChartText text, params object[] values) => Texts.English.Format(English, text, values);
 
+    // What the item can warn by: its own reading where lines judge it, then the others.
     private static string Offered(ItemConfig item, Snapshot snapshot) =>
-        string.Join(' ', Threshold.MetersOf(item, Core.Editing.ItemEdits.KindOf(item, snapshot), snapshot).Select(meter => meter.Sensor ?? meter.Metric));
+        string.Join(
+            ' ',
+            (Threshold.Judges(item) ? [Threshold.Own(item)] : Array.Empty<WarnByConfig>())
+                .Concat(Threshold.WarnByOf(item, Core.Editing.ItemEdits.KindOf(item, snapshot), snapshot))
+                .Select(reading => reading.Sensor ?? reading.Metric));
 
     private static string Number(MeterScale scale, double value) => ReadingFormatter.Format(new Reading(scale.Kind, value), English, units: false);
 

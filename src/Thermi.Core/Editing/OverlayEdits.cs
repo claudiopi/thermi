@@ -33,6 +33,11 @@ public static class OverlayEdits
         ConfigEdits.OnOverlay(config, overlay, () =>
             ConfigEdits.Apply(config, current => ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Fade = on })));
 
+    /// <summary>What the overlay's items draw beside their values, each that chose none of its own.</summary>
+    public static EditResult SetGraph(ThermiConfig config, int overlay, GraphStyle graph) =>
+        ConfigEdits.OnOverlay(config, overlay, () =>
+            ConfigEdits.Apply(config, current => ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Graph = graph })));
+
     /// <summary>Shows the overlay always, hides it while a full-screen app covers its monitor, or shows it only then.</summary>
     public static EditResult SetVisibility(ThermiConfig config, int overlay, Visibility visibility) =>
         ConfigEdits.OnOverlay(config, overlay, () =>

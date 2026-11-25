@@ -93,13 +93,16 @@
   <data name="UiText.LabelField" xml:space="preserve">
     <value>Etiqueta</value>
   </data>
-  <data name="UiText.MeterField" xml:space="preserve">
-    <value>Medidor</value>
+  <data name="UiText.WarnByField" xml:space="preserve">
+    <value>Avisar según</value>
   </data>
-  <data name="UiText.MeterNone" xml:space="preserve">
+  <data name="UiText.WarnByOff" xml:space="preserve">
     <value>Apagado</value>
   </data>
-  <data name="UiText.MeterSpeed" xml:space="preserve">
+  <data name="UiText.WarnByOwn" xml:space="preserve">
+    <value>Su propia lectura</value>
+  </data>
+  <data name="UiText.WarnBySpeed" xml:space="preserve">
     <value>Velocidad (RPM)</value>
   </data>
   <data name="UiText.FiresMostly" xml:space="preserve">
@@ -414,14 +417,20 @@
   <data name="UiText.OffsetField" xml:space="preserve">
     <value>Ajuste</value>
   </data>
-  <data name="UiText.MeterGraph" xml:space="preserve">
+  <data name="UiText.GraphField" xml:space="preserve">
     <value>Gráfico</value>
+  </data>
+  <data name="UiText.GraphLikeOverlay" xml:space="preserve">
+    <value>Como la superposición</value>
+  </data>
+  <data name="UiText.GraphHint" xml:space="preserve">
+    <value>Junto a cada valor. Cada elemento puede elegir el suyo.</value>
   </data>
   <data name="UiText.AlertOnly" xml:space="preserve">
     <value>Solo en alerta</value>
   </data>
-  <data name="UiText.AlertOnlyNeedsMeter" xml:space="preserve">
-    <value>Solo un elemento con medidor se muestra solo en alerta: se muestra mientras su medidor está en advertencia o crítico.</value>
+  <data name="UiText.AlertOnlyNeedsWarnBy" xml:space="preserve">
+    <value>Solo un elemento que avisa se muestra solo en alerta: elige según qué avisa.</value>
   </data>
   <data name="UiText.CombineField" xml:space="preserve">
     <value>Combinar como</value>
@@ -772,7 +781,7 @@
     <value>{0} · {1}</value>
   </data>
   <data name="UiText.MoreOptionsHint" xml:space="preserve">
-    <value>Mínimo o máximo, suavizado, decimales, gráfico, ajuste, color</value>
+    <value>Mínimo o máximo, suavizado, decimales, avisar según, ajuste, color</value>
   </data>
   <data name="UiText.ShortcutFind" xml:space="preserve">
     <value>Ir a un elemento: escribe su nombre en la lista</value>
@@ -819,8 +828,8 @@
   <data name="ChangedField.Thresholds" xml:space="preserve">
     <value>Umbrales</value>
   </data>
-  <data name="ChangedField.Meter" xml:space="preserve">
-    <value>Medidor</value>
+  <data name="ChangedField.WarnBy" xml:space="preserve">
+    <value>Avisar según</value>
   </data>
   <data name="ChangedField.Graph" xml:space="preserve">
     <value>Gráfico</value>
@@ -1176,6 +1185,18 @@
   <data name="ItemStat.Average" xml:space="preserve">
     <value>Promedio</value>
   </data>
+  <data name="GraphStyle.Auto" xml:space="preserve">
+    <value>Automático</value>
+  </data>
+  <data name="GraphStyle.None" xml:space="preserve">
+    <value>Ninguno</value>
+  </data>
+  <data name="GraphStyle.Bars" xml:space="preserve">
+    <value>Barras</value>
+  </data>
+  <data name="GraphStyle.Line" xml:space="preserve">
+    <value>Línea</value>
+  </data>
   <data name="MenuEntry.SettingsBroken" xml:space="preserve">
     <value>El archivo de configuración está dañado</value>
   </data>
@@ -1431,14 +1452,11 @@
   <data name="Refusal.ThresholdOutOfRange" xml:space="preserve">
     <value>Un umbral debe estar dentro de la escala.</value>
   </data>
-  <data name="Refusal.NoMeter" xml:space="preserve">
-    <value>Los umbrales colorean un medidor, y este elemento no tiene.</value>
+  <data name="Refusal.NothingToJudge" xml:space="preserve">
+    <value>Los umbrales juzgan una temperatura, una carga, un ciclo de trabajo, la velocidad de un ventilador o una velocidad de datos, y este elemento no avisa según ninguna.</value>
   </data>
-  <data name="Refusal.CannotBeMeter" xml:space="preserve">
-    <value>Un medidor muestra una temperatura, una carga, un ciclo de trabajo, la velocidad de un ventilador o una velocidad de datos.</value>
-  </data>
-  <data name="Refusal.CannotMeterItself" xml:space="preserve">
-    <value>Un elemento combinado no tiene un único sensor con el que medirse.</value>
+  <data name="Refusal.CannotWarnBy" xml:space="preserve">
+    <value>Un elemento avisa según una temperatura, una carga, un ciclo de trabajo, la velocidad de un ventilador o una velocidad de datos.</value>
   </data>
   <data name="Refusal.LabelEmpty" xml:space="preserve">
     <value>Una etiqueta no puede estar vacía.</value>
@@ -1461,8 +1479,8 @@
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi no tiene traducción a ese idioma.</value>
   </data>
-  <data name="Refusal.MeterNeeded" xml:space="preserve">
-    <value>Este elemento no tiene medidor: mostrarse solo en alerta y el gráfico dependen de uno.</value>
+  <data name="Refusal.JudgingNeeded" xml:space="preserve">
+    <value>Este elemento no avisa según nada que los umbrales juzguen: mostrarse solo en alerta, el aviso y el gráfico lo necesitan.</value>
   </data>
   <data name="Refusal.OffsetOutOfRange" xml:space="preserve">
     <value>Ese ajuste se pasa del rango del tipo del elemento.</value>

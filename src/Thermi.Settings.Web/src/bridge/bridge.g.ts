@@ -131,6 +131,8 @@ export interface Found {
   aliasMarks: Mark[];
 }
 
+export type GraphStyle = 'auto' | 'none' | 'bars' | 'line';
+
 export type HotkeyRole = 'toggle' | 'nextStyle' | 'clickThrough' | 'resetMinMax';
 
 export interface Hotkeys {
@@ -152,14 +154,14 @@ export interface Item {
   own?: boolean;
   tray?: boolean;
   color?: string;
-  meter?: Meter;
+  warnBy?: WarnBy;
   threshold?: Threshold;
   offset?: number;
   stat?: ItemStat;
   smooth?: number;
   decimals?: number;
   bits?: boolean;
-  graph?: boolean;
+  graph?: GraphStyle;
   alertOnly?: boolean;
   notify?: boolean;
 }
@@ -171,8 +173,9 @@ export interface ItemView {
   level: Level | null;
   type: string;
   auto?: string;
-  meters: MeterChoice[];
-  meterName: string | null;
+  warnBy: WarnByChoice[];
+  warnByName: string | null;
+  judged: boolean;
   bits: boolean;
   lit?: number;
   offsetShown?: string;
@@ -194,17 +197,6 @@ export interface Mark {
 }
 
 export type MarkState = 'calm' | 'warm' | 'hot' | 'stopped' | 'high-contrast' | 'app';
-
-export interface Meter {
-  metric?: string;
-  sensor?: string;
-  auto?: string;
-}
-
-export interface MeterChoice {
-  meter: Meter;
-  name: string;
-}
 
 export interface Monitor {
   id: string;
@@ -240,6 +232,7 @@ export interface Overlay {
   oled?: boolean;
   fade?: boolean;
   hidden?: boolean;
+  graph?: GraphStyle;
   style?: Style;
   items: Item[];
 }
@@ -370,6 +363,17 @@ export interface Undone {
 }
 
 export type Visibility = 'always' | 'hide-in-fullscreen' | 'only-in-fullscreen';
+
+export interface WarnBy {
+  metric?: string;
+  sensor?: string;
+  auto?: string;
+}
+
+export interface WarnByChoice {
+  warnBy?: WarnBy;
+  name: string;
+}
 
 export interface WindowChange {
   sensors: boolean;

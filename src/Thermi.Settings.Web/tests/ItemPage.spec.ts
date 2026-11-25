@@ -69,7 +69,12 @@ test.describe('TheItemPageEditsTheItem', () => {
       read: (item) => item.decimals,
       expected: 1,
     },
-    { name: 'Graph', more: true, act: (page) => fieldOf(page, 'switch', 'UiText.MeterGraph').press('Space'), read: (item) => item.graph, expected: true },
+    {
+      name: 'Graph',
+      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.GraphField'), text('GraphStyle.Line')),
+      read: (item) => item.graph,
+      expected: 'line',
+    },
     {
       name: 'Only on alert',
       more: true,
@@ -95,10 +100,10 @@ test.describe('TheItemPageEditsTheItem', () => {
       await dialog.getByRole('button', { name: text('UiText.CombineAdd') }).press('Enter');
     }, read: (item) => [item.sensors, item.combine], expected: [[ccd1.id, ccd2.id], 'max'] },
     {
-      name: 'Meter off',
-      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.MeterField'), text('UiText.MeterNone')),
-      read: (item) => item.meter,
-      expected: undefined,
+      name: 'No graph',
+      act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.GraphField'), text('GraphStyle.None')),
+      read: (item) => item.graph,
+      expected: 'none',
     },
   ];
   for (const row of rows) {
@@ -120,57 +125,59 @@ test.describe('TheItemPageEditsTheItem', () => {
     await expect(fieldOf(page, 'switch', 'UiText.OwnPill')).toHaveCount(0);
   });
 
-  const off: { name: string; state: () => FakeState; control: (page: Page) => Locator; reason: string }[] = [
-    { name: 'Only on alert without a meter', state: () => {
+  const off: { name: string; item: string; state: () => FakeState; control: (page: Page) => Locator; reason: string }[] = [
+    { name: 'Only on alert warned by nothing', item: 'MetricName.RamUsed', state: () => {
       const state = fakeState();
-      const temperature = state.settings.overlays[0]?.items.find((item) => item.id === 'cpu.temperature');
-      if (temperature !== undefined) {
-        delete temperature.meter;
+      const used = state.settings.overlays[0]?.items.find((item) => item.id === 'ram.used');
+      if (used !== undefined) {
+        delete used.warnBy;
       }
       return state;
-    }, control: (page) => fieldOf(page, 'switch', 'UiText.AlertOnly'), reason: 'UiText.AlertOnlyNeedsMeter' },
+    }, control: (page) => fieldOf(page, 'switch', 'UiText.AlertOnly'), reason: 'UiText.AlertOnlyNeedsWarnBy' },
   ];
   for (const row of off) {
     test(row.name, async ({ page }) => {
       await openWindow(page, row.state());
-      await select(page, text('MetricName.CpuTemperature'));
+      await select(page, text(row.item));
       await fieldOf(page, 'button', 'UiText.MoreOptions').press('Enter');
       await expect(row.control(page)).toBeDisabled();
       await expect(row.control(page)).toHaveAccessibleDescription(text(row.reason));
     });
   }
 
-  // The Meter offers readings of the item itself alone: a temperature itself, a fan its speed and its duty; what can
-  // have no meter is offered no graph and no only on alert.
-  const meters: { name: string; item: string; id: string; offered: number; pick?: string; expected?: unknown }[] = [
-    { name: 'A temperature meters only itself', item: text('MetricName.CpuTemperature'), id: 'cpu.temperature', offered: 2 },
+  // Warn by offers the item's own reading and its other readings alone: a temperature only itself, a fan its speed and
+  // its duty; what thresholds cannot judge is offered no graph and no only on alert.
+  const warnings: { name: string; item: string; id: string; offered: number; judged: boolean; pick?: string; expected?: unknown }[] = [
+    { name: 'A temperature warns only by itself', item: text('MetricName.CpuTemperature'), id: 'cpu.temperature', offered: 1, judged: true },
     {
-      name: 'A fan meters its speed or its duty',
+      name: 'A fan warns by its speed or its duty',
       item: text('MetricName.CpuFan'),
       id: 'fan.cpu',
-      offered: 3,
+      offered: 2,
+      judged: true,
       pick: text('SensorKind.Control'),
       expected: { metric: 'fan.cpu.duty' },
     },
-    { name: 'Power has nothing to meter', item: text('MetricName.CpuPower'), id: 'cpu.power', offered: 1 },
+    { name: 'Power has nothing to warn by', item: text('MetricName.CpuPower'), id: 'cpu.power', offered: 1, judged: false },
   ];
-  for (const row of meters) {
+  for (const row of warnings) {
     test(row.name, async ({ page }) => {
       await openWindow(page);
       await select(page, row.item);
+      await expect(fieldOf(page, 'combobox', 'UiText.GraphField')).toHaveCount(row.judged ? 1 : 0);
       await fieldOf(page, 'button', 'UiText.MoreOptions').press('Enter');
-      const box = fieldOf(page, 'combobox', 'UiText.MeterField');
-      // A Meter row that would offer only Off is not shown.
+      const box = fieldOf(page, 'combobox', 'UiText.WarnByField');
+      // A Warn by row that would offer only one choice is not shown.
       await expect(box).toHaveCount(row.offered > 1 ? 1 : 0);
       if (row.offered > 1) {
         await box.press('Alt+ArrowDown');
         await expect(page.getByRole('option')).toHaveCount(row.offered);
         await page.keyboard.press('Escape');
       }
-      await expect(fieldOf(page, 'switch', 'UiText.AlertOnly')).toHaveCount(row.offered > 1 ? 1 : 0);
+      await expect(fieldOf(page, 'switch', 'UiText.AlertOnly')).toHaveCount(row.judged ? 1 : 0);
       if (row.pick !== undefined) {
         await chooseByKeys(page, box, row.pick);
-        await expect.poll(async () => (await itemIn(page, row.id)).meter).toEqual(row.expected);
+        await expect.poll(async () => (await itemIn(page, row.id)).warnBy).toEqual(row.expected);
       }
     });
   }
@@ -211,7 +218,7 @@ test.describe('TheItemPageEditsTheItem', () => {
         ['combobox', 'UiText.StatField'],
         ['combobox', 'UiText.SmoothField'],
         ['combobox', 'UiText.DecimalsField'],
-        ['switch', 'UiText.MeterGraph'],
+        ['combobox', 'UiText.GraphField'],
         ['spinbutton', 'UiText.OffsetField'],
       ] as const;
       for (const [role, key] of numberTools) {
@@ -258,7 +265,7 @@ test('FindItRunsInTheSensorRow', async ({ page }) => {
   await openWindow(page, fakeState({ finderPick: boardFan }));
   await select(page, text('MetricName.CpuFan'));
   const row = page.getByRole('group', { name: text('UiText.SensorField') });
-  const meterBefore = (await itemIn(page, 'fan.cpu')).meter;
+  const warnByBefore = (await itemIn(page, 'fan.cpu')).warnBy;
 
   // Cold review 4 (Q7): it asks before it loads the CPU, and a person can say no.
   await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
@@ -276,7 +283,7 @@ test('FindItRunsInTheSensorRow', async ({ page }) => {
   await setFake(page, { finder: { phase: 'done', pick: boardFan } });
   await row.getByRole('button', { name: text('CatalogText.UseIt') }).press('Enter');
   await expect.poll(async () => (await itemIn(page, 'fan.cpu')).sensor).toBe(boardFan);
-  expect((await itemIn(page, 'fan.cpu')).meter).toEqual(meterBefore);
+  expect((await itemIn(page, 'fan.cpu')).warnBy).toEqual(warnByBefore);
 });
 
 // A207: the chart's knobs by keys, box and pointer, a push past the other line, a delete, and the chart once readings stop.

@@ -59,16 +59,16 @@ public static partial class ConfigRules
         item.Smooth is 0 or (>= 2 and <= 10) ? null : Say($"{at}.smooth is {item.Smooth}, not 0 or 2 to 10"),
         item.Decimals is null or (>= 0 and <= 2) ? null : Say($"{at}.decimals is {item.Decimals}, not 0 to 2"),
         Offset($"{at}.offset", item),
-        item.AlertOnly && item.Meter is null ? $"{at}.alertOnly goes only with a meter" : null,
-        item.Graph && item.Meter is null ? $"{at}.graph goes only with a meter" : null,
+        item.AlertOnly && !Threshold.Judges(item) ? $"{at}.alertOnly goes only with a reading lines judge" : null,
+        item.Graph == GraphStyle.Auto ? $"{at}.graph is auto, which only an overlay takes: leave it out to follow the overlay" : null,
         Color($"{at}.color", item.Color),
-        .. Meter(item.Meter, $"{at}.meter"),
+        .. WarnBy(item.WarnBy, $"{at}.warnBy"),
     ];
 
-    private static IEnumerable<string?> Meter(MeterConfig? meter, string at) => meter is null ? [] :
+    private static IEnumerable<string?> WarnBy(WarnByConfig? warnBy, string at) => warnBy is null ? [] :
     [
-        (meter.Metric is null) != (meter.Sensor is null) ? null : $"{at} must name one of metric or sensor",
-        meter.Auto is not null && meter.Metric is not null ? $"{at}.auto goes only with sensor" : null,
+        (warnBy.Metric is null) != (warnBy.Sensor is null) ? null : $"{at} must name one of metric or sensor",
+        warnBy.Auto is not null && warnBy.Metric is not null ? $"{at}.auto goes only with sensor" : null,
     ];
 
     // Without a metric, the item's type is the service's to say, so the file is held only to the widest range.

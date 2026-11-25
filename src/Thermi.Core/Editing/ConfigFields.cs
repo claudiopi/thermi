@@ -20,8 +20,8 @@ internal static class ConfigFields
     public static Field<OverlayConfig> StyleName { get; } =
         Style(ChangedField.Look, style => style.Name, (style, value) => style with { Name = (string?)value });
 
-    /// <summary>An item's meter with what needs it, which a step names by what of it changed.</summary>
-    public static Field<ItemConfig> ItemMetering { get; } = new(ChangedField.Meter, Metering.Of, (item, value) => ((Metering)value!).On(item));
+    /// <summary>What an item warns by with what needs it, which a step names by what of it changed.</summary>
+    public static Field<ItemConfig> ItemMetering { get; } = new(ChangedField.WarnBy, Metering.Of, (item, value) => ((Metering)value!).On(item));
 
     public static IReadOnlyList<Field<ThermiConfig>> Thermi { get; } =
     [
@@ -46,6 +46,7 @@ internal static class ConfigFields
         new(ChangedField.Fade, overlay => overlay.Fade, (overlay, value) => overlay with { Fade = (bool)value! }),
         new(ChangedField.OverlayName, overlay => overlay.Name, (overlay, value) => overlay with { Name = (string?)value }),
         new(ChangedField.Hidden, overlay => overlay.Hidden, (overlay, value) => overlay with { Hidden = (bool)value! }),
+        new(ChangedField.Graph, overlay => overlay.Graph, (overlay, value) => overlay with { Graph = (GraphStyle)value! }),
         StyleName,
         Style(ChangedField.Layout, style => style.Layout, (style, value) => style with { Layout = (PillLayout)value! }),
         Style(ChangedField.Direction, style => style.Orientation, (style, value) => style with { Orientation = (Orientation)value! }),
@@ -64,11 +65,12 @@ internal static class ConfigFields
     ];
 
     // What an item shows is one choice, a metric, a sensor or combined sensors, with the metric it keeps as auto.
-    // Its meter is another, with what needs it: undone one by one, a threshold or a graph would come back before its meter.
+    // What it warns by is another, with what needs it: undone one by one, a line would come back before what it judges.
     public static IReadOnlyList<Field<ItemConfig>> Item { get; } =
     [
         new(ChangedField.Sensor, Source, (item, value) => WithSource(item, (ItemConfig)value!)),
         ItemMetering,
+        new(ChangedField.Graph, item => item.Graph, (item, value) => item with { Graph = (GraphStyle?)value }),
         new(ChangedField.Label, item => item.Label, (item, value) => item with { Label = (string?)value }),
         new(ChangedField.SeparatePill, item => item.Own, (item, value) => item with { Own = (bool)value! }),
         new(ChangedField.TrayIcon, item => item.Tray, (item, value) => item with { Tray = (bool)value! }),
@@ -114,11 +116,11 @@ internal static class ConfigFields
 
     private sealed record Placement(SnapConfig? Snap, Position? Position);
 
-    /// <summary>An item's meter with what needs it, as one field.</summary>
-    internal sealed record Metering(MeterConfig? Meter, Threshold? Threshold, bool Graph, bool AlertOnly, bool Notify)
+    /// <summary>What an item warns by with what needs it, as one field.</summary>
+    internal sealed record Metering(WarnByConfig? WarnBy, Threshold? Threshold, bool AlertOnly, bool Notify)
     {
-        public static Metering Of(ItemConfig item) => new(item.Meter, item.Threshold, item.Graph, item.AlertOnly, item.Notify);
+        public static Metering Of(ItemConfig item) => new(item.WarnBy, item.Threshold, item.AlertOnly, item.Notify);
 
-        public ItemConfig On(ItemConfig item) => item with { Meter = Meter, Threshold = Threshold, Graph = Graph, AlertOnly = AlertOnly, Notify = Notify };
+        public ItemConfig On(ItemConfig item) => item with { WarnBy = WarnBy, Threshold = Threshold, AlertOnly = AlertOnly, Notify = Notify };
     }
 }

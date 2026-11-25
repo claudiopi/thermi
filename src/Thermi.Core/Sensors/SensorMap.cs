@@ -101,7 +101,7 @@ public static class SensorMap
     public static IReadOnlyDictionary<string, Reading> Read(Snapshot snapshot, OverlayConfig overlay, string? drive = null)
     {
         var readings = new Dictionary<string, Reading>(Read(snapshot, SourcesOf(overlay), drive), StringComparer.Ordinal);
-        foreach (var id in overlay.Items.SelectMany(item => new[] { item.Sensor, item.Meter?.Sensor }.Concat(item.Sensors ?? [])).OfType<string>())
+        foreach (var id in overlay.Items.SelectMany(item => new[] { item.Sensor, item.WarnBy?.Sensor }.Concat(item.Sensors ?? [])).OfType<string>())
         {
             if (Find(snapshot, id) is { } sensor && ReadingOf(sensor) is { } reading)
             {
@@ -307,7 +307,7 @@ public static class SensorMap
         return chosen;
     }
 
-    // An item or a meter that names a sensor in place of its metric names it for every item of the overlay.
+    // An item or what it warns by that names a sensor in place of its metric names it for every item of the overlay.
     private static Dictionary<string, string> SourcesOf(OverlayConfig overlay)
     {
         var sources = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -318,9 +318,9 @@ public static class SensorMap
                 sources.TryAdd(metric, sensor);
             }
 
-            if (item.Meter is { Auto: { } meterMetric, Sensor: { } meterSensor })
+            if (item.WarnBy is { Auto: { } warnMetric, Sensor: { } warnSensor })
             {
-                sources.TryAdd(meterMetric, meterSensor);
+                sources.TryAdd(warnMetric, warnSensor);
             }
         }
 

@@ -77,7 +77,7 @@ internal sealed record ItemChange(string Id, Field<ItemConfig> Field, object? Fo
     public MetricName? Unnamed { get; init; }
 
     public StepName Name => Field == ConfigFields.ItemMetering
-        ? StepNames.OfMetering((ConfigFields.Metering)Found!, (ConfigFields.Metering)Wrote!)
+        ? StepNames.OfMetering((ConfigFields.Metering)Found!, (ConfigFields.Metering)Wrote!, Kind)
         : StepNames.Of(Field.Name, Shown(Found), Shown(Wrote), Kind);
 
     public bool ChangesNothing => ConfigFields.Same(Found, Wrote);

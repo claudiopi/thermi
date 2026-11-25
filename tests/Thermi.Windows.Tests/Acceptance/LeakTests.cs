@@ -107,7 +107,7 @@ public sealed class LeakTests : IDisposable
     private static ThermiConfig EveryWayOfPainting()
     {
         var config = OverlayEdits.Add(new ThermiConfig()).Config;
-        config = PowerEdits.SetGraph(config, "cpu.load", graph: true).Config;
+        config = PowerEdits.SetGraph(config, "fan.cpu", GraphStyle.None).Config;
         config = PowerEdits.SetStat(config, "cpu.temperature", ItemStat.Max).Config;
         var hottest = SensorMap.Read(HostRun.Recorded, config.Overlays[0])["cpu.temperature"].Value!.Value;
         config = config with

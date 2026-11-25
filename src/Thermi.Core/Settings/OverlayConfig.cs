@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
 
@@ -16,7 +15,7 @@ namespace Thermi.Core.Settings;
 /// </summary>
 public sealed record ThermiConfig
 {
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     public const int MaxOverlays = 4;
 
@@ -46,11 +45,11 @@ public sealed record OverlayConfig(double Size = 1)
     // Left unnamed, so each takes its metric's name in the window's language.
     public static IReadOnlyList<ItemConfig> DefaultItems { get; } =
     [
-        Default(Metrics.CpuTemperature, Metrics.CpuTemperature),
-        Default(Metrics.CpuFan, Metrics.CpuFan),
-        Default(Metrics.CpuLoad, Metrics.CpuLoad),
+        Default(Metrics.CpuTemperature),
+        Default(Metrics.CpuFan),
+        Default(Metrics.CpuLoad),
         Default(Metrics.CpuPower),
-        Default(Metrics.GpuLoad, Metrics.GpuLoad),
+        Default(Metrics.GpuLoad),
         Default(Metrics.RamUsed, Metrics.RamLoad),
     ];
 
@@ -83,6 +82,10 @@ public sealed record OverlayConfig(double Size = 1)
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Hidden { get; init; }
 
+    /// <summary>What its items draw beside their values, unless an item chooses its own; no look carries it.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public GraphStyle Graph { get; init; }
+
     public StyleConfig Style { get; init; } = new();
 
     public IReadOnlyList<ItemConfig> Items { get; init; } = DefaultItems;
@@ -94,24 +97,13 @@ public sealed record OverlayConfig(double Size = 1)
     [JsonIgnore]
     public SnapConfig? Snapped => Snap ?? (Position is null ? new SnapConfig(SnapSpot.Taskbar) : null);
 
-    /// <summary>
-    /// Whether an item starts with its graph: a load metered by itself, whose last minute says more than the value alone,
-    /// as hardware monitors' overlays show it.
-    /// </summary>
-    public static bool GraphsByDefault(ItemConfig item, SensorKind? kind = null) =>
-        OverlayLayout.MetersItself(item) && (kind ?? Metrics.Find(item.Metric ?? item.Auto)?.Kind) == SensorKind.Load;
-
-    private static ItemConfig Default(Metric metric, Metric? meter = null)
+    private static ItemConfig Default(Metric metric, Metric? warnBy = null) => new()
     {
-        var item = new ItemConfig
-        {
-            Id = metric.Id,
-            Metric = metric.Id,
-            Meter = meter is null ? null : new MeterConfig { Metric = meter.Id },
-            Threshold = meter is null ? null : Threshold.Default(meter),
-        };
-        return item with { Graph = GraphsByDefault(item) };
-    }
+        Id = metric.Id,
+        Metric = metric.Id,
+        WarnBy = warnBy is null ? null : new WarnByConfig { Metric = warnBy.Id },
+        Threshold = Threshold.Default(warnBy ?? metric),
+    };
 }
 
 /// <summary>
@@ -150,7 +142,8 @@ public sealed record ItemConfig
     /// <summary>The value's own color as #RRGGBB, over the style's.</summary>
     public string? Color { get; init; }
 
-    public MeterConfig? Meter { get; init; }
+    /// <summary>Another reading of the item that its lines judge and its graph draws, or null for its own.</summary>
+    public WarnByConfig? WarnBy { get; init; }
 
     public Threshold? Threshold { get; init; }
 
@@ -172,11 +165,10 @@ public sealed record ItemConfig
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Bits { get; init; }
 
-    /// <summary>True for a graph of the last minute instead of a bar.</summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool Graph { get; init; }
+    /// <summary>What it draws beside its value, or null for what its overlay's <see cref="OverlayConfig.Graph"/> says; never Auto.</summary>
+    public GraphStyle? Graph { get; init; }
 
-    /// <summary>True when the item shows only while its meter is at warning or critical.</summary>
+    /// <summary>True when the item shows only while its lines say warning or critical.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool AlertOnly { get; init; }
 
@@ -185,8 +177,8 @@ public sealed record ItemConfig
     public bool Notify { get; init; }
 }
 
-/// <summary>What drives an item's meter: a <see cref="Metric"/>, or a <see cref="Sensor"/> that keeps the metric it came from as <see cref="Auto"/>.</summary>
-public sealed record MeterConfig
+/// <summary>A reading an item warns by: a <see cref="Metric"/>, or a <see cref="Sensor"/> that keeps the metric it came from as <see cref="Auto"/>.</summary>
+public sealed record WarnByConfig
 {
     public string? Metric { get; init; }
 
@@ -255,6 +247,20 @@ public enum Combine
     Max,
     Average,
     Sum,
+}
+
+/// <summary>
+/// What an item draws beside its value: nothing, CleanMeter's segmented bars, or a line of its last minute; for an
+/// overlay, Auto draws a line for a load judged by its own reading and bars for the rest.
+/// </summary>
+[Translated]
+[JsonConverter(typeof(ConfigEnum<GraphStyle>))]
+public enum GraphStyle
+{
+    Auto,
+    None,
+    Bars,
+    Line,
 }
 
 [Translated]

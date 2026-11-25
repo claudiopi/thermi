@@ -93,13 +93,16 @@
   <data name="UiText.LabelField" xml:space="preserve">
     <value>Label</value>
   </data>
-  <data name="UiText.MeterField" xml:space="preserve">
-    <value>Meter</value>
+  <data name="UiText.WarnByField" xml:space="preserve">
+    <value>Warn by</value>
   </data>
-  <data name="UiText.MeterNone" xml:space="preserve">
+  <data name="UiText.WarnByOff" xml:space="preserve">
     <value>Off</value>
   </data>
-  <data name="UiText.MeterSpeed" xml:space="preserve">
+  <data name="UiText.WarnByOwn" xml:space="preserve">
+    <value>Its own reading</value>
+  </data>
+  <data name="UiText.WarnBySpeed" xml:space="preserve">
     <value>Speed (RPM)</value>
   </data>
   <data name="UiText.FiresMostly" xml:space="preserve">
@@ -414,14 +417,20 @@
   <data name="UiText.OffsetField" xml:space="preserve">
     <value>Offset</value>
   </data>
-  <data name="UiText.MeterGraph" xml:space="preserve">
+  <data name="UiText.GraphField" xml:space="preserve">
     <value>Graph</value>
+  </data>
+  <data name="UiText.GraphLikeOverlay" xml:space="preserve">
+    <value>Like the overlay</value>
+  </data>
+  <data name="UiText.GraphHint" xml:space="preserve">
+    <value>Beside each value. An item can choose its own.</value>
   </data>
   <data name="UiText.AlertOnly" xml:space="preserve">
     <value>Only on alert</value>
   </data>
-  <data name="UiText.AlertOnlyNeedsMeter" xml:space="preserve">
-    <value>Only an item with a meter shows only on alert: it shows while its meter is at warning or critical.</value>
+  <data name="UiText.AlertOnlyNeedsWarnBy" xml:space="preserve">
+    <value>Only an item that warns shows only on alert: choose what it warns by.</value>
   </data>
   <data name="UiText.CombineField" xml:space="preserve">
     <value>Combine as</value>
@@ -772,7 +781,7 @@
     <value>{0} · {1}</value>
   </data>
   <data name="UiText.MoreOptionsHint" xml:space="preserve">
-    <value>Min or max, smoothing, decimals, graph, offset, color</value>
+    <value>Min or max, smoothing, decimals, warn by, offset, color</value>
   </data>
   <data name="UiText.ShortcutFind" xml:space="preserve">
     <value>Go to an item: type its name in the list</value>
@@ -819,8 +828,8 @@
   <data name="ChangedField.Thresholds" xml:space="preserve">
     <value>Thresholds</value>
   </data>
-  <data name="ChangedField.Meter" xml:space="preserve">
-    <value>Meter</value>
+  <data name="ChangedField.WarnBy" xml:space="preserve">
+    <value>Warn by</value>
   </data>
   <data name="ChangedField.Graph" xml:space="preserve">
     <value>Graph</value>
@@ -1176,6 +1185,18 @@
   <data name="ItemStat.Average" xml:space="preserve">
     <value>Average</value>
   </data>
+  <data name="GraphStyle.Auto" xml:space="preserve">
+    <value>Auto</value>
+  </data>
+  <data name="GraphStyle.None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="GraphStyle.Bars" xml:space="preserve">
+    <value>Bars</value>
+  </data>
+  <data name="GraphStyle.Line" xml:space="preserve">
+    <value>Line</value>
+  </data>
   <data name="MenuEntry.SettingsBroken" xml:space="preserve">
     <value>The settings file is broken</value>
   </data>
@@ -1431,14 +1452,11 @@
   <data name="Refusal.ThresholdOutOfRange" xml:space="preserve">
     <value>A threshold must lie on the track.</value>
   </data>
-  <data name="Refusal.NoMeter" xml:space="preserve">
-    <value>Thresholds color a meter, and this item has none.</value>
+  <data name="Refusal.NothingToJudge" xml:space="preserve">
+    <value>Thresholds judge a temperature, a load, a duty, a fan speed or a throughput, and this item warns by none.</value>
   </data>
-  <data name="Refusal.CannotBeMeter" xml:space="preserve">
-    <value>A meter shows a temperature, a load, a duty, a fan speed or a throughput.</value>
-  </data>
-  <data name="Refusal.CannotMeterItself" xml:space="preserve">
-    <value>A combined item has no single sensor to meter itself with.</value>
+  <data name="Refusal.CannotWarnBy" xml:space="preserve">
+    <value>An item warns by a temperature, a load, a duty, a fan speed or a throughput.</value>
   </data>
   <data name="Refusal.LabelEmpty" xml:space="preserve">
     <value>A label cannot be empty.</value>
@@ -1461,8 +1479,8 @@
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi has no translation for that language.</value>
   </data>
-  <data name="Refusal.MeterNeeded" xml:space="preserve">
-    <value>This item has no meter: showing only on alert and the graph both follow one.</value>
+  <data name="Refusal.JudgingNeeded" xml:space="preserve">
+    <value>This item warns by nothing thresholds judge: only on alert, the notice and the graph all need it.</value>
   </data>
   <data name="Refusal.OffsetOutOfRange" xml:space="preserve">
     <value>That offset is past the range of the item's type.</value>

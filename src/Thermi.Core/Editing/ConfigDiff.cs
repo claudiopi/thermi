@@ -115,7 +115,7 @@ internal static class ConfigDiff
         var was = before.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
         return after.Items.Where(item => was.ContainsKey(item.Id)).SelectMany(item =>
             Changes(ConfigFields.Item, was[item.Id], item)
-                .Select(change => new ItemChange(item.Id, change.Field, change.Found, change.Wrote, StepNames.KindOf(item))
+                .Select(change => new ItemChange(item.Id, change.Field, change.Found, change.Wrote, Threshold.KindOf(item))
                 {
                     Unnamed = Metrics.Find(was[item.Id].Metric ?? was[item.Id].Auto)?.Name,
                 }));

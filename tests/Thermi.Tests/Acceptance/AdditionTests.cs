@@ -79,7 +79,7 @@ public sealed class AdditionTests
         // A sensor's id is an item of that sensor, and after a plus the first of the sensors an item sums.
         var item = metric[0] == '/' ? new ItemConfig { Id = "sensor", Sensor = metric }
             : metric[0] == '+' ? new ItemConfig { Id = "sum", Sensors = [metric[1..], "/amdcpu/0/load/3"], Combine = Combine.Sum }
-            : new ItemConfig { Id = metric, Metric = metric, Meter = threshold is null ? null : new MeterConfig { Metric = metric }, Threshold = threshold };
+            : new ItemConfig { Id = metric, Metric = metric, Threshold = threshold };
         var config = new ThermiConfig { Overlays = [new OverlayConfig { Items = [item] }] };
         var snapshot = TestRecordings.Read(words[0] == "admin" ? TestRecordings.Admin : TestRecordings.NoAdmin);
         var busy = busiest.Length == 0 ? null : new Busiest(new BusyProcess("chrome", 23), new BusyProcess("game", 61));

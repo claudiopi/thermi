@@ -129,22 +129,14 @@ public sealed class OverlayTests
     {
         const string Ccd1 = "/amdcpu/0/temperature/3";
         const string Ccd2 = "/amdcpu/0/temperature/4";
-        var ccd2Meter = new MeterConfig { Sensor = Ccd2, Auto = Metrics.CpuTemperature.Id };
+        var byCcd2 = new WarnByConfig { Sensor = Ccd2, Auto = Metrics.CpuTemperature.Id };
         var overlay = new OverlayConfig
         {
             Items =
             [
                 new ItemConfig { Id = "ccd1", Sensor = Ccd1, Auto = Metrics.CpuTemperature.Id, Label = "CCD1" },
-                new ItemConfig
-                {
-                    Id = "ccd2",
-                    Sensor = Ccd2,
-                    Auto = Metrics.CpuTemperature.Id,
-                    Label = "CCD2",
-                    Meter = ccd2Meter,
-                    Threshold = new Threshold(40, 60),
-                },
-                new ItemConfig { Id = "load", Metric = Metrics.CpuLoad.Id, Label = "LOAD", Meter = ccd2Meter, Threshold = new Threshold(40, 60) },
+                new ItemConfig { Id = "ccd2", Sensor = Ccd2, Auto = Metrics.CpuTemperature.Id, Label = "CCD2", Threshold = new Threshold(40, 60) },
+                new ItemConfig { Id = "load", Metric = Metrics.CpuLoad.Id, Label = "LOAD", WarnBy = byCcd2, Threshold = new Threshold(40, 60) },
             ],
         };
 
@@ -186,7 +178,11 @@ public sealed class OverlayTests
     [Fact]
     public void SkipsItemsForMetricsThisVersionDoesNotKnow()
     {
-        var config = new OverlayConfig { Items = [new ItemConfig { Metric = "gpu.hotspot" }, new ItemConfig { Metric = Metrics.RamLoad.Id }] };
+        var config = new OverlayConfig
+        {
+            Graph = GraphStyle.None,
+            Items = [new ItemConfig { Metric = "gpu.hotspot" }, new ItemConfig { Metric = Metrics.RamLoad.Id }],
+        };
 
         var items = OverlayLayout.Build(config, SensorMap.Read(Desktop, NoSources), English);
 
@@ -196,9 +192,41 @@ public sealed class OverlayTests
     [Fact]
     public void AnItemWithoutAThresholdIsNeverAlarming()
     {
-        var config = new OverlayConfig { Items = [new ItemConfig { Metric = Metrics.CpuLoad.Id, Meter = new MeterConfig { Metric = Metrics.CpuLoad.Id } }] };
+        var config = new OverlayConfig { Items = [new ItemConfig { Metric = Metrics.CpuLoad.Id }] };
         var readings = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuLoad.Id] = new(SensorKind.Load, 99) };
 
         Assert.Equal(Level.Normal, OverlayLayout.Build(config, readings, English)[0].Level);
+    }
+
+    // The owner, 2026-11-24: an item draws its own choice beside its value, else its overlay's, whose Auto is a line for a
+    // load warned by itself and bars for the rest; one lines cannot judge draws nothing, whatever is chosen. Only an item
+    // that draws nothing underlines its warning, since bars or a line already show it.
+    [Theory]
+    [InlineData(GraphStyle.Auto, null, "cpu.load", SensorKind.Load, GraphStyle.Line)]
+    [InlineData(GraphStyle.Auto, null, "cpu.temperature", SensorKind.Temperature, GraphStyle.Bars)]
+    [InlineData(GraphStyle.Auto, null, "ram.used", SensorKind.Data, GraphStyle.Bars)]
+    [InlineData(GraphStyle.Auto, null, "cpu.power", SensorKind.Power, GraphStyle.None)]
+    [InlineData(GraphStyle.None, null, "cpu.temperature", SensorKind.Temperature, GraphStyle.None)]
+    [InlineData(GraphStyle.Bars, null, "cpu.load", SensorKind.Load, GraphStyle.Bars)]
+    [InlineData(GraphStyle.Line, null, "fan.cpu", SensorKind.Fan, GraphStyle.Line)]
+    [InlineData(GraphStyle.Line, GraphStyle.Bars, "cpu.load", SensorKind.Load, GraphStyle.Bars)]
+    [InlineData(GraphStyle.None, GraphStyle.Line, "cpu.temperature", SensorKind.Temperature, GraphStyle.Line)]
+    [InlineData(GraphStyle.Bars, GraphStyle.None, "ram.used", SensorKind.Data, GraphStyle.None)]
+    [InlineData(GraphStyle.Line, GraphStyle.Line, "cpu.power", SensorKind.Power, GraphStyle.None)]
+    public void AnItemDrawsItsOverlaysGraphUnlessItChoosesItsOwn(GraphStyle chosen, GraphStyle? own, string metric, SensorKind kind, GraphStyle drawn)
+    {
+        // The RAM in use is warned by the RAM's load, as thermi makes it.
+        var warnBy = metric == Metrics.RamUsed.Id ? new WarnByConfig { Metric = Metrics.RamLoad.Id } : null;
+        var item = new ItemConfig { Id = metric, Metric = metric, WarnBy = warnBy, Graph = own, Threshold = new Threshold(50, null) };
+        var overlay = new OverlayConfig { Graph = chosen, Items = [item] };
+        var readings = new Dictionary<string, Reading>(StringComparer.Ordinal) { [metric] = new(kind, 60), [Metrics.RamLoad.Id] = new(SensorKind.Load, 60) };
+
+        var shown = OverlayLayout.Build(overlay, readings, English).Single();
+
+        Assert.Equal(drawn, OverlayLayout.DrawnOf(overlay, item));
+        Assert.Equal((drawn == GraphStyle.Line, drawn == GraphStyle.Bars), (shown.Graph is not null, shown.Lit is not null));
+        Assert.Equal(
+            drawn == GraphStyle.None && kind != SensorKind.Power,
+            LevelMarks.Of(OverlayLook.Of(new StyleConfig(), lightTaskbar: false), shown).Kind == MarkKind.Underline);
     }
 }

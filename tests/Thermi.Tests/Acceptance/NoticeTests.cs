@@ -102,12 +102,11 @@ public sealed class NoticeTests
         {
             Id = ItemId,
             Metric = Metrics.CpuTemperature.Id,
-            Meter = new MeterConfig { Metric = Metrics.CpuTemperature.Id },
             Threshold = new Threshold(critical: 1),
             Notify = true,
         };
         Metric[] others = [Metrics.CpuLoad, Metrics.BatteryCharge];
-        var items = others.Select(metric => hot with { Id = metric.Id, Metric = metric.Id, Meter = new MeterConfig { Metric = metric.Id } });
+        var items = others.Select(metric => hot with { Id = metric.Id, Metric = metric.Id });
         var config = new ThermiConfig { Overlays = [new OverlayConfig { Items = [hot, .. items.Select((item, at) => item with { Notify = at == 1 })] }] };
         var snapshot = TestRecordings.Read(TestRecordings.Admin);
         var told = new List<ItemNotice>();

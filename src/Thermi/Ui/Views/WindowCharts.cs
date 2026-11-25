@@ -53,10 +53,10 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         var history = History(id);
         var (span, start) = MeterChart.Span(history, format);
         var values = history.OfType<double>().ToList();
-        var (warning, critical) = item.Meter is null ? default : (item.Threshold?.Warning, item.Threshold?.Critical);
+        var (warning, critical) = Threshold.Judges(item) ? (item.Threshold?.Warning, item.Threshold?.Critical) : default;
         var (from, to) = MeterChart.Range(scale with { Warning = warning, Critical = critical }, values);
         var summary = MeterChart.Summary(history);
-        var defaults = item.Meter is null ? null : Threshold.Default(meter, readings.Known(sensors.Latest));
+        var defaults = Threshold.Default(item, readings.Known(sensors.Latest));
         string Said(double value, bool units = true)
         {
             return ReadingFormatter.Format(scale.Kind, value, format, units);
@@ -101,7 +101,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         };
 
     // A chart in another unit than its item's value says what it reads: a fan's duty, or the RAM in use as its load.
-    private static string? TitleOf(ItemConfig item, MeterConfig meter, MeterScale scale, Texts texts) =>
+    private static string? TitleOf(ItemConfig item, WarnByConfig meter, MeterScale scale, Texts texts) =>
         scale.Kind == SensorKind.Control ? texts.Of(ChartText.DutyTitle)
         : (meter.Metric ?? meter.Auto) == Metrics.RamLoad.Id && (item.Metric ?? item.Auto) == Metrics.RamUsed.Id ? texts.Of(ChartText.RamTitle)
         : null;
@@ -119,9 +119,9 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             AddLineEdit added => (added.Item, added.Line),
             _ => throw new ArgumentException("Not a line's edit.", nameof(edit)),
         };
-        if (ItemOf(editor.Config, id) is not { Meter: { } meter } item || ScaleOf(meter) is not { } scale)
+        if (ItemOf(editor.Config, id) is not { } item || !Threshold.Judges(item) || ScaleOf(item.WarnBy ?? Threshold.Own(item)) is not { } scale)
         {
-            return Texts.Key(Refusal.NoMeter);
+            return Texts.Key(Refusal.NothingToJudge);
         }
 
         if (edit is TypedLineEdit { Typed: var text } && MeterChart.Check(scale, text, format) is { } said)
@@ -159,18 +159,18 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         config.Overlays.SelectMany(overlay => overlay.Items).FirstOrDefault(item => item.Id == id);
 
     // A sensor the service no longer reads is known by the last snapshot the window had.
-    private MeterScale? ScaleOf(MeterConfig meter) => MeterChart.Of(meter.Sensor ?? meter.Metric ?? meter.Auto ?? "", readings.Known(sensors.Latest));
+    private MeterScale? ScaleOf(WarnByConfig meter) => MeterChart.Of(meter.Sensor ?? meter.Metric ?? meter.Auto ?? "", readings.Known(sensors.Latest));
 
-    // What the chart draws: the meter, or the item's own reading, which has no lines.
-    private (MeterConfig Meter, MeterScale Scale)? Charted(ItemConfig item)
+    // What the chart draws: what the item warns by, or for one lines cannot judge its own reading, which has no lines.
+    private (WarnByConfig Meter, MeterScale Scale)? Charted(ItemConfig item)
     {
-        if (item.Meter is { } meter)
+        var meter = item.WarnBy ?? Threshold.Own(item);
+        if (Threshold.Judges(item))
         {
             return ScaleOf(meter) is { } scale ? (meter, scale) : null;
         }
 
-        var itself = new MeterConfig { Metric = item.Metric, Sensor = item.Sensor ?? (item.Sensors is [var first, ..] ? first : null), Auto = item.Auto };
-        return MeterChart.OfReading(itself.Sensor ?? itself.Metric ?? itself.Auto ?? "", readings.Known(sensors.Latest)) is { } own ? (itself, own) : null;
+        return MeterChart.OfReading(meter.Sensor ?? meter.Metric ?? meter.Auto ?? "", readings.Known(sensors.Latest)) is { } own ? (meter, own) : null;
     }
 
     // Empty text turns the line off; a number is typed in the unit shown, and kept in the meter's own.
@@ -190,13 +190,13 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         ? scale.Warning ?? (lines?.Critical is { } critical ? Math.Max(critical - scale.Push, 0) : scale.Max * 0.8)
         : scale.Critical ?? (lines?.Warning is { } warning ? Math.Min(warning + scale.Push, scale.Max) : scale.Max * 0.9);
 
-    private ChartEmpty? EmptyOf(MeterConfig meter, int values) =>
+    private ChartEmpty? EmptyOf(WarnByConfig meter, int values) =>
         sensors.State == ServiceState.Stopped ? ChartEmpty.Stopped
         : values > 0 ? null
         : OnCpu(meter) && SensorMap.DriverMayBeMissing(readings.Known(sensors.Latest)) ? ChartEmpty.Driver
         : ChartEmpty.None;
 
-    private bool OnCpu(MeterConfig meter) =>
+    private bool OnCpu(WarnByConfig meter) =>
         Metrics.Find(meter.Metric ?? meter.Auto) is { } metric ? Metrics.DeviceOf(metric) == DeviceKind.Cpu
         : meter.Sensor is { } sensor && SensorMap.Find(readings.Known(sensors.Latest), sensor) is { } read && SensorMap.DeviceOf(read) == DeviceKind.Cpu;
 }

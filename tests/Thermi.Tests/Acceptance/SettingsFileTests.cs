@@ -42,17 +42,12 @@ public sealed class SettingsFileTests
                     Id = Metrics.CpuFan.Id,
                     Sensor = "/lpc/it8689e/0/fan/0",
                     Auto = Metrics.CpuFan.Id,
-                    Meter = new MeterConfig { Sensor = "/lpc/it8689e/0/control/0", Auto = Metrics.CpuFanDuty.Id },
+                    WarnBy = new WarnByConfig { Sensor = "/lpc/it8689e/0/control/0", Auto = Metrics.CpuFanDuty.Id },
                     Threshold = new Threshold(65, 85),
                 },
-                new ItemConfig
-                {
-                    Id = Metrics.CpuTemperature.Id,
-                    Metric = Metrics.CpuTemperature.Id,
-                    Meter = new MeterConfig { Metric = Metrics.CpuTemperature.Id },
-                    Threshold = new Threshold(70, 90),
-                },
-                new ItemConfig { Id = Metrics.RamLoad.Id, Metric = Metrics.RamLoad.Id },
+                new ItemConfig { Id = Metrics.CpuTemperature.Id, Metric = Metrics.CpuTemperature.Id, Threshold = new Threshold(70, 90) },
+                // Version 1 drew nothing beside an item without a meter.
+                new ItemConfig { Id = Metrics.RamLoad.Id, Metric = Metrics.RamLoad.Id, Graph = GraphStyle.None },
             ],
             overlay.Items);
         Assert.Equal(ShownByVersionOne(overlay, new() { [Metrics.CpuFan.Id] = "/lpc/it8689e/0/fan/0" }), Shown(overlay));
@@ -80,7 +75,7 @@ public sealed class SettingsFileTests
             {
                 Id = Metrics.CpuFan.Id,
                 Metric = Metrics.CpuFan.Id,
-                Meter = new MeterConfig { Sensor = "/lpc/it8689e/0/control/1", Auto = Metrics.CpuFanDuty.Id },
+                WarnBy = new WarnByConfig { Sensor = "/lpc/it8689e/0/control/1", Auto = Metrics.CpuFanDuty.Id },
                 Threshold = Threshold.Default(Metrics.CpuFanDuty),
             },
             chosenDuty[0]);
@@ -131,7 +126,7 @@ public sealed class SettingsFileTests
         Assert.Same(named, PageSettings.Of(named, Texts.English, Desktop));
 
         // A copied overlay's items take the next free number of their ids; an id made from a sensor is its sensor again.
-        var two = ThermiConfigJson.Read(TestFiles.Config("v5.json")).Config;
+        var two = ThermiConfigJson.Read(TestFiles.Config("v6.json")).Config;
         var copied = OverlayEdits.Duplicate(OverlayEdits.Add(two).Config, 0).Config;
         Assert.Equal(
             ["fan.cpu-3", "cpu.temperature-4", "/amdcpu/0/temperature/3", "/gpu-nvidia/0/power/0-2"],
@@ -156,7 +151,7 @@ public sealed class SettingsFileTests
     // What earlier builds wrote unchosen takes this version's: 0.1's default critical line its lines, thermi's names in any
     // language no name, so they read in the window's, and a custom look's 10 px labels Standard's.
     [Fact]
-    public void AVersionTwoFileMigratesToVersionFive()
+    public void AVersionTwoFileMigratesToVersionSix()
     {
         var spanish = Texts.Of("es");
         var file = $$"""
@@ -189,11 +184,36 @@ public sealed class SettingsFileTests
         // QA r4 (R4-04): a warning nudged under 0.1's critical line goes with it, as a new RAM item starts without lines.
         Assert.Null(other.Overlays[0].Items[1].Threshold);
 
-        // The owner: a load as thermi made it shows its graph, as a new one does; one given lines keeps its look.
-        Assert.Equal([false, false, true, false], other.Overlays[0].Items.Select(item => item.Graph));
+        // The owner: a load as thermi made it shows its line, as a new one does; one given lines keeps its bars, and an
+        // item without a meter draws nothing still.
+        var drawn = other.Overlays[0].Items.Select(item => OverlayLayout.DrawnOf(other.Overlays[0], item));
+        Assert.Equal([GraphStyle.None, GraphStyle.Bars, GraphStyle.Line, GraphStyle.Bars], drawn);
+        Assert.Equal([GraphStyle.None, null, null, GraphStyle.Bars], other.Overlays[0].Items.Select(item => item.Graph));
+        var made = new OverlayConfig();
         Assert.Equal(
             [Metrics.CpuLoad.Id, Metrics.GpuLoad.Id],
-            new OverlayConfig().Items.Where(item => item.Graph).Select(item => item.Id));
+            made.Items.Where(item => OverlayLayout.DrawnOf(made, item) == GraphStyle.Line).Select(item => item.Id));
+    }
+
+    // The owner, 2026-11-24: version 6 splits the meter in two, what an item warns by and what it draws beside its value,
+    // and a version 5 file draws and warns as it did. The everything file of version 6 is this one migrated, with its
+    // first overlay's bars chosen, which draw what it drew already.
+    [Fact]
+    public void AVersionFiveFileMigratesToVersionSix()
+    {
+        var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v5.json"));
+        var six = ThermiConfigJson.Read(TestFiles.Config("v6.json")).Config;
+
+        Assert.Null(problem);
+        Assert.Equal(
+            ThermiConfigJson.Write(six with { Overlays = [six.Overlays[0] with { Graph = GraphStyle.Auto }, six.Overlays[1]] }),
+            ThermiConfigJson.Write(config));
+        Assert.Equal(
+            [GraphStyle.Bars, GraphStyle.Line, GraphStyle.Bars, GraphStyle.None, GraphStyle.None, GraphStyle.Bars],
+            config.Overlays.SelectMany(overlay => overlay.Items.Select(item => OverlayLayout.DrawnOf(overlay, item))));
+        Assert.Equal(
+            config.Overlays.SelectMany(overlay => overlay.Items.Select(item => OverlayLayout.DrawnOf(overlay, item))),
+            six.Overlays.SelectMany(overlay => overlay.Items.Select(item => OverlayLayout.DrawnOf(overlay, item))));
     }
 
     // The owner, 2026-11-24: the taskbar's three places of versions 2 to 4 become its one free place, a migrated file
@@ -215,9 +235,9 @@ public sealed class SettingsFileTests
     }
 
     [Fact]
-    public void AVersionFiveFileRoundTrips()
+    public void AVersionSixFileRoundTrips()
     {
-        var file = TestFiles.Config("v5.json");
+        var file = TestFiles.Config("v6.json");
 
         var (config, problem) = ThermiConfigJson.Read(file);
 
@@ -238,8 +258,9 @@ public sealed class SettingsFileTests
             {
                 Id = item.Id,
                 Metric = item.Metric ?? item.Auto,
-                Meter = item.Meter is null ? null : new MeterConfig { Metric = item.Meter.Metric ?? item.Meter.Auto },
+                WarnBy = item.WarnBy is null ? null : new WarnByConfig { Metric = item.WarnBy.Metric ?? item.WarnBy.Auto },
                 Threshold = item.Threshold,
+                Graph = item.Graph,
             })],
         };
         return [.. OverlayLayout.Build(byMetric, SensorMap.Read(Desktop, sources), English)];

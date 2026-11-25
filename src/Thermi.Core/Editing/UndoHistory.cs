@@ -17,7 +17,7 @@ public enum ChangedField
     Warning,
     Critical,
     Thresholds,
-    Meter,
+    WarnBy,
     Graph,
     AlertOnly,
     NotifyMe,

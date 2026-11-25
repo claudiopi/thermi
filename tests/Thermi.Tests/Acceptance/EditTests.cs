@@ -53,8 +53,8 @@ public sealed class EditTests
             var shown = Shown(added, Desktop);
 
             var item = Assert.Single(shown, each => each.Id == sensor.Id);
-            // The owner: a load added starts with its graph, as the defaults' loads do.
-            Assert.Equal(sensor.Type == "Load", added.Overlays[0].Items.Single(each => each.Id == sensor.Id).Graph);
+            // The owner: a load added draws its line, as the defaults' loads do.
+            Assert.Equal(sensor.Type == "Load", item.Graph is not null);
             Assert.EndsWith(units[sensor.Type], item.Room, StringComparison.Ordinal);
             Assert.True(
                 item.Value == ReadingFormatter.Missing ? sensor.Value is null : item.Value.EndsWith(units[sensor.Type], StringComparison.Ordinal),
@@ -78,13 +78,13 @@ public sealed class EditTests
             ],
             Ids(board.Overlays[0]));
 
-        // Cold review 4 (Q3): an item added from the catalog starts as its kind's defaults do, metered by itself with its
-        // kind's calm lines, and one that cannot be a meter, as a power, with none.
+        // Cold review 4 (Q3): an item added from the catalog starts as its kind's defaults do, warned by itself with its
+        // kind's calm lines, and one lines cannot judge, as a power, with none.
         var gpuTemperature = Item(gpu, "/gpu-nvidia/0/temperature/0");
-        Assert.Equal((new MeterConfig { Sensor = "/gpu-nvidia/0/temperature/0" }, new Threshold(80, 88)), (gpuTemperature.Meter, gpuTemperature.Threshold));
+        Assert.Equal((true, new Threshold(80, 88)), (Threshold.Judges(gpuTemperature), gpuTemperature.Threshold));
         Assert.Equal(new Threshold(70, 80), Item(board, "/lpc/it8689e/0/temperature/0").Threshold);
         var power = Item(Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, "/gpu-nvidia/0/power/0")), "/gpu-nvidia/0/power/0");
-        Assert.Equal((null, null), (power.Meter, power.Threshold));
+        Assert.Equal((false, null), (Threshold.Judges(power), power.Threshold));
 
         // Named as its metric, while the defaults store no name, so they read in the window"s language; the same sensor
         // added again takes a number, so no two names are alike.
@@ -113,14 +113,13 @@ public sealed class EditTests
         ];
 
         var config = added.Aggregate(new ThermiConfig(), (current, id) => Done(ItemEdits.AddSensor(current, 0, snapshot, id)));
-        var charge = Item(Done(ItemEdits.MeterItself(config, added[4], snapshot)), added[4]);
+        var charge = Item(config, added[4]);
 
         var (net, ssd, bat) = (Texts.English.Of(MetricLabel.Net), Texts.English.Of(MetricLabel.Ssd), Texts.English.Of(MetricLabel.Bat));
         Assert.Equal(
             [$"{net} ↓ 74.0 MB/s ↑ 1.45 MB/s", $"{ssd} 880 KB/s 54.9 MB/s", $"{bat} 88 % -12.4 W 2 h 14 min"],
             TrayTextTests.Lines(Shown(config, snapshot)).Skip(3));
-        Assert.Equal(new MeterConfig { Sensor = added[4] }, charge.Meter);
-        Assert.Null(charge.Threshold);
+        Assert.Equal((true, null), (Threshold.Judges(charge), charge.Threshold));
         Assert.Equal(["cpu.temperature", "fan.cpu", "cpu.load", "cpu.power", "gpu.load", "ram.used"], Ids(new ThermiConfig().Overlays[0]));
     }
 
@@ -152,7 +151,7 @@ public sealed class EditTests
             Item(Done(toAnotherTemperature), Metrics.CpuTemperature.Id));
     }
 
-    // A fan metered by itself meters its new fan; one metered by a duty takes the new fan's own.
+    // A fan warned by its own reading stays so on its new fan; one warned by a duty takes the new fan's own.
     [Fact]
     public void ChangingTheFanFollowsItsOwnDuty()
     {
@@ -160,29 +159,26 @@ public sealed class EditTests
         var byDuty = WithItem(
             new ThermiConfig(),
             Metrics.CpuFan.Id,
-            item => item with { Meter = new MeterConfig { Metric = Metrics.CpuFanDuty.Id }, Threshold = new Threshold(85, null) });
+            item => item with { WarnBy = new WarnByConfig { Metric = Metrics.CpuFanDuty.Id }, Threshold = new Threshold(85, null) });
         var itself = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, desktop, "/lpc/it8689e/0/fan/0"));
-        itself = Done(ItemEdits.MeterItself(itself, "/lpc/it8689e/0/fan/0", desktop));
 
         var changed = Done(ItemEdits.ChangeSensor(byDuty, Metrics.CpuFan.Id, desktop, FanTwo));
         var changedAgain = Done(ItemEdits.ChangeSensor(changed, Metrics.CpuFan.Id, desktop, "/lpc/it8689e/0/fan/0"));
 
-        Assert.Equal(new MeterConfig { Sensor = FanTwoDuty, Auto = Metrics.CpuFanDuty.Id }, Item(changed, Metrics.CpuFan.Id).Meter);
+        Assert.Equal(new WarnByConfig { Sensor = FanTwoDuty, Auto = Metrics.CpuFanDuty.Id }, Item(changed, Metrics.CpuFan.Id).WarnBy);
         Assert.Equal(new OverlayItem(null, "0 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 2 }, Shown(changed, desktop)[1]);
         Assert.Equal(0.4, MeterNow(changed, Metrics.CpuFan.Id, desktop));
-        Assert.Equal(new MeterConfig { Sensor = "/lpc/it8689e/0/control/0", Auto = Metrics.CpuFanDuty.Id }, Item(changedAgain, Metrics.CpuFan.Id).Meter);
+        Assert.Equal(new WarnByConfig { Sensor = "/lpc/it8689e/0/control/0", Auto = Metrics.CpuFanDuty.Id }, Item(changedAgain, Metrics.CpuFan.Id).WarnBy);
 
-        // Without its duty sensor, the fan's meter shows as missing.
+        // Without its duty sensor, what it warns by shows as missing.
         var noDuty = new Snapshot([.. Desktop.Sensors.Where(sensor => sensor.Id != FanTwoDuty)]);
         var withoutDuty = Done(ItemEdits.ChangeSensor(byDuty, Metrics.CpuFan.Id, noDuty, FanTwo));
         Assert.Equal(new OverlayItem(null, "0 RPM", Level.Normal, "8,888 RPM") { Id = Metrics.CpuFan.Id, Lit = 0 }, Shown(withoutDuty, noDuty)[1]);
-        Assert.Equal(
-            new MeterConfig { Sensor = FanTwo },
-            Item(Done(ItemEdits.ChangeSensor(itself, "/lpc/it8689e/0/fan/0", desktop, FanTwo)), "/lpc/it8689e/0/fan/0").Meter);
+        Assert.Null(Item(Done(ItemEdits.ChangeSensor(itself, "/lpc/it8689e/0/fan/0", desktop, FanTwo)), "/lpc/it8689e/0/fan/0").WarnBy);
     }
 
     [Fact]
-    public void AnItemAndItsMeterGoBackToAuto()
+    public void AnItemAndWhatItWarnsByGoBackToAuto()
     {
         var config = new ThermiConfig();
         var named = Done(ItemEdits.ChangeSensor(config, Metrics.CpuFan.Id, Desktop, FanTwo));
@@ -201,7 +197,6 @@ public sealed class EditTests
     {
         const string Duty = "/lpc/it8689e/0/control/0";
         var config = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, Desktop, Duty));
-        config = Done(ItemEdits.MeterItself(config, Duty, Desktop));
         string[] ids = [Metrics.CpuTemperature.Id, Metrics.CpuLoad.Id, Duty, Metrics.CpuFan.Id];
         foreach (var id in ids)
         {
@@ -215,15 +210,15 @@ public sealed class EditTests
 
         Assert.Equal([new Threshold(90, 95), null, new Threshold(85, null), null], ids.Select(id => Item(config, id).Threshold));
 
-        // A fan's speed takes lines in RPM, any other meter's from 0 to 100; both lines off leave the meter none.
+        // A fan's speed takes lines in RPM, any other reading's from 0 to 100; both lines off leave the item none.
         Assert.Equal(new Threshold(1500, 3000), Item(Done(ItemEdits.SetThreshold(config, Metrics.CpuFan.Id, 1500, 3000)), Metrics.CpuFan.Id).Threshold);
         Assert.Equal(Refusal.ThresholdOutOfRange, ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, 50, 1500).Refused);
         Assert.Null(Item(Done(ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, null, null)), Metrics.CpuTemperature.Id).Threshold);
-        Assert.Equal(Refusal.NoMeter, ItemEdits.SetThreshold(config, Metrics.CpuPower.Id, 50, 60).Refused);
+        Assert.Equal(Refusal.NothingToJudge, ItemEdits.SetThreshold(config, Metrics.CpuPower.Id, 50, 60).Refused);
     }
 
     [Fact]
-    public void OnlyTemperaturesLoadsDutiesAndFanSpeedsCanBeMeters()
+    public void OnlyTemperaturesLoadsDutiesAndFanSpeedsCanWarn()
     {
         string[] sensors =
         [
@@ -235,26 +230,25 @@ public sealed class EditTests
             "/lpc/it8689e/0/fan/0",
             "/ram/data/0",
         ];
-        var dutyMeter = new MeterConfig { Sensor = "/lpc/it8689e/0/control/0" };
+        var byDuty = new WarnByConfig { Sensor = "/lpc/it8689e/0/control/0" };
 
         var config = sensors.Aggregate(
             new ThermiConfig { Overlays = [new OverlayConfig { Items = [] }] },
             (current, id) => Done(ItemEdits.AddSensor(current, 0, Desktop, id)));
-        var itself = sensors.Select(id => ItemEdits.MeterItself(config, id, Desktop)).ToList();
-        var byDuty = sensors.Aggregate(config, (current, id) => Done(ItemEdits.SetMeter(current, id, Desktop, dutyMeter)));
-        var off = sensors.Aggregate(byDuty, (current, id) => Done(ItemEdits.SetMeter(current, id, Desktop, null)));
+        var warnedByDuty = sensors.Aggregate(config, (current, id) => Done(ItemEdits.SetWarnBy(current, id, Desktop, byDuty)));
+        var own = sensors.Aggregate(warnedByDuty, (current, id) => Done(ItemEdits.SetWarnBy(current, id, Desktop, null)));
 
-        Assert.Equal([null, null, null, Refusal.CannotBeMeter, Refusal.CannotBeMeter, null, Refusal.CannotBeMeter], itself.Select(result => result.Refused));
-        Assert.Equal(Refusal.CannotBeMeter, ItemEdits.SetMeter(config, sensors[0], Desktop, new MeterConfig { Metric = Metrics.RamUsed.Id }).Refused);
-        Assert.Equal(Refusal.CannotBeMeter, ItemEdits.SetMeter(config, sensors[0], Desktop, new MeterConfig { Sensor = "/gpu-nvidia/0/power/0" }).Refused);
-        Assert.All(sensors, id => Assert.Equal(0.64, MeterNow(byDuty, id, Desktop)));
-        Assert.All(sensors, id => Assert.Null(MeterNow(off, id, Desktop)));
-        Assert.All(Shown(byDuty, Desktop), item => Assert.Equal(Level.Normal, item.Level));
-        Assert.Equal([0.4193, 0.03, 0.64], itself.Take(3).Select((result, index) => MeterNow(result.Config, sensors[index], Desktop)));
-        var critical = Done(ItemEdits.SetThreshold(itself[0].Config, sensors[0], 30, 40));
+        Assert.Equal([true, true, true, false, false, true, false], sensors.Select(id => Threshold.Judges(Item(config, id))));
+        Assert.Equal(Refusal.CannotWarnBy, ItemEdits.SetWarnBy(config, sensors[0], Desktop, new WarnByConfig { Metric = Metrics.RamUsed.Id }).Refused);
+        Assert.Equal(Refusal.CannotWarnBy, ItemEdits.SetWarnBy(config, sensors[0], Desktop, new WarnByConfig { Sensor = "/gpu-nvidia/0/power/0" }).Refused);
+        Assert.All(sensors, id => Assert.Equal(0.64, MeterNow(warnedByDuty, id, Desktop)));
+        Assert.Equal(File(config), File(own));
+        Assert.All(Shown(warnedByDuty, Desktop), item => Assert.Equal(Level.Normal, item.Level));
+        Assert.Equal([0.4193, 0.03, 0.64, null, null], sensors.Take(5).Select(id => MeterNow(config, id, Desktop)));
+        var critical = Done(ItemEdits.SetThreshold(config, sensors[0], 30, 40));
         Assert.Equal(Level.Critical, Shown(critical, Desktop)[0].Level);
-        var unmetered = WithItem(off, sensors[0], item => item with { Threshold = new Threshold(10, 20) });
-        Assert.Equal(Level.Normal, Shown(unmetered, Desktop)[0].Level);
+        var unjudged = WithItem(own, sensors[3], item => item with { Threshold = new Threshold(10, 20) });
+        Assert.Equal(Level.Normal, Shown(unjudged, Desktop)[3].Level);
     }
 
     // In each layout, and when a sensor item without a label shows the one before it, which stays its own when that
@@ -330,12 +324,8 @@ public sealed class EditTests
     private static (EditResult Result, ThermiConfig Given, Refusal Refusal)[] RefusedEdits(ThermiConfig config)
     {
         var full = new ThermiConfig { Overlays = [new OverlayConfig(), new OverlayConfig(), new OverlayConfig(), new OverlayConfig()] };
-        var combined = WithItem(
-            config,
-            Metrics.CpuTemperature.Id,
-            item => item with { Metric = null, Sensors = ["/amdcpu/0/temperature/3", "/amdcpu/0/temperature/4"], Combine = Combine.Max });
         var power = Metrics.CpuPower.Id;
-        var meterGone = WithItem(config, power, item => item with { Meter = new MeterConfig { Sensor = "/amdcpu/9/load/9" } });
+        var warnByGone = WithItem(config, power, item => item with { WarnBy = new WarnByConfig { Sensor = "/amdcpu/9/load/9" } });
 
         return
         [
@@ -346,17 +336,18 @@ public sealed class EditTests
             (ItemEdits.ChangeSensor(config, "gone", Desktop, FanTwo), config, Refusal.NotFound),
             (ItemEdits.ChangeSensor(config, Metrics.CpuFan.Id, Desktop, "/lpc/it8689e/9/fan/9"), config, Refusal.SensorNotFound),
             (ItemEdits.BackToAuto(config, "gone"), config, Refusal.NotFound),
-            (ItemEdits.SetMeter(config, "gone", Desktop, null), config, Refusal.NotFound),
-            (ItemEdits.SetMeter(config, power, Desktop, new MeterConfig { Sensor = "/amdcpu/9/load/9" }), config, Refusal.SensorNotFound),
-            (ItemEdits.MeterItself(config, "gone", Desktop), config, Refusal.NotFound),
-            (ItemEdits.MeterItself(combined, Metrics.CpuTemperature.Id, Desktop), combined, Refusal.CannotMeterItself),
+            (ItemEdits.SetWarnBy(config, "gone", Desktop, null), config, Refusal.NotFound),
+            (ItemEdits.SetWarnBy(config, power, Desktop, new WarnByConfig { Sensor = "/amdcpu/9/load/9" }), config, Refusal.SensorNotFound),
+            (PowerEdits.SetGraph(config, "gone", GraphStyle.Line), config, Refusal.NotFound),
+            (PowerEdits.SetGraph(config, power, GraphStyle.Bars), config, Refusal.JudgingNeeded),
+            (OverlayEdits.SetGraph(config, 1, GraphStyle.None), config, Refusal.NotFound),
             (ItemEdits.SetThreshold(config, "gone", 60, 80), config, Refusal.NotFound),
-            (ItemEdits.SetThreshold(config, power, 60, 80), config, Refusal.NoMeter),
+            (ItemEdits.SetThreshold(config, power, 60, 80), config, Refusal.NothingToJudge),
             (ItemEdits.SetThreshold(config, Metrics.CpuLoad.Id, -1, 80), config, Refusal.ThresholdOutOfRange),
             (ItemEdits.SetThreshold(config, Metrics.CpuLoad.Id, 60, double.NaN), config, Refusal.ThresholdOutOfRange),
             (ItemEdits.ResetThreshold(config, "gone", Desktop), config, Refusal.NotFound),
-            (ItemEdits.ResetThreshold(config, power, Desktop), config, Refusal.NoMeter),
-            (ItemEdits.ResetThreshold(meterGone, power, Desktop), meterGone, Refusal.SensorNotFound),
+            (ItemEdits.ResetThreshold(config, power, Desktop), config, Refusal.NothingToJudge),
+            (ItemEdits.ResetThreshold(warnByGone, power, Desktop), warnByGone, Refusal.SensorNotFound),
             (ItemEdits.RenamePill(config, "gone", "X"), config, Refusal.NotFound),
             (OverlayEdits.SetSize(config, 1, 1), config, Refusal.NotFound),
             (OverlayEdits.SetSize(config, 0, double.NaN), config, Refusal.SizeOutOfRange),
@@ -381,7 +372,7 @@ public sealed class EditTests
     // What an item's meter reads now, 0 to 1, as its graph shows it, the only meter a pill draws; null without a meter.
     // Sensors report single-precision values, so it is rounded.
     private static double? MeterNow(ThermiConfig config, string id, Snapshot snapshot) =>
-        Shown(WithItem(config, id, item => item with { Graph = true }), snapshot)
+        Shown(WithItem(config, id, item => item with { Graph = GraphStyle.Line }), snapshot)
             .Single(item => item.Id == id).Graph?[^1]?.Fill is { } fill
             ? Math.Round(fill, 4)
             : null;

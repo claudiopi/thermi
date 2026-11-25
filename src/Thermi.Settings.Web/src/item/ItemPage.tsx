@@ -57,6 +57,7 @@ export function ItemPage({ data, id, labelAsked }: ItemPageProps) {
   const { item, overlay } = placed;
   const where = data.settings.overlays[overlay];
   const name = itemName(item);
+  const judged = data.view.items[id]?.judged === true;
   const run = (one: Edit): void => void edit(one);
   return (
     <div className={`t-item${chart === null ? ' t-no-chart' : ''}`}>
@@ -77,9 +78,9 @@ export function ItemPage({ data, id, labelAsked }: ItemPageProps) {
           name={name}
           chart={chart}
           edit={edit}
-          metered={item.meter !== undefined}
+          metered={judged}
           options={
-            item.meter === undefined ? undefined : (
+            !judged ? undefined : (
               <Menu
                 // In words, so it never reads as the title row's "…".
                 trigger={

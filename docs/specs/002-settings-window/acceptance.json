@@ -188,7 +188,7 @@
         "R109",
         "R114"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Label, Meter, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, then the settings hold the row's change, a row that cannot apply is locked with its reason, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, and the Meter offers Off and the item's own readings alone: a temperature itself, the CPU fan its speed and its duty, power nothing, which then offers no only on alert.",
+      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },
@@ -229,7 +229,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, the recorded one where software drives it, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping the item's meter as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (derived ones where the board's fan answers, the recorded one where software drives it, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -243,7 +243,7 @@
         "R110",
         "R111"
       ],
-      "description": "Given a table of meters (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is chosen as a meter, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor is offered as meters only the table's readings of itself: itself where its type can be a meter, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only itself; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not.",
+      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not.",
       "check": "ThresholdsAndTheChartFollowTheMetersType",
       "passes": true
     },
@@ -324,10 +324,11 @@
         "R64",
         "R65",
         "R82",
+        "R90",
         "R93",
         "R96"
       ],
-      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size, Theme and Use on all overlays, Layout and direction, opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe, Save as my look and each look's menu, Export), when each is changed by keys, then the settings hold the row's change.",
+      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size, Theme and Use on all overlays, Layout and direction, Graph, opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe, Save as my look and each look's menu, Export), when each is changed by keys, then the settings hold the row's change.",
       "check": "TheAppearancePageChangesTheLook",
       "passes": true
     },
@@ -381,7 +382,7 @@
       "covers": [
         "R43"
       ],
-      "description": "Given the version 1 file of spec 001 with sources, when it is read, then it becomes version 2 with each source applied to its items and meters, and shows the same overlay, a wrong-type source still showing as missing, lines still at 0.1's defaults taking this version's calm ones and lines the user moved kept.",
+      "description": "Given the version 1 file of spec 001 with sources, when it is read, then it becomes the current version with each source applied to its items and what they warn by, and shows the same overlay, an item without a meter drawing nothing, a wrong-type source still showing as missing, lines still at 0.1's defaults taking this version's calm ones and lines the user moved kept.",
       "check": "AVersionOneFileMigratesToVersionTwo",
       "passes": true
     },
@@ -722,7 +723,7 @@
         "R138",
         "R141"
       ],
-      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, a graph on and off), when the overlay is laid out, then each value carries its row's mark, a value at warning whose meter or graph shows it none, percentages are held between 0 and 100, and a metered item holds its graph or else its lit meter, and the power neither.",
+      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, bars and a line), when the overlay is laid out, then each value carries its row's mark, a value at warning whose bars or line show it none, percentages are held between 0 and 100, and an item thresholds judge holds its line or else its lit bars, and the power neither.",
       "check": "ALevelShowsOnTheValueNeverByColorAlone",
       "passes": true
     },
@@ -731,7 +732,7 @@
       "covers": [
         "R92"
       ],
-      "description": "Given the GPU item set to show only on alert, at 40 % and then at 70 %, when the overlay is laid out snapped to the right, then the GPU pill is gone and the right edge stays, and then it is back at its warning level; with the window open it shows at 40 % too, and a power item without a meter cannot be set to alert-only.",
+      "description": "Given the GPU item set to show only on alert, at 40 % and then at 70 %, when the overlay is laid out snapped to the right, then the GPU pill is gone and the right edge stays, and then it is back at its warning level; with the window open it shows at 40 % too, a power item, which thresholds cannot judge, cannot be set to alert-only, and the RAM in use loses alert-only, and its graph, once it warns by nothing.",
       "check": "AnAlertOnlyItemShowsOnlyAtWarning",
       "passes": true
     },
@@ -1054,7 +1055,7 @@
       "covers": [
         "R182"
       ],
-      "description": "Given the recorded desktop without administrator rights, with Windows' uptime, address and clock added as the overlay adds them, when the catalog is built and the three are added as items, then the catalog lists them under PC, and the overlay shows UP, IP and TIME with the uptime, the address and the time with its seconds in the regional format, none with a meter; and with no address, Local IP shows as missing.",
+      "description": "Given the recorded desktop without administrator rights, with Windows' uptime, address and clock added as the overlay adds them, when the catalog is built and the three are added as items, then the catalog lists them under PC, and the overlay shows UP, IP and TIME with the uptime, the address and the time with its seconds in the regional format, none with a level; and with no address, Local IP shows as missing.",
       "check": "TheWindowsItemsReadWindowsItself",
       "passes": true
     },
@@ -1249,8 +1250,8 @@
         "R43",
         "R90"
       ],
-      "description": "Given a version 2 file with a load metered by itself and no lines and a load given a warning, when it is read, then it becomes version 5, the first showing its graph and the second as it was; and the default overlay's CPU and GPU loads show theirs.",
-      "check": "AVersionTwoFileMigratesToVersionFive",
+      "description": "Given a version 2 file with an item without a meter, a load metered by itself and no lines and a load given a warning, when it is read, then it becomes version 6, the first drawing nothing, the second its line and the third its bars, as they did; and the default overlay's CPU and GPU loads draw their lines.",
+      "check": "AVersionTwoFileMigratesToVersionSix",
       "passes": true
     },
     {
@@ -1259,7 +1260,7 @@
         "R90",
         "R109"
       ],
-      "description": "Given two overlays, when one is dragged over the other, then it shows whole, the other ringed with a bar where it would join, and no snap mark lights; a pill held still lifts leaving an empty slot where it was; after a drop no tooltip shows until the pointer leaves or 1.5 s pass; the Position map's taskbar spot sits under the overlay's middle; Esc mid-drag with the mouse still reaches no other app; and on a load's item page, Graph is a row after Meter and turning it off keeps it off after a restart.",
+      "description": "Given two overlays, when one is dragged over the other, then it shows whole, the other ringed with a bar where it would join, and no snap mark lights; a pill held still lifts leaving an empty slot where it was; after a drop no tooltip shows until the pointer leaves or 1.5 s pass; the Position map's taskbar spot sits under the overlay's middle; Esc mid-drag with the mouse still reaches no other app; and on a load's item page, Graph is a row after Label, and None keeps the load drawing nothing after a restart.",
       "check": "by hand",
       "passes": false
     },
@@ -1288,7 +1289,7 @@
         "R30",
         "R43"
       ],
-      "description": "Given version 4 files with an overlay at the taskbar's right, left and center, and one in a corner, when each is read, then it becomes version 5 with the taskbar's one place: beside the notification area for the right and the center, 8 px from the start for the left, and the corner as it was.",
+      "description": "Given version 4 files with an overlay at the taskbar's right, left and center, and one in a corner, when each is read, then it becomes the current version with the taskbar's one place: beside the notification area for the right and the center, 8 px from the start for the left, and the corner as it was.",
       "check": "AVersionFourTaskbarPlaceBecomesTheFreeTaskbarPlace",
       "passes": true
     },
@@ -1355,7 +1356,7 @@
         "R90",
         "R138"
       ],
-      "description": "Given the admin recording's CPU temperature, 77 °C, metered by itself, when the overlay is painted at 100 % on the pills of a dark taskbar, and at 150 % past a warning line on the pills of a light one, then its meter is five segments 12 px wide at 100 %, the four lowest lit in its level's color and the top one a faint track, and the value at warning has no underline.",
+      "description": "Given the admin recording's CPU temperature, 77 °C, warned by itself, when the overlay is painted at 100 % on the pills of a dark taskbar, and at 150 % past a warning line on the pills of a light one, then its bars are five segments 12 px wide at 100 %, the four lowest lit in its level's color and the top one a faint track, and the value at warning has no underline.",
       "check": "AMeterLightsItsSegmentsFromTheBottomInItsLevelsColor",
       "passes": true
     },
@@ -1366,6 +1367,28 @@
       ],
       "description": "Given the RAM's load at 0, 3 and 50 % and reading nothing, when the overlay is laid out, then its meter lights 0, 1 and 3 of its five segments, and none while it reads nothing.",
       "check": "AMeterLightsTheSegmentsItsValueRoundsTo",
+      "passes": true
+    },
+    {
+      "id": "A316",
+      "covers": [
+        "R28",
+        "R90",
+        "R109",
+        "R138"
+      ],
+      "description": "Given a table of overlays' Graph (Auto, None, Bars, Line), items' own (like the overlay, None, Bars, Line) and readings (a load, a temperature, the RAM in use warned by its load, a fan, power), each past its warning, when the overlay is laid out, then each item draws the row's None, Bars or Line, Auto a line for the load and bars for the rest, power nothing whatever is chosen, and only an item that draws nothing underlines its warning.",
+      "check": "AnItemDrawsItsOverlaysGraphUnlessItChoosesItsOwn",
+      "passes": true
+    },
+    {
+      "id": "A317",
+      "covers": [
+        "R43",
+        "R90"
+      ],
+      "description": "Given the version 5 file with every field, an item metered by its own duty's fan, a graph switched on, a combined item metered by one of its sensors, an item without a meter and the RAM metered by its load, when it is read, then it becomes version 6, the file of version 6 with every field but its first overlay's Graph, each item drawing and warning as it did.",
+      "check": "AVersionFiveFileMigratesToVersionSix",
       "passes": true
     }
   ]

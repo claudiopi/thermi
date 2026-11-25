@@ -32,8 +32,6 @@ public static class ItemEdits
             var read = OtherGpu(config.Overlays[overlay], snapshot, sensor);
             var chip = read is not null && SensorMap.GpuAfter(sensor, read);
 
-            // It starts as the defaults of its kind do: metered by itself, with its kind's calm lines, where it can be a meter.
-            var itself = Threshold.CanMeter(SensorMap.KindOf(sensor)!.Value) ? new MeterConfig { Sensor = sensorId } : null;
             var item = new ItemConfig
             {
                 Sensor = sensorId,
@@ -41,10 +39,10 @@ public static class ItemEdits
                 Label = chip ? language.Of(NameText.OtherGpu) : null,
                 Decimals = decimals,
                 Own = read is not null && !chip,
-                Meter = itself,
-                Threshold = itself is null ? null : Threshold.Default(itself, snapshot),
             };
-            return Insert(config, overlay, sensor, item with { Graph = OverlayConfig.GraphsByDefault(item, SensorMap.KindOf(sensor)) }, language);
+
+            // It starts as the defaults of its kind do: warned by its own reading, with its kind's calm lines.
+            return Insert(config, overlay, sensor, item with { Threshold = Threshold.Default(item, snapshot) }, language);
         });
 
     // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one, returned here: a
@@ -98,8 +96,8 @@ public static class ItemEdits
     }
 
     /// <summary>
-    /// Shows another sensor of the same type. An item made from a metric keeps it as auto, an item metered by itself
-    /// meters the new sensor, and a fan item metered by a fan's duty takes the new fan's own duty as its meter.
+    /// Shows another sensor of the same type. An item made from a metric keeps it as auto, an item warned by its own
+    /// reading is warned by the new sensor, and a fan item warned by a fan's duty is warned by the new fan's own duty.
     /// </summary>
     public static EditResult ChangeSensor(ThermiConfig config, string id, Snapshot snapshot, string sensorId)
     {
@@ -123,19 +121,17 @@ public static class ItemEdits
             return ConfigEdits.Refuse(config, Refusal.SensorOfAnotherType);
         }
 
-        var meteredByItsDuty = kind == SensorKind.Fan && MeteredByItsDuty(item);
+        var warnedByItsDuty = kind == SensorKind.Fan && WarnedByItsDuty(item);
         return ConfigEdits.Edit(config, id, each =>
         {
             var named = Named(each, sensorId);
-            return meteredByItsDuty ? WithDutyOf(named, sensorId, each.Meter?.Metric ?? each.Meter?.Auto)
-                : each.Meter is { Sensor: not null } meter && OverlayLayout.MetersItself(each) ? named with { Meter = meter with { Sensor = sensorId } }
-                : named;
+            return warnedByItsDuty ? WithDutyOf(named, sensorId, each.WarnBy?.Metric ?? each.WarnBy?.Auto) : named;
         });
     }
 
     /// <summary>
     /// The fan finder's pick: the first item of the overlay that shows the CPU fan names that fan, as
-    /// <see cref="ChangeSensor"/> does, so it keeps its meter. No item is added: the finder runs from that item's page.
+    /// <see cref="ChangeSensor"/> does, so it keeps what it warns by. No item is added: the finder runs from that item's page.
     /// </summary>
     public static EditResult UseCpuFan(ThermiConfig config, int overlay, Snapshot snapshot, string fanId) =>
         ConfigEdits.OnOverlay(config, overlay, () =>
@@ -143,7 +139,7 @@ public static class ItemEdits
                 ? ChangeSensor(config, fan.Id, snapshot, fanId)
                 : ConfigEdits.Refuse(config, Refusal.NotFound));
 
-    /// <summary>Goes back to the metric the item started from, and its meter to its own metric too.</summary>
+    /// <summary>Goes back to the metric the item started from, and what it warns by to its own metric too.</summary>
     public static EditResult BackToAuto(ThermiConfig config, string id)
     {
         if (ConfigEdits.Item(config, id) is not { } item)
@@ -163,56 +159,36 @@ public static class ItemEdits
             Sensors = null,
             Combine = null,
             Auto = null,
-            Meter = each.Meter is { Auto: { } meter } ? new MeterConfig { Metric = meter } : each.Meter,
+            WarnBy = each.WarnBy is { Auto: { } warnBy } ? new WarnByConfig { Metric = warnBy } : each.WarnBy,
         });
     }
 
     /// <summary>
-    /// Sets the meter, or turns it off with null, which takes its lines, alert-only, the graph and the notice with it. A
-    /// meter is a temperature, a load, a duty or a fan's speed, and a new one brings its own default lines.
+    /// Warns by another reading of the item, or with null by its own, the item's own named as one being its own; what it
+    /// warns by then brings its default lines. A reading to warn by is a temperature, a load, a duty, a fan's speed or a
+    /// throughput, and an item lines can then judge no more, as the RAM in use by itself, loses its lines, alert-only, the
+    /// notice and its graph.
     /// </summary>
-    public static EditResult SetMeter(ThermiConfig config, string id, Snapshot snapshot, MeterConfig? meter)
-    {
-        if (ConfigEdits.Item(config, id) is null)
-        {
-            return ConfigEdits.Refuse(config, Refusal.NotFound);
-        }
-
-        if (meter is null)
-        {
-            return ConfigEdits.Edit(config, id, Unmetered);
-        }
-
-        if (KindOf(meter.Metric ?? meter.Auto, meter.Sensor, snapshot) is not { } kind)
-        {
-            return ConfigEdits.Refuse(config, Refusal.SensorNotFound);
-        }
-
-        return Threshold.CanMeter(kind)
-            ? ConfigEdits.Edit(config, id, each => each.Meter == meter ? each : each with { Meter = meter, Threshold = Threshold.Default(meter, snapshot) })
-            : ConfigEdits.Refuse(config, Refusal.CannotBeMeter);
-    }
-
-    /// <summary>Meters the item by its own value, which only a temperature, a load, a duty or a fan's speed can be.</summary>
-    public static EditResult MeterItself(ThermiConfig config, string id, Snapshot snapshot)
+    public static EditResult SetWarnBy(ThermiConfig config, string id, Snapshot snapshot, WarnByConfig? warnBy)
     {
         if (ConfigEdits.Item(config, id) is not { } item)
         {
             return ConfigEdits.Refuse(config, Refusal.NotFound);
         }
 
-        MeterConfig? itself = item switch
-        {
-            { Metric: { } metric } => new MeterConfig { Metric = metric },
-            { Sensor: { } sensor } => new MeterConfig { Sensor = sensor, Auto = item.Auto },
-            _ => null,
-        };
-        return itself is null ? ConfigEdits.Refuse(config, Refusal.CannotMeterItself) : SetMeter(config, id, snapshot, itself);
+        var other = warnBy is not null && !Threshold.IsOwn(item, warnBy) ? warnBy : null;
+        Refusal? refusal = other is null ? null
+            : KindOf(other.Metric ?? other.Auto, other.Sensor, snapshot) is not { } kind ? Refusal.SensorNotFound
+            : !Threshold.CanMeter(kind) ? Refusal.CannotWarnBy
+            : null;
+        return refusal is { } refused
+            ? ConfigEdits.Refuse(config, refused)
+            : ConfigEdits.Edit(config, id, each => each.WarnBy == other ? each : Rejudged(each with { WarnBy = other }, snapshot));
     }
 
     /// <summary>
-    /// Sets the lines at which the meter warns and is critical, in the unit of what it reads: from 0 to 100, or to 10,000 RPM
-    /// for a fan's speed. A line left null is off, and with both off the meter has none.
+    /// Sets the lines at which the item warns and is critical, in the unit of what it warns by: from 0 to 100, or to 10,000
+    /// RPM for a fan's speed. A line left null is off, and with both off the item has none.
     /// </summary>
     public static EditResult SetThreshold(ThermiConfig config, string id, double? warning, double? critical)
     {
@@ -221,8 +197,9 @@ public static class ItemEdits
             return ConfigEdits.Refuse(config, Refusal.NotFound);
         }
 
-        var max = item.Meter is { } meter ? Threshold.MaxOf(MeterKind(meter)) : 0;
-        Refusal? refusal = item.Meter is null ? Refusal.NoMeter
+        var kind = Threshold.JudgedKind(item);
+        var max = kind is { } judged ? Threshold.MaxOf(judged) : 0;
+        Refusal? refusal = kind is null ? Refusal.NothingToJudge
             : !OnTrack(warning, max) || !OnTrack(critical, max) ? Refusal.ThresholdOutOfRange
             : warning > critical ? Refusal.WarningAboveCritical
             : null;
@@ -231,7 +208,7 @@ public static class ItemEdits
             : ConfigEdits.Edit(config, id, each => each with { Threshold = warning is null && critical is null ? null : new Threshold(warning, critical) });
     }
 
-    /// <summary>Gives the meter back its default lines, which follow what it reads, or none.</summary>
+    /// <summary>Gives the item back its default lines, which follow what it warns by, or none.</summary>
     public static EditResult ResetThreshold(ThermiConfig config, string id, Snapshot snapshot)
     {
         if (ConfigEdits.Item(config, id) is not { } item)
@@ -239,22 +216,23 @@ public static class ItemEdits
             return ConfigEdits.Refuse(config, Refusal.NotFound);
         }
 
-        if (item.Meter is not { } meter)
+        if (!Threshold.Judges(item))
         {
-            return ConfigEdits.Refuse(config, Refusal.NoMeter);
+            return ConfigEdits.Refuse(config, Refusal.NothingToJudge);
         }
 
-        return KindOf(meter.Metric ?? meter.Auto, meter.Sensor, snapshot) is null
+        var reading = item.WarnBy ?? Threshold.Own(item);
+        return KindOf(reading.Metric ?? reading.Auto, reading.Sensor, snapshot) is null
             ? ConfigEdits.Refuse(config, Refusal.SensorNotFound)
-            : ConfigEdits.Edit(config, id, each => each with { Threshold = Threshold.Default(meter, snapshot) });
+            : ConfigEdits.Edit(config, id, each => each with { Threshold = Threshold.Default(each, snapshot) });
     }
 
     private static bool OnTrack(double? line, double max) => line is not { } value || (value >= 0 && value <= max);
 
-    // A meter's type from the file alone, so its lines' range is known while the service is not read: a duty or a load when
-    // the file cannot tell, whose range is 0 to 100 like any meter's but a fan's speed.
-    private static SensorKind MeterKind(MeterConfig meter) =>
-        Metrics.Find(meter.Metric ?? meter.Auto)?.Kind ?? (meter.Sensor is { } sensor ? SensorMap.KindOfId(sensor) : null) ?? SensorKind.Load;
+    private static ItemConfig Rejudged(ItemConfig item, Snapshot snapshot) =>
+        Threshold.Judges(item)
+            ? item with { Threshold = Threshold.Default(item, snapshot) }
+            : item with { Threshold = null, AlertOnly = false, Notify = false, Graph = null };
 
     /// <summary>Makes the item start a pill of its own, with the items after it that share its label, or join the run before it again.</summary>
     public static EditResult SetOwn(ThermiConfig config, string id, bool own) => ConfigEdits.Edit(config, id, item => item with { Own = own });
@@ -324,21 +302,20 @@ public static class ItemEdits
         return (first, last);
     }
 
-    private static bool MeteredByItsDuty(ItemConfig item) => item.Meter is { } meter
-        && (meter.Metric == Metrics.CpuFanDuty.Id
-            || meter.Auto == Metrics.CpuFanDuty.Id
-            || (item.Sensor is { } fan && meter.Sensor == SensorMap.OwnDuty(fan)));
+    private static bool WarnedByItsDuty(ItemConfig item) => item.WarnBy is { } warnBy
+        && (warnBy.Metric == Metrics.CpuFanDuty.Id
+            || warnBy.Auto == Metrics.CpuFanDuty.Id
+            || (item.Sensor is { } fan && warnBy.Sensor == SensorMap.OwnDuty(fan)));
 
     // An item made from a metric keeps it as auto, so it can go back to it.
     private static ItemConfig Named(ItemConfig item, string sensor) =>
         item with { Metric = null, Sensor = sensor, Sensors = null, Combine = null, Auto = item.Metric ?? item.Auto };
 
-    // A duty the board does not report is still named, so the meter shows as missing rather than another fan's duty.
+    // A duty the board does not report is still named, so it shows as missing rather than another fan's duty; a fan with
+    // no duty at all is warned by its own speed, whose lines are not the duty's.
     private static ItemConfig WithDutyOf(ItemConfig item, string fan, string? auto) => SensorMap.OwnDuty(fan) is { } duty
-        ? item with { Meter = new MeterConfig { Sensor = duty, Auto = auto } }
-        : Unmetered(item);
-
-    private static ItemConfig Unmetered(ItemConfig item) => item with { Meter = null, Threshold = null, AlertOnly = false, Graph = false, Notify = false };
+        ? item with { WarnBy = new WarnByConfig { Sensor = duty, Auto = auto } }
+        : item with { WarnBy = null, Threshold = null };
 
     /// <summary>The type of what an item shows, or null when none of its sensors is among those the service reads.</summary>
     public static SensorKind? KindOf(ItemConfig item, Snapshot snapshot) =>

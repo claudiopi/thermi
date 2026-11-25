@@ -109,7 +109,7 @@ public static class ThermiConfigJson
             1 => ConfigMigration.FromVersion3(ConfigMigration.FromVersion1(root.Deserialize(Version1Json.Default.Version1Config))),
             2 => ConfigMigration.FromVersion3(ConfigMigration.FromVersion2(Complete(Older(root)))),
             3 => ConfigMigration.FromVersion3(Complete(Older(root))),
-            4 => Complete(Older(root)),
+            4 or 5 => Complete(Older(root)),
             ThermiConfig.CurrentVersion => Complete(root.Deserialize(Context.ThermiConfig)),
             _ => null,
         };
@@ -118,15 +118,16 @@ public static class ThermiConfigJson
             return Broken($"version {version} is not one thermi knows");
         }
 
-        var config = ItemIds.Assign(read);
+        var config = ItemIds.Assign(version < ThermiConfig.CurrentVersion ? ConfigMigration.FromVersion5(read) : read);
         return ConfigRules.Problem(config) is { } problem ? Broken(problem) : (config, null);
     }
 
-    // Versions 2 to 4 named three places on the taskbar, which this version reads as its one. A file naming none is read
-    // as it is, so a problem in it keeps its line.
+    // Versions 2 to 4 named three places on the taskbar, which this version reads as its one, and versions 2 to 5 gave an
+    // item a meter and a graph switch, which this version reads as what it warns by and what it draws. A file holding
+    // neither is read as it is, so a problem in it keeps its line.
     private static ThermiConfig? Older(JsonElement root) =>
-        ConfigMigration.NamesTaskbarPlaces(root)
-            ? ConfigMigration.FromVersion4(JsonNode.Parse(root.GetRawText())).Deserialize(Context.ThermiConfig)
+        ConfigMigration.Reshapes(root)
+            ? ConfigMigration.Version5Shape(ConfigMigration.FromVersion4(JsonNode.Parse(root.GetRawText()))).Deserialize(Context.ThermiConfig)
             : root.Deserialize(Context.ThermiConfig);
 
     // Every file thermi wrote has a version, so one without it was written by hand for version 1.

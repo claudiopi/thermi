@@ -139,7 +139,7 @@ public sealed class OverlayHostTests : IDisposable
     {
         var alerts = new ThermiConfig
         {
-            Overlays = [new OverlayConfig { Items = [.. OverlayConfig.DefaultItems.Select(item => item with { AlertOnly = item.Meter is not null })] }],
+            Overlays = [new OverlayConfig { Items = [.. OverlayConfig.DefaultItems.Select(item => item with { AlertOnly = Threshold.Judges(item) })] }],
         };
         var settings = await _folder.LoadedAsync(alerts);
         var widths = new List<int>();

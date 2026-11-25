@@ -4,7 +4,7 @@ import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
 import { CardRow, Dropdown, NumberField } from '../kit';
 import { useText } from '../texts/Texts';
-import { offsetRange, type Placed } from './itemModel';
+import { offsetRange, warnByChoices, type Placed } from './itemModel';
 import { CombineButton, ValueColor } from './ValueTools';
 
 export interface MoreOptionsProps {
@@ -58,7 +58,10 @@ function NumberTools({ item, set }: { item: Item; set: SetField }) {
   );
 }
 
-/** What More options holds once open: what it shows, smoothing, decimals, a speed in bits, only on alert, offset, color, combine. */
+/**
+ * What More options holds once open: what it shows, smoothing, decimals, a speed in bits, what it warns by, only on alert,
+ * offset, color, combine.
+ */
 function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen'>) {
   const t = useText();
   const { item } = placed;
@@ -66,13 +69,18 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
   const type = view?.type ?? '';
   const set: SetField = (field, value) => edit({ kind: 'item', item: item.id, field, value });
   const range = offsetRange(type);
-  const metered = item.meter !== undefined;
-  // Only on alert follows a meter, so an item that can have none is not offered it.
-  const meterable = (data.view.items[item.id]?.meters.length ?? 0) > 0;
+  const judged = view?.judged === true;
+  const warnBy = warnByChoices(item, view);
+  const warnByChosen = (value: string): void => {
+    const reading = warnBy.readings[Number(value)];
+    if (reading !== undefined) {
+      void set('warnBy', reading === null ? null : { ...reading });
+    }
+  };
   return (
     <>
       {range !== null && <NumberTools item={item} set={set} />}
-      {data.view.items[item.id]?.bits === true && (
+      {view?.bits === true && (
         <SwitchLine
           label={t('UiText.Bits')}
           description={t('UiText.BitsHint')}
@@ -80,12 +88,18 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
           onChange={(on) => void set('bits', on ? true : null)}
         />
       )}
-      {meterable && (
+      {warnBy.row && (
+        <CardRow label={t('UiText.WarnByField')}>
+          <Dropdown className="t-warn-box" label={t('UiText.WarnByField')} choices={warnBy.choices} value={warnBy.value} onChange={warnByChosen} />
+        </CardRow>
+      )}
+      {/* Only on alert follows what thresholds judge, so an item that can warn by nothing is not offered it. */}
+      {(judged || warnBy.row) && (
         <SwitchLine
           label={t('UiText.AlertOnly')}
-          description={t(metered ? 'UiText.AlertOnlyHint' : 'UiText.AlertOnlyNeedsMeter')}
+          description={t(judged ? 'UiText.AlertOnlyHint' : 'UiText.AlertOnlyNeedsWarnBy')}
           checked={item.alertOnly === true}
-          disabled={!metered}
+          disabled={!judged}
           onChange={(on) => void set('alertOnly', on ? true : null)}
         />
       )}

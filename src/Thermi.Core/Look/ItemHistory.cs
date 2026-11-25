@@ -5,8 +5,8 @@ namespace Thermi.Core.Look;
 
 /// <summary>
 /// An overlay's items over time, for what they show beyond the value now: the minimum, maximum and average since the start
-/// or the last <see cref="Reset()"/>, the value smoothed over its last seconds, a graph meter's last minute, and the ten
-/// minutes of each meter the window's chart starts with. Each item keeps a minute of its value and ten of its meter in
+/// or the last <see cref="Reset()"/>, the value smoothed over its last seconds, a line's last minute, and the ten
+/// minutes of what each item warns by that the window's chart starts with. Each item keeps a minute of its value and ten of that in
 /// fixed rings of one-second slots, with gaps left empty, and its running minimum, maximum and average, so memory never
 /// grows with time; the service and the pipe keep none. The overlay keeps one for all its overlays from its start, so an
 /// item keeps its own as overlays are deleted, merged or moved, and the window one of its own from when it opens.
@@ -34,8 +34,7 @@ public sealed class ItemHistory(TimeProvider time)
             foreach (var item in overlay.Items)
             {
                 values[item.Id] = OverlayLayout.ReadingOf(item, readings) ?? Nothing;
-                // An item without a meter charts its own reading.
-                meters[item.Id] = (item.Meter is null ? values[item.Id] : OverlayLayout.MeterOf(item, readings)) ?? Nothing;
+                meters[item.Id] = OverlayLayout.MeterOf(item, readings) ?? Nothing;
             }
         }
 
@@ -100,15 +99,15 @@ public sealed class ItemHistory(TimeProvider time)
         };
     }
 
-    /// <summary>The meter's last minute, a value a second and oldest first, each colored by the item's thresholds; null where it was missing.</summary>
+    /// <summary>What the item warns by over its last minute, a value a second and oldest first, each colored by its lines; null where it was missing.</summary>
     public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) =>
         [.. _meters.LastMinute(item.Id).Select(value => value is { } read
             ? new GraphPoint(OverlayLayout.FillOf(read), item.Threshold?.LevelOf(new Reading(SensorKind.Load, read)) ?? Level.Normal)
             : (GraphPoint?)null)];
 
     /// <summary>
-    /// An item's meter over the last ten minutes, or its own reading where it has no meter, a value a second and oldest
-    /// first, from its first reading on; null where it was missing.
+    /// What an item warns by over the last ten minutes, its own reading unless it warns by another, a value a second and
+    /// oldest first, from its first reading on; null where it was missing.
     /// </summary>
     public IReadOnlyList<double?> TenMinutes(string itemId) => _meters.Last(itemId, (int)SensorHistory.Kept.TotalSeconds);
 

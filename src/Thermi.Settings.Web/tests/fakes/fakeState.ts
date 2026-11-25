@@ -5,18 +5,12 @@ import { recording, text, texts } from '../pageChecks';
 
 function defaultItems(): Item[] {
   return [
-    {
-      id: 'cpu.temperature',
-      name: text('MetricName.CpuTemperature'),
-      metric: 'cpu.temperature',
-      meter: { metric: 'cpu.temperature' },
-      threshold: { warning: 90, critical: 95 },
-    },
-    { id: 'fan.cpu', name: text('MetricName.CpuFan'), metric: 'fan.cpu', meter: { metric: 'fan.cpu' } },
-    { id: 'cpu.load', name: text('MetricName.CpuLoad'), metric: 'cpu.load', meter: { metric: 'cpu.load' } },
+    { id: 'cpu.temperature', name: text('MetricName.CpuTemperature'), metric: 'cpu.temperature', threshold: { warning: 90, critical: 95 } },
+    { id: 'fan.cpu', name: text('MetricName.CpuFan'), metric: 'fan.cpu' },
+    { id: 'cpu.load', name: text('MetricName.CpuLoad'), metric: 'cpu.load' },
     { id: 'cpu.power', name: text('MetricName.CpuPower'), metric: 'cpu.power' },
-    { id: 'gpu.load', name: text('MetricName.GpuLoad'), metric: 'gpu.load', meter: { metric: 'gpu.load' } },
-    { id: 'ram.used', name: text('MetricName.RamUsed'), metric: 'ram.used', meter: { metric: 'ram.load' } },
+    { id: 'gpu.load', name: text('MetricName.GpuLoad'), metric: 'gpu.load' },
+    { id: 'ram.used', name: text('MetricName.RamUsed'), metric: 'ram.used', warnBy: { metric: 'ram.load' } },
   ];
 }
 
@@ -30,17 +24,11 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     name: 'Top right',
     snap: { spot: 'top-right' },
     items: [
-      {
-        id: 'gpu.temperature',
-        name: text('MetricName.GpuTemperature'),
-        metric: 'gpu.temperature',
-        meter: { metric: 'gpu.temperature' },
-        threshold: { warning: 80, critical: 88 },
-      },
+      { id: 'gpu.temperature', name: text('MetricName.GpuTemperature'), metric: 'gpu.temperature', threshold: { warning: 80, critical: 88 } },
     ],
   };
   return {
-    settings: { version: 2, overlays: [taskbar, topRight] },
+    settings: { version: 6, overlays: [taskbar, topRight] },
     defaultOverlay: structuredClone(taskbar),
     sensors: recording('admin'),
     service: 'running',

@@ -23,7 +23,7 @@ public static class Throttling
         }
 
         var readings = SensorMap.Read(snapshot, overlay);
-        var hot = Threshold.Default(new MeterConfig { Metric = Metrics.CpuTemperature.Id }, snapshot)?.Warning;
+        var hot = Threshold.Default(new WarnByConfig { Metric = Metrics.CpuTemperature.Id }, snapshot)?.Warning;
         return readings[Metrics.CpuClock.Id].Usable is { } clock
             && readings[Metrics.CpuTemperature.Id].Usable is { } temperature
             && clock < nominal

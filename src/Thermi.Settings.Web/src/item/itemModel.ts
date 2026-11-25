@@ -1,5 +1,6 @@
-import type { Item, ItemView, Meter, Sensor, SensorView, Settings, WindowView } from '../bridge/bridge.g';
+import type { Item, ItemView, Sensor, SensorView, Settings, WarnBy, WindowView } from '../bridge/bridge.g';
 import type { Choice } from '../kit';
+import { enumChoices } from '../overlay/lookModel';
 import type { TextKey } from '../texts/Texts';
 
 // What the item page reads from the settings and the window's view: where the item lives and the choices of its
@@ -70,28 +71,24 @@ export function sensorChoices(item: Item, view: WindowView, read: SensorView, sa
   ];
 }
 
-const sameMeter = (one: Meter, other: Meter): boolean => one.metric === other.metric && one.sensor === other.sensor;
+const sameReading = (one: WarnBy | undefined, other: WarnBy | undefined): boolean =>
+  one?.metric === other?.metric && one?.sensor === other?.sensor && (one === undefined) === (other === undefined);
 
 /**
- * The Meter dropdown: Off, then the meters the item is offered, readings of itself alone, each by its place; a meter
- * written by hand that is none of them shows as itself, chosen, and is offered no more once left. With Off its only
- * choice, the row is not shown at all.
+ * The Warn by dropdown: the item's own reading, or Off for one thresholds cannot judge, then the other readings of itself
+ * C# offers, each by what it reads; a reading written by hand that is none of them shows as itself, chosen, and is
+ * offered no more once left. With one choice, the row is not shown at all.
  */
-export function meterChoices(
-  item: Item,
-  shows: ItemView | undefined,
-  say: Say,
-): { choices: Choice[]; value: string; meters: Meter[]; row: boolean } {
-  const offered = shows?.meters ?? [];
-  const at = item.meter === undefined ? -1 : offered.findIndex((choice) => sameMeter(choice.meter, item.meter!));
-  const kept = item.meter !== undefined && at < 0 ? [{ value: 'kept', text: shows?.meterName ?? '' }] : [];
-  const choices = [{ value: 'off', text: say('UiText.MeterNone') }, ...offered.map((choice, index) => ({ value: String(index), text: choice.name })), ...kept];
-  return {
-    choices,
-    value: item.meter === undefined ? 'off' : at < 0 ? 'kept' : String(at),
-    meters: offered.map((choice) => choice.meter),
-    row: choices.length > 1,
-  };
+export function warnByChoices(item: Item, shows: ItemView | undefined): { choices: Choice[]; value: string; readings: (WarnBy | null)[]; row: boolean } {
+  const offered = shows?.warnBy ?? [];
+  const at = offered.findIndex((choice) => sameReading(choice.warnBy, item.warnBy));
+  const kept = item.warnBy !== undefined && at < 0 ? [{ value: 'kept', text: shows?.warnByName ?? '' }] : [];
+  const choices = [...offered.map((choice, index) => ({ value: String(index), text: choice.name })), ...kept];
+  return { choices, value: at < 0 ? 'kept' : String(at), readings: offered.map((choice) => choice.warnBy ?? null), row: choices.length > 1 };
+}
+
+export function graphChoices(say: Say): Choice[] {
+  return [{ value: '', text: say('UiText.GraphLikeOverlay') }, ...enumChoices(say, 'GraphStyle', ['none', 'bars', 'line'])];
 }
 
 // Windows' address, time of day and time since start read as text: nothing averages, smooths, rounds, graphs or offsets them.
