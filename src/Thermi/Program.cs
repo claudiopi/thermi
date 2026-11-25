@@ -38,6 +38,15 @@ internal static class Program
             return 2;
         }
 
+        // Before any window or WebView2: an install's start of the overlay can still come with an elevated client's token
+        // where no shell runs to start it unelevated.
+        if (request is OverlayRequest or SettingsRequest && Elevation.Raised())
+        {
+            using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, trace: false);
+            logs.CreateLogger("Thermi.Overlay").RefusedElevated();
+            return 1;
+        }
+
         return request switch
         {
             OverlayRequest overlay => await RunOverlayAsync(overlay.Trace, time),

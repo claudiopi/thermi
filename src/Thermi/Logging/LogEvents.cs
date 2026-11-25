@@ -136,4 +136,7 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "thermi could not move to the install for everyone: {Why}")]
     public static partial void MoveFailed(this ILogger logger, string why);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "thermi was started elevated, so it exits: its overlay and settings window run only unelevated")]
+    public static partial void RefusedElevated(this ILogger logger);
 }

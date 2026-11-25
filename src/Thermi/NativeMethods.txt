@@ -238,6 +238,7 @@ GetSecurityDescriptorLength
 LocalFree
 OpenProcessToken
 GetTokenInformation
+TOKEN_ELEVATION_TYPE
 TOKEN_MANDATORY_LABEL
 GetSidSubAuthority
 GetSidSubAuthorityCount

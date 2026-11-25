@@ -2,8 +2,9 @@
 <#
 .SYNOPSIS
     Writes THIRD-PARTY-NOTICES.md from the lock files: every package that ships in thermi-sensors, in thermi, in the
-    MSIs and in the settings window's page, with its license and its source. -Check only compares, as scripts/check.ps1 runs it, so a
-    package added or removed updates the notices in the same change. Reads the NuGet packages a restore downloaded.
+    MSIs and in the settings window's page, with its license and its source. -Check only compares, as scripts/check.ps1
+    runs it, so a package added or removed updates the notices in the same change. Reads the NuGet packages a restore
+    downloaded.
 #>
 param([switch]$Check)
 

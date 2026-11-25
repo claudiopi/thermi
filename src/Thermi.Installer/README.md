@@ -16,4 +16,5 @@ through the `thermi-elevated` service, ignoring what it answers.
 
 Every program both run goes through WiX's util extension, `WixToolset.Util.wixext`, from its DLL native to the package's
 processor: `WixQuietExec`, which shows no console window, and for the overlay after an install by hand
-`WixUnelevatedShellExec`, which has Explorer start it as the person, unelevated even from an elevated console.
+`WixUnelevatedShellExec`, which has Explorer start it as the person, unelevated even from an elevated console. With no
+shell running it falls back to the client's token, which thermi.exe refuses when it is elevated.

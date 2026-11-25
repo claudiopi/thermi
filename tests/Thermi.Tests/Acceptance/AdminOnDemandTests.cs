@@ -172,9 +172,9 @@ public sealed class AdminOnDemandTests
 
     // Every program the MSIs run goes through WiX's own DLL actions, native to the package's processor, each given its
     // command line by a property set before it, so no console window shows as SYSTEM for a user to drive; the overlay
-    // is started by Explorer, as the person, so never elevated.
+    // is asked of Explorer, which starts it as the person, unelevated.
     [Fact]
-    public void TheMsiRunsNoProgramInAWindowNorTheOverlayElevated()
+    public void TheMsiRunsNoProgramInAWindowAndAsksExplorerForTheOverlay()
     {
         var wix = XDocument.Load(Path.Combine(Root(), "src", "Thermi.Installer", "Package.wxs"));
         var all = wix.Descendants().ToList();

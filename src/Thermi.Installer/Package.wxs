@@ -113,9 +113,9 @@
                   Return="ignore" />
 <?endif?>
     <!-- The overlay of the person who ran the MSI by hand, started by Explorer, which runs unelevated as that person, so
-         a client elevated from an administrator's console never starts it elevated with the user's environment
-         (docs/adr/0016-admin-on-demand.md); without Explorer it fails and starts nothing, and a quiet action would wait
-         for its program to exit. A silent install, as Intune's, starts none as SYSTEM. -->
+         a client elevated from an administrator's console starts it unelevated (docs/adr/0016-admin-on-demand.md). With
+         no shell running, the action falls back to starting it with the client's token, which thermi.exe refuses when it
+         is elevated. A quiet action would wait for its program to exit. A silent install, as Intune's, starts none. -->
     <SetProperty Id="WixUnelevatedShellExecTarget" Before="StartOverlay" Sequence="execute" Value="[installfolder]thermi.exe" />
     <CustomAction Id="StartOverlay" BinaryRef="$(var.UtilCA)" DllEntry="WixUnelevatedShellExec" Execute="immediate"
                   Impersonate="yes" Return="ignore" />
