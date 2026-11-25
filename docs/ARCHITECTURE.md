@@ -1,148 +1,218 @@
 # Architecture
 
-How thermi is built, with the real names, so you can find any piece and change it without breaking the design. New here? Read [QUICKSTART.md](QUICKSTART.md) first. Each project's own `README.md` has its details; the reasons are in `docs/adr`.
+thermi shows your PC's temperatures, loads and fans in a small overlay that stays on top of everything, the taskbar included.
+A Windows service with admin rights reads the sensors; the overlay, the settings window and `thermi-cli` run as you, without them.
+Every decision that needs no Windows (which sensor is which, how a value reads, what the overlay shows) lives in Core and is tested from recordings of real PCs.
 
-## The system on one page
+New here? Read [QUICKSTART.md](QUICKSTART.md) first. The reasons behind each choice are in `docs/adr`.
 
+## How the CPU temperature gets to your screen
+
+```mermaid
+sequenceDiagram
+    participant Chip as CPU chip
+    participant Lhm as LhmSensorSource
+    participant Server as SensorPipeServer
+    participant Client as SensorClient
+    participant Window as OverlayWindow
+    participant Mark as ThermiMark
+    participant Map as SensorMap
+    participant Layout as OverlayLayout
+    participant Painter as Painter
+    Chip->>Lhm: 1. a register read through PawnIO
+    Lhm->>Server: 2. Snapshot, once a second
+    Server->>Client: 3. one JSON line on the pipe "thermi-sensors"
+    Client->>Window: 4. LatestSnapshot, checked fresh, at the next tick
+    Window->>Mark: Overlay(config, overlay, input)
+    Mark->>Map: 5. Read(snapshot, overlay)
+    Map-->>Mark: cpu.temperature = 64 °C
+    Mark->>Layout: 6. Build(overlay, readings): text and Level
+    Layout-->>Window: OverlayItem "CPU 64°"
+    Window->>Painter: 7. Paint(items, look, scale)
+    Painter-->>Window: bitmap, shown with UpdateLayeredWindow
 ```
- Hardware (CPU, GPU, motherboard, memory, network, drives, battery)
-        │ LibreHardwareMonitor, with the PawnIO driver; Windows' IP Helper for which adapters are physical
-        ▼
- ┌─ thermi-sensors (src/Thermi.Sensors.Windows) ── Windows service, LocalSystem ────┐
- │ LhmSensorSource reads ─► SensorPipeServer: the catalog once, then values    │
- └──────────────────────────────┬──────────────────────────────────────────────┘
-                                ▼ named pipe "thermi-sensors": read-only, owner checked (per user: "thermi-sensors-<SID>")
- ┌─ thermi.exe (src/Thermi.Windows) ── the user's process, no admin rights ────────────┐
- │ SensorClient ─► LatestSnapshot ─► SensorMap ─► OverlayLayout ─► Painter      │
- │                                    (Core)    (Core, with Look)   (GDI+)      │
- │ OverlayHost: hidden "thermi-host" window · the loop, the tick, "show",      │
- │   visibility (Core), hotkeys and their status, TrayIcons ─► TrayPainter     │
- │ OverlayWindow ×1–4: layered Win32 windows · Topmost keeps them on top       │
- │   placed where Snaps (Core) says, from the monitors Desktop reads           │
- │ Settings + ConfigStore ◄─► %APPDATA%\thermi\config.json (watched, mutex)    │
- └───────────▲─────────────────────────────────────────────────────────────────┘
-             │ "show", "hotkey status" to thermi-host · the settings file
- ┌─ thermi.exe settings (src/Thermi.Windows/Ui) ── a process of its own, no WPF ───────┐
- │ WindowProcess: the window's mutex, an STA thread · SettingsBeacon: hidden   │
- │   "thermi-settings", raised by a second request · WebWindow over Mica       │
- │ WebPage: WebView2 ─► the page (src/Thermi.Settings.Web, React) ─► bridge    │
- │ WindowBridge (Core's IWindowBridge) ─► Views, from SensorClient + Readings  │
- │ WindowEditor ─► Core's edits and UndoHistory ─► Settings + ConfigStore      │
- └─────────────────────────────────────────────────────────────────────────────┘
- ┌─ thermi-cli.exe (src/Thermi.Windows/Agents) ── the same thermi.dll, a console door ─┐
- │ a command or the MCP server ─► AgentCommands ─► Core's Agents: one JSON doc │
- │   reads through SystemFeed and hangs up · edits through Core + ConfigStore  │
- └─────────────────────────────────────────────────────────────────────────────┘
+
+1. **The chip.** The CPU keeps its temperature in a register that only kernel code may read. LibreHardwareMonitor reads it through PawnIO, a small signed driver. That is why the reader runs in `thermi-sensors`, a Windows service running as SYSTEM.
+2. **The 1 s read.** `LhmSensorSource` updates each device once a second and turns what LibreHardwareMonitor says into a `Snapshot`: every sensor with its id, kind, name and value. A device that stalls holds back none of the others.
+3. **The pipe.** `SensorPipeServer` writes the snapshot as one line of JSON to every client of the named pipe `thermi-sensors`, the names once and then the values alone. The pipe is read-only: nobody can send the service a command.
+4. **The client.** In `thermi.exe`, which runs as you, `SensorClient` reads the pipe. It trusts it only when SYSTEM or Administrators own it. A snapshot older than 3 s counts as gone, and the overlay says "Sensors stopped" instead of showing old numbers. Once a second `OverlayHost` asks each `OverlayWindow` to repaint, and the window asks Core's `ThermiMark` what its overlay shows.
+5. **Which sensor is "CPU temperature".** Sensor names differ between PCs. Core's `SensorMap` picks the first CPU temperature named `Core (Tctl/Tdie)`, `Core (Tctl)`, `CPU Package` or `Core Average`, and treats 0 °C as missing, since no running chip is at 0 °C.
+6. **Units and colors.** `OverlayLayout` formats the value (°C or °F, the item's decimals, the width of its widest number so it never jitters) and asks the item's `Threshold` for its `Level`: by default a CPU warns 10 °C under its limit and is critical 5 °C under it.
+7. **The pill.** `OverlayWindow` hands the items and the style's `OverlayLook` to `Painter`, which draws the pill with GDI+: a warning underlines the value, a critical value is drawn reversed on red. The bitmap goes on screen with `UpdateLayeredWindow`, above the taskbar.
+
+## The other flows
+
+**A reading, from the sensor to a pixel.** The same path as above, for every item of every overlay, and what each step leaves to Core.
+
+```mermaid
+sequenceDiagram
+    participant Server as SensorPipeServer
+    participant Writer as SnapshotWriter
+    participant Client as SensorClient
+    participant Lines as SnapshotLines
+    participant Host as OverlayHost
+    participant Mark as ThermiMark
+    participant Window as OverlayWindow
+    participant Painter as Painter
+    Server->>Writer: Snapshot
+    Writer-->>Client: catalog line on connect, values line each second
+    Client->>Lines: bytes from the pipe
+    Lines-->>Client: Snapshot into LatestSnapshot
+    Host->>Host: Tick, once a second
+    Host->>Mark: Overlay(config, overlay, input)
+    Mark-->>Window: items, via SensorMap and OverlayLayout
+    Window->>Painter: Paint(items, look, scale)
+    Painter-->>Window: bitmap for LayeredPicture
+```
+
+**An edit in the settings window, and its undo.** The page decides nothing: C# checks every edit with Core's rules, keeps it for undo, and writes the file the overlay watches.
+
+```mermaid
+sequenceDiagram
+    participant Page as Page (React)
+    participant Bridge as WindowBridge
+    participant Edits as PageEdits
+    participant Editor as WindowEditor
+    participant Gate as ConfigEdits
+    participant Undo as UndoHistory
+    participant Settings as Settings
+    participant Store as ConfigStore
+    participant Overlay as OverlayHost
+    Page->>Bridge: window.thermi.Edit(PageEdit)
+    Bridge->>Edits: Of(edit, snapshot, texts)
+    Bridge->>Editor: Edit(name, change)
+    Editor->>Gate: Apply(config, change)
+    Gate-->>Editor: EditResult, or a Refusal
+    Editor->>Undo: the step it changed
+    Editor->>Settings: Edit(ConfigEdits.Replay of the change)
+    Settings->>Store: WriteAsync, under the file's mutex
+    Store->>Overlay: config.json changed (SettingsWatcher)
+    Overlay->>Overlay: Repaint
+    Page->>Bridge: Undo()
+    Bridge->>Editor: Undo()
+    Editor->>Undo: take back only what is still as it wrote
+    Editor->>Settings: Edit(the step taken back)
+```
+
+**An agent reads the CPU temperature and changes its threshold.** `thermi-cli` is the same program behind a console door. It answers from the pipe and the file, so it works with no overlay running.
+
+```mermaid
+sequenceDiagram
+    participant Agent as AI agent
+    participant Mcp as McpTools
+    participant Commands as AgentCommands
+    participant Feed as SystemFeed
+    participant Reads as AgentReads
+    participant AgentEdit as AgentEdits
+    participant Store as ConfigStore
+    participant Overlay as OverlayHost
+    Agent->>Mcp: read cpu.temperature
+    Mcp->>Commands: RunAsync(read)
+    Commands->>Feed: connect to the pipe, take a sample, hang up
+    Commands->>Reads: what the item reads, as JSON
+    Reads-->>Agent: 64, level normal
+    Agent->>Mcp: edit, the threshold of cpu.temperature to 70 and 90
+    Mcp->>Commands: RunAsync(edit)
+    Commands->>AgentEdit: Of(json): ItemEdits.SetThreshold
+    Commands->>Store: WriteAsync, by the window's rules
+    Store->>Overlay: config.json changed
+    Commands-->>Agent: done
+```
+
+**A silent update, and its rollback.** The service downloads and checks a version, then a watchdog switches to it and goes back if it does not serve.
+
+```mermaid
+sequenceDiagram
+    participant Updater as Updater
+    participant Manifest as ManifestClient
+    participant Unpacker as Unpacker
+    participant Trust as FileCatalog
+    participant Switcher as Switcher
+    participant Health as SwitchHealth
+    participant Overlay as OverlayUpdates
+    Updater->>Manifest: the channel's signed manifest
+    Manifest-->>Updater: a newer version, its zip and hash
+    Updater->>Unpacker: the zip, its hash checked, into a folder of its own
+    Updater->>Trust: Lists(folder): every file in thermi.cat, signed by thermi
+    Updater->>Switcher: Begin(state, to): start a watchdog, thermi-sensors --switch
+    Switcher->>Switcher: WatchAsync: stop, point at the new version, start
+    Switcher->>Health: does the new service serve its pipe?
+    alt it serves
+        Switcher->>Switcher: point the services at it for good
+        Overlay->>Overlay: at a quiet moment, hand over to the new thermi.exe
+    else it does not
+        Switcher->>Switcher: point back at the version that worked
+    end
 ```
 
 ## Projects
 
-| Project | Runs as | Depends on | Job |
-| --- | --- | --- | --- |
-| `src/Thermi.Core` | a library | nothing | Snapshots, metrics, sensor mapping, formatting, thresholds, config, edits, undo, layout, look and snaps, OLED care, power items and their history, saved styles, visibility, the tray's texts, hotkeys and their status, the translations, and the window's catalog, history and fan finder. |
-| `src/Thermi.Sensors.Windows` | `thermi-sensors.exe`, a service, or the user's own process in a per-user install | Core, Thermi.Trust, LibreHardwareMonitor, System.CommandLine, System.ServiceProcess.ServiceController, and CsWin32 at build time only | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down or takes thermi off for the MSI and `scripts/install.ps1`. |
-| `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, the user | Core, Thermi.Trust, the Windows Desktop runtime (GDI+ only), WebView2, Serilog under Microsoft.Extensions.Logging, System.CommandLine, ModelContextProtocol.Core, and CsWin32 at build time only | The overlay, its settings file, `thermi preview`, as `thermi settings` the window that hosts the page, in a process of its own, and as `thermi-cli` the agents' commands and MCP server. |
-| `src/Thermi.Settings.Web` | the page in the window's WebView2, embedded in `thermi.exe` | React, Fluent UI React v9, built by Vite | The settings window's page, which holds no logic of its own: it reads and edits through the bridge. |
-| `src/Thermi.Settings.Types` | the build | Core | Writes the page's TypeScript from Core: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
-| `src/Thermi.Client` | a library other programs ship, `net10.0` | nothing | The .NET SDK of the agents' contract, which starts `thermi-cli`. |
-| `src/Thermi.Trust` | a library | CsWin32 at build time only | Windows' own checks: a folder only administrators change, Authenticode signatures, signed catalogs and a held switch lock. |
-| `src/Thermi.Releases` | `thermi-releases.exe`, the owner | Core, System.CommandLine | The owner's levers on the update channels, which sign each channel's manifest. |
-| `src/Thermi.Installer` | the MSIs, built by `scripts/updates.ps1` | WiX 5 and its util extension | The machine's and the per-user installer of a published version. |
-| `tests/Thermi.Tests` | the test runner | Core | Behavior from recordings, file formats and the repo rules. |
-| `tests/Thermi.Windows.Tests` | the test runner | all of the above | Real pipes, the service, the painter, the settings file and the window's side of the bridge. |
+| Project | Runs as | Job |
+| --- | --- | --- |
+| `src/Thermi.Core` | a library, any OS | Snapshots, sensor mapping, formatting, thresholds, config and its edits and undo, layout and looks, the tray's texts, translations, the agents' answers, update decisions. Depends on nothing. |
+| `src/Thermi.Sensors.Windows` | `thermi-sensors.exe`, a service as SYSTEM | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down for the MSI and `scripts/install.ps1`. |
+| `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and the agents' commands and MCP server. |
+| `src/Thermi.Settings.Web` | the page in WebView2 | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
+| `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core. |
+| `src/Thermi.Client` | a library other programs ship | The .NET SDK of the agents' contract. |
+| `src/Thermi.Trust` | a library | Windows' own trust checks: admin-only folders, Authenticode, signed catalogs. |
+| `src/Thermi.Releases` | `thermi-releases.exe`, the owner | Signs the update channels' manifests. |
+| `src/Thermi.Installer` | the MSIs | The machine's and the per-user installer, built with WiX. |
+| `tests/Thermi.Tests` | the test runner | Behavior from recordings, file formats and the repo rules. |
+| `tests/Thermi.Windows.Tests` | the test runner | Real pipes, the service, the painter, the settings file and the window. |
 
-Why these packages and no others, and why the service takes the fewest, since it runs as LocalSystem: `docs/adr/0006-proven-libraries-for-logging-and-win32.md`. Both programs are published self-contained and ReadyToRun for one processor, x64 or Arm64, by `scripts/publish.ps1`, which `scripts/install.ps1` and the release's pack and MSIs share.
+Which projects are shared and which are Windows-only, and how another OS would plug in: `docs/adr/0018-shared-and-windows-projects.md`. Why these packages and no others: `docs/adr/0006-proven-libraries-for-logging-and-win32.md`.
 
 ## Names
 
-| Name | What it is |
-| --- | --- |
-| **Snapshot** | Every sensor of the types thermi shows, at one moment: id, hardware, type, name, value. `Snapshot.cs`. |
-| **Recording** | A snapshot saved with `thermi-sensors --dump`, replayed by tests. `tests/Thermi.Tests/Recordings`. |
-| **Frame slots** | The 8 processes that presented most in the last second, as sensors of the service's snapshot: process id, parent's id, FPS and frame time, always there and empty when frames cannot be read, so the catalog line never changes with them. The overlay and the window turn the slot of the game, the app that last filled its monitor in front while presenting (`Frames/FrontGame.cs`), into its FPS and frame time. `Frames/FrameSlots.cs`, `Frames/GameSensors.cs`, from `FrameTally.cs` (`docs/adr/0014-frames-from-etw.md`). |
-| **Catalog line** | The whole snapshot, names and all, which the pipe sends each client on connecting and on any change of its sensors; every other second it sends a values line, the values alone in that order (`docs/adr/0012-sensor-pipe-catalog-once.md`). `src/Thermi.Core/Pipe/SnapshotWriter.cs`, `SnapshotLines.cs`. |
-| **Metric** | A stable name for what the overlay shows, like `cpu.temperature`. `Metrics.cs`. |
-| **Sensor map** | The rules from a snapshot to each metric and to each sensor an item names, and the "zero means not read" rule, for a CPU temperature, power or clock only. `SensorMap.cs`. |
-| **Catalog** | Every sensor the service reads, by device, with its search, its type filter and why a sensor has no value. `SensorCatalog.cs`, which searches through `SearchIndex.cs`, the window's one search, the Sensor dropdown's filter's too; the window's view of it is `Ui/Views/WindowViews.cs`, and the page's `src/Thermi.Settings.Web/src/catalog`. |
-| **Bridge** | All the page may read and ask of C#, as one interface in Core whose TypeScript the build writes for the page. `IWindowBridge.cs`, answered by `Ui/Web/WindowBridge.cs`. |
-| **History** | The window's last ten minutes of every sensor and of the metrics of the overlay it shows, a second a slot, with gaps left empty, so a sensor chosen later shows its past from the window's opening. `SensorHistory.cs`, kept by `Ui/Readings.cs`. |
-| **Fan finder** | Waits for 3 s of steady fans, loads the CPU for 8 to 30 s and watches 40 s more, then picks the fan whose speed rose by 100 RPM and 20 % over the 3 s before the load, or fell as much once it ended, and by twice as many RPM as any other; replayed from recorded series in tests. `FanFinder.cs`; in the window, from the catalog, `Ui/Views/WindowFinder.cs` with its load in `Commands/CpuLoad.cs`, run as a `thermi cpu-load` of its own at idle priority, so the readings, and whatever the person is doing, keep going under it. |
-| **Overlay** | One of up to four in the settings, each with its items, placement, style and visibility. `OverlayConfig.cs`. |
-| **Item** | One entry in an overlay: a metric, a sensor or combined sensors, with an id unique in the file, an optional other form of its own reading it warns by ("Warn by": a fan by its duty, the RAM in use by its load) and threshold, and what it draws beside its value, its Graph: bars, a line or nothing, its own or its overlay's, whose Auto draws a line for a load judged by its own reading and bars for the rest (`OverlayLayout.DrawnOf`). `OverlayConfig.cs`, `Threshold.cs`. |
-| **Edit** | One change the window makes, which gives valid settings or a `Refusal` saying why not. `ItemEdits.cs`, `OverlayEdits.cs`, and the gate in `ConfigEdits.cs`. |
-| **Undo step** | What one edit or gesture changed, as operations on item ids that each remember what they found and wrote, so a hand edit is never reverted. A choice made of several fields, as what an item warns by with its threshold, alert-only and notice, is one operation. `UndoHistory.cs`, made by `ConfigDiff.cs` over `ConfigFields.cs`. |
-| **Throttle** | At most one change out every 100 ms, and always the last. `Throttle.cs`. |
-| **Pill** | A run of items under one label, or an item that starts one of its own, painted as one rounded shape; the style's layout can make one per item or one bar. Held still on the desktop by its label it lifts whole, and by a value only that item lifts (`DesktopGestures.Grip`). `OverlayLayout.Groups`. |
-| **Look** | A style ready to draw: sizes and weights from its preset, its font, corners and outline, the pills' colors, text colors that stay readable or Windows' high contrast ones, and where each pill goes. `OverlayLook.cs`. |
-| **Style file** | A `.thermi-style` file: the look alone and its name, refused whole when broken, newer or out of range. A saved style is one in a folder, its file name made from its name. The look an overlay wears is the saved one or Default it draws as, none once changed (`SavedStyles.Worn`), which the window's look tiles mark. `StyleFile.cs`, `SavedStyles.cs`; the window saves, renames, deletes, exports and imports them (`Ui/Views/WindowLooks.cs`). |
-| **Item history** | Each item's last minute, the ten minutes of what it warns by, and its running minimum, maximum and average, for stats, smoothing, lines and the window's charts, kept by item, one for all the overlays and one in the window, which takes the overlay's as it opens and after a reset, so the window shows each item as the overlay does. `ItemHistory.cs`, charted through `ChartHistory.cs`. |
-| **Snap** | A place on a monitor's taskbar, anywhere along it at the offset it was dropped at (`snap.offset`), or a corner of its work area, where the overlay keeps its edges, worked out at every paint from the monitors and never written as a position. Only a drag past the system's drag distance unsnaps it; a click, or any press on a locked overlay, writes nothing. `Snaps.cs`, `OverlayEdits.Release`. A snap names its monitor by the maker, model and serial of its EDID (`MonitorIds.cs`). |
-| **Taskbar row** | The overlays on one taskbar, which never cover each other: one that overlaps the next pushes it toward the notification area, a margin away, never back over the app buttons, and two that only touch stay, and the push is written as the pushed one's offset, in the same undo step, so it stays when the other leaves. A move onto a taskbar without room is refused (`Refusal.NoRoomOnTaskbar`), and one that grows past its room shows smaller, never narrower than at 100 %. `TaskbarRow.cs`, whose `Settled` the window's edits, the overlays' gestures and a drag's preview of its drop all ask, each measuring through its painter. |
-| **OLED care** | The overlay moving 1 px every 3 minutes around a 1 px square inward of its snapped edges, from the time alone and never written. `OledCare.cs`. |
-| **Room** | The widest value an item can show, the width kept for it. `ReadingFormatter.Widest`. |
-| **Translations** | Every text a user reads, as a member of an enum marked `[Translated]`, in `Translations/Texts.resx` (English) and one file per language. Numbers follow the regional format, never the language. `Texts.cs`. |
-| **Visibility** | Whether each overlay shows: not while it is hidden on its own or "Hide overlays" is set, a flag kept in memory that the hotkey toggles and showing clears, else by its own setting against a full-screen app on its monitor; a hidden overlay shows only in the window, never on the desktop. `OverlayVisibility.cs`. |
-| **Hotkey status** | The overlay's answer to the window: which hotkeys it could not register, with the hash of those it tried, trusted only when that hash is of the hotkeys the window shows. `Hotkeys.cs`, `HotkeyRegistry.cs`. |
-| **Tray scene** | Which tray icons show and what each shows: thermi's own icon always, with its mark's state and a tooltip of the hottest value and what is hidden, then four characters in a readable color per item that asks, each tooltip within 127 characters, an id per install. Both menus are data, and the Windows notices are state machines. `TrayScene.cs`, `TrayTexts.cs`, `ThermiMark.cs`, `Menus.cs`, `Notices.cs`; the overlay keeps them with `TrayIcons.cs` and draws them with `TrayPainter.cs`. |
-| **Overlay's menu** | Right-click on an overlay: its menu opened on the pill under the pointer, to edit that item, separate its pill, pick a look or a Graph, undo the last gesture and more, each entry with an access key in any language (`AccessKeys.cs`). What it chooses is one undo step, as a gesture is. `Menus.OfOverlay`, chosen in `Tray/TrayChoices.cs`. |
-| **Preview** | The window's live picture of an overlay atop Appearance, and each look's tile, three pills of the default items in that look (`LookSample.cs`), painted by the overlay's own painter, as "Copy as image" is, so neither can differ from the overlay. `Ui/Views/WindowPreviews.cs`, shown by the page's `src/Thermi.Settings.Web/src/overlay/Preview.tsx` one picture pixel to one screen pixel. |
-| **Freshness** | A snapshot older than 3 s counts as gone, and the service as stopped without its pipe or stale with it. `LatestSnapshot` in `SnapshotLines.cs`. |
-| **Host** | The overlay process's one hidden top-level window, class `thermi-host`: the message loop, the tick, the paint throttle, "show", "hotkey status", the hotkeys and the tray icons, and one layered window per overlay. `OverlayHost.cs`. |
-| **Window** | The settings window, `thermi settings [--overlay <n>]`: a Win32 window hosting the page in WebView2, in a process of its own, one at a time while it holds `Local\thermi-window`, on the overlay it was asked for. `Ui/WindowProcess.cs`, `Ui/Web/WebWindow.cs`. |
-| **Agent door** | `thermi-cli.exe`, a second apphost of `thermi.dll` with the console subsystem, so shells wait for it: commands that print one JSON document, or an MCP server on stdio. Each read connects to the pipe and hangs up. The answers' records, in `src/Thermi.Core/Agents`, are the contract's only source (`docs/agents/README.md`). `Agents/AgentCommands.cs`, `Agents/McpTools.cs`. |
-| **Beacon** | The window process's hidden top-level window, class `thermi-settings`, which a second request finds and sends `thermi-raise` to bring the window to the front. `Ui/SettingsBeacon.cs`. |
+| Name | What it is | Where |
+| --- | --- | --- |
+| **Snapshot** | Every sensor thermi shows, at one moment. | `Snapshot` |
+| **Recording** | A snapshot saved with `thermi-sensors --dump`, replayed by tests. | `tests/Thermi.Tests/Recordings` |
+| **Catalog line** | The whole snapshot, sent on connecting and when the sensors change; other seconds send the values alone. | `SnapshotWriter` |
+| **Metric** | A stable name for what the overlay shows, like `cpu.temperature`. | `Metrics` |
+| **Sensor map** | The rules from a snapshot to each metric, and "zero means not read". | `SensorMap` |
+| **Overlay** | One of up to four in the settings, with its items, place, style and visibility. | `OverlayConfig` |
+| **Item** | One value in an overlay: a metric or a sensor, its threshold and its graph. | `ItemConfig`, `Threshold` |
+| **Pill** | A run of items under one label, painted as one rounded shape. | `OverlayLayout` |
+| **Look** | A style ready to draw: sizes, font, colors, where each pill goes. | `OverlayLook` |
+| **Edit** | One change, which gives valid settings or a `Refusal` saying why not. | `ConfigEdits`, `ItemEdits` |
+| **Undo step** | What one edit changed, taken back only where the file still holds what it wrote. | `UndoHistory` |
+| **Snap** | A place on a taskbar or a corner, worked out at every paint, never written as a position. | `Snaps` |
+| **Bridge** | All the page may read and ask of C#, one interface whose TypeScript the build writes. | `IWindowBridge` |
+| **Host** | The overlay process's hidden window: the loop, the tick, the hotkeys, the tray. | `OverlayHost` |
+| **Agent door** | `thermi-cli.exe`: commands that print one JSON document, or an MCP server. | `AgentCommands`, `McpTools` |
 
 ## Rules of the road
 
-- **Trust.** The service never reads from its pipe, and nothing of thermi's is elevated by UAC: the window's two fixes run in the `thermi-elevated` service (`docs/adr/0010-driver-and-service-from-the-window.md`). The one way left, an MSI run by hand from an elevated console where no shell runs to start the overlay unelevated, meets an overlay and a window that exit at once when UAC raised their token (`docs/adr/0016-admin-on-demand.md`). The overlay trusts the service's pipe only when its owner is SYSTEM or Administrators (`docs/adr/0003-sensor-service.md`), and, in a per-user install with no service, the user's own host's only when the user owns it, its process runs from that install at no lower integrity than the overlay, and the pipe's own integrity label is no lower either (`docs/adr/0016-admin-on-demand.md`).
-- **Failure.** A failure in the service stops it with an error, and a sensor read stuck past 60 s ends its process; either way Windows restarts it. A device whose update stalls or fails holds back none of the others: its last values go out for up to 3 s, then as missing (`docs/adr/0015-a-stalled-device-holds-back-none.md`). Nothing the overlay reads can crash it. An overlay that crashes or hangs anyway, after a minute or more, Windows starts again, never after an update (`docs/adr/0017-windows-restarts-the-overlay.md`). The service's errors go to the Application event log under `thermi-sensors`; the overlay's and the window's go through an injected `ILogger` to `%LOCALAPPDATA%\thermi`, a Serilog file each, `thermi.log` and `thermi-window.log`, and `thermi-agents.log`, which the agents' commands share, rolled at 1 MB with three kept, and `--trace` adds the debug events. The elevated mode writes to the Application event log, under `thermi-sensors`.
-- **Time.** Code gets time from an injected `TimeProvider`, so tests run on a fake clock.
-- **Above the taskbar.** `Topmost.cs` reacts when a taskbar rises above the overlay, and the once-a-second tick looks again as a safety net, raising it only past a taskbar too (`docs/adr/0004-above-the-taskbar.md`).
-- **Settings.** The file is versioned, and an older version is migrated when read (`ConfigMigration.cs`). A broken or newer file is never overwritten: the overlay keeps the last settings it read well, or the defaults if there were none, and says why (`ConfigProblem.cs`); the window changes nothing until the file is fixed or the last good settings are restored, the broken file kept beside it. The one exception is a rollback: a newer file read by the version the launcher starts gives way to the copy an update kept in that version's format, the newer one kept beside it; a process an update left running on the version before, as an agent's `thermi-cli mcp`, only says the file is newer. Every writer holds the file's mutex from its re-read to its move into place, and a file found locked, empty, cut short or missing is tried again for 500 ms before it counts (`ConfigStore.cs`, `docs/adr/0005-settings-window-process.md`). Each overlay of the file, up to four, is a layered window of its own in the one overlay process (`OverlayHost.cs`).
-- **Budget.** At rest the overlay, the idle window and the service each stay under a CPU and memory budget, which `docs/adr/0001-architecture.md` and `docs/adr/0011-sensor-service-memory-budget.md` set, `AGENTS.md` lists and `scripts/measure.ps1` checks. No project uses WPF (`RepoRulesTests`), and the window's memory, WebView2's included, is its own process's, so closing it frees all of it.
-- **Updates.** The service updates thermi itself, with no prompt and nothing sent about the PC (`docs/adr/0008-updates.md`): each version lives in a folder of its own under `C:\Program Files\thermi`, behind launchers at the top whose paths never change, and a version runs only when its manifest, its zip's hash and its catalog are signed as a release's must be. A switch goes through a watchdog that points the services back unless the new version serves, and the overlay hands over to it at a quiet moment. The MSI and `scripts/install.ps1` lay a version down the same way, through `thermi-sensors --adopt`.
+| Topic | Rule | Why |
+| --- | --- | --- |
+| Trust | The service never reads from its pipe. The overlay trusts the pipe only when SYSTEM or Administrators own it. Nothing of thermi's is raised by UAC. | `docs/adr/0003-sensor-service.md`, `docs/adr/0016-admin-on-demand.md` |
+| Failure | A stuck read ends the service and Windows restarts it. A stalled device holds back none of the others. Nothing the overlay reads can crash it. | `docs/adr/0015-a-stalled-device-holds-back-none.md`, `docs/adr/0017-windows-restarts-the-overlay.md` |
+| Time | Code gets time from an injected `TimeProvider`, so tests run on a fake clock. | `AGENTS.md` |
+| Settings | A broken or newer file is never written over. Every writer holds the file's mutex. | `docs/adr/0005-settings-window-process.md` |
+| Budget | The overlay, the idle window and the service each stay under a CPU and memory budget. | `docs/adr/0001-architecture.md`, `scripts/measure.ps1` |
+| Updates | Each version has its own folder behind launchers that never move; a version runs only when its signatures hold. | `docs/adr/0008-updates.md` |
+| Logs | The overlay, the window and the agents each log to `%LOCALAPPDATA%\thermi`; the service to the Application event log. | `AGENTS.md` |
 
 ## Where to change what
 
 | To change | Look in |
 | --- | --- |
 | Which sensor feeds a metric | `src/Thermi.Core/Sensors/SensorMap.cs`, then a recording test |
-| What the catalog says about a sensor | `src/Thermi.Core/Sensors/SensorCatalog.cs` |
-| How the fan finder decides | `src/Thermi.Core/Sensors/FanFinder.cs`, then a series test |
 | How a value reads (units, digits, °F) | `src/Thermi.Core/Look/ReadingFormatter.cs` |
-| A text a user reads, or a language | `src/Thermi.Core/Translations/Texts.resx` and each translation beside it, with its enum member in Core |
-| When an overlay shows or hides | `src/Thermi.Core/Placement/OverlayVisibility.cs`, fed by `src/Thermi.Windows/Overlay/OverlayHost.cs` |
-| What a tray icon shows | `src/Thermi.Core/Tray/TrayScene.cs` and `src/Thermi.Core/Tray/TrayTexts.cs` |
-| How a tray icon is drawn, added and retried | `src/Thermi.Windows/Tray/TrayPainter.cs` and `src/Thermi.Windows/Tray/TrayIcons.cs`, then `tests/Thermi.Windows.Tests/TrayIconsTests.cs` |
-| How a hotkey is written, registered and reported | `src/Thermi.Core/Hotkeys.cs` and `src/Thermi.Windows/Overlay/HotkeyRegistry.cs` |
-| The default overlay or thresholds | `src/Thermi.Core/Settings/OverlayConfig.cs` |
-| A field of the settings file | `src/Thermi.Core/Settings/OverlayConfig.cs` or `src/Thermi.Core/Settings/StyleConfig.cs`, its range in `src/Thermi.Core/Settings/ConfigRules.cs`, its undo in `src/Thermi.Core/Editing/ConfigFields.cs`, then `tests/Thermi.Tests/Configs/v6.json` |
-| What the window may change, and why it refuses | `src/Thermi.Core/Editing/ItemEdits.cs`, `src/Thermi.Core/Editing/PowerEdits.cs`, `src/Thermi.Core/Editing/OverlayEdits.cs` |
-| An item's minimum, maximum, average, smoothing or graph | `src/Thermi.Core/Look/ItemHistory.cs` |
-| What an item draws beside its value, and what it may warn by | `src/Thermi.Core/Look/OverlayLayout.cs` (`DrawnOf`), `src/Thermi.Core/Settings/Threshold.cs` |
-| An item's chart in the window | `src/Thermi.Core/Look/MeterChart.cs`, `src/Thermi.Core/Look/ChartHistory.cs`, `src/Thermi.Windows/Ui/Views/WindowCharts.cs` |
-| The style file, or how saved styles are kept | `src/Thermi.Core/Look/StyleFile.cs`, `src/Thermi.Core/Look/SavedStyles.cs` |
-| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what it draws, `src/Thermi.Windows/Painting/Painter.cs` for how, checked with `thermi preview` |
-| How many overlays show, and what the overlay process answers | `src/Thermi.Windows/Overlay/OverlayHost.cs`, then `tests/Thermi.Windows.Tests/Overlay/OverlayHostTests.cs` |
-| Where the overlay snaps, and when a press moves it | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi.Windows/Win32/Desktop.cs`, `src/Thermi.Windows/Overlay/OverlayMouse.cs` and `OverlayEdits.Release` |
-| How overlays on one taskbar make room for each other | `src/Thermi.Core/Placement/TaskbarRow.cs`, used by `src/Thermi.Windows/Overlay/OverlayWindow.cs` and `src/Thermi.Windows/Ui/Views/OverlayPlaces.cs`, then `tests/Thermi.Tests/Acceptance/TaskbarDropTests.cs` |
-| What an overlay's menu offers and does | `src/Thermi.Core/Tray/Menus.cs`, `src/Thermi.Windows/Tray/TrayChoices.cs`, then `tests/Thermi.Tests/Acceptance/MenuTests.cs` and `tests/Thermi.Windows.Tests/Overlay/OverlayMenuTests.cs` |
-| The window's preview of an overlay and its look tiles | `src/Thermi.Windows/Ui/Views/WindowPreviews.cs`, `src/Thermi.Core/Look/LookSample.cs`, `src/Thermi.Settings.Web/src/overlay/Preview.tsx` |
-| How the window opens and comes to the front | `src/Thermi.Windows/Ui/WindowProcess.cs`, `src/Thermi.Windows/Ui/SettingsBeacon.cs`, `src/Thermi.Windows/Ui/Web/WebWindow.cs`, then `tests/Thermi.Windows.Tests/Window/WindowProcessTests.cs` |
-| What the page shows and does | `src/Thermi.Settings.Web/src`, then its Playwright tests in `src/Thermi.Settings.Web/tests` |
-| What the page may read and ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered by `src/Thermi.Windows/Ui/Web/WindowBridge.cs` and `src/Thermi.Windows/Ui/Views` |
-| How the window's edits are written and undone | `src/Thermi.Windows/Ui/Editor/WindowEditor.cs`, then `tests/Thermi.Windows.Tests/Window/WindowEditorTests.cs` |
-| How the window runs the fan finder and its load | `src/Thermi.Windows/Ui/Views/WindowFinder.cs`, `src/Thermi.Windows/Commands/CpuLoad.cs`, then `tests/Thermi.Windows.Tests/Window/FinderTests.cs` |
-| "Start with Windows" | `src/Thermi.Windows/Ui/StartWithWindows.cs`, `scripts/install.ps1`, then `tests/Thermi.Windows.Tests/Window/StartWithWindowsTests.cs` |
-| Saved styles, export and import | `src/Thermi.Windows/Ui/Views/WindowLooks.cs`, `src/Thermi.Core/Look/SavedStyles.cs`, `src/Thermi.Core/Look/StyleFile.cs`, then `tests/Thermi.Tests/Acceptance/SavedStyleTests.cs` |
-| How the settings file is read and written by two processes | `src/Thermi.Windows/Overlay/ConfigStore.cs`, then `tests/Thermi.Windows.Tests/Acceptance/SettingsFileWindowsTests.cs` |
-| What the service reads | `src/Thermi.Sensors.Windows/Reading/LhmSensorSource.cs` |
-| How the service waits for each device | `src/Thermi.Sensors.Windows/Reading/DeviceUpdates.cs`, then `tests/Thermi.Windows.Tests/Sensors/DeviceUpdatesTests.cs` |
-| What `thermi-sensors` does with its arguments | `src/Thermi.Sensors.Windows/Program.cs`, `src/Thermi.Sensors.Windows/Service/SensorCommands.cs`, then `tests/Thermi.Windows.Tests/Sensors/SensorProgramTests.cs` |
-| How the overlay stays above the taskbar | `src/Thermi.Windows/Win32/Topmost.cs`, then `tests/Thermi.Windows.Tests/OnTop/TopmostTests.cs` |
-| What an agent's command answers | `src/Thermi.Core/Agents`, then `tests/Thermi.Tests/Acceptance/ContractTests.cs`; the Windows side in `src/Thermi.Windows/Agents`, then `tests/Thermi.Windows.Tests/Acceptance/AgentCommandTests.cs` |
-| Install and uninstall | `scripts/install.ps1` |
+| The default overlay or thresholds | `src/Thermi.Core/Settings/OverlayConfig.cs`, `src/Thermi.Core/Settings/Threshold.cs` |
+| A field of the settings file | `src/Thermi.Core/Settings`, its undo in `src/Thermi.Core/Editing/ConfigFields.cs` |
+| What the window may change, and why it refuses | `src/Thermi.Core/Editing` |
+| A text a user reads, or a language | `src/Thermi.Core/Translations` |
+| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what, `src/Thermi.Windows/Painting/Painter.cs` for how; check with `thermi preview` |
+| Where the overlay snaps | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi.Windows/Win32/Desktop.cs` |
+| What a tray icon shows | `src/Thermi.Core/Tray`, drawn by `src/Thermi.Windows/Tray` |
+| What the page shows and does | `src/Thermi.Settings.Web/src`, tested in `src/Thermi.Settings.Web/tests` |
+| What the page may ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered in `src/Thermi.Windows/Ui` |
+| What an agent's command answers | `src/Thermi.Core/Agents`, served by `src/Thermi.Windows/Agents` |
+| What the service reads | `src/Thermi.Sensors.Windows/Reading` |
+| How updates switch and roll back | `src/Thermi.Core/Updates`, `src/Thermi.Sensors.Windows/Updates` |
+| Install and uninstall | `scripts/install.ps1`, `src/Thermi.Installer` |
 
-## Next
-
-The settings window runs in a process of its own and shares the settings file with the overlay, plus the messages of `docs/adr/0009-overlay-and-window-messages.md`: `docs/specs/002-settings-window`, `docs/adr/0005-settings-window-process.md` and `docs/adr/0007-settings-window-in-webview2-and-react.md`.
+Each project's `README.md` maps its folders.
