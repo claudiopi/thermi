@@ -26,6 +26,19 @@ public sealed partial class RepoRulesTests
         AssertNone(missing.Concat(gone));
     }
 
+    // AGENTS.md's map is where a newcomer finds each project: it has a row for every one, and the paths rule holds its rows.
+    [Fact]
+    public void TheMapNamesEveryProject()
+    {
+        var map = File.ReadAllText(Path.Combine(Root, "AGENTS.md"));
+        var unnamed = ProjectFolders()
+            .Select(project => Relative(project).Replace('\\', '/'))
+            .Where(project => !map.Contains($"| `{project}` |", StringComparison.Ordinal))
+            .Select(project => $"AGENTS.md's map has no row for {project}");
+
+        AssertNone(unnamed);
+    }
+
     // A project is a folder with a .NET, WiX or npm project file of its own.
     private static IEnumerable<string> ProjectFolders() =>
         RepoFiles([".csproj", ".wixproj", ".json"])

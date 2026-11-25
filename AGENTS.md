@@ -38,6 +38,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]` | Clicks through every screen of the real settings window and fails on any error the page shows or logs. Run it before a person gets a build, with no settings window open. |
 | `pwsh scripts/measure.ps1 [-Window] [-Exe <thermi.exe>]` | Measures the overlay, the window and the service for 60 s and fails past their budgets: overlay 48 MB and 0.5 % of a core, idle window 1 %, service 80 MB and 3 %. Run it on the installed build after a change to what runs each second. |
 | `pwsh scripts/oracle.ps1` | After a change to what C# answers the page's edits, undos or looks, records the real bridge's answers into `src/Thermi.Settings.Web/tests/oracle/edits.json`. `-Prune` drops what no test asks. |
+| `pwsh scripts/doc-impact.ps1 [-Base <branch>]` | Lists the docs that name a file or type this change touched, for the reviewer to read. |
 | `pwsh scripts/notices.ps1` | Writes `THIRD-PARTY-NOTICES.md` again, after adding, removing or updating a package. |
 | `pwsh scripts/mark-icon.ps1` | Draws the program's icon, `src/Thermi.Windows/thermi.ico`, after changing thermi's mark. |
 | `pwsh scripts/install.ps1` | Installs this build on your PC, as yourself; it asks for admin rights once. `-SensorsOnly` installs the sensors and `thermi-cli` alone; `-Uninstall` removes it. |
@@ -74,6 +75,9 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | No TODOs in code: open an issue. | MA0026 |
 | Comments say why, never what. No process history (issue numbers, "for now") in production code. | `RepoRulesTests`, comment-trimmer |
 | Docs only cite paths that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |
+| A doc names only what the code has: each type, member and file in backticks, and each participant and call of a Mermaid diagram. ADRs and specs keep the names of their day. | `RepoRulesTests` |
+| What can be listed from the code is checked against it: `thermi.slnx` holds every project, this map has a row for each, and `docs/agents/README.md` lists every command `thermi-cli` parses. | `RepoRulesTests` |
+| A change's reviewer reads every doc `scripts/doc-impact.ps1` lists for it and says which the change made false. Docs say why and how things flow; the detail of each file is left to the code, so less can rot. | `.claude/agents/reviewer.md` |
 | A rule is turned off only in `Thermi.globalconfig`, with the reason above it. In code, a suppression says why on the same line. NuGet warnings are never suppressed: update the package. | `RepoRulesTests` |
 | Package versions live in `Directory.Packages.props`; lock files are committed; packages come only from nuget.org. | NuGet, `nuget.config`, `--locked-mode` in CI |
 | `thermi-cli` never elevates, starts a service or installs anything. | `RepoRulesTests` |

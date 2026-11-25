@@ -31,6 +31,31 @@ public sealed partial class RepoRulesTests
         AssertNone(reached);
     }
 
+    // The agents' README is how an agent learns the CLI: its Commands table names each command thermi-cli parses and no
+    // other, but mcp, which has a section of its own.
+    [Fact]
+    public void TheAgentsReadmeNamesEveryCommand()
+    {
+        var parsed = CliCommand().Matches(File.ReadAllText(Path.Combine(Root, "src", "Thermi.Windows", "Commands", "AgentCommandLine.cs")))
+            .Select(match => match.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
+        var readme = File.ReadAllLines(Path.Combine(Root, "docs", "agents", "README.md"));
+        var table = readme.SkipWhile(line => line != "## Commands")
+            .SkipWhile(line => !line.StartsWith('|'))
+            .TakeWhile(line => line.StartsWith('|'))
+            .Where(line => line.StartsWith("| `", StringComparison.Ordinal))
+            .Select(line => line.Replace("\\|", "/", StringComparison.Ordinal).Split('|')[1])
+            .SelectMany(cell => CodeSpan().Matches(cell).Select(span => span.Groups["span"].Value.Split(' ')[0]))
+            .Append("mcp")
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains(readme, line => line.Contains("thermi-cli mcp", StringComparison.Ordinal));
+        AssertNone(parsed.Except(table).Select(command => $"docs/agents/README.md has no row for thermi-cli {command}")
+            .Concat(table.Except(parsed).Select(command => $"docs/agents/README.md names thermi-cli {command}, which it does not parse")));
+    }
+
+    [GeneratedRegex(@"new Command\(""(?<name>[\w-]+)""", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex CliCommand();
+
     [GeneratedRegex(
         @"\bElevated\w*|runas|ServiceController|IServiceManager|WindowsServices|DriverParts|InstallDriver|StartSensors\.(?!Service\b)\w+|ShellExecute"
             + @"|starts:\s*true",
