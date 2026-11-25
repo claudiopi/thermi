@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.Diagnostics;
+using System.Globalization;
 using System.ServiceProcess;
 using Thermi.Core.Sensors;
 
@@ -38,15 +39,22 @@ internal static class Program
             return RunElevated(environment.Time);
         }
 
-        using var source = environment.Open();
+        using var events = new EventLog("Application") { Source = SensorService.Name };
+        var service = request is not (SensorServe { Console: true } or SensorDump);
+        using var source = Open(environment, service ? said => SensorService.Say(events, said, EventLogEntryType.Warning) : environment.Error.WriteLine);
         if (request is SensorDump dump)
         {
             await DumpAsync(source, dump, environment.Time);
             return 0;
         }
 
-        using var events = new EventLog("Application") { Source = SensorService.Name };
-        using var server = new SensorPipeServer(source.Read, environment.Time, environment.PipeName)
+        return await RunOrServeAsync(source, events, environment, service, stop);
+    }
+
+    private static async Task<int> RunOrServeAsync(
+        ISensorSource source, EventLog events, SensorHostEnvironment environment, bool service, CancellationToken stop)
+    {
+        using var server = new SensorPipeServer(source.ReadAsync, environment.Time, environment.PipeName)
         {
             Squatted = () => SensorService.Say(
                 events,
@@ -54,11 +62,11 @@ internal static class Program
                     + "The service tries again every 5 s until that program closes it.",
                 EventLogEntryType.Warning),
         };
-        if (request is not SensorServe { Console: true })
+        if (service)
         {
-            using var service = new SensorService(server.RunAsync, resumed: () => _ = source.Read());
-            ServiceBase.Run(service);
-            return service.ExitCode;
+            using var running = new SensorService(server.RunAsync, resumed: () => _ = source.ReadAsync(CancellationToken.None));
+            ServiceBase.Run(running);
+            return running.ExitCode;
         }
 
         await ServeAsync(server, environment.Out, stop);
@@ -77,13 +85,21 @@ internal static class Program
     {
         if (dump.Seconds is not { } seconds)
         {
-            await File.WriteAllTextAsync(dump.File, SnapshotJson.Write(source.Read()));
+            await File.WriteAllTextAsync(dump.File, SnapshotJson.Write(await source.ReadAsync(CancellationToken.None)));
             return;
         }
 
         await using var writer = new StreamWriter(dump.File);
-        await SeriesRecorder.RecordAsync(source.Read, writer, seconds, time, CancellationToken.None);
+        await SeriesRecorder.RecordAsync(source.ReadAsync, writer, seconds, time, CancellationToken.None);
     }
+
+    private static ISensorSource Open(SensorHostEnvironment environment, Action<string> say) =>
+        environment.Open((device, took) => say(Slow(device, took)));
+
+    // Another program holding the board's bus, as a fan controller, is the usual cause; the log tells it from a driver that hangs.
+    private static string Slow(string device, TimeSpan took) =>
+        string.Create(CultureInfo.InvariantCulture, $"Reading {device} took {took.TotalSeconds:0.0} s; the other devices were read without waiting for it. ")
+            + "Another program that reads or controls the same hardware, as a fan controller, may be holding it.";
 
     // Ctrl+C stops serving, and only serving: a dump it ends as it ends any program.
     private static async Task ServeAsync(SensorPipeServer server, TextWriter output, CancellationToken stop)

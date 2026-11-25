@@ -73,7 +73,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
         var early = new List<bool>();
         for (var second = 1; second < 3; second++)
         {
-            await _sensors.ReadAsync(second);
+            await _sensors.ReadCountAsync(second);
             early.Add(running.IsCompleted);
             _clock.Advance(TimeSpan.FromSeconds(1));
         }
@@ -134,7 +134,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
     private Task<int> RunAsync(string[] args)
     {
-        var environment = new SensorHostEnvironment(_sensors.Open, _clock, _out, _error) { PipeName = _pipeName };
+        var environment = new SensorHostEnvironment(_ => _sensors.Open(), _clock, _out, _error) { PipeName = _pipeName };
         var run = Task.Run(
             () => sensors::Thermi.SensorHost.Program.RunAsync(
                 [.. args.Select(arg => arg == "dump.json" ? File : arg)],
@@ -169,15 +169,15 @@ public sealed class SensorProgramTests : IAsyncDisposable
             return this;
         }
 
-        public Snapshot Read()
+        public Task<Snapshot> ReadAsync(CancellationToken stop)
         {
             Reads++;
             _read.Release();
-            return new([.. Recorded.Sensors, new RawSensor(Counter, "Test", "Test", "Load", "Reads", Reads)]);
+            return Task.FromResult(new Snapshot([.. Recorded.Sensors, new RawSensor(Counter, "Test", "Test", "Load", "Reads", Reads)]));
         }
 
         /// <summary>Waits for the read numbered <paramref name="count"/>, from 1.</summary>
-        public async Task ReadAsync(int count)
+        public async Task ReadCountAsync(int count)
         {
             while (Reads < count)
             {

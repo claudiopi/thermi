@@ -89,10 +89,11 @@ function stretches(plot: Plot): Stretch[] {
 
 /**
  * The line as smooth curves through the readings, broken where a reading is missing, and the area under it for its soft
- * fill, each stretch closed straight down to the bottom at its own ends. Both from one pass: the chart redraws each second.
+ * fill, each stretch closed straight down to the scale's floor at its own ends, so a line at it fills nothing under it. Both
+ * from one pass: the chart redraws each second.
  */
 export function plotPaths(plot: Plot): { line: string; fill: string } {
-  const bottom = plot.height.toFixed(1);
+  const bottom = yOf(plot, plot.chart.from).toFixed(1);
   const runs = stretches(plot);
   return {
     line: runs.map((run) => run.path).join(''),

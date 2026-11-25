@@ -45,8 +45,8 @@ public sealed record FanFinderResult(FanFinderOutcome Outcome, string? Fan = nul
 public sealed record FanRise(string Fan, double Rpm, double Share);
 
 /// <summary>
-/// Finds the fan that cools the CPU: it waits for 3 s of readings, asks for a load on every core, and watches which
-/// fan answers it, during the load and for <see cref="Afterwards"/> after it. Every fan outside the GPUs is a candidate: a
+/// Finds the fan that cools the CPU: it waits for 3 s of readings in which no fan is falling, asks for a load on every
+/// core, and watches which fan answers it, during the load and for <see cref="Afterwards"/> after it. Every fan outside the GPUs is a candidate: a
 /// GPU's never cools the CPU. The load itself is the window's, which keeps it running while <see cref="Loading"/> says so;
 /// the finder decides on the snapshots it is given and the injected clock alone, so a recorded series replays the same
 /// every time. Give it every new snapshot once, with <see cref="Add"/>, and call <see cref="Tick"/> often, so a service
@@ -55,6 +55,12 @@ public sealed record FanRise(string Fan, double Rpm, double Share);
 public sealed class FanFinder
 {
     public static readonly TimeSpan Baseline = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// How long it waits at most for the fans to stop falling before the load, as they do for a while after a run: one
+    /// that never settles, as a fan that hunts, starts it anyway.
+    /// </summary>
+    public static readonly TimeSpan MaxSettle = TimeSpan.FromSeconds(30);
 
     public static readonly TimeSpan MinRun = TimeSpan.FromSeconds(8);
 
@@ -141,7 +147,7 @@ public sealed class FanFinder
                 : null;
             Follow(loadAt, now);
         }
-        else if (Since(_startedAt, now) >= Baseline)
+        else if (Since(_startedAt, now) >= Baseline && (!Falling(now) || Since(_startedAt, now) >= MaxSettle))
         {
             _loadAt = now;
         }
@@ -243,6 +249,15 @@ public sealed class FanFinder
     }
 
     private static bool Rose(Rise rise) => rise.Rpm >= MinRise && rise.Rpm >= rise.Before * MinRiseShare;
+
+    // A fan still falling, as after a run, would leave the 3 s before the load averaging above where it settles, and its
+    // rise to the load reading as less than it is. Half the least rise is past the jitter of a fan the board drives.
+    private bool Falling(long now) =>
+        _samples.Where(sample => Since(sample.At, now) < Span)
+            .SelectMany(sample => sample.Fans)
+            .Where(fan => fan.Value is not null)
+            .GroupBy(fan => fan.Key, StringComparer.Ordinal)
+            .Any(fan => fan.Max(each => each.Value!.Value) - fan.Last().Value!.Value >= MinRise / 2);
 
     // Each fan's average over the last 3 s against its average over the 3 s before the load; a fan without a value in either has no rise.
     private List<Rise> Rises(long loadAt, long now)

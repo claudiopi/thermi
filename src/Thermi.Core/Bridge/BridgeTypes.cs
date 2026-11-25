@@ -122,7 +122,7 @@ public enum FinderPhase
 
 /// <summary>
 /// Where "Find it" stands: the fan it picked once done; while it runs, how far, from 0 to 1; what it says, worded, as
-/// "Waiting for fresh readings…" or the fan rising, and once done the fan it found or why none; what that adds, as how
+/// "Waiting for the fans to settle…" or the fan rising, and once done the fan it found or why none; what that adds, as how
 /// much the fan rose; and while idle, why it cannot start, or null when it can.
 /// </summary>
 public sealed record FinderView(

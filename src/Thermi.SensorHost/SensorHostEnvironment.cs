@@ -5,16 +5,18 @@ namespace Thermi.SensorHost;
 /// <summary>What the sensors read now: LibreHardwareMonitor's, or in tests a recording's.</summary>
 internal interface ISensorSource : IDisposable
 {
-    Snapshot Read();
+    Task<Snapshot> ReadAsync(CancellationToken stop);
 }
 
 /// <summary>
 /// What <c>thermi-sensors</c> reaches outside its own code, which tests replace with their own: the sensors, opened only
-/// once the arguments make sense, the clock, the pipe it serves and the terminal it answers in.
+/// once the arguments make sense and told where to say a device that updates slowly, the clock, the pipe it serves and
+/// the terminal it answers in.
 /// </summary>
-internal sealed record SensorHostEnvironment(Func<ISensorSource> Open, TimeProvider Time, TextWriter Out, TextWriter Error)
+internal sealed record SensorHostEnvironment(Func<Action<string, TimeSpan>, ISensorSource> Open, TimeProvider Time, TextWriter Out, TextWriter Error)
 {
-    public static SensorHostEnvironment Default { get; } = new(() => new LhmSensorSource(TimeProvider.System), TimeProvider.System, Console.Out, Console.Error);
+    public static SensorHostEnvironment Default { get; } =
+        new(slow => new LhmSensorSource(TimeProvider.System, slow), TimeProvider.System, Console.Out, Console.Error);
 
     public string PipeName { get; init; } = SnapshotJson.PipeName;
 }

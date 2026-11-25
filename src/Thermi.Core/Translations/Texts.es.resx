@@ -61,7 +61,7 @@
     <value>Combinar…</value>
   </data>
   <data name="CatalogText.FanFinderWaiting" xml:space="preserve">
-    <value>Esperando lecturas nuevas…</value>
+    <value>Esperando que los ventiladores se estabilicen…</value>
   </data>
   <data name="CatalogText.FanFinderLoading" xml:space="preserve">
     <value>Cargando todos los núcleos, hasta 30 s</value>
@@ -1414,7 +1414,7 @@
     <value>{0} de {1}</value>
   </data>
   <data name="OverlayText.MinAndMax" xml:space="preserve">
-    <value>Mín {0} · máx {1}</value>
+    <value>Mín {0} · Máx {1}</value>
   </data>
   <data name="OverlayText.DoubleClickToEdit" xml:space="preserve">
     <value>Doble clic para editar</value>

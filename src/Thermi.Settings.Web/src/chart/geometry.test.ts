@@ -82,13 +82,14 @@ describe('the chart', () => {
     expect(plotPaths(plot({ readings })).line).toBe(path);
   });
 
-  // Each stretch between gaps closes straight down to the bottom at its own first and last reading.
+  // Each stretch between gaps closes straight down to the scale's floor at its own first and last reading, never into the
+  // pad under it: QA round 4 saw a fan at 0 RPM with a band of fill under its line.
   test.each([
     { readings: [], fill: '' },
     { readings: [null, null], fill: '' },
-    { readings: [null, 100, 0, null], fill: 'M100.0,16.0C116.7,32.7 183.3,99.3 200.0,116.0L200.0,132.0L100.0,132.0Z' },
+    { readings: [null, 100, 0, null], fill: 'M100.0,16.0C116.7,32.7 183.3,99.3 200.0,116.0L200.0,116.0L100.0,116.0Z' },
     { readings: [100, null, 0], fill: '' },
-    { readings: [50, null, 50, 50], fill: 'M200.0,66.0C216.7,66.0 283.3,66.0 300.0,66.0L300.0,132.0L200.0,132.0Z' },
+    { readings: [50, null, 50, 50], fill: 'M200.0,66.0C216.7,66.0 283.3,66.0 300.0,66.0L300.0,116.0L200.0,116.0Z' },
   ])('fills under $readings', ({ readings, fill }) => {
     expect(plotPaths(plot({ readings })).fill).toBe(fill);
   });

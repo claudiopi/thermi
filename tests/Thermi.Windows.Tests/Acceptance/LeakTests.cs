@@ -91,7 +91,7 @@ public sealed class LeakTests : IDisposable
         var clock = new FakeTimeProvider();
         var pipe = $"thermi-test-{Guid.NewGuid():N}";
         using var stop = new CancellationTokenSource();
-        using var server = new SensorPipeServer(() => HostRun.Recorded, clock, pipe);
+        using var server = new SensorPipeServer(_ => Task.FromResult(HostRun.Recorded), clock, pipe);
         var running = Task.Run(() => server.RunAsync(stop.Token), CancellationToken.None);
 
         await ComeAndGoAsync(pipe, clock, WarmUp, running);

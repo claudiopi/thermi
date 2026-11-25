@@ -159,6 +159,7 @@ public sealed class FanFinderTests
     [InlineData("three-times-faster", "Found")]
     [InlineData("answering-at-once", "Found")]
     [InlineData("software", "Found")]
+    [InlineData("falling-after-a-run", "Found")]
     [InlineData("unanswered", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("gpu-fan-answers", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("two-alike", nameof(FanFinderOutcome.TwoRoseAlike))]
@@ -182,7 +183,9 @@ public sealed class FanFinderTests
         }
 
         var intel = series == "board-answers";
-        var result = (intel ? Replay(Intel, LoadStartOf(Intel)) : Replay(SeriesOf(series))).Result;
+        var result = (intel ? Replay(Intel, LoadStartOf(Intel))
+            : series == "falling-after-a-run" ? Replay(FallingAfterARun(), loadStart: 4)
+            : Replay(SeriesOf(series))).Result;
         var fan = intel ? IntelFan : BoardFan;
         Assert.Equal(expected, result.Outcome.ToString());
         Assert.Equal(expected == nameof(FanFinderOutcome.Found) ? fan : null, result.Fan);
@@ -275,6 +278,18 @@ public sealed class FanFinderTests
         return Derived(series, BoardFan, (snapshot, index) => 3 * Value(
             index < LoadStart ? snapshot : series[index >= from ? loadEnd : LoadStart - 1],
             BoardFan));
+    }
+
+    /// <summary>
+    /// QA round 4: started again right after a run, the fan was still falling from 847 RPM, and the 3 s before the load
+    /// averaged so high that its rise from 543 to 800 read as none. Here <see cref="ThreeTimesFaster"/> comes after 6 s in
+    /// which the fan falls 200 RPM a second, and the finder starts as it begins to fall.
+    /// </summary>
+    private static List<Snapshot> FallingAfterARun()
+    {
+        var series = ThreeTimesFaster(Software);
+        var settled = Value(series[0], BoardFan)!.Value;
+        return [.. Derived([.. Enumerable.Repeat(series[0], 6)], BoardFan, (_, index) => settled + ((6 - index) * 200)), .. series];
     }
 
     private static List<Snapshot> Derived(IReadOnlyList<Snapshot> series, string id, Func<Snapshot, int, double?> value) =>
