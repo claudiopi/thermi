@@ -12,7 +12,7 @@ public sealed class SensorServiceTests
     {
         var stopped = new TaskCompletionSource();
         var reported = new List<Exception>();
-        using var service = new SensorService(_ => throw new InvalidOperationException("The GPU driver reset."), stopped.SetResult, report: reported.Add);
+        using var service = new SensorService(_ => throw new InvalidOperationException("The GPU driver reset."), reported.Add, stopped.SetResult);
 
         await service.RunAsync();
 
@@ -26,7 +26,7 @@ public sealed class SensorServiceTests
     public async Task AServerThatStopsWhenAskedLeavesNoError()
     {
         var stopped = false;
-        using var service = new SensorService(_ => Task.CompletedTask, () => stopped = true);
+        using var service = new SensorService(_ => Task.CompletedTask, _ => { }, () => stopped = true);
 
         await service.RunAsync();
 

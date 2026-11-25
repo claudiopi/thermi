@@ -7,6 +7,7 @@ import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
 import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
 import { Knob } from './Knob';
+import { ScrubLabel, ScrubMarks, useScrub } from './Scrub';
 import './chart.css';
 
 export interface ChartProps {
@@ -108,6 +109,9 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
   const chart: ChartView = held === null ? given : { ...given, ...held };
   const plot: Plot = { width: Math.max(0, size.width - knobColumn), height: size.height, chart };
   const focus = useFocusHandOver(given);
+  const scrub = useScrub(plot);
+  const live = chart.empty === null;
+  const point = live ? scrub.ago : null;
   const queue = useRef<Promise<unknown> | null>(null);
   const later = (work: () => Promise<unknown>): void => {
     queue.current = (queue.current ?? Promise.resolve()).then(work);
@@ -172,14 +176,22 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
     <section className="t-chart" ref={box}>
       {chart.title !== null && <div className="t-chart-title">{chart.title}</div>}
       <div className="t-chart-row" style={{ height: `${size.height}px` }}>
+        {/* A slider while it has readings, as screen readers pass it the arrows, Home and End that move its point, where an
+            image's they keep. */}
         <svg
           className="t-plot"
-          role="img"
+          role={live ? 'slider' : 'img'}
           aria-label={t('UiText.ChartOf', name)}
           aria-description={chart.summary}
+          aria-valuemin={live ? 0 : undefined}
+          aria-valuemax={live ? chart.points.length - 1 : undefined}
+          aria-valuenow={live ? (scrub.heard?.at ?? chart.points.length - 1) : undefined}
+          aria-valuetext={live ? (scrub.heard?.said ?? t('UiText.ChartNow')) : undefined}
           width={plot.width}
           height={plot.height}
+          tabIndex={live ? 0 : -1}
           onMouseDown={pressPlot}
+          {...scrub.handlers}
         >
           <defs>
             {/* By height, so each part of the line and its fill takes the level of the values it draws. */}
@@ -211,7 +223,9 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
               <line key={one} className={`t-threshold t-${one}`} x1="0" x2={plot.width} y1={yOf(plot, value)} y2={yOf(plot, value)} />
             );
           })}
+          {point !== null && <ScrubMarks plot={plot} ago={point} />}
         </svg>
+        {point !== null && <ScrubLabel plot={plot} ago={point} />}
         {chart.empty !== null && <EmptyNote why={chart.empty} width={plot.width} />}
         {chart.empty === null && (
           // The span's ends, quiet in the plot's corner, so the line's height reads as a value without a grid.

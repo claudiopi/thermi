@@ -185,13 +185,14 @@ async function perform(page: Page, act: Act): Promise<void> {
   }
 }
 
-// A213: the design prototype's focus contract, its 102 steps as one table: after each, the focus is on a control in
-// view, never the page, a dialog keeps it inside, and a menu or dialog gives it back to what opened it. A scene is a
-// case; a step that waits for its task, or that Windows' frame does, is a fixme of its own, so the report shows it.
+// A213: the design prototype's focus contract, its steps in the page as one table: after each, the focus is on a control
+// in view, never the page, a dialog keeps it inside, and a menu or dialog gives it back to what opened it. Its steps on
+// Windows' own frame, the caption's maximize and the system menu, no page test can press, so they are A220's by hand.
+// A scene is a case; a step that waits for its task is a fixme of its own, so the report shows it.
 test.describe('TheFocusContractHolds', () => {
   for (const run of focusContract) {
-    for (const step of run.steps.filter((one) => one.frame === true || one.waits !== undefined)) {
-      test.fixme(`${run.name}: ${step.name}, ${step.frame === true ? "which Windows' frame does" : `until ${step.waits}`}`, () => {});
+    for (const step of run.steps.filter((one) => one.waits !== undefined)) {
+      test.fixme(`${run.name}: ${step.name}, until ${step.waits}`, () => {});
     }
   }
   for (const run of focusContract) test(run.name, async ({ page }) => {
@@ -200,7 +201,7 @@ test.describe('TheFocusContractHolds', () => {
     await page.emulateMedia({ colorScheme: run.colorScheme, reducedMotion: run.motion === true ? 'no-preference' : 'reduce' });
     // The first key comes once the page has drawn itself at its size, as a person sees the window before typing.
     await page.evaluate(async () => new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn))));
-    for (const step of run.steps.filter((one) => one.frame !== true && one.waits === undefined)) {
+    for (const step of run.steps.filter((one) => one.waits === undefined)) {
       await test.step(step.name, async () => {
         for (const act of step.acts) {
           await perform(page, act);

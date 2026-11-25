@@ -51,6 +51,16 @@ describe('the item page', () => {
   const each = (text: string, value: string, aside: string, detail = 'Ryzen') => ({ value, text, aside, shown: `${value} name`, detail });
   test.each([
     {
+      item: { id: 'cpu', metric: 'cpu.temperature' },
+      shows: { auto: 'package', offer: { first: ['package', 'core'], more: [] } },
+      all: false,
+      choices: [
+        { value: '', text: 'UiText.AutoFollows package name', shown: 'package name', aside: '50 °C' },
+        each('UiText.SensorOn package name Ryzen', 'package', '50 °C'),
+        each('UiText.SensorOn core name Ryzen', 'core', ''),
+      ],
+    },
+    {
       item: { id: 'cpu', metric: 'network.down' },
       shows: { auto: 'ethernet', type: 'Throughput', offer: { first: ['ethernet'], more: [] } },
       all: false,
@@ -92,6 +102,7 @@ describe('the item page', () => {
     { item: { id: 'cpu', sensor: 'fan', warnBy: { metric: 'fan.cpu.duty' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'package' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
     { item: { id: 'cpu', sensor: 'power' }, shows: none, warnBy: '0', offered: 1, row: false },
+    { item: { id: 'cpu', sensor: 'power', warnBy: { sensor: 'package' } }, shows: none, warnBy: 'kept', offered: 2, row: true },
   ] satisfies { item: Item; shows: Partial<ItemView>; warnBy: string; offered: number; row: boolean }[])(
     'warns $item by $warnBy',
     ({ item, shows, warnBy, offered, row }) => {
@@ -102,7 +113,12 @@ describe('the item page', () => {
   );
 
   test.each([
+    ['Fan', 2000],
+    ['Power', 500],
+    ['Clock', 10000],
+    ['Data', 100],
     ['SmallData', 100],
+    ['Temperature', 20],
     ['Address', null],
     ['Time', null],
     ['Duration', null],

@@ -29,8 +29,10 @@ public sealed class HotkeyTests
     // The window writes what was pressed as the file does, and only what the overlay can register; the file is read
     // as Windows registers it, however a person typed it.
     [Theory]
+    [InlineData(KeyModifiers.Alt | KeyModifiers.Ctrl, 'T', "Ctrl+Alt+T", "Ctrl+Alt+T")]
     [InlineData(KeyModifiers.Win | KeyModifiers.Shift, '7', "Shift+Win+7", "shift + win + 7")]
     [InlineData(KeyModifiers.Ctrl, 0x7B, "Ctrl+F12", "Ctrl+F12")]
+    [InlineData(KeyModifiers.None, 0x7C, "F13", "F13")]
     [InlineData(KeyModifiers.None, 0x87, "F24", "f24")]
     [InlineData(KeyModifiers.Alt, 0x22, "Alt+PageDown", "Alt+PageDown")]
     [InlineData(KeyModifiers.Shift, 'A', null, null)]

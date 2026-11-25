@@ -44,6 +44,8 @@ public sealed partial class RepoRulesTests
         }
 
         return new[] { statuses.Contains(status, StringComparer.Ordinal) ? null : $"{name} has no known status (got '{status}')" }
+            .Concat(steps.CountBy(step => step.Id, StringComparer.Ordinal).Where(id => id.Value > 1)
+                .Select(id => $"{name} has the acceptance step {id.Key} {id.Value} times"))
             .Concat(requirements.Except(covered, StringComparer.Ordinal).Select(id => $"{name} {id} is covered by no acceptance step"))
             .Concat(covered.Except(requirements, StringComparer.Ordinal).Select(id => $"{name} covers {id}, which spec.md does not have"))
             .Concat(steps.Where(step => !Checked(step))

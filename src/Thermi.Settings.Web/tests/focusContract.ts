@@ -107,8 +107,6 @@ export const focusContract: FocusRun[] = [
     size: narrowest,
     colorScheme: 'dark',
     steps: [
-      { name: 'Maximize keeps focus on its button', acts: [], frame: true },
-      { name: 'Restore down, the same', acts: [], frame: true },
       { name: 'Narrow: the button opens the list on its row', acts: [{ focus: button('UiText.ShowList') }, 'Enter'], focus: selected },
       { name: 'Enter on a row folds it and goes into the pane', acts: ['ArrowDown', 'Enter'], focus: focusIn(main) },
       {

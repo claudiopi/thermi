@@ -196,10 +196,11 @@ export function installFakeViews(): void {
   // A line's edits, and the push of the other line past it, are the real bridge's, which the fake replays.
   const scaleOf = (type: string): { max: number; step: number } => (type === 'Fan' ? { max: 10000, step: 50 } : { max: 100, step: 1 });
 
-  // Ten minutes of readings around the value now, the same on every run so a screenshot compares.
+  // Ten minutes of readings around the value now, the same on every run so a screenshot compares, with a gap 195 to 204 s
+  // ago, as the PC asleep or the service stopped leaves.
   const history = (value: number | null, max: number): (number | null)[] =>
     Array.from({ length: 600 }, (_, index) =>
-      value === null
+      value === null || (index >= 395 && index < 405)
         ? null
         : Math.max(0, Math.min(max, value + 4 * Math.sin(index / 17) + 2.5 * Math.sin(index / 5.3) - 3 * Math.cos(index / 61))),
     );
@@ -228,6 +229,9 @@ export function installFakeViews(): void {
       : (made?.warning ?? made?.critical) !== undefined
         ? say('ChartText.UseLine', said((made?.warning ?? made?.critical)!, true))
         : say('ChartText.UseNoLines');
+
+  // What each second's point says is Core's MeterChart.Points' to decide: the fake's are tokens, one of its own a second.
+  const pointsOf = (readings: (number | null)[]): string[] => readings.map((_, index) => `#${index}`);
 
   bridge.chart = async (id: string): Promise<ChartView | null> => {
     const item = state.settings.overlays.flatMap((overlay) => overlay.items).find((candidate) => candidate.id === id);
@@ -260,6 +264,7 @@ export function installFakeViews(): void {
       from,
       to,
       readings,
+      points: pointsOf(readings),
       warning: warning ?? null,
       critical: critical ?? null,
       warningText: text(warning),

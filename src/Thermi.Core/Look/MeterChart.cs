@@ -54,6 +54,14 @@ public enum ChartText
 
     /// <summary>The same, under a minute: how many seconds ago.</summary>
     SecondsAgo,
+
+    /// <summary>How long ago a point of the chart came, past a minute and not on one: its minutes and seconds.</summary>
+    MinutesSecondsAgo,
+
+    /// <summary>A point of the chart: its second's reading, or <see cref="NoReading"/>, and how long ago it came.</summary>
+    Point,
+
+    NoReading,
 }
 
 /// <summary>
@@ -156,17 +164,37 @@ public static class MeterChart
 
     /// <summary>
     /// The chart's span, a reading a second: from its first reading on, so minutes the overlay and the window had not yet
-    /// read leave no empty stretch, while a gap after it stays one; and how long ago it starts, as "4 min ago".
+    /// read leave no empty stretch, while a gap after it stays one; and how long ago its first reading came, the last being
+    /// now, as a lone reading is, "40 s ago" or, past a minute, rounded to minutes, as "4 min ago".
     /// </summary>
     public static (IReadOnlyList<double?> Readings, string Start) Span(IReadOnlyList<double?> history, ValueFormat format)
     {
         var first = history.Count - history.SkipWhile(value => value is null).Count();
-        var seconds = Math.Max(1, history.Count - first);
-        var start = seconds < 60
-            ? format.Texts.Format(format.Numbers, ChartText.SecondsAgo, seconds)
-            : format.Texts.Format(format.Numbers, ChartText.MinutesAgo, (int)Math.Round(seconds / 60.0, MidpointRounding.AwayFromZero));
-        return ([.. history.Skip(first)], start);
+        var seconds = Math.Max(0, history.Count - first - 1);
+        return ([.. history.Skip(first)], Ago(seconds < 60 ? seconds : (int)Math.Round(seconds / 60.0, MidpointRounding.AwayFromZero) * 60, format));
     }
+
+    /// <summary>
+    /// Each second of the span as its point says it: its reading as <paramref name="said"/> words it, or none in a gap, and
+    /// how long ago it came, the last now.
+    /// </summary>
+    public static IReadOnlyList<string> Points(IReadOnlyList<double?> readings, Func<double, string> said, ValueFormat format) =>
+    [
+        .. readings.Select((reading, index) => format.Texts.Format(
+            format.Numbers,
+            ChartText.Point,
+            reading is { } value ? said(value) : format.Texts.Of(ChartText.NoReading),
+            Ago(readings.Count - 1 - index, format))),
+    ];
+
+    // The axis rounds its start to minutes past the first; a point says its own second.
+    private static string Ago(int seconds, ValueFormat format) => seconds switch
+    {
+        0 => format.Texts.Of(UiText.ChartNow),
+        < 60 => format.Texts.Format(format.Numbers, ChartText.SecondsAgo, seconds),
+        _ when seconds % 60 == 0 => format.Texts.Format(format.Numbers, ChartText.MinutesAgo, seconds / 60),
+        _ => format.Texts.Format(format.Numbers, ChartText.MinutesSecondsAgo, seconds / 60, seconds % 60),
+    };
 
     /// <summary>The lowest, average and highest of the readings, a missing one or a gap left out; null when there are none.</summary>
     public static (double Min, double Average, double Max)? Summary(IEnumerable<double?> readings)

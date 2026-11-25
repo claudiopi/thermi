@@ -232,7 +232,7 @@ public enum UiText
     /// <summary>The name of the chart's "…" button.</summary>
     ChartActions,
 
-    /// <summary>The chart's axis at its end.</summary>
+    /// <summary>The chart's axis at its end, and a point of the chart at this second.</summary>
     ChartNow,
 
     MoveToNewOverlay,

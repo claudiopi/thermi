@@ -282,7 +282,7 @@ test.describe('TheItemPageEditsTheItem', () => {
       (more?.y ?? 0) + (more?.height ?? 0),
     );
     await page.setViewportSize({ width: 1920, height: Math.ceil(1080 - spare + 4) });
-    const chart = page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+    const chart = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
     await expect.poll(() => main.evaluate((pane) => pane.scrollHeight > pane.clientHeight)).toBe(false);
     const across = async (): Promise<[number, number]> => {
       const box = await chart.boundingBox();

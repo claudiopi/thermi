@@ -1020,6 +1020,15 @@
   <data name="ChartText.SecondsAgo" xml:space="preserve">
     <value>hace {0} s</value>
   </data>
+  <data name="ChartText.MinutesSecondsAgo" xml:space="preserve">
+    <value>hace {0} min {1} s</value>
+  </data>
+  <data name="ChartText.Point" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="ChartText.NoReading" xml:space="preserve">
+    <value>Sin lectura</value>
+  </data>
   <data name="Combine.Max" xml:space="preserve">
     <value>Máximo</value>
   </data>

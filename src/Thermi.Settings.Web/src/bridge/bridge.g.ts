@@ -49,6 +49,7 @@ export interface ChartView {
   from: number;
   to: number;
   readings: (number | null)[];
+  points: string[];
   warning: number | null;
   critical: number | null;
   warningText: string | null;

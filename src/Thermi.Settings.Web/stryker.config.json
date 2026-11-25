@@ -13,6 +13,7 @@
     "src/settings/combination.ts"
   ],
   "coverageAnalysis": "perTest",
+  "ignoreStatic": true,
   "thresholds": { "high": 90, "low": 78, "break": 78 },
   "reporters": ["clear-text", "html"],
   "htmlReporter": { "fileName": "../../TestResults/mutation-web/mutation-report.html" },

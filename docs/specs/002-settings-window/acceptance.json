@@ -245,9 +245,10 @@
         "R27",
         "R28",
         "R110",
-        "R111"
+        "R111",
+        "R200"
       ],
-      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not.",
+      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not; and each second of the chart's span says its reading as the item words it, or none in a gap, and how long ago it came, to the second, a whole minute as minutes and the last as now, where the axis rounds the first reading's age to minutes.",
       "check": "ThresholdsAndTheChartFollowTheMetersType",
       "passes": true
     },
@@ -406,9 +407,9 @@
         "R123",
         "R124"
       ],
-      "description": "Given the page with the fake bridge, when the design prototype's 102 steps of keys and clicks run, then after each the focus is on a control in view, never the page, dialogs keep it inside, and menus give it back.",
+      "description": "Given the page with the fake bridge, when the design prototype's steps of keys and clicks in the page run, then after each the focus is on a control in view, never the page, dialogs keep it inside, and menus give it back. Its steps on Windows' own frame, the caption's maximize and the system menu, are A220's.",
       "check": "TheFocusContractHolds",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A214",
@@ -419,7 +420,7 @@
       ],
       "description": "Given every page, dialog, menu, bar and toast, in light, dark and forced colors, and with reduced motion, when axe checks each and the animations are read, then axe finds no violation and nothing animates.",
       "check": "AxeFindsNothingInAnyState",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A220",
@@ -428,9 +429,10 @@
         "R49",
         "R50",
         "R116",
-        "R118"
+        "R118",
+        "R123"
       ],
-      "description": "Given Narrator, light, dark, another accent, high contrast and animation effects off, when the author moves through the window and resizes, maximizes, snaps and activates it over the overlays, then everything is read with its name, role and value, looks right in each, nothing animates, it behaves like any window, and the edited overlay stays above it unless it would cover the caption buttons.",
+      "description": "Given Narrator, light, dark, another accent, high contrast and animation effects off, when the author moves through the window and resizes, maximizes, snaps and activates it over the overlays, and maximizes and restores it from its caption button and from the system menu Alt+Space opens, then everything is read with its name, role and value, looks right in each, nothing animates, it behaves like any window, the focus stays where it was, also once Esc closes the system menu, and the edited overlay stays above it unless it would cover the caption buttons.",
       "check": "by hand",
       "passes": false
     },
@@ -908,8 +910,7 @@
       ],
       "description": "Given new rows of a battery's charge, a rate while charging and while discharging, a time remaining, and no time while plugged in, in English and Spanish regional formats, when each is formatted, then the charge is a percentage, the rate carries its sign in watts, the time reads in hours and minutes, and no time is missing.",
       "check": "FormatsEachKindAndShowsBrokenReadingsAsMissing",
-      "passes": false,
-      "note": "awaits a real recording (T105, T108): its rows are made up"
+      "passes": true
     },
     {
       "id": "A235",
@@ -921,7 +922,7 @@
       "description": "Given new rows from a laptop's recording with a battery and virtual adapters, and from the existing desktop recordings, when the catalog is built and the metrics are picked, then the battery sits under Battery on the laptop and no Battery group exists on the desktops, and Auto's adapter is never a loopback, tunnel or non-hardware one while a physical one moves data.",
       "check": "AutoNamesTheSensorItsMetricReads",
       "passes": false,
-      "note": "awaits a real recording (T105, T108): its rows are made up"
+      "note": "awaits a laptop's real recording (T108): its laptop rows are made up"
     },
     {
       "id": "A236",
@@ -931,8 +932,7 @@
       ],
       "description": "Given new rows on the injected clock with a gap in the snapshots longer than the stale limit, before and after the first snapshot newer than the wake, when the overlay is decided, then no value from before the gap shows as live, its history leaves the gap out of Min, Avg, Max and the chart, and the first fresh snapshot brings the values back.",
       "check": "TheOverlayAndThermisIconSayWhatTheyShow",
-      "passes": false,
-      "note": "awaits a real recording (T105, T108): its rows are made up"
+      "passes": true
     },
     {
       "id": "A237",
@@ -941,8 +941,7 @@
       ],
       "description": "Given a snapped overlay and a wake from sleep with a different set of monitors, when the layout changes, then the overlay goes back to its snap, or to the same spot on the primary monitor when its own is gone.",
       "check": "ASnapToAMonitorThatIsGoneFallsBackToThePrimaryAndComesBack",
-      "passes": false,
-      "note": "awaits a real recording (T105, T108): its rows are made up"
+      "passes": true
     },
     {
       "id": "A238",
@@ -951,8 +950,7 @@
       ],
       "description": "Given the page with a fake bridge for a laptop and one for a desktop, when the catalog opens, then the laptop's offers a Battery group by role and the desktop's offers none.",
       "check": "TheCatalogAddsWithTheKeyboard",
-      "passes": false,
-      "note": "awaits a real recording (T105, T108): its rows are made up"
+      "passes": true
     },
     {
       "id": "A239",
@@ -1183,7 +1181,7 @@
       "passes": true
     },
     {
-      "id": "A266",
+      "id": "A353",
       "covers": [
         "R104"
       ],
@@ -1716,6 +1714,15 @@
       "description": "Given the installed thermi, when an item's value in the CPU pill is held, dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its pill and before the pill elsewhere, and the pill's label held lifts the whole pill as before.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A352",
+      "covers": [
+        "R200"
+      ],
+      "description": "Given the CPU temperature's page, with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot at a second in the gap and at one 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label shows the bridge's point of that second, above Min · Avg · Max; the chart, a slider, takes each key's point as its value for a screen reader, and keeps it through the pointer's moves; and Esc hides the label.",
+      "check": "AChartsPointSaysItsReadingAndWhen",
+      "passes": true
     }
   ]
 }

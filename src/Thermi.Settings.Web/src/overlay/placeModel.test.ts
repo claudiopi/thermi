@@ -37,6 +37,7 @@ describe('where an overlay sits', () => {
   });
 
   test.each([
+    { overlay: { snap: { spot: 'top-left' } }, display: second, snap: { spot: 'top-left', monitor: 'm2' } },
     { overlay: { position: { x: 5, y: 5 } }, display: second, snap: { spot: 'top-right', monitor: 'm2' } },
   ] satisfies { overlay: Partial<Overlay>; display: Monitor; snap: unknown }[])('moves $overlay to $display.id at $snap', ({ overlay, display, snap }) => {
     expect(moveToDisplay({ name: 'A', items: [], ...overlay }, display)).toEqual(snap);
@@ -63,6 +64,7 @@ describe('where an overlay sits', () => {
     { placed: { spot: 'top-right', display: 0, gone: false }, vertical: true, floats: 'side', hint: null },
     { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: false, floats: 'side', hint: 'OverlayPageText.TaskbarOnSide' },
     { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: true, floats: 'hides', hint: 'OverlayPageText.TaskbarHides' },
+    { placed: { spot: 'taskbar', display: 1, gone: false, offset: 8 }, vertical: false, floats: 'hides', hint: 'OverlayPageText.TaskbarHint' },
     { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: true, floats: undefined, hint: 'OverlayPageText.AboveTaskbar' },
     { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: false, floats: undefined, hint: 'OverlayPageText.TaskbarHint' },
   ] satisfies { placed: Placed | null; vertical: boolean; floats: Monitor['floats']; hint: TextKey | null }[])(

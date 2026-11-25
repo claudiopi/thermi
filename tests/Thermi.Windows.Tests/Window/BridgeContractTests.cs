@@ -24,7 +24,8 @@ namespace Thermi.Windows.Tests.Window;
 /// </summary>
 public sealed class BridgeContractTests
 {
-    // A version 2 file without names, as written by hand or by a build before names, its fan metered by its duty.
+    // A version 2 file without names, as written by hand or by a build before names, its fan metered by its duty, and its CPU
+    // temperature, its fan and its RAM in two decimals.
     private const string Unnamed = """
         {
           "version": 2,
@@ -32,16 +33,25 @@ public sealed class BridgeContractTests
             "name": "Floating 2",
             "snap": { "spot": "taskbar-right" },
             "items": [
-              { "id": "fan.cpu", "metric": "fan.cpu", "meter": { "metric": "fan.cpu.duty" }, "threshold": { "warning": 60, "critical": 85 } },
-              { "id": "cpu.temperature", "metric": "cpu.temperature", "meter": { "metric": "cpu.temperature" } },
+              { "id": "fan.cpu", "metric": "fan.cpu", "meter": { "metric": "fan.cpu.duty" }, "threshold": { "warning": 60, "critical": 85 }, "decimals": 2 },
+              { "id": "cpu.temperature", "metric": "cpu.temperature", "meter": { "metric": "cpu.temperature" }, "decimals": 2 },
               { "id": "cpu.power", "metric": "cpu.power" },
-              { "id": "ram.used", "metric": "ram.used", "meter": { "metric": "ram.load" } }
+              { "id": "ram.used", "metric": "ram.used", "meter": { "metric": "ram.load" }, "decimals": 2 }
             ]
           } ]
         }
         """;
 
     private static readonly Snapshot Recorded = TestRecordings.Read(TestRecordings.Admin);
+
+    // A chart of the item's own reading says its last point as the item's value says it, in its decimals too; one of another
+    // reading, a fan's duty or the RAM's load, in that reading's own.
+    private static string? Said(ChartView chart, ItemView item) =>
+        chart.Title is null ? item.Value
+        : ReadingFormatter.Format(
+            chart.Title == Texts.English.Of(ChartText.DutyTitle) ? SensorKind.Control : SensorKind.Load,
+            chart.Readings[^1] ?? double.NaN,
+            new ValueFormat(Texts.English, CultureInfo.CurrentCulture));
 
     [Theory]
     [InlineData("defaults", "RPM", false)]
@@ -92,6 +102,8 @@ public sealed class BridgeContractTests
             Assert.True(chart is { Empty: null, Stats: not null } && (Threshold.Judges(item) || chart is { Warning: null, Critical: null }), item.Id);
             var unit = chart.Stats.Split(' ')[^1];
             Assert.All(new[] { chart.WarningText, chart.CriticalText }.OfType<string>(), line => Assert.EndsWith($" {unit}", line, StringComparison.Ordinal));
+            var now = Texts.English.Of(UiText.ChartNow);
+            Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, ChartText.Point, Said(chart, view.Items[item.Id]), now), chart.Points[^1]);
             if (item.Id == Metrics.CpuFan.Id)
             {
                 Assert.Equal((fanUnit, fanTitled), (unit, chart.Title == Texts.English.Of(ChartText.DutyTitle)));

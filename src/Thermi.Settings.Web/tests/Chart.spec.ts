@@ -70,7 +70,7 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
   });
 
   await test.step('a click in the plot moves the nearest line', async () => {
-    const plot = page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+    const plot = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
     await plot.click({ position: { x: 40, y: 4 } });
     await expect.poll(async () => (await itemIn(page, 'cpu.temperature')).threshold?.critical).not.toBe(91);
     await page.keyboard.press('Control+Z');
@@ -83,9 +83,10 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     await expect(page.getByRole('button', { name: text('UiText.AddCriticalLine') })).toBeFocused();
   });
 
-  await test.step('without readings the chart keeps its lines', async () => {
+  await test.step('without readings the chart keeps its lines, and is no slider with nothing to move along', async () => {
     await setFake(page, { service: 'stopped' });
     await expect(warning).toBeVisible();
+    await expect(page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) })).toHaveCount(0);
   });
 });
 
@@ -131,4 +132,47 @@ test('AFansLineStaysOnItsScale', async ({ page }) => {
   await page.mouse.move(from.x - 200, from.y + 120, { steps: 4 });
   await page.mouse.up();
   expect(await page.evaluate(() => document.getSelection()?.toString() ?? '')).toBe('');
+});
+
+// A352: a point of the chart shows the bridge's text of the second it is on, under the pointer within a second of where it
+// aims, a second being under a pixel wide, and by keys exactly; a screen reader hears the point the keys move to, as the
+// slider's value, and never the pointer's.
+test('AChartsPointSaysItsReadingAndWhen', async ({ page }) => {
+  await openWindow(page);
+  await select(page, text('MetricName.CpuTemperature'));
+  const chart = await page.evaluate(async () => window.thermi?.chart('cpu.temperature'));
+  const [points, stats] = [chart?.points ?? [], chart?.stats ?? ''];
+  const last = points.length - 1;
+  const plot = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+  const shown = page.getByRole('tooltip');
+  const near = (ago: number): string[] => [ago - 1, ago, ago + 1].map((each) => points[last - each] ?? '');
+  const aimAt = async (ago: number): Promise<void> => {
+    const box = await plot.boundingBox();
+    if (box === null) {
+      throw new Error('The chart is not shown.');
+    }
+    await page.mouse.move(box.x + ((last - ago) / last) * box.width, box.y + box.height / 2);
+  };
+
+  // 200 s ago is in the fake's gap, and 40 s ago is not.
+  for (const ago of [200, 40]) {
+    await aimAt(ago);
+    await expect.poll(async () => near(ago).includes((await shown.textContent()) ?? '')).toBe(true);
+    await expect(plot).toHaveAttribute('aria-valuetext', text('UiText.ChartNow'));
+  }
+  const under = (await page.getByText(stats).boundingBox())?.y ?? 0;
+  const label = await shown.boundingBox();
+  expect((label?.y ?? under) + (label?.height ?? 0)).toBeLessThanOrEqual(under);
+
+  await page.mouse.move(0, 0);
+  await expect(shown).toHaveCount(0);
+  await plot.focus();
+  for (const [key, ago] of [['End', 0], ['ArrowLeft', 1], ['Home', last]] as const) {
+    await page.keyboard.press(key);
+    await expect(shown).toHaveText(points[last - ago] ?? '');
+    await expect(plot).toHaveAttribute('aria-valuetext', points[last - ago] ?? '');
+    await expect(plot).toHaveAttribute('aria-valuenow', String(last - ago));
+  }
+  await page.keyboard.press('Escape');
+  await expect(shown).toHaveCount(0);
 });

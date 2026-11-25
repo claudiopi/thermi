@@ -1,7 +1,8 @@
 import type { ChartView, Level, Line } from '../bridge/bridge.g';
 
-// Where the chart draws what the C# side gave it: its size from the pane, each value's height, the smooth line and
-// where the knobs sit. The values, the range and the colors are the C# side's; this only places them.
+// Where the chart draws what the C# side gave it: its size from the pane, each value's height, the smooth line, where
+// the knobs sit and which second a point across it is. The values, their points' texts, the range and the colors are the
+// C# side's; this only places them.
 
 /** The knobs' column beside the plot, as wide as the widest knob's text. */
 export const knobColumn = 64;
@@ -49,6 +50,15 @@ export function valueAt(plot: Plot, y: number): number {
   return Math.min(high, Math.max(low, Math.round(raw / step) * step));
 }
 
+/** Where a reading sits across the plot, a second each: the first at its left edge, now at its right. */
+export function xOf(plot: Plot, index: number): number {
+  return (index / Math.max(1, plot.chart.readings.length - 1)) * plot.width;
+}
+
+export function readingAt(plot: Plot, x: number): number {
+  return Math.round((x / plot.width) * (plot.chart.readings.length - 1));
+}
+
 /** One stretch of the line between missing readings: its path and where it starts and ends across. */
 interface Stretch {
   path: string;
@@ -58,9 +68,7 @@ interface Stretch {
 
 // Smooth curves through the readings, a stretch for each run between missing ones.
 function stretches(plot: Plot): Stretch[] {
-  const { readings } = plot.chart;
-  const last = Math.max(1, readings.length - 1);
-  const points = readings.map((value, index) => (value === null ? null : ([(index / last) * plot.width, yOf(plot, value)] as const)));
+  const points = plot.chart.readings.map((value, index) => (value === null ? null : ([xOf(plot, index), yOf(plot, value)] as const)));
   const runs: Stretch[] = [];
   points.forEach((point, index) => {
     if (point === null) {
