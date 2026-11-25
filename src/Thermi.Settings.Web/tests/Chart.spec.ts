@@ -105,8 +105,8 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
   });
 });
 
-// A4 of spec 005: FPS added from the game's device shows its value in the list, and its critical line, under the
-// warning, cannot be dragged above it.
+// A4 of spec 005: FPS added from the game's device shows its value in the list with no lines, the lines added come with
+// the critical under the warning, and the critical cannot be dragged above it.
 test('AnFpsItemIsAddedAndItsLinesSetLow', async ({ page }) => {
   const sensors = withGame();
   const fps = sensors.find((sensor) => sensor.type === 'FrameRate');
@@ -121,15 +121,19 @@ test('AnFpsItemIsAddedAndItsLinesSetLow', async ({ page }) => {
   await expect(catalog).toBeHidden();
   const added = async (): Promise<Item | undefined> =>
     (await settingsOf(page)).overlays.flatMap((overlay) => overlay.items).find((item) => item.sensor === fps.id);
-  await expect.poll(async () => (await added())?.threshold).toBeDefined();
+  await expect.poll(async () => (await added())?.id).toBeDefined();
   const id = (await added())?.id ?? '';
+  expect((await added())?.threshold).toBeUndefined();
 
   const shown = await page.evaluate(async (item) => (await window.thermi?.view())?.items[item]?.value ?? null, id);
   expect(shown).not.toBeNull();
   await expect(selectedRow(page)).toHaveAccessibleDescription(shown ?? '');
 
+  await page.getByRole('button', { name: text('UiText.AddWarningLine') }).click();
+  await page.getByRole('button', { name: text('UiText.AddCriticalLine') }).click();
   const warning = page.getByRole('slider', { name: text('UiText.WarningFrom') });
   const critical = page.getByRole('slider', { name: text('UiText.CriticalFrom') });
+  await expect(critical).toBeVisible();
   const [from, above] = [await critical.boundingBox(), await warning.boundingBox()];
   if (from === null || above === null) {
     throw new Error('The knobs are not shown.');

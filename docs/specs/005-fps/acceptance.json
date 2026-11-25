@@ -4,7 +4,7 @@
     {
       "id": "A1",
       "covers": ["R1", "R2", "R4", "R5", "R6", "R9"],
-      "description": "Given the recorded presents of Zwift (OpenGL) entering a world through its loading screen, beside a browser and the desktop, and of a Vulkan demo, replayed into snapshots second by second, when the default overlay is laid out with the process in front given (Zwift, a thermi window over it, the browser's main process, the desktop, then the demo), then FPS reads each second's frames and the longest frame, 0 FPS and a growing frame time through the 5 s of the load, the browser's frames from its child, the demo's values the second after it comes to the front, and no FPS item while nothing in front presents.",
+      "description": "Given the recorded presents of Zwift (OpenGL, told only by the kernel's detailed history and its blits) beside a terminal that presents from its child and an agent through Direct3D 9, replayed into snapshots second by second, when Zwift is maximized in front, then the terminal takes the focus on another monitor, maximized or not, then the desktop, then FPS and frame time read Zwift's from its third second on, as it counts as presenting, through all of it; and the terminal alone, not filling its monitor, never shows FPS.",
       "check": "TheOverlayShowsTheFramesOfTheAppInFront",
       "passes": false
     },
@@ -18,14 +18,14 @@
     {
       "id": "A3",
       "covers": ["R8"],
-      "description": "Given FPS and frame time items with their default lines, when FPS reads 144, 61, 60, 45, 30 and 12 and frame time 7, 40, 50, 99, 100 and 200, in the value and in its line, then FPS is normal, then warning at 60 and 45, then critical at 30 and 12, and frame time normal, then warning at 50 and 99, then critical at 100; and an FPS item whose critical is above its warning is refused.",
+      "description": "Given a new file's FPS item and one added from the catalog, which have no lines, lines added in the chart at 60 and 30 FPS and at 50 and 100 ms, when FPS reads 144, 61, 60, 45, 30 and 12 and frame time 7, 40, 50, 99, 100 and 200, in the value and in its line, then FPS is normal, then warning at 60 and 45, then critical at 30 and 12, and frame time normal, then warning at 50 and 99, then critical at 100; and an FPS item whose critical is above its warning is refused.",
       "check": "FrameRateWarnsLowAndFrameTimeHigh",
       "passes": false
     },
     {
       "id": "A4",
       "covers": ["R7", "R8"],
-      "description": "Given the window with a game's snapshot, when the person adds FPS from the Game device and drags its critical line, then the item shows in the overlay's list with its value, and the critical line cannot pass above the warning.",
+      "description": "Given the window with a game's snapshot, when the person adds FPS from the Game device, adds its warning and critical lines and drags the critical, then the item shows in the overlay's list with its value and no lines, the critical line comes under the warning, and cannot pass above it.",
       "check": "AnFpsItemIsAddedAndItsLinesSetLow",
       "passes": false
     },
@@ -39,7 +39,7 @@
     {
       "id": "A6",
       "covers": ["R3", "R4"],
-      "description": "Given the installed build on the author's PC, when he rides Zwift windowed, borderless and in full screen, and free demos present through Direct3D 9, 11 and 12 and Vulkan, then the window's FPS is within 2 % of Zwift's own counter and of PresentMon's beside each demo over a minute, and it follows an alt-tab within 2 s.",
+      "description": "Given the installed build on the author's PC, when he rides Zwift windowed, borderless and in full screen, and free demos present through Direct3D 9, 11 and 12 and Vulkan, then the window's FPS is within 2 % of Zwift's own counter and of PresentMon's beside each demo over a minute, and it keeps showing Zwift while a terminal on the other monitor has the focus.",
       "check": "by hand",
       "passes": false
     },
@@ -55,6 +55,13 @@
       "covers": ["R13"],
       "description": "Given the recorded desktop with the board's core and +12 V voltages, when the catalog is built and searched, then both are listed under the board, found by \"volts\" and by the voltage kind, the core's alone by \"vcore\", showing 1.248 V and 12.10 V, and one added as an item shows its value with no lines and takes no offset, and their sum is refused; a CPU's voltage of exactly 0 is missing; and no default overlay reads a voltage.",
       "check": "VoltagesAreListedFoundAndAddedWithoutLines",
+      "passes": false
+    },
+    {
+      "id": "A9",
+      "covers": ["R6"],
+      "description": "Given the app in front presenting 5 frames a second for 6 s, as a window that redraws now and then, and then a game presenting 60, when each second's snapshot is laid out, then the first shows no FPS at all, and the game shows none for its first 2 seconds and 60 from its third.",
+      "check": "OnlyAnAppThatPresentsSteadilyShowsFrames",
       "passes": false
     }
   ]

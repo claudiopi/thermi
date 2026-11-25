@@ -1,14 +1,18 @@
+using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Dwm;
+using Windows.Win32.Graphics.Gdi;
+using Windows.Win32.System.Diagnostics.ToolHelp;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows;
 
 /// <summary>
-/// The process of the app in front, whose frames the FPS items show: the foreground window's, or while a window of thermi's
-/// is in front, the first window under it that is shown. The desktop, the taskbar and any of Explorer's windows give none: Explorer
-/// starts nearly every app, so frames matched by their parent would name any game behind it.
+/// The process of the app in front, and whether its window fills its monitor, from which <c>FrontGame</c> tells the game:
+/// the foreground window's, or while a window of thermi's or of a process it started is in front, the first window under
+/// it that is shown. The desktop, the taskbar and any of Explorer's windows give none: Explorer starts nearly every app,
+/// so frames matched by their parent would name any game behind it.
 /// </summary>
 internal sealed class FrontApp
 {
@@ -21,23 +25,34 @@ internal sealed class FrontApp
     private uint _asked;
     private bool _ours;
 
-    public int? Process()
+    public (int? Process, bool Fills) Front()
     {
         var window = PInvoke.GetForegroundWindow();
         for (var depth = 0; !window.IsNull && depth < Deepest; depth++, window = PInvoke.GetWindow(window, GET_WINDOW_CMD.GW_HWNDNEXT))
         {
             if (PInvoke.GetWindowThreadProcessId(window, out var process) == 0)
             {
-                return null;
+                return (null, false);
             }
 
-            if ((depth == 0 || Shown(window)) && !Ours(window, process))
+            if ((depth == 0 || Shown(window)) && !Ours(process))
             {
-                return Shell.Contains(HiddenWindow.ClassOf(window)) || IsShell(process) ? null : (int)process;
+                return Shell.Contains(HiddenWindow.ClassOf(window)) || IsShell(process) ? (null, false) : ((int)process, Fills(window));
             }
         }
 
-        return null;
+        return (null, false);
+    }
+
+    // Maximized, or covering its whole monitor, as a game full screen or borderless does.
+    private static bool Fills(HWND window)
+    {
+        var info = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
+        var monitor = PInvoke.MonitorFromWindow(window, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONULL);
+        return PInvoke.IsZoomed(window)
+            || (!monitor.IsNull && PInvoke.GetMonitorInfo(monitor, ref info) && PInvoke.GetWindowRect(window, out var rect)
+                && rect.left <= info.rcMonitor.left && rect.top <= info.rcMonitor.top
+                && rect.right >= info.rcMonitor.right && rect.bottom >= info.rcMonitor.bottom);
     }
 
     // Explorer's own process, whose dialogs, flyouts and folder windows are the shell's too, whatever their class.
@@ -58,13 +73,34 @@ internal sealed class FrontApp
             && (PInvoke.DwmGetWindowAttribute(window, DWMWINDOWATTRIBUTE.DWMWA_CLOAKED, cloaked, sizeof(uint)).Failed || cloaked[0] == 0);
     }
 
-    private bool Ours(HWND window, uint process)
+    // A thermi's, or of a process a thermi started, as the settings window's WebView2, whose windows and frames are its own.
+    private bool Ours(uint process)
     {
         if (process != _asked)
         {
-            (_asked, _ours) = (process, HiddenWindow.SameProgram(window));
+            (_asked, _ours) = (process, HiddenWindow.SameProgram(process) || (ParentOf(process) is { } parent && HiddenWindow.SameProgram(parent)));
         }
 
         return _ours;
+    }
+
+    private static unsafe uint? ParentOf(uint process)
+    {
+        using var snapshot = PInvoke.CreateToolhelp32Snapshot_SafeHandle(CREATE_TOOLHELP_SNAPSHOT_FLAGS.TH32CS_SNAPPROCESS, 0);
+        if (snapshot.IsInvalid)
+        {
+            return null;
+        }
+
+        var entry = new PROCESSENTRY32W { dwSize = (uint)sizeof(PROCESSENTRY32W) };
+        for (var more = PInvoke.Process32FirstW(snapshot, ref entry); more; more = PInvoke.Process32NextW(snapshot, ref entry))
+        {
+            if (entry.th32ProcessID == process)
+            {
+                return entry.th32ParentProcessID;
+            }
+        }
+
+        return null;
     }
 }

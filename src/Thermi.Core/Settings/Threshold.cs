@@ -125,8 +125,7 @@ public sealed record Threshold
     /// <summary>
     /// The lines a reading starts with on the machine the snapshot is from, or null for none: a CPU temperature warns 10 °C
     /// under the CPU's limit and is critical 5 under it, a GPU's at 80 and 88 °C, any other temperature at 70 and 80 °C, and a
-    /// fan's duty warns at 85 %, a frame rate under 60 FPS and is critical under 30, and a frame time warns at 50 ms and is
-    /// critical at 100 ms. Loads and fan speeds have none.
+    /// fan's duty warns at 85 %. Loads, fan speeds and frames have none: a game's FPS is fine at 40 in one and poor in another.
     /// </summary>
     public static Threshold? Default(WarnByConfig meter, Snapshot snapshot)
     {
@@ -167,8 +166,6 @@ public sealed record Threshold
         (SensorKind.Temperature, DeviceKind.Gpu) => new Threshold(80, 88),
         (SensorKind.Temperature, _) => new Threshold(70, 80),
         (SensorKind.Control, _) => new Threshold(85, null),
-        (SensorKind.FrameRate, _) => new Threshold(60, 30),
-        (SensorKind.FrameTime, _) => new Threshold(50, 100),
         _ => null,
     };
 

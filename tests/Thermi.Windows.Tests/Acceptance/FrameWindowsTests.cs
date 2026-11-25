@@ -66,6 +66,10 @@ public sealed class FrameWindowsTests : IAsyncDisposable
         await using var client = new NamedPipeClientStream(".", _pipeName, PipeDirection.In, PipeOptions.Asynchronous);
         await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
         var served = await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+        for (var read = 0; read < FrameTally.SteadyFor + 2 && FrameSlots.Read(served) is not [_, ..]; read++)
+        {
+            served = await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+        }
 
         Assert.Equal(0, exit);
         Assert.All(recorded, line => Assert.Equal(current.Id, PresentJson.Read(line)?.Process));
@@ -96,30 +100,38 @@ public sealed class FrameWindowsTests : IAsyncDisposable
             return run.IsCompleted;
         }, Patience));
 
-    // Two presents of this test's process half a second apart, a second and a half back, so the first second the
-    // service closes holds them, and one of the compositor's between, which neither the recording nor the slots hold.
+    // Each second, as the clock moves, 15 presents of this test's process in the last 0.4 s, which the service has not
+    // closed yet, so it counts as presenting from the third second it closes, and one of the compositor's, which neither
+    // the recording nor the slots hold.
     private sealed class OwnPresents(FakeTimeProvider clock) : IPresentTrace
     {
+        private ITimer? _timer;
+
         public bool Start(Action<TracedPresent> sink)
         {
-            var now = clock.GetTimestamp() * 1000.0 / clock.TimestampFrequency;
-            sink(new TracedPresent(Environment.ProcessId, now - 1500, PresentSource.Kernel));
-            sink(new TracedPresent(Environment.ProcessId, now - 1000, PresentSource.Kernel));
-            foreach (var compositor in Process.GetProcessesByName("dwm"))
-            {
-                using (compositor)
-                {
-                    sink(new TracedPresent(compositor.Id, now - 1200, PresentSource.Kernel));
-                }
-            }
-
+            _timer = clock.CreateTimer(_ => Present(sink), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
             return true;
         }
 
         public bool Running => true;
 
-        public void Dispose()
+        public void Dispose() => _timer?.Dispose();
+
+        private void Present(Action<TracedPresent> sink)
         {
+            var now = clock.GetTimestamp() * 1000.0 / clock.TimestampFrequency;
+            for (var at = now - 375; at < now; at += 25)
+            {
+                sink(new TracedPresent(Environment.ProcessId, at, PresentSource.Kernel));
+            }
+
+            foreach (var compositor in Process.GetProcessesByName("dwm"))
+            {
+                using (compositor)
+                {
+                    sink(new TracedPresent(compositor.Id, now - 200, PresentSource.Kernel));
+                }
+            }
         }
     }
 }

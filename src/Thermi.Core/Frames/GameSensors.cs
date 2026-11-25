@@ -18,14 +18,12 @@ public static class GameSensors
 
     private const string Device = "/game/0";
 
-    /// <summary>The snapshot with its frame slots turned into the game's sensors, for <paramref name="front"/>, the process in front, if any.</summary>
+    /// <summary>The snapshot with its frame slots turned into the game's sensors, for <paramref name="front"/>, the game's process, if any.</summary>
     public static Snapshot With(Snapshot snapshot, int? front)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         var rates = FrameSlots.Read(snapshot);
-        var rate = front is { } process && rates is not null
-            ? rates.Where(each => each.Process == process).Concat(rates.Where(each => each.Parent == process)).Cast<FrameRate?>().FirstOrDefault()
-            : null;
+        var rate = front is { } process && rates is not null ? RateOf(rates, process) : null;
         var none = rates is null ? double.NaN : (double?)null;
         return snapshot with
         {
@@ -39,6 +37,10 @@ public static class GameSensors
     }
 
     public static bool Is(RawSensor sensor) => sensor.HardwareType == HardwareType;
+
+    /// <summary>The frames of a process, its own or else of one it started, as a browser's, or null when neither presents.</summary>
+    public static FrameRate? RateOf(IReadOnlyList<FrameRate> rates, int process) =>
+        rates.Where(each => each.Process == process).Concat(rates.Where(each => each.Parent == process)).Cast<FrameRate?>().FirstOrDefault();
 
     private static RawSensor Sensor(SensorKind kind, string name, double? value) =>
         new($"{Device}/{kind.ToString().ToLowerInvariant()}/0", HardwareType, HardwareType, kind.ToString(), name, value);

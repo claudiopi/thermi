@@ -74,6 +74,15 @@ public sealed class FrameTally
     /// <summary>The longest frame time told: a wait of a second or more is a freeze, and reads as one.</summary>
     public const double LongestFrame = 999.9;
 
+    /// <summary>
+    /// How many frames a second, for <see cref="SteadyFor"/> seconds in a row, a process presents before its rates are told:
+    /// a game presents on and on, while a window that redraws now and then, as a terminal or thermi's own, never does.
+    /// </summary>
+    public const double SteadyFps = 10;
+
+    /// <summary>How many seconds in a row a process presents at <see cref="SteadyFps"/> before its rates are told.</summary>
+    public const int SteadyFor = 3;
+
     private const double Second = 1000;
 
     private readonly Lock _gate = new();
@@ -138,7 +147,12 @@ public sealed class FrameTally
                     continue;
                 }
 
-                rates.Add((new FrameRate(process, track.Parent, frames / seconds, Math.Min(Math.Max(longest, at - last), LongestFrame)), frames));
+                var fps = frames / seconds;
+                track.Steady = track.Steady >= SteadyFor ? SteadyFor : fps >= SteadyFps ? track.Steady + 1 : 0;
+                if (track.Steady >= SteadyFor)
+                {
+                    rates.Add((new FrameRate(process, track.Parent, fps, Math.Min(Math.Max(longest, at - last), LongestFrame)), frames));
+                }
             }
 
             return [.. rates.OrderByDescending(rate => rate.Frames).ThenBy(rate => rate.Rate.Process).Take(Slots).Select(rate => rate.Rate)];
@@ -160,6 +174,9 @@ public sealed class FrameTally
         public List<double> Pending { get; } = [];
 
         public double? Last { get; private set; }
+
+        // The seconds in a row it presented steadily, up to SteadyFor, from which on it counts until it stops for good.
+        public int Steady { get; set; }
 
         // The presents up to the second's end, in order, and the longest wait between two of them.
         public (int Frames, double Longest) Take(double at)

@@ -204,13 +204,11 @@ internal static class HiddenWindow
     private static bool Peer(HWND claimed, string from) => ClassOf(claimed) == from && SameProgram(claimed);
 
     /// <summary>Whether <paramref name="window"/> is of a thermi like this one: this process, or another of the same program.</summary>
-    internal static bool SameProgram(HWND window)
-    {
-        if (PInvoke.GetWindowThreadProcessId(window, out var id) == 0)
-        {
-            return false;
-        }
+    internal static bool SameProgram(HWND window) => PInvoke.GetWindowThreadProcessId(window, out var id) != 0 && SameProgram(id);
 
+    /// <summary>Whether the process is a thermi like this one: this process, or another of the same program.</summary>
+    internal static bool SameProgram(uint id)
+    {
         if (id == (uint)Environment.ProcessId)
         {
             return true;

@@ -25,6 +25,7 @@ internal sealed class SystemFeed : ISensorFeed
     private readonly ISensorFeed _sensors;
     private readonly TimeProvider _time;
     private readonly FrontApp _front = new();
+    private readonly FrontGame _game = new();
     private readonly Lock _gate = new();
     private uint? _address;
     private bool _addressKnown;
@@ -68,9 +69,10 @@ internal sealed class SystemFeed : ISensorFeed
                 return last.With;
             }
 
+            var (front, fills) = _front.Front();
             var with = GameSensors.With(
                 SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now)),
-                _front.Process());
+                _game.Next(FrameSlots.Read(read), front, fills));
             _last = (read, second, with);
             return with;
         }

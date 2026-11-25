@@ -234,8 +234,9 @@ public static class MeterChart
 
     /// <summary>
     /// Where a line added to the chart comes: at its default, else <see cref="MeterScale.Push"/> beyond the other line, else
-    /// near the top of the track. A fan's or a throughput's track ends far past any reading, so there it goes over the
-    /// highest of <paramref name="readings"/>: a warning 15 % over, a critical 30 %, rounded up to the knobs' step.
+    /// at 60 FPS or 30 critical and at 50 ms or 100 critical for frames, else near the top of the track. A fan's or a
+    /// throughput's track ends far past any reading, so there it goes over the highest of <paramref name="readings"/>: a
+    /// warning 15 % over, a critical 30 %, rounded up to the knobs' step.
     /// </summary>
     public static double Added(MeterScale scale, Threshold? lines, ChartLine line, IReadOnlyList<double> readings)
     {
@@ -245,10 +246,15 @@ public static class MeterChart
             return made;
         }
 
-        // A low meter, a frame rate's, always has its default lines, so it never gets this far.
+        // A low meter's warning is above its critical, a high one's below.
         if ((warning ? lines?.Critical : lines?.Warning) is { } other)
         {
-            return Math.Clamp(warning ? other - scale.Push : other + scale.Push, 0, scale.Max);
+            return Math.Clamp(warning == scale.Low ? other + scale.Push : other - scale.Push, 0, scale.Max);
+        }
+
+        if (FramesLine(scale.Kind, warning) is { } frames)
+        {
+            return frames;
         }
 
         if (scale.Kind is not (SensorKind.Fan or SensorKind.Throughput))
@@ -262,6 +268,16 @@ public static class MeterChart
         var steps = Math.Ceiling(Math.Round(highest * (warning ? Headroom : CriticalAbove) / scale.Step, 6));
         return Math.Min(steps * scale.Step, scale.Max);
     }
+
+    // Frames have no default lines, and their track runs far past any game's: a line comes where most games are poor.
+    private static double? FramesLine(SensorKind kind, bool warning) => (kind, warning) switch
+    {
+        (SensorKind.FrameRate, true) => 60,
+        (SensorKind.FrameRate, false) => 30,
+        (SensorKind.FrameTime, true) => 50,
+        (SensorKind.FrameTime, false) => 100,
+        _ => null,
+    };
 
     /// <summary>
     /// What the box a knob opens says of the text typed in it, in the shown unit, or null for a value it keeps or for an
