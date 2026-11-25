@@ -10,29 +10,22 @@ namespace Thermi.Windows;
 /// <summary>
 /// The sensor feed with what Windows itself says added to each snapshot: how long it has run, the local address of the
 /// adapter its default route takes, and the time, as Core's <see cref="SystemSensors"/>. The address is found again only
-/// when the network changes; the rest is read at most once a second. It lives as long as its process, so it never lets
-/// go of Windows' network changes.
+/// when the network changes, which it listens to while it runs, so an agent's call, which runs one of its own, lets go
+/// of them as it ends; the rest is read at most once a second.
 /// </summary>
-internal sealed class SystemFeed : ISensorFeed
+internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISensorFeed
 {
     // Any address beyond the local network: connecting a datagram socket only picks the route, and sends nothing.
     private static readonly IPEndPoint Beyond = new(IPAddress.Parse("192.0.2.1"), 9);
 
     private static readonly Snapshot NoSensors = new([]);
 
-    private readonly ISensorFeed _sensors;
-    private readonly TimeProvider _time;
+    private readonly ISensorFeed _sensors = sensors;
+    private readonly TimeProvider _time = time;
     private readonly Lock _gate = new();
     private uint? _address;
     private bool _addressKnown;
     private (Snapshot Read, long Second, Snapshot With)? _last;
-
-    public SystemFeed(ISensorFeed sensors, TimeProvider time)
-    {
-        _sensors = sensors;
-        _time = time;
-        NetworkChange.NetworkAddressChanged += AddressChanged;
-    }
 
     public event EventHandler? Received
     {
@@ -52,7 +45,18 @@ internal sealed class SystemFeed : ISensorFeed
 
     public bool Taken => _sensors.Taken;
 
-    public Task RunAsync(CancellationToken stop) => _sensors.RunAsync(stop);
+    public async Task RunAsync(CancellationToken stop)
+    {
+        NetworkChange.NetworkAddressChanged += AddressChanged;
+        try
+        {
+            await _sensors.RunAsync(stop);
+        }
+        finally
+        {
+            NetworkChange.NetworkAddressChanged -= AddressChanged;
+        }
+    }
 
     private Snapshot With(Snapshot read)
     {

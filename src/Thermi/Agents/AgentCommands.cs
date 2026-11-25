@@ -53,20 +53,27 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
     public async Task<AgentReply> WatchAsync(IReadOnlyList<string> ids, Func<string, Task> line, CancellationToken stop)
     {
         var feed = environment.Sensors();
-        await foreach (var snapshot in AgentSamples.StreamAsync(feed, time, stop))
+        try
         {
-            if (snapshot is null)
+            await foreach (var snapshot in AgentSamples.StreamAsync(feed, time, stop))
             {
-                return Unread(feed.State, feed.Taken, snapshot);
-            }
+                if (snapshot is null)
+                {
+                    return Unread(feed.State, feed.Taken, snapshot);
+                }
 
-            var answer = AgentReads.Read([snapshot], (await SettingsAsync()).Config, ids);
-            if (answer.Unknown.Count > 0)
-            {
-                return UnknownIds(answer);
-            }
+                var answer = AgentReads.Read([snapshot], (await SettingsAsync()).Config, ids);
+                if (answer.Unknown.Count > 0)
+                {
+                    return UnknownIds(answer);
+                }
 
-            await line(AgentJson.Write(answer with { At = time.GetUtcNow() }));
+                await line(AgentJson.Write(answer with { At = time.GetUtcNow() }));
+            }
+        }
+        catch (OperationCanceledException) when (stop.IsCancellationRequested)
+        {
+            // Whoever watched stopped listening, which is how a watch ends.
         }
 
         return new AgentReply(AgentExit.Done);

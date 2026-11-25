@@ -120,7 +120,7 @@ internal static class Program
         var sensors = new SensorClient(time, logs.CreateLogger<SensorClient>());
         var feed = new SystemFeed(sensors, time);
         using var stop = new CancellationTokenSource();
-        var reading = Task.Run(() => sensors.RunAsync(stop.Token), stop.Token);
+        var reading = Task.Run(() => feed.RunAsync(stop.Token), stop.Token);
         // No settings file yet is thermi's first start, which its first notice and the values' tooltips speak to.
         var firstStart = !File.Exists(ConfigStore.DefaultPath);
         using var store = new ConfigStore(ConfigStore.DefaultPath, time);

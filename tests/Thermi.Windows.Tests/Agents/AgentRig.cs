@@ -12,10 +12,14 @@ using Thermi.Ui;
 namespace Thermi.Windows.Tests.Agents;
 
 /// <summary>
-/// The service as a recording plays it: each connection gets the snapshots in order, then waits, as the pipe does between
-/// seconds; with none, it reads nothing, in the state it is given.
+/// The service as a recording plays it: each connection gets the snapshots in order, at once or, with <paramref name="pace"/>,
+/// one a second on that clock as the pipe sends them, then waits; with none, it reads nothing, in the state it is given.
 /// </summary>
-internal sealed class RecordedFeed(IReadOnlyList<Snapshot> snapshots, ServiceState state = ServiceState.Running, bool taken = false) : ISensorFeed
+internal sealed class RecordedFeed(
+    IReadOnlyList<Snapshot> snapshots,
+    ServiceState state = ServiceState.Running,
+    bool taken = false,
+    TimeProvider? pace = null) : ISensorFeed
 {
     public event EventHandler? Received;
 
@@ -25,15 +29,26 @@ internal sealed class RecordedFeed(IReadOnlyList<Snapshot> snapshots, ServiceSta
 
     public bool Taken => taken;
 
-    public Task RunAsync(CancellationToken stop)
+    public async Task RunAsync(CancellationToken stop)
     {
-        foreach (var snapshot in snapshots)
+        try
         {
-            Latest = snapshot;
-            Received?.Invoke(this, EventArgs.Empty);
-        }
+            foreach (var snapshot in snapshots)
+            {
+                Latest = snapshot;
+                Received?.Invoke(this, EventArgs.Empty);
+                if (pace is not null)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), pace, stop);
+                }
+            }
 
-        return Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, stop).ContinueWith(_ => { }, TaskScheduler.Default);
+            await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, stop);
+        }
+        catch (OperationCanceledException)
+        {
+            // The connection ends as its reader hangs up.
+        }
     }
 }
 
@@ -49,7 +64,8 @@ internal sealed record AgentEnd(int Exit, string Out, string Error)
 /// </summary>
 internal sealed class AgentRig : IDisposable
 {
-    private const string Keys = @"Software\thermi-tests\agents\";
+    // A key of each rig's own, since tests run at once.
+    private readonly string _keys = @"Software\thermi-tests\agents\" + Guid.NewGuid().ToString("N") + @"\";
 
     public SettingsFolder Folder { get; } = new();
 
@@ -57,19 +73,31 @@ internal sealed class AgentRig : IDisposable
 
     public bool Overlay { get; set; }
 
+    public bool SensorsOnly { get; set; }
+
+    public bool Installed { get; set; } = true;
+
+    public IReadOnlyList<Screen> Screens { get; set; } =
+        [new Screen("DISPLAY1", Primary: true, new PixelRect(0, 0, 1920, 1080), new PixelRect(0, 0, 1920, 1032), Scale: 1)];
+
+    /// <summary>When each run of the fan finder's load started and ended, on the folder's clock.</summary>
+    public List<(long Started, long? Ended)> Loads { get; } = [];
+
     public AgentEnvironment Environment => new(
         Folder.File,
         () => Sensors(),
-        new StartWithWindows(Keys + "Run", Keys + "Approved", "thermi.exe"),
+        Startup,
         NullLogger.Instance)
     {
-        Installed = () => true,
+        Installed = () => Installed,
         Overlay = () => Overlay,
-        SensorsOnly = () => false,
-        Screens = () => [new Screen("DISPLAY1", Primary: true, new PixelRect(0, 0, 1920, 1080), new PixelRect(0, 0, 1920, 1032), Scale: 1)],
+        SensorsOnly = () => SensorsOnly,
+        Screens = () => Screens,
         AltGrKeys = () => new HashSet<int>(),
-        Load = _ => { },
+        Load = Loaded,
     };
+
+    public StartWithWindows Startup => new(_keys + "Run", _keys + "Approved", "thermi.exe");
 
     /// <summary>Parses the arguments as thermi does, and runs the agent's command they make, stepping the clock until it ends.</summary>
     public async Task<AgentEnd> RunAsync(params string[] args)
@@ -92,9 +120,25 @@ internal sealed class AgentRig : IDisposable
         return new AgentEnd(await run, Encoding.UTF8.GetString(output.ToArray()), error.ToString());
     }
 
+    private void Loaded(CancellationToken stop)
+    {
+        lock (Loads)
+        {
+            var at = Loads.Count;
+            Loads.Add((Folder.Clock.GetTimestamp(), null));
+            stop.Register(() =>
+            {
+                lock (Loads)
+                {
+                    Loads[at] = (Loads[at].Started, Folder.Clock.GetTimestamp());
+                }
+            });
+        }
+    }
+
     public void Dispose()
     {
-        Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(Keys.TrimEnd('\\'), throwOnMissingSubKey: false);
+        Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(_keys.TrimEnd('\\'), throwOnMissingSubKey: false);
         Folder.Dispose();
     }
 }

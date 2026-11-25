@@ -74,6 +74,40 @@ public sealed class AgentCommandTests : IDisposable
         Assert.Equal(exit is 0 or 1 || args[0] == "config", end.Out.Length > 0);
     }
 
+    // The service as status finds it, with no overlay running; what the commands answer does not hang on one.
+    [Theory]
+    [InlineData(TestRecordings.Admin, ServiceState.Running, false, true, null)]
+    [InlineData(TestRecordings.NoAdmin, ServiceState.Running, false, true, AgentProblem.DriverMissing)]
+    [InlineData(null, ServiceState.Stopped, false, true, AgentProblem.ServiceStopped)]
+    [InlineData(null, ServiceState.Stale, false, true, AgentProblem.ServiceStale)]
+    [InlineData(null, ServiceState.Stopped, true, true, AgentProblem.PipeTaken)]
+    [InlineData(null, ServiceState.Stopped, false, false, AgentProblem.ServiceMissing)]
+    public async Task AgentsNeedNoOverlay(string? recording, ServiceState state, bool taken, bool installed, AgentProblem? problem)
+    {
+        IReadOnlyList<Snapshot> snapshots = recording is null ? [] : [TestRecordings.Read(recording)];
+        _rig.Sensors = () => new RecordedFeed(snapshots, state, taken);
+        _rig.Installed = installed;
+        _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+
+        var status = (await _rig.RunAsync("status")).Json;
+
+        Assert.False((bool)status["overlay"]!);
+        Assert.Equal(problem is { } code ? [System.Text.Json.JsonNamingPolicy.KebabCaseLower.ConvertName(code.ToString())] : [],
+            status["problems"]!.AsArray().Select(each => (string)each!["code"]!));
+        if (recording is not null)
+        {
+            string[][] commands = [["read"], ["sensors"], ["config"], ["edit", """{"kind":"item","item":"cpu.load","field":"name","value":"Load"}"""]];
+            foreach (var command in commands)
+            {
+                var alone = await _rig.RunAsync(command);
+                _rig.Overlay = true;
+                var beside = await _rig.RunAsync(command);
+                _rig.Overlay = false;
+                Assert.Equal((0, WithoutTime(alone.Out)), (beside.Exit, WithoutTime(beside.Out)));
+            }
+        }
+    }
+
     [Fact]
     public async Task ReadSamplesGiveMinMaxAverage()
     {
@@ -145,5 +179,12 @@ public sealed class AgentCommandTests : IDisposable
         Assert.Equal(4, end.Exit);
         Assert.NotEmpty(end.Error);
         Assert.Equal(Broken, _rig.Folder.Text());
+    }
+
+    private static string WithoutTime(string answer)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(answer)!.AsObject();
+        json.Remove("at");
+        return json.ToJsonString();
     }
 }
