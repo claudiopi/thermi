@@ -24,8 +24,16 @@ public enum PresentSource
     KernelBlit,
 }
 
-/// <summary>A frame a process presented: its id, its parent's, when, in milliseconds on the trace's clock, and what told of it.</summary>
-public readonly record struct Present(int Process, int Parent, double At, PresentSource Source = PresentSource.Dxgi);
+/// <summary>
+/// A frame a process presented: its id, its parent's, when, in milliseconds on the trace's clock, what told of it, and in a
+/// recording, when the trace delivered it, on the same clock, which tells how long a second must wait for its presents.
+/// </summary>
+public readonly record struct Present(
+    int Process,
+    int Parent,
+    double At,
+    PresentSource Source = PresentSource.Dxgi,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Arrived = null);
 
 /// <summary>
 /// Presents as <c>thermi-sensors --frames</c> records them, one JSON line each, and as tests replay them: ids and times,

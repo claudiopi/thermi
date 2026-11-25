@@ -73,6 +73,7 @@ public sealed class FrameWindowsTests : IAsyncDisposable
 
         Assert.Equal(0, exit);
         Assert.All(recorded, line => Assert.Equal(current.Id, PresentJson.Read(line)?.Process));
+        Assert.All(recorded, line => Assert.True(PresentJson.Read(line) is { Arrived: { } arrived } present && arrived >= present.At));
         Assert.NotEmpty(recorded);
         Assert.Equal<int?>(current.Id, FrameSlots.Read(served) is [var busiest, ..] ? busiest.Process : null);
         Assert.DoesNotContain(

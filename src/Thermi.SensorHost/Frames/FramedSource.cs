@@ -130,16 +130,23 @@ internal sealed class FramedSource : ISensorSource
 
 /// <summary>
 /// <c>thermi-sensors --frames &lt;file&gt; --seconds &lt;n&gt;</c>: every present for a while, one JSON line each, with ids,
-/// times from the recording's start and what told of it, and no process's name, for tests and bug reports.
+/// times from the recording's start, what told of it and when it arrived, and no process's name, for tests and bug reports.
 /// </summary>
 internal static class FrameRecorder
 {
     public static async Task<bool> RecordAsync(IPresentTrace trace, IProcessTable processes, TextWriter writer, int seconds, TimeProvider time)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(seconds);
-        var start = time.GetTimestamp() * 1000.0 / time.TimestampFrequency;
+        var start = Milliseconds(time.GetTimestamp(), time);
         var presents = new ConcurrentQueue<Present>();
-        if (!trace.Start(FramedSource.Into(present => presents.Enqueue(present with { At = Math.Round(present.At - start, 3) }), processes)))
+        var into = FramedSource.Into(
+            present => presents.Enqueue(present with
+            {
+                At = Math.Round(present.At - start, 3),
+                Arrived = Math.Round(Milliseconds(time.GetTimestamp(), time) - start, 3),
+            }),
+            processes);
+        if (!trace.Start(into))
         {
             return false;
         }
@@ -155,6 +162,8 @@ internal static class FrameRecorder
         await WriteAsync(presents, writer);
         return true;
     }
+
+    private static double Milliseconds(long timestamp, TimeProvider time) => timestamp * 1000.0 / time.TimestampFrequency;
 
     private static async Task WriteAsync(ConcurrentQueue<Present> presents, TextWriter writer)
     {
