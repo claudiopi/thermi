@@ -45,7 +45,7 @@ function Stop-Overlay {
     # The overlay's hidden host window and the settings window; WM_CLOSE is 0x10.
     foreach ($class in 'thermi-host', 'thermi-window') {
         $window = [IntPtr]::Zero
-        while (($window = [ThermiInstall.Windows]::FindWindowEx([IntPtr]::Zero, $window, $class, $null)) -ne [IntPtr]::Zero) {
+        while (($window = [ThermiInstall.Windows]::FindWindowEx([IntPtr]::Zero, $window, $class, [NullString]::Value)) -ne [IntPtr]::Zero) {
             $processId = [uint32]0
             [ThermiInstall.Windows]::GetWindowThreadProcessId($window, [ref]$processId) | Out-Null
             if ($ids -contains $processId) { [ThermiInstall.Windows]::PostMessage($window, 0x10, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }

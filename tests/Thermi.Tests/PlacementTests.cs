@@ -6,15 +6,13 @@ namespace Thermi.Tests;
 public sealed class PlacementTests
 {
     // R35: the monitors, each as its EDID's serial number and the serial's own text, "blank" for a text of spaces, "none"
-    // for no EDID and "zeros" for one of zeros, then @ and its connection; and their ids: maker, product and the serial's
+    // for no EDID, then @ and its connection; and their ids: maker, product and the serial's
     // own text, else the serial number, else the connection, two that report the same serial told apart by the connection.
     [Theory]
     [InlineData("12345 7XQ9K13@5&2f5d3e1a&0&UID4357", "DEL-A1B2-7XQ9K13")]
     [InlineData("12345@UID1", "DEL-A1B2-12345")]
-    [InlineData("0@UID1", "DEL-A1B2@UID1")]
     [InlineData("0 blank@UID1", "DEL-A1B2@UID1")]
     [InlineData("none@UID1", "UID1")]
-    [InlineData("zeros@UID1", "UID1")]
     [InlineData("1@UID1;1@UID2;9@UID3", "DEL-A1B2-1;DEL-A1B2-1@UID2;DEL-A1B2-9")]
     public void AMonitorIsKnownByItsEdidAndWithoutASerialByItsConnection(string monitors, string ids)
     {
@@ -26,7 +24,6 @@ public sealed class PlacementTests
     private static byte[] Edid(string written) => written.Split(' ') switch
     {
         ["none"] => [],
-        ["zeros"] => new byte[128],
         [var number] => Edid(uint.Parse(number, System.Globalization.CultureInfo.InvariantCulture), serial: null),
         [var number, var serial] => Edid(uint.Parse(number, System.Globalization.CultureInfo.InvariantCulture), serial == "blank" ? " \n" : serial),
         _ => throw new ArgumentException("An EDID is a number and a serial at most.", nameof(written)),

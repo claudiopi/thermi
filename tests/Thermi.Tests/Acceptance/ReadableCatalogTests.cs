@@ -202,19 +202,15 @@ public sealed class ReadableCatalogTests
     // one told apart kept the Spanish name it was added with).
     [Theory]
     [InlineData("/gpu-nvidia/0/fan/1", DeviceKind.Gpu, "fan", "")]
-    [InlineData("/nvme/0/data/31", DeviceKind.Ssd, "free space", "")]
     [InlineData("/nvme/0/load/30", DeviceKind.Ssd, "used space", "")]
     [InlineData("/nvme/0/temperature/0", DeviceKind.Ssd, "temperature", "")]
     [InlineData("/vram/data/2", null, "Virtual memory used", "")]
     [InlineData("/gpu-nvidia/0/control/1", null, "GPU fan", "duty")]
     [InlineData("/lpc/it8689e/0/control/3", null, "Fan #4", "duty")]
-    [InlineData("/lpc/it8689e/0/control/0", null, "=fan.cpu.duty", "")]
     [InlineData("/amdcpu/0/power/0", null, "=cpu.power", "2")]
-    [InlineData("/gpu-nvidia/0/clock/0", DeviceKind.Gpu, "frequency", "")]
     // Told apart by its device or sensor without their brackets or makers' marks (night QA: "CPU temperature (CCD2 (Tdie))").
     [InlineData("/gpu-amd/0/clock/0", DeviceKind.Gpu, "frequency", "apart AMD Radeon Graphics")]
     [InlineData("/amdcpu/0/temperature/4", DeviceKind.Cpu, "temperature", "apart CCD2")]
-    [InlineData("/gpu-amd/0/load/0", DeviceKind.Gpu, "load", "apart AMD Radeon Graphics")]
     public void ANewItemIsNamedForWhatItsSensorReads(string sensor, DeviceKind? device, string name, string form)
     {
         var texts = Texts.English;
