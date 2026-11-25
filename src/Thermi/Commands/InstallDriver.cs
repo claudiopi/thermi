@@ -17,6 +17,12 @@ internal sealed record DriverSetup(Uri Url, long Size, string Sha256, IReadOnlyL
         "1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032",
         ["-install", "-silent"],
         new Version(2, 2, 0));
+
+    /// <summary>
+    /// Whether a driver installed as <paramref name="displayVersion"/> is this one or a later one, which is never installed
+    /// over; an older one, or one whose version cannot be read, is.
+    /// </summary>
+    public bool Covers(string? displayVersion) => Version.TryParse(displayVersion, out var installed) && installed >= Version;
 }
 
 /// <summary>The download, which tests replace: the file at the URL into the stream, false when it fails or runs past the size.</summary>
@@ -37,22 +43,21 @@ internal interface IDriverInstaller
 
 /// <summary>
 /// What the driver's install reaches: the pinned setup, a new folder only administrators can write, or null, the
-/// download, the installer, the sensor service, and whether the pinned driver, or a later one, is installed already.
+/// download, the installer, the sensor service, and the version of the driver installed already, null when there is none.
 /// </summary>
 internal sealed record DriverParts(
-    DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services, Func<bool> Present)
+    DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services, Func<string?> Installed)
 {
     // Where its setup lists it, as LibreHardwareMonitor finds it.
     private const string PawnIoKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO";
 
     public static DriverParts Windows(IServiceManager services, ILogger log) =>
-        new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(log), new WindowsInstaller(), services, Installed);
+        new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(log), new WindowsInstaller(), services, InstalledVersion);
 
-    // An older one is installed over, as the sensors may not open it.
-    private static bool Installed()
+    private static string? InstalledVersion()
     {
         using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(PawnIoKey);
-        return Version.TryParse(key?.GetValue("DisplayVersion") as string, out var version) && version >= DriverSetup.Pinned.Version;
+        return key?.GetValue("DisplayVersion") as string;
     }
 }
 
@@ -102,9 +107,9 @@ internal static class InstallDriver
 
     public static async Task<int> RunAsync(DriverParts parts, TimeProvider time)
     {
-        // The pinned one or a later one, as another tool's, is never installed over: the sensors only start again, as a
-        // per-user install made for everyone asks whatever the driver.
-        if (parts.Present())
+        // The pinned one or a later one, as another tool's, is never installed over, and an older one is, as the sensors may
+        // not open it: the sensors only start again, as a per-user install made for everyone asks whatever the driver.
+        if (parts.Setup.Covers(parts.Installed()))
         {
             return await StartSensors.RestartAsync(parts.Services, time).ConfigureAwait(false);
         }

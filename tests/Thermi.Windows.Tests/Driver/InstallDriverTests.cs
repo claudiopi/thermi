@@ -48,7 +48,7 @@ public sealed class InstallDriverTests : IDisposable
         var fresh = Path.Combine(_folder, "fresh");
         var services = new CommandLineTests.FakeServices(states, starts: true);
         var parts = new DriverParts(
-            setup, () => download == "unsafe folder" ? null : Fresh(fresh, download), new FakeDownload(download), ran, services, () => download == "present");
+            setup, () => download == "unsafe folder" ? null : Fresh(fresh, download), new FakeDownload(download), ran, services, () => download == "present" ? "2.2.0.0" : null);
 
         var run = InstallDriver.RunAsync(parts, time);
         for (var waited = TimeSpan.Zero; !run.IsCompleted && waited <= TimeSpan.FromSeconds(30); waited += StartSensors.Poll)
@@ -62,6 +62,16 @@ public sealed class InstallDriverTests : IDisposable
         Assert.Equal((exit, runs), (await run, ran.Ran));
         Assert.False(Directory.Exists(fresh));
     }
+
+    // The pinned version or a later one is never installed over; an older one, or one whose version cannot be read, is.
+    [Theory]
+    [InlineData("2.2.0.0", true)]
+    [InlineData("2.3", true)]
+    [InlineData("2.1.9", false)]
+    [InlineData(null, false)]
+    [InlineData("two", false)]
+    public void OnlyAnOlderDriverIsInstalledOver(string? installed, bool covered) =>
+        Assert.Equal(covered, DriverSetup.Pinned.Covers(installed));
 
     private static string Fresh(string folder, string download)
     {

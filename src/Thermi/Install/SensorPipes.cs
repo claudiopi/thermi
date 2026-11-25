@@ -34,6 +34,9 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     // SYSTEM_MANDATORY_LABEL_ACE_TYPE, which .NET reads as a custom entry.
     private const int MandatoryLabel = 0x11;
 
+    // The mask, then a SID of one part: its revision, count and authority, and the part.
+    private const int LabelLength = 16;
+
     // The top of a per-user install, where its launchers are; null outside an installed layout, where no host is trusted.
     private static readonly string? Folder = ThermiPaths.Updates is null ? null : Path.GetDirectoryName(ThermiPaths.Launcher);
 
@@ -125,8 +128,13 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
 
     public static bool PerUser => Volatile.Read(ref _perUser);
 
-    /// <summary>Whether this is a per-user install, whose fix installs thermi for everyone.</summary>
-    public static bool PerUserInstall { get; } =
+    /// <summary>
+    /// Whether the fix installs thermi for everyone: in a per-user install, while it reads the user's own host; once the
+    /// service serves, its window's fix is the machine's again.
+    /// </summary>
+    public static bool InstallsForEveryone => PerUserInstall && PerUser;
+
+    private static bool PerUserInstall { get; } =
         Folder is not null && UserHost.PerUserInstall(Folder, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
 
     /// <summary>The user's own host's pipe in a per-user install, null outside one, which names its events too.</summary>
@@ -202,17 +210,16 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
                 new ReadOnlySpan<byte>(descriptor.Value, (int)PInvoke.GetSecurityDescriptorLength(descriptor)).ToArray(), 0);
             var label = raw.SystemAcl?.OfType<CustomAce>().FirstOrDefault(ace => (int)ace.AceType == MandatoryLabel);
 
-            // Past its mask, the label's SID, whose last part, its last four bytes, is the level.
-            return label?.GetOpaque() is not { } opaque
-                ? UserHost.Medium
-                : (int)BinaryPrimitives.ReadUInt32LittleEndian(opaque.AsSpan(opaque.Length - sizeof(uint)));
+            // Past its mask, a label's SID has one part, the level, in its last four bytes; any other shape is no label to trust.
+            return label?.GetOpaque() is not { } opaque ? UserHost.Medium
+                : opaque.Length == LabelLength ? (int)BinaryPrimitives.ReadUInt32LittleEndian(opaque.AsSpan(opaque.Length - sizeof(uint)))
+                : 0;
         }
         finally
         {
             PInvoke.LocalFree((HLOCAL)descriptor.Value);
         }
     }
-
 
     // The mandatory label's last part, as 0x2000 for medium; 0 when it cannot be read, which no host passes.
     private static unsafe int IntegrityOf(SafeHandle process)

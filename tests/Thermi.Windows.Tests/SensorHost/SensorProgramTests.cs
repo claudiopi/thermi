@@ -194,7 +194,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
         await using (new NamedPipeServerStream(pipe, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous))
         {
             var held = RunAsync(["--user"]);
-            await StopWhenMadeAsync(pipe);
+            await StopOnceSquattedAsync(pipe, held);
             await PassAsync(TimeSpan.FromSeconds(2), held);
             squatted = await held.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
         }
@@ -213,19 +213,29 @@ public sealed class SensorProgramTests : IAsyncDisposable
         Assert.Equal((0, 0, UserMode.Taken, UserMode.Taken), (stopped, squatted, refused, shutOut));
     }
 
-    // Sets a host's stop event once the host made it.
-    private static async Task StopWhenMadeAsync(string pipe)
+    // Sets a host's stop event once it said another program holds its pipe, so it waits to try again as it hears it.
+    private async Task StopOnceSquattedAsync(string pipe, Task held)
     {
-        EventWaitHandle? stop;
-        while (!EventWaitHandle.TryOpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent), out stop))
+        var log = Path.Combine(_folder, "thermi-sensors.log");
+        while (!held.IsCompleted && !(System.IO.File.Exists(log) && Said(log, "Another program holds")))
         {
             await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, TestContext.Current.CancellationToken);
         }
 
-        using (stop)
+        if (EventWaitHandle.TryOpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent), out var stop))
         {
-            stop.Set();
+            using (stop)
+            {
+                stop.Set();
+            }
         }
+    }
+
+    private static bool Said(string log, string what)
+    {
+        using var reading = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var text = new StreamReader(reading);
+        return text.ReadToEnd().Contains(what, StringComparison.Ordinal);
     }
 
     // Moves the clock a second at a time, giving the run a moment at each; whether it had ended by then.

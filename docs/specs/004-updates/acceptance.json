@@ -165,7 +165,7 @@
     {
       "id": "A24",
       "covers": ["R32"],
-      "description": "Given the user's host serving a client, when the watchdog sets its stop event, then it ends; and given an event of its name someone made first, then the host does not run, so no other process steers it.",
+      "description": "Given the user's host serving a client, or waiting while another program holds its pipe's name, when the watchdog sets its stop event, then it ends; and given an event of its name someone made first, even one that shuts the user out, then the host does not run, so no other process steers it.",
       "check": "TheUsersHostIsSteeredOnlyByItsOwnEvents",
       "passes": true
     },
@@ -228,7 +228,7 @@
     {
       "id": "A33",
       "covers": ["R30"],
-      "description": "Given the driver installed already, when the elevated mode's install-driver runs, then it downloads and runs nothing, and only starts the sensors again.",
+      "description": "Given the pinned driver or a later one installed already, when the elevated mode's install-driver runs, then it downloads and runs nothing, and only starts the sensors again; an older one, or one whose version cannot be read, it installs over.",
       "check": "OnlyThePinnedInstallerRunsAndTheSensorsStartAgain",
       "passes": true
     },

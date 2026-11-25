@@ -34,7 +34,7 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
     /// </summary>
     public async Task<DriverInstall> InstallDriver()
     {
-        var perUser = SensorPipes.PerUserInstall;
+        var perUser = SensorPipes.InstallsForEveryone;
         if (perUser)
         {
             // The user's host ends once the install worked, and the window reads the service's pipe instead.
