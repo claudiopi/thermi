@@ -34,6 +34,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         typeof(WindowBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
 
     private readonly WindowStart _start;
+    private readonly ReadSensors _sensors;
     private readonly WindowEditor _editor;
     private readonly WindowViews _views;
     private readonly WindowCharts _charts;
@@ -50,13 +51,14 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _start = start;
         _editor = editor;
         _texts = start.Texts;
+        _sensors = new ReadSensors(start.Environment.Sensors, start.Environment.Log);
         var readings = new Readings(start.Time);
-        _views = new WindowViews(editor, start.Environment.Sensors, readings, chart.Items);
-        _charts = new WindowCharts(editor, chart, start.Environment.Sensors, readings);
-        _previews = new WindowPreviews(editor, start.Environment.Sensors, _charts, start.Environment.Screens);
-        _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell, start.Environment.Log, () => start.Environment.Sensors.State);
+        _views = new WindowViews(editor, _sensors, readings, chart.Items);
+        _charts = new WindowCharts(editor, chart, _sensors, readings);
+        _previews = new WindowPreviews(editor, _sensors, _charts, start.Environment.Screens);
+        _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell, start.Environment.Log, () => _sensors.State);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
-        _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);
+        _watch = new PageWatch(start.Environment with { Sensors = _sensors }, start.Time, onTurn, Tell, Arrived);
         _fixes = new WindowFixes(start.Environment, start.Time);
         editor.Settle = (before, after) => _views.Settled(before, after, _texts, start.Environment.Screens());
         editor.Changed += (_, _) => Edited();
@@ -80,25 +82,22 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     /// <summary>
     /// A fresh snapshot, on the window's thread: kept for the charts and the catalog, given to the finder, and the page
     /// told of new readings, or of a change when other sensors came, which may name items or crowd an overlay anew, or the
-    /// service's state changed.
+    /// service's state changed. One the window cannot read changes nothing, and the page keeps what it shows.
     /// </summary>
     public void Arrived()
     {
-        _views.Arrived();
-        _charts.Arrived();
-        var snapshot = _start.Environment.Sensors.Latest;
-        if (snapshot is not null)
+        if (_sensors.Take(Read) is not { } read)
         {
-            _finder.Add(snapshot);
+            return;
         }
 
-        if (_watch.Arrived(snapshot))
+        if (_watch.Arrived(_sensors.Latest))
         {
             Changed?.Invoke(this, new WindowChangeEventArgs(sensors: true));
         }
-        else if (Readings is { } readings)
+        else
         {
-            readings(this, new WindowReadingsEventArgs(_views.View(_texts), StatusNow()));
+            Readings?.Invoke(this, read);
         }
     }
 
@@ -116,7 +115,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public void Tell() => Changed?.Invoke(this, new WindowChangeEventArgs(sensors: false));
 
-    public Task<ThermiConfig> Settings() => Ready(() => PageSettings.Of(_editor.Config, _texts, _start.Environment.Sensors.Latest));
+    public Task<ThermiConfig> Settings() => Ready(() => PageSettings.Of(_editor.Config, _texts, _sensors.Latest));
 
     public Task<ConfigProblemKind?> Problem() => Task.FromResult(_editor.Problem?.Kind);
 
@@ -127,7 +126,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             return Task.FromResult(edit is LookEdit look ? _looks.Wear(look) : _charts.Line(edit, _views.Format(_texts)));
         }
 
-        var snapshot = _start.Environment.Sensors.Latest ?? new Snapshot([]);
+        var snapshot = _sensors.Latest ?? new Snapshot([]);
         var result = _editor.Edit(edit.GetType().Name, PageEdits.Of(edit, snapshot, _texts, _start.Environment.AltGrKeys));
         // A refused hotkey says why, as "another hotkey uses it", not only that it cannot be one.
         return Task.FromResult(
@@ -198,7 +197,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<SensorView> Snapshot() =>
         Ready(() => SensorView.Of(
-            _start.Environment.Sensors.State, _start.Environment.Sensors.Latest, _editor.Config.SensorNames, _texts, _start.Environment.Sensors.Taken));
+            _sensors.State, _sensors.Latest, _editor.Config.SensorNames, _texts, _sensors.Taken));
 
     public Task<IReadOnlyList<double?>> History(string id) => Task.FromResult(_charts.History(id));
 
@@ -259,7 +258,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task FindCpuFan()
     {
-        _finder.Start(_start.Environment.Sensors.Latest);
+        _finder.Start(_sensors.Latest);
         return Task.CompletedTask;
     }
 
@@ -270,7 +269,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     public Task<FinderView> Finder() =>
-        Task.FromResult(_finder.View(_start.Environment.Sensors.Latest, _texts, CultureInfo.CurrentCulture, _editor.Config.SensorNames));
+        Task.FromResult(_finder.View(_sensors.Latest, _texts, CultureInfo.CurrentCulture, _editor.Config.SensorNames));
 
     public Task StartOverlay()
     {
@@ -331,12 +330,25 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     // What reads the readings waits for the first ones, as PageWatch says.
     private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);
 
+    // All a snapshot changes, which Core may fail to read.
+    private WindowReadingsEventArgs Read()
+    {
+        _views.Arrived();
+        _charts.Arrived();
+        if (_sensors.Latest is { } snapshot)
+        {
+            _finder.Add(snapshot);
+        }
+
+        return new WindowReadingsEventArgs(_views.View(_texts), StatusNow());
+    }
+
     private WindowStatus StatusNow()
     {
         var status = WindowFacts.Status(
             _editor.Config,
-            _start.Environment.Sensors.State,
-            _start.Environment.Sensors.Latest,
+            _sensors.State,
+            _sensors.Latest,
             _looks.AnySaved,
             _watch.Hotkeys,
             _editor.Problem,

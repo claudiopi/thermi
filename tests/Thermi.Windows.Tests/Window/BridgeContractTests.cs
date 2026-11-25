@@ -190,6 +190,37 @@ public sealed class BridgeContractTests
         Assert.Equal([true], told);
     }
 
+    // A snapshot Core failed to name ended the window. One the window cannot read leaves it on the last it read, said once
+    // in the log however many such seconds come, and the next it reads shows.
+    [Fact]
+    public async Task ASnapshotTheWindowCannotReadLeavesItsLastViewUntilOneReads()
+    {
+        var cpu = Metrics.CpuTemperature.Id;
+        using var folder = new SettingsFolder();
+        await using var settings = await folder.LoadedAsync(new ThermiConfig());
+        var feed = new TestFeed { Latest = Recorded };
+        using var bridge = folder.Bridge(settings, folder.Window(feed), new ConcurrentQueue<Action>());
+        bridge.Arrived();
+        var last = (await bridge.View()).Items[cpu].Value;
+        var heard = 0;
+        bridge.Readings += (_, _) => heard++;
+        bridge.Changed += (_, _) => heard++;
+
+        for (var second = 0; second < 3; second++)
+        {
+            folder.Clock.Advance(TimeSpan.FromSeconds(1));
+            feed.Latest = new Snapshot(new Unreadable());
+            bridge.Arrived();
+        }
+
+        Assert.Equal((0, last), (heard, (await bridge.View()).Items[cpu].Value));
+        Assert.Single(folder.Log.Entries, entry => entry.Error?.Message == Unreadable.Why);
+
+        feed.Latest = HostRun.Warmer;
+        bridge.Arrived();
+        Assert.True(heard == 1 && (await bridge.View()).Items[cpu].Value != last, last);
+    }
+
     // The CPU temperature set to CCD2, then undone back to Auto, kept CCD2's seconds in its chart, a dip to 49 °C: the
     // metric's own history had followed the sensor that stood in for it.
     [Fact]
@@ -308,5 +339,19 @@ public sealed class BridgeContractTests
             Assert.True(whole!.Width > room && shown!.Width <= room && shown.Width >= room - 8, $"{whole.Width} to {shown.Width}");
             Assert.Equal(whole.Height * shown.Width / whole.Width, shown.Height, 1.0);
         }
+    }
+
+    // Sensors Core fails on wherever it reads them, as it failed on a name shared three ways, with the very error it threw.
+    private sealed class Unreadable : IReadOnlyList<RawSensor>
+    {
+        public const string Why = "Nullable object must have a value.";
+
+        public int Count => throw new InvalidOperationException(Why);
+
+        public RawSensor this[int index] => throw new InvalidOperationException(Why);
+
+        public IEnumerator<RawSensor> GetEnumerator() => throw new InvalidOperationException(Why);
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

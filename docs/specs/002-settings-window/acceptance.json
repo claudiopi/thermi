@@ -1723,6 +1723,15 @@
       "description": "Given the CPU temperature's page, with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot at a second in the gap and at one 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label shows the bridge's point of that second, above Min · Avg · Max; the chart, a slider, takes each key's point as its value for a screen reader, and keeps it through the pointer's moves; and Esc hides the label.",
       "check": "AChartsPointSaysItsReadingAndWhen",
       "passes": true
+    },
+    {
+      "id": "A354",
+      "covers": [
+        "R201"
+      ],
+      "description": "Given the window's bridge on the recorded PC, when three snapshots come whose sensors Core throws on wherever it reads them, and then a good one, then the page hears nothing of the bad ones, its view keeps the last snapshot's values, the log says it once, and the good one's values show and reach the page.",
+      "check": "ASnapshotTheWindowCannotReadLeavesItsLastViewUntilOneReads",
+      "passes": true
     }
   ]
 }

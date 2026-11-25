@@ -128,6 +128,7 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - [x] **T124** Covers R57, R188, R197: the overlay's preview and three-pill look tiles, A328, A329 and A93 first: `LookSample` in Core, the bridge's `preview` and `lookSamples` painted by `PaintedOverlay` in `WindowPreviews`, the preview atop Appearance and the tiles as a list, and the fake's rough pictures.
 - [x] **T125** Covers R148, R150, R199: a hold on an item's value lifts the item alone, A347 to A350 first: `DesktopGestures.Grip` and `DropTarget` in Core, an item's drops in `OverlayEdits` (off its pill as a pill of its own, `DragOff` alone, `ItemInto` within its pill), the label or value under a press and where a drop joins in `Painting/PaintedPlaces.cs`, the item's picture with its pill's label, its gap, and the bar between the items of its pill; then A351 by hand.
 - [x] **T126** Covers R200: a point of the chart under the pointer or the keys, A352 first: each second's point as C# says it, its reading in the item's decimals and how long ago it came, in Core's `MeterChart.Points` and the bridge's `ChartView.points`, the second under the pointer in `geometry.ts`, and the line, dot, label and slider in `src/Thermi.Settings.Web/src/chart/Scrub.tsx`.
+- [x] **T127** Covers R201: the window outlives a snapshot Core cannot read, A354 first: the bridge reads each snapshot through `Ui/Views/ReadSensors.cs`, which takes it only once the views, charts, finder and status read it, and otherwise keeps the last one and logs the failure once until one reads.
 
 ## Decisions
 

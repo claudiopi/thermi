@@ -63,7 +63,6 @@ internal sealed class Readings(TimeProvider time)
     /// <summary>Keeps a fresh snapshot: every sensor of the catalog, and every metric as the overlay shown picks it.</summary>
     public void Record(Snapshot snapshot, OverlayConfig overlay)
     {
-        Last = snapshot;
         var readings = new Dictionary<string, Reading>(ReadOf(snapshot, overlay), StringComparer.Ordinal);
         foreach (var sensor in CatalogOf(snapshot).SelectMany(device => device.Sensors))
         {
@@ -74,6 +73,7 @@ internal sealed class Readings(TimeProvider time)
             }
         }
 
+        Last = snapshot;
         History.Add(readings);
     }
 

@@ -257,6 +257,10 @@ Budgets and clicks
 - R157. Without click-through, the whole of every pill catches clicks, at any background opacity.
 - R158. An hour of use leaves the overlay's private memory within 5 MB of its first minute.
 
+When something fails
+
+- R201. A snapshot the window cannot read, as one Core throws on, never closes it: the window goes on showing the last snapshot it read, logs the failure once until a snapshot reads again, and shows the next one it can read.
+
 Network and disk
 
 - R159. The sensor service also reads network adapters and drives: each adapter's download and upload speed, data received and sent, and utilization; each drive's read and write rate, total activity, used space and temperature. A drive's temperature is a temperature like any other: it shows, charts and warns as one.
