@@ -51,8 +51,19 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     {
         var meter = item.WarnBy ?? (item.Sensors is null ? Threshold.Own(item) : null);
         var offset = item.WarnBy is null ? item.Offset : 0;
-        return (meter?.Sensor ?? meter?.Metric) is { } id ? [.. readings.History.TenMinutes(id).Select(value => value + offset)] : null;
+        return (meter?.Sensor ?? PickOf(item, meter?.Metric)) is { } id ? [.. readings.History.TenMinutes(id).Select(value => value + offset)] : null;
     }
+
+    // A metric as the sensor it picks now, whose own seconds the window kept: the metric's seconds are those of whatever
+    // sensor an item named in its place meanwhile, which an undo back to Auto must not show.
+    private string? PickOf(ItemConfig item, string? metric) =>
+        metric is not null
+        && sensors.Latest is { } snapshot
+        && editor.Config.Overlays.FirstOrDefault(overlay => overlay.Items.Any(each => each.Id == item.Id)) is { } overlay
+        && readings.ChosenOf(snapshot, overlay).GetValueOrDefault(metric) is { } chosen
+        && readings.History.TenMinutes(chosen.Id).Any(value => value is not null)
+            ? chosen.Id
+            : metric;
 
     /// <summary>An item's line as the overlay draws it: the last minute of its chart, so it shows whole from the window's opening.</summary>
     public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) => ItemHistory.GraphOf(item, History(item.Id));

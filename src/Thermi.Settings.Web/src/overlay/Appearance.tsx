@@ -4,6 +4,7 @@ import { Button, Card, CardRow, CardStack, Dropdown, Segmented, Slider } from '.
 import { useText } from '../texts/Texts';
 import { LookCard } from './LookCard';
 import { enumChoices as choicesOf, shownStyle } from './lookModel';
+import { placedOf } from './placeModel';
 import { Preview } from './Preview';
 
 export interface AppearanceProps {
@@ -24,6 +25,8 @@ export function Appearance({ data, overlay }: AppearanceProps) {
   const shown = shownStyle(one.style);
   const style = (field: string, value: Value): void => void edit({ kind: 'style', overlay, field, value });
   const size = one.size ?? 1;
+  // On a horizontal taskbar the overlay is never taller than the taskbar, whatever the size says.
+  const capped = placedOf(one, [])?.spot === 'taskbar' && shown.orientation !== 'vertical';
   const themeOnAll = (): void =>
     void asOneStep(() =>
       overlays.reduce<Promise<unknown>>(
@@ -38,7 +41,7 @@ export function Appearance({ data, overlay }: AppearanceProps) {
       <LookCard data={data} overlay={overlay} />
       <CardStack>
         <Card>
-          <CardRow label={t('UiText.SizeField')}>
+          <CardRow label={t('UiText.SizeField')} {...(capped ? { description: t('UiText.SizeOnTaskbar') } : {})}>
             <Slider
               className="t-slider"
               label={t('UiText.SizeField')}

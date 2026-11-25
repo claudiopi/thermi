@@ -245,8 +245,8 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     }
 
     /// <summary>
-    /// "Separate" from the overlay's menu, as one gesture: the pill lands as the overlay a drag of it carries, at its size;
-    /// nothing before the overlay first painted.
+    /// "Separate" from the overlay's menu, as one gesture: the pill lands as the overlay a drag of it carries, at its size,
+    /// beside the overlay as the rest of its items will draw it; nothing before the overlay first painted.
     /// </summary>
     public void Separate(string pill, PaintedOverlay? painted, IReadOnlyList<Screen> screens)
     {
@@ -263,8 +263,15 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
             made = picture.Size;
         }
 
+        var ids = DesktopGestures.PillItems(settings.Config, pill);
+        Size rest;
+        using (var painter = new Painter())
+        {
+            rest = painter.Measure([.. painted.Items.Where(each => !ids.Contains(each.Id))], painted.Look, painted.Scale);
+        }
+
         var before = settings.Config;
-        var drop = DesktopGestures.Separate(before, index, pill, shown, (made.Width, made.Height), screens);
+        var drop = DesktopGestures.Separate(before, index, pill, shown, (made.Width, made.Height), (rest.Width, rest.Height), screens);
         if (drop.Result.Refused is null && ConfigEdits.Replay(before, drop.Result.Config) is { } change)
         {
             settings.Edit(change);

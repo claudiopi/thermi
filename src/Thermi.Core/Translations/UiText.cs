@@ -89,6 +89,9 @@ public enum UiText
 
     SizeField,
 
+    /// <summary>Under Size, for an overlay on a horizontal taskbar, which it never outgrows whatever the size says.</summary>
+    SizeOnTaskbar,
+
     StartWithWindows,
 
     ResetToDefaults,

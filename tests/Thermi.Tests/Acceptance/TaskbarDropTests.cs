@@ -111,9 +111,11 @@ public sealed class TaskbarDropTests
     // is drawn 4 px inside the bar. It is dropped beside it, 8 px away and level with it, as a drag with Alt held drops it,
     // and becomes an overlay of its own there. Its snap, where it shows and its items.
     [Theory]
-    // On the taskbar it lands on the taskbar, before the overlay, centered across it.
+    // On the taskbar it lands on the taskbar, before the overlay, centered across it; before the overlay as it sits once
+    // the pill has left, 450 px wide, shrunk toward the notification area.
     [InlineData("taskbar 1652,1397,2202,1435 100x38", "Taskbar 1544,1397 gpu.load")]
     [InlineData("taskbar 1652,1397,2202,1435 108x38", "Taskbar 1536,1397 gpu.load")]
+    [InlineData("taskbar 1652,1397,2202,1435 100x38 450x38", "Taskbar 1644,1397 gpu.load")]
     // Free, before it, or after it where before is off the monitor, level with its middle.
     [InlineData("free 1000,500,1550,538 100x38", "free 892,500 gpu.load")]
     [InlineData("free 1000,500,1550,538 108x38", "free 884,500 gpu.load")]
@@ -127,6 +129,9 @@ public sealed class TaskbarDropTests
         var words = separated.Split(' ');
         var shown = Numbers(words[1]);
         var size = words[2].Split('x').Select(each => int.Parse(each, CultureInfo.InvariantCulture)).ToArray();
+        int[] rest = words.Length > 3
+            ? [.. words[3].Split('x').Select(each => int.Parse(each, CultureInfo.InvariantCulture))]
+            : [shown[2] - shown[0], shown[3] - shown[1]];
         var vertical = words[0] == "vertical";
         var overlay = new OverlayConfig
         {
@@ -141,6 +146,7 @@ public sealed class TaskbarDropTests
             "gpu.load",
             new PixelRect(shown[0], shown[1], shown[2], shown[3]),
             (width, height),
+            (rest[0], rest[1]),
             [Pc]);
 
         Assert.Null(drop.Result.Refused);

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Bridge;
+using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -216,6 +217,47 @@ public sealed class BridgeContractTests
         }
 
         Assert.Equal([true], told);
+    }
+
+    // The CPU temperature set to CCD2, then undone back to Auto, kept CCD2's seconds in its chart, a dip to 49 °C: the
+    // metric's own history had followed the sensor that stood in for it.
+    [Fact]
+    public async Task AChartUndoneBackToAutoShowsOnlyTheAutomaticPick()
+    {
+        const string ccd2 = "/amdcpu/0/temperature/4";
+        var cpu = Metrics.CpuTemperature.Id;
+        using var folder = new SettingsFolder();
+        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+        await using var settings = folder.Settings();
+        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
+        var turn = new Queue<Action>();
+        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        var feed = new TestFeed();
+        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
+        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
+        {
+            Screens = () => [],
+        };
+        var start = new WindowStart(0, settings, Texts.English, environment, folder.Clock);
+        using var bridge = new WindowBridge(start, editor, new ChartHistory(folder.Clock), turn.Enqueue);
+        var cold = new Snapshot([.. Recorded.Sensors.Select(sensor => sensor.Id == ccd2 ? sensor with { Value = 34 } : sensor)]);
+        void Feed(Snapshot snapshot, int seconds)
+        {
+            for (var second = 0; second < seconds; second++)
+            {
+                folder.Clock.Advance(TimeSpan.FromSeconds(1));
+                feed.Latest = snapshot;
+                bridge.Arrived();
+            }
+        }
+
+        Feed(Recorded, 3);
+        Assert.Null(editor.Edit("sensor", config => ItemEdits.ChangeSensor(config, cpu, Recorded, ccd2)).Refused);
+        Feed(cold, 4);
+        editor.Undo();
+        Feed(Recorded, 1);
+
+        Assert.DoesNotContain(34, (await bridge.History(cpu)).OfType<double>());
     }
 
     // A323: the owner's window said "RAM used 31.8 GB" while his overlay said "RAM 40.1 GB", its average, and the label box

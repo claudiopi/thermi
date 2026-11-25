@@ -109,20 +109,35 @@ public static class DesktopGestures
     /// "Separate" from the overlay's menu: drops <paramref name="pill"/>, an overlay of the size <paramref name="made"/>
     /// once on its own, as a drag carries it, beside the overlay <paramref name="shown"/>, as Alt
     /// held would, so no mark pulls it back: the margin away, before a horizontal overlay and level with its middle, after it
-    /// when that leaves the work area, below a vertical one and in line with its left edge, else above.
+    /// when that leaves the work area, below a vertical one and in line with its left edge, else above. Beside the overlay
+    /// as it sits once the pill has left, <paramref name="rest"/> in size: one snapped by its right end, as beside the
+    /// notification area, shrinks toward it.
     /// </summary>
     public static DesktopDrop Separate(
-        ThermiConfig config, int overlay, string pill, PixelRect shown, (int Width, int Height) made, IReadOnlyList<Screen> screens)
+        ThermiConfig config,
+        int overlay,
+        string pill,
+        PixelRect shown,
+        (int Width, int Height) made,
+        (int Width, int Height) rest,
+        IReadOnlyList<Screen> screens)
     {
         if (!ConfigEdits.HasOverlay(config, overlay) || screens.Count == 0 || !CanTakeOff(config, overlay, pill))
         {
             return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.NotFound));
         }
 
+        var orientation = config.Overlays[overlay].Style.Orientation;
+        if (Snaps.Locate(config.Overlays[overlay], screens, rest.Width, rest.Height) is { } then)
+        {
+            shown = orientation == Orientation.Vertical
+                ? new PixelRect(shown.Left, then.Y, shown.Right, then.Y + rest.Height)
+                : new PixelRect(then.X, shown.Top, then.X + rest.Width, shown.Bottom);
+        }
+
         var screen = Snaps.ScreenOf(config.Overlays[overlay], screens)!;
         var gap = (int)Math.Round(Snaps.Margin * screen.Scale);
         var (work, (width, height)) = (screen.Work, made);
-        var orientation = config.Overlays[overlay].Style.Orientation;
         var at = orientation == Orientation.Vertical
             ? new Position(shown.Left, shown.Bottom + gap + height <= work.Bottom ? shown.Bottom + gap : shown.Top - gap - height)
             : new Position(shown.Left - gap - width >= work.Left ? shown.Left - gap - width : shown.Right + gap, shown.Top + ((shown.Height - height) / 2));

@@ -1586,6 +1586,15 @@
       "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs below normal priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
       "check": "UnderALoadOnEveryCoreTheReadingsKeepComing",
       "passes": true
+    },
+    {
+      "id": "A338",
+      "covers": [
+        "R25"
+      ],
+      "description": "Given the CPU temperature item on Auto with a chart of the window's readings, when its Sensor is set to a cooler CCD for a few seconds and undone, then its chart holds only the seconds of the sensor Auto picks, none of the CCD's.",
+      "check": "AChartUndoneBackToAutoShowsOnlyTheAutomaticPick",
+      "passes": true
     }
   ]
 }

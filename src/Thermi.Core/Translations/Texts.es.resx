@@ -312,6 +312,9 @@
   <data name="UiText.SizeField" xml:space="preserve">
     <value>Tamaño</value>
   </data>
+  <data name="UiText.SizeOnTaskbar" xml:space="preserve">
+    <value>En la barra de tareas nunca queda más alto que la barra.</value>
+  </data>
   <data name="UiText.StartWithWindows" xml:space="preserve">
     <value>Iniciar con Windows</value>
   </data>
