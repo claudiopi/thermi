@@ -102,7 +102,10 @@ internal sealed class ManifestClient : IDisposable
 
     public void Dispose() => _http.Dispose();
 
-    /// <summary>Writes <paramref name="package"/> into <paramref name="zip"/>, no more than its size: why it is refused, or null once its size and SHA-256 match.</summary>
+    /// <summary>
+    /// Writes <paramref name="package"/> into <paramref name="zip"/>, no more than its size: why it is refused, or null once
+    /// its size and SHA-256 match.
+    /// </summary>
     public async Task<string?> FetchAsync(Package package, FileStream zip, CancellationToken stop)
     {
         using var idle = new CancellationTokenSource(Idle, _time);

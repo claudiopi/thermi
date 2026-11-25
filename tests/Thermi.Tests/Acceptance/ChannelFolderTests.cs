@@ -95,7 +95,8 @@ public sealed class ChannelFolderTests : IDisposable
     {
         var zip = new Package(new Uri("https://updates.thermi.app/v1/thermi-x.zip"), 35_000_000, new string('a', 64));
         var zips = new Dictionary<string, Package>(StringComparer.Ordinal) { ["x64"] = zip };
-        return Levers.Publish(Empty(), Manifest.Stable, ReleaseVersion.Parse("1.0.0")!, new VersionFiles(zips, new Dictionary<string, Package>()), 100, urgent: false, Now).Channels;
+        var files = new VersionFiles(zips, new Dictionary<string, Package>());
+        return Levers.Publish(Empty(), Manifest.Stable, ReleaseVersion.Parse("1.0.0")!, files, 100, urgent: false, Now).Channels;
     }
 
     private ChannelFolder Folder() => new(_root, _release.ExportSubjectPublicKeyInfo(), _backup.ExportSubjectPublicKeyInfo());

@@ -59,7 +59,8 @@ internal sealed record WindowEnvironment(
             exe,
             logs.CreateLogger("Thermi.Ui"),
             new DateTimeOffset(process.StartTime),
-            new SystemFeed(new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
+            new SystemFeed(
+                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
             StartWithWindows.Of(exe));
     }
 }

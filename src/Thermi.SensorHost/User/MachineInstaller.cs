@@ -60,7 +60,9 @@ internal sealed class MachineInstaller(UpdateBuild build, InstallFolder folder, 
     {
         if (!folder.Trusted())
         {
-            log.Say($"{folder.Top} is not a folder only this user, SYSTEM and administrators change, so thermi installs nothing from it.", EventLogEntryType.Error);
+            log.Say(
+                $"{folder.Top} is not a folder only this user, SYSTEM and administrators change, so thermi installs nothing from it.",
+                EventLogEntryType.Error);
             return MachineInstallOutcome.Failed;
         }
 

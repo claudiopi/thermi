@@ -9,7 +9,7 @@ namespace Thermi.Tests.Acceptance;
 public sealed class AdminOnDemandTests
 {
     private const string User = "S-1-5-21-1-2-3-1001";
-    private const string Folder = @"C:\Users\ana\AppData\Local\Programs\thermi";
+    private const string Folder = @"users\ana\Programs\thermi";
     private static readonly DateTimeOffset Now = new(2026, 11, 25, 12, 0, 0, TimeSpan.Zero);
 
     // The service's pipe whenever it is installed; else the user's, trusted by its owner, its server's folder and integrity;
@@ -19,7 +19,7 @@ public sealed class AdminOnDemandTests
     [InlineData(false, User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, true)]
     [InlineData(false, "S-1-5-32-544", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, true)]
     [InlineData(false, "S-1-5-21-1-2-3-1002", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, false)]
-    [InlineData(false, User, @"C:\Users\ana\Downloads\thermi-sensors.exe", 0x2000, false)]
+    [InlineData(false, User, @"users\ana\Downloads\thermi-sensors.exe", 0x2000, false)]
     [InlineData(false, User, Folder + @"\..\evil\thermi-sensors.exe", 0x2000, false)]
     [InlineData(false, User, Folder + @"\0.9.1\thermi-sensors.exe", 0x1000, false)]
     public void TheOverlayReadsTheServiceOrTheUsersOwnHost(bool service, string owner, string image, int integrity, bool trusted)
@@ -81,14 +81,16 @@ public sealed class AdminOnDemandTests
         var files = new VersionFiles(zips, new Dictionary<string, Package> { ["x64"] = msi });
         var empty = new Dictionary<string, ChannelHistory> { [Manifest.Stable] = new([]), [Manifest.Beta] = new([]) };
 
-        var channels = Levers.Publish(empty, Manifest.Stable, ReleaseVersion.Parse("1.0.0")!, files with { Msis = new Dictionary<string, Package>() }, 100, false, Now).Channels;
+        var none = new Dictionary<string, Package>();
+        var channels = Levers.Publish(empty, Manifest.Stable, ReleaseVersion.Parse("1.0.0")!, files with { Msis = none }, 100, false, Now).Channels;
         channels = Levers.Publish(channels, Manifest.Beta, ReleaseVersion.Parse("1.1.0")!, files, 100, false, Now).Channels;
         var refused = Levers.Publish(channels, Manifest.Beta, ReleaseVersion.Parse("1.1.0")!, files with { Msis = zips }, 100, false, Now).Refused;
         channels = Levers.Promote(channels, Manifest.Beta, Manifest.Stable, 100, null, Now).Channels;
         var promoted = channels[Manifest.Stable].Current!;
         var rolledBack = Levers.RollBack(channels, Manifest.Stable, Now).Channels[Manifest.Stable].Current!;
         var opened = ManifestEnvelope.Open(ManifestEnvelope.Seal(promoted, key), release, release).Manifest;
-        var unsafeOne = ManifestEnvelope.Open(ManifestEnvelope.Seal(promoted with { Msis = new Dictionary<string, Package> { ["x64"] = msi with { Url = new Uri("http://u/m.msi") } } }, key), release, release);
+        var overHttp = promoted with { Msis = new Dictionary<string, Package> { ["x64"] = msi with { Url = new Uri("http://u/m.msi") } } };
+        var unsafeOne = ManifestEnvelope.Open(ManifestEnvelope.Seal(overHttp, key), release, release);
         var before = ManifestEnvelope.Open(ManifestEnvelope.Seal(rolledBack, key), release, release).Manifest;
 
         Assert.NotNull(refused);
