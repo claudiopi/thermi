@@ -234,7 +234,8 @@ public sealed class TaskbarDropTests
     // after them, `-` for hidden, then each edit refused, and one undo takes the last edit back whole.
     // QA round 6, a taskbar nearly full: a move onto it without room for the overlay at its own size is refused, and the
     // others keep their size and place; one shown again there squeezes none, the one before it held back over the app
-    // buttons only while it shows, so hiding it again puts that one back where it was.
+    // buttons only while it shows, so hiding it again puts that one back where it was. Touching is no overlap, so a move
+    // that ends where the next begins fits, as one a pixel over would not.
     [Theory]
     [InlineData("1000 1400", "size 0 2", "1000 1608")]
     [InlineData("1000 1400 free", "size 0 2,hide 0", "- 1608 100")]
@@ -243,6 +244,8 @@ public sealed class TaskbarDropTests
     [InlineData("1000 1400", "move 0 1300,hide 0", "- 1608")]
     [InlineData("1000 tray", "size 1 5", "1000 1308")]
     [InlineData("1500 free", "size 1 2,move 1 tray", "1500 100 NoRoomOnTaskbar")]
+    [InlineData("1000 tray", "move 0 1602", "1602 1902")]
+    [InlineData("1000 tray", "move 0 1500,move 0 1603", "1500 1902 NoRoomOnTaskbar")]
     [InlineData("1700 tray", "hide 1,size 1 2,show 1", "1594 1902")]
     [InlineData("1700 tray", "hide 1,size 1 2,show 1,hide 1", "1700 -")]
     public void AnOverlayMovesOnlyWhenThePersonMovesIt(string overlays, string edits, string shown)

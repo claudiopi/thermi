@@ -1092,6 +1092,9 @@
   <data name="FanFinderOutcome.LoadDidNotReachTheCpu" xml:space="preserve">
     <value>The CPU load stayed under 80 %, so the fans had nothing to answer; try again.</value>
   </data>
+  <data name="FanFinderOutcome.LoadDidNotHeatTheCpu" xml:space="preserve">
+    <value>The CPU was already busy and hot, so the load did not warm it and no fan had anything to answer. Close what loads the PC and try again.</value>
+  </data>
   <data name="FanFinderOutcome.ReadingsStopped" xml:space="preserve">
     <value>The sensor readings stopped during the run, so no fan was picked.</value>
   </data>

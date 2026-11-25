@@ -1,22 +1,16 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { flushSync } from 'react-dom';
+import { useMeasured } from '../app/measured';
+
+function contentWidth(element: HTMLElement): number {
+  const style = getComputedStyle(element);
+  const edges = [style.paddingLeft, style.paddingRight, style.borderLeftWidth, style.borderRightWidth].reduce((sum, one) => sum + parseFloat(one), 0);
+  return element.getBoundingClientRect().width - edges;
+}
 
 /** A block's width inside its padding, followed as the pane changes. */
 export function useWidth(): [RefObject<HTMLDivElement | null>, number] {
   const block = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const element = block.current;
-    if (element === null) {
-      return;
-    }
-    // Drawn at the new width in the frame that resized, before it paints: left to React's scheduler, the render can come
-    // a frame or more later on a busy PC, which shows the map or the preview a frame at the old width, cut.
-    const observer = new ResizeObserver(([entry]) => flushSync(() => setWidth(entry?.contentRect.width ?? 0)));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  return [block, width];
+  return [block, useMeasured(block, contentWidth, 0)];
 }
 
 /**

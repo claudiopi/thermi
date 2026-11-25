@@ -9,11 +9,13 @@ namespace Thermi.Tests.Acceptance;
 /// <summary>
 /// The fan finder replays real recorded series, including a fan that follows software.
 /// </summary>
-public sealed class FanFinderTests
+public sealed partial class FanFinderTests
 {
     private const string BoardFan = "/lpc/it8689e/0/fan/0";
     private const string SecondFan = "/lpc/it8689e/0/fan/1";
     private const string CpuTotal = "/amdcpu/0/load/0";
+    private const string CpuTemperature = "/amdcpu/0/temperature/2";
+    private const string CpuPower = "/amdcpu/0/power/0";
     private const string GpuFan = "/gpu-nvidia/0/fan/1";
     private const string IntelFan = "/lpc/nct6798d/0/fan/1";
 
@@ -175,6 +177,8 @@ public sealed class FanFinderTests
     [InlineData("rising-a-third", "Found")]
     [InlineData("held-from-a-load", "Found")]
     [InlineData("unanswered", nameof(FanFinderOutcome.NoFanRose))]
+    [InlineData("heated-unanswered", nameof(FanFinderOutcome.NoFanRose))]
+    [InlineData("already-hot", nameof(FanFinderOutcome.LoadDidNotHeatTheCpu))]
     [InlineData("board-jitter", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("gpu-fan-answers", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("two-alike", nameof(FanFinderOutcome.TwoRoseAlike))]
@@ -229,6 +233,8 @@ public sealed class FanFinderTests
         "held-from-a-load" => HeldFromALoad,
 
         "unanswered" => Unanswered,
+        "already-hot" => AlreadyHot(heated: false),
+        "heated-unanswered" => AlreadyHot(heated: true),
 
         // A GPU's fan never cools the CPU, however it answers a load that also warms the GPU.
         "gpu-fan-answers" => Derived(Unanswered, GpuFan, (_, index) => 3 * Value(Software[index], BoardFan)),
@@ -324,48 +330,6 @@ public sealed class FanFinderTests
         {
             var start = LoadStartOf(Intel) - 3;
             return Derived([.. Intel, .. Enumerable.Repeat(Intel[^1], Watched)], IntelFan, (_, at) => Value(Intel[(((at - start) % 10) + 10) % 10], IntelFan));
-        }
-    }
-
-    /// <summary>
-    /// QA round 5, run 2 on the owner's PC, rebuilt from the window's list a second at a time: the CPU fan rose from 545 to
-    /// 739 RPM, 36 % but 194 RPM, and the finder, which then asked for 200 RPM, said no fan rose.
-    /// </summary>
-    private static List<Snapshot> RisingAThird
-    {
-        get
-        {
-            double[] fan =
-            [
-                545, 545, 544, 546, 545, 546, 545, 543, 543, 544, 553, 601, 618, 624, 628, 628, 631, 630, 627, 631, 628, 630, 628, 638, 694, 722,
-                732, 734, 736, 734, 734, 734, 736, 735, 735, 735, 739, 738, 739, 739, 739, 735, 736, 728, 664, 594, 563, 553, 550, 546, 545, 545,
-            ];
-            double[] load = [2, 3, 3, 1, 2, 88, .. Enumerable.Repeat(100.0, 29), 13, 3, 3, 2, 2, 2, 4, 5, 4, 4, 4, 6, 8, 3, 2, 1, 2];
-            return Derived(Derived([.. Enumerable.Repeat(Desktop, fan.Length)], BoardFan, (_, at) => fan[at]), CpuTotal, (_, at) => load[at]);
-        }
-    }
-
-    /// <summary>
-    /// QA round 6, run 1 on the owner's PC, rebuilt from the window's list a second at a time: the CPU fan was still up from
-    /// an earlier load, rising to 748 RPM before this one, held there through it, and fell to 545 RPM 25 s after it, while
-    /// the finder, which then took only a rise, said no fan sped up.
-    /// </summary>
-    private static List<Snapshot> HeldFromALoad
-    {
-        get
-        {
-            double[] fan =
-            [
-                683, 728, 742, 746, 748, 748, 749, 749, 750, 749, 748, 748, 749, 750, 749, 748, 748, 747, 748, 747, 750, 749, 750, 748, 748, 748,
-                748, 749, 748, 748, 748, 748, 748, 748, 750, 752, 751, 750, 748, 748, 749, 751, 748, 748, 750, 750, 753, 752, 749, 750, 749, 752,
-                752, 753, 751, 749, 752, 748, 702, 620, 573, 555, 549, 547, 546, 548, 547, 548, 546, 547, 546, 545, 547, 546, 544,
-            ];
-            double[] load =
-            [
-                9, 4, 7, 7, 6, 85, .. Enumerable.Repeat(100.0, 28), 12, 7, 4, 4, 8, 8, 7, 10, 7, 9, 7, 7, 10, 8, 10, 15, 9, 7, 3, 2, 1, 3, 2, 2, 2,
-                3, 2, 3, 1, 4, 2, 2, 3, 1, 2, 2, 4, 4, 0, 1, 3,
-            ];
-            return Derived(Derived([.. Enumerable.Repeat(Desktop, fan.Length)], BoardFan, (_, at) => fan[at]), CpuTotal, (_, at) => load[at]);
         }
     }
 

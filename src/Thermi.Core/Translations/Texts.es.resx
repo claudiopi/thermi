@@ -1092,6 +1092,9 @@
   <data name="FanFinderOutcome.LoadDidNotReachTheCpu" xml:space="preserve">
     <value>La carga de la CPU no llegó al 80 %, así que los ventiladores no tuvieron a qué responder; vuelve a intentarlo.</value>
   </data>
+  <data name="FanFinderOutcome.LoadDidNotHeatTheCpu" xml:space="preserve">
+    <value>La CPU ya estaba ocupada y caliente, así que la carga no la calentó y ningún ventilador tuvo a qué responder. Cierra lo que esté cargando el PC y vuelve a intentarlo.</value>
+  </data>
   <data name="FanFinderOutcome.ReadingsStopped" xml:space="preserve">
     <value>Las lecturas de los sensores se cortaron durante la búsqueda, así que no se eligió ningún ventilador.</value>
   </data>

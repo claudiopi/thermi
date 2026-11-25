@@ -162,8 +162,35 @@ export async function askOracle(page: Page, state: FakeState): Promise<FakeState
   return shown === undefined ? state : { ...state, settings: shown, worn };
 }
 
-/** The tests of the page: each fails when its fake asked the oracle for a call it lacks. */
-export const test = base.extend<{ oracle: undefined }>({
+const resizeLoop = 'ResizeObserver loop';
+
+/**
+ * The tests of the page: each fails when its fake asked the oracle for a call it lacks, or when a resize the page
+ * answered resized again within its own frame, which the browser reports as a ResizeObserver loop and the window logs.
+ */
+export const test = base.extend<{ oracle: undefined; resizes: undefined }>({
+  resizes: [
+    async ({ page }, use) => {
+      const loops: string[] = [];
+      page.on('console', (message) => {
+        if (message.text().includes(resizeLoop)) {
+          loops.push(message.text());
+        }
+      });
+      await page.addInitScript((marker) => {
+        window.addEventListener('error', (event) => {
+          if (event.message.includes(marker)) {
+            console.error(event.message);
+          }
+        });
+      }, resizeLoop);
+      await use(undefined);
+      if (loops.length > 0) {
+        throw new Error(`A resize resized again within its frame ${loops.length} times: ${loops[0]}`);
+      }
+    },
+    { auto: true },
+  ],
   oracle: [
     async ({}, use, info) => { // eslint-disable-line no-empty-pattern -- Playwright reads what a fixture needs from this pattern, and it needs no other.
       await use(undefined);

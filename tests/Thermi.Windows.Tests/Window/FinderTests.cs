@@ -153,13 +153,15 @@ public sealed class FinderTests : IAsyncDisposable
         Assert.Empty(_loads);
     }
 
-    // The recorded snapshot a given second into a run: from the fourth on, the CPU at full load and, when it answers, the
-    // board's fan three times as fast, so the finder picks it.
+    // The recorded snapshot a given second into a run: from the fourth on, the CPU at full load, warmer and drawing more,
+    // as a load makes it, and, when it answers, the board's fan three times as fast, so the finder picks it.
     private static Snapshot Second(int second, bool answers) =>
         new([.. Recorded.Sensors.Select(sensor => sensor.Id switch
         {
             BoardFan when second > 3 && answers => sensor with { Value = sensor.Value * 3 },
             "/amdcpu/0/load/0" when second > 3 => sensor with { Value = 100 },
+            "/amdcpu/0/temperature/2" when second > 3 => sensor with { Value = sensor.Value + 15 },
+            "/amdcpu/0/power/0" when second > 3 => sensor with { Value = sensor.Value * 2 },
             _ => sensor,
         })]);
 

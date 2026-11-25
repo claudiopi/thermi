@@ -167,7 +167,10 @@ public static class TaskbarRow
         var from = overlays[index].Snapped?.Offset is not null ? lefts[place]
             : place > 0 ? lefts[place - 1] + row[place - 1].Width + gap
             : bar.Left;
-        return End(row, screen, bar) - from - after;
+        var packed = End(row, screen, bar) - from - after;
+
+        // Touching is no overlap: up to where the next one sits without this one, it pushes none, so needs no margin.
+        return place + 1 < row.Count ? Math.Max(packed, Along([.. row.Where(each => each.At != index)], gap)[place] - from) : packed;
     }
 
     private static bool Shared(IReadOnlyList<OverlayConfig> overlays, int index, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown) =>
