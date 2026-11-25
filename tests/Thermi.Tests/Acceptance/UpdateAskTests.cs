@@ -46,4 +46,13 @@ public sealed class UpdateAskTests
     {
         Assert.Equal(asks, UpdateSchedule.MayAsk(last is { } ago ? Now.AddSeconds(-ago) : null, Now));
     }
+
+    // About reads the users' copy with the highest number, the service's newest; nothing else in the folder is one.
+    [Fact]
+    public void AboutReadsTheNewestCopy()
+    {
+        string[] names = ["status-9.json", "status-10.json", "state.json", "status-x.json", "status-3.txt", "adopt-undo.json"];
+
+        Assert.Equal([9L, 10L, null, null, null, null], names.Select(UpdateState.SharedNumber));
+    }
 }
