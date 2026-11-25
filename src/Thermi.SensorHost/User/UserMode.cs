@@ -90,7 +90,7 @@ internal static class UserMode
     {
         var time = environment.Time;
         var build = UpdateBuild.Of(typeof(UserMode).Assembly);
-        var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version, FolderAccess.ForUser(user));
+        var folder = PerUser(InstallFolder.Of(AppContext.BaseDirectory, build.Version, FolderAccess.ForUser(user)));
         using var client = new ManifestClient(time);
         using var updater = folder is null ? null : new Updater(build, folder, client, time, log.Say, target: each => new UserTarget(each, pipe, user));
         var machine = folder is null || updater is null ? null : new MachineInstaller(build, folder, client, UpdateHost.Windows, time, log, updater.Busy);
@@ -102,6 +102,9 @@ internal static class UserMode
         };
         using var done = CancellationTokenSource.CreateLinkedTokenSource(stop);
         Act(updater, log, updates => updates.Started());
+
+        // Windows ends the process right after: the mark is written now, or the end counts as a crash.
+        using var session = environment.SessionEnds?.Invoke(() => Act(updater, log, updates => updates.Stopped()));
         var waits = events.Select(each => Listen(each, new Steering(updater, machine, log), done)).ToList();
         try
         {
@@ -113,7 +116,15 @@ internal static class UserMode
         }
         finally
         {
-            waits.ForEach(wait => wait.Unregister(null));
+            // Each callback under way finishes first, so none cancels what is disposed.
+            foreach (var wait in waits)
+            {
+                using var unregistered = new ManualResetEvent(false);
+                if (wait.Unregister(unregistered))
+                {
+                    unregistered.WaitOne();
+                }
+            }
         }
 
         // A run that ends without the mark counts as a crash, by ADR 0008's rule.
@@ -158,33 +169,62 @@ internal static class UserMode
                 }
                 else if (!done.IsCancellationRequested)
                 {
-                    _ = Task.Run(() => Tell(steering, code, done.Token), CancellationToken.None);
+                    var token = done.Token;
+                    _ = Task.Run(() => TellAsync(steering, code, done, token), CancellationToken.None);
                 }
             },
             null,
             Timeout.Infinite,
             executeOnlyOnce: false);
 
-    private static Task Tell(Steering steering, int code, CancellationToken stop)
+    private static async Task TellAsync(Steering steering, int code, CancellationTokenSource done, CancellationToken stop)
     {
         if (steering.Updater is not { } updater || steering.Machine is not { } machine)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         switch (code)
         {
             case InstallForEveryone.Code:
-                return machine.RunAsync(MachineInstaller.MsiexecAsync, stop);
+                // The service serves now: its clients, the window's included, come back to it once this host is gone.
+                if (await machine.RunAsync(MachineInstaller.MsiexecAsync, stop) == MachineInstallOutcome.Installed)
+                {
+                    End(done);
+                }
+
+                break;
             case UpdateSchedule.CheckCode:
-                return updater.AskedAsync(stop);
+                await updater.AskedAsync(stop);
+                break;
             case UpdateSchedule.RestartCode:
-                return updater.RestartAsync(stop);
+                await updater.RestartAsync(stop);
+                break;
             default:
                 Act(updater, steering.Log, updates => updates.Quiet());
-                return Task.CompletedTask;
+                break;
         }
     }
+
+    private static void End(CancellationTokenSource done)
+    {
+        try
+        {
+            done.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The host ended meanwhile.
+        }
+    }
+
+    // A per-user install's alone: a machine install whose service is missing, started as the user, updates nothing and offers
+    // no install for everyone over itself.
+    private static InstallFolder? PerUser(InstallFolder? folder) =>
+        folder is not null && folder.Top.StartsWith(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            ? folder
+            : null;
 
     // What the updater meets is written to the log and never ends the host.
     private static void Act(Updater? updater, FileLog log, Action<Updater> step)
@@ -215,9 +255,20 @@ internal static class UserMode
     {
         var security = new EventWaitHandleSecurity();
         security.AddAccessRule(new EventWaitHandleAccessRule(user, EventWaitHandleRights.FullControl, AccessControlType.Allow));
+        EventWaitHandle handle;
+        bool made;
+        try
+        {
 #pragma warning disable CA2000 // Returned to the caller, which disposes it; one already there is disposed here.
-        var handle = EventWaitHandleAcl.Create(false, EventResetMode.AutoReset, name, out var made, security);
+            handle = EventWaitHandleAcl.Create(false, EventResetMode.AutoReset, name, out made, security);
 #pragma warning restore CA2000
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+        {
+            // Made first by someone who shut this user out, or not an event at all: taken all the same.
+            return null;
+        }
+
         if (made)
         {
             return handle;

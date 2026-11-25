@@ -1,7 +1,10 @@
 namespace Thermi.Core.Install;
 
-/// <summary>The process behind the user's pipe, as Windows names it: the pipe's owner, its image and its integrity level.</summary>
-public sealed record PipeServer(string Owner, string Image, int Integrity);
+/// <summary>
+/// The process behind the user's pipe, as Windows names it: the pipe's owner, its image and its integrity level, and the
+/// pipe's own integrity label, medium when it has none.
+/// </summary>
+public sealed record PipeServer(string Owner, string Image, int Integrity, int Label);
 
 /// <summary>
 /// The sensors as the user, when the service is not installed (docs/adr/0016-admin-on-demand.md): which pipe the overlay
@@ -9,10 +12,13 @@ public sealed record PipeServer(string Owner, string Image, int Integrity);
 /// </summary>
 public static class UserHost
 {
-    public const string ServicePipe = "thermi-sensors";
+    public const string ServicePipe = Sensors.SnapshotJson.PipeName;
 
     private const string System = "S-1-5-18";
     private const string Administrators = "S-1-5-32-544";
+
+    /// <summary>Windows' medium integrity level, a plain process's, and a pipe's with no label.</summary>
+    public const int Medium = 0x2000;
 
     private static readonly TimeSpan First = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan Longest = TimeSpan.FromMinutes(1);
@@ -31,11 +37,15 @@ public static class UserHost
     /// <summary>
     /// Whether the overlay of <paramref name="user"/>, at <paramref name="ownIntegrity"/>, reads <paramref name="server"/>:
     /// its owner is the user, SYSTEM or administrators, and it runs from the user's install, no lower than the overlay, so
-    /// neither another user nor a sandboxed process of the same user that took the name first is ever read.
+    /// neither another user nor a sandboxed process of the same user that took the name first is ever read. The pipe's own
+    /// label is no lower either: a sandboxed process that made it and left cannot pass on a host that later got its id. An
+    /// integrity that could not be read trusts nothing.
     /// </summary>
     public static bool Trusts(PipeServer server, string user, string installFolder, int ownIntegrity) =>
         (server.Owner is System or Administrators || string.Equals(server.Owner, user, StringComparison.OrdinalIgnoreCase))
+        && ownIntegrity > 0
         && server.Integrity >= ownIntegrity
+        && server.Label >= Math.Min(ownIntegrity, Medium)
         && Inside(server.Image, installFolder);
 
     /// <summary>

@@ -17,7 +17,8 @@ public sealed class MachineInstallTests
     private static readonly byte[] Msi = RandomNumberGenerator.GetBytes(4096);
 
     // The channel, the file it serves and the policy; what msiexec answers; and what the install came to, with the bytes
-    // msiexec got and whether anyone could change them while it ran, no outcome written while a switch holds the state.
+    // msiexec got and whether anyone could change them while it ran, no outcome written while a switch holds the state, and
+    // in a release build none run that thermi's certificate did not sign.
     // Which MSI a manifest offers is Core's, and its tests'.
     [Theory]
     [InlineData("offered", 0, MachineInstallOutcome.Installed, true)]
@@ -26,6 +27,7 @@ public sealed class MachineInstallTests
     [InlineData("no manifest", 0, MachineInstallOutcome.Failed, false)]
     [InlineData("policy off", 0, MachineInstallOutcome.DownloadPage, false)]
     [InlineData("switch held", 0, null, true)]
+    [InlineData("unsigned", 0, MachineInstallOutcome.Failed, false)]
     public async Task InstallForEveryoneRunsOnlyTheCheckedMsi(string channel, int answer, MachineInstallOutcome? outcome, bool ran)
     {
         await using var pc = new UpdatePc();
@@ -41,7 +43,7 @@ public sealed class MachineInstallTests
         var host = new UpdateHost(() => pc.Policy, () => false, _ => { });
         var log = new FileLog(Path.Combine(pc.Top, "thermi-sensors.log"), pc.Clock);
         using var busy = new SemaphoreSlim(1, 1);
-        var install = new MachineInstaller(pc.Build(), pc.Folder(), client, host, pc.Clock, log, busy);
+        var install = new MachineInstaller(pc.Build(catalog: channel == "unsigned"), pc.Folder(), client, host, pc.Clock, log, busy);
         byte[]? seen = null;
         var changed = true;
 

@@ -7,7 +7,8 @@ namespace Thermi.SensorHost.Updates;
 /// <summary>
 /// thermi's folder as updates keep it (docs/adr/0008-updates.md): the launchers at the top, a folder per kept version,
 /// and <c>update\</c> with the service's state, its downloads and what it set aside to delete. Everything the updater
-/// changes is here, and it checks the folder is one only administrators change before each use.
+/// changes is here, and it checks the folder is one only its owners change before each use: administrators for a machine
+/// install, the user too for a per-user one (docs/adr/0016-admin-on-demand.md).
 /// </summary>
 internal sealed class InstallFolder(string top, FolderAccess? access = null)
 {
@@ -39,7 +40,7 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
 
     public string ServiceOf(ReleaseVersion version) => Path.Combine(VersionOf(version), "thermi-sensors.exe");
 
-    /// <summary>Whether the folder and <c>update\</c> are real folders only administrators, SYSTEM and Windows' installer change.</summary>
+    /// <summary>Whether the folder and <c>update\</c> are real folders only its owners, SYSTEM and Windows' installer change.</summary>
     public bool Trusted()
     {
         if (!Directory.Exists(Update))
@@ -51,7 +52,7 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
         return AdminsOnly(top) && AdminsOnly(Update);
     }
 
-    /// <summary>Whether <paramref name="path"/> is a real folder only administrators, SYSTEM and Windows' installer change.</summary>
+    /// <summary>Whether <paramref name="path"/> is a real folder only its owners, SYSTEM and Windows' installer change.</summary>
     public bool AdminsOnly(string path) => _access.AdminsOnly(path);
 
     /// <summary>A new folder in <c>update\</c> named <paramref name="prefix"/> and a part nobody can guess; null when <c>update\</c> is not trusted.</summary>
@@ -70,7 +71,7 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Outside an install folder only administrators change, or with update\ gone: no switch waits on it.
+            // Outside an install folder only its owners change, or with update\ gone: no switch waits on it.
         }
     }
 
@@ -190,8 +191,10 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
             }
         }
 
-        // What a download or an unpack left when the PC lost power or the service was ended midway.
-        foreach (var left in Directory.EnumerateFileSystemEntries(Update, "unpack-*").Concat(Directory.EnumerateFiles(Update, "download-*.zip")))
+        // What a download, an unpack or an install for everyone left when the PC lost power or the host was ended midway; an
+        // install's MSI still held is in use, and stays.
+        foreach (var left in Directory.EnumerateFileSystemEntries(Update, "unpack-*")
+            .Concat(Directory.EnumerateFiles(Update, "download-*.zip")).Concat(Directory.EnumerateFiles(Update, "machine-*.msi")))
         {
             SetAside(left);
         }

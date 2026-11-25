@@ -62,7 +62,7 @@ public sealed class StartWithWindowsTests
     {
         var script = File.ReadAllText(Path.Combine(TestRecordings.RepoRoot(), "scripts", "install.ps1"));
 
-        Assert.Contains($"$runKey = 'HKCU:\\{StartWithWindows.RunKey}'", script, StringComparison.Ordinal);
+        Assert.Contains($"$runKey = 'HKCU:\\{Thermi.Core.Install.RunAtSignIn.Key}'", script, StringComparison.Ordinal);
         Assert.Contains($"Set-ItemProperty $runKey -Name {StartWithWindows.ValueName} -Value \"`\"$overlay`\"\"", script, StringComparison.Ordinal);
         Assert.Contains("if ($firstInstall -or $startsWithWindows) {", script, StringComparison.Ordinal);
         Assert.Contains($"$approvedKey = 'HKCU:\\{StartWithWindows.ApprovedKey}'", script, StringComparison.Ordinal);

@@ -1,6 +1,6 @@
 # 0016. thermi installs and runs without administrator rights; one prompt adds what needs them
 
-**Status**: Proposed
+**Status**: Accepted
 
 ## Context
 
@@ -13,36 +13,40 @@ thermi needs administrator rights today to install (`docs/adr/0003-sensor-servic
 - `thermi-<v>-<cpu>.msi` is per machine, as now.
 - `thermi-<v>-<cpu>-user.msi` is per user, with an UpgradeCode of its own. It installs without a prompt into `%LOCALAPPDATA%\Programs\thermi`, in the same layout: `<v>\`, launchers at the top, `update\`. Its actions run impersonated as `thermi-sensors --adopt --user` and `--remove --user`. It registers no service, no event source and no driver, and writes the user's Run key as `--adopt` finds it.
 
-winget offers both, by its `Scope`. AppLocker's default rules and the `DisableUserInstalls` policy block per-user installs; such PCs use the machine MSI.
+A winget manifest can list both, by its `Scope`, once thermi is submitted there. AppLocker's default rules and the `DisableUserInstalls` policy block per-user installs; such PCs use the machine MSI.
 
 **The sensors as the user.** Without the `thermi-sensors` service, the overlay starts `thermi-sensors --user` from the top launcher.
 
 - It is a hidden process of the user's, with the same host and LibreHardwareMonitor, reading what the user's rights allow.
 - It serves the same lines on the pipe `thermi-sensors-<user SID>`. It creates the pipe as the first instance and rejects remote clients, as ADR 0003's pipe does. It sets the user's SID as the pipe's owner, and an access list that lets only that user, SYSTEM and administrators open it.
-- It runs only while a client is connected and ends 10 s after the last one leaves, writing the Stopped mark first, as the service's stop does; the 10 s let a switch's watchdog read the new host and leave before the overlay comes back to it. A host that has had no client yet waits 30 s for its first. A host running an install or a switch stays until that ends. A run that ends without the mark counts as a crash, by ADR 0008's rule.
+- It runs only while a client is connected and ends 10 s after the last one leaves, writing the Stopped mark first, as the service's stop does; the 10 s let a switch's watchdog read the new host and leave before the overlay comes back to it. A host that has had no client yet waits 30 s for its first. A host running an install or a switch stays until that ends. A run that ends without the mark counts as a crash, by ADR 0008's rule, so the host keeps a hidden top-level window that hears `WM_ENDSESSION` and writes the mark before a sign-out or a restart ends it, as the service does on its shutdown.
 - It logs to `%LOCALAPPDATA%\thermi\thermi-sensors.log`, since only an administrator can register an event source.
 
 The overlay reads the service's pipe whenever the service is installed, and the user's pipe only when the service is not. It trusts the user's pipe only if three things hold:
 
 - its owner is the user's SID, or SYSTEM or administrators, as today;
 - the server process, from `GetNamedPipeServerProcessId`, runs at an integrity level no lower than the overlay's;
-- that process runs from the user's install folder.
+- that process runs from the user's install folder;
+- the pipe's own integrity label is no lower than the overlay's, or medium for an overlay above it, which a sandboxed process that made the pipe and left cannot raise for a host that later got its id.
 
-So neither another user nor a sandboxed process of the same user who takes the name first is ever read. A host that ends is started again at the overlay's next try, 2 s later, and after a host that ended within 10 s of its start the wait doubles, up to a minute, so a host that cannot start never becomes a loop. While `update\switch.lock` is held, the overlay starts no host.
+So neither another user nor a sandboxed process of the same user who takes the name first is ever read. An overlay whose own integrity cannot be read trusts no user's pipe. A host that ends is started again at the overlay's next try, 2 s later, and after a host that ended within 10 s of its start the wait doubles, up to a minute, so a host that cannot start never becomes a loop. While `update\switch.lock` is held, the overlay starts no host.
 
 **One prompt adds the rest.** In a per-user install, "Double-click to fix" on a "–" and the window's fix offer **Install for everyone**. The user's host then does the work:
 
 - It reads the channel's manifest and takes the machine MSI of the version it offers, when that version is the running one or later. Each version's entry lists its machine MSIs' URLs, sizes and SHA-256s.
-- It downloads the MSI into its own folder, checks size and hash, and keeps the file open, shared only for reading, until `msiexec` exits, as ADR 0010 does with the driver's installer.
-- It runs `msiexec.exe /i <msi> ADDDRIVER=1 /passive` without `runas`. The per-machine package asks Windows Installer to elevate, and its UAC prompt names the package's signer, thermi. The overlay or window that asked first calls `AllowSetForegroundWindow` for the host, so the prompt comes to the front rather than flashing on the taskbar.
+- It downloads the MSI into its own folder, checks size and hash, and in a release build that thermi's certificate signed it, as an update's catalog must be, so the manifest's key alone never runs code. It keeps the file open, shared only for reading, until `msiexec` exits, as ADR 0010 does with the driver's installer. A file a cut left there is tidied with the update folder's other leftovers.
+- It holds the updater's lock from start to end, so no check or switch begins meanwhile and ends the host under it.
+- It runs `msiexec.exe /i <msi> ADDDRIVER=1 /passive` without `runas`. The per-machine package asks Windows Installer to elevate, and its UAC prompt names the package's signer, thermi. The window that asked first calls `AllowSetForegroundWindow` for any process, so the prompt comes to the front rather than flashing on the taskbar: the grant must reach `msiexec`, which the host starts and whose id the window cannot know, and it lasts only until the next input, which a process of the user's that could misuse it already has.
 - `/passive` keeps the UI level below the one at which the MSI's `StartOverlay` runs, so no .NET program of thermi's ever starts elevated with the user's environment.
 - A refused prompt (1223), a failed download or a wrong hash changes nothing, and the window says so. A channel turned off, a running version withdrawn, or the policy `Updates` = 0 has no MSI to offer. The fix then opens thermi's download page instead.
 
-The machine MSI's `ADDDRIVER` is a secure property, so it reaches the elevated part when a standard user starts `msiexec` and an administrator consents. Its action runs only on a first install (`NOT Installed AND ADDDRIVER = 1`), which always needs that consent, while a repair sets `Installed`; and only when the driver is missing. A test reads the condition and the secure flag from `Package.wxs`. It starts the `thermi-elevated` service with `install-driver`, so the driver comes through ADR 0010's path, as SYSTEM with the machine's environment, never from the action itself. It returns `ignore`: a driver that fails or needs a restart (3010) leaves thermi installed and writes why to the event log, and the window keeps offering its fix.
+The machine MSI's `ADDDRIVER` is a secure property, so it reaches the elevated part when a standard user starts `msiexec` and an administrator consents. Its action runs only on a first install (`NOT Installed AND ADDDRIVER = 1`), which always needs that consent, while a repair sets `Installed`; and only when the driver is missing. A test reads the condition and the secure flag from `Package.wxs`. It starts the `thermi-elevated` service with `install-driver`, so the driver comes through ADR 0010's path, as SYSTEM with the machine's environment, never from the action itself. It returns `ignore`: a driver that fails or needs a restart (3010) leaves thermi installed and writes why to the event log, and the window keeps offering its fix. When the driver is installed already, as another tool's or a newer one, `install-driver` installs nothing over it and only starts the sensors again.
+
+Once the install worked, the user's host ends, so the overlay and the window, which read it, come back to the service's pipe; the window says the fix worked only once a CPU temperature, power or clock reads there.
 
 **The move to the machine install** happens in this order:
 
-1. The per-user overlay sees the service serve. It writes the user's Run value to the machine's launcher only if the value existed, so a start at sign-in that was turned off stays off. It marks the machine's Active Setup as done in this profile, so Active Setup never turns that start back on.
+1. The per-user overlay sees the service serve, once Windows Installer has finished, so the machine's Active Setup is written. It writes the user's Run value to the machine's launcher only if the value existed, so a start at sign-in that was turned off stays off. It marks the machine's Active Setup as done in this profile, so Active Setup never turns that start back on.
 2. It starts `C:\Program Files\thermi\thermi.exe` and exits once that overlay is up, as ADR 0008's handover does. The per-user host ends 10 s after its last client leaves.
 3. The machine overlay, finding a per-user product of this user, looks it up by the per-user UpgradeCode in the user's unmanaged context only. It removes it with `msiexec /x <product> /qn` once no process runs from the per-user folder. That removal needs no rights. Its `--remove --user` deletes the user's Run value only while it still names the per-user launcher.
 
@@ -54,6 +58,7 @@ The settings, saved styles and log, in `%APPDATA%\thermi` and `%LOCALAPPDATA%\th
 - It honors the machine's policy under `HKLM\SOFTWARE\Policies\thermi`.
 - Its rollout number and its record of failed versions belong to the user, in the user's `update\`.
 - The trusted-folder check becomes "a folder only this user, SYSTEM and administrators write". Anyone who can write it already runs as the user.
+- A machine install whose service is missing starts the user's host too, from Program Files; that host only reads the sensors, and neither updates nor offers to install for everyone.
 
 The per-user switch runs through the watchdog, `thermi-sensors --switch <v> --user`, holding `update\switch.lock`:
 
@@ -64,7 +69,7 @@ The per-user switch runs through the watchdog, `thermi-sensors --switch <v> --us
 
 A cut at any step leaves the launchers on a version that served, and the switch written down is finished or undone at the host's next start, as the service's is. The overlay hands over as it does now.
 
-ADR 0008's codes, the overlay's quiet moment (128) and About's check and restart (129, 130), reach the user's host as named events in the user's session, `Local\thermi-sensors-<user SID>-<code>`. The stop event, `-stop`, is a fourth. Each is created by the host, with an access list for the user alone. A host that finds any of them already there (`ERROR_ALREADY_EXISTS`) does not run and logs why, so a process that made the name first never holds the host's stop. Unlike a pipe, an event carries no data to parse.
+ADR 0008's codes, the overlay's quiet moment (128) and About's check and restart (129, 130), and the window's install for everyone (131), reach the user's host as named events in the user's session, `Local\thermi-sensors-<user SID>-<code>`. The stop event, `-stop`, is a fifth. Each is created by the host, with an access list for the user alone. A host that finds any of them already there (`ERROR_ALREADY_EXISTS`), or that the name's maker shut it out of, does not run and logs why, so a process that made the name first never holds the host's stop. Unlike a pipe, an event carries no data to parse.
 
 ## Rejected
 
@@ -74,7 +79,7 @@ ADR 0008's codes, the overlay's quiet moment (128) and About's check and restart
 - **One dual-purpose MSI** (`Scope="perUserOrMachine"`). Windows Installer keeps the two contexts apart, so an upgrade across them still needs a second install, and the choice moves into a property a person must know.
 - **`thermi.exe` behind `runas` doing the install.** That is the hole ADR 0010 closes.
 - **Reading the sensors in the overlay's process.** LibreHardwareMonitor would sit in the overlay's 48 MB budget and take it down when a device's read hangs (`docs/adr/0015-a-stalled-device-holds-back-none.md`).
-- **A control pipe for the user's host.** It would be a second server that parses bytes, for four signals that carry no data.
+- **A control pipe for the user's host.** It would be a second server that parses bytes, for five signals that carry no data.
 
 ## Consequences
 
@@ -87,4 +92,4 @@ ADR 0008's codes, the overlay's quiet moment (128) and About's check and restart
 
 - `docs/adr/0003-sensor-service.md` says the sensor host runs as a LocalSystem service and that installing needs admin rights once. Instead, it runs as that service in a machine install and as the user's own process in a per-user one, and only the machine install needs admin rights.
 - `docs/adr/0010-driver-and-service-from-the-window.md` says the driver's fix starts `thermi-elevated` through `sc.exe`. Instead, in a per-user install the fix runs the machine MSI, whose action starts the same service. In a machine install it is unchanged. The network rule now also allows the user's host to download the machine MSI.
-- `docs/adr/0008-updates.md` says the service alone updates thermi and its control codes go to the service. Instead, the user's host updates a per-user install by the same rules, and its codes reach it as named events.
+- `docs/adr/0008-updates.md` says the service alone updates thermi and its control codes go to the service. Instead, the user's host updates a per-user install by the same rules, and its codes reach it as named events. Its threat table's stolen manifest key holds for the machine MSI too: in a release build that MSI runs only signed by thermi's certificate.

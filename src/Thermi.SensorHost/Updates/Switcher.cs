@@ -93,7 +93,7 @@ internal sealed class Switcher(
             }
 
             // A pipe another program held tells nothing of the version, which is tried again later rather than failed: the
-            // watchdog saw its owner, or the new service could not make it and wrote so where only administrators write.
+            // watchdog saw its owner, or the new service could not make it and wrote so where only its owners write.
             squatted.Value |= folder.PipeHeld();
             started &= !squatted.Value;
             say(squatted.Value
@@ -180,7 +180,7 @@ internal sealed class Switcher(
         {
             _target.Stop();
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ServiceProcess.TimeoutException)
+        catch (Exception ex) when (ex is InvalidOperationException or System.ServiceProcess.TimeoutException or Win32Exception)
         {
             say($"The service did not stop as thermi went back to {pending.From}: {ex.Message}", EventLogEntryType.Warning);
         }

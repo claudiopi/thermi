@@ -36,13 +36,22 @@ internal interface IDriverInstaller
 
 /// <summary>
 /// What the driver's install reaches: the pinned setup, a new folder only administrators can write, or null, the
-/// download, the installer and the sensor service.
+/// download, the installer, the sensor service, and whether the driver is installed already.
 /// </summary>
 internal sealed record DriverParts(
-    DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services)
+    DriverSetup Setup, Func<string?> Folder, IDriverDownload Download, IDriverInstaller Installer, IServiceManager Services, Func<bool> Present)
 {
+    // Where its setup lists it, as LibreHardwareMonitor finds it.
+    private const string PawnIoKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO";
+
     public static DriverParts Windows(IServiceManager services, ILogger log) =>
-        new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(log), new WindowsInstaller(), services);
+        new(DriverSetup.Pinned, DriverFolder.Prepare, new HttpDownload(log), new WindowsInstaller(), services, Installed);
+
+    private static bool Installed()
+    {
+        using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(PawnIoKey);
+        return key is not null;
+    }
 }
 
 /// <summary>
@@ -91,6 +100,13 @@ internal static class InstallDriver
 
     public static async Task<int> RunAsync(DriverParts parts, TimeProvider time)
     {
+        // One installed already, as another tool's or a newer one, is never installed over: the sensors only start again,
+        // as a per-user install made for everyone asks whatever the driver.
+        if (parts.Present())
+        {
+            return await StartSensors.RestartAsync(parts.Services, time).ConfigureAwait(false);
+        }
+
         if (parts.Folder() is not { } folder)
         {
             return FolderUnsafe;

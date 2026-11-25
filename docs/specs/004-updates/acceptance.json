@@ -137,7 +137,7 @@
     {
       "id": "A20",
       "covers": ["R27", "R28"],
-      "description": "Given the service installed or not, a user's pipe owned by the user, SYSTEM, administrators or another user, a server process inside or outside the user's folder and at a lower integrity, when the overlay picks a pipe, then it reads the service's whenever the service is installed, and the user's only when all three checks pass.",
+      "description": "Given the service installed or not, a user's pipe owned by the user, SYSTEM, administrators or another user, a server process inside or outside the user's folder and at a lower integrity, a pipe labelled lower, and an overlay at medium, high or of an integrity unread, when the overlay picks a pipe, then it reads the service's whenever the service is installed, and the user's only when every check passes.",
       "check": "TheOverlayReadsTheServiceOrTheUsersOwnHost",
       "passes": true
     },
@@ -217,6 +217,27 @@
       "description": "Given a manifest offering the running version, a later one, an earlier one or none, a channel turned off, the running version withdrawn, and MSIs for one processor, when the fix picks the machine MSI, then it takes only that of the version offered, the running one or later, for this processor, and none otherwise, which opens the download page.",
       "check": "TheMachineMsiIsTheOfferedVersionsForThisProcessor",
       "passes": true
+    },
+    {
+      "id": "A32",
+      "covers": ["R28"],
+      "description": "Given a real pipe with no label and one labelled low, as a sandboxed process makes it, when the overlay reads its server, then it reads the server's image and integrity as Windows has them, and the pipe's label as medium and low.",
+      "check": "ThePipesServerIsReadAsWindowsHasIt",
+      "passes": false
+    },
+    {
+      "id": "A33",
+      "covers": ["R30"],
+      "description": "Given the driver installed already, when the elevated mode's install-driver runs, then it downloads and runs nothing, and only starts the sensors again.",
+      "check": "OnlyThePinnedInstallerRunsAndTheSensorsStartAgain",
+      "passes": false
+    },
+    {
+      "id": "A34",
+      "covers": ["R27"],
+      "description": "Given a per-user install whose host serves, when the user signs out or restarts Windows, then the host's run ends with the Stopped mark in update\\state.json, and no crash is counted at the next start.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

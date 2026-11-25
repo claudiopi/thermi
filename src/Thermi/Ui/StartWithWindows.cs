@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Thermi.Core.Install;
 
 namespace Thermi.Ui;
 
@@ -13,18 +14,17 @@ namespace Thermi.Ui;
 /// <param name="exePath">What the value starts at sign-in.</param>
 internal sealed class StartWithWindows(string key, string approvedKey, string exePath)
 {
-    public const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
     public const string ApprovedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 
-    public const string ValueName = "thermi";
+    public const string ValueName = RunAtSignIn.Name;
 
-    public static StartWithWindows Of(string exePath) => new(RunKey, ApprovedKey, exePath);
+    public static StartWithWindows Of(string exePath) => new(RunAtSignIn.Key, ApprovedKey, exePath);
 
     // A value of another path, as a thermi installed elsewhere left, starts nothing that is this one: it shows off.
     public bool On => Written && !TurnedOff;
 
-    private string Value => $"\"{exePath}\"";
+    private string Value => RunAtSignIn.Of(exePath);
 
     private bool Written
     {

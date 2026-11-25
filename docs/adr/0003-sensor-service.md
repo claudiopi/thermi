@@ -1,6 +1,6 @@
 # 0003. The sensor host is a Windows service
 
-**Status**: Accepted
+**Status**: Accepted, amended by `docs/adr/0016-admin-on-demand.md`
 
 ## Context
 

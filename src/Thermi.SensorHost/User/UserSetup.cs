@@ -1,6 +1,7 @@
 using System.Security;
 using System.Security.Principal;
 using Microsoft.Win32;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Install;
 using Thermi.SensorHost.Updates;
@@ -15,8 +16,6 @@ namespace Thermi.SensorHost.User;
 /// </summary>
 internal sealed class UserSetup(InstallFolder folder, string pipe, SecurityIdentifier user) : ISystemSetup
 {
-    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string RunValue = "thermi";
 
     public string? ImagePath(string service)
     {
@@ -60,15 +59,15 @@ internal sealed class UserSetup(InstallFolder folder, string pipe, SecurityIdent
     // The value the window's "Start with Windows" reads and writes, quoted the same way.
     public void StartAtSignIn(string top, bool on)
     {
-        var launcher = $"\"{Path.Combine(top, "thermi.exe")}\"";
-        using var run = Registry.CurrentUser.CreateSubKey(RunKey);
+        var launcher = RunAtSignIn.Of(Path.Combine(top, "thermi.exe"));
+        using var run = Registry.CurrentUser.CreateSubKey(RunAtSignIn.Key);
         if (on)
         {
-            run.SetValue(RunValue, launcher);
+            run.SetValue(RunAtSignIn.Name, launcher);
         }
-        else if (run.GetValue(RunValue) is string value && string.Equals(value, launcher, StringComparison.OrdinalIgnoreCase))
+        else if (run.GetValue(RunAtSignIn.Name) is string value && string.Equals(value, launcher, StringComparison.OrdinalIgnoreCase))
         {
-            run.DeleteValue(RunValue, throwOnMissingValue: false);
+            run.DeleteValue(RunAtSignIn.Name, throwOnMissingValue: false);
         }
     }
 

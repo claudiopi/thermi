@@ -28,18 +28,21 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
     private static readonly TimeSpan InstallWithin = TimeSpan.FromMinutes(10);
 
     /// <summary>
-    /// Installed only once a CPU temperature, power or clock reads, after the sensor service opened the new driver; a
-    /// driver that loads only once Windows restarts says so, since nothing reads before then.
+    /// Installed only once a CPU temperature, power or clock reads, after the sensor service opened the new driver, or after
+    /// a per-user install was made for everyone and the window came back to the service; a driver that loads only once
+    /// Windows restarts says so, since nothing reads before then.
     /// </summary>
     public async Task<DriverInstall> InstallDriver()
     {
         if (SensorPipes.PerUser)
         {
-            return await InstallForEveryoneAsync();
+            // The user's host ends once the install worked, and the window reads the service's pipe instead.
+            if (!await InstallForEveryoneAsync())
+            {
+                return DriverInstall.NotInstalled;
+            }
         }
-
-        var code = await ElevateAsync(Commands.InstallDriver.Verb);
-        if (code is not Commands.InstallDriver.Installed)
+        else if (await ElevateAsync(Commands.InstallDriver.Verb) is var code && code is not Commands.InstallDriver.Installed)
         {
             return code is Commands.InstallDriver.RestartNeeded ? DriverInstall.RestartWindows : DriverInstall.NotInstalled;
         }
@@ -58,7 +61,7 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
 
     // A per-user install has neither the service nor the driver: its host installs thermi for everyone, behind one prompt
     // that names thermi, and the window waits for what it came to (docs/adr/0016-admin-on-demand.md).
-    private async Task<DriverInstall> InstallForEveryoneAsync()
+    private async Task<bool> InstallForEveryoneAsync()
     {
         var asked = time.GetUtcNow();
         try
@@ -70,7 +73,7 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
         catch (InvalidOperationException ex)
         {
             environment.Log.ServiceNotTold(InstallForEveryone.Code, ex.Message);
-            return DriverInstall.NotInstalled;
+            return false;
         }
 
         var start = time.GetTimestamp();
@@ -83,11 +86,11 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
                     WindowLinks.OpenUrl(WindowLinks.Downloads, environment.Log);
                 }
 
-                return done.Outcome == MachineInstallOutcome.Installed ? DriverInstall.Installed : DriverInstall.NotInstalled;
+                return done.Outcome == MachineInstallOutcome.Installed;
             }
         }
 
-        return DriverInstall.NotInstalled;
+        return false;
     }
 
     // The window recovers by seeing the pipe come back, whatever the answer.

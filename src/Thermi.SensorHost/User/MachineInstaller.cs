@@ -3,14 +3,17 @@ using System.Security.Cryptography;
 using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Updates;
+using Thermi.Trust;
 
 namespace Thermi.SensorHost.User;
 
 /// <summary>
 /// "Install for everyone" from a per-user install (docs/adr/0016-admin-on-demand.md): the machine MSI of the version the
-/// channel offers, as its signed manifest names it, downloaded and checked, held so no one swaps it, and run by Windows'
-/// own msiexec without runas, so the one UAC prompt names thermi's signer. What it came to goes in the state the window reads,
-/// each write under the updater's lock, <c>busy</c>, so neither writes over the other's.
+/// channel offers, as its signed manifest names it, downloaded and checked, in a release build signed by thermi's
+/// certificate too, held so no one swaps it, and run by Windows'
+/// own msiexec without runas, so the one UAC prompt names thermi's signer. It holds the updater's lock, <c>busy</c>, from start
+/// to end, so no check or switch begins meanwhile to end the host under it, and neither writes over the other's state; what
+/// it came to goes in the state the window reads.
 /// </summary>
 internal sealed class MachineInstaller(
     UpdateBuild build, InstallFolder folder, ManifestClient client, UpdateHost host, TimeProvider time, FileLog log, SemaphoreSlim busy)
@@ -22,33 +25,48 @@ internal sealed class MachineInstaller(
     /// <summary>Whether an install runs now, which keeps the host alive past its last client.</summary>
     public bool Running => Volatile.Read(ref _running) == 1;
 
-    public async Task RunAsync(Func<string, Task<int>> msiexec, CancellationToken stop)
+    /// <summary>Installs thermi for everyone: what it came to, null when another install runs already.</summary>
+    public async Task<MachineInstallOutcome?> RunAsync(Func<string, Task<int>> msiexec, CancellationToken stop)
     {
         if (Interlocked.Exchange(ref _running, 1) == 1)
         {
-            return;
+            return null;
         }
 
         try
         {
-            await WriteAsync(MachineInstallOutcome.Running, stop);
-            MachineInstallOutcome outcome;
+            await busy.WaitAsync(stop);
             try
             {
-                outcome = await InstallAsync(msiexec, stop);
+                return await InstallHeldAsync(msiexec, stop);
             }
-            catch (Exception ex) when (Failed(ex) || (ex is OperationCanceledException && !stop.IsCancellationRequested))
+            finally
             {
-                log.Say($"thermi could not install for everyone: {ex.Message}", EventLogEntryType.Warning);
-                outcome = MachineInstallOutcome.Failed;
+                busy.Release();
             }
-
-            await WriteAsync(outcome, stop);
         }
         finally
         {
             Volatile.Write(ref _running, 0);
         }
+    }
+
+    private async Task<MachineInstallOutcome> InstallHeldAsync(Func<string, Task<int>> msiexec, CancellationToken stop)
+    {
+        await WriteAsync(MachineInstallOutcome.Running, stop);
+        MachineInstallOutcome outcome;
+        try
+        {
+            outcome = await InstallAsync(msiexec, stop);
+        }
+        catch (Exception ex) when (Failed(ex) || (ex is OperationCanceledException && !stop.IsCancellationRequested))
+        {
+            log.Say($"thermi could not install for everyone: {ex.Message}", EventLogEntryType.Warning);
+            outcome = MachineInstallOutcome.Failed;
+        }
+
+        await WriteAsync(outcome, stop);
+        return outcome;
     }
 
     /// <summary>Windows' msiexec on <paramref name="msi"/>, with the driver, its prompt and progress only: its exit code.</summary>
@@ -102,7 +120,20 @@ internal sealed class MachineInstaller(
         }
         finally
         {
+            Delete(path);
+        }
+    }
+
+    // A file a scanner still holds stays for the folder's tidying, and never turns an install that worked into a failure.
+    private void Delete(string path)
+    {
+        try
+        {
             File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            log.Say($"thermi left {path} for later: {ex.Message}", EventLogEntryType.Information);
         }
     }
 
@@ -153,16 +184,21 @@ internal sealed class MachineInstaller(
             return null;
         }
 
+        // As an update's catalog: in a release build, the manifest's key alone never runs code.
+        if (build.Signers is { Count: > 0 } signers && !Authenticode.SignedBy(path, signers))
+        {
+            log.Say("The machine MSI is not signed by thermi's certificate, so thermi did not run it. Nothing changed.", EventLogEntryType.Error);
+            return null;
+        }
+
         var code = await msiexec(path);
         log.Say($"msiexec installed thermi for everyone with exit code {code}.", EventLogEntryType.Information);
         return code;
     }
 
-    // Between the updater's writes and never under a switch's watchdog; a write that fails is said, and the window, which
-    // waits for it, gives up in time.
+    // Never under a switch's watchdog; a write that fails is said, and the window, which waits for it, gives up in time.
     private async Task WriteAsync(MachineInstallOutcome outcome, CancellationToken stop)
     {
-        await busy.WaitAsync(stop);
         try
         {
             await using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
@@ -177,10 +213,6 @@ internal sealed class MachineInstaller(
         catch (Exception ex) when (Failed(ex))
         {
             log.Say($"thermi could not write that installing for everyone came to {outcome}: {ex.Message}", EventLogEntryType.Warning);
-        }
-        finally
-        {
-            busy.Release();
         }
     }
 }

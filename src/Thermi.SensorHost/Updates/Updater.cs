@@ -381,7 +381,7 @@ internal sealed class Updater(
             return true;
         }
 
-        say($"{folder.Top} is not a folder only administrators change, so thermi does not update.", EventLogEntryType.Error);
+        say($"{folder.Top} is not a folder only its owners change, so thermi does not update.", EventLogEntryType.Error);
         return false;
     }
 

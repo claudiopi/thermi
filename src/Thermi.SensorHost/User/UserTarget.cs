@@ -20,12 +20,18 @@ internal sealed class UserTarget(InstallFolder folder, string pipe, SecurityIden
     // As long as the service manager waits for a service to stop.
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(30);
 
+    // The host this switch started, ended too when it never served, as its pipe cannot name it.
+    private Process? _started;
+
     public string? Argument => Option;
 
-    /// <summary>Tells the host serving the user's pipe to stop, and waits until it is gone, so the new one can make its pipe and events.</summary>
+    /// <summary>
+    /// Tells the host serving the user's pipe, or the one this switch started, to stop, and waits until it is gone, so the
+    /// next one can make its pipe and events; a host of this install that does not stop in time is ended.
+    /// </summary>
     public void Stop()
     {
-        using var host = Serving();
+        using var serving = Serving();
         if (EventWaitHandle.TryOpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent), out var stop))
         {
             using (stop)
@@ -34,10 +40,17 @@ internal sealed class UserTarget(InstallFolder folder, string pipe, SecurityIden
             }
         }
 
-        if (host is not null && !host.WaitForExit(Wait))
+        foreach (var host in (Process?[])[serving, _started])
         {
-            host.Kill();
+            if (host is not null && !host.WaitForExit(Wait))
+            {
+                host.Kill();
+                host.WaitForExit(Wait);
+            }
         }
+
+        _started?.Dispose();
+        _started = null;
     }
 
     public void Point(ReleaseVersion version)
@@ -49,21 +62,37 @@ internal sealed class UserTarget(InstallFolder folder, string pipe, SecurityIden
     {
         var host = new ProcessStartInfo(folder.ServiceOf(version)) { UseShellExecute = false, CreateNoWindow = true };
         host.ArgumentList.Add(Option);
-        using var started = Process.Start(host) ?? throw new Win32Exception($"{host.FileName} did not start.");
+        _started?.Dispose();
+        _started = Process.Start(host) ?? throw new Win32Exception($"{host.FileName} did not start.");
     }
 
     public bool Owns(SecurityIdentifier owner) => owner == user;
 
-    // The host's process, from its pipe; null when none serves it now.
+    // The host's process, from its pipe, when the user owns the pipe and the process runs from this install; null when
+    // none serves it now, or another program took the name, which is never ended.
     private Process? Serving()
     {
         try
         {
             using var client = new NamedPipeClientStream(".", pipe, PipeDirection.In, PipeOptions.None, TokenImpersonationLevel.Identification);
             client.Connect(TimeSpan.FromSeconds(1));
-            return SensorPInvoke.GetNamedPipeServerProcessId(client.SafePipeHandle, out var id) ? Process.GetProcessById((int)id) : null;
+            if (!Owns((SecurityIdentifier)client.GetAccessControl().GetOwner(typeof(SecurityIdentifier))!)
+                || !SensorPInvoke.GetNamedPipeServerProcessId(client.SafePipeHandle, out var id))
+            {
+                return null;
+            }
+
+            var process = Process.GetProcessById((int)id);
+            if (process.MainModule?.FileName.StartsWith(folder.Top + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return process;
+            }
+
+            process.Dispose();
+            return null;
         }
-        catch (Exception ex) when (ex is IOException or TimeoutException or ArgumentException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or TimeoutException or ArgumentException or UnauthorizedAccessException
+            or InvalidOperationException or Win32Exception)
         {
             return null;
         }

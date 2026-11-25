@@ -32,7 +32,7 @@ internal static class Unpacker
         var fresh = folder.Fresh("unpack-");
         if (fresh is null)
         {
-            return new($"{folder.Update} is not a folder only administrators change", ForTheZip: false);
+            return new($"{folder.Update} is not a folder only its owners change", ForTheZip: false);
         }
 
         try

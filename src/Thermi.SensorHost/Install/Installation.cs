@@ -298,7 +298,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
         }
     }
 
-    // Only from a folder of thermi's, in a folder only administrators change: its parent is what it removes from.
+    // Only from a folder of thermi's, in a folder only its owners change: its parent is what it removes from.
     private bool Refuses(string own)
     {
         if (InstallsFrom(own) && SamePath(Path.GetDirectoryName(Full(own)) ?? "", folder.Top) && folder.Trusted())
@@ -306,7 +306,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             return false;
         }
 
-        say($"{own} is not a folder of thermi's in a folder only administrators change, so nothing was changed.");
+        say($"{own} is not a folder of thermi's in a folder only its owners change, so nothing was changed.");
         return true;
     }
 
@@ -328,7 +328,7 @@ internal sealed class Installation(InstallFolder folder, ISystemSetup system, Ti
             return;
         }
 
-        var fresh = folder.Fresh("unpack-") ?? throw new IOException($"{folder.Update} is not a folder only administrators change.");
+        var fresh = folder.Fresh("unpack-") ?? throw new IOException($"{folder.Update} is not a folder only its owners change.");
         foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
         {
             var copy = Path.Combine(fresh, Path.GetRelativePath(from, file));

@@ -12,7 +12,7 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
 | `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys. |
-| `src/Thermi.SensorHost` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor and the one that updates thermi, and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
+| `src/Thermi.SensorHost` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor and the one that updates thermi; the same host as the user's own process in a per-user install, which updates it and installs it for everyone; and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
 | `src/Thermi.Trust` | Windows' own checks both the window's fixes and the updater trust: a folder only administrators change, Authenticode signatures, signed catalogs and a held switch lock. |
 | `src/Thermi.Releases` | `thermi-releases`, the owner's levers on the update channels, which sign each channel's manifest. |
 | `src/Thermi.Installer` | The MSI, built with WiX 5 from a published version. |

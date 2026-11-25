@@ -1,9 +1,7 @@
 using System.Diagnostics;
-using System.ServiceProcess;
 using Microsoft.Win32;
 using Thermi.Commands;
 using Thermi.Core.Install;
-using Thermi.Ui;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.ApplicationInstallationAndServicing;
@@ -24,11 +22,14 @@ internal static class MachineMove
     private static readonly string PerUserTop =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "thermi");
 
-    /// <summary>The machine's launcher, once the service serves from a machine install other than <paramref name="ownTop"/>.</summary>
+    /// <summary>
+    /// The machine's launcher, once the service serves from a machine install other than <paramref name="ownTop"/> and
+    /// Windows Installer has finished it: the MSI starts the service before it writes its Active Setup, which the move marks.
+    /// </summary>
     public static string? MachineLauncher(string ownTop)
     {
         // The registry first: a machine install, or a PC with no service, never asks the service manager each second.
-        if (MachineTop() is not { } top || SamePath(top, ownTop) || !Serves())
+        if (MachineTop() is not { } top || SamePath(top, ownTop) || !Serves() || Installing())
         {
             return null;
         }
@@ -45,11 +46,11 @@ internal static class MachineMove
     /// </summary>
     public static void PointStartAt(string launcher)
     {
-        using (var run = Registry.CurrentUser.OpenSubKey(StartWithWindows.RunKey, writable: true))
+        using (var run = Registry.CurrentUser.OpenSubKey(RunAtSignIn.Key, writable: true))
         {
-            if (run?.GetValue(StartWithWindows.ValueName) is not null)
+            if (run?.GetValue(RunAtSignIn.Name) is not null)
             {
-                run.SetValue(StartWithWindows.ValueName, $"\"{launcher}\"");
+                run.SetValue(RunAtSignIn.Name, RunAtSignIn.Of(launcher));
             }
         }
 
@@ -101,18 +102,26 @@ internal static class MachineMove
         Process.Start(start)?.Dispose();
     }
 
-    private static bool Serves()
+    // Windows Installer's own mutex, held while any install runs; one this user may not open runs all the same.
+    private static bool Installing()
     {
-        using var service = new ServiceController(StartSensors.Service);
         try
         {
-            return service.Status == ServiceControllerStatus.Running;
+            if (!Mutex.TryOpenExisting(@"Global\_MSIExecute", out var running))
+            {
+                return false;
+            }
+
+            running.Dispose();
+            return true;
         }
-        catch (InvalidOperationException)
+        catch (UnauthorizedAccessException)
         {
-            return false;
+            return true;
         }
     }
+
+    private static bool Serves() => new WindowsServices(StartSensors.Service).State() == ServiceRun.Running;
 
     // The folder above the version the service's image path runs from.
     private static string? MachineTop()

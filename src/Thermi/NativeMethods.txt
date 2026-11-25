@@ -232,6 +232,10 @@ PDH_MORE_DATA
 GetLastInputInfo
 // The user's own sensor host, checked by its process (docs/adr/0016-admin-on-demand.md)
 GetNamedPipeServerProcessId
+// The user pipe's own integrity label, which a sandboxed process that made it cannot raise
+GetSecurityInfo
+GetSecurityDescriptorLength
+LocalFree
 OpenProcessToken
 GetTokenInformation
 TOKEN_MANDATORY_LABEL

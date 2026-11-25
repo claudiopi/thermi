@@ -17,11 +17,17 @@ internal sealed record SensorHostEnvironment(
     Func<Action<string, TimeSpan, Exception?>, TimeSpan, ISensorSource> Open, TimeProvider Time, TextWriter Out, TextWriter Error)
 {
     public static SensorHostEnvironment Default { get; } =
-        new((slow, patience) => new LhmSensorSource(TimeProvider.System, slow, patience), TimeProvider.System, Console.Out, Console.Error);
+        new((slow, patience) => new LhmSensorSource(TimeProvider.System, slow, patience), TimeProvider.System, Console.Out, Console.Error)
+        {
+            SessionEnds = User.SessionEnd.Watch,
+        };
 
     public string PipeName { get; init; } = SnapshotJson.PipeName;
 
     /// <summary>Where the user's host logs (docs/adr/0016-admin-on-demand.md).</summary>
+    /// <summary>Tells the user's host the session ends, through a hidden window; none in tests, which show no window.</summary>
+    public Func<Action, IDisposable>? SessionEnds { get; init; }
+
     public string UserLog { get; init; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "thermi", "thermi-sensors.log");
 }

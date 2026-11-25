@@ -71,7 +71,7 @@ internal sealed class ManifestClient : IDisposable
 
         if (!folder.AdminsOnly(folder.Update))
         {
-            return new Download(null, $"{folder.Update} is not a folder only administrators change");
+            return new Download(null, $"{folder.Update} is not a folder only its owners change");
         }
 
         var path = Path.Combine(folder.Update, "download-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)) + ".zip");

@@ -12,22 +12,25 @@ public sealed class AdminOnDemandTests
     private const string Folder = @"users\ana\Programs\thermi";
     private static readonly DateTimeOffset Now = new(2026, 11, 25, 12, 0, 0, TimeSpan.Zero);
 
-    // The service's pipe whenever it is installed; else the user's, trusted by its owner, its server's folder and integrity.
+    // The service's pipe whenever it is installed; else the user's, trusted by its owner, its server's folder and integrity,
+    // and the pipe's own label, read by an overlay at medium, high, or one whose own could not be read.
     [Theory]
-    [InlineData(true, "S-1-5-18", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, true)]
-    [InlineData(false, User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, true)]
-    [InlineData(false, "S-1-5-32-544", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, true)]
-    [InlineData(false, "S-1-5-21-1-2-3-1002", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, false)]
-    [InlineData(false, User, @"users\ana\Downloads\thermi-sensors.exe", 0x2000, false)]
-    [InlineData(false, User, Folder + @"\..\evil\thermi-sensors.exe", 0x2000, false)]
-    [InlineData(false, User, Folder + @"\0.9.1\thermi-sensors.exe", 0x1000, false)]
-    public void TheOverlayReadsTheServiceOrTheUsersOwnHost(bool service, string owner, string image, int integrity, bool trusted)
+    [InlineData(User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, true)]
+    [InlineData("S-1-5-18", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, true)]
+    [InlineData("S-1-5-32-544", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, true)]
+    [InlineData("S-1-5-21-1-2-3-1002", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, false)]
+    [InlineData(User, @"users\ana\Downloads\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, false)]
+    [InlineData(User, Folder + @"\..\evil\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, false)]
+    [InlineData(User, Folder + @"\0.9.1\thermi-sensors.exe", 0x1000, 0x2000, 0x2000, false)]
+    [InlineData(User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x1000, 0x2000, false)]
+    [InlineData(User, Folder + @"\0.9.1\thermi-sensors.exe", 0x3000, 0x2000, 0x3000, true)]
+    [InlineData(User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0, false)]
+    public void TheOverlayReadsTheServiceOrTheUsersOwnHost(string owner, string image, int integrity, int label, int own, bool trusted)
     {
-        var pipe = UserHost.Pipe(service, User);
-        var server = new PipeServer(owner, image, integrity);
+        var server = new PipeServer(owner, image, integrity, label);
 
-        Assert.Equal(service ? "thermi-sensors" : "thermi-sensors-" + User, pipe);
-        Assert.Equal(trusted, service || UserHost.Trusts(server, User, Folder, ownIntegrity: 0x2000));
+        Assert.Equal(("thermi-sensors", "thermi-sensors-" + User), (UserHost.Pipe(true, User), UserHost.Pipe(false, User)));
+        Assert.Equal(trusted, UserHost.Trusts(server, User, Folder, own));
     }
 
     // The wait before the next host: 2 s, doubling to a minute after hosts that ended within 10 s, and none under the lock.

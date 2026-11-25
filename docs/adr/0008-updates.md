@@ -1,6 +1,6 @@
 # 0008. Updates install beside the running version, from a signed manifest
 
-**Status**: Accepted
+**Status**: Accepted, amended by `docs/adr/0016-admin-on-demand.md`
 
 ## Context
 

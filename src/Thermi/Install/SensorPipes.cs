@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Security.Principal;
-using System.ServiceProcess;
 using Microsoft.Extensions.Logging;
 using Thermi.Commands;
 using Thermi.Core.Install;
@@ -11,7 +11,9 @@ using Thermi.Overlay;
 using Thermi.Trust;
 using Thermi.Updates;
 using Windows.Win32;
+using Windows.Win32.Foundation;
 using Windows.Win32.Security;
+using Windows.Win32.Security.Authorization;
 using Windows.Win32.System.Threading;
 
 namespace Thermi.Install;
@@ -26,6 +28,9 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     private static readonly string User = CurrentUser();
 
     private static readonly int Own = OwnIntegrity();
+
+    // SYSTEM_MANDATORY_LABEL_ACE_TYPE, which .NET reads as a custom entry.
+    private const int MandatoryLabel = 0x11;
 
     // The top of a per-user install, where its launchers are; null outside an installed layout, where no host is trusted.
     private static readonly string? Folder = ThermiPaths.Updates is null ? null : Path.GetDirectoryName(ThermiPaths.Launcher);
@@ -145,19 +150,7 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     // A file a cut left behind holds nothing: only the host it would keep from starting finishes or undoes that switch.
     private static bool Locked() => LockFile.Held(Path.Combine(Folder!, "update", "switch.lock"));
 
-    public static bool ServiceInstalled()
-    {
-        using var service = new ServiceController(StartSensors.Service);
-        try
-        {
-            _ = service.Status;
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
-            return false;
-        }
-    }
+    public static bool ServiceInstalled() => new WindowsServices(StartSensors.Service).State() != ServiceRun.Missing;
 
     private static string CurrentUser()
     {
@@ -172,7 +165,7 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     }
 
     // The process that made the pipe, as Windows names it; null when it is gone or hides from this user.
-    private static PipeServer? ServerOf(NamedPipeClientStream pipe, string owner)
+    internal static PipeServer? ServerOf(NamedPipeClientStream pipe, string owner)
     {
         if (!PInvoke.GetNamedPipeServerProcessId(pipe.SafePipeHandle, out var id))
         {
@@ -183,9 +176,37 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
         Span<char> path = stackalloc char[1024];
         var length = (uint)path.Length;
         return !process.IsInvalid && PInvoke.QueryFullProcessImageName(process, PROCESS_NAME_FORMAT.PROCESS_NAME_WIN32, path, ref length)
-            ? new PipeServer(owner, new string(path[..(int)length]), IntegrityOf(process))
+            ? new PipeServer(owner, new string(path[..(int)length]), IntegrityOf(process), LabelOf(pipe.SafePipeHandle))
             : null;
     }
+
+    // The pipe's mandatory label's level, medium when it has none, as Windows reads an object with no label; 0 when it
+    // cannot be read, which no host passes.
+    private static unsafe int LabelOf(SafeHandle pipe)
+    {
+        if (PInvoke.GetSecurityInfo(pipe, SE_OBJECT_TYPE.SE_KERNEL_OBJECT, OBJECT_SECURITY_INFORMATION.LABEL_SECURITY_INFORMATION,
+                out _, out _, out _, out _, out var descriptor) != WIN32_ERROR.ERROR_SUCCESS)
+        {
+            return 0;
+        }
+
+        try
+        {
+            var raw = new RawSecurityDescriptor(
+                new ReadOnlySpan<byte>(descriptor.Value, (int)PInvoke.GetSecurityDescriptorLength(descriptor)).ToArray(), 0);
+            var label = raw.SystemAcl?.OfType<CustomAce>().FirstOrDefault(ace => (int)ace.AceType == MandatoryLabel);
+
+            // Past its mask, the label's SID, whose last part is the level.
+            return label?.GetOpaque() is not { } opaque ? UserHost.Medium : LastPart(new SecurityIdentifier(opaque, sizeof(uint)));
+        }
+        finally
+        {
+            PInvoke.LocalFree((HLOCAL)descriptor.Value);
+        }
+    }
+
+    private static int LastPart(SecurityIdentifier sid) =>
+        int.Parse(sid.Value[(sid.Value.LastIndexOf('-') + 1)..], System.Globalization.CultureInfo.InvariantCulture);
 
     // The mandatory label's last part, as 0x2000 for medium; 0 when it cannot be read, which no host passes.
     private static unsafe int IntegrityOf(SafeHandle process)

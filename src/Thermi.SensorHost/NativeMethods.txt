@@ -20,3 +20,12 @@ INetworkCostManager
 NLM_CONNECTION_COST
 // Which process serves the pipe, checked to be the version on trial
 GetNamedPipeServerProcessId
+// The user's host's hidden window, which Windows tells when the session ends (docs/adr/0016-admin-on-demand.md)
+RegisterClassEx
+CreateWindowEx
+GetModuleHandle
+GetMessage
+TranslateMessage
+DispatchMessage
+DefWindowProc
+WM_ENDSESSION
