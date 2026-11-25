@@ -203,7 +203,9 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
             var label = raw.SystemAcl?.OfType<CustomAce>().FirstOrDefault(ace => (int)ace.AceType == MandatoryLabel);
 
             // Past its mask, the label's SID, whose last part, its last four bytes, is the level.
-            return label?.GetOpaque() is not { } opaque ? UserHost.Medium : (int)BinaryPrimitives.ReadUInt32LittleEndian(opaque.AsSpan(opaque.Length - sizeof(uint)));
+            return label?.GetOpaque() is not { } opaque
+                ? UserHost.Medium
+                : (int)BinaryPrimitives.ReadUInt32LittleEndian(opaque.AsSpan(opaque.Length - sizeof(uint)));
         }
         finally
         {

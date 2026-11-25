@@ -39,7 +39,11 @@ public sealed class InstallDriverTests : IDisposable
     {
         var time = new FakeTimeProvider();
         var setup = new DriverSetup(
-            new Uri("https://example.invalid/setup.exe"), Pinned.Length, Convert.ToHexString(SHA256.HashData(Pinned)), ["-install", "-silent"], new Version(2, 2, 0));
+            new Uri("https://example.invalid/setup.exe"),
+            Pinned.Length,
+            Convert.ToHexString(SHA256.HashData(Pinned)),
+            ["-install", "-silent"],
+            new Version(2, 2, 0));
         var ran = new FakeInstaller(trusted, installer);
         var fresh = Path.Combine(_folder, "fresh");
         var services = new CommandLineTests.FakeServices(states, starts: true);
