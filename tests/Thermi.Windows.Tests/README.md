@@ -1,13 +1,26 @@
 # Thermi.Windows.Tests
 
-Tests that need Windows: real named pipes, the service wrapper, the painter, the settings file shared by two writers, its mutex and its sharing, the monitors, the mouse, the window class, the overlay host and its windows, when they show, the hotkeys and their status, click-through, the menus, the tray icons and their pictures, clicks on a layered window, leaks, the log (`ThermiLogTests`, whose failures that end a process run in this assembly started again, `EndingChild.cs`, before xunit starts), both command lines (`CommandLineTests`) and the settings window's C# side. `tests/Thermi.Tests` shares `TestRecordings.cs`. They use a fake clock wherever time matters, files under their own output (`SettingsFolder.cs`), and never need admin rights. One test alone takes the real clock: `FullLoadTests`, which spins every core with `thermi cpu-load` and checks the pipe still gives a snapshot each second, so it runs after the others, by itself.
+The tests that need Windows: real named pipes, real windows, the painter, the settings file shared by two processes, the tray and the settings window's C# side. Core's behavior is tested in `tests/Thermi.Tests`; these check what Windows itself does to thermi.
 
-`Overlay` holds the tests of `src/Thermi.Windows/Overlay`: the host, the overlay window, a drag and its lost mouse (`OverlayDragTests`, the mouse's messages posted with a cursor of the test's own), the menus' entries (`OverlayMenuTests`), the settings file and the sensor client, over a pipe of the test's own serving the recordings, one of them split across reads. `Sensors` holds those of `src/Thermi.Sensors.Windows`: the pipe server, the service, a device that stalls (`DeviceUpdatesTests`), the series recorder and `thermi-sensors`' command line (`SensorProgramTests`), on sensors that replay a recording, never LibreHardwareMonitor. `OnTop` holds those of `Win32/Topmost.cs`: the overlay ignores what its own process reorders, so `OtherProcess.cs` starts this assembly again on the test's desktop, before xunit starts, to raise a taskbar's window, or another's, over it. `Window` holds those of `src/Thermi.Windows/Ui`, the window's side of the page: its process and beacon, its editor over a broken or locked file and undo past outside changes, the fan finder on a fake load, and "Start with Windows" on registry keys of the test's own, never the user's Run key (`TestFeed.cs` is their fake sensor feed). `Acceptance` holds the tests a spec's acceptance steps name; the shared helpers stay at the root.
+They never touch the user's PC. Windows go on a desktop of the test's own (`TestWindows.OnOwnDesktop`), and every process a test starts goes through `DesktopProcess` to such a desktop, so nothing shows on the user's screen; a repo rule holds both. Files go under the test's output (`SettingsFolder.cs`), tray icons to a fake notification area (`FakeTray.cs`), logs to a `ListLogger`. They need no admin rights and run on a fake clock, except `FullLoadTests`, which loads every core for real and so runs last, alone.
 
-Windows go on a desktop of the test's own (`TestWindows.OnOwnDesktop`), so a locked screen or another app's window never covers them, and nothing shows on the user's screen. Every process a test starts, `thermi.exe`, this assembly again or `pwsh`, starts through `DesktopProcess` on such a desktop too, so a message box or a crash dialog of it never reaches the user; a repo rule holds both, and the run fails when a test shows a window on the user's desktop all the same (`NothingOnTheUsersDesktop`, in `TestWindows.cs`). The tests that run an `OverlayHost` run one at a time (`HostRun.cs`), since its window classes and the handles the leak test counts are the whole process's; they pump its messages on the test's thread, on a recorded snapshot. Its tray icons go to a notification area of the test's own (`FakeTray.cs`), which refuses what Windows refuses, its window's mutex has a name of the test's own, and its log is a `ListLogger`, so nothing reaches the user's tray, settings window or log. With `THERMI_TRAY_PNG` set to a folder, `TrayIconsTests` also saves the icons there on a dark and a light taskbar at 100, 150 and 200 %, to look at them.
+| Folder | What lives there |
+| --- | --- |
+| `Overlay` | The overlay host and its windows, drags, menus, the settings file and the sensor client, over a pipe of the test's own. |
+| `Sensors` | `src/Thermi.Sensors.Windows`: the pipe server, the service, a device that stalls, the command line, on recorded sensors. |
+| `OnTop` | Staying above the taskbar while another process raises its windows. |
+| `Window` | The settings window's process, editor, undo and fan finder. |
+| `Agents` | The rig that runs `thermi-cli`'s commands and an MCP session against a pipe and a settings file of the test's own. |
+| `Updates` | The updater, the watchdog's switch and a machine install, on a folder of the test's own. |
+| `Updates/Catalog` | A release's files and its `thermi.cat`, byte for byte, for the catalog's check. |
+| `Driver` | Installing the driver from the window. |
+| `Processes` | `DesktopProcess`, which starts a process on the test's desktop. |
+| `Acceptance` | The tests a spec's acceptance steps name. |
 
-A test's desktop thread is a single-threaded apartment, as a thread with windows is, whose COM apartment is left and entered again around `SetThreadDesktop`, since it keeps a window of its own on the thread and a thread with a window cannot move.
+Entry points worth knowing:
 
-The Win32 calls only the tests make are generated by CsWin32 from this project's `NativeMethods.txt` into `TestPInvoke`, beside thermi's own `PInvoke`.
+- `TestWindows.cs`: the test's own desktop, and the check that nothing reached the user's.
+- `HostRun.cs`: runs an `OverlayHost` one test at a time, pumping its messages on a recorded snapshot.
+- `TestRecordings.cs`: reads a recording, shared with `tests/Thermi.Tests`.
 
-`scripts/check.ps1` runs them in their own step, outside the coverage of `src/Thermi.Core`, and shows how much of thermi and thermi-sensors they run, without a gate. Coverlet leaves out an assembly this process loads before the tests start, so `EndingChild.cs` keeps thermi's types out of its initializer.
+`scripts/check.ps1` runs them in a step of their own and shows how much of thermi and thermi-sensors they run, with no gate.

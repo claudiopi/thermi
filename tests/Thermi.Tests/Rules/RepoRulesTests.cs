@@ -143,11 +143,15 @@ public sealed partial class RepoRulesTests
         var broken = RepoFiles([".md"])
             .SelectMany(doc => CitedPath().Matches(File.ReadAllText(doc))
                 .Select(match => match.Groups["path"].Value)
-                .Where(cited => !File.Exists(Path.Combine(Root, cited)) && !Directory.Exists(Path.Combine(Root, cited)))
+                .Where(cited => !Exists(Root, cited) && !Exists(Path.GetDirectoryName(doc)!, cited))
                 .Select(cited => $"{Relative(doc)} cites {cited}"));
 
         AssertNone(broken);
     }
+
+    // A path from the repo's root, or, in a project's README, from the project's folder.
+    private static bool Exists(string folder, string cited) =>
+        File.Exists(Path.Combine(folder, cited)) || Directory.Exists(Path.Combine(folder, cited));
 
     [Fact]
     public void NoAbsoluteLocalPaths()

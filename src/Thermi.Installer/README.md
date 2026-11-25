@@ -1,26 +1,18 @@
 # Thermi.Installer
 
-thermi's MSIs, per machine and per user for each version and processor, built with WiX 5 from a version already published:
-`pwsh scripts/updates.ps1 pack --version <v> --out <zip> --msi <msi>` builds the zip and both MSIs.
+thermi's MSIs, built with WiX 5 from a version already published. `pwsh scripts/updates.ps1 pack --version <v> --out <zip> --msi <msi>` builds the zip and both MSIs.
 
-The MSI owns only a bootstrap, the version it ships, in `C:\Program Files\thermi\setup`, the Start menu entry and the
-Active Setup entry that turns on the start at sign-in once in each profile. As SYSTEM it runs that version's
-`thermi-sensors.exe --adopt`, which lays the version down as an update keeps it, and on uninstall `--remove`, which
-takes it off (`docs/adr/0008-updates.md`).
+The MSI owns almost nothing. It carries a bootstrap, the version it ships, and runs that version's `thermi-sensors.exe --adopt`, which lays the version down exactly as an update keeps it; uninstalling runs `--remove` (`docs/adr/0008-updates.md`). So an MSI install and an update can never disagree about the layout.
 
-Built with `ThermiScope=perUser` it is the per-user MSI, `thermi-<v>-<cpu>-user.msi`, with an UpgradeCode of its own
-(`docs/adr/0016-admin-on-demand.md`): it installs without a prompt into `%LOCALAPPDATA%\Programs\thermi`, runs
-`--adopt --user` and `--remove --user` as the user, and has no service, driver or Active Setup; the first install's adopt
-turns on the user's start at sign-in. The machine MSI's secure `ADDDRIVER=1` installs the driver on a first install,
-through the `thermi-elevated` service, ignoring what it answers.
+| | Per machine | Per user (`ThermiScope=perUser`) |
+| --- | --- | --- |
+| File | `thermi-<v>-<cpu>.msi` | `thermi-<v>-<cpu>-user.msi`, an UpgradeCode of its own |
+| Folder | `C:\Program Files\thermi` | `%LOCALAPPDATA%\Programs\thermi` |
+| Prompt | one UAC prompt | none |
+| Sensors | the `thermi-sensors` service, as SYSTEM | the user's own host, without admin rights (`docs/adr/0016-admin-on-demand.md`) |
+| Start at sign-in | Active Setup, once in each profile | the first install's `--adopt --user` |
+| Options | `ADDDRIVER=1` installs the driver; `SENSORSONLY=1` the sensors and `thermi-cli` alone | none |
 
-Both put their folder, where `thermi-cli` is, on `PATH`: the machine's, or the user's own. The machine MSI's secure
-`SENSORSONLY=1` installs the sensors alone (`docs/specs/003-agents/spec.md`): it leaves out the `Overlay` feature, with
-the Start menu entry, the Active Setup entry and the overlay's start after the install, writes `SensorsOnly` under
-`HKLM\SOFTWARE\thermi`, which thermi-cli reads, and installs the driver as `ADDDRIVER=1` does. An upgrade reads that value
-back, as features are never migrated, and `SENSORSONLY=0` installs the overlay over it.
+Both put `thermi-cli` on `PATH`. Every program they run goes through WiX's util extension, so no console window shows, and the overlay after an install by hand starts unelevated through Explorer.
 
-Every program both run goes through WiX's util extension, `WixToolset.Util.wixext`, from its DLL native to the package's
-processor: `WixQuietExec`, which shows no console window, and for the overlay after an install by hand
-`WixUnelevatedShellExec`, which has Explorer start it as the person, unelevated even from an elevated console. With no
-shell running it falls back to the client's token, which thermi.exe refuses when it is elevated.
+`Package.wxs` is the package; `Thermi.Installer.wixproj` builds it.

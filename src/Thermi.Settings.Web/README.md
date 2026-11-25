@@ -1,25 +1,45 @@
 # Thermi.Settings.Web
 
-The settings window's page: React with strict TypeScript, built by Vite into `dist`, which the window hosts in WebView2 (`docs/adr/0007-settings-window-in-webview2-and-react.md`). The page holds no logic of its own and loads nothing from the network; its Content Security Policy in `index.html` allows only its own files, and for styles only the empty style elements Fluent fills through the CSS object model.
+The settings window's page, in React and Fluent UI with strict TypeScript. The window hosts it in WebView2 (`docs/adr/0007-settings-window-in-webview2-and-react.md`), so it looks and works the same on any PC, and Vite builds it into `dist`, which `thermi.exe` embeds.
 
-- `src/Thermi.Settings.Web/src/main.tsx` mounts the page.
-- `src/Thermi.Settings.Web/src/kit` is the kit: thin wrappers over Fluent UI React v9 with the design prototype's look (Windows 11's spacing, radii, Mica and layer surfaces, light, dark and forced colors, nothing moving under reduced motion). It is the only folder that imports Fluent, so replacing Fluent touches only the kit.
-- `src/Thermi.Settings.Web/src/texts` takes the texts the bridge gives, by their `Enum.Member` keys.
-- `src/Thermi.Settings.Web/src/overlay/Preview.tsx` shows the pictures C# paints, the overlay's live preview and each look's tile, one of their pixels on each of the screen's (`pixels.ts`), so they are never resampled; the page draws no overlay of its own.
-- `src/Thermi.Settings.Web/src/app/useInputKind.ts` marks whether the keys or the pointer were used last, so a row the page focuses itself shows its ring only after a key.
-- `src/Thermi.Settings.Web/tests` holds the Playwright tests, which run against the built page served by `vite preview`, in the Edge that Windows ships, so no browser is downloaded. Each test's title is one PascalCase word, like a .NET test's name, so a spec's acceptance step can name it; `RepoRulesTests` reads the titles from the `*.spec.ts` files. `focusContract.ts` is the design prototype's focus contract as one table, and axe checks the page with `pageChecks.ts`. The fake of the C# side, `fakeBridge.ts` and `fakes`, shows rough views of its own but decides no edit: `oracle.ts` answers each edit, undo and saved look from `oracle/edits.json`, the real bridge's answers, which `pwsh scripts/oracle.ps1` writes; `fakes/fakePictures.ts` draws rough pictures of the overlays and looks in SVG, only so the preview changes as the settings do. `vite preview` serves the page on port 4173, or on `THERMI_WEB_PORT` when set, so two worktrees can check at once (`playwright.config.ts`).
+The page holds no logic of its own. It asks C# what to show and hands every change back through one typed bridge, whose TypeScript the build writes from Core. It loads nothing from the network: its Content Security Policy in `index.html` allows only its own files.
 
-ESLint (`eslint.config.js`) forbids importing Fluent outside the kit, and any text in JSX, between tags or in the attributes a person or Narrator reads: every text comes from the translations.
+| Folder | What lives there |
+| --- | --- |
+| `src` | `main.tsx`, which mounts the page. |
+| `src/app` | The shell: its panes, the title row, dialogs, keyboard shortcuts and focus. |
+| `src/bridge` | The calls to C#, and the generated types. |
+| `src/overlay` | An overlay's page: its preview, items and appearance. |
+| `src/item` | One item's page: sensor, thresholds, chart, graph. |
+| `src/list` | The list of overlays and items, its rows and their menus. |
+| `src/catalog` | The sensor catalog and its search. |
+| `src/chart` | An item's chart. |
+| `src/settings` | thermi's own settings and its hotkeys. |
+| `src/status` | The status bars, the page for a broken settings file, and what is new. |
+| `src/texts` | The translated texts the bridge gives. |
+| `src/kit` | Thin wrappers over Fluent UI with Windows 11's look. The only folder that imports Fluent. |
+| `src/kit/controls` | The kit's controls. |
+| `src/kit/surfaces` | The kit's surfaces: cards, dialogs, menus, panels, toasts, tooltips. |
+| `src/kit/theme` | The theme: light, dark and high contrast. |
+| `tests` | The Playwright tests, with axe, against the built page in the Edge Windows ships. |
+| `tests/fakes` | The fake C# side. It decides no edit: `tests/oracle.ts` answers from the real bridge's recorded answers. |
 
-TypeScript is 6.0, the last version with the JavaScript API that typescript-eslint parses with; TypeScript 7 has none yet.
+Entry points worth knowing:
 
-Every version in `package.json` is exact and `package-lock.json` is committed. `.npmrc` takes packages only from the npm registry and never runs their install scripts. Node 22.12 or later:
+- `src/main.tsx` mounts the page.
+- `src/bridge` is all the page may ask of C#.
+- `tests/oracle.ts` and `tests/oracle/edits.json`: the real bridge's answers, written by `pwsh scripts/oracle.ps1`.
 
-- `npm ci --prefix src/Thermi.Settings.Web`: install what the lockfile says.
-- `npm run build --prefix src/Thermi.Settings.Web`: type-check and build into `dist`.
-- `npm run lint --prefix src/Thermi.Settings.Web`: the lint rules above, with no warning allowed.
-- `npm run typecheck --prefix src/Thermi.Settings.Web`: type-check the page and its tests.
-- `npm run test:e2e --prefix src/Thermi.Settings.Web`: run the Playwright tests against the last build.
-- `npm run test:unit --prefix src/Thermi.Settings.Web`: run the Vitest unit tests, `*.test.ts` beside the logic in `src`, which the test-count ratchet counts too.
-- `npm run deadcode --prefix src/Thermi.Settings.Web`: knip reports files, exports and packages nothing uses (`knip.jsonc`).
-- `npm run mutation --prefix src/Thermi.Settings.Web`: StrykerJS mutates the page's pure logic, the modules `stryker.config.json` lists, and runs the unit tests against each mutant; it fails under 78 %, as Core's does, and scored 88.53 % on 2026-11-25. It leaves out static mutants, the tables of constant data such as the palettes and presets, which run once as a module loads: a test could only copy them, and each color added to a table would lower the score with no logic changed. Components and hooks are left to the page's tests. The report goes to `TestResults/mutation-web`.
+ESLint forbids importing Fluent outside the kit, and any text in JSX: every text comes from the translations. Each Playwright test's title is one PascalCase word, so a spec's acceptance step can name it.
+
+Every version in `package.json` is exact, `package-lock.json` is committed, and `.npmrc` never runs install scripts. With Node 22.12 or later, each `npm run <script> --prefix src/Thermi.Settings.Web`:
+
+| Script | Does |
+| --- | --- |
+| `build` | Type-checks and builds into `dist`. |
+| `lint` | ESLint, no warning allowed. |
+| `typecheck` | Type-checks the page and its tests. |
+| `test:unit` | Vitest, the `*.test.ts` files beside the logic. |
+| `test:e2e` | Playwright, against the last build, on port 4173 or `THERMI_WEB_PORT`. |
+| `deadcode` | knip: files, exports and packages nothing uses. |
+| `mutation` | StrykerJS on the page's pure logic; fails under 78 %. |

@@ -59,7 +59,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Code lives in folders by topic, at most 12 C# files directly in any folder, and a namespace follows its folder. | `RepoRulesTests`, IDE0130 |
 | `Thermi.Core` depends on nothing, Windows included. | its target framework, `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
-| Every project has a `README.md` saying what lives there, beyond its title. | `RepoRulesTests` |
+| Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | `Thermi.Core` keeps 90 % line and branch coverage. | `scripts/check.ps1` |
 | A new field of the settings goes into `src/Thermi.Core/Editing/ConfigFields.cs`, or undo cannot take it back. | `UndoRulesTests` |
 | Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
