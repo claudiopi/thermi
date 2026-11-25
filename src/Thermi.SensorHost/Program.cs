@@ -41,7 +41,11 @@ internal static class Program
 
         using var events = new EventLog("Application") { Source = SensorService.Name };
         var service = request is not (SensorServe { Console: true } or SensorDump);
-        using var source = Open(environment, service ? said => SensorService.Say(events, said, EventLogEntryType.Warning) : environment.Error.WriteLine);
+        // A single dump is all it reads, so it waits for every device, however slow: one it did not wait for would be missing.
+        using var source = Open(
+            environment,
+            service ? said => SensorService.Say(events, said, EventLogEntryType.Warning) : environment.Error.WriteLine,
+            request is SensorDump { Seconds: null } ? Timeout.InfiniteTimeSpan : DeviceUpdates.Patience);
         if (request is SensorDump dump)
         {
             await DumpAsync(source, dump, environment.Time);
@@ -93,8 +97,8 @@ internal static class Program
         await SeriesRecorder.RecordAsync(source.ReadAsync, writer, seconds, time, CancellationToken.None);
     }
 
-    private static ISensorSource Open(SensorHostEnvironment environment, Action<string> say) =>
-        environment.Open((device, took, failed) => say(Slow(device, took, failed)));
+    private static ISensorSource Open(SensorHostEnvironment environment, Action<string> say, TimeSpan patience) =>
+        environment.Open((device, took, failed) => say(Slow(device, took, failed)), patience);
 
     // Another program holding the board's bus, as a fan controller, is the usual cause; the log tells it from a driver that hangs.
     private static string Slow(string device, TimeSpan took, Exception? failed) =>

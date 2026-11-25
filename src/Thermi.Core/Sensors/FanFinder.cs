@@ -229,7 +229,8 @@ public sealed class FanFinder
         }
     }
 
-    // The last 3 s of readings decide, though the last came a few seconds before the watch ended.
+    // The last 3 s of readings decide, though the last came a few seconds before the watch ended; with none picked, two
+    // that rose alike at any time since the load started are told apart from none that rose.
     private FanFinderResult Judge(long loadAt, long loadEndedAt)
     {
         if (Leader(loadAt, _readAt) is { } leader)
@@ -242,24 +243,39 @@ public sealed class FanFinder
             .Select(sample => sample.Load)
             .OfType<double>()
             .ToList();
+        var peaks = Peaks(loadAt, _readAt);
+        var best = peaks.MaxBy(peak => peak.Rpm);
+        var alike = best is not null && Rose(best) && peaks.Any(other => other != best && other.Rpm * 2 > best.Rpm);
         return _readingsStopped ? new FanFinderResult(FanFinderOutcome.ReadingsStopped)
             : loads.Count == 0 || loads.Average() < MinLoad ? new FanFinderResult(FanFinderOutcome.LoadDidNotReachTheCpu)
-            : Answers(loadAt, _readAt).Any(Rose) ? new FanFinderResult(FanFinderOutcome.TwoRoseAlike)
+            : alike ? new FanFinderResult(FanFinderOutcome.TwoRoseAlike)
             : new FanFinderResult(FanFinderOutcome.NoFanRose);
     }
 
-    // The fan that answered enough, and by at least twice as many RPM as any other.
+    // The fan that answers enough now, and by at least twice as many RPM as any other answered at any time since the load
+    // started: two that rose alike stay alike however unlike they fall once it ends.
     private string? Leader(long loadAt, long now)
     {
-        var answers = Answers(loadAt, now);
-        var best = answers.MaxBy(answer => answer.Rpm);
-        return best is not null && Rose(best) && answers.All(other => other == best || other.Rpm * 2 <= best.Rpm) ? best.Fan : null;
+        var best = Answers(loadAt, now).MaxBy(answer => answer.Rpm);
+        return best is not null && Rose(best) && Peaks(loadAt, now).All(other => other.Fan == best.Fan || other.Rpm * 2 <= best.Rpm) ? best.Fan : null;
     }
+
+    private List<Rise> Peaks(long loadAt, long now) =>
+        [
+            .. _samples.Where(sample => sample.At <= now && Since(loadAt, sample.At) >= Span)
+                .Select(sample => sample.At)
+                .Append(now)
+                .SelectMany(at => Answers(loadAt, at))
+                .GroupBy(answer => answer.Fan, StringComparer.Ordinal)
+                .Select(answers => answers.MaxBy(answer => answer.Rpm)!),
+        ];
 
     // Once the load has ended, a fan that falls answers it as one that rises does: one already up from an earlier load
     // holds its speed through this one and falls only after it.
     private List<Rise> Answers(long loadAt, long now) =>
-        _loadEndedAt is null ? Rises(loadAt, now) : [.. Rises(loadAt, now).Select(rise => rise with { Rpm = Math.Abs(rise.Rpm) })];
+        _loadEndedAt is { } ended && ended <= now
+            ? [.. Rises(loadAt, now).Select(rise => rise with { Rpm = Math.Abs(rise.Rpm) })]
+            : Rises(loadAt, now);
 
     private static bool Rose(Rise rise) => rise.Rpm >= MinRise && rise.Rpm >= rise.Before * MinRiseShare;
 

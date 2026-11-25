@@ -233,7 +233,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it, one where no fan answers, one where the board's fan only jitters at idle, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, every fan falling back once its recording ends, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it, one where no fan answers, one where the board's fan only jitters at idle, two fans alike that fall back alike or apart once the load ends, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -1648,7 +1648,7 @@
       "covers": [
         "R198"
       ],
-      "description": "Given three devices, the second of which blocks its update for 5 s from its second read on, when the service reads them each second, then the other two are read every second, the blocked one keeps its last values for up to 3 s and then reads as missing, it is never started again while it runs, and once it returns it is said to be slow, once, with how long it took, and read again.",
+      "description": "Given three devices, the second of which blocks its update for 5 s from its second read on, when the service reads them each second, then the other two are read every second, the blocked one keeps its last values for up to 3 s from when its read came due and then reads as missing, it is never started again while it runs, and once it returns it is said to be slow, once, with how long it took, and read again.",
       "check": "ADeviceThatBlocksHoldsBackNoneOfTheOthers",
       "passes": true
     },
@@ -1657,7 +1657,7 @@
       "covers": [
         "R198"
       ],
-      "description": "Given a device that stalls 1.5 s and then fails at once, one that fails once, and one that never reads, when the service reads them each second, then the first two keep their last values throughout, the failure is said with how it failed, and the one that never read is left out without a word.",
+      "description": "Given a device that stalls 1.5 s and then fails at once, one that fails once, one that never reads, and a drive read every 5 s whose second read stalls and fails and whose third fails, when the service reads them each second, then the first two keep their last values throughout, the drive keeps its values between its reads and for 3 s from when its failed read came due, then reads as missing, each failure is said with how it failed at most once a minute, and the one that never read is left out without a word.",
       "check": "ADeviceThatStallsOrFailsKeepsItsLastValuesForThreeSeconds",
       "passes": true
     },
@@ -1667,7 +1667,7 @@
         "R30",
         "R143"
       ],
-      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; and on a taskbar nearly full, a move onto it without room for the overlay at its size is refused, changing nothing, and one shown again there squeezes none, the one before it held back toward the start only while it shows.",
+      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; and on a taskbar nearly full, a move onto it without room for the overlay at its size is refused as having no room on the taskbar, changing nothing, and one shown again there squeezes none, the one before it held back toward the start only while it shows.",
       "check": "AnOverlayMovesOnlyWhenThePersonMovesIt",
       "passes": true
     },

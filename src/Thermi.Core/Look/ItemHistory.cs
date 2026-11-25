@@ -137,9 +137,9 @@ public sealed class ItemHistory(TimeProvider time)
 
     /// <summary>
     /// What the window is sent, as it opens and after a reset: the ten minutes of what every item warns by, its value's last minute and
-    /// its minimum, maximum and average, ending now; null when no item has any, where the window starts empty.
+    /// its minimum, maximum and average, ending now, for each item that has any; an item left out has none.
     /// </summary>
-    public History? Sent(ThermiConfig config)
+    public History Sent(ThermiConfig config)
     {
         var now = time.GetTimestamp();
         var items = new List<Messages.ItemHistory>();
@@ -157,16 +157,22 @@ public sealed class ItemHistory(TimeProvider time)
             }
         }
 
-        return items.Count == 0 ? null : new History(items);
+        return new History(items);
     }
 
     /// <summary>
     /// Takes what the overlay sent: each item's minimum, maximum and average are the overlay's from here on, none after its
-    /// reset, and its value's last minute and the ten of what it warns by fill the seconds this history did not read, so smoothing and
-    /// the chart start where they are.
+    /// reset or where it sent none of the item, and its value's last minute and the ten of what it warns by fill the seconds
+    /// this history did not read, so smoothing and the chart start where they are.
     /// </summary>
     public void Take(History history)
     {
+        var sentIds = history.Items.Select(sent => sent.ItemId).ToHashSet(StringComparer.Ordinal);
+        foreach (var id in _stats.Keys.Where(id => !sentIds.Contains(id)).ToList())
+        {
+            _stats.Remove(id);
+        }
+
         foreach (var sent in history.Items)
         {
             _values.Seed(sent.ItemId, sent.Values, sent.Newest);

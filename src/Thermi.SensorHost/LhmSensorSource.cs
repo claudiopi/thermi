@@ -6,10 +6,10 @@ namespace Thermi.SensorHost;
 /// <summary>
 /// The only class that talks to LibreHardwareMonitor. Drives are updated every <see cref="StorageEvery"/> and send their
 /// last values between: each of their updates reads SMART and opens every volume, about 3 ms of CPU and a round of disk
-/// requests, for values that change slowly. A device whose update stalls or fails holds back none of the others
-/// (<see cref="DeviceUpdates"/>), and <c>slow</c> is told its name, how long it took and how it failed.
+/// requests, for values that change slowly. A device whose update stalls past <c>patience</c> or fails holds back none
+/// of the others (<see cref="DeviceUpdates"/>), and <c>slow</c> is told its name, how long it took and how it failed.
 /// </summary>
-internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan, Exception?> slow) : ISensorSource
+internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan, Exception?> slow, TimeSpan patience) : ISensorSource
 {
     public static readonly TimeSpan StorageEvery = TimeSpan.FromSeconds(5);
 
@@ -32,7 +32,8 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
     private readonly ReadPace _reads = new(time, TimeSpan.Zero);
     private readonly ReadPace _drives = new(time, StorageEvery);
     private readonly ReadPace _rescans = new(time, RescanEvery);
-    private readonly DeviceUpdates _updates = new(time, slow, SensorPipeServer.End);
+    private readonly DeviceUpdates _updates = new(time, slow, SensorPipeServer.End, patience);
+    private readonly UpdateThreads _threads = new();
     private bool _open;
 
     /// <summary>
@@ -68,7 +69,7 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
                 [.. devices.Select(each => new DeviceUpdate(
                     each.Device.Identifier.ToString(),
                     each.Device.Name,
-                    () => Task.Run(each.Device.Update, CancellationToken.None),
+                    () => _threads.Run(each.Device.Update),
                     Due: each.Pace == _reads || drivesDue))],
                 stop);
             var sensors = new List<RawSensor>();
@@ -100,6 +101,7 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
         }
         finally
         {
+            _threads.Dispose();
             _gate.Release();
             _gate.Dispose();
         }

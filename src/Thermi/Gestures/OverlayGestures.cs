@@ -82,7 +82,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
             : carried is { } pill ? (on.Pill, () => PillPicture(pill.Item, painted))
             : (on.Pill, (Func<Bitmap>?)null);
         var start = new DragStart(held, carried, box, at, painted.Size, painted.Scale, picture);
-        Drag = new DesktopDrag(index, settings, start, screens, hwnd);
+        Drag = new DesktopDrag(index, settings, start, screens, hwnd, actions.Settle);
         _pressed = actions.Time.GetTimestamp();
         _escape = PInvoke.RegisterHotKey(hwnd, (int)EscapeKey, HOT_KEY_MODIFIERS.MOD_NOREPEAT, (uint)VIRTUAL_KEY.VK_ESCAPE);
         if (held == Held.Pill)
@@ -132,7 +132,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         }
 
         var target = Drag is null or { Resizes: true } or { Refused: true } ? default : Target(actions.Cursor(), dragged);
-        var moved = Drag?.Moved(dragged, actions.Shown(), target.Onto is not null) == true;
+        var moved = Drag?.Moved(dragged, target.Onto is not null) == true;
         // The overlay a drop would join marks where, which it paints.
         var previewed = actions.Preview.Over(target);
         if (previewed || moved)
@@ -145,7 +145,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     public void Release(Press press, DragDistance distance)
     {
         var cursor = actions.Cursor();
-        Drag?.Release(press, cursor, distance, Target(cursor, Drag.Dropped), (actions.Gestures, actions.Settle));
+        Drag?.Release(press, cursor, distance, Target(cursor, Drag.Dropped), actions.Gestures);
         Let();
     }
 
