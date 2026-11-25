@@ -88,6 +88,7 @@ public sealed class AgentPipeTests : IDisposable
             var ended = await Task.WhenAll(watching).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
             Assert.Equal([0, 0, 0], ended);
             watches.ForEach(watch => watch.Dispose());
+            idle.ForEach(commands => commands.Dispose());
         }
         finally
         {

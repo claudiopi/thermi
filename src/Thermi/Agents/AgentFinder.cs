@@ -65,7 +65,7 @@ internal sealed partial class AgentCommands
                 : new AgentReply(AgentExit.Done, AgentJson.Write(answer));
         }
 
-        var used = await WriteAsync(config => ItemEdits.UseCpuFan(config, 0, snapshot, found));
+        var used = await OneAtATimeAsync(() => WriteAsync(config => ItemEdits.UseCpuFan(config, 0, snapshot, found)));
         return used.Exit == AgentExit.Done ? used with { Json = AgentJson.Write(answer with { Used = true }) } : used;
     }
 }

@@ -63,6 +63,8 @@ public sealed class AgentReadTests
         Assert.Equal(("192.168.1.2", null, null), (address.Text, address.Min, address.Average));
         var missing = Assert.Single(AgentReads.Read([later], config, [dropped], earlier: snapshot).Values);
         Assert.Equal((null, NoValue.ReadsNothing), (missing.Value, missing.Why));
+        var gone = Assert.Single(AgentReads.Read([networked, later], config, [dropped]).Values);
+        Assert.Equal((null, 1), (gone.Value, gone.Samples));
         Assert.Equal([dropped], AgentReads.Read([later], config, [dropped]).Unknown);
     }
 }

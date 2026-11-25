@@ -26,10 +26,15 @@ internal sealed record AgentReply(AgentExit Exit, string? Json = null, string? E
 /// a connection of its own and the settings from the file. Edits are kept in <see cref="History"/> for the MCP server's
 /// undo; a command line process forgets them as it exits.
 /// </summary>
-internal sealed partial class AgentCommands(AgentEnvironment environment, TimeProvider time)
+internal sealed partial class AgentCommands(AgentEnvironment environment, TimeProvider time) : IDisposable
 {
+    // An MCP client may call tools at once; the changes go one at a time, so each is its own step and History stays whole.
+    private readonly SemaphoreSlim _changing = new(1, 1);
+
     // Each agent edit is a step of its own, however soon the next comes: an undo takes back one call.
     public UndoHistory History { get; } = new();
+
+    public void Dispose() => _changing.Dispose();
 
     public Task<AgentReply> RunAsync(AgentRequest request, CancellationToken stop) => request.Verb switch
     {
@@ -40,8 +45,8 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
         AgentVerb.Monitors =>
             Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
         AgentVerb.Looks => Task.FromResult(Looks()),
-        AgentVerb.Edit => EditAsync(request.Text ?? "", stop),
-        AgentVerb.Look => LookAsync(request),
+        AgentVerb.Edit => OneAtATimeAsync(() => EditAsync(request.Text ?? "", stop)),
+        AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request)),
         AgentVerb.FindCpuFan => FindCpuFanAsync(request.Switch == true, stop),
         AgentVerb.StartWithWindows => Task.FromResult(StartWithWindows(request.Switch)),
         AgentVerb.Watch or AgentVerb.Mcp => throw new ArgumentException($"{request.Verb} is served, not answered.", nameof(request)),

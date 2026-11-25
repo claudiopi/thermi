@@ -24,7 +24,7 @@ internal sealed class McpSession(McpClient client, CancellationToken stop)
         using var serverIn = new AnonymousPipeClientStream(PipeDirection.In, toServer.ClientSafePipeHandle);
         using var fromServer = new AnonymousPipeServerStream(PipeDirection.In);
         using var serverOut = new AnonymousPipeClientStream(PipeDirection.Out, fromServer.ClientSafePipeHandle);
-        var commands = new AgentCommands(rig.Environment, rig.Folder.Clock);
+        using var commands = new AgentCommands(rig.Environment, rig.Folder.Clock);
         var served = McpTools.ServeAsync(commands, serverIn, serverOut, NullLoggerFactory.Instance, stop.Token);
         var ticking = Tick(rig, stop.Token);
         try

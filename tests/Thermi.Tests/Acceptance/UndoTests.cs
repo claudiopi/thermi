@@ -62,12 +62,17 @@ public sealed class UndoTests
             states.Add(Done(history, states[^1], edit));
         }
 
+        // An undo and a redo never written are put back, so the next one takes the same step.
+        history.Undo(states[^1]);
+        history.CancelUndo();
         var undone = new List<UndoResult>();
         while (history.CanUndo)
         {
             undone.Add(history.Undo(undone.Count == 0 ? states[^1] : undone[^1].Config)!);
         }
 
+        history.Redo(undone[^1].Config);
+        history.CancelRedo();
         var redone = new List<UndoResult>();
         while (history.CanRedo)
         {

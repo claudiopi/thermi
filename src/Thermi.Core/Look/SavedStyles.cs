@@ -64,7 +64,16 @@ public sealed class SavedStyles(string folder)
         File.WriteAllText(path, StyleFile.Write(style with { Name = trimmed }));
         if (path != file)
         {
-            File.Delete(file);
+            try
+            {
+                File.Delete(file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A rename Windows refuses leaves the one look it found, not a copy under the new name beside it.
+                File.Delete(path);
+                throw;
+            }
         }
 
         history.RenameStyle(from, trimmed);

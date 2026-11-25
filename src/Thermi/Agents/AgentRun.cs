@@ -14,7 +14,7 @@ internal static partial class AgentRun
 {
     public static async Task<int> RunAsync(AgentRequest request, AgentEnvironment environment, AgentConsole console, ILoggerFactory logs, TimeProvider time)
     {
-        var commands = new AgentCommands(environment, time);
+        using var commands = new AgentCommands(environment, time);
         using var stop = new CancellationTokenSource();
         var output = new StreamWriter(console.Out, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
         await using (output)

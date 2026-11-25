@@ -77,6 +77,12 @@ public sealed class AgentMcpTests : IDisposable
             Assert.False((await session.CallAsync("edit", Name("cpu.load", "Agent's too"))).Error);
             _rig.Folder.Write(ThermiConfigJson.Write(ItemEdits.Rename(_rig.Folder.Read(), "cpu.load", "By hand").Config));
 
+            // An undo the file's lock kept from being written is still the next one.
+            using (MutexHolder.Holding(_rig.Folder.MutexName))
+            {
+                Assert.True((await session.CallAsync("undo")).Error);
+            }
+
             var (_, skipped) = await session.CallAsync("undo");
             Assert.False((bool)McpSession.Answer(skipped)["done"]!);
             Assert.False((await session.CallAsync("undo")).Error);

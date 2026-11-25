@@ -66,6 +66,8 @@ public sealed class AgentSettingsTests : IDisposable
             Assert.Equal(1, (await _rig.RunAsync("look", "rename", "Calm", "Quiet")).Exit);
         }
 
+        Assert.Equal(["Calm", "Loud", "Mine"], saved.List().Select(style => style.Name));
+
         var taken = await _rig.RunAsync("look", "rename", "Calm", "Loud");
         Assert.Equal((1, Texts.Key(Refusal.StyleNameTaken)), (taken.Exit, (string)taken.Json["refusal"]!));
 

@@ -21,10 +21,23 @@ internal sealed partial class AgentCommands
 
     /// <summary>Takes back the last edit this session made, where what it wrote is still there.</summary>
     public Task<AgentReply> UndoAsync() =>
-        StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, back: () => History.Redo(new ThermiConfig()));
+        OneAtATimeAsync(() => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, History.CancelUndo));
 
     public Task<AgentReply> RedoAsync() =>
-        StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, back: () => History.Undo(new ThermiConfig()));
+        OneAtATimeAsync(() => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo));
+
+    private async Task<AgentReply> OneAtATimeAsync(Func<Task<AgentReply>> change)
+    {
+        await _changing.WaitAsync();
+        try
+        {
+            return await change();
+        }
+        finally
+        {
+            _changing.Release();
+        }
+    }
 
     private async Task<AgentReply> EditAsync(string json, CancellationToken stop)
     {
@@ -130,6 +143,7 @@ internal sealed partial class AgentCommands
             return Edited(refused);
         }
 
+        Exception? failed = null;
         for (var tried = 0; tried < Tries; tried++)
         {
             (ThermiConfig Before, EditResult After)? made = null;
@@ -143,6 +157,8 @@ internal sealed partial class AgentCommands
                 return Broken(written.Problem);
             }
 
+            failed = written.Error;
+
             if (written.Outcome == WriteOutcome.Written && made is var (before, after))
             {
                 if (keep && after.Refused is null)
@@ -154,8 +170,14 @@ internal sealed partial class AgentCommands
             }
         }
 
-        return new AgentReply(AgentExit.Refused, Error: "The settings file stayed locked by another program; nothing was written. Try again.");
+        return Unwritten(failed);
     }
+
+    private static AgentReply Unwritten(Exception? failed) => new(
+        AgentExit.Refused,
+        Error: failed is IOException or UnauthorizedAccessException
+            ? $"Windows refused to write the settings file; nothing was written: {failed.Message}"
+            : "The settings file stayed locked by another program; nothing was written. Try again.");
 
     // A step taken but never written goes back where it was, so the next undo or redo is still that one.
     private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name, Action back)
