@@ -198,6 +198,9 @@
   <data name="CatalogText.RowFramesUnread" xml:space="preserve">
     <value>No puede leer cuadros: actualizá thermi o reiniciá el PC</value>
   </data>
+  <data name="CatalogText.RowFramesNeedInstallForEveryone" xml:space="preserve">
+    <value>Instalá para todos para leer los FPS</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Se muestra: {0}</value>
   </data>
@@ -1421,6 +1424,9 @@
   </data>
   <data name="NoValue.FramesUnread" xml:space="preserve">
     <value>no puede leer cuadros: el servicio de sensores es anterior a ellos, o Windows no tiene una sesión de traza libre</value>
+  </data>
+  <data name="NoValue.FramesNeedInstallForEveryone" xml:space="preserve">
+    <value>lee cuadros solo con thermi instalado para todos, con permisos de administrador</value>
   </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>

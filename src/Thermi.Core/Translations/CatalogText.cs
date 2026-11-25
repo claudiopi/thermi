@@ -61,6 +61,9 @@ public enum CatalogText
     /// <summary>A catalog row's reason: the game's FPS or frame time while the sensor service cannot read frames.</summary>
     RowFramesUnread,
 
+    /// <summary>A catalog row's reason: the game's FPS or frame time in a per-user install, which reads frames once installed for everyone.</summary>
+    RowFramesNeedInstallForEveryone,
+
     /// <summary>Under a catalog row: the items that already show it.</summary>
     ShownAs,
 

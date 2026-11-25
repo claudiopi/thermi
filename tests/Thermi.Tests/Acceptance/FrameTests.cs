@@ -89,19 +89,25 @@ public sealed class FrameTests
         Assert.All(zwift, rate => Assert.True(rate.Fps >= 60 && rate.FrameTime < 100, $"{rate.Fps} FPS, {rate.FrameTime} ms"));
     }
 
-    // A service that could not start its trace, and one from before, which sends no slots: the overlay keeps no room for
-    // FPS, while the window, open, shows it as missing so it can be selected, and its catalog says frames cannot be read,
-    // unlike while frames are read and nothing in front presents.
+    // A service that could not start its trace, one from before, which sends no slots, and the user's own host of a
+    // per-user install, which has no rights to trace: the overlay keeps no room for FPS, while the window, open, shows it
+    // as missing so it can be selected, and its catalog says why, frames that cannot be read or the install for everyone
+    // they need, unlike while frames are read and nothing in front presents.
     [Fact]
     public void FramesThatCannotBeReadShowAsMissing()
     {
-        var unread = Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of(null)] };
+        (Snapshot Snapshot, NoValue Why)[] cases =
+        [
+            (Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of(null)] }, NoValue.FramesUnread),
+            (Desktop, NoValue.FramesUnread),
+            (Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.WithoutRights()] }, NoValue.FramesNeedInstallForEveryone),
+        ];
 
-        foreach (var snapshot in new[] { unread, Desktop })
+        foreach (var (snapshot, why) in cases)
         {
             Assert.Null(Fps(OverlayConfig.First, snapshot, null, Game));
             Assert.Equal(ReadingFormatter.Missing, Fps(OverlayConfig.First, snapshot, null, Game, windowOpen: true));
-            Assert.Equal(NoValue.FramesUnread, WhyFps(GameSensors.With(snapshot, Game)));
+            Assert.Equal(why, WhyFps(GameSensors.With(snapshot, Game)));
         }
 
         Assert.Equal(NoValue.NoFrames, WhyFps(GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of([])] }, Game)));

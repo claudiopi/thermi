@@ -5,9 +5,9 @@ namespace Thermi.Core.Frames;
 
 /// <summary>
 /// A second's frame rates as the pipe carries them: fixed slots of sensors, a slot's process id, its parent's, its FPS and
-/// its frame time as values, and one sensor that says the service could read frames at all. The slots never change their
-/// ids or names, so the pipe keeps sending values alone (docs/adr/0012-sensor-pipe-catalog-once.md), and they never leave
-/// the reader: <see cref="GameSensors"/> turns them into the game's own sensors.
+/// its frame time as values, and one sensor that says whether the service could read frames, or had no rights to try. The
+/// slots never change their ids or names, so the pipe keeps sending values alone (docs/adr/0012-sensor-pipe-catalog-once.md),
+/// and they never leave the reader: <see cref="GameSensors"/> turns them into the game's own sensors.
 /// </summary>
 public static class FrameSlots
 {
@@ -15,14 +15,29 @@ public static class FrameSlots
 
     private const string Device = "/frames/0";
 
+    // The state sensor's values: frames read, and a host with no rights to read them; none when they cannot be read.
+    private const double ReadState = 1;
+    private const double NoRightsState = 0;
+
     private static readonly string[] Parts = ["process", "parent", "rate", "wait"];
 
     /// <summary>
     /// The sensors of <paramref name="rates"/>, the busiest first, or of no rates at all when the service cannot read frames.
     /// </summary>
-    public static IEnumerable<RawSensor> Of(IReadOnlyList<FrameRate>? rates)
+    public static IEnumerable<RawSensor> Of(IReadOnlyList<FrameRate>? rates) => Of(rates, rates is null ? null : ReadState);
+
+    /// <summary>
+    /// The sensors of a host with no rights to trace presents, the user's own in a per-user install
+    /// (docs/adr/0016-admin-on-demand.md): frames read only once thermi is installed for everyone.
+    /// </summary>
+    public static IEnumerable<RawSensor> WithoutRights() => Of(null, NoRightsState);
+
+    /// <summary>Whether <paramref name="snapshot"/> came from a host with no rights to trace presents.</summary>
+    public static bool NeedRights(Snapshot snapshot) => State(snapshot) is NoRightsState;
+
+    private static IEnumerable<RawSensor> Of(IReadOnlyList<FrameRate>? rates, double? state)
     {
-        yield return Sensor("state", 0, rates is null ? null : 1);
+        yield return Sensor("state", 0, state);
         for (var slot = 0; slot < FrameTally.Slots; slot++)
         {
             FrameRate? rate = rates is not null && slot < rates.Count ? rates[slot] : null;
@@ -38,7 +53,7 @@ public static class FrameSlots
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         var values = snapshot.Sensors.Where(Is).ToDictionary(sensor => sensor.Id, sensor => sensor.Value, StringComparer.Ordinal);
-        if (values.GetValueOrDefault(Id("state", 0)) is not 1)
+        if (values.GetValueOrDefault(Id("state", 0)) is not ReadState)
         {
             return null;
         }
@@ -56,6 +71,13 @@ public static class FrameSlots
     }
 
     public static bool Is(RawSensor sensor) => sensor.HardwareType == HardwareType;
+
+    private static double? State(Snapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        var id = Id("state", 0);
+        return snapshot.Sensors.FirstOrDefault(sensor => Is(sensor) && sensor.Id == id)?.Value;
+    }
 
     private static double? Value(Dictionary<string, double?> values, int part, int slot) =>
         values.GetValueOrDefault(Id(Parts[part], slot)) is { } value && double.IsFinite(value) ? value : null;

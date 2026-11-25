@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using Thermi.Core.Frames;
 using Thermi.Core.Install;
+using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Install;
 using Thermi.SensorHost.Updates;
@@ -96,7 +98,7 @@ internal static class UserMode
         var machine = folder is null || updater is null ? null : new MachineInstaller(build, folder, client, UpdateHost.Windows, time, log, updater.Busy);
         using var source = environment.Open(
             (device, took, error) => log.Say($"{device} took {took}: {error?.Message}", EventLogEntryType.Warning), DeviceUpdates.Patience);
-        using var server = new SensorPipeServer(source.ReadAsync, time, pipe, SensorPipeServer.ForUser(user))
+        using var server = new SensorPipeServer(async ct => WithoutRights(await source.ReadAsync(ct)), time, pipe, SensorPipeServer.ForUser(user))
         {
             Squatted = () => log.Say($"Another program holds the {pipe} pipe, so this host serves nothing until it closes it.", EventLogEntryType.Warning),
         };
@@ -219,6 +221,9 @@ internal static class UserMode
 
     // A per-user install's alone: a machine install whose service is missing, started as the user, updates nothing and offers
     // no install for everyone over itself.
+    // The user's host has no rights to trace presents, so its frames say what reads them: thermi installed for everyone.
+    private static Snapshot WithoutRights(Snapshot snapshot) => snapshot with { Sensors = [.. snapshot.Sensors, .. FrameSlots.WithoutRights()] };
+
     private static InstallFolder? PerUser(InstallFolder? folder) =>
         folder is not null && UserHost.PerUserInstall(folder.Top, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)) ? folder : null;
 

@@ -6,7 +6,8 @@ namespace Thermi.Core.Frames;
 /// The sensors of a device of thermi's own, the game, that every reader adds to each snapshot as it adds the PC's
 /// (<see cref="SystemSensors"/>): the FPS and frame time of the app in front, found among the frame slots by its process
 /// or as the parent of the one that presents for it, as a browser's. They read nothing while nothing in front presents,
-/// and not a number while the service cannot read frames, so the window can say which.
+/// not a number while the service cannot read frames, and minus infinity while its host has no rights to, so the window can
+/// say which.
 /// </summary>
 public static class GameSensors
 {
@@ -16,6 +17,9 @@ public static class GameSensors
 
     public const string FrameTime = "Frame time";
 
+    /// <summary>What the game's sensors read from a host with no rights to trace presents: no number, and not NaN either.</summary>
+    public const double NoRights = double.NegativeInfinity;
+
     private const string Device = "/game/0";
 
     /// <summary>The snapshot with its frame slots turned into the game's sensors, for <paramref name="front"/>, the game's process, if any.</summary>
@@ -24,7 +28,7 @@ public static class GameSensors
         ArgumentNullException.ThrowIfNull(snapshot);
         var rates = FrameSlots.Read(snapshot);
         var rate = front is { } process && rates is not null ? RateOf(rates, process) : null;
-        var none = rates is null ? double.NaN : (double?)null;
+        var none = rates is not null ? (double?)null : FrameSlots.NeedRights(snapshot) ? NoRights : double.NaN;
         return snapshot with
         {
             Sensors =

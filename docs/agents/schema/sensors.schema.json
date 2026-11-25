@@ -86,6 +86,7 @@
                     "resting",
                     "no-frames",
                     "frames-unread",
+                    "frames-need-install-for-everyone",
                     null
                   ]
                 }

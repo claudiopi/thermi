@@ -7,6 +7,7 @@ using System.Security.Principal;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost;
 using sensors::Thermi.SensorHost.User;
+using Thermi.Core.Frames;
 using Thermi.Core.Install;
 using Thermi.Core.Sensors;
 
@@ -145,7 +146,8 @@ public sealed class SensorProgramTests : IAsyncDisposable
     }
 
     // Spec 004, A21: the pipe named for the user, owned by the user and shut to the rest but SYSTEM and administrators, and
-    // a host that ends 10 s after its last client left, or when none came within 30 s.
+    // a host that ends 10 s after its last client left, or when none came within 30 s. Its frames say they need thermi
+    // installed for everyone, as it has no rights to trace them.
     [Fact]
     public async Task AUsersHostServesItsUserUntilTheLastClientLeaves()
     {
@@ -167,7 +169,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
         await PassAsync(TimeSpan.FromSeconds(3), lonely);
         var alone = await lonely.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
 
-        Assert.Equal(FakeSensors.Recorded.Sensors, snapshot.Sensors.Where(sensor => sensor.Id != FakeSensors.Counter));
+        Assert.Equal([.. FakeSensors.Recorded.Sensors, .. FrameSlots.WithoutRights()], snapshot.Sensors.Where(sensor => sensor.Id != FakeSensors.Counter));
         Assert.Equal(user.User, security.GetOwner(typeof(SecurityIdentifier)));
         Assert.Equal(new[] { "S-1-5-18", "S-1-5-32-544", user.User.Value }.Order(), readers);
         Assert.Equal((false, 0, false, 0), (lingered, served, early, alone));

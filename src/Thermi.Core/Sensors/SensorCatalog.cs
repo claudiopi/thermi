@@ -59,6 +59,9 @@ public enum NoValue
 
     /// <summary>The game's sensors while the service cannot read frames: one from before them, or no trace session free.</summary>
     FramesUnread,
+
+    /// <summary>The game's sensors of a per-user install, whose own host has no rights to trace: frames need thermi installed for everyone.</summary>
+    FramesNeedInstallForEveryone,
 }
 
 /// <summary>
@@ -322,6 +325,7 @@ public static class SensorCatalog
     private static NoValue NothingRead(RawSensor sensor) =>
         !GameSensors.Is(sensor) ? NoValue.ReadsNothing
         : sensor.Value is double.NaN ? NoValue.FramesUnread
+        : sensor.Value is GameSensors.NoRights ? NoValue.FramesNeedInstallForEveryone
         : NoValue.NoFrames;
 
     internal static NoValue? Why(RawSensor sensor, Reading reading) =>
