@@ -70,15 +70,15 @@ public sealed record NudgeOverlayEdit(int Overlay, int Dx, int Dy) : PageEdit;
 
 public sealed record ResetEdit : PageEdit;
 
-/// <summary>A meter's line moved to a value, or taken out with none.</summary>
+/// <summary>An item's line moved to a value, or taken out with none.</summary>
 public sealed record LineEdit(string Item, ChartLine Line, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] double? Value) : PageEdit;
 
-/// <summary>A meter's line as typed in its box, which Core reads in the window's number format.</summary>
+/// <summary>An item's line as typed in its box, which Core reads in the window's number format.</summary>
 public sealed record TypedLineEdit(string Item, ChartLine Line, string Typed) : PageEdit;
 
 public sealed record AddLineEdit(string Item, ChartLine Line) : PageEdit;
 
-/// <summary>A meter's lines back to their defaults.</summary>
+/// <summary>An item's lines back to their defaults.</summary>
 public sealed record ResetLinesEdit(string Item) : PageEdit;
 
 /// <summary>A sensor named by the user, by the id an item names it by; an empty name gives back the library's.</summary>

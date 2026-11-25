@@ -116,6 +116,10 @@ public sealed class FileFormatTests
     [InlineData(
         "{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"warnBy\":{\"metric\":\"cpu.load\",\"sensor\":\"/a\"}}]}]}",
         "items[0].warnBy must name one")]
+    // An older file says what the item warns by as its meter, which the problem names, as the file does.
+    [InlineData(
+        "{\"version\":5,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"gpu.load\",\"sensor\":\"/a\"}}]}]}",
+        "items[0].meter must name one")]
     [InlineData(
         "{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"warnBy\":{\"metric\":\"cpu.load\",\"auto\":\"cpu.load\"}}]}]}",
         "items[0].warnBy.auto")]

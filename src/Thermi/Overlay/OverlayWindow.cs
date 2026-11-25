@@ -184,8 +184,8 @@ internal sealed class OverlayWindow : IDisposable
         IReadOnlyList<Screen> screens = heldAt is null ? scene.Screens : [];
         var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
         var items = Extras(scene, texts, shown.Items);
-        var scale = _painter.Within(
-            items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), size => TaskbarRow.Room(overlays, _index, screens, size, _actions.Shown()));
+        var room = TaskbarRow.RoomOf(overlays, _index, screens, _actions.Shown());
+        var scale = _painter.Within(items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), room);
         _glow.Update(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
         var bitmap = shown.SensorsStopped

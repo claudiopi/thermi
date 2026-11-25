@@ -5,9 +5,8 @@ import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
-import { lookWorn } from './lookModel';
 import { Picture } from './Preview';
-import { useLooks, useLookSamples } from './useOverlayReads';
+import { useLooks, useLookSamples, useWorn } from './useOverlayReads';
 
 export interface LookCardProps {
   data: WindowData;
@@ -23,6 +22,7 @@ export function LookCard({ data, overlay }: LookCardProps) {
   const t = useText();
   const edit = useEdit();
   const looks = useLooks(data.changes);
+  const worn = useWorn(data.changes)[overlay];
   const samples = useLookSamples(data.changes);
   const [asking, setAsking] = useState<Asking>(null);
   const news = useNews();
@@ -30,7 +30,8 @@ export function LookCard({ data, overlay }: LookCardProps) {
   const one = data.settings.overlays[overlay];
   const many = data.settings.overlays.length > 1;
   const names = Object.keys(looks);
-  const chosen = lookWorn(one?.style, looks);
+  // Default is null, none is undefined.
+  const chosen = worn === undefined || worn === null ? undefined : (worn.saved ?? null);
 
   const choose = (name: string | null): void => void edit({ kind: 'look', overlay, name });
   const tileKeys = (event: KeyboardEvent<HTMLDivElement>): void => {

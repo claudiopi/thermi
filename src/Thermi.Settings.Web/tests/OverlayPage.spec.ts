@@ -216,14 +216,18 @@ test('ThePreviewShowsEachEditOfTheOverlay', async ({ page }) => {
   await select(page, 'Taskbar');
   const pane = page.getByRole('main');
   const preview = pane.getByRole('img', { name: text('OverlayPageText.Preview', 'Taskbar') });
-  const picture = async (): Promise<string> => (await preview.screenshot()).toString('base64');
-  const before = await picture();
+  // The picture the page shows, and the one C# paints of the overlay now: the page draws none of its own.
+  const shown = async (): Promise<string | null> => preview.getAttribute('src');
+  const painted = async (): Promise<string | null> => page.evaluate(async () => (await window.thermi?.preview(0))?.png ?? null);
+  await expect.poll(async () => (await shown()) === (await painted())).toBe(true);
+  const before = await shown();
 
   await pressOn(pane.getByRole('radio', { name: text('PillTheme.Light') }), 'Space');
-  await expect.poll(picture).not.toBe(before);
+  await expect.poll(shown).not.toBe(before);
+  await expect.poll(async () => (await shown()) === (await painted())).toBe(true);
 
   await page.keyboard.press('Control+Z');
-  await expect.poll(picture).toBe(before);
+  await expect.poll(shown).toBe(before);
 });
 
 // A209: each control of Placement, chosen by keys on two monitors, lands in the settings.

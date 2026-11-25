@@ -30,18 +30,19 @@ public sealed class BridgeOracleTests
         var stale = new List<string>();
         foreach (var (id, start) in table.Starts)
         {
-            var (shown, _) = await OracleReplay.RunAsync(start!.AsObject(), []);
-            if (!JsonNode.DeepEquals(start["shown"], shown))
+            var (shown, worn, _) = await OracleReplay.RunAsync(start!.AsObject(), []);
+            if (!JsonNode.DeepEquals(start["shown"], shown) || !JsonNode.DeepEquals(start["worn"], worn))
             {
                 stale.Add($"the settings start {id} shows");
                 start["shown"] = shown?.DeepClone();
+                start["worn"] = worn?.DeepClone();
             }
         }
 
         foreach (var (index, one) in table.Cases.Index())
         {
             var calls = one?["calls"]?.AsArray() ?? [];
-            var (_, answers) = await OracleReplay.RunAsync(table.StartOf(one), calls);
+            var (_, _, answers) = await OracleReplay.RunAsync(table.StartOf(one), calls);
             foreach (var (at, answer) in answers.Index().Where(each => !JsonNode.DeepEquals(calls[each.Index]?["answer"], each.Item)))
             {
                 stale.Add($"call {at + 1} of case {index}, {calls[at]?["method"]}");
@@ -55,7 +56,7 @@ public sealed class BridgeOracleTests
         var asked = pure
             .Where(call => call["method"]?.GetValue<string>() != OracleReplay.CatalogSearchMethod)
             .Select(call => new JsonObject { ["method"] = call["method"]?.DeepClone(), ["args"] = call["args"]?.DeepClone() });
-        var (_, replayed) = await OracleReplay.RunAsync(DefaultStart(), [.. asked]);
+        var (_, _, replayed) = await OracleReplay.RunAsync(DefaultStart(), [.. asked]);
         Assert.All(replayed, answer => Assert.Null(answer["error"]));
         var bridged = new Queue<JsonNode?>(replayed.Select(answer => answer["result"]));
         var results = pure.Select(call => call["method"]?.GetValue<string>() == OracleReplay.CatalogSearchMethod

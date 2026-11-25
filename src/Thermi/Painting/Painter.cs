@@ -110,10 +110,16 @@ internal sealed class Painter(bool reuse = false) : IDisposable
 
     /// <summary>
     /// <paramref name="scale"/>, or the smaller one at which the items show as wide as <paramref name="room"/> allows for
-    /// their size at it, as an overlay grown past the room the others beside it on its taskbar leave.
+    /// their size at it, as an overlay grown past the room the others beside it on its taskbar leave; without a room, as
+    /// for one alone, <paramref name="scale"/> unmeasured.
     /// </summary>
-    public float Within(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, Func<(int Width, int Height), int?> room)
+    public float Within(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, Func<(int Width, int Height), int?>? room)
     {
+        if (room is null)
+        {
+            return scale;
+        }
+
         var size = Measure(items, look, scale);
         return room((size.Width, size.Height)) is { } most && size.Width > most ? scale * Math.Max(1, most) / size.Width : scale;
     }

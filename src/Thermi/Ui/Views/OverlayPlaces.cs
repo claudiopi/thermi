@@ -25,21 +25,26 @@ internal static class OverlayPlaces
             var shown = ThermiMark.Overlay(config, at, input, windowOpenedOnce: true);
             return (shown.Items, Look: OverlayLook.Of(overlay.Style, input.LightTaskbar), Scale: OverlayWindow.ScaleOf(96, overlay, screens));
         }).ToList();
-        var sizes = drawn.Select(each => (PixelRect?)Box(painter.Measure(each.Items, each.Look, each.Scale))).ToList();
+        var sizes = drawn.Select(each => Box(painter.Measure(each.Items, each.Look, each.Scale))).ToList();
 
         // Each in its turn, one grown past the room the others leave on its taskbar shows smaller, as the overlays draw it.
         for (var at = 0; at < sizes.Count; at++)
         {
-            var (index, (items, look, scale)) = (at, drawn[at]);
-            var fitted = painter.Within(items, look, scale, size => TaskbarRow.Room(config.Overlays, index, screens, size, sizes));
+            var (items, look, scale) = drawn[at];
+            var fitted = painter.Within(items, look, scale, TaskbarRow.RoomOf(config.Overlays, at, screens, Shown(config, sizes)));
             sizes[at] = fitted < scale ? Box(painter.Measure(items, look, fitted)) : sizes[at];
         }
 
         // Overlays sharing a taskbar are laid out together, as the overlays place themselves.
-        return [.. sizes.Select((size, at) => TaskbarRow.Locate(config.Overlays, at, screens, (size!.Value.Width, size.Value.Height), sizes) is { } corner
-            ? new Rect(corner.X, corner.Y, size.Value.Width, size.Value.Height)
+        var shown = Shown(config, sizes);
+        return [.. sizes.Select((size, at) => TaskbarRow.Locate(config.Overlays, at, screens, (size.Width, size.Height), shown) is { } corner
+            ? new Rect(corner.X, corner.Y, size.Width, size.Height)
             : null)];
     }
+
+    // A hidden overlay's window shows nowhere, so it takes no room from the others on its taskbar.
+    private static List<PixelRect?> Shown(ThermiConfig config, List<PixelRect> sizes) =>
+        [.. sizes.Select((size, at) => config.Overlays[at].Hidden ? null : (PixelRect?)size)];
 
     private static PixelRect Box(Size size) => new(0, 0, size.Width, size.Height);
 }

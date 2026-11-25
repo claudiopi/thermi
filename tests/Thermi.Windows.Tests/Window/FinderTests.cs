@@ -38,17 +38,7 @@ public sealed class FinderTests : IAsyncDisposable
         _settings = _folder.Settings();
         Assert.True(_folder.Settled(_settings.SyncAsync).IsCompletedSuccessfully);
         _editor = new WindowEditor(_settings, _turn.Enqueue, _folder.Log, _folder.Clock);
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment(
-            "thermi-tests",
-            _folder.File,
-            "thermi.exe",
-            _folder.Log,
-            _folder.Clock.GetUtcNow(),
-            _feed,
-            startup)
-        { Screens = () => [], HotkeyStatus = () => null };
-        var start = new WindowStart(1, _settings, Texts.English, environment, _folder.Clock) { Load = _loads.Add };
+        var start = new WindowStart(1, _settings, Texts.English, _folder.Window(_feed), _folder.Clock) { Load = _loads.Add };
         _bridge = new WindowBridge(start, _editor, new ChartHistory(_folder.Clock), _turn.Enqueue);
     }
 

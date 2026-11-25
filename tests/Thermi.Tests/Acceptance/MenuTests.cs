@@ -87,6 +87,12 @@ public sealed class MenuTests
         "looks",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
         $"Settings* | {Graph} Look Look+ Look Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // The look worn is the one the overlay draws as, as the window's tile checks it: Ocean, just saved from it, unnamed.
+    [InlineData(
+        "{'style':{'gap':2}}",
+        "looks",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Look Look Look+ Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "update",
@@ -158,7 +164,7 @@ public sealed class MenuTests
             FileBroken: words.Contains("broken"),
             Service: words.Contains("stopped") ? ServiceState.Stopped : ServiceState.Running,
             SinceGesture: gesture,
-            SavedLooks: words.Contains("looks") ? ["Night", "Ocean"] : [],
+            SavedLooks: words.Contains("looks") ? [new StyleConfig { Name = "Night" }, new StyleConfig(Gap: 2) { Name = "Ocean" }] : [],
             UpdateReady: words.Contains("update"));
 
         Assert.Null(problem);

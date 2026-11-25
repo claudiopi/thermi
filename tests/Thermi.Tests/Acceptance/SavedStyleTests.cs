@@ -57,7 +57,7 @@ public sealed class SavedStyleTests
             "Night",
             Done(StyleEdits.Restyle(worn, 0, each => each with { Layout = PillLayout.One, Orientation = Orientation.Vertical, NoLabels = true }))
                 .Overlays[0].Style.Name);
-        Assert.Equal("Night", SavedStyles.Chosen(worn.Overlays[0].Style, [style])?.Name);
+        Assert.Equal("Night", SavedStyles.Worn(worn.Overlays[0].Style, [style])?.Saved);
 
         // Saved or exported, the look holds no layout, direction or labels, and one written with them before reads without them.
         var file = StyleFile.Write(style);
@@ -80,24 +80,27 @@ public sealed class SavedStyleTests
         var renamed = Done(styles.Rename(custom, new UndoHistory(), "night", "Dusk"));
         var listed = Names(styles);
         var chosen = Done(StyleEdits.Choose(renamed, 0, styles.List()[0]));
-        var shownBefore = SavedStyles.Chosen(chosen.Overlays[0].Style, styles.List());
+        var shownBefore = SavedStyles.Worn(chosen.Overlays[0].Style, styles.List());
 
         // An imported style that takes a saved one's name but not its look is not that style.
-        var sameNameOtherLook = SavedStyles.Chosen(chosen.Overlays[0].Style with { Name = "dusk", Gap = 2 }, styles.List());
-        var sameNameOtherCase = SavedStyles.Chosen(chosen.Overlays[0].Style with { Name = "dusk" }, styles.List());
+        var sameNameOtherLook = SavedStyles.Worn(chosen.Overlays[0].Style with { Name = "dusk", Gap = 2 }, styles.List());
+        var sameNameOtherCase = SavedStyles.Worn(chosen.Overlays[0].Style with { Name = "dusk" }, styles.List());
         var deleted = styles.Delete("dusk");
 
         Assert.Equal([Refusal.StyleNameEmpty, Refusal.StyleNameTooLong, null, Refusal.StyleNameTaken], saved);
         Assert.Equal(["Dusk"], listed);
         Assert.Equal(File(custom), File(renamed));
         Assert.Equal(look with { Name = "Dusk" }, chosen.Overlays[0].Style);
-        Assert.Equal("Dusk", shownBefore?.Name);
+        Assert.Equal("Dusk", shownBefore?.Saved);
         Assert.Null(sameNameOtherLook);
-        Assert.Equal("Dusk", sameNameOtherCase?.Name);
+        Assert.Equal("Dusk", sameNameOtherCase?.Saved);
         Assert.Null(deleted);
         Assert.Empty(styles.List());
-        Assert.Null(SavedStyles.Chosen(chosen.Overlays[0].Style, styles.List()));
-        Assert.Null(SavedStyles.Chosen(look, [look with { Name = "Dusk" }]));
+        Assert.Null(SavedStyles.Worn(chosen.Overlays[0].Style, styles.List()));
+        // A look saved from the overlay, which keeps no name, is the one it wears, as it draws as it; Default draws as itself.
+        Assert.Equal("Dusk", SavedStyles.Worn(look, [look with { Name = "Dusk" }])?.Saved);
+        var plain = new StyleConfig { Layout = PillLayout.One, Colors = new StyleColors() };
+        Assert.Equal(new WornLook(null), SavedStyles.Worn(plain, [look with { Name = "Dusk" }]));
         Assert.Equal(Refusal.StyleNotFound, styles.Delete("Dusk"));
         Assert.Equal(Refusal.StyleNotFound, styles.Rename(custom, new UndoHistory(), "Dusk", "Dawn").Refused);
     }

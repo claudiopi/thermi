@@ -119,13 +119,7 @@ internal sealed class OverlayHost : IDisposable
     public static long? AskHotkeyStatus() => HiddenWindow.Ask(ClassName, HotkeyStatusMessage);
 
     /// <summary>A fresh snapshot came, on any thread: each overlay adds it to its history on the window's thread.</summary>
-    public void Arrived()
-    {
-        if (!Hwnd.IsNull)
-        {
-            PInvoke.PostMessage(Hwnd, SnapshotArrived, 0, 0);
-        }
-    }
+    public void Arrived() => Post(SnapshotArrived);
 
     public void Start()
     {
@@ -295,10 +289,12 @@ internal sealed class OverlayHost : IDisposable
         }
 
         Raise();
-        if (!Interlocked.Exchange(ref _paintedSinceTick, false))
+        if (!_paintedSinceTick)
         {
             RequestPaint();
         }
+
+        _paintedSinceTick = false;
     }
 
     private void Pressed(int id)
@@ -314,12 +310,16 @@ internal sealed class OverlayHost : IDisposable
     // Hotkeys are registered on the window's thread, which gets their presses.
     private void SettingsChanged(object? sender, EventArgs e)
     {
+        Post(SettingsArrived);
+        RequestPaint();
+    }
+
+    private void Post(uint message)
+    {
         if (!Hwnd.IsNull)
         {
-            PInvoke.PostMessage(Hwnd, SettingsArrived, 0, 0);
+            PInvoke.PostMessage(Hwnd, message, 0, 0);
         }
-
-        RequestPaint();
     }
 
     private void Record()

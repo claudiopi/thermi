@@ -417,6 +417,10 @@ export interface WindowView {
   mark: MarkState;
 }
 
+export interface WornLook {
+  saved: string | null;
+}
+
 export interface Bridge {
   settings(): Promise<Settings>;
   problem(): Promise<Problem | null>;
@@ -441,6 +445,7 @@ export interface Bridge {
   places(): Promise<(Rect | null)[]>;
   report(error: string): Promise<void>;
   looks(): Promise<Record<string, Style>>;
+  worn(): Promise<(WornLook | null)[]>;
   saveLook(overlay: number, name: string): Promise<string | null>;
   renameLook(name: string, to: string): Promise<string | null>;
   deleteLook(name: string): Promise<string | null>;

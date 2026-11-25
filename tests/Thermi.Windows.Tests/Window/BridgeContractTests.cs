@@ -1,7 +1,9 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -50,23 +52,11 @@ public sealed class BridgeContractTests
         folder.Write(file == "defaults" ? ThermiConfigJson.Write(new ThermiConfig()) : file);
         await using var settings = folder.Settings();
         Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+        var turn = new ConcurrentQueue<Action>();
+        var window = folder.Window(new TestFeed { Latest = Recorded });
+        var start = new WindowStart(1, settings, Texts.English, window, folder.Clock) { Item = Metrics.CpuTemperature.Id };
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment(
-            "thermi-tests",
-            folder.File,
-            "thermi.exe",
-            folder.Log,
-            folder.Clock.GetUtcNow(),
-            new TestFeed { Latest = Recorded },
-            startup)
-        { Screens = () => [], HotkeyStatus = () => null };
-        using var bridge = new WindowBridge(
-            new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id },
-            editor,
-            new ChartHistory(folder.Clock),
-            turn.Enqueue);
+        using var bridge = new WindowBridge(start, editor, new ChartHistory(folder.Clock), turn.Enqueue);
         for (var second = 0; second < 3; second++)
         {
             folder.Clock.Advance(TimeSpan.FromSeconds(1));
@@ -134,27 +124,9 @@ public sealed class BridgeContractTests
     public async Task ThePageWaitsForTheFirstReadingsAndThenHearsOfEachSecondApart()
     {
         using var folder = new SettingsFolder();
-        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        await using var settings = folder.Settings();
-        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
-        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        await using var settings = await folder.LoadedAsync(new ThermiConfig());
         var feed = new TestFeed();
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment(
-            "thermi-tests",
-            folder.File,
-            "thermi.exe",
-            folder.Log,
-            folder.Clock.GetUtcNow(),
-            feed,
-            startup)
-        { Screens = () => [], HotkeyStatus = () => null };
-        using var bridge = new WindowBridge(
-            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
-            editor,
-            new ChartHistory(folder.Clock),
-            turn.Enqueue);
+        using var bridge = folder.Bridge(settings, folder.Window(feed), new ConcurrentQueue<Action>());
         var heard = new List<string>();
         bridge.Changed += (_, _) => heard.Add(nameof(bridge.Changed));
         bridge.Readings += (_, readings) => heard.Add(readings.View.Items.Values.All(item => item.Value is not null) ? nameof(bridge.Readings) : "empty");
@@ -184,24 +156,11 @@ public sealed class BridgeContractTests
     public async Task AServiceThatGoesSilentReachesThePageWithoutASnapshot()
     {
         using var folder = new SettingsFolder();
-        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        await using var settings = folder.Settings();
-        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
+        await using var settings = await folder.LoadedAsync(new ThermiConfig());
         // The overlay's hotkeys are asked off the window's thread, which then queues the answer.
-        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
-        var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
+        var turn = new ConcurrentQueue<Action>();
         var feed = new TestFeed { Latest = Recorded };
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
-        {
-            Screens = () => [],
-            HotkeyStatus = () => null,
-        };
-        using var bridge = new WindowBridge(
-            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
-            editor,
-            new ChartHistory(folder.Clock),
-            turn.Enqueue);
+        using var bridge = folder.Bridge(settings, folder.Window(feed), turn);
         bridge.Arrived();
         var told = new List<bool>();
         bridge.Changed += (_, change) => told.Add(change.Sensors);
@@ -227,19 +186,11 @@ public sealed class BridgeContractTests
         const string ccd2 = "/amdcpu/0/temperature/4";
         var cpu = Metrics.CpuTemperature.Id;
         using var folder = new SettingsFolder();
-        folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        await using var settings = folder.Settings();
-        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+        await using var settings = await folder.LoadedAsync(new ThermiConfig());
+        var turn = new ConcurrentQueue<Action>();
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
         var feed = new TestFeed();
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
-        {
-            Screens = () => [],
-            HotkeyStatus = () => null,
-        };
-        var start = new WindowStart(0, settings, Texts.English, environment, folder.Clock);
+        var start = new WindowStart(0, settings, Texts.English, folder.Window(feed), folder.Clock);
         using var bridge = new WindowBridge(start, editor, new ChartHistory(folder.Clock), turn.Enqueue);
         var cold = new Snapshot([.. Recorded.Sensors.Select(sensor => sensor.Id == ccd2 ? sensor with { Value = 34 } : sensor)]);
         void Feed(Snapshot snapshot, int seconds)
@@ -273,24 +224,11 @@ public sealed class BridgeContractTests
         var overlay = new OverlayConfig { Items = [OverlayConfig.DefaultItems[4], cpu], Style = new StyleConfig { Layout = PillLayout.One } };
         var config = new ThermiConfig { Overlays = [overlay] };
         using var folder = new SettingsFolder();
-        folder.Write(ThermiConfigJson.Write(config));
-        await using var settings = folder.Settings();
-        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+        await using var settings = await folder.LoadedAsync(config);
         var feed = new TestFeed();
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
-        {
-            Screens = () => [],
-            HotkeyStatus = () => null,
-        };
         var chart = new ChartHistory(folder.Clock);
         var onOverlay = new ItemHistory(folder.Clock);
-        using var bridge = new WindowBridge(
-            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
-            new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock),
-            chart,
-            turn.Enqueue);
+        using var bridge = folder.Bridge(settings, folder.Window(feed), new ConcurrentQueue<Action>(), chart: chart);
         var drawn = new List<(string?, string?)>();
         var shown = new List<(string?, string?)>();
 
@@ -319,5 +257,30 @@ public sealed class BridgeContractTests
 
         Assert.Equal(drawn, shown);
         Assert.NotEqual(OverlayLayout.LabelOf(OverlayConfig.DefaultItems[4], Texts.English), shown[0].Item2);
+    }
+
+    // The preview shows as high as the overlay, in pixels at 100 %: at size 2 on a taskbar 48 px high at 100 %, or 72 px at
+    // 150 %, no higher than the taskbar, as the overlay shows there; free at 150 %, at its own size.
+    [Theory]
+    [InlineData("taskbar 100%", 48)]
+    [InlineData("taskbar 150%", 48)]
+    [InlineData("free 150%", 76)]
+    public async Task ThePreviewIsAsHighAsTheOverlayShows(string placed, double high)
+    {
+        var words = placed.Split(' ');
+        var scale = words[1] == "150%" ? 1.5 : 1;
+        var bar = (int)(48 * scale);
+        var screen = new Screen("PC", true, new PixelRect(0, 0, 2560, 1440), new PixelRect(0, 0, 2560, 1440 - bar), scale)
+        {
+            Taskbar = new PixelRect(0, 1440 - bar, 2560, 1440),
+        };
+        var overlay = new OverlayConfig(2) { Position = words[0] == "free" ? new Position(100, 100) : null };
+        using var folder = new SettingsFolder();
+        await using var settings = await folder.LoadedAsync(new ThermiConfig { Overlays = [overlay] });
+        var window = folder.Window(new TestFeed { Latest = Recorded }) with { Screens = () => [screen] };
+        using var bridge = folder.Bridge(settings, window, new ConcurrentQueue<Action>());
+        bridge.Arrived();
+
+        Assert.Equal(high, (await bridge.Preview(0))!.Height, 2);
     }
 }

@@ -51,6 +51,7 @@ function installFake(initial: FakeState): void {
     }
     state.settings = answer.settings ?? state.settings;
     state.looks = answer.looks ?? state.looks;
+    state.worn = answer.worn ?? state.worn;
     steps = answer.steps;
     changed();
     if (answer.error !== undefined) {
@@ -123,6 +124,7 @@ function installFake(initial: FakeState): void {
     places: async () => state.places,
     report: async () => undefined,
     looks: async () => state.looks,
+    worn: async () => state.worn,
     saveLook: async (overlay, name) => (await ask('saveLook', overlay, name)) as string | null,
     renameLook: async (name, to) => (await ask('renameLook', name, to)) as string | null,
     deleteLook: async (name) => (await ask('deleteLook', name)) as string | null,

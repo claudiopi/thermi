@@ -1,8 +1,9 @@
-import type { Bridge, LookSamples, Monitor, OverlayPicture, Rect, Style } from '../bridge/bridge.g';
+import type { Bridge, LookSamples, Monitor, OverlayPicture, Rect, Style, WornLook } from '../bridge/bridge.g';
 import { useBridgeRead } from '../bridge/useWindow';
 
 const readMonitors = (from: Bridge): Promise<Monitor[]> => from.monitors();
 const readLooks = (from: Bridge): Promise<Record<string, Style>> => from.looks();
+const readWorn = (from: Bridge): Promise<(WornLook | null)[]> => from.worn();
 const readPlaces = (from: Bridge): Promise<(Rect | null)[]> => from.places();
 const readPreview = (from: Bridge, overlay: number): Promise<OverlayPicture | null> => from.preview(overlay);
 const readSamples = (from: Bridge): Promise<LookSamples> => from.lookSamples();
@@ -10,6 +11,7 @@ const readSamples = (from: Bridge): Promise<LookSamples> => from.lookSamples();
 const noMonitors: Monitor[] = [];
 const noLooks: Record<string, Style> = {};
 const noPlaces: (Rect | null)[] = [];
+const noneWorn: (WornLook | null)[] = [];
 
 /** The monitors Windows has now. */
 export function useMonitors(version: number): Monitor[] {
@@ -24,6 +26,11 @@ export function usePlaces(version: number): (Rect | null)[] {
 /** The saved looks by their names. */
 export function useLooks(version: number): Record<string, Style> {
   return useBridgeRead(readLooks, '', version) ?? noLooks;
+}
+
+/** The look each overlay wears; null for none. */
+export function useWorn(version: number): (WornLook | null)[] {
+  return useBridgeRead(readWorn, '', version) ?? noneWorn;
 }
 
 /** The overlay as C# paints it now, read again with each change and each second's readings; null until it answers. */

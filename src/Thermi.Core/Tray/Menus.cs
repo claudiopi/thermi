@@ -89,7 +89,7 @@ public sealed record MenuState(
     bool FileBroken,
     ServiceState Service,
     TimeSpan? SinceGesture,
-    IReadOnlyList<string> SavedLooks,
+    IReadOnlyList<StyleConfig> SavedLooks,
     bool UpdateReady);
 
 /// <summary>
@@ -297,11 +297,11 @@ public static class Menus
             return [];
         }
 
-        var worn = state.SavedLooks.FirstOrDefault(look => string.Equals(look, shown.Style.Name, StringComparison.OrdinalIgnoreCase));
+        var worn = SavedStyles.Worn(shown.Style, state.SavedLooks);
         return
         [
-            new MenuRow(MenuEntry.Look, worn is null && shown.Style.WornOn(new StyleConfig()) == new StyleConfig()),
-            .. state.SavedLooks.Select(look => new MenuRow(MenuEntry.Look, look == worn) { Look = look }),
+            new MenuRow(MenuEntry.Look, worn is { Saved: null }),
+            .. state.SavedLooks.Select(look => new MenuRow(MenuEntry.Look, worn is { Saved: { } name } && name == look.Name) { Look = look.Name }),
         ];
     }
 

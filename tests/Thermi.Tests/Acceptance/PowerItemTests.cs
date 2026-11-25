@@ -109,6 +109,8 @@ public sealed class PowerItemTests
         var time = new FakeTimeProvider();
         var history = new ItemHistory(time);
         var overlay = Temperature(item => item with { Stat = ItemStat.Max });
+        var sent = 0;
+        history.WasReset += (_, _) => sent++;
 
         var before = Feed(history, time, overlay, 60, 75, 70);
 
@@ -119,15 +121,18 @@ public sealed class PowerItemTests
             [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 65),
         };
         history.Add([(other, TrayTextTests.Quiet), (overlay, cooler)]);
-        history.Reset(other);
+        history.Reset([other]);
         var moved = OverlayLayout.Build(overlay, cooler, English, history: history).Single().Value;
         time.Advance(TimeSpan.FromSeconds(1));
-        history.Reset();
+        history.Reset([other, overlay]);
         var after = Feed(history, time, overlay, 65, 62);
 
         Assert.Equal(["60 °C", "75 °C", "75 °C"], before);
         Assert.Equal("75 °C", moved);
         Assert.Equal(["65 °C", "65 °C"], after);
+
+        // An open window is sent the whole history once a reset, however many overlays it starts again.
+        Assert.Equal(2, sent);
     }
 
     // NaN for a value the sensor did not give; what shows when nothing is left to average is the missing value.

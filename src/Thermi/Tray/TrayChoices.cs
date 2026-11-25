@@ -41,7 +41,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
                 parts.Overlays[target ?? 0].Separate(item);
                 break;
             case MenuEntry.ResetMinMax:
-                On(target).ToList().ForEach(at => Actions.History.Reset(Settings.Config.Overlays[at]));
+                Actions.History.Reset(On(target).Select(at => Settings.Config.Overlays[at]));
                 break;
             case MenuEntry.Exit:
                 Actions.Exit();

@@ -126,6 +126,8 @@ public sealed class TaskbarDropTests
     // Vertical, below it, or above it where below is off the work area, in line with its left edge.
     [InlineData("vertical 1000,500,1100,800 100x50", "free 1000,808 gpu.load")]
     [InlineData("vertical 1000,1100,1100,1380 100x50", "free 1000,1042 gpu.load")]
+    // With as many overlays as there may be, no other fits, and the refusal says so.
+    [InlineData("full 1000,500,1550,538 100x38", "TooManyOverlays")]
     public void SeparateDropsThePillBesideItsOverlay(string separated, string lands)
     {
         var words = separated.Split(' ');
@@ -134,6 +136,7 @@ public sealed class TaskbarDropTests
         int[] rest = words.Length > 3
             ? [.. words[3].Split('x').Select(each => int.Parse(each, CultureInfo.InvariantCulture))]
             : [shown[2] - shown[0], shown[3] - shown[1]];
+        var others = words[0] == "full" ? ThermiConfig.MaxOverlays - 1 : 0;
         var vertical = words[0] == "vertical";
         var overlay = new OverlayConfig
         {
@@ -143,7 +146,7 @@ public sealed class TaskbarDropTests
         var (width, height) = (size[0], size[1]);
 
         var drop = DesktopGestures.Separate(
-            new ThermiConfig { Overlays = [overlay] },
+            new ThermiConfig { Overlays = [overlay, .. Enumerable.Repeat(new OverlayConfig { Items = [] }, others)] },
             0,
             "gpu.load",
             new PixelRect(shown[0], shown[1], shown[2], shown[3]),
@@ -151,11 +154,11 @@ public sealed class TaskbarDropTests
             (rest[0], rest[1]),
             [Pc]);
 
-        Assert.Null(drop.Result.Refused);
         var made = drop.Result.Config.Overlays[^1];
         var landed = Snaps.Locate(made, [Pc], width, height)!;
         var items = string.Join(',', made.Items.Select(item => item.Id));
-        Assert.Equal(lands, string.Create(CultureInfo.InvariantCulture, $"{made.Snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y} {items}"));
+        var where = string.Create(CultureInfo.InvariantCulture, $"{made.Snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y} {items}");
+        Assert.Equal(lands, drop.Result.Refused?.ToString() ?? where);
     }
 
     // Night QA: at 200 % an overlay on the 48 px taskbar was 76 px high and cut. On a taskbar it shows at most as high as
@@ -204,7 +207,7 @@ public sealed class TaskbarDropTests
         var boxes = widths.Select(width => (PixelRect?)new PixelRect(0, 0, width, Height)).ToList();
         for (var index = 0; index < configs.Count; index++)
         {
-            widths[index] = Math.Min(widths[index], TaskbarRow.Room(configs, index, [Pc], (widths[index], Height), boxes) ?? int.MaxValue);
+            widths[index] = Math.Min(widths[index], TaskbarRow.RoomOf(configs, index, [Pc], boxes)?.Invoke((widths[index], Height)) ?? int.MaxValue);
             boxes[index] = new PixelRect(0, 0, widths[index], Height);
         }
 

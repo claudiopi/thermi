@@ -2,6 +2,7 @@ using System.Globalization;
 using Thermi.Core;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
@@ -227,6 +228,25 @@ public sealed class OverlayHostTests : IDisposable
         });
 
         Assert.Equal(shown, placed);
+    }
+
+    // An overlay hidden on its own shows nowhere, so on the map it pushes no other along their taskbar, as on the desktop
+    // its window, hidden, pushes none: the one beside it sits where it sits alone.
+    [Fact]
+    public void AHiddenOverlayPushesNoneOnTheMap()
+    {
+        var screen = new Screen("PC", true, new PixelRect(0, 0, 2560, 1440), new PixelRect(0, 0, 2560, 1392), 1)
+        {
+            Taskbar = new PixelRect(0, 1392, 2560, 1440),
+        };
+        var two = OverlayEdits.Add(new ThermiConfig()).Config;
+        two = OverlayEdits.SetHidden(OverlayEdits.Snap(two, 1, new SnapConfig(SnapSpot.Taskbar)).Config, 1, hidden: true).Config;
+        var input = new TrayInput(HostRun.Recorded, ServiceState.Running, English, Texts.English, LightTaskbar: false, ExePath: "") { WindowOpen = true };
+
+        var alone = Ui.Views.OverlayPlaces.Of(two with { Overlays = [two.Overlays[0]] }, input, [screen]);
+        var beside = Ui.Views.OverlayPlaces.Of(two, input, [screen]);
+
+        Assert.Equal(alone[0], beside[0]);
     }
 
     // The menu opens the window, not the file, and turns the lock on and off for its own overlay.

@@ -16,8 +16,8 @@ namespace Thermi.Windows.Tests.Window;
 /// <summary>
 /// One case of the fake bridge's oracle run through the real bridge: from its start (the settings file, the saved looks,
 /// the readings and the window's language) every call goes over the bridge's wire as the page sends it, and each answer
-/// holds what the bridge answered, the settings it then shows and its saved looks where they changed, and its undo
-/// steps, as the page reads them next. The calls come at a person's pace, by the test's clock: a call that changes again
+/// holds what the bridge answered, the settings it then shows, its saved looks and the looks the overlays wear where they
+/// changed, and its undo steps, as the page reads them next. The calls come at a person's pace, by the test's clock: a call that changes again
 /// what the last one changed comes within the second that makes them one step, any other two seconds after.
 /// </summary>
 internal sealed class OracleReplay : IAsyncDisposable
@@ -58,16 +58,7 @@ internal sealed class OracleReplay : IAsyncDisposable
         var feed = new TestFeed { Latest = service == ServiceState.Stopped ? null : SnapshotOf(start["sensors"]), State = service };
         var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
         var editor = new WindowEditor(_settings, turn.Enqueue, _folder.Log, _folder.Clock);
-        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
-        var environment = new WindowEnvironment(
-            "thermi-tests",
-            _folder.File,
-            "thermi.exe",
-            _folder.Log,
-            _folder.Clock.GetUtcNow(),
-            feed,
-            startup)
-        { Screens = () => [], HotkeyStatus = () => null, AltGrKeys = () => UsKeyboard };
+        var environment = _folder.Window(feed) with { AltGrKeys = () => UsKeyboard };
         var texts = language == "pseudo" ? Texts.Pseudo() : Texts.Of(language);
         _bridge = new WindowBridge(
             new WindowStart(0, _settings, texts, environment, _folder.Clock) { Pseudo = language == "pseudo" },
@@ -77,12 +68,15 @@ internal sealed class OracleReplay : IAsyncDisposable
         _bridge.Arrived();
     }
 
-    /// <summary>The settings the window shows as it opens on <paramref name="start"/>, and each call's answer after it.</summary>
-    public static async Task<(JsonNode? Shown, List<JsonObject> Answers)> RunAsync(JsonObject start, JsonArray calls)
+    /// <summary>
+    /// The settings the window shows as it opens on <paramref name="start"/> and the looks they wear, and each call's
+    /// answer after it.
+    /// </summary>
+    public static async Task<(JsonNode? Shown, JsonNode? Worn, List<JsonObject> Answers)> RunAsync(JsonObject start, JsonArray calls)
     {
         await using var replay = new OracleReplay(start);
-        var (shown, looks) = (await replay.ResultOf("settings"), await replay.ResultOf("looks"));
-        var opened = shown;
+        var (shown, looks, worn) = (await replay.ResultOf("settings"), await replay.ResultOf("looks"), await replay.ResultOf("worn"));
+        var (opened, wornFirst) = (shown, worn);
         var answers = new List<JsonObject>();
         JsonObject? last = null;
         foreach (var call in calls.OfType<JsonObject>())
@@ -97,7 +91,7 @@ internal sealed class OracleReplay : IAsyncDisposable
             var answer = reply["error"] is { } error
                 ? new JsonObject { ["error"] = error.DeepClone() }
                 : new JsonObject { ["result"] = reply["result"]?.DeepClone() };
-            var (now, nowLooks) = (await replay.ResultOf("settings"), await replay.ResultOf("looks"));
+            var (now, nowLooks, nowWorn) = (await replay.ResultOf("settings"), await replay.ResultOf("looks"), await replay.ResultOf("worn"));
             if (!JsonNode.DeepEquals(now, shown))
             {
                 answer["settings"] = now?.DeepClone();
@@ -108,12 +102,17 @@ internal sealed class OracleReplay : IAsyncDisposable
                 answer["looks"] = nowLooks?.DeepClone();
             }
 
+            if (!JsonNode.DeepEquals(nowWorn, worn))
+            {
+                answer["worn"] = nowWorn?.DeepClone();
+            }
+
             answer["steps"] = await replay.ResultOf("steps");
-            (shown, looks) = (now, nowLooks);
+            (shown, looks, worn) = (now, nowLooks, nowWorn);
             answers.Add(answer);
         }
 
-        return (opened, answers);
+        return (opened, wornFirst, answers);
     }
 
     public async ValueTask DisposeAsync()
@@ -184,7 +183,13 @@ internal sealed class OracleReplay : IAsyncDisposable
         ? TestRecordings.Read($"ryzen-9950x-rtx-5060-ti-{name.GetValue<string>()}.json")
         : new Snapshot(sensors.Deserialize<List<RawSensor>>(Sensors) ?? []);
 
-    private async Task<JsonNode?> ResultOf(string method) => (await AnswerOf(method, []))["result"]?.DeepClone();
+    // A read the bridge refuses would record as nothing, and hold the fake to nothing.
+    private async Task<JsonNode?> ResultOf(string method)
+    {
+        var answer = await AnswerOf(method, []);
+        Assert.Null(answer["error"]);
+        return answer["result"]?.DeepClone();
+    }
 
     private async Task<JsonObject> AnswerOf(string method, JsonArray args)
     {

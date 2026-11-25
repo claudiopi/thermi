@@ -1498,7 +1498,7 @@
       "covers": [
         "R197"
       ],
-      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the change and then its picture before it.",
+      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the picture C# paints of the change, and then its picture before it.",
       "check": "ThePreviewShowsEachEditOfTheOverlay",
       "passes": true
     },
@@ -1622,6 +1622,24 @@
       ],
       "description": "Given the board's fan answering only 5 s after a full 30 s load, and readings that stop for 10 s under the load before the fan answers after it, when the finder replays each, then the first load runs 30 s and the second ends once the readings have been gone 8.5 s, and both pick the fan while watching after the load.",
       "check": "AFanThatAnswersOnlyAfterTheLoadIsStillFound",
+      "passes": true
+    },
+    {
+      "id": "A342",
+      "covers": [
+        "R197"
+      ],
+      "description": "Given an overlay at size 2 on a 48 px taskbar at 100 %, on a 72 px one at 150 %, and free at 150 %, when the window previews it, then the preview is as high as the overlay shows, in pixels at 100 %: 48, no higher than the taskbar, and 76 free.",
+      "check": "ThePreviewIsAsHighAsTheOverlayShows",
+      "passes": true
+    },
+    {
+      "id": "A343",
+      "covers": [
+        "R31"
+      ],
+      "description": "Given two overlays on one taskbar, the second hidden on its own, when the window works out where the first shows, then it is where it shows alone, as the hidden one pushes no other.",
+      "check": "AHiddenOverlayPushesNoneOnTheMap",
       "passes": true
     }
   ]

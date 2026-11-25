@@ -125,7 +125,7 @@ public static class DesktopGestures
     /// held would, so no mark pulls it back: the margin away, before a horizontal overlay and level with its middle, after it
     /// when that leaves the work area, below a vertical one and in line with its left edge, else above. Beside the overlay
     /// as it sits once the pill has left, <paramref name="rest"/> in size: one snapped by its right end, as beside the
-    /// notification area, shrinks toward it.
+    /// notification area, shrinks toward it. Refused as too many overlays where no other fits.
     /// </summary>
     public static DesktopDrop Separate(
         ThermiConfig config,
@@ -136,7 +136,12 @@ public static class DesktopGestures
         (int Width, int Height) rest,
         IReadOnlyList<Screen> screens)
     {
-        if (!ConfigEdits.HasOverlay(config, overlay) || screens.Count == 0 || !CanTakeOff(config, overlay, pill))
+        if (config.Overlays.Count >= ThermiConfig.MaxOverlays)
+        {
+            return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.TooManyOverlays));
+        }
+
+        if (!ConfigEdits.HasOverlay(config, overlay) || screens.Count == 0 || !IsPart(config, overlay, pill))
         {
             return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.NotFound));
         }
@@ -150,7 +155,7 @@ public static class DesktopGestures
         }
 
         var screen = Snaps.ScreenOf(config.Overlays[overlay], screens)!;
-        var gap = (int)Math.Round(Snaps.Margin * screen.Scale);
+        var gap = Snaps.Scaled(Snaps.Margin, screen);
         var (work, (width, height)) = (screen.Work, made);
         var at = orientation == Orientation.Vertical
             ? new Position(shown.Left, shown.Bottom + gap + height <= work.Bottom ? shown.Bottom + gap : shown.Top - gap - height)

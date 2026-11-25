@@ -47,24 +47,6 @@ export function shownStyle(style: Style | undefined): ShownStyle {
   };
 }
 
-/**
- * The look an overlay wears, as its tiles check it: the saved look it names; else Default, null, or a saved look, when it
- * draws as that look does, layout and direction aside, which are the overlay's; else none, undefined, once it was
- * changed in any way.
- */
-export function lookWorn(style: Style | undefined, looks: Record<string, Style>): string | null | undefined {
-  const drawn = (look: Style | undefined): string => {
-    const { layout: _layout, orientation: _orientation, ...shown } = shownStyle(look);
-    return JSON.stringify([look?.preset ?? 'standard', shown]);
-  };
-  const names = Object.keys(looks);
-  if (style?.name !== undefined && names.includes(style.name)) {
-    return style.name;
-  }
-  const mine = drawn(style);
-  return mine === drawn(undefined) ? null : names.find((name) => drawn(looks[name]) === mine);
-}
-
 /** The pills a look draws, as the overlay does: "Match taskbar" takes the taskbar's mode, never the window's own theme. */
 export function pillsShown(pills: PillTheme, lightTaskbar: boolean): 'dark' | 'light' {
   return pills === 'system' ? (lightTaskbar ? 'light' : 'dark') : pills;

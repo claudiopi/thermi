@@ -171,7 +171,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
             Settings.Problem is not null,
             parts.Service(),
             undo is null ? null : TimeSpan.Zero,
-            [.. _choices.Looks().Select(style => style.Name).OfType<string>()],
+            _choices.Looks(),
             UpdateReady: false);
         var texts = Translations;
         var rows = overlay is { } shown ? Menus.OfOverlay(config, shown, state, item, fromTray) : Menus.Thermis(config, state);

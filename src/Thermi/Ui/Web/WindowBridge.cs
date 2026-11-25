@@ -220,7 +220,6 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             screen.Taskbar is not null,
             Snaps.Floats(screen)))]);
 
-
     public Task Report(string error)
     {
         _start.Environment.Log.PageThrew(error);
@@ -228,6 +227,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     public Task<IReadOnlyDictionary<string, StyleConfig>> Looks() => Task.FromResult(_looks.Looks());
+
+    public Task<IReadOnlyList<WornLook?>> Worn() => Task.FromResult(_looks.Worn());
 
     public Task<string?> SaveLook(int overlay, string name) => Task.FromResult(_looks.Save(overlay, name));
 
