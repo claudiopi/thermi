@@ -230,17 +230,8 @@ export function installFakeViews(): void {
         ? say('ChartText.UseLine', said((made?.warning ?? made?.critical)!, true))
         : say('ChartText.UseNoLines');
 
-  // As Core's MeterChart.Points: each second's reading, or none, and how long ago it came, the last now.
-  const ago = (seconds: number): string =>
-    seconds === 0
-      ? say('UiText.ChartNow')
-      : seconds < 60
-        ? say('ChartText.SecondsAgo', String(seconds))
-        : seconds % 60 === 0
-          ? say('ChartText.MinutesAgo', String(seconds / 60))
-          : say('ChartText.MinutesSecondsAgo', String(Math.floor(seconds / 60)), String(seconds % 60));
-  const pointsOf = (readings: (number | null)[], said: (reading: number) => string): string[] =>
-    readings.map((reading, index) => say('ChartText.Point', reading === null ? say('ChartText.NoReading') : said(reading), ago(readings.length - 1 - index)));
+  // What each second's point says is Core's MeterChart.Points' to decide: the fake's are tokens, one of its own a second.
+  const pointsOf = (readings: (number | null)[]): string[] => readings.map((_, index) => `#${index}`);
 
   bridge.chart = async (id: string): Promise<ChartView | null> => {
     const item = state.settings.overlays.flatMap((overlay) => overlay.items).find((candidate) => candidate.id === id);
@@ -273,7 +264,7 @@ export function installFakeViews(): void {
       from,
       to,
       readings,
-      points: pointsOf(readings, (reading) => format(meter.type, reading)),
+      points: pointsOf(readings),
       warning: warning ?? null,
       critical: critical ?? null,
       warningText: text(warning),

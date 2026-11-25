@@ -83,9 +83,10 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     await expect(page.getByRole('button', { name: text('UiText.AddCriticalLine') })).toBeFocused();
   });
 
-  await test.step('without readings the chart keeps its lines', async () => {
+  await test.step('without readings the chart keeps its lines, and is no slider with nothing to move along', async () => {
     await setFake(page, { service: 'stopped' });
     await expect(warning).toBeVisible();
+    await expect(page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) })).toHaveCount(0);
   });
 });
 
@@ -170,6 +171,7 @@ test('AChartsPointSaysItsReadingAndWhen', async ({ page }) => {
     await page.keyboard.press(key);
     await expect(shown).toHaveText(points[last - ago] ?? '');
     await expect(plot).toHaveAttribute('aria-valuetext', points[last - ago] ?? '');
+    await expect(plot).toHaveAttribute('aria-valuenow', String(last - ago));
   }
   await page.keyboard.press('Escape');
   await expect(shown).toHaveCount(0);

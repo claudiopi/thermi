@@ -165,12 +165,12 @@ public static class MeterChart
     /// <summary>
     /// The chart's span, a reading a second: from its first reading on, so minutes the overlay and the window had not yet
     /// read leave no empty stretch, while a gap after it stays one; and how long ago its first reading came, the last being
-    /// now, as "40 s ago" or, past a minute, rounded to minutes, as "4 min ago".
+    /// now, as a lone reading is, "40 s ago" or, past a minute, rounded to minutes, as "4 min ago".
     /// </summary>
     public static (IReadOnlyList<double?> Readings, string Start) Span(IReadOnlyList<double?> history, ValueFormat format)
     {
         var first = history.Count - history.SkipWhile(value => value is null).Count();
-        var seconds = Math.Max(1, history.Count - first - 1);
+        var seconds = Math.Max(0, history.Count - first - 1);
         return ([.. history.Skip(first)], Ago(seconds < 60 ? seconds : (int)Math.Round(seconds / 60.0, MidpointRounding.AwayFromZero) * 60, format));
     }
 

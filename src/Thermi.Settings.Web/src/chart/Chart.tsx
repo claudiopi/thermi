@@ -110,7 +110,8 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
   const plot: Plot = { width: Math.max(0, size.width - knobColumn), height: size.height, chart };
   const focus = useFocusHandOver(given);
   const scrub = useScrub(plot);
-  const point = chart.empty === null ? scrub.ago : null;
+  const live = chart.empty === null;
+  const point = live ? scrub.ago : null;
   const queue = useRef<Promise<unknown> | null>(null);
   const later = (work: () => Promise<unknown>): void => {
     queue.current = (queue.current ?? Promise.resolve()).then(work);
@@ -175,19 +176,20 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
     <section className="t-chart" ref={box}>
       {chart.title !== null && <div className="t-chart-title">{chart.title}</div>}
       <div className="t-chart-row" style={{ height: `${size.height}px` }}>
-        {/* A slider, as screen readers pass it the arrows, Home and End that move its point, where an image's they keep. */}
+        {/* A slider while it has readings, as screen readers pass it the arrows, Home and End that move its point, where an
+            image's they keep. */}
         <svg
           className="t-plot"
-          role="slider"
+          role={live ? 'slider' : 'img'}
           aria-label={t('UiText.ChartOf', name)}
           aria-description={chart.summary}
-          aria-valuemin={0}
-          aria-valuemax={Math.max(0, chart.points.length - 1)}
-          aria-valuenow={scrub.heard?.ago ?? 0}
-          aria-valuetext={scrub.heard?.said ?? t('UiText.ChartNow')}
+          aria-valuemin={live ? 0 : undefined}
+          aria-valuemax={live ? chart.points.length - 1 : undefined}
+          aria-valuenow={live ? (scrub.heard?.at ?? chart.points.length - 1) : undefined}
+          aria-valuetext={live ? (scrub.heard?.said ?? t('UiText.ChartNow')) : undefined}
           width={plot.width}
           height={plot.height}
-          tabIndex={chart.empty === null ? 0 : -1}
+          tabIndex={live ? 0 : -1}
           onMouseDown={pressPlot}
           {...scrub.handlers}
         >

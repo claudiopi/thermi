@@ -110,7 +110,7 @@ public sealed class ChartTests
         Assert.Equal(Format(ChartText.MinutesAgo, 2), since);
         var (one, now) = MeterChart.Span([null, value], InEnglish);
         Assert.Equal([value], one);
-        Assert.Equal(Format(ChartText.SecondsAgo, 1), now);
+        Assert.Equal(Texts.English.Of(UiText.ChartNow), now);
 
         // A point says its second's reading as the item words it, or none in a gap, and how long ago it came: to the second
         // where the axis rounds, the first reading 2 min 9 s ago where the axis says 2 min.

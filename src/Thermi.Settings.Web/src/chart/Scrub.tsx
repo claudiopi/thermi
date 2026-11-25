@@ -4,8 +4,8 @@ import { levelAt, readingAt, xOf, yOf, type Plot } from './geometry';
 /** A point of the chart, as seconds before now, so it stays on its place across the plot as each second's reading comes. */
 interface Scrub {
   ago: number | null;
-  /** The point the keys last moved to, as a screen reader hears it, held as it was then, never one under the pointer. */
-  heard: { ago: number; said: string } | null;
+  /** The point the keys last moved to, its reading's place and as a screen reader hears it, held as it was then, never one under the pointer. */
+  heard: { at: number; said: string } | null;
   handlers: {
     onPointerMove: (event: PointerEvent<SVGSVGElement>) => void;
     onPointerLeave: () => void;
@@ -36,7 +36,7 @@ export function useScrub(plot: Plot): Scrub {
     }
     event.preventDefault();
     setAgo(held(next));
-    setHeard({ ago: held(next), said: points[last - held(next)] ?? '' });
+    setHeard({ at: last - held(next), said: points[last - held(next)] ?? '' });
   };
   return {
     ago: ago === null || last < 0 ? null : Math.min(ago, last),
