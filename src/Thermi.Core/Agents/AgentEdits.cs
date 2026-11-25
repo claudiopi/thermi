@@ -25,24 +25,36 @@ public static class AgentEdits
     /// The Core edit <paramref name="json"/> asks for, made on the readings of <paramref name="snapshot"/>, named in the
     /// language of <paramref name="texts"/>, and for a hotkey with the keys the keyboard layout types with AltGr.
     /// </summary>
-    /// <exception cref="AgentInputException">When the text is no edit Core knows.</exception>
+    /// <exception cref="AgentInputException">When the text is no edit Core knows, or, once made, names a field or value none has.</exception>
     public static Func<ThermiConfig, EditResult> Of(string json, Snapshot snapshot, Texts texts, Func<IReadOnlySet<int>> altGrKeys)
+    {
+        var edit = Checked(() => Parsed(json, snapshot, texts, altGrKeys));
+        // A field's name and value are read only as the edit is made, so a wrong one shows there.
+        return config => Checked(() => edit(config));
+    }
+
+    private static T Checked<T>(Func<T> read)
     {
         try
         {
-            var edit = JsonNode.Parse(json) as JsonObject ?? throw new AgentInputException("An edit is a JSON object with a kind.");
-            return edit["kind"]?.GetValue<string>() switch
-            {
-                Threshold => Lines(edit),
-                Place => Placed(edit),
-                null => throw new AgentInputException("An edit is a JSON object with a kind."),
-                _ => Page(edit.Deserialize<PageEdit>(Options)!, snapshot, texts, altGrKeys),
-            };
+            return read();
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException or BridgeCallException or NotSupportedException)
         {
             throw new AgentInputException(ex.Message);
         }
+    }
+
+    private static Func<ThermiConfig, EditResult> Parsed(string json, Snapshot snapshot, Texts texts, Func<IReadOnlySet<int>> altGrKeys)
+    {
+        var edit = JsonNode.Parse(json) as JsonObject ?? throw new AgentInputException("An edit is a JSON object with a kind.");
+        return edit["kind"]?.GetValue<string>() switch
+        {
+            Threshold => Lines(edit),
+            Place => Placed(edit),
+            null => throw new AgentInputException("An edit is a JSON object with a kind."),
+            _ => Page(edit.Deserialize<PageEdit>(Options)!, snapshot, texts, altGrKeys),
+        };
     }
 
     // An agent writes an edit's fields in any order, its kind among them; the page writes its kind first.
@@ -51,8 +63,8 @@ public static class AgentEdits
     private static Func<ThermiConfig, EditResult> Page(PageEdit edit, Snapshot snapshot, Texts texts, Func<IReadOnlySet<int>> altGrKeys) =>
         edit switch
         {
-            LineEdit or TypedLineEdit or AddLineEdit => throw new AgentInputException($"A meter's lines are set at once with the {Threshold} edit."),
             LookEdit => throw new AgentInputException("A saved look is worn with the look command."),
+            _ when PageEdits.Elsewhere(edit) => throw new AgentInputException($"A meter's lines are set at once with the {Threshold} edit."),
             _ => PageEdits.Of(edit, snapshot, texts, altGrKeys),
         };
 

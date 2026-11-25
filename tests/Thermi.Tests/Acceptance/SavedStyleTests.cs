@@ -58,6 +58,9 @@ public sealed class SavedStyleTests
             Done(StyleEdits.Restyle(worn, 0, each => each with { Layout = PillLayout.One, Orientation = Orientation.Vertical, NoLabels = true }))
                 .Overlays[0].Style.Name);
         Assert.Equal("Night", SavedStyles.Chosen(worn.Overlays[0].Style, [style])?.Name);
+        // Worn on no overlay in particular, as an agent wears it, it goes on every one.
+        var everywhere = Done(StyleEdits.Wear(Done(OverlayEdits.Add(new ThermiConfig())), overlay: null, style));
+        Assert.All(everywhere.Overlays, overlay => Assert.Equal("Night", overlay.Style.Name));
 
         // Saved or exported, the look holds no layout, direction or labels, and one written with them before reads without them.
         var file = StyleFile.Write(style);

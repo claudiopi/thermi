@@ -37,7 +37,7 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Done, 0, "looks")]
     [InlineData(Ending.Done, 2, "read", "no.such.metric")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
-    [InlineData(Ending.Done, 2, "edit", """{"kind":"nothing"}""")]
+    [InlineData(Ending.Done, 2, "edit", """{"kind":"item","item":"cpu.load","field":"nothing","value":1}""")]
     [InlineData(Ending.Done, 2, "status", "--schema", "0")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
     [InlineData(Ending.Stopped, 0, "status")]
@@ -129,8 +129,10 @@ public sealed class AgentCommandTests : IDisposable
         Assert.Equal(2, (await _rig.RunAsync("read", "--seconds", "61")).Exit);
     }
 
+    // Core decides each edit as the window does (AgentEditTests); here, what is written to the file, and that a refusal
+    // writes nothing.
     [Fact]
-    public async Task AgentEditsAreTheWindowsEdits()
+    public async Task AgentEditsWriteTheFileOrLeaveIt()
     {
         var snapshot = TestRecordings.Read(TestRecordings.Admin);
         var clock = snapshot.Sensors.First(sensor => sensor.Type == "Clock").Id;

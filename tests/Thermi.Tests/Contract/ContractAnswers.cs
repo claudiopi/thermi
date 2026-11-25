@@ -1,5 +1,6 @@
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
+using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using static Thermi.Tests.Acceptance.Edited;
@@ -18,8 +19,10 @@ internal static class ContractAnswers
         {
             var withFan = Done(ItemEdits.UseCpuFan(config, 0, snapshot, snapshot.Sensors.Last(sensor => sensor.Type == "Fan").Id));
             yield return ("read", AgentJson.Write(AgentReads.Read([snapshot], withFan, []) with { At = DateTimeOffset.UnixEpoch }));
+            yield return ("read", AgentJson.Write(AgentReads.Read([snapshot], withFan, ["cpu.temperature", "item:nobody", "no.such.metric"])));
             yield return ("sensors", AgentJson.Write(AgentViews.Sensors(snapshot, config, search: null, kinds: [])));
-            var running = new AgentFacts(ServiceState.Running, Installed: true, Taken: false, snapshot, Settings: null);
+            yield return ("sensors", AgentJson.Write(AgentViews.Sensors(snapshot, config, "cpu", [SensorKind.Temperature, SensorKind.Fan])));
+            var running = new AgentFacts(ServiceState.Running, Installed: true, Taken: false, snapshot, ConfigProblem.Missing);
             yield return ("status", AgentJson.Write(AgentStatus.Of(running)));
         }
 
@@ -28,11 +31,13 @@ internal static class ContractAnswers
             yield return ("read", AgentJson.Write(AgentReads.Read([.. series.Take(10)], config, [])));
         }
 
-        foreach (var state in Enum.GetValues<ServiceState>())
+        // Each problem the service can have, with a settings file that cannot be used, an overlay and a sensors-only install.
+        (ServiceState State, bool Installed, bool Taken)[] services =
+            [(ServiceState.Stopped, true, false), (ServiceState.Stale, true, false), (ServiceState.Stopped, true, true), (ServiceState.Stopped, false, false)];
+        foreach (var (state, installed, taken) in services)
         {
-            var facts = new AgentFacts(
-                state, Installed: state != ServiceState.Stale, Taken: state == ServiceState.Stopped, Latest: null, ConfigProblem.Locked("locked"));
-            yield return ("status", AgentJson.Write(AgentStatus.Of(facts with { Overlay = true, SensorsOnly = state == ServiceState.Running })));
+            var facts = new AgentFacts(state, installed, taken, Latest: null, ConfigProblem.Locked("locked")) { Overlay = true, SensorsOnly = !installed };
+            yield return ("status", AgentJson.Write(AgentStatus.Of(facts)));
         }
     }
 }

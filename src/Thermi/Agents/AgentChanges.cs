@@ -33,6 +33,8 @@ internal sealed partial class AgentCommands
         try
         {
             edit = AgentEdits.Of(json, snapshot, Texts.For(settings.Config.Language, CultureInfo.CurrentUICulture), environment.AltGrKeys);
+            // Made once on the settings as read, so a field or value no edit has is a bad argument before the file is opened.
+            edit(settings.Config);
         }
         catch (AgentInputException ex)
         {
