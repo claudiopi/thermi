@@ -245,9 +245,10 @@
         "R27",
         "R28",
         "R110",
-        "R111"
+        "R111",
+        "R200"
       ],
-      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not.",
+      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not; and each second of the chart's span says its reading as the item words it, or none in a gap, and how long ago it came, to the second, a whole minute as minutes and the last as now, where the axis rounds the first reading's age to minutes.",
       "check": "ThresholdsAndTheChartFollowTheMetersType",
       "passes": true
     },
@@ -1722,7 +1723,7 @@
       "covers": [
         "R200"
       ],
-      "description": "Given the CPU temperature's page, with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot at a second in the gap and at one 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label says that second's reading as the bridge words it, or that it has none, and how long ago it came, above Min · Avg · Max; a screen reader hears it after each key and not after the pointer's moves; and Esc hides it.",
+      "description": "Given the CPU temperature's page, with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot at a second in the gap and at one 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label shows the bridge's point of that second, above Min · Avg · Max; the chart, a slider, takes each key's point as its value for a screen reader, and keeps it through the pointer's moves; and Esc hides the label.",
       "check": "AChartsPointSaysItsReadingAndWhen",
       "passes": true
     }

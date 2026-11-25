@@ -7,7 +7,7 @@ import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
 import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
 import { Knob } from './Knob';
-import { ScrubLabel, ScrubMarks, useSaidPoint, useScrub } from './Scrub';
+import { ScrubLabel, ScrubMarks, useScrub } from './Scrub';
 import './chart.css';
 
 export interface ChartProps {
@@ -109,8 +109,7 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
   const chart: ChartView = held === null ? given : { ...given, ...held };
   const plot: Plot = { width: Math.max(0, size.width - knobColumn), height: size.height, chart };
   const focus = useFocusHandOver(given);
-  const say = useSaidPoint(plot);
-  const scrub = useScrub(plot, say);
+  const scrub = useScrub(plot);
   const point = chart.empty === null ? scrub.ago : null;
   const queue = useRef<Promise<unknown> | null>(null);
   const later = (work: () => Promise<unknown>): void => {
@@ -176,11 +175,16 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
     <section className="t-chart" ref={box}>
       {chart.title !== null && <div className="t-chart-title">{chart.title}</div>}
       <div className="t-chart-row" style={{ height: `${size.height}px` }}>
+        {/* A slider, as screen readers pass it the arrows, Home and End that move its point, where an image's they keep. */}
         <svg
           className="t-plot"
-          role="img"
+          role="slider"
           aria-label={t('UiText.ChartOf', name)}
           aria-description={chart.summary}
+          aria-valuemin={0}
+          aria-valuemax={Math.max(0, chart.points.length - 1)}
+          aria-valuenow={scrub.heard?.ago ?? 0}
+          aria-valuetext={scrub.heard?.said ?? t('UiText.ChartNow')}
           width={plot.width}
           height={plot.height}
           tabIndex={chart.empty === null ? 0 : -1}
@@ -219,10 +223,7 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
           })}
           {point !== null && <ScrubMarks plot={plot} ago={point} />}
         </svg>
-        {point !== null && <ScrubLabel plot={plot} ago={point} label={say(point)} />}
-        <span className="t-announce" aria-live="polite">
-          {scrub.spoken}
-        </span>
+        {point !== null && <ScrubLabel plot={plot} ago={point} />}
         {chart.empty !== null && <EmptyNote why={chart.empty} width={plot.width} />}
         {chart.empty === null && (
           // The span's ends, quiet in the plot's corner, so the line's height reads as a value without a grid.

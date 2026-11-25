@@ -1,12 +1,11 @@
 import { useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { useText } from '../texts/Texts';
-import { agoOf, levelAt, readingAt, xOf, yOf, type Plot } from './geometry';
+import { levelAt, readingAt, xOf, yOf, type Plot } from './geometry';
 
 /** A point of the chart, as seconds before now, so it stays on its place across the plot as each second's reading comes. */
 interface Scrub {
   ago: number | null;
-  /** What a screen reader hears: the point the keys moved to, never one under the pointer. */
-  spoken: string;
+  /** The point the keys last moved to, as a screen reader hears it, held as it was then, never one under the pointer. */
+  heard: { ago: number; said: string } | null;
   handlers: {
     onPointerMove: (event: PointerEvent<SVGSVGElement>) => void;
     onPointerLeave: () => void;
@@ -15,28 +14,18 @@ interface Scrub {
   };
 }
 
-export function useSaidPoint(plot: Plot): (ago: number) => string {
-  const t = useText();
-  return (ago) => {
-    const said = plot.chart.readingTexts[plot.chart.readings.length - 1 - ago] ?? t('UiText.ChartNoReading');
-    return t('UiText.ChartPoint', said, t(...agoOf(ago)));
-  };
-}
-
-export function useScrub(plot: Plot, say: (ago: number) => string): Scrub {
+export function useScrub(plot: Plot): Scrub {
   const [ago, setAgo] = useState<number | null>(null);
-  const [spoken, setSpoken] = useState('');
-  const last = plot.chart.readings.length - 1;
-  const hide = (): void => {
-    setAgo(null);
-    setSpoken('');
-  };
+  const [heard, setHeard] = useState<Scrub['heard']>(null);
+  const { points } = plot.chart;
+  const last = points.length - 1;
   // The dot at an end draws past the plot, and a pointer on it past the first or last reading.
   const held = (seconds: number): number => Math.min(last, Math.max(0, seconds));
   const keyDown = (event: KeyboardEvent<SVGSVGElement>): void => {
     if (event.key === 'Escape' && ago !== null) {
       event.stopPropagation();
-      hide();
+      setAgo(null);
+      setHeard(null);
       return;
     }
     const from = ago ?? 0;
@@ -47,20 +36,23 @@ export function useScrub(plot: Plot, say: (ago: number) => string): Scrub {
     }
     event.preventDefault();
     setAgo(held(next));
-    setSpoken(say(held(next)));
+    setHeard({ ago: held(next), said: points[last - held(next)] ?? '' });
   };
   return {
     ago: ago === null || last < 0 ? null : Math.min(ago, last),
-    spoken,
+    heard,
     handlers: {
       onPointerMove: (event) => {
         if (last >= 0) {
           setAgo(held(last - readingAt(plot, event.clientX - event.currentTarget.getBoundingClientRect().left)));
         }
       },
-      onPointerLeave: hide,
+      onPointerLeave: () => setAgo(null),
       onKeyDown: keyDown,
-      onBlur: hide,
+      onBlur: () => {
+        setAgo(null);
+        setHeard(null);
+      },
     },
   };
 }
@@ -80,8 +72,9 @@ export function ScrubMarks({ plot, ago }: { plot: Plot; ago: number }) {
 }
 
 /** Sits on the side of its line with room, never past the plot's half. */
-export function ScrubLabel({ plot, ago, label }: { plot: Plot; ago: number; label: string }) {
-  const x = xOf(plot, plot.chart.readings.length - 1 - ago);
+export function ScrubLabel({ plot, ago }: { plot: Plot; ago: number }) {
+  const index = plot.chart.points.length - 1 - ago;
+  const x = xOf(plot, index);
   const right = x < plot.width / 2;
   return (
     <div
@@ -89,7 +82,7 @@ export function ScrubLabel({ plot, ago, label }: { plot: Plot; ago: number; labe
       className={`t-scrub-label${right ? '' : ' t-scrub-left'}`}
       style={{ left: `${right ? x + 6 : x - 6}px`, maxWidth: `${Math.max(0, plot.width / 2 - 6)}px` }}
     >
-      {label}
+      {plot.chart.points[index]}
     </div>
   );
 }

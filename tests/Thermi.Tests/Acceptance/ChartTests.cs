@@ -111,6 +111,24 @@ public sealed class ChartTests
         var (one, now) = MeterChart.Span([null, value], InEnglish);
         Assert.Equal([value], one);
         Assert.Equal(Format(ChartText.SecondsAgo, 1), now);
+
+        // A point says its second's reading as the item words it, or none in a gap, and how long ago it came: to the second
+        // where the axis rounds, the first reading 2 min 9 s ago where the axis says 2 min.
+        var points = MeterChart.Points(span, reading => $"{reading}!", InEnglish);
+        static string Point(string reading, string ago)
+        {
+            return Format(ChartText.Point, reading, ago);
+        }
+
+        Assert.Equal(
+            [
+                Point($"{value}!", Format(ChartText.MinutesSecondsAgo, 2, 9)),
+                Point(Texts.English.Of(ChartText.NoReading), Format(ChartText.MinutesSecondsAgo, 2, 8)),
+                Point($"{value}!", Format(ChartText.MinutesAgo, 2)),
+                Point($"{value}!", Format(ChartText.SecondsAgo, 59)),
+                Point($"{value}!", Texts.English.Of(UiText.ChartNow)),
+            ],
+            new[] { 0, 1, 9, 70, 129 }.Select(index => points[index]));
         Assert.Equal(
 
             [null, null, Format(ChartText.OutOfRange, ends), Format(ChartText.NotANumber, Number(scale, critical ?? warning ?? scale.Max))],

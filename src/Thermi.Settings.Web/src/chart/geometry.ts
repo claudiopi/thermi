@@ -1,9 +1,8 @@
 import type { ChartView, Level, Line } from '../bridge/bridge.g';
-import type { TextKey } from '../texts/Texts';
 
 // Where the chart draws what the C# side gave it: its size from the pane, each value's height, the smooth line, where
-// the knobs sit and which second a point across it is. The values, their texts, the range and the colors are the C# side's;
-// this only places them.
+// the knobs sit and which second a point across it is. The values, their points' texts, the range and the colors are the
+// C# side's; this only places them.
 
 /** The knobs' column beside the plot, as wide as the widest knob's text. */
 export const knobColumn = 64;
@@ -58,13 +57,6 @@ export function xOf(plot: Plot, index: number): number {
 
 export function readingAt(plot: Plot, x: number): number {
   return Math.round((x / plot.width) * (plot.chart.readings.length - 1));
-}
-
-export function agoOf(seconds: number): [TextKey, ...number[]] {
-  if (seconds < 60) {
-    return seconds === 0 ? ['UiText.ChartNow'] : ['ChartText.SecondsAgo', seconds];
-  }
-  return ['UiText.ChartMinutesSecondsAgo', Math.floor(seconds / 60), seconds % 60];
 }
 
 /** One stretch of the line between missing readings: its path and where it starts and ends across. */

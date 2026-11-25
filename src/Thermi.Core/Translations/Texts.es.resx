@@ -741,15 +741,6 @@
   <data name="UiText.ChartNow" xml:space="preserve">
     <value>ahora</value>
   </data>
-  <data name="UiText.ChartPoint" xml:space="preserve">
-    <value>{0} · {1}</value>
-  </data>
-  <data name="UiText.ChartNoReading" xml:space="preserve">
-    <value>Sin lectura</value>
-  </data>
-  <data name="UiText.ChartMinutesSecondsAgo" xml:space="preserve">
-    <value>hace {0} min {1} s</value>
-  </data>
   <data name="UiText.MoveToNewOverlay" xml:space="preserve">
     <value>Mover a una superposición nueva</value>
   </data>
@@ -1028,6 +1019,15 @@
   </data>
   <data name="ChartText.SecondsAgo" xml:space="preserve">
     <value>hace {0} s</value>
+  </data>
+  <data name="ChartText.MinutesSecondsAgo" xml:space="preserve">
+    <value>hace {0} min {1} s</value>
+  </data>
+  <data name="ChartText.Point" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="ChartText.NoReading" xml:space="preserve">
+    <value>Sin lectura</value>
   </data>
   <data name="Combine.Max" xml:space="preserve">
     <value>Máximo</value>

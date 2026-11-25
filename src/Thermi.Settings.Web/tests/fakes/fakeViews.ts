@@ -230,6 +230,18 @@ export function installFakeViews(): void {
         ? say('ChartText.UseLine', said((made?.warning ?? made?.critical)!, true))
         : say('ChartText.UseNoLines');
 
+  // As Core's MeterChart.Points: each second's reading, or none, and how long ago it came, the last now.
+  const ago = (seconds: number): string =>
+    seconds === 0
+      ? say('UiText.ChartNow')
+      : seconds < 60
+        ? say('ChartText.SecondsAgo', String(seconds))
+        : seconds % 60 === 0
+          ? say('ChartText.MinutesAgo', String(seconds / 60))
+          : say('ChartText.MinutesSecondsAgo', String(Math.floor(seconds / 60)), String(seconds % 60));
+  const pointsOf = (readings: (number | null)[], said: (reading: number) => string): string[] =>
+    readings.map((reading, index) => say('ChartText.Point', reading === null ? say('ChartText.NoReading') : said(reading), ago(readings.length - 1 - index)));
+
   bridge.chart = async (id: string): Promise<ChartView | null> => {
     const item = state.settings.overlays.flatMap((overlay) => overlay.items).find((candidate) => candidate.id === id);
     // As Core's WindowCharts: what it warns by, or for an item thresholds cannot judge its own reading, with no lines,
@@ -261,7 +273,7 @@ export function installFakeViews(): void {
       from,
       to,
       readings,
-      readingTexts: readings.map((reading) => (reading === null ? null : format(meter.type, reading))),
+      points: pointsOf(readings, (reading) => format(meter.type, reading)),
       warning: warning ?? null,
       critical: critical ?? null,
       warningText: text(warning),

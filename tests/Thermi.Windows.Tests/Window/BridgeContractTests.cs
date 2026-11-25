@@ -24,7 +24,8 @@ namespace Thermi.Windows.Tests.Window;
 /// </summary>
 public sealed class BridgeContractTests
 {
-    // A version 2 file without names, as written by hand or by a build before names, its fan metered by its duty.
+    // A version 2 file without names, as written by hand or by a build before names, its fan metered by its duty and its CPU
+    // temperature in two decimals.
     private const string Unnamed = """
         {
           "version": 2,
@@ -33,7 +34,7 @@ public sealed class BridgeContractTests
             "snap": { "spot": "taskbar-right" },
             "items": [
               { "id": "fan.cpu", "metric": "fan.cpu", "meter": { "metric": "fan.cpu.duty" }, "threshold": { "warning": 60, "critical": 85 } },
-              { "id": "cpu.temperature", "metric": "cpu.temperature", "meter": { "metric": "cpu.temperature" } },
+              { "id": "cpu.temperature", "metric": "cpu.temperature", "meter": { "metric": "cpu.temperature" }, "decimals": 2 },
               { "id": "cpu.power", "metric": "cpu.power" },
               { "id": "ram.used", "metric": "ram.used", "meter": { "metric": "ram.load" } }
             ]
@@ -92,9 +93,12 @@ public sealed class BridgeContractTests
             Assert.True(chart is { Empty: null, Stats: not null } && (Threshold.Judges(item) || chart is { Warning: null, Critical: null }), item.Id);
             var unit = chart.Stats.Split(' ')[^1];
             Assert.All(new[] { chart.WarningText, chart.CriticalText }.OfType<string>(), line => Assert.EndsWith($" {unit}", line, StringComparison.Ordinal));
-            Assert.Equal(
-                chart.Readings.Select(reading => reading is not null),
-                chart.ReadingTexts.Select(said => said?.EndsWith($" {unit}", StringComparison.Ordinal) == true));
+            // A chart of the item's own reading says its points as the item's value says it, in its decimals too.
+            if (chart.Title is null)
+            {
+                var now = Texts.English.Of(UiText.ChartNow);
+                Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, ChartText.Point, view.Items[item.Id].Value, now), chart.Points[^1]);
+            }
             if (item.Id == Metrics.CpuFan.Id)
             {
                 Assert.Equal((fanUnit, fanTitled), (unit, chart.Title == Texts.English.Of(ChartText.DutyTitle)));

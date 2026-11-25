@@ -125,7 +125,7 @@ public sealed record ColorStop(double At, Level Level);
 
 /// <summary>
 /// An item's chart: its track, from 0 to <see cref="Max"/> by <see cref="Step"/>, the span it shows, its ten minutes from
-/// its first reading, a second each, and each as the item's value says it, its lines and their texts, the colors along it,
+/// its first reading, a second each, and each as its point says it, its lines and their texts, the colors along it,
 /// its Min · Avg · Max and its summary for Narrator, why it is empty, the message of a line pushed by the other, its title,
 /// the ends of its span as its scale says them, when its lines are not the defaults and the lowest was reached for most of
 /// the ten minutes, what the button that puts the defaults back says, as "Use 90/95 °C", else null; and how long ago its
@@ -137,7 +137,7 @@ public sealed record ChartView(
     double From,
     double To,
     IReadOnlyList<double?> Readings,
-    IReadOnlyList<string?> ReadingTexts,
+    IReadOnlyList<string> Points,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] double? Warning,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] double? Critical,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? WarningText,

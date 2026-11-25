@@ -97,7 +97,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             from,
             to,
             span,
-            [.. span.Select(value => value is { } read ? Said(read) : null)],
+            PointsOf(item, meter, scale.Kind, span, format),
             warning,
             critical,
             warning is { } low ? Said(low) : null,
@@ -114,6 +114,21 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             Said(to),
             MeterChart.FiresMostly(history, warning, critical) && item.Threshold != defaults ? DefaultsText(defaults, scale.Kind, format) : null,
             start);
+    }
+
+    // A chart of the item's own reading says its points in the item's decimals, as its value does.
+    private static IReadOnlyList<string> PointsOf(ItemConfig item, WarnByConfig meter, SensorKind kind, IReadOnlyList<double?> span, ValueFormat format)
+    {
+        var decimals = meter == Threshold.Own(item) ? item.Decimals : null;
+        return MeterChart.Points(
+            span,
+            value => ReadingFormatter.Format(
+                new Reading(kind, value),
+                format.Numbers,
+                temperature: format.Temperature,
+                decimals: decimals,
+                texts: format.Texts),
+            format);
     }
 
     // The button of lines that fire most of the time says the defaults it puts back.

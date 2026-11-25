@@ -70,7 +70,7 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
   });
 
   await test.step('a click in the plot moves the nearest line', async () => {
-    const plot = page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+    const plot = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
     await plot.click({ position: { x: 40, y: 4 } });
     await expect.poll(async () => (await itemIn(page, 'cpu.temperature')).threshold?.critical).not.toBe(91);
     await page.keyboard.press('Control+Z');
@@ -133,19 +133,18 @@ test('AFansLineStaysOnItsScale', async ({ page }) => {
   expect(await page.evaluate(() => document.getSelection()?.toString() ?? '')).toBe('');
 });
 
-// A352: a point of the chart says its second's reading as the bridge words it and how long ago it came, or that it has none
-// in a gap; the pointer lands within a second of where it aims, a sample being under a pixel wide. A screen reader hears the
-// point after a key, never after the pointer.
+// A352: a point of the chart shows the bridge's text of the second it is on, under the pointer within a second of where it
+// aims, a second being under a pixel wide, and by keys exactly; a screen reader hears the point the keys move to, as the
+// slider's value, and never the pointer's.
 test('AChartsPointSaysItsReadingAndWhen', async ({ page }) => {
   await openWindow(page);
   await select(page, text('MetricName.CpuTemperature'));
   const chart = await page.evaluate(async () => window.thermi?.chart('cpu.temperature'));
-  const said = chart?.readingTexts ?? [];
-  const last = said.length - 1;
-  const plot = page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+  const [points, stats] = [chart?.points ?? [], chart?.stats ?? ''];
+  const last = points.length - 1;
+  const plot = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
   const shown = page.getByRole('tooltip');
-  const heard = (label: string) => page.locator('[aria-live="polite"]', { hasText: label });
-  const point = (ago: number, when: string): string => text('UiText.ChartPoint', said[last - ago] ?? text('UiText.ChartNoReading'), when);
+  const near = (ago: number): string[] => [ago - 1, ago, ago + 1].map((each) => points[last - each] ?? '');
   const aimAt = async (ago: number): Promise<void> => {
     const box = await plot.boundingBox();
     if (box === null) {
@@ -154,29 +153,23 @@ test('AChartsPointSaysItsReadingAndWhen', async ({ page }) => {
     await page.mouse.move(box.x + ((last - ago) / last) * box.width, box.y + box.height / 2);
   };
 
-  await aimAt(200);
-  // In the fake's gap, 195 to 204 s ago, a second either side of the aim.
-  const gap = [199, 200, 201].map((ago) => text('UiText.ChartPoint', text('UiText.ChartNoReading'), text('UiText.ChartMinutesSecondsAgo', 3, ago - 180)));
-  await expect.poll(async () => gap.includes((await shown.textContent()) ?? '')).toBe(true);
-  await aimAt(40);
-  const near = [39, 40, 41].map((ago) => point(ago, text('ChartText.SecondsAgo', ago)));
-  await expect.poll(async () => near.includes((await shown.textContent()) ?? '')).toBe(true);
-  await expect(heard((await shown.textContent()) ?? '')).toHaveCount(0);
-  const below = (await page.getByText(chart?.stats ?? '').boundingBox())?.y ?? 0;
-  expect(((await shown.boundingBox())?.y ?? below) + ((await shown.boundingBox())?.height ?? 0)).toBeLessThanOrEqual(below);
+  // 200 s ago is in the fake's gap, and 40 s ago is not.
+  for (const ago of [200, 40]) {
+    await aimAt(ago);
+    await expect.poll(async () => near(ago).includes((await shown.textContent()) ?? '')).toBe(true);
+    await expect(plot).toHaveAttribute('aria-valuetext', text('UiText.ChartNow'));
+  }
+  const under = (await page.getByText(stats).boundingBox())?.y ?? 0;
+  const label = await shown.boundingBox();
+  expect((label?.y ?? under) + (label?.height ?? 0)).toBeLessThanOrEqual(under);
 
   await page.mouse.move(0, 0);
   await expect(shown).toHaveCount(0);
   await plot.focus();
-  const keys: [string, string][] = [
-    ['End', point(0, text('UiText.ChartNow'))],
-    ['ArrowLeft', point(1, text('ChartText.SecondsAgo', 1))],
-    ['Home', point(last, text('UiText.ChartMinutesSecondsAgo', Math.floor(last / 60), last % 60))],
-  ];
-  for (const [key, label] of keys) {
+  for (const [key, ago] of [['End', 0], ['ArrowLeft', 1], ['Home', last]] as const) {
     await page.keyboard.press(key);
-    await expect(shown).toHaveText(label);
-    await expect(heard(label)).toHaveCount(1);
+    await expect(shown).toHaveText(points[last - ago] ?? '');
+    await expect(plot).toHaveAttribute('aria-valuetext', points[last - ago] ?? '');
   }
   await page.keyboard.press('Escape');
   await expect(shown).toHaveCount(0);

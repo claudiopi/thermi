@@ -93,7 +93,7 @@ export const opened = (key: string): Act => ({ click: (page) => page.getByRole('
 export const theme: Target = (page) => role('radiogroup', 'OverlayPageText.ThemeField')(page).getByRole('radio', { checked: true });
 export const knob = (key: 'UiText.WarningFrom' | 'UiText.CriticalFrom'): Target => role('slider', key);
 export const box = (key: 'UiText.WarningFrom' | 'UiText.CriticalFrom'): Target => role('spinbutton', key);
-export const plot: Target = (page) => page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
+export const plot: Target = (page) => page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
 export const catalogSearch: Target = (page) => page.getByRole('dialog', { name: text('UiText.Catalog') }).getByRole('searchbox');
 export const catalogResults: Target = (page) => focusIn((on) => on.getByRole('dialog', { name: text('UiText.Catalog') }).getByRole('listbox'))(page);
 export const sensorGroup =

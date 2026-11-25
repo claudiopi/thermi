@@ -232,16 +232,8 @@ public enum UiText
     /// <summary>The name of the chart's "…" button.</summary>
     ChartActions,
 
-    /// <summary>The chart's axis at its end.</summary>
+    /// <summary>The chart's axis at its end, and a point of the chart at this second.</summary>
     ChartNow,
-
-    /// <summary>A point of the chart: its second's reading, or <see cref="ChartNoReading"/>, and how long ago it came.</summary>
-    ChartPoint,
-
-    ChartNoReading,
-
-    /// <summary>How long ago a point of the chart came, past a minute: its minutes and seconds.</summary>
-    ChartMinutesSecondsAgo,
 
     MoveToNewOverlay,
 

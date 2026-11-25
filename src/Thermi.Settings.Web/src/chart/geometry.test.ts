@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ChartView, ColorStop } from '../bridge/bridge.g';
-import { agoOf, chartHeight, knobTops, levelAt, nearestLine, plotPaths, readingAt, stopsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, knobTops, levelAt, nearestLine, plotPaths, readingAt, stopsOf, valueAt, yOf, type Plot } from './geometry';
 
 // A plot 300 wide and 132 high draws 0 to 100 on the 100 px between its 16 px pads, which hold the scale's numbers clear of the
 // line (night QA: a line over the "0 %"): value v sits at y = 116 - v.
@@ -11,7 +11,7 @@ function plot(chart: Partial<ChartView> = {}): Plot {
     from: 0,
     to: 100,
     readings: [],
-    readingTexts: [],
+    points: [],
     warning: null,
     critical: null,
     warningText: null,
@@ -133,13 +133,5 @@ describe('the chart', () => {
 
   test('points at 150 to the nearest reading', () => {
     expect(readingAt(plot({ readings: [1, 2, 3, 4] }), 150)).toBe(2);
-  });
-
-  test.each([
-    { seconds: 0, said: ['UiText.ChartNow'] },
-    { seconds: 59, said: ['ChartText.SecondsAgo', 59] },
-    { seconds: 60, said: ['UiText.ChartMinutesSecondsAgo', 1, 0] },
-  ])('says $seconds s before now as $said', ({ seconds, said }) => {
-    expect(agoOf(seconds)).toEqual(said);
   });
 });
