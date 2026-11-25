@@ -24,8 +24,8 @@ public enum PresentSource
     KernelBlit,
 
     /// <summary>
-    /// The kernel's copy of a frame into its window, the only event that tells of a game's frames while a capture, as OBS's,
-    /// redirects them.
+    /// The kernel's copy of a frame into its window, the only event that tells of some games' frames, as of Zwift's in its
+    /// menus.
     /// </summary>
     KernelBlitRect,
 }
@@ -73,9 +73,9 @@ public readonly record struct FrameRate(int Process, int Parent, double Fps, dou
 /// Turns presents into each second's frame rates, as the sensor service reads them (docs/adr/0014-frames-from-etw.md).
 /// Presents come from the trace's thread and seconds close on the reading's, so both take the same lock. A trace delivers
 /// presents late and not quite in order, so each is kept until the second that holds it closes. A runtime's present
-/// reaches the kernel too, and may be told by both of its histories, so each source counts only for a process that sent
-/// none of an earlier one in the last 5 s: the runtimes', then the kernel's plain history, then its detailed one, as for
-/// Vulkan and OpenGL drivers that present on their own, then its copies into a window, as while OBS captures a game.
+/// reaches the kernel too, which may tell of it by both of its histories or by a copy into its window, so each source is
+/// counted apart and a second takes the one that told of most, the earliest of those that tie: a frame told twice counts
+/// once, and a game that changes how it presents, as Zwift does between a ride and its menus, keeps its count.
 /// </summary>
 public sealed class FrameTally
 {
@@ -119,14 +119,7 @@ public sealed class FrameTally
             }
 
             track.Parent = present.Parent;
-            var rank = RankOf(present.Source);
-            track.Seen[rank] = Math.Max(track.Seen[rank] ?? present.At, present.At);
-            if (track.Seen.Take(rank).Any(seen => seen is { } at && present.At - at <= KeptFor))
-            {
-                return;
-            }
-
-            track.Pending.Add(present.At);
+            track.Pending.Add((present.At, RankOf(present.Source)));
         }
     }
 
@@ -149,8 +142,8 @@ public sealed class FrameTally
             var rates = new List<(FrameRate Rate, int Frames)>();
             foreach (var (process, track) in _tracks.ToList())
             {
-                var (frames, longest) = track.Take(at);
-                if (track.Last is not { } last || at - last > KeptFor)
+                var (frames, longest, last) = track.Take(at);
+                if (last is null || at - track.Last > KeptFor)
                 {
                     // A process whose first presents belong to a later second waits for it.
                     if (track.Pending.Count == 0)
@@ -165,7 +158,7 @@ public sealed class FrameTally
                 track.Steady = track.Steady >= SteadyFor ? SteadyFor : fps >= SteadyFps ? track.Steady + 1 : 0;
                 if (track.Steady >= SteadyFor)
                 {
-                    rates.Add((new FrameRate(process, track.Parent, fps, Math.Min(Math.Max(longest, at - last), LongestFrame)), frames));
+                    rates.Add((new FrameRate(process, track.Parent, fps, Math.Min(Math.Max(longest, at - last.Value), LongestFrame)), frames));
                 }
             }
 
@@ -181,37 +174,44 @@ public sealed class FrameTally
 
     private sealed class Track
     {
+        private const int Ranks = 4;
+
+        // When the process last presented as each rank of source told, and the rank the last second with frames took.
+        private readonly double?[] _lastOf = new double?[Ranks];
+        private int? _told;
+
         public int Parent { get; set; }
 
-        // When the process last presented as told by each rank of source, which a later rank's would repeat.
-        public double?[] Seen { get; } = new double?[4];
+        public List<(double At, int Rank)> Pending { get; } = [];
 
-        public List<double> Pending { get; } = [];
-
-        public double? Last { get; private set; }
+        public double? Last => _lastOf.Max();
 
         // The seconds in a row it presented steadily, up to SteadyFor, from which on it counts until it stops for good.
         public int Steady { get; set; }
 
-        // The presents up to the second's end, in order, and the longest wait between two of them.
-        public (int Frames, double Longest) Take(double at)
+        /// <summary>
+        /// The presents up to the second's end as the source that told of most, the longest wait between two of them, from
+        /// the last the source of the second before told of, and that source's last present.
+        /// </summary>
+        public (int Frames, double Longest, double? Last) Take(double at)
         {
             Pending.Sort();
-            var taken = 0;
+            var taken = Pending.TakeWhile(present => present.At <= at).ToList();
+            Pending.RemoveRange(0, taken.Count);
+            var counts = new int[Ranks];
+            taken.ForEach(present => counts[present.Rank]++);
+            var rank = taken.Count == 0 ? _told ?? 0 : Array.IndexOf(counts, counts.Max());
+            var previous = _lastOf[_told ?? rank];
             var longest = 0.0;
-            for (; taken < Pending.Count && Pending[taken] <= at; taken++)
+            foreach (var (time, _) in taken.Where(present => present.Rank == rank))
             {
-                var time = Pending[taken];
-                if (Last is { } last)
-                {
-                    longest = Math.Max(longest, time - last);
-                }
-
-                Last = time;
+                longest = Math.Max(longest, time - (previous ?? time));
+                previous = time;
             }
 
-            Pending.RemoveRange(0, taken);
-            return (taken, longest);
+            taken.ForEach(present => _lastOf[present.Rank] = present.At);
+            _told = taken.Count == 0 ? _told : rank;
+            return (counts[rank], longest, _lastOf[rank] ?? previous);
         }
     }
 }

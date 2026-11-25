@@ -59,7 +59,7 @@ public sealed class FrameTests
             seconds);
     }
 
-    // Zwift while OBS captures it, which the kernel tells of only by copying each frame to its window: maximized in front,
+    // Zwift in its menus, as OBS captured it, which the kernel tells of only by copying each frame to its window: maximized in front,
     // it counts as presenting from the third second and is the game from the fifth.
     [Fact]
     public void AGameThatObsCapturesShowsItsFrames()
@@ -71,6 +71,22 @@ public sealed class FrameTests
             .Select(rates => Fps(OverlayConfig.First, Desktop, rates, game.Next(rates, Zwift, true, _ => true)));
 
         Assert.Equal([null, null, null, null, "111"], shown);
+    }
+
+    // Zwift tells of its frames by its detailed history while riding and by BlitRect in its menus: riding for 4 s, then
+    // in the menus for 5, then riding again, every second from the third reads its frames, never 0, and no wait it never had.
+    [Fact]
+    public void AGameThatChangesHowItPresentsKeepsItsFrames()
+    {
+        const int Zwift = 63632;
+        var riding = TestFiles.Presents(TestRecordings.ZwiftFrames).Where(present => present.Process == Zwift).ToList();
+        var menus = TestFiles.Presents(TestRecordings.ZwiftObsFrames).Select(present => present with { Process = Zwift, At = present.At + 4000 });
+        var presents = riding.Where(present => present.At <= 4000).Concat(menus)
+            .Concat(riding.Where(present => present.At > 4000).Select(present => present with { At = present.At + 5000 })).ToList();
+
+        var zwift = Replay(presents).Take(13).Skip(2).Select(rates => rates.Single(rate => rate.Process == Zwift)).ToList();
+
+        Assert.All(zwift, rate => Assert.True(rate.Fps >= 60 && rate.FrameTime < 100, $"{rate.Fps} FPS, {rate.FrameTime} ms"));
     }
 
     // A service that could not start its trace, and one from before, which sends no slots: the overlay keeps no room for
@@ -260,7 +276,7 @@ public sealed class FrameTests
     [InlineData("100 900 700 1200", "1000 2000", "3 600.0 ms|1 800.0 ms")]
     [InlineData("0 k2 500 k502", "1000", "2 500.0 ms")]
     [InlineData("k0 k500", "1000", "2 500.0 ms")]
-    [InlineData("k0 d1 k500 d501 d900", "1000", "2 500.0 ms")]
+    [InlineData("k0 d1 k500 d501", "1000", "2 500.0 ms")]
     public void EachSecondCountsItsFramesAndItsLongestWait(string presents, string closes, string expected)
     {
         const double After = 3000.5;

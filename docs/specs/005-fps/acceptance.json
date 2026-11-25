@@ -77,6 +77,13 @@
       "description": "Given the recorded presents of Zwift while OBS captured it, told by the kernel only as copies of its frames into its window, replayed into snapshots second by second, when Zwift is maximized in front, then FPS reads Zwift's frames from its fifth second, as many as the recording holds in that second.",
       "check": "AGameThatObsCapturesShowsItsFrames",
       "passes": false
+    },
+    {
+      "id": "A12",
+      "covers": ["R3"],
+      "description": "Given Zwift's recorded presents riding, told by the kernel's detailed history, spliced with its presents in its menus, told only by BlitRect, and riding again, replayed into snapshots second by second, when each second is tallied, then every second from the third reads at least 60 FPS and a frame time under 100 ms, never 0.",
+      "check": "AGameThatChangesHowItPresentsKeepsItsFrames",
+      "passes": false
     }
   ]
 }

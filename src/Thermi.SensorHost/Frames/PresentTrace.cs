@@ -49,7 +49,7 @@ internal sealed unsafe class PresentTrace(TimeProvider time, string sessionName 
     private static readonly Guid DxgKrnl = new("802EC45A-1E99-4B83-9920-87C98277BA9D");
 
     // DXGI's Present and PresentMultiplaneOverlay starts; Direct3D 9's Present start; the kernel's PresentHistory and
-    // PresentHistoryDetailed starts, its BlitRect, which a capture as OBS's leaves as a game's only trace, and its Blit,
+    // PresentHistoryDetailed starts, its BlitRect, by which alone some games, as Zwift in its menus, tell of their frames, and its Blit,
     // which only a recording asks for, to learn which presents reach it.
     private static readonly ushort[] DxgiEvents = [0x2a, 0x37];
     private static readonly ushort[] D3d9Events = [0x01];
