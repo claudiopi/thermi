@@ -29,11 +29,15 @@ public static class SystemSensors
 
     private const int SecondsPerDay = 24 * 60 * 60;
 
+    /// <summary>
+    /// The snapshot with the PC's sensors added, and while thermi's driver may be missing, each core's VID read as 0, so as
+    /// missing: the library then reads the same VID for every core, 1.55 V on a Ryzen 9 9950X, which no core asks for at rest.
+    /// </summary>
     public static Snapshot With(Snapshot snapshot, WindowsFacts facts) => snapshot with
     {
         Sensors =
         [
-            .. snapshot.Sensors,
+            .. SensorMap.DriverMayBeMissing(snapshot) ? snapshot.Sensors.Select(Unread) : snapshot.Sensors,
             Sensor(SensorKind.Duration, "duration", Uptime, Math.Floor(facts.Uptime.TotalSeconds)),
             Sensor(SensorKind.Address, "address", LocalIp, facts.Address),
             Sensor(SensorKind.Time, "time", Clock, Math.Floor(facts.LocalNow.TimeOfDay.TotalSeconds)),
@@ -75,6 +79,11 @@ public static class SystemSensors
 
     // An id as the library makes them, its device, its type and its index, so its type is known from it alone.
     private static bool IsOwn(RawSensor sensor) => sensor.HardwareType == HardwareType;
+
+    private static RawSensor Unread(RawSensor sensor) =>
+        sensor is { HardwareType: "Cpu", Type: nameof(SensorKind.Voltage) } && sensor.Name.EndsWith(" VID", StringComparison.Ordinal)
+            ? sensor with { Value = 0 }
+            : sensor;
 
     private static RawSensor Sensor(SensorKind kind, string type, string name, double? value) =>
         new($"{Device}/{type}/0", HardwareType, Hardware, kind.ToString(), name, value);

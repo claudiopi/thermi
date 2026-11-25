@@ -53,7 +53,7 @@
     {
       "id": "A8",
       "covers": ["R13"],
-      "description": "Given the recorded desktop with the board's core and +12 V voltages, when the catalog is built and searched, then both are listed under the board, found by \"volts\" and by the voltage kind, the core's alone by \"vcore\", showing 1.248 V and 12.10 V, and one added as an item shows its value with no lines and takes no offset, and their sum is refused; a CPU's voltage of exactly 0 is missing; and no default overlay reads a voltage.",
+      "description": "Given the author's desktop recorded as administrator, with its board's nine voltages named as the library names them, \"Voltage #1\" to \"#7\", \"+3V Standby\" and \"CMOS Battery\", each core's VID and both GPUs' voltages, when the catalog is built and searched, then its 28 voltages are listed, the board's under the board, all found by \"volts\" and by the voltage kind, the standby rail by \"standby\", shown as 1.296 V, 3.336 V, 0.306 V and 1.045 V, and 12.10 V from 10 V on, and one added as an item shows its value with no lines and takes no offset, and a sum of two is refused; a CPU's voltage of exactly 0 is missing; no default overlay reads a voltage; and recorded without admin rights, its 19 voltages are listed, each core's VID as the driver's to read and the GPUs' with their values.",
       "check": "VoltagesAreListedFoundAndAddedWithoutLines",
       "passes": false
     },

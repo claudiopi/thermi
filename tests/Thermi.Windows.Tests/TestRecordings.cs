@@ -21,6 +21,15 @@ internal static class TestRecordings
 
     public const string NoAdmin = "ryzen-9950x-rtx-5060-ti-no-admin.json";
 
+    /// <summary>
+    /// As administrator, with the board's ITE IT8689E, whose voltages the library names only by their input but for the
+    /// standby rail and the CMOS battery, as it knows no layout for the board, each core's VID, and both GPUs' voltages.
+    /// </summary>
+    public const string AdminVoltages = "ryzen-9950x-rtx-5060-ti-admin-voltages.json";
+
+    /// <summary>Without admin rights: no board, and every core's VID the same 1.55 V, which no core asks for at rest.</summary>
+    public const string NoAdminVoltages = "ryzen-9950x-rtx-5060-ti-no-admin-voltages.json";
+
     /// <summary>With admin rights while a file downloaded and another was written to the drive, so the adapters and the drive read.</summary>
     public const string NetDisk = "ryzen-9950x-rtx-5060-ti-admin-net-disk.json";
 
