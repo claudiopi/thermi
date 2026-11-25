@@ -85,7 +85,7 @@ public static class ReadingFormatter
 
         var (number, own, unit, letter) = Parts(reading.Kind, value, temperature, language, reading.Bits);
         var text = number.ToString(reading.Kind is SensorKind.Fan or SensorKind.Data ? Grouped(decimals ?? own) : Digits(decimals ?? own), culture);
-        return units ? string.Concat(text, " ", unit) : string.Concat(text, letter);
+        return units && unit.Length > 0 ? string.Concat(text, " ", unit) : string.Concat(text, letter);
     }
 
     /// <summary>
@@ -118,7 +118,8 @@ public static class ReadingFormatter
         new Reading(kind, kind switch
         {
             SensorKind.Fan or SensorKind.Clock => 8888,
-            SensorKind.Power => 888,
+            SensorKind.Power or SensorKind.FrameRate => 888,
+            SensorKind.FrameTime => 888.8,
             SensorKind.Data => 888.8,
             SensorKind.Temperature or SensorKind.Load or SensorKind.Control => 100,
             SensorKind.Throughput => 88.8e6,
@@ -159,6 +160,10 @@ public static class ReadingFormatter
             SensorKind.Throughput => Rate(value, texts, Rates, UnitText.BytesPerSecond),
             SensorKind.Duration => (value / 3600, 1, texts.Of(UnitText.Hours), ""),
             SensorKind.Time or SensorKind.Address => (value, 0, "", ""),
+
+            // Its item's label says FPS, so the number stands alone.
+            SensorKind.FrameRate => (value, 0, "", ""),
+            SensorKind.FrameTime => (value, 1, "ms", ""),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
         };
 

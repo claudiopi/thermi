@@ -18,7 +18,7 @@
     {
       "id": "A3",
       "covers": ["R8"],
-      "description": "Given FPS and frame time items with their default lines, when FPS reads 61, 60, 45, 30 and 12 and frame time 40, 50, 99 and 100, then FPS is normal, then warning at 60 and 45, then critical at 30 and 12, and frame time normal, then warning at 50 and 99, then critical at 100; and an FPS item whose critical is above its warning is refused.",
+      "description": "Given FPS and frame time items with their default lines, when FPS reads 144, 61, 60, 45, 30 and 12 and frame time 7, 40, 50, 99, 100 and 200, in the value and in its line, then FPS is normal, then warning at 60 and 45, then critical at 30 and 12, and frame time normal, then warning at 50 and 99, then critical at 100; and an FPS item whose critical is above its warning is refused.",
       "check": "FrameRateWarnsLowAndFrameTimeHigh",
       "passes": false
     },

@@ -1,4 +1,5 @@
 using Thermi.Core.Sensors;
+using Thermi.SensorHost.Frames;
 
 namespace Thermi.SensorHost;
 
@@ -17,7 +18,17 @@ internal sealed record SensorHostEnvironment(
     Func<Action<string, TimeSpan, Exception?>, TimeSpan, ISensorSource> Open, TimeProvider Time, TextWriter Out, TextWriter Error)
 {
     public static SensorHostEnvironment Default { get; } =
-        new((slow, patience) => new LhmSensorSource(TimeProvider.System, slow, patience), TimeProvider.System, Console.Out, Console.Error);
+        new((slow, patience) => new LhmSensorSource(TimeProvider.System, slow, patience), TimeProvider.System, Console.Out, Console.Error)
+        {
+            Trace = () => new PresentTrace(TimeProvider.System),
+            Recording = () => new PresentTrace(TimeProvider.System, PresentTrace.RecordingName),
+        };
+
+    /// <summary>What tells the service of the presents games make, for their FPS; without it, the service serves no frames.</summary>
+    public Func<IPresentTrace>? Trace { get; init; }
+
+    /// <summary>What tells <c>--frames</c> of them, in a session of its own; without it, <see cref="Trace"/>.</summary>
+    public Func<IPresentTrace>? Recording { get; init; }
 
     public string PipeName { get; init; } = SnapshotJson.PipeName;
 }

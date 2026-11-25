@@ -283,7 +283,11 @@ internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> r
         var options = PipeOptions.Asynchronous | (first ? PipeOptions.FirstPipeInstance : PipeOptions.None);
         try
         {
-            return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, Security);
+            // A security object is not safe to read from two threads at once, as two servers in one process do in tests.
+            lock (Security)
+            {
+                return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, Security);
+            }
         }
         catch (UnauthorizedAccessException) when (first)
         {

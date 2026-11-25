@@ -44,8 +44,11 @@ public static class SystemSensors
     public static Snapshot Only(Snapshot? snapshot) =>
         snapshot is null ? new Snapshot([]) : snapshot with { Sensors = [.. snapshot.Sensors.Where(IsOwn)] };
 
-    /// <summary>Whether a snapshot holds anything the sensor service read, beyond what Windows itself says.</summary>
-    public static bool HasServiceSensors(Snapshot snapshot) => snapshot.Sensors.Any(sensor => !IsOwn(sensor));
+    /// <summary>
+    /// Whether a snapshot holds anything the sensor service read, beyond what Windows itself says and the game's sensors,
+    /// which every reader adds.
+    /// </summary>
+    public static bool HasServiceSensors(Snapshot snapshot) => snapshot.Sensors.Any(sensor => !IsOwn(sensor) && !Frames.GameSensors.Is(sensor));
 
     /// <summary>Whether an item reads only what Windows itself says, so it never waits on the sensor service.</summary>
     public static bool Reads(ItemConfig item)

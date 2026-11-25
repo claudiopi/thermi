@@ -33,6 +33,12 @@ internal static class TestRecordings
     /// </summary>
     public const string DiskRescan = "ryzen-9950x-rtx-5060-ti-disk-rescan.jsonl";
 
+    /// <summary>
+    /// Every present for a few minutes, as administrator, while the author rode Zwift, an OpenGL game, into a world through its
+    /// loading screen, and switched to a browser and the desktop and back, as <c>thermi-sensors --frames</c> records them.
+    /// </summary>
+    public const string ZwiftFrames = "ryzen-9950x-rtx-5060-ti-zwift-frames.jsonl";
+
     public static string Path(string name) => System.IO.Path.Combine(AppContext.BaseDirectory, "Recordings", name);
 
     public static Snapshot Read(string name) =>

@@ -6,3 +6,29 @@ IF_TYPE_SOFTWARE_LOOPBACK
 IF_TYPE_TUNNEL
 // Whose session a pipe client is in
 GetNamedPipeClientSessionId
+// The presents games make, traced through ETW (docs/adr/0014-frames-from-etw.md)
+StartTrace
+ControlTrace
+EnableTraceEx2
+OpenTrace
+ProcessTrace
+CloseTrace
+EVENT_TRACE_PROPERTIES
+EVENT_TRACE_LOGFILEW
+EVENT_RECORD
+ENABLE_TRACE_PARAMETERS
+EVENT_FILTER_DESCRIPTOR
+EVENT_FILTER_EVENT_ID
+WNODE_FLAG_TRACED_GUID
+EVENT_TRACE_REAL_TIME_MODE
+PROCESS_TRACE_MODE_REAL_TIME
+PROCESS_TRACE_MODE_EVENT_RECORD
+PROCESS_TRACE_MODE_RAW_TIMESTAMP
+ENABLECALLBACK_ENABLED_STATE
+EVENT_TRACE_CONTROL
+ENABLE_TRACE_PARAMETERS_VERSION_2
+EVENT_FILTER_TYPE_EVENT_ID
+// Which process started each one that presents, and which is the desktop's compositor
+CreateToolhelp32Snapshot
+Process32FirstW
+Process32NextW

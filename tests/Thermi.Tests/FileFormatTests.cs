@@ -53,7 +53,8 @@ public sealed class FileFormatTests
     // With the field a broken rule names, when it is one.
     [Theory]
     [InlineData("[1,2,3]", null)]
-    [InlineData("{\"items\":[{\"metric\":\"cpu.load\",\"threshold\":{\"warning\":90,\"critical\":80}}]}", null)]
+    [InlineData("{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"threshold\":{\"warning\":90,\"critical\":80}}]}]}", "items[0].threshold")]
+    [InlineData("{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"game.fps\",\"threshold\":{\"warning\":30,\"critical\":60}}]}]}", "items[0].threshold")]
     [InlineData("{\"version\":7}", null)]
     [InlineData("{\"version\":0}", null)]
     [InlineData("{\"version\":\"two\"}", null)]
@@ -92,7 +93,7 @@ public sealed class FileFormatTests
 
     // No file, or nulls written by hand, read as if left out: the defaults, or what is left of the items.
     [Theory]
-    [InlineData(null, 6)]
+    [InlineData(null, 7)]
     [InlineData("null", 6)]
     [InlineData("{\"items\":[null,{\"metric\":null},{\"metric\":\"ram.load\"}]}", 1)]
     [InlineData("{\"sources\":{\"fan.cpu\":null},\"items\":[{\"metric\":\"fan.cpu\",\"meter\":\"fan.cpu.duty\"}]}", 1)]
@@ -107,9 +108,9 @@ public sealed class FileFormatTests
 
         Assert.Null(problem);
         Assert.Equal(items, Assert.Single(config.Overlays).Items.Count);
-        Assert.True(
-            items != OverlayConfig.DefaultItems.Count || config.Overlays[0].Items.SequenceEqual(OverlayConfig.DefaultItems),
-            "Some items, but not the defaults.");
+        // No file at all is a new one, which shows FPS too.
+        var defaults = json is null or "" ? OverlayConfig.First.Items : OverlayConfig.DefaultItems;
+        Assert.True(items != defaults.Count || config.Overlays[0].Items.SequenceEqual(defaults), "Some items, but not the defaults.");
         Assert.All(config.Overlays[0].Items, item => Assert.Null(item.Sensor));
         Assert.Equal(new StyleConfig(), config.Overlays[0].Style);
         Assert.Null(config.Overlays[0].Position);

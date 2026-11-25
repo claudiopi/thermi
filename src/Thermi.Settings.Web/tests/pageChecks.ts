@@ -38,6 +38,15 @@ export function withDrivesAndBattery(laptop: boolean): Sensor[] {
   return [...sensors, ...second, ...(laptop ? battery : [])];
 }
 
+/** The recorded PC with a game in front, as the service and the overlay read it: its frame rate and its longest frame. */
+export function withGame(): Sensor[] {
+  return [
+    ...recording('admin'),
+    { id: '/game/0/framerate/0', hardwareType: 'Game', hardware: 'Game', type: 'FrameRate', name: 'FPS', value: 72 },
+    { id: '/game/0/frametime/0', hardwareType: 'Game', hardware: 'Game', type: 'FrameTime', name: 'Frame time', value: 18.4 },
+  ];
+}
+
 const translations = new Map<string, Record<string, string>>();
 
 /** The texts of a language, keyed `Enum.Member`, as the bridge gives them to the page. */

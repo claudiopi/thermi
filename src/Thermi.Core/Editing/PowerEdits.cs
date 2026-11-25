@@ -26,8 +26,8 @@ public static class PowerEdits
         // A speed or a time remaining is counted, not measured, so there is no sensor's error to correct.
         SensorKind.Throughput or SensorKind.Duration => (0, 0),
 
-        // What Windows says is no measure at all.
-        SensorKind.Time or SensorKind.Address => (0, 0),
+        // What Windows says is no measure at all, and frames are counted.
+        SensorKind.Time or SensorKind.Address or SensorKind.FrameRate or SensorKind.FrameTime => (0, 0),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
     };
 

@@ -38,6 +38,8 @@ export function installFakeViews(): void {
     'ram.used': '/ram/data/0',
     'ram.load': '/ram/load/0',
     'fan.cpu': '/lpc/it8689e/0/fan/0',
+    'game.fps': '/game/0/framerate/0',
+    'game.frametime': '/game/0/frametime/0',
   };
   const units: Record<string, [string, number]> = {
     Temperature: ['°C', 0],
@@ -49,6 +51,8 @@ export function installFakeViews(): void {
     Clock: ['MHz', 0],
     Data: ['GB', 1],
     Throughput: ['MB/s', 1],
+    FrameRate: ['', 0],
+    FrameTime: ['ms', 1],
   };
   const sensor = (id: string | undefined): Sensor | undefined => state.sensors.find((candidate) => candidate.id === id);
   const sensorOf = (item: Item): Sensor | undefined => sensor(item.sensor ?? item.sensors?.[0] ?? metricSensors[item.metric ?? '']);
@@ -62,7 +66,7 @@ export function installFakeViews(): void {
       return `${Math.floor(value / 3600)} h ${Math.floor((value % 3600) / 60)} min`;
     }
     const shown = type === 'Throughput' ? value / 1e6 : value;
-    return `${shown.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${unit}`;
+    return `${shown.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${unit}`.trimEnd();
   };
 
   const labelOf = (item: Item): string => {
@@ -70,13 +74,20 @@ export function installFakeViews(): void {
       return item.label;
     }
     const kind = (item.metric ?? '').split('.')[0];
-    const byMetric: Record<string, string> = { cpu: 'MetricLabel.Cpu', fan: 'MetricLabel.Cpu', gpu: 'MetricLabel.Gpu', ram: 'MetricLabel.Ram' };
+    const byMetric: Record<string, string> = {
+      cpu: 'MetricLabel.Cpu',
+      fan: 'MetricLabel.Cpu',
+      gpu: 'MetricLabel.Gpu',
+      ram: 'MetricLabel.Ram',
+      game: 'MetricLabel.Fps',
+    };
     const byDevice: Record<string, string> = {
       Cpu: 'MetricLabel.Cpu',
       GpuNvidia: 'MetricLabel.Gpu',
       GpuAmd: 'MetricLabel.Gpu',
       Memory: 'MetricLabel.Ram',
       Storage: 'MetricLabel.Ssd',
+      Game: 'MetricLabel.Fps',
     };
     return say(byMetric[kind ?? ''] ?? byDevice[sensorOf(item)?.hardwareType ?? ''] ?? 'DeviceKind.Board');
   };
@@ -95,7 +106,9 @@ export function installFakeViews(): void {
     }
     return pills.map(({ label, items: ids }) => ({ label, items: ids }));
   };
-  const meterable = ['Temperature', 'Load', 'Control', 'Fan', 'Throughput'];
+  const meterable = ['Temperature', 'Load', 'Control', 'Fan', 'Throughput', 'FrameRate', 'FrameTime'];
+  // As Core's Threshold.WarnsLow: a frame rate is in trouble when low, its critical under its warning.
+  const low = (type: string | undefined): boolean => type === 'FrameRate';
   // As Core's Threshold.Judges: thresholds judge what it warns by when that reads a type they can judge.
   const judged = (item: Item): boolean => meterable.includes(meterOf(item)?.type ?? '');
   const levelOf = (item: Item): ItemView['level'] => {
@@ -104,7 +117,8 @@ export function installFakeViews(): void {
       return null;
     }
     const { warning, critical } = item.threshold ?? {};
-    return critical !== undefined && value >= critical ? 'critical' : warning !== undefined && value >= warning ? 'warning' : 'normal';
+    const past = (line: number | undefined): boolean => line !== undefined && (low(meterOf(item)?.type) ? value <= line : value >= line);
+    return past(critical) ? 'critical' : past(warning) ? 'warning' : 'normal';
   };
   // A metric's name as Core's MetricName says it: "ram.load" is RamLoad, and the fan's metrics name the CPU first.
   const metricName = (metric: string): string => {
@@ -194,7 +208,8 @@ export function installFakeViews(): void {
   };
 
   // A line's edits, and the push of the other line past it, are the real bridge's, which the fake replays.
-  const scaleOf = (type: string): { max: number; step: number } => (type === 'Fan' ? { max: 10000, step: 50 } : { max: 100, step: 1 });
+  const scaleOf = (type: string): { max: number; step: number } =>
+    type === 'Fan' ? { max: 10000, step: 50 } : type.startsWith('Frame') ? { max: 1000, step: 1 } : { max: 100, step: 1 };
 
   // Ten minutes of readings around the value now, the same on every run so a screenshot compares, with a gap 195 to 204 s
   // ago, as the PC asleep or the service stopped leaves.
@@ -204,12 +219,20 @@ export function installFakeViews(): void {
         ? null
         : Math.max(0, Math.min(max, value + 4 * Math.sin(index / 17) + 2.5 * Math.sin(index / 5.3) - 3 * Math.cos(index / 61))),
     );
-  // As Core's MeterChart.Stops: normal from the bottom, then each line that changes the level within the span.
-  const colorsOf = (from: number, to: number, warning?: number, critical?: number): ColorStop[] => [
-    { at: from, level: 'normal' },
-    ...(warning !== undefined && warning > from && warning <= to ? [{ at: warning, level: 'warning' as const }] : []),
-    ...(critical !== undefined && critical > from && critical <= to ? [{ at: critical, level: 'critical' as const }] : []),
-  ];
+  // As Core's MeterChart.Stops: the level from the bottom, then each line within the span where the level changes; a
+  // low meter's level is that of the values just above it, critical up to the critical and normal over the warning.
+  const colorsOf = (from: number, to: number, warning?: number, critical?: number, under = false): ColorStop[] => {
+    const past = (line: number | undefined, at: number): boolean => line !== undefined && (under ? at < line : at >= line);
+    const levelAt = (at: number): ColorStop['level'] => (past(critical, at) ? 'critical' : past(warning, at) ? 'warning' : 'normal');
+    const stops: ColorStop[] = [{ at: from, level: levelAt(from) }];
+    const lines = [warning, critical].filter((line): line is number => line !== undefined && line > from && line <= to).sort((a, b) => a - b);
+    for (const line of lines) {
+      if (levelAt(line) !== stops.at(-1)?.level) {
+        stops.push({ at: line, level: levelAt(line) });
+      }
+    }
+    return stops;
+  };
 
   // The smallest 1, 2 or 5 times a power of ten at or over the value, as Core's chart tops.
   const oneTwoFive = (value: number): number => {
@@ -218,8 +241,8 @@ export function installFakeViews(): void {
   };
 
   // A line reached for more than half of the ten minutes' seconds, unless the lines are the item's defaults.
-  const firesMostly = (readings: readonly (number | null)[], line: number | undefined): boolean =>
-    line !== undefined && readings.filter((reading) => reading !== null && reading >= line).length * 2 > 600;
+  const firesMostly = (readings: readonly (number | null)[], line: number | undefined, under: boolean): boolean =>
+    line !== undefined && readings.filter((reading) => reading !== null && (under ? reading <= line : reading >= line)).length * 2 > 600;
   const madeLines = (item: Item): unknown => state.defaultOverlay.items.find((made) => made.metric !== undefined && made.metric === item.metric)?.threshold;
 
   // As Core's WindowCharts: the button that puts back the defaults says them.
@@ -254,7 +277,7 @@ export function installFakeViews(): void {
     const [from, to] = meter.type === 'Temperature' && all.length > 0
       ? [Math.max(0, Math.floor((Math.min(...all) - 6) / 10) * 10), Math.min(100, Math.ceil((top + 3) / 5) * 5)]
       : meter.type === 'Fan' ? [0, Math.ceil(Math.max(top, 500) * 1.15 / 500) * 500]
-        : meterable.includes(meter.type) ? [0, 100] : [0, oneTwoFive(Math.max(top * 1.15, 1))];
+        : meterable.includes(meter.type) && !meter.type.startsWith('Frame') ? [0, 100] : [0, oneTwoFive(Math.max(top * 1.15, 1))];
     const text = (line: number | undefined): string | null => (line === undefined ? null : format(meter.type, line));
     const average = shown.reduce((sum, reading) => sum + reading, 0) / Math.max(1, shown.length);
     const round = (reading: number): string => format(meter.type, reading).split(' ')[0] ?? '';
@@ -269,7 +292,7 @@ export function installFakeViews(): void {
       critical: critical ?? null,
       warningText: text(warning),
       criticalText: text(critical),
-      colors: colorsOf(from, to, warning, critical),
+      colors: colorsOf(from, to, warning, critical, low(meter.type)),
       stats: shown.length === 0 ? null : `Min ${round(Math.min(...shown))} · Avg ${round(average)} · Max ${format(meter.type, Math.max(...shown))}`,
       summary:
         shown.length === 0
@@ -282,10 +305,11 @@ export function installFakeViews(): void {
       fromText: format(meter.type, from),
       toText: format(meter.type, to),
       fires:
-        firesMostly(readings, warning ?? critical) && JSON.stringify(madeLines(item)) !== JSON.stringify(item.threshold)
+        firesMostly(readings, warning ?? critical, low(meter.type)) && JSON.stringify(madeLines(item)) !== JSON.stringify(item.threshold)
           ? defaultsText(madeLines(item) as Threshold | undefined, (reading, units) => (units ? format(meter.type, reading) : round(reading)))
           : null,
       startText: say('ChartText.MinutesAgo', '10'),
+      low: meter.type === 'FrameRate',
     };
   };
 }

@@ -76,7 +76,6 @@ public sealed class ReadingTests
     }
 
     [Theory]
-    [InlineData(90, 80)]
     [InlineData(double.NaN, 90)]
     [InlineData(80, double.PositiveInfinity)]
     public void RejectsThresholdsThatCannotWork(double warning, double critical)

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Frames;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Sensors;
@@ -77,6 +78,8 @@ public static class SensorMap
         [Metrics.Uptime.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Duration), [SystemSensors.Uptime], OnlyPreferred: true),
         [Metrics.LocalIp.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Address), [SystemSensors.LocalIp], OnlyPreferred: true),
         [Metrics.Clock.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Time), [SystemSensors.Clock], OnlyPreferred: true),
+        [Metrics.Fps.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.Fps], OnlyPreferred: true),
+        [Metrics.FrameTime.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameTime), [GameSensors.FrameTime], OnlyPreferred: true),
     };
 
     /// <summary>
@@ -194,6 +197,7 @@ public static class SensorMap
         Network => DeviceKind.Network,
         "Battery" => DeviceKind.Battery,
         SystemSensors.HardwareType => DeviceKind.System,
+        GameSensors.HardwareType => DeviceKind.Game,
         "Motherboard" or "SuperIO" or "EmbeddedController" => DeviceKind.Board,
         _ when IsGpu(sensor) => DeviceKind.Gpu,
         _ => null,

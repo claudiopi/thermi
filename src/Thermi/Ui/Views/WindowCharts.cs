@@ -66,7 +66,8 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             : metric;
 
     /// <summary>An item's line as the overlay draws it: the last minute of its chart, so it shows whole from the window's opening.</summary>
-    public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) => ItemHistory.GraphOf(item, History(item.Id));
+    public IReadOnlyList<GraphPoint?> Graph(ItemConfig item) =>
+        ItemHistory.GraphOf(item, History(item.Id));
 
     /// <summary>
     /// The item's chart: its meter's, or without a meter its own reading's with no lines; null for a reading that is no
@@ -102,7 +103,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             critical,
             warning is { } low ? Said(low) : null,
             critical is { } high ? Said(high) : null,
-            [.. MeterChart.Stops(from, to, warning, critical).Select(stop => new ColorStop(stop.At, stop.Level))],
+            [.. MeterChart.Stops(from, to, warning, critical, scale.Low).Select(stop => new ColorStop(stop.At, stop.Level))],
             summary is (var min, var average, var max)
                 ? format.Texts.Format(format.Numbers, ChartText.Stats, Said(min, units: false), Said(average, units: false), Said(max))
                 : null,
@@ -112,8 +113,9 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
             TitleOf(item, meter, scale, format.Texts),
             Said(from),
             Said(to),
-            MeterChart.FiresMostly(history, warning, critical) && item.Threshold != defaults ? DefaultsText(defaults, scale.Kind, format) : null,
-            start);
+            MeterChart.FiresMostly(history, warning, critical, scale.Low) && item.Threshold != defaults ? DefaultsText(defaults, scale.Kind, format) : null,
+            start,
+            scale.Low);
     }
 
     // A chart of the item's own reading says its points in the item's decimals, as its value does.

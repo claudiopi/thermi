@@ -14,7 +14,7 @@ export function installFakeCatalog(): void {
   const say = (key: string): string => state.texts[key] ?? key;
   const changed = (): void => fake.set({});
 
-  const kinds: SensorKind[] = ['temperature', 'load', 'clock', 'power', 'fan', 'control', 'data', 'throughput', 'duration'];
+  const kinds: SensorKind[] = ['temperature', 'load', 'clock', 'power', 'fan', 'control', 'data', 'throughput', 'duration', 'frame-rate', 'frame-time'];
   const libraryTypes: Record<string, SensorKind> = { Level: 'load', TimeSpan: 'duration' };
   const devices: Record<string, DeviceKind> = {
     Cpu: 'cpu',
@@ -27,8 +27,10 @@ export function installFakeCatalog(): void {
     Storage: 'ssd',
     Network: 'network',
     Battery: 'battery',
+    Game: 'game',
   };
-  const capital = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1);
+  // The library's type as the bridge's kind, FrameRate as frame-rate.
+  const capital = (kind: string): string => kind.replace(/(^|-)(\w)/g, (_, _dash: string, letter: string) => letter.toUpperCase());
   const kindOf = (sensor: Sensor): SensorKind | undefined => libraryTypes[sensor.type] ?? kinds.find((kind) => capital(kind) === sensor.type);
   const deviceOf = (sensor: Sensor): string => sensor.id.split('/').slice(0, -2).join('/');
   const why = (sensor: Sensor, kind: SensorKind): NoValue | null => {
@@ -36,7 +38,7 @@ export function installFakeCatalog(): void {
       return 'driver-may-be-missing';
     }
     if (sensor.value === null) {
-      return 'reads-nothing';
+      return sensor.hardwareType === 'Game' ? 'no-frames' : 'reads-nothing';
     }
     if (kind !== 'fan' || sensor.value !== 0) {
       return null;
