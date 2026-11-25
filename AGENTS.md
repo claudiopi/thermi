@@ -34,7 +34,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 - `pwsh scripts/oracle.ps1`: after a change to what C# answers the page's edits, undos or looks, or to a page test's calls, run them through the real bridge into the fake's table, `src/Thermi.Settings.Web/tests/oracle/edits.json`; `-Prune` drops what no test asks any longer. A page test that asks the table for what it lacks fails, and so does `BridgeOracleTests` when an answer is stale.
 - `pwsh scripts/mark-icon.ps1`: draw the program's icon, `src/Thermi/thermi.ico`, from thermi's mark again, after changing the mark.
 - `pwsh scripts/notices.ps1`: write `THIRD-PARTY-NOTICES.md` again from the lock files, after adding, removing or updating a package.
-- `dotnet test --project tests/Thermi.Tests -- --filter-method "*Threshold*"`: run only some tests while you work.
+- `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"`: run only some tests while you work, through `dotnet test`, which takes what follows, one run at a time on the PC and below normal priority, like the check. `pwsh scripts/test.ps1 -Web tests/Quality.spec.ts -g "fits"` builds the page and runs only some of its Playwright tests.
 - `dotnet format whitespace thermi.slnx`: fix formatting.
 - `pwsh scripts/install.ps1` (as yourself; it asks for admin rights once): install this build on your PC. `-Uninstall` removes it.
 - `pwsh scripts/updates.ps1 <command>`: pack a version (with `--msi`, its MSI too), make keys, and publish, promote, roll back or serve update channels on this PC: `docs/RELEASES.md`.

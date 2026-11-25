@@ -7,6 +7,10 @@ CoInitializeEx
 CoUninitialize
 SetThreadDpiAwarenessContext
 DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+// Each window the test process shows on the user's desktop, heard as Windows shows it
+EVENT_OBJECT_SHOW
+GetCurrentThreadId
+PostThreadMessage
 // What a window shows and where a click lands
 WindowFromPoint
 IsWindowVisible
