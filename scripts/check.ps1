@@ -29,14 +29,53 @@ $appCoverage = '--results-directory', $appResults, '--', '--coverlet', '--coverl
 $appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors' }
 Set-Location $root
 
+# Several checks at once, each in a worktree of its own, make the PC slow to type on. So a check runs below normal
+# priority, and so does all it starts, since Windows gives a child its parent's below-normal class; and one check runs
+# at a time on the machine, under a name that is the same in every worktree. The CI's machine runs nothing else.
+function Enter-Check {
+    if ($Ci) { return }
+    $self = [Diagnostics.Process]::GetCurrentProcess()
+    $script:priority = $self.PriorityClass
+    $self.PriorityClass = 'BelowNormal'
+    $script:lock = [Threading.Mutex]::new($false, 'Global\thermi-check')
+    $script:holder = [IO.MemoryMappedFiles.MemoryMappedFile]::CreateOrOpen('Local\thermi-check-holder', 1024)
+    if (-not (Wait-Check 0)) {
+        $reader = [IO.BinaryReader]::new($holder.CreateViewStream())
+        Write-Host "waiting for another check ($($reader.ReadString()))"
+        $reader.Dispose()
+        # Short waits, so Ctrl+C still stops it.
+        while (-not (Wait-Check 500)) { }
+    }
+    $script:held = $true
+    $writer = [IO.BinaryWriter]::new($holder.CreateViewStream())
+    $writer.Write("pid $PID, folder $root")
+    $writer.Dispose()
+}
+
+function Wait-Check([int]$Milliseconds) {
+    try { $lock.WaitOne($Milliseconds) }
+    # A check that died without letting go has ended all the same.
+    catch [Threading.AbandonedMutexException] { $true }
+}
+
+function Exit-Check {
+    if ($Ci) { return }
+    if ($held) { $lock.ReleaseMutex() }
+    if ($lock) { $lock.Dispose() }
+    if ($holder) { $holder.Dispose() }
+    if ($priority) { [Diagnostics.Process]::GetCurrentProcess().PriorityClass = $priority }
+}
+
 # A thermi built from this repo and still running locks its own files and breaks the build.
 # An installed thermi (the one you use every day) runs from elsewhere and is left alone.
-Get-Process thermi -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -and $_.Path.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase) } |
-    ForEach-Object {
-        Write-Host "stop thermi.exe $($_.Id), built from this repo"
-        Stop-Process -Id $_.Id -Force
-    }
+function Stop-RepoThermi {
+    Get-Process thermi -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase) } |
+        ForEach-Object {
+            Write-Host "stop thermi.exe $($_.Id), built from this repo"
+            Stop-Process -Id $_.Id -Force
+        }
+}
 
 function Invoke-Step([string]$Name, [scriptblock]$Command, [scriptblock]$Explain) {
     $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -183,6 +222,13 @@ function Invoke-Web {
     }
 }
 
-Remove-Item $results -Recurse -Force -ErrorAction SilentlyContinue
-if ($Part -ne 'Web') { Invoke-DotNet }
-if ($Part -ne 'DotNet') { Invoke-Web }
+try {
+    Enter-Check
+    Stop-RepoThermi
+    Remove-Item $results -Recurse -Force -ErrorAction SilentlyContinue
+    if ($Part -ne 'Web') { Invoke-DotNet }
+    if ($Part -ne 'DotNet') { Invoke-Web }
+}
+finally {
+    Exit-Check
+}

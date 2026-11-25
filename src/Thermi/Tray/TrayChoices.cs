@@ -84,7 +84,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
     private void Write(MenuRow row, Func<ThermiConfig, ThermiConfig>? edit)
     {
         var before = Settings.Config;
-        var after = edit is null ? before : Actions.Settle(edit(before));
+        var after = edit is null ? before : Actions.Settle(before, edit(before)).Config;
         if (ConfigEdits.Replay(before, after) is not { } change)
         {
             return;

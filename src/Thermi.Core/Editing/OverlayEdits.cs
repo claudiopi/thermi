@@ -161,17 +161,18 @@ public static class OverlayEdits
     }
 
     /// <summary>
-    /// A pill dragged off its overlay: its items become an overlay of their own where it was dropped, or at the
-    /// <paramref name="snap"/> it was dropped onto. The pill that is the whole overlay moves it there instead.
+    /// A pill dragged off its overlay, or with <paramref name="alone"/> the item alone: its items become an overlay of
+    /// their own where it was dropped, or at the <paramref name="snap"/> it was dropped onto. What is the whole overlay
+    /// moves it there instead.
     /// </summary>
-    public static EditResult DragOff(ThermiConfig config, string id, Position at, SnapConfig? snap = null)
+    public static EditResult DragOff(ThermiConfig config, string id, Position at, SnapConfig? snap = null, bool alone = false)
     {
         if (ConfigEdits.Find(config, id) is not var (from, index))
         {
             return ConfigEdits.Refuse(config, Refusal.NotFound);
         }
 
-        var (first, last) = ItemEdits.PillOf(config.Overlays[from], index);
+        var (first, last) = alone ? (index, index) : ItemEdits.PillOf(config.Overlays[from], index);
         if (first == 0 && last == config.Overlays[from].Items.Count - 1)
         {
             return snap is null ? Drop(config, from, at) : Snap(config, from, snap);
@@ -179,7 +180,50 @@ public static class OverlayEdits
 
         return config.Overlays.Count >= ThermiConfig.MaxOverlays
             ? ConfigEdits.Refuse(config, Refusal.TooManyOverlays)
-            : Split(config, from, first, last, new Landing(Dropped: at, SnapTo: snap));
+            : Split(config, from, first, last, new Landing(Dropped: at, SnapTo: snap, Alone: alone));
+    }
+
+    /// <summary>
+    /// An item lifted alone off its pill and dropped on an overlay: on its own pill, <see cref="DropTarget.InPill"/>, it
+    /// moves within it, and stays put on its own place; anywhere else it joins as a pill of its own, before the pill of the
+    /// target's item or at the end, as <see cref="PillInto"/> does.
+    /// </summary>
+    public static EditResult ItemInto(ThermiConfig config, string id, int into, DropTarget target)
+    {
+        if (ConfigEdits.Find(config, id) is not var (from, index) || !ConfigEdits.HasOverlay(config, into))
+        {
+            return ConfigEdits.Refuse(config, Refusal.NotFound);
+        }
+
+        if (target.InPill && into == from)
+        {
+            return WithinPill(config, from, index, target.Before);
+        }
+
+        // Before its own pill, which it starts, is before the item after it, which then starts what is left of it.
+        var items = config.Overlays[from].Items;
+        var before = target.Before == id ? items.ElementAtOrDefault(index + 1)?.Id : target.Before;
+        return Split(config, from, index, index, new Landing(into, before, Alone: true));
+    }
+
+    // Each place of the pill keeps whether it starts a pill of its own, so the pills show as they did, and its items their
+    // label.
+    private static EditResult WithinPill(ThermiConfig config, int from, int index, string? before)
+    {
+        var (first, last) = ItemEdits.PillOf(config.Overlays[from], index);
+        var items = Labeled(config.Overlays[from].Items);
+        var pill = items.Skip(first).Take(last - first + 1).ToList();
+        var moved = pill[index - first];
+        pill.RemoveAt(index - first);
+        var at = before is null ? pill.Count : pill.FindIndex(item => item.Id == before);
+        pill.Insert(Math.Max(0, at), moved);
+        if (at < 0 || pill.Select(item => item.Id).SequenceEqual(items.Skip(first).Take(pill.Count).Select(item => item.Id)))
+        {
+            return new EditResult(config);
+        }
+
+        List<ItemConfig> placed = [.. items.Take(first), .. pill.Select((item, k) => item with { Own = items[first + k].Own }), .. items.Skip(last + 1)];
+        return ConfigEdits.Apply(config, current => ConfigEdits.WithItems(current, from, placed));
     }
 
     /// <summary>
@@ -224,8 +268,10 @@ public static class OverlayEdits
         });
 
     // Where a pill's items go: into another overlay, before the pill of an item of it or at its end, or to a new one, at the
-    // snap or the place it was dropped, or else at a free corner.
-    private readonly record struct Landing(int? Into = null, string? Before = null, Position? Dropped = null, SnapConfig? SnapTo = null);
+    // snap or the place it was dropped, or else at a free corner. An item taken alone off its pill lands as a pill of its
+    // own.
+    private readonly record struct Landing(
+        int? Into = null, string? Before = null, Position? Dropped = null, SnapConfig? SnapTo = null, bool Alone = false);
 
     // Items first to last of one overlay go into another or to a new one, with the look and size they had; the overlay they
     // leave empty goes.
@@ -233,6 +279,16 @@ public static class OverlayEdits
     {
         var source = config.Overlays[from];
         var starts = Starts(landing.Into is { } into ? [source, config.Overlays[into]] : [source]);
+        if (landing.Alone)
+        {
+            if (starts.Contains(source.Items[first].Id) && first + 1 < source.Items.Count)
+            {
+                starts.Add(source.Items[first + 1].Id);
+            }
+
+            starts.Add(source.Items[first].Id);
+        }
+
         var items = Labeled(source.Items);
         var moved = items.Skip(first).Take(last - first + 1).ToList();
         var left = Kept([.. items.Where((_, at) => at < first || at > last)], starts);

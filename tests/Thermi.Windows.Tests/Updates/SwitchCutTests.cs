@@ -20,11 +20,12 @@ public sealed class SwitchCutTests
         await using var pc = new UpdatePc();
         var folder = pc.Folder();
         var switchLock = new SwitchLock(folder, pc.Clock);
-        await File.WriteAllBytesAsync(Path.Combine(folder.Update, "switch.lock"), [], TestContext.Current.CancellationToken);
+        var path = Path.Combine(folder.Update, "switch.lock");
+        await File.WriteAllBytesAsync(path, [], TestContext.Current.CancellationToken);
 
         var left = switchLock.Held();
         bool held;
-        await using (await switchLock.HoldAsync(1, TestContext.Current.CancellationToken))
+        await using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             held = switchLock.Held();
         }

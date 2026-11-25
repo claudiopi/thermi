@@ -67,7 +67,7 @@
     <value>Loading every core, up to 30 s</value>
   </data>
   <data name="CatalogText.FanFinderWatching" xml:space="preserve">
-    <value>Load ended; watching the fans for up to 15 s more</value>
+    <value>Load ended; watching the fans for up to 40 s more</value>
   </data>
   <data name="UiText.Cancel" xml:space="preserve">
     <value>Cancel</value>
@@ -1541,6 +1541,9 @@
   </data>
   <data name="Refusal.Snapped" xml:space="preserve">
     <value>Alt+arrows move a floating overlay. Drag this one off its place to move it freely.</value>
+  </data>
+  <data name="Refusal.NoRoomOnTaskbar" xml:space="preserve">
+    <value>That taskbar has no room for this overlay at its size.</value>
   </data>
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi has no translation for that language.</value>

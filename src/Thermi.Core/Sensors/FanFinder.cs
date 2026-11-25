@@ -17,7 +17,7 @@ public enum FanFinderRefusal
 [Translated]
 public enum FanFinderOutcome
 {
-    /// <summary>One fan rose clearly, and <see cref="FanFinderResult.Fan"/> names it.</summary>
+    /// <summary>One fan rose clearly, or fell clearly once the load ended, and <see cref="FanFinderResult.Fan"/> names it.</summary>
     Found,
 
     /// <summary>
@@ -45,8 +45,9 @@ public sealed record FanFinderResult(FanFinderOutcome Outcome, string? Fan = nul
 public sealed record FanRise(string Fan, double Rpm, double Share);
 
 /// <summary>
-/// Finds the fan that cools the CPU: it waits for 3 s of readings in which no fan is falling, asks for a load on every
-/// core, and watches which fan answers it, during the load and for <see cref="Afterwards"/> after it. Every fan outside the GPUs is a candidate: a
+/// Finds the fan that cools the CPU: it waits for 3 s of readings in which no fan is rising or falling, asks for a load on
+/// every core, and watches which fan answers it, rising during the load or after it, or falling once it ends, for
+/// <see cref="Afterwards"/> after it. Every fan outside the GPUs is a candidate: a
 /// GPU's never cools the CPU. The load itself is the window's, which keeps it running while <see cref="Loading"/> says so;
 /// the finder decides on the snapshots it is given and the injected clock alone, so a recorded series replays the same
 /// every time. Give it every new snapshot once, with <see cref="Add"/>, and call <see cref="Tick"/> often, so a service
@@ -57,8 +58,8 @@ public sealed class FanFinder
     public static readonly TimeSpan Baseline = TimeSpan.FromSeconds(3);
 
     /// <summary>
-    /// How long it waits at most for the fans to stop falling before the load, as they do for a while after a run: one
-    /// that never settles, as a fan that hunts, starts it anyway.
+    /// How long it waits at most for the fans to hold steady before the load, as they rise or fall for a while after a run:
+    /// one that never settles, as a fan that hunts, starts it anyway.
     /// </summary>
     public static readonly TimeSpan MaxSettle = TimeSpan.FromSeconds(30);
 
@@ -76,9 +77,10 @@ public sealed class FanFinder
 
     /// <summary>
     /// How long it keeps watching the fans once the load has ended: a fan-control curve slow to answer, as on the owner's
-    /// PC, raises the fan up to 12 s after the load, and the fan then meets the rule for 3 s.
+    /// PC, raises the fan up to 12 s after the load, and one already up from an earlier load held it there and let it fall
+    /// only 25 s after; the fan then meets the rule for 3 s.
     /// </summary>
-    public static readonly TimeSpan Afterwards = TimeSpan.FromSeconds(15);
+    public static readonly TimeSpan Afterwards = TimeSpan.FromSeconds(40);
 
     // Each average spans 3 s, and a fan meets the rule for as long before it is picked.
     private static readonly TimeSpan Span = TimeSpan.FromSeconds(3);
@@ -153,7 +155,7 @@ public sealed class FanFinder
                 : null;
             Follow(loadAt, now);
         }
-        else if (Since(_startedAt, now) >= Baseline && (!Falling(now) || Since(_startedAt, now) >= MaxSettle))
+        else if (Since(_startedAt, now) >= Baseline && (!Moving(now) || Since(_startedAt, now) >= MaxSettle))
         {
             _loadAt = now;
         }
@@ -242,28 +244,34 @@ public sealed class FanFinder
             .ToList();
         return _readingsStopped ? new FanFinderResult(FanFinderOutcome.ReadingsStopped)
             : loads.Count == 0 || loads.Average() < MinLoad ? new FanFinderResult(FanFinderOutcome.LoadDidNotReachTheCpu)
-            : Rises(loadAt, _readAt).Any(Rose) ? new FanFinderResult(FanFinderOutcome.TwoRoseAlike)
+            : Answers(loadAt, _readAt).Any(Rose) ? new FanFinderResult(FanFinderOutcome.TwoRoseAlike)
             : new FanFinderResult(FanFinderOutcome.NoFanRose);
     }
 
-    // The fan that rose enough, and at least twice as many RPM as any other.
+    // The fan that answered enough, and by at least twice as many RPM as any other.
     private string? Leader(long loadAt, long now)
     {
-        var rises = Rises(loadAt, now);
-        var best = rises.MaxBy(rise => rise.Rpm);
-        return best is not null && Rose(best) && rises.All(other => other == best || other.Rpm * 2 <= best.Rpm) ? best.Fan : null;
+        var answers = Answers(loadAt, now);
+        var best = answers.MaxBy(answer => answer.Rpm);
+        return best is not null && Rose(best) && answers.All(other => other == best || other.Rpm * 2 <= best.Rpm) ? best.Fan : null;
     }
+
+    // Once the load has ended, a fan that falls answers it as one that rises does: one already up from an earlier load
+    // holds its speed through this one and falls only after it.
+    private List<Rise> Answers(long loadAt, long now) =>
+        _loadEndedAt is null ? Rises(loadAt, now) : [.. Rises(loadAt, now).Select(rise => rise with { Rpm = Math.Abs(rise.Rpm) })];
 
     private static bool Rose(Rise rise) => rise.Rpm >= MinRise && rise.Rpm >= rise.Before * MinRiseShare;
 
     // A fan still falling, as after a run, would leave the 3 s before the load averaging above where it settles, and its
-    // rise to the load reading as less than it is.
-    private bool Falling(long now) =>
+    // rise to the load reading as less than it is; one still rising as much as an answer would read as answering.
+    private bool Moving(long now) =>
         _samples.Where(sample => Since(sample.At, now) < Span)
             .SelectMany(sample => sample.Fans)
             .Where(fan => fan.Value is not null)
             .GroupBy(fan => fan.Key, StringComparer.Ordinal)
-            .Any(fan => fan.Max(each => each.Value!.Value) - fan.Last().Value!.Value >= MinFall);
+            .Select(fan => (Low: fan.Min(each => each.Value!.Value), High: fan.Max(each => each.Value!.Value), Last: fan.Last().Value!.Value))
+            .Any(fan => fan.High - fan.Last >= MinFall || Rose(new Rise("", fan.Last - fan.Low, fan.Low)));
 
     // Each fan's average over the last 3 s against its average over the 3 s before the load; a fan without a value in either has no rise.
     private List<Rise> Rises(long loadAt, long now)

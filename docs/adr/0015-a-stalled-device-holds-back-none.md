@@ -1,6 +1,6 @@
 # 0015. One stalled device never holds back the others' readings
 
-**Status**: Proposed
+**Status**: Accepted
 
 ## Context
 

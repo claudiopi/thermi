@@ -43,17 +43,24 @@ public static class TaskbarRow
     /// How wide overlay <paramref name="index"/> may show on its taskbar, at a size, beside the others at the sizes they show
     /// at: from where it shows to where the last may end, less the widths of those after it and a margin before each. An
     /// overlay that grows past it shows at this width, so it never pushes another off the taskbar, back over the app
-    /// buttons, or over another. Null off a taskbar or alone on it, whatever its size, so an overlay alone need not measure
+    /// buttons, or over another; but never narrower than at 100 %, or its own size when smaller, so one is never squeezed
+    /// to nothing where the room shrank by itself, as when the notification area grew: the one before it is then held back
+    /// over the app buttons. Null off a taskbar or alone on it, whatever its size, so an overlay alone need not measure
     /// itself to know it has all the room.
     /// </summary>
     public static Func<(int Width, int Height), int?>? RoomOf(
         IReadOnlyList<OverlayConfig> overlays, int index, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown) =>
-        Shared(overlays, index, screens, shown) ? size => Room(overlays, index, screens, size, shown) : null;
+        Shared(overlays, index, screens, shown)
+            ? size => Math.Max(
+                Room(overlays, index, screens, size, shown),
+                (int)Math.Ceiling(size.Width / Math.Max(1, Snaps.SizeShown(overlays[index], screens))))
+            : null;
 
     /// <summary>
     /// The overlays after a gesture or an edit, with each one on a taskbar that shows pushed along by another, at the sizes
     /// <paramref name="shown"/> boxes them, given the place it shows at as its own offset: as one undo step with what pushed
-    /// it, it then stays there when the one that pushed it hides, shrinks or moves away.
+    /// it, it then stays there when the one that pushed it hides, shrinks or moves away. One held back toward the taskbar's
+    /// start, where the room is short, keeps its own place, which it shows at again once there is room.
     /// </summary>
     public static IReadOnlyList<OverlayConfig> Settle(IReadOnlyList<OverlayConfig> overlays, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown)
     {
@@ -65,13 +72,40 @@ public static class TaskbarRow
                 && Snaps.OnTaskbar(overlays[at], screens) is var (_, bar)
                 && Snaps.Locate(overlays[at], screens, box.Width, box.Height) is { } own
                 && Locate(overlays, at, screens, (box.Width, box.Height), shown) is { } pushed
-                && pushed.X != own.X)
+                && pushed.X > own.X)
             {
                 settled[at] = overlays[at] with { Snap = overlays[at].Snapped! with { Offset = pushed.X - bar.Left } };
             }
         }
 
         return settled;
+    }
+
+    /// <summary>
+    /// Whether an edit or a gesture moved an overlay onto or along a taskbar where the others leave it no room at its own
+    /// size, as <paramref name="natural"/> boxes each overlay of <paramref name="after"/>, the others counted at most as
+    /// <paramref name="shown"/> boxes them: such a move is refused, so no overlay ever shows smaller for it. One new, as a
+    /// pill dragged off, counts as moved; with fewer overlays than before, none does.
+    /// </summary>
+    public static bool Crowded(
+        IReadOnlyList<OverlayConfig> before,
+        IReadOnlyList<OverlayConfig> after,
+        IReadOnlyList<Screen> screens,
+        IReadOnlyList<PixelRect?> natural,
+        IReadOnlyList<PixelRect?> shown)
+    {
+        if (after.Count < before.Count)
+        {
+            return false;
+        }
+
+        List<PixelRect?> sizes =
+            [.. natural.Select((box, at) => box is { } own && shown.ElementAtOrDefault(at) is { } now && now.Width < own.Width ? now : box)];
+        return Enumerable.Range(0, after.Count).Any(at =>
+            natural.ElementAtOrDefault(at) is { } box
+            && (at >= before.Count || before[at].Snap != after[at].Snap || before[at].Position != after[at].Position)
+            && Shared(after, at, screens, sizes)
+            && Room(after, at, screens, (box.Width, box.Height), sizes) < box.Width);
     }
 
     private static int Room(

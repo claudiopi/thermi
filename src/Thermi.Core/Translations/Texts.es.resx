@@ -67,7 +67,7 @@
     <value>Cargando todos los núcleos, hasta 30 s</value>
   </data>
   <data name="CatalogText.FanFinderWatching" xml:space="preserve">
-    <value>Carga terminada; observando los ventiladores hasta 15 s más</value>
+    <value>Carga terminada; observando los ventiladores hasta 40 s más</value>
   </data>
   <data name="UiText.Cancel" xml:space="preserve">
     <value>Cancelar</value>
@@ -1541,6 +1541,9 @@
   </data>
   <data name="Refusal.Snapped" xml:space="preserve">
     <value>Alt+flechas mueven una superposición flotante. Arrastra esta fuera de su lugar para moverla libremente.</value>
+  </data>
+  <data name="Refusal.NoRoomOnTaskbar" xml:space="preserve">
+    <value>En esa barra de tareas no hay espacio para esta superposición a su tamaño.</value>
   </data>
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi no tiene traducción a ese idioma.</value>

@@ -37,19 +37,11 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     private PainterFonts? _fonts;
     private Bitmap? _canvas;
 
-    /// <summary>Where the last paint drew each item and its value, in its pixels, so the stage can tell what a click is on.</summary>
-    public IReadOnlyList<PaintedItem> Places => _places;
-
-    /// <summary>The item the last paint drew at a point of it, or null on the overlay's edge.</summary>
-    public string? ItemAt(PointF at) => _places.FirstOrDefault(place => place.Item.Contains(at) && place.Id.Length > 0)?.Id;
-
     /// <summary>
-    /// The first item the last paint drew whose pill's middle lies past a point of it along the overlay, so a pill dropped
-    /// there joins before that pill; null past the last.
+    /// Where the last paint drew each item, its label and its value, in its pixels, so the stage can tell what a click is
+    /// on (<see cref="PaintedPlaces"/>).
     /// </summary>
-    public string? ItemAfter(PointF at, bool vertical) =>
-        _places.FirstOrDefault(place => place.Id.Length > 0
-            && (vertical ? place.Pill.Top + (place.Pill.Height / 2) > at.Y : place.Pill.Left + (place.Pill.Width / 2) > at.X))?.Id;
+    public IReadOnlyList<PaintedItem> Places => _places;
 
     /// <summary>
     /// Paints the items in their pills. <paramref name="glow"/> gives how strongly an item's pill glows now, 0 to 1, as
@@ -232,7 +224,11 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             var (item, width) = (pill.Items[i], pill.ItemWidths[i]);
             var value = DrawItem(g, item, look, new PointF(x, box.Top + (box.Height / 2)), scale);
             var place = new RectangleF(x - (gap / 2), box.Top, width + gap, box.Height);
-            _places.Add(new PaintedItem(item.Id, place, new RectangleF(value, box.Top, x + width - value, box.Height)) { Pill = part.Box });
+            _places.Add(new PaintedItem(item.Id, place, new RectangleF(value, box.Top, x + width - value, box.Height))
+            {
+                Pill = part.Box,
+                Label = item.Label is null ? RectangleF.Empty : new RectangleF(place.Left, box.Top, value - place.Left, box.Height),
+            });
             x += width + gap;
         }
     }

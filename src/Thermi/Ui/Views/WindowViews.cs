@@ -94,8 +94,11 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
     /// <summary>Where each overlay shows on <paramref name="screens"/>, as its own window places it while the window is open.</summary>
     public IReadOnlyList<Rect?> Places(Texts texts, IReadOnlyList<Screen> screens) => OverlayPlaces.Of(editor.Config, Input(texts), screens);
 
-    /// <summary>An edit's settings with each overlay it pushed along a taskbar keeping the place it was pushed to, as the overlays show it.</summary>
-    public ThermiConfig Settled(ThermiConfig before, ThermiConfig after, Texts texts, IReadOnlyList<Screen> screens) =>
+    /// <summary>
+    /// An edit's settings with each overlay it pushed along a taskbar keeping the place it was pushed to, as the overlays show
+    /// it, or why they cannot be.
+    /// </summary>
+    public EditResult Settled(ThermiConfig before, ThermiConfig after, Texts texts, IReadOnlyList<Screen> screens) =>
         OverlayPlaces.Settled(before, after, Input(texts), screens);
 
     private TrayInput Input(Texts texts) =>

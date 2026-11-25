@@ -222,7 +222,7 @@
         "R20",
         "R21"
       ],
-      "description": "Given Task Manager and a board that drives the CPU fan, when the finder runs and is cancelled, then every core is loaded at below-normal priority, the load ends within a second of Cancel, and a full run picks the CPU fan.",
+      "description": "Given Task Manager and a board that drives the CPU fan, when the finder runs and is cancelled, then every core is loaded at idle priority, the load ends within a second of Cancel, and a full run picks the CPU fan.",
       "check": "by hand",
       "passes": false
     },
@@ -233,7 +233,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one where no fan answers, one where the board's fan only jitters at idle, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it, one where no fan answers, one where the board's fan only jitters at idle, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -1585,7 +1585,7 @@
       "covers": [
         "R19"
       ],
-      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs below normal priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
+      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs at idle priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
       "check": "UnderALoadOnEveryCoreTheReadingsKeepComing",
       "passes": true
     },
@@ -1603,7 +1603,7 @@
       "covers": [
         "R30"
       ],
-      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, toward the notification area only, and the one beside the notification area, or dropped past it, stays there; two that do not overlap stay where their snaps put them; one grown past the room the other leaves toward that edge shows at that room, so neither leaves the taskbar, covers the other or goes back over the app buttons.",
+      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, toward the notification area only, and the one beside the notification area, or dropped past it, stays there; two that do not overlap stay where their snaps put them; one grown past the room the other leaves toward that edge shows at that room, never narrower than at 100 %, so neither leaves the taskbar, covers the other or goes back over the app buttons; and on a taskbar nearly full, where the room is less, neither shows smaller and the one before is held back over the app buttons.",
       "check": "OverlaysOnOneTaskbarNeverCoverEachOther",
       "passes": true
     },
@@ -1667,9 +1667,55 @@
         "R30",
         "R143"
       ],
-      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together.",
+      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; and on a taskbar nearly full, a move onto it without room for the overlay at its size is refused, changing nothing, and one shown again there squeezes none, the one before it held back toward the start only while it shows.",
       "check": "AnOverlayMovesOnlyWhenThePersonMovesIt",
       "passes": true
+    },
+    {
+      "id": "A347",
+      "covers": [
+        "R150",
+        "R199"
+      ],
+      "description": "Given the default overlay, an overlay of the CPU pill alone, one that shows no labels, one in one bar and four overlays, when an item's value or a pill's label is held until it lifts and dropped on the desktop or on a taskbar's mark, then the value lifts the item alone and the label its pill, in a pill without labels the pill, in one bar the run or the item, the item held off the CPU pill alone becomes an overlay of its own where the pill's label moves the whole overlay, at four overlays the hold is refused, and each drop is one undo step.",
+      "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
+      "passes": true
+    },
+    {
+      "id": "A348",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given an item lifted from the CPU pill, when it is dropped on its own pill before another of its items, past the pill's last, or on its own place, before another pill of its overlay, or on another overlay, then it moves within its pill, stays put, or joins as a pill of its own before the pill it was dropped in front of.",
+      "check": "ADropOnAnOverlayJoinsItWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A349",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the default overlay, and one whose second CPU pill starts apart from the first, when an item is lifted off its pill and dropped before its own pill, moved within it, or the item starting the second CPU pill is dropped on the desktop, then the pill it leaves keeps its label and stays apart, the item shows as a pill of its own, and every other pill shows as it did.",
+      "check": "TheWindowListsThePillsTheOverlayLabels",
+      "passes": true
+    },
+    {
+      "id": "A350",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the overlay on a desktop of its own, when an item's value in the CPU pill is held until it lifts and thrown far, the CPU label is held and thrown far, or the CPU temperature's value is held and dropped on the end of the CPU power's value, then the item alone, or the whole CPU pill, becomes an overlay of its own, or the CPU temperature moves to the end of its pill; and a held press on a locked overlay moves and writes nothing.",
+      "check": "APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A351",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the installed thermi, when an item's value in the CPU pill is held, dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its pill and before the pill elsewhere, and the pill's label held lifts the whole pill as before.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

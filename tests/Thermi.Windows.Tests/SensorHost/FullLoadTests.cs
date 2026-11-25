@@ -21,7 +21,8 @@ public sealed class FullLoadTests
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
     // Night QA: "Find it" said the readings stopped as its load started. With every core spun by the finder's own load,
-    // `thermi cpu-load`, the sensor pipe still gives a snapshot each second, and the load runs below normal priority.
+    // `thermi cpu-load`, the sensor pipe still gives a snapshot each second, and the load runs at idle priority. The pipe
+    // here runs in the test process, below normal under scripts/check.ps1, which is still above the load.
     [Fact]
     public async Task UnderALoadOnEveryCoreTheReadingsKeepComing()
     {
@@ -57,7 +58,7 @@ public sealed class FullLoadTests
         }
 
         var gaps = loaded.Zip(loaded.Skip(1), (one, next) => clock.GetElapsedTime(one, next).TotalSeconds).ToList();
-        Assert.Equal(ProcessPriorityClass.BelowNormal, priority);
+        Assert.Equal(ProcessPriorityClass.Idle, priority);
         Assert.True(busy >= Environment.ProcessorCount * Loaded.TotalSeconds * 0.5, $"The load kept the cores busy for {busy:F1} s.");
         Assert.True(loaded.Count >= Loaded.TotalSeconds - 1 && gaps.Max() < 2, $"{loaded.Count} snapshots, gaps {string.Join(", ", gaps)}.");
     }
