@@ -27,6 +27,8 @@ try {
     }
   });
 
+  // Wide, whatever size the person left the window at: a narrow one folds the list away, and the page's own tests cover that.
+  await page.setViewportSize({ width: 1280, height: 900 });
   // Loaded again under watch, so an error as the page starts is caught too.
   await page.reload();
   const rows = page.getByRole('treeitem');
