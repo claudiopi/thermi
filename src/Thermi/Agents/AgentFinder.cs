@@ -48,10 +48,10 @@ internal sealed partial class AgentCommands
             }
         }
 
-        return finder.Result is { } result ? await FoundAsync(result, last!, use) : Unread(feed.State, feed.Taken, last);
+        return finder.Result is { } result ? await FoundAsync(result, last!, use, stop) : Unread(feed.State, feed.Taken, last);
     }
 
-    private async Task<AgentReply> FoundAsync(FanFinderResult result, Snapshot snapshot, bool use)
+    private async Task<AgentReply> FoundAsync(FanFinderResult result, Snapshot snapshot, bool use, CancellationToken stop)
     {
         var answer = new FinderAnswer(result.Outcome, Used: false)
         {
@@ -65,7 +65,7 @@ internal sealed partial class AgentCommands
                 : new AgentReply(AgentExit.Done, AgentJson.Write(answer));
         }
 
-        var used = await OneAtATimeAsync(() => WriteAsync(config => ItemEdits.UseCpuFan(config, 0, snapshot, found)));
+        var used = await OneAtATimeAsync(() => WriteAsync(config => ItemEdits.UseCpuFan(config, 0, snapshot, found)), stop);
         return used.Exit == AgentExit.Done ? used with { Json = AgentJson.Write(answer with { Used = true }) } : used;
     }
 }

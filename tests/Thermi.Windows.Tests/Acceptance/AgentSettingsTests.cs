@@ -63,7 +63,7 @@ public sealed class AgentSettingsTests : IDisposable
 
         using (File.Open(Path.Combine(Looks, "Calm" + StyleFile.Extension), FileMode.Open, FileAccess.Read, FileShare.Read))
         {
-            Assert.Equal(1, (await _rig.RunAsync("look", "rename", "Calm", "Quiet")).Exit);
+            Assert.Equal(4, (await _rig.RunAsync("look", "rename", "Calm", "Quiet")).Exit);
         }
 
         Assert.Equal(["Calm", "Loud", "Mine"], saved.List().Select(style => style.Name));

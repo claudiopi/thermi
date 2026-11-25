@@ -108,7 +108,7 @@
       "covers": [
         "R15"
       ],
-      "description": "Given an MCP session that set two items' names, and one of them renamed since by hand, when undo runs twice and redo once, then the other item's name is back, the hand edit stays, and redo sets the other name again.",
+      "description": "Given an MCP session's commands, an undo called while an edit waits for the settings file takes that edit back once it is written. Given an MCP session that set one item's name twice and another's once, the other renamed since by hand, when an undo is kept from writing by the file's lock, then the next undo is still that step, and finds nothing of its own left to take back; the next takes back only the second name, the hand edit stays, and redo sets it again.",
       "check": "McpUndoTakesBackOnlyItsOwn",
       "passes": true
     },
@@ -199,7 +199,7 @@
       "covers": [
         "R26"
       ],
-      "description": "Given a settings folder with two saved looks, when looks runs and then look saves overlay 1's look under a new name, wears a saved one on every overlay, renames one to a name taken, exports one, deletes one, and imports the exported text and a broken text, then each changes what the window's same action changes, the taken name and the broken text are refused with their keys, and no file outside the looks' folder is read or written.",
+      "description": "Given a settings folder with two saved looks, when looks runs and then look saves overlay 1's look under a new name, wears a saved one on every overlay, renames one while Windows holds its file, which leaves the one look and changes nothing, renames one to a name taken, exports one, deletes one, and imports the exported text and a broken text, then each changes what the window's same action changes, the taken name and the broken text are refused with their keys, and no file outside the looks' folder is read or written.",
       "check": "AgentLooksAreTheWindowsLooks",
       "passes": true
     },

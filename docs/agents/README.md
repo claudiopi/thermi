@@ -31,7 +31,7 @@ An edit is a JSON object with its `kind`, in any order: the settings window's ow
 
 ## The contract
 
-Every command prints one JSON document on stdout, with `"schema": 1`, and nothing else; errors and help go to stderr. The documents of `status`, `read` and `sensors`, and each line of `watch`, are the contract other programs build on, with a JSON Schema each in `schema/`, written in the build from the records that answer them, so the two cannot differ.
+A command that ends with 0 or 1 prints one JSON document on stdout, with `"schema": 1`, and nothing else; one that ends with 2, 3 or 4 prints nothing there, `config` aside, which still shows the settings it could read. Errors and help go to stderr. The documents of `status`, `read` and `sensors`, and each line of `watch`, are the contract other programs build on, with a JSON Schema each in `schema/`, written in the build from the records that answer them, so the two cannot differ.
 
 | Exit | Means |
 | --- | --- |
@@ -39,7 +39,7 @@ Every command prints one JSON document on stdout, with `"schema": 1`, and nothin
 | 1 | Refused by thermi's rules: nothing was written, and stderr says the refusal's key and its English text. |
 | 2 | Bad arguments. |
 | 3 | The sensor service is not installed, stopped, stale or held by another program. |
-| 4 | The settings file is broken, newer than this thermi or locked; nothing was written. |
+| 4 | The settings file is broken, newer than this thermi or locked, or Windows refused to write it or a saved look's file; nothing was written, and stderr says why. |
 
 Each value is in its type's fixed unit, whatever the overlay shows it in: °C, % (load and fan duty), MHz, W, RPM, GB, B/s, seconds, and `ipv4` for an address, whose `text` holds it. A value that cannot be read is null, with `why`, never 0. A choice, as a type or a problem's code, is a word in kebab-case; a reader should take a word it does not know as unknown, not as an error.
 

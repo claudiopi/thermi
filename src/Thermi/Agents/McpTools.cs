@@ -106,8 +106,8 @@ internal static class McpTools
     private static McpServerToolCreateOptions Options(string name, string description, bool readOnly) =>
         new() { Name = name, Description = description, ReadOnly = readOnly, Destructive = false, OpenWorld = false };
 
-    private static McpServerTool Stepped(string name, string description, Func<Task<AgentReply>> step) =>
-        McpServerTool.Create(async () => Result(await step()), Options(name, description, readOnly: false));
+    private static McpServerTool Stepped(string name, string description, Func<CancellationToken, Task<AgentReply>> step) =>
+        McpServerTool.Create(async (CancellationToken stop) => Result(await step(stop)), Options(name, description, readOnly: false));
 
     private static CallToolResult Result(AgentReply reply) => new()
     {

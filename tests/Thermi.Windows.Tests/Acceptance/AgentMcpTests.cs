@@ -1,6 +1,8 @@
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using Thermi.Agents;
+using Thermi.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
@@ -69,6 +71,28 @@ public sealed class AgentMcpTests : IDisposable
     public async Task McpUndoTakesBackOnlyItsOwn()
     {
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+
+        // Changes go one at a time: an undo called while an edit waits for the file takes that edit back.
+        using (var commands = new AgentCommands(_rig.Environment, _rig.Folder.Clock))
+        {
+            Task<AgentReply> edit, undo;
+            using (MutexHolder.Holding(_rig.Folder.MutexName))
+            {
+                var named = """{"kind":"item","item":"cpu.temperature","field":"name","value":"Raced"}""";
+                edit = commands.RunAsync(new AgentRequest(AgentVerb.Edit) { Text = named }, TestContext.Current.CancellationToken);
+                undo = commands.UndoAsync(TestContext.Current.CancellationToken);
+            }
+
+            for (var step = 0; !(edit.IsCompleted && undo.IsCompleted) && step < 2000; step++)
+            {
+                _rig.Folder.Clock.Advance(TimeSpan.FromMilliseconds(100));
+                await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
+            }
+
+            Assert.Equal(AgentExit.Done, (await edit).Exit);
+            Assert.True((bool)JsonNode.Parse((await undo).Json!)!["done"]!);
+            Assert.Null(NameOf("cpu.temperature"));
+        }
         await McpSession.RunAsync(_rig, async session =>
         {
             // Two edits of one field are two steps, however soon the second comes.

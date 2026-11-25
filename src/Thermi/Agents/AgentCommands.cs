@@ -45,8 +45,8 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
         AgentVerb.Monitors =>
             Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
         AgentVerb.Looks => Task.FromResult(Looks()),
-        AgentVerb.Edit => OneAtATimeAsync(() => EditAsync(request.Text ?? "", stop)),
-        AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request)),
+        AgentVerb.Edit => OneAtATimeAsync(() => EditAsync(request.Text ?? "", stop), stop),
+        AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request), stop),
         AgentVerb.FindCpuFan => FindCpuFanAsync(request.Switch == true, stop),
         AgentVerb.StartWithWindows => Task.FromResult(StartWithWindows(request.Switch)),
         AgentVerb.Watch or AgentVerb.Mcp => throw new ArgumentException($"{request.Verb} is served, not answered.", nameof(request)),

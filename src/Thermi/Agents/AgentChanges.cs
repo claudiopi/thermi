@@ -20,15 +20,15 @@ internal sealed partial class AgentCommands
     private const int Tries = 3;
 
     /// <summary>Takes back the last edit this session made, where what it wrote is still there.</summary>
-    public Task<AgentReply> UndoAsync() =>
-        OneAtATimeAsync(() => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, History.CancelUndo));
+    public Task<AgentReply> UndoAsync(CancellationToken stop) =>
+        OneAtATimeAsync(() => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, History.CancelUndo), stop);
 
-    public Task<AgentReply> RedoAsync() =>
-        OneAtATimeAsync(() => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo));
+    public Task<AgentReply> RedoAsync(CancellationToken stop) =>
+        OneAtATimeAsync(() => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo), stop);
 
-    private async Task<AgentReply> OneAtATimeAsync(Func<Task<AgentReply>> change)
+    private async Task<AgentReply> OneAtATimeAsync(Func<Task<AgentReply>> change, CancellationToken stop)
     {
-        await _changing.WaitAsync();
+        await _changing.WaitAsync(stop);
         try
         {
             return await change();
@@ -174,7 +174,7 @@ internal sealed partial class AgentCommands
     }
 
     private static AgentReply Unwritten(Exception? failed) => new(
-        AgentExit.Refused,
+        AgentExit.SettingsBroken,
         Error: failed is IOException or UnauthorizedAccessException
             ? $"Windows refused to write the settings file; nothing was written: {failed.Message}"
             : "The settings file stayed locked by another program; nothing was written. Try again.");
@@ -243,7 +243,8 @@ internal sealed partial class AgentCommands
         }
     }
 
-    private static AgentReply FileRefused(Exception ex) => new(AgentExit.Refused, Error: $"Windows refused the saved look's file: {ex.Message}");
+    private static AgentReply FileRefused(Exception ex) =>
+        new(AgentExit.SettingsBroken, Error: $"Windows refused the saved look's file; nothing was changed: {ex.Message}");
 
     private static AgentReply Done() => new(AgentExit.Done, AgentJson.Write(new EditAnswer(Done: true)));
 
