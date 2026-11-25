@@ -65,6 +65,10 @@ public sealed class AgentReadTests
         Assert.Equal(("192.168.1.2", null, null), (address.Text, address.Min, address.Average));
         var missing = Assert.Single(AgentReads.Read([later], config, [dropped], earlier: snapshot).Values);
         Assert.Equal((null, NoValue.ReadsNothing), (missing.Value, missing.Why));
+        // An item that combines sensors names none of them, nor its metric's.
+        var temperatures = snapshot.Sensors.Where(sensor => sensor.Type == "Temperature").Take(2).Select(sensor => sensor.Id).ToList();
+        var combined = PowerEdits.SetSensors(config, "cpu.temperature", snapshot, temperatures).Config;
+        Assert.Null(Assert.Single(AgentReads.Read([snapshot], combined, [AgentReads.ItemPrefix + "cpu.temperature"]).Values).Sensor);
         var gone = Assert.Single(AgentReads.Read([networked, later], config, [dropped]).Values);
         Assert.Equal((null, 1), (gone.Value, gone.Samples));
         Assert.Equal([dropped], AgentReads.Read([later], config, [dropped]).Unknown);

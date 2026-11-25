@@ -219,6 +219,13 @@ public sealed class AgentCommandTests : IDisposable
         Assert.NotEmpty(end.Error);
         Assert.Equal(Broken, _rig.Folder.Text());
 
+        // With the sensors alone, no settings window offers to restore the file, so the fix says otherwise.
+        var full = (await _rig.RunAsync("status")).Json["problems"]!.AsArray().Single(each => (string?)each!["code"] == "settings-broken")!;
+        _rig.SensorsOnly = true;
+        var alone = (await _rig.RunAsync("status")).Json["problems"]!.AsArray().Single(each => (string?)each!["code"] == "settings-broken")!;
+        _rig.SensorsOnly = false;
+        Assert.NotEqual((string?)full["fix"], (string?)alone["fix"]);
+
         // A file whose mutex another thermi process holds through every try is the same: nothing written, and 4.
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         var written = _rig.Folder.Text();

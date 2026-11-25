@@ -101,7 +101,7 @@ public static class AgentReads
         var shown = OverlayLayout.Build(overlay with { Items = [item] }, now, CultureInfo.InvariantCulture, temperature: config.Temperature, windowOpen: true);
         var judged = Threshold.Judges(item) ? item.Threshold : null;
         var sensor = item.Sensor is { } id ? SensorMap.Find(last, id)
-            : (item.Metric ?? item.Auto) is { } metric ? SensorMap.Chosen(last, overlay).GetValueOrDefault(metric)
+            : item.Metric is { } metric ? SensorMap.Chosen(last, overlay).GetValueOrDefault(metric)
             : null;
         var answer = new ValueAnswer(item.Id, ValueSource.Item, item.Name ?? Names.OfUnnamed(item, last, Texts.English), kind, UnitOf(kind))
         {

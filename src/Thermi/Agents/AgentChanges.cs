@@ -101,6 +101,7 @@ internal sealed partial class AgentCommands
             return Broken(problem);
         }
 
+        var was = saved.List().FirstOrDefault(style => string.Equals(style.Name, from.Trim(), StringComparison.OrdinalIgnoreCase))?.Name;
         EditResult renamed;
         try
         {
@@ -121,14 +122,11 @@ internal sealed partial class AgentCommands
             return Done();
         }
 
-        // The overlays that wore it could not follow the file's new name, so the file takes its old name back.
+        // The overlays that wore it could not follow the file's new name, so the file takes its old name back, as it was written.
         var written = await WriteAsync(config => new EditResult(replay(config)), keep: false);
-        if (written.Exit != AgentExit.Done)
-        {
-            Filed(() => saved.Rename(renamed.Config, History, to.Trim(), from).Refused);
-        }
-
-        return written;
+        return written.Exit == AgentExit.Done || Filed(() => saved.Rename(renamed.Config, History, to.Trim(), was!).Refused).Exit == AgentExit.Done
+            ? written
+            : written with { Error = $"{written.Error} The look's file kept its new name, {to.Trim()}, while the overlays still wear {was}." };
     }
 
     private AgentReply StartWithWindows(bool? on)

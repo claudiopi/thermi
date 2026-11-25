@@ -100,7 +100,30 @@ public sealed class AgentMcpTests : IDisposable
             Assert.Equal(AgentExit.Done, (await wear).Exit);
             Assert.True((bool)JsonNode.Parse((await undo).Json!)!["done"]!);
             Assert.Equal(ThermiConfigJson.Write(new ThermiConfig()), ThermiConfigJson.Write(_rig.Folder.Read()));
+
+            // An edit that waits for a silent service holds up no other change: the redo goes first.
+            _rig.Sensors = () => new RecordedFeed([], ServiceState.Running);
+            var named = """{"kind":"item","item":"cpu.temperature","field":"name","value":"Late"}""";
+            var edit = commands.RunAsync(new AgentRequest(AgentVerb.Edit) { Text = named }, TestContext.Current.CancellationToken);
+            var redo = commands.RedoAsync(TestContext.Current.CancellationToken);
+            for (var step = 0; !redo.IsCompleted && step < 2000; step++)
+            {
+                _rig.Folder.Clock.Advance(TimeSpan.FromMilliseconds(100));
+                await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
+            }
+
+            Assert.False(edit.IsCompleted);
+            for (var step = 0; !edit.IsCompleted && step < 2000; step++)
+            {
+                _rig.Folder.Clock.Advance(TimeSpan.FromMilliseconds(100));
+                await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
+            }
+
+            await edit;
+            _rig.Sensors = () => new RecordedFeed([TestRecordings.Read(TestRecordings.Admin)]);
         }
+
+        _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
 
         await McpSession.RunAsync(_rig, async session =>
         {

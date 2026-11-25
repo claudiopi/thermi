@@ -69,6 +69,19 @@ public sealed class AgentSettingsTests : IDisposable
 
         Assert.Equal(["@Mine", "Calm", "Loud"], saved.List().Select(style => style.Name));
 
+        // A rename the settings cannot follow, the file read-only, gives the look its old name back, as it was written.
+        File.SetAttributes(_rig.Folder.File, FileAttributes.ReadOnly);
+        try
+        {
+            Assert.Equal(4, (await _rig.RunAsync("look", "rename", "calm", "Quiet")).Exit);
+        }
+        finally
+        {
+            File.SetAttributes(_rig.Folder.File, FileAttributes.Normal);
+        }
+
+        Assert.Equal(["@Mine", "Calm", "Loud"], saved.List().Select(style => style.Name));
+
         var taken = await _rig.RunAsync("look", "rename", "Calm", "Loud");
         Assert.Equal((1, Texts.Key(Refusal.StyleNameTaken)), (taken.Exit, (string)taken.Json["refusal"]!));
 

@@ -10,7 +10,7 @@ claude mcp add thermi -- thermi-cli mcp
 
 In Claude Desktop, the same under `mcpServers` in its config: `"thermi": { "command": "thermi-cli", "args": ["mcp"] }`.
 
-The tools are the commands below but `watch`, `find-cpu-fan` and `start-with-windows` as `find_cpu_fan` and `start_with_windows`, with `undo` and `redo` of the session's own edits. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are read-only. A refusal or a service that cannot be read is a tool error that says why. Between calls the server holds no connection to the sensors.
+The tools are the commands below but `watch`, `find-cpu-fan` and `start-with-windows` as `find_cpu_fan` and `start_with_windows`, with `undo` and `redo` of the session's own edits. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are read-only. A refusal or a service that cannot be read is a tool error that says why. Changes made at once run one at a time, in no set order; a client that waits for each answer gets its own order. Between calls the server holds no connection to the sensors.
 
 ## Commands
 
