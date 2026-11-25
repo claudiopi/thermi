@@ -21,9 +21,10 @@ public sealed class FrameTests
 
     // Zwift, an OpenGL game whose frames only the kernel's detailed history tells of, each repeated by a blit that is never
     // counted, beside a terminal that presents from a child of its own and an agent that presents through Direct3D 9. FPS
-    // follows the game, not the focus: Zwift, maximized in front, becomes the game once it counts as presenting, from the
-    // third second, and stays it while the terminal, on another monitor, takes the focus, maximized or not, at 18 FPS, and
-    // while the desktop is in front. The terminal alone, not filling its monitor, never shows FPS.
+    // follows the game, not the focus: Zwift, maximized in front, counts as presenting from the third second and becomes
+    // the game after 3 s in front so, from the fifth; it stays it while the terminal, on another monitor, takes the focus,
+    // maximized or not, at 18 FPS, and while the desktop is in front. The terminal alone, not filling its monitor, never
+    // shows FPS.
     [Fact]
     public void TheOverlayShowsTheFramesOfTheAppInFront()
     {
@@ -31,7 +32,7 @@ public sealed class FrameTests
         const int Terminal = 27540;
         var overlay = OverlayConfig.First with { Items = [.. OverlayConfig.First.Items, FrameTimeItem] };
         (int? Front, bool Fills)[] fronts =
-            [(Zwift, true), (Zwift, true), (Zwift, true), (Zwift, true), (Terminal, false), (Terminal, false), (Terminal, true), (null, false)];
+            [(Zwift, true), (Zwift, true), (Zwift, true), (Zwift, true), (Zwift, true), (Terminal, false), (Terminal, true), (null, false)];
         var (game, terminal) = (new FrontGame(), new FrontGame());
 
         var seconds = Replay(TestFiles.Presents(TestRecordings.ZwiftFrames)).Zip(fronts).Select(each => string.Join(
@@ -44,8 +45,8 @@ public sealed class FrameTests
             [
                 " | ",
                 " | ",
-                "161 7.9 ms | ",
-                "151 22.5 ms | ",
+                " | ",
+                " | ",
                 "156 22.3 ms | ",
                 "154 17.7 ms | ",
                 "153 23.5 ms | ",
@@ -181,6 +182,34 @@ public sealed class FrameTests
 
         Assert.Equal([null, null, null, null, null], Seconds(Every(200, 6000)));
         Assert.Equal([null, null, "60", "60", "60"], Seconds(Every(1000 / 60.0, 6000)));
+    }
+
+    // FPS follows the game, second by second: a game that fills its monitor takes over after 3 s in front; a terminal
+    // that fills its own and repaints at 35 FPS in front never takes it from a game that presents faster, even at 65 while
+    // in the background; another game takes over once it presents faster, and the old one, in front again but slower, never
+    // takes it back; once the game stops presenting, the one in front takes over after its 3 s.
+    [Fact]
+    public void FpsFollowsTheGameNotTheFocus()
+    {
+        const int Zwift = 1;
+        const int Wave = 2;
+        const int Other = 3;
+        (int Process, double Fps)[] zwiftInFront = [(Zwift, 160), (Wave, 20)];
+        (int Process, double Fps)[] waveBusy = [(Zwift, 65), (Wave, 35)];
+        (int Process, double Fps)[] twoGames = [(Zwift, 65), (Other, 90)];
+        ((int Process, double Fps)[] Rates, int? Front)[] seconds =
+        [
+            (zwiftInFront, Zwift), (zwiftInFront, Zwift), (zwiftInFront, Zwift),
+            (waveBusy, Wave), (waveBusy, Wave), (waveBusy, Wave), (waveBusy, Wave),
+            (twoGames, Other), (twoGames, Other), (twoGames, Other),
+            (twoGames, Zwift), (twoGames, Zwift), (twoGames, Zwift),
+            ([(Zwift, 65)], Zwift), ([(Zwift, 65)], Zwift), ([(Zwift, 65)], Zwift),
+        ];
+        var game = new FrontGame();
+
+        var shown = seconds.Select(second => game.Next([.. second.Rates.Select(rate => new FrameRate(rate.Process, 0, rate.Fps, 10))], second.Front, true));
+
+        Assert.Equal<int?>([null, null, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Other, Other, Other, Other, null, null, Zwift], shown);
     }
 
     // What the overlay shows for FPS and frame time each second, from the presents the service traced, through the slots
