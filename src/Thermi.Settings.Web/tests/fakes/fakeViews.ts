@@ -80,18 +80,21 @@ export function installFakeViews(): void {
     };
     return say(byMetric[kind ?? ''] ?? byDevice[sensorOf(item)?.hardwareType ?? ''] ?? 'DeviceKind.Board');
   };
-  const pillsOf = (items: Item[]): PillView[] => {
-    const pills: PillView[] = [];
-    for (const item of items) {
-      const label = labelOf(item);
+  // As Core's OverlayLayout.Groups: a pill is a run of one label, each item one of its own, or the whole bar one; a tag
+  // only says what its first value is.
+  const pillsOf = (overlay: Overlay): PillView[] => {
+    const layout = overlay.style?.layout;
+    const pills: (PillView & { run: string })[] = [];
+    for (const item of overlay.items) {
+      const run = labelOf(item);
       const current = pills.at(-1);
-      if (current !== undefined && current.label === label && item.own !== true) {
+      if (current !== undefined && layout !== 'each' && (layout === 'one' || (current.run === run && item.own !== true))) {
         current.items.push(item.id);
       } else {
-        pills.push({ label, items: [item.id] });
+        pills.push({ run, label: itemView(item, overlay).label ?? run, items: [item.id] });
       }
     }
-    return pills;
+    return pills.map(({ label, items: ids }) => ({ label, items: ids }));
   };
   const meterable = ['Temperature', 'Load', 'Control', 'Fan', 'Throughput'];
   // As Core's Threshold.Judges: thresholds judge what it warns by when that reads a type they can judge.
@@ -161,14 +164,23 @@ export function installFakeViews(): void {
       more: ofType.filter((one) => !own(one) && (type !== 'Data' || one.hardwareType === read?.hardwareType)).map((one) => one.id),
     };
   };
+  // As Core's OverlayLayout.TagOf: what the value is when not the value now, which a default label says after it.
+  const tagOf = (item: Item): string | undefined => {
+    const stats: Record<string, string> = { min: 'OverlayText.MinTag', max: 'OverlayText.MaxTag', average: 'OverlayText.AverageTag' };
+    const stat = stats[item.stat ?? ''];
+    return stat !== undefined ? say(stat) : (item.smooth ?? 0) > 0 ? say('OverlayText.SmoothTag', String(item.smooth)) : undefined;
+  };
   const itemView = (item: Item, overlay: Overlay): ItemView => {
     const read = sensorOf(item);
     const value = live(read);
     const missing = value === null || (value === 0 && read?.hardwareType === 'Cpu' && read.type !== 'Load');
     const type = read?.type ?? 'Temperature';
     const lit = litOf(item, overlay);
+    const tag = tagOf(item);
     return {
       ...(lit === undefined ? {} : { lit }),
+      ...(tag === undefined ? {} : { tag }),
+      label: tag === undefined || item.label !== undefined ? labelOf(item) : say('OverlayText.TaggedLabel', labelOf(item), tag),
       offer: offerOf(read, type),
       value: missing ? null : format(type, value),
       level: levelOf(item),
@@ -194,7 +206,7 @@ export function installFakeViews(): void {
   bridge.view = async (): Promise<WindowView> => {
     const items = state.settings.overlays.flatMap((overlay) => overlay.items);
     return {
-      pills: state.settings.overlays.map((overlay) => pillsOf(overlay.items)),
+      pills: state.settings.overlays.map(pillsOf),
       items: Object.fromEntries(state.settings.overlays.flatMap((overlay) => overlay.items.map((item) => [item.id, itemView(item, overlay)]))),
       values: Object.fromEntries(state.sensors.flatMap((one) => (live(one) === null ? [] : [[one.id, format(one.type, one.value ?? 0)]]))),
       mark: markOf(items),

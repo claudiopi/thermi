@@ -186,9 +186,10 @@
         "R91",
         "R92",
         "R109",
-        "R114"
+        "R114",
+        "R195"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
+      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows, Smoothing, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },
@@ -1418,6 +1419,38 @@
       ],
       "description": "Given the real window over Windows' dark mode, when Theme is set to Light, Dark and Windows in Settings, and the window is opened again in Light, then each applies at once to the page, the title row, the caption buttons and Mica, and the first frame of the window opened in Light is already light.",
       "check": "by hand",
+      "passes": true
+    },
+    {
+      "id": "A321",
+      "covers": [
+        "R88",
+        "R89",
+        "R194",
+        "R195"
+      ],
+      "description": "Given a series of CPU temperatures with a missing one and an overlay laid out as one bar with the GPU's load before the CPU temperature, which shows its average, its minimum smoothed over 3 s, its value now smoothed over 5 s with an offset of -5, or its maximum reset midway, when the window's history takes the overlay's through the message after five seconds, having read one second already or none, and again after the reset, and both then read the rest, then each second the window's history lays the item out with the very value and label the overlay's does, its own default label with its tag.",
+      "check": "TheWindowsHistoryShowsWhatTheOverlaysShows",
+      "passes": true
+    },
+    {
+      "id": "A323",
+      "covers": [
+        "R194",
+        "R195"
+      ],
+      "description": "Given the recorded CPU load series and an overlay laid out as one bar with the GPU's load before the CPU's load, which shows its average, when the overlay reads a third of the series before the real bridge opens and takes its history through the message, and both then read the rest, then each second the bridge's item shows the very value and label the overlay draws, never the bar's first label, and its tag.",
+      "check": "TheWindowShowsEachItemAsTheOverlayDrawsIt",
+      "passes": true
+    },
+    {
+      "id": "A322",
+      "covers": [
+        "R194",
+        "R195"
+      ],
+      "description": "Given the page with the fake bridge and the default overlay laid out as one bar, when the RAM's Shows is set to Average by keys, then its row in the list says the value the bridge gives followed by its tag, and its Label box offers the label the bridge says the overlay draws for it.",
+      "check": "TheListAndTheLabelBoxSayWhatTheOverlayDraws",
       "passes": true
     }
   ]

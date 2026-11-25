@@ -1,3 +1,4 @@
+using Thermi.Core.Messages;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
@@ -9,13 +10,16 @@ namespace Thermi.Core.Look;
 /// minutes of what each item warns by that the window's chart starts with. Each item keeps a minute of its value and ten of that in
 /// fixed rings of one-second slots, with gaps left empty, and its running minimum, maximum and average, so memory never
 /// grows with time; the service and the pipe keep none. The overlay keeps one for all its overlays from its start, so an
-/// item keeps its own as overlays are deleted, merged or moved, and the window one of its own from when it opens.
+/// item keeps its own as overlays are deleted, merged or moved; the window keeps one too, which takes the overlay's as it
+/// opens and after each reset, so each item shows in the window what it shows on the overlay.
 /// </summary>
 public sealed class ItemHistory(TimeProvider time)
 {
     public static readonly TimeSpan Kept = TimeSpan.FromMinutes(1);
 
     private static readonly Reading Nothing = new(SensorKind.Load, null);
+
+    private static readonly TimeSpan SameSecond = TimeSpan.FromSeconds(0.5);
 
     private readonly SensorHistory _values = new(time, Kept);
     private readonly SensorHistory _meters = new(time, SensorHistory.Kept);
@@ -60,8 +64,15 @@ public sealed class ItemHistory(TimeProvider time)
     /// <summary>As <see cref="Add(IReadOnlyList{ValueTuple{OverlayConfig, IReadOnlyDictionary{string, Reading}}})"/>, with one overlay.</summary>
     public void Add(OverlayConfig overlay, IReadOnlyDictionary<string, Reading> readings) => Add([(overlay, readings)]);
 
+    /// <summary>After a reset, so an open window starts its minimums, maximums and averages again with the overlay's.</summary>
+    public event EventHandler? WasReset;
+
     /// <summary>Starts the minimum, maximum and average again, as "Reset min and max" in an overlay's menu does.</summary>
-    public void Reset() => _stats.Clear();
+    public void Reset()
+    {
+        _stats.Clear();
+        WasReset?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Starts the minimum, maximum and average of that overlay's items again, as its own menu does.</summary>
     public void Reset(OverlayConfig overlay)
@@ -69,6 +80,53 @@ public sealed class ItemHistory(TimeProvider time)
         foreach (var item in overlay.Items)
         {
             _stats.Remove(item.Id);
+        }
+
+        WasReset?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// What the window is sent, as it opens and after a reset: every item's meter's ten minutes, its value's last minute and
+    /// its minimum, maximum and average, ending now; null when no item has any, where the window starts empty.
+    /// </summary>
+    public History? Sent(ThermiConfig config)
+    {
+        var now = time.GetTimestamp();
+        var items = new List<Messages.ItemHistory>();
+        foreach (var item in config.Overlays.SelectMany(overlay => overlay.Items))
+        {
+            var meter = TenMinutes(item.Id);
+            var stats = _stats.GetValueOrDefault(item.Id);
+            if (stats is not null || meter.Any(value => value is not null))
+            {
+                items.Add(new Messages.ItemHistory(item.Id, now, SlotsOf(meter))
+                {
+                    Values = [.. _values.LastMinute(item.Id).Select(value => value ?? double.NaN)],
+                    Stats = stats?.Sent,
+                });
+            }
+        }
+
+        return items.Count == 0 ? null : new History(items);
+    }
+
+    /// <summary>
+    /// Takes what the overlay sent: each item's minimum, maximum and average are the overlay's from here on, none after its
+    /// reset, and its value's last minute fills the seconds this history did not read, so smoothing starts where it is.
+    /// </summary>
+    public void Take(History history)
+    {
+        foreach (var sent in history.Items)
+        {
+            _values.Seed(sent.ItemId, sent.Values, sent.Newest);
+            if (sent.Stats is { } stats)
+            {
+                _stats[sent.ItemId] = new Stats(stats);
+            }
+            else
+            {
+                _stats.Remove(sent.ItemId);
+            }
         }
     }
 
@@ -117,20 +175,45 @@ public sealed class ItemHistory(TimeProvider time)
         return values.Count == 0 ? null : values.Average();
     }
 
+    // A value within half a second of the last one counted is that second's, as SensorHistory takes it: the overlay sends
+    // what it counted of the snapshot the window then reads too, which counts it once.
     private void Count(string id, double value)
     {
         if (!_stats.TryGetValue(id, out var stat))
         {
             _stats[id] = stat = new Stats();
         }
+        else if (time.GetElapsedTime(stat.Counted) < SameSecond)
+        {
+            return;
+        }
 
-        stat.Add(value);
+        stat.Add(value, time.GetTimestamp());
     }
 
-    private sealed class Stats
+    // The newest value in the last slot, the slots before the first kept value NaN.
+    private static float[] SlotsOf(IReadOnlyList<double?> values)
+    {
+        var slots = new float[(int)SensorHistory.Kept.TotalSeconds];
+        Array.Fill(slots, float.NaN);
+        for (var at = 0; at < values.Count; at++)
+        {
+            slots[slots.Length - values.Count + at] = values[at] is { } value ? (float)value : float.NaN;
+        }
+
+        return slots;
+    }
+
+    private sealed class Stats()
     {
         private double _sum;
         private long _count;
+
+        public Stats(ItemStats sent)
+            : this()
+        {
+            (Min, Max, _sum, _count, Counted) = (sent.Min, sent.Max, sent.Sum, sent.Count, sent.Counted);
+        }
 
         public double Min { get; private set; } = double.PositiveInfinity;
 
@@ -138,12 +221,17 @@ public sealed class ItemHistory(TimeProvider time)
 
         public double Average => _sum / _count;
 
-        public void Add(double value)
+        public long Counted { get; private set; }
+
+        public ItemStats Sent => new(Min, Max, _sum, _count, Counted);
+
+        public void Add(double value, long now)
         {
             Min = Math.Min(Min, value);
             Max = Math.Max(Max, value);
             _sum += value;
             _count++;
+            Counted = now;
         }
     }
 }

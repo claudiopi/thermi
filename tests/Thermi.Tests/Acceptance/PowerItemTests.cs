@@ -337,7 +337,7 @@ public sealed class PowerItemTests
     }
 
     // What the item shows as each value arrives, a second apart, NaN for one the sensor did not give; a history that has
-    // no value yet, as the window's in its first second, shows the value now.
+    // no value yet, as one just reset, shows the value now.
     [Theory]
     [InlineData(ItemStat.Average, "60 NaN 80", "60 °C|60 °C|70 °C")]
     [InlineData(ItemStat.Min, "65 80 NaN 90", "65 °C|65 °C|65 °C|65 °C")]
@@ -349,10 +349,10 @@ public sealed class PowerItemTests
         var now = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 90) };
 
         var shown = Feed(new ItemHistory(time), time, overlay, [.. values.Split(' ').Select(value => double.Parse(value, CultureInfo.InvariantCulture))]);
-        var onStage = OverlayLayout.Build(overlay, now, English, history: new ItemHistory(time), windowOpen: true).Single();
+        var fresh = OverlayLayout.Build(overlay, now, English, history: new ItemHistory(time), windowOpen: true).Single();
 
         Assert.Equal(expected, string.Join('|', shown));
-        Assert.Equal(("90 °C", stat), (onStage.Value, onStage.Stat));
+        Assert.Equal("90 °C", fresh.Value);
         Assert.Equal(stat, Item(Done(PowerEdits.SetStat(new ThermiConfig(), Metrics.CpuLoad.Id, stat)), Metrics.CpuLoad.Id).Stat);
     }
 

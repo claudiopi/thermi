@@ -18,26 +18,23 @@ namespace Thermi.Ui.Views;
 /// the unit shown. Used on the window's thread alone.
 /// </summary>
 /// <param name="editor">Whose items are charted, and where a line's edit goes.</param>
-/// <param name="chart">The overlay's ten minutes.</param>
+/// <param name="chart">The overlay's ten minutes, and the window's own history of its items.</param>
 /// <param name="sensors">The readings now and whether the service runs.</param>
 /// <param name="readings">What the window has read since it opened.</param>
-/// <param name="time">The clock of the window's own ten minutes.</param>
-internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISensorFeed sensors, Readings readings, TimeProvider time)
+internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISensorFeed sensors, Readings readings)
 {
-    // By item, so an item's chart goes with it when overlays are deleted, merged or moved.
-    private readonly ItemHistory _own = new(time);
     private readonly Dictionary<string, string> _pushed = new(StringComparer.Ordinal);
 
-    /// <summary>A fresh snapshot, kept for each item's chart.</summary>
+    /// <summary>A fresh snapshot, kept for each item's chart and value, by item, so both go with it when overlays are deleted, merged or moved.</summary>
     public void Arrived()
     {
         if (sensors.Latest is { } snapshot)
         {
-            _own.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))]);
+            chart.Items.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))]);
         }
     }
 
-    public IReadOnlyList<double?> History(string id) => chart.Of(id, _own.TenMinutes(id));
+    public IReadOnlyList<double?> History(string id) => chart.Of(id, chart.Items.TenMinutes(id));
 
     /// <summary>
     /// The item's chart: its meter's, or without a meter its own reading's with no lines; null for a reading that is no

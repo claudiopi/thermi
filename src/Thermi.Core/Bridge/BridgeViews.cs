@@ -53,10 +53,10 @@ public sealed record CatalogView(
 public sealed record PillView(string Label, IReadOnlyList<string> Items);
 
 /// <summary>
-/// An item as the overlay shows it: its value as text, or null while it reads nothing; its level, or null while lines
-/// cannot judge it or it reads nothing; the type of its sensor; the sensor its metric picks; what its Warn by dropdown
-/// offers, its own reading first, then its other readings alone; and the name of what it warns by, as "CPU fan duty" or a
-/// sensor's own, or null while it warns by its own reading.
+/// An item as the overlay shows it: its value as text, the overlay's own text with its units, or null while it reads
+/// nothing; its level, or null while lines cannot judge it or it reads nothing; the type of its sensor; the sensor its
+/// metric picks; what its Warn by dropdown offers, its own reading first, then its other readings alone; and the name of
+/// what it warns by, as "CPU fan duty" or a sensor's own, or null while it warns by its own reading.
 /// </summary>
 public sealed record ItemView(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Value,
@@ -80,6 +80,12 @@ public sealed record ItemView(
 
     /// <summary>What its Sensor dropdown lists: its own device's sensors of its type, then, asked to show all, the others'.</summary>
     public SensorOffer Offer { get; init; } = SensorOffer.None;
+
+    /// <summary>What its value is when not the value now, as "avg", said beside it; null for the value now.</summary>
+    public string? Tag { get; init; }
+
+    /// <summary>The label the overlay draws for the run of labels the item is in, its own when it starts one; null for none.</summary>
+    public string? Label { get; init; }
 }
 
 /// <summary>A reading an item can warn by, null for its own, with the name its Warn by dropdown shows.</summary>

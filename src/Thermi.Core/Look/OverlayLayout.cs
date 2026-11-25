@@ -30,9 +30,6 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     /// </summary>
     public int? Lit { get; init; }
 
-    /// <summary>What <see cref="Value"/> is: the value now, or a minimum, maximum or average, which the stage marks as since the window opened.</summary>
-    public ItemStat Stat { get; init; }
-
     /// <summary>Whether the value is marked as the CPU throttling, a dashed line over it, at any level.</summary>
     public bool Throttled { get; init; }
 }
@@ -83,13 +80,12 @@ public static class OverlayLayout
 
             var labeled = Labeled(overlay.Style.Layout, item, label != shownLabel);
             var drawn = DrawnOf(overlay, item);
-            items.Add(new OverlayItem(labeled ? label : null, value, level, room)
+            items.Add(new OverlayItem(labeled ? Tagged(item, label, culture, texts) : null, value, level, room)
             {
                 Id = item.Id,
                 Color = item.Color,
                 Graph = drawn == GraphStyle.Line ? GraphOf(item, meter, history) : null,
                 Lit = drawn == GraphStyle.Bars ? LitOf(meter) : null,
-                Stat = item.Stat,
             });
             shownLabel = label;
         }
@@ -103,6 +99,24 @@ public static class OverlayLayout
     /// </summary>
     public static string? LabelOf(ItemConfig item, Texts? texts = null) =>
         item.Label ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? (texts ?? Texts.English).Of(metric.Label) : null);
+
+    /// <summary>
+    /// What an item shows when it is not its value now, said after its default label and beside its value in the window:
+    /// its minimum, maximum or average, or its smoothing; null for the value now.
+    /// </summary>
+    public static string? TagOf(ItemConfig item, IFormatProvider culture, Texts? texts = null)
+    {
+        var said = texts ?? Texts.English;
+        return item.Stat switch
+        {
+            ItemStat.Min => said.Of(OverlayText.MinTag),
+            ItemStat.Max => said.Of(OverlayText.MaxTag),
+            ItemStat.Average => said.Of(OverlayText.AverageTag),
+            ItemStat.Now when item.Smooth > 0 => said.Format(culture, OverlayText.SmoothTag, item.Smooth),
+            ItemStat.Now => null,
+            _ => null,
+        };
+    }
 
     /// <summary>Each item's label as the overlay shows it, as <see cref="LabelOf"/> gives it, an item without one taking the label before it.</summary>
     public static IReadOnlyList<string?> RunLabels(IReadOnlyList<ItemConfig> items, Texts? texts = null)
@@ -215,6 +229,13 @@ public static class OverlayLayout
         };
         return new Reading(found[0].Kind, value);
     }
+
+    // A label the user typed says what they chose; a default one says what its own item shows when that is not the value
+    // now. The tag never decides the pills, which the edits keep by the labels alone.
+    private static string? Tagged(ItemConfig item, string? label, IFormatProvider culture, Texts? texts) =>
+        item.Label is null && label is not null && LabelOf(item, texts) == label && TagOf(item, culture, texts) is { } tag
+            ? (texts ?? Texts.English).Format(culture, OverlayText.TaggedLabel, label, tag)
+            : label;
 
     private static bool Labeled(PillLayout layout, ItemConfig item, bool newLabel) =>
         layout == PillLayout.Each || newLabel || (layout == PillLayout.Pills && item.Own);

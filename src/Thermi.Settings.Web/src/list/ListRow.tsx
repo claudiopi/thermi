@@ -65,10 +65,15 @@ function alertOf(row: Row): 'warning' | 'critical' | null {
   return row.alert === 'warning' || row.alert === 'critical' ? row.alert : null;
 }
 
+/** The value as the overlay shows it, then what it is when not the value now, as "39.5 GB avg"; empty while it reads nothing. */
+function valueText(row: Row): string {
+  return row.value == null || row.tag == null ? (row.value ?? '') : `${row.value} ${row.tag}`;
+}
+
 /** What a screen reader hears after an item's name: its value and, past a line, the level. */
 function describe(row: Row, say: (key: TextKey) => string): string | undefined {
   const alert = alertOf(row);
-  const parts = [row.value ?? '', alert === null ? '' : say(alert === 'warning' ? 'ChangedField.Warning' : 'ChangedField.Critical')].filter(
+  const parts = [valueText(row), alert === null ? '' : say(alert === 'warning' ? 'ChangedField.Warning' : 'ChangedField.Critical')].filter(
     (part) => part !== '',
   );
   return row.kind !== 'pill' && parts.length > 0 ? parts.join(', ') : undefined;
@@ -145,6 +150,7 @@ function RowValue({ row }: { row: Row }) {
   return (
     <span className={`t-value${mark}`} aria-hidden="true">
       {row.value ?? ''}
+      {row.value != null && row.tag != null && <span className="t-tag">{row.tag}</span>}
     </span>
   );
 }

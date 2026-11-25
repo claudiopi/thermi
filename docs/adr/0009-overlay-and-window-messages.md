@@ -17,7 +17,7 @@ Spec 002's redesign (`docs/specs/002-settings-window/spec.md`) ties the window t
 | Kind | From → to | Carries | When |
 | --- | --- | --- | --- |
 | `thermi-history` | window → overlay | nothing | as the window opens, before its first frame |
-| history, `WM_COPYDATA` | overlay → window | per item: its id, the time of its newest slot on the monotonic clock both share, and its 600 one-second slots as 32-bit floats, NaN for a gap | in answer to `thermi-history` |
+| history, `WM_COPYDATA` | overlay → window | per item: its id, the time of its newest slot on the monotonic clock both share, its meter's 600 one-second slots as 32-bit floats, NaN for a gap, its value's last 60 s as 64-bit floats, and its minimum, maximum, sum and count since the start or a reset, with when it last counted, or none | in answer to `thermi-history`, and to an open window after a reset |
 | `thermi-select` | overlay → window | the overlay, an item id or none for the overlay's edge, and click or point | a click on a value or an edge; the pointer entering or leaving a value |
 | `thermi-edited` | window → overlay | the overlay being edited, the selected item and the item pointed at, each or none | when any of them changes |
 | `thermi-gesture` | overlay → window | the gesture's kind, and the file as the overlay read it and as it wrote it | after a desktop gesture's write is moved into place, while the window is open |
@@ -38,7 +38,8 @@ Spec 002's redesign (`docs/specs/002-settings-window/spec.md`) ties the window t
 
 ## Consequences
 
-- The overlay keeps 2.4 KB per item, fixed, so R158's memory bound holds; 20 items send the window 48 KB, once per opening.
+- The overlay keeps 2.4 KB per item, fixed, so R158's memory bound holds; 20 items send the window 58 KB, once per opening and once per reset.
+- The window takes the overlay's minimums, maximums, averages and last minute into its own item history and then counts the same snapshots of the service's broadcast, so an item shows in the window what it shows on the overlay (spec 002, R194) through one function, with no message a second.
 - Both processes are the same `thermi.exe`, at the same integrity, so UIPI never stands between them, with `uiAccess` (`docs/adr/0004-above-the-taskbar.md`) or without.
 - Core's encoding has its own tests; the Windows tests send each kind between two hidden windows.
 - Another process of the same user can send these, as it could the old ones. The worst it does is select a row or add an undo step; no message writes the file by itself.

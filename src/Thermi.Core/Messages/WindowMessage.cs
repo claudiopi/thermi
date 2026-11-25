@@ -31,8 +31,23 @@ public abstract record WindowMessage;
 /// <summary>The window, as it opens, asks the overlay for the last ten minutes.</summary>
 public sealed record HistoryAsked : WindowMessage;
 
-/// <summary>An item's ten minutes: the time of its newest slot on the monotonic clock, and one slot a second, NaN for a gap.</summary>
-public sealed record ItemHistory(string ItemId, long Newest, IReadOnlyList<float> Slots);
+/// <summary>
+/// An item's history: the time of its newest slot on the monotonic clock, and its meter's ten minutes, one slot a second,
+/// NaN for a gap; its value's last minute the same way, and its minimum, maximum and average, none since a reset, so the
+/// window shows what the overlay shows.
+/// </summary>
+public sealed record ItemHistory(string ItemId, long Newest, IReadOnlyList<float> Slots)
+{
+    public IReadOnlyList<double> Values { get; init; } = [];
+
+    public ItemStats? Stats { get; init; }
+}
+
+/// <summary>
+/// An item's lowest and highest value since the overlay started or was last reset, the sum and count of its average, and
+/// when it last counted a value, on the monotonic clock.
+/// </summary>
+public sealed record ItemStats(double Min, double Max, double Sum, long Count, long Counted);
 
 public sealed record History(IReadOnlyList<ItemHistory> Items) : WindowMessage;
 
@@ -54,10 +69,10 @@ public sealed record Raise(int Overlay, string? ItemId) : WindowMessage;
 /// </summary>
 public static class WindowMessages
 {
-    /// <summary>The most a payload holds: ten minutes of 20 items are 48 KB, and two settings files a few KB each.</summary>
+    /// <summary>The most a payload holds: the history of 20 items is 58 KB, and two settings files a few KB each.</summary>
     public const int MaxLength = 1 << 20;
 
-    private const byte Version = 1;
+    private const byte Version = 2;
 
     private static readonly UTF8Encoding Strict = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
@@ -89,6 +104,8 @@ public static class WindowMessages
                     writer.Text(item.ItemId);
                     writer.Long(item.Newest);
                     writer.Floats(item.Slots);
+                    writer.Doubles(item.Values);
+                    writer.Stats(item.Stats);
                 }
 
                 break;
@@ -165,7 +182,11 @@ public static class WindowMessages
         var items = new List<ItemHistory>();
         for (var at = 0; at < count; at++)
         {
-            items.Add(new ItemHistory(reader.Text() ?? throw new InvalidDataException(), reader.Long(), reader.Floats()));
+            items.Add(new ItemHistory(reader.Text() ?? throw new InvalidDataException(), reader.Long(), reader.Floats())
+            {
+                Values = reader.Doubles(),
+                Stats = reader.Stats(),
+            });
         }
 
         return new History(items);
@@ -216,7 +237,37 @@ public static class WindowMessages
             }
         }
 
+        public void Doubles(IReadOnlyList<double> values)
+        {
+            Int(values.Count);
+            foreach (var value in values)
+            {
+                Double(value);
+            }
+        }
+
+        // A byte of 0 is no stats.
+        public void Stats(ItemStats? stats)
+        {
+            Byte(stats is null ? (byte)0 : (byte)1);
+            if (stats is not null)
+            {
+                Double(stats.Min);
+                Double(stats.Max);
+                Double(stats.Sum);
+                Long(stats.Count);
+                Long(stats.Counted);
+            }
+        }
+
         public byte[] ToArray() => [.. _bytes];
+
+        private void Double(double value)
+        {
+            Span<byte> bytes = stackalloc byte[sizeof(double)];
+            BinaryPrimitives.WriteDoubleLittleEndian(bytes, value);
+            _bytes.AddRange(bytes);
+        }
     }
 
     // Every read past the end, or of a length that cannot be, is invalid data.
@@ -254,6 +305,27 @@ public static class WindowMessages
 
             return values;
         }
+
+        public double[] Doubles()
+        {
+            var count = Int();
+            var values = new double[count < 0 || count > _bytes.Length / sizeof(double) ? throw new InvalidDataException() : count];
+            for (var at = 0; at < count; at++)
+            {
+                values[at] = Double();
+            }
+
+            return values;
+        }
+
+        public ItemStats? Stats() => Take(1)[0] switch
+        {
+            0 => null,
+            1 => new ItemStats(Double(), Double(), Double(), Long(), Long()),
+            _ => throw new InvalidDataException(),
+        };
+
+        private double Double() => BinaryPrimitives.ReadDoubleLittleEndian(Take(sizeof(double)));
 
         private ReadOnlySpan<byte> Take(int length)
         {

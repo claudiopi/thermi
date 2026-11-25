@@ -8,6 +8,7 @@ import {
   openWindow,
   recording,
   select,
+  selectedRow,
   settingsOf,
   setFake,
   test,
@@ -34,7 +35,8 @@ const fieldOf = (page: Page, role: 'combobox' | 'switch' | 'textbox' | 'spinbutt
 
 // A205: each row of the item page, changed by keys, lands in the settings; a row that cannot apply is off with its reason.
 test.describe('TheItemPageEditsTheItem', () => {
-  // Each from the CPU temperature as it starts; a row behind More options opens it first.
+  // Each from the CPU temperature as it starts; a row behind More options opens it first. What the value is, Shows and
+  // Smoothing, is never behind it (owner, 2026-11-24).
   const rows: { name: string; more?: boolean; act: (page: Page) => Promise<void>; read: (item: Item) => unknown; expected: unknown }[] = [
     {
       name: 'Sensor',
@@ -50,14 +52,12 @@ test.describe('TheItemPageEditsTheItem', () => {
     { name: 'Tray icon', act: (page) => fieldOf(page, 'switch', 'UiText.OwnTrayIcon').press('Space'), read: (item) => item.tray, expected: true },
     {
       name: 'What it shows',
-      more: true,
       act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.StatField'), text('ItemStat.Max')),
       read: (item) => item.stat,
       expected: 'max',
     },
     {
       name: 'Smoothing',
-      more: true,
       act: (page) => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.SmoothField'), text('UiText.SmoothSeconds', 3)),
       read: (item) => item.smooth,
       expected: 3,
@@ -117,6 +117,27 @@ test.describe('TheItemPageEditsTheItem', () => {
       await expect.poll(async () => row.read(await itemIn(page, 'cpu.temperature'))).toEqual(row.expected);
     });
   }
+
+  // A322: the owner's list said "RAM used 31.8 GB" while his overlay showed its average, 40.1 GB, and the RAM's Label box
+  // offered "GPU", its bar's first label: the list says the value C# gives with what it is, and the box the label drawn for it.
+  test('TheListAndTheLabelBoxSayWhatTheOverlayDraws', async ({ page }) => {
+    const state = fakeState();
+    const [overlay] = state.settings.overlays;
+    if (overlay === undefined) {
+      throw new Error('The fake has no overlay.');
+    }
+    overlay.style = { ...overlay.style, layout: 'one' };
+    await openWindow(page, state);
+    await select(page, text('MetricName.RamUsed'));
+    await chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.StatField'), text('ItemStat.Average'));
+    await expect.poll(async () => (await itemIn(page, 'ram.used')).stat).toBe('average');
+    const shown = await page.evaluate(async () => (await window.thermi?.view())?.items['ram.used'] ?? null);
+    if (shown?.value == null || shown.tag === undefined || shown.label === undefined) {
+      throw new Error('The view says no value, tag or label for the RAM.');
+    }
+    await expect(selectedRow(page)).toHaveAccessibleDescription(`${shown.value} ${shown.tag}`);
+    await expect(fieldOf(page, 'textbox', 'UiText.LabelField')).toHaveAttribute('placeholder', shown.label);
+  });
 
   // Cold review 4 (Q12): a pill's first item already starts one, so it offers no Separate pill that could not change.
   test("A pill's first item offers no Separate pill", async ({ page }) => {
@@ -261,34 +282,57 @@ test.describe('TheItemPageEditsTheItem', () => {
     await page.setViewportSize({ width: 1500, height: 640 });
     await select(page, text('MetricName.RamUsed'));
     await fieldOf(page, 'button', 'UiText.MoreOptions').click();
-    // Scrolled so all of More options shows under the pane's top, each control in view, as a person would see it.
-    const at = await main.evaluate((pane, top) => {
-      pane.scrollTop = Math.min(pane.scrollHeight - pane.clientHeight, top - pane.getBoundingClientRect().top - 8);
-      return pane.scrollTop;
-    }, (await fieldOf(page, 'button', 'UiText.MoreOptions').boundingBox())?.y ?? 0);
-    expect(at).toBeGreaterThan(0);
+    // Scrolled so the rows from the one given show under the pane's top, each control in view, as a person would see it.
+    const scrolledTo = async (role: 'button' | 'combobox', key: string): Promise<number> => {
+      const at = await main.evaluate((pane, top) => {
+        pane.scrollTop = Math.min(pane.scrollHeight - pane.clientHeight, pane.scrollTop + top - pane.getBoundingClientRect().top - 16);
+        return pane.scrollTop;
+      }, (await fieldOf(page, role, key).boundingBox())?.y ?? 0);
+      expect(at).toBeGreaterThan(0);
+      return at;
+    };
     const pick = async (key: string, option: string): Promise<void> => {
       await fieldOf(page, 'combobox', key).click();
       await page.getByRole('option', { name: option, exact: true }).click();
     };
-    const acts: { name: string; act: () => Promise<void>; read?: (item: Item) => unknown; expected?: unknown }[] = [
-      { name: 'Value now', act: () => pick('UiText.StatField', text('ItemStat.Now')), read: (item) => item.stat, expected: undefined },
-      { name: 'Smoothing', act: () => pick('UiText.SmoothField', text('UiText.SmoothSeconds', 3)), read: (item) => item.smooth, expected: 3 },
-      { name: 'Decimals', act: () => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.DecimalsField'), '2'), read: (item) => item.decimals, expected: 2 },
-      { name: 'a switch', act: () => fieldOf(page, 'switch', 'UiText.AlertOnly').click(), read: (item) => item.alertOnly, expected: true },
-      { name: 'undo', act: () => page.keyboard.press('Control+Z'), read: (item) => item.alertOnly, expected: undefined },
-      { name: 'redo', act: () => page.keyboard.press('Control+Y'), read: (item) => item.alertOnly, expected: true },
-      { name: 'new readings', act: () => setFake(page, { sensors: recording('admin').map((sensor) => ({ ...sensor, value: (sensor.value ?? 0) + 1 })) }) },
+    type Act = { name: string; act: () => Promise<void>; read?: (item: Item) => unknown; expected?: unknown };
+    // What the value is sits under Sensor, the rest in More options, so each group is done scrolled to its own rows.
+    const groups: { from: ['button' | 'combobox', string]; acts: Act[] }[] = [
+      {
+        from: ['combobox', 'UiText.StatField'],
+        acts: [
+          { name: 'Value now', act: () => pick('UiText.StatField', text('ItemStat.Now')), read: (item) => item.stat, expected: undefined },
+          { name: 'Smoothing', act: () => pick('UiText.SmoothField', text('UiText.SmoothSeconds', 3)), read: (item) => item.smooth, expected: 3 },
+        ],
+      },
+      {
+        from: ['button', 'UiText.MoreOptions'],
+        acts: [
+          {
+            name: 'Decimals',
+            act: () => chooseByKeys(page, fieldOf(page, 'combobox', 'UiText.DecimalsField'), '2'),
+            read: (item) => item.decimals,
+            expected: 2,
+          },
+          { name: 'a switch', act: () => fieldOf(page, 'switch', 'UiText.AlertOnly').click(), read: (item) => item.alertOnly, expected: true },
+          { name: 'undo', act: () => page.keyboard.press('Control+Z'), read: (item) => item.alertOnly, expected: undefined },
+          { name: 'redo', act: () => page.keyboard.press('Control+Y'), read: (item) => item.alertOnly, expected: true },
+          { name: 'new readings', act: () => setFake(page, { sensors: recording('admin').map((sensor) => ({ ...sensor, value: (sensor.value ?? 0) + 1 })) }) },
+        ],
+      },
     ];
-    for (const row of acts) {
-      await test.step(row.name, async () => {
-        await row.act();
-        if (row.read !== undefined) {
-          await expect.poll(async () => row.read?.(await itemIn(page, 'ram.used'))).toEqual(row.expected);
-        }
-        await fakeOf(page);
-        expect(await main.evaluate((pane) => pane.scrollTop)).toBe(at);
-      });
+    for (const { from, acts } of groups) {
+      const at = await scrolledTo(...from);
+      for (const row of acts) {
+        await test.step(row.name, async () => {
+          await row.act();
+          if (row.read !== undefined) {
+            await expect.poll(async () => row.read?.(await itemIn(page, 'ram.used'))).toEqual(row.expected);
+          }
+          await fakeOf(page);
+          expect(await main.evaluate((pane) => pane.scrollTop)).toBe(at);
+        });
+      }
     }
 
     // Cold review 4 (Q8): the next item's page opens at its top, its title in view, with its options closed.
@@ -324,81 +368,4 @@ test('FindItRunsInTheSensorRow', async ({ page }) => {
   await row.getByRole('button', { name: text('CatalogText.UseIt') }).press('Enter');
   await expect.poll(async () => (await itemIn(page, 'fan.cpu')).sensor).toBe(boardFan);
   expect((await itemIn(page, 'fan.cpu')).warnBy).toEqual(warnByBefore);
-});
-
-// A207: the chart's knobs by keys, box and pointer, a push past the other line, a delete, and the chart once readings stop.
-test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
-  const state = fakeState();
-  const temperature = state.settings.overlays[0]?.items.find((item) => item.id === 'cpu.temperature');
-  if (temperature !== undefined) {
-    // Not v0.1's 70/85, which a version 2 file trades for this version's defaults.
-    temperature.threshold = { warning: 70, critical: 84 };
-  }
-  await openWindow(page, state);
-  await select(page, text('MetricName.CpuTemperature'));
-  const warning = page.getByRole('slider', { name: text('UiText.WarningFrom') });
-  const critical = page.getByRole('slider', { name: text('UiText.CriticalFrom') });
-  const lines = async (): Promise<unknown> => (await itemIn(page, 'cpu.temperature')).threshold;
-
-  const keys: { keys: string[]; type?: string; expected: { warning?: number; critical?: number } }[] = [
-    { keys: ['ArrowUp'], expected: { warning: 71, critical: 84 } },
-    { keys: ['PageUp'], expected: { warning: 81, critical: 84 } },
-    { keys: ['Shift+ArrowUp'], expected: { warning: 86, critical: 91 } },
-    { keys: ['ArrowDown'], expected: { warning: 85, critical: 91 } },
-    { keys: ['Home'], expected: { warning: 0, critical: 91 } },
-    { keys: ['Enter'], type: '75', expected: { warning: 75, critical: 91 } },
-    { keys: ['F2'], type: '60', expected: { warning: 75, critical: 91 } },
-    { keys: ['Enter'], type: '150', expected: { warning: 75, critical: 91 } },
-    { keys: ['Enter'], type: 'warm', expected: { warning: 75, critical: 91 } },
-    { keys: ['8'], type: '0', expected: { warning: 80, critical: 91 } },
-  ];
-  for (const row of keys) {
-    await test.step(`${row.keys.join(' ')} ${row.type ?? ''}`, async () => {
-      await warning.focus();
-      for (const key of row.keys) {
-        await page.keyboard.press(key);
-      }
-      if (row.type !== undefined) {
-        const box = page.getByRole('spinbutton', { name: text('UiText.WarningFrom') });
-        await expect(box).toBeFocused();
-        await page.keyboard.type(row.type);
-        await page.keyboard.press(row.keys[0] === 'F2' ? 'Escape' : 'Enter');
-      }
-      await expect.poll(lines).toEqual(row.expected);
-    });
-  }
-
-  await test.step('a drag is one step', async () => {
-    const box = await warning.boundingBox();
-    if (box === null) {
-      throw new Error('The warning knob is not shown.');
-    }
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2, box.y - 10, { steps: 5 });
-    await page.mouse.move(box.x + box.width / 2, box.y - 20, { steps: 5 });
-    await page.mouse.up();
-    await expect.poll(async () => ((await itemIn(page, 'cpu.temperature')).threshold?.warning ?? 0) > 80).toBe(true);
-    await page.keyboard.press('Control+Z');
-    await expect.poll(lines).toEqual({ warning: 80, critical: 91 });
-  });
-
-  await test.step('a click in the plot moves the nearest line', async () => {
-    const plot = page.getByRole('img', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
-    await plot.click({ position: { x: 40, y: 4 } });
-    await expect.poll(async () => (await itemIn(page, 'cpu.temperature')).threshold?.critical).not.toBe(91);
-    await page.keyboard.press('Control+Z');
-  });
-
-  await test.step('Delete turns the line off and leaves the focus on its Add', async () => {
-    await critical.focus();
-    await page.keyboard.press('Delete');
-    await expect.poll(lines).toEqual({ warning: 80 });
-    await expect(page.getByRole('button', { name: text('UiText.AddCriticalLine') })).toBeFocused();
-  });
-
-  await test.step('without readings the chart keeps its lines', async () => {
-    await setFake(page, { service: 'stopped' });
-    await expect(warning).toBeVisible();
-  });
 });

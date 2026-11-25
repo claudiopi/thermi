@@ -1,3 +1,4 @@
+using System.Globalization;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
@@ -7,6 +8,8 @@ using Thermi.Core.Tray;
 using Thermi.Ui;
 using Thermi.Ui.Editor;
 using Thermi.Ui.Web;
+using History = Thermi.Core.Messages.History;
+using WindowMessages = Thermi.Core.Messages.WindowMessages;
 
 namespace Thermi.Windows.Tests.Window;
 
@@ -213,5 +216,63 @@ public sealed class BridgeContractTests
         }
 
         Assert.Equal([true], told);
+    }
+
+    // A323: the owner's window said "RAM used 31.8 GB" while his overlay said "RAM 40.1 GB", its average, and the label box
+    // offered "GPU", the bar's first label. The overlay runs a while before the window opens, the window takes its history
+    // through the message, and from then on both read the recorded series: each second, the window's item shows the very
+    // text, label and run the overlay draws. MessageTests holds the other stats, smoothing, offsets and resets to it.
+    [Fact]
+    public async Task TheWindowShowsEachItemAsTheOverlayDrawsIt()
+    {
+        var series = TestRecordings.Series(TestRecordings.CpuLoad);
+        var cpu = OverlayConfig.DefaultItems[2] with { Stat = ItemStat.Average };
+        var overlay = new OverlayConfig { Items = [OverlayConfig.DefaultItems[4], cpu], Style = new StyleConfig { Layout = PillLayout.One } };
+        var config = new ThermiConfig { Overlays = [overlay] };
+        using var folder = new SettingsFolder();
+        folder.Write(ThermiConfigJson.Write(config));
+        await using var settings = folder.Settings();
+        Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
+        var turn = new Queue<Action>();
+        var feed = new TestFeed();
+        var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
+        var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
+        {
+            Screens = () => [],
+        };
+        var chart = new ChartHistory(folder.Clock);
+        var onOverlay = new ItemHistory(folder.Clock);
+        using var bridge = new WindowBridge(
+            new WindowStart(0, settings, Texts.English, environment, folder.Clock),
+            new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock),
+            chart,
+            turn.Enqueue);
+        var drawn = new List<(string?, string?)>();
+        var shown = new List<(string?, string?)>();
+
+        for (var second = 0; second < series.Count; second++)
+        {
+            folder.Clock.Advance(TimeSpan.FromSeconds(1));
+            var readings = SensorMap.Read(series[second], overlay);
+            onOverlay.Add(overlay, readings);
+            if (second == series.Count / 3)
+            {
+                chart.Take((History)WindowMessages.Decode(WindowMessages.Encode(onOverlay.Sent(config)!))!);
+            }
+
+            if (second >= series.Count / 3)
+            {
+                feed.Latest = series[second];
+                bridge.Arrived();
+                var painted = OverlayLayout.Build(overlay, readings, CultureInfo.CurrentCulture, Texts.English, history: onOverlay);
+                var item = (await bridge.View()).Items[cpu.Id];
+                drawn.Add((painted.Single(each => each.Id == cpu.Id).Value, painted.Single(each => each.Id == cpu.Id).Label));
+                shown.Add((item.Value, item.Label));
+                Assert.True(item.Tag is { Length: > 0 } tag && item.Label!.Contains(tag, StringComparison.Ordinal), item.Label);
+            }
+        }
+
+        Assert.Equal(drawn, shown);
+        Assert.NotEqual(OverlayLayout.LabelOf(OverlayConfig.DefaultItems[4], Texts.English), shown[0].Item2);
     }
 }

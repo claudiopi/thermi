@@ -5,7 +5,7 @@ import { SwitchLine, type SwitchLineProps } from '../app/SwitchLine';
 import { Card, CardRow, Dropdown, TextField, type Find } from '../kit';
 import { useText } from '../texts/Texts';
 import { FinderRow } from './FinderRow';
-import { graphChoices, sensorChoices, showAllSensors, type Placed } from './itemModel';
+import { graphChoices, offsetRange, sensorChoices, showAllSensors, type Placed } from './itemModel';
 
 export interface ItemRowsProps {
   data: WindowData;
@@ -24,7 +24,8 @@ const findSensors: Find = async (typed, among) => (await bridge()?.search(typed,
 /** The metric "Find it" looks for. */
 const cpuFan = 'fan.cpu';
 
-function LabelRow({ placed, edit, labelAsked }: Pick<ItemRowsProps, 'placed' | 'edit' | 'labelAsked'>) {
+/** While the item has no label of its own, shows the one the overlay draws for its run. */
+function LabelRow({ placed, label, edit, labelAsked }: Pick<ItemRowsProps, 'placed' | 'edit' | 'labelAsked'> & { label: string }) {
   const t = useText();
   const { item } = placed;
   const [typed, setTyped] = useState<string | null>(null);
@@ -50,10 +51,41 @@ function LabelRow({ placed, edit, labelAsked }: Pick<ItemRowsProps, 'placed' | '
           label={t('UiText.LabelField')}
           labelShown={false}
           value={typed ?? item.label ?? ''}
-          placeholder={placed.pill}
+          placeholder={label}
           onChange={setTyped}
           onCommit={commit}
           onCancel={() => setTyped(null)}
+        />
+      </CardRow>
+    </Card>
+  );
+}
+
+const stats = ['now', 'min', 'max', 'average'] as const;
+const statKeys = { now: 'ItemStat.Now', min: 'ItemStat.Min', max: 'ItemStat.Max', average: 'ItemStat.Average' } as const;
+const smoothing = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+/** They say what the value is, so they sit with the sensor it reads, never in More options. */
+function ShowsRows({ item, set }: { item: Item; set: (field: string, value: Value) => void }) {
+  const t = useText();
+  return (
+    <Card>
+      <CardRow label={t('UiText.StatField')}>
+        <Dropdown
+          className="t-option-box"
+          label={t('UiText.StatField')}
+          choices={stats.map((stat) => ({ value: stat, text: t(statKeys[stat]) }))}
+          value={item.stat ?? 'now'}
+          onChange={(value) => set('stat', value === 'now' ? null : value)}
+        />
+      </CardRow>
+      <CardRow label={t('UiText.SmoothField')} description={t('UiText.SmoothHint')}>
+        <Dropdown
+          className="t-option-box"
+          label={t('UiText.SmoothField')}
+          choices={smoothing.map((seconds) => ({ value: String(seconds), text: seconds === 0 ? t('UndoText.Off') : t('UiText.SmoothSeconds', seconds) }))}
+          value={String(item.smooth ?? 0)}
+          onChange={(value) => set('smooth', value === '0' ? null : Number(value))}
         />
       </CardRow>
     </Card>
@@ -131,7 +163,8 @@ export function ItemRows({ data, placed, edit, labelAsked }: ItemRowsProps) {
           )}
         </div>
       </Card>
-      <LabelRow placed={placed} edit={edit} labelAsked={labelAsked} />
+      {offsetRange(data.view.items[item.id]?.type ?? '') !== null && <ShowsRows item={item} set={set} />}
+      <LabelRow placed={placed} label={data.view.items[item.id]?.label ?? placed.pill} edit={edit} labelAsked={labelAsked} />
       {/* What it draws beside its value, which an item thresholds cannot judge has no level or scale for. */}
       {data.view.items[item.id]?.judged === true && (
         <Card>

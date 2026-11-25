@@ -784,7 +784,7 @@
     <value>{0} · {1}</value>
   </data>
   <data name="UiText.MoreOptionsHint" xml:space="preserve">
-    <value>Min or max, smoothing, decimals, warn by, offset, color</value>
+    <value>Decimals, warn by, offset, color, combining</value>
   </data>
   <data name="UiText.ShortcutFind" xml:space="preserve">
     <value>Go to an item: type its name in the list</value>
@@ -2078,6 +2078,21 @@
   </data>
   <data name="OverlayText.BusiestGpu" xml:space="preserve">
     <value>Busiest now: {0}, {1} of the GPU. Open Task Manager from the overlay's menu.</value>
+  </data>
+  <data name="OverlayText.MinTag" xml:space="preserve">
+    <value>min</value>
+  </data>
+  <data name="OverlayText.MaxTag" xml:space="preserve">
+    <value>max</value>
+  </data>
+  <data name="OverlayText.AverageTag" xml:space="preserve">
+    <value>avg</value>
+  </data>
+  <data name="OverlayText.SmoothTag" xml:space="preserve">
+    <value>{0}s avg</value>
+  </data>
+  <data name="OverlayText.TaggedLabel" xml:space="preserve">
+    <value>{0} {1}</value>
   </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Your taskbar is on a side, so the overlay floats beside it.</value>

@@ -50,8 +50,8 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _editor = editor;
         _texts = start.Texts;
         var readings = new Readings(start.Time);
-        _views = new WindowViews(editor, start.Environment.Sensors, readings);
-        _charts = new WindowCharts(editor, chart, start.Environment.Sensors, readings, start.Time);
+        _views = new WindowViews(editor, start.Environment.Sensors, readings, chart.Items);
+        _charts = new WindowCharts(editor, chart, start.Environment.Sensors, readings);
         _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);

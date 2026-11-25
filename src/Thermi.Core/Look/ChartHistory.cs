@@ -6,13 +6,16 @@ namespace Thermi.Core.Look;
 /// <summary>
 /// The ten minutes each item's chart shows in the window: the overlay's, sent once as the window opens and moved on by
 /// the time gone since on the clock both processes share, under what the window itself read since it opened. A second
-/// neither has stays a gap.
+/// neither has stays a gap. It holds the window's <see cref="Items"/>, which take the rest of what the overlay sends.
 /// </summary>
 public sealed class ChartHistory(TimeProvider time)
 {
     private static readonly int Slots = (int)SensorHistory.Kept.TotalSeconds;
 
     private readonly Dictionary<string, Messages.ItemHistory> _sent = new(StringComparer.Ordinal);
+
+    /// <summary>The window's own history of its items, by which they show what the overlay shows.</summary>
+    public ItemHistory Items { get; } = new(time);
 
     /// <summary>Keeps what the overlay sent, over anything it sent before.</summary>
     public void Take(History history)
@@ -21,6 +24,8 @@ public sealed class ChartHistory(TimeProvider time)
         {
             _sent[item.ItemId] = item;
         }
+
+        Items.Take(history);
     }
 
     /// <summary>

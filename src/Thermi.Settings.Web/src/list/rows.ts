@@ -23,6 +23,8 @@ export interface Row {
   items: string[];
   /** An item's value now, or "Hidden" on a hidden overlay's row. */
   value?: string | null;
+  /** What an item's value is when not the value now, as "avg", said after it. */
+  tag?: string | null;
   alert?: Level | null;
 }
 
@@ -99,6 +101,7 @@ export function rowsOf(settings: Settings, view: WindowView, folded: ReadonlySet
           expanded: false,
           items: [id],
           value: shows?.value ?? null,
+          tag: shows?.tag ?? null,
           alert: shows?.level ?? null,
         });
       }

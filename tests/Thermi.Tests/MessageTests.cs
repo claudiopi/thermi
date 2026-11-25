@@ -1,4 +1,11 @@
+using System.Globalization;
+using Microsoft.Extensions.Time.Testing;
+using Thermi.Core.Look;
 using Thermi.Core.Messages;
+using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
+using ItemHistory = Thermi.Core.Messages.ItemHistory;
+using ItemsHistory = Thermi.Core.Look.ItemHistory;
 
 namespace Thermi.Tests;
 
@@ -39,13 +46,76 @@ public sealed class MessageTests
         }
     }
 
+    // The window takes the overlay's history through the message as it opens, having read a second already or not, and
+    // again after a reset; from then on both read the same values, a missing one among them, and each second the
+    // window's item shows the text and the label the overlay draws, its own default label with its tag in a bar.
+    [Theory]
+    [InlineData(ItemStat.Average, 0, 0, false, false)]
+    [InlineData(ItemStat.Min, 3, 0, true, false)]
+    [InlineData(ItemStat.Now, 5, -5, true, false)]
+    [InlineData(ItemStat.Max, 0, 0, false, true)]
+    public void TheWindowsHistoryShowsWhatTheOverlaysShows(ItemStat stat, int smooth, double offset, bool readFirst, bool reset)
+    {
+        var time = new FakeTimeProvider();
+        var cpu = new ItemConfig { Id = Metrics.CpuTemperature.Id, Metric = Metrics.CpuTemperature.Id, Stat = stat, Smooth = smooth, Offset = offset };
+        var overlay = new OverlayConfig { Items = [OverlayConfig.DefaultItems[4], cpu], Style = new StyleConfig { Layout = PillLayout.One } };
+        var config = new ThermiConfig { Overlays = [overlay] };
+        var (onOverlay, inWindow) = (new ItemsHistory(time), new ItemsHistory(time));
+        double[] values = [61, 64, 70, double.NaN, 82, 77, 90, 58, 66, 73, 95, 49, 60, 71];
+        var drawn = new List<(string, string?)>();
+        var shown = new List<(string, string?)>();
+
+        for (var second = 0; second < values.Length; second++)
+        {
+            time.Advance(TimeSpan.FromSeconds(1));
+            var readings = new Dictionary<string, Reading>(StringComparer.Ordinal)
+            {
+                [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, values[second]),
+                [Metrics.GpuLoad.Id] = new(SensorKind.Load, 30),
+            };
+            if (reset && second == 9)
+            {
+                onOverlay.Reset();
+                inWindow.Take(Sent(onOverlay, config));
+            }
+
+            onOverlay.Add(overlay, readings);
+            if (second == 5)
+            {
+                inWindow.Take(Sent(onOverlay, config));
+            }
+
+            if (second >= 5 || (readFirst && second == 4))
+            {
+                inWindow.Add(overlay, readings);
+            }
+
+            if (second >= 5)
+            {
+                drawn.Add(Of(OverlayLayout.Build(overlay, readings, CultureInfo.InvariantCulture, history: onOverlay)));
+                shown.Add(Of(OverlayLayout.Build(overlay, readings, CultureInfo.InvariantCulture, history: inWindow)));
+            }
+        }
+
+        Assert.Equal(drawn, shown);
+        Assert.All(shown, item => Assert.Contains(OverlayLayout.TagOf(cpu, CultureInfo.InvariantCulture)!, item.Item2, StringComparison.Ordinal));
+    }
+
+    private static History Sent(ItemsHistory history, ThermiConfig config) =>
+        (History)WindowMessages.Decode(WindowMessages.Encode(history.Sent(config)!))!;
+
+    private static (string Value, string? Label) Of(IReadOnlyList<OverlayItem> items) =>
+        items.Single(item => item.Id == Metrics.CpuTemperature.Id) is var item ? (item.Value, item.Label) : default;
+
     private static (WindowMessage Sent, byte[] Payload) Payload(string row)
     {
         var select = new Select(2, "cpu.temperature", SelectHow.PointIn);
         var good = WindowMessages.Encode(select);
         return row switch
         {
-            "history" => Encoded(new History([new ItemHistory("cpu.temperature", 1_000_000, [40, float.NaN, 41.5f]), new ItemHistory("ram.used", 0, [])])),
+            "history" => Encoded(new History([
+                new ItemHistory("cpu.temperature", 1_000_000, [40, float.NaN, 41.5f]) { Values = [40.25, double.NaN], Stats = new(38, 41.5, 120, 3, 999_000) },
+                new ItemHistory("ram.used", 0, [])])),
             "select" => (select, good),
             "edited" => Encoded(new Edited(1, "cpu.temperature", "ram.used")),
             "edited-none" => Encoded(new Edited(null, null, null)),
@@ -53,13 +123,13 @@ public sealed class MessageTests
             "raise" => Encoded(new Raise(0, null)),
             "asked" => Encoded(new HistoryAsked()),
             "cut" => (select, good[..^1]),
-            "version" => (select, [2, .. good[1..]]),
+            "version" => (select, [1, .. good[1..]]),
             "left-over" => (select, [.. good, 0]),
             "length" => (select, [.. good[..6], 0xFF, 0xFF, 0xFF, 0x7F, .. good[10..]]),
-            "floats" => (select, [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0x7F]),
+            "floats" => (select, [2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0x7F]),
             "enum" => (select, [.. good[..^1], 9]),
-            "utf8" => (select, [1, 5, 0, 0, 0, 0, 1, 0, 0, 0, 0xFF]),
-            "kind" => (select, [1, 9]),
+            "utf8" => (select, [2, 5, 0, 0, 0, 0, 1, 0, 0, 0, 0xFF]),
+            "kind" => (select, [2, 9]),
             "too-long" => (select, [.. good, .. new byte[WindowMessages.MaxLength]]),
             _ => (select, []),
         };

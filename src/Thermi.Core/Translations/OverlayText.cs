@@ -62,4 +62,19 @@ public enum OverlayText
 
     /// <summary>A critical GPU value's tooltip: the busiest process, then its share of the GPU's busiest engine.</summary>
     BusiestGpu,
+
+    /// <summary>What a default label adds, and the window beside the value, for an item that shows its minimum.</summary>
+    MinTag,
+
+    /// <summary>As <see cref="MinTag"/>, for its maximum.</summary>
+    MaxTag,
+
+    /// <summary>As <see cref="MinTag"/>, for its average since the overlay started.</summary>
+    AverageTag,
+
+    /// <summary>As <see cref="MinTag"/>, for its value now smoothed over its last seconds, with how many.</summary>
+    SmoothTag,
+
+    /// <summary>A default label with what its item shows after it, as "RAM avg".</summary>
+    TaggedLabel,
 }

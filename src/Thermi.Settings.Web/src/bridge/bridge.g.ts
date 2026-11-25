@@ -180,6 +180,8 @@ export interface ItemView {
   lit?: number;
   offsetShown?: string;
   offer?: SensorOffer;
+  tag?: string;
+  label?: string;
 }
 
 export interface Language {

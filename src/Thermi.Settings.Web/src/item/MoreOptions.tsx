@@ -15,53 +15,26 @@ export interface MoreOptionsProps {
   onOpen: (open: boolean) => void;
 }
 
-const stats = ['now', 'min', 'max', 'average'] as const;
-const statKeys = { now: 'ItemStat.Now', min: 'ItemStat.Min', max: 'ItemStat.Max', average: 'ItemStat.Average' } as const;
-const smoothing = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const decimals = [0, 1, 2];
 
 type SetField = (field: string, value: Value) => Promise<string | null>;
 
-/** What it shows, smoothing and decimals: the tools of a reading that is a number. */
-function NumberTools({ item, set }: { item: Item; set: SetField }) {
+/** Only for a reading that is a plain number: it says nothing of what the value is. */
+function DecimalsRow({ item, set }: { item: Item; set: SetField }) {
   const t = useText();
   return (
-    <>
-      <CardRow label={t('UiText.StatField')}>
-        <Dropdown
-          className="t-option-box"
-          label={t('UiText.StatField')}
-          choices={stats.map((stat) => ({ value: stat, text: t(statKeys[stat]) }))}
-          value={item.stat ?? 'now'}
-          onChange={(value) => void set('stat', value === 'now' ? null : value)}
-        />
-      </CardRow>
-      <CardRow label={t('UiText.SmoothField')} description={t('UiText.SmoothHint')}>
-        <Dropdown
-          className="t-option-box"
-          label={t('UiText.SmoothField')}
-          choices={smoothing.map((seconds) => ({ value: String(seconds), text: seconds === 0 ? t('UndoText.Off') : t('UiText.SmoothSeconds', seconds) }))}
-          value={String(item.smooth ?? 0)}
-          onChange={(value) => void set('smooth', value === '0' ? null : Number(value))}
-        />
-      </CardRow>
-      <CardRow label={t('UiText.DecimalsField')}>
-        <Dropdown
-          className="t-option-box"
-          label={t('UiText.DecimalsField')}
-          choices={[{ value: 'auto', text: t('UiText.Auto') }, ...decimals.map((count) => ({ value: String(count), text: String(count) }))]}
-          value={item.decimals === undefined ? 'auto' : String(item.decimals)}
-          onChange={(value) => void set('decimals', value === 'auto' ? null : Number(value))}
-        />
-      </CardRow>
-    </>
+    <CardRow label={t('UiText.DecimalsField')}>
+      <Dropdown
+        className="t-option-box"
+        label={t('UiText.DecimalsField')}
+        choices={[{ value: 'auto', text: t('UiText.Auto') }, ...decimals.map((count) => ({ value: String(count), text: String(count) }))]}
+        value={item.decimals === undefined ? 'auto' : String(item.decimals)}
+        onChange={(value) => void set('decimals', value === 'auto' ? null : Number(value))}
+      />
+    </CardRow>
   );
 }
 
-/**
- * What More options holds once open: what it shows, smoothing, decimals, a speed in bits, what it warns by, only on alert,
- * offset, color, combine.
- */
 function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen'>) {
   const t = useText();
   const { item } = placed;
@@ -79,7 +52,7 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
   };
   return (
     <>
-      {range !== null && <NumberTools item={item} set={set} />}
+      {range !== null && <DecimalsRow item={item} set={set} />}
       {view?.bits === true && (
         <SwitchLine
           label={t('UiText.Bits')}

@@ -20,6 +20,9 @@ public sealed class SensorHistory
     private long _second = -1;
     private long _readAt;
 
+    // The first second it holds: what came before was never read here or given by Seed.
+    private long _start;
+
     public SensorHistory(TimeProvider time)
         : this(time, Kept)
     {
@@ -62,6 +65,47 @@ public sealed class SensorHistory
     /// <summary>The values of the last <paramref name="seconds"/> seconds, as <see cref="LastMinute"/> gives them.</summary>
     internal IReadOnlyList<double?> Last(string id, int seconds) => Values(id, Math.Min(seconds, _slots));
 
+    /// <summary>
+    /// Fills the seconds of <paramref name="id"/> that hold no value with <paramref name="values"/>, oldest first, NaN for a
+    /// gap, the last of them at <paramref name="newest"/> on the monotonic clock: another history's, as the overlay's last
+    /// minute reaches the window. A second read here keeps its own value.
+    /// </summary>
+    internal void Seed(string id, IReadOnlyList<double> values, long newest)
+    {
+        if (_second < 0)
+        {
+            (_second, _readAt) = (0, newest);
+        }
+
+        if (!_series.TryGetValue(id, out var series))
+        {
+            series = new double[_slots];
+            Array.Fill(series, double.NaN);
+            _series[id] = series;
+        }
+
+        var last = _second + (long)Math.Round(_time.GetElapsedTime(_readAt, newest).TotalSeconds, MidpointRounding.AwayFromZero);
+        var earliest = last - values.Count + 1;
+
+        // Seconds count from this history's first reading; whole rings later, every slot stays where it is, and the
+        // seconds before it have room.
+        if (earliest < 0)
+        {
+            var shift = _slots * ((-earliest + _slots - 1) / _slots);
+            (_second, _start, earliest) = (_second + shift, _start + shift, earliest + shift);
+        }
+
+        for (var at = 0; at < values.Count; at++)
+        {
+            var second = earliest + at;
+            if (second <= _second && second > _second - _slots && !double.IsNaN(values[at]) && double.IsNaN(series[Slot(second)]))
+            {
+                series[Slot(second)] = values[at];
+                _start = Math.Min(_start, second);
+            }
+        }
+    }
+
     /// <summary>Drops every series but those of <paramref name="ids"/>, so memory follows what is still asked for.</summary>
     internal void Keep(IReadOnlySet<string> ids)
     {
@@ -97,7 +141,7 @@ public sealed class SensorHistory
     private List<double?> Values(string id, int count)
     {
         var now = _second < 0 ? -1 : _second + (long)Math.Floor(_time.GetElapsedTime(_readAt).TotalSeconds);
-        var first = Math.Max(0, now - count + 1);
+        var first = Math.Max(_start, now - count + 1);
         _series.TryGetValue(id, out var series);
         var values = new List<double?>();
         for (var second = first; second <= now; second++)

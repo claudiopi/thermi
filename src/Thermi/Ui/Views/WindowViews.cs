@@ -21,7 +21,8 @@ namespace Thermi.Ui.Views;
 /// <param name="editor">Whose settings are shown.</param>
 /// <param name="sensors">The readings now, null while none are fresh.</param>
 /// <param name="readings">What the window has read since it opened.</param>
-internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Readings readings)
+/// <param name="history">The window's history of its items, which takes the overlay's, so each value is the overlay's.</param>
+internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Readings readings, ItemHistory history)
 {
     private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
 
@@ -51,13 +52,19 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
                 CultureInfo.CurrentCulture,
                 texts,
                 config.Temperature,
+                history,
                 windowOpen: true);
             pills.Add([.. OverlayLayout.Groups(shown, overlay.Style.Layout)
                 .Select(pill => new PillView(pill[0].Label ?? "", [.. pill.Select(item => item.Id)]))]);
             var chosen = readings.ChosenOf(known, overlay);
+            var runs = RunsOf(shown);
             foreach (var item in overlay.Items)
             {
-                items[item.Id] = ItemOf(item, shown.FirstOrDefault(each => each.Id == item.Id), (known, catalog), chosen, (texts, config.SensorNames));
+                items[item.Id] = ItemOf(item, shown.FirstOrDefault(each => each.Id == item.Id), (known, catalog), chosen, (texts, config.SensorNames)) with
+                {
+                    Tag = OverlayLayout.TagOf(item, CultureInfo.CurrentCulture, texts),
+                    Label = runs.GetValueOrDefault(item.Id) ?? OverlayLayout.LabelOf(item, texts),
+                };
             }
         }
 
@@ -129,6 +136,20 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             .SelectMany(device => device.Sensors)
             .Where(sensor => sensor.Reading.Usable is not null)
             .ToDictionary(sensor => sensor.Id, sensor => Text(sensor.Reading, format), StringComparer.Ordinal);
+
+    // The label each value is drawn under: its own, or the last one drawn before it, as a run in a bar of one pill shows it.
+    private static Dictionary<string, string?> RunsOf(IReadOnlyList<OverlayItem> shown)
+    {
+        var runs = new Dictionary<string, string?>(StringComparer.Ordinal);
+        string? run = null;
+        foreach (var item in shown)
+        {
+            run = item.Label ?? run;
+            runs[item.Id] = run;
+        }
+
+        return runs;
+    }
 
     // A value of the dash alone, an arrow before it or not, reads nothing; a level needs a reading lines judge and a value.
     private static ItemView ItemOf(
