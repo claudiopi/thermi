@@ -19,6 +19,12 @@ public sealed record OverlayItem(string? Label, string Value, Level Level, strin
     public string? Color { get; init; }
 
     /// <summary>
+    /// What the value is when it is not the value now, as "max", drawn small after it; null for the value now. After the
+    /// value rather than the label, so each item of a pill says its own.
+    /// </summary>
+    public string? Tag { get; init; }
+
+    /// <summary>
     /// The last minute its line draws, a value a second and oldest first, null where one was missing; null unless it draws
     /// a line.
     /// </summary>
@@ -85,10 +91,11 @@ public static class OverlayLayout
             // A pill whose first item is left out, shown only on alert, is labeled at its first item shown.
             var labeled = starts.Contains(index) || label != shownLabel;
             var drawn = DrawnOf(overlay, item);
-            items.Add(new OverlayItem(labeled ? Tagged(item, label, culture, texts) : null, value, level, room)
+            items.Add(new OverlayItem(labeled ? label : null, value, level, room)
             {
                 Id = item.Id,
                 Color = item.Color,
+                Tag = TagOf(item, culture, texts),
                 Graph = drawn == GraphStyle.Line ? GraphOf(item, meter, history) : null,
                 Lit = drawn == GraphStyle.Bars ? LitOf(meter) : null,
             });
@@ -106,8 +113,8 @@ public static class OverlayLayout
         item.Label ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? (texts ?? Texts.English).Of(metric.Label) : null);
 
     /// <summary>
-    /// What an item shows when it is not its value now, said after its default label and beside its value in the window:
-    /// its minimum, maximum or average, or its smoothing; null for the value now.
+    /// What an item shows when it is not its value now, said after its value on the overlay and in the window: its minimum,
+    /// maximum or average, or its smoothing; null for the value now.
     /// </summary>
     public static string? TagOf(ItemConfig item, IFormatProvider culture, Texts? texts = null)
     {
@@ -261,13 +268,6 @@ public static class OverlayLayout
         };
         return new Reading(found[0].Kind, value);
     }
-
-    // A label the user typed says what they chose; a default one says what its own item shows when that is not the value
-    // now. The tag never decides the pills, which the edits keep by the labels alone.
-    private static string? Tagged(ItemConfig item, string? label, IFormatProvider culture, Texts? texts) =>
-        item.Label is null && label is not null && LabelOf(item, texts) == label && TagOf(item, culture, texts) is { } tag
-            ? (texts ?? Texts.English).Format(culture, OverlayText.TaggedLabel, label, tag)
-            : label;
 
     // Without a history, a graph has only the value now.
     private static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, Reading? meter, ItemHistory? history) =>

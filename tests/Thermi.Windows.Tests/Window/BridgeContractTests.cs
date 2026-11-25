@@ -266,9 +266,10 @@ public sealed class BridgeContractTests
                 bridge.Arrived();
                 var painted = OverlayLayout.Build(overlay, readings, CultureInfo.CurrentCulture, Texts.English, history: onOverlay);
                 var item = (await bridge.View()).Items[cpu.Id];
-                drawn.Add((painted.Single(each => each.Id == cpu.Id).Value, painted.Single(each => each.Id == cpu.Id).Label));
+                var own = painted.Single(each => each.Id == cpu.Id);
+                drawn.Add((own.Value, own.Label));
                 shown.Add((item.Value, item.Label));
-                Assert.True(item.Tag is { Length: > 0 } tag && item.Label!.Contains(tag, StringComparison.Ordinal), item.Label);
+                Assert.True(item.Tag is { Length: > 0 } tag && tag == own.Tag && !item.Label!.Contains(tag, StringComparison.Ordinal), item.Label);
             }
         }
 

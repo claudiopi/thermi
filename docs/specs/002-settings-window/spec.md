@@ -302,7 +302,7 @@ More from the overlay
 What an item shows
 
 - R194. Wherever the window shows an item's value, as its row in the list or a look's sample, it is the text the overlay draws for that item, with its units: its minimum, maximum, average or smoothing (R88, R89), offset, decimals, unit and bits, from the same history, which the overlay sends the window as it opens and after each reset. A sensor's own reading shows only where the window names a sensor, as the catalog and the Sensor dropdown do, never beside an item's name. While an item has no label of its own, its Label box offers the label the overlay draws for its run.
-- R195. What an item's value is, "Shows" and "Smoothing", sits in its page's rows under Sensor, never in "More options". An item that shows its minimum, maximum or average, or smooths its value, says so with a short tag, as "avg", "max" or "5s avg", translated: after its value in the window's list, and after its default label on the overlay, as "RAM avg"; a label the user typed shows as typed. A pill's label says its first item's tag.
+- R195. What an item's value is, "Shows" and "Smoothing", sits in its page's rows under Sensor, never in "More options". An item that shows its minimum, maximum or average, or smooths its value, says so with a short tag, as "avg", "max" or "5s avg", translated, small and quieter right after its value, on the overlay and in the window's list alike, as "81 °C max", whatever its label and wherever it sits in its pill; labels never carry it, so a pill of several items says which of them is a maximum.
 
 ## Design
 

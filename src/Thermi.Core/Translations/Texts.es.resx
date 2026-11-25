@@ -2130,9 +2130,6 @@
   <data name="OverlayText.SmoothTag" xml:space="preserve">
     <value>prom {0}s</value>
   </data>
-  <data name="OverlayText.TaggedLabel" xml:space="preserve">
-    <value>{0} {1}</value>
-  </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Tu barra de tareas está a un lado, así que la superposición flota junto a ella.</value>
   </data>

@@ -2130,9 +2130,6 @@
   <data name="OverlayText.SmoothTag" xml:space="preserve">
     <value>{0}s avg</value>
   </data>
-  <data name="OverlayText.TaggedLabel" xml:space="preserve">
-    <value>{0} {1}</value>
-  </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Your taskbar is on a side, so the overlay floats beside it.</value>
   </data>

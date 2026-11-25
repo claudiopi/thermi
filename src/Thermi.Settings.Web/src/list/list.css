@@ -194,6 +194,7 @@
 /* What the value is when not the value now, quieter than the value it follows. */
 .t-tag {
   margin-inline-start: 4px;
+  font-size: 0.85em;
   font-weight: 400;
   color: var(--colorNeutralForeground2);
 }

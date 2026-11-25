@@ -18,7 +18,7 @@ internal static class PainterShapes
 
     // How much of its level's color a graph's fill takes, of 255: light, so the line reads first.
     private const int GraphFill = 77;
-    private const float ReversedPadding = 3;
+    internal const float ReversedPadding = 3;
     private const float ReversedRadius = 3;
     private const float GlowWidth = 2;
 

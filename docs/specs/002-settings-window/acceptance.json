@@ -1430,7 +1430,7 @@
         "R194",
         "R195"
       ],
-      "description": "Given a series of CPU temperatures with a missing one and an overlay laid out as one bar with the GPU's load before the CPU temperature, which shows its average, its minimum smoothed over 3 s, its value now smoothed over 5 s with an offset of -5, or its maximum reset midway, when the window's history takes the overlay's through the message after five seconds, having read one second already or none, and again after the reset, and both then read the rest, then each second the window's history lays the item out with the very value and label the overlay's does, its own default label with its tag.",
+      "description": "Given a series of CPU temperatures with a missing one and an overlay laid out as one bar with the GPU's load and the CPU's load before the CPU temperature, which shows its average, its minimum smoothed over 3 s, its value now smoothed over 5 s with an offset of -5, or its maximum reset midway, when the window's history takes the overlay's through the message after five seconds, having read one second already or none, and again after the reset, and both then read the rest, then each second the window's history lays the item out with the very value, label and tag the overlay's does, the tag after its value though the item is not the first of its pill, and no label carrying it.",
       "check": "TheWindowsHistoryShowsWhatTheOverlaysShows",
       "passes": true
     },
@@ -1440,7 +1440,7 @@
         "R194",
         "R195"
       ],
-      "description": "Given the recorded CPU load series and an overlay laid out as one bar with the GPU's load before the CPU's load, which shows its average, when the overlay reads a third of the series before the real bridge opens and takes its history through the message, and both then read the rest, then each second the bridge's item shows the very value and label the overlay draws, never the bar's first label, and its tag.",
+      "description": "Given the recorded CPU load series and an overlay laid out as one bar with the GPU's load before the CPU's load, which shows its average, when the overlay reads a third of the series before the real bridge opens and takes its history through the message, and both then read the rest, then each second the bridge's item shows the very value and label the overlay draws, never the bar's first label, and the tag the overlay draws after its value, which its label lacks.",
       "check": "TheWindowShowsEachItemAsTheOverlayDrawsIt",
       "passes": true
     },

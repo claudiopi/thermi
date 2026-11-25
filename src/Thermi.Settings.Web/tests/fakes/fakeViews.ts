@@ -163,7 +163,7 @@ export function installFakeViews(): void {
       more: ofType.filter((one) => !own(one) && (type !== 'Data' || one.hardwareType === read?.hardwareType)).map((one) => one.id),
     };
   };
-  // As Core's OverlayLayout.TagOf: what the value is when not the value now, which a default label says after it.
+  // As Core's OverlayLayout.TagOf: what the value is when not the value now, said after it.
   const tagOf = (item: Item): string | undefined => {
     const stats: Record<string, string> = { min: 'OverlayText.MinTag', max: 'OverlayText.MaxTag', average: 'OverlayText.AverageTag' };
     const stat = stats[item.stat ?? ''];
@@ -179,7 +179,7 @@ export function installFakeViews(): void {
     return {
       ...(lit === undefined ? {} : { lit }),
       ...(tag === undefined ? {} : { tag }),
-      label: tag === undefined || item.label !== undefined ? labelOf(item) : say('OverlayText.TaggedLabel', labelOf(item), tag),
+      label: labelOf(item),
       offer: offerOf(read, type),
       value: missing ? null : format(type, value),
       level: levelOf(item),
