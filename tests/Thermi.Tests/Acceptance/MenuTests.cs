@@ -65,8 +65,8 @@ public sealed class MenuTests
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','stat':'max'}]}",
         "",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock ResetMinMax HideOverlays | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager ResetMinMax | HideOverlays | Exit")]
+        "Settings* TaskManager CopyImage ClickThrough Lock ResetMinMax HideOverlays | Exit",
+        $"Settings* | {Graph} Lock | CopyImage TaskManager ResetMinMax | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "hotkeys",
@@ -92,8 +92,8 @@ public sealed class MenuTests
         "update",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update | Exit",
         $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
-    // On a pill: of several, on the taskbar or the desktop, it can be separated; not the overlay's only pill, nor once no
-    // other overlay fits, nor while the overlay is hidden or locked, which a hold to lift the pill is not either.
+    // On a pill: of several, on the taskbar or the desktop, it can be separated; not the overlay's only pill, nor while the
+    // overlay is hidden or locked, which a hold to lift the pill is not either; once no other overlay fits, grayed with why.
     [InlineData(
         "{}",
         "on:gpu.load",
@@ -112,15 +112,15 @@ public sealed class MenuTests
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature'},{'id':'cpu.load','metric':'cpu.load'}]}",
         "on:cpu.load",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"EditItem* Settings | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        "Settings* TaskManager CopyImage ClickThrough Lock HideOverlays | Exit",
+        $"EditItem* Settings | {Graph} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}|{}|{}|{}",
         "on:gpu.load",
         "Settings* TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
-        $"EditItem* Settings | {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
+        $"EditItem* Settings | Separate-(SeparateFull) {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
     [InlineData(
         "{'hidden':true}|{}",
         "on:gpu.load",
@@ -136,8 +136,14 @@ public sealed class MenuTests
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','graph':'none'},{'id':'cpu.power','metric':'cpu.power'}]}",
         "",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        "Settings* | Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        "Settings* TaskManager CopyImage ClickThrough Lock HideOverlays | Exit",
+        "Settings* | Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // Vertical is offered while it stacks pills, or while it is on, so it can be turned off; one bar of one run stacks nothing.
+    [InlineData(
+        "{'style':{'layout':'one','orientation':'vertical'},'items':[{'id':'cpu.temperature','metric':'cpu.temperature'}]}",
+        "",
+        "Settings* TaskManager CopyImage Vertical+ ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical+ Lock | CopyImage TaskManager | HideOverlays | Exit")]
     public void MenusHaveTheirEntriesInOrder(string overlays, string state, string thermis, string overlaysMenu)
     {
         var words = state.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -184,9 +190,13 @@ public sealed class MenuTests
     private static string Describe(IReadOnlyList<MenuRow> rows) => string.Join(' ', rows.Select((row, at) => string.Concat(
         row.Starts && at > 0 ? "| " : "",
         row.Graph?.ToString() ?? row.Entry.ToString(),
+        Marks(row),
+        row.Entries.Count == 0 ? "" : $"[{Describe(row.Entries)}]")));
+
+    private static string Marks(MenuRow row) => string.Concat(
         row.Default ? "*" : "",
         row.Heading ? "-" : "",
         row.Checked ? "+" : "",
         row.Hotkey is null ? "" : "@",
-        row.Entries.Count == 0 ? "" : $"[{Describe(row.Entries)}]")));
+        row.Note is { } note ? $"({note})" : "");
 }

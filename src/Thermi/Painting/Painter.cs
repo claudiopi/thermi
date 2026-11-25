@@ -108,6 +108,16 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         return new Size(width, height);
     }
 
+    /// <summary>
+    /// <paramref name="scale"/>, or the smaller one at which the items show as wide as <paramref name="room"/> allows for
+    /// their size at it, as an overlay grown past the room the others beside it on its taskbar leave.
+    /// </summary>
+    public float Within(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, Func<(int Width, int Height), int?> room)
+    {
+        var size = Measure(items, look, scale);
+        return room((size.Width, size.Height)) is { } most && size.Width > most ? scale * Math.Max(1, most) / size.Width : scale;
+    }
+
     private static (int Width, int Height, Arrangement Arranged) SizeOf(List<PaintedPill> pills, OverlayLook look, float scale)
     {
         var height = Math.Ceiling(Height * scale);

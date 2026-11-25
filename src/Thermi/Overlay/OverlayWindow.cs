@@ -181,8 +181,11 @@ internal sealed class OverlayWindow : IDisposable
         TopLevelWindow.ClickThrough(Hwnd, overlay.ClickThrough);
         var look = marks.Applied(OverlayLook.Of(overlay.Style, scene.LightTaskbar, scene.HighContrast), held: heldAt is not null);
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
-        var scale = ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, heldAt is null ? scene.Screens : []);
+        IReadOnlyList<Screen> screens = heldAt is null ? scene.Screens : [];
+        var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
         var items = Extras(scene, texts, shown.Items);
+        var scale = _painter.Within(
+            items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), size => TaskbarRow.Room(overlays, _index, screens, size, _actions.Shown()));
         _glow.Update(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
         var bitmap = shown.SensorsStopped
@@ -196,7 +199,6 @@ internal sealed class OverlayWindow : IDisposable
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
-        var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
         var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, _shown);

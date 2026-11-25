@@ -167,6 +167,9 @@ public static class OverlayLayout
         return runs;
     }
 
+    /// <summary>Whether the overlay has more than one pill, or run in one bar, so that standing it vertical stacks them.</summary>
+    public static bool Stacks(OverlayConfig overlay) => Runs(overlay).Count > 1;
+
     /// <summary>
     /// What an item reads now, its sensors combined and its offset added, or null when it names sensors the snapshot lacks.
     /// A combined item leaves out its sensors without a value, and is missing when none is left.

@@ -26,10 +26,16 @@ public static class DesktopGestures
     /// was dropped on. The pill of <paramref name="takenOff"/>, an item whose pill the press <see cref="Lifts"/>, joins the
     /// overlay it was dropped <paramref name="onto"/> before the pill of the item <paramref name="before"/>, its own included,
     /// where it moves to that place, or becomes an overlay of its own where it was dropped; without one, the overlay merges
-    /// into the overlay it was dropped onto at that place too, or goes where it was dropped.
+    /// into the overlay it was dropped onto at that place too, or goes where it was dropped. A pill held at the cap of
+    /// overlays lifted nothing, so its drop is refused wherever it lands.
     /// </summary>
     public static DesktopDrop Release(ThermiConfig config, int overlay, string? takenOff, Position dropped, int? onto, SnapConfig? mark, string? before = null)
     {
+        if (takenOff is not null && config.Overlays.Count >= ThermiConfig.MaxOverlays)
+        {
+            return new DesktopDrop(GestureKind.DragOff, ConfigEdits.Refuse(config, Refusal.TooManyOverlays));
+        }
+
         if (takenOff is not null)
         {
             return onto is { } into
@@ -90,19 +96,27 @@ public static class DesktopGestures
 
     /// <summary>
     /// Whether a press on that item's pill, or on the overlay's edge when none is named, held still for
-    /// <paramref name="held"/>, lifts the pill, so its drag takes the pill off its overlay instead of moving the whole
-    /// overlay: only once it has held for <see cref="Hold"/>, since a plain drag is how a person moves an overlay, and never
-    /// when the pill is the whole overlay or there is no room for another overlay, where a drag that would be refused at its
-    /// drop moves the overlay instead.
+    /// <paramref name="held"/>, takes hold of the pill instead of the whole overlay: only once it has held for
+    /// <see cref="Hold"/>, since a plain drag is how a person moves an overlay, and never when the pill is the whole overlay.
+    /// It then <see cref="Lifts"/> the pill, unless no other overlay fits: there the pill stays and its drag is refused,
+    /// never turned into a move of the overlay the hold did not ask for.
     /// </summary>
+    public static bool Holds(ThermiConfig config, int overlay, string? pill, TimeSpan held) =>
+        held >= Hold && pill is not null && IsPart(config, overlay, pill);
+
+    /// <summary>Whether a press held still for <paramref name="held"/> lifts the pill, so its drag takes the pill off its overlay.</summary>
     public static bool Lifts(ThermiConfig config, int overlay, string? pill, TimeSpan held) =>
-        held >= Hold && pill is not null && CanTakeOff(config, overlay, pill);
+        Holds(config, overlay, pill, held) && config.Overlays.Count < ThermiConfig.MaxOverlays;
 
     /// <summary>
     /// False when the pill is the whole overlay or no other overlay fits.
     /// </summary>
     public static bool CanTakeOff(ThermiConfig config, int overlay, string pill) =>
-        config.Overlays.Count < ThermiConfig.MaxOverlays && ConfigEdits.Find(config, pill) is var (from, index)
+        config.Overlays.Count < ThermiConfig.MaxOverlays && IsPart(config, overlay, pill);
+
+    /// <summary>Whether the pill is one of several of the overlay, which can come off it while another overlay fits.</summary>
+    public static bool IsPart(ThermiConfig config, int overlay, string pill) =>
+        ConfigEdits.Find(config, pill) is var (from, index)
         && !(from == overlay && ItemEdits.PillOf(config.Overlays[from], index) == (0, config.Overlays[from].Items.Count - 1));
 
     /// <summary>

@@ -1275,6 +1275,9 @@
   <data name="MenuEntry.GraphOwn" xml:space="preserve">
     <value>Some items have their own</value>
   </data>
+  <data name="MenuEntry.SeparateFull" xml:space="preserve">
+    <value>4 overlays at most</value>
+  </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
   </data>
@@ -2147,6 +2150,9 @@
   </data>
   <data name="OverlayPageText.FadeHint" xml:space="preserve">
     <value>Shows what lies under it as the pointer comes near</value>
+  </data>
+  <data name="OverlayPageText.DirectionOnePill" xml:space="preserve">
+    <value>Vertical stacks pills, and this overlay has one</value>
   </data>
   <data name="UiText.Bits" xml:space="preserve">
     <value>Show in bits per second</value>

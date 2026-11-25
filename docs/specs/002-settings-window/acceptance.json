@@ -5,10 +5,11 @@
       "id": "A1",
       "covers": [
         "R1",
+        "R56",
         "R136",
         "R196"
       ],
-      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, an overlay on the desktop, locked, which then offers no Separate, items with a graph of their own or none judged), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
+      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, an overlay on the desktop, locked, which then offers no Separate, four overlays, where Separate is grayed with why, items with a graph of their own or none judged, one pill or one bar of one run, which offers Vertical only while it is on), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -758,7 +759,7 @@
         "R148",
         "R150"
       ],
-      "description": "Given a table of edits (new, duplicate, merge, delete, hide, move an item to another or a new overlay, a pill held 499 and 500 ms by the injected clock and dragged off, a drop that merges, a drop on the taskbar, a corner resize, Alt+arrows on a free overlay and one on the taskbar), when each is applied and undone, then the overlays are the row's, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
+      "description": "Given a table of edits (new, duplicate, merge, delete, hide, move an item to another or a new overlay, a pill held 499 and 500 ms by the injected clock and dragged off, and at four overlays held and refused, a drop that merges, a drop on the taskbar, a corner resize, Alt+arrows on a free overlay and one on the taskbar), when each is applied and undone, then the overlays are the row's, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
       "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
       "passes": true
     },
@@ -1601,8 +1602,17 @@
       "covers": [
         "R30"
       ],
-      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, and the one beside the notification area, or dropped past it, stays there, pushing the one before it back; two that do not overlap stay where their snaps put them.",
+      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, and the one beside the notification area, or dropped past it, stays there, pushing the one before it back; two that do not overlap stay where their snaps put them; one grown past the room the other leaves on the taskbar shows at that room, so neither leaves the taskbar nor covers the other.",
       "check": "OverlaysOnOneTaskbarNeverCoverEachOther",
+      "passes": true
+    },
+    {
+      "id": "A340",
+      "covers": [
+        "R104"
+      ],
+      "description": "Given an overlay whose frame fades while the window edits another, dark pills over a white backdrop and light ones over a black one, when it is painted, then each value keeps 3:1 against what borders it.",
+      "check": "AFadedFramesValuesReadOnAnyBackdrop",
       "passes": true
     }
   ]

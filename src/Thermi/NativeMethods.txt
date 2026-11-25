@@ -91,6 +91,7 @@ IsWindowVisible
 WM_SETCURSOR
 SetCursor
 IDC_SIZENWSE
+IDC_NO
 // Mouse and menus
 SetCapture
 ReleaseCapture

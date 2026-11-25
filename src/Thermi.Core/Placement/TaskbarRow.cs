@@ -27,25 +27,64 @@ public static class TaskbarRow
             return null;
         }
 
-        var sizes = Enumerable.Range(0, overlays.Count)
-            .Select(at => at == index ? size : at < shown.Count && shown[at] is { } box ? (box.Width, box.Height) : ((int Width, int Height)?)null)
-            .ToList();
-
-        if (Snaps.OnTaskbar(overlays[index], screens) is not var (screen, bar))
+        if (Row(overlays, index, screens, size, shown) is not var (screen, bar, row))
         {
             return own;
         }
 
+        var lefts = Apart(row, screen, bar);
+        var place = row.FindIndex(each => each.At == index);
+        return own with { X = own.X + lefts[place] - row[place].Left };
+    }
+
+    /// <summary>
+    /// How wide overlay <paramref name="index"/> may show on its taskbar beside the others at the sizes they show at: from
+    /// the taskbar's start to where the last may end, less theirs and a margin between each. An overlay that grows past it
+    /// shows at this width, so it never pushes another off the taskbar or covers it; null off a taskbar or alone on it.
+    /// </summary>
+    public static int? Room(
+        IReadOnlyList<OverlayConfig> overlays,
+        int index,
+        IReadOnlyList<Screen> screens,
+        (int Width, int Height) size,
+        IReadOnlyList<PixelRect?> shown)
+    {
+        if (Row(overlays, index, screens, size, shown) is not var (screen, bar, row) || row.Count < 2)
+        {
+            return null;
+        }
+
+        var others = row.Where(each => each.At != index).ToList();
+        return End(row, screen, bar) - bar.Left - others.Sum(each => each.Width) - (others.Count * Snaps.Scaled(Snaps.Margin, screen));
+    }
+
+    private static (Screen Screen, PixelRect Bar, List<(int At, int Left, int Width)> Row)? Row(
+        IReadOnlyList<OverlayConfig> overlays,
+        int index,
+        IReadOnlyList<Screen> screens,
+        (int Width, int Height) size,
+        IReadOnlyList<PixelRect?> shown)
+    {
+        if (Snaps.OnTaskbar(overlays[index], screens) is not var (screen, bar))
+        {
+            return null;
+        }
+
+        var sizes = Enumerable.Range(0, overlays.Count)
+            .Select(at => at == index ? size : at < shown.Count && shown[at] is { } box ? (box.Width, box.Height) : ((int Width, int Height)?)null)
+            .ToList();
         var row = Enumerable.Range(0, overlays.Count)
             .Where(at => sizes[at] is not null && Snaps.OnTaskbar(overlays[at], screens) is var (other, _) && other.Id == screen.Id)
             .Select(at => (At: at, Left: Snaps.Locate(overlays[at], screens, sizes[at]!.Value.Width, sizes[at]!.Value.Height)!.X, sizes[at]!.Value.Width))
             .OrderBy(each => each.Left)
             .ThenBy(each => each.At)
             .ToList();
-        var lefts = Apart(row, screen, bar);
-        var place = row.FindIndex(each => each.At == index);
-        return own with { X = own.X + lefts[place] - row[place].Left };
+        return (screen, bar, row);
     }
+
+    // The last keeps to the notification area's edge, or to where it was dropped past it, and never leaves the taskbar.
+    private static int End(List<(int At, int Left, int Width)> row, Screen screen, PixelRect bar) =>
+        Math.Min(bar.Right, Math.Max(row[^1].Left + row[^1].Width, Snaps.RightEnd(screen, bar)));
 
     private static int[] Apart(List<(int At, int Left, int Width)> row, Screen screen, PixelRect bar)
     {
@@ -56,7 +95,7 @@ public static class TaskbarRow
             lefts[at] = lefts[at] < lefts[at - 1] + row[at - 1].Width ? lefts[at - 1] + row[at - 1].Width + gap : lefts[at];
         }
 
-        var end = Math.Min(bar.Right, Math.Max(row[^1].Left + row[^1].Width, Snaps.RightEnd(screen, bar)));
+        var end = End(row, screen, bar);
         lefts[^1] = Math.Min(lefts[^1], end - row[^1].Width);
         for (var at = row.Count - 2; at >= 0; at--)
         {

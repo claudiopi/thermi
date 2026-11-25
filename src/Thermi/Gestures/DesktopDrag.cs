@@ -45,12 +45,15 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     private Size _pill;
     private bool _moved;
 
-    /// <summary>Whether the drag moves the overlay itself, which a lifted pill or a corner held never do.</summary>
-    public bool Moves => start.Held != Held.Corner && !Lifted;
+    /// <summary>Whether the drag moves the overlay itself, which a pill held or a corner held never do.</summary>
+    public bool Moves => start.Held != Held.Corner && !Lifted && !Refused;
 
     public bool Resizes => start.Held == Held.Corner;
 
     public bool Lifted { get; private set; }
+
+    /// <summary>Whether the pill was held long enough to lift but no other overlay fits, so the press does nothing.</summary>
+    public bool Refused { get; private set; }
 
     /// <summary>Where the pill pressed sits in the overlay's pixels, which a lifted pill leaves as a gap.</summary>
     public RectangleF PillBox => start.PillBox;
@@ -65,12 +68,20 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
     /// <summary>
     /// The press has held still for <paramref name="held"/>: a pill that can come off lifts, a little above its place, so
     /// the drag that follows carries it instead of the overlay. Nothing lifts once the press has left the drag distance,
-    /// even back inside it, since a slow drag is how a person moves the overlay.
+    /// even back inside it, since a slow drag is how a person moves the overlay. At the cap of overlays it lifts nothing and
+    /// the press is refused, which the pointer shows until it is let go.
     /// </summary>
     public void Lift(TimeSpan held)
     {
-        if (_moved || Lifted || start.PillPicture is not { } picture || !DesktopGestures.Lifts(settings.Config, overlay, start.Pill, held))
+        if (_moved || Lifted || Refused || start.PillPicture is not { } picture || !DesktopGestures.Holds(settings.Config, overlay, start.Pill, held))
         {
+            return;
+        }
+
+        if (!DesktopGestures.Lifts(settings.Config, overlay, start.Pill, held))
+        {
+            Refused = true;
+            PInvoke.SetCursor(PInvoke.LoadCursor(HINSTANCE.Null, PInvoke.IDC_NO));
             return;
         }
 
@@ -96,6 +107,10 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         }
 
         _moved = true;
+        if (Refused)
+        {
+            return false;
+        }
 
         if (start.Held == Held.Corner)
         {
@@ -140,7 +155,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
         var pill = PillAt(at);
         var drop = start.Held == Held.Corner
             ? new DesktopDrop(GestureKind.Resize, OverlayEdits.Resize(before, overlay, Preview!.Value.Size, Preview.Value.Orientation))
-            : Lifted
+            : Lifted || Refused
                 ? DesktopGestures.Release(before, overlay, start.Pill, Kept(pill, _pill), target.Onto, Near(pill, Orientation.Horizontal, _pill), target.Before)
                 : DesktopGestures.Release(
                     before, overlay, null, Kept(at, start.Size), target.Onto, Near(at, before.Overlays[overlay].Style.Orientation, start.Size), target.Before);

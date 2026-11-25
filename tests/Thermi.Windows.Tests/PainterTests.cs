@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Globalization;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -106,6 +107,36 @@ public sealed class PainterTests
         Assert.True(right - left > bottom - top, "The mark lies down.");
         Assert.InRange((left + right) / 2f, place.Value.Left, place.Value.Right);
         Assert.True(top > place.Pill.Top + (place.Pill.Height / 2), "The mark is under the value's middle.");
+    }
+
+    // Night QA (N1): while the window edits another overlay, this one fades its frame, and its white values on a white page
+    // read as white on light grey. Over the backdrop that shows its pills least, each value keeps 3:1 against what borders it.
+    [Theory]
+    [InlineData(PillTheme.Dark, 255)]
+    [InlineData(PillTheme.Light, 0)]
+    public void AFadedFramesValuesReadOnAnyBackdrop(PillTheme pills, int backdrop)
+    {
+        using var painter = new Painter();
+        var items = Layout(9);
+        var look = new EditMarks(Fade.Frame, null, null, default).Applied(OverlayLook.Of(new StyleConfig { Pills = pills }, lightTaskbar: false));
+
+        using var bitmap = painter.Paint(items, look, 1);
+
+        var value = Rectangle.Round(painter.Places.Single(each => each.Id == Metrics.CpuLoad.Id).Value);
+        var lights = Enumerable.Range(value.Left, value.Width)
+            .SelectMany(x => Enumerable.Range(value.Top, value.Height).Select(y => Luminance(bitmap.GetPixel(x, y), backdrop)))
+            .ToList();
+        Assert.InRange((lights.Max() + 0.05) / (lights.Min() + 0.05), 3, double.MaxValue);
+    }
+
+    // A pixel's relative luminance once laid over a gray backdrop of that level, as the screen then shows it.
+    private static double Luminance(Color pixel, int backdrop) =>
+        (0.2126 * Over(pixel.R, pixel.A, backdrop)) + (0.7152 * Over(pixel.G, pixel.A, backdrop)) + (0.0722 * Over(pixel.B, pixel.A, backdrop));
+
+    private static double Over(int channel, int alpha, int backdrop)
+    {
+        var shown = ((channel * alpha) + (backdrop * (255 - alpha))) / 255.0 / 255.0;
+        return shown <= 0.03928 ? shown / 12.92 : Math.Pow((shown + 0.055) / 1.055, 2.4);
     }
 
     private static int Width(Painter painter, IReadOnlyList<OverlayItem> items, OverlayLook look)

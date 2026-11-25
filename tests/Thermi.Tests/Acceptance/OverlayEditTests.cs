@@ -79,7 +79,7 @@ public sealed class OverlayEditTests
     [InlineData("one", "desk 0 edge 400 300 0", "400,300:6", "same")]
     [InlineData("one", "desk 0 edge 1300 1375", "Taskbar@1300:6", "same")]
     [InlineData("free", "desk 0 edge 1500 1380", "Taskbar:6", "same")]
-    [InlineData("four", "desk 0 hold500+cpu.load 400 300", "400,300:6 TopRight:6 BottomRight:6 BottomLeft:6", "same")]
+    [InlineData("four", "desk 0 hold500+cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("free", "corner 400 38 -300 200", "400,300:6v0.75", "same")]
     [InlineData("free", "corner 400 38 199 5", "400,300:61.5", "same")]
     public void OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach(string start, string edit, string expected, string named)
@@ -158,7 +158,7 @@ public sealed class OverlayEditTests
         var pressed = time.GetTimestamp();
         time.Advance(TimeSpan.FromMilliseconds(plus < 0 ? 0 : int.Parse(words[2][4..plus], CultureInfo.InvariantCulture)));
         var pill = words[2][(plus + 1)..];
-        var takenOff = DesktopGestures.Lifts(config, overlay, pill == "edge" ? null : pill, time.GetElapsedTime(pressed)) ? pill : null;
+        var takenOff = DesktopGestures.Holds(config, overlay, pill == "edge" ? null : pill, time.GetElapsedTime(pressed)) ? pill : null;
         return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark, words.Length > 6 ? words[6] : null).Result;
     }
 

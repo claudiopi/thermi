@@ -24,9 +24,6 @@ internal sealed class WebWindow : IDisposable
 {
     private const string ClassName = "thermi-window";
 
-    // WM_ACTIVATE's WA_CLICKACTIVE: activated by a mouse click.
-    private const nuint ClickActive = 2;
-
     private const string RuntimePage = "https://developer.microsoft.com/microsoft-edge/webview2/";
 
     private readonly WindowStart _start;
@@ -269,14 +266,14 @@ internal sealed class WebWindow : IDisposable
             case PInvoke.WM_GETMINMAXINFO:
                 WindowPlace.Limit(hwnd, lParam, _screens ??= _start.Environment.Screens());
                 return new LRESULT(0);
-            // A click that activates the window rises it once the click is through: moved in the z-order while the
-            // click is on its way, the page's child window can lose it, and the button clicked does not answer.
-            case PInvoke.WM_ACTIVATE when (wParam.Value & 0xFFFF) == ClickActive:
+            // Rises after the activation, never during a click (the page's child window can lose it and the button
+            // does not answer), and only over the foreground window, so an overlay's menu is not covered.
+            case PInvoke.WM_ACTIVATE when (wParam.Value & 0xFFFF) != 0:
                 _turn.Post(() => WindowFrame.Above(hwnd, PInvoke.GetForegroundWindow()));
                 return null;
             // Deactivated, lParam is the window taking the front, when Windows names it.
             case PInvoke.WM_ACTIVATE:
-                WindowFrame.Above(hwnd, (wParam.Value & 0xFFFF) != 0 ? hwnd : lParam.Value != 0 ? (HWND)lParam.Value : PInvoke.GetForegroundWindow());
+                WindowFrame.Above(hwnd, lParam.Value != 0 ? (HWND)lParam.Value : PInvoke.GetForegroundWindow());
                 return null;
             case PInvoke.WM_SETTINGCHANGE:
             case PInvoke.WM_DISPLAYCHANGE:

@@ -1,3 +1,4 @@
+using System.Drawing;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
@@ -18,14 +19,20 @@ internal static class OverlayPlaces
     public static IReadOnlyList<Rect?> Of(ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens)
     {
         using var painter = new Painter();
-        var sizes = new List<PixelRect?>(config.Overlays.Count);
-        for (var at = 0; at < config.Overlays.Count; at++)
+        var drawn = Enumerable.Range(0, config.Overlays.Count).Select(at =>
         {
             var overlay = config.Overlays[at];
             var shown = ThermiMark.Overlay(config, at, input, windowOpenedOnce: true);
-            var look = OverlayLook.Of(overlay.Style, input.LightTaskbar);
-            var size = painter.Measure(shown.Items, look, OverlayWindow.ScaleOf(96, overlay, screens));
-            sizes.Add(new PixelRect(0, 0, size.Width, size.Height));
+            return (shown.Items, Look: OverlayLook.Of(overlay.Style, input.LightTaskbar), Scale: OverlayWindow.ScaleOf(96, overlay, screens));
+        }).ToList();
+        var sizes = drawn.Select(each => (PixelRect?)Box(painter.Measure(each.Items, each.Look, each.Scale))).ToList();
+
+        // Each in its turn, one grown past the room the others leave on its taskbar shows smaller, as the overlays draw it.
+        for (var at = 0; at < sizes.Count; at++)
+        {
+            var (index, (items, look, scale)) = (at, drawn[at]);
+            var fitted = painter.Within(items, look, scale, size => TaskbarRow.Room(config.Overlays, index, screens, size, sizes));
+            sizes[at] = fitted < scale ? Box(painter.Measure(items, look, fitted)) : sizes[at];
         }
 
         // Overlays sharing a taskbar are laid out together, as the overlays place themselves.
@@ -33,4 +40,6 @@ internal static class OverlayPlaces
             ? new Rect(corner.X, corner.Y, size.Value.Width, size.Value.Height)
             : null)];
     }
+
+    private static PixelRect Box(Size size) => new(0, 0, size.Width, size.Height);
 }

@@ -127,7 +127,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
                 SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
-        var target = Drag?.Resizes != false ? default : Target(actions.Cursor(), dragged);
+        var target = Drag is null or { Resizes: true } or { Refused: true } ? default : Target(actions.Cursor(), dragged);
         var moved = Drag?.Moved(dragged, target.Onto is not null) == true;
         // The overlay a drop would join marks where, which it paints.
         var previewed = actions.Preview.Over(target);

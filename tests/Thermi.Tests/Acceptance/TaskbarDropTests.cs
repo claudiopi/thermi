@@ -184,12 +184,15 @@ public sealed class TaskbarDropTests
 
     // Night QA: two overlays side by side on the taskbar, and one raised to 200 % covered its neighbour. Each overlay as
     // `offset:width` along the taskbar, or `tray:width` beside the notification area, 38 px high; where each shows. One
-    // that grows pushes the next along, and the last keeps to the notification area's edge, pushing the others back.
+    // that grows pushes the next along, and the last keeps to the notification area's edge, pushing the others back; one
+    // grown past the room the others leave shows at that room, so none leaves the taskbar or covers another. Each, in
+    // order, shows at the width it has room for, beside the others as they show.
     [Theory]
     [InlineData("8:308 tray:319", "8 1883")]
     [InlineData("1567:432 tray:319", "1443 1883")]
     [InlineData("100:600 650:300", "100 708")]
     [InlineData("1500:600 2000:500", "1392 2000")]
+    [InlineData("100:1800 tray:500", "0 1702")]
     public void OverlaysOnOneTaskbarNeverCoverEachOther(string overlays, string shown)
     {
         var each = overlays.Split(' ').Select(overlay => overlay.Split(':')).ToList();
@@ -199,11 +202,17 @@ public sealed class TaskbarDropTests
         }).ToList();
         var widths = each.Select(words => int.Parse(words[1], CultureInfo.InvariantCulture)).ToList();
         var boxes = widths.Select(width => (PixelRect?)new PixelRect(0, 0, width, Height)).ToList();
+        for (var index = 0; index < configs.Count; index++)
+        {
+            widths[index] = Math.Min(widths[index], TaskbarRow.Room(configs, index, [Pc], (widths[index], Height), boxes) ?? int.MaxValue);
+            boxes[index] = new PixelRect(0, 0, widths[index], Height);
+        }
 
         var places = Enumerable.Range(0, configs.Count).Select(index => TaskbarRow.Locate(configs, index, [Pc], (widths[index], Height), boxes)!).ToList();
 
         Assert.Equal(shown, string.Join(' ', places.Select(place => place.X.ToString(CultureInfo.InvariantCulture))));
         Assert.All(places, place => Assert.Equal(1397, place.Y));
+        Assert.All(places.Skip(1), (place, at) => Assert.True(place.X >= places[at].X + widths[at], "Apart."));
     }
 
     private static int[] Numbers(string word) => [.. word.Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture))];

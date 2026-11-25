@@ -1275,6 +1275,9 @@
   <data name="MenuEntry.GraphOwn" xml:space="preserve">
     <value>Algunos elementos tienen el suyo</value>
   </data>
+  <data name="MenuEntry.SeparateFull" xml:space="preserve">
+    <value>4 superposiciones como máximo</value>
+  </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
   </data>
@@ -2147,6 +2150,9 @@
   </data>
   <data name="OverlayPageText.FadeHint" xml:space="preserve">
     <value>Deja ver lo que hay debajo cuando el puntero se acerca</value>
+  </data>
+  <data name="OverlayPageText.DirectionOnePill" xml:space="preserve">
+    <value>Vertical apila píldoras, y esta superposición tiene una</value>
   </data>
   <data name="UiText.Bits" xml:space="preserve">
     <value>Mostrar en bits por segundo</value>
