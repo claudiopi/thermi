@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
+import { flushSync } from 'react-dom';
 import type { ChartEmpty, ChartView, Edit, Line } from '../bridge/bridge.g';
 import { bridge } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
@@ -42,7 +43,8 @@ function useSize(): [RefObject<HTMLDivElement | null>, { width: number; height: 
       // The item page lays the chart beside its cards from 864 px of pane on, as item.css says.
       setSize({ width, height: chartHeight(width, pane.clientHeight, pane.clientWidth >= besideFrom) });
     };
-    const observer = new ResizeObserver(measure);
+    // Drawn at the new size in the frame that resized, as the monitor map is (overlay/pixels.ts).
+    const observer = new ResizeObserver(() => flushSync(measure));
     observer.observe(element);
     observer.observe(pane);
     return () => observer.disconnect();
