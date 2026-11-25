@@ -11,7 +11,7 @@
     {
       "id": "A2",
       "covers": ["R6"],
-      "description": "Given snapshots whose frame slots have no values, as from a service that could not start its session, and snapshots with no slots, as from a service from before, when the default overlay is laid out with a game in front, then FPS shows as missing.",
+      "description": "Given snapshots whose frame slots have no values, as from a service that could not start its session, and snapshots with no slots, as from a service from before, when the default overlay and the window's items are laid out with a game in front, then the overlay shows no FPS item and the window shows FPS as missing.",
       "check": "FramesThatCannotBeReadShowAsMissing",
       "passes": false
     },

@@ -15,7 +15,7 @@ Reading
 - R3. Frames are read for Direct3D 9 to 12, Vulkan and OpenGL, windowed, borderless and in exclusive full screen, on any GPU, with frame generation's frames counted.
 - R4. Within 2 s of another app coming to the front, the values are of that app.
 - R5. An app in front that stops presenting, as a game while it loads, reads 0 FPS and a frame time that grows with the wait, for 5 s; after that it presents nothing.
-- R6. While the app in front presents nothing (the desktop, a document), FPS and frame time items take no room in the overlay, and a pill left with nothing shows nothing. While frames cannot be read at all (a service from before, no trace session free), they show `–`.
+- R6. While the app in front presents nothing (the desktop, a document), FPS and frame time items take no room in the overlay, and a pill left with nothing shows nothing. While frames cannot be read at all (a service from before, no trace session free), they take no room in the overlay either, so no taskbar shows an FPS of `–` all day, and the window shows them as `–` with why.
 
 Items
 
