@@ -31,6 +31,9 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
   await openWindow(page);
   await select(page, 'Taskbar');
   const pane = page.getByRole('main');
+  // The pane's scroll is read through its element: once focus is in a modal dialog, its modalizer hides the pane from the
+  // roles, and a read by role would wait for the pane until the test times out.
+  const scroller = page.locator('main');
   const control = (role: 'radio' | 'slider' | 'switch' | 'combobox' | 'button', key: string, ...blanks: (string | number)[]): Locator =>
     pane.getByRole(role, { name: text(key, ...blanks) });
   const lookMenu = async (look: string, entry: string): Promise<void> => {
@@ -173,12 +176,13 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
     // Saved, the look is the one the overlay wears, and the page stays where it was.
     { name: 'Save as my look', act: async () => {
       await pressOn(control('button', 'OverlayPageText.SaveAsMyLook'), 'Enter');
-      savedFrom = await pane.evaluate((main) => main.scrollTop);
+      await expect(page.getByRole('dialog').getByRole('textbox')).toBeFocused();
+      savedFrom = await scroller.evaluate((main) => main.scrollTop);
       await nameAndEnter(page, 'Mine');
     }, read: async (state) => [
       Object.keys(state.looks).includes('Mine'),
       await tile('Mine').isChecked(),
-      await pane.evaluate((main) => main.scrollTop) - savedFrom,
+      await scroller.evaluate((main) => main.scrollTop) - savedFrom,
     ], expected: [true, true, 0] },
     { name: 'a look\'s Rename', act: async () => {
       await lookMenu('Mine', 'UiText.RenameStyle');
