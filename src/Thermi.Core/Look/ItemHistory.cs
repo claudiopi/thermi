@@ -212,10 +212,14 @@ public sealed class ItemHistory(TimeProvider time)
     /// The line of <see cref="Graph"/> for the last minute of <paramref name="meters"/>, what the item warns by a second
     /// and oldest first, as the window draws the minute the overlay sent it.
     /// </summary>
-    public static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, IReadOnlyList<double?> meters) =>
-        [.. meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).Select(value => value is { } read
-            ? new GraphPoint(OverlayLayout.FillOf(read), item.Threshold?.LevelOf(new Reading(SensorKind.Load, read)) ?? Level.Normal)
+    public static IReadOnlyList<GraphPoint?> GraphOf(ItemConfig item, IReadOnlyList<double?> meters)
+    {
+        // A fan's speed fills on its own scale, not as a load's percent.
+        var kind = Threshold.JudgedKind(item) ?? SensorKind.Load;
+        return [.. meters.Skip(Math.Max(0, meters.Count - (int)Kept.TotalSeconds)).Select(value => value is { } read
+            ? new GraphPoint(OverlayLayout.FillOf(read, kind), item.Threshold?.LevelOf(new Reading(kind, read)) ?? Level.Normal)
             : (GraphPoint?)null)];
+    }
 
     /// <summary>
     /// What an item warns by over the last ten minutes, its own reading unless it warns by another, a value a second and

@@ -53,7 +53,8 @@ public static class PowerEdits
 
             var language = texts ?? Texts.English;
             var first = sensors[0]!;
-            var item = new ItemConfig { Sensors = ids, Combine = combine, Name = Names.OfItem(config, first, ids[0], language) };
+            var name = Names.OfItem(config, first, ids[0], language, snapshot);
+            var item = new ItemConfig { Sensors = ids, Combine = combine, Name = Names.Stored(name, first, language) };
             return ItemEdits.Insert(config, overlay, first, item, language);
         });
 

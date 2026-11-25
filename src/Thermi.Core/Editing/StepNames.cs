@@ -79,9 +79,12 @@ internal static class StepNames
     private static (double? Warning, double? Critical) Lines(Threshold? threshold) => threshold is null ? default : (threshold.Warning, threshold.Critical);
 
     // A value is named as the file holds it, and a choice by its words; a group of fields has no single value to name.
-    // A metric's name stands for an item that stores none, named in the window's language when the step is told.
-    private static object? Value(object? value) => value is double or int or bool or string or Enum ? value : null;
+    // An item that stores no name is named in the window's language when the step is told.
+    private static object? Value(object? value) => value is double or int or bool or string or Enum or UnnamedItem ? value : null;
 }
+
+/// <summary>An item that stores no name, which a step names as the window names it when the step is told.</summary>
+public sealed record UnnamedItem(ItemConfig Item);
 
 /// <summary>
 /// The texts that tell a step, in the window's language and unit: "Critical 84 → 85 °C" on the Undo and Redo buttons, and
@@ -132,6 +135,7 @@ public static class StepTexts
         int number => number.ToString(format.Numbers),
         string text => text,
         MetricName name => format.Texts.Of(name),
+        UnnamedItem unnamed => Names.OfUnnamed(unnamed.Item, format.Known, format.Texts),
         Enum choice => format.Texts.OfChoice(choice),
         _ => null,
     };

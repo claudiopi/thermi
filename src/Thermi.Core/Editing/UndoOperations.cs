@@ -108,7 +108,8 @@ internal sealed record ItemPresence(int Overlay, int Index, ItemConfig Item, boo
 
     public ThermiConfig? Redo(ThermiConfig config) => Added ? Insert(config) : Remove(config);
 
-    private static object? NameOf(ItemConfig item) => item.Name ?? (object?)Metrics.Find(item.Metric ?? item.Auto)?.Name;
+    private static object NameOf(ItemConfig item) =>
+        item.Name ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? metric.Name : (object)new UnnamedItem(item));
 
     private ThermiConfig? Remove(ThermiConfig config)
     {

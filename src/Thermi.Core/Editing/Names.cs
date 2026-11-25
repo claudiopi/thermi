@@ -9,9 +9,10 @@ namespace Thermi.Core.Editing;
 /// <summary>
 /// The names and places of what an edit makes. A new item is named like the defaults, as "GPU temperature", with its
 /// sensor's own name in brackets when another item has that name, and a number when the same sensor is added again; it
-/// joins the pill of its device's kind. An overlay without a typed name is named from where it sits, with a number when one reads the same.
+/// joins the pill of its device's kind. A new item named only as thermi names its sensor stays unnamed in the file, so it
+/// reads in the window's language. An overlay without a typed name is named from where it sits, with a number when one reads the same.
 /// </summary>
-internal static class Names
+public static class Names
 {
     // The longest label a sensor of no known kind of device gets from its name; one typed by hand can be longer.
     private const int SensorLabelLength = 8;
@@ -24,12 +25,11 @@ internal static class Names
     /// The name of a new item that shows <paramref name="sensor"/>, under <paramref name="sensorId"/>. An item of the metric
     /// that picks that very sensor by name shows the same sensor, so the new one is numbered, not told apart by its sensor.
     /// </summary>
-    public static string OfItem(ThermiConfig config, RawSensor sensor, string sensorId, Texts texts)
+    public static string OfItem(ThermiConfig config, RawSensor sensor, string sensorId, Texts texts, Snapshot? known = null)
     {
         var picked = SensorMap.PickedBy(sensor)?.Id;
         var taken = config.Overlays.SelectMany(overlay => overlay.Items)
-            .Select(item => item with { Name = item.Name ?? (Metrics.Find(item.Metric ?? item.Auto) is { } metric ? texts.Of(metric.Name) : null) })
-            .Where(item => item.Name is not null)
+            .Select(item => item with { Name = item.Name ?? OfUnnamed(item, known, texts) })
             .ToList();
         var name = Base(config, sensor, sensorId, texts);
         bool Same(ItemConfig item)
@@ -48,9 +48,16 @@ internal static class Names
     }
 
     /// <summary>
+    /// The name a new item of <paramref name="sensor"/> keeps in the file: none when it is the one thermi gives that sensor
+    /// in <paramref name="texts"/>' language, so the window names it in its own language as the defaults are; else
+    /// <paramref name="name"/>, told apart, numbered or the sensor's name the user typed.
+    /// </summary>
+    public static string? Stored(string name, RawSensor sensor, Texts texts) => name == Base(sensor, texts) ? null : name;
+
+    /// <summary>
     /// <paramref name="renamed"/>, whose sensor <paramref name="sensorId"/> has a new name, with the items that show that
-    /// sensor alone under the name thermi gave them in <paramref name="before"/> named as a new item of it would be now;
-    /// an item renamed by hand, or made from a metric, keeps its name.
+    /// sensor alone under the name thermi gave them in <paramref name="before"/>, or none, named as a new item of it would
+    /// be now; an item renamed by hand, or made from a metric, keeps its name.
     /// </summary>
     public static ThermiConfig Renamed(ThermiConfig before, ThermiConfig renamed, RawSensor sensor, string sensorId, Texts texts)
     {
@@ -66,8 +73,7 @@ internal static class Names
         var ours = before.Overlays.SelectMany(overlay => overlay.Items)
             .Where(item => item is { Metric: null, Auto: null, Sensors: null }
                 && item.Sensor == sensorId
-                && item.Name is { } itemName
-                && given.Contains(itemName))
+                && (item.Name is null || given.Contains(item.Name)))
             .Select(item => item.Id)
             .ToList();
         var name = Base(renamed, sensor, sensorId, texts);
@@ -75,7 +81,7 @@ internal static class Names
         foreach (var id in ours)
         {
             var taken = config.Overlays.SelectMany(overlay => overlay.Items).Where(item => item.Id != id).Select(item => item.Name).ToList();
-            config = ConfigEdits.WithItem(config, id, item => item with { Name = Numbered(name, taken, texts) });
+            config = ConfigEdits.WithItem(config, id, item => item with { Name = Stored(Numbered(name, taken, texts), sensor, texts) });
         }
 
         return config;

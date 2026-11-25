@@ -42,6 +42,8 @@ const floating = { strategy: 'fixed' } as const;
 
 const useStyles = makeStyles({
   icon: { fontSize: '16px' },
+  // Above what the page places by itself, as the Position map's monitors, which drew through it; under dialogs (30).
+  popover: { zIndex: 20 },
 });
 
 function EntryIcon({ name }: { name: IconName }) {
@@ -52,11 +54,14 @@ function EntryIcon({ name }: { name: IconName }) {
 const iconOf = (name: IconName | undefined): ReactElement | null => (name === undefined ? null : <EntryIcon name={name} />);
 
 const chosenOf =(entries: readonly MenuEntry[]): string[] => entries.flatMap((entry) => (entry.kind === 'choice' && entry.chosen ? [entry.id] : []));
+// A menu with a check or a choice keeps the mark's room before every entry, so its texts line up, as Windows' menus do.
+const checksIn = (entries: readonly MenuEntry[]): boolean => entries.some((entry) => entry.kind === 'check' || entry.kind === 'choice');
 const checkedOf = (entries: readonly MenuEntry[]): string[] => entries.flatMap((entry) => (entry.kind === 'check' && entry.checked ? [entry.id] : []));
 
 /** An entry that opens its own entries beside it: Right or Enter opens them, Left or Esc goes back. */
 function Submenu({ text, icon, entries }: { text: string; icon: IconName | undefined; entries: readonly MenuEntry[] }) {
   const chosen = useRef<HTMLDivElement>(null);
+  const styles = useStyles();
   return (
     <FluentMenu
       checkedValues={{ [choices]: chosenOf(entries), [checks]: checkedOf(entries) }}
@@ -66,8 +71,8 @@ function Submenu({ text, icon, entries }: { text: string; icon: IconName | undef
       <MenuTrigger disableButtonEnhancement>
         <MenuItem icon={iconOf(icon)}>{text}</MenuItem>
       </MenuTrigger>
-      <MenuPopover>
-        <MenuList>
+      <MenuPopover className={styles.popover}>
+        <MenuList hasCheckmarks={checksIn(entries)}>
           {entries.map((entry) => (
             <Entry key={entry.id} entry={entry} chosen={chosen} />
           ))}
@@ -134,6 +139,7 @@ export function Menu({ trigger, entries, context = false, at, open: placed = fal
   const open = trigger === undefined ? placed : clicked;
   const chosen = useRef<HTMLDivElement>(null);
   const popover = useRef<HTMLDivElement>(null);
+  const styles = useStyles();
   useFocusOnOpen(open, chosen);
   usePlacedFocus(open && trigger === undefined, popover);
   const chosenOnes = chosenOf(entries);
@@ -147,8 +153,8 @@ export function Menu({ trigger, entries, context = false, at, open: placed = fal
     }
   };
   const list = (
-    <MenuPopover ref={fluentRef(popover)}>
-      <MenuList>
+    <MenuPopover ref={fluentRef(popover)} className={styles.popover}>
+      <MenuList hasCheckmarks={checksIn(entries)}>
         {entries.map((entry) => (
           <Entry key={entry.id} entry={entry} chosen={chosen} />
         ))}

@@ -28,14 +28,16 @@ public static class ItemEdits
             // A battery's rate is a few watts, so whole watts would hide most of its change.
             var language = texts ?? Texts.English;
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
-            var name = Names.OfItem(config, sensor, sensorId, language);
+            var name = Names.OfItem(config, sensor, sensorId, language, snapshot);
             var read = OtherGpu(config.Overlays[overlay], snapshot, sensor);
             var chip = read is not null && SensorMap.GpuAfter(sensor, read);
 
             var item = new ItemConfig
             {
                 Sensor = sensorId,
-                Name = read is null ? name : language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware),
+                Name = read is null
+                    ? Names.Stored(name, sensor, language)
+                    : language.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, sensor.Hardware),
                 Label = chip ? language.Of(NameText.OtherGpu) : null,
                 Decimals = decimals,
                 Own = read is not null && !chip,

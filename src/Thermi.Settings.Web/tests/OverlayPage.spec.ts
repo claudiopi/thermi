@@ -76,6 +76,20 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       read: (state) => overlayOf(state.settings, 1).style?.pills,
       expected: 'light',
     },
+    // Night QA: the look's "…" menu opens over the Position map, which drew through it; the menu takes the pointer there.
+    {
+      name: 'the look file menu over the map',
+      act: async () => {
+        await page.setViewportSize({ width: 1500, height: 900 });
+        await pane.getByRole('button', { name: text('OverlayPageText.LookFileActions') }).click();
+      },
+      read: async () => {
+        await page.getByRole('menuitem', { name: text('WindowText.CopyLookToAll') }).click({ trial: true, timeout: 1000 });
+        await page.keyboard.press('Escape');
+        return true;
+      },
+      expected: true,
+    },
     {
       name: 'Layout',
       act: () => chooseByKeys(page, control('combobox', 'UiText.LayoutField'), text('PillLayout.Each')),

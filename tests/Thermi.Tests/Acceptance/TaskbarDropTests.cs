@@ -48,6 +48,8 @@ public sealed class TaskbarDropTests
     [InlineData("1906,64", "TopRight 2002,64")]
     [InlineData("1905,64", "free 1905,64")]
     [InlineData("1992,18", "TopRight 2002,64")]
+    // Pushed past the monitor's edge, reach counts from where it would show, kept inside it.
+    [InlineData("2300,1320", "BottomRight 2002,1346")]
     // Alt held: no mark pulls it, and off the taskbar no reach either; on it, it stays on it where it was let go.
     [InlineData("alt 1600,1397", "Taskbar 1600,1397")]
     [InlineData("alt 18,1336", "free 18,1336")]

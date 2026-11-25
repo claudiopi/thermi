@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -196,8 +197,10 @@ public sealed class ReadableCatalogTests
 
     // A new item is named for what its sensor reads, added to the default overlay: as its metric, after an equals sign;
     // else by its device and the sensor's readable name, or that name alone; a duty says it is one, and a sensor a
-    // default item already shows takes a number.
+    // default item already shows takes a number. Named so by thermi alone, it stays unnamed in the file and reads in the
+    // window's language as if added in it (night QA: a GPU fan stayed "GPU fan" in Spanish); a told-apart name is kept.
     [Theory]
+    [InlineData("/gpu-nvidia/0/fan/1", DeviceKind.Gpu, "fan", "")]
     [InlineData("/nvme/0/data/31", DeviceKind.Ssd, "free space", "")]
     [InlineData("/nvme/0/load/30", DeviceKind.Ssd, "used space", "")]
     [InlineData("/nvme/0/temperature/0", DeviceKind.Ssd, "temperature", "")]
@@ -221,10 +224,23 @@ public sealed class ReadableCatalogTests
             _ => texts.Format(CultureInfo.InvariantCulture, NameText.Numbered, plain, form),
         };
         var snapshot = TestRecordings.Read(TestRecordings.NetDisk);
+        var spanish = Texts.Of("es");
+        ThermiConfig Added(Texts language)
+        {
+            return Done(ItemEdits.AddSensor(new ThermiConfig(), 0, snapshot, sensor, language));
+        }
 
-        var added = Done(ItemEdits.AddSensor(new ThermiConfig(), 0, snapshot, sensor)).Overlays[0].Items.Single(item => item.Sensor == sensor);
+        string? Shown(ThermiConfig config, Texts language)
+        {
+            return PageSettings.Of(config, language, snapshot).Overlays[0].Items.Single(item => item.Sensor == sensor).Name;
+        }
 
-        Assert.Equal(expected, added.Name);
+        var added = Added(texts);
+
+        Assert.Equal(expected, Shown(added, texts));
+        Assert.Equal(
+            form is "" or "duty" ? (null, Shown(Added(spanish), spanish)) : (expected, expected),
+            (added.Overlays[0].Items.Single(item => item.Sensor == sensor).Name, Shown(added, spanish)));
     }
 
     // QA round 5 (R5-08): a sensor of the CPU's graphics chip, beside a graphics card the GPU pill reads, starts an iGPU

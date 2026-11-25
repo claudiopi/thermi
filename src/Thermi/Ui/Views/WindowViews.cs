@@ -99,7 +99,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             screens);
 
     /// <summary>Numbers in the regional format, texts in the window's language, temperatures in the unit the settings choose.</summary>
-    public ValueFormat Format(Texts texts) => new(texts, CultureInfo.CurrentCulture, editor.Config.Temperature);
+    public ValueFormat Format(Texts texts) => new(texts, CultureInfo.CurrentCulture, editor.Config.Temperature) { Known = readings.Known(sensors.Latest) };
 
     /// <summary>A reading as the window writes it, with its unit; a missing one as the overlay's dash.</summary>
     public static string Text(Reading reading, ValueFormat format) =>

@@ -30,7 +30,11 @@ public enum UnitText
 /// How values and their words show: in the language of <see cref="Texts"/>, numbers in the regional format,
 /// temperatures in the chosen unit.
 /// </summary>
-public sealed record ValueFormat(Texts Texts, IFormatProvider Numbers, TemperatureUnit Temperature = TemperatureUnit.Celsius);
+public sealed record ValueFormat(Texts Texts, IFormatProvider Numbers, TemperatureUnit Temperature = TemperatureUnit.Celsius)
+{
+    /// <summary>The sensors known now, which name an item that stores no name of its own as its sensor is named.</summary>
+    public Snapshot? Known { get; init; }
+}
 
 /// <summary>Turns a reading into the short text the overlay shows.</summary>
 public static class ReadingFormatter

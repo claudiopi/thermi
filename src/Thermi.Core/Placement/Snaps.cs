@@ -214,9 +214,12 @@ public static class Snaps
             return null;
         }
 
+        // Pushed past a monitor's edge into its corner, the overlay is measured where it would show, kept inside.
+        var shown = Inside(at, screens, width, height);
         return Marks(screens, orientation, width, height)
                 .Where(mark => mark.Snap.Spot != SnapSpot.Taskbar)
-                .Select(mark => (mark.Snap, Distance: Distance(mark, at, ScreenOf(mark.Snap, screens)!), Reach: Scaled(Reach, ScreenOf(mark.Snap, screens)!)))
+                .Select(mark => (Mark: mark, Screen: ScreenOf(mark.Snap, screens)!))
+                .Select(each => (each.Mark.Snap, Distance: Distance(each.Mark, shown, each.Screen), Reach: Scaled(Reach, each.Screen)))
                 .Where(mark => mark.Distance <= mark.Reach)
                 .OrderBy(mark => mark.Distance)
                 .Select(mark => mark.Snap)

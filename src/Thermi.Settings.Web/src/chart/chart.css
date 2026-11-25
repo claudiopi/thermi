@@ -236,7 +236,9 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding-block: 2px;
+  /* Inside the span the line takes, 12 px in from the plot's edges (geometry.ts' pad), so a line flat at either end
+     runs past its number, never through it. */
+  padding-block: 15px;
   font-size: 11px;
   line-height: 14px;
   color: var(--thermi-text3);

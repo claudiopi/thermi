@@ -231,10 +231,37 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         return true;
     }
 
+    /// <summary>
+    /// Makes a floating overlay's resizing corner take a press across its whole square: a layered window lets clicks through
+    /// its fully transparent pixels, which a round pill leaves there, so they get an alpha of 1/255, which shows nothing.
+    /// </summary>
+    public static void HoldCorner(Bitmap bitmap, OverlayConfig overlay, float scale)
+    {
+        if (!Resizable(overlay))
+        {
+            return;
+        }
+
+        var side = (int)Math.Ceiling(CornerSize * scale);
+        var unseen = Color.FromArgb(1, 0, 0, 0);
+        for (var y = Math.Max(0, bitmap.Height - side); y < bitmap.Height; y++)
+        {
+            for (var x = Math.Max(0, bitmap.Width - side); x < bitmap.Width; x++)
+            {
+                if (bitmap.GetPixel(x, y).A == 0)
+                {
+                    bitmap.SetPixel(x, y, unseen);
+                }
+            }
+        }
+    }
+
+    private static bool Resizable(OverlayConfig overlay) => overlay.Snapped is null && !overlay.Locked;
+
     /// <summary>Whether <paramref name="cursor"/> is on the resizing corner of a floating overlay at <paramref name="at"/>.</summary>
     public static bool InCorner(OverlayConfig overlay, PaintedOverlay? painted, Position at, Position cursor)
     {
-        if (overlay.Snapped is not null || overlay.Locked || painted is null)
+        if (!Resizable(overlay) || painted is null)
         {
             return false;
         }

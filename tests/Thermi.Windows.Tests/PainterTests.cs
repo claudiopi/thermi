@@ -64,6 +64,27 @@ public sealed class PainterTests
         Assert.Equal(alpha, bitmap.GetPixel(1, 1).A);
     }
 
+    // Night QA: a press 4 px in from a round floating overlay's corner fell through to the window behind, as a layered
+    // window lets clicks through its transparent pixels. Its resizing corner catches the press across its whole square.
+    [Theory]
+    [InlineData("free", true)]
+    [InlineData("locked", false)]
+    [InlineData("taskbar", false)]
+    public void AFloatingOverlaysCornerCatchesThePressAcrossItsSquare(string overlay, bool catches)
+    {
+        using var painter = new Painter();
+        using var bitmap = painter.Paint(Layout(9), Look, 1);
+        var config = new OverlayConfig
+        {
+            Position = overlay == "taskbar" ? null : new Position(100, 100),
+            Locked = overlay == "locked",
+        };
+
+        Gestures.OverlayGestures.HoldCorner(bitmap, config, 1);
+
+        Assert.Equal(catches, bitmap.GetPixel(bitmap.Width - 1, bitmap.Height - 1).A > 0);
+    }
+
     // Cold review 4 (Q9): the open window marks the selected value with a short bar lying under it, as a tab's mark, never a
     // standing one beside its digits that reads as a text cursor.
     [Fact]
