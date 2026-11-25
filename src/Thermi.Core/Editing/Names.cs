@@ -19,13 +19,16 @@ public static class Names
 
     private const string RamWord = "Memory";
 
+    private static readonly string[] Marks = ["(TM)", "(R)", "™", "®"];
+
     private static readonly SnapSpot[] Corners = [SnapSpot.TopRight, SnapSpot.BottomRight, SnapSpot.BottomLeft, SnapSpot.TopLeft];
 
     /// <summary>
     /// The name of a new item that shows <paramref name="sensor"/>, under <paramref name="sensorId"/>. An item of the metric
     /// that picks that very sensor by name shows the same sensor, so the new one is numbered, not told apart by its sensor.
+    /// <paramref name="byDevice"/>, as for a second GPU's, it is told apart by its device from the start.
     /// </summary>
-    public static string OfItem(ThermiConfig config, RawSensor sensor, string sensorId, Texts texts, Snapshot? known = null)
+    public static string OfItem(ThermiConfig config, RawSensor sensor, string sensorId, Texts texts, Snapshot? known = null, bool byDevice = false)
     {
         var picked = SensorMap.PickedBy(sensor)?.Id;
         var taken = config.Overlays.SelectMany(overlay => overlay.Items)
@@ -37,11 +40,15 @@ public static class Names
             return item.Sensor == sensorId || (item is { Sensor: null, Sensors: null } && picked is not null && (item.Metric ?? item.Auto) == picked);
         }
 
-        if (taken.Exists(item => item.Name == name) && !taken.Exists(item => item.Name == name && Same(item)))
+        if (byDevice)
+        {
+            name = texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, Bare(sensor.Hardware));
+        }
+        else if (taken.Exists(item => item.Name == name) && !taken.Exists(item => item.Name == name && Same(item)))
         {
             // A name that already says the sensor's own is told apart by its device instead.
             var apart = name.Contains(sensor.Name, StringComparison.OrdinalIgnoreCase) ? sensor.Hardware : sensor.Name;
-            name = texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, apart);
+            name = texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, name, Bare(apart));
         }
 
         return Numbered(name, [.. taken.Select(item => item.Name)], texts);
@@ -64,7 +71,7 @@ public static class Names
         var count = before.Overlays.Sum(overlay => overlay.Items.Count) + 1;
         var old = Base(before, sensor, sensorId, texts);
         var given = new[] { sensor.Name, sensor.Hardware }
-            .Select(apart => texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, old, apart))
+            .Select(apart => texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, old, Bare(apart)))
             .Prepend(old)
             .SelectMany(form => Enumerable.Range(2, count)
                 .Select(number => texts.Format(CultureInfo.InvariantCulture, NameText.Numbered, form, number))
@@ -154,6 +161,20 @@ public static class Names
         var (english, own) = metric is null ? (Texts.English.Of(device), texts.Of(device)) : (Texts.English.Of(metric.Label), texts.Of(metric.Label));
         var last = labels.ToList().FindLastIndex(label => label == english || label == own);
         return last < 0 ? (items.Count, own) : (ItemEdits.PillOf(overlay, last).Last + 1, labels[last]!);
+    }
+
+    // What tells an item apart goes in brackets, so it holds none of its own, nor a maker's marks: "CCD2 (Tdie)" is "CCD2".
+    private static string Bare(string name)
+    {
+        var bare = name;
+        foreach (var mark in Marks)
+        {
+            bare = bare.Replace(mark, "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var bracket = bare.IndexOf('(', StringComparison.Ordinal);
+        bare = (bracket > 0 ? bare[..bracket] : bare).Trim();
+        return bare.Length == 0 ? name : bare;
     }
 
     // A sensor the user named gives its items that name.

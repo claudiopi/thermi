@@ -210,7 +210,10 @@ public sealed class ReadableCatalogTests
     [InlineData("/lpc/it8689e/0/control/0", null, "=fan.cpu.duty", "")]
     [InlineData("/amdcpu/0/power/0", null, "=cpu.power", "2")]
     [InlineData("/gpu-nvidia/0/clock/0", DeviceKind.Gpu, "frequency", "")]
-    [InlineData("/gpu-amd/0/clock/0", DeviceKind.Gpu, "frequency", "apart")]
+    // Told apart by its device or sensor without their brackets or makers' marks (night QA: "CPU temperature (CCD2 (Tdie))").
+    [InlineData("/gpu-amd/0/clock/0", DeviceKind.Gpu, "frequency", "apart AMD Radeon Graphics")]
+    [InlineData("/amdcpu/0/temperature/4", DeviceKind.Cpu, "temperature", "apart CCD2")]
+    [InlineData("/gpu-amd/0/load/0", DeviceKind.Gpu, "load", "apart AMD Radeon Graphics")]
     public void ANewItemIsNamedForWhatItsSensorReads(string sensor, DeviceKind? device, string name, string form)
     {
         var texts = Texts.English;
@@ -220,7 +223,7 @@ public sealed class ReadableCatalogTests
         {
             "duty" => texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, plain),
             "" => plain,
-            "apart" => texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, plain, "AMD Radeon(TM) Graphics"),
+            _ when form.StartsWith("apart ", StringComparison.Ordinal) => texts.Format(CultureInfo.InvariantCulture, NameText.AfterSensor, plain, form[6..]),
             _ => texts.Format(CultureInfo.InvariantCulture, NameText.Numbered, plain, form),
         };
         var snapshot = TestRecordings.Read(TestRecordings.NetDisk);

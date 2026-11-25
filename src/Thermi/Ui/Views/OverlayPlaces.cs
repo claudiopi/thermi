@@ -18,16 +18,19 @@ internal static class OverlayPlaces
     public static IReadOnlyList<Rect?> Of(ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens)
     {
         using var painter = new Painter();
-        var places = new List<Rect?>(config.Overlays.Count);
+        var sizes = new List<PixelRect?>(config.Overlays.Count);
         for (var at = 0; at < config.Overlays.Count; at++)
         {
             var overlay = config.Overlays[at];
             var shown = ThermiMark.Overlay(config, at, input, windowOpenedOnce: true);
             var look = OverlayLook.Of(overlay.Style, input.LightTaskbar);
             var size = painter.Measure(shown.Items, look, OverlayWindow.ScaleOf(96, overlay, screens));
-            places.Add(Snaps.Locate(overlay, screens, size.Width, size.Height) is { } corner ? new Rect(corner.X, corner.Y, size.Width, size.Height) : null);
+            sizes.Add(new PixelRect(0, 0, size.Width, size.Height));
         }
 
-        return places;
+        // Overlays sharing a taskbar are laid out together, as the overlays place themselves.
+        return [.. sizes.Select((size, at) => TaskbarRow.Locate(config.Overlays, at, screens, (size!.Value.Width, size.Value.Height), sizes) is { } corner
+            ? new Rect(corner.X, corner.Y, size.Value.Width, size.Value.Height)
+            : null)];
     }
 }

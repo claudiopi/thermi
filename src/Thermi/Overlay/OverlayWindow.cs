@@ -196,7 +196,8 @@ internal sealed class OverlayWindow : IDisposable
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
-        var at = heldAt ?? Snaps.Locate(overlay, scene.Screens, bitmap.Width, bitmap.Height, running) ?? WindowPosition();
+        var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
+        var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, _shown);
         if (!_shown)

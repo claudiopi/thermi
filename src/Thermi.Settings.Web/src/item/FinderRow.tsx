@@ -137,7 +137,8 @@ export function FinderRow({ data, item, onUseFan }: FinderRowProps) {
   const pick = finder?.pick ?? null;
   const fan = data.sensors.sensors.find((sensor) => sensor.id === pick);
   const found = fan === undefined ? (finder?.text ?? '') : t('FanFinderOutcome.Found', fan.name);
-  const used = pick !== null && item.sensor === pick;
+  // On Auto, the item uses the fan Auto picks.
+  const used = pick !== null && (item.sensor ?? data.view.items[item.id]?.auto) === pick;
   const detail = used ? t('CatalogText.AlreadyUsed') : (finder?.detail ?? null);
   const handleStart = (): void => {
     ask(false);

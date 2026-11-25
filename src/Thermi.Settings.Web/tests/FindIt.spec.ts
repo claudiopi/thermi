@@ -22,6 +22,14 @@ test('FindItRunsInTheSensorRow', async ({ page }) => {
   await expect.poll(async () => (await fakeOf(page)).finder.phase).toBe('cancelled');
   await expect(row.getByRole('progressbar')).toBeHidden();
 
+  // Night QA: the fan Auto already picks is found, which the item uses, so nothing is offered to use.
+  await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
+  await row.getByRole('button', { name: text('CatalogText.LoadCpu') }).press('Enter');
+  await setFake(page, { finder: { phase: 'done', pick: '/lpc/it8689e/0/fan/0' } });
+  await expect(row.getByRole('button', { name: text('CatalogText.Dismiss') })).toBeVisible();
+  await expect(row.getByRole('button', { name: text('CatalogText.UseIt') })).toHaveCount(0);
+  await row.getByRole('button', { name: text('CatalogText.Dismiss') }).press('Enter');
+
   await row.getByRole('button', { name: text('CatalogText.FindIt') }).press('Enter');
   await row.getByRole('button', { name: text('CatalogText.LoadCpu') }).press('Enter');
   await setFake(page, { finder: { phase: 'done', pick: boardFan } });

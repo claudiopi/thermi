@@ -1595,6 +1595,15 @@
       "description": "Given the CPU temperature item on Auto with a chart of the window's readings, when its Sensor is set to a cooler CCD for a few seconds and undone, then its chart holds only the seconds of the sensor Auto picks, none of the CCD's.",
       "check": "AChartUndoneBackToAutoShowsOnlyTheAutomaticPick",
       "passes": true
+    },
+    {
+      "id": "A339",
+      "covers": [
+        "R30"
+      ],
+      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, and the one beside the notification area, or dropped past it, stays there, pushing the one before it back; two that do not overlap stay where their snaps put them.",
+      "check": "OverlaysOnOneTaskbarNeverCoverEachOther",
+      "passes": true
     }
   ]
 }

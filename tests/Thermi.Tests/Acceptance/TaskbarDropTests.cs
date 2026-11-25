@@ -182,5 +182,29 @@ public sealed class TaskbarDropTests
         Assert.Equal(high, (int)Math.Ceiling(OverlayLook.PillHeight * screen.Scale * size));
     }
 
+    // Night QA: two overlays side by side on the taskbar, and one raised to 200 % covered its neighbour. Each overlay as
+    // `offset:width` along the taskbar, or `tray:width` beside the notification area, 38 px high; where each shows. One
+    // that grows pushes the next along, and the last keeps to the notification area's edge, pushing the others back.
+    [Theory]
+    [InlineData("8:308 tray:319", "8 1883")]
+    [InlineData("1567:432 tray:319", "1443 1883")]
+    [InlineData("100:600 650:300", "100 708")]
+    [InlineData("1500:600 2000:500", "1392 2000")]
+    public void OverlaysOnOneTaskbarNeverCoverEachOther(string overlays, string shown)
+    {
+        var each = overlays.Split(' ').Select(overlay => overlay.Split(':')).ToList();
+        var configs = each.Select(words => new OverlayConfig
+        {
+            Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = words[0] == "tray" ? null : int.Parse(words[0], CultureInfo.InvariantCulture) },
+        }).ToList();
+        var widths = each.Select(words => int.Parse(words[1], CultureInfo.InvariantCulture)).ToList();
+        var boxes = widths.Select(width => (PixelRect?)new PixelRect(0, 0, width, Height)).ToList();
+
+        var places = Enumerable.Range(0, configs.Count).Select(index => TaskbarRow.Locate(configs, index, [Pc], (widths[index], Height), boxes)!).ToList();
+
+        Assert.Equal(shown, string.Join(' ', places.Select(place => place.X.ToString(CultureInfo.InvariantCulture))));
+        Assert.All(places, place => Assert.Equal(1397, place.Y));
+    }
+
     private static int[] Numbers(string word) => [.. word.Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture))];
 }
