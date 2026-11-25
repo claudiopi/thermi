@@ -1,7 +1,7 @@
 # 004-updates: Tasks
 
-> Progress: 26 / 29
-> Current block: B8
+> Progress: 26 / 35
+> Current block: B10
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
 
@@ -64,8 +64,25 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 - [x] **T29** Covers R25: opening About asks the service for a check, its line says it checks, and Restart to update switches the version ready; A16 to A18 first, red, then A19 live.
 
-## Decisions
+## B10: Without administrator rights: the decisions
 
+- [x] **T30** Covers R26–R33: `docs/adr/0016-admin-on-demand.md`, the requirements and their acceptance steps.
+
+## B11: The user's host
+
+- [ ] **T31** Covers R27, R28: Core's choice of pipe and the overlay's owner check, A20 red first; `thermi-sensors --user` on the user's pipe, ending with its last client, A21.
+- [ ] **T32** Covers R32: the updater on the user's folder, its watchdog as the user, and the control pipe, A23 and A24.
+
+## B12: Install for everyone
+
+- [ ] **T33** Covers R29, R33: the manifest's MSI entries, A25; the download, its checks and `msiexec` behind `runas`, A22; the fix's offer in the overlay and the window.
+- [ ] **T34** Covers R26, R30, R31: the per-user MSI, `ADDDRIVER`, and the removal of the per-user install once the service serves.
+
+## B13: Proof
+
+- [ ] **T35** A26 and A27 by hand, the reviewer and the cold reviews again.
+
+## Decisions
 - The owner approved the whole of this spec in advance on 2026-11-24 ("yo apruebo todo desde ahora"), since every spec is rewritten as a clean v1 before the first public release; each choice below is the recommended one.
 - Side by side behind .NET's own app host rather than an MSI per update: measured on this PC, an app host written to start `v1\probe.dll` runs the runtime and every assembly from `v1\`, and after it is renamed aside and replaced by one for `v2\`, a process started before keeps loading from `v1\` while a new one runs `v2\`. A junction is not resolved by the host, so it was dropped.
 - The tray icons keep their ids across versions because the executable's path never changes; Windows ties an icon's id to that path. Measured: a running overlay whose executable is renamed aside still updates, removes and adds its icons.
@@ -124,3 +141,4 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - Review round 11: About's restart waits out a check under way rather than drop the code, one restart waiting at a time; the users' copy of the state is looked for again when a newer one replaced it mid-read, as About now reads it each second; a start that throws is logged by the service, since with AutoLog off Windows logs no reason; a clock set back neither says it checks nor stops About from asking; the prune moved to InstallFolder; whether an overlay says its session is quiet is Core's UpdateSchedule.SaysQuiet. Accepted: no page test renders Restart to update, which only a real ready version shows; it is checked live in A19 and is the kit's accent button that axe passes elsewhere.
 - Review round 12, accepted: the state copy's retry and the start's report have no test, since one needs a copy deleted between a listing and its read and the other a service's protected start; both are one catch each, read in review. One restart waiting at a time is read in review too: a test would need a check held open mid-way.
 - A19 live on the author's PC, rebased onto spec 002's 0831f6d, its window driven over WebView2's debugging port with the owner's session disconnected: About said it checks, then 0.9.8 ready with Restart to update within 2 s. Closing the window let the disconnected session, which counts as locked, switch to 0.9.8. With 0.9.9 published, Restart to update began the switch within a second and closed the window, and the overlay handed over. Opened twice within a minute, About checked once. A rollback took the PC back to 0.9.8 at the new service's first check. Learned: an ask is heeded once a minute per service process, so a switch's restart lets the next ask through; and an install by hand under a later version kept the later one, as AdoptAsync says.
+- Admin on demand, asked by the owner on 2026-11-25 through the session of spec 002 ("Sumalo y decile que lo haga sobre lo último"), since competitors sell "no admin needed": thermi installs per user without a prompt, and one prompt adds the machine install, the service and the driver. The user's host takes a pipe named for the user's SID rather than the service's name, which was the first ask: one user's host would hold the name against the service and every other session. The prompt runs the machine MSI through `msiexec`, not `sc.exe`, since a per-user install has no service to start yet; it names thermi's signed publisher. `docs/adr/0016-admin-on-demand.md` holds the rest.
