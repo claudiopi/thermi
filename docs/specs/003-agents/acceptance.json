@@ -1,0 +1,110 @@
+{
+  "spec": "003-agents",
+  "steps": [
+    {
+      "id": "A1",
+      "covers": ["R1"],
+      "description": "Given the built thermi-cli, when it is run with config from PowerShell, cmd and Git Bash, each without Start-Process, then the shell waits for it, its JSON is what the shell captured, and its exit code is the shell's; with no command, it prints its help on stderr, exits 2 and starts no overlay.",
+      "check": "TheCliWaitsAndAnswersInEveryShell",
+      "passes": false
+    },
+    {
+      "id": "A2",
+      "covers": ["R2"],
+      "description": "Given each command and each way it can end (done, refused, bad arguments, no service, broken file), when it runs, then stdout holds one JSON document with schema 1 or nothing, stderr says why it did not finish, and the exit code is 0, 1, 2, 3 or 4 as spec.md lists.",
+      "check": "EveryCommandEndsWithItsCode",
+      "passes": false
+    },
+    {
+      "id": "A3",
+      "covers": ["R3", "R5"],
+      "description": "Given a recorded feed and no overlay or window running, when status, read, sensors, config and edit run, then each answers as with an overlay running, and status says no overlay runs; with the service stopped, stale, or its pipe taken, status says which, and with the no-driver recording, that the driver looks missing.",
+      "check": "AgentsNeedNoOverlay",
+      "passes": false
+    },
+    {
+      "id": "A4",
+      "covers": ["R4"],
+      "description": "Given the code of every command and of the MCP server, when it is searched, then none reaches the elevated mode, the runas verb, the service manager's start or the driver's install.",
+      "check": "AgentsNeverElevate",
+      "passes": false
+    },
+    {
+      "id": "A5",
+      "covers": ["R6", "R8"],
+      "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item, then those three alone; the CPU fan is the chosen one; each value has its unit; a CPU temperature of 0 in the no-driver recording is null with why; and each item's level and thresholds are what the overlay's layout gives for the same snapshot.",
+      "check": "ReadGivesWhatTheOverlayShows",
+      "passes": false
+    },
+    {
+      "id": "A6",
+      "covers": ["R7"],
+      "description": "Given a recorded series of 45 s, when read --seconds 10 runs on a fake clock, then each value's minimum, maximum, average and count are those of its 10 samples, a sample it could not read counts in none of them, and 0 or 61 seconds exits 2.",
+      "check": "ReadSamplesGiveMinMaxAverage",
+      "passes": false
+    },
+    {
+      "id": "A7",
+      "covers": ["R9", "R10"],
+      "description": "Given a recording and settings with two overlays, when sensors runs with a search and a type, and config runs, then sensors gives the devices and sensors the window's search finds for them, each with id, name, type, unit and value, and config gives both overlays with every item's id.",
+      "check": "SensorsAndConfigAnswerAsTheWindow",
+      "passes": false
+    },
+    {
+      "id": "A8",
+      "covers": ["R11"],
+      "description": "Given settings and a recording, when edit runs with an item's name, a threshold, a new overlay and an item added, and then with a threshold whose warning is above its critical and an unknown item, then the first four are written as the window writes them, and each of the others exits 1 with its refusal's key and English text and leaves the file byte for byte.",
+      "check": "AgentEditsAreTheWindowsEdits",
+      "passes": false
+    },
+    {
+      "id": "A9",
+      "covers": ["R12"],
+      "description": "Given an overlay host running on the test's own settings, when an agent's edit and an overlay drag are written at once, many times, then the file holds both every time, and the overlay paints the agent's change within 1 s.",
+      "check": "AgentEditsKeepOthersChanges",
+      "passes": false
+    },
+    {
+      "id": "A10",
+      "covers": ["R13"],
+      "description": "Given a settings file broken by hand, when edit runs, then it exits 4 with the problem and the file is unchanged byte for byte.",
+      "check": "ABrokenFileRefusesAgentEdits",
+      "passes": false
+    },
+    {
+      "id": "A11",
+      "covers": ["R14"],
+      "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, edit, undo and redo, each answers the command's JSON, and a refused edit or a stopped service is a tool error saying why.",
+      "check": "McpToolsAreTheCommands",
+      "passes": false
+    },
+    {
+      "id": "A12",
+      "covers": ["R15"],
+      "description": "Given an MCP session that set two items' names, and one of them renamed since by hand, when undo runs twice and redo once, then the other item's name is back, the hand edit stays, and redo sets the other name again.",
+      "check": "McpUndoTakesBackOnlyItsOwn",
+      "passes": false
+    },
+    {
+      "id": "A13",
+      "covers": ["R16"],
+      "description": "Given thermi installed and thermi-cli added to Claude Code with the README's one command, when the author asks a new session how hot the CPU is and then to set its warning at 70 °C, then the answer matches the overlay, and the overlay shows the new warning. Then the same in Claude Desktop.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A14",
+      "covers": ["R17"],
+      "description": "Given a service pipe of the test's own with a session share of 4, and four MCP servers that each made a read and wait idle, when an overlay's client connects, then it reads; and a read --seconds 2 has hung up 2 s after it connected.",
+      "check": "AgentsNeverHoldThePipe",
+      "passes": false
+    },
+    {
+      "id": "A15",
+      "covers": ["R18"],
+      "description": "Given the installed build, when scripts/measure.ps1 runs with and without -Window, then the overlay, the window and the service stay within their budgets.",
+      "check": "by hand",
+      "passes": false
+    }
+  ]
+}
