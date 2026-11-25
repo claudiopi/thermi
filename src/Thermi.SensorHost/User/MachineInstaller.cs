@@ -25,8 +25,11 @@ internal sealed class MachineInstaller(
     /// <summary>Whether an install runs now, which keeps the host alive past its last client.</summary>
     public bool Running => Volatile.Read(ref _running) == 1;
 
-    /// <summary>Installs thermi for everyone: what it came to, null when another install runs already.</summary>
-    public async Task<MachineInstallOutcome?> RunAsync(Func<string, Task<int>> msiexec, CancellationToken stop)
+    /// <summary>
+    /// Installs thermi for everyone: what it came to, null when another install runs already. <paramref name="worked"/> runs
+    /// once it installed, while the lock is still held.
+    /// </summary>
+    public async Task<MachineInstallOutcome?> RunAsync(Func<string, Task<int>> msiexec, CancellationToken stop, Action? worked = null)
     {
         if (Interlocked.Exchange(ref _running, 1) == 1)
         {
@@ -38,7 +41,13 @@ internal sealed class MachineInstaller(
             await busy.WaitAsync(stop);
             try
             {
-                return await InstallHeldAsync(msiexec, stop);
+                var outcome = await InstallHeldAsync(msiexec, stop);
+                if (outcome == MachineInstallOutcome.Installed)
+                {
+                    worked?.Invoke();
+                }
+
+                return outcome;
             }
             finally
             {

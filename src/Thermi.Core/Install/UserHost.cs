@@ -26,6 +26,13 @@ public static class UserHost
     // A host that ends sooner than this after its start failed to start, rather than ran out of clients.
     private static readonly TimeSpan QuickEnd = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// Whether the install at <paramref name="top"/> is a per-user one, under the user's <paramref name="localAppData"/>:
+    /// only such a host updates itself and offers to install for everyone, and only its window offers that.
+    /// </summary>
+    public static bool PerUserInstall(string top, string localAppData) =>
+        Inside(Path.Combine(top, "thermi.exe"), localAppData);
+
     public static string Pipe(bool serviceInstalled, string user) => serviceInstalled ? ServicePipe : PipeOf(ServicePipe, user);
 
     /// <summary>The user's own host's pipe, named after <paramref name="pipeName"/>, the service's but in tests.</summary>

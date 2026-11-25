@@ -18,7 +18,7 @@ public sealed class MachineInstallTests
 
     // The channel, the file it serves and the policy; what msiexec answers; and what the install came to, with the bytes
     // msiexec got and whether anyone could change them while it ran, no outcome written while a switch holds the state, and
-    // in a release build none run that thermi's certificate did not sign.
+    // in a release build none run that thermi's certificate did not sign. msiexec runs under the updater's lock.
     // Which MSI a manifest offers is Core's, and its tests'.
     [Theory]
     [InlineData("offered", 0, MachineInstallOutcome.Installed, true)]
@@ -46,6 +46,8 @@ public sealed class MachineInstallTests
         var install = new MachineInstaller(pc.Build(catalog: channel == "unsigned"), pc.Folder(), client, host, pc.Clock, log, busy);
         byte[]? seen = null;
         var changed = true;
+        var held = -1;
+        var worked = false;
 
         // A switch's watchdog holding the lock throughout: the install runs, and writes nothing over the switch's state.
         await using var watchdog = channel == "switch held"
@@ -57,9 +59,11 @@ public sealed class MachineInstallTests
             {
                 seen = await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken);
                 changed = Writable(path);
+                held = busy.CurrentCount;
                 return answer;
             },
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken,
+            worked: () => worked = busy.CurrentCount == 0);
 
         // The clock steps on while the install waits for the lock, as the time it gives each try passes.
         while (!running.IsCompleted)
@@ -68,9 +72,12 @@ public sealed class MachineInstallTests
             await Task.WhenAny(running, Task.Delay(TimeSpan.FromMilliseconds(5), TimeProvider.System, TestContext.Current.CancellationToken));
         }
 
-        await running;
+        var returned = await running;
 
         Assert.Equal((outcome, ran, ran), (pc.State.MachineInstall?.Outcome, seen?.SequenceEqual(Msi) == true, ran && !changed));
+
+        // msiexec runs under the updater's lock, and what follows a good install runs before it is let go.
+        Assert.Equal((outcome ?? MachineInstallOutcome.Installed, ran ? 0 : -1, returned == MachineInstallOutcome.Installed), (returned, held, worked));
         Assert.Empty(Directory.EnumerateFiles(pc.Folder().Update, "machine-*"));
     }
 

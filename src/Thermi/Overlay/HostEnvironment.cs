@@ -53,23 +53,7 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     // or crashes takes it away. Any program in the session can make one of the name too: the overlay then believes the
     // window open, which only changes how it looks and rests its hotkeys, and such a program could already do worse as
     // the user.
-    public bool WindowOpen()
-    {
-        try
-        {
-            if (!Mutex.TryOpenExisting(WindowMutex, out var mutex))
-            {
-                return false;
-            }
-
-            mutex.Dispose();
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
+    public bool WindowOpen() => NamedMutex.Exists(WindowMutex);
 
     /// <summary>
     /// Opens the window on an overlay, by its place, and an item to select, as <c>thermi settings --overlay n --item id</c>:

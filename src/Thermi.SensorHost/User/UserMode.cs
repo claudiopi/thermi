@@ -104,7 +104,8 @@ internal static class UserMode
         Act(updater, log, updates => updates.Started());
 
         // Windows ends the process right after: the mark is written now, or the end counts as a crash.
-        using var session = environment.SessionEnds?.Invoke(() => Act(updater, log, updates => updates.Stopped()));
+        using var session = environment.SessionEnds?.Invoke(
+            () => Act(updater, log, updates => updates.Stopped()), failed => log.Say(failed, EventLogEntryType.Warning));
         var waits = events.Select(each => Listen(each, new Steering(updater, machine, log), done)).ToList();
         try
         {
@@ -165,7 +166,8 @@ internal static class UserMode
             {
                 if (hostEvent.Code is not { } code)
                 {
-                    done.Cancel();
+                    // Off this thread: what the cancel completes inline would otherwise wait for this very callback to return.
+                    _ = Task.Run(() => End(done), CancellationToken.None);
                 }
                 else if (!done.IsCancellationRequested)
                 {
@@ -187,12 +189,9 @@ internal static class UserMode
         switch (code)
         {
             case InstallForEveryone.Code:
-                // The service serves now: its clients, the window's included, come back to it once this host is gone.
-                if (await machine.RunAsync(MachineInstaller.MsiexecAsync, stop) == MachineInstallOutcome.Installed)
-                {
-                    End(done);
-                }
-
+                // The service serves now: its clients, the window's included, come back to it once this host is gone, which
+                // ends before the updater's lock is let go, so no switch begins after.
+                await machine.RunAsync(MachineInstaller.MsiexecAsync, stop, worked: () => End(done));
                 break;
             case UpdateSchedule.CheckCode:
                 await updater.AskedAsync(stop);
@@ -221,10 +220,7 @@ internal static class UserMode
     // A per-user install's alone: a machine install whose service is missing, started as the user, updates nothing and offers
     // no install for everyone over itself.
     private static InstallFolder? PerUser(InstallFolder? folder) =>
-        folder is not null && folder.Top.StartsWith(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-            ? folder
-            : null;
+        folder is not null && UserHost.PerUserInstall(folder.Top, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)) ? folder : null;
 
     // What the updater meets is written to the log and never ends the host.
     private static void Act(Updater? updater, FileLog log, Action<Updater> step)

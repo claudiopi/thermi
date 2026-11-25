@@ -16,7 +16,6 @@ namespace Thermi.SensorHost.User;
 /// </summary>
 internal sealed class UserSetup(InstallFolder folder, string pipe, SecurityIdentifier user) : ISystemSetup
 {
-
     public string? ImagePath(string service)
     {
         var installed = service == SensorService.Name ? folder.Read().Installed : null;

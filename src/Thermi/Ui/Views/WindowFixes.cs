@@ -34,7 +34,8 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
     /// </summary>
     public async Task<DriverInstall> InstallDriver()
     {
-        if (SensorPipes.PerUser)
+        var perUser = SensorPipes.PerUserInstall;
+        if (perUser)
         {
             // The user's host ends once the install worked, and the window reads the service's pipe instead.
             if (!await InstallForEveryoneAsync())
@@ -48,7 +49,9 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
         }
 
         var start = time.GetTimestamp();
-        for (; time.GetElapsedTime(start) < DriverReadsWithin; await Task.Delay(DriverPoll, time))
+        // After an install for everyone, the driver's own download and install go on once msiexec is done.
+        var within = perUser ? DriverReadsWithin + Commands.InstallDriver.DownloadWait + Commands.InstallDriver.InstallWait : DriverReadsWithin;
+        for (; time.GetElapsedTime(start) < within; await Task.Delay(DriverPoll, time))
         {
             if (environment.Sensors.Latest is { } snapshot && !SensorMap.DriverMayBeMissing(snapshot))
             {

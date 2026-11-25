@@ -362,7 +362,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             _watch.Hotkeys,
             _editor.Problem,
             _views.Format(_texts));
-        return status with { LightTaskbar = _lightTaskbar, ForEveryone = SensorPipes.PerUser };
+        return status with { LightTaskbar = _lightTaskbar, ForEveryone = SensorPipes.PerUserInstall };
     }
 
     // An undo or a redo, named before it runs, and what it changed back once it did; null when it changed nothing.

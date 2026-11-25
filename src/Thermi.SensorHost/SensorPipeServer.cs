@@ -32,6 +32,9 @@ internal sealed class SensorPipeServer(
     // ERROR_NO_DATA as an HRESULT: the client closed its end.
     private const int PipeBeingClosed = unchecked((int)0x800700E8);
 
+    // ERROR_PIPE_BUSY.
+    private const int PipeBusy = unchecked((int)0x800700E7);
+
     // A client that stops reading is dropped after this long, and never delays the others meanwhile.
     public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(2);
 
@@ -300,7 +303,8 @@ internal sealed class SensorPipeServer(
         {
             return NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, MaxClients, PipeTransmissionMode.Byte, options, 0, 64 * 1024, _security);
         }
-        catch (UnauthorizedAccessException) when (first)
+        // Held by someone else: refused, or, made with room for no more instances, all busy.
+        catch (Exception ex) when (first && (ex is UnauthorizedAccessException || ex.HResult == PipeBusy))
         {
             Closed();
             return null;

@@ -171,8 +171,9 @@ public sealed class SensorProgramTests : IAsyncDisposable
         Assert.Equal((false, 0, false, 0), (lingered, served, early, alone));
     }
 
-    // Spec 004, A24: the host's stop event ends it while a client still reads, and an event someone made before the host
-    // keeps it from running at all, so no other process steers it.
+    // Spec 004, A24: the host's stop event ends it while a client still reads, or while another program holds its pipe's
+    // name, and an event someone made before the host, even one that shuts the user out, keeps it from running at all, so
+    // no other process steers it.
     [Fact]
     public async Task TheUsersHostIsSteeredOnlyByItsOwnEvents()
     {
@@ -189,10 +190,42 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
         await PassAsync(TimeSpan.FromSeconds(2), serving);
         var stopped = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
-        using var first = new EventWaitHandle(false, EventResetMode.AutoReset, UserHost.EventOf(pipe, "129"));
-        var refused = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        int squatted;
+        await using (new NamedPipeServerStream(pipe, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous))
+        {
+            var held = RunAsync(["--user"]);
+            await StopWhenMadeAsync(pipe);
+            await PassAsync(TimeSpan.FromSeconds(2), held);
+            squatted = await held.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        }
 
-        Assert.Equal((0, UserMode.Taken), (stopped, refused));
+        int refused;
+        using (new EventWaitHandle(false, EventResetMode.AutoReset, UserHost.EventOf(pipe, "129")))
+        {
+            refused = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        var deny = new EventWaitHandleSecurity();
+        deny.AddAccessRule(new EventWaitHandleAccessRule(user.User, EventWaitHandleRights.FullControl, AccessControlType.Deny));
+        using var shut = EventWaitHandleAcl.Create(false, EventResetMode.AutoReset, UserHost.EventOf(pipe, "130"), out _, deny);
+        var shutOut = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        Assert.Equal((0, 0, UserMode.Taken, UserMode.Taken), (stopped, squatted, refused, shutOut));
+    }
+
+    // Sets a host's stop event once the host made it.
+    private static async Task StopWhenMadeAsync(string pipe)
+    {
+        EventWaitHandle? stop;
+        while (!EventWaitHandle.TryOpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent), out stop))
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        using (stop)
+        {
+            stop.Set();
+        }
     }
 
     // Moves the clock a second at a time, giving the run a moment at each; whether it had ended by then.

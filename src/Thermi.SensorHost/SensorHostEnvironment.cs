@@ -24,10 +24,13 @@ internal sealed record SensorHostEnvironment(
 
     public string PipeName { get; init; } = SnapshotJson.PipeName;
 
-    /// <summary>Where the user's host logs (docs/adr/0016-admin-on-demand.md).</summary>
-    /// <summary>Tells the user's host the session ends, through a hidden window; none in tests, which show no window.</summary>
-    public Func<Action, IDisposable>? SessionEnds { get; init; }
+    /// <summary>
+    /// Tells the user's host the session ends, through a hidden window, and where to say the window could not be made; none
+    /// in tests, which show no window.
+    /// </summary>
+    public Func<Action, Action<string>, IDisposable>? SessionEnds { get; init; }
 
+    /// <summary>Where the user's host logs (docs/adr/0016-admin-on-demand.md).</summary>
     public string UserLog { get; init; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "thermi", "thermi-sensors.log");
 }

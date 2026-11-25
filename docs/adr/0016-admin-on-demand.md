@@ -22,7 +22,7 @@ A winget manifest can list both, by its `Scope`, once thermi is submitted there.
 - It runs only while a client is connected and ends 10 s after the last one leaves, writing the Stopped mark first, as the service's stop does; the 10 s let a switch's watchdog read the new host and leave before the overlay comes back to it. A host that has had no client yet waits 30 s for its first. A host running an install or a switch stays until that ends. A run that ends without the mark counts as a crash, by ADR 0008's rule, so the host keeps a hidden top-level window that hears `WM_ENDSESSION` and writes the mark before a sign-out or a restart ends it, as the service does on its shutdown.
 - It logs to `%LOCALAPPDATA%\thermi\thermi-sensors.log`, since only an administrator can register an event source.
 
-The overlay reads the service's pipe whenever the service is installed, and the user's pipe only when the service is not. It trusts the user's pipe only if three things hold:
+The overlay reads the service's pipe whenever the service is installed, and the user's pipe only when the service is not. It trusts the user's pipe only if four things hold:
 
 - its owner is the user's SID, or SYSTEM or administrators, as today;
 - the server process, from `GetNamedPipeServerProcessId`, runs at an integrity level no lower than the overlay's;

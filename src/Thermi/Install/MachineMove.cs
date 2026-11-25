@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Win32;
 using Thermi.Commands;
 using Thermi.Core.Install;
+using Thermi.Windows;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.ApplicationInstallationAndServicing;
@@ -102,24 +103,8 @@ internal static class MachineMove
         Process.Start(start)?.Dispose();
     }
 
-    // Windows Installer's own mutex, held while any install runs; one this user may not open runs all the same.
-    private static bool Installing()
-    {
-        try
-        {
-            if (!Mutex.TryOpenExisting(@"Global\_MSIExecute", out var running))
-            {
-                return false;
-            }
-
-            running.Dispose();
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
+    // Windows Installer's own mutex, held while any install runs.
+    private static bool Installing() => NamedMutex.Exists(@"Global\_MSIExecute");
 
     private static bool Serves() => new WindowsServices(StartSensors.Service).State() == ServiceRun.Running;
 

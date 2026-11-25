@@ -33,6 +33,15 @@ public sealed class AdminOnDemandTests
         Assert.Equal(trusted, UserHost.Trusts(server, User, Folder, own));
     }
 
+    // Only an install under the user's own local app data is a per-user one, which updates itself and offers to install for
+    // everyone; a machine install whose service is missing serves the user's pipe and does neither.
+    [Theory]
+    [InlineData(@"users\ana\AppData\Local\Programs\thermi", true)]
+    [InlineData(@"Program Files\thermi", false)]
+    [InlineData(@"users\ana\AppData\Local\..\Roaming\thermi", false)]
+    public void APerUserInstallIsTheOneUnderTheUsersLocalAppData(string top, bool perUser) =>
+        Assert.Equal(perUser, UserHost.PerUserInstall(top, @"users\ana\AppData\Local"));
+
     // The wait before the next host: 2 s, doubling to a minute after hosts that ended within 10 s, and none under the lock.
     [Theory]
     [InlineData(300, null, false, 2)]

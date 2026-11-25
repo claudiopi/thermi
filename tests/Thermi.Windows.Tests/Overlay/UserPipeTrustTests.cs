@@ -11,7 +11,7 @@ using Windows.Win32.Security.Authorization;
 namespace Thermi.Windows.Tests.Overlay;
 
 /// <summary>
-/// Spec 004, A20: what the overlay reads of the process behind a user's pipe, from Windows itself: its image, its integrity,
+/// Spec 004, A32: what the overlay reads of the process behind a user's pipe, from Windows itself: its image, its integrity,
 /// and the pipe's own label, which a sandboxed process that made the pipe and left gives it and cannot raise.
 /// </summary>
 public sealed class UserPipeTrustTests
