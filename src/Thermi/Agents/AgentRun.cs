@@ -43,21 +43,27 @@ internal static partial class AgentRun
         }
     }
 
-    // A watch ends when whoever reads it closes its stdin, as an agent's tool does when it stops listening.
-    private static async Task<AgentReply> WatchAsync(
+    // A watch ends when whoever reads it closes its stdin, as an agent's tool does when it stops listening. One that ends
+    // by itself, as when the service goes quiet, does not wait for stdin: Windows cannot cancel a read of it once begun.
+    private static Task<AgentReply> WatchAsync(
         AgentCommands commands, AgentRequest request, Stream input, StreamWriter output, CancellationTokenSource stop)
     {
-        var closed = Task.Run(
+        var token = stop.Token;
+        _ = Task.Run(
             async () =>
             {
-                await input.CopyToAsync(Stream.Null, stop.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-                await stop.CancelAsync();
+                await input.CopyToAsync(Stream.Null, token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+                try
+                {
+                    await stop.CancelAsync();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The watch ended first, and the process with it.
+                }
             },
-            stop.Token);
-        var reply = await commands.WatchAsync(request.Ids, output.WriteLineAsync, stop.Token);
-        await stop.CancelAsync();
-        await closed.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        return reply;
+            CancellationToken.None);
+        return commands.WatchAsync(request.Ids, output.WriteLineAsync, token);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "An agent's {Verb} ended with {Exit}: {Error}")]

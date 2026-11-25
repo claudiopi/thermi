@@ -56,7 +56,9 @@ internal static class McpTools
             ([Description("Metrics, sensor ids or item:<id>; every metric and item when empty.")] string[]? ids = null,
                 [Description("Seconds to sample, 1 to 60.")] int? seconds = null,
                 CancellationToken stop = default) =>
-                run(new AgentRequest(AgentVerb.Read) { Ids = ids ?? [], Seconds = Math.Clamp(seconds ?? 1, 1, AgentCommandLine.MaxSeconds) }, stop),
+                seconds is < 1 or > AgentCommandLine.MaxSeconds
+                    ? Task.FromResult(Result(new AgentReply(AgentExit.BadArguments, Error: $"seconds is 1 to {AgentCommandLine.MaxSeconds}.")))
+                    : run(new AgentRequest(AgentVerb.Read) { Ids = ids ?? [], Seconds = seconds ?? 1 }, stop),
             Options("read", "Reads metrics as cpu.temperature, sensor ids and items as item:<id>, now or as minimum, maximum and average.", readOnly: true));
         yield return McpServerTool.Create(
             ([Description("Words to find sensors by, as 'cpu temperature'.")] string? search = null,

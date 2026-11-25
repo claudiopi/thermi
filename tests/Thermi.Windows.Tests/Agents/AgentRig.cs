@@ -52,6 +52,45 @@ internal sealed class RecordedFeed(
     }
 }
 
+/// <summary>
+/// A stdin whoever started the command keeps open and never writes, as an agent's tool keeps it, whose read Windows cannot
+/// cancel once begun, so nothing but the command's own end ends a watch.
+/// </summary>
+internal sealed class HeldStdin : Stream
+{
+    public override bool CanRead => true;
+
+    public override bool CanSeek => false;
+
+    public override bool CanWrite => false;
+
+    public override long Length => throw new NotSupportedException();
+
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException("Only read asynchronously.");
+
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => new(Never());
+
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => Never();
+
+    public override void Flush()
+    {
+    }
+
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    private static async Task<int> Never()
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, CancellationToken.None);
+        return 0;
+    }
+}
+
 /// <summary>A command's end: its exit code, what it printed on stdout, and on stderr.</summary>
 internal sealed record AgentEnd(int Exit, string Out, string Error)
 {
@@ -107,7 +146,7 @@ internal sealed class AgentRig : IDisposable
             return new AgentEnd(2, "", string.Join('\n', errors));
         }
 
-        using var input = new MemoryStream();
+        await using var input = new HeldStdin();
         using var output = new MemoryStream();
         await using var error = new StringWriter();
         var run = AgentRun.RunAsync(request, Environment, new AgentConsole(input, output, error), NullLoggerFactory.Instance, Folder.Clock);

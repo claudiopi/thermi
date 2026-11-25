@@ -28,7 +28,8 @@ internal sealed record AgentReply(AgentExit Exit, string? Json = null, string? E
 /// </summary>
 internal sealed partial class AgentCommands(AgentEnvironment environment, TimeProvider time)
 {
-    public UndoHistory History { get; } = new(time);
+    // Each agent edit is a step of its own, however soon the next comes: an undo takes back one call.
+    public UndoHistory History { get; } = new();
 
     public Task<AgentReply> RunAsync(AgentRequest request, CancellationToken stop) => request.Verb switch
     {
@@ -54,6 +55,7 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
     public async Task<AgentReply> WatchAsync(IReadOnlyList<string> ids, Func<string, Task> line, CancellationToken stop)
     {
         var feed = environment.Sensors();
+        Snapshot? first = null;
         try
         {
             await foreach (var snapshot in AgentSamples.StreamAsync(feed, time, stop))
@@ -63,7 +65,9 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
                     return Unread(feed.State, feed.Taken, snapshot);
                 }
 
-                var answer = AgentReads.Read([snapshot], (await SettingsAsync()).Config, ids);
+                // A sensor of the first line that drops out of a later one reads as missing, never as a name of nothing.
+                first ??= snapshot;
+                var answer = AgentReads.Read([snapshot], (await SettingsAsync()).Config, ids, first);
                 if (answer.Unknown.Count > 0)
                 {
                     return UnknownIds(answer);
@@ -72,9 +76,9 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
                 await line(AgentJson.Write(answer with { At = time.GetUtcNow() }));
             }
         }
-        catch (OperationCanceledException) when (stop.IsCancellationRequested)
+        catch (Exception ex) when ((ex is OperationCanceledException && stop.IsCancellationRequested) || ex is IOException)
         {
-            // Whoever watched stopped listening, which is how a watch ends.
+            // Whoever watched stopped listening, by closing stdin or stdout, which is how a watch ends.
         }
 
         return new AgentReply(AgentExit.Done);

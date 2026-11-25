@@ -55,9 +55,7 @@ internal sealed partial class AgentCommands
             LookAction.Wear => saved.Named(name) is { } style
                 ? await WriteAsync(config => StyleEdits.Wear(config, request.Overlay, style))
                 : Refused(Refusal.StyleNotFound),
-            LookAction.Save => await StyleOfAsync(request.Overlay) is { } style
-                ? Filed(() => saved.Save(style, name))
-                : Refused(Refusal.NotFound),
+            LookAction.Save => await OfOverlayAsync(request.Overlay, style => Filed(() => saved.Save(style, name))),
             LookAction.Rename => await RenameAsync(saved, name, request.To ?? ""),
             LookAction.Delete => Filed(() => saved.Delete(name)),
             LookAction.Export => await ExportAsync(saved, request),
@@ -66,13 +64,12 @@ internal sealed partial class AgentCommands
         };
     }
 
-    private async Task<AgentReply> ExportAsync(SavedStyles saved, AgentRequest request)
-    {
-        var style = request.Text is { } name ? saved.Named(name) : await StyleOfAsync(request.Overlay ?? 0);
-        return style is null
-            ? Refused(request.Text is null ? Refusal.NotFound : Refusal.StyleNotFound)
-            : new AgentReply(AgentExit.Done, AgentJson.Write(new LooksAnswer(Saved()) { File = StyleFile.Write(style) }));
-    }
+    private async Task<AgentReply> ExportAsync(SavedStyles saved, AgentRequest request) => request.Text is { } name
+        ? saved.Named(name) is { } style ? Exported(style) : Refused(Refusal.StyleNotFound)
+        : await OfOverlayAsync(request.Overlay, Exported);
+
+    private AgentReply Exported(StyleConfig style) =>
+        new(AgentExit.Done, AgentJson.Write(new LooksAnswer(Saved()) { File = StyleFile.Write(style) }));
 
     // The file is renamed first, as the window renames it, and the overlays that wore it are renamed over the file as it is then.
     private async Task<AgentReply> RenameAsync(SavedStyles saved, string from, string to)
@@ -83,7 +80,16 @@ internal sealed partial class AgentCommands
             return Broken(problem);
         }
 
-        var renamed = saved.Rename(settings.Config, History, from, to);
+        EditResult renamed;
+        try
+        {
+            renamed = saved.Rename(settings.Config, History, from, to);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return FileRefused(ex);
+        }
+
         return renamed.Refused is { } refused ? Refused(refused)
             : ConfigEdits.Replay(settings.Config, renamed.Config) is { } replay ? await WriteAsync(config => new EditResult(replay(config)), keep: false)
             : Done();
@@ -157,15 +163,33 @@ internal sealed partial class AgentCommands
         }
 
         var said = name() is { } named ? StepTexts.Of(named, new ValueFormat(Texts.English, CultureInfo.InvariantCulture)) : null;
+        // The step is taken once, on the file as read, and what it changed is made again over the file as each write finds it.
         UndoResult? taken = null;
-        var reply = await WriteAsync(config => new EditResult((taken ??= step(config))?.Config ?? config), keep: false);
+        Func<ThermiConfig, ThermiConfig>? replay = null;
+        var reply = await WriteAsync(
+            config =>
+            {
+                if (taken is null && step(config) is { } once)
+                {
+                    taken = once;
+                    replay = ConfigEdits.Replay(config, once.Config);
+                    return new EditResult(once.Config);
+                }
+
+                return new EditResult(replay?.Invoke(config) ?? config);
+            },
+            keep: false);
         return reply.Exit == AgentExit.Done ? reply with { Json = AgentJson.Write(new EditAnswer(taken is not null) { Step = said }) } : reply;
     }
 
-    private async Task<StyleConfig?> StyleOfAsync(int? overlay)
+    // An overlay's look, the first's when none is named, from settings that read well: a broken file's defaults are no one's look.
+    private async Task<AgentReply> OfOverlayAsync(int? overlay, Func<StyleConfig, AgentReply> then)
     {
-        var config = (await SettingsAsync()).Config;
-        return overlay is { } one && one >= 0 && one < config.Overlays.Count ? config.Overlays[one].Style : null;
+        var settings = await SettingsAsync();
+        var one = overlay ?? 0;
+        return settings.Problem is { } problem ? Broken(problem)
+            : one >= 0 && one < settings.Config.Overlays.Count ? then(settings.Config.Overlays[one].Style)
+            : Refused(Refusal.NotFound);
     }
 
     private IReadOnlyList<string> Saved() => [.. new SavedStyles(environment.StylesFolder).List().Select(style => style.Name!)];
@@ -179,9 +203,11 @@ internal sealed partial class AgentCommands
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return new AgentReply(AgentExit.Refused, Error: $"Windows refused the saved look's file: {ex.Message}");
+            return FileRefused(ex);
         }
     }
+
+    private static AgentReply FileRefused(Exception ex) => new(AgentExit.Refused, Error: $"Windows refused the saved look's file: {ex.Message}");
 
     private static AgentReply Done() => new(AgentExit.Done, AgentJson.Write(new EditAnswer(Done: true)));
 

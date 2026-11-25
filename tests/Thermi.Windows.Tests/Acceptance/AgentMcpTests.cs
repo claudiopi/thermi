@@ -40,6 +40,10 @@ public sealed class AgentMcpTests : IDisposable
             var (_, read) = await session.CallAsync("read", new() { ["ids"] = new[] { "cpu.load" } });
             Assert.True(JsonNode.DeepEquals(WithoutTime((await _rig.RunAsync("read", "cpu.load")).Json), WithoutTime(McpSession.Answer(read))));
 
+            var (_, sensors) = await session.CallAsync("sensors", new() { ["types"] = new[] { "temperature" } });
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse((await _rig.RunAsync("sensors", "--type", "temperature")).Out), JsonNode.Parse(sensors)));
+            Assert.True((await session.CallAsync("read", new() { ["seconds"] = 61 })).Error);
+
             var tooHigh = McpSession.Json("""{"kind":"threshold","item":"cpu.temperature","warning":95,"critical":90}""");
             var (refused, why) = await session.CallAsync("edit", new() { ["edit"] = tooHigh });
             Assert.True(refused);

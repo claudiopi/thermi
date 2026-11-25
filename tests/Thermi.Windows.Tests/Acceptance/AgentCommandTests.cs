@@ -36,6 +36,7 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Done, 0, "monitors")]
     [InlineData(Ending.Done, 0, "looks")]
     [InlineData(Ending.Done, 2, "read", "no.such.metric")]
+    [InlineData(Ending.Done, 2, "watch", "no.such.metric")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
     [InlineData(Ending.Done, 2, "edit", """{"kind":"item","item":"cpu.load","field":"nothing","value":1}""")]
     [InlineData(Ending.Done, 2, "status", "--schema", "0")]
@@ -44,6 +45,7 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Stopped, 3, "read")]
     [InlineData(Ending.Stopped, 3, "sensors")]
     [InlineData(Ending.Broken, 4, "config")]
+    [InlineData(Ending.Broken, 4, "look", "save", "Night", "--overlay", "1")]
     public async Task EveryCommandEndsWithItsCode(Ending ending, int exit, params string[] args)
     {
         if (ending == Ending.Stopped)
@@ -126,7 +128,24 @@ public sealed class AgentCommandTests : IDisposable
             Assert.Equal(each.Average(), (double)value["average"]!, 6);
         }
 
-        Assert.Equal(2, (await _rig.RunAsync("read", "--seconds", "61")).Exit);
+        Assert.Equal((2, 2), ((await _rig.RunAsync("read", "--seconds", "0")).Exit, (await _rig.RunAsync("read", "--seconds", "61")).Exit));
+    }
+
+    // A watch of the same series, with stdin kept open: a line each second, the sensor that dropped out of one read as
+    // missing, and once the service goes quiet, its end with why.
+    [Fact]
+    public async Task AWatchGoesOnUntilTheServiceGoesQuiet()
+    {
+        var series = TestRecordings.Series(TestRecordings.CpuLoad).Take(12).Select((sample, at) => at == 9 ? new Snapshot([]) : sample).ToList();
+        _rig.Sensors = () => new RecordedFeed(series, pace: _rig.Folder.Clock);
+
+        var end = await _rig.RunAsync("watch", "/lpc/it8689e/0/fan/0");
+
+        var lines = end.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => System.Text.Json.Nodes.JsonNode.Parse(line)!["values"]![0]!).ToList();
+        Assert.Equal((3, series.Count), (end.Exit, lines.Count));
+        Assert.Equal([.. Enumerable.Range(0, series.Count).Select(at => at == 9)], lines.Select(value => value["value"] is null));
+        Assert.Equal("reads-nothing", (string)lines[9]["why"]!);
+        Assert.NotEmpty(end.Error);
     }
 
     // Core decides each edit as the window does (AgentEditTests); here, what is written to the file, and that a refusal
@@ -162,13 +181,10 @@ public sealed class AgentCommandTests : IDisposable
         }
 
         var written = _rig.Folder.Text();
-        var refused = new[] { (TooHigh, Refusal.WarningAboveCritical), ("""{"kind":"threshold","item":"nobody","warning":70}""", Refusal.NotFound) };
-        foreach (var (json, refusal) in refused)
+        foreach (var json in new[] { TooHigh, """{"kind":"threshold","item":"nobody","warning":70}""" })
         {
             var end = await _rig.RunAsync("edit", json);
             Assert.Equal(1, end.Exit);
-            Assert.Equal(Texts.Key(refusal), (string)end.Json["refusal"]!);
-            Assert.Equal(texts.Of(refusal), (string)end.Json["message"]!);
             Assert.Equal(written, _rig.Folder.Text());
         }
     }

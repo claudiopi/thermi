@@ -9,7 +9,7 @@ var minute = await thermi.ReadAsync(["cpu.temperature"], seconds: 60);
 await foreach (var line in thermi.WatchAsync(["cpu.temperature"], stop)) { }
 ```
 
-It needs thermi installed, whole or its sensors alone. Without it, or with its service not installed, every call throws a `ThermiException` saying so and how to install thermi; it never installs or starts anything but `thermi-cli`.
+It needs thermi installed, whole or its sensors alone. Without `thermi-cli`, every call throws a `ThermiException` saying so and how to install thermi; with its service not installed, `StatusAsync` says so among its problems and every read throws why. It never installs or starts anything but `thermi-cli`.
 
 - `ThermiClient.cs`: the calls, `status`, `read`, `sensors` and `watch`, where `thermi-cli` is found, and the errors.
 - `ThermiAnswers.cs`: the contract's documents as records; a choice is the contract's word, so a word a later thermi adds still reads.

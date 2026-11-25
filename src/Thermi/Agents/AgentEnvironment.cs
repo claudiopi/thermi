@@ -27,10 +27,13 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     public Func<bool> Installed { get; init; } = () => Exists(Services + StartSensors.Service);
 
     /// <summary>Whether an overlay runs in this session: its single-instance mutex is there, which is looked at, never taken.</summary>
-    public Func<bool> Overlay { get; init; } = () => Mutex.TryOpenExisting(HostEnvironment.OverlayMutexName, out var found) && Released(found);
+    public Func<bool> Overlay { get; init; } = () => HostEnvironment.MutexExists(HostEnvironment.OverlayMutexName);
 
     public Func<bool> SensorsOnly { get; init; } = () =>
-        Registry.LocalMachine.OpenSubKey(InstallKey)?.GetValue(SensorsOnlyValue) is 1;
+    {
+        using var key = Registry.LocalMachine.OpenSubKey(InstallKey);
+        return key?.GetValue(SensorsOnlyValue) is 1;
+    };
 
     public Func<IReadOnlyList<Screen>> Screens { get; init; } = Desktop.Screens;
 
@@ -55,11 +58,5 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     {
         using var found = Registry.LocalMachine.OpenSubKey(key);
         return found is not null;
-    }
-
-    private static bool Released(Mutex mutex)
-    {
-        mutex.Dispose();
-        return true;
     }
 }

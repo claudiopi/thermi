@@ -16,8 +16,11 @@ public static class AgentReads
     /// <summary>What an item's id is asked for after, since an item may take a metric's id, as the default items do.</summary>
     public const string ItemPrefix = "item:";
 
-    /// <summary>The ids asked for, or with none every metric and then every item of every overlay.</summary>
-    public static ReadAnswer Read(IReadOnlyList<Snapshot> samples, ThermiConfig config, IReadOnlyList<string> ids)
+    /// <summary>
+    /// The ids asked for, or with none every metric and then every item of every overlay; a sensor none of the samples has
+    /// but <paramref name="earlier"/> does reads as missing.
+    /// </summary>
+    public static ReadAnswer Read(IReadOnlyList<Snapshot> samples, ThermiConfig config, IReadOnlyList<string> ids, Snapshot? earlier = null)
     {
         if (samples.Count == 0)
         {
@@ -31,7 +34,7 @@ public static class AgentReads
         var unknown = new List<string>();
         foreach (var id in asked)
         {
-            if (Of(samples, config, id) is { } value)
+            if (Of(samples, config, id, earlier) is { } value)
             {
                 values.Add(value);
             }
@@ -59,7 +62,7 @@ public static class AgentReads
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
     };
 
-    private static ValueAnswer? Of(IReadOnlyList<Snapshot> samples, ThermiConfig config, string id)
+    private static ValueAnswer? Of(IReadOnlyList<Snapshot> samples, ThermiConfig config, string id, Snapshot? earlier)
     {
         var last = samples[^1];
         if (id.StartsWith(ItemPrefix, StringComparison.Ordinal))
@@ -77,7 +80,8 @@ public static class AgentReads
         }
 
         // A sensor that dropped out of the last samples is still the one asked for, with no value now.
-        var found = samples.Reverse().Select(sample => SensorMap.Find(sample, id)).FirstOrDefault(each => each is not null);
+        var found = samples.Reverse().Select(sample => SensorMap.Find(sample, id)).FirstOrDefault(each => each is not null)
+            ?? (earlier is null ? null : SensorMap.Find(earlier, id));
         if (found is null || SensorMap.ReadingOf(found) is not { } reading)
         {
             return null;
@@ -113,7 +117,8 @@ public static class AgentReads
         var last = readings[^1];
         var usable = readings.Select(reading => reading?.Usable).OfType<double>().ToList();
         var why = sensor is not null && last is { } read ? SensorCatalog.Why(sensor, read) : last?.Usable is null ? NoValue.ReadsNothing : null;
-        var many = readings.Count > 1 && usable.Count > 0;
+        // An address taken as a number has no minimum or average to tell.
+        var many = readings.Count > 1 && usable.Count > 0 && answer.Type != SensorKind.Address;
         return answer with
         {
             Sensor = sensor?.Id,

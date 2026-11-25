@@ -12,8 +12,6 @@ public static class AgentJson
 {
     public static string Write<T>(T answer)
         where T : notnull => JsonSerializer.Serialize(answer, typeof(T), AgentJsonContext.Default);
-
-    public static JsonSerializerOptions Options => AgentJsonContext.Default.Options;
 }
 
 [JsonSourceGenerationOptions(

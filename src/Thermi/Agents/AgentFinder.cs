@@ -14,7 +14,8 @@ internal sealed partial class AgentCommands
         var gate = new Lock();
         using var finder = new WindowFinder(environment.Load, time, turn => { lock (gate) { turn(); } }, () => { });
         Snapshot? last = null;
-        await foreach (var snapshot in AgentSamples.StreamAsync(environment.Sensors(), time, stop))
+        var feed = environment.Sensors();
+        await foreach (var snapshot in AgentSamples.StreamAsync(feed, time, stop))
         {
             if (snapshot is null)
             {
@@ -47,7 +48,7 @@ internal sealed partial class AgentCommands
             }
         }
 
-        return finder.Result is { } result ? await FoundAsync(result, last!, use) : Unread(Core.Tray.ServiceState.Stopped, taken: false, last);
+        return finder.Result is { } result ? await FoundAsync(result, last!, use) : Unread(feed.State, feed.Taken, last);
     }
 
     private async Task<AgentReply> FoundAsync(FanFinderResult result, Snapshot snapshot, bool use)
