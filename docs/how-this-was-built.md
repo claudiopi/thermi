@@ -31,4 +31,4 @@ The same person built larger projects this way before. These are the things that
 
 ## What is left out on purpose
 
-Git hooks, agent skills, per-folder rule files, golden image tests, mutation testing, architecture test libraries, a budget file, and setup for agent tools other than Claude Code. Each one gets added only after the problem it solves has shown up twice.
+Git hooks, agent skills, per-folder rule files, golden image tests, architecture test libraries, a budget file, and setup for agent tools other than Claude Code. Each one gets added only after the problem it solves has shown up twice.

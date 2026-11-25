@@ -36,8 +36,6 @@ export interface FocusStep {
   /** A control that must not have it. */
   away?: Target;
   holds?: (fake: FakeState) => boolean;
-  /** Windows' own frame does it, not the page, so a person checks it (A220). */
-  frame?: true;
   /** The task that builds what the step needs; until it is done, the step is skipped. */
   waits?: string;
 }

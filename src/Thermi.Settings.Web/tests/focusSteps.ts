@@ -164,9 +164,6 @@ export const fourthReview: FocusStep[] = [
     acts: [{ focus: role('combobox', 'UiText.GraphField') }, 'Enter', 'Tab'],
     away: role('combobox', 'UiText.GraphField'),
   },
-  { name: 'Alt+Space opens the system menu', acts: [], frame: true },
-  { name: 'Esc gives the focus back', acts: [], frame: true },
-  { name: 'X in it maximizes', acts: [], frame: true },
   { name: 'A pill is a row of its own', acts: [{ focus: overlay('Taskbar') }, 'ArrowDown'], focus: pill() },
   { name: 'Right goes into the pill, its first item', acts: ['ArrowRight'], focus: (page) => list(page).getByRole('treeitem', { level: 3 }).first() },
   {
