@@ -24,7 +24,8 @@ public sealed class SwitchHoldTests
         Assert.True(SwitchHealth.MaySwitch(SwitchHealth.InstalledByHand(held, Parse("1.2.1")), Now));
         Assert.True(SwitchHealth.MaySwitch(SwitchHealth.HeldBack(switching, cut: false, Now.AddDays(90)), Now));
         var quiet = new SessionFacts(WindowOpen: false, Dragging: false, UpdateSchedule.Idle, Locked: false, AllHidden: false);
-        Assert.Equal((true, false), (UpdateSchedule.SaysQuiet(ready, quiet, Now), UpdateSchedule.SaysQuiet(held, quiet, Now)));
+        Assert.Equal((true, false, false, false), (UpdateSchedule.SaysQuiet(ready, quiet, Now), UpdateSchedule.SaysQuiet(held, quiet, Now),
+            UpdateSchedule.SaysQuiet(ready with { Ready = null }, quiet, Now), UpdateSchedule.SaysQuiet(ready, quiet with { WindowOpen = true }, Now)));
     }
 
     private static ReleaseVersion Parse(string version) => ReleaseVersion.Parse(version)!;

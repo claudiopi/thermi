@@ -123,7 +123,7 @@
     {
       "id": "A18",
       "covers": ["R25"],
-      "description": "Given a version ready right after a quiet session's code, when About's restart asks for it, then the switch begins at once.",
+      "description": "Given a version ready right after a quiet session's code, when About's restart asks for it while a check runs, then the switch begins once the check ends.",
       "check": "ARestartSwitchesAtOnce",
       "passes": false
     },

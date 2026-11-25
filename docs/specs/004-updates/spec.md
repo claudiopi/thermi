@@ -51,7 +51,7 @@ The user
 
 - R23. About shows the version, and one line on updates: up to date and when it last checked, a version ready and that it switches when the PC is quiet, updates turned off by the PC's policy, the beta channel, no successful check for 14 days, or a build that does not update itself. Nothing else ever shows an update.
 - R24. Each check that finds a version, each download, switch, rollback and refusal goes to the event log under `thermi-sensors`, and the service stays under the 80 MB of `docs/adr/0011-sensor-service-memory-budget.md`.
-- R25. Opening About asks the service for a check right then, as Chrome's About page does: its line says it checks until the service has, half a minute at most, then what it found, and up to date says checked just now for a minute. About and the service each heed the ask at most once a minute, so reopening About never hammers the channel. A version ready whose switch is not held offers Restart to update, which switches at once and closes the window.
+- R25. Opening About asks the service for a check right then, as Chrome's About page does: its line says it checks until the service has, half a minute at most, then what it found, and up to date says checked just now for a minute. About and the service each heed the ask at most once a minute, so reopening About never hammers the channel. A version ready whose switch is not held offers Restart to update, which switches as soon as a check under way ends, and closes the window.
 
 ## Design
 

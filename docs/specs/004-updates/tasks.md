@@ -1,7 +1,7 @@
 # 004-updates: Tasks
 
-> Progress: 25 / 28
-> Current block: B7
+> Progress: 26 / 29
+> Current block: B8
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
 
@@ -122,3 +122,4 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
   - Left as they are, each written down in the ADR or docs/RELEASES.md: whether SignPath's certificate is thermi's own or shared, which the owner asks; a PC that skips the release listing a renewed certificate's thumbprint, which needs a later MSI; a user taking the pipe's name as a switch starts, which only puts it off; a withdrawal by a stolen manifest key, which sends PCs one version back. The watchdog's steps are still proven by the live run, A15, rather than a test: `ServiceConfig` drives the real service manager.
 - About checks as it opens, with no button, as Chrome's About page does, which the session of spec 002 decided for the owner on 2026-11-24. The ask is code 129, heeded at most once a minute by About and again by the service, so reopening it costs the channel one GET a minute at most. Its line says it checks until the service has checked since a minute before the ask, which the service would not have done again, and gives up after half a minute, as a check that hangs would leave it. A version ready offers Restart to update when its switch is not held: code 130 switches it as a quiet session's 128 does, without that code's minute, and the window closes, as a restart closes Chrome.
 - Review round 11: About's restart waits out a check under way rather than drop the code, one restart waiting at a time; the users' copy of the state is looked for again when a newer one replaced it mid-read, as About now reads it each second; a start that throws is logged by the service, since with AutoLog off Windows logs no reason; a clock set back neither says it checks nor stops About from asking; the prune moved to InstallFolder; whether an overlay says its session is quiet is Core's UpdateSchedule.SaysQuiet. Accepted: no page test renders Restart to update, which only a real ready version shows; it is checked live in A19 and is the kit's accent button that axe passes elsewhere.
+- Review round 12, accepted: the state copy's retry and the start's report have no test, since one needs a copy deleted between a listing and its read and the other a service's protected start; both are one catch each, read in review. One restart waiting at a time is read in review too: a test would need a check held open mid-way.

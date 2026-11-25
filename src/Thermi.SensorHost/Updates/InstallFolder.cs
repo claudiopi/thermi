@@ -179,7 +179,7 @@ internal sealed class InstallFolder(string top, FolderAccess? access = null)
     /// Deletes every version's folder but <paramref name="keep"/>. Each is renamed aside first, which Windows refuses while
     /// any process runs from it, so a folder in use stays until a later prune. What it set aside before goes too.
     /// </summary>
-    public IReadOnlyList<ReleaseVersion> Prune(IReadOnlySet<ReleaseVersion> keep)
+    private List<ReleaseVersion> Prune(HashSet<ReleaseVersion> keep)
     {
         var removed = new List<ReleaseVersion>();
         foreach (var folder in Directory.EnumerateDirectories(top))

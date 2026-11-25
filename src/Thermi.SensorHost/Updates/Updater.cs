@@ -7,9 +7,10 @@ namespace Thermi.SensorHost.Updates;
 
 /// <summary>
 /// The service's updater (docs/adr/0008-updates.md): a minute after the service starts, every four hours and after a
-/// resume, it reads the channel's manifest, and downloads, checks and unpacks the version it offers, which then waits for
-/// a quiet moment. It decides nothing itself: Core's <see cref="UpdatePlan"/> and <see cref="SwitchHealth"/> do. Nothing
-/// it meets ever stops the service: every failure is written to the event log and tried again at the next check.
+/// resume, and when About opens, it reads the channel's manifest, and downloads, checks and unpacks the version it offers,
+/// which then waits for a quiet moment or About's restart. It decides nothing itself: Core's <see cref="UpdatePlan"/> and
+/// <see cref="SwitchHealth"/> do. Nothing it meets ever stops the service: every failure is written to the event log and
+/// tried again at the next check.
 /// </summary>
 internal sealed class Updater(
     UpdateBuild build, InstallFolder folder, ManifestClient client, TimeProvider time, Action<string, EventLogEntryType> say, UpdateHost? host = null)
@@ -132,7 +133,7 @@ internal sealed class Updater(
             }
             finally
             {
-                _restarting = 0;
+                Volatile.Write(ref _restarting, 0);
             }
         }
     }
@@ -368,7 +369,6 @@ internal sealed class Updater(
             _busy.Release();
         }
     }
-
 
     private bool Trusted()
     {
