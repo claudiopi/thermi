@@ -233,7 +233,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one where no fan answers, one where the board's fan only jitters at idle, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it, one where no fan answers, one where the board's fan only jitters at idle, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -1603,7 +1603,7 @@
       "covers": [
         "R30"
       ],
-      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, toward the notification area only, and the one beside the notification area, or dropped past it, stays there; two that do not overlap stay where their snaps put them; one grown past the room the other leaves toward that edge shows at that room, so neither leaves the taskbar, covers the other or goes back over the app buttons.",
+      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, toward the notification area only, and the one beside the notification area, or dropped past it, stays there; two that do not overlap stay where their snaps put them; one grown past the room the other leaves toward that edge shows at that room, never narrower than at 100 %, so neither leaves the taskbar, covers the other or goes back over the app buttons; and on a taskbar nearly full, where the room is less, neither shows smaller and the one before is held back over the app buttons.",
       "check": "OverlaysOnOneTaskbarNeverCoverEachOther",
       "passes": true
     },
@@ -1667,7 +1667,7 @@
         "R30",
         "R143"
       ],
-      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together.",
+      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; and on a taskbar nearly full, a move onto it without room for the overlay at its size is refused, changing nothing, and one shown again there squeezes none, the one before it held back toward the start only while it shows.",
       "check": "AnOverlayMovesOnlyWhenThePersonMovesIt",
       "passes": true
     }

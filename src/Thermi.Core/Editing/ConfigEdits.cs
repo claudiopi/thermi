@@ -51,6 +51,9 @@ public enum Refusal
     /// <summary>Alt+arrows move a floating overlay; a snapped one sits where its place puts it, so it moves by a drag or another place.</summary>
     Snapped,
 
+    /// <summary>The overlays already on that taskbar leave the one moved there no room at its own size, and none ever shows smaller for a move.</summary>
+    NoRoomOnTaskbar,
+
     /// <summary>thermi has no translation for the language.</summary>
     UnknownLanguage,
 

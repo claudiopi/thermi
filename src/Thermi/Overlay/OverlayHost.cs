@@ -74,7 +74,7 @@ internal sealed class OverlayHost : IDisposable
             History = history,
             Select = _link.Selected,
             Shown = () => DesktopDrag.Boxes(_overlays),
-            Settle = config => Ui.Views.OverlayPlaces.Settled(config, Scene(config, _desktop.Screens()), culture, DesktopDrag.Boxes(_overlays)),
+            Settle = (before, after) => Ui.Views.OverlayPlaces.Settled(before, after, Scene(after, _desktop.Screens()), culture, DesktopDrag.Boxes(_overlays)),
             ItemAfter = (overlay, cursor) => overlay < _overlays.Count ? _overlays[overlay].ItemAfter(cursor) : null,
             Gestures = new GestureUndo(time, gesture => _ = _link.WindowOpen && HiddenWindow.Send(HiddenWindow.WindowClass, gesture)),
             Menu = (overlay, item) => Tray?.Menu(overlay, item: item),

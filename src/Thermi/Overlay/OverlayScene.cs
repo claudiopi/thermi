@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -29,9 +30,9 @@ internal sealed record OverlayActions(
 
     /// <summary>
     /// A gesture's or a menu's settings, with each overlay it pushed along a taskbar keeping the place it was pushed to,
-    /// written and undone with it.
+    /// written and undone with it; or why it is refused, as a move onto a taskbar without room.
     /// </summary>
-    public Func<ThermiConfig, ThermiConfig> Settle { get; init; } = config => config;
+    public Func<ThermiConfig, ThermiConfig, EditResult> Settle { get; init; } = (_, after) => new EditResult(after);
 
     /// <summary>The overlay a drag is over now, and where a drop would join it, which that overlay marks.</summary>
     public DropPreview Preview { get; } = new();

@@ -128,7 +128,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         }
 
         var target = Drag is null or { Resizes: true } or { Refused: true } ? default : Target(actions.Cursor(), dragged);
-        var moved = Drag?.Moved(dragged, target.Onto is not null) == true;
+        var moved = Drag?.Moved(dragged, actions.Shown(), target.Onto is not null) == true;
         // The overlay a drop would join marks where, which it paints.
         var previewed = actions.Preview.Over(target);
         if (previewed || moved)
@@ -210,7 +210,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
 
         var before = settings.Config;
         var resized = OverlayEdits.Resize(before, index, 1, overlay.Style.Orientation);
-        var after = resized.Refused is null ? actions.Settle(resized.Config) : before;
+        var after = resized.Refused is null ? actions.Settle(before, resized.Config).Config : before;
         if (ConfigEdits.Replay(before, after) is { } change)
         {
             settings.Edit(change);
@@ -300,7 +300,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
 
         var before = settings.Config;
         var drop = DesktopGestures.Separate(before, index, pill, shown, (made.Width, made.Height), (rest.Width, rest.Height), screens);
-        var after = drop.Result.Refused is null ? actions.Settle(drop.Result.Config) : before;
+        var after = drop.Result.Refused is null ? actions.Settle(before, drop.Result.Config).Config : before;
         if (ConfigEdits.Replay(before, after) is { } change)
         {
             settings.Edit(change);
