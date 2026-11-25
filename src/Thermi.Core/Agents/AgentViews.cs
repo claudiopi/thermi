@@ -97,9 +97,13 @@ public static class AgentViews
         return new SensorsAnswer([.. found.Select(device => new DeviceAnswer(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(Of)]))]);
     }
 
-    public static EditAnswer Edited(EditResult result) => result.Refused is { } refused
-        ? new EditAnswer(Done: false) { Refusal = Texts.Key(refused), Message = Texts.English.Of(refused) }
-        : new EditAnswer(Done: true);
+    // A refused hotkey says why, as the window does: another hotkey uses it, not only that it cannot be one.
+    public static EditAnswer Edited(EditResult result) => result switch
+    {
+        { Hotkey: { } why } => new EditAnswer(Done: false) { Refusal = Texts.Key(why), Message = Texts.English.Of(why) },
+        { Refused: { } refused } => new EditAnswer(Done: false) { Refusal = Texts.Key(refused), Message = Texts.English.Of(refused) },
+        _ => new EditAnswer(Done: true),
+    };
 
     private static SensorAnswer Of(CatalogSensor row) => new(row.Id, row.Name.Shown, row.Reading.Kind, AgentReads.UnitOf(row.Reading.Kind))
     {

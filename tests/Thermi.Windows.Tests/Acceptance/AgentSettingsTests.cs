@@ -133,7 +133,11 @@ public sealed class AgentSettingsTests : IDisposable
         var recorded = TestRecordings.Series(recording);
         // Its readings go on after the recording, for the fans to be watched once the load ends.
         var series = answers ? recorded
-            : [.. recorded.Select(snapshot => Held(snapshot, recorded[0])), .. Enumerable.Repeat(Held(recorded[^1], recorded[0]), (int)FanFinder.Afterwards.TotalSeconds)];
+            :
+            [
+                .. recorded.Select(snapshot => Held(snapshot, recorded[0])),
+                .. Enumerable.Repeat(Held(recorded[^1], recorded[0]), (int)FanFinder.Afterwards.TotalSeconds),
+            ];
         _rig.Sensors = () => new RecordedFeed(series, pace: _rig.Folder.Clock);
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         var before = _rig.Folder.Text();

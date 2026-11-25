@@ -83,7 +83,7 @@ public sealed class AgentEditTests
         foreach (var call in edits)
         {
             var edit = AgentEdits.Of(call!["args"]![0]!.ToJsonString(), snapshot, texts, () => new HashSet<int>())(config);
-            Assert.Equal((string?)call["answer"]!["result"], edit.Refused is { } refused ? Texts.Key(refused) : null);
+            Assert.Equal((string?)call["answer"]!["result"], AgentViews.Edited(edit).Refusal);
             config = edit.Refused is null ? edit.Config : config;
             shown = call["answer"]!["settings"] ?? shown;
             Assert.True(JsonNode.DeepEquals(shown, Shown(config, texts, snapshot)), $"The agent's {call["args"]![0]} is not the window's.");

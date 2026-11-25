@@ -37,7 +37,8 @@ public sealed class ContractTests
             .SelectMany(name => Kept(Schema(Shipped, name), AgentSchemas.Current[name], name))
             // A field or a choice a reader of the shipped schema has not met is growth: it takes a word it does not know as unknown.
             .Concat(ContractAnswers.All().SelectMany(answer => SchemaCheck.Findings(Schema(Shipped, answer.Schema), JsonNode.Parse(answer.Json), answer.Schema)
-                .Where(finding => !finding.EndsWith("is not in the schema", StringComparison.Ordinal) && !finding.Contains(", not one of ", StringComparison.Ordinal))));
+                .Where(finding => !finding.EndsWith("is not in the schema", StringComparison.Ordinal))
+                .Where(finding => !finding.Contains(", not one of ", StringComparison.Ordinal))));
 
         Assert.Empty(findings);
     }
