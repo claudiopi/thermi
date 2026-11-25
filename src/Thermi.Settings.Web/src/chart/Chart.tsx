@@ -1,8 +1,8 @@
 import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
-import { flushSync } from 'react-dom';
 import type { ChartEmpty, ChartView, Edit, Line } from '../bridge/bridge.g';
 import { bridge } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
+import { useMeasured } from '../app/measured';
 import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
 import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, valueAt, yOf, type Plot } from './geometry';
@@ -28,28 +28,19 @@ const empties = { stopped: 'UiText.ChartSensorsStopped', driver: 'UiText.ChartNe
 /** The pane's width from which the item page lays the chart beside its cards. */
 const besideFrom = 864;
 
-/** The chart's width, from its column, and the pane's height, which its own height follows. */
+function sizeOf(element: HTMLElement): { width: number; height: number } | null {
+  const pane = element.closest('main');
+  if (pane === null) {
+    return null;
+  }
+  const width = element.clientWidth;
+  // The item page lays the chart beside its cards from 864 px of pane on, as item.css says.
+  return { width, height: chartHeight(width, pane.clientHeight, pane.clientWidth >= besideFrom) };
+}
+
 function useSize(): [RefObject<HTMLDivElement | null>, { width: number; height: number }] {
   const box = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 480, height: 273 });
-  useLayoutEffect(() => {
-    const element = box.current;
-    const pane = element?.closest('main');
-    if (element === null || pane === null || pane === undefined) {
-      return undefined;
-    }
-    const measure = (): void => {
-      const width = element.clientWidth;
-      // The item page lays the chart beside its cards from 864 px of pane on, as item.css says.
-      setSize({ width, height: chartHeight(width, pane.clientHeight, pane.clientWidth >= besideFrom) });
-    };
-    // Drawn at the new size in the frame that resized, as the monitor map is (overlay/pixels.ts).
-    const observer = new ResizeObserver(() => flushSync(measure));
-    observer.observe(element);
-    observer.observe(pane);
-    return () => observer.disconnect();
-  }, []);
-  return [box, size];
+  return [box, useMeasured(box, sizeOf, { width: 480, height: 273 })];
 }
 
 /**
