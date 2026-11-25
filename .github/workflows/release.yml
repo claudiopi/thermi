@@ -39,8 +39,39 @@ env:
   BUCKET: thermi-updates
 
 jobs:
+  # Whether the owner's accounts exist, read from the repository's public variables, which a job with no approval reads
+  # (docs/RELEASES.md); the secrets and SIGNPATH_ORGANIZATION_ID live in the release environment, out of its sight. A
+  # merge or the monthly signing in a repository without them is skipped with a notice, not failed; a run by hand fails.
+  ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        shell: pwsh
+        env:
+          EVENT: ${{ github.event_name }}
+          THERMI_UPDATES_FROM: ${{ vars.THERMI_UPDATES_FROM }}
+          THERMI_UPDATES_SIGNERS: ${{ vars.THERMI_UPDATES_SIGNERS }}
+          THERMI_UPDATES_RELEASE_PUB: ${{ vars.THERMI_UPDATES_RELEASE_PUB }}
+          THERMI_UPDATES_BACKUP_PUB: ${{ vars.THERMI_UPDATES_BACKUP_PUB }}
+        run: |
+          $names = 'THERMI_UPDATES_FROM', 'THERMI_UPDATES_SIGNERS', 'THERMI_UPDATES_RELEASE_PUB', 'THERMI_UPDATES_BACKUP_PUB'
+          $missing = @($names | Where-Object { -not [Environment]::GetEnvironmentVariable($_) })
+          "ready=$($missing.Count -eq 0)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
+          if (-not $missing) { exit 0 }
+          $why = "The repository's variables $($missing -join ', ') are not set, so this run releases and signs nothing: docs/RELEASES.md says how to set them up."
+          if ($env:EVENT -eq 'workflow_dispatch') {
+            "::error::$why"
+            exit 1
+          }
+          "::notice::Skipped. $why"
+          "Skipped. $why" >> $env:GITHUB_STEP_SUMMARY
+
   build:
-    if: github.event_name == 'push' || inputs.lever == 'release'
+    needs: ready
+    if: needs.ready.outputs.ready == 'true' && (github.event_name == 'push' || inputs.lever == 'release')
     runs-on: windows-latest
     timeout-minutes: 30
     strategy:
@@ -221,8 +252,8 @@ jobs:
 
   # The zips and MSIs get build provenance, the zips go up first, and only then the channel's next signed manifest.
   publish:
-    needs: [build, sign, msi]
-    if: always() && needs.sign.result == 'success' && (needs.msi.result == 'success' || needs.msi.result == 'skipped')
+    needs: [ready, build, sign, msi]
+    if: always() && needs.ready.outputs.ready == 'true' && needs.sign.result == 'success' && (needs.msi.result == 'success' || needs.msi.result == 'skipped')
     environment: release
     runs-on: windows-latest
     timeout-minutes: 30
@@ -289,7 +320,8 @@ jobs:
 
   # A lever on a channel, by hand, or each month a new signature on both before their manifests expire.
   lever:
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.lever != 'release')
+    needs: ready
+    if: needs.ready.outputs.ready == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.lever != 'release'))
     environment: release
     runs-on: windows-latest
     timeout-minutes: 15
