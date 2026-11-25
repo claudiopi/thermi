@@ -56,6 +56,11 @@ internal sealed record AgentRequest(AgentVerb Verb) : IThermiRequest
 
     /// <summary>For the finder, whether its fan becomes the CPU fan; for the start at sign-in, on or off, or null to ask.</summary>
     public bool? Switch { get; init; }
+
+    /// <summary>Whether it may write the settings, a look, the finder's mark of its last run or the start at sign-in; the MCP server may write any.</summary>
+    public bool Writes => Verb is AgentVerb.Edit or AgentVerb.FindCpuFan or AgentVerb.Mcp
+        || (Verb == AgentVerb.Look && Look != LookAction.Export)
+        || (Verb == AgentVerb.StartWithWindows && Switch is not null);
 }
 
 internal static class AgentCommandLine

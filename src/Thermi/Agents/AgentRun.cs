@@ -12,8 +12,18 @@ internal sealed record AgentConsole(Stream In, Stream Out, TextWriter Error);
 /// </summary>
 internal static partial class AgentRun
 {
+    // An elevated write into the user's folders, which a link there can send anywhere, is one thermi never makes.
+    public const string RaisedRefusal =
+        "thermi-cli was started elevated, so it reads but changes nothing: run a command that writes from an unelevated terminal.";
+
     public static async Task<int> RunAsync(AgentRequest request, AgentEnvironment environment, AgentConsole console, ILoggerFactory logs, TimeProvider time)
     {
+        if (request.Writes && environment.Raised())
+        {
+            await console.Error.WriteLineAsync(RaisedRefusal);
+            return (int)AgentExit.Refused;
+        }
+
         using var commands = new AgentCommands(environment, time);
         using var stop = new CancellationTokenSource();
         var output = new StreamWriter(console.Out, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };

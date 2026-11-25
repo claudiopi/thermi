@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.Agents;
 using Thermi.Commands;
 using Thermi.Core.Updates;
@@ -114,8 +115,10 @@ internal static class Program
     {
         CommandLineOutput.Borrow(STD_HANDLE.STD_OUTPUT_HANDLE);
         CommandLineOutput.Borrow(STD_HANDLE.STD_ERROR_HANDLE);
-        using var logs = ThermiLog.Create(ThermiLog.AgentsPath, time, trace: false);
-        var environment = AgentEnvironment.Of(logs, time);
+        // Elevated, it writes no log either: the file is in the user's folder.
+        var raised = Elevation.Raised();
+        using var logs = raised ? new NullLoggerFactory() : ThermiLog.Create(ThermiLog.AgentsPath, time, trace: false);
+        var environment = AgentEnvironment.Of(logs, time) with { Raised = () => raised };
         await using var input = Console.OpenStandardInput();
         await using var output = Console.OpenStandardOutput();
         return await ThermiLog.RunLoggedAsync(
@@ -241,6 +244,7 @@ internal static class Program
             PInvoke.PostMessage(host.Hwnd, PInvoke.WM_CLOSE, 0, 0);
         }
     }
+
     private static async Task<int> RunWindowAsync(SettingsRequest request, TimeProvider time)
     {
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);

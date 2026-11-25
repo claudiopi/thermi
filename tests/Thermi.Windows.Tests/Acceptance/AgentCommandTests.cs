@@ -71,6 +71,27 @@ public sealed class AgentCommandTests : IDisposable
         Assert.Equal(exit is 0 or 1 || args[0] == "config", end.Out.Length > 0);
     }
 
+    // From an elevated terminal, a command that may write the settings, a look, the finder's mark or the start at sign-in
+    // is refused before it writes anything, as a link in the user's folders could send an elevated write anywhere; one
+    // that only reads still answers.
+    [Theory]
+    [InlineData(true, "edit", """{"kind":"item","item":"cpu.load","field":"name","value":"Load"}""")]
+    [InlineData(true, "look", "save", "Mine", "--overlay", "0")]
+    [InlineData(true, "start-with-windows", "on")]
+    [InlineData(true, "mcp")]
+    [InlineData(false, "config")]
+    [InlineData(false, "start-with-windows")]
+    public async Task AnElevatedCliOnlyReads(bool writes, params string[] args)
+    {
+        _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+        var before = _rig.Folder.Text();
+        _rig.Raised = true;
+
+        var end = await _rig.RunAsync(args);
+
+        Assert.Equal((writes ? 1 : 0, writes, before), (end.Exit, end.Out.Length == 0, _rig.Folder.Text()));
+    }
+
     // The service as status finds it, with no overlay running, or a per-user install's own host, which runs only while thermi
     // does; what the commands answer does not hang on an overlay.
     [Theory]

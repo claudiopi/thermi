@@ -38,7 +38,7 @@ A command that ends with 0 or 1 prints one JSON document on stdout, with `"schem
 | Exit | Means |
 | --- | --- |
 | 0 | Done. |
-| 1 | Refused by thermi's rules: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. |
+| 1 | Refused by thermi's rules: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. A command that writes, run from an elevated terminal, is refused with nothing on stdout. |
 | 2 | Bad arguments. |
 | 3 | The sensor service is not installed, stopped, stale or held by another program, or a per-user install's thermi is not running. |
 | 4 | The settings file is broken, newer than this thermi or locked, or Windows refused to write it or a saved look's file; nothing was written, and stderr says why. |

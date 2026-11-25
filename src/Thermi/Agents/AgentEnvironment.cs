@@ -41,6 +41,9 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
         return key?.GetValue(SensorsOnlyValue) is 1;
     };
 
+    /// <summary>Whether this process runs with a token UAC raised, as from an elevated terminal, which only reads.</summary>
+    public Func<bool> Raised { get; init; } = Elevation.Raised;
+
     public Func<IReadOnlyList<Screen>> Screens { get; init; } = Desktop.Screens;
 
     public Func<IReadOnlySet<int>> AltGrKeys { get; init; } = HotkeyRegistry.AltGrKeys;

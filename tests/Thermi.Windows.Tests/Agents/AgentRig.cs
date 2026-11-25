@@ -118,6 +118,8 @@ internal sealed class AgentRig : IDisposable
 
     public bool PerUser { get; set; }
 
+    public bool Raised { get; set; }
+
     public IReadOnlyList<Screen> Screens { get; set; } =
         [new Screen("DISPLAY1", Primary: true, new PixelRect(0, 0, 1920, 1080), new PixelRect(0, 0, 1920, 1032), Scale: 1)];
 
@@ -133,6 +135,7 @@ internal sealed class AgentRig : IDisposable
         FinderRan = Path.Combine(Path.GetDirectoryName(Folder.File)!, "fan-finder-ran.txt"),
         Installed = () => Installed,
         PerUser = () => PerUser,
+        Raised = () => Raised,
         Overlay = () => Overlay,
         SensorsOnly = () => SensorsOnly,
         Screens = () => Screens,
