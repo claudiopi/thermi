@@ -33,6 +33,16 @@ public sealed class OverlayEditTests
     // The CPU fan moved first, as a person orders the default items.
     private static ThermiConfig Reordered => Done(ItemEdits.Move(One, Metrics.CpuFan.Id, 0));
 
+    // The CPU pill, its items alone in their overlay.
+    private static ThermiConfig Cpu => WithOverlay(One, 0, overlay => overlay with { Items = [.. overlay.Items.Take(4)] });
+
+    private static ThermiConfig Restyled(Func<StyleConfig, StyleConfig> change) =>
+        WithOverlay(One, 0, overlay => overlay with { Style = change(overlay.Style) });
+
+    // The GPU's pill between two of the CPU's dragged off, which leaves the second CPU pill a start of its own.
+    private static ThermiConfig Split =>
+        Done(OverlayEdits.DragOff(Done(ItemEdits.Move(One, Metrics.GpuLoad.Id, 2)), Metrics.GpuLoad.Id, new Position(400, 300)));
+
     // Where the edit starts, the edit, the overlays after it as their place, their items' count, h when hidden, v when
     // vertical and their size when not 100 %, or the refusal; then the name an overlay without a typed one shows, as its
     // place and that name's text, or "same" when no edit wrote a name.
@@ -82,9 +92,30 @@ public sealed class OverlayEditTests
     [InlineData("four", "desk 0 hold500+cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("free", "corner 400 38 -300 200", "400,300:6v0.75", "same")]
     [InlineData("free", "corner 400 38 199 5", "400,300:61.5", "same")]
+    [InlineData("one", "desk 0 hold500+value:cpu.load 400 300", "Taskbar:5 400,300:1", "")]
+    [InlineData("one", "desk 0 hold500+cpu.load 400 300", "Taskbar:2 400,300:4", "")]
+    [InlineData("one", "desk 0 hold500+value:cpu.load 1300 1375", "Taskbar:5 Taskbar@1300:1", "")]
+    [InlineData("four", "desk 0 hold500+value:cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
+    [InlineData("cpu", "desk 0 hold500+value:cpu.load 400 300", "Taskbar:3 400,300:1", "")]
+    [InlineData("cpu", "desk 0 hold500+cpu.load 400 300", "400,300:4", "same")]
+    [InlineData("unlabeled", "desk 0 hold500+value:cpu.load 400 300", "Taskbar:2 400,300:4", "")]
+    [InlineData("onebar", "desk 0 hold500+value:cpu.load 400 300", "Taskbar:5 400,300:1", "")]
+    [InlineData("onebar", "desk 0 hold500+cpu.load 400 300", "Taskbar:2 400,300:4", "")]
     public void OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach(string start, string edit, string expected, string named)
     {
-        var before = start switch { "two" => Two, "solo" => Solo, "free" => Free, "four" => Four, "reordered" => Reordered, "bar" => Bar, _ => One };
+        var before = start switch
+        {
+            "two" => Two,
+            "solo" => Solo,
+            "free" => Free,
+            "four" => Four,
+            "reordered" => Reordered,
+            "bar" => Bar,
+            "cpu" => Cpu,
+            "unlabeled" => Restyled(style => style with { NoLabels = true }),
+            "onebar" => Restyled(style => style with { Layout = PillLayout.One }),
+            _ => One,
+        };
         var history = new UndoHistory();
 
         var result = Edit(before, edit.Split(' '));
@@ -144,9 +175,10 @@ public sealed class OverlayEditTests
     private static EditResult Corner(ThermiConfig config, (double Size, Orientation Orientation) dragged) =>
         OverlayEdits.Resize(config, 0, dragged.Size, dragged.Orientation);
 
-    // A pill, held still for the milliseconds its word says as "hold500+", by the injected clock, or the edge, of an overlay
-    // as the main monitor shows it, dropped where the words say, near a snap mark or onto the overlay they name, before the
-    // pill of the item they name last.
+    // An item's pill, pressed on its label, or the item, pressed on its value as "value:", held still for the milliseconds
+    // its word says as "hold500+", by the injected clock, or the edge, of an overlay as the main monitor shows it, dropped
+    // where the words say, near a snap mark or onto the overlay they name, before the pill of the item they name next ("-"
+    // past the last), or with "in" last before that item of its own pill.
     private static EditResult Desk(ThermiConfig config, string[] words)
     {
         var dropped = new Position(int.Parse(words[3], CultureInfo.InvariantCulture), int.Parse(words[4], CultureInfo.InvariantCulture));
@@ -157,13 +189,17 @@ public sealed class OverlayEditTests
         var time = new FakeTimeProvider();
         var pressed = time.GetTimestamp();
         time.Advance(TimeSpan.FromMilliseconds(plus < 0 ? 0 : int.Parse(words[2][4..plus], CultureInfo.InvariantCulture)));
-        var pill = words[2][(plus + 1)..];
-        var takenOff = DesktopGestures.Holds(config, overlay, pill == "edge" ? null : pill, time.GetElapsedTime(pressed)) ? pill : null;
-        return DesktopGestures.Release(config, overlay, takenOff, dropped, onto, mark, words.Length > 6 ? words[6] : null).Result;
+        var on = words[2][(plus + 1)..];
+        var value = on.StartsWith("value:", StringComparison.Ordinal);
+        var grip = DesktopGestures.Grip(config, on == "edge" ? null : on.Replace("value:", "", StringComparison.Ordinal), onLabel: !value);
+        var carried = DesktopGestures.Holds(config, overlay, grip, time.GetElapsedTime(pressed)) ? grip : null;
+        var target = new DropTarget(onto, words.Length > 6 && words[6] != "-" ? words[6] : null, InPill: words.Length > 7 && words[7] == "in");
+        return DesktopGestures.Release(config, overlay, carried, dropped, target, mark).Result;
     }
 
     // A lifted pill, or an overlay moved whole, dropped on an overlay joins it where it was let go, before the pill it was
     // dropped in front of, or at its end; a pill dropped back on its own overlay moves there, and stays put on its own place.
+    // An item lifted alone moves within its own pill dropped on it, and elsewhere joins as a pill does.
     // Where the drop starts, its words as the desk edit's, and the items of the overlay it lands on, in their order.
     [Theory]
     [InlineData("solo", "0 hold500+gpu.load 400 300 1 solo", "gpu.load solo")]
@@ -171,6 +207,11 @@ public sealed class OverlayEditTests
     [InlineData("solo", "1 solo 400 300 0 gpu.load", "cpu.temperature fan.cpu cpu.load cpu.power solo gpu.load ram.used")]
     [InlineData("one", "0 hold500+gpu.load 400 300 0 cpu.temperature", "gpu.load cpu.temperature fan.cpu cpu.load cpu.power ram.used")]
     [InlineData("one", "0 hold500+gpu.load 400 300 0 gpu.load", "cpu.temperature fan.cpu cpu.load cpu.power gpu.load ram.used")]
+    [InlineData("one", "0 hold500+value:cpu.temperature 400 300 0 cpu.power in", "fan.cpu cpu.load cpu.temperature cpu.power gpu.load ram.used")]
+    [InlineData("one", "0 hold500+value:cpu.temperature 400 300 0 - in", "fan.cpu cpu.load cpu.power cpu.temperature gpu.load ram.used")]
+    [InlineData("one", "0 hold500+value:cpu.load 400 300 0 cpu.load in", "cpu.temperature fan.cpu cpu.load cpu.power gpu.load ram.used")]
+    [InlineData("one", "0 hold500+value:cpu.load 400 300 0 ram.used", "cpu.temperature fan.cpu cpu.power gpu.load cpu.load ram.used")]
+    [InlineData("solo", "0 hold500+value:cpu.load 400 300 1 solo", "cpu.load solo")]
     public void ADropOnAnOverlayJoinsItWhereItIsLetGo(string start, string drop, string items)
     {
         var before = start == "solo" ? Solo : One;
@@ -183,14 +224,19 @@ public sealed class OverlayEditTests
 
     // The window lists the pills the overlay labels, in every layout, and a join or a split leaves every pill a start of
     // its own: a file joined by hand with its single bar over GPU, CPU and RAM; the GPU pill between two of the CPU's
-    // dragged off; an overlay of the RAM merged after the RAM's pill. Where it starts, the edit, then the first overlay's
-    // pills after it as each one's label and its items' count.
+    // dragged off; an overlay of the RAM merged after the RAM's pill; an item lifted off its pill, before it or within it,
+    // or off the second of two CPU pills, which stays apart. Where it starts, the edit, then the first overlay's pills after
+    // it as each one's label and its items' count.
     [Theory]
     [InlineData("joined", "", "GPU:2 CPU:4 RAM:1")]
     [InlineData("joined pills", "", "GPU:2 CPU:3 CPU:1 RAM:1")]
     [InlineData("joined each", "", "GPU:1 GPU:1 CPU:1 CPU:1 CPU:1 CPU:1 RAM:1")]
     [InlineData("between", "drag gpu.load 400 300", "CPU:2 CPU:2 RAM:1")]
     [InlineData("ram", "merge 1 0", "CPU:4 GPU:1 RAM:1 RAM:1")]
+    [InlineData("one", "desk 0 hold500+value:cpu.load 400 300 0 cpu.temperature", "CPU:1 CPU:3 GPU:1 RAM:1")]
+    [InlineData("one", "desk 0 hold500+value:cpu.temperature 400 300 0 - in", "CPU:4 GPU:1 RAM:1")]
+    [InlineData("split", "desk 0 hold500+value:cpu.load 400 300", "CPU:2 CPU:1 RAM:1")]
+    [InlineData("split", "desk 0 hold500+value:cpu.load 400 300 0 - in", "CPU:2 CPU:2 RAM:1")]
     public void TheWindowListsThePillsTheOverlayLabels(string start, string edit, string expected)
     {
         var joined = ThermiConfigJson.Read(TestFiles.Config("joined.json")).Config;
@@ -200,6 +246,8 @@ public sealed class OverlayEditTests
                 WithOverlay(joined, 0, overlay => overlay with { Style = overlay.Style with { Layout = Enum.Parse<PillLayout>(layout, true) } }),
             ["joined"] => joined,
             ["between"] => Done(ItemEdits.Move(One, Metrics.GpuLoad.Id, 2)),
+            ["one"] => One,
+            ["split"] => Split,
             _ => WithOverlay(Two, 1, overlay => overlay with { Items = [new ItemConfig { Id = "ram2", Metric = Metrics.RamUsed.Id }] }),
         };
 

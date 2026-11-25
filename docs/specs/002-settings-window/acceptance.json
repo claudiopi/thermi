@@ -1670,6 +1670,52 @@
       "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; and on a taskbar nearly full, a move onto it without room for the overlay at its size is refused, changing nothing, and one shown again there squeezes none, the one before it held back toward the start only while it shows.",
       "check": "AnOverlayMovesOnlyWhenThePersonMovesIt",
       "passes": true
+    },
+    {
+      "id": "A347",
+      "covers": [
+        "R150",
+        "R199"
+      ],
+      "description": "Given the default overlay, an overlay of the CPU pill alone, one that shows no labels, one in one bar and four overlays, when an item's value or a pill's label is held until it lifts and dropped on the desktop or on a taskbar's mark, then the value lifts the item alone and the label its pill, in a pill without labels the pill, in one bar the run or the item, the item held off the CPU pill alone becomes an overlay of its own where the pill's label moves the whole overlay, at four overlays the hold is refused, and each drop is one undo step.",
+      "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
+      "passes": true
+    },
+    {
+      "id": "A348",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given an item lifted from the CPU pill, when it is dropped on its own pill before another of its items, past the pill's last, or on its own place, before another pill of its overlay, or on another overlay, then it moves within its pill, stays put, or joins as a pill of its own before the pill it was dropped in front of.",
+      "check": "ADropOnAnOverlayJoinsItWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A349",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the default overlay, and one whose second CPU pill starts apart from the first, when an item is lifted off its pill and dropped before its own pill, moved within it, or the item starting the second CPU pill is dropped on the desktop, then the pill it leaves keeps its label and stays apart, the item shows as a pill of its own, and every other pill shows as it did.",
+      "check": "TheWindowListsThePillsTheOverlayLabels",
+      "passes": true
+    },
+    {
+      "id": "A350",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the overlay on a desktop of its own, when an item's value in the CPU pill is held until it lifts and thrown far, the CPU label is held and thrown far, or the CPU temperature's value is held and dropped on the end of the CPU power's value, then the item alone, or the whole CPU pill, becomes an overlay of its own, or the CPU temperature moves to the end of its pill; and a held press on a locked overlay moves and writes nothing.",
+      "check": "APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo",
+      "passes": true
+    },
+    {
+      "id": "A351",
+      "covers": [
+        "R199"
+      ],
+      "description": "Given the installed thermi, when an item's value in the CPU pill is held, dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its pill and before the pill elsewhere, and the pill's label held lifts the whole pill as before.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

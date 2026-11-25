@@ -25,8 +25,11 @@ internal sealed record OverlayActions(
     /// <summary>Each overlay's box on the screen, by its place, null for one not shown.</summary>
     public Func<IReadOnlyList<PixelRect?>> Shown { get; init; } = () => [];
 
-    /// <summary>The item of an overlay drawn first past a point of the screen, before whose pill a pill dropped there joins; null past its last.</summary>
-    public Func<int, Position, string?> ItemAfter { get; init; } = (_, _) => null;
+    /// <summary>
+    /// Where a drop at a point of the screen joins an overlay: before the pill of its item drawn first past it, null past its
+    /// last; or, for the item named, carried alone over its own pill there, before that pill's item drawn first past it.
+    /// </summary>
+    public Func<int, Position, string?, DropTarget> JoinAt { get; init; } = (onto, _, _) => new DropTarget(onto, null);
 
     /// <summary>
     /// A gesture's or a menu's settings, with each overlay it pushed along a taskbar keeping the place it was pushed to,

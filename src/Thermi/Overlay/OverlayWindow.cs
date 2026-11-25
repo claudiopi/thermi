@@ -293,9 +293,7 @@ internal sealed class OverlayWindow : IDisposable
         _gestures.Let();
         if (_painted is { } painted && _scene is { } scene)
         {
-            var item = ItemAt(_actions.Cursor());
-            var box = item is null ? RectangleF.Empty : _painter.Places.First(place => place.Id == item).Pill;
-            _gestures.Press(overlay, painted, scene.Screens, (item, box), WindowPosition());
+            _gestures.Press(overlay, painted, scene.Screens, _painter.Places.Pressed(OnPicture(_actions.Cursor())), WindowPosition());
         }
     }
 
@@ -359,10 +357,11 @@ internal sealed class OverlayWindow : IDisposable
         _pointed = item;
     }
 
-    /// <summary>The item before which a pill dropped at a point of the screen joins this overlay; null past the last.</summary>
-    internal string? ItemAfter(Position cursor) => _painter.ItemAfter(OnPicture(cursor), _painted?.Look.Orientation == Orientation.Vertical);
+    /// <summary>Where a drop at a point of the screen joins this overlay, as <see cref="PaintedPlaces.JoinAt"/> says.</summary>
+    internal DropTarget JoinAt(Position cursor, string? alone) =>
+        _painter.Places.JoinAt(_index, OnPicture(cursor), alone, _painted?.Look.Orientation == Orientation.Vertical);
 
-    internal string? ItemAt(Position cursor) => _painter.ItemAt(OnPicture(cursor));
+    internal string? ItemAt(Position cursor) => _painter.Places.At(OnPicture(cursor))?.Id;
 
     /// <summary>The opacity the overlay shows at, 255 for whole.</summary>
     internal byte Alpha => _fade.Alpha;

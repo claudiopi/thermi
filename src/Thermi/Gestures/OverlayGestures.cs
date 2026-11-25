@@ -33,13 +33,13 @@ internal sealed record PaintedOverlay(IReadOnlyList<OverlayItem> Items, OverlayL
 }
 
 /// <summary>
-/// An overlay's desktop gestures: the overlay moved onto a snap mark or into another overlay, a pill held still until it
-/// lifts and then dragged off, and a floating overlay's corner. The window says where it is and what it drew; these decide
+/// An overlay's desktop gestures: the overlay moved onto a snap mark or into another overlay, a pill or an item held still
+/// until it lifts and then dragged off, and a floating overlay's corner. The window says where it is and what it drew; these decide
 /// what a press does.
 /// </summary>
 internal sealed class OverlayGestures(int index, Settings settings, OverlayActions actions, HWND hwnd) : IDisposable
 {
-    /// <summary>The timer that wakes the overlay when a press on a pill may have held long enough to lift it.</summary>
+    /// <summary>The timer that wakes the overlay when a press on a pill may have held long enough to lift it or its item.</summary>
     internal const nuint HoldTimer = 3;
 
     /// <summary>The id of Esc, which a press holds as a hotkey of the overlay's, so it cancels the drag and reaches no other app.</summary>
@@ -69,15 +69,19 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     private int Self => Drag?.Lifted == true ? -1 : index;
 
     /// <summary>
-    /// A press on <paramref name="overlay"/> at <paramref name="at"/>: on its corner, its edge, or the pill of the item it
-    /// is on, in its box. On a pill it starts the wait for the hold that lifts it.
+    /// A press on <paramref name="overlay"/> at <paramref name="at"/>: on its corner, its edge, or the item it is on, in
+    /// its pill and its own place, on its pill's label or not. On a pill it starts the wait for the hold that lifts the
+    /// pill, or the item alone as Core's <see cref="DesktopGestures.Grip"/> says.
     /// </summary>
-    public void Press(OverlayConfig overlay, PaintedOverlay painted, IReadOnlyList<Screen> screens, (string? Item, RectangleF Box) on, Position at)
+    public void Press(OverlayConfig overlay, PaintedOverlay painted, IReadOnlyList<Screen> screens, PressedOn on, Position at)
     {
         Let();
-        var item = on.Item;
-        var held = InCorner(overlay, painted, at, actions.Cursor()) ? Held.Corner : item is null ? Held.Edge : Held.Pill;
-        var start = new DragStart(held, item, on.Box, at, painted.Size, painted.Scale, item is null ? null : () => PillPicture(item, painted));
+        var carried = DesktopGestures.Grip(settings.Config, on.Item, on.OnLabel);
+        var held = InCorner(overlay, painted, at, actions.Cursor()) ? Held.Corner : carried is null ? Held.Edge : Held.Pill;
+        var (box, picture) = carried is { Alone: true } alone ? (on.Place, () => ItemPicture(alone.Item, painted))
+            : carried is { } pill ? (on.Pill, () => PillPicture(pill.Item, painted))
+            : (on.Pill, (Func<Bitmap>?)null);
+        var start = new DragStart(held, carried, box, at, painted.Size, painted.Scale, picture);
         Drag = new DesktopDrag(index, settings, start, screens, hwnd);
         _pressed = actions.Time.GetTimestamp();
         _escape = PInvoke.RegisterHotKey(hwnd, (int)EscapeKey, HOT_KEY_MODIFIERS.MOD_NOREPEAT, (uint)VIRTUAL_KEY.VK_ESCAPE);
@@ -145,10 +149,11 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         Let();
     }
 
+    // An item carried alone may land within its own pill, which only its own overlay can tell.
     private DropTarget Target(Position cursor, Position? dragged) =>
         dragged is { } at && Drag is { } drag
         && DesktopGestures.JoinTarget(actions.Shown(), Self, drag.Box(at), cursor, DesktopDrag.AltHeld()) is var (onto, point)
-            ? new DropTarget(onto, actions.ItemAfter(onto, point))
+            ? actions.JoinAt(onto, point, drag is { Lifted: true, Carried: { Alone: true } alone } && onto == index ? alone.Item : null)
             : default;
 
     /// <summary>
@@ -185,7 +190,8 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     }
 
     /// <summary>
-    /// Marks what the drag shows on the overlay's last paint: the gap a lifted pill leaves, and where a drop joins it.
+    /// Marks what the drag shows on the overlay's last paint: the gap a lifted pill or item leaves, and where a drop joins
+    /// it, between the items of its own pill for an item carried over it.
     /// </summary>
     public void Mark(Bitmap bitmap, IReadOnlyList<PaintedItem> places, float scale, bool vertical, Rgb accent)
     {
@@ -196,7 +202,8 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
 
         if (actions.Preview.Onto == index)
         {
-            DragMarks.Join(bitmap, places, actions.Preview.Before, vertical, accent, scale);
+            var within = actions.Preview.InPill ? Drag?.Carried?.Item : null;
+            DragMarks.Join(bitmap, places, (actions.Preview.Before, within), vertical, accent, scale);
         }
     }
 
@@ -322,11 +329,21 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     private Bitmap PillPicture(string item, PaintedOverlay painted)
     {
         var ids = DesktopGestures.PillItems(settings.Config, item);
-        // Carried over other pills, it keeps a background of its own whatever the look's opacity or the window's fade.
+        return Picture([.. painted.Items.Where(each => ids.Contains(each.Id))], painted);
+    }
+
+    // Off its pill, an item shows its pill's label, as the overlay it becomes does.
+    private Bitmap ItemPicture(string item, PaintedOverlay painted)
+    {
+        var ids = DesktopGestures.PillItems(settings.Config, item);
+        var label = painted.Items.FirstOrDefault(each => ids.Contains(each.Id) && each.Label is not null)?.Label;
+        return Picture([.. painted.Items.Where(each => each.Id == item).Select(each => each with { Label = label })], painted);
+    }
+
+    // Carried over other pills, it keeps a background of its own whatever the look's opacity or the window's fade.
+    private static Bitmap Picture(IReadOnlyList<OverlayItem> items, PaintedOverlay painted)
+    {
         using var painter = new Painter();
-        return painter.Paint(
-            [.. painted.Items.Where(each => ids.Contains(each.Id))],
-            painted.Look with { Orientation = Orientation.Horizontal, Background = 1, Opacity = 1 },
-            painted.Scale);
+        return painter.Paint(items, painted.Look with { Orientation = Orientation.Horizontal, Background = 1, Opacity = 1 }, painted.Scale);
     }
 }
