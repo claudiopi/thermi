@@ -177,6 +177,15 @@ public sealed class OverlayTests
         Assert.Equal([new OverlayItem("RAM", "44 %", Level.Normal, "100 %")], items);
     }
 
+    [Fact]
+    public void AnItemWithoutAThresholdIsNeverAlarming()
+    {
+        var config = new OverlayConfig { Items = [new ItemConfig { Metric = Metrics.CpuLoad.Id }] };
+        var readings = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuLoad.Id] = new(SensorKind.Load, 99) };
+
+        Assert.Equal(Level.Normal, OverlayLayout.Build(config, readings, English)[0].Level);
+    }
+
     // The owner, 2026-11-24: an item draws its own choice beside its value, else its overlay's, whose Auto is a line for a
     // load warned by itself and bars for the rest; one lines cannot judge draws nothing, whatever is chosen. Only an item
     // that draws nothing underlines its warning, since bars or a line already show it.

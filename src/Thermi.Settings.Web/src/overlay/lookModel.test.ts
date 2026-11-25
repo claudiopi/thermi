@@ -26,6 +26,34 @@ describe('a look', () => {
     { style: { preset: 'compact' }, shown: { ...defaults, label: { size: 11, weight: 'semibold' }, value: { size: 12, weight: 'bold' } } },
     { style: { preset: 'large', ...own }, shown: { ...defaults, label: { size: 16, weight: 'semibold' }, value: { size: 17, weight: 'bold' } } },
     { style: { preset: 'custom', ...own }, shown: { ...defaults, ...own } },
+    {
+      style: {
+        pills: 'dark',
+        layout: 'one',
+        orientation: 'vertical',
+        opacity: { background: 0.5, overlay: 0.7 },
+        gap: 4,
+        units: false,
+        font: 'consolas',
+        corners: 'square',
+        effect: 'outline',
+        colors: { normal: '#000000' },
+      },
+      shown: {
+        ...defaults,
+        pills: 'dark',
+        layout: 'one',
+        orientation: 'vertical',
+        background: 0.5,
+        overlay: 0.7,
+        gap: 4,
+        units: false,
+        font: 'consolas',
+        corners: 'square',
+        effect: 'outline',
+        colors: { normal: '#000000' },
+      },
+    },
   ] satisfies { style: Style | undefined; shown: unknown }[])('shows $style with every field', ({ style, shown }) => {
     expect(shownStyle(style)).toEqual(shown);
   });

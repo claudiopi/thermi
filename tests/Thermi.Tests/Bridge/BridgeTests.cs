@@ -72,6 +72,7 @@ public sealed class BridgeTests
     [Theory]
     [InlineData(0.1, 0, 599, 599.0)]
     [InlineData(10.1, 0, 599, null)]
+    [InlineData(0.1, 0, 300, null)]
     [InlineData(3.7, 3, 596, 599.0)]
     public void TheChartJoinsTheOverlaysTenMinutesToTheWindowsOwn(double drawnAt, int own, int at, double? expected)
     {

@@ -18,7 +18,9 @@ public sealed class HotkeyRefusalTests
     // written; turning off the only hotkey left leaves the file with none.
     [Theory]
     [InlineData("Win+T", HotkeyRefusal.WithWin)]
+    [InlineData("Ctrl+Win+T", HotkeyRefusal.WithWin)]
     [InlineData("Alt+K", HotkeyRefusal.AltWithCharacter)]
+    [InlineData("Alt+5", HotkeyRefusal.AltWithCharacter)]
     [InlineData("Ctrl+C", HotkeyRefusal.CommonShortcut)]
     [InlineData("Ctrl+V", HotkeyRefusal.CommonShortcut)]
     [InlineData("Ctrl+X", HotkeyRefusal.CommonShortcut)]

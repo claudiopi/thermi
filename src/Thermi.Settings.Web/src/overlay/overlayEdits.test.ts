@@ -13,6 +13,7 @@ test.each([
   { edit: { kind: 'mergeOverlay', overlay: 2, into: 0 }, overlays: three, outcome: { select: 0, say: 'OverlayPageText.OverlayMerged C A' } },
   { edit: { kind: 'mergeOverlay', overlay: 0, into: 5 }, overlays: three, outcome: { select: 4, say: 'OverlayPageText.OverlayMerged A ' } },
   { edit: { kind: 'deleteOverlay', overlay: 2 }, overlays: three, outcome: { select: 1, say: 'OverlayPageText.OverlayDeleted C' } },
+  { edit: { kind: 'deleteOverlay', overlay: 1 }, overlays: three, outcome: { select: 1, say: 'OverlayPageText.OverlayDeleted B' } },
   {
     edit: { kind: 'overlay', overlay: 1, field: 'hidden', value: true },
     overlays: three,

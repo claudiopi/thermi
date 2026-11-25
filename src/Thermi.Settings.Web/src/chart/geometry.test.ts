@@ -33,9 +33,12 @@ function plot(chart: Partial<ChartView> = {}): Plot {
 
 describe('the chart', () => {
   test.each([
+    [1600, 2000, 640],
     [300, 1000, 150],
+    [100, 100, 140],
     [1000, 1001.25, 401],
     // Beside the cards, in a maximized window, it fills the pane but for its heading and foot, at most as high as wide.
+    [780, 1330, 780, true],
     [1000, 900, 660, true],
   ] as [number, number, number, boolean?][])('is %d wide in a pane %d high: %d high', (width, pane, height, beside) => {
     expect(chartHeight(width, pane, beside)).toBe(height);
@@ -49,15 +52,23 @@ describe('the chart', () => {
   });
 
   test.each([
+    { y: 68, value: 50, chart: {} },
+    { y: 70, value: 45, chart: {} },
     // A fan's track ends at 10,000 RPM, far over its chart: a drag past the plot's top stops at the chart's.
     { y: 0, value: 1500, chart: { to: 1500, step: 50, max: 10000 } },
+    { y: 200, value: 0, chart: {} },
+    { y: 16, value: 90, chart: { max: 90 } },
     { y: 66, value: 60, chart: { from: 20, to: 100, step: 10 } },
   ])('reads a drag at $y as $value', ({ y, value, chart }) => {
     expect(valueAt(plot(chart), y)).toBe(value);
   });
 
   test.each([
+    // Cold review 4 (Q6): a reading alone is no line, so it draws nothing; the dot at its end says it.
+    { readings: [50], path: '' },
     { readings: [100, 50, 0, 50], path: 'M0.0,16.0C16.7,24.3 66.7,49.3 100.0,66.0C133.3,82.7 166.7,116.0 200.0,116.0C233.3,116.0 283.3,74.3 300.0,66.0' },
+    // Night QA: a fan's dip to 0 RPM bent the curve under the chart's floor; each bend stays between its two readings.
+    { readings: [100, 0, 0, 100], path: 'M0.0,16.0C16.7,32.7 66.7,99.3 100.0,116.0C133.3,116.0 166.7,116.0 200.0,116.0C233.3,99.3 283.3,32.7 300.0,16.0' },
   ])('draws the readings $readings', ({ readings, path }) => {
     expect(plotPaths(plot({ readings })).line).toBe(path);
   });
@@ -105,6 +116,7 @@ describe('the chart', () => {
   test.each([
     { warning: 50, critical: 90, tops: { warning: 66, critical: 26 } },
     { warning: 50, critical: 60, tops: { warning: 74, critical: 48 } },
+    { warning: -50, critical: 150, tops: { warning: 132, critical: 0 } },
     { warning: null, critical: 60, tops: { warning: null, critical: 56 } },
   ])('sets the knobs of $warning and $critical apart', ({ warning, critical, tops }) => {
     expect(knobTops(plot({ warning, critical }))).toEqual(tops);
