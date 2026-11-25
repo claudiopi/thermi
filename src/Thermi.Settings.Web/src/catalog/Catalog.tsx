@@ -24,8 +24,8 @@ export interface CatalogProps {
   announce: (text: string) => void;
 }
 
-// The prototype's chips, in its order.
-const chipKinds: SensorKind[] = ['temperature', 'load', 'fan', 'control', 'power', 'clock', 'data', 'throughput'];
+// The prototype's chips, in its order, with voltages beside power.
+const chipKinds: SensorKind[] = ['temperature', 'load', 'fan', 'control', 'power', 'voltage', 'clock', 'data', 'throughput'];
 const kindKey = (kind: SensorKind): TextKey => `SensorKind.${kind.charAt(0).toUpperCase()}${kind.slice(1)}`;
 
 /** How long the search waits for the typing to stop before Narrator says the count, as the prototype. */

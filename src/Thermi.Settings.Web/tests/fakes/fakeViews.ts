@@ -53,6 +53,7 @@ export function installFakeViews(): void {
     Throughput: ['MB/s', 1],
     FrameRate: ['', 0],
     FrameTime: ['ms', 1],
+    Voltage: ['V', 3],
   };
   const sensor = (id: string | undefined): Sensor | undefined => state.sensors.find((candidate) => candidate.id === id);
   const sensorOf = (item: Item): Sensor | undefined => sensor(item.sensor ?? item.sensors?.[0] ?? metricSensors[item.metric ?? '']);

@@ -1,6 +1,6 @@
 # thermi
 
-A light, always-on-top hardware monitor for Windows: CPU, GPU, RAM and fans (FPS later), in a small overlay you place anywhere on screen. AI agents will be able to configure it through a CLI and MCP.
+A light, always-on-top hardware monitor for Windows: CPU, GPU, RAM, fans, voltages and the FPS of the game in front, in a small overlay you place anywhere on screen. AI agents will be able to configure it through a CLI and MCP.
 
 This is the one guide for people and AI agents alike. Keep it short. New here? Read `docs/QUICKSTART.md`, then `docs/ARCHITECTURE.md`.
 

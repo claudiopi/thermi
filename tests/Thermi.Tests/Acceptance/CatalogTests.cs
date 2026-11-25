@@ -314,14 +314,14 @@ public sealed class CatalogTests
     [Fact]
     public void ASensorOfATypeThermiDoesNotShowHasNoRow()
     {
-        var withVoltage = new Snapshot(
+        var withCurrent = new Snapshot(
         [
             .. Desktop.Sensors,
-            new RawSensor("/lpc/it8689e/0/voltage/0", "SuperIO", "ITE IT8689E", "Voltage", "Vcore", 1.1),
+            new RawSensor("/amdcpu/0/current/0", "Cpu", "AMD Ryzen 9 9950X", "Current", "Core", 40),
             new RawSensor("odd", "SuperIO", "Odd", "Fan", "Odd", 1),
         ]);
 
-        var devices = SensorCatalog.Build(withVoltage);
+        var devices = SensorCatalog.Build(withCurrent);
 
         Assert.Equal(SensorCatalog.Build(Desktop).Sum(device => device.Sensors.Count) + 1, devices.Sum(device => device.Sensors.Count));
         Assert.Equal("Odd", devices[^1].Id);

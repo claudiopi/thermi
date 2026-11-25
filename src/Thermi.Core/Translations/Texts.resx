@@ -2145,6 +2145,12 @@
   <data name="Synonyms.FrameRate" xml:space="preserve">
     <value>fps frames frame rate framerate</value>
   </data>
+  <data name="SensorKind.Voltage" xml:space="preserve">
+    <value>Voltage</value>
+  </data>
+  <data name="Synonyms.Voltage" xml:space="preserve">
+    <value>volts volt voltage rail</value>
+  </data>
   <data name="Synonyms.FrameTime" xml:space="preserve">
     <value>frame time frametime ms stutter</value>
   </data>

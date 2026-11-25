@@ -26,6 +26,7 @@ public enum Synonyms
     Address,
     FrameRate,
     FrameTime,
+    Voltage,
     Cpu,
     Gpu,
     Ram,

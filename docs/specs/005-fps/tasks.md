@@ -1,6 +1,6 @@
 # 005-fps: Tasks
 
-> Progress: 8 / 14
+> Progress: 8 / 15
 > Current block: B0, decision and data, which waits for the author's spike and recording; B1 to B3 are done but for A1
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
@@ -26,6 +26,10 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 
 - [x] **T9** Covers R2, R4: the process in front on the overlay's and the window's tick, past thermi's own windows.
 - [x] **T10** Covers R7, R8: the chart draws and drags a low kind's lines, the critical below.
+
+## B3b: Voltages
+
+- [ ] **T15** Covers R13: the kind `Voltage` in Core, its format, no offset and no lines, its texts in every language, its chip in the catalog, and A8 on the recorded desktop with the board's voltages; the author's next admin dump replaces those voltages with recorded ones.
 
 ## B4: Review and proof
 

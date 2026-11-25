@@ -1,4 +1,4 @@
-# 005. FPS and frame time of the game in front
+# 005. FPS and frame time of the game in front, and voltages
 
 **Status**: approved
 
@@ -29,6 +29,10 @@ The service
 - R11. The pipe stays one-way, and no process's name leaves the service: frames go out as process ids and numbers.
 - R12. `thermi-sensors --frames <file> --seconds <n>`, as administrator, records each present of every process, with ids and times and no names, for tests and bug reports.
 
+Voltages
+
+- R13. The voltages the library reads (a CPU's core, SoC and memory controller, the board's +12 V, +5 V and +3.3 V, a GPU's core) leave the service, and the window lists them in the catalog under their device, found by their name or by words such as "volts" or "vcore", and adds them as items, each shown in volts, as `1.248 V` under 10 V and `12.10 V` from 10 V on. They have no lines by default, and lines cannot judge them; no default overlay shows one.
+
 ## Design
 
 **The service** (a new folder, `Frames`, of `src/Thermi.SensorHost`) runs one real-time ETW session, `thermi-frames`, through CsWin32, while a client is connected, enabling DXGI's and Direct3D 9's present events and the graphics kernel's for the rest, on a thread of its own that runs `ProcessTrace` (ADR 0014). Each present goes to Core's `FrameTally` (a new folder, `Frames`, of `src/Thermi.Core`), which each second gives, per process, its FPS and its frame time, and keeps a process 5 s at 0 FPS after its last present. A runtime's present reaches the kernel too, so the kernel's count only for a process that sent no runtime's in the last 5 s, as an OpenGL or Vulkan driver that presents on its own. `FramedSource` wraps the sensors' read and adds the tally's 8 busiest processes, `dwm.exe` left out, as fixed slots of sensors under the hardware type `Frames`: process id, parent's id, FPS, frame time. The slots are always there, without values when the session could not start, so the catalog line never changes with them. The session starts with the first read and stops 5 s after the last. `--frames` writes the presents a session of its own sees, as JSON lines, through the same tally's input, so a recording never stops the service's.
@@ -44,6 +48,8 @@ The service
 **Testing.** The edges are a recording of presents in and what the overlay shows out. A recording is made with `--frames` while the author rides Zwift, his one game, an OpenGL one: into a world, through its loading screen, alt-tabbing to a browser and the desktop and back; trimmed to the game's process and a few others, it replays through `FrameTally` into snapshots, and those through `GameSensors` and the layout with the process in front given, which is the acceptance of R1, R2, R4, R5, R6 and R9 in one table. The low lines are rows of the thresholds' existing table. The session itself, the APIs and the cost are checked by hand on the author's PC: Zwift against its own counter, and the other APIs with free demos that present through them (Vulkan's `vkcube`, Direct3D 9, 11 and 12 samples), against PresentMon run beside them.
 
 **Test budget.** This spec adds at most 10 unique tests; most of its cases are rows of tables that exist.
+
+**Voltages.** Core gains the sensor kind `Voltage`, which `SensorMap` takes from the library's type of the same name, so the service stops dropping voltages and the catalog, its search, the items and the charts take them as any kind: `ReadingFormatter` shows them in volts with three decimals under 10 V and two from there, they take no offset, since a board's divider errs by a factor and not by a sum, and `Threshold.CanMeter` leaves them out, so they have no lines. The window's catalog adds a chip for them, and their name and search words join the translations. Their test is the recorded desktop with the board's voltages as the library gives them, until the author's next admin dump records them, which replaces it.
 
 **Rejected:** a frame-time graph of every frame, as some overlays draw, sent from the service: the pipe and the history are one value a second, and the longest frame of each second already shows every stutter as a spike in the item's line, at no cost.
 

@@ -47,6 +47,9 @@ public enum SensorKind
 
     /// <summary>Milliseconds, as the longest wait for a frame in the last second.</summary>
     FrameTime,
+
+    /// <summary>Volts, as a CPU's core or a board's +12 V.</summary>
+    Voltage,
 }
 
 /// <summary>Which way a network speed goes, drawn as an arrow before its value in every language.</summary>

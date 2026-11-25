@@ -28,6 +28,9 @@ public static class PowerEdits
 
         // What Windows says is no measure at all, and frames are counted.
         SensorKind.Time or SensorKind.Address or SensorKind.FrameRate or SensorKind.FrameTime => (0, 0),
+
+        // A board's divider errs by a factor, not by a sum, so an offset corrects no voltage.
+        SensorKind.Voltage => (0, 0),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
     };
 

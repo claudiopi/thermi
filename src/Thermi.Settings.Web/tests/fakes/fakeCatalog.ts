@@ -14,7 +14,20 @@ export function installFakeCatalog(): void {
   const say = (key: string): string => state.texts[key] ?? key;
   const changed = (): void => fake.set({});
 
-  const kinds: SensorKind[] = ['temperature', 'load', 'clock', 'power', 'fan', 'control', 'data', 'throughput', 'duration', 'frame-rate', 'frame-time'];
+  const kinds: SensorKind[] = [
+    'temperature',
+    'load',
+    'clock',
+    'power',
+    'fan',
+    'control',
+    'data',
+    'throughput',
+    'duration',
+    'frame-rate',
+    'frame-time',
+    'voltage',
+  ];
   const libraryTypes: Record<string, SensorKind> = { Level: 'load', TimeSpan: 'duration' };
   const devices: Record<string, DeviceKind> = {
     Cpu: 'cpu',

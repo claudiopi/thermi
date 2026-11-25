@@ -120,6 +120,7 @@ public static class ReadingFormatter
             SensorKind.Fan or SensorKind.Clock => 8888,
             SensorKind.Power or SensorKind.FrameRate => 888,
             SensorKind.FrameTime => 888.8,
+            SensorKind.Voltage => 88.88,
             SensorKind.Data => 888.8,
             SensorKind.Temperature or SensorKind.Load or SensorKind.Control => 100,
             SensorKind.Throughput => 88.8e6,
@@ -164,6 +165,9 @@ public static class ReadingFormatter
             // Its item's label says FPS, so the number stands alone.
             SensorKind.FrameRate => (value, 0, "", ""),
             SensorKind.FrameTime => (value, 1, "ms", ""),
+
+            // A CPU's voltage moves by thousandths, a rail's by hundredths.
+            SensorKind.Voltage => (value, Math.Abs(value) < 10 ? 3 : 2, "V", ""),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
         };
 

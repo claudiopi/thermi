@@ -2145,6 +2145,12 @@
   <data name="Synonyms.FrameRate" xml:space="preserve">
     <value>fps cuadros fotogramas tasa</value>
   </data>
+  <data name="SensorKind.Voltage" xml:space="preserve">
+    <value>Voltaje</value>
+  </data>
+  <data name="Synonyms.Voltage" xml:space="preserve">
+    <value>voltios volts voltaje tensión</value>
+  </data>
   <data name="Synonyms.FrameTime" xml:space="preserve">
     <value>tiempo cuadro frametime ms tirones</value>
   </data>

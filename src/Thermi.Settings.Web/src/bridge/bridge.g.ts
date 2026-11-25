@@ -287,7 +287,7 @@ export interface Sensor {
   value: number | null;
 }
 
-export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address' | 'frame-rate' | 'frame-time';
+export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address' | 'frame-rate' | 'frame-time' | 'voltage';
 
 export interface SensorOffer {
   first: string[];
