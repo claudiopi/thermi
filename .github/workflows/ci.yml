@@ -53,10 +53,11 @@ jobs:
           cache-dependency-path: src/Thermi.Settings.Web/package-lock.json
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Web -Mutation
 
-  # The MSI of this build, unsigned and with updates off, so a change that breaks it fails here and not at a release.
+  # The MSIs of this build for both processors, unsigned and with updates off, so a change that breaks one fails here and
+  # not at a release: each carries the custom actions' DLL of its own processor.
   msi:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,9 +72,11 @@ jobs:
         run: |
           . ./scripts/publish.ps1
           $version = @(([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version | Where-Object { $_ })[0]
-          Publish-Thermi artifacts/ci-msi x64 $version
-          Build-Msi artifacts/ci-msi x64 $version "thermi-$version-x64.msi"
-          Build-Msi artifacts/ci-msi x64 $version "thermi-$version-x64-user.msi" -PerUser
+          foreach ($processor in 'x64', 'arm64') {
+            Publish-Thermi "artifacts/ci-msi-$processor" $processor $version
+            Build-Msi "artifacts/ci-msi-$processor" $processor $version "thermi-$version-$processor.msi"
+            Build-Msi "artifacts/ci-msi-$processor" $processor $version "thermi-$version-$processor-user.msi" -PerUser
+          }
 
   pr-title:
     if: github.event_name == 'pull_request'

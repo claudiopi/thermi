@@ -15,5 +15,5 @@ turns on the user's start at sign-in. The machine MSI's secure `ADDDRIVER=1` ins
 through the `thermi-elevated` service, ignoring what it answers.
 
 Every program both run goes through WiX's util extension, `WixToolset.Util.wixext`, from its DLL native to the package's
-processor: `WixQuietExec`, which shows no console window, and for the overlay after an install by hand `WixShellExec`,
-which starts it only for a client that is not elevated (`MSIUSEREALADMINDETECTION` and `NOT AdminUser`).
+processor: `WixQuietExec`, which shows no console window, and for the overlay after an install by hand
+`WixUnelevatedShellExec`, which has Explorer start it as the person, unelevated even from an elevated console.

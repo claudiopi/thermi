@@ -170,30 +170,35 @@ public sealed class AdminOnDemandTests
         Assert.Equal(("yes", "NOT Installed AND ADDDRIVER = 1"), ((string?)property.Attribute("Secure"), (string?)action.Attribute("Condition")));
     }
 
-    // Every program the MSIs run goes through WiX's own DLL actions, native to the package's processor, so no console
-    // window shows as SYSTEM for a user to drive, and the overlay starts for no client whose real token is elevated.
+    // Every program the MSIs run goes through WiX's own DLL actions, native to the package's processor, each given its
+    // command line by a property set before it, so no console window shows as SYSTEM for a user to drive; the overlay
+    // is started by Explorer, as the person, so never elevated.
     [Fact]
     public void TheMsiRunsNoProgramInAWindowNorTheOverlayElevated()
     {
         var wix = XDocument.Load(Path.Combine(Root(), "src", "Thermi.Installer", "Package.wxs"));
         var all = wix.Descendants().ToList();
+        var set = all.Where(element => element.Name.LocalName == "SetProperty" && (string?)element.Attribute("Sequence") == "execute").ToList();
 
-        // Each action's entry in the util extension's DLL, or "not quiet" for one that runs its program any other way.
+        // Each action's entry in the util extension's DLL, or "not quiet" for one that runs its program any other way, and
+        // the property set just before it.
         var actions = all.Where(element => element.Name.LocalName == "CustomAction").Select(action =>
             ((string?)action.Attribute("Id"), (string?)action.Attribute("BinaryRef") == "$(var.UtilCA)" && action.Attribute("ExeCommand") is null
-                ? (string?)action.Attribute("DllEntry") : "not quiet"));
+                ? (string?)action.Attribute("DllEntry") : "not quiet",
+                set.SingleOrDefault(each => (string?)each.Attribute("Before") == (string?)action.Attribute("Id"))?.Attribute("Id")?.Value));
         var binary = wix.DescendantNodes().OfType<XProcessingInstruction>()
             .Single(each => each.Target == "define" && each.Data.StartsWith("UtilCA", StringComparison.Ordinal));
-        var real = all.Single(element => element.Name.LocalName == "Property" && (string?)element.Attribute("Id") == "MSIUSEREALADMINDETECTION");
+        var overlay = all.Single(element => element.Name.LocalName == "CustomAction" && (string?)element.Attribute("Id") == "StartOverlay");
         var start = all.Single(element => element.Name.LocalName == "Custom" && (string?)element.Attribute("Action") == "StartOverlay");
 
         Assert.Equal(
-            [("Adopt", "WixQuietExec"), ("Undo", "WixQuietExec"), ("Forget", "WixQuietExec"), ("TakeOff", "WixQuietExec"),
-                ("InstallDriver", "WixQuietExec"), ("StartOverlay", "WixShellExec")],
+            [("Adopt", "WixQuietExec", "Adopt"), ("Undo", "WixQuietExec", "Undo"), ("Forget", "WixQuietExec", "Forget"),
+                ("TakeOff", "WixQuietExec", "TakeOff"), ("InstallDriver", "WixQuietExec", "InstallDriver"),
+                ("StartOverlay", "WixUnelevatedShellExec", "WixUnelevatedShellExecTarget")],
             actions);
         Assert.Equal(
-            ("UtilCA = \"Wix4UtilCA_$(sys.BUILDARCHSHORT)\"", "1", "NOT REMOVE AND UILevel > 3 AND NOT AdminUser"),
-            (binary.Data.Trim(), (string?)real.Attribute("Value"), (string?)start.Attribute("Condition")));
+            ("UtilCA = \"Wix4UtilCA_$(sys.BUILDARCHSHORT)\"", "immediate", "yes", "NOT REMOVE AND UILevel > 3"),
+            (binary.Data.Trim(), (string?)overlay.Attribute("Execute"), (string?)overlay.Attribute("Impersonate"), (string?)start.Attribute("Condition")));
     }
 
     // The machine's overlay finds the per-user product to remove by the UpgradeCode the per-user MSI is built with.

@@ -41,7 +41,9 @@ env:
 jobs:
   # Whether the owner's accounts exist, read from the repository's public variables, which a job with no approval reads
   # (docs/RELEASES.md); the secrets and SIGNPATH_ORGANIZATION_ID live in the release environment, out of its sight. A
-  # merge or the monthly signing in a repository without them is skipped with a notice, not failed; a run by hand fails.
+  # merge or the monthly signing in a repository with none of them is skipped with a notice, not failed; a run by hand
+  # fails. Some set and some missing fails every run: such a build would never update, or would take any catalog, and a
+  # monthly signing skipped behind a green run would let the manifests expire.
   ready:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -62,7 +64,7 @@ jobs:
           "ready=$($missing.Count -eq 0)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
           if (-not $missing) { exit 0 }
           $why = "The repository's variables $($missing -join ', ') are not set, so this run releases and signs nothing: docs/RELEASES.md says how to set them up."
-          if ($env:EVENT -eq 'workflow_dispatch') {
+          if ($env:EVENT -eq 'workflow_dispatch' -or $missing.Count -lt $names.Count) {
             "::error::$why"
             exit 1
           }
@@ -108,10 +110,6 @@ jobs:
           RELEASE_PUB: ${{ vars.THERMI_UPDATES_RELEASE_PUB }}
           BACKUP_PUB: ${{ vars.THERMI_UPDATES_BACKUP_PUB }}
         run: |
-          # A variable missing would build a release that never updates, or takes any catalog: none ships.
-          foreach ($name in 'FROM', 'SIGNERS', 'RELEASE_PUB', 'BACKUP_PUB') {
-            if (-not [Environment]::GetEnvironmentVariable($name)) { throw "The THERMI_UPDATES_$name variable is not set." }
-          }
           $keys = New-Item (Join-Path $env:RUNNER_TEMP keys) -ItemType Directory -Force
           Set-Content (Join-Path $keys release.pub.pem) $env:RELEASE_PUB
           Set-Content (Join-Path $keys backup.pub.pem) $env:BACKUP_PUB

@@ -112,15 +112,13 @@
     <CustomAction Id="InstallDriver" BinaryRef="$(var.UtilCA)" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no"
                   Return="ignore" />
 <?endif?>
-    <!-- The overlay of the person who ran the MSI by hand, through ShellExecute, since a quiet action waits for its
-         program to exit. A silent install, as Intune's, starts none as SYSTEM, and an elevated client, as from an
-         administrator's console, none elevated with the user's environment (docs/adr/0016-admin-on-demand.md): it starts
-         at the next sign-in. Only with MSIUSEREALADMINDETECTION does AdminUser follow the client's real token; without
-         it, every per-machine client under UAC has it. -->
-    <Property Id="MSIUSEREALADMINDETECTION" Value="1" />
-    <SetProperty Id="WixShellExecTarget" Before="StartOverlay" Sequence="execute" Value="[installfolder]thermi.exe" />
-    <CustomAction Id="StartOverlay" BinaryRef="$(var.UtilCA)" DllEntry="WixShellExec" Execute="immediate" Impersonate="yes"
-                  Return="ignore" />
+    <!-- The overlay of the person who ran the MSI by hand, started by Explorer, which runs unelevated as that person, so
+         a client elevated from an administrator's console never starts it elevated with the user's environment
+         (docs/adr/0016-admin-on-demand.md); without Explorer it fails and starts nothing, and a quiet action would wait
+         for its program to exit. A silent install, as Intune's, starts none as SYSTEM. -->
+    <SetProperty Id="WixUnelevatedShellExecTarget" Before="StartOverlay" Sequence="execute" Value="[installfolder]thermi.exe" />
+    <CustomAction Id="StartOverlay" BinaryRef="$(var.UtilCA)" DllEntry="WixUnelevatedShellExec" Execute="immediate"
+                  Impersonate="yes" Return="ignore" />
 
     <InstallExecuteSequence>
       <Custom Action="TakeOff" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
@@ -131,7 +129,7 @@
 <?if $(var.Scope) = "perMachine" ?>
       <Custom Action="InstallDriver" After="Forget" Condition="NOT Installed AND ADDDRIVER = 1" />
 <?endif?>
-      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3 AND NOT AdminUser" />
+      <Custom Action="StartOverlay" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
     </InstallExecuteSequence>
   </Package>
 </Wix>
