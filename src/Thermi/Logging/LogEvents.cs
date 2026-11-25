@@ -113,6 +113,6 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Warning, Message = "thermi {To} could not take over, so this overlay stays and leaves it alone: {Why}")]
     public static partial void HandoverFailed(this ILogger logger, ReleaseVersion to, string why);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The service could not be told this session is quiet: {Why}")]
-    public static partial void QuietNotTold(this ILogger logger, string why);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The service could not be sent code {Code}: {Why}")]
+    public static partial void ServiceNotTold(this ILogger logger, int code, string why);
 }

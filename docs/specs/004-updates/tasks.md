@@ -60,6 +60,10 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - [ ] **T27** A cold review by two agents, one on Fable and one on Opus, scored 1 to 10, until both pass.
 - [ ] **T28** The `by hand` steps, and the spec moves to `done`.
 
+## B9: About's check
+
+- [x] **T29** Covers R25: opening About asks the service for a check, its line says it checks, and Restart to update switches the version ready; A16 to A18 first, red, then A19 live.
+
 ## Decisions
 
 - The owner approved the whole of this spec in advance on 2026-11-24 ("yo apruebo todo desde ahora"), since every spec is rewritten as a clean v1 before the first public release; each choice below is the recommended one.
@@ -116,3 +120,4 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
     - Accepted: About says nothing of a refused zip, which the event log tells and only a later MSI mends; the watchdog and the overlay's handover are proven by A15 run live on the build, not by a fake of the service controller; a user who floods the sensors' pipe through a probation can withhold one version from one PC (ADR 0008); a start that fails for the PC's reasons other than 1053, as an antivirus blocking the program, fails that version there, which the next release mends; a catalog refused for a chain Windows could not build, as behind a proxy, is remembered until another version is installed.
   - The unpacker counts what it writes, not what the zip declares, and flushes each file to the disk.
   - Left as they are, each written down in the ADR or docs/RELEASES.md: whether SignPath's certificate is thermi's own or shared, which the owner asks; a PC that skips the release listing a renewed certificate's thumbprint, which needs a later MSI; a user taking the pipe's name as a switch starts, which only puts it off; a withdrawal by a stolen manifest key, which sends PCs one version back. The watchdog's steps are still proven by the live run, A15, rather than a test: `ServiceConfig` drives the real service manager.
+- About checks as it opens, with no button, as Chrome's About page does, which the session of spec 002 decided for the owner on 2026-11-24. The ask is code 129, heeded at most once a minute by About and again by the service, so reopening it costs the channel one GET a minute at most. Its line says it checks until the service has checked since a minute before the ask, which the service would not have done again, and gives up after half a minute, as a check that hangs would leave it. A version ready offers Restart to update when its switch is not held: code 130 switches it as a quiet session's 128 does, without that code's minute, and the window closes, as a restart closes Chrome.

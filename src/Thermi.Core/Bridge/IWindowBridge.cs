@@ -59,6 +59,12 @@ public interface IWindowBridge
 
     Task<About> About();
 
+    /// <summary>About opened: the service is asked for a check, at most once a minute.</summary>
+    Task CheckUpdates();
+
+    /// <summary>Switches to the version ready now when About offers it, which closes the window.</summary>
+    Task RestartToUpdate();
+
     /// <summary>Opens the settings file in its editor, or one of About's pages in the browser.</summary>
     Task Open(Opened what);
 

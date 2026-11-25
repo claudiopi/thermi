@@ -105,6 +105,34 @@
       "description": "Given thermi installed for a test channel served from this PC, when a newer build is published, then it switches with no prompt while the author is away and the overlay never blinks; when the channel is rolled back, the PC goes back within a check; when a build made to fail at start is published, the PC goes back by itself and the event log says why; the service stays under 80 MB a day later; and once on R2, curl shows the manifest's max-age of 60 and the zip's immutable cache.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A16",
+      "covers": ["R25"],
+      "description": "Given About asked for a check, when it reads the state, then it says it checks until the service has checked since a minute before the ask, for half a minute at most, then up to date, checked just now, or the version ready, which offers a restart only when its switch is not held.",
+      "check": "AboutAsksForACheck",
+      "passes": false
+    },
+    {
+      "id": "A17",
+      "covers": ["R25"],
+      "description": "Given the service, when About asks it for a check twice within a minute and once after, then it checks at once and then once more.",
+      "check": "AnAskChecksAtOnceAtMostOnceAMinute",
+      "passes": false
+    },
+    {
+      "id": "A18",
+      "covers": ["R25"],
+      "description": "Given a version ready right after a quiet session's code, when About's restart asks for it, then the switch begins at once.",
+      "check": "ARestartSwitchesAtOnce",
+      "passes": false
+    },
+    {
+      "id": "A19",
+      "covers": ["R25"],
+      "description": "Given thermi installed for a test channel served from this PC, when About opens with a newer build published, then it says it checks, then that the version is ready with Restart to update, which switches and closes the window; reopened within a minute, it checks nothing more.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

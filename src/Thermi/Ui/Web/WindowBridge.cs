@@ -42,6 +42,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly WindowLooks _looks;
     private readonly PageWatch _watch;
     private readonly WindowFixes _fixes;
+    private readonly WindowUpdates _updates;
     private Texts _texts;
     private bool _lightTaskbar = Desktop.LightTaskbar();
 
@@ -57,6 +58,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);
         _fixes = new WindowFixes(start.Environment, start.Time);
+        _updates = new WindowUpdates(start.Time, start.Environment.Log);
         editor.Changed += (_, _) => Edited();
     }
 
@@ -170,7 +172,23 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public Task<UndoSteps> Steps() => Task.FromResult(WindowFacts.Steps(_editor.UndoName, _editor.RedoName, _views.Format(_texts)));
 
     public Task<About> About() => Task.FromResult(
-        WindowFacts.About(Version, CultureInfo.CurrentUICulture, UpdatesHere.Line(_start.Time.GetUtcNow()), _views.Format(_texts), _start.Time.LocalTimeZone));
+        WindowFacts.About(Version, CultureInfo.CurrentUICulture, _updates.Line(), _views.Format(_texts), _start.Time.LocalTimeZone));
+
+    public Task CheckUpdates()
+    {
+        _updates.Ask();
+        return Task.CompletedTask;
+    }
+
+    public Task RestartToUpdate()
+    {
+        if (_updates.Restart())
+        {
+            PInvoke.PostMessage(Window, PInvoke.WM_CLOSE, 0, 0);
+        }
+
+        return Task.CompletedTask;
+    }
 
     public Task Open(Opened what)
     {

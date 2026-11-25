@@ -115,6 +115,42 @@ public sealed class UpdaterTests
         Assert.Equal((UpdatePc.Built, 0, 1), (ready, before, pc.Watchdogs.Count));
     }
 
+    // About's ask checks at once, and at most once a minute however often it opens.
+    [Fact]
+    public async Task AnAskChecksAtOnceAtMostOnceAMinute()
+    {
+        await using var pc = new UpdatePc();
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
+        using var updater = pc.Updater();
+        var (stop, start) = (TestContext.Current.CancellationToken, pc.Clock.GetUtcNow());
+
+        await updater.AskedAsync(stop);
+        pc.Clock.Advance(TimeSpan.FromSeconds(59));
+        await updater.AskedAsync(stop);
+        var again = pc.State.LastCheck;
+        pc.Clock.Advance(TimeSpan.FromSeconds(1));
+        await updater.AskedAsync(stop);
+
+        Assert.Equal((start, start.AddMinutes(1)), (again, pc.State.LastCheck));
+    }
+
+    // About's restart switches at once, even within a minute of a quiet session's code.
+    [Fact]
+    public async Task ARestartSwitchesAtOnce()
+    {
+        await using var pc = new UpdatePc();
+        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)));
+        using var updater = pc.Updater();
+        updater.Quiet();
+
+        await updater.CheckAsync(TestContext.Current.CancellationToken);
+        updater.Quiet();
+        var before = pc.Watchdogs.Count;
+        updater.Quiet(asked: true);
+
+        Assert.Equal((0, 1), (before, pc.Watchdogs.Count));
+    }
+
     // A zip refused for what it holds, as a catalog this build cannot trust, is never fetched again by this build; one
     // refused for the PC's reasons, as its version's folder in use, is.
     [Theory]

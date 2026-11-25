@@ -38,6 +38,15 @@ public static class UpdateSchedule
     /// <summary>The service's control code an overlay sends when its session is quiet: Windows lets any signed-in user send it.</summary>
     public const int QuietCode = 128;
 
+    /// <summary>The service's control code About sends as it opens, for a check now.</summary>
+    public const int CheckCode = 129;
+
+    /// <summary>The code About's restart sends: a switch to the version ready now, as a quiet session's, without its wait.</summary>
+    public const int RestartCode = 130;
+
+    /// <summary>How often About asks, and the service heeds it, at most: reopening it never hammers the channel.</summary>
+    public static readonly TimeSpan AskEvery = TimeSpan.FromMinutes(1);
+
     /// <summary>How often an overlay says so, and the service heeds it, at most.</summary>
     public static readonly TimeSpan QuietEvery = TimeSpan.FromMinutes(1);
 

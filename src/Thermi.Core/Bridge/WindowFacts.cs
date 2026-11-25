@@ -35,7 +35,8 @@ public sealed record UndoSteps(
 /// <summary>A language thermi ships: its code, as the settings file writes it, and its name in itself, like "Español".</summary>
 public sealed record Language(string Code, string Name);
 
-public sealed record About(string Version, IReadOnlyList<Language> Languages, string Windows, string Updates);
+/// <summary><see cref="Restart"/>: About offers to switch to the version ready now.</summary>
+public sealed record About(string Version, IReadOnlyList<Language> Languages, string Windows, string Updates, bool Restart);
 
 /// <summary>What an undo or a redo changed back: the toast's words, and the item, or else the overlay, to show.</summary>
 public sealed record Undone(
@@ -100,7 +101,8 @@ public static class WindowFacts
             version,
             [.. Texts.Languages.Select(code => new Language(code, Texts.Of(code).Of(UiText.LanguageName)))],
             Texts.For(null, windows).Of(UiText.LanguageName),
-            UpdateStatus.Say(updates, format.Texts, format.Numbers, zone));
+            UpdateStatus.Say(updates, format.Texts, format.Numbers, zone),
+            updates.Restart);
 
     /// <summary>
     /// What a step taken back as <paramref name="step"/>, or made again on a <paramref name="redo"/>, changed from

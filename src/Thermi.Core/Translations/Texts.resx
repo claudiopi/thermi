@@ -2166,6 +2166,15 @@
   <data name="WindowText.UpdatesNotChecked" xml:space="preserve">
     <value>Checks for updates soon</value>
   </data>
+  <data name="WindowText.UpdatesChecking" xml:space="preserve">
+    <value>Checking for updates…</value>
+  </data>
+  <data name="WindowText.UpdatesCheckedNow" xml:space="preserve">
+    <value>Up to date, checked just now</value>
+  </data>
+  <data name="WindowText.RestartToUpdate" xml:space="preserve">
+    <value>Restart to update</value>
+  </data>
   <data name="WindowText.UpdatesBeta" xml:space="preserve">
     <value>{0} · Beta channel</value>
   </data>

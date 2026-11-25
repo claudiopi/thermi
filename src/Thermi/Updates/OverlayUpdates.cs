@@ -1,9 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
-using System.ServiceProcess;
 using Microsoft.Extensions.Logging;
-using Thermi.Commands;
 using Thermi.Core.Updates;
 using Thermi.Logging;
 using Thermi.Windows;
@@ -173,12 +171,11 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
     {
         try
         {
-            using var service = new ServiceController(StartSensors.Service);
-            service.ExecuteCommand(UpdateSchedule.QuietCode);
+            UpdatesHere.Tell(UpdateSchedule.QuietCode);
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {
-            log.QuietNotTold(ex.Message);
+            log.ServiceNotTold(UpdateSchedule.QuietCode, ex.Message);
         }
     }
 }

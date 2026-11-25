@@ -255,12 +255,20 @@ internal sealed class SensorService : ServiceBase
         _running = RunAsync();
     }
 
-    // Code 128 from an overlay whose session is quiet: Windows waits on this answer, so the switch runs apart.
+    // Windows waits on this answer, so the switch or the check runs apart.
     protected override void OnCustomCommand(int command)
     {
         if (command == UpdateSchedule.QuietCode && Updates is { } updates)
         {
             _ = Task.Run(() => Update(_ => updates.Quiet()), CancellationToken.None);
+        }
+        else if (command == UpdateSchedule.RestartCode && Updates is { } restart)
+        {
+            _ = Task.Run(() => Update(_ => restart.Quiet(asked: true)), CancellationToken.None);
+        }
+        else if (command == UpdateSchedule.CheckCode && Updates is { } asked)
+        {
+            _ = Task.Run(() => asked.AskedAsync(_stop.Token), CancellationToken.None);
         }
     }
 

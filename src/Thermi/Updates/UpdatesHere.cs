@@ -1,5 +1,7 @@
 using System.Reflection;
+using System.ServiceProcess;
 using Microsoft.Win32;
+using Thermi.Commands;
 using Thermi.Core.Updates;
 
 namespace Thermi.Updates;
@@ -12,12 +14,19 @@ internal static class UpdatesHere
 {
     private static readonly bool Built = UpdatePolicy.Updates(Metadata("ThermiUpdatesFrom"), Metadata("ThermiUpdatesSigners"));
 
-    public static UpdateLine Line(DateTimeOffset now)
+    public static UpdateLine Line(DateTimeOffset now, DateTimeOffset? asked = null)
     {
         using var key = Registry.LocalMachine.OpenSubKey(UpdatePolicy.Key);
         var policy = UpdatePolicy.Of(
             Built && ThermiPaths.Updates is not null, key?.GetValue(UpdatePolicy.UpdatesValue), key?.GetValue(UpdatePolicy.ChannelValue));
-        return UpdateStatus.Of(policy, State(), now);
+        return UpdateStatus.Of(policy, State(), now, asked);
+    }
+
+    /// <summary>Sends the service one of its update codes, which any signed-in user may; throws as Windows refuses.</summary>
+    public static void Tell(int code)
+    {
+        using var service = new ServiceController(StartSensors.Service);
+        service.ExecuteCommand(code);
     }
 
     private static string? Metadata(string key) =>

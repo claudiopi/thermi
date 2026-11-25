@@ -25,6 +25,7 @@ internal sealed class Updater(
     private volatile bool _checkSoon;
     private volatile bool _switchSoon;
     private DateTimeOffset _lastQuiet = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastAsked = DateTimeOffset.MinValue;
 
     /// <summary>
     /// At the service's start: finishes or undoes a switch left written down, counts a run that never stopped and puts the
@@ -85,19 +86,13 @@ internal sealed class Updater(
         }
     }
 
-    public void Resumed()
-    {
-        if (UpdateSchedule.DueOnResume(time.GetUtcNow(), folder.Read().LastCheck))
-        {
-            _checkSoon = true;
-        }
-    }
+    public void Resumed() => _checkSoon |= UpdateSchedule.DueOnResume(time.GetUtcNow(), folder.Read().LastCheck);
 
-    /// <summary>Code 128: an overlay's session is quiet, so a ready version may switch now; at most once a minute.</summary>
-    public void Quiet()
+    /// <summary>Code 128, a quiet session: a ready version may switch now, at most once a minute; 130, About's restart, at once.</summary>
+    public void Quiet(bool asked = false)
     {
         var now = time.GetUtcNow();
-        if (now - _lastQuiet < UpdateSchedule.QuietEvery || !_busy.Wait(0))
+        if ((!asked && now - _lastQuiet < UpdateSchedule.QuietEvery) || !_busy.Wait(0))
         {
             return;
         }
@@ -111,6 +106,18 @@ internal sealed class Updater(
         {
             _busy.Release();
         }
+    }
+
+    /// <summary>Code 129: About opened, so a check runs now; at most once a minute.</summary>
+    public Task AskedAsync(CancellationToken stop)
+    {
+        if (time.GetUtcNow() - _lastAsked < UpdateSchedule.AskEvery)
+        {
+            return Task.CompletedTask;
+        }
+
+        _lastAsked = time.GetUtcNow();
+        return CheckAsync(stop);
     }
 
     public async Task RunAsync(CancellationToken stop)
@@ -359,15 +366,7 @@ internal sealed class Updater(
             return;
         }
 
-        HashSet<ReleaseVersion> keep = [build.Version];
-        foreach (var version in new[] { state.Installed, state.Previous, state.Ready, atTop })
-        {
-            if (version is not null)
-            {
-                keep.Add(version);
-            }
-        }
-
+        HashSet<ReleaseVersion> keep = [build.Version, .. new[] { state.Installed, state.Previous, state.Ready, atTop }.OfType<ReleaseVersion>()];
         foreach (var removed in folder.Prune(keep))
         {
             say($"thermi deleted {removed}, which it no longer keeps.", EventLogEntryType.Information);
