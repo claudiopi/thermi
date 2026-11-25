@@ -100,6 +100,17 @@ public sealed class AdminOnDemandTests
         Assert.Empty(before!.Msis);
     }
 
+    // What msiexec's exit says of "install for everyone": installed, with or without a restart for the driver; refused at
+    // the prompt or in Windows Installer's own window; or failed.
+    [Theory]
+    [InlineData(0, MachineInstallOutcome.Installed)]
+    [InlineData(3010, MachineInstallOutcome.Installed)]
+    [InlineData(1223, MachineInstallOutcome.Refused)]
+    [InlineData(1602, MachineInstallOutcome.Refused)]
+    [InlineData(1603, MachineInstallOutcome.Failed)]
+    public void MsiexecsExitIsWhatTheInstallCameTo(int exit, MachineInstallOutcome outcome) =>
+        Assert.Equal(outcome, InstallForEveryone.OutcomeOf(exit));
+
     // The machine's overlay removes this user's own per-user thermi, and nothing else installed.
     [Fact]
     public void OnlyTheUsersOwnPerUserProductIsRemoved()

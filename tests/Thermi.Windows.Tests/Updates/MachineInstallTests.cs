@@ -20,9 +20,7 @@ public sealed class MachineInstallTests
     // bytes msiexec got and whether anyone could change them while it ran.
     [Theory]
     [InlineData("offered", 0, MachineInstallOutcome.Installed, true)]
-    [InlineData("offered", 3010, MachineInstallOutcome.Installed, true)]
     [InlineData("offered", 1223, MachineInstallOutcome.Refused, true)]
-    [InlineData("offered", 1603, MachineInstallOutcome.Failed, true)]
     [InlineData("other bytes", 0, MachineInstallOutcome.Failed, false)]
     [InlineData("no msi", 0, MachineInstallOutcome.DownloadPage, false)]
     [InlineData("older version", 0, MachineInstallOutcome.DownloadPage, false)]
