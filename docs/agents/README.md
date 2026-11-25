@@ -10,7 +10,12 @@ claude mcp add thermi -- thermi-cli mcp
 
 In Claude Desktop, the same under `mcpServers` in its config: `"thermi": { "command": "thermi-cli", "args": ["mcp"] }`.
 
-The tools are the commands below but `watch`, `find-cpu-fan` and `start-with-windows` as `find_cpu_fan` and `start_with_windows`, with `undo` and `redo` of the session's own edits. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are read-only; `edit`, `look` and `start_with_windows` are marked destructive, since deleting an overlay, resetting the settings, deleting a look's file or the start at sign-in are beyond undo. A refusal or a service that cannot be read is a tool error that says why. Changes made at once run one at a time, in no set order; a client that waits for each answer gets its own order. Between calls the server holds no connection to the sensors.
+The tools are the commands below, with `find_cpu_fan` and `start_with_windows` spelled with underscores, no `watch`, and `undo` and `redo` of the session's own edits.
+
+- `status`, `read`, `sensors`, `config`, `monitors` and `looks` only read.
+- `edit`, `look` and `start_with_windows` are marked destructive: deleting an overlay, resetting the settings, deleting a look's file or the start at sign-in are beyond undo.
+- A refusal, or a service that cannot be read, is a tool error that says why.
+- Changes made at once run one at a time, in no set order. Between calls the server holds no connection to the sensors.
 
 ## Commands
 
@@ -29,7 +34,18 @@ The tools are the commands below but `watch`, `find-cpu-fan` and `start-with-win
 
 An overlay is counted from 0 here, as in `config`, where `thermi settings --overlay` counts from 1. In Git Bash, which rewrites an argument that starts with `/` into a Windows path, run a command that names a sensor id as `MSYS_NO_PATHCONV=1 thermi-cli read /lpc/...`; PowerShell, cmd and MCP pass ids as they are.
 
-An edit is a JSON object with its `kind`, in any order: the settings window's own (`thermi`, `overlay`, `style` and `item` set one field, `addItem`, `removeItem`, `moveItem`, `newOverlay`, `duplicateOverlay`, `mergeOverlay`, `deleteOverlay`, `nudgeOverlay`, `reset`, `resetLines`, `sensorName`), or one of two the window makes by a gesture: `{"kind": "threshold", "item", "warning", "critical"}` sets an item's lines at once, null taking one out and one left out staying as it is, and `{"kind": "place", "overlay", "x", "y"}` leaves an overlay where a drag let go at that point would. Their fields are in `src/Thermi.Core/Bridge/BridgeTypes.cs`. An edit made while an overlay or the window writes the file keeps both changes. Each change an agent makes goes to `%LOCALAPPDATA%\thermi\thermi-agents.log`, and the settings as they were before its last change stay beside them, in `config.before-agent.json`.
+An edit is a JSON object with its `kind`; its fields are in `src/Thermi.Core/Bridge/BridgeTypes.cs`.
+
+| Kind | Does |
+| --- | --- |
+| `thermi`, `overlay`, `style`, `item` | Set one field, as the settings window does. |
+| `addItem`, `removeItem`, `moveItem`, `sensorName` | Change an overlay's items. |
+| `newOverlay`, `duplicateOverlay`, `mergeOverlay`, `deleteOverlay`, `nudgeOverlay` | Change the overlays. |
+| `reset`, `resetLines` | Reset the settings, or an item's lines. |
+| `threshold` | `{"kind": "threshold", "item", "warning", "critical"}` sets an item's lines at once; null takes one out, and one left out stays. |
+| `place` | `{"kind": "place", "overlay", "x", "y"}` leaves an overlay where a drag let go at that point would. |
+
+An edit made while the overlay or the window writes the file keeps both changes. Each change an agent makes goes to `%LOCALAPPDATA%\thermi\thermi-agents.log`, and the settings as they were before its last change stay beside them, in `config.before-agent.json`.
 
 ## The contract
 

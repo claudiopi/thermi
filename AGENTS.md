@@ -29,22 +29,25 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 
 Requires the .NET SDK in `global.json` and PowerShell 7.
 
-- `pwsh scripts/check.ps1`: restore, format, Release build, the third-party notices, the SDK's package, the test count, tests and coverage, then the settings page's type check, lint, react-doctor, unit tests, dead code (knip) and Playwright tests with axe. Out of the CI it runs below normal priority, one check at a time on the PC. The CI runs the same script, each half in a job of its own (`-Part DotNet`, `-Part Web`). Run it before every PR. Two worktrees check at once with `THERMI_WEB_PORT` set to another port than 4173 in one of them.
-- `pwsh scripts/check.ps1 -Mutation`: the same, then Stryker.NET's mutation score of `Thermi.Core`'s tests and StrykerJS's of the page's logic, which measure them better than coverage. Slow: run it when you change Core, the page's logic or their tests. `pwsh scripts/mutation.ps1 --disable-bail` runs Stryker.NET alone and lists every test that kills each mutant.
-- `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]`: open the real settings window (the installed one by default) with WebView2's debugging port, click through every screen, and fail on any error the page shows or logs. Run it before a person gets a build; close any open settings window first.
-- `pwsh scripts/measure.ps1 [-Window] [-Exe <thermi.exe>] [-Seconds <n>]`: measure for 60 s what the overlay, the settings window with its WebView2 processes (`-Window` opens it and closes it after) and the sensor service cost, CPU as a percent of one core and private memory, and fail past their budgets: the overlay 48 MB and 0.5 %, the idle window with its page's renderer 1 %, the service 80 MB and 3 %. Run it on the installed build after a change to what runs each second; a plain build compiles its code as it runs, so it measures high.
-- `pwsh scripts/oracle.ps1`: after a change to what C# answers the page's edits, undos or looks, or to a page test's calls, run them through the real bridge into the fake's table, `src/Thermi.Settings.Web/tests/oracle/edits.json`; `-Prune` drops what no test asks any longer. A page test that asks the table for what it lacks fails, and so does `BridgeOracleTests` when an answer is stale.
-- `pwsh scripts/mark-icon.ps1`: draw the program's icon, `src/Thermi.Windows/thermi.ico`, from thermi's mark again, after changing the mark.
-- `pwsh scripts/notices.ps1`: write `THIRD-PARTY-NOTICES.md` again from the lock files, after adding, removing or updating a package. It reads each license's text from the packages a restore downloaded and the page's `node_modules`; a package that holds none gets SPDX's text from `scripts/licenses`.
-- `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"`: run only some tests while you work, through `dotnet test`, which takes what follows, one run at a time on the PC and below normal priority, like the check. `pwsh scripts/test.ps1 -Web tests/Quality.spec.ts -g "fits"` builds the page and runs only some of its Playwright tests.
-- `dotnet format whitespace thermi.slnx`: fix formatting.
-- `pwsh scripts/install.ps1` (as yourself; it asks for admin rights once): install this build on your PC, with `thermi-cli` on the `PATH`. `-SensorsOnly` installs the sensors and `thermi-cli` alone, with the driver; `-Uninstall` removes it.
-- `pwsh scripts/updates.ps1 <command>`: pack a version (with `--msi`, its MSI too), make keys, and publish, promote, roll back or serve update channels on this PC: `docs/RELEASES.md`.
-- `thermi-sensors --dump <file>`: save what the sensors read now, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case.
-- `thermi-sensors --dump <file> --seconds <n>`: record a series, one snapshot per second. For the fans' answer to a CPU load, run `thermi-sensors --dump <file> --seconds 45` as administrator, wait 5 s, run `Start-Process -Wait thermi -ArgumentList cpu-load,30` (a windowed program, like `preview`), and let the recording finish.
-- `thermi-sensors --frames <file> --seconds <n>`, as administrator: record every present of every process for n seconds, one JSON line each with process ids, times, the event that told of it and when it arrived, never a name, to replay frames in tests. It runs beside the service, in a session of its own.
-- `thermi preview <snapshot> <png> [scale] [settings]`: paint the first overlay for a saved snapshot without showing it, or for the last of a saved series with its graphs drawing the series, at a scale from 0.25 to 8, with your settings or those of the file given. It is a windowed program: in PowerShell, wrap it in `Start-Process -Wait`; what it refuses shows in the terminal.
-- `thermi settings [--overlay <n>]`: open the settings window on overlay n, counted from 1, or bring the open one to the front. `--pseudo` makes its texts 40 % longer, to see what a long translation does; `--trace`, on the window or the overlay, adds each paint, input and the window's first frame to its log, `%LOCALAPPDATA%\thermi\thermi.log` for the overlay and `thermi-window.log` for the window, where errors always go.
+| Command | What it does, and when |
+| --- | --- |
+| `pwsh scripts/check.ps1` | The one check, the CI's too: restore, format, build, notices, test count, tests and coverage, then the page's type check, lint, unit, dead-code and Playwright tests. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. Set `THERMI_WEB_PORT` to another port than 4173 to check two worktrees at once. |
+| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of Core's tests and the page's logic. Slow: run it when you change Core, the page's logic or their tests. |
+| `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. |
+| `dotnet format whitespace thermi.slnx` | Fixes formatting. |
+| `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]` | Clicks through every screen of the real settings window and fails on any error the page shows or logs. Run it before a person gets a build, with no settings window open. |
+| `pwsh scripts/measure.ps1 [-Window] [-Exe <thermi.exe>]` | Measures the overlay, the window and the service for 60 s and fails past their budgets: overlay 48 MB and 0.5 % of a core, idle window 1 %, service 80 MB and 3 %. Run it on the installed build after a change to what runs each second. |
+| `pwsh scripts/oracle.ps1` | After a change to what C# answers the page's edits, undos or looks, records the real bridge's answers into `src/Thermi.Settings.Web/tests/oracle/edits.json`. `-Prune` drops what no test asks. |
+| `pwsh scripts/notices.ps1` | Writes `THIRD-PARTY-NOTICES.md` again, after adding, removing or updating a package. |
+| `pwsh scripts/mark-icon.ps1` | Draws the program's icon, `src/Thermi.Windows/thermi.ico`, after changing thermi's mark. |
+| `pwsh scripts/install.ps1` | Installs this build on your PC, as yourself; it asks for admin rights once. `-SensorsOnly` installs the sensors and `thermi-cli` alone; `-Uninstall` removes it. |
+| `pwsh scripts/updates.ps1 <command>` | Packs a version and its MSIs, makes keys, and pulls the update channels' levers: `docs/RELEASES.md`. |
+| `thermi-sensors --dump <file> [--seconds <n>]` | Saves what the sensors read now, or a series of one snapshot a second, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case. |
+| `thermi-sensors --frames <file> --seconds <n>` | As administrator, records every present for n seconds, to replay frames in tests. It never records a process's name. |
+| `thermi preview <snapshot> <png> [scale] [settings]` | Paints the first overlay for a saved snapshot, at a scale from 0.25 to 8, without showing it. In PowerShell, wrap it in `Start-Process -Wait`. |
+| `thermi settings [--overlay <n>]` | Opens the settings window on overlay n, from 1. `--pseudo` makes its texts 40 % longer; `--trace` logs each paint and input to `%LOCALAPPDATA%\thermi`. |
+
+To record how the fans answer a CPU load: as administrator run `thermi-sensors --dump <file> --seconds 45`, wait 5 s, run `Start-Process -Wait thermi -ArgumentList cpu-load,30`, and let the recording finish.
 
 ## Rules and what enforces them
 
@@ -60,6 +63,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | `Thermi.Core` depends on nothing, Windows included. | its target framework, `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
+| Docs are short and scannable: the why before the what, short sentences, tables over walls of bullets, and no list of every file, which the code already is. | the README table rule in `RepoRulesTests`; review for the rest |
 | `Thermi.Core` keeps 90 % line and branch coverage. | `scripts/check.ps1` |
 | A new field of the settings goes into `src/Thermi.Core/Editing/ConfigFields.cs`, or undo cannot take it back. | `UndoRulesTests` |
 | Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |

@@ -6,14 +6,13 @@ A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltag
 
 ## What it does
 
-- Shows the values you pick, such as temperatures, loads, power, clocks, voltages, memory, fan speeds and the FPS of the game in front, in small pills, and keeps them on top, the taskbar included.
-- Colors a value at its warning and critical thresholds, and shows `–` for one it cannot read, never a zero or an old number that looks live.
-- A settings window, "Settings…" in the overlay's menu or `thermi settings`, picks the values and their sensors, the look, the position, the thresholds and the hotkeys, with undo. English and Spanish.
-- Reads the sensors in a small Windows service, `thermi-sensors`, so the overlay and the window never run as administrator. Installed without admin rights, for one user, it reads them in a process of that user's instead: what those rights allow, without the CPU's temperature, power and clocks, the board's fans, the drives' health or the FPS.
-- CPU temperature, power and clocks need a small signed driver. When they read nothing, the settings window offers to install it, behind one Windows permission prompt; installed for one user, it offers to install thermi for everyone with the driver, behind that one prompt.
-- AI agents and other programs read the sensors and change the settings with `thermi-cli`, from any shell or as an MCP server, with or without an overlay: [thermi for agents](docs/agents/README.md). For Claude Code, `claude mcp add thermi -- thermi-cli mcp`.
-- Keeps itself up to date, silently, as a browser does: a new version is downloaded, checked against thermi's signatures and switched to at a quiet moment, with no prompt. A version that fails is set aside and the PC stays on the one that worked.
-
+- Shows the values you pick, such as temperatures, loads, power, clocks, voltages, memory, fan speeds and the game's FPS, in small pills that stay on top, the taskbar included.
+- Colors a value at its warning and critical thresholds, and shows `–` for one it cannot read: never a zero, never an old number that looks live.
+- A settings window, "Settings…" in the overlay's menu or `thermi settings`, picks the values, the look, the place, the thresholds and the hotkeys, with undo. In English and Spanish.
+- Reads the sensors in a small Windows service, `thermi-sensors`, so the overlay and the window never run as administrator. Installed for one user without admin rights, it reads what those rights allow: no CPU temperature, power or clocks, board fans, drive health or FPS.
+- The CPU's temperature, power and clocks need a small signed driver. When they read nothing, the settings window offers to install it, behind one Windows prompt.
+- AI agents and other programs read the sensors and change the settings with `thermi-cli`, from any shell or as an MCP server: [thermi for agents](docs/agents/README.md). For Claude Code, `claude mcp add thermi -- thermi-cli mcp`.
+- Keeps itself up to date silently, as a browser does. A new version is checked against thermi's signatures and switched to at a quiet moment; one that fails is set aside, and the PC stays on the one that worked.
 ## Privacy
 
 thermi sends nothing about you or your PC. Its only connection is the update check, a minute after the service starts and every 4 hours: one HTTPS request for the channel's manifest, with no query, no cookie, no identifier and `thermi` as its whole User-Agent, and then the zip of a new version, whose signature Windows checks against the certificate authority's revocation servers, as it does for any signed program. The server sees the address a request comes from, as any server does. An administrator turns updates off with the `Updates` policy value in `HKLM\SOFTWARE\Policies\thermi`, and a build from source never checks unless it is told where.
@@ -28,7 +27,11 @@ Run this as yourself, not as administrator:
 pwsh scripts/install.ps1
 ```
 
-It builds thermi, then asks Windows for administrator rights once, to copy it to Program Files and register the `thermi-sensors` service. It installs the WebView2 runtime the settings window needs only where it is missing, puts `thermi-cli` on the `PATH`, and starts thermi at sign-in. A build from source never updates itself: run it again to update. `-SensorsOnly` installs the sensors and `thermi-cli` alone, with the driver, and no overlay. `pwsh scripts/install.ps1 -Uninstall` removes thermi but keeps your settings, and leaves the driver, which other programs may use: remove it from Installed apps if nothing else needs it.
+It builds thermi, then asks Windows for administrator rights once, to copy it to Program Files and register the `thermi-sensors` service. It also installs WebView2 where it is missing, puts `thermi-cli` on the `PATH`, and starts thermi at sign-in.
+
+- A build from source never updates itself: run the script again to update.
+- `-SensorsOnly` installs the sensors and `thermi-cli` alone, with the driver, and no overlay.
+- `-Uninstall` removes thermi but keeps your settings. It leaves the driver, which other programs may use; remove it from Installed apps if nothing else needs it.
 
 ## Build and test
 

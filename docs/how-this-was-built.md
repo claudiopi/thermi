@@ -22,7 +22,7 @@ The same person built larger projects this way before. These are the things that
 | Local hooks and CI applying different rules. | One script for both. |
 | Warnings silenced by the hundreds, nobody knew why. | Every suppression says why, and a test checks it. |
 | Comments narrating the code, or its history. | A check for history in comments, and an agent that prunes the rest. |
-| Fakes kinder than reality, so tests passed and the app failed. | Sensor tests will replay real recorded data, failures included. |
+| Fakes kinder than reality, so tests passed and the app failed. | Sensor tests replay real recorded data, failures included. |
 | Logic copied many times until the copies disagreed. | The second copy is extracted; the reviewer looks for copies. |
 | Old docs that misled the next person. | Replaced things are deleted in the same change; docs can only cite paths that exist. |
 | Project state in files that every change touched. | Issues and PRs are the state. |
