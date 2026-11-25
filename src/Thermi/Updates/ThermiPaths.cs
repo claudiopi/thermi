@@ -1,3 +1,4 @@
+using System.Reflection;
 using Thermi.Core.Updates;
 
 namespace Thermi.Updates;
@@ -58,6 +59,13 @@ internal static class ThermiPaths
         stream.ReadExactly(bytes);
         return bytes;
     }
+
+    /// <summary>
+    /// Whether this process runs the version the launcher starts, as always outside an installed layout; not in one an update
+    /// left running on the version before, as an agent's <c>thermi-cli mcp</c>, which a newer settings file is no rollback to.
+    /// </summary>
+    public static bool RunsInstalled() => Updates is null || (ReleaseVersion.Parse(
+        typeof(ThermiPaths).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion) is { } own && LauncherStarts(own));
 
     /// <summary>Whether <paramref name="path"/> is one of thermi's: an overlay and its window may run from either.</summary>
     public static bool IsThermi(string path) =>

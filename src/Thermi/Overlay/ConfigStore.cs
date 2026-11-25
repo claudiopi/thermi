@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Thermi.Core.Settings;
+using Thermi.Updates;
 
 namespace Thermi.Overlay;
 
@@ -47,15 +48,17 @@ internal sealed class ConfigStore : IDisposable
 
     private readonly TimeProvider _time;
     private readonly Mutex _mutex;
+    private readonly Func<bool> _installed;
 
     // The text this store last wrote or read, so its own write is no outside change and the same text coming back after
     // another is one.
     private volatile string? _known;
 
-    public ConfigStore(string path, TimeProvider time)
+    public ConfigStore(string path, TimeProvider time, Func<bool>? installed = null)
     {
         FilePath = Path.GetFullPath(path);
         _time = time;
+        _installed = installed ?? ThermiPaths.RunsInstalled;
         _mutex = new Mutex(initiallyOwned: false, MutexNameOf(FilePath));
     }
 
@@ -86,8 +89,8 @@ internal sealed class ConfigStore : IDisposable
 
     /// <summary>
     /// The settings in the file, or the defaults and why it cannot be used. A file still missing once the retry is over is created with the
-    /// defaults, so there is something to edit; one of an earlier version is written in this one, the old file kept beside it, so an editor
-    /// opens what the window shows; one of a newer version, after a rollback, gives way to the copy kept in this version's format.
+    /// defaults, so there is something to edit; one of an earlier version is written in this one, the old file kept beside it; one of a newer
+    /// version gives way to the copy kept in this version's format only after a rollback to this one, never in a process an update left behind.
     /// </summary>
     public async Task<ConfigRead> ReadAsync()
     {
@@ -98,7 +101,7 @@ internal sealed class ConfigStore : IDisposable
         }
 
         var read = ReadOf(found.Kind == Found.Missing ? Peek() : found);
-        if (read.Problem?.Kind == ConfigProblemKind.Newer && (await WriteAsync(Back, settled: false).ConfigureAwait(false)).Config is { } back)
+        if (read.Problem?.Kind == ConfigProblemKind.Newer && _installed() && (await WriteAsync(Back, settled: false).ConfigureAwait(false)).Config is { } back)
         {
             return new ConfigRead(back, null, Outside: false);
         }
@@ -110,11 +113,8 @@ internal sealed class ConfigStore : IDisposable
     }
 
     /// <summary>The settings in the file as <see cref="ReadAsync"/> gives them, or the defaults when it is missing, which is left missing.</summary>
-    public async Task<ConfigRead> ReadOnlyAsync()
-    {
-        var found = await SettledAsync().ConfigureAwait(false);
-        return found.Kind == Found.Missing ? new ConfigRead(ThermiConfig.New, null, Outside: true) : ReadOf(found);
-    }
+    public async Task<ConfigRead> ReadOnlyAsync() =>
+        await SettledAsync().ConfigureAwait(false) is { Kind: not Found.Missing } found ? ReadOf(found) : new ConfigRead(ThermiConfig.New, null, Outside: true);
 
     /// <summary>Applies <paramref name="change"/> to the settings the file holds now and writes the result, never over a broken file.</summary>
     public Task<ConfigWrite> WriteAsync(Func<ThermiConfig, ThermiConfig> change) => WriteAsync(found => Changed(found, change), settled: false);
@@ -332,8 +332,7 @@ internal sealed class ConfigStore : IDisposable
     {
         try
         {
-            foreach (var file in Directory
-                .EnumerateFiles(Folder, $"{Path.GetFileName(FilePath)}.*{Temporary}")
+            foreach (var file in Directory.EnumerateFiles(Folder, $"{Path.GetFileName(FilePath)}.*{Temporary}")
                 .Where(file => file.EndsWith(Temporary, StringComparison.OrdinalIgnoreCase)))
             {
                 Delete(file);

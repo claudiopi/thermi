@@ -1,4 +1,5 @@
 using Thermi.Core.Settings;
+using Thermi.Overlay;
 
 namespace Thermi.Windows.Tests.Updates;
 
@@ -9,9 +10,13 @@ public sealed class SettingsRollbackTests : IDisposable
 
     public void Dispose() => _folder.Dispose();
 
-    // A10: a newer version wrote the file, keeping this version's copy beside it, and the PC went back a version.
-    [Fact]
-    public async Task SettingsSurviveARollback()
+    // A10: a newer version wrote the file, keeping this version's copy beside it, and the PC went back a version. A process
+    // an update left on the older version, as an agent's thermi-cli mcp, finds the same newer file without a rollback to
+    // it: it says the file is newer and writes nothing.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SettingsSurviveARollback(bool rolledBack)
     {
         var mine = $$"""{ "version": {{ThermiConfig.CurrentVersion}}, "overlays": [ { "name": "Floating" } ] }""";
         var newer = $$"""{ "version": {{ThermiConfig.CurrentVersion + 1}}, "overlays": [ { "name": "Docked" } ] }""";
@@ -19,12 +24,16 @@ public sealed class SettingsRollbackTests : IDisposable
         var cancel = TestContext.Current.CancellationToken;
         _folder.Write(newer);
         await File.WriteAllTextAsync(Path.Combine(folder, $"config.v{ThermiConfig.CurrentVersion}-2026-11-20-101010.json"), mine, cancel);
+        using var store = new ConfigStore(_folder.File, _folder.Clock, installed: () => rolledBack);
 
-        var settings = await _folder.LoadedAsync();
+        var read = await store.ReadAsync();
 
-        Assert.Null(settings.Problem);
-        Assert.Equal(ThermiConfigJson.Write(ThermiConfigJson.Read(mine).Config), _folder.Text());
-        var kept = Assert.Single(_folder.Files, name => name.StartsWith($"config.v{ThermiConfig.CurrentVersion + 1}-", StringComparison.Ordinal));
-        Assert.Equal(newer, await File.ReadAllTextAsync(Path.Combine(folder, kept), cancel));
+        string[] kept = rolledBack ? [newer] : [];
+        Assert.Equal(rolledBack ? null : ConfigProblemKind.Newer, read.Problem?.Kind);
+        Assert.Equal(rolledBack ? ThermiConfigJson.Write(ThermiConfigJson.Read(mine).Config) : newer, _folder.Text());
+        Assert.Equal(
+            kept,
+            _folder.Files.Where(name => name.StartsWith($"config.v{ThermiConfig.CurrentVersion + 1}-", StringComparison.Ordinal))
+                .Select(name => File.ReadAllText(Path.Combine(folder, name))));
     }
 }
