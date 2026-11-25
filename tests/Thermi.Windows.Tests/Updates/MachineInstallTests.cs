@@ -16,30 +16,30 @@ public sealed class MachineInstallTests
 {
     private static readonly byte[] Msi = RandomNumberGenerator.GetBytes(4096);
 
-    // The channel's offer, the file it serves and the policy; what msiexec answers; and what the install came to, with the
-    // bytes msiexec got and whether anyone could change them while it ran.
+    // The channel, the file it serves and the policy; what msiexec answers; and what the install came to, with the bytes
+    // msiexec got and whether anyone could change them while it ran. Which MSI a manifest offers is Core's, and its tests'.
     [Theory]
     [InlineData("offered", 0, MachineInstallOutcome.Installed, true)]
     [InlineData("offered", 1223, MachineInstallOutcome.Refused, true)]
     [InlineData("other bytes", 0, MachineInstallOutcome.Failed, false)]
-    [InlineData("no msi", 0, MachineInstallOutcome.DownloadPage, false)]
-    [InlineData("older version", 0, MachineInstallOutcome.DownloadPage, false)]
+    [InlineData("no manifest", 0, MachineInstallOutcome.Failed, false)]
     [InlineData("policy off", 0, MachineInstallOutcome.DownloadPage, false)]
     public async Task InstallForEveryoneRunsOnlyTheCheckedMsi(string channel, int answer, MachineInstallOutcome outcome, bool ran)
     {
         await using var pc = new UpdatePc();
         var package = new Package(new Uri(pc.Channel.Address, "msis/thermi.msi"), Msi.Length, Convert.ToHexStringLower(SHA256.HashData(Msi)));
         pc.Channel.Serve("/v1/msis/thermi.msi", channel == "other bytes" ? [.. Msi.Reverse()] : Msi);
-        var offered = channel == "older version" ? new ReleaseVersion(0, 1, 0) : UpdatePc.Built;
-        pc.Publish(pc.Offer(offered, pc.Zip(offered)) with
+        if (channel != "no manifest")
         {
-            Msis = channel == "no msi" ? new Dictionary<string, Package>() : new Dictionary<string, Package> { ["x64"] = package },
-        });
+            pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Msis = new Dictionary<string, Package> { ["x64"] = package } });
+        }
+
         pc.Policy = channel == "policy off" ? (0, null) : (null, null);
         using var client = new ManifestClient(pc.Clock);
         var host = new UpdateHost(() => pc.Policy, () => false, _ => { });
         var log = new FileLog(Path.Combine(pc.Top, "thermi-sensors.log"), pc.Clock);
-        var install = new MachineInstaller(pc.Build(), pc.Folder(), client, host, pc.Clock, log);
+        using var busy = new SemaphoreSlim(1, 1);
+        var install = new MachineInstaller(pc.Build(), pc.Folder(), client, host, pc.Clock, log, busy);
         byte[]? seen = null;
         var changed = true;
 

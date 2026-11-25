@@ -23,7 +23,9 @@ internal sealed class Updater(
 
     private readonly UpdateHost _host = host ?? UpdateHost.Windows;
     private readonly Switcher _switcher = new(folder, time, say, (host ?? UpdateHost.Windows).Start, target: target);
-    private readonly SemaphoreSlim _busy = new(1, 1);
+    /// <summary>Held while the updater reads and writes the state, as another writer of it holds it too.</summary>
+    public SemaphoreSlim Busy { get; } = new(1, 1);
+
     private volatile bool _checkSoon;
     private volatile bool _switchSoon;
     private DateTimeOffset _lastQuiet = DateTimeOffset.MinValue;
@@ -95,7 +97,7 @@ internal sealed class Updater(
     public void Quiet()
     {
         var now = time.GetUtcNow();
-        if (now - _lastQuiet < UpdateSchedule.QuietEvery || !_busy.Wait(0))
+        if (now - _lastQuiet < UpdateSchedule.QuietEvery || !Busy.Wait(0))
         {
             return;
         }
@@ -107,7 +109,7 @@ internal sealed class Updater(
         }
         finally
         {
-            _busy.Release();
+            Busy.Release();
         }
     }
 
@@ -174,7 +176,7 @@ internal sealed class Updater(
 
     public async Task CheckAsync(CancellationToken stop)
     {
-        await _busy.WaitAsync(stop);
+        await Busy.WaitAsync(stop);
         try
         {
             var policy = _host.Policy(build);
@@ -191,11 +193,12 @@ internal sealed class Updater(
         }
         finally
         {
-            _busy.Release();
+            Busy.Release();
         }
     }
 
-    public void Dispose() => _busy.Dispose();
+
+    public void Dispose() => Busy.Dispose();
 
     private async Task CheckAsync(string channel, CancellationToken stop)
     {
@@ -213,7 +216,7 @@ internal sealed class Updater(
             LastCheck = now,
         };
         var envelope = await EnvelopeAsync(state, channel, stop);
-        var read = envelope is null ? null : ManifestEnvelope.Open(envelope, build.ReleaseKeyHash == state.RevokedKey ? null : build.Release, build.Backup);
+        var read = envelope is null ? null : build.Open(envelope, state);
         var plan = read?.Manifest is null ? null : UpdatePlan.Decide(state, read, channel, build.Processor, now, build.ReleaseKeyHash);
         if (read?.Manifest is not { } manifest || plan is null || plan.Kind == PlanKind.Refuse)
         {
@@ -356,7 +359,7 @@ internal sealed class Updater(
     // After OnStart returned, so the watchdog may stop the service, or once a check under way is done.
     private async Task SwitchReadyAsync(CancellationToken stop)
     {
-        await _busy.WaitAsync(stop);
+        await Busy.WaitAsync(stop);
         try
         {
             SwitchReady();
@@ -367,7 +370,7 @@ internal sealed class Updater(
         }
         finally
         {
-            _busy.Release();
+            Busy.Release();
         }
     }
 

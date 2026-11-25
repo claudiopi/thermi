@@ -89,7 +89,8 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
     }
 
     // The window recovers by seeing the pipe come back, whatever the answer.
-    public async Task<bool> StartService() => await ElevateAsync(StartSensors.Verb) is StartSensors.Started;
+    // In a per-user install the user's own host is the one to start, which needs no prompt.
+    public async Task<bool> StartService() => SensorPipes.PerUser ? SensorPipes.StartUserHost() : await ElevateAsync(StartSensors.Verb) is StartSensors.Started;
 
     // Starting a process behind UAC blocks its caller until the prompt closes, so it runs off the window's thread. Null
     // when the prompt was refused or the mode could not start.

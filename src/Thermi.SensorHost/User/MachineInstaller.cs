@@ -9,10 +9,14 @@ namespace Thermi.SensorHost.User;
 /// <summary>
 /// "Install for everyone" from a per-user install (docs/adr/0016-admin-on-demand.md): the machine MSI of the version the
 /// channel offers, as its signed manifest names it, downloaded and checked, held so no one swaps it, and run by Windows'
-/// own msiexec without runas, so the one UAC prompt names thermi's signer. What it came to goes in the state the window reads.
+/// own msiexec without runas, so the one UAC prompt names thermi's signer. What it came to goes in the state the window reads,
+/// each write under the updater's lock, <c>busy</c>, so neither writes over the other's.
 /// </summary>
-internal sealed class MachineInstaller(UpdateBuild build, InstallFolder folder, ManifestClient client, UpdateHost host, TimeProvider time, FileLog log)
+internal sealed class MachineInstaller(
+    UpdateBuild build, InstallFolder folder, ManifestClient client, UpdateHost host, TimeProvider time, FileLog log, SemaphoreSlim busy)
 {
+    private const int LockTries = 25;
+
     private int _running;
 
     /// <summary>Whether an install runs now, which keeps the host alive past its last client.</summary>
@@ -27,14 +31,19 @@ internal sealed class MachineInstaller(UpdateBuild build, InstallFolder folder, 
 
         try
         {
-            Write(MachineInstallOutcome.Running);
-            Write(await InstallAsync(msiexec, stop));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException
-            or System.ComponentModel.Win32Exception or OperationCanceledException && !stop.IsCancellationRequested)
-        {
-            log.Say($"thermi could not install for everyone: {ex.Message}", EventLogEntryType.Warning);
-            Write(MachineInstallOutcome.Failed);
+            await WriteAsync(MachineInstallOutcome.Running, stop);
+            MachineInstallOutcome outcome;
+            try
+            {
+                outcome = await InstallAsync(msiexec, stop);
+            }
+            catch (Exception ex) when (Failed(ex) || (ex is OperationCanceledException && !stop.IsCancellationRequested))
+            {
+                log.Say($"thermi could not install for everyone: {ex.Message}", EventLogEntryType.Warning);
+                outcome = MachineInstallOutcome.Failed;
+            }
+
+            await WriteAsync(outcome, stop);
         }
         finally
         {
@@ -56,6 +65,9 @@ internal sealed class MachineInstaller(UpdateBuild build, InstallFolder folder, 
         return process.ExitCode;
     }
 
+    private static bool Failed(Exception ex) => ex is IOException or UnauthorizedAccessException or HttpRequestException
+        or InvalidOperationException or System.ComponentModel.Win32Exception;
+
     private async Task<MachineInstallOutcome> InstallAsync(Func<string, Task<int>> msiexec, CancellationToken stop)
     {
         if (!folder.Trusted())
@@ -66,24 +78,27 @@ internal sealed class MachineInstaller(UpdateBuild build, InstallFolder folder, 
             return MachineInstallOutcome.Failed;
         }
 
-        if (await OfferedAsync(stop) is not { } msi)
+        if (!host.Policy(build).Checks)
         {
             return MachineInstallOutcome.DownloadPage;
         }
 
-        var path = await DownloadAsync(msi, stop);
-        if (path is null)
+        var manifest = await ManifestAsync(stop);
+        if (manifest is null)
         {
             return MachineInstallOutcome.Failed;
         }
 
+        if (InstallForEveryone.Msi(manifest, build.Version, build.Processor) is not { } msi)
+        {
+            return MachineInstallOutcome.DownloadPage;
+        }
+
+        var path = Path.Combine(folder.Update, "machine-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)) + ".msi");
         try
         {
-            // Held for reading alone until msiexec is done, so the file it installs is the one checked.
-            await using var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var code = await msiexec(path);
-            log.Say($"msiexec installed thermi for everyone with exit code {code}.", EventLogEntryType.Information);
-            return InstallForEveryone.OutcomeOf(code);
+            return await DownloadAsync(msi, path, stop) && await RunCheckedAsync(msi, path, msiexec, stop)
+                is { } code ? InstallForEveryone.OutcomeOf(code) : MachineInstallOutcome.Failed;
         }
         finally
         {
@@ -91,41 +106,75 @@ internal sealed class MachineInstaller(UpdateBuild build, InstallFolder folder, 
         }
     }
 
-    // The machine MSI the channel's manifest offers now, when the policy lets this PC update and the manifest is current.
-    private async Task<Package?> OfferedAsync(CancellationToken stop)
+    // The channel's current manifest, as the updater would take it; null, said in the log, when none could be read or taken.
+    private async Task<Manifest?> ManifestAsync(CancellationToken stop)
     {
-        var policy = host.Policy(build);
-        if (!policy.Checks)
+        var channel = host.Policy(build).Channel;
+        var state = folder.Read();
+        var envelope = await client.EnvelopeAsync(build.ManifestOf(channel), stop);
+        var read = envelope is null ? null : build.Open(envelope, state);
+        var refusal = read?.Manifest is null ? $"no manifest could be read: {read?.Problem}"
+            : UpdatePlan.Refusal(state, read, channel, time.GetUtcNow(), build.ReleaseKeyHash);
+        if (refusal is null)
         {
-            return null;
+            return read!.Manifest;
         }
 
-        var state = folder.Read();
-        var envelope = await client.EnvelopeAsync(build.ManifestOf(policy.Channel), stop);
-        var read = envelope is null ? null : ManifestEnvelope.Open(envelope, build.ReleaseKeyHash == state.RevokedKey ? null : build.Release, build.Backup);
-        var current = read?.Manifest is not null && UpdatePlan.Refusal(state, read, policy.Channel, time.GetUtcNow(), build.ReleaseKeyHash) is null;
-        return InstallForEveryone.Offer(perUser: true, policyOff: false, current ? read!.Manifest : null, build.Version, build.Processor).Msi;
+        log.Say($"thermi could not install for everyone, since the {channel} channel's manifest was refused: {refusal}.", EventLogEntryType.Warning);
+        return null;
     }
 
     // Into a file of a name nobody can guess in update\, checked for the manifest's size and SHA-256 as it is written.
-    private async Task<string?> DownloadAsync(Package msi, CancellationToken stop)
+    private async Task<bool> DownloadAsync(Package msi, string path, CancellationToken stop)
     {
-        var path = Path.Combine(folder.Update, "machine-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)) + ".msi");
         string? refused;
         await using (var file = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.Asynchronous))
         {
             refused = await client.FetchAsync(msi, file, stop);
         }
 
-        if (refused is null)
+        if (refused is not null)
         {
-            return path;
+            log.Say($"thermi refused the machine MSI: {refused}. Nothing changed.", EventLogEntryType.Warning);
         }
 
-        log.Say($"thermi refused the machine MSI: {refused}. Nothing changed.", EventLogEntryType.Warning);
-        File.Delete(path);
-        return null;
+        return refused is null;
     }
 
-    private void Write(MachineInstallOutcome outcome) => folder.Write(folder.Read() with { MachineInstall = new(outcome, time.GetUtcNow()) });
+    // Held for reading alone until msiexec is done, and checked again through that hold, since the file could change
+    // between the download's close and the hold: the file msiexec installs is the one checked. Null when it changed.
+    private async Task<int?> RunCheckedAsync(Package msi, string path, Func<string, Task<int>> msiexec, CancellationToken stop)
+    {
+        await using var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
+        var hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(held, stop));
+        if (held.Length != msi.Size || !string.Equals(hash, msi.Sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            log.Say("The machine MSI changed after its check, so thermi did not run it. Nothing changed.", EventLogEntryType.Error);
+            return null;
+        }
+
+        var code = await msiexec(path);
+        log.Say($"msiexec installed thermi for everyone with exit code {code}.", EventLogEntryType.Information);
+        return code;
+    }
+
+    // Between the updater's writes and never under a switch's watchdog; a write that fails is said, and the window, which
+    // waits for it, gives up in time.
+    private async Task WriteAsync(MachineInstallOutcome outcome, CancellationToken stop)
+    {
+        await busy.WaitAsync(stop);
+        try
+        {
+            await using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
+            folder.Write(folder.Read() with { MachineInstall = new(outcome, time.GetUtcNow()) });
+        }
+        catch (Exception ex) when (Failed(ex))
+        {
+            log.Say($"thermi could not write that installing for everyone came to {outcome}: {ex.Message}", EventLogEntryType.Warning);
+        }
+        finally
+        {
+            busy.Release();
+        }
+    }
 }

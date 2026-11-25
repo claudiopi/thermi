@@ -151,7 +151,7 @@
     {
       "id": "A22",
       "covers": ["R29"],
-      "description": "Given a per-user or a machine install, a channel offering the running version, a later one, an earlier one or none, the policy Updates = 0, a download whose size or hash is wrong, and a prompt refused with 1223, when the fix is asked, then only a per-user install offers to install for everyone, msiexec starts only for the checked file the manifest names, held open, and every other case changes nothing and says why or opens the download page.",
+      "description": "Given a per-user or a machine install, a channel offering the running version, a later one, an earlier one or none, a manifest that cannot be read, the policy Updates = 0, a download whose size or hash is wrong, and a prompt refused with 1223, when the fix is asked, then only a per-user install offers to install for everyone, msiexec starts only for the checked file the manifest names, held open and checked again through that hold, a manifest that cannot be read or a download refused changes nothing and says why, and a channel off, no MSI or the policy opens the download page.",
       "check": "InstallForEveryoneRunsOnlyTheCheckedMsi",
       "passes": true
     },
@@ -179,9 +179,9 @@
     {
       "id": "A26",
       "covers": ["R31"],
-      "description": "Given the user's installed products, per-user and machine, of thermi and others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi by its per-user UpgradeCode.",
-      "check": "OnlyTheUsersOwnPerUserProductIsRemoved",
-      "passes": true
+      "description": "Given the user's installed products, per-user and machine, of thermi and others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi by its per-user UpgradeCode, in the user's unmanaged context alone.",
+      "check": "by hand",
+      "passes": false
     },
     {
       "id": "A27",

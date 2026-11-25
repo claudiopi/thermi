@@ -149,7 +149,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
         var readers = security.GetAccessRules(true, false, typeof(SecurityIdentifier)).Cast<PipeAccessRule>()
             .Where(rule => rule.AccessControlType == AccessControlType.Allow).Select(rule => ((SecurityIdentifier)rule.IdentityReference).Value).Order();
         await client.DisposeAsync();
-        await PassAsync(TimeSpan.FromSeconds(3), serving);
+        await PassAsync(UserMode.Linger + TimeSpan.FromSeconds(3), serving);
         var served = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
 
         var lonely = RunAsync(["--user"]);

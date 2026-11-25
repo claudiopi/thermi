@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.ServiceProcess;
-using System.Security.Principal;
 using Microsoft.Win32;
 using Thermi.Commands;
 using Thermi.Core.Install;
@@ -63,30 +62,34 @@ internal static class MachineMove
     }
 
     /// <summary>This user's per-user thermi, by its UpgradeCode in the user's unmanaged context alone; null when there is none.</summary>
-    public static string? PerUserProduct()
-    {
-        using var identity = WindowsIdentity.GetCurrent();
-        var user = identity.User!.Value;
-        return InstallForEveryone.PerUserProduct(Related(InstallForEveryone.PerUserUpgradeCode).Select(code => Of(code, user)), user);
-    }
+    public static string? PerUserProduct() => Related(InstallForEveryone.PerUserUpgradeCode).FirstOrDefault(UsersOwn);
 
     /// <summary>Whether a thermi program still runs from the per-user folder, which its removal would have to end.</summary>
-    public static bool PerUserRuns() =>
-        Process.GetProcessesByName("thermi").Concat(Process.GetProcessesByName("thermi-sensors")).Any(program =>
+    public static bool PerUserRuns()
+    {
+        var programs = Process.GetProcessesByName("thermi").Concat(Process.GetProcessesByName("thermi-sensors")).ToList();
+        try
         {
-            using (program)
-            {
-                try
-                {
-                    return program.MainModule?.FileName.StartsWith(PerUserTop + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true;
-                }
-                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-                {
-                    // Ended meanwhile, or not this user's to read: none of this user's per-user programs.
-                    return false;
-                }
-            }
-        });
+            return programs.Any(RunsFromPerUser);
+        }
+        finally
+        {
+            programs.ForEach(program => program.Dispose());
+        }
+    }
+
+    private static bool RunsFromPerUser(Process program)
+    {
+        try
+        {
+            return program.MainModule?.FileName.StartsWith(PerUserTop + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // Ended meanwhile, or not this user's to read: none of this user's per-user programs.
+            return false;
+        }
+    }
 
     /// <summary>Removes the per-user product quietly, as the user, which needs no rights: Windows' own msiexec, by its path.</summary>
     public static void Remove(string product)
@@ -135,23 +138,19 @@ internal static class MachineMove
         return found;
     }
 
-    // A product found by its UpgradeCode, and whether it is this user's own per-user one: the only context asked.
-    private static unsafe InstalledProduct Of(string code, string user)
+    // Whether the product is installed for this user alone, unmanaged: the only context asked, so neither a machine's
+    // install of it nor another user's is ever taken.
+    private static unsafe bool UsersOwn(string code)
     {
         var version = stackalloc char[64];
         uint length = 64;
-        uint answer;
         fixed (char* product = code)
         fixed (char* property = "VersionString")
         {
-            answer = PInvoke.MsiGetProductInfoEx(product, null, MSIINSTALLCONTEXT.MSIINSTALLCONTEXT_USERUNMANAGED, property, version, &length);
+            return PInvoke.MsiGetProductInfoEx(product, null, MSIINSTALLCONTEXT.MSIINSTALLCONTEXT_USERUNMANAGED, property, version, &length)
+                == (uint)WIN32_ERROR.ERROR_SUCCESS;
         }
-
-        var mine = answer == (uint)WIN32_ERROR.ERROR_SUCCESS;
-        var context = mine ? ProductContext.UserUnmanaged : ProductContext.Machine;
-        return new InstalledProduct(code, InstallForEveryone.PerUserUpgradeCode, context, mine ? user : null);
     }
-
     private static bool SamePath(string one, string other) =>
         string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(one)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(other)),
             StringComparison.OrdinalIgnoreCase);

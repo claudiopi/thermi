@@ -161,7 +161,7 @@ function ServiceBar({ data }: { data: WindowData }) {
       title={t('WindowText.ServiceStopped')}
       message={t(data.sensors.taken ? 'WindowText.PipeTaken' : 'WindowText.ServiceStoppedMore')}
       actions={
-        <Button shield onClick={() => void bridge()?.startService()}>
+        <Button shield={!data.status.forEveryone} onClick={() => void bridge()?.startService()}>
           {t('WindowText.StartIt')}
         </Button>
       }

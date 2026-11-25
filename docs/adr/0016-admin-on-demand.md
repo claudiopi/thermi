@@ -19,7 +19,7 @@ winget offers both, by its `Scope`. AppLocker's default rules and the `DisableUs
 
 - It is a hidden process of the user's, with the same host and LibreHardwareMonitor, reading what the user's rights allow.
 - It serves the same lines on the pipe `thermi-sensors-<user SID>`. It creates the pipe as the first instance and rejects remote clients, as ADR 0003's pipe does. It sets the user's SID as the pipe's owner, and an access list that lets only that user, SYSTEM and administrators open it.
-- It runs only while a client is connected and ends when the last one leaves, writing the Stopped mark first, as the service's stop does. A host that has had no client yet waits 30 s for its first. A host running an install or a switch stays until that ends. A run that ends without the mark counts as a crash, by ADR 0008's rule.
+- It runs only while a client is connected and ends 10 s after the last one leaves, writing the Stopped mark first, as the service's stop does; the 10 s let a switch's watchdog read the new host and leave before the overlay comes back to it. A host that has had no client yet waits 30 s for its first. A host running an install or a switch stays until that ends. A run that ends without the mark counts as a crash, by ADR 0008's rule.
 - It logs to `%LOCALAPPDATA%\thermi\thermi-sensors.log`, since only an administrator can register an event source.
 
 The overlay reads the service's pipe whenever the service is installed, and the user's pipe only when the service is not. It trusts the user's pipe only if three things hold:
@@ -43,7 +43,7 @@ The machine MSI's `ADDDRIVER` is a secure property, so it reaches the elevated p
 **The move to the machine install** happens in this order:
 
 1. The per-user overlay sees the service serve. It writes the user's Run value to the machine's launcher only if the value existed, so a start at sign-in that was turned off stays off. It marks the machine's Active Setup as done in this profile, so Active Setup never turns that start back on.
-2. It starts `C:\Program Files\thermi\thermi.exe` and exits once that overlay is up, as ADR 0008's handover does. The per-user host ends as its last client leaves.
+2. It starts `C:\Program Files\thermi\thermi.exe` and exits once that overlay is up, as ADR 0008's handover does. The per-user host ends 10 s after its last client leaves.
 3. The machine overlay, finding a per-user product of this user, looks it up by the per-user UpgradeCode in the user's unmanaged context only. It removes it with `msiexec /x <product> /qn` once no process runs from the per-user folder. That removal needs no rights. Its `--remove --user` deletes the user's Run value only while it still names the per-user launcher.
 
 The settings, saved styles and log, in `%APPDATA%\thermi` and `%LOCALAPPDATA%\thermi`, are shared by both scopes and stay.

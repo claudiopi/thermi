@@ -41,6 +41,10 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, IR
 
     public Uri ManifestOf(string channel) => new(From!, $"{channel}.json");
 
+    /// <summary>A manifest's envelope opened with this build's keys, the release key left out once a manifest revoked it.</summary>
+    public ManifestRead Open(byte[] envelope, UpdateState state) =>
+        ManifestEnvelope.Open(envelope, ReleaseKeyHash == state.RevokedKey ? null : Release, Backup);
+
     private static byte[]? Key(Dictionary<string, string> metadata, string name)
     {
         try

@@ -103,7 +103,7 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
         var path = Path.Combine(Folder!, "thermi-sensors.exe");
         try
         {
-            _host = Process.Start(new ProcessStartInfo(path, "--user") { UseShellExecute = false, CreateNoWindow = true });
+            _host = Process.Start(Host());
             _startedAt = now;
             _retryAt = null;
         }
@@ -120,7 +120,42 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     /// <summary>The user's own host's pipe in a per-user install, null outside one, which names its events too.</summary>
     public static string? UserPipe => Folder is null ? null : UserHost.Pipe(serviceInstalled: false, User);
 
-    private static bool Locked() => File.Exists(Path.Combine(Folder!, "update", "switch.lock"));
+    // Held by a watchdog or an install, as the host's SwitchLock tells it: a file a cut left behind holds nothing, and
+    // only the host it would keep from starting finishes or undoes that switch.
+    /// <summary>Starts the user's own host, as the window's "Start it" does in a per-user install, with no rights asked.</summary>
+    public static bool StartUserHost()
+    {
+        try
+        {
+            using var host = Folder is null ? null : Process.Start(Host());
+            return host is not null;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // The overlay tries again with its backoff, and the window keeps its bar.
+            return false;
+        }
+    }
+
+    private static ProcessStartInfo Host() =>
+        new(Path.Combine(Folder!, "thermi-sensors.exe"), "--user") { UseShellExecute = false, CreateNoWindow = true };
+
+    private static bool Locked()
+    {
+        try
+        {
+            using var free = new FileStream(Path.Combine(Folder!, "update", "switch.lock"), FileMode.Open, FileAccess.Read, FileShare.None);
+            return false;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
 
     public static bool ServiceInstalled()
     {

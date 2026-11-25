@@ -5,9 +5,9 @@ Copies the update channels between the release workflow's channels folder and th
 (docs/RELEASES.md): down before a lever, up after it.
 
 .DESCRIPTION
-Down fetches the manifests and their histories, and with -Version that version's zips only, so a zip published again
-with other bytes is refused, and keeps a copy of what it fetched with each one's ETag. Up sends the zips first, which
-never change once written, then each history and manifest the lever changed, each on the condition that the bucket still
+Down fetches the manifests and their histories, and with -Version that version's zips and machine MSIs only, so one
+published again with other bytes is refused, and keeps a copy of what it fetched with each one's ETag. Up sends the zips
+and MSIs first, which never change once written, then each history and manifest the lever changed, each on the condition that the bucket still
 holds what was fetched, so two runs never sign over each other's sequence. The bucket's credentials come from
 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and R2_ACCOUNT_ID.
 #>
@@ -50,8 +50,10 @@ if ($Direction -eq 'down') {
     }
     # A sync skips a local file of the same size, and a history at its cap keeps its size: each is fetched afresh.
     foreach ($name in $signed) { Remove-Item (Join-Path $Folder $name) -ErrorAction SilentlyContinue }
-    Invoke-Aws @('s3', 'sync', $remote, $Folder, '--exclude', 'zips/*')
-    if ($Version) { Invoke-Aws @('s3', 'sync', "$remote/zips/$Version", (Join-Path $Folder "zips/$Version")) }
+    Invoke-Aws @('s3', 'sync', $remote, $Folder, '--exclude', 'zips/*', '--exclude', 'msis/*')
+    if ($Version) {
+        foreach ($files in 'zips', 'msis') { Invoke-Aws @('s3', 'sync', "$remote/$files/$Version", (Join-Path $Folder "$files/$Version")) }
+    }
     Remove-Item $fetched -Recurse -Force -ErrorAction SilentlyContinue
     New-Item (Join-Path $fetched 'history') -ItemType Directory -Force | Out-Null
     foreach ($name in $signed | Where-Object { Test-Path (Join-Path $Folder $_) }) { Copy-Item (Join-Path $Folder $_) (Join-Path $fetched $_) }
@@ -59,8 +61,8 @@ if ($Direction -eq 'down') {
     return
 }
 
-if (Test-Path (Join-Path $Folder 'zips')) {
-    Invoke-Aws @('s3', 'sync', (Join-Path $Folder 'zips'), "$remote/zips", '--cache-control', 'public, max-age=31536000, immutable')
+foreach ($files in 'zips', 'msis' | Where-Object { Test-Path (Join-Path $Folder $_) }) {
+    Invoke-Aws @('s3', 'sync', (Join-Path $Folder $files), "$remote/$files", '--cache-control', 'public, max-age=31536000, immutable')
 }
 
 # Each history before its manifest, each only if the bucket still holds what this run fetched: R2 refuses the put

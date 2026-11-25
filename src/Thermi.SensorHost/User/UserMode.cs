@@ -12,7 +12,7 @@ namespace Thermi.SensorHost.User;
 /// <summary>
 /// <c>thermi-sensors --user</c>: the sensors as the user, when the service is not installed
 /// (docs/adr/0016-admin-on-demand.md). A hidden process of the user's that serves the pipe named for the user's SID while an
-/// overlay or window reads it, ends once the last one left, so it never outlives what it serves, and in a per-user install
+/// overlay or window reads it, ends 10 s after the last one left, so it never outlives what it serves, and in a per-user install
 /// updates it as the service does.
 /// </summary>
 internal static class UserMode
@@ -24,6 +24,12 @@ internal static class UserMode
     public const string StopEvent = "stop";
 
     public static readonly TimeSpan FirstClient = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// How long the host stays once its last client left: a switch's watchdog reads the new host and leaves before the
+    /// overlay comes back to it.
+    /// </summary>
+    public static readonly TimeSpan Linger = TimeSpan.FromSeconds(10);
 
     // ADR 0008's codes, each an event of its own, since an event carries no data to parse.
     private static readonly int[] Codes = [UpdateSchedule.QuietCode, UpdateSchedule.CheckCode, UpdateSchedule.RestartCode, InstallForEveryone.Code];
@@ -46,7 +52,8 @@ internal static class UserMode
         {
             if (events.Any(each => each.Handle is null))
             {
-                log.Say($"Another program made one of the {pipe} events first, so this host does not run.", EventLogEntryType.Error);
+                log.Say($"One of the {pipe} events is already made, by another host of this user's or another program, so this host does not run.",
+                    EventLogEntryType.Warning);
                 return Taken;
             }
 
@@ -89,7 +96,7 @@ internal static class UserMode
         var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version, FolderAccess.ForUser(user));
         using var client = new ManifestClient(time);
         using var updater = folder is null ? null : new Updater(build, folder, client, time, log.Say, target: each => new UserTarget(each, pipe, user));
-        var machine = folder is null ? null : new MachineInstaller(build, folder, client, UpdateHost.Windows, time, log);
+        var machine = folder is null || updater is null ? null : new MachineInstaller(build, folder, client, UpdateHost.Windows, time, log, updater.Busy);
         using var source = environment.Open((device, took, error) => log.Say($"{device} took {took}: {error?.Message}", EventLogEntryType.Warning));
         using var server = new SensorPipeServer(source.ReadAsync, time, pipe, SensorPipeServer.ForUser(user))
         {
@@ -125,8 +132,12 @@ internal static class UserMode
         {
             while (await timer.WaitForNextTickAsync(done.Token))
             {
-                read |= server.Clients > 0;
-                if (server.Clients == 0 && (read || time.GetElapsedTime(started) >= FirstClient) && !installing())
+                if (server.Clients > 0)
+                {
+                    read = true;
+                    started = time.GetTimestamp();
+                }
+                else if (time.GetElapsedTime(started) >= (read ? Linger : FirstClient) && !installing())
                 {
                     await done.CancelAsync();
                 }

@@ -12,8 +12,7 @@ public sealed class AdminOnDemandTests
     private const string Folder = @"users\ana\Programs\thermi";
     private static readonly DateTimeOffset Now = new(2026, 11, 25, 12, 0, 0, TimeSpan.Zero);
 
-    // The service's pipe whenever it is installed; else the user's, trusted by its owner, its server's folder and integrity;
-    // and the wait before the next host, 2 s, doubling to a minute after hosts that ended within 10 s, none under the lock.
+    // The service's pipe whenever it is installed; else the user's, trusted by its owner, its server's folder and integrity.
     [Theory]
     [InlineData(true, "S-1-5-18", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, true)]
     [InlineData(false, User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, true)]
@@ -29,45 +28,45 @@ public sealed class AdminOnDemandTests
 
         Assert.Equal(service ? "thermi-sensors" : "thermi-sensors-" + User, pipe);
         Assert.Equal(trusted, service || UserHost.Trusts(server, User, Folder, ownIntegrity: 0x2000));
-        Assert.Equal(
-            (TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(2), null),
-            (UserHost.NextTry(ran: TimeSpan.FromMinutes(5), waited: null, locked: false),
-                UserHost.NextTry(ran: TimeSpan.FromSeconds(3), waited: TimeSpan.FromSeconds(2), locked: false),
-                UserHost.NextTry(ran: TimeSpan.FromSeconds(3), waited: TimeSpan.FromSeconds(40), locked: false),
-                UserHost.NextTry(ran: TimeSpan.FromSeconds(11), waited: TimeSpan.FromSeconds(40), locked: false),
-                UserHost.NextTry(ran: TimeSpan.FromSeconds(3), waited: null, locked: true)));
     }
 
-    // Only a per-user install offers the machine one, and only the MSI of the version the channel offers, the running one
-    // or later, listed for this processor; a channel off, a version withdrawn or the policy's no opens the download page.
+    // The wait before the next host: 2 s, doubling to a minute after hosts that ended within 10 s, and none under the lock.
     [Theory]
-    [InlineData(false, false, "1.3.0", false, false, "x64", FixOffer.None)]
-    [InlineData(true, false, "1.3.0", false, false, "x64", FixOffer.MachineMsi)]
-    [InlineData(true, false, "1.2.0", false, false, "x64", FixOffer.MachineMsi)]
-    [InlineData(true, false, "1.1.0", false, false, "x64", FixOffer.DownloadPage)]
-    [InlineData(true, false, null, false, false, "x64", FixOffer.DownloadPage)]
-    [InlineData(true, true, "1.3.0", false, false, "x64", FixOffer.DownloadPage)]
-    [InlineData(true, false, "1.3.0", true, false, "x64", FixOffer.DownloadPage)]
-    [InlineData(true, false, "1.3.0", false, true, "x64", FixOffer.DownloadPage)]
-    [InlineData(true, false, "1.3.0", false, false, "arm64", FixOffer.DownloadPage)]
-    public void TheFixOffersTheMachineInstallOnlyFromAPerUserOne(
-        bool perUser, bool policyOff, string? offered, bool disabled, bool withdrawn, string processor, FixOffer offer)
+    [InlineData(300, null, false, 2)]
+    [InlineData(3, 2, false, 4)]
+    [InlineData(3, 40, false, 60)]
+    [InlineData(11, 40, false, 2)]
+    [InlineData(3, null, true, null)]
+    public void TheUsersHostIsStartedAgainAfterAWait(int ran, int? waited, bool locked, int? next) =>
+        Assert.Equal(
+            next is { } seconds ? TimeSpan.FromSeconds(seconds) : null,
+            UserHost.NextTry(TimeSpan.FromSeconds(ran), waited is { } before ? TimeSpan.FromSeconds(before) : null, locked));
+
+    // The MSI of the version the channel offers, the running one or later, listed for this processor; a channel off or the
+    // running version withdrawn leaves none, and the fix opens the download page.
+    [Theory]
+    [InlineData("1.3.0", false, false, "x64", true)]
+    [InlineData("1.2.0", false, false, "x64", true)]
+    [InlineData("1.1.0", false, false, "x64", false)]
+    [InlineData(null, false, false, "x64", false)]
+    [InlineData("1.3.0", true, false, "x64", false)]
+    [InlineData("1.3.0", false, true, "x64", false)]
+    [InlineData("1.3.0", false, false, "arm64", false)]
+    public void TheMachineMsiIsTheOfferedVersionsForThisProcessor(string? offered, bool disabled, bool withdrawn, string processor, bool given)
     {
         var running = ReleaseVersion.Parse("1.2.0")!;
         var msi = new Package(new Uri("https://u/v1/thermi-1.3.0-x64.msi"), 40_000_000, new string('a', 64));
-        var manifest = offered is null ? null : new Manifest
+        var manifest = new Manifest
         {
             Channel = Manifest.Stable,
             Sequence = 1,
-            Version = ReleaseVersion.Parse(offered),
+            Version = offered is null ? null : ReleaseVersion.Parse(offered),
             Disabled = disabled,
             Withdrawn = withdrawn ? [running] : [],
             Msis = new Dictionary<string, Package> { ["x64"] = msi },
         };
 
-        var (kind, package) = InstallForEveryone.Offer(perUser, policyOff, manifest, running, processor);
-
-        Assert.Equal((offer, offer == FixOffer.MachineMsi ? msi : null), (kind, package));
+        Assert.Equal(given ? msi : null, InstallForEveryone.Msi(manifest, running, processor));
     }
 
     // A version's machine MSIs travel with it through every lever and its signature, and a manifest from before them reads.
@@ -111,34 +110,22 @@ public sealed class AdminOnDemandTests
     public void MsiexecsExitIsWhatTheInstallCameTo(int exit, MachineInstallOutcome outcome) =>
         Assert.Equal(outcome, InstallForEveryone.OutcomeOf(exit));
 
-    // The machine's overlay removes this user's own per-user thermi, and nothing else installed.
-    [Fact]
-    public void OnlyTheUsersOwnPerUserProductIsRemoved()
-    {
-        InstalledProduct[] products =
-        [
-            new("{M}", InstallForEveryone.MachineUpgradeCode, ProductContext.Machine, null),
-            new("{O}", InstallForEveryone.PerUserUpgradeCode, ProductContext.UserUnmanaged, "S-1-5-21-1-2-3-1002"),
-            new("{G}", InstallForEveryone.PerUserUpgradeCode, ProductContext.UserManaged, User),
-            new("{X}", "{00000000-0000-0000-0000-000000000000}", ProductContext.UserUnmanaged, User),
-            new("{U}", InstallForEveryone.PerUserUpgradeCode, ProductContext.UserUnmanaged, User),
-        ];
-
-        Assert.Equal("{U}", InstallForEveryone.PerUserProduct(products, User));
-        Assert.Null(InstallForEveryone.PerUserProduct(products[..4], User));
-    }
-
-    // The machine MSI's driver property reaches the elevated part, and its action never runs on a repair.
+    // The machine MSI's driver property reaches the elevated part, and its action never runs on a repair; and the two
+    // MSIs' UpgradeCodes are the ones the window and the overlay look products up by.
     [Fact]
     public void TheDriverPropertyActsOnlyOnAFirstInstall()
     {
         var wix = XDocument.Load(Path.Combine(Root(), "src", "Thermi.Installer", "Package.wxs"));
         var all = wix.Descendants().ToList();
+        var codes = wix.DescendantNodes().OfType<XProcessingInstruction>()
+            .Where(define => define.Target == "define" && define.Data.StartsWith("UpgradeCode", StringComparison.Ordinal))
+            .Select(define => define.Data.Split('"')[1]).Order(StringComparer.Ordinal);
 
         var property = all.Single(element => element.Name.LocalName == "Property" && (string?)element.Attribute("Id") == InstallForEveryone.DriverProperty);
         var action = all.Single(element => element.Name.LocalName == "Custom" && (string?)element.Attribute("Action") == "InstallDriver");
 
         Assert.Equal(("yes", "NOT Installed AND ADDDRIVER = 1"), ((string?)property.Attribute("Secure"), (string?)action.Attribute("Condition")));
+        Assert.Equal(new[] { InstallForEveryone.MachineUpgradeCode, InstallForEveryone.PerUserUpgradeCode }.Order(StringComparer.Ordinal), codes);
     }
 
     private static string Root()
