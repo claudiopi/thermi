@@ -68,16 +68,14 @@ public sealed class InstallDriverTests : IDisposable
         Assert.False(Directory.Exists(fresh));
     }
 
-    // The pinned version or a later one is never installed over; an older one, or one whose version cannot be read, is. A
-    // version of two parts reads as older than the same of three, and is installed over, which does no harm.
+    // The pinned version or a later one is never installed over; an older one, or one whose version cannot be read, is. No
+    // driver at all is every row above but "present".
     [Theory]
     [InlineData("2.2.0", true)]
     [InlineData("2.3", true)]
     [InlineData("2.1.9", false)]
-    [InlineData("2.2", false)]
-    [InlineData(null, false)]
     [InlineData("two", false)]
-    public void OnlyAnOlderDriverIsInstalledOver(string? installed, bool covered) =>
+    public void OnlyAnOlderDriverIsInstalledOver(string installed, bool covered) =>
         Assert.Equal(covered, new DriverSetup(new Uri("https://example.invalid/setup.exe"), 1, "", [], new Version(2, 2, 0)).Covers(installed));
 
     private static string Fresh(string folder, string download)

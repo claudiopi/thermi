@@ -81,12 +81,11 @@ public sealed class InstallationTests : IAsyncDisposable
             (exit, _system.Images[Sensors], _pc.LauncherAtTop("thermi"), laid, File.Exists(flat), _system.Shown?.Version, _pc.Folder().Read().Ready));
     }
 
-    // Each step that may fail, in the order the install takes them, over a thermi or on a PC with none: what was there
-    // stays, services, launchers, versions, state and Installed apps' entry.
+    // A step that fails at each state the install leaves on the way, over a thermi or on a PC with none: what was there
+    // stays, services, launchers, versions, state and Installed apps' entry. Over a thermi, the steps between the sensors'
+    // service repointed and the environment change nothing more, and the environment fails with another exception.
     [Theory]
     [InlineData("config", false)]
-    [InlineData("failure", false)]
-    [InlineData("privs", false)]
     [InlineData("environment", false)]
     [InlineData("sdset", false)]
     [InlineData("create", true)]
