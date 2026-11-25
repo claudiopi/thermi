@@ -94,11 +94,15 @@ internal static class Program
     }
 
     private static ISensorSource Open(SensorHostEnvironment environment, Action<string> say) =>
-        environment.Open((device, took) => say(Slow(device, took)));
+        environment.Open((device, took, failed) => say(Slow(device, took, failed)));
 
     // Another program holding the board's bus, as a fan controller, is the usual cause; the log tells it from a driver that hangs.
-    private static string Slow(string device, TimeSpan took) =>
-        string.Create(CultureInfo.InvariantCulture, $"Reading {device} took {took.TotalSeconds:0.0} s; the other devices were read without waiting for it. ")
+    private static string Slow(string device, TimeSpan took, Exception? failed) =>
+        string.Create(CultureInfo.InvariantCulture, $"Reading {device} ")
+            + (failed is null
+                ? string.Create(CultureInfo.InvariantCulture, $"took {took.TotalSeconds:0.0} s; the other devices were read without waiting for it. ")
+                : string.Create(CultureInfo.InvariantCulture, $"failed after {took.TotalSeconds:0.0} s ({failed.GetType().Name}: {failed.Message}); ")
+                    + "its last values were kept. ")
             + "Another program that reads or controls the same hardware, as a fan controller, may be holding it.";
 
     // Ctrl+C stops serving, and only serving: a dump it ends as it ends any program.

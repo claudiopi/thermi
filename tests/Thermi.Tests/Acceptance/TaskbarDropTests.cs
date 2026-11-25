@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
@@ -187,15 +188,15 @@ public sealed class TaskbarDropTests
 
     // Night QA: two overlays side by side on the taskbar, and one raised to 200 % covered its neighbour. Each overlay as
     // `offset:width` along the taskbar, or `tray:width` beside the notification area, 38 px high; where each shows. One
-    // that grows pushes the next along, and the last keeps to the notification area's edge, pushing the others back; one
-    // grown past the room the others leave shows at that room, so none leaves the taskbar or covers another. Each, in
-    // order, shows at the width it has room for, beside the others as they show.
+    // that grows pushes the next along, toward the notification area only, and the last keeps to its edge; one grown past
+    // the room the others leave there shows at that room, so none leaves the taskbar, covers another or goes back over the
+    // app buttons. Each, in order, shows at the width it has room for, beside the others as they show.
     [Theory]
     [InlineData("8:308 tray:319", "8 1883")]
-    [InlineData("1567:432 tray:319", "1443 1883")]
+    [InlineData("1567:432 tray:319", "1567 1883")]
     [InlineData("100:600 650:300", "100 708")]
-    [InlineData("1500:600 2000:500", "1392 2000")]
-    [InlineData("100:1800 tray:500", "0 1702")]
+    [InlineData("1500:600 2000:500", "1500 2000")]
+    [InlineData("100:1800 tray:500", "100 1702")]
     public void OverlaysOnOneTaskbarNeverCoverEachOther(string overlays, string shown)
     {
         var each = overlays.Split(' ').Select(overlay => overlay.Split(':')).ToList();
@@ -217,6 +218,70 @@ public sealed class TaskbarDropTests
         Assert.All(places, place => Assert.Equal(1397, place.Y));
         Assert.All(places.Skip(1), (place, at) => Assert.True(place.X >= places[at].X + widths[at], "Apart."));
     }
+
+    // QA round 5: two overlays on one taskbar, and hiding the one beside the notification area moved the other 631 px; after
+    // another grew, the two swapped places and one covered the app buttons. An overlay moves only when the person moves it:
+    // a push goes toward the notification area only, and is stored as the pushed one's own place, as one undo step with
+    // what pushed it. Overlays 300 px wide at size 1 at an offset, `tray` or `free` at 100 100, 38 px high, then edits, each settled as the
+    // window and the overlay settle theirs: `size <i> <size>`, `move <i> <offset>`, `hide <i>`, `show <i>`. Where each shows
+    // after them, `-` for hidden, and one undo takes the last edit back whole.
+    [Theory]
+    [InlineData("1000 1400", "size 0 2", "1000 1608")]
+    [InlineData("1000 1400 free", "size 0 2,hide 0", "- 1608 100")]
+    [InlineData("1000 1400", "size 0 2,size 0 1", "1000 1608")]
+    [InlineData("1000 1400", "hide 1,size 0 2,show 1", "1000 1608")]
+    [InlineData("1000 1400", "move 0 1300,hide 0", "- 1608")]
+    [InlineData("1000 tray", "size 1 5", "1000 1308")]
+    public void AnOverlayMovesOnlyWhenThePersonMovesIt(string overlays, string edits, string shown)
+    {
+        var configs = overlays.Split(' ').Select(offset => offset == "free" ? new OverlayConfig { Position = new Position(100, 100) } : new OverlayConfig
+        {
+            Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = offset == "tray" ? null : int.Parse(offset, CultureInfo.InvariantCulture) },
+        }).ToList();
+        var history = new UndoHistory();
+        var before = configs;
+        var boxes = Fitted(configs, []);
+        foreach (var words in edits.Split(',').Select(edit => edit.Split(' ')))
+        {
+            var (at, value) = (int.Parse(words[1], CultureInfo.InvariantCulture), words.Length > 2 ? int.Parse(words[2], CultureInfo.InvariantCulture) : 0);
+            var edited = configs.ToList();
+            edited[at] = words[0] switch
+            {
+                "size" => edited[at] with { Size = value },
+                "move" => edited[at] with { Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = value } },
+                _ => edited[at] with { Hidden = words[0] == "hide" },
+            };
+            boxes = Fitted(edited, boxes);
+            (before, configs) = (configs, [.. TaskbarRow.Settle(edited, [Pc], boxes)]);
+            history.Record(new ThermiConfig { Overlays = before }, new ThermiConfig { Overlays = configs });
+        }
+
+        boxes = Fitted(configs, boxes);
+        var places = configs.Select((_, at) => boxes[at] is { } box
+            ? TaskbarRow.Locate(configs, at, [Pc], (box.Width, box.Height), boxes)!.X.ToString(CultureInfo.InvariantCulture)
+            : "-");
+        Assert.Equal(shown, string.Join(' ', places));
+        Assert.Equal(Edited.File(new ThermiConfig { Overlays = before }), Edited.File(history.Undo(new ThermiConfig { Overlays = configs })!.Config));
+    }
+
+    // Each shown overlay in turn at the width its size asks for, or the room the others leave it as they showed before,
+    // as each overlay fits itself beside the others' windows.
+    private static List<PixelRect?> Fitted(List<OverlayConfig> configs, List<PixelRect?> before)
+    {
+        var boxes = configs.Select((config, at) => config.Hidden ? null : (PixelRect?)(before.ElementAtOrDefault(at) ?? Natural(config))).ToList();
+        for (var at = 0; at < configs.Count; at++)
+        {
+            if (boxes[at] is not null)
+            {
+                var width = Natural(configs[at]).Width;
+                boxes[at] = new PixelRect(0, 0, Math.Min(width, TaskbarRow.RoomOf(configs, at, [Pc], boxes)?.Invoke((width, Height)) ?? int.MaxValue), Height);
+            }
+        }
+
+        return boxes;
+    }
+
+    private static PixelRect Natural(OverlayConfig config) => new(0, 0, (int)(300 * config.Size), Height);
 
     private static int[] Numbers(string word) => [.. word.Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture))];
 }

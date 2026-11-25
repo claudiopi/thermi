@@ -29,7 +29,9 @@ export function installFakePictures(): void {
         ? runs.flatMap((run) => run.values.map((value) => ({ label: run.label, values: [value] })))
         : runs;
 
-  const paint = (runs: Run[], style: Style, size: number, taskbar: string | null): OverlayPicture => {
+  // In device pixels, as C# paints at the monitor's scale, here the page's; one wider than `room`, when it is more than 0,
+  // is painted smaller to fit it.
+  const paint = (runs: Run[], style: Style, size: number, taskbar: string | null, room = 0): OverlayPicture => {
     const [fill, border, label, value] = themes[style.pills === 'light' ? 'light' : 'dark'];
     const values = (run: Run): string => run.values.map((one) => (style.units === false ? (one.split(' ')[0] ?? one) : one)).join('  ');
     const widths = runs.map((run) => 24 + (style.noLabels === true ? 0 : run.label.length + 1) * 7 + values(run).length * 7);
@@ -53,10 +55,12 @@ export function installFakePictures(): void {
     const svg =
       `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" opacity="${style.opacity?.overlay ?? 1}" ` +
       `font-family="${fonts[style.font ?? 'segoe']}" font-size="13">${shapes.join('')}</svg>`;
-    return { png: `data:image/svg+xml,${encodeURIComponent(svg)}`, width: w * size, height: h * size, taskbar };
+    const scale = size * window.devicePixelRatio;
+    const fitted = room > 0 && w * scale > room ? room / w : scale;
+    return { png: `data:image/svg+xml,${encodeURIComponent(svg)}`, width: Math.round(w * fitted), height: Math.round(h * fitted), taskbar };
   };
 
-  bridge.preview = async (overlay) => {
+  bridge.preview = async (overlay, room) => {
     const one = state.settings.overlays[overlay];
     if (one === undefined) {
       return null;
@@ -64,11 +68,11 @@ export function installFakePictures(): void {
     const view = await bridge.view();
     const runs = (view.pills[overlay] ?? []).map((pill) => ({ label: pill.label, values: pill.items.map((id) => view.items[id]?.value ?? '—') }));
     const onTaskbar = (one.snap?.spot ?? (one.position === undefined ? 'taskbar' : null)) === 'taskbar' && one.style?.orientation !== 'vertical';
-    return paint(runsOf(runs, one.style ?? {}), one.style ?? {}, one.size ?? 1, onTaskbar ? '#1C1C1C' : null);
+    return paint(runsOf(runs, one.style ?? {}), one.style ?? {}, one.size ?? 1, onTaskbar ? '#1C1C1C' : null, room);
   };
 
   // As Core's LookSample: the CPU's temperature and load, the GPU's load and the RAM in use, side by side in the look.
-  bridge.lookSamples = async () => {
+  bridge.lookSamples = async (scale) => {
     const view = await bridge.view();
     const value = (id: string): string => view.items[id]?.value ?? '—';
     const runs: Run[] = [
@@ -76,7 +80,7 @@ export function installFakePictures(): void {
       { label: state.texts['MetricLabel.Gpu'] ?? '', values: [value('gpu.load')] },
       { label: state.texts['MetricLabel.Ram'] ?? '', values: [value('ram.used')] },
     ];
-    const sample = (look: Style): OverlayPicture => paint(runs, look, 1, null);
+    const sample = (look: Style): OverlayPicture => paint(runs, look, scale / window.devicePixelRatio, null);
     return { default: sample({}), saved: Object.fromEntries(Object.entries(state.looks).map(([name, look]) => [name, sample(look)])) };
   };
 }

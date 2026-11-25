@@ -233,7 +233,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, one where no fan answers, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one where no fan answers, one where the board's fan only jitters at idle, two fans alike, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -1499,7 +1499,7 @@
       "covers": [
         "R197"
       ],
-      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the picture C# paints of the change, and then its picture before it.",
+      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the picture C# paints of the change, and then its picture before it; and it shows one of the picture's pixels on each of the page's device pixels, as wide as the overlay in a wide window and, at size 2 in a narrow one, as wide as the picture C# paints for the column.",
       "check": "ThePreviewShowsEachEditOfTheOverlay",
       "passes": true
     },
@@ -1603,7 +1603,7 @@
       "covers": [
         "R30"
       ],
-      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, and the one beside the notification area, or dropped past it, stays there, pushing the one before it back; two that do not overlap stay where their snaps put them; one grown past the room the other leaves on the taskbar shows at that room, so neither leaves the taskbar nor covers the other.",
+      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, toward the notification area only, and the one beside the notification area, or dropped past it, stays there; two that do not overlap stay where their snaps put them; one grown past the room the other leaves toward that edge shows at that room, so neither leaves the taskbar, covers the other or goes back over the app buttons.",
       "check": "OverlaysOnOneTaskbarNeverCoverEachOther",
       "passes": true
     },
@@ -1630,7 +1630,7 @@
       "covers": [
         "R197"
       ],
-      "description": "Given an overlay at size 2 on a 48 px taskbar at 100 %, on a 72 px one at 150 %, and free at 150 %, when the window previews it, then the preview is as high as the overlay shows, in pixels at 100 %: 48, no higher than the taskbar, and 76 free.",
+      "description": "Given an overlay at size 2 on a 48 px taskbar at 100 %, on a 72 px one at 150 %, and free at 150 %, when the window previews it, then the preview is painted as high as the overlay shows, in the monitor's pixels: 48, 72, no higher than the taskbar, and 114 free; and given a column 400 px wide, it is painted at the smaller scale that fits it, as wide as the column, never wider.",
       "check": "ThePreviewIsAsHighAsTheOverlayShows",
       "passes": true
     },
@@ -1650,6 +1650,25 @@
       ],
       "description": "Given three devices, the second of which blocks its update for 5 s from its second read on, when the service reads them each second, then the other two are read every second, the blocked one keeps its last values for up to 3 s and then reads as missing, it is never started again while it runs, and once it returns it is said to be slow, once, with how long it took, and read again.",
       "check": "ADeviceThatBlocksHoldsBackNoneOfTheOthers",
+      "passes": true
+    },
+    {
+      "id": "A345",
+      "covers": [
+        "R198"
+      ],
+      "description": "Given a device that stalls 1.5 s and then fails at once, one that fails once, and one that never reads, when the service reads them each second, then the first two keep their last values throughout, the failure is said with how it failed, and the one that never read is left out without a word.",
+      "check": "ADeviceThatStallsOrFailsKeepsItsLastValuesForThreeSeconds",
+      "passes": true
+    },
+    {
+      "id": "A346",
+      "covers": [
+        "R30",
+        "R143"
+      ],
+      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together.",
+      "check": "AnOverlayMovesOnlyWhenThePersonMovesIt",
       "passes": true
     }
   ]

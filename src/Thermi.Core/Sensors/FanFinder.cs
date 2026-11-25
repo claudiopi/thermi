@@ -86,8 +86,14 @@ public sealed class FanFinder
     // The load takes a moment to reach every core, so its first seconds do not count against it.
     private static readonly TimeSpan LoadSettles = TimeSpan.FromSeconds(2);
 
-    private const double MinRise = 200;
+    // A rise is judged as a share of where the fan was, as a fan at 545 RPM rises less than one at 1,500 for the same load;
+    // the floor in RPM keeps a slow fan's jitter from reading as a share. The Intel board's idle jitter reaches about 85 RPM
+    // and 12 % between 3 s averages.
+    private const double MinRise = 100;
     private const double MinRiseShare = 0.2;
+
+    // Past the Intel board's jitter of about 50 RPM within 3 s, and short of the least rise of a fan that falls after a run.
+    private const double MinFall = 100;
     private const double MinLoad = 80;
 
     private static readonly Dictionary<string, string> NoSources = new(StringComparer.Ordinal);
@@ -251,13 +257,13 @@ public sealed class FanFinder
     private static bool Rose(Rise rise) => rise.Rpm >= MinRise && rise.Rpm >= rise.Before * MinRiseShare;
 
     // A fan still falling, as after a run, would leave the 3 s before the load averaging above where it settles, and its
-    // rise to the load reading as less than it is. Half the least rise is past the jitter of a fan the board drives.
+    // rise to the load reading as less than it is.
     private bool Falling(long now) =>
         _samples.Where(sample => Since(sample.At, now) < Span)
             .SelectMany(sample => sample.Fans)
             .Where(fan => fan.Value is not null)
             .GroupBy(fan => fan.Key, StringComparer.Ordinal)
-            .Any(fan => fan.Max(each => each.Value!.Value) - fan.Last().Value!.Value >= MinRise / 2);
+            .Any(fan => fan.Max(each => each.Value!.Value) - fan.Last().Value!.Value >= MinFall);
 
     // Each fan's average over the last 3 s against its average over the 3 s before the load; a fan without a value in either has no rise.
     private List<Rise> Rises(long loadAt, long now)

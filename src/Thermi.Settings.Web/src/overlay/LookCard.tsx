@@ -5,6 +5,7 @@ import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
 import { useText, type TextKey } from '../texts/Texts';
+import { useDevicePixels } from './pixels';
 import { Picture } from './Preview';
 import { useLooks, useLookSamples, useWorn } from './useOverlayReads';
 
@@ -23,7 +24,7 @@ export function LookCard({ data, overlay }: LookCardProps) {
   const edit = useEdit();
   const looks = useLooks(data.changes);
   const worn = useWorn(data.changes)[overlay];
-  const samples = useLookSamples(data.changes);
+  const samples = useLookSamples(useDevicePixels(), data.changes);
   const [asking, setAsking] = useState<Asking>(null);
   const news = useNews();
   const tiles = useRef<HTMLDivElement>(null);

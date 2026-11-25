@@ -99,8 +99,9 @@ public sealed record WindowView(
     MarkState Mark);
 
 /// <summary>
-/// An overlay, or a look's sample, painted as the overlay paints it: a PNG as a data URL, its size in pixels at 100 %, and
-/// the color of the taskbar it sits on as #RRGGBB, or null where it sits on none.
+/// An overlay, or a look's sample, painted as the overlay paints it: a PNG as a data URL, its size in its own pixels, which
+/// the page shows one to each of its device pixels, so it is never resampled, and the color of the taskbar it sits on as
+/// #RRGGBB, or null where it sits on none.
 /// </summary>
 public sealed record OverlayPicture(
     string Png,

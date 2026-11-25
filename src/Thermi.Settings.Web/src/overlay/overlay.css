@@ -50,7 +50,7 @@
 }
 
 /* The preview: the overlay as it paints, on its taskbar's color where it sits on one, with nothing around it but that.
-   Narrower than the overlay, it shrinks to the column. */
+   Narrower than the overlay, C# paints it smaller to the column's width, so the page never scales the picture. */
 .t-preview {
   display: flex;
   align-items: center;
@@ -64,7 +64,10 @@
   border-radius: 4px;
 }
 
-.t-preview img,
+.t-preview img {
+  display: block;
+}
+
 .t-look-sample img {
   display: block;
   max-width: 100%;

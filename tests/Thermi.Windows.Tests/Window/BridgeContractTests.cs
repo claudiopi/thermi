@@ -259,13 +259,15 @@ public sealed class BridgeContractTests
         Assert.NotEqual(OverlayLayout.LabelOf(OverlayConfig.DefaultItems[4], Texts.English), shown[0].Item2);
     }
 
-    // The preview shows as high as the overlay, in pixels at 100 %: at size 2 on a taskbar 48 px high at 100 %, or 72 px at
-    // 150 %, no higher than the taskbar, as the overlay shows there; free at 150 %, at its own size.
+    // The preview is painted as high as the overlay shows, in the monitor's pixels: at size 2 on a taskbar 48 px high at
+    // 100 %, or 72 px at 150 %, no higher than the taskbar; free at 150 %, at its own size. In a column narrower than that
+    // it is painted smaller to the column's width, never as wide as the overlay and then shrunk, which blurred it.
     [Theory]
-    [InlineData("taskbar 100%", 48)]
-    [InlineData("taskbar 150%", 48)]
-    [InlineData("free 150%", 76)]
-    public async Task ThePreviewIsAsHighAsTheOverlayShows(string placed, double high)
+    [InlineData("taskbar 100%", 0, 48)]
+    [InlineData("taskbar 150%", 0, 72)]
+    [InlineData("free 150%", 0, 114)]
+    [InlineData("free 150%", 400, 0)]
+    public async Task ThePreviewIsAsHighAsTheOverlayShows(string placed, int room, double high)
     {
         var words = placed.Split(' ');
         var scale = words[1] == "150%" ? 1.5 : 1;
@@ -281,6 +283,18 @@ public sealed class BridgeContractTests
         using var bridge = folder.Bridge(settings, window, new ConcurrentQueue<Action>());
         bridge.Arrived();
 
-        Assert.Equal(high, (await bridge.Preview(0))!.Height, 2);
+        var whole = await bridge.Preview(0, 0);
+        var shown = await bridge.Preview(0, room);
+
+        if (room == 0)
+        {
+            Assert.Equal(high, shown!.Height, 2);
+        }
+        else
+        {
+            // Text is measured again at the smaller scale, so its width lands within a few pixels of the room, never past it.
+            Assert.True(whole!.Width > room && shown!.Width <= room && shown.Width >= room - 8, $"{whole.Width} to {shown.Width}");
+            Assert.Equal(whole.Height * shown.Width / whole.Width, shown.Height, 1.0);
+        }
     }
 }

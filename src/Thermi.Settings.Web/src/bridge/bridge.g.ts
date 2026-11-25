@@ -427,8 +427,8 @@ export interface Bridge {
   edit(edit: Edit): Promise<string | null>;
   gesture(active: boolean): Promise<void>;
   view(): Promise<WindowView>;
-  preview(overlay: number): Promise<OverlayPicture | null>;
-  lookSamples(): Promise<LookSamples>;
+  preview(overlay: number, room: number): Promise<OverlayPicture | null>;
+  lookSamples(scale: number): Promise<LookSamples>;
   chart(id: string): Promise<ChartView | null>;
   exitThermi(): Promise<void>;
   undo(): Promise<Undone | null>;

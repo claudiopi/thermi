@@ -74,6 +74,7 @@ internal sealed class OverlayHost : IDisposable
             History = history,
             Select = _link.Selected,
             Shown = () => DesktopDrag.Boxes(_overlays),
+            Settle = config => Ui.Views.OverlayPlaces.Settled(config, Scene(config, _desktop.Screens()), culture, DesktopDrag.Boxes(_overlays)),
             ItemAfter = (overlay, cursor) => overlay < _overlays.Count ? _overlays[overlay].ItemAfter(cursor) : null,
             Gestures = new GestureUndo(time, gesture => _ = _link.WindowOpen && HiddenWindow.Send(HiddenWindow.WindowClass, gesture)),
             Menu = (overlay, item) => Tray?.Menu(overlay, item: item),
@@ -113,8 +114,7 @@ internal sealed class OverlayHost : IDisposable
     public static bool Running() => !PInvoke.FindWindowEx(HWND.Null, HWND.Null, ClassName, null).IsNull;
 
     /// <summary>
-    /// Asks the running overlay which hotkeys it could not register, as the window does: an answer for
-    /// <see cref="Hotkeys.Trusted"/>, or null when no overlay answers.
+    /// Asks the running overlay which hotkeys it could not register, as the window does: <see cref="Hotkeys.Trusted"/>'s answer, or null for none.
     /// </summary>
     public static long? AskHotkeyStatus() => HiddenWindow.Ask(ClassName, HotkeyStatusMessage);
 

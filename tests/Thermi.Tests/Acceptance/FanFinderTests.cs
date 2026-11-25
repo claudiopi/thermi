@@ -160,7 +160,9 @@ public sealed class FanFinderTests
     [InlineData("answering-at-once", "Found")]
     [InlineData("software", "Found")]
     [InlineData("falling-after-a-run", "Found")]
+    [InlineData("rising-a-third", "Found")]
     [InlineData("unanswered", nameof(FanFinderOutcome.NoFanRose))]
+    [InlineData("board-jitter", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("gpu-fan-answers", nameof(FanFinderOutcome.NoFanRose))]
     [InlineData("two-alike", nameof(FanFinderOutcome.TwoRoseAlike))]
     [InlineData("light-load", nameof(FanFinderOutcome.LoadDidNotReachTheCpu))]
@@ -182,8 +184,8 @@ public sealed class FanFinderTests
             return;
         }
 
-        var intel = series == "board-answers";
-        var result = (intel ? Replay(Intel, LoadStartOf(Intel))
+        var intel = series.StartsWith("board-", StringComparison.Ordinal);
+        var result = (intel ? Replay(series == "board-jitter" ? BoardJitter : Intel, LoadStartOf(Intel))
             : series == "falling-after-a-run" ? Replay(FallingAfterARun(), loadStart: 4)
             : Replay(SeriesOf(series))).Result;
         var fan = intel ? IntelFan : BoardFan;
@@ -209,6 +211,7 @@ public sealed class FanFinderTests
     {
         "three-times-faster" => ThreeTimesFaster(Software),
         "answering-at-once" => AnsweringAt(Software, LoadStart),
+        "rising-a-third" => RisingAThird,
 
         "unanswered" => Unanswered,
 
@@ -290,6 +293,38 @@ public sealed class FanFinderTests
         var series = ThreeTimesFaster(Software);
         var settled = Value(series[0], BoardFan)!.Value;
         return [.. Derived([.. Enumerable.Repeat(series[0], 6)], BoardFan, (_, index) => settled + ((6 - index) * 200)), .. series];
+    }
+
+    /// <summary>
+    /// The Intel desktop's series with its CPU fan at its idle speeds, the 10 s before the load over and over, starting so the
+    /// 3 s before the load are the lowest: its 3 s averages then jitter up to 85 RPM and 12 % over them, which is no rise.
+    /// Its last second repeats for the fans to be watched after the load.
+    /// </summary>
+    private static List<Snapshot> BoardJitter
+    {
+        get
+        {
+            var start = LoadStartOf(Intel) - 3;
+            return Derived([.. Intel, .. Enumerable.Repeat(Intel[^1], 15)], IntelFan, (_, at) => Value(Intel[(((at - start) % 10) + 10) % 10], IntelFan));
+        }
+    }
+
+    /// <summary>
+    /// QA round 5, run 2 on the owner's PC, rebuilt from the window's list a second at a time: the CPU fan rose from 545 to
+    /// 739 RPM, 36 % but 194 RPM, and the finder, which then asked for 200 RPM, said no fan rose.
+    /// </summary>
+    private static List<Snapshot> RisingAThird
+    {
+        get
+        {
+            double[] fan =
+            [
+                545, 545, 544, 546, 545, 546, 545, 543, 543, 544, 553, 601, 618, 624, 628, 628, 631, 630, 627, 631, 628, 630, 628, 638, 694, 722,
+                732, 734, 736, 734, 734, 734, 736, 735, 735, 735, 739, 738, 739, 739, 739, 735, 736, 728, 664, 594, 563, 553, 550, 546, 545, 545,
+            ];
+            double[] load = [2, 3, 3, 1, 2, 88, .. Enumerable.Repeat(100.0, 29), 13, 3, 3, 2, 2, 2, 4, 5, 4, 4, 4, 6, 8, 3, 2, 1, 2];
+            return Derived(Derived([.. Enumerable.Repeat(Desktop, fan.Length)], BoardFan, (_, at) => fan[at]), CpuTotal, (_, at) => load[at]);
+        }
     }
 
     private static List<Snapshot> Derived(IReadOnlyList<Snapshot> series, string id, Func<Snapshot, int, double?> value) =>

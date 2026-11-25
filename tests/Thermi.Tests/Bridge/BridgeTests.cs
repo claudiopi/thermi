@@ -32,7 +32,7 @@ public sealed class BridgeTests
     [InlineData("""{"id":8,"method":"history","args":[]}""", """{"id":8,"error":"*"}""")]
     [InlineData("""{"id":9,"method":"edit","args":[{"kind":"paint"}]}""", """{"id":9,"error":"*"}""")]
     [InlineData(
-        """{"id":10,"method":"preview","args":[0]}""",
+        """{"id":10,"method":"preview","args":[0,0]}""",
         """{"id":10,"result":{"png":"data:image/png;base64,","width":120,"height":38,"taskbar":null}}""")]
     [InlineData("""{"id":11,"method":"report","args":["TypeError: x"]}""", """{"id":11,"result":null}""")]
     [InlineData("""{"id":12,"method":"chart","args":["none"]}""", """{"id":12,"error":"*"}""")]

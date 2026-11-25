@@ -6,10 +6,10 @@ namespace Thermi.SensorHost;
 /// <summary>
 /// The only class that talks to LibreHardwareMonitor. Drives are updated every <see cref="StorageEvery"/> and send their
 /// last values between: each of their updates reads SMART and opens every volume, about 3 ms of CPU and a round of disk
-/// requests, for values that change slowly. A device whose update stalls holds back none of the others
-/// (<see cref="DeviceUpdates"/>), and <c>slow</c> is told its name and how long it took.
+/// requests, for values that change slowly. A device whose update stalls or fails holds back none of the others
+/// (<see cref="DeviceUpdates"/>), and <c>slow</c> is told its name, how long it took and how it failed.
 /// </summary>
-internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan> slow) : ISensorSource
+internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan, Exception?> slow) : ISensorSource
 {
     public static readonly TimeSpan StorageEvery = TimeSpan.FromSeconds(5);
 
@@ -142,8 +142,8 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
         _computer.IsStorageEnabled = true;
     }
 
-    // A device not updated now sends its last values, and with speeds that do not hold, no speed; one whose update failed
-    // would only repeat stale values, so it is left out and shows as missing.
+    // A device not updated now sends its last values, and with speeds that do not hold, no speed; one that never read
+    // has no values to send, so it is left out and shows as missing.
     private static void Collect(IHardware device, List<RawSensor> sensors, DeviceRead read, bool speedsHold)
     {
         if (read == DeviceRead.Failed)

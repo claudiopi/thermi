@@ -173,7 +173,7 @@ public sealed class OverlayMenuTests : IDisposable
         var window = _folder.Window(new TestFeed { Latest = HostRun.Recorded }) with { Screens = Desktop.Screens };
         using var bridge = _folder.Bridge(settings, window, new System.Collections.Concurrent.ConcurrentQueue<Action>(), overlay: 1);
         bridge.Arrived();
-        var preview = await bridge.Preview(0);
+        var preview = await bridge.Preview(0, 0);
         using var png = new Bitmap(new MemoryStream(Convert.FromBase64String(preview!.Png[(preview.Png.IndexOf(',', StringComparison.Ordinal) + 1)..])));
 
         Assert.NotEmpty(copied);

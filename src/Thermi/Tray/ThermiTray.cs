@@ -215,7 +215,8 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
                 parts.Visibility.HideOverlays = false;
                 break;
             case NoticeKind.OverlayHidden:
-                Settings.Edit(config => notice.Overlays.Aggregate(config, (current, at) => OverlayEdits.SetHidden(current, at, hidden: false).Config));
+                Settings.Edit(config =>
+                    Actions.Settle(notice.Overlays.Aggregate(config, (current, at) => OverlayEdits.SetHidden(current, at, hidden: false).Config)));
                 break;
             case NoticeKind.ClickThrough or NoticeKind.ClickThroughAll:
                 Settings.Edit(config => Notices.Undo(config, notice));

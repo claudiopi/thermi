@@ -141,7 +141,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     public void Release(Press press, DragDistance distance)
     {
         var cursor = actions.Cursor();
-        Drag?.Release(press, cursor, distance, Target(cursor, Drag.Dropped), actions.Gestures);
+        Drag?.Release(press, cursor, distance, Target(cursor, Drag.Dropped), (actions.Gestures, actions.Settle));
         Let();
     }
 
@@ -209,11 +209,12 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         }
 
         var before = settings.Config;
-        var after = OverlayEdits.Resize(before, index, 1, overlay.Style.Orientation);
-        if (after.Refused is null && ConfigEdits.Replay(before, after.Config) is { } change)
+        var resized = OverlayEdits.Resize(before, index, 1, overlay.Style.Orientation);
+        var after = resized.Refused is null ? actions.Settle(resized.Config) : before;
+        if (ConfigEdits.Replay(before, after) is { } change)
         {
             settings.Edit(change);
-            actions.Gestures?.Add(GestureKind.Resize, before, after.Config);
+            actions.Gestures?.Add(GestureKind.Resize, before, after);
         }
 
         return true;
@@ -299,10 +300,11 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
 
         var before = settings.Config;
         var drop = DesktopGestures.Separate(before, index, pill, shown, (made.Width, made.Height), (rest.Width, rest.Height), screens);
-        if (drop.Result.Refused is null && ConfigEdits.Replay(before, drop.Result.Config) is { } change)
+        var after = drop.Result.Refused is null ? actions.Settle(drop.Result.Config) : before;
+        if (ConfigEdits.Replay(before, after) is { } change)
         {
             settings.Edit(change);
-            actions.Gestures?.Add(drop.Kind, before, drop.Result.Config, OverlayText.UndoSeparate);
+            actions.Gestures?.Add(drop.Kind, before, after, OverlayText.UndoSeparate);
             actions.RequestPaint();
         }
     }

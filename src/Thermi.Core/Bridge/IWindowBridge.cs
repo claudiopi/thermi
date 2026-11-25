@@ -44,12 +44,14 @@ public interface IWindowBridge
 
     /// <summary>
     /// The overlay painted as its own window paints it now, with the same scene, look, scale and painter as "Copy as image",
-    /// its lines drawing the minute the overlay sent; null for an overlay the settings lack.
+    /// its lines drawing the minute the overlay sent; null for an overlay the settings lack. At most <paramref name="room"/>
+    /// pixels wide, the page's own, when it is more than 0: one wider is painted at the smaller scale that fits, never resampled.
     /// </summary>
-    Task<OverlayPicture?> Preview(int overlay);
+    Task<OverlayPicture?> Preview(int overlay, int room);
 
     /// <summary>Each look's sample for its tile, painted as the overlay paints <see cref="Look.LookSample"/> in it.</summary>
-    Task<LookSamples> LookSamples();
+    /// <param name="scale">The page's pixels for each at 100 %, so a sample shows one of its pixels in each of the page's.</param>
+    Task<LookSamples> LookSamples(double scale);
 
     /// <summary>An item's chart, or null for one that charts nothing, as a time, an address or a duration.</summary>
     Task<ChartView?> Chart(string id);

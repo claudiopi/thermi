@@ -218,7 +218,7 @@ test('ThePreviewShowsEachEditOfTheOverlay', async ({ page }) => {
   const preview = pane.getByRole('img', { name: text('OverlayPageText.Preview', 'Taskbar') });
   // The picture the page shows, and the one C# paints of the overlay now: the page draws none of its own.
   const shown = async (): Promise<string | null> => preview.getAttribute('src');
-  const painted = async (): Promise<string | null> => page.evaluate(async () => (await window.thermi?.preview(0))?.png ?? null);
+  const painted = async (): Promise<string | null> => page.evaluate(async () => (await window.thermi?.preview(0, 0))?.png ?? null);
   await expect.poll(async () => (await shown()) === (await painted())).toBe(true);
   const before = await shown();
 
@@ -228,6 +228,30 @@ test('ThePreviewShowsEachEditOfTheOverlay', async ({ page }) => {
 
   await page.keyboard.press('Control+Z');
   await expect.poll(shown).toBe(before);
+
+  // QA round 5: the preview was the picture shrunk to the column, and blurred. It shows one of C#'s pixels on each of the
+  // page's device pixels: as wide as the overlay where it fits, and where it does not, painted by C# as wide as it shows.
+  const pixels = async (): Promise<{ shown: number; whole: number; fitted: number; within: boolean }> => {
+    const box = (await preview.boundingBox()) ?? { x: 0, width: 0 };
+    const main = (await pane.boundingBox()) ?? { x: 0, width: 0 };
+    return page.evaluate(
+      async ({ width, within }) => {
+        const device = Math.round(width * window.devicePixelRatio);
+        const whole = (await window.thermi?.preview(0, 0))?.width ?? 0;
+        return { shown: device, whole, fitted: (await window.thermi?.preview(0, device))?.width ?? 0, within };
+      },
+      { width: box.width, within: box.x + box.width <= main.x + main.width },
+    );
+  };
+  await test.step('as wide as the overlay where it fits', async () => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await expect.poll(async () => { const now = await pixels(); return now.shown === now.whole && now.within; }).toBe(true);
+  });
+  await test.step('painted to the column where it does not', async () => {
+    await page.setViewportSize({ width: 760, height: 560 });
+    await pressOn(pane.getByRole('slider', { name: text('UiText.SizeField') }), 'End');
+    await expect.poll(async () => { const now = await pixels(); return now.shown < now.whole && now.shown === now.fitted && now.within; }).toBe(true);
+  });
 });
 
 // A209: each control of Placement, chosen by keys on two monitors, lands in the settings.

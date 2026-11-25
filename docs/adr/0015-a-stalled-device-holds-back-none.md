@@ -10,7 +10,8 @@ The service reads every device in one pass each second (`LhmSensorSource`), and 
 
 - Each device, a board's Super I/O chip as one of its own, is updated in turn, as before, but on a thread of its own, and the pass waits for it at most 500 ms. A device still updating then is left to finish, and the pass goes on with the next: one stalled device holds back none after it.
 - A device still updating is not started again until its update returns. Meanwhile its sensors keep their last values while that update is no older than the freshness limit the overlay applies to a whole snapshot (3 s, `LatestSnapshot.MaxAge`), and after that are sent as missing (null), so the catalog never changes for a stall and no frozen value looks live.
-- An update that takes longer than 500 ms is written to the Application event log once it returns, with the device and how long it took, at most once a minute per device, so a busy bus shows without flooding the log. In a terminal, as with `--console` or `--dump`, it is written there instead.
+- An update that fails, as a busy driver may answer nothing, is held the same way: the device keeps its last values while they are no older than 3 s, then sends them as missing, and is updated again on its next second. Only a device that never read is left out of the snapshot.
+- An update that takes longer than 500 ms, or fails, is written to the Application event log once it returns, with the device, how long it took and its failure, at most once a minute per device, so a busy bus shows without flooding the log. In a terminal, as with `--console` or `--dump`, it is written there instead.
 - While an update is still running, the library is neither scanned again for new devices nor closed: either would pull the devices from under it.
 - A device whose update has not returned within the read limit (60 s, `SensorPipeServer.ReadLimit`) ends the process, as a whole read past it did: only a process that ends frees a thread stuck in a driver, and Windows' recovery restarts the service.
 
@@ -24,7 +25,7 @@ The service reads every device in one pass each second (`LhmSensorSource`), and 
 - With the bus held by another program, the CPU, GPU, memory and drives keep coming each second, and only the board's sensors go missing after 3 s.
 - A read becomes asynchronous (`ISensorSource.ReadAsync`), and the pipe's server awaits it.
 - What to watch: the event log's slow-update lines, to tell a busy bus from a driver that hangs.
-- A device that fails its update, as before, is left out of the snapshot; one that is only slow keeps its sensors, as values or as missing.
+- A device that fails its update keeps its sensors, as values or as missing, as one that is only slow does; in QA round 5 the CPU's update failed under Find it's load, between stalls of about a second, and leaving it out blanked its items for a second at a time, 5 s apart, and changed the catalog twice. Only one that never read is left out.
 
 ## What it replaces in earlier ADRs
 

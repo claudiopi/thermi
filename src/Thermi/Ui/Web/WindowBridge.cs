@@ -58,6 +58,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _watch = new PageWatch(start.Environment, start.Time, onTurn, Tell, Arrived);
         _fixes = new WindowFixes(start.Environment, start.Time);
+        editor.Settle = (before, after) => _views.Settled(before, after, _texts, start.Environment.Screens());
         editor.Changed += (_, _) => Edited();
     }
 
@@ -151,14 +152,9 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<WindowView> View() => Ready(() => _views.View(_texts));
 
-    public Task<OverlayPicture?> Preview(int overlay) => Ready(() => _previews.Preview(overlay, _texts));
+    public Task<OverlayPicture?> Preview(int overlay, int room) => Ready(() => _previews.Preview(overlay, room, _texts));
 
-    // The samples are as sharp as the window's monitor shows them.
-    public Task<LookSamples> LookSamples()
-    {
-        var dpi = PInvoke.GetDpiForWindow(Window);
-        return Ready(() => _previews.Samples(_looks.Looks(), _texts, (dpi == 0 ? 96 : dpi) / 96.0));
-    }
+    public Task<LookSamples> LookSamples(double scale) => Ready(() => _previews.Samples(_looks.Looks(), _texts, scale));
 
     public Task<ChartView?> Chart(string id) => Task.FromResult(_charts.Chart(id, _views.Format(_texts)));
 

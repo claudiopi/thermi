@@ -142,9 +142,11 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
 
     /// <summary>
     /// The press let go: a drag writes its gesture as one edit, the plain move through <see cref="Settings.Release"/> so it
-    /// stays where it was dropped until written.
+    /// stays where it was dropped until written. The overlays it pushes along a taskbar keep their new places, as
+    /// <paramref name="done"/>'s settle gives them, in the same edit, which its undo takes back.
     /// </summary>
-    public void Release(Press press, Position cursor, DragDistance distance, DropTarget target, GestureUndo? undo)
+    public void Release(
+        Press press, Position cursor, DragDistance distance, DropTarget target, (GestureUndo? Undo, Func<ThermiConfig, ThermiConfig> Settle) done)
     {
         if (Dropped is not { } at)
         {
@@ -159,13 +161,13 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
                 ? DesktopGestures.Release(before, overlay, start.Pill, Kept(pill, _pill), target.Onto, Near(pill, Orientation.Horizontal, _pill), target.Before)
                 : DesktopGestures.Release(
                     before, overlay, null, Kept(at, start.Size), target.Onto, Near(at, before.Overlays[overlay].Style.Orientation, start.Size), target.Before);
-        if (drop.Result.Refused is not null || ConfigEdits.Replay(before, drop.Result.Config) is not { } change)
+        var after = drop.Result.Refused is null ? done.Settle(drop.Result.Config) : before;
+        if (ConfigEdits.Replay(before, after) is not { } change)
         {
             return;
         }
 
         // Undo takes back the very drop written, which a plain move takes from the cursor as the overlay does.
-        var after = drop.Result.Config;
         if (Moves && drop.Kind == GestureKind.Move && after.Overlays[overlay].Snap is null)
         {
             if (settings.Release(press, Kept(cursor, at), distance, overlay) is not { } released)
@@ -180,7 +182,7 @@ internal sealed class DesktopDrag(int overlay, Settings settings, DragStart star
             settings.Edit(change);
         }
 
-        undo?.Add(drop.Kind, before, after);
+        done.Undo?.Add(drop.Kind, before, after);
     }
 
     /// <summary>Where the overlay's corner was last dragged to, which its release drops at; null while still a click.</summary>
