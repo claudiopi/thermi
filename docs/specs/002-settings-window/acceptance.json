@@ -222,7 +222,7 @@
         "R20",
         "R21"
       ],
-      "description": "Given Task Manager and a board that drives the CPU fan, when the finder runs and is cancelled, then every core is loaded at below-normal priority, the load ends within a second of Cancel, and a full run picks the CPU fan.",
+      "description": "Given Task Manager and a board that drives the CPU fan, when the finder runs and is cancelled, then every core is loaded at idle priority, the load ends within a second of Cancel, and a full run picks the CPU fan.",
       "check": "by hand",
       "passes": false
     },
@@ -1585,7 +1585,7 @@
       "covers": [
         "R19"
       ],
-      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs below normal priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
+      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs at idle priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
       "check": "UnderALoadOnEveryCoreTheReadingsKeepComing",
       "passes": true
     },

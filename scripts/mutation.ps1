@@ -9,6 +9,10 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $output = Join-Path $root 'TestResults' 'mutation'
+# Stryker keeps every core busy for minutes: below normal priority, which its processes inherit, the PC stays usable.
+$self = [Diagnostics.Process]::GetCurrentProcess()
+$priority = $self.PriorityClass
+$self.PriorityClass = 'BelowNormal'
 # Stryker finds its config and the project under test from where it runs.
 Push-Location (Join-Path $root 'tests' 'Thermi.Tests')
 try {
@@ -18,6 +22,7 @@ try {
 }
 finally {
     Pop-Location
+    $self.PriorityClass = $priority
 }
 
 $score = $log | Select-String 'final mutation score is' | Select-Object -Last 1

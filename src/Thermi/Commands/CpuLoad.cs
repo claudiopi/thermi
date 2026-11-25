@@ -5,8 +5,9 @@ namespace Thermi.Commands;
 
 /// <summary>
 /// The CPU load of the window's fan finder and of <c>thermi cpu-load</c>, which records the fans' answer for tests: a
-/// thread per logical core, each spinning until the token is cancelled, in a process of below-normal priority, so the
-/// sensor service, the overlay and the window, all above it, keep reading and painting under it. The window runs it
+/// thread per logical core, each spinning until the token is cancelled, in a process of idle priority, so the sensor
+/// service, the overlay, the window and whatever the person is doing, all above it, keep running under it, while the
+/// cores still stay busy enough for the fans to answer. The window runs it
 /// as a <c>thermi cpu-load</c> of its own, never in its own process: spinning threads there would share its runtime's
 /// pauses and stall the readings the finder waits on. Tests give the finder a load of their own and never run this one.
 /// </summary>
@@ -16,7 +17,7 @@ internal static class CpuLoad
     {
         using (var self = Process.GetCurrentProcess())
         {
-            self.PriorityClass = ProcessPriorityClass.BelowNormal;
+            self.PriorityClass = ProcessPriorityClass.Idle;
         }
 
         using var stop = new CancellationTokenSource();
