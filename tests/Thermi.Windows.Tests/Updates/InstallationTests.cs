@@ -14,7 +14,7 @@ namespace Thermi.Windows.Tests.Updates;
 /// </summary>
 public sealed class InstallationTests : IAsyncDisposable
 {
-    private static readonly ReleaseVersion Later = new(0, 9, 5);
+    private static readonly ReleaseVersion Later = UpdatePc.Built with { Patch = UpdatePc.Built.Patch + 1 };
 
     private readonly UpdatePc _pc = new();
     private readonly FakeSystem _system = new();
@@ -41,11 +41,11 @@ public sealed class InstallationTests : IAsyncDisposable
     // names a later version, and what a version ready earlier than this one becomes, are Core's InstallLayout and
     // SwitchHealth rows.
     [Theory]
-    [InlineData("nothing", "0.9.0")]
-    [InlineData("a flat build", "0.9.0")]
-    [InlineData("a later version", "0.9.5")]
-    [InlineData("this version built again", "0.9.0")]
-    public async Task AnInstallRunsItsVersionBesideTheOthers(string before, string runs)
+    [InlineData("nothing")]
+    [InlineData("a flat build")]
+    [InlineData("a later version")]
+    [InlineData("this version built again")]
+    public async Task AnInstallRunsItsVersionBesideTheOthers(string before)
     {
         var flat = Path.Combine(_pc.Top, "runtimes", "thermi.dll");
         switch (before)
@@ -75,10 +75,10 @@ public sealed class InstallationTests : IAsyncDisposable
 
         var exit = await AdoptAsync();
 
-        var version = ReleaseVersion.Parse(runs)!;
-        var laid = await File.ReadAllTextAsync(Path.Combine(_pc.Top, runs, "thermi.exe"), TestContext.Current.CancellationToken);
+        var version = before == "a later version" ? Later : UpdatePc.Built;
+        var laid = await File.ReadAllTextAsync(Path.Combine(_pc.Top, version.ToString(), "thermi.exe"), TestContext.Current.CancellationToken);
         Assert.Equal(
-            (0, Service(version), UpdatePc.Launcher("thermi", version), $"thermi {runs}", false, runs, version),
+            (0, Service(version), UpdatePc.Launcher("thermi", version), $"thermi {version}", false, version.ToString(), version),
             (exit, _system.Images[Sensors], _pc.LauncherAtTop("thermi"), laid, File.Exists(flat), _system.Shown?.Version, _pc.State.Installed));
     }
 
@@ -155,19 +155,28 @@ public sealed class InstallationTests : IAsyncDisposable
     // From the MSI's own folder, and from a version's, as scripts/install.ps1 runs it, each of which stays; anything else is
     // refused whole. Which names an install runs from and which entries a removal takes are Core's InstallLayout rows.
     [Theory]
-    [InlineData("setup", "setup", 0)]
-    [InlineData("0.8.0", "0.8.0 setup", 0)]
-    [InlineData("elsewhere", "0.8.0 0.9.5 elsewhere setup thermi-sensors.exe thermi.exe update", 1)]
-    public async Task ARemoveTakesThermiOffButTheFolderItRunsFrom(string own, string left, int exit)
+    [InlineData("setup")]
+    [InlineData("a version's")]
+    [InlineData("elsewhere")]
+    public async Task ARemoveTakesThermiOffButTheFolderItRunsFrom(string from)
     {
         _pc.Lay(Later);
-        Directory.CreateDirectory(Path.Combine(_pc.Top, own));
+        var own = from switch { "setup" => Setup, "a version's" => Path.Combine(_pc.Top, UpdatePc.Running.ToString()), _ => Path.Combine(_pc.Top, from) };
+        Directory.CreateDirectory(own);
+        var before = (Snapshot(), Entries());
 
-        var removed = await Install().RemoveAsync(Path.Combine(_pc.Top, own), TestContext.Current.CancellationToken);
+        var removed = await Install().RemoveAsync(own, TestContext.Current.CancellationToken);
 
-        var entries = string.Join(" ", Directory.EnumerateFileSystemEntries(_pc.Top).Select(Path.GetFileName).Order(StringComparer.Ordinal));
-        Assert.Equal((exit, left), (removed, entries));
-        Assert.Equal(exit == 0, _system.Images.Count == 0 && _system.Sources.Count == 0 && _system.Shown is null && _system.Ended);
+        if (from == "elsewhere")
+        {
+            Assert.Equal((1, before, false), (removed, (Snapshot(), Entries()), _system.Ended));
+        }
+        else
+        {
+            var kept = string.Join(" ", new[] { Path.GetFileName(own), InstallLayout.Setup }.Distinct().Order(StringComparer.Ordinal));
+            Assert.Equal((0, kept), (removed, Entries()));
+            Assert.True(_system.Images.Count == 0 && _system.Sources.Count == 0 && _system.Shown is null && _system.Ended);
+        }
     }
 
     public ValueTask DisposeAsync() => _pc.DisposeAsync();
@@ -203,6 +212,8 @@ public sealed class InstallationTests : IAsyncDisposable
         var running = _system.Running && _system.Images.ContainsKey(Sensors);
         return $"{images} | {launcher} | {string.Join(" ", _pc.Versions)} | {state} | {_system.Shown} | {running} | {_system.Sources.Count}";
     }
+
+    private string Entries() => string.Join(" ", Directory.EnumerateFileSystemEntries(_pc.Top).Select(Path.GetFileName).Order(StringComparer.Ordinal));
 
     private string Service(ReleaseVersion version) => $"\"{Path.Combine(_pc.Top, version.ToString(), "thermi-sensors.exe")}\"";
 

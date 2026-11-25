@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security;
 using Microsoft.Win32;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Updates;
 
@@ -139,7 +140,7 @@ internal sealed class WindowsSetup : ISystemSetup
                 try
                 {
                     if (program.Id != System.Environment.ProcessId
-                        && program.MainModule?.FileName.StartsWith(top + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true)
+                        && program.MainModule?.FileName is { } file && InstallLayout.Inside(file, top))
                     {
                         program.Kill();
                         program.WaitForExit(Wait);

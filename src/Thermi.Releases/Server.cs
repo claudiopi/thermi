@@ -1,4 +1,5 @@
 using System.Net;
+using Thermi.Core.Install;
 
 namespace Thermi.Releases;
 
@@ -17,7 +18,6 @@ internal static class Server
         listener.Start();
         await output.WriteLineAsync($"Serving {root} at {prefix}. Ctrl+C stops it.");
         using var registration = stop.Register(listener.Stop);
-        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
         while (!stop.IsCancellationRequested)
         {
             HttpListenerContext context;
@@ -30,7 +30,7 @@ internal static class Server
                 break;
             }
 
-            await AnswerAsync(context, full, output);
+            await AnswerAsync(context, root, output);
         }
 
         return 0;
@@ -42,7 +42,7 @@ internal static class Server
         var path = Uri.UnescapeDataString(context.Request.Url!.AbsolutePath["/v1/".Length..]);
         var file = Path.GetFullPath(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar)));
         await output.WriteLineAsync($"{context.Request.HttpMethod} /v1/{path}");
-        if (context.Request.HttpMethod != "GET" || !file.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(file)
+        if (context.Request.HttpMethod != "GET" || !InstallLayout.Inside(file, root) || !File.Exists(file)
             || path.StartsWith("history/", StringComparison.Ordinal))
         {
             response.StatusCode = 404;

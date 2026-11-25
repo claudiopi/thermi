@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using System.Security.Principal;
+using Thermi.Core.Install;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
 using Windows.Win32;
@@ -273,7 +274,6 @@ internal sealed class Switcher(
         }
 
         using var server = Process.GetProcessById((int)id);
-        var exe = server.MainModule?.FileName;
-        return exe is not null && exe.StartsWith(folder.VersionOf(to) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        return server.MainModule?.FileName is { } exe && InstallLayout.Inside(exe, folder.VersionOf(to));
     }
 }

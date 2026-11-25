@@ -83,7 +83,7 @@ internal sealed class UserTarget(InstallFolder folder, string pipe, SecurityIden
             }
 
             var process = Process.GetProcessById((int)id);
-            if (process.MainModule?.FileName.StartsWith(folder.Top + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true)
+            if (process.MainModule?.FileName is { } file && InstallLayout.Inside(file, folder.Top))
             {
                 return process;
             }

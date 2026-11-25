@@ -84,7 +84,7 @@ internal static class MachineMove
     {
         try
         {
-            return program.MainModule?.FileName.StartsWith(PerUserTop + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) == true;
+            return program.MainModule?.FileName is { } file && InstallLayout.Inside(file, PerUserTop);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         {

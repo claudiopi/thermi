@@ -32,7 +32,7 @@
     {
       "id": "A5",
       "covers": ["R9", "R10", "R12"],
-      "description": "Given an update folder and a version that passes every check, when the zip served is longer than the manifest signed, holds an entry that leaves its folder or versions that are not the manifest's, or, in a release build, comes without its signed catalog, or the folder is writable by users, or the release key signed the manifest after one the backup key signed revoked it, then nothing under the folder changes, no version runs, and the event log names the check that failed; the version that passes is taken.",
+      "description": "Given an update folder and a version that passes every check, when the zip served is longer than the manifest signed, holds an entry that leaves its folder or versions that are not the manifest's, or, in a release build, comes without its signed catalog, or the folder is writable by users, or the release key signed the manifest after one the backup key signed revoked it, then nothing under the folder changes, no version runs, and the event log has a warning or an error; the version that passes is taken.",
       "check": "TheUpdaterTakesOnlyWhatPassesEveryCheck",
       "passes": false
     },
@@ -265,6 +265,20 @@
       "covers": ["R29"],
       "description": "Given the policy Updates = 0, a manifest that cannot be read, a channel offering no MSI for the running version or later, or one offering it, when the user's host is asked to install for everyone, then the policy and no MSI open the download page, no manifest fails, and only the MSI offered runs.",
       "check": "InstallForEveryoneRunsAnMsiOnlyWhenTheChannelOffersOne",
+      "passes": true
+    },
+    {
+      "id": "A39",
+      "covers": ["R9"],
+      "description": "Given an envelope over 64 KB, one that is not an envelope, one signed by no key built into thermi, and one the release key signed after a manifest of the backup key's revoked it, when the service opens it, then it is refused; only the backup key revokes the release key, which it names, and sets the sequence back, once.",
+      "check": "LeversNeverSendAPcBackward",
+      "passes": false
+    },
+    {
+      "id": "A40",
+      "covers": ["R29"],
+      "description": "Given msiexec's exit after the UAC prompt, when the user's host reads it, then 0 and 3010 are installed, 1223, a refused prompt, and 1602 are refused, which changed nothing, and any other is a failure.",
+      "check": "MsiexecsExitIsWhatTheInstallCameTo",
       "passes": true
     }
   ]
