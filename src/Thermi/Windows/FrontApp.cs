@@ -44,15 +44,16 @@ internal sealed class FrontApp
         return (null, false);
     }
 
-    // Maximized, or covering its whole monitor, as a game full screen or borderless does.
+    // Maximized, or as large as its monitor's work area, as a game full screen, borderless or in a window of the
+    // monitor's size is, wherever that window sits.
     private static bool Fills(HWND window)
     {
         var info = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
         var monitor = PInvoke.MonitorFromWindow(window, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONULL);
         return PInvoke.IsZoomed(window)
             || (!monitor.IsNull && PInvoke.GetMonitorInfo(monitor, ref info) && PInvoke.GetWindowRect(window, out var rect)
-                && rect.left <= info.rcMonitor.left && rect.top <= info.rcMonitor.top
-                && rect.right >= info.rcMonitor.right && rect.bottom >= info.rcMonitor.bottom);
+                && rect.right - rect.left >= info.rcWork.right - info.rcWork.left
+                && rect.bottom - rect.top >= info.rcWork.bottom - info.rcWork.top);
     }
 
     // Explorer's own process, whose dialogs, flyouts and folder windows are the shell's too, whatever their class.
