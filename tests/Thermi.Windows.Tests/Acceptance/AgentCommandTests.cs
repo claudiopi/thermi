@@ -29,29 +29,21 @@ public sealed class AgentCommandTests : IDisposable
         Broken,
     }
 
+    // The ways each command ends that no test of its own already holds: an edit's 0, 1 and 4, a look's, a read's past
+    // 60 seconds and the start at sign-in's are theirs.
     [Theory]
-    [InlineData(Ending.Done, 0, "status")]
-    [InlineData(Ending.Done, 0, "read", "cpu.temperature")]
-    [InlineData(Ending.Done, 0, "sensors", "--search", "cpu")]
-    [InlineData(Ending.Done, 0, "config")]
+    [InlineData(Ending.Done, 0, "status", "--schema", "1")]
     [InlineData(Ending.Done, 0, "monitors")]
     [InlineData(Ending.Done, 0, "looks")]
-    [InlineData(Ending.Done, 0, "start-with-windows")]
-    [InlineData(Ending.Done, 0, "edit", """{"kind":"item","item":"cpu.temperature","field":"name","value":"Tdie"}""")]
-    [InlineData(Ending.Done, 1, "edit", TooHigh)]
-    [InlineData(Ending.Done, 1, "look", "wear", "nobody's")]
     [InlineData(Ending.Done, 2, "read", "no.such.metric")]
-    [InlineData(Ending.Done, 2, "read", "--seconds", "0")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
     [InlineData(Ending.Done, 2, "edit", """{"kind":"nothing"}""")]
-    [InlineData(Ending.Done, 0, "status", "--schema", "1")]
     [InlineData(Ending.Done, 2, "status", "--schema", "0")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
     [InlineData(Ending.Stopped, 0, "status")]
     [InlineData(Ending.Stopped, 3, "read")]
     [InlineData(Ending.Stopped, 3, "sensors")]
     [InlineData(Ending.Broken, 4, "config")]
-    [InlineData(Ending.Broken, 4, "edit", TooHigh)]
     public async Task EveryCommandEndsWithItsCode(Ending ending, int exit, params string[] args)
     {
         if (ending == Ending.Stopped)
