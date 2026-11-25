@@ -1,11 +1,11 @@
 extern alias sensors;
-
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.SensorHost;
 using sensors::Thermi.SensorHost.User;
+using Thermi.Core.Install;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Windows.Tests.SensorHost;
@@ -136,7 +136,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
     }
 
     // Spec 004, A21: the pipe named for the user, owned by the user and shut to the rest but SYSTEM and administrators, and
-    // a host that ends once its last client left, or when none came within 30 s.
+    // a host that ends 10 s after its last client left, or when none came within 30 s.
     [Fact]
     public async Task AUsersHostServesItsUserUntilTheLastClientLeaves()
     {
@@ -149,7 +149,8 @@ public sealed class SensorProgramTests : IAsyncDisposable
         var readers = security.GetAccessRules(true, false, typeof(SecurityIdentifier)).Cast<PipeAccessRule>()
             .Where(rule => rule.AccessControlType == AccessControlType.Allow).Select(rule => ((SecurityIdentifier)rule.IdentityReference).Value).Order();
         await client.DisposeAsync();
-        await PassAsync(UserMode.Linger + TimeSpan.FromSeconds(3), serving);
+        var lingered = await PassAsync(UserMode.Linger - TimeSpan.FromSeconds(1), serving);
+        await PassAsync(TimeSpan.FromSeconds(4), serving);
         var served = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
 
         var lonely = RunAsync(["--user"]);
@@ -160,7 +161,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
         Assert.Equal(FakeSensors.Recorded.Sensors, snapshot.Sensors.Where(sensor => sensor.Id != FakeSensors.Counter));
         Assert.Equal(user.User, security.GetOwner(typeof(SecurityIdentifier)));
         Assert.Equal(new[] { "S-1-5-18", "S-1-5-32-544", user.User.Value }.Order(), readers);
-        Assert.Equal((0, false, 0), (served, early, alone));
+        Assert.Equal((false, 0, false, 0), (lingered, served, early, alone));
     }
 
     // Spec 004, A24: the host's stop event ends it while a client still reads, and an event someone made before the host
@@ -174,14 +175,14 @@ public sealed class SensorProgramTests : IAsyncDisposable
         await using var client = new NamedPipeClientStream(".", pipe, PipeDirection.In, PipeOptions.Asynchronous);
         await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
         await PipeReading.NextSnapshotAsync(client, _clock, Patience);
-        using (var stop = EventWaitHandle.OpenExisting(UserMode.EventOf(pipe, UserMode.StopEvent)))
+        using (var stop = EventWaitHandle.OpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent)))
         {
             stop.Set();
         }
 
         await PassAsync(TimeSpan.FromSeconds(2), serving);
         var stopped = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
-        using var first = new EventWaitHandle(false, EventResetMode.AutoReset, UserMode.EventOf(pipe, "129"));
+        using var first = new EventWaitHandle(false, EventResetMode.AutoReset, UserHost.EventOf(pipe, "129"));
         var refused = await RunAsync(["--user"]).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.Equal((0, UserMode.Taken), (stopped, refused));

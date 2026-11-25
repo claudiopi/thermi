@@ -3,6 +3,7 @@ using System.Reflection;
 using System.ServiceProcess;
 using Microsoft.Win32;
 using Thermi.Commands;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.Install;
 
@@ -32,7 +33,7 @@ internal static class UpdatesHere
     {
         if (!SensorPipes.ServiceInstalled() && SensorPipes.UserPipe is { } pipe)
         {
-            if (!EventWaitHandle.TryOpenExisting(@"Local\" + pipe + "-" + code.ToString(CultureInfo.InvariantCulture), out var told))
+            if (!EventWaitHandle.TryOpenExisting(UserHost.EventOf(pipe, code.ToString(CultureInfo.InvariantCulture)), out var told))
             {
                 throw new InvalidOperationException("No sensor host of this user's runs to be told.");
             }

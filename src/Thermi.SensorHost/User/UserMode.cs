@@ -36,10 +36,8 @@ internal static class UserMode
 
     private static readonly TimeSpan Tick = TimeSpan.FromSeconds(1);
 
-    public static string PipeOf(string pipeName, SecurityIdentifier user) => pipeName + "-" + user.Value;
+    public static string PipeOf(string pipeName, SecurityIdentifier user) => UserHost.PipeOf(pipeName, user.Value);
 
-    /// <summary>The name of the host's event <paramref name="what"/>, in the user's session.</summary>
-    public static string EventOf(string pipe, string what) => @"Local\" + pipe + "-" + what;
 
     public static async Task<int> RunAsync(SensorHostEnvironment environment, CancellationToken stop)
     {
@@ -208,8 +206,8 @@ internal static class UserMode
 #pragma warning disable CA2000 // The caller disposes every handle in its finally.
     private static List<HostEvent> Events(string pipe, SecurityIdentifier user) =>
         [
-            new(null, Event(EventOf(pipe, StopEvent), user)),
-            .. Codes.Select(code => new HostEvent(code, Event(EventOf(pipe, code.ToString(CultureInfo.InvariantCulture)), user))),
+            new(null, Event(UserHost.EventOf(pipe, StopEvent), user)),
+            .. Codes.Select(code => new HostEvent(code, Event(UserHost.EventOf(pipe, code.ToString(CultureInfo.InvariantCulture)), user))),
         ];
 #pragma warning restore CA2000
 

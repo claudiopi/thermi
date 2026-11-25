@@ -48,7 +48,7 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
 
         try
         {
-            if (Moves())
+            if (MovesSafely())
             {
                 return;
             }
@@ -74,6 +74,21 @@ internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, Tim
         finally
         {
             _lock.Exit();
+        }
+    }
+
+    // What the registry or Windows refuses is said, and the overlay goes on; the move is not tried again in this run.
+    private bool MovesSafely()
+    {
+        try
+        {
+            return Moves();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException or Win32Exception)
+        {
+            log.MoveFailed(ex.Message);
+            _perUser = null;
+            return false;
         }
     }
 

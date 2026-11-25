@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Principal;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Updates;
 using Windows.Win32;
@@ -25,7 +26,7 @@ internal sealed class UserTarget(InstallFolder folder, string pipe, SecurityIden
     public void Stop()
     {
         using var host = Serving();
-        if (EventWaitHandle.TryOpenExisting(UserMode.EventOf(pipe, UserMode.StopEvent), out var stop))
+        if (EventWaitHandle.TryOpenExisting(UserHost.EventOf(pipe, UserMode.StopEvent), out var stop))
         {
             using (stop)
             {

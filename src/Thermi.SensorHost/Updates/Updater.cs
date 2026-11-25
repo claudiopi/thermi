@@ -23,6 +23,7 @@ internal sealed class Updater(
 
     private readonly UpdateHost _host = host ?? UpdateHost.Windows;
     private readonly Switcher _switcher = new(folder, time, say, (host ?? UpdateHost.Windows).Start, target: target);
+
     /// <summary>Held while the updater reads and writes the state, as another writer of it holds it too.</summary>
     public SemaphoreSlim Busy { get; } = new(1, 1);
 
@@ -196,7 +197,6 @@ internal sealed class Updater(
             Busy.Release();
         }
     }
-
 
     public void Dispose() => Busy.Dispose();
 

@@ -1,3 +1,4 @@
+using Thermi.Install;
 using Windows.Win32;
 using Windows.Win32.System.Services;
 
@@ -105,8 +106,17 @@ internal static class StartSensors
         return await RunAsync(manager, time).ConfigureAwait(false);
     }
 
-    /// <summary>"Start sensors", behind one UAC prompt, as <see cref="Elevated.AskAsync(string)"/> runs it.</summary>
-    public static Task<int?> AskAsync() => Elevated.AskAsync(Verb);
+    /// <summary>
+    /// "Start sensors", behind one UAC prompt, as <see cref="Elevated.AskAsync(string)"/> runs it; in a per-user install,
+    /// the user's own host, with none.
+    /// </summary>
+    public static async Task<int?> AskAsync() => StartUsersOwn() ?? await Elevated.AskAsync(Verb);
+
+    /// <summary>
+    /// In a per-user install, which has no service to start, the user's own host started with no prompt, answered as the
+    /// elevated mode would; null elsewhere, where the service is the one to start.
+    /// </summary>
+    public static int? StartUsersOwn() => !SensorPipes.PerUser ? null : SensorPipes.StartUserHost() ? Started : Failed;
 }
 
 /// <summary>Windows' service manager, for one service, as the elevated mode reaches it.</summary>

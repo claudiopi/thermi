@@ -20,7 +20,13 @@ public static class UserHost
     // A host that ends sooner than this after its start failed to start, rather than ran out of clients.
     private static readonly TimeSpan QuickEnd = TimeSpan.FromSeconds(10);
 
-    public static string Pipe(bool serviceInstalled, string user) => serviceInstalled ? ServicePipe : ServicePipe + "-" + user;
+    public static string Pipe(bool serviceInstalled, string user) => serviceInstalled ? ServicePipe : PipeOf(ServicePipe, user);
+
+    /// <summary>The user's own host's pipe, named after <paramref name="pipeName"/>, the service's but in tests.</summary>
+    public static string PipeOf(string pipeName, string user) => pipeName + "-" + user;
+
+    /// <summary>The name of the host's event <paramref name="what"/>, a code or its stop, in the user's session.</summary>
+    public static string EventOf(string pipe, string what) => @"Local\" + pipe + "-" + what;
 
     /// <summary>
     /// Whether the overlay of <paramref name="user"/>, at <paramref name="ownIntegrity"/>, reads <paramref name="server"/>:

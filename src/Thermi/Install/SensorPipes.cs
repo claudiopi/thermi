@@ -8,6 +8,7 @@ using Thermi.Commands;
 using Thermi.Core.Install;
 using Thermi.Logging;
 using Thermi.Overlay;
+using Thermi.Trust;
 using Thermi.Updates;
 using Windows.Win32;
 using Windows.Win32.Security;
@@ -120,14 +121,15 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     /// <summary>The user's own host's pipe in a per-user install, null outside one, which names its events too.</summary>
     public static string? UserPipe => Folder is null ? null : UserHost.Pipe(serviceInstalled: false, User);
 
-    // Held by a watchdog or an install, as the host's SwitchLock tells it: a file a cut left behind holds nothing, and
-    // only the host it would keep from starting finishes or undoes that switch.
-    /// <summary>Starts the user's own host, as the window's "Start it" does in a per-user install, with no rights asked.</summary>
+    /// <summary>
+    /// Starts the user's own host, as the window's and the tray's "Start sensors" do in a per-user install, with no rights
+    /// asked; never under a switch's lock, whose watchdog starts the new version's host itself.
+    /// </summary>
     public static bool StartUserHost()
     {
         try
         {
-            using var host = Folder is null ? null : Process.Start(Host());
+            using var host = Folder is null || Locked() ? null : Process.Start(Host());
             return host is not null;
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
@@ -140,22 +142,8 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     private static ProcessStartInfo Host() =>
         new(Path.Combine(Folder!, "thermi-sensors.exe"), "--user") { UseShellExecute = false, CreateNoWindow = true };
 
-    private static bool Locked()
-    {
-        try
-        {
-            using var free = new FileStream(Path.Combine(Folder!, "update", "switch.lock"), FileMode.Open, FileAccess.Read, FileShare.None);
-            return false;
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return false;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
+    // A file a cut left behind holds nothing: only the host it would keep from starting finishes or undoes that switch.
+    private static bool Locked() => LockFile.Held(Path.Combine(Folder!, "update", "switch.lock"));
 
     public static bool ServiceInstalled()
     {

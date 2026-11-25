@@ -26,7 +26,6 @@ public sealed record MachineInstall(MachineInstallOutcome Outcome, DateTimeOffse
 /// </summary>
 public static class InstallForEveryone
 {
-    public const string MachineUpgradeCode = "{DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}";
 
     public const string PerUserUpgradeCode = "{E64A26FA-E001-4EDF-A31C-40957EC23FAB}";
 

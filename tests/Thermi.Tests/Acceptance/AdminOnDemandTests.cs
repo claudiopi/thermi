@@ -110,22 +110,30 @@ public sealed class AdminOnDemandTests
     public void MsiexecsExitIsWhatTheInstallCameTo(int exit, MachineInstallOutcome outcome) =>
         Assert.Equal(outcome, InstallForEveryone.OutcomeOf(exit));
 
-    // The machine MSI's driver property reaches the elevated part, and its action never runs on a repair; and the two
-    // MSIs' UpgradeCodes are the ones the window and the overlay look products up by.
+    // The machine MSI's driver property reaches the elevated part, and its action never runs on a repair.
     [Fact]
     public void TheDriverPropertyActsOnlyOnAFirstInstall()
     {
         var wix = XDocument.Load(Path.Combine(Root(), "src", "Thermi.Installer", "Package.wxs"));
         var all = wix.Descendants().ToList();
-        var codes = wix.DescendantNodes().OfType<XProcessingInstruction>()
-            .Where(define => define.Target == "define" && define.Data.StartsWith("UpgradeCode", StringComparison.Ordinal))
-            .Select(define => define.Data.Split('"')[1]).Order(StringComparer.Ordinal);
 
         var property = all.Single(element => element.Name.LocalName == "Property" && (string?)element.Attribute("Id") == InstallForEveryone.DriverProperty);
         var action = all.Single(element => element.Name.LocalName == "Custom" && (string?)element.Attribute("Action") == "InstallDriver");
 
         Assert.Equal(("yes", "NOT Installed AND ADDDRIVER = 1"), ((string?)property.Attribute("Secure"), (string?)action.Attribute("Condition")));
-        Assert.Equal(new[] { InstallForEveryone.MachineUpgradeCode, InstallForEveryone.PerUserUpgradeCode }.Order(StringComparer.Ordinal), codes);
+    }
+
+    // The machine's overlay finds the per-user product to remove by the UpgradeCode the per-user MSI is built with.
+    [Fact]
+    public void ThePerUserMsiCarriesTheUpgradeCodeItIsRemovedBy()
+    {
+        var wix = XDocument.Load(Path.Combine(Root(), "src", "Thermi.Installer", "Package.wxs"));
+
+        var codes = wix.DescendantNodes().OfType<XProcessingInstruction>()
+            .Where(define => define.Target == "define" && define.Data.StartsWith("UpgradeCode", StringComparison.Ordinal))
+            .Select(define => define.Data.Split('"')[1]);
+
+        Assert.Equal(InstallForEveryone.PerUserUpgradeCode, codes.First());
     }
 
     private static string Root()

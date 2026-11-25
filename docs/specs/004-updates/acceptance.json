@@ -137,21 +137,21 @@
     {
       "id": "A20",
       "covers": ["R27", "R28"],
-      "description": "Given the service installed or not, a user's pipe owned by the user, SYSTEM, administrators or another user, a server process inside or outside the user's folder and at a lower integrity, and hosts that ended soon after their start, when the overlay picks a pipe and its next try, then it reads the service's whenever the service is installed, the user's only when all three checks pass, waits 2 s and then doubling to a minute after quick ends, and starts no host under the switch's lock.",
+      "description": "Given the service installed or not, a user's pipe owned by the user, SYSTEM, administrators or another user, a server process inside or outside the user's folder and at a lower integrity, when the overlay picks a pipe, then it reads the service's whenever the service is installed, and the user's only when all three checks pass.",
       "check": "TheOverlayReadsTheServiceOrTheUsersOwnHost",
       "passes": true
     },
     {
       "id": "A21",
       "covers": ["R27"],
-      "description": "Given the user's host started as the user, when an overlay connects and later leaves, then it serves the same lines on the pipe named for the user's SID, owned by that SID and closed to other users and remote clients, and ends with the Stopped mark once its last client left.",
+      "description": "Given the user's host started as the user, when an overlay connects and later leaves, then it serves the same lines on the pipe named for the user's SID, owned by that SID and closed to other users and remote clients, stays 10 s after its last client left and then ends with the Stopped mark, and one that no client came to ends after 30 s.",
       "check": "AUsersHostServesItsUserUntilTheLastClientLeaves",
       "passes": true
     },
     {
       "id": "A22",
       "covers": ["R29"],
-      "description": "Given a per-user or a machine install, a channel offering the running version, a later one, an earlier one or none, a manifest that cannot be read, the policy Updates = 0, a download whose size or hash is wrong, and a prompt refused with 1223, when the fix is asked, then only a per-user install offers to install for everyone, msiexec starts only for the checked file the manifest names, held open and checked again through that hold, a manifest that cannot be read or a download refused changes nothing and says why, and a channel off, no MSI or the policy opens the download page.",
+      "description": "Given a per-user install's host, a channel offering a machine MSI, a manifest that cannot be read, the policy Updates = 0, a download whose bytes are not the manifest's, and a prompt refused with 1223, when it is asked to install for everyone, then msiexec starts only for the checked file the manifest names, held open so no one changes it while it runs, a manifest that cannot be read or a download refused changes nothing, and the policy opens the download page; each outcome is written for the window.",
       "check": "InstallForEveryoneRunsOnlyTheCheckedMsi",
       "passes": true
     },
@@ -202,6 +202,20 @@
       "covers": ["R30"],
       "description": "Given the machine MSI's source, when its driver action is read, then ADDDRIVER is a secure property and the action runs only under NOT Installed AND ADDDRIVER = 1, so no repair adds the driver.",
       "check": "TheDriverPropertyActsOnlyOnAFirstInstall",
+      "passes": true
+    },
+    {
+      "id": "A30",
+      "covers": ["R27"],
+      "description": "Given hosts that ended long after their start, soon after it, after waits already doubled, and a switch's lock held, when the overlay finds no host, then it waits 2 s, doubling to a minute after hosts that ended within 10 s, and starts none under the lock.",
+      "check": "TheUsersHostIsStartedAgainAfterAWait",
+      "passes": true
+    },
+    {
+      "id": "A31",
+      "covers": ["R29"],
+      "description": "Given a manifest offering the running version, a later one, an earlier one or none, a channel turned off, the running version withdrawn, and MSIs for one processor, when the fix picks the machine MSI, then it takes only that of the version offered, the running one or later, for this processor, and none otherwise, which opens the download page.",
+      "check": "TheMachineMsiIsTheOfferedVersionsForThisProcessor",
       "passes": true
     }
   ]

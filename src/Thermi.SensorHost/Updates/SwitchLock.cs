@@ -1,4 +1,5 @@
 using System.Security.AccessControl;
+using Thermi.Trust;
 
 namespace Thermi.SensorHost.Updates;
 
@@ -12,22 +13,7 @@ internal sealed class SwitchLock(InstallFolder folder, TimeProvider time)
     private string LockPath => Path.Combine(folder.Update, "switch.lock");
 
     /// <summary>Whether a watchdog or an install holds the lock now.</summary>
-    public bool Held()
-    {
-        try
-        {
-            using var free = new FileStream(LockPath, FileMode.Open, FileAccess.Read, FileShare.None);
-            return false;
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return false;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
+    public bool Held() => LockFile.Held(LockPath);
 
     /// <summary>
     /// The lock, tried every 200 ms <paramref name="tries"/> times, or null. A service asking whether a switch is under way

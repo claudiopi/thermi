@@ -151,6 +151,7 @@ internal static class MachineMove
                 == (uint)WIN32_ERROR.ERROR_SUCCESS;
         }
     }
+
     private static bool SamePath(string one, string other) =>
         string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(one)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(other)),
             StringComparison.OrdinalIgnoreCase);

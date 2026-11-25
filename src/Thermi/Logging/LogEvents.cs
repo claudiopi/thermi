@@ -133,4 +133,7 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Removing this user's per-user thermi, {Product}, now that thermi is installed for everyone")]
     public static partial void RemovingPerUser(this ILogger logger, string product);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "thermi could not move to the install for everyone: {Why}")]
+    public static partial void MoveFailed(this ILogger logger, string why);
 }

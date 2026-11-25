@@ -166,6 +166,12 @@ internal sealed class MachineInstaller(
         try
         {
             await using var held = await new SwitchLock(folder, time).HoldAsync(LockTries, stop);
+            if (held is null)
+            {
+                log.Say($"thermi could not write that installing for everyone came to {outcome}: a switch holds the state.", EventLogEntryType.Warning);
+                return;
+            }
+
             folder.Write(folder.Read() with { MachineInstall = new(outcome, time.GetUtcNow()) });
         }
         catch (Exception ex) when (Failed(ex))

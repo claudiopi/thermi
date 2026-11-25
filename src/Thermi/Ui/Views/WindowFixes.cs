@@ -13,7 +13,9 @@ namespace Thermi.Ui.Views;
 
 /// <summary>
 /// The two fixes the window runs through thermi's elevated mode, behind one UAC prompt each: installing the driver and
-/// starting the sensor service (docs/adr/0010-driver-and-service-from-the-window.md).
+/// starting the sensor service (docs/adr/0010-driver-and-service-from-the-window.md). In a per-user install, which has
+/// neither service, the driver's fix installs thermi for everyone behind msiexec's one prompt, and the sensors' starts
+/// the user's own host with none (docs/adr/0016-admin-on-demand.md).
 /// </summary>
 internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider time)
 {
@@ -89,8 +91,7 @@ internal sealed class WindowFixes(WindowEnvironment environment, TimeProvider ti
     }
 
     // The window recovers by seeing the pipe come back, whatever the answer.
-    // In a per-user install the user's own host is the one to start, which needs no prompt.
-    public async Task<bool> StartService() => SensorPipes.PerUser ? SensorPipes.StartUserHost() : await ElevateAsync(StartSensors.Verb) is StartSensors.Started;
+    public async Task<bool> StartService() => (StartSensors.StartUsersOwn() ?? await ElevateAsync(StartSensors.Verb)) is StartSensors.Started;
 
     // Starting a process behind UAC blocks its caller until the prompt closes, so it runs off the window's thread. Null
     // when the prompt was refused or the mode could not start.

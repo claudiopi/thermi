@@ -12,6 +12,26 @@ namespace Thermi.Windows.Tests.Updates;
 /// </summary>
 public sealed class SwitchCutTests
 {
+    // A lock file a cut left on disk holds nothing, so the host that finishes or undoes the switch still starts; one a
+    // watchdog holds open does.
+    [Fact]
+    public async Task ASwitchLockACutLeftBehindHoldsNothing()
+    {
+        await using var pc = new UpdatePc();
+        var folder = pc.Folder();
+        var switchLock = new SwitchLock(folder, pc.Clock);
+        await File.WriteAllBytesAsync(Path.Combine(folder.Update, "switch.lock"), [], TestContext.Current.CancellationToken);
+
+        var left = switchLock.Held();
+        bool held;
+        await using (await switchLock.HoldAsync(1, TestContext.Current.CancellationToken))
+        {
+            held = switchLock.Held();
+        }
+
+        Assert.Equal((false, true), (left, held));
+    }
+
     // How many of the new version's launchers were placed, whether Windows started the new version next, and whether the
     // switch was marked done. The PC runs whole the version Windows started.
     [Theory]
