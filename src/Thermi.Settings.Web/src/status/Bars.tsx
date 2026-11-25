@@ -14,13 +14,13 @@ type DriverStep = 'offered' | 'installing' | 'refused' | 'installed' | 'restart'
 const installedFor = 8_000;
 
 /** The driver's dialog: what it is, what installing it does, and the games that may mind it. */
-function DriverDialog({ open, onInstall, onClose }: { open: boolean; onInstall: () => void; onClose: () => void }) {
+function DriverDialog({ open, label, onInstall, onClose }: { open: boolean; label: string; onInstall: () => void; onClose: () => void }) {
   const t = useText();
   return (
     <Dialog
       open={open}
       title={t('WindowText.DriverTitle')}
-      main={t('WindowText.InstallDriver')}
+      main={label}
       onMain={onInstall}
       cancel={t('UiText.Close')}
       onCancel={onClose}
@@ -40,9 +40,13 @@ function DriverDialog({ open, onInstall, onClose }: { open: boolean; onInstall: 
 /** Try again takes the focus as it comes, from the bar that held it while Windows asked. */
 const focusOnMount = (button: HTMLButtonElement | null): void => button?.focus();
 
-/** The driver's bar through its install: offered with its dialog, then installing, refused or installed. */
-function DriverBar({ needed, onInstalled }: { needed: boolean; onInstalled: () => void }) {
+/**
+ * The driver's bar through its install: offered with its dialog, then installing, refused or installed. A per-user install
+ * gets its driver with thermi installed for everyone, which the button says.
+ */
+function DriverBar({ needed, forEveryone, onInstalled }: { needed: boolean; forEveryone: boolean; onInstalled: () => void }) {
   const t = useText();
+  const label = t(forEveryone ? 'WindowText.InstallForEveryone' : 'WindowText.InstallDriver');
   const [step, setStep] = useState<DriverStep>('offered');
   const [asking, setAsking] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
@@ -78,7 +82,7 @@ function DriverBar({ needed, onInstalled }: { needed: boolean; onInstalled: () =
           actions={
             <>
               <Button shield onClick={() => void install()}>
-                {t('WindowText.InstallDriver')}
+                {label}
               </Button>
               <LinkButton onClick={() => setAsking(true)}>{t('WindowText.WhatIsThis')}</LinkButton>
             </>
@@ -133,7 +137,7 @@ function DriverBar({ needed, onInstalled }: { needed: boolean; onInstalled: () =
           }
         />
       )}
-      <DriverDialog open={asking} onInstall={() => void install()} onClose={() => setAsking(false)} />
+      <DriverDialog open={asking} label={label} onInstall={() => void install()} onClose={() => setAsking(false)} />
     </div>
   );
 }
@@ -187,7 +191,7 @@ export function Bars({ data, onDriverInstalled }: BarsProps) {
         />
       )}
       <ServiceBar data={data} />
-      <DriverBar needed={data.status.driver} onInstalled={onDriverInstalled} />
+      <DriverBar needed={data.status.driver} forEveryone={data.status.forEveryone} onInstalled={onDriverInstalled} />
     </div>
   );
 }

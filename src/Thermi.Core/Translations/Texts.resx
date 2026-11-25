@@ -1941,6 +1941,9 @@
   <data name="WindowText.InstallDriver" xml:space="preserve">
     <value>Install driver</value>
   </data>
+  <data name="WindowText.InstallForEveryone" xml:space="preserve">
+    <value>Install for everyone</value>
+  </data>
   <data name="WindowText.WhatIsThis" xml:space="preserve">
     <value>What is this?</value>
   </data>

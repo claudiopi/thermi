@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Thermi.Core.Install;
 
 namespace Thermi.Core.Updates;
 
@@ -86,6 +87,9 @@ public sealed record UpdateState
     /// the pipe, and the old service's own start would only try it again under the same load or the same program.
     /// </summary>
     public DateTimeOffset? SwitchAfter { get; init; }
+
+    /// <summary>The last "install for everyone" of a per-user install (docs/adr/0016-admin-on-demand.md).</summary>
+    public MachineInstall? MachineInstall { get; init; }
 
     /// <summary>The state <paramref name="text"/> holds; a file broken or missing is a PC that knows nothing yet. Never throws.</summary>
     public static UpdateState Read(string? text)

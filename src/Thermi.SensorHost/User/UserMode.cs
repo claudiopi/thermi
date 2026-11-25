@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.SensorHost.Updates;
 
@@ -25,7 +26,7 @@ internal static class UserMode
     public static readonly TimeSpan FirstClient = TimeSpan.FromSeconds(30);
 
     // ADR 0008's codes, each an event of its own, since an event carries no data to parse.
-    private static readonly int[] Codes = [UpdateSchedule.QuietCode, UpdateSchedule.CheckCode, UpdateSchedule.RestartCode];
+    private static readonly int[] Codes = [UpdateSchedule.QuietCode, UpdateSchedule.CheckCode, UpdateSchedule.RestartCode, InstallForEveryone.Code];
 
     private static readonly TimeSpan Tick = TimeSpan.FromSeconds(1);
 
@@ -78,6 +79,7 @@ internal static class UserMode
         var folder = InstallFolder.Of(AppContext.BaseDirectory, build.Version, FolderAccess.ForUser(user));
         using var client = new ManifestClient(time);
         using var updater = folder is null ? null : new Updater(build, folder, client, time, log.Say, target: each => new UserTarget(each, pipe, user));
+        var machine = folder is null ? null : new MachineInstaller(build, folder, client, UpdateHost.Windows, time, log);
         using var source = environment.Open((device, took, error) => log.Say($"{device} took {took}: {error?.Message}", EventLogEntryType.Warning));
         using var server = new SensorPipeServer(source.ReadAsync, time, pipe, SensorPipeServer.ForUser(user))
         {
@@ -85,12 +87,12 @@ internal static class UserMode
         };
         using var done = CancellationTokenSource.CreateLinkedTokenSource(stop);
         Act(updater, log, updates => updates.Started());
-        var waits = events.Select(each => Listen(each, updater, log, done)).ToList();
+        var waits = events.Select(each => Listen(each, new Steering(updater, machine, log), done)).ToList();
         try
         {
             var updating = updater?.RunAsync(done.Token) ?? Task.CompletedTask;
             var serving = server.RunAsync(done.Token);
-            await WhileReadAsync(server, time, done);
+            await WhileReadAsync(server, () => machine?.Running == true, time, done);
             await serving;
             await updating.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         }
@@ -105,7 +107,7 @@ internal static class UserMode
     }
 
     // Ends the host once no one reads it: after its last client left, or when none came within FirstClient.
-    private static async Task WhileReadAsync(SensorPipeServer server, TimeProvider time, CancellationTokenSource done)
+    private static async Task WhileReadAsync(SensorPipeServer server, Func<bool> installing, TimeProvider time, CancellationTokenSource done)
     {
         var started = time.GetTimestamp();
         var read = false;
@@ -115,7 +117,7 @@ internal static class UserMode
             while (await timer.WaitForNextTickAsync(done.Token))
             {
                 read |= server.Clients > 0;
-                if (server.Clients == 0 && (read || time.GetElapsedTime(started) >= FirstClient))
+                if (server.Clients == 0 && (read || time.GetElapsedTime(started) >= FirstClient) && !installing())
                 {
                     await done.CancelAsync();
                 }
@@ -127,7 +129,7 @@ internal static class UserMode
         }
     }
 
-    private static RegisteredWaitHandle Listen(HostEvent hostEvent, Updater? updater, FileLog log, CancellationTokenSource done) =>
+    private static RegisteredWaitHandle Listen(HostEvent hostEvent, Steering steering, CancellationTokenSource done) =>
         ThreadPool.RegisterWaitForSingleObject(
             hostEvent.Handle!,
             (_, _) =>
@@ -136,29 +138,34 @@ internal static class UserMode
                 {
                     done.Cancel();
                 }
-                else if (updater is not null && !done.IsCancellationRequested)
+                else if (!done.IsCancellationRequested)
                 {
-                    _ = Task.Run(() => Tell(updater, code, log, done.Token), CancellationToken.None);
+                    _ = Task.Run(() => Tell(steering, code, done.Token), CancellationToken.None);
                 }
             },
             null,
             Timeout.Infinite,
             executeOnlyOnce: false);
 
-    private static Task Tell(Updater updater, int code, FileLog log, CancellationToken stop)
+    private static Task Tell(Steering steering, int code, CancellationToken stop)
     {
-        if (code == UpdateSchedule.CheckCode)
+        if (steering.Updater is not { } updater || steering.Machine is not { } machine)
         {
-            return updater.AskedAsync(stop);
+            return Task.CompletedTask;
         }
 
-        if (code == UpdateSchedule.RestartCode)
+        switch (code)
         {
-            return updater.RestartAsync(stop);
+            case InstallForEveryone.Code:
+                return machine.RunAsync(MachineInstaller.MsiexecAsync, stop);
+            case UpdateSchedule.CheckCode:
+                return updater.AskedAsync(stop);
+            case UpdateSchedule.RestartCode:
+                return updater.RestartAsync(stop);
+            default:
+                Act(updater, steering.Log, updates => updates.Quiet());
+                return Task.CompletedTask;
         }
-
-        Act(updater, log, updates => updates.Quiet());
-        return Task.CompletedTask;
     }
 
     // What the updater meets is written to the log and never ends the host.
@@ -202,6 +209,9 @@ internal static class UserMode
         return null;
     }
 
-    /// <summary>One of the host's events: the stop, with no code, or one of ADR 0008's codes.</summary>
+    /// <summary>One of the host's events: the stop, with no code, one of ADR 0008's codes, or "install for everyone".</summary>
     private sealed record HostEvent(int? Code, EventWaitHandle? Handle);
+
+    /// <summary>What the events steer, both null outside a per-user install.</summary>
+    private sealed record Steering(Updater? Updater, MachineInstaller? Machine, FileLog Log);
 }

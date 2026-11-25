@@ -408,6 +408,7 @@ export interface WindowStatus {
   failed: HotkeyRole[];
   problem: string | null;
   lightTaskbar: boolean;
+  forEveryone: boolean;
 }
 
 export type WindowTheme = 'system' | 'light' | 'dark';

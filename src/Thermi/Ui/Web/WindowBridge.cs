@@ -11,6 +11,7 @@ using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
+using Thermi.Install;
 using Thermi.Logging;
 using Thermi.Overlay;
 using Thermi.Ui.Editor;
@@ -361,7 +362,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             _watch.Hotkeys,
             _editor.Problem,
             _views.Format(_texts));
-        return status with { LightTaskbar = _lightTaskbar };
+        return status with { LightTaskbar = _lightTaskbar, ForEveryone = SensorPipes.PerUser };
     }
 
     // An undo or a redo, named before it runs, and what it changed back once it did; null when it changed nothing.

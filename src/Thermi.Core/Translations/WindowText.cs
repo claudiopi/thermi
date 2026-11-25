@@ -72,6 +72,7 @@ public enum WindowText
     DriverNeeded,
     DriverAsks,
     InstallDriver,
+    InstallForEveryone,
     WhatIsThis,
     DriverInstalling,
     DriverInstalled,

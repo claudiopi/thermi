@@ -25,6 +25,13 @@ public sealed record WindowStatus(
     /// <summary>Whether Windows' taskbar is light, which a look's "Match taskbar" pills take in the window as on the overlay.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public bool LightTaskbar { get; init; }
+
+    /// <summary>
+    /// Whether this is a per-user install, whose driver comes with thermi installed for everyone, behind one prompt
+    /// (docs/adr/0016-admin-on-demand.md).
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public bool ForEveryone { get; init; }
 }
 
 /// <summary>The steps Undo and Redo would take, worded as "Critical 84 → 85 °C", or null when there is none.</summary>

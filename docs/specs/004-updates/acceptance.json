@@ -153,7 +153,7 @@
       "covers": ["R29"],
       "description": "Given a per-user or a machine install, a channel offering the running version, a later one, an earlier one or none, the policy Updates = 0, a download whose size or hash is wrong, and a prompt refused with 1223, when the fix is asked, then only a per-user install offers to install for everyone, msiexec starts only for the checked file the manifest names, held open, and every other case changes nothing and says why or opens the download page.",
       "check": "InstallForEveryoneRunsOnlyTheCheckedMsi",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A23",

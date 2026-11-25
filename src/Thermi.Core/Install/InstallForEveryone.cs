@@ -20,6 +20,24 @@ public enum ProductContext
     UserUnmanaged,
 }
 
+public enum MachineInstallOutcome
+{
+    Running,
+    Installed,
+
+    /// <summary>The UAC prompt was refused: nothing changed.</summary>
+    Refused,
+
+    /// <summary>The download, its check or the install failed: nothing changed.</summary>
+    Failed,
+
+    /// <summary>No machine MSI to trust: the window opens thermi's download page.</summary>
+    DownloadPage,
+}
+
+/// <summary>Where the last "install for everyone" of this per-user install is, and since when, as the window reads it.</summary>
+public sealed record MachineInstall(MachineInstallOutcome Outcome, DateTimeOffset At);
+
 /// <summary>A product Windows Installer lists: its code, its UpgradeCode, and whose it is.</summary>
 public sealed record InstalledProduct(string Code, string UpgradeCode, ProductContext Context, string? User);
 
@@ -35,6 +53,24 @@ public static class InstallForEveryone
 
     /// <summary>The machine MSI's property that adds the driver on its first install.</summary>
     public const string DriverProperty = "ADDDRIVER";
+
+    /// <summary>The user's host's event that asks it to install for everyone, beside ADR 0008's codes.</summary>
+    public const int Code = 131;
+
+    // ERROR_CANCELLED, as the UAC prompt's no, and ERROR_INSTALL_USEREXIT, as Windows Installer's own cancel.
+    private const int Cancelled = 1223;
+    private const int UserExit = 1602;
+
+    // ERROR_SUCCESS_REBOOT_REQUIRED: installed, with the driver loading once Windows restarts.
+    private const int RestartNeeded = 3010;
+
+    /// <summary>What msiexec's exit code says of the install.</summary>
+    public static MachineInstallOutcome OutcomeOf(int exitCode) => exitCode switch
+    {
+        0 or RestartNeeded => MachineInstallOutcome.Installed,
+        Cancelled or UserExit => MachineInstallOutcome.Refused,
+        _ => MachineInstallOutcome.Failed,
+    };
 
     /// <summary>
     /// What the fix offers: in a per-user install, the machine MSI of the version <paramref name="manifest"/> offers when it

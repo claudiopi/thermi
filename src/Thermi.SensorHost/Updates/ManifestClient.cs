@@ -102,7 +102,8 @@ internal sealed class ManifestClient : IDisposable
 
     public void Dispose() => _http.Dispose();
 
-    private async Task<string?> FetchAsync(Package package, FileStream zip, CancellationToken stop)
+    /// <summary>Writes <paramref name="package"/> into <paramref name="zip"/>, no more than its size: why it is refused, or null once its size and SHA-256 match.</summary>
+    public async Task<string?> FetchAsync(Package package, FileStream zip, CancellationToken stop)
     {
         using var idle = new CancellationTokenSource(Idle, _time);
         using var either = CancellationTokenSource.CreateLinkedTokenSource(idle.Token, stop);
@@ -123,7 +124,7 @@ internal sealed class ManifestClient : IDisposable
             total += got;
             if (total > package.Size)
             {
-                return $"the zip is longer than its {package.Size} bytes";
+                return $"the file is longer than its {package.Size} bytes";
             }
 
             hash.AppendData(buffer, 0, got);
@@ -131,9 +132,9 @@ internal sealed class ManifestClient : IDisposable
         }
 
         await zip.FlushAsync(stop);
-        return total != package.Size ? $"the zip has {total} bytes, not {package.Size}"
+        return total != package.Size ? $"the file has {total} bytes, not {package.Size}"
             : !string.Equals(Convert.ToHexStringLower(hash.GetHashAndReset()), package.Sha256, StringComparison.Ordinal)
-                ? "the zip's SHA-256 is not the manifest's"
+                ? "the file's SHA-256 is not the manifest's"
             : null;
     }
 }

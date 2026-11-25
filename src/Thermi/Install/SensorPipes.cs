@@ -29,6 +29,9 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     // The top of a per-user install, where its launchers are; null outside an installed layout, where no host is trusted.
     private static readonly string? Folder = ThermiPaths.Updates is null ? null : Path.GetDirectoryName(ThermiPaths.Launcher);
 
+    // Whether the last pipe picked by any client of this process was the user's own host's.
+    private static bool _perUser;
+
     private readonly Lock _lock = new();
 
     private string _name = UserHost.ServicePipe;
@@ -44,6 +47,7 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
             // Outside an installed layout, as a build run by hand, the pipe is the service's or a terminal's --console.
             var name = Folder is null ? UserHost.ServicePipe : UserHost.Pipe(ServiceInstalled(), User);
             Volatile.Write(ref _name, name);
+            Volatile.Write(ref _perUser, name != UserHost.ServicePipe);
             return name;
         }
     }
@@ -110,6 +114,9 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
             _retryAt = now + (long)(_wait!.Value.TotalSeconds * time.TimestampFrequency);
         }
     }
+
+    /// <summary>Whether this process last read the user's own host, as a per-user install with no service does.</summary>
+    public static bool PerUser => Volatile.Read(ref _perUser);
 
     /// <summary>The user's own host's pipe in a per-user install, null outside one, which names its events too.</summary>
     public static string? UserPipe => Folder is null ? null : UserHost.Pipe(serviceInstalled: false, User);

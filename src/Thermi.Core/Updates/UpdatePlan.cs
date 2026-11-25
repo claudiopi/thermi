@@ -76,7 +76,8 @@ public static class UpdatePlan
     public static bool Revokes(UpdateState state, ManifestRead read, string? releaseKeyHash) =>
         read is { Backup: true, Manifest.RevokedKey: { } revoked } && revoked == releaseKeyHash && state.RevokedKey != revoked;
 
-    private static string? Refusal(UpdateState state, ManifestRead read, string channel, DateTimeOffset now, string? releaseKeyHash)
+    /// <summary>Why a well signed manifest is ignored, or null: of another channel, older than the last one taken, or expired.</summary>
+    public static string? Refusal(UpdateState state, ManifestRead read, string channel, DateTimeOffset now, string? releaseKeyHash)
     {
         var manifest = read.Manifest!;
         var reset = Revokes(state, read, releaseKeyHash);

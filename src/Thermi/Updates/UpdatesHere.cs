@@ -52,6 +52,9 @@ internal static class UpdatesHere
     private static string? Metadata(string key) =>
         typeof(UpdatesHere).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(attribute => attribute.Key == key)?.Value;
 
+    /// <summary>The last "install for everyone" of this per-user install, as its host wrote it.</summary>
+    public static Thermi.Core.Install.MachineInstall? MachineInstall() => State().MachineInstall;
+
     private static UpdateState State()
     {
         for (var tries = 1; tries <= 3; tries++)
