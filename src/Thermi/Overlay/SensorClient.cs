@@ -28,7 +28,6 @@ internal interface ISensorFeed
 /// <summary>Which pipe a client reads, whether it trusts what answers, and what it does when none does.</summary>
 internal interface ISensorPipe
 {
-    /// <summary>The pipe to read now, asked before each connection.</summary>
     string Name { get; }
 
     bool Trusts(NamedPipeClientStream pipe);

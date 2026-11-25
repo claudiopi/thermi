@@ -26,7 +26,6 @@ internal sealed class UserSetup(InstallFolder folder, string pipe, SecurityIdent
 
     public void Sc(params string[] arguments)
     {
-        // No service: what the machine's install registers, a per-user one leaves out.
     }
 
     public void Stop(string service)

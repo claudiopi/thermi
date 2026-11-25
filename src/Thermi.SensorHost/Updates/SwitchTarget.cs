@@ -21,7 +21,6 @@ internal interface ISwitchTarget
     /// <summary>Starts <paramref name="version"/>, as pointed for the services, or its own host.</summary>
     void Start(ReleaseVersion version);
 
-    /// <summary>Whether a pipe of <paramref name="owner"/>'s may be the target's own.</summary>
     bool Owns(SecurityIdentifier owner);
 }
 

@@ -115,7 +115,6 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
         }
     }
 
-    /// <summary>Whether this process last read the user's own host, as a per-user install with no service does.</summary>
     public static bool PerUser => Volatile.Read(ref _perUser);
 
     /// <summary>The user's own host's pipe in a per-user install, null outside one, which names its events too.</summary>
@@ -123,7 +122,6 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
 
     private static bool Locked() => File.Exists(Path.Combine(Folder!, "update", "switch.lock"));
 
-    /// <summary>Whether the <c>thermi-sensors</c> service is installed, whose pipe and codes then are the only ones.</summary>
     public static bool ServiceInstalled()
     {
         using var service = new ServiceController(StartSensors.Service);

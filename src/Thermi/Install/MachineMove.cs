@@ -38,7 +38,6 @@ internal static class MachineMove
         return File.Exists(launcher) ? launcher : null;
     }
 
-    /// <summary>Whether <paramref name="ownTop"/> is the machine's install, the one the service runs from.</summary>
     public static bool IsMachines(string ownTop) => MachineTop() is { } top && SamePath(top, ownTop);
 
     /// <summary>

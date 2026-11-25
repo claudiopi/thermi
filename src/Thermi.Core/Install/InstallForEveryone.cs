@@ -64,7 +64,6 @@ public static class InstallForEveryone
     // ERROR_SUCCESS_REBOOT_REQUIRED: installed, with the driver loading once Windows restarts.
     private const int RestartNeeded = 3010;
 
-    /// <summary>What msiexec's exit code says of the install.</summary>
     public static MachineInstallOutcome OutcomeOf(int exitCode) => exitCode switch
     {
         0 or RestartNeeded => MachineInstallOutcome.Installed,

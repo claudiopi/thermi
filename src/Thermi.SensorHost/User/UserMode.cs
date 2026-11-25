@@ -23,7 +23,6 @@ internal static class UserMode
     /// <summary>The event that ends the host, which a switch's watchdog sets.</summary>
     public const string StopEvent = "stop";
 
-    /// <summary>How long a host that never had a client waits for its first.</summary>
     public static readonly TimeSpan FirstClient = TimeSpan.FromSeconds(30);
 
     // ADR 0008's codes, each an event of its own, since an event carries no data to parse.
@@ -117,7 +116,6 @@ internal static class UserMode
         return 0;
     }
 
-    // Ends the host once no one reads it: after its last client left, or when none came within FirstClient.
     private static async Task WhileReadAsync(SensorPipeServer server, Func<bool> installing, TimeProvider time, CancellationTokenSource done)
     {
         var started = time.GetTimestamp();
@@ -136,7 +134,7 @@ internal static class UserMode
         }
         catch (OperationCanceledException)
         {
-            // Ended: by the stop event, the caller, or no one left to read.
+            // Ended by the stop event, the caller, or no one left to read.
         }
     }
 
