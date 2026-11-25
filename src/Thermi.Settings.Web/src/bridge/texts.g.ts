@@ -9,7 +9,7 @@ export type TextKey =
   | 'ConfigProblemText.AtLine' | 'ConfigProblemText.Newer' | 'ConfigProblemText.OneLine'
   | 'CornerStyle.Round' | 'CornerStyle.Soft' | 'CornerStyle.Square'
   | 'DeviceKind.Cpu' | 'DeviceKind.Gpu' | 'DeviceKind.Ram' | 'DeviceKind.Board' | 'DeviceKind.Ssd' | 'DeviceKind.Network' | 'DeviceKind.Battery' | 'DeviceKind.System'
-  | 'FanFinderOutcome.Found' | 'FanFinderOutcome.NoFanRose' | 'FanFinderOutcome.TwoRoseAlike' | 'FanFinderOutcome.LoadDidNotReachTheCpu' | 'FanFinderOutcome.ReadingsStopped' | 'FanFinderOutcome.Cancelled'
+  | 'FanFinderOutcome.Found' | 'FanFinderOutcome.NoFanRose' | 'FanFinderOutcome.TwoRoseAlike' | 'FanFinderOutcome.LoadDidNotReachTheCpu' | 'FanFinderOutcome.LoadDidNotHeatTheCpu' | 'FanFinderOutcome.ReadingsStopped' | 'FanFinderOutcome.Cancelled'
   | 'FanFinderRefusal.NoBoardFans' | 'FanFinderRefusal.DriverMayBeMissing'
   | 'GraphStyle.Auto' | 'GraphStyle.None' | 'GraphStyle.Bars' | 'GraphStyle.Line'
   | 'HostText.ShowTheOverlay' | 'HostText.Show' | 'HostText.Hide' | 'HostText.ClickThroughAll' | 'HostText.LockAll' | 'HostText.FirstRunTitle' | 'HostText.FirstRun' | 'HostText.FirstRunDriver' | 'HostText.OverlaysHiddenTitle' | 'HostText.OverlaysHidden' | 'HostText.OverlaysHiddenHotkey' | 'HostText.OverlayHiddenTitle' | 'HostText.OverlayHiddenByFlag' | 'HostText.OverlayHiddenByFlagHotkey' | 'HostText.OverlayHidden' | 'HostText.CriticalTitle' | 'HostText.Critical' | 'HostText.CriticalWhilePlayingTitle' | 'HostText.CriticalWhilePlaying' | 'HostText.Seconds' | 'HostText.ClickThroughOnTitle' | 'HostText.ClickThroughOnText'

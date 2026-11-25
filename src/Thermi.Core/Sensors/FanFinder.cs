@@ -32,6 +32,12 @@ public enum FanFinderOutcome
     /// <summary>The CPU load, averaged after its first seconds, stayed under 80 %, so the fans had nothing to answer.</summary>
     LoadDidNotReachTheCpu,
 
+    /// <summary>
+    /// No fan rose enough, and neither the CPU's temperature nor its power rose with the load: something else already
+    /// held the CPU busy and hot, so the fans had nothing new to answer.
+    /// </summary>
+    LoadDidNotHeatTheCpu,
+
     /// <summary>The readings stopped during the run.</summary>
     ReadingsStopped,
 
@@ -97,6 +103,11 @@ public sealed class FanFinder
     // Past the Intel board's jitter of about 50 RPM within 3 s, and short of the least rise of a fan that falls after a run.
     private const double MinFall = 100;
     private const double MinLoad = 80;
+
+    // A load on an idle CPU raises its temperature by tens of degrees and its power several times over; one already at its
+    // power limit, as under a game, leaves both where they were, short of these.
+    private const double MinHeat = 5;
+    private const double MinPowerShare = 0.2;
 
     private static readonly Dictionary<string, string> NoSources = new(StringComparer.Ordinal);
 
@@ -238,19 +249,36 @@ public sealed class FanFinder
             return new FanFinderResult(FanFinderOutcome.Found, leader);
         }
 
-        var loads = _samples
-            .Where(sample => Since(loadAt, sample.At) > LoadSettles && sample.At <= loadEndedAt)
-            .Select(sample => sample.Load)
-            .OfType<double>()
-            .ToList();
+        var loaded = _samples.Where(sample => Since(loadAt, sample.At) > LoadSettles && sample.At <= loadEndedAt).ToList();
+        var loads = loaded.Select(sample => sample.Load).OfType<double>().ToList();
         var peaks = Peaks(loadAt, _readAt);
         var best = peaks.MaxBy(peak => peak.Rpm);
         var alike = best is not null && Rose(best) && peaks.Any(other => other != best && other.Rpm * 2 > best.Rpm);
         return _readingsStopped ? new FanFinderResult(FanFinderOutcome.ReadingsStopped)
             : loads.Count == 0 || loads.Average() < MinLoad ? new FanFinderResult(FanFinderOutcome.LoadDidNotReachTheCpu)
             : alike ? new FanFinderResult(FanFinderOutcome.TwoRoseAlike)
-            : new FanFinderResult(FanFinderOutcome.NoFanRose);
+            : Heated(loadAt, loaded) ? new FanFinderResult(FanFinderOutcome.NoFanRose)
+            : new FanFinderResult(FanFinderOutcome.LoadDidNotHeatTheCpu);
     }
+
+    // With neither read, as without the driver, it cannot tell, so it counts as heated.
+    private bool Heated(long loadAt, List<Sample> loaded)
+    {
+        var before = _samples.Where(sample => sample.At <= loadAt && Since(sample.At, loadAt) < Span).ToList();
+        double Rise(Func<Sample, double?> value)
+        {
+            return Average(loaded, value) - Average(before, value);
+        }
+
+        var power = Average(before, sample => sample.Power);
+        double[] rises = [Rise(sample => sample.Temperature) / MinHeat, Rise(sample => sample.Power) / (power * MinPowerShare)];
+        var read = rises.Where(rise => !double.IsNaN(rise)).ToList();
+        return read.Count == 0 || read.Max() >= 1;
+    }
+
+    // NaN when none was read, so a rise from or to it is unread too.
+    private static double Average(List<Sample> samples, Func<Sample, double?> value) =>
+        samples.Select(value).OfType<double>().DefaultIfEmpty(double.NaN).Average();
 
     // The fan that answers enough now, and by at least twice as many RPM as any other answered at any time since the load
     // started: two that rose alike stay alike however unlike they fall once it ends.
@@ -307,13 +335,19 @@ public sealed class FanFinder
 
     private sealed record Rise(string Fan, double Rpm, double Before);
 
-    private sealed record Sample(long At, double? Load, IReadOnlyDictionary<string, double?> Fans)
+    private sealed record Sample(long At, double? Load, double? Temperature, double? Power, IReadOnlyDictionary<string, double?> Fans)
     {
-        public static Sample Of(Snapshot snapshot, long at) => new(
-            at,
-            SensorMap.Read(snapshot, NoSources)[Metrics.CpuLoad.Id].Usable,
-            SensorMap.Named(snapshot)
-                .Where(named => named.Sensor.Type == nameof(SensorKind.Fan) && !SensorMap.IsGpu(named.Sensor))
-                .ToDictionary(named => named.Id, named => new Reading(SensorKind.Fan, named.Sensor.Value).Usable, StringComparer.Ordinal));
+        public static Sample Of(Snapshot snapshot, long at)
+        {
+            var read = SensorMap.Read(snapshot, NoSources);
+            return new(
+                at,
+                read[Metrics.CpuLoad.Id].Usable,
+                read[Metrics.CpuTemperature.Id].Usable,
+                read[Metrics.CpuPower.Id].Usable,
+                SensorMap.Named(snapshot)
+                    .Where(named => named.Sensor.Type == nameof(SensorKind.Fan) && !SensorMap.IsGpu(named.Sensor))
+                    .ToDictionary(named => named.Id, named => new Reading(SensorKind.Fan, named.Sensor.Value).Usable, StringComparer.Ordinal));
+        }
     }
 }
