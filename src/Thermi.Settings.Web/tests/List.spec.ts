@@ -83,6 +83,15 @@ test('TheListWorksWithTheKeyboard', async ({ page }) => {
     } },
   ];
 
+  // Night QA: the window, opened from the overlay's or the tray's menu, showed the focus ring on its row before any key.
+  await test.step('the focused row shows its ring only once a key is pressed', async () => {
+    const ring = async (): Promise<string> => selectedRow(page).evaluate((row) => getComputedStyle(row).boxShadow);
+    await expect(selectedRow(page)).toBeFocused();
+    expect(await ring()).toBe('none');
+    await page.keyboard.press('Home');
+    await expect.poll(ring).not.toBe('none');
+  });
+
   await select(page, 'Taskbar');
   for (const step of steps) {
     await test.step(step.name, async () => {

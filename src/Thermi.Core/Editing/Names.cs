@@ -9,8 +9,8 @@ namespace Thermi.Core.Editing;
 /// <summary>
 /// The names and places of what an edit makes. A new item is named like the defaults, as "GPU temperature", with its
 /// sensor's own name in brackets when another item has that name, and a number when the same sensor is added again; it
-/// joins the pill of its device's kind. A new item named only as thermi names its sensor stays unnamed in the file, so it
-/// reads in the window's language. An overlay without a typed name is named from where it sits, with a number when one reads the same.
+/// joins the pill of its device's kind. A new item stays unnamed in the file, so it reads in the window's language, told
+/// apart and numbered in it too. An overlay without a typed name is named from where it sits, with a number when one reads the same.
 /// </summary>
 public static class Names
 {
@@ -24,16 +24,55 @@ public static class Names
     private static readonly SnapSpot[] Corners = [SnapSpot.TopRight, SnapSpot.BottomRight, SnapSpot.BottomLeft, SnapSpot.TopLeft];
 
     /// <summary>
-    /// The name of a new item that shows <paramref name="sensor"/>, under <paramref name="sensorId"/>. An item of the metric
-    /// that picks that very sensor by name shows the same sensor, so the new one is numbered, not told apart by its sensor.
-    /// <paramref name="byDevice"/>, as for a second GPU's, it is told apart by its device from the start.
+    /// Every item's name, by its id: the one the user typed, a metric's own, else the one thermi gives a new item of its
+    /// sensor, after the items named so far, in <paramref name="texts"/>' language. None of thermi's is kept in the file, so
+    /// one told apart or numbered reads in the window's language too.
     /// </summary>
-    public static string OfItem(ThermiConfig config, RawSensor sensor, string sensorId, Texts texts, Snapshot? known = null, bool byDevice = false)
+    public static IReadOnlyDictionary<string, string> OfItems(ThermiConfig config, Snapshot? known, Texts texts)
+    {
+        var shown = new Dictionary<string, string>(StringComparer.Ordinal);
+        var taken = new List<ItemConfig>();
+        void Name(ItemConfig item, string name)
+        {
+            shown[item.Id] = name;
+            taken.Add(item with { Name = name });
+        }
+
+        // A typed or a metric's name is the item's wherever it sits, so a sensor's item is told apart from it even before it.
+        foreach (var item in config.Overlays.SelectMany(overlay => overlay.Items).Where(item => item.Name is not null || SensorOf(item, known) is null))
+        {
+            Name(item, item.Name ?? OfUnnamed(item, known, texts));
+        }
+
+        foreach (var overlay in config.Overlays)
+        {
+            foreach (var item in overlay.Items.Where(item => !shown.ContainsKey(item.Id)))
+            {
+                var (id, sensor) = SensorOf(item, known)!.Value;
+                Name(item, OfItem(config, taken, sensor, id, texts, byDevice: ItemEdits.OtherGpu(overlay, known!, sensor) is not null));
+            }
+        }
+
+        return shown;
+    }
+
+    /// <summary>The name <paramref name="item"/>, one of <paramref name="config"/>'s, shows by, as <see cref="OfItems"/> gives it.</summary>
+    public static string Of(ThermiConfig config, ItemConfig item, Snapshot? known, Texts texts) => item.Name ?? OfItems(config, known, texts)[item.Id];
+
+    // The sensor an item without a metric reads, its first when it combines several, while the snapshot knows it.
+    private static (string Id, RawSensor Sensor)? SensorOf(ItemConfig item, Snapshot? known) =>
+        Metrics.Find(item.Metric ?? item.Auto) is null
+        && (item.Sensor ?? (item.Sensors is [var first, ..] ? first : null)) is { } id
+        && known is not null
+        && SensorMap.Find(known, id) is { } sensor
+            ? (id, sensor)
+            : null;
+
+    // An item of the metric that picks that very sensor by name shows the same sensor, so the new one is numbered, not told
+    // apart by its sensor. By device, as a second GPU's, it is told apart by its device from the start.
+    private static string OfItem(ThermiConfig config, List<ItemConfig> taken, RawSensor sensor, string sensorId, Texts texts, bool byDevice)
     {
         var picked = SensorMap.PickedBy(sensor)?.Id;
-        var taken = config.Overlays.SelectMany(overlay => overlay.Items)
-            .Select(item => item with { Name = item.Name ?? OfUnnamed(item, known, texts) })
-            .ToList();
         var name = Base(config, sensor, sensorId, texts);
         bool Same(ItemConfig item)
         {
@@ -54,12 +93,9 @@ public static class Names
         return Numbered(name, [.. taken.Select(item => item.Name)], texts);
     }
 
-    /// <summary>
-    /// The name a new item of <paramref name="sensor"/> keeps in the file: none when it is the one thermi gives that sensor
-    /// in <paramref name="texts"/>' language, so the window names it in its own language as the defaults are; else
-    /// <paramref name="name"/>, told apart, numbered or the sensor's name the user typed.
-    /// </summary>
-    public static string? Stored(string name, RawSensor sensor, Texts texts) => name == Base(sensor, texts) ? null : name;
+    // The name an item of a sensor the user renamed keeps in the file: none when it is the one thermi gives that sensor, so
+    // the window names it in its own language as the defaults are; else the name the user gave the sensor, numbered.
+    private static string? Stored(string name, RawSensor sensor, Texts texts) => name == Base(sensor, texts) ? null : name;
 
     /// <summary>
     /// <paramref name="renamed"/>, whose sensor <paramref name="sensorId"/> has a new name, with the items that show that
@@ -202,11 +238,14 @@ public static class Names
             return kind == SensorKind.Temperature && SensorNames.LikelyOf(sensor) is not null ? Of(shown, kindName, texts) : shown;
         }
 
-        var deviceName = texts.Of(device);
-        return Says(kind, device) ? Capital(Of(deviceName, kindName, texts))
-            : shown.StartsWith(deviceName, StringComparison.OrdinalIgnoreCase) ? shown
-            : OfMemory(sensor, shown, device) ?? Of(deviceName, Lowercase(shown), texts);
+        return Says(kind, device) ? Capital(OnDevice(device, kindName, texts))
+            : shown.StartsWith(texts.Of(device), StringComparison.OrdinalIgnoreCase) ? shown
+            : OfMemory(sensor, shown, device) ?? OnDevice(device, Lowercase(shown), texts);
     }
+
+    // What a sensor reads on its device, said as the language says it of that device.
+    private static string OnDevice(DeviceKind device, string what, Texts texts) =>
+        texts.Format(CultureInfo.InvariantCulture, Enum.Parse<OfDevice>(device.ToString()), what);
 
     // The library calls each of its memories "Memory", which the memory's own name says better: "Virtual memory used".
     private static string? OfMemory(RawSensor sensor, string shown, DeviceKind device) =>

@@ -2163,4 +2163,28 @@
   <data name="UiText.BitsHint" xml:space="preserve">
     <value>As 99.2 Mbps; its lines stay in bytes</value>
   </data>
+  <data name="OfDevice.Cpu" xml:space="preserve">
+    <value>CPU {0}</value>
+  </data>
+  <data name="OfDevice.Gpu" xml:space="preserve">
+    <value>GPU {0}</value>
+  </data>
+  <data name="OfDevice.Ram" xml:space="preserve">
+    <value>RAM {0}</value>
+  </data>
+  <data name="OfDevice.Board" xml:space="preserve">
+    <value>BOARD {0}</value>
+  </data>
+  <data name="OfDevice.Ssd" xml:space="preserve">
+    <value>SSD {0}</value>
+  </data>
+  <data name="OfDevice.Network" xml:space="preserve">
+    <value>NET {0}</value>
+  </data>
+  <data name="OfDevice.Battery" xml:space="preserve">
+    <value>BAT {0}</value>
+  </data>
+  <data name="OfDevice.System" xml:space="preserve">
+    <value>PC {0}</value>
+  </data>
 </root>

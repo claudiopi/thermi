@@ -73,26 +73,41 @@ public sealed class BridgeTests
         return shown.ToJsonString();
     }
 
-    // The overlay's ten minutes, moved on by the seconds since it sent them, under what the window read itself; a gap in
-    // either stays a gap.
+    // The overlay's ten minutes, its newest the reading of a tenth of a second before it sent them, moved on by the seconds
+    // since, under what the window read itself a second apart from then on; a gap stays a gap. Drawn at any moment of a
+    // second, the overlay's newest second sits right before the window's first.
     [Theory]
-    [InlineData(0, 0, 599, 599.0)]
-    [InlineData(10, 0, 589, 599.0)]
-    [InlineData(10, 0, 599, null)]
-    [InlineData(0, 0, 300, null)]
-    [InlineData(700, 0, 0, null)]
-    [InlineData(0, 3, 599, 1000.0)]
-    [InlineData(0, 3, 597, 597.0)]
-    public void TheChartJoinsTheOverlaysTenMinutesToTheWindowsOwn(int behind, int own, int at, double? expected)
+    [InlineData(0.1, 0, 599, 599.0)]
+    [InlineData(10.1, 0, 589, 599.0)]
+    [InlineData(10.1, 0, 599, null)]
+    [InlineData(0.1, 0, 300, null)]
+    [InlineData(700.1, 0, 0, null)]
+    [InlineData(3.2, 3, 599, 50.0)]
+    [InlineData(3.2, 3, 596, 599.0)]
+    [InlineData(3.7, 3, 596, 599.0)]
+    public void TheChartJoinsTheOverlaysTenMinutesToTheWindowsOwn(double drawnAt, int own, int at, double? expected)
     {
         var time = new FakeTimeProvider();
-        var chart = new ChartHistory(time);
-        var sent = Enumerable.Range(0, 600).Select(second => second == 300 ? float.NaN : second).ToArray();
-        chart.Take(new History([new Thermi.Core.Messages.ItemHistory("cpu.load", time.GetTimestamp(), sent)]));
-        time.Advance(TimeSpan.FromSeconds(behind));
-        var read = Enumerable.Range(0, own).Select(second => second == 0 ? (double?)null : 1000).ToList();
+        var now = 0.0;
+        void To(double second)
+        {
+            time.Advance(TimeSpan.FromSeconds(second - now));
+            now = second;
+        }
 
-        var values = chart.Of("cpu.load", read);
+        var chart = new ChartHistory(time);
+        var overlay = new OverlayConfig { Items = [new ItemConfig { Id = "cpu.load", Metric = Metrics.CpuLoad.Id }] };
+        var sent = Enumerable.Range(0, 600).Select(second => second == 300 ? float.NaN : second).ToArray();
+        To(0.1);
+        chart.Take(new History([new Thermi.Core.Messages.ItemHistory("cpu.load", time.GetTimestamp(), sent)]));
+        for (var second = 1; second <= own; second++)
+        {
+            To(second);
+            chart.Items.Add(overlay, new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuLoad.Id] = new(SensorKind.Load, 50) });
+        }
+
+        To(drawnAt);
+        var values = chart.Of("cpu.load");
 
         Assert.Equal(600, values.Count);
         Assert.Equal(expected, values[at]);
@@ -130,7 +145,7 @@ public sealed class BridgeTests
             var shown = chart.Items.Shown(overlay.Items[1], new Reading(SensorKind.Temperature, 70))?.Value;
             return string.Join(
                 ' ',
-                overlay.Items.Select(item => string.Join(',', chart.Of(item.Id, chart.Items.TenMinutes(item.Id)).OfType<double>().Distinct())))
+                overlay.Items.Select(item => string.Join(',', chart.Of(item.Id).OfType<double>().Distinct())))
                 + $" min {shown}";
         }
 

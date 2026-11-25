@@ -197,8 +197,9 @@ public sealed class ReadableCatalogTests
 
     // A new item is named for what its sensor reads, added to the default overlay: as its metric, after an equals sign;
     // else by its device and the sensor's readable name, or that name alone; a duty says it is one, and a sensor a
-    // default item already shows takes a number. Named so by thermi alone, it stays unnamed in the file and reads in the
-    // window's language as if added in it (night QA: a GPU fan stayed "GPU fan" in Spanish); a told-apart name is kept.
+    // default item already shows takes a number. Named by thermi alone, told apart and numbered too, it stays unnamed in
+    // the file and reads in the window's language as if added in it (night QA: a GPU fan stayed "GPU fan" in Spanish, and
+    // one told apart kept the Spanish name it was added with).
     [Theory]
     [InlineData("/gpu-nvidia/0/fan/1", DeviceKind.Gpu, "fan", "")]
     [InlineData("/nvme/0/data/31", DeviceKind.Ssd, "free space", "")]
@@ -218,7 +219,7 @@ public sealed class ReadableCatalogTests
     {
         var texts = Texts.English;
         var read = Metrics.Find(name.TrimStart('=')) is { } metric && name[0] == '=' ? texts.Of(metric.Name) : name;
-        var plain = device is { } kind ? texts.Format(CultureInfo.InvariantCulture, NameText.OfSensor, texts.Of(kind), read) : read;
+        var plain = device is { } kind ? texts.Format(CultureInfo.InvariantCulture, Enum.Parse<OfDevice>(kind.ToString()), read) : read;
         var expected = form switch
         {
             "duty" => texts.Format(CultureInfo.InvariantCulture, CatalogText.LikelyDuty, plain),
@@ -242,8 +243,15 @@ public sealed class ReadableCatalogTests
 
         Assert.Equal(expected, Shown(added, texts));
         Assert.Equal(
-            form is "" or "duty" ? (null, Shown(Added(spanish), spanish)) : (expected, expected),
-            (added.Overlays[0].Items.Single(item => item.Sensor == sensor).Name, Shown(added, spanish)));
+            (null, Shown(Added(spanish), spanish)),
+            (Added(spanish).Overlays[0].Items.Single(item => item.Sensor == sensor).Name, Shown(added, spanish)));
+
+        // Spanish names a device as its metrics do: "Ventilador de la GPU", as "Carga de la GPU" (night QA: "Ventilador de GPU").
+        if (device is DeviceKind.Cpu or DeviceKind.Gpu)
+        {
+            var load = spanish.Of(device == DeviceKind.Cpu ? MetricName.CpuLoad : MetricName.GpuLoad);
+            Assert.Contains(load[load.IndexOf(' ', StringComparison.Ordinal)..], Shown(added, spanish), StringComparison.Ordinal);
+        }
     }
 
     // QA round 5 (R5-08): a sensor of the CPU's graphics chip, beside a graphics card the GPU pill reads, starts an iGPU
@@ -275,7 +283,8 @@ public sealed class ReadableCatalogTests
         var renamed = Done(history, start, config => ThermiEdits.RenameSensor(config, Desktop, Chipset, "  Fan hub  "));
         var fan = Done(history, renamed, config => ThermiEdits.RenameSensor(config, Desktop, $"{Ite}/fan/0", "Front intake"));
         var row = SensorCatalog.Build(Desktop, renamed.SensorNames).SelectMany(device => device.Sensors).Single(each => each.Id == Chipset);
-        var added = Done(ItemEdits.AddSensor(renamed, 0, Desktop, Chipset)).Overlays[0].Items.Single(item => item.Sensor == Chipset && !ids.Contains(item.Id));
+        var withAdded = Done(ItemEdits.AddSensor(renamed, 0, Desktop, Chipset));
+        var added = withAdded.Overlays[0].Items.Single(item => item.Sensor == Chipset && !ids.Contains(item.Id));
         var cleared = Done(ThermiEdits.RenameSensor(renamed, Desktop, Chipset, " "));
 
         Assert.Equal(new Dictionary<string, string>(StringComparer.Ordinal) { [Chipset] = "Fan hub" }, renamed.SensorNames);
@@ -286,7 +295,9 @@ public sealed class ReadableCatalogTests
             SensorCatalog.Filter(SensorCatalog.Build(Desktop, renamed.SensorNames), "hub", [])
                 .SelectMany(device => device.Sensors).Select(each => each.Id));
         Assert.Null(Item(fan, Metrics.CpuFan.Id).Name);
-        Assert.Equal(Texts.English.Format(CultureInfo.InvariantCulture, NameText.Numbered, "Fan hub", 2), added.Name);
+        Assert.Equal(
+            Texts.English.Format(CultureInfo.InvariantCulture, NameText.Numbered, "Fan hub", 2),
+            Names.Of(withAdded, added, Desktop, Texts.English));
         Assert.Equal((null, Item(start, ids[0]).Name), (cleared.SensorNames, Item(cleared, ids[0]).Name));
         Assert.Equal(Refusal.SensorNameTooLong, ThermiEdits.RenameSensor(renamed, Desktop, Chipset, new string('x', SensorNames.MaxLength + 1)).Refused);
         Assert.Equal(Refusal.SensorNotFound, ThermiEdits.RenameSensor(renamed, Desktop, "/lpc/it8689e/0/temperature/9", "Gone").Refused);

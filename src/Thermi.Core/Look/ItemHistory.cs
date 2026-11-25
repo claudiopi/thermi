@@ -160,13 +160,15 @@ public sealed class ItemHistory(TimeProvider time)
 
     /// <summary>
     /// Takes what the overlay sent: each item's minimum, maximum and average are the overlay's from here on, none after its
-    /// reset, and its value's last minute fills the seconds this history did not read, so smoothing starts where it is.
+    /// reset, and its value's last minute and its meter's ten fill the seconds this history did not read, so smoothing and
+    /// the chart start where they are.
     /// </summary>
     public void Take(History history)
     {
         foreach (var sent in history.Items)
         {
             _values.Seed(sent.ItemId, sent.Values, sent.Newest);
+            _meters.Seed(sent.ItemId, [.. sent.Slots.Select(slot => (double)slot)], sent.Newest);
             if (sent.Stats is { } stats)
             {
                 _stats[sent.ItemId] = new Stats(stats);

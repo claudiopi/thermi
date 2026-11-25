@@ -174,12 +174,13 @@ public sealed class OverlayMenuTests : IDisposable
         var environment = _tray.Environment(_windowMutex) with { CopyImage = (_, picture) => copied = Pixels(picture) };
         HostRun.Run(settings, _folder, environment, host => HostMenus.Choose(host, 0, "Copy as image"));
 
-        var turn = new Queue<Action>();
+        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
         var feed = new TestFeed { Latest = HostRun.Recorded };
         var window = new WindowEnvironment("thermi-tests", _folder.File, "thermi.exe", _folder.Log, _folder.Clock.GetUtcNow(), feed, startup)
         {
             Screens = Desktop.Screens,
+            HotkeyStatus = () => null,
         };
         using var bridge = new WindowBridge(
             new WindowStart(1, settings, Texts.English, window, _folder.Clock),

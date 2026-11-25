@@ -5,8 +5,11 @@ import type { ChartView, Level, Line } from '../bridge/bridge.g';
 
 /** The knobs' column beside the plot, as wide as the widest knob's text. */
 export const knobColumn = 64;
-/** Room above and under the line inside the plot, so the line and its dot never touch the edge. */
-const pad = 12;
+/**
+ * Room above and under the line inside the plot, so the line and its dot never touch the edge, and the scale's numbers,
+ * 14 px high at the plot's top and bottom (chart.css), sit clear of the line wherever it runs.
+ */
+const pad = 16;
 /** The least distance between two knobs' centers, so they never cover each other. */
 const knobsApart = 26;
 

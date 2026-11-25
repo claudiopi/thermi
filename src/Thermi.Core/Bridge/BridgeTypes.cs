@@ -169,16 +169,23 @@ public static class PageSettings
 {
     /// <summary>
     /// The settings, every overlay without a name the user typed named from where it sits, and every item without one
-    /// named as a new item of its sensor, which <paramref name="known"/> names.
+    /// named as <see cref="Names.OfItems"/> names it, its sensor as <paramref name="known"/> names it.
     /// </summary>
-    public static ThermiConfig Of(ThermiConfig config, Texts texts, Snapshot? known) =>
-        config.Overlays.All(overlay => overlay.Name is not null && overlay.Items.All(item => item.Name is not null)) ? config
-        : config with
+    public static ThermiConfig Of(ThermiConfig config, Texts texts, Snapshot? known)
+    {
+        if (config.Overlays.All(overlay => overlay.Name is not null && overlay.Items.All(item => item.Name is not null)))
+        {
+            return config;
+        }
+
+        var names = Names.OfItems(config, known, texts);
+        return config with
         {
             Overlays = [.. config.Overlays.Select((overlay, at) => overlay with
             {
                 Name = Names.OfOverlays(config, texts)[at],
-                Items = [.. overlay.Items.Select(item => item.Name is null ? item with { Name = Names.OfUnnamed(item, known, texts) } : item)],
+                Items = [.. overlay.Items.Select(item => item with { Name = names[item.Id] })],
             })],
         };
+    }
 }

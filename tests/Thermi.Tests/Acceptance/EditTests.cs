@@ -87,11 +87,12 @@ public sealed class EditTests
         Assert.Equal((false, null), (Threshold.Judges(power), power.Threshold));
 
         // Named as its metric, it stores no name, as the defaults do, so it reads in the window's language; the same sensor
-        // added again takes a number, which it keeps, so no two names are alike.
+        // added again takes a number, in that language too, so no two names are alike.
         var names = JsonNode.Parse(File(again))!["overlays"]![0]!["items"]!.AsArray().Select(each => each!["name"]?.GetValue<string>()).ToList();
+        Assert.Empty(names.OfType<string>());
         Assert.Equal(
-            [Texts.English.Format(CultureInfo.InvariantCulture, NameText.Numbered, Texts.English.Of(MetricName.GpuTemperature), 2)],
-            names.OfType<string>());
+            Texts.English.Format(CultureInfo.InvariantCulture, NameText.Numbered, Texts.English.Of(MetricName.GpuTemperature), 2),
+            Thermi.Core.Bridge.PageSettings.Of(again, Texts.English, Desktop).Overlays[0].Items[^3].Name);
         NetworkDiskAndBatteryItemsTakeTheirLabels();
     }
 

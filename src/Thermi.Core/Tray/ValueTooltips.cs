@@ -27,7 +27,7 @@ public static class ValueTooltips
             return texts.Of(OverlayText.SensorsStoppedHint);
         }
 
-        var name = NameOf(item, input.Snapshot, texts);
+        var name = NameOf(config, item, input.Snapshot, texts);
         if (tooltip.Hint is ValueHint.NeedsDriver or ValueHint.ReadsNothing)
         {
             return texts.Format(input.Numbers, tooltip.Hint == ValueHint.NeedsDriver ? OverlayText.NeedsDriver : OverlayText.ReadsNothing, name);
@@ -140,11 +140,11 @@ public static class ValueTooltips
         return why;
     }
 
-    // A metric's item under its default name is named in the language shown; any other by its own name, or as its sensor
-    // is when it has none.
-    private static string NameOf(ItemConfig item, Snapshot? known, Texts texts) =>
+    // A metric's item under its default name is named in the language shown; any other by its own name, or as the window
+    // names it when it has none.
+    private static string NameOf(ThermiConfig config, ItemConfig item, Snapshot? known, Texts texts) =>
         Metrics.Find(item.Metric ?? item.Auto) is { } metric && (item.Name is null || item.Name == Texts.English.Of(metric.Name)) ? texts.Of(metric.Name)
-        : item.Name ?? Names.OfUnnamed(item, known, texts);
+        : Names.Of(config, item, known, texts);
 
     // The RAM in use says how much there is, which is what it is in use and what is free, read on the same memory.
     private static string? RamTotal(ItemConfig item, OverlayConfig overlay, Snapshot? snapshot, ThermiConfig config, TrayInput input) =>

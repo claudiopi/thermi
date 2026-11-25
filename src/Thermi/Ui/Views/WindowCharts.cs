@@ -42,7 +42,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     public IReadOnlyList<double?> History(string id)
     {
         chart.Follow(editor.Config, ReadBefore);
-        return chart.Of(id, chart.Items.TenMinutes(id));
+        return chart.Of(id);
     }
 
     // What the window read of an item's new meter since it opened: a sensor or a metric, which it keeps every second, the

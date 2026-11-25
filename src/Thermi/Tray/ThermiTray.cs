@@ -95,7 +95,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         var numbers = Actions.Culture;
         foreach (var (item, reading, notice) in _notifyMe.Add(config, snapshot, fullScreen))
         {
-            var name = item.Name ?? Names.OfUnnamed(item, snapshot, texts);
+            var name = Names.Of(config, item, snapshot, texts);
             var value = ReadingFormatter.Format(reading with { Value = notice.Value }, numbers, units: true, config.Temperature, item.Decimals, texts);
             var length = LengthOf(notice.Length, texts, numbers);
             _icons.Notify(

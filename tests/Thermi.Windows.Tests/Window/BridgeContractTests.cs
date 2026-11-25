@@ -50,7 +50,7 @@ public sealed class BridgeContractTests
         folder.Write(file == "defaults" ? ThermiConfigJson.Write(new ThermiConfig()) : file);
         await using var settings = folder.Settings();
         Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new Queue<Action>();
+        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
         var environment = new WindowEnvironment(
@@ -61,7 +61,7 @@ public sealed class BridgeContractTests
             folder.Clock.GetUtcNow(),
             new TestFeed { Latest = Recorded },
             startup)
-        { Screens = () => [] };
+        { Screens = () => [], HotkeyStatus = () => null };
         using var bridge = new WindowBridge(
             new WindowStart(1, settings, Texts.English, environment, folder.Clock) { Item = Metrics.CpuTemperature.Id },
             editor,
@@ -137,7 +137,7 @@ public sealed class BridgeContractTests
         folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         await using var settings = folder.Settings();
         Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new Queue<Action>();
+        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
         var feed = new TestFeed();
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
@@ -230,13 +230,14 @@ public sealed class BridgeContractTests
         folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         await using var settings = folder.Settings();
         Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new Queue<Action>();
+        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
         var editor = new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock);
         var feed = new TestFeed();
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
         var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
         {
             Screens = () => [],
+            HotkeyStatus = () => null,
         };
         var start = new WindowStart(0, settings, Texts.English, environment, folder.Clock);
         using var bridge = new WindowBridge(start, editor, new ChartHistory(folder.Clock), turn.Enqueue);
@@ -275,12 +276,13 @@ public sealed class BridgeContractTests
         folder.Write(ThermiConfigJson.Write(config));
         await using var settings = folder.Settings();
         Assert.True(folder.Settled(settings.SyncAsync).IsCompletedSuccessfully);
-        var turn = new Queue<Action>();
+        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
         var feed = new TestFeed();
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
         var environment = new WindowEnvironment("thermi-tests", folder.File, "thermi.exe", folder.Log, folder.Clock.GetUtcNow(), feed, startup)
         {
             Screens = () => [],
+            HotkeyStatus = () => null,
         };
         var chart = new ChartHistory(folder.Clock);
         var onOverlay = new ItemHistory(folder.Clock);

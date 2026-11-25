@@ -26,7 +26,7 @@ public sealed class FinderTests : IAsyncDisposable
 
     private readonly SettingsFolder _folder = new();
     private readonly TestFeed _feed = new();
-    private readonly Queue<Action> _turn = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _turn = new();
     private readonly List<CancellationToken> _loads = [];
     private readonly Settings _settings;
     private readonly WindowEditor _editor;
@@ -47,7 +47,7 @@ public sealed class FinderTests : IAsyncDisposable
             _folder.Clock.GetUtcNow(),
             _feed,
             startup)
-        { Screens = () => [] };
+        { Screens = () => [], HotkeyStatus = () => null };
         var start = new WindowStart(1, _settings, Texts.English, environment, _folder.Clock) { Load = _loads.Add };
         _bridge = new WindowBridge(start, _editor, new ChartHistory(_folder.Clock), _turn.Enqueue);
     }

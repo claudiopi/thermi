@@ -118,6 +118,9 @@ test('EveryPageFitsAtEverySize', async ({ context }) => {
   ];
   for (const scale of [1, 2]) {
     for (const language of ['English', 'pseudo'] as const) {
+      // Where the list folds depends on the size, the text's and the language alone, so it is checked once for them: each
+      // view checking it again doubled a test whose length grows with how busy the PC is.
+      let foldsChecked = false;
       for (const view of [...pages, ...dialogsAndMenus, ...barsAndToasts]) {
         await test.step(`${view.name}, text at ${scale * 100} %, ${language}`, async () => {
           const shown = language === 'pseudo' ? pseudo(texts()) : texts();
@@ -128,10 +131,11 @@ test('EveryPageFitsAtEverySize', async ({ context }) => {
             document.documentElement.style.fontSize = `${factor * 100}%`;
           }, scale);
           // A broken file shows no list, so nothing folds.
-          for (const size of view.state?.problem === undefined ? sizes : []) {
+          for (const size of view.state?.problem === undefined && !foldsChecked ? sizes : []) {
             await page.setViewportSize(size);
             await expect(page.getByRole('button', { name: say('UiText.ShowList') })).toBeVisible({ visible: size.folds });
           }
+          foldsChecked ||= view.state?.problem === undefined;
           await page.setViewportSize({ width: 1920, height: 1080 });
           await openOn(page, view, say);
           for (const size of sizes) {

@@ -203,7 +203,7 @@ public static class Menus
         var (first, last) = row.Entry == MenuEntry.Separate ? ItemEdits.PillOf(shown, index) : (index, index);
         return first < last && OverlayLayout.RunLabels(shown.Items, texts)[first] is { } label
             ? texts.Format(numbers, UiText.PillName, label)
-            : shown.Items[index].Name ?? Names.OfUnnamed(shown.Items[index], known, texts);
+            : Names.Of(config, shown.Items[index], known, texts);
     }
 
     /// <summary>The overlay's menu entry that takes back an edit chosen from a menu, null for what is no edit of the settings.</summary>

@@ -56,7 +56,7 @@ internal sealed class OracleReplay : IAsyncDisposable
             _ => ServiceState.Running,
         };
         var feed = new TestFeed { Latest = service == ServiceState.Stopped ? null : SnapshotOf(start["sensors"]), State = service };
-        var turn = new Queue<Action>();
+        var turn = new System.Collections.Concurrent.ConcurrentQueue<Action>();
         var editor = new WindowEditor(_settings, turn.Enqueue, _folder.Log, _folder.Clock);
         var startup = new StartWithWindows(@"Software\thermi-tests\Run", @"Software\thermi-tests\Approved", "thermi.exe");
         var environment = new WindowEnvironment(

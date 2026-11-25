@@ -29,12 +29,10 @@ public static class ItemEdits
             var decimals = SensorMap.MetricOf(sensor) == Metrics.BatteryRate ? 1 : (int?)null;
             var read = OtherGpu(config.Overlays[overlay], snapshot, sensor);
             var chip = read is not null && SensorMap.GpuAfter(sensor, read);
-            var name = Names.OfItem(config, sensor, sensorId, language, snapshot, byDevice: read is not null);
 
             var item = new ItemConfig
             {
                 Sensor = sensorId,
-                Name = read is null ? Names.Stored(name, sensor, language) : name,
                 Label = chip ? language.Of(NameText.OtherGpu) : null,
                 Decimals = decimals,
                 Own = read is not null && !chip,
@@ -47,7 +45,7 @@ public static class ItemEdits
     // A PC with a graphics chip in its CPU and a graphics card has two GPUs, and the GPU pill reads one, returned here: a
     // sensor of the other is named by its GPU and goes to a pill of its own, never reading as the pill's. The chip's pill
     // is the iGPU one, which its later sensors join; a card's, beside a GPU pill set to read the chip, starts a GPU pill.
-    private static RawSensor? OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
+    internal static RawSensor? OtherGpu(OverlayConfig overlay, Snapshot snapshot, RawSensor sensor) =>
         SensorMap.IsGpu(sensor)
         && SensorMap.Chosen(snapshot, overlay).GetValueOrDefault(Metrics.GpuLoad.Id) is { } read
         && read.Hardware != sensor.Hardware ? read : null;

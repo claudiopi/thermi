@@ -53,12 +53,18 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     if (box === null) {
       throw new Error('The warning knob is not shown.');
     }
+    const now = async (): Promise<number> => (await itemIn(page, 'cpu.temperature')).threshold?.warning ?? 0;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2, box.y - 10, { steps: 5 });
-    await page.mouse.move(box.x + box.width / 2, box.y - 20, { steps: 5 });
+    // Whole moves, each landed before the next: Edge merges moves that come faster than it draws, as on a busy PC, and the
+    // page then sends fewer edits than the oracle recorded.
+    for (const above of [10, 20]) {
+      const before = await now();
+      await page.mouse.move(box.x + box.width / 2, box.y - above);
+      await expect.poll(now).toBeGreaterThan(before);
+    }
     await page.mouse.up();
-    await expect.poll(async () => ((await itemIn(page, 'cpu.temperature')).threshold?.warning ?? 0) > 80).toBe(true);
+    await expect.poll(now).toBeGreaterThan(80);
     await page.keyboard.press('Control+Z');
     await expect.poll(lines).toEqual({ warning: 80, critical: 91 });
   });
