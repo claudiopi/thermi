@@ -20,7 +20,9 @@ public sealed class UpdateTests
     private static Dictionary<string, Package> Zips(string processor, Package zip) => new(StringComparer.Ordinal) { [processor] = zip };
 
     // The state as "installed previous ready failed bucket sequence", "-" for none, "refused" for the offered zip refused; the
-    // manifest as "channel sequence version rollout", its withdrawn versions and whether it is off. The answer: kind and version.
+    // manifest as "channel sequence version rollout expiry", its withdrawn versions and whether it is off; the expiry is in
+    // 30 days unless it says expired a minute ago, now, or 46 days on, a manifest's 45 and a day, and a minute past. The
+    // answer: kind and version.
     [Theory]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100", "", false, "Download 1.3.0")]
     [InlineData("1.3.0 1.2.0 - - 10 1", "stable 2 1.3.0 100", "", false, "Nothing")]
@@ -32,13 +34,22 @@ public sealed class UpdateTests
     [InlineData("1.2.0 - - - 49 1", "stable 3 1.3.0 80", "", false, "Download 1.3.0")]
     [InlineData("1.3.0 1.2.0 - - 10 1", "stable 2 1.2.0 100", "1.3.0", false, "RollBack 1.2.0")]
     [InlineData("1.3.0 - - - 10 1", "stable 2 1.2.0 100", "1.3.0", false, "Nothing")]
+    [InlineData("1.3.0 1.3.0 - - 10 1", "stable 2 1.2.0 100", "1.3.0", false, "Nothing")]
+    [InlineData("1.3.0 1.2.0 - - 10 1", "stable 2 1.2.0 100", "1.3.0 1.2.0", false, "Nothing")]
+    [InlineData("1.3.0 1.2.0 - 1.2.0 10 1", "stable 2 1.2.0 100", "1.3.0", false, "Nothing")]
+    [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100", "1.3.0", false, "Nothing")]
+    [InlineData("1.2.0 - - - 0 1", "stable 2 1.3.0 1", "", false, "Download 1.3.0")]
+    [InlineData("1.2.0 - - - 99 1", "stable 2 1.3.0 100", "", false, "Download 1.3.0")]
+    [InlineData("1.2.0 - - - -1 1", "stable 2 1.3.0 100", "", false, "Nothing")]
     [InlineData("1.2.0 - 1.4.0 - 10 1", "stable 2 1.2.0 100", "1.3.0", false, "DropReady")]
     [InlineData("1.2.0 - 1.3.0 - 10 1", "stable 2 1.3.0 100", "", false, "Keep 1.3.0")]
     [InlineData("1.2.0 - 1.3.0 - 10 1", "stable 2 1.3.0 100", "", true, "DropReady")]
     [InlineData("1.2.0 - 1.3.0 - 10 1", "stable 2 1.4.0 100", "", false, "Download 1.4.0")]
     [InlineData("1.2.0 - - - 10 5", "stable 4 1.3.0 100", "", false, "Refuse")]
+    [InlineData("1.2.0 - - - 10 2", "stable 2 1.3.0 100", "", false, "Download 1.3.0")]
     [InlineData("1.2.0 - - - 10 1", "beta 2 1.3.0 100", "", false, "Refuse")]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 expired", "", false, "Refuse")]
+    [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 now", "", false, "Download 1.3.0")]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 far", "", false, "Refuse")]
     [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100 near", "", false, "Download 1.3.0")]
     public void TheUpdaterNeverGoesBackButToItsOwnPrevious(string state, string manifest, string withdrawn, bool disabled, string plan)
@@ -65,8 +76,9 @@ public sealed class UpdateTests
             Disabled = disabled,
             Expires = m.Length < 5 ? Now.AddDays(30) : m[4] switch
             {
-                "far" => Now + Manifest.Lifetime + TimeSpan.FromDays(2),
-                "near" => Now + Manifest.Lifetime + TimeSpan.FromHours(12),
+                "far" => Now.AddDays(46).AddMinutes(1),
+                "near" => Now.AddDays(46),
+                "now" => Now,
                 _ => Now.AddMinutes(-1),
             },
         };
@@ -226,7 +238,9 @@ public sealed class UpdateTests
 
         // What a server or a cache could serve instead of an envelope, and a history read back as the levers wrote it.
         var sealedOne = ManifestEnvelope.Seal(rolledBack, key);
-        Assert.Equal(ManifestProblem.TooLong, ManifestEnvelope.Open(new byte[ManifestEnvelope.MaxBytes + 1], release, backup).Problem);
+        Assert.Equal(
+            (ManifestProblem.Malformed, ManifestProblem.TooLong),
+            (ManifestEnvelope.Open(new byte[64 * 1024], release, backup).Problem, ManifestEnvelope.Open(new byte[(64 * 1024) + 1], release, backup).Problem));
         Assert.All((string[])["", "{", "[]", """{ "manifest": "not base64", "signature": "" }"""], served =>
             Assert.Equal(ManifestProblem.Malformed, ManifestEnvelope.Open(Encoding.UTF8.GetBytes(served), release, backup).Problem));
         var signed = Convert.ToBase64String(key.SignData("[1]"u8, HashAlgorithmName.SHA256));
@@ -311,17 +325,6 @@ public sealed class UpdateTests
         Assert.Equal([true, true, false, true], networks.Select(each => UpdateSchedule.MayDownload(each.Metered, each.Urgent)));
     }
 
-    // A version names a folder, so it is read strictly, and ordered as SemVer orders them.
-    [Fact]
-    public void AVersionIsReadStrictly()
-    {
-        Assert.All(
-            (string?[])[null, "", "1.2", "1.2.3.4", "01.2.3", "1.2.x", "1.2.3-alpha.1", "1.2.3-rc.0", "1.2.3-beta", @"..\1.2.3", new string('1', 41)],
-            text => Assert.Null(ReleaseVersion.Parse(text)));
-        Assert.True(V("1.2.3-beta.2") < V("1.2.3-rc.1") && V("1.2.3-rc.1") < V("1.2.3") && V("1.2.3") < V("1.10.0"));
-        Assert.True(V("1.0.0") > null && V("1.0.0") >= V("1.0.0") && V("1.0.0") <= V("1.0.0"));
-        Assert.Equal("1.2.3-rc.4", V("1.2.3-rc.4").ToString());
-    }
 
     // A state file broken or missing is a PC that knows nothing yet.
     [Fact]

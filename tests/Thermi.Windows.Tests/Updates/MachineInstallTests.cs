@@ -16,14 +16,18 @@ public sealed class MachineInstallTests
 {
     private static readonly byte[] Msi = RandomNumberGenerator.GetBytes(4096);
 
-    // The MSI offered; one while a switch holds the state, when no outcome is written over it; a file of other bytes than
-    // the manifest signed; and one thermi's certificate did not sign, in a release build: what the install came to, with
-    // the bytes msiexec got and whether anyone could change them while it ran. msiexec runs under the updater's lock.
-    // Which MSI a manifest offers, and what a policy, a manifest missing and msiexec's exit come to, are Core's
-    // InstallForEveryone rows.
+    // The MSI offered; one while a switch holds the state, when no outcome is written over it; one whose prompt was
+    // refused, 1223; a manifest that cannot be read and the policy's Updates = 0, as the host reads them; a file of other
+    // bytes than the manifest signed; and one thermi's certificate did not sign, in a release build: what the install came
+    // to, with the bytes msiexec got and whether anyone could change them while it ran. msiexec runs under the updater's
+    // lock, and what follows only a good install runs before it is let go. Which MSI a manifest offers, and what each exit
+    // code comes to, are Core's InstallForEveryone rows.
     [Theory]
     [InlineData("offered", MachineInstallOutcome.Installed, true)]
     [InlineData("switch held", null, true)]
+    [InlineData("refused", MachineInstallOutcome.Refused, true)]
+    [InlineData("no manifest", MachineInstallOutcome.Failed, false)]
+    [InlineData("policy off", MachineInstallOutcome.DownloadPage, false)]
     [InlineData("other bytes", MachineInstallOutcome.Failed, false)]
     [InlineData("unsigned", MachineInstallOutcome.Failed, false)]
     public async Task InstallForEveryoneRunsOnlyTheCheckedMsi(string channel, MachineInstallOutcome? outcome, bool ran)
@@ -31,7 +35,15 @@ public sealed class MachineInstallTests
         await using var pc = new UpdatePc();
         var package = new Package(new Uri(pc.Channel.Address, "msis/thermi.msi"), Msi.Length, Convert.ToHexStringLower(SHA256.HashData(Msi)));
         pc.Channel.Serve("/v1/msis/thermi.msi", channel == "other bytes" ? [.. Msi.Reverse()] : Msi);
-        pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Msis = new Dictionary<string, Package> { ["x64"] = package } });
+        if (channel == "policy off")
+        {
+            pc.Policy = (0, null);
+        }
+
+        if (channel != "no manifest")
+        {
+            pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Msis = new Dictionary<string, Package> { ["x64"] = package } });
+        }
         using var client = new ManifestClient(pc.Clock);
         var host = new UpdateHost(() => pc.Policy, () => false, _ => { });
         var log = new FileLog(Path.Combine(pc.Top, "thermi-sensors.log"), pc.Clock);
@@ -53,7 +65,7 @@ public sealed class MachineInstallTests
                 seen = await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken);
                 changed = Writable(path);
                 held = busy.CurrentCount;
-                return 0;
+                return channel == "refused" ? 1223 : 0;
             },
             TestContext.Current.CancellationToken,
             worked: () => worked = busy.CurrentCount == 0);

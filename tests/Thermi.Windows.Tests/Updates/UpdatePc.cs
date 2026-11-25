@@ -173,9 +173,9 @@ internal sealed class UpdatePc : IAsyncDisposable
         Packages = new Dictionary<string, Package>(StringComparer.Ordinal) { ["x64"] = package },
     };
 
-    /// <summary>Serves <paramref name="manifest"/> as its channel's envelope, sealed with the release key or the backup.</summary>
-    public void Publish(Manifest manifest, bool backup = false) =>
-        Channel.Serve($"/v1/{manifest.Channel}.json", ManifestEnvelope.Seal(manifest, backup ? _backup : _release));
+    /// <summary>Serves <paramref name="manifest"/> as its channel's envelope, or <paramref name="at"/>'s, sealed with the release key or the backup.</summary>
+    public void Publish(Manifest manifest, bool backup = false, string? at = null) =>
+        Channel.Serve($"/v1/{at ?? manifest.Channel}.json", ManifestEnvelope.Seal(manifest, backup ? _backup : _release));
 
     public async ValueTask DisposeAsync()
     {

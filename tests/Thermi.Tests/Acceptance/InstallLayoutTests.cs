@@ -49,4 +49,18 @@ public sealed class InstallLayoutTests
         Assert.Equal(running, InstallLayout.Running(Top, path)?.ToString());
         Assert.Equal(later, InstallLayout.Later(Top, path, ReleaseVersion.Parse(version)!)?.ToString());
     }
+
+    // A version names a folder, so it is read strictly, and ordered as SemVer orders them.
+    [Fact]
+    public void AVersionIsReadStrictly()
+    {
+        Assert.All(
+            (string?[])[null, "", "1.2", "1.2.3.4", "01.2.3", "1.2.x", "1.2.3-alpha.1", "1.2.3-rc.0", "1.2.3-beta", @"..\1.2.3", new string('1', 41)],
+            text => Assert.Null(ReleaseVersion.Parse(text)));
+        Assert.True(V("1.2.3-beta.2") < V("1.2.3-rc.1") && V("1.2.3-rc.1") < V("1.2.3") && V("1.2.3") < V("1.10.0"));
+        Assert.True(V("1.0.0") > null && V("1.0.0") >= V("1.0.0") && V("1.0.0") <= V("1.0.0"));
+        Assert.Equal("1.2.3-rc.4", V("1.2.3-rc.4").ToString());
+    }
+
+    private static ReleaseVersion V(string text) => ReleaseVersion.Parse(text) ?? throw new ArgumentException(text, nameof(text));
 }

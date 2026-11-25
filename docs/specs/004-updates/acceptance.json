@@ -32,14 +32,14 @@
     {
       "id": "A5",
       "covers": ["R9", "R10", "R12"],
-      "description": "Given an update folder and a version that passes every check, when the zip served is longer than the manifest signed, holds an entry that leaves its folder or versions that are not the manifest's, or, in a release build, comes without its signed catalog, or the folder is writable by users, or the release key signed the manifest after one the backup key signed revoked it, then nothing under the folder changes, no version runs, and the event log has a warning or an error; the version that passes is taken.",
+      "description": "Given an update folder and a version that passes every check, when the manifest is of another channel than the PC's or older than the one it took last, or the release key signed it after one the backup key signed revoked that key, or the zip served is longer than the manifest signed, of another hash, holds an entry that leaves its folder or versions that are not the manifest's, or, in a release build, comes without its signed catalog, or the folder is writable by users, then nothing under the folder changes, no version runs, and the event log has a warning or an error; the version that passes is taken. Which check a warning names is read in review, but for the size and the hash, A36.",
       "check": "TheUpdaterTakesOnlyWhatPassesEveryCheck",
       "passes": false
     },
     {
       "id": "A6",
       "covers": ["R11", "R13"],
-      "description": "Given an installed version and a manifest, when the service plans, then it takes only a higher version that has not failed here and whose rollout reaches the PC's number, raising the rollout adds PCs and drops none, and a withdrawn installed version goes back to the kept previous one or stays without it.",
+      "description": "Given an installed version and a manifest, when the service plans, then it takes only a higher version that has not failed here, is not withdrawn, and whose rollout reaches the PC's number, from 0 to 99, raising the rollout adds PCs and drops none, and a withdrawn installed version goes back to the kept previous one, only when that one is older, not withdrawn and has not failed, or stays.",
       "check": "TheUpdaterNeverGoesBackButToItsOwnPrevious",
       "passes": false
     },
@@ -151,7 +151,7 @@
     {
       "id": "A22",
       "covers": ["R29"],
-      "description": "Given a per-user install's host and a channel offering a machine MSI, when it is asked to install for everyone, then msiexec starts only for the file the manifest names, with its bytes and, in a release build, thermi's signature, held open so no one changes it while it runs and under the updater's lock; a download of other bytes or an MSI not signed changes nothing and fails; each outcome is written for the window, but over a switch under way.",
+      "description": "Given a per-user install's host and a channel offering a machine MSI, when it is asked to install for everyone, then msiexec starts only for the file the manifest names, with its bytes and, in a release build, thermi's signature, held open so no one changes it while it runs and under the updater's lock; a prompt refused with 1223 is written as refused and nothing that follows a good install runs; a manifest that cannot be read, a download of other bytes or an MSI not signed changes nothing and fails; the policy Updates = 0 opens the download page; each outcome is written for the window, but over a switch under way.",
       "check": "InstallForEveryoneRunsOnlyTheCheckedMsi",
       "passes": true
     },
@@ -242,7 +242,7 @@
     {
       "id": "A35",
       "covers": ["R9"],
-      "description": "Given a state with a sequence and a manifest of another channel, an older sequence, expired, or expiring more than 45 days and a day ahead, when the service plans, then it refuses it, and takes one expiring just within that.",
+      "description": "Given a state with a sequence and a manifest of another channel, an older sequence, expired, or expiring more than 45 days and a day ahead, when the service plans, then it refuses it, and takes one of the sequence it took last, one expiring now and one expiring 46 days ahead.",
       "check": "TheUpdaterNeverGoesBackButToItsOwnPrevious",
       "passes": false
     },
@@ -277,7 +277,7 @@
     {
       "id": "A40",
       "covers": ["R29"],
-      "description": "Given msiexec's exit after the UAC prompt, when the user's host reads it, then 0 and 3010 are installed, 1223, a refused prompt, and 1602 are refused, which changed nothing, and any other is a failure.",
+      "description": "Given msiexec's exit after the UAC prompt, when the user's host reads it, then 0 and 3010 are installed, 1223, a refused prompt, and 1602 are refused, and any other is a failure.",
       "check": "MsiexecsExitIsWhatTheInstallCameTo",
       "passes": true
     }

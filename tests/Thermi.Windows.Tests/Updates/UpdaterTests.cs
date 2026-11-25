@@ -53,7 +53,7 @@ public sealed class UpdaterTests
 
         // Every four hours after; a resume an hour on asks nothing more, and a PC that slept past a check asks once as it wakes.
         var checks = Manifests(pc);
-        await StepAsync(pc, running, UpdateSchedule.Every - Minute, minutes: true);
+        await StepAsync(pc, running, TimeSpan.FromHours(4) - Minute, minutes: true);
         Assert.Equal(checks, Manifests(pc));
         await StepAsync(pc, running, Minute);
         updater.Resumed();
@@ -66,12 +66,15 @@ public sealed class UpdaterTests
         await running;
     }
 
-    // What a server, a cache or a user could make the service see, as far as the service's own wiring takes it; "nothing"
-    // is a version that passes every check. A manifest's channel, sequence and expiry, an envelope's size and signature,
-    // and a zip's hash are Core's rows.
+    // What a server, a cache or a user could make the service see, as far as the service's own wiring takes it: the PC's
+    // channel and the sequence it took last, the hash it computes. "nothing" is a version that passes every check. What
+    // each check decides, an envelope's size and signature and a manifest's expiry among them, is Core's rows.
     [Theory]
     [InlineData("nothing")]
+    [InlineData("of the beta channel")]
+    [InlineData("an older sequence")]
     [InlineData("a zip longer than signed")]
+    [InlineData("a zip of another hash")]
     [InlineData("an entry leaving its folder")]
     [InlineData("an older release relabelled")]
     [InlineData("a release build without its signed catalog")]
@@ -250,19 +253,23 @@ public sealed class UpdaterTests
         var relabelled = UpdatePc.Built with { Patch = UpdatePc.Built.Patch + 1 };
         pc.Publish(wrong switch
         {
+            "of the beta channel" => offer with { Channel = Manifest.Beta },
             "a zip longer than signed" => pc.Offer(UpdatePc.Built, zip with { Size = zip.Size - 1 }),
+            "a zip of another hash" => pc.Offer(UpdatePc.Built, zip with { Sha256 = new string('0', 64) }),
             "an entry leaving its folder" => pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built, archive => archive.CreateEntry("../outside.txt"))),
             "an older release relabelled" => pc.Offer(relabelled, pc.Zip(relabelled)),
             _ => offer,
-        });
+        }, at: Manifest.Stable);
 
-        if (wrong == "the release key revoked")
+        if (wrong is "the release key revoked" or "an older sequence")
         {
-            // The backup key's manifest, which revokes the release key; then the release key's offer, signed as before.
-            using var revoking = pc.Updater();
-            pc.Publish(pc.Offer(UpdatePc.Running, zip, sequence: 3) with { RevokedKey = pc.ReleaseKeyHash }, backup: true);
-            await revoking.CheckAsync(TestContext.Current.CancellationToken);
-            pc.Publish(offer with { Sequence = 4 });
+            // A manifest taken first, the backup key's, which revokes the release key, or a later one of the release key's;
+            // then the offer, signed with the release key, after the revocation or before the one taken.
+            var revoked = wrong == "the release key revoked";
+            using var earlier = pc.Updater();
+            pc.Publish(pc.Offer(UpdatePc.Running, zip, sequence: 3) with { RevokedKey = revoked ? pc.ReleaseKeyHash : null }, backup: revoked);
+            await earlier.CheckAsync(TestContext.Current.CancellationToken);
+            pc.Publish(offer with { Sequence = revoked ? 4 : 2 });
         }
 
         return (pc.Build(catalog: wrong == "a release build without its signed catalog"), wrong != "a folder users write to");

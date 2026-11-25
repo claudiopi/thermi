@@ -105,11 +105,13 @@ public sealed class AdminOnDemandTests
             InstallForEveryone.MsiToRun(checks, manifest, ReleaseVersion.Parse("1.2.0")!, "x64"));
     }
 
-    // The pinned driver or a later one is never installed over; an older one, or one whose version cannot be read, is.
+    // The pinned driver or a later one is never installed over; an older one, or one whose version cannot be read, is. A
+    // version of two parts reads as older than the same of three, and is installed over, which does no harm.
     [Theory]
     [InlineData("2.2.0", true)]
     [InlineData("2.3", true)]
     [InlineData("2.1.9", false)]
+    [InlineData("2.2", false)]
     [InlineData("two", false)]
     public void OnlyAnOlderDriverIsInstalledOver(string installed, bool covered) =>
         Assert.Equal(covered, DriverVersion.Covers(new Version(2, 2, 0), installed));
