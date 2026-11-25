@@ -48,7 +48,12 @@ public sealed class InstallDriverTests : IDisposable
         var fresh = Path.Combine(_folder, "fresh");
         var services = new CommandLineTests.FakeServices(states, starts: true);
         var parts = new DriverParts(
-            setup, () => download == "unsafe folder" ? null : Fresh(fresh, download), new FakeDownload(download), ran, services, () => download == "present" ? "2.2.0.0" : null);
+            setup,
+            () => download == "unsafe folder" ? null : Fresh(fresh, download),
+            new FakeDownload(download),
+            ran,
+            services,
+            () => download == "present" ? "2.2.0.0" : null);
 
         var run = InstallDriver.RunAsync(parts, time);
         for (var waited = TimeSpan.Zero; !run.IsCompleted && waited <= TimeSpan.FromSeconds(30); waited += StartSensors.Poll)
