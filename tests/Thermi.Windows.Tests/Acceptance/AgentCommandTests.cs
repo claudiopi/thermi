@@ -5,6 +5,7 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
+using Thermi.Overlay;
 using Thermi.Windows.Tests.Agents;
 
 namespace Thermi.Windows.Tests.Acceptance;
@@ -43,6 +44,8 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Done, 2, "read", "--seconds", "0")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
     [InlineData(Ending.Done, 2, "edit", """{"kind":"nothing"}""")]
+    [InlineData(Ending.Done, 0, "status", "--schema", "1")]
+    [InlineData(Ending.Done, 2, "status", "--schema", "0")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
     [InlineData(Ending.Stopped, 0, "status")]
     [InlineData(Ending.Stopped, 3, "read")]
@@ -166,6 +169,39 @@ public sealed class AgentCommandTests : IDisposable
             Assert.Equal(texts.Of(refusal), (string)end.Json["message"]!);
             Assert.Equal(written, _rig.Folder.Text());
         }
+    }
+
+    // The overlay's own writes, as a drop, go out through its throttle as changes of whatever the file holds then, and an
+    // agent's edit is made over the file as it is then: neither loses the other's, and the overlay shows the agent's.
+    [Fact]
+    public async Task AgentEditsKeepOthersChanges()
+    {
+        var folder = _rig.Folder;
+        await using var overlay = await folder.LoadedAsync(new ThermiConfig());
+        using var watcher = overlay.Watch(folder.Log)!;
+        for (var round = 0; round < 10; round++)
+        {
+            var dropped = new Position(10 * round, 20);
+            overlay.Edit(config => OverlayEdits.Drop(config, 0, dropped).Config);
+            var agent = _rig.RunAsync("edit", $$"""{"kind":"threshold","item":"cpu.temperature","warning":{{60 + round}},"critical":95}""");
+            folder.RunOut(overlay.SyncAsync());
+            Assert.Equal(0, (await agent).Exit);
+            folder.RunOut(overlay.SyncAsync());
+
+            var written = folder.Read().Overlays[0];
+            Assert.Equal((dropped, 60.0 + round), (written.Position!, written.Items[0].Threshold!.Warning!.Value));
+        }
+
+        Assert.Equal(0, (await _rig.RunAsync("edit", """{"kind":"item","item":"cpu.load","field":"name","value":"Agent's"}""")).Exit);
+        var shown = false;
+        for (var waited = TimeSpan.Zero; waited <= TimeSpan.FromSeconds(1) && !shown; waited += Settings.Interval)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, TestContext.Current.CancellationToken);
+            folder.Clock.Advance(Settings.Interval);
+            shown = overlay.Config.Overlays[0].Items.Any(item => item.Name == "Agent's");
+        }
+
+        Assert.True(shown, "The overlay did not show the agent's edit within a second.");
     }
 
     [Fact]

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The .NET SDK of the agents' contract (docs/agents/README.md): a thin library that starts thermi-cli and reads its
+       JSON. net8.0, the oldest .NET still supported, so any program on a current .NET can take it; no package or project
+       references and no native code (checked by ContractTests), so it adds nothing to whoever ships it. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <PackageId>Thermi.Client</PackageId>
+    <Authors>Claudio Pi</Authors>
+    <Description>Reads a Windows PC's temperatures, loads, clocks, power and fans through thermi's sensors: status, read, sensors and watch as typed values. Needs thermi installed; installs nothing.</Description>
+    <PackageTags>thermi;hardware;sensors;temperature;monitoring;agents;mcp</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/claudiopi/thermi</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/claudiopi/thermi</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Thermi.Tests" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

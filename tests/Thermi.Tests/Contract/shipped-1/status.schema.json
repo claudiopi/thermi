@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "thermi-cli status, schema 1",
+  "type": "object",
+  "properties": {
+    "service": {
+      "enum": [
+        "running",
+        "stopped",
+        "stale"
+      ]
+    },
+    "overlay": {
+      "type": "boolean"
+    },
+    "sensorsOnly": {
+      "type": "boolean"
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "enum": [
+              "service-missing",
+              "service-stopped",
+              "service-stale",
+              "pipe-taken",
+              "driver-missing",
+              "settings-broken"
+            ]
+          },
+          "cause": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "cause",
+          "fix"
+        ]
+      }
+    },
+    "schema": {
+      "type": "integer"
+    },
+    "settings": {
+      "enum": [
+        "broken",
+        "newer",
+        "locked",
+        "missing",
+        null
+      ]
+    }
+  },
+  "required": [
+    "service",
+    "overlay",
+    "sensorsOnly",
+    "problems"
+  ]
+}

@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Thermi.Core\Thermi.Core.csproj" />
+    <ProjectReference Include="..\..\src\Thermi.Client\Thermi.Client.csproj" />
   </ItemGroup>
 
 </Project>

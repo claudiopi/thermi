@@ -252,6 +252,9 @@
           "xunit.v3.runner.common": "[4.0.3]"
         }
       },
+      "thermi.client": {
+        "type": "Project"
+      },
       "thermi.core": {
         "type": "Project"
       }
