@@ -1,19 +1,17 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Thermi.Core;
-using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 
-namespace Thermi.Ui.Web;
+namespace Thermi.Core.Bridge;
 
 /// <summary>
 /// The page's edits, each turned into the Core edit that decides it: the page names what to change, Core says whether it
 /// may and how. A field Core has no edit for is refused as a call the window does not make, never written as given.
 /// </summary>
-internal static class PageEdits
+public static class PageEdits
 {
     // A look's fields, and the overlay's layout, direction and labels, which its style holds.
     private static readonly HashSet<string> StyleFields = new(StringComparer.Ordinal)

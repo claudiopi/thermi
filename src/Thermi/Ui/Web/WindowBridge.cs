@@ -6,7 +6,6 @@ using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Messages;
-using Thermi.Core.Placement;
 using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -129,11 +128,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
         var snapshot = _sensors.Latest ?? new Snapshot([]);
         var result = _editor.Edit(edit.GetType().Name, PageEdits.Of(edit, snapshot, _texts, _start.Environment.AltGrKeys));
-        // A refused hotkey says why, as "another hotkey uses it", not only that it cannot be one.
-        return Task.FromResult(
-            result.Hotkey is { } why ? Core.Translations.Texts.Key(why)
-            : result.Refused is { } refused ? Core.Translations.Texts.Key(refused)
-            : null);
+        return Task.FromResult(result.RefusalKey);
     }
 
     public Task Gesture(bool active)
@@ -207,14 +202,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public Task<IReadOnlyList<Rect?>> Places() => Task.FromResult(_views.Places(_texts, _start.Environment.Screens()));
 
     public Task<IReadOnlyList<MonitorView>> Monitors() =>
-        Task.FromResult<IReadOnlyList<MonitorView>>([.. _start.Environment.Screens().Select(screen => new MonitorView(
-            screen.Id,
-            screen.Primary,
-            RectOf(screen.Bounds),
-            RectOf(screen.Work),
-            screen.Scale,
-            screen.Taskbar is not null,
-            Snaps.Floats(screen)))]);
+        Task.FromResult<IReadOnlyList<MonitorView>>([.. _start.Environment.Screens().Select(MonitorView.Of)]);
 
     public Task Report(string error)
     {
@@ -325,8 +313,6 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _finder.Dispose();
         _watch.Dispose();
     }
-
-    private static Rect RectOf(PixelRect rect) => new(rect.Left, rect.Top, rect.Width, rect.Height);
 
     // What reads the readings waits for the first ones, as PageWatch says.
     private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);

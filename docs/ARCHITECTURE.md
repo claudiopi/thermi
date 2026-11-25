@@ -29,6 +29,10 @@ How thermi is built, with the real names, so you can find any piece and change i
  │ WindowBridge (Core's IWindowBridge) ─► Views, from SensorClient + Readings  │
  │ WindowEditor ─► Core's edits and UndoHistory ─► Settings + ConfigStore      │
  └─────────────────────────────────────────────────────────────────────────────┘
+ ┌─ thermi-cli.exe (src/Thermi/Agents) ── the same thermi.dll, a console door ─┐
+ │ a command or the MCP server ─► AgentCommands ─► Core's Agents: one JSON doc │
+ │   reads through SystemFeed and hangs up · edits through Core + ConfigStore  │
+ └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Projects
@@ -37,9 +41,10 @@ How thermi is built, with the real names, so you can find any piece and change i
 | --- | --- | --- | --- |
 | `src/Thermi.Core` | a library | nothing | Snapshots, metrics, sensor mapping, formatting, thresholds, config, edits, undo, layout, look and snaps, OLED care, power items and their history, saved styles, visibility, the tray's texts, hotkeys and their status, the translations, and the window's catalog, history and fan finder. |
 | `src/Thermi.SensorHost` | `thermi-sensors.exe`, a service | Core, LibreHardwareMonitor, System.CommandLine, System.ServiceProcess.ServiceController | Reads the sensors and serves snapshots. |
-| `src/Thermi` | `thermi.exe`, the user | Core, the Windows Desktop runtime (GDI+ only), WebView2, Serilog under Microsoft.Extensions.Logging, System.CommandLine, and CsWin32 at build time only | The overlay, its settings file, `thermi preview`, and as `thermi settings` the window that hosts the page, in a process of its own. |
+| `src/Thermi` | `thermi.exe` and `thermi-cli.exe`, the user | Core, the Windows Desktop runtime (GDI+ only), WebView2, Serilog under Microsoft.Extensions.Logging, System.CommandLine, ModelContextProtocol.Core, and CsWin32 at build time only | The overlay, its settings file, `thermi preview`, as `thermi settings` the window that hosts the page, in a process of its own, and as `thermi-cli` the agents' commands and MCP server. |
 | `src/Thermi.Settings.Web` | the page in the window's WebView2, embedded in `thermi.exe` | React, Fluent UI React v9, built by Vite | The settings window's page, which holds no logic of its own: it reads and edits through the bridge. |
-| `src/Thermi.Settings.Types` | the build | Core | Writes the page's TypeScript from Core: the bridge's types and the texts' keys. |
+| `src/Thermi.Settings.Types` | the build | Core | Writes the page's TypeScript from Core: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
+| `src/Thermi.Client` | a library other programs ship, `net10.0` | nothing | The .NET SDK of the agents' contract, which starts `thermi-cli`. |
 | `tests/Thermi.Tests` | the test runner | Core | Behavior from recordings, file formats and the repo rules. |
 | `tests/Thermi.Windows.Tests` | the test runner | all of the above | Real pipes, the service, the painter, the settings file and the window's side of the bridge. |
 
@@ -81,12 +86,13 @@ Why these packages and no others, and why the service takes the fewest, since it
 | **Freshness** | A snapshot older than 3 s counts as gone, and the service as stopped without its pipe or stale with it. `LatestSnapshot` in `SnapshotLines.cs`. |
 | **Host** | The overlay process's one hidden top-level window, class `thermi-host`: the message loop, the tick, the paint throttle, "show", "hotkey status", the hotkeys and the tray icons, and one layered window per overlay. `OverlayHost.cs`. |
 | **Window** | The settings window, `thermi settings [--overlay <n>]`: a Win32 window hosting the page in WebView2, in a process of its own, one at a time while it holds `Local\thermi-window`, on the overlay it was asked for. `Ui/WindowProcess.cs`, `Ui/Web/WebWindow.cs`. |
+| **Agent door** | `thermi-cli.exe`, a second apphost of `thermi.dll` with the console subsystem, so shells wait for it: commands that print one JSON document, or an MCP server on stdio. Each read connects to the pipe and hangs up. The answers' records, in `src/Thermi.Core/Agents`, are the contract's only source (`docs/agents/README.md`). `Agents/AgentCommands.cs`, `Agents/McpTools.cs`. |
 | **Beacon** | The window process's hidden top-level window, class `thermi-settings`, which a second request finds and sends `thermi-raise` to bring the window to the front. `Ui/SettingsBeacon.cs`. |
 
 ## Rules of the road
 
 - **Trust.** The service never reads from its pipe, and nothing of thermi's is elevated by UAC: the window's two fixes run in the `thermi-elevated` service (`docs/adr/0010-driver-and-service-from-the-window.md`). The overlay trusts a pipe only when its owner is SYSTEM or Administrators (`docs/adr/0003-sensor-service.md`).
-- **Failure.** A failure in the service stops it with an error, and a sensor read stuck past 60 s ends its process; either way Windows restarts it. A device whose update stalls or fails holds back none of the others: its last values go out for up to 3 s, then as missing (`docs/adr/0015-a-stalled-device-holds-back-none.md`). Nothing the overlay reads can crash it. An overlay that crashes or hangs anyway, after a minute or more, Windows starts again, never after an update (`docs/adr/0017-windows-restarts-the-overlay.md`). The service's errors go to the Application event log under `thermi-sensors`; the overlay's and the window's go through an injected `ILogger` to `%LOCALAPPDATA%\thermi`, a Serilog file each, `thermi.log` and `thermi-window.log`, rolled at 1 MB with three kept, and `--trace` adds the debug events. The elevated mode writes to the Application event log, under `thermi-sensors`.
+- **Failure.** A failure in the service stops it with an error, and a sensor read stuck past 60 s ends its process; either way Windows restarts it. A device whose update stalls or fails holds back none of the others: its last values go out for up to 3 s, then as missing (`docs/adr/0015-a-stalled-device-holds-back-none.md`). Nothing the overlay reads can crash it. An overlay that crashes or hangs anyway, after a minute or more, Windows starts again, never after an update (`docs/adr/0017-windows-restarts-the-overlay.md`). The service's errors go to the Application event log under `thermi-sensors`; the overlay's and the window's go through an injected `ILogger` to `%LOCALAPPDATA%\thermi`, a Serilog file each, `thermi.log` and `thermi-window.log`, and `thermi-agents.log`, which the agents' commands share, rolled at 1 MB with three kept, and `--trace` adds the debug events. The elevated mode writes to the Application event log, under `thermi-sensors`.
 - **Time.** Code gets time from an injected `TimeProvider`, so tests run on a fake clock.
 - **Above the taskbar.** `Topmost.cs` reacts when a taskbar rises above the overlay, and the once-a-second tick looks again as a safety net, raising it only past a taskbar too (`docs/adr/0004-above-the-taskbar.md`).
 - **Settings.** The file is versioned, and an older version is migrated when read (`ConfigMigration.cs`). A broken or newer file is never overwritten: the overlay keeps the last settings it read well, or the defaults if there were none, and says why (`ConfigProblem.cs`); the window changes nothing until the file is fixed or the last good settings are restored, the broken file kept beside it. Every writer holds the file's mutex from its re-read to its move into place, and a file found locked, empty, cut short or missing is tried again for 500 ms before it counts (`ConfigStore.cs`, `docs/adr/0005-settings-window-process.md`). Each overlay of the file, up to four, is a layered window of its own in the one overlay process (`OverlayHost.cs`).
@@ -130,6 +136,7 @@ Why these packages and no others, and why the service takes the fewest, since it
 | How the service waits for each device | `src/Thermi.SensorHost/DeviceUpdates.cs`, then `tests/Thermi.Windows.Tests/SensorHost/DeviceUpdatesTests.cs` |
 | What `thermi-sensors` does with its arguments | `src/Thermi.SensorHost/Program.cs`, `src/Thermi.SensorHost/SensorCommands.cs`, then `tests/Thermi.Windows.Tests/SensorHost/SensorProgramTests.cs` |
 | How the overlay stays above the taskbar | `src/Thermi/Windows/Topmost.cs`, then `tests/Thermi.Windows.Tests/OnTop/TopmostTests.cs` |
+| What an agent's command answers | `src/Thermi.Core/Agents`, then `tests/Thermi.Tests/Acceptance/ContractTests.cs`; the Windows side in `src/Thermi/Agents`, then `tests/Thermi.Windows.Tests/Acceptance/AgentCommandTests.cs` |
 | Install and uninstall | `scripts/install.ps1` |
 
 ## Next

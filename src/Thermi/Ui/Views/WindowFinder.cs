@@ -41,6 +41,9 @@ internal sealed class WindowFinder(
 
     private bool Running => _finder is { Result: null };
 
+    /// <summary>How the last run ended, or null while it runs or before one.</summary>
+    public FanFinderResult? Result => _finder?.Result;
+
     /// <summary>Starts on the snapshot shown now; nothing happens while it runs, or when it cannot start.</summary>
     public void Start(Snapshot? now)
     {

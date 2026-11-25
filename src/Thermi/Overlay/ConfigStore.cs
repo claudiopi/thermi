@@ -67,7 +67,7 @@ internal sealed class ConfigStore : IDisposable
     }
 
     public static string DefaultPath { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "thermi", "config.json");
+        Path.Combine(Logging.UserFolders.Roaming, "thermi", "config.json");
 
     public string FilePath { get; }
 

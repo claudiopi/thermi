@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "thermi-cli sensors, schema 1",
+  "type": "object",
+  "properties": {
+    "devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "cpu",
+              "gpu",
+              "ram",
+              "board",
+              "ssd",
+              "network",
+              "battery",
+              "system",
+              "game",
+              null
+            ]
+          },
+          "sensors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "temperature",
+                    "load",
+                    "clock",
+                    "power",
+                    "fan",
+                    "control",
+                    "data",
+                    "throughput",
+                    "duration",
+                    "time",
+                    "address",
+                    "frame-rate",
+                    "frame-time",
+                    "voltage"
+                  ]
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "library": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "text": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "why": {
+                  "enum": [
+                    "reads-nothing",
+                    "driver-may-be-missing",
+                    "stopped",
+                    "resting",
+                    "no-frames",
+                    "frames-unread",
+                    null
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "type",
+                "unit"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "sensors"
+        ]
+      }
+    },
+    "schema": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "devices"
+  ]
+}

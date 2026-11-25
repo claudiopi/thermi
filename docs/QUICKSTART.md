@@ -26,7 +26,7 @@ The settings window edits the same file, in a process of its own that closes wit
 
 ## Five ideas you need
 
-- **Separate processes.** The service has admin rights and reads hardware; the overlay has none and draws; the settings window, while open, edits. Each does one job, and a crash in one never takes another down.
+- **Separate processes.** The service has admin rights and reads hardware; the overlay has none and draws; the settings window, while open, edits; `thermi-cli`, for AI agents and other programs, reads and edits the same way and exits. Each does one job, and a crash in one never takes another down.
 - **Core knows no Windows.** Everything that can be decided without Windows, which metric is which sensor, how a value reads, what the overlay shows, lives in Core and is tested without hardware.
 - **Recordings, not mocks.** Tests replay snapshots recorded on real PCs, with and without admin rights. Fakes kinder than real hardware hide the bugs users hit.
 - **Missing is not zero.** Without its driver, a CPU reports 0 °C. thermi treats that as missing, because no running chip is at 0 °C.

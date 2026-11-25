@@ -149,6 +149,8 @@ function Invoke-DotNet {
     Invoke-Step 'build Release' { dotnet build thermi.slnx -c Release --no-restore }
     # From the lock files, the packages the restore just downloaded and the page's, which the build installs.
     Invoke-Step 'third-party notices' { pwsh -NoProfile -File scripts/notices.ps1 -Check }
+    # The .NET SDK's package, as a release publishes it, so one that no longer packs fails here and not then.
+    Invoke-Step 'pack the SDK' { dotnet pack src/Thermi.Client -c Release --no-build -o artifacts/packages --nologo }
     Invoke-Step 'test count' { pwsh -NoProfile -File scripts/test-count.ps1 -Part DotNet }
     # Coverage counts only Core's own tests: the Windows tests would inflate Core's numbers by counting code they run only in passing.
     Invoke-Step 'tests and coverage' {

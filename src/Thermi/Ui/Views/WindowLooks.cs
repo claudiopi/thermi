@@ -51,13 +51,13 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
     {
         var style = look.Name is null
             ? new StyleConfig()
-            : saved.List().FirstOrDefault(style => string.Equals(style.Name, look.Name, StringComparison.OrdinalIgnoreCase));
+            : saved.Named(look.Name);
         if (style is null)
         {
             return Texts.Key(Refusal.StyleNotFound);
         }
 
-        var result = editor.Edit("look", config => look.Overlay is { } one ? StyleEdits.Choose(config, one, style) : Everywhere(config, style));
+        var result = editor.Edit("look", config => StyleEdits.Wear(config, look.Overlay, style));
         return result.Refused is { } refused ? Texts.Key(refused) : null;
     }
 
@@ -83,7 +83,7 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
 
     public string? ExportSaved(string name, Texts texts) => Files(() =>
     {
-        if (saved.List().FirstOrDefault(style => string.Equals(style.Name, name, StringComparison.OrdinalIgnoreCase)) is not { } style)
+        if (saved.Named(name) is not { } style)
         {
             return Refusal.StyleNotFound;
         }
@@ -122,17 +122,6 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
 
         var result = editor.Edit("import look", config => StyleEdits.Import(config, overlay, read));
         return result.Refused is { } refusal ? Texts.Key(refusal) : null;
-    }
-
-    private static EditResult Everywhere(ThermiConfig config, StyleConfig style)
-    {
-        var result = new EditResult(config);
-        for (var overlay = 0; overlay < config.Overlays.Count && result.Refused is null; overlay++)
-        {
-            result = StyleEdits.Choose(result.Config, overlay, style);
-        }
-
-        return result.Refused is null ? result : new EditResult(config, result.Refused, result.Problem);
     }
 
     private StyleConfig StyleOf(int overlay) =>

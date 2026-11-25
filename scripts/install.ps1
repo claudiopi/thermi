@@ -1,7 +1,8 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-Builds thermi from this repo and installs it on this PC, or removes it with -Uninstall.
+Builds thermi from this repo and installs it on this PC, or removes it with -Uninstall. -SensorsOnly installs the
+sensors alone, for AI agents and other programs to read through thermi-cli, with no overlay.
 
 .DESCRIPTION
 Run it as yourself, not as administrator: it builds as you and asks for admin rights (UAC) only to copy
@@ -12,8 +13,10 @@ A first install starts the overlay at your sign-in; a reinstall keeps "Start wit
 left it. Your config in %APPDATA%\thermi is never touched. -Uninstall removes the rest: the files, the service, the
 folder earlier builds kept the driver's installer in, %ProgramData%\thermi, and the window's data in %LOCALAPPDATA%\thermi. It leaves the sensor
 driver, which other programs may use.
+thermi's folder goes on the machine's PATH, for thermi-cli. -SensorsOnly starts no overlay, now or at sign-in, and
+installs the sensor driver where it is missing, since no settings window will offer it.
 #>
-param([switch]$Uninstall)
+param([switch]$Uninstall, [switch]$SensorsOnly)
 
 $ErrorActionPreference = 'Stop'
 $target = Join-Path $env:ProgramFiles 'thermi'
@@ -30,6 +33,11 @@ $elevatedRights = 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;
 # Task Manager's Startup tab turns it off in the second key without deleting it.
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $approvedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+# What was installed, which thermi-cli reads to say there is no overlay to start (src/Thermi/Agents/AgentEnvironment.cs).
+$installKey = 'HKLM:\SOFTWARE\thermi'
+$machineEnvironment = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
+# PawnIO's own uninstall entry, where the sensor library looks for the driver too.
+$driverKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO'
 
 # The thermi this installer started, which holds its files; one started elevated only the elevated step can see. Each
 # is asked to close first, as its tray's "Exit thermi" asks, so its tray icon goes with it and a settings write still
@@ -204,17 +212,44 @@ function Copy-Verified([string]$From, [string]$Hash, [string]$To) {
     return $To
 }
 
+# Unexpanded, so an entry as %SystemRoot% keeps naming its variable; a machine variable set through .NET then tells
+# Explorer the environment changed, so a shell opened next finds thermi-cli without a sign-out.
+function Set-MachinePath([bool]$On) {
+    $key = Get-Item $machineEnvironment
+    $entries = @($key.GetValue('Path', '', 'DoNotExpandEnvironmentNames') -split ';' | Where-Object { $_ -and $_.TrimEnd('\') -ne $target })
+    if ($On) { $entries += $target }
+    Set-ItemProperty $machineEnvironment -Name Path -Value ($entries -join ';') -Type ExpandString
+    [Environment]::SetEnvironmentVariable('THERMI_PATH_CHANGED', $null, 'Machine')
+}
+
+# With no settings window to offer the driver, a sensors-only install starts the window's own fix, which downloads its
+# signed setup as SYSTEM (docs/adr/0010-driver-and-service-from-the-window.md) and goes on after the prompt closes.
+function Set-InstallChoice([bool]$SensorsOnly) {
+    if (-not (Test-Path $installKey)) { New-Item $installKey | Out-Null }
+    Set-ItemProperty $installKey -Name SensorsOnly -Value ([int]$SensorsOnly) -Type DWord
+    if ($SensorsOnly -and -not (Test-Path $driverKey)) {
+        sc.exe start $elevatedService install-driver | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not start installing the sensor driver (sc.exe exit code $LASTEXITCODE)." }
+    }
+}
+
 # The elevated half. Takes the folder to install from, or nothing to uninstall, the hash of its files, and whether the
 # user has the WebView2 runtime. Uninstalling also removes %ProgramData%\thermi, where earlier builds kept the
 # driver's installer (docs/adr/0010-driver-and-service-from-the-window.md). Its error is said in its own window, which waits to be read:
 # nothing it writes may land where the user writes, where a link could send it anywhere.
-function Install-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
+function Install-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2, [bool]$SensorsOnly) {
     try {
         # Program Files, which only administrators write, on the same volume, so the install moves it into place.
         if ($From) { $From = Copy-Verified $From $Hash "$target.new" }
         Install-Service $From
-        if (-not $From) { Remove-Item (Join-Path $env:ProgramData 'thermi') -Recurse -Force -ErrorAction SilentlyContinue }
-        elseif (-not $HasWebView2) {
+        Set-MachinePath ([bool]$From)
+        if (-not $From) {
+            Remove-Item (Join-Path $env:ProgramData 'thermi') -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item $installKey -Recurse -Force -ErrorAction SilentlyContinue
+            return
+        }
+        Set-InstallChoice $SensorsOnly
+        if (-not $HasWebView2) {
             # thermi is installed by then, and the overlay works without the runtime: only the settings window needs it.
             try { Install-WebView2 } catch { exit 3 }
         }
@@ -256,10 +291,10 @@ function Assert-NoCodeLoadingVariable([string[]]$Names) {
 # written whole to $Script before the prompt, with its arguments in it, and loads modules only from PowerShell's own. The
 # command line, which Windows caps at 32,767 characters, carries only its SHA-256: the administrator reads the file once
 # and runs those bytes only if they match, so a file swapped while the prompt waits runs nothing.
-function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [string]$Script) {
+function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [string]$Script, [bool]$SensorsOnly) {
     $quoted = { param([string]$Text) "'$($Text -replace "'", "''")'" }
     $names = 'Stop-Overlay', 'Remove-Service', 'Register-Service', 'Install-Service', 'Restore-Service',
-        'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Install-Elevated'
+        'Install-WebView2', 'Get-TreeHash', 'Copy-Verified', 'Set-MachinePath', 'Set-InstallChoice', 'Install-Elevated'
     $functions = foreach ($name in $names) {
         "function $name {$((Get-Command $name -CommandType Function).Definition)}"
     }
@@ -271,8 +306,11 @@ function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [
         "`$servicePrivileges = $(& $quoted $servicePrivileges)"
         "`$elevatedService = $(& $quoted $elevatedService)"
         "`$elevatedRights = $(& $quoted $elevatedRights)"
+        "`$installKey = $(& $quoted $installKey)"
+        "`$machineEnvironment = $(& $quoted $machineEnvironment)"
+        "`$driverKey = $(& $quoted $driverKey)"
         $functions
-        "Install-Elevated $(& $quoted $From) $(& $quoted $Hash) `$$HasWebView2"
+        "Install-Elevated $(& $quoted $From) $(& $quoted $Hash) `$$HasWebView2 `$$SensorsOnly"
     ) -join "`n"
     $bytes = [Text.Encoding]::UTF8.GetBytes($command)
     [IO.File]::WriteAllBytes($Script, $bytes)
@@ -283,14 +321,14 @@ function Get-ElevatedCommand([string]$From, [string]$Hash, [bool]$HasWebView2, [
     [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($check))
 }
 
-function Invoke-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
+function Invoke-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2, [bool]$SensorsOnly) {
     $pwsh = Get-TrustedPwsh (Join-Path $PSHOME 'pwsh.exe')
     Assert-NoCodeLoadingVariable @(
         (Get-Item 'HKCU:\Environment').Property
         (Get-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').Property)
     $script = Join-Path ([IO.Path]::GetTempPath()) "thermi-install-$([guid]::NewGuid()).ps1"
     try {
-        $arguments = @('-NoProfile', '-EncodedCommand', (Get-ElevatedCommand $From $Hash $HasWebView2 $script))
+        $arguments = @('-NoProfile', '-EncodedCommand', (Get-ElevatedCommand $From $Hash $HasWebView2 $script $SensorsOnly))
         $elevated = Start-Process $pwsh -Verb RunAs -Wait -PassThru -ArgumentList $arguments
     }
     finally {
@@ -304,14 +342,14 @@ function Invoke-Elevated([string]$From, [string]$Hash, [bool]$HasWebView2) {
     elseif ($elevated.ExitCode -ne 0) { throw "The administrator step failed (exit code $($elevated.ExitCode)); its window said why." }
 }
 
-$firstInstall = -not (Test-Path (Join-Path $target 'thermi.exe'))
+$firstInstall = -not (Test-Path (Join-Path $target 'thermi.exe')) -or (Get-ItemProperty $installKey -ErrorAction SilentlyContinue).SensorsOnly -eq 1
 $startsWithWindows = $null -ne (Get-ItemProperty $runKey -Name thermi -ErrorAction SilentlyContinue)
 
 if ($Uninstall) {
     Stop-Overlay
     Remove-ItemProperty $runKey -Name thermi -ErrorAction SilentlyContinue
     Remove-ItemProperty $approvedKey -Name thermi -ErrorAction SilentlyContinue
-    Invoke-Elevated '' '' $true
+    Invoke-Elevated '' '' $true $false
     # The window's WebView2 profile, its place on screen and the log; the settings stay.
     Remove-Item (Join-Path $env:LOCALAPPDATA 'thermi') -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host 'thermi is uninstalled. Your settings are still in' (Join-Path $env:APPDATA 'thermi')
@@ -342,7 +380,14 @@ foreach ($project in 'src/Thermi.SensorHost', 'src/Thermi') {
 
 # Only now, so a build that fails leaves the running thermi alone.
 Stop-Overlay
-Invoke-Elevated $staging (Get-TreeHash $staging) (Test-WebView2)
+Invoke-Elevated $staging (Get-TreeHash $staging) ($SensorsOnly -or (Test-WebView2)) $SensorsOnly
+
+if ($SensorsOnly) {
+    Remove-ItemProperty $runKey -Name thermi -ErrorAction SilentlyContinue
+    Remove-ItemProperty $approvedKey -Name thermi -ErrorAction SilentlyContinue
+    Write-Host "thermi's sensors are installed in $target, with no overlay. Open a new shell and run thermi-cli status."
+    return
+}
 
 $overlay = Join-Path $target 'thermi.exe'
 Start-Process $overlay

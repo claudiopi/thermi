@@ -1,7 +1,7 @@
 <Project>
 
   <!-- The settings window's page (docs/adr/0007-settings-window-in-webview2-and-react.md): before thermi's resources are
-       made, the bridge's TypeScript is written from Core, the web app is installed when its lockfile changed and built
+       made, the bridge's TypeScript and the agents' JSON Schemas (docs/agents/README.md) are written from Core, the web app is installed when its lockfile changed and built
        when anything it builds from changed, and its dist is embedded, served to WebView2 from a virtual host. The
        web build type-checks the page against what was just written, so a change that breaks the bridge fails here.
        Needs Node 22.12 or later; npm installs with the lockfile, never running a package's scripts. -->
@@ -9,6 +9,7 @@
   <PropertyGroup>
     <SettingsWeb>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Thermi.Settings.Web'))\</SettingsWeb>
     <SettingsTypes>$(MSBuildThisFileDirectory)..\Thermi.Settings.Types\Thermi.Settings.Types.csproj</SettingsTypes>
+    <AgentSchemas>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../docs/agents/schema'))</AgentSchemas>
     <DotnetHost Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</DotnetHost>
     <DotnetHost Condition="'$(DOTNET_HOST_PATH)' == ''">dotnet</DotnetHost>
   </PropertyGroup>
@@ -22,7 +23,7 @@
     <MSBuild Projects="$(SettingsTypes)" Targets="GetTargetPath" RemoveProperties="RuntimeIdentifier;SelfContained;PublishReadyToRun;TargetFramework">
       <Output TaskParameter="TargetOutputs" PropertyName="SettingsTypesPath" />
     </MSBuild>
-    <Exec Command="&quot;$(DotnetHost)&quot; exec &quot;$(SettingsTypesPath)&quot; &quot;$(SettingsWeb)src\bridge&quot;" />
+    <Exec Command="&quot;$(DotnetHost)&quot; exec &quot;$(SettingsTypesPath)&quot; &quot;$(SettingsWeb)src\bridge&quot; &quot;$(AgentSchemas)&quot;" />
   </Target>
 
   <Target Name="InstallSettingsWeb" AfterTargets="WriteBridgeTypes" Condition="'$(DesignTimeBuild)' != 'true'"

@@ -23,7 +23,7 @@ internal sealed class SensorPipeServer(Func<CancellationToken, Task<Snapshot>> r
     /// Clients one Windows session may hold: any interactive user can open the pipe, so one who holds it open from their
     /// own session never takes the slots of another's overlay and window.
     /// </summary>
-    public const int PerSession = 4;
+    public const int PerSession = 8;
 
     /// <summary>How long it waits to create the pipe again while someone else holds its name.</summary>
     public static readonly TimeSpan Retry = TimeSpan.FromSeconds(5);

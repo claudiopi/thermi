@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.Agents;
 using Thermi.Commands;
 using Thermi.Logging;
 using Thermi.Overlay;
@@ -31,14 +32,18 @@ internal static class Program
             return 2;
         }
 
+        // The console door runs the agents' commands alone: never the overlay, the window or the elevated mode.
+        var door = ThermiCommands.IsConsoleDoor(Environment.ProcessPath);
         return request switch
         {
+            AgentRequest agent => await RunAgentAsync(agent, time),
+            BuiltInRequest builtIn => await AnswerAsync(builtIn, door),
+            _ when door => await HelpAsync(),
             OverlayRequest overlay => await RunOverlayAsync(overlay.Trace, time),
             SettingsRequest window => await RunWindowAsync(window, time),
             PreviewRequest preview => await Preview.RunAsync(preview, time),
             CpuLoadRequest load => await CpuLoad.RunAsync(load.Seconds, time),
             ElevatedRequest elevated => await RunElevatedAsync(elevated.Verb, time),
-            BuiltInRequest builtIn => await AnswerAsync(builtIn),
             _ => 2,
         };
     }
@@ -62,7 +67,7 @@ internal static class Program
     {
         // A second thermi opens the window, or brings it to the front, and starts no second overlay. It lets go of the
         // mutex first, or an overlay started while that window is open would find it and never run.
-        var single = new Mutex(initiallyOwned: true, @"Local\thermi-overlay", out var first);
+        var single = new Mutex(initiallyOwned: true, HostEnvironment.OverlayMutexName, out var first);
         if (!first)
         {
             single.Dispose();
@@ -90,10 +95,41 @@ internal static class Program
         return ThermiLog.RunLoggedAsync(log, () => Elevated.RunAsync(verb, ElevatedParts.Windows(log), time));
     }
 
-    private static Task<int> AnswerAsync(BuiltInRequest builtIn)
+    private static async Task<int> RunAgentAsync(AgentRequest request, TimeProvider time)
     {
         CommandLineOutput.Borrow(STD_HANDLE.STD_OUTPUT_HANDLE);
-        return builtIn.Parsed.InvokeAsync();
+        CommandLineOutput.Borrow(STD_HANDLE.STD_ERROR_HANDLE);
+        using var logs = ThermiLog.Create(ThermiLog.AgentsPath, time, trace: false);
+        var environment = AgentEnvironment.Of(logs, time);
+        await using var input = Console.OpenStandardInput();
+        await using var output = Console.OpenStandardOutput();
+        return await ThermiLog.RunLoggedAsync(
+            environment.Log,
+            () => AgentRun.RunAsync(request, environment, new AgentConsole(input, output, Console.Error), logs, time));
+    }
+
+    // The console door runs no overlay: with no command, it says what it does, as a mistyped command does, and exits with 2.
+    private static async Task<int> HelpAsync()
+    {
+        if (ThermiCommands.Parse(["--help"], out _) is BuiltInRequest help)
+        {
+            await help.Parsed.InvokeAsync(new System.CommandLine.InvocationConfiguration { Output = Console.Error });
+        }
+
+        return 2;
+    }
+
+    // The console door's stdout carries JSON alone, so its help and version go to stderr.
+    private static Task<int> AnswerAsync(BuiltInRequest builtIn, bool door)
+    {
+        if (!door)
+        {
+            CommandLineOutput.Borrow(STD_HANDLE.STD_OUTPUT_HANDLE);
+            return builtIn.Parsed.InvokeAsync();
+        }
+
+        CommandLineOutput.Borrow(STD_HANDLE.STD_ERROR_HANDLE);
+        return builtIn.Parsed.InvokeAsync(new System.CommandLine.InvocationConfiguration { Output = Console.Error });
     }
 
     private static async Task<int> RunHostAsync(ILoggerFactory logs, TimeProvider time)
@@ -101,7 +137,7 @@ internal static class Program
         var sensors = new SensorClient(time, logs.CreateLogger<SensorClient>());
         var feed = new SystemFeed(sensors, time);
         using var stop = new CancellationTokenSource();
-        var reading = Task.Run(() => sensors.RunAsync(stop.Token), stop.Token);
+        var reading = Task.Run(() => feed.RunAsync(stop.Token), stop.Token);
         // No settings file yet is thermi's first start, which its first notice and the values' tooltips speak to.
         var firstStart = !File.Exists(ConfigStore.DefaultPath);
         using var store = new ConfigStore(ConfigStore.DefaultPath, time);

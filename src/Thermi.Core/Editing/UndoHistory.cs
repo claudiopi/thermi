@@ -231,6 +231,24 @@ public sealed class UndoHistory
         return Apply(current, step.Operations.Reverse(), operation => operation.Undo);
     }
 
+    /// <summary>Puts back the step the last undo took, as when what it made was never written, so the next undo takes it again.</summary>
+    public void CancelUndo()
+    {
+        if (_redo.TryPop(out var step))
+        {
+            _undo.Push(step);
+        }
+    }
+
+    /// <summary>Puts back the step the last redo took, as when what it made was never written.</summary>
+    public void CancelRedo()
+    {
+        if (_undo.TryPop(out var step))
+        {
+            _redo.Push(step);
+        }
+    }
+
     public UndoResult? Redo(ThermiConfig current)
     {
         EndGesture();

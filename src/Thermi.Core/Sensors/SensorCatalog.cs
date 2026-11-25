@@ -324,7 +324,7 @@ public static class SensorCatalog
         : sensor.Value is double.NaN ? NoValue.FramesUnread
         : NoValue.NoFrames;
 
-    private static NoValue? Why(RawSensor sensor, Reading reading) =>
+    internal static NoValue? Why(RawSensor sensor, Reading reading) =>
         SensorMap.ZeroIsMissing(sensor) ? NoValue.DriverMayBeMissing
         : reading.Usable is null ? NothingRead(sensor)
         : reading is not { Kind: SensorKind.Fan, Usable: 0 } ? null

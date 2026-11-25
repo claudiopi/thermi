@@ -126,6 +126,16 @@ public static class ItemEdits
         });
     }
 
+    /// <summary>
+    /// An agent's pick of the fan finder's: the first item of the overlay that shows the CPU fan names that fan, as
+    /// <see cref="ChangeSensor"/> does, so it keeps what it warns by. No item is added.
+    /// </summary>
+    public static EditResult UseCpuFan(ThermiConfig config, int overlay, Snapshot snapshot, string fanId) =>
+        ConfigEdits.OnOverlay(config, overlay, () =>
+            config.Overlays[overlay].Items.FirstOrDefault(item => (item.Metric ?? item.Auto) == Metrics.CpuFan.Id) is { } fan
+                ? ChangeSensor(config, fan.Id, snapshot, fanId)
+                : ConfigEdits.Refuse(config, Refusal.NotFound));
+
     /// <summary>Goes back to the metric the item started from, and what it warns by to its own metric too.</summary>
     public static EditResult BackToAuto(ThermiConfig config, string id)
     {

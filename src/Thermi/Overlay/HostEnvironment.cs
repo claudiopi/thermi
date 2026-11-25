@@ -21,6 +21,9 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     /// <summary>The window's single-instance mutex, which exists while the window is open.</summary>
     public const string WindowMutexName = @"Local\thermi-window";
 
+    /// <summary>The overlay's single-instance mutex, which exists while an overlay runs in this session.</summary>
+    public const string OverlayMutexName = @"Local\thermi-overlay";
+
     public static HostEnvironment Default { get; } = new(
         WindowMutexName,
         Environment.ProcessPath ?? "thermi.exe",
@@ -50,11 +53,14 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     // or crashes takes it away. Any program in the session can make one of the name too: the overlay then believes the
     // window open, which only changes how it looks and rests its hotkeys, and such a program could already do worse as
     // the user.
-    public bool WindowOpen()
+    public bool WindowOpen() => MutexExists(WindowMutex);
+
+    /// <summary>Whether a named mutex is there, looked at and never held; one another account made, as an elevated thermi's, is there too.</summary>
+    public static bool MutexExists(string name)
     {
         try
         {
-            if (!Mutex.TryOpenExisting(WindowMutex, out var mutex))
+            if (!Mutex.TryOpenExisting(name, out var mutex))
             {
                 return false;
             }

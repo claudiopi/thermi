@@ -2229,6 +2229,51 @@
   <data name="UiText.BitsHint" xml:space="preserve">
     <value>Como 99,2 Mbps; sus líneas siguen en bytes</value>
   </data>
+  <data name="AgentText.ServiceMissingCause" xml:space="preserve">
+    <value>El servicio de sensores de thermi no está instalado en esta PC, así que nada lee los sensores.</value>
+  </data>
+  <data name="AgentText.ServiceMissingFix" xml:space="preserve">
+    <value>Pedile a la persona que instale thermi, o solo sus sensores, desde https://github.com/claudiopi/thermi/releases.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedCause" xml:space="preserve">
+    <value>El servicio de sensores de thermi está instalado pero no corre.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedFix" xml:space="preserve">
+    <value>Pedile a la persona que elija Iniciar sensores en el menú de thermi, que pide permisos de administrador una vez. No lo inicies vos.</value>
+  </data>
+  <data name="AgentText.ServiceStaleCause" xml:space="preserve">
+    <value>El servicio de sensores de thermi corre, pero hace unos segundos que no manda lecturas.</value>
+  </data>
+  <data name="AgentText.ServiceStaleFix" xml:space="preserve">
+    <value>Esperá unos segundos y volvé a leer; Windows reinicia el servicio si sigue trabado.</value>
+  </data>
+  <data name="AgentText.PipeTakenCause" xml:space="preserve">
+    <value>Otro programa tiene el nombre del canal de sensores de thermi, así que sus lecturas no son confiables.</value>
+  </data>
+  <data name="AgentText.PipeTakenFix" xml:space="preserve">
+    <value>Pedile a la persona que reinicie la PC, o que cierre el programa que tomó ese nombre.</value>
+  </data>
+  <data name="AgentText.DriverMissingCause" xml:space="preserve">
+    <value>La temperatura, el consumo y la frecuencia de la CPU dan cero: puede faltar el driver que los lee.</value>
+  </data>
+  <data name="AgentText.DriverMissingFix" xml:space="preserve">
+    <value>Pedile a la persona que abra la configuración de thermi, que ofrece instalar el driver con permisos de administrador una vez.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenCause" xml:space="preserve">
+    <value>No se puede usar el archivo de configuración de thermi, así que no se le puede escribir ningún cambio.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenFix" xml:space="preserve">
+    <value>Pedile a la persona que arregle el archivo, o que elija Restaurar la última configuración buena en la ventana de configuración de thermi.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedFixSensorsOnly" xml:space="preserve">
+    <value>Pedile a la persona que inicie el servicio thermi-sensors en Servicios de Windows, como administrador, o que vuelva a correr el instalador de thermi. No lo inicies vos.</value>
+  </data>
+  <data name="AgentText.DriverMissingFixSensorsOnly" xml:space="preserve">
+    <value>Pedile a la persona que vuelva a correr el instalador de thermi, que instala el driver con permisos de administrador una vez.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenFixSensorsOnly" xml:space="preserve">
+    <value>Pedile a la persona que arregle o borre el archivo de configuración de thermi, %APPDATA%\thermi\config.json.</value>
+  </data>
   <data name="OfDevice.Cpu" xml:space="preserve">
     <value>{0} de la CPU</value>
   </data>

@@ -28,6 +28,13 @@ internal sealed class SettingsFolder : IDisposable
 
     public string MutexName => ConfigStore.MutexNameOf(File);
 
+    /// <summary>An environment that gives a thermi process a profile under this folder, never the user's settings or logs.</summary>
+    public IReadOnlyDictionary<string, string> Profile => new Dictionary<string, string>
+    {
+        ["APPDATA"] = Path.Combine(_folder, "roaming"),
+        ["LOCALAPPDATA"] = Path.Combine(_folder, "local"),
+    };
+
     /// <summary>What the settings and their watchers logged.</summary>
     public ListLogger Log { get; } = new();
 

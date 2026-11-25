@@ -30,6 +30,7 @@ The overlay and the settings window.
 
 | Library | License | Source |
 | --- | --- | --- |
+| Microsoft.Extensions.AI.Abstractions | MIT | https://github.com/dotnet/extensions |
 | Microsoft.Extensions.DependencyInjection | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Extensions.DependencyInjection.Abstractions | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Extensions.Logging | MIT | https://github.com/dotnet/dotnet |
@@ -37,6 +38,7 @@ The overlay and the settings window.
 | Microsoft.Extensions.Options | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Extensions.Primitives | MIT | https://github.com/dotnet/dotnet |
 | Microsoft.Web.WebView2 | BSD-3-Clause | https://aka.ms/webview |
+| ModelContextProtocol.Core | Apache-2.0 | https://github.com/modelcontextprotocol/csharp-sdk |
 | Serilog | Apache-2.0 | https://github.com/serilog/serilog |
 | Serilog.Extensions.Logging | Apache-2.0 | https://github.com/serilog/serilog-extensions-logging |
 | Serilog.Sinks.File | Apache-2.0 | https://github.com/serilog/serilog-sinks-file |
@@ -573,10 +575,11 @@ limitations under the License.
 
 ### Apache-2.0, text 3 of 3
 
-Serilog, whose package holds no license file; Serilog.Extensions.Logging, whose package holds no license file; Serilog.Sinks.File, whose package holds no license file
+ModelContextProtocol.Core, whose package holds no license file; Serilog, whose package holds no license file; Serilog.Extensions.Logging, whose package holds no license file; Serilog.Sinks.File, whose package holds no license file
 
 ````text
 Copyright © Serilog Contributors
+© Model Context Protocol a Series of LF Projects, LLC.
 
 Apache License
 Version 2.0, January 2004
@@ -689,7 +692,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### MIT, text 1 of 16
 
-@babel/runtime; @emotion/hash; @floating-ui/core; @floating-ui/devtools; @floating-ui/dom; @floating-ui/utils; @fluentui/react-icons, whose package holds no license file; Microsoft.Extensions.DependencyInjection, whose package holds no license file; Microsoft.Extensions.DependencyInjection.Abstractions, whose package holds no license file; Microsoft.Extensions.Logging, whose package holds no license file; Microsoft.Extensions.Logging.Abstractions, whose package holds no license file; Microsoft.Extensions.Options, whose package holds no license file; Microsoft.Extensions.Primitives, whose package holds no license file; Mono.Posix.NETStandard, whose package holds no license file; System.CodeDom, whose package holds no license file; System.CommandLine, whose package holds no license file; System.Diagnostics.DiagnosticSource, whose package holds no license file; System.Diagnostics.EventLog, whose package holds no license file; System.IO.Ports, whose package holds no license file; System.Management, whose package holds no license file; System.ServiceProcess.ServiceController, whose package holds no license file; embla-carousel, whose package holds no license file; embla-carousel-autoplay, whose package holds no license file; embla-carousel-fade, whose package holds no license file; react; react-dom; scheduler; stylis; use-sync-external-store
+@babel/runtime; @emotion/hash; @floating-ui/core; @floating-ui/devtools; @floating-ui/dom; @floating-ui/utils; @fluentui/react-icons, whose package holds no license file; Microsoft.Extensions.AI.Abstractions, whose package holds no license file; Microsoft.Extensions.DependencyInjection, whose package holds no license file; Microsoft.Extensions.DependencyInjection.Abstractions, whose package holds no license file; Microsoft.Extensions.Logging, whose package holds no license file; Microsoft.Extensions.Logging.Abstractions, whose package holds no license file; Microsoft.Extensions.Options, whose package holds no license file; Microsoft.Extensions.Primitives, whose package holds no license file; Mono.Posix.NETStandard, whose package holds no license file; System.CodeDom, whose package holds no license file; System.CommandLine, whose package holds no license file; System.Diagnostics.DiagnosticSource, whose package holds no license file; System.Diagnostics.EventLog, whose package holds no license file; System.IO.Ports, whose package holds no license file; System.Management, whose package holds no license file; System.ServiceProcess.ServiceController, whose package holds no license file; embla-carousel, whose package holds no license file; embla-carousel-autoplay, whose package holds no license file; embla-carousel-fade, whose package holds no license file; react; react-dom; scheduler; stylis; use-sync-external-store
 
 ````text
 Copyright (c) 2014-present Sebastian McKenzie and other contributors

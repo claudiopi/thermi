@@ -8,11 +8,11 @@ using Serilog.Extensions.Logging;
 namespace Thermi.Logging;
 
 /// <summary>
-/// The logs of the overlay and the window in <c>%LOCALAPPDATA%\thermi</c>, one file each: <c>thermi.log</c> and
-/// <c>thermi-window.log</c>. The elevated mode writes none there (<see cref="EventLogger"/>). Each rolls at 1 MB into
-/// numbered files, the three newest kept, so a burst of errors never wipes what came before. Errors and warnings always;
-/// with <c>--trace</c>, the debug events too. Writing never throws: Serilog keeps a sink's failure to itself, and the
-/// overlay matters more than its log.
+/// The logs of the overlay, the window and the agents' commands in <c>%LOCALAPPDATA%\thermi</c>: <c>thermi.log</c>,
+/// <c>thermi-window.log</c> and <c>thermi-agents.log</c>, which the agents' many short processes share. The elevated
+/// mode writes none there (<see cref="EventLogger"/>). Each rolls at 1 MB into numbered files, the three newest kept,
+/// so a burst of errors never wipes what came before. Information and up always; with <c>--trace</c>, the debug events
+/// too. Writing never throws: Serilog keeps a sink's failure to itself, and the overlay matters more than its log.
 /// </summary>
 internal static class ThermiLog
 {
@@ -25,12 +25,15 @@ internal static class ThermiLog
     private const string Line =
         "{Time:yyyy-MM-dd HH:mm:ss.fff zzz} {Counter:l} {ProcessId} {Level:u3} {SourceContext:l}: {Message:lj}{NewLine}{Exception}";
 
-    public static string Folder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "thermi");
+    public static string Folder { get; } = Path.Combine(UserFolders.Local, "thermi");
 
     // A file per process: two processes rolling one shared file by its size race to rename it, and lose lines or files.
     public static string OverlayPath { get; } = Path.Combine(Folder, "thermi.log");
 
     public static string WindowPath { get; } = Path.Combine(Folder, "thermi-window.log");
+
+    // The agents' commands are many short processes at once: they share one file, of what went wrong and what they changed.
+    public static string AgentsPath { get; } = Path.Combine(Folder, "thermi-agents.log");
 
     public static ILoggerFactory Create(string path, TimeProvider time, bool trace)
     {

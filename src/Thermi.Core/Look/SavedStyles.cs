@@ -29,6 +29,9 @@ public sealed class SavedStyles(string folder)
     public IReadOnlyList<StyleConfig> List() =>
         [.. Files().Select(saved => saved.Style).OrderBy(style => style.Name, StringComparer.OrdinalIgnoreCase)];
 
+    /// <summary>The saved style of that name, in any case, or null when none is saved under it.</summary>
+    public StyleConfig? Named(string name) => Find(name)?.Style;
+
     /// <summary>Saves a copy of the style under the name, which is trimmed; the settings are not changed.</summary>
     public Refusal? Save(StyleConfig style, string name)
     {
@@ -65,7 +68,16 @@ public sealed class SavedStyles(string folder)
         File.WriteAllText(path, StyleFile.Write(style with { Name = trimmed }));
         if (path != file)
         {
-            File.Delete(file);
+            try
+            {
+                File.Delete(file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A rename Windows refuses leaves the one look it found, not a copy under the new name beside it.
+                File.Delete(path);
+                throw;
+            }
         }
 
         history.RenameStyle(from, trimmed);

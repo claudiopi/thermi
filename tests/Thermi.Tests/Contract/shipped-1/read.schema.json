@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "thermi-cli read and each line of watch, schema 1",
+  "type": "object",
+  "properties": {
+    "values": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "metric",
+              "sensor",
+              "item"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "temperature",
+              "load",
+              "clock",
+              "power",
+              "fan",
+              "control",
+              "data",
+              "throughput",
+              "duration",
+              "time",
+              "address"
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "sensor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "device": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "why": {
+            "enum": [
+              "reads-nothing",
+              "driver-may-be-missing",
+              "stopped",
+              "resting",
+              null
+            ]
+          },
+          "min": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "max": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "average": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "samples": {
+            "type": "integer"
+          },
+          "overlay": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "shown": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "level": {
+            "enum": [
+              "normal",
+              "warning",
+              "critical",
+              null
+            ]
+          },
+          "warning": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "critical": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "name",
+          "type",
+          "unit"
+        ]
+      }
+    },
+    "unknown": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "schema": {
+      "type": "integer"
+    },
+    "at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "values",
+    "unknown"
+  ]
+}

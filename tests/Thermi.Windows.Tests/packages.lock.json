@@ -92,6 +92,11 @@
         "resolved": "6.0.0",
         "contentHash": "UcSjPsst+DfAdJGVDsu346FX0ci0ah+lw3WRtn18NUwEqRt70HaOQ7lI72vy3+1LxtqI3T5GWwV39rQSrCzAeg=="
       },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.11.0",
+        "contentHash": "h4DX/TdJU4fk1GGaf19n6Kujkj6VXbGeL4UEOsQ8+ZJC5fVApPauokCtvBP684BYbczUYZQNfo1mbmyHG4WVSg=="
+      },
       "Microsoft.Extensions.Configuration": {
         "type": "Transitive",
         "resolved": "10.0.14",
@@ -484,11 +489,12 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Web.WebView2": "[1.0.4370.26, )",
+          "ModelContextProtocol.Core": "[2.4.0, )",
           "Serilog": "[4.4.0, )",
           "Serilog.Extensions.Logging": "[11.0.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "System.CommandLine": "[3.0.0, )",
-          "Thermi.Core": "[1.0.0, )"
+          "Thermi.Core": "[0.9.0, )"
         }
       },
       "thermi-sensors": {
@@ -497,7 +503,7 @@
           "LibreHardwareMonitorLib": "[0.9.6, )",
           "System.CommandLine": "[3.0.0, )",
           "System.ServiceProcess.ServiceController": "[10.0.15, )",
-          "Thermi.Core": "[1.0.0, )"
+          "Thermi.Core": "[0.9.0, )"
         }
       },
       "thermi.core": {
@@ -523,6 +529,16 @@
         "requested": "[1.0.4370.26, )",
         "resolved": "1.0.4370.26",
         "contentHash": "fCmdjhw8Gg+cbvEkyF+ygObcByFk35WVxTUmLkjSwjhDuLg4V9P7EVPn3rj3g9M2I3WHes/efHS2tIpGX/NCEA=="
+      },
+      "ModelContextProtocol.Core": {
+        "type": "CentralTransitive",
+        "requested": "[2.4.0, )",
+        "resolved": "2.4.0",
+        "contentHash": "q98pZMlcxhsh0LpGXcT2ow7sGNveCPhDlJT3zJ7Cz5nNyPmPkm8P57dUIUpzv1w6qWbdSZcR/Z+RbZtNYjEmXQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.14"
+        }
       },
       "Serilog": {
         "type": "CentralTransitive",

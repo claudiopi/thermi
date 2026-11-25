@@ -6,7 +6,8 @@ Writes the settings window page's TypeScript from `src/Thermi.Core`, so the page
 - `TextKeys.cs` writes `src/Thermi.Settings.Web/src/bridge/texts.g.ts`: the key of every text, `Enum.Member` of Core's translated enums. The texts themselves reach the page through the bridge, in the window's language.
 
 - `Program.cs` writes `src/Thermi.Settings.Web/src/bridge/client.g.ts`: the script the host runs before the page, `BridgeCalls.Client`, as text, so the page's unit tests hold the wire the real window uses.
+- `Program.cs` writes `docs/agents/schema`, too: the JSON Schema of each document of the agents' contract, `AgentSchemas.Current` in `src/Thermi.Core/Agents`, from the records that answer it.
 
 A file is written only when its text changed. All are committed, so the page builds and its tests run without .NET; never edit them by hand.
 
-Run it by hand with `dotnet run --project src/Thermi.Settings.Types -- src/Thermi.Settings.Web/src/bridge`.
+Run it by hand with `dotnet run --project src/Thermi.Settings.Types -- src/Thermi.Settings.Web/src/bridge docs/agents/schema`.

@@ -10,7 +10,7 @@ public sealed partial class RepoRulesTests
 {
     private const int MaxLinesPerFile = 400;
 
-    private static readonly string Root = FindRoot();
+    private static readonly string Root = TestFiles.Root;
 
     private static readonly string[] SkippedFolders =
         ["bin", "obj", ".git", ".vs", "TestResults", "artifacts", "worktrees", "node_modules", "dist", "test-results", "playwright-report"];
@@ -284,15 +284,4 @@ public sealed partial class RepoRulesTests
 
     private static bool SaysSomething(string readme) =>
         File.Exists(readme) && File.ReadLines(readme).Any(line => line.Trim().Length > 0 && !line.StartsWith('#'));
-
-    private static string FindRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "thermi.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("thermi.slnx not found above the test output folder.");
-    }
 }
