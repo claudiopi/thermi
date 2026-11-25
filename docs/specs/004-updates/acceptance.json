@@ -228,7 +228,7 @@
     {
       "id": "A33",
       "covers": ["R30"],
-      "description": "Given the pinned driver or a later one installed already, when the elevated mode's install-driver runs, then it downloads and runs nothing, and only starts the sensors again; an older one, or one whose version cannot be read, it installs over.",
+      "description": "Given the pinned driver or a later one installed already, when the elevated mode's install-driver runs, then it downloads and runs nothing, and only starts the sensors again.",
       "check": "OnlyThePinnedInstallerRunsAndTheSensorsStartAgain",
       "passes": true
     },

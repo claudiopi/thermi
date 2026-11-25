@@ -27,8 +27,8 @@ public sealed record WindowStatus(
     public bool LightTaskbar { get; init; }
 
     /// <summary>
-    /// Whether this is a per-user install, whose driver comes with thermi installed for everyone, behind one prompt
-    /// (docs/adr/0016-admin-on-demand.md).
+    /// Whether this is a per-user install reading the user's own host, whose driver comes with thermi installed for everyone,
+    /// behind one prompt; once the service is read, the fix is the machine's again (docs/adr/0016-admin-on-demand.md).
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public bool ForEveryone { get; init; }

@@ -33,6 +33,13 @@ public static class UserHost
     public static bool PerUserInstall(string top, string localAppData) =>
         Inside(Path.Combine(top, "thermi.exe"), localAppData);
 
+    /// <summary>
+    /// Whether the window's fix installs thermi for everyone: in a per-user install while it reads <paramref name="pipeRead"/>,
+    /// the user's own host's; once the service's is read, the fix is the machine's again.
+    /// </summary>
+    public static bool InstallsForEveryone(string top, string localAppData, string pipeRead) =>
+        PerUserInstall(top, localAppData) && pipeRead != ServicePipe;
+
     public static string Pipe(bool serviceInstalled, string user) => serviceInstalled ? ServicePipe : PipeOf(ServicePipe, user);
 
     /// <summary>The user's own host's pipe, named after <paramref name="pipeName"/>, the service's but in tests.</summary>

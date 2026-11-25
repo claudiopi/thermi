@@ -217,8 +217,10 @@ public sealed class SensorProgramTests : IAsyncDisposable
     private async Task StopOnceSquattedAsync(string pipe, Task held)
     {
         var log = Path.Combine(_folder, "thermi-sensors.log");
+        var start = TimeProvider.System.GetTimestamp();
         while (!held.IsCompleted && !(System.IO.File.Exists(log) && Said(log, "Another program holds")))
         {
+            Assert.True(TimeProvider.System.GetElapsedTime(start) < Patience, "The host never said another program holds its pipe.");
             await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, TestContext.Current.CancellationToken);
         }
 

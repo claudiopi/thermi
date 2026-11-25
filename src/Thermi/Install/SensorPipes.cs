@@ -40,8 +40,8 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
     // The top of a per-user install, where its launchers are; null outside an installed layout, where no host is trusted.
     private static readonly string? Folder = ThermiPaths.Updates is null ? null : Path.GetDirectoryName(ThermiPaths.Launcher);
 
-    // Whether the last pipe picked by any client of this process was the user's own host's.
-    private static bool _perUser;
+    // The last pipe picked by any client of this process.
+    private static string _picked = UserHost.ServicePipe;
 
     private readonly Lock _lock = new();
 
@@ -58,7 +58,7 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
             // Outside an installed layout, as a build run by hand, the pipe is the service's or a terminal's --console.
             var name = Folder is null ? UserHost.ServicePipe : UserHost.Pipe(ServiceInstalled(), User);
             Volatile.Write(ref _name, name);
-            Volatile.Write(ref _perUser, name != UserHost.ServicePipe);
+            Volatile.Write(ref _picked, name);
             return name;
         }
     }
@@ -126,16 +126,12 @@ internal sealed class SensorPipes(TimeProvider time, ILogger log, bool starts) :
         }
     }
 
-    public static bool PerUser => Volatile.Read(ref _perUser);
+    /// <summary>Whether the last pipe picked was the user's own host's.</summary>
+    public static bool PerUser => Volatile.Read(ref _picked) != UserHost.ServicePipe;
 
-    /// <summary>
-    /// Whether the fix installs thermi for everyone: in a per-user install, while it reads the user's own host; once the
-    /// service serves, its window's fix is the machine's again.
-    /// </summary>
-    public static bool InstallsForEveryone => PerUserInstall && PerUser;
-
-    private static bool PerUserInstall { get; } =
-        Folder is not null && UserHost.PerUserInstall(Folder, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    /// <summary>Whether the window's fix installs thermi for everyone, as Core's rule says.</summary>
+    public static bool InstallsForEveryone => Folder is not null
+        && UserHost.InstallsForEveryone(Folder, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Volatile.Read(ref _picked));
 
     /// <summary>The user's own host's pipe in a per-user install, null outside one, which names its events too.</summary>
     public static string? UserPipe => Folder is null ? null : UserHost.Pipe(serviceInstalled: false, User);
