@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -149,7 +148,7 @@ internal sealed class WebWindow : IDisposable
         const MESSAGEBOX_STYLE Style = MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_SETFOREGROUND;
         if (PInvoke.MessageBox(HWND.Null, texts.Of(WindowText.WebViewMissing), texts.Of(WindowText.WebViewMissingTitle), Style) == MESSAGEBOX_RESULT.IDYES)
         {
-            Process.Start(new ProcessStartInfo(RuntimePage) { UseShellExecute = true })?.Dispose();
+            WindowLinks.Shell(RuntimePage);
         }
     }
 
