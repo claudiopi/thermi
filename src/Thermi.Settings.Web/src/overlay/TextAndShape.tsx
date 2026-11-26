@@ -1,5 +1,5 @@
 import type { Style, TextStyle, Value } from '../bridge/bridge.g';
-import { asOneStep, useEdit } from '../bridge/useWindow';
+import { editsAsOneStep, useEdit } from '../bridge/useWindow';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
 import { CardRow, Dropdown, Segmented, Slider } from '../kit';
@@ -65,11 +65,11 @@ export function TextAndShape({ overlay, style, open, onOpen }: TextAndShapeProps
   const setText = (which: 'label' | 'value', text: TextStyle): void => {
     const label = which === 'label' ? text : shown.label;
     const value = which === 'value' ? text : shown.value;
-    void asOneStep(async () => {
-      await edit({ kind: 'style', overlay, field: 'preset', value: 'custom' });
-      await edit({ kind: 'style', overlay, field: 'label', value: textValue(label) });
-      await edit({ kind: 'style', overlay, field: 'value', value: textValue(value) });
-    });
+    void editsAsOneStep([
+      { kind: 'style', overlay, field: 'preset', value: 'custom' },
+      { kind: 'style', overlay, field: 'label', value: textValue(label) },
+      { kind: 'style', overlay, field: 'value', value: textValue(value) },
+    ]);
   };
   return (
     <Expander label={t('OverlayPageText.TextAndShape')} hint={t('OverlayPageText.TextAndShapeHint')} hintWhenOpen open={open} onOpen={onOpen}>

@@ -162,6 +162,38 @@ function NoMatchRow({ said }: { said: string }) {
 const takesFirst = (event: KeyboardEvent<HTMLInputElement>, first: string | undefined): first is string =>
   event.key === 'Enter' && first !== undefined && !event.currentTarget.getAttribute('aria-activedescendant');
 
+/** What the box shows: what is typed while it is open, else the choice; and its hint while it is open. */
+const boxTextOf = (typed: string | null, current: Choice | undefined, filter: string | undefined): { value: string; placeholder: string } => ({
+  value: typed ?? current?.shown ?? current?.text ?? '',
+  placeholder: typed === null ? '' : (filter ?? current?.text ?? ''),
+});
+
+/**
+ * How a choice is taken, which closes the list: picked, or with Enter the first the search found. Fluent clears the choice
+ * as typed text stops starting one; the choice stays the settings', so only a pick counts.
+ */
+function taking(value: string, onChange: (value: string) => void, setTyped: (typed: null) => void, shown: Shown[], found: readonly Found[] | null) {
+  const first = found === null ? undefined : shown[0]?.choice.value;
+  const take = (picked: string): void => {
+    setTyped(null);
+    if (picked !== value && picked !== noMatch) {
+      onChange(picked);
+    }
+  };
+  return {
+    handleKeyDown: (event: KeyboardEvent<HTMLInputElement>): void => {
+      if (takesFirst(event, first)) {
+        take(first);
+      }
+    },
+    handlePick: (picked: string | undefined): void => {
+      if (picked !== undefined) {
+        take(picked);
+      }
+    },
+  };
+}
+
 function DropdownBoxDrawn({
   label,
   choices,
@@ -180,7 +212,6 @@ function DropdownBoxDrawn({
   said,
 }: DropdownBoxProps) {
   const styles = useStyles();
-  const current = choices.find((choice) => choice.value === value);
   const shown = shownOf(choices, found);
   // A list long enough to filter names sensors, whose box keeps the width its page gives it and shows the start of each.
   const fits = useFitsChoices(
@@ -188,24 +219,8 @@ function DropdownBoxDrawn({
     !inline && filter === undefined,
   );
   const input = useMergedRefs(fits, ref);
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
-    const first = found === null ? undefined : shown[0]?.choice.value;
-    if (takesFirst(event, first)) {
-      setTyped(null);
-      if (first !== value) {
-        onChange(first);
-      }
-    }
-  };
-  // Fluent clears the choice as typed text stops starting one; the choice stays the settings', so only a pick counts.
-  const handlePick = (picked: string | undefined): void => {
-    if (picked !== undefined) {
-      setTyped(null);
-      if (picked !== value && picked !== noMatch) {
-        onChange(picked);
-      }
-    }
-  };
+  const { handleKeyDown, handlePick } = taking(value, onChange, setTyped, shown, found);
+  const box = boxTextOf(typed, choices.find((choice) => choice.value === value), filter);
   return (
     <>
     <Combobox
@@ -219,8 +234,8 @@ function DropdownBoxDrawn({
       input={{ className: mergeClasses(styles.input, inline && styles.inlineInput), spellCheck: false }}
       aria-label={label}
       aria-describedby={describedBy}
-      value={typed ?? current?.shown ?? current?.text ?? ''}
-      placeholder={typed === null ? '' : (filter ?? current?.text ?? '')}
+      value={box.value}
+      placeholder={box.placeholder}
       selectedOptions={[value]}
       disabled={disabled}
       onOpenChange={(_, data) => setTyped(data.open ? '' : null)}

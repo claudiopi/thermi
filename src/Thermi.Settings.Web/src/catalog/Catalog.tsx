@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { CatalogView, SensorKind } from '../bridge/bridge.g';
 import { bridge, type WindowData } from '../bridge/useWindow';
 import { Button, Chips, Dropdown, Icon, Panel, SearchField, ToggleChip } from '../kit';
@@ -112,7 +112,8 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
   const [chip, setChip] = useState('all');
   const [showAll, setShowAll] = useState(false);
   const [to, setTo] = useState(ask.overlay);
-  const { view, fresh } = useLastCatalog(typed, chip === 'all' ? [] : [chip as SensorKind], showAll, data.changes);
+  const asked = chip === 'all' ? [] : [chip as SensorKind];
+  const { view, fresh } = useLastCatalog(typed, asked, showAll, data.changes);
   // Down or Enter typed before the list answers what is typed, as fast typing does, act on that answer, not the last.
   const waiting = useRef<ListKey | null>(null);
   const counted = useSaidCount(typed, view, announce);
@@ -134,25 +135,33 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
     void bridge()?.edit({ kind: 'sensorName', sensor, name });
   };
   const first = view?.groups[0]?.sensors[0];
-  const act = (key: ListKey): void => {
-    if (key === 'ArrowDown') {
-      results.current?.querySelector<HTMLElement>('[role="option"]')?.focus();
-    } else if (first !== undefined) {
-      handlePick(first.id, key === 'Control+Enter');
+  const goDown = (): void => results.current?.querySelector<HTMLElement>('[role="option"]')?.focus();
+  const add = (answer: CatalogView | null, key: ListKey): void => {
+    const one = answer?.groups[0]?.sensors[0];
+    if (one !== undefined) {
+      handlePick(one.id, key === 'Control+Enter');
     }
   };
-  const actOnAnswer = useEffectEvent(() => {
-    const key = waiting.current;
-    waiting.current = null;
-    if (key !== null) {
-      act(key);
-    }
-  });
+  // Down waits for the answer's rows to show; Enter adds the answer's first as it comes. The last key waiting wins.
   useEffect(() => {
-    if (fresh) {
-      actOnAnswer();
+    if (fresh && waiting.current === 'ArrowDown') {
+      waiting.current = null;
+      goDown();
     }
   }, [fresh]);
+  const wait = (key: ListKey): void => {
+    waiting.current = key;
+    if (key !== 'ArrowDown') {
+      void bridge()
+        ?.catalog(typed, asked, showAll)
+        .then((answer) => {
+          if (waiting.current === key) {
+            waiting.current = null;
+            add(answer, key);
+          }
+        });
+    }
+  };
   const handleSearchKey = (event: KeyboardEvent<HTMLInputElement>): void => {
     const key = event.key === 'Enter' && event.ctrlKey ? 'Control+Enter' : event.key;
     const onList = key === 'ArrowDown' || ((key === 'Enter' || key === 'Control+Enter') && (!fresh || first !== undefined));
@@ -161,10 +170,12 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
       setTyped('');
     } else if (onList) {
       event.preventDefault();
-      if (fresh) {
-        act(key);
+      if (!fresh) {
+        wait(key);
+      } else if (key === 'ArrowDown') {
+        goDown();
       } else {
-        waiting.current = key;
+        add(view, key);
       }
     }
   };

@@ -1,5 +1,5 @@
 import type { Value } from '../bridge/bridge.g';
-import { asOneStep, useEdit, type WindowData } from '../bridge/useWindow';
+import { editsAsOneStep, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Card, CardRow, CardStack, Dropdown, Segmented, Slider } from '../kit';
 import { useText } from '../texts/Texts';
 import { LookCard } from './LookCard';
@@ -32,10 +32,7 @@ export function Appearance({ data, overlay }: AppearanceProps) {
   // Vertical stacks the pills C# lists, so with one it would change nothing; once on, it can still be turned off.
   const stacksNothing = (data.view.pills[overlay]?.length ?? 0) < 2 && shown.orientation !== 'vertical';
   const themed = (index: number, pills: Value): Promise<unknown> => edit({ kind: 'style', overlay: index, field: 'pills', value: pills });
-  const themeOnAll = (): void =>
-    void asOneStep(() =>
-      overlays.reduce<Promise<unknown>>((done, _, index) => done.then(() => themed(index, shown.pills)), Promise.resolve()),
-    );
+  const themeOnAll = (): void => void editsAsOneStep(overlays.map((_, index) => ({ kind: 'style', overlay: index, field: 'pills', value: shown.pills })));
   return (
     <section className="t-col t-col-look" aria-label={t('OverlayPageText.AppearanceSection')}>
       <h3 className="t-pane-h">{t('OverlayPageText.AppearanceSection')}</h3>
