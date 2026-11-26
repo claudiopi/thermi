@@ -30,4 +30,23 @@ public sealed class ProcessTableTests
         Assert.True(first.Disposed);
         Assert.Equal(second.Facts, taken);
     }
+
+    // A process the service cannot open, as the compositor is to a run without admin rights, is not tried again at each
+    // present: it is looked up in the list until the second's sweep, and only then opened anew.
+    [Fact]
+    public void AProcessThatCannotBeOpenedIsTriedAgainOnlyAfterTheSweep()
+    {
+        var clock = new FakeTimeProvider();
+        using var opened = new EndingProcess(new ProcessFacts(1, Compositor: true));
+        var opens = new Queue<EndingProcess?>([null, opened]);
+        var listed = new ProcessFacts(1, Compositor: false);
+        using var table = new ProcessTable(clock, _ => opens.Dequeue(), () => new() { [7] = listed });
+
+        var within = (table.Of(7), table.Of(7));
+        clock.Advance(TimeSpan.FromSeconds(1));
+        var after = table.Of(7);
+
+        Assert.Equal((listed, listed), within);
+        Assert.Equal(opened.Facts, after);
+    }
 }

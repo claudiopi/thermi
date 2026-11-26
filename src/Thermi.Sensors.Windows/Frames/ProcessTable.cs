@@ -37,8 +37,8 @@ internal interface IHeldProcess : IDisposable
 /// The processes that present, each read once and held open while it runs: Windows' list of every process costs some
 /// 12 ms of CPU on a busy PC, too much to take each second. A held process's id cannot go to another, so its facts never
 /// name a process that took its id. One that cannot be opened, as the compositor is to a run without admin rights,
-/// is looked up in the list, taken again when asked once it is a second old. Names are read only to tell the
-/// compositor, and never kept.
+/// is looked up in the list, taken again when asked once it is a second old, and opened again only after the second's
+/// sweep, not at each of its presents. Names are read only to tell the compositor, and never kept.
 /// </summary>
 internal sealed class ProcessTable(TimeProvider time, Func<int, IHeldProcess?> open, Func<Dictionary<int, ProcessFacts>> list) : IProcessTable
 {
@@ -46,6 +46,7 @@ internal sealed class ProcessTable(TimeProvider time, Func<int, IHeldProcess?> o
 
     private readonly Lock _gate = new();
     private readonly Dictionary<int, IHeldProcess> _held = [];
+    private readonly HashSet<int> _unopened = [];
     private long _swept = time.GetTimestamp();
     private Dictionary<int, ProcessFacts> _listed = [];
     private long? _taken;
@@ -66,8 +67,9 @@ internal sealed class ProcessTable(TimeProvider time, Func<int, IHeldProcess?> o
 
             if (!_held.TryGetValue(process, out var held))
             {
-                if (open(process) is not { } opened)
+                if (_unopened.Contains(process) || open(process) is not { } opened)
                 {
+                    _unopened.Add(process);
                     return Listed(process);
                 }
 
@@ -90,6 +92,7 @@ internal sealed class ProcessTable(TimeProvider time, Func<int, IHeldProcess?> o
             }
 
             _held.Clear();
+            _unopened.Clear();
         }
     }
 
@@ -107,6 +110,7 @@ internal sealed class ProcessTable(TimeProvider time, Func<int, IHeldProcess?> o
     private void Sweep()
     {
         _swept = time.GetTimestamp();
+        _unopened.Clear();
         foreach (var (process, held) in _held.Where(each => each.Value.Exited).ToList())
         {
             held.Dispose();
