@@ -38,9 +38,11 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
 
     // After a drop the overlay left under the pointer shows no tooltip until 1.5 s pass, whether the drop moved it, joined
     // another or made a new one: the GPU's pill lifted and dropped back where it was pressed, which is no click, or thrown
-    // onto the desktop, and the overlay of one pill dropped on the other.
+    // onto the desktop, and the overlay of one pill dropped on the other; and a press there before the quiet ends keeps the
+    // tooltips quiet past it, as long as the press holds.
     [Theory]
     [InlineData("back")]
+    [InlineData("again")]
     [InlineData("off")]
     [InlineData("merge")]
     public async Task AfterADropTheOverlayUnderThePointerShowsNoTooltipForAWhile(string drag)
@@ -57,19 +59,16 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
             Hold(host, held);
             var dropped = drag == "merge" ? DroppedAt(host, drag, pressed) : new Position(pressed.X + By.X, pressed.Y + By.Y);
             MoveTo(host, held, dropped);
-            dropped = drag == "back" ? pressed : dropped;
+            dropped = drag is "back" or "again" ? pressed : dropped;
             MoveTo(host, held, dropped);
             End(host, held.Hwnd, "drop");
             HostRun.Until(host, Folder.Clock, () => host.Overlays.Count == (drag == "off" ? 2 : 1) && Under(host, dropped) is not null);
             var under = Under(host, dropped)!;
             quiet = !under.TipsShow;
-            Folder.Clock.Advance(DropQuiet.Lasts);
-            PInvoke.PostMessage(under.Hwnd, PInvoke.WM_TIMER, ValueTips.QuietTimer, 0);
-            HostRun.Pump(host);
-            after = under.TipsShow;
+            after = SpeaksAfterTheQuiet(host, under, dropped, pressedAgain: drag == "again");
         });
 
-        Assert.Equal((true, true), (quiet, after));
+        Assert.Equal((true, drag != "again"), (quiet, after));
     }
 
     // A value held in the CPU pill lifts its item alone, whose empty slot takes its value's place and leaves the pill its label.
@@ -99,6 +98,26 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
         Assert.NotEmpty(value);
     }
 
+    // Whether a tooltip may show once the quiet's timer wakes the overlay after it has lasted, the pointer pressed on the
+    // overlay again before or not.
+    private bool SpeaksAfterTheQuiet(OverlayHost host, OverlayWindow under, Position at, bool pressedAgain)
+    {
+        if (pressedAgain)
+        {
+            MoveTo(host, under, at, PInvoke.WM_LBUTTONDOWN);
+        }
+
+        Folder.Clock.Advance(DropQuiet.Lasts);
+        PInvoke.PostMessage(under.Hwnd, PInvoke.WM_TIMER, ValueTips.QuietTimer, 0);
+        HostRun.Pump(host);
+        var speaks = under.TipsShow;
+        if (pressedAgain)
+        {
+            End(host, under.Hwnd, "esc");
+        }
+
+        return speaks;
+    }
     // The 12 columns of pixels from x on, as ARGB.
     private static List<int> Column(Bitmap picture, int x) =>
         [.. Enumerable.Range(x, 12).SelectMany(at => Enumerable.Range(0, picture.Height).Select(y => picture.GetPixel(at, y).ToArgb()))];

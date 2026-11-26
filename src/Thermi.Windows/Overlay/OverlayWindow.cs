@@ -288,7 +288,7 @@ internal sealed class OverlayWindow : IDisposable
     private void Pressed(OverlayConfig overlay)
     {
         PInvoke.SetCapture(Hwnd);
-        _tips.Quiet(true);
+        _tips.Quiet(Hush.Press, true);
         _gestures.Let();
         if (_painted is { } painted && _scene is { } scene)
         {
@@ -297,18 +297,16 @@ internal sealed class OverlayWindow : IDisposable
     }
 
     // A drop leaves the pointer on a value of this overlay or another, whose tooltip waits until the pointer leaves or a
-    // while passes, as each overlay hears at its next paint.
+    // while passes: this overlay's from the drop on, as its press lets go, the others' as each hears at its next paint.
     private void Dropped(bool dragged)
     {
         if (dragged)
         {
             _actions.Quiet.Dropped();
-        }
-        else
-        {
-            _tips.Quiet(false);
+            _tips.After(_actions.Quiet);
         }
 
+        _tips.Quiet(Hush.Press, false);
         _gestures.Let();
         _actions.RequestPaint();
     }
@@ -383,9 +381,9 @@ internal sealed class OverlayWindow : IDisposable
 
     private void ShowMenu()
     {
-        _tips.Quiet(true);
+        _tips.Quiet(Hush.Menu, true);
         _actions.Menu(_index, ItemAt(_actions.Cursor()));
-        _tips.Quiet(false);
+        _tips.Quiet(Hush.Menu, false);
     }
 
     internal void Separate(string item) => _gestures.Separate(item, _painted, _scene?.Screens ?? []);
