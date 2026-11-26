@@ -480,9 +480,6 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Web.WebView2": "[1.0.4370.26, )",
-          "Serilog": "[4.4.0, )",
-          "Serilog.Extensions.Logging": "[11.0.0, )",
-          "Serilog.Sinks.File": "[7.0.0, )",
           "System.CommandLine": "[3.0.0, )",
           "System.ServiceProcess.ServiceController": "[10.0.15, )",
           "Thermi.App": "[0.9.0, )",
@@ -505,6 +502,9 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[11.0.0, )",
+          "Serilog": "[4.4.0, )",
+          "Serilog.Extensions.Logging": "[11.0.0, )",
+          "Serilog.Sinks.File": "[7.0.0, )",
           "Thermi.Core": "[0.9.0, )"
         }
       },

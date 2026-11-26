@@ -68,9 +68,6 @@ internal static partial class LogEvents
             + "8 when it installed and Windows must restart for it to load")]
     public static partial void ElevatedEnded(this ILogger logger, string verb, int code);
 
-    [LoggerMessage(Level = LogLevel.Critical, Message = "The process ended on an error")]
-    public static partial void Ended(this ILogger logger, Exception error);
-
     [LoggerMessage(Level = LogLevel.Error, Message = "The window's page asked for {Method}, which failed")]
     public static partial void PageCallFailed(this ILogger logger, string method, Exception error);
 

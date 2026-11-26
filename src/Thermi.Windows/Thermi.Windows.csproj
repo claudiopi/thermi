@@ -32,9 +32,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
-    <PackageReference Include="Serilog" />
-    <PackageReference Include="Serilog.Extensions.Logging" />
-    <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.CommandLine" />
     <PackageReference Include="System.ServiceProcess.ServiceController" />
     <PackageReference Include="Microsoft.Web.WebView2" />

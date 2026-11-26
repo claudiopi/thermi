@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.App.Finder;
+using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;

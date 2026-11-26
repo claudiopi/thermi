@@ -4,16 +4,16 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
-using Thermi.App.Logging;
 
-namespace Thermi.Windows.Logging;
+namespace Thermi.App.Logging;
 
 /// <summary>
-/// The logs of the overlay, the window and the agents' commands in <c>%LOCALAPPDATA%\thermi</c>: <c>thermi.log</c>,
-/// <c>thermi-window.log</c> and <c>thermi-agents.log</c>, which the agents' many short processes share. The elevated
-/// mode writes none there (<see cref="EventLogger"/>). Each rolls at 1 MB into numbered files, the three newest kept,
-/// so a burst of errors never wipes what came before. Information and up always; with <c>--trace</c>, the debug events
-/// too. Writing never throws: Serilog keeps a sink's failure to itself, and the overlay matters more than its log.
+/// The logs of the overlay, the window and the agents' commands in the user's local folder,
+/// <c>%LOCALAPPDATA%\thermi</c> on Windows: <c>thermi.log</c>, <c>thermi-window.log</c> and <c>thermi-agents.log</c>,
+/// which the agents' many short processes share. A process an administrator runs writes none there, nor do the
+/// services, which log to the OS's own log. Each rolls at 1 MB into numbered files, the three newest kept, so a burst
+/// of errors never wipes what came before. Information and up always; with <c>--trace</c>, the debug events too.
+/// Writing never throws: Serilog keeps a sink's failure to itself, and the overlay matters more than its log.
 /// </summary>
 internal static class ThermiLog
 {
@@ -21,7 +21,7 @@ internal static class ThermiLog
 
     public const int Files = 3;
 
-    // Time from the injected clock, then its counter in seconds to the microsecond: Windows' performance counter, the
+    // Time from the injected clock, then its counter in seconds to the microsecond: the OS's performance counter, the
     // same in every process, so the time from an input in the window to the overlay's paint reads from their lines.
     private const string Line =
         "{Time:yyyy-MM-dd HH:mm:ss.fff zzz} {Counter:l} {ProcessId} {Level:u3} {SourceContext:l}: {Message:lj}{NewLine}{Exception}";
@@ -57,7 +57,7 @@ internal static class ThermiLog
     /// <summary>
     /// Runs a process's work and logs what escapes it, which then ends the process as it would have: otherwise a failure
     /// of the overlay or the window outside its message loop would leave nothing in the log. A failure on a thread of its
-    /// own, as a timer's callback, ends the process without passing through here, so it is logged as Windows hands it
+    /// own, as a timer's callback, ends the process without passing through here, so it is logged as .NET hands it
     /// over; that hook is gone before the work's own failure leaves, which is logged here, so nothing is logged twice.
     /// </summary>
     public static async Task<int> RunLoggedAsync(Microsoft.Extensions.Logging.ILogger log, Func<Task<int>> work)

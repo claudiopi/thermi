@@ -8,6 +8,6 @@ What the overlay and the settings window decide beyond Core that needs a package
 | `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
 | `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, and the last gesture's undo. |
 | `Window` | The settings window's logic over the settings: its edits and undo, the sensors' readings and charts it keeps, and how it reads each snapshot. |
-| `Logging` | The events of what lives here, each a `[LoggerMessage]`, and the user's folders. |
+| `Logging` | The user's logs in their local folder, the events of what lives here, each a `[LoggerMessage]`, and the user's folders. |
 
 Its tests run where its hosts are: `tests/Thermi.Windows.Tests` drives it with real files, other writers and the clock.

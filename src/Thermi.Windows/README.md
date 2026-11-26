@@ -14,7 +14,7 @@ One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. 
 | `Win32/Clipboard` | "Copy as image" and copying text. |
 | `Install` | Which sensor pipe to trust, the per-user sensor host, and the move to a machine install. |
 | `Updates` | The overlay's and the window's side of an update: the quiet moment, the hand-over, About's check. |
-| `Logging` | The logs in `%LOCALAPPDATA%\thermi`, each event a `[LoggerMessage]`. |
+| `Logging` | The events of Windows' own code, each a `[LoggerMessage]`, and the Event Log the elevated mode writes to. |
 | `Commands` | The command line, `thermi preview` and the elevated mode's two fixes. |
 | `Agents` | What `thermi-cli`'s commands, `src/Thermi.Cli`'s, reach on Windows: the pipe, the service's registration, the overlay's mutex, the Run key, the monitors. |
 | `Ui` | The settings window's process, its beacon, "Start with Windows" and the elevation check. |

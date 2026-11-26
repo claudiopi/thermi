@@ -19,4 +19,7 @@ internal static partial class AppLog
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "input {Input}")]
     public static partial void Input(this ILogger logger, string input);
+
+    [LoggerMessage(Level = LogLevel.Critical, Message = "The process ended on an error")]
+    public static partial void Ended(this ILogger logger, Exception error);
 }
