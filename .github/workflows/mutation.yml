@@ -30,12 +30,8 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      - shell: pwsh
-        run: |
-          pwsh -NoProfile -File scripts/mutation.ps1 | Tee-Object -Variable printed
-          $code = $LASTEXITCODE
-          "### Thermi.Core and Thermi.Cli`n`n$($printed | Where-Object { $_ -match 'mutation:' })" >> $env:GITHUB_STEP_SUMMARY
-          exit $code
+      # The script writes the job's summary itself.
+      - run: pwsh -NoProfile -File scripts/mutation.ps1
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -55,16 +51,8 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: src/Thermi.Settings.Web/package-lock.json
-      - shell: pwsh
-        working-directory: src/Thermi.Settings.Web
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund
-          npm run mutation | Tee-Object -Variable printed
-          $code = $LASTEXITCODE
-          "### The page's logic`n`n$($printed | Where-Object { $_ -match 'Final mutation score|All files' })" >> $env:GITHUB_STEP_SUMMARY
-          if ($code -ne 0) { exit $code }
-          # The cases that hold nothing of their own, as scripts/check.ps1 -Mutation lists and gates them.
-          pwsh -NoProfile -File ../../scripts/redundant.ps1 -Report ../../TestResults/mutation-web/mutation-report.json -Root .
+      - run: npm ci --prefix src/Thermi.Settings.Web --ignore-scripts --no-audit --no-fund
+      - run: pwsh -NoProfile -File scripts/mutation.ps1 -Web
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

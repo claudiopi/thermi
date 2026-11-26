@@ -61,7 +61,7 @@ function FinderAsking({ onStart, onCancel }: { onStart: () => void; onCancel: ()
       <span id={ask} className="t-finder-hint">
         {t('CatalogText.FinderAsk')}
       </span>
-      <Button className="t-finder-small" kind="accent"describedBy={ask} onClick={onStart}>
+      <Button className="t-finder-small" kind="accent" describedBy={ask} onClick={onStart}>
         {t('CatalogText.LoadCpu')}
       </Button>
       <Button className="t-finder-small" onClick={onCancel}>
@@ -120,6 +120,17 @@ function FinderDone({ found, detail, fan, onUseFan }: FinderDoneProps) {
   );
 }
 
+/** What the run found, worded, and the fan to use, unless the item uses it already. */
+function useOutcome(data: WindowData, item: Item, finder: FinderView | null): Omit<FinderDoneProps, 'onUseFan'> {
+  const t = useText();
+  const pick = finder?.pick ?? null;
+  const fan = data.sensors.sensors.find((sensor) => sensor.id === pick);
+  const found = fan === undefined ? (finder?.text ?? '') : t('FanFinderOutcome.Found', fan.name);
+  // On Auto, the item uses the fan Auto picks.
+  const used = pick !== null && (item.sensor ?? data.view.items[item.id]?.auto) === pick;
+  return { found, detail: used ? t('CatalogText.AlreadyUsed') : (finder?.detail ?? null), fan: used ? null : pick };
+}
+
 /**
  * "Find it", under the CPU fan's sensor: it loads the CPU for up to 30 s and watches which fan answers, with its
  * progress, Cancel and the fan it found in place. The C# side runs it and words where it stands.
@@ -133,13 +144,7 @@ export function FinderRow({ data, item, onUseFan }: FinderRowProps) {
   const shown = asking && run === 'idle' ? 'asking' : run;
   const [spoken, say] = useState('');
   useFocusFollows(shown, row);
-
-  const pick = finder?.pick ?? null;
-  const fan = data.sensors.sensors.find((sensor) => sensor.id === pick);
-  const found = fan === undefined ? (finder?.text ?? '') : t('FanFinderOutcome.Found', fan.name);
-  // On Auto, the item uses the fan Auto picks.
-  const used = pick !== null && (item.sensor ?? data.view.items[item.id]?.auto) === pick;
-  const detail = used ? t('CatalogText.AlreadyUsed') : (finder?.detail ?? null);
+  const { found, detail, fan } = useOutcome(data, item, finder);
   const handleStart = (): void => {
     ask(false);
     say(t('CatalogText.FinderStarted'));
@@ -154,7 +159,7 @@ export function FinderRow({ data, item, onUseFan }: FinderRowProps) {
       {shown === 'idle' && <FinderIdle refusal={finder?.refusal} onStart={() => ask(true)} />}
       {shown === 'asking' && <FinderAsking onStart={handleStart} onCancel={() => ask(false)} />}
       {shown === 'running' && <FinderRunning finder={finder} onCancel={handleCancel} />}
-      {shown === 'done' && <FinderDone found={found} detail={detail} fan={used ? null : pick} onUseFan={onUseFan} />}
+      {shown === 'done' && <FinderDone found={found} detail={detail} fan={fan} onUseFan={onUseFan} />}
       <span className="t-announce" aria-live="polite">
         {shown === 'done' ? found : spoken}
       </span>

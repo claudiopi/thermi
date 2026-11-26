@@ -171,6 +171,11 @@ export async function asOneStep(edits: () => Promise<unknown>): Promise<void> {
   }
 }
 
+/** Several edits as one undo step, each asked once the one before it is answered, in the order given. */
+export function editsAsOneStep(edits: readonly Edit[]): Promise<void> {
+  return asOneStep(() => edits.reduce<Promise<unknown>>((done, one) => done.then(() => bridge()?.edit(one)), Promise.resolve()));
+}
+
 /**
  * What the bridge answers to `read` for `arg`, read again each time `version` changes and, when `live`, with each
  * second's readings too; null until it answers. An answer that holds what the last did keeps it, which draws nothing.

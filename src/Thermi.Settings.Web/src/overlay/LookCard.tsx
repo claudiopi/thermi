@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Value } from '../bridge/bridge.g';
-import { asOneStep, bridge, useEdit, type WindowData } from '../bridge/useWindow';
+import { bridge, editsAsOneStep, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Icon, Menu, type MenuEntry } from '../kit';
 import { NameDialog } from '../status/NameDialog';
 import { useNews } from '../status/useNews';
@@ -69,15 +69,12 @@ export function LookCard({ data, overlay }: LookCardProps) {
     { kind: 'divider', id: 'end' },
     { kind: 'action', id: 'delete', text: t('UiText.DeleteStyle'), onRun: () => void deleteLook(name) },
   ];
-  const copyToAll = (): Promise<void> =>
-    asOneStep(async () => {
-      const fields = (one?.style ?? {}) as Record<string, Value | undefined>;
-      for (const index of data.settings.overlays.keys()) {
-        for (const field of index === overlay ? [] : lookFields) {
-          await edit({ kind: 'style', overlay: index, field, value: fields[field] ?? null });
-        }
-      }
-    });
+  const copyToAll = (): Promise<void> => {
+    const fields = (one?.style ?? {}) as Record<string, Value | undefined>;
+    const others = [...data.settings.overlays.keys()].filter((index) => index !== overlay);
+    const copies = others.flatMap((index) => lookFields.map((field) => ({ kind: 'style' as const, overlay: index, field, value: fields[field] ?? null })));
+    return editsAsOneStep(copies);
+  };
   const fileMenu: MenuEntry[] = [
     ...(many
       ? [

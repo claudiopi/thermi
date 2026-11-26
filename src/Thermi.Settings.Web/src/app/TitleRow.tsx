@@ -2,7 +2,7 @@ import type { Ref } from 'react';
 import type { MarkState, UndoSteps } from '../bridge/bridge.g';
 import { Button, Icon, Menu, steady, Tooltip } from '../kit';
 import { useText } from '../texts/Texts';
-import { Creature } from './Creature';
+import { AppName } from './AppName';
 
 export interface TitleRowProps {
   /** thermi's mark as the tray shows it now. */
@@ -21,17 +21,6 @@ export interface TitleRowProps {
   onShortcuts: () => void;
   onExit: () => void;
   navRef: Ref<HTMLButtonElement>;
-}
-
-/** The mark, in the tray's state, and thermi's name, at the title row's start. */
-export function AppName({ mark }: { mark: MarkState }) {
-  const t = useText();
-  return (
-    <h1 className="t-app">
-      <Creature state={mark} className="t-mark" />
-      <span>{t('UiText.AppName')}</span>
-    </h1>
-  );
 }
 
 /**

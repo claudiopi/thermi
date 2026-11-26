@@ -4,7 +4,7 @@
 
 ## Open
 
-Checks on hardware other than the development PC: [Hardware reports](https://github.com/claudiopi/thermi/issues/HARDWARE_REPORTS) (A218, A235, A239, A241, A252).
+Checks on hardware other than the development PC: [Hardware reports](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml) (A218, A235, A239, A241, A252).
 
 By hand on the development PC, before publishing:
 

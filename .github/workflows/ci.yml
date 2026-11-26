@@ -116,11 +116,16 @@ jobs:
         run: |
           . ./scripts/publish.ps1
           $version = @(([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version | Where-Object { $_ })[0]
+          $rows = '### 📦 MSIs', '', '| | MSI | Size |', '| :-: | --- | --: |'
           foreach ($processor in 'x64', 'arm64') {
             Publish-Thermi "artifacts/ci-msi-$processor" $processor $version
             Build-Msi "artifacts/ci-msi-$processor" $processor $version "thermi-$version-$processor.msi"
             Build-Msi "artifacts/ci-msi-$processor" $processor $version "thermi-$version-$processor-user.msi" -PerUser
+            foreach ($msi in "thermi-$version-$processor.msi", "thermi-$version-$processor-user.msi") {
+              $rows += '| ✅ | `{0}` | {1:n1} MB |' -f $msi, ((Get-Item $msi).Length / 1MB)
+            }
           }
+          $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
   pr-title:
     if: github.event_name == 'pull_request'
@@ -147,6 +152,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      # One row per job, each of which wrote its own table: what ran, what it measured and how long it took.
+      - shell: pwsh
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          $icons = @{ success = '✅'; failure = '❌'; cancelled = '🚫'; skipped = '⏭️' }
+          $rows = (ConvertFrom-Json $env:NEEDS).PSObject.Properties | ForEach-Object { "| $($icons[$_.Value.result]) | $($_.Name) | $($_.Value.result) |" }
+          @('### CI gate', '', '| | Job | Result |', '| :-: | --- | --- |') + $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
           needs.web.result != 'success' || needs.msi.result != 'success' ||

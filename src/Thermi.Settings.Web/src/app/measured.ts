@@ -1,14 +1,21 @@
-import { useLayoutEffect, useState, type RefObject } from 'react';
-import { flushSync } from 'react-dom';
+import { useLayoutEffect, useState, useSyncExternalStore, type RefObject } from 'react';
+
+const windowSize = (): string => `${window.innerWidth}x${window.innerHeight}`;
+const onWindowResize = (changed: () => void): (() => void) => {
+  window.addEventListener('resize', changed);
+  return () => window.removeEventListener('resize', changed);
+};
 
 /**
- * What `measure` reads of an element's layout, followed as it changes. Read before the first paint and in the window's
- * resize event, which comes before layout, so it draws at its new size in the frame that resized, never cut on a busy PC.
+ * What `measure` reads of an element's layout, followed as it changes. Read before the first paint and as the window
+ * resizes, whose size React reads as a store: a store's change renders at once, before layout, so it draws at its new
+ * size in the frame that resized, never cut on a busy PC.
  * A ResizeObserver catches any other resize but only sets state: a layout change in its callback resizes the page around
  * it in the same frame, which the browser reports as a ResizeObserver loop.
  */
 export function useMeasured<T>(target: RefObject<HTMLElement | null>, measure: (element: HTMLElement) => T | null, initial: T): T {
   const [value, setValue] = useState(initial);
+  const sized = useSyncExternalStore(onWindowResize, windowSize);
   useLayoutEffect(() => {
     const element = target.current;
     if (element === null) {
@@ -21,12 +28,7 @@ export function useMeasured<T>(target: RefObject<HTMLElement | null>, measure: (
     read();
     const observer = new ResizeObserver(read);
     observer.observe(element);
-    const resized = (): void => flushSync(read);
-    window.addEventListener('resize', resized);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', resized);
-    };
-  }, [target, measure]);
+    return () => observer.disconnect();
+  }, [target, measure, sized]);
   return value;
 }
