@@ -10,11 +10,11 @@ namespace Thermi.Tests;
 internal static class MadeUpHardware
 {
     /// <summary>The recorded adapters and drive, from <see cref="TestRecordings.NetDisk"/>: the Ethernet one moving data, the Wi-Fi one idle.</summary>
-    public const string Ethernet = "/nic/%7B12406381-1BFB-4568-8315-73797B3F896D%7D";
-    public const string WiFi = "/nic/%7B71C89706-EB0D-4A76-8A35-8CE7E9353E5E%7D";
+    public const string Ethernet = "/nic/%7B00000000-0000-4000-8000-000000000002%7D";
+    public const string WiFi = "/nic/%7B00000000-0000-4000-8000-000000000006%7D";
     public const string Samsung = "/nvme/0";
 
-    public const string Wsl = "/nic/%7BC0A8E3F7-1B22-4D5C-8E90-6A7B3D1F2C04%7D";
+    public const string Wsl = "/nic/%7B00000000-0000-4000-8000-00000000000C%7D";
     public const string Western = "/nvme/1";
     public const string Battery = "/battery/0";
 

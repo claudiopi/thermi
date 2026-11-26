@@ -189,6 +189,32 @@ public sealed partial class RepoRulesTests
         AssertNone(leaks);
     }
 
+    // A public repo's recordings and snapshots are read by anyone, so they name no PC, person or network: an adapter's id is
+    // its interface's GUID, so a recording's adapters carry made-up ones, 00000000-0000-4000-8000-000000000001 on. A folder
+    // that moved fails here too, or this would pass without reading a thing.
+    [Fact]
+    public void RecordedDataNamesNoMachinePersonOrNetwork()
+    {
+        string[] watched = [Path.Combine(Root, "tests"), Path.Combine(Root, "src", "Thermi.Settings.Web", "tests")];
+        var data = watched.SelectMany(FilesUnder)
+            .Where(path => Path.GetExtension(path) is ".json" or ".jsonl" && Path.GetFileName(path) != "packages.lock.json")
+            .ToList();
+        Assert.Contains(data, path => Relative(path).StartsWith(Path.Combine("tests", "Thermi.Tests", "Recordings"), StringComparison.Ordinal));
+        Assert.Contains(data, path => Path.GetFileName(path) == "edits.json");
+
+        AssertNone(data.SelectMany(path => PersonalData().Matches(File.ReadAllText(path))
+            .Select(match => $"{Relative(path)} holds {match.Value}: replace it with a made-up one")));
+    }
+
+    // Real GUIDs, MACs, IPv4s (loopback and documentation ranges aside), user folders, default PC names and identity fields.
+    [GeneratedRegex(
+        @"(?!00000000-0000-4000-8000-)[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}(?![0-9A-F])|\b(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}\b"
+        + @"|\b(?!127\.|192\.0\.2\.|198\.51\.100\.|203\.0\.113\.)(?:\d{1,3}\.){3}\d{1,3}\b|[A-Z]:(?:\\|/)+Users(?:\\|/)+(?!Public\b)\w"
+        + @"|\b(?:DESKTOP|LAPTOP)-[A-Z0-9]{7}\b|""(?:machine|computer|host|user)_?name""|""(?:ssid|serial|serialNumber|serial_number)""",
+        RegexOptions.IgnoreCase,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex PersonalData();
+
     // A silenced warning without a reason is how hundreds of suppressions pile up.
     [Fact]
     public void EverySuppressionSaysWhy()

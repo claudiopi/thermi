@@ -91,6 +91,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Package versions live in `Directory.Packages.props`; lock files are committed; packages come only from nuget.org. | NuGet, `nuget.config`, `--locked-mode` in CI |
 | No package with a known vulnerability: any NuGet package, and any npm package the page ships, unless `scripts/audit.ps1` lists its advisory with why it cannot reach a user and a date to look again. A PR adds none. | `scripts/audit.ps1` and dependency review in `.github/workflows/security.yml`, each day too |
 | No secret anywhere in the history: a finding is revoked, then removed, and only a proven false positive is allowed, in `.gitleaks.toml`, with its reason. | gitleaks in `.github/workflows/security.yml` |
+| Recordings and snapshots name no PC, person or network: no machine or user names, user folders, addresses, serial numbers or Wi-Fi names, and a network adapter's id is a made-up GUID. | `RepoRulesTests` |
 | `thermi-cli` never elevates, starts a service or installs anything. | `RepoRulesTests` |
 | Every answer of the agents' contract validates against its schema, and a schema only grows. | `ContractTests` |
 | `THIRD-PARTY-NOTICES.md` lists every package that ships, NuGet and npm, with its license, and each license's text with every copyright line. | `scripts/notices.ps1 -Check` in `scripts/check.ps1` |
