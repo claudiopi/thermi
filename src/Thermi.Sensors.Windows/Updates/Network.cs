@@ -11,11 +11,6 @@ internal static class Network
 
     public static unsafe bool Metered()
     {
-        if (!OperatingSystem.IsWindowsVersionAtLeast(8))
-        {
-            return false;
-        }
-
         try
         {
             var costs = (INetworkCostManager)new NetworkListManager();

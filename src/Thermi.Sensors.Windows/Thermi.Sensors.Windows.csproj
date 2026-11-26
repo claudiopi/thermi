@@ -12,6 +12,9 @@
     <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
     <!-- CsWin32's generated Win32 calls need it. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- .NET 10's oldest Windows, 10 1607, as for Thermi.Windows.csproj: said in Program.cs, since the windows TFM stops at
+         7.0, so no call needs a guard for an older one. -->
+    <GenerateSupportedOSPlatformAttribute>false</GenerateSupportedOSPlatformAttribute>
   </PropertyGroup>
 
   <ItemGroup>

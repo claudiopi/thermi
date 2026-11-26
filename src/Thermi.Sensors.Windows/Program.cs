@@ -13,6 +13,9 @@ using Thermi.Sensors.Windows.Service;
 using Thermi.Sensors.Windows.Updates;
 using Thermi.Sensors.Windows.User;
 
+// Windows 10 1607 and later, as for thermi.exe (Thermi.Sensors.Windows.csproj says why it is set here).
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("windows10.0.14393")]
+
 namespace Thermi.Sensors.Windows;
 
 /// <summary>

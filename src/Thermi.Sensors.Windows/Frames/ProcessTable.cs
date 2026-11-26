@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -126,14 +125,9 @@ internal sealed class HeldProcess(SafeFileHandle handle, ProcessFacts facts) : I
 
     public bool Exited => SensorPInvoke.WaitForSingleObject(handle, 0) != WAIT_EVENT.WAIT_TIMEOUT;
 
-    /// <summary>The process of that id, or null for one that has gone, or on a Windows before 8.1, which cannot read it so.</summary>
+    /// <summary>The process of that id, or null for one that has gone or cannot be opened.</summary>
     public static HeldProcess? Open(int process)
     {
-        if (!OperatingSystem.IsWindowsVersionAtLeast(8, 1))
-        {
-            return null;
-        }
-
         var handle = SensorPInvoke.OpenProcess_SafeHandle(
             PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_ACCESS_RIGHTS.PROCESS_SYNCHRONIZE, false, (uint)process);
         try
@@ -155,7 +149,6 @@ internal sealed class HeldProcess(SafeFileHandle handle, ProcessFacts facts) : I
 
     public void Dispose() => handle.Dispose();
 
-    [SupportedOSPlatform("windows8.1")]
     private static unsafe ProcessFacts? Read(SafeFileHandle handle)
     {
         if (SensorPInvoke.PssCaptureSnapshot(handle, PSS_CAPTURE_FLAGS.PSS_CAPTURE_NONE, 0, out var snapshot) != (uint)WIN32_ERROR.NO_ERROR)
