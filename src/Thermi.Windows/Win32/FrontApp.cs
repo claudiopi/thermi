@@ -4,7 +4,8 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Dwm;
 using Windows.Win32.Graphics.Gdi;
-using Windows.Win32.System.Diagnostics.ToolHelp;
+using Windows.Win32.System.Diagnostics.ProcessSnapshotting;
+using Windows.Win32.System.Threading;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Win32;
@@ -106,23 +107,24 @@ internal sealed class FrontApp
         return _ours;
     }
 
+    // Asked of the one process: Windows' list of every process costs some 12 ms of CPU on a busy PC.
     private static unsafe uint? ParentOf(uint process)
     {
-        using var snapshot = PInvoke.CreateToolhelp32Snapshot_SafeHandle(CREATE_TOOLHELP_SNAPSHOT_FLAGS.TH32CS_SNAPPROCESS, 0);
-        if (snapshot.IsInvalid)
+        using var handle = PInvoke.OpenProcess_SafeHandle(PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION, false, process);
+        if (handle.IsInvalid || PInvoke.PssCaptureSnapshot(handle, PSS_CAPTURE_FLAGS.PSS_CAPTURE_NONE, 0, out var snapshot) != (uint)WIN32_ERROR.NO_ERROR)
         {
             return null;
         }
 
-        var entry = new PROCESSENTRY32W { dwSize = (uint)sizeof(PROCESSENTRY32W) };
-        for (var more = PInvoke.Process32FirstW(snapshot, ref entry); more; more = PInvoke.Process32NextW(snapshot, ref entry))
+        try
         {
-            if (entry.th32ProcessID == process)
-            {
-                return entry.th32ParentProcessID;
-            }
+            var info = default(PSS_PROCESS_INFORMATION);
+            return PInvoke.PssQuerySnapshot(snapshot, PSS_QUERY_INFORMATION_CLASS.PSS_QUERY_PROCESS_INFORMATION, &info, (uint)sizeof(PSS_PROCESS_INFORMATION))
+                == (uint)WIN32_ERROR.NO_ERROR ? info.ParentProcessId : null;
         }
-
-        return null;
+        finally
+        {
+            _ = PInvoke.PssFreeSnapshot(PInvoke.GetCurrentProcess(), snapshot);
+        }
     }
 }

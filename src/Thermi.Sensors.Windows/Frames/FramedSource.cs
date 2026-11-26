@@ -73,6 +73,8 @@ internal sealed class FramedSource : ISensorSource
             _trace?.Dispose();
             _trace = null;
         }
+
+        _processes.Dispose();
     }
 
     /// <summary>What a trace tells of, as the tally takes it: with its parent, and the compositor's left out.</summary>

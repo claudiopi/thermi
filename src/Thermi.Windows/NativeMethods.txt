@@ -231,9 +231,11 @@ PDH_FMT
 PDH_FMT_COUNTERVALUE_ITEM_W
 PDH_MORE_DATA
 GetShellWindow
-CreateToolhelp32Snapshot
-Process32FirstW
-Process32NextW
+// The process that started the app in front, to tell the settings window's WebView2 from an app
+PssCaptureSnapshot
+PssQuerySnapshot
+PssFreeSnapshot
+PSS_PROCESS_INFORMATION
 // How long the session has gone without input, for a quiet moment to update in
 GetLastInputInfo
 // The user's own sensor host, checked by its process (docs/adr/0016-admin-on-demand.md)

@@ -19,7 +19,8 @@ public sealed class FramedSourceTests
         var said = new List<string>();
         var starts = new Queue<bool>([false, true, true]);
         using var sensors = new NoSensors();
-        using var source = new FramedSource(sensors, Open, new NoProcesses(), clock, said.Add);
+        using var processes = new NoProcesses();
+        using var source = new FramedSource(sensors, Open, processes, clock, said.Add);
         Trace Open()
         {
             var trace = new Trace(starts.Dequeue());
@@ -58,7 +59,8 @@ public sealed class FramedSourceTests
         var start = clock.GetTimestamp() * 1000.0 / clock.TimestampFrequency;
         using var trace = new Trace(true);
         using var sensors = new NoSensors();
-        using var source = new FramedSource(sensors, () => trace, new NoProcesses(), clock, _ => { });
+        using var processes = new NoProcesses();
+        using var source = new FramedSource(sensors, () => trace, processes, clock, _ => { });
         await source.ReadAsync(TestContext.Current.CancellationToken);
         var counted = new List<double?>();
         var expected = new List<double?>();
@@ -100,5 +102,9 @@ public sealed class FramedSourceTests
     private sealed class NoProcesses : IProcessTable
     {
         public ProcessFacts? Of(int process) => null;
+
+        public void Dispose()
+        {
+        }
     }
 }

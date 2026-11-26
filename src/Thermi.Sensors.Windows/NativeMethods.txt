@@ -28,7 +28,14 @@ ENABLECALLBACK_ENABLED_STATE
 EVENT_TRACE_CONTROL
 ENABLE_TRACE_PARAMETERS_VERSION_2
 EVENT_FILTER_TYPE_EVENT_ID
-// Which process started each one that presents, and which is the desktop's compositor
+// Which process started each one that presents, which is the desktop's compositor, and when one has ended
+OpenProcess
+PssCaptureSnapshot
+PssQuerySnapshot
+PssFreeSnapshot
+PSS_PROCESS_INFORMATION
+GetCurrentProcess
+WaitForSingleObject
 CreateToolhelp32Snapshot
 Process32FirstW
 Process32NextW

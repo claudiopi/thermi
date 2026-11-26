@@ -1,48 +1,182 @@
+using System.Runtime.Versioning;
+using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.System.Diagnostics.ProcessSnapshotting;
 using Windows.Win32.System.Diagnostics.ToolHelp;
+using Windows.Win32.System.Threading;
 
 namespace Thermi.Sensors.Windows.Frames;
 
 /// <summary>What the frames need of a process: its parent's id, and whether it is the desktop's compositor.</summary>
-internal readonly record struct ProcessFacts(int Parent, bool Compositor);
-
-/// <summary>The processes running now, by id: Windows' own list in the service, a fake in tests.</summary>
-internal interface IProcessTable
+internal readonly record struct ProcessFacts(int Parent, bool Compositor)
 {
-    /// <summary>What is known of <paramref name="process"/>, or null for one that has gone or is not yet listed.</summary>
+    /// <summary>The facts of a process from its parent's id and its program's name or path.</summary>
+    public static ProcessFacts Of(int parent, string program) => new(parent, Path.GetFileName(program).Equals("dwm.exe", StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>The processes running now, by id: Windows' own in the service, a fake in tests.</summary>
+internal interface IProcessTable : IDisposable
+{
+    /// <summary>What is known of <paramref name="process"/>, or null for one that has gone or cannot be opened.</summary>
     ProcessFacts? Of(int process);
 }
 
-/// <summary>
-/// Windows' list of processes, taken again when asked once it is a second old, so a process that just started finds its
-/// parent within a second, a reused id never keeps a gone process's facts longer, and a burst of presents costs one list.
-/// Names are read only to tell the compositor, and never kept.
-/// </summary>
-internal sealed class ProcessTable(TimeProvider time) : IProcessTable
+/// <summary>A process held open, so Windows gives its id to no other while it is held.</summary>
+internal interface IHeldProcess : IDisposable
 {
-    private const string Compositor = "dwm.exe";
+    ProcessFacts Facts { get; }
 
-    private static readonly TimeSpan Fresh = TimeSpan.FromSeconds(1);
+    bool Exited { get; }
+}
+
+/// <summary>
+/// The processes that present, each read once and held open while it runs: Windows' list of every process costs some
+/// 12 ms of CPU on a busy PC, too much to take each second. A held process's id cannot go to another, so its facts never
+/// name a process that took its id. One that cannot be opened, as the compositor is to a run without admin rights,
+/// is looked up in the list, taken again when asked once it is a second old. Names are read only to tell the
+/// compositor, and never kept.
+/// </summary>
+internal sealed class ProcessTable(TimeProvider time, Func<int, IHeldProcess?> open, Func<Dictionary<int, ProcessFacts>> list) : IProcessTable
+{
+    private static readonly TimeSpan SweepEvery = TimeSpan.FromSeconds(1);
 
     private readonly Lock _gate = new();
-    private Dictionary<int, ProcessFacts> _known = [];
+    private readonly Dictionary<int, IHeldProcess> _held = [];
+    private long _swept = time.GetTimestamp();
+    private Dictionary<int, ProcessFacts> _listed = [];
     private long? _taken;
+
+    public ProcessTable(TimeProvider time)
+        : this(time, HeldProcess.Open, ProcessList.Take)
+    {
+    }
 
     public ProcessFacts? Of(int process)
     {
         lock (_gate)
         {
-            if (_taken is not { } taken || time.GetElapsedTime(taken) >= Fresh)
+            if (time.GetElapsedTime(_swept) >= SweepEvery)
             {
-                _known = List();
-                _taken = time.GetTimestamp();
+                Sweep();
             }
 
-            return _known.TryGetValue(process, out var facts) ? facts : null;
+            if (!_held.TryGetValue(process, out var held))
+            {
+                if (open(process) is not { } opened)
+                {
+                    return Listed(process);
+                }
+
+                _held[process] = held = opened;
+            }
+
+            return held.Facts;
         }
     }
 
-    private static unsafe Dictionary<int, ProcessFacts> List()
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            foreach (var held in _held.Values)
+            {
+                held.Dispose();
+            }
+
+            _held.Clear();
+        }
+    }
+
+    private ProcessFacts? Listed(int process)
+    {
+        if (_taken is not { } taken || time.GetElapsedTime(taken) >= SweepEvery)
+        {
+            _listed = list();
+            _taken = time.GetTimestamp();
+        }
+
+        return _listed.TryGetValue(process, out var facts) ? facts : null;
+    }
+
+    private void Sweep()
+    {
+        _swept = time.GetTimestamp();
+        foreach (var (process, held) in _held.Where(each => each.Value.Exited).ToList())
+        {
+            held.Dispose();
+            _held.Remove(process);
+        }
+    }
+}
+
+/// <summary>A process of the PC, opened for its parent, its name and its end, which the service may ask of any process.</summary>
+internal sealed class HeldProcess(SafeFileHandle handle, ProcessFacts facts) : IHeldProcess
+{
+    public ProcessFacts Facts { get; } = facts;
+
+    public bool Exited => SensorPInvoke.WaitForSingleObject(handle, 0) != WAIT_EVENT.WAIT_TIMEOUT;
+
+    /// <summary>The process of that id, or null for one that has gone, or on a Windows before 8.1, which cannot read it so.</summary>
+    public static HeldProcess? Open(int process)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(8, 1))
+        {
+            return null;
+        }
+
+        var handle = SensorPInvoke.OpenProcess_SafeHandle(
+            PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_ACCESS_RIGHTS.PROCESS_SYNCHRONIZE, false, (uint)process);
+        try
+        {
+            if (!handle.IsInvalid && Read(handle) is { } facts)
+            {
+                var held = new HeldProcess(handle, facts);
+                handle = null;
+                return held;
+            }
+
+            return null;
+        }
+        finally
+        {
+            handle?.Dispose();
+        }
+    }
+
+    public void Dispose() => handle.Dispose();
+
+    [SupportedOSPlatform("windows8.1")]
+    private static unsafe ProcessFacts? Read(SafeFileHandle handle)
+    {
+        if (SensorPInvoke.PssCaptureSnapshot(handle, PSS_CAPTURE_FLAGS.PSS_CAPTURE_NONE, 0, out var snapshot) != (uint)WIN32_ERROR.NO_ERROR)
+        {
+            return null;
+        }
+
+        try
+        {
+            var info = default(PSS_PROCESS_INFORMATION);
+            var read = SensorPInvoke.PssQuerySnapshot(
+                snapshot, PSS_QUERY_INFORMATION_CLASS.PSS_QUERY_PROCESS_INFORMATION, &info, (uint)sizeof(PSS_PROCESS_INFORMATION));
+            if (read != (uint)WIN32_ERROR.NO_ERROR)
+            {
+                return null;
+            }
+
+            return ProcessFacts.Of((int)info.ParentProcessId, info.ImageFileName.ToString());
+        }
+        finally
+        {
+            _ = SensorPInvoke.PssFreeSnapshot(SensorPInvoke.GetCurrentProcess(), snapshot);
+        }
+    }
+}
+
+/// <summary>Windows' list of every process, for one the service cannot open.</summary>
+internal static class ProcessList
+{
+    public static unsafe Dictionary<int, ProcessFacts> Take()
     {
         var known = new Dictionary<int, ProcessFacts>();
         using var snapshot = SensorPInvoke.CreateToolhelp32Snapshot_SafeHandle(CREATE_TOOLHELP_SNAPSHOT_FLAGS.TH32CS_SNAPPROCESS, 0);
@@ -54,8 +188,7 @@ internal sealed class ProcessTable(TimeProvider time) : IProcessTable
         var entry = new PROCESSENTRY32W { dwSize = (uint)sizeof(PROCESSENTRY32W) };
         for (var more = SensorPInvoke.Process32FirstW(snapshot, ref entry); more; more = SensorPInvoke.Process32NextW(snapshot, ref entry))
         {
-            var name = entry.szExeFile.ToString();
-            known[(int)entry.th32ProcessID] = new ProcessFacts((int)entry.th32ParentProcessID, name.Equals(Compositor, StringComparison.OrdinalIgnoreCase));
+            known[(int)entry.th32ProcessID] = ProcessFacts.Of((int)entry.th32ParentProcessID, entry.szExeFile.ToString());
         }
 
         return known;

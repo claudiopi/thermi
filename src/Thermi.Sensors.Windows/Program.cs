@@ -188,7 +188,8 @@ internal static class Program
     {
         using var trace = (environment.Recording ?? environment.Trace)?.Invoke();
         await using var writer = new StreamWriter(frames.File);
-        if (trace is not null && await FrameRecorder.RecordAsync(trace, new ProcessTable(environment.Time), writer, frames.Seconds, environment.Time))
+        using var processes = new ProcessTable(environment.Time);
+        if (trace is not null && await FrameRecorder.RecordAsync(trace, processes, writer, frames.Seconds, environment.Time))
         {
             return 0;
         }
