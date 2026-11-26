@@ -33,6 +33,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     private const int ShadowAlpha = 160;
 
     private readonly List<PaintedItem> _places = [];
+    private readonly OutlinedTexts _outlines = new();
     private PainterFonts? _fonts;
     private Bitmap? _canvas;
 
@@ -41,6 +42,9 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     /// on (<see cref="PaintedPlaces"/>).
     /// </summary>
     public IReadOnlyList<PaintedItem> Places => _places;
+
+    /// <summary>The last scale <see cref="PainterFit.Fitting"/> found, and what it measured.</summary>
+    internal ((float Scale, (int Width, int Height)? Most, OverlayLook Look, string Items) Measured, float Scale)? Fitted { get; set; }
 
     /// <summary>
     /// Paints the items in their pills. <paramref name="glow"/> gives how strongly an item's pill glows now, 0 to 1, as
@@ -72,6 +76,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     {
         _fonts?.Dispose();
         _canvas?.Dispose();
+        _outlines.Dispose();
     }
 
     // The runs a single bar holds are read before the labels go, as no label then says where each starts.
@@ -123,6 +128,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             }
 
             Alpha.Scale(bitmap, look.Opacity);
+            _outlines.Painted();
             return bitmap;
         }
         catch
@@ -284,7 +290,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     }
 
     // On the value's baseline, so the two read as one line however small the tag is.
-    private static void DrawTag(Graphics g, string tag, PainterFonts fonts, OverlayLook look, PointF at, float scale)
+    private void DrawTag(Graphics g, string tag, PainterFonts fonts, OverlayLook look, PointF at, float scale)
     {
         var value = g.MeasureString(tag, fonts.Value, 0, PainterFonts.Typographic).Height;
         var small = g.MeasureString(tag, fonts.Tag, 0, PainterFonts.Typographic).Height;
@@ -296,7 +302,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
 
     // A warning underlines the value, unless its meter or graph shows it, and a critical value is drawn reversed, on a box
     // of its color, where the text effect has nothing to set apart. Gives where the value ends.
-    private static float DrawValue(Graphics g, OverlayItem item, Font font, OverlayLook look, PointF at, float scale)
+    private float DrawValue(Graphics g, OverlayItem item, Font font, OverlayLook look, PointF at, float scale)
     {
         var mark = LevelMarks.Of(look, item);
         var size = g.MeasureString(item.Value, font, 0, PainterFonts.Typographic);
@@ -344,21 +350,17 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         _places.Insert(0, new PaintedItem("", box, box) { Pill = box });
     }
 
-    // The outline is the text's own shape stroked and then filled, so the two always line up.
-    private static float DrawText(Graphics g, string text, Font font, Rgb color, PointF at, OverlayLook look, float scale)
+    private float DrawText(Graphics g, string text, Font font, Rgb color, PointF at, OverlayLook look, float scale)
     {
         var size = g.MeasureString(text, font, 0, PainterFonts.Typographic);
         var origin = new PointF(at.X, at.Y - (size.Height / 2));
-        using var brush = new SolidBrush(PainterShapes.Drawn(color));
         if (look.Effect == TextEffect.Outline)
         {
-            using var path = new GraphicsPath();
-            using var pen = new Pen(PainterShapes.Drawn(look.OutlineColor), 2 * (float)OverlayLook.OutlineWidth * scale) { LineJoin = LineJoin.Round };
-            path.AddString(text, font.FontFamily, (int)font.Style, font.Size, origin, PainterFonts.Typographic);
-            g.DrawPath(pen, path);
-            g.FillPath(brush, path);
+            _outlines.Draw(g, text, font, color, look.OutlineColor, 2 * (float)OverlayLook.OutlineWidth * scale, origin);
             return at.X + size.Width;
         }
+
+        using var brush = new SolidBrush(PainterShapes.Drawn(color));
 
         if (look.Effect == TextEffect.Shadow)
         {
