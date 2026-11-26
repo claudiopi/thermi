@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
 using Thermi.Core.Translations;
 using Thermi.Core.Updates;
 
@@ -294,6 +295,8 @@ public sealed class UpdateTests
             Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(ManifestEnvelope.Seal(manifest, key), release, release).Problem));
         var local = good with { Packages = Zips("arm64", Zip with { Url = new Uri("http://127.0.0.1:8765/v1/z.zip") }) };
         Assert.Null(ManifestEnvelope.Open(ManifestEnvelope.Seal(local, key), release, release).Problem);
+        // A package signed without its hash or its address is no package either.
+        Assert.All(["sha256", "url"], field => Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(Without(good, field, key), release, release).Problem));
     }
 
     // A version put in place by hand, as the MSI does, is what the PC runs from then on, with nothing to go back to.
@@ -381,18 +384,13 @@ public sealed class UpdateTests
     private static string Offers(IReadOnlyDictionary<string, ChannelHistory> channels) =>
         $"{channels[Manifest.Stable].Current?.Version} {channels[Manifest.Beta].Current?.Version}";
 
-    // Records compare their collections by reference; a manifest read back holds new ones.
-    internal sealed class ManifestComparer : IEqualityComparer<Manifest?>
+    // The envelope of the manifest's JSON without its x64 package's field, signed by the key all the same.
+    private static byte[] Without(Manifest manifest, string field, ECDsa key)
     {
-        public static readonly ManifestComparer Instance = new();
-
-        public bool Equals(Manifest? x, Manifest? y) =>
-            x is not null && y is not null
-            && (x with { Packages = y.Packages, Msis = y.Msis, Withdrawn = y.Withdrawn }) == y
-            && x.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).SequenceEqual(y.Packages.OrderBy(p => p.Key, StringComparer.Ordinal))
-            && x.Msis.OrderBy(p => p.Key, StringComparer.Ordinal).SequenceEqual(y.Msis.OrderBy(p => p.Key, StringComparer.Ordinal))
-            && x.Withdrawn.SequenceEqual(y.Withdrawn);
-
-        public int GetHashCode(Manifest? obj) => obj?.Sequence.GetHashCode() ?? 0;
+        var body = JsonNode.Parse(Convert.FromBase64String((string)JsonNode.Parse(ManifestEnvelope.Seal(manifest, key))!["manifest"]!))!;
+        body["packages"]!["x64"]!.AsObject().Remove(field);
+        var bytes = Encoding.UTF8.GetBytes(body.ToJsonString());
+        var signature = Convert.ToBase64String(key.SignData(bytes, HashAlgorithmName.SHA256));
+        return Encoding.UTF8.GetBytes(new JsonObject { ["manifest"] = Convert.ToBase64String(bytes), ["signature"] = signature }.ToJsonString());
     }
 }

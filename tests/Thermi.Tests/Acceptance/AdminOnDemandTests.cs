@@ -140,7 +140,7 @@ public sealed class AdminOnDemandTests
 
         Assert.NotNull(refused);
         Assert.Equal(msi, promoted.Msis["x64"]);
-        Assert.Equal(promoted, opened, UpdateTests.ManifestComparer.Instance);
+        Assert.Equal(promoted, opened, ManifestComparer.Instance);
         Assert.Equal(ManifestProblem.Invalid, unsafeOne.Problem);
         Assert.Empty(before!.Msis);
     }

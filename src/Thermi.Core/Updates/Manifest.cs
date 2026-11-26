@@ -190,6 +190,7 @@ public sealed record Envelope(string Manifest, string Signature);
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     RespectNullableAnnotations = true,
+    RespectRequiredConstructorParameters = true,
     WriteIndented = false)]
 [JsonSerializable(typeof(Envelope))]
 [JsonSerializable(typeof(Manifest))]
