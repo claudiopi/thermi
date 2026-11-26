@@ -28,6 +28,10 @@ public sealed class AgentSettingsTests : IDisposable
     [Fact]
     public async Task SensorsAndConfigAnswerAsTheWindow()
     {
+        // With no file yet, the settings are those thermi starts with, which the first edit writes.
+        var defaults = (await _rig.RunAsync("config")).Json["settings"];
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(ThermiConfigJson.Write(ThermiConfig.New)), defaults));
+
         var snapshot = TestRecordings.Read(TestRecordings.Admin);
         var config = OverlayEdits.Add(new ThermiConfig()).Config;
         _rig.Folder.Write(ThermiConfigJson.Write(config));
