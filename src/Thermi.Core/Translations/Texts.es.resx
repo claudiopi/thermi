@@ -28,10 +28,10 @@
     <value>Salir</value>
   </data>
   <data name="OverlayText.ConfigLabel" xml:space="preserve">
-    <value>CONFIG</value>
+    <value>ARCHIVO</value>
   </data>
   <data name="OverlayText.ConfigError" xml:space="preserve">
-    <value>error</value>
+    <value>dañado</value>
   </data>
   <data name="UiText.OverlayName" xml:space="preserve">
     <value>Superposición {0}</value>
@@ -41,6 +41,7 @@
   </data>
   <data name="PlaceText.OnMonitor" xml:space="preserve">
     <value>{0}, monitor {1}</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="PlaceText.FreePosition" xml:space="preserve">
     <value>donde se soltó</value>
@@ -80,6 +81,7 @@
   </data>
   <data name="UiText.GeneralTab" xml:space="preserve">
     <value>General</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="UiText.Undo" xml:space="preserve">
     <value>Deshacer (Ctrl+Z)</value>
@@ -92,6 +94,7 @@
   </data>
   <data name="UiText.SensorField" xml:space="preserve">
     <value>Sensor</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="UiText.LabelField" xml:space="preserve">
     <value>Etiqueta</value>
@@ -170,6 +173,7 @@
   </data>
   <data name="CatalogText.OneSensor" xml:space="preserve">
     <value>1 sensor</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="CatalogText.CountSaid" xml:space="preserve">
     <value>{0}. Flecha abajo para recorrerlos, Enter agrega el primero.</value>
@@ -290,15 +294,18 @@
   </data>
   <data name="LikelyName.Chipset" xml:space="preserve">
     <value>Chipset</value>
+    <comment>A word Spanish uses as is.</comment>
   </data>
   <data name="LikelyName.Cpu" xml:space="preserve">
     <value>CPU</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="LikelyName.PcieSlot" xml:space="preserve">
     <value>Ranura PCIe</value>
   </data>
   <data name="LikelyName.Vrm" xml:space="preserve">
     <value>VRM</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="LikelyName.CpuFan" xml:space="preserve">
     <value>Ventilador de la CPU</value>
@@ -428,6 +435,7 @@
   </data>
   <data name="UiText.SmoothSeconds" xml:space="preserve">
     <value>{0} s</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UiText.DecimalsField" xml:space="preserve">
     <value>Decimales</value>
@@ -581,6 +589,7 @@
   </data>
   <data name="OverlayPageText.SwatchNormal" xml:space="preserve">
     <value>Normal</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="OverlayPageText.SwatchWarning" xml:space="preserve">
     <value>Advertencia</value>
@@ -836,6 +845,7 @@
   </data>
   <data name="UiText.AppName" xml:space="preserve">
     <value>thermi</value>
+    <comment>A name, never translated.</comment>
   </data>
   <data name="UiText.SmoothHint" xml:space="preserve">
     <value>Promedio de los últimos segundos</value>
@@ -866,6 +876,7 @@
   </data>
   <data name="ChangedField.Sensor" xml:space="preserve">
     <value>Sensor</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="ChangedField.Label" xml:space="preserve">
     <value>Etiqueta</value>
@@ -1079,24 +1090,29 @@
   </data>
   <data name="DeviceKind.Cpu" xml:space="preserve">
     <value>CPU</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="DeviceKind.Gpu" xml:space="preserve">
     <value>GPU</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="DeviceKind.Ram" xml:space="preserve">
     <value>RAM</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="DeviceKind.Board" xml:space="preserve">
     <value>PLACA</value>
   </data>
   <data name="DeviceKind.Ssd" xml:space="preserve">
     <value>SSD</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="DeviceKind.Network" xml:space="preserve">
     <value>RED</value>
   </data>
   <data name="DeviceKind.Battery" xml:space="preserve">
     <value>BAT</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="FanFinderOutcome.Found" xml:space="preserve">
     <value>{0} es el ventilador de tu CPU.</value>
@@ -1262,6 +1278,7 @@
   </data>
   <data name="MenuEntry.Vertical" xml:space="preserve">
     <value>Vertical</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="MenuEntry.HideOverlays" xml:space="preserve">
     <value>Ocultar las superposiciones</value>
@@ -1304,21 +1321,26 @@
   </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="MetricLabel.Gpu" xml:space="preserve">
     <value>GPU</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="MetricLabel.Ram" xml:space="preserve">
     <value>RAM</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="MetricLabel.Net" xml:space="preserve">
     <value>RED</value>
   </data>
   <data name="MetricLabel.Ssd" xml:space="preserve">
     <value>SSD</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="MetricLabel.Bat" xml:space="preserve">
     <value>BAT</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="MetricName.CpuTemperature" xml:space="preserve">
     <value>Temperatura de la CPU</value>
@@ -1391,6 +1413,7 @@
   </data>
   <data name="NameText.OtherGpu" xml:space="preserve">
     <value>iGPU</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="NameText.OfSensor" xml:space="preserve">
     <value>{1} de {0}</value>
@@ -1430,9 +1453,11 @@
   </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="Orientation.Vertical" xml:space="preserve">
     <value>Vertical</value>
+    <comment>The same word in Spanish.</comment>
   </data>
   <data name="OverlayText.SensorsStopped" xml:space="preserve">
     <value>Sensores detenidos</value>
@@ -1520,6 +1545,7 @@
   </data>
   <data name="WindowTheme.System" xml:space="preserve">
     <value>Windows</value>
+    <comment>A name, never translated.</comment>
   </data>
   <data name="WindowTheme.Light" xml:space="preserve">
     <value>Claro</value>
@@ -1706,12 +1732,15 @@
   </data>
   <data name="StyleFont.Segoe" xml:space="preserve">
     <value>Segoe UI Variable</value>
+    <comment>A name, never translated.</comment>
   </data>
   <data name="StyleFont.Bahnschrift" xml:space="preserve">
     <value>Bahnschrift</value>
+    <comment>A name, never translated.</comment>
   </data>
   <data name="StyleFont.Consolas" xml:space="preserve">
     <value>Consolas</value>
+    <comment>A name, never translated.</comment>
   </data>
   <data name="StylePreset.Standard" xml:space="preserve">
     <value>Estándar</value>
@@ -1853,24 +1882,31 @@
   </data>
   <data name="UnitText.BytesPerSecond" xml:space="preserve">
     <value>B/s</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.KilobytesPerSecond" xml:space="preserve">
     <value>KB/s</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.MegabytesPerSecond" xml:space="preserve">
     <value>MB/s</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.GigabytesPerSecond" xml:space="preserve">
     <value>GB/s</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.Hours" xml:space="preserve">
     <value>h</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.HoursMinutes" xml:space="preserve">
     <value>{0} h {1} min</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.Minutes" xml:space="preserve">
     <value>{0} min</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="Visibility.Always" xml:space="preserve">
     <value>Siempre</value>
@@ -2108,15 +2144,18 @@
   </data>
   <data name="MetricLabel.Ip" xml:space="preserve">
     <value>IP</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="MetricLabel.Time" xml:space="preserve">
     <value>HORA</value>
   </data>
   <data name="MetricLabel.Fps" xml:space="preserve">
     <value>FPS</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="DeviceKind.System" xml:space="preserve">
     <value>PC</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="DeviceKind.Game" xml:space="preserve">
     <value>Juego</value>
@@ -2132,6 +2171,7 @@
   </data>
   <data name="MetricName.Fps" xml:space="preserve">
     <value>FPS</value>
+    <comment>An abbreviation Spanish uses as is.</comment>
   </data>
   <data name="MetricName.FrameTime" xml:space="preserve">
     <value>Tiempo por cuadro</value>
@@ -2174,15 +2214,19 @@
   </data>
   <data name="UnitText.BitsPerSecond" xml:space="preserve">
     <value>bps</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.KilobitsPerSecond" xml:space="preserve">
     <value>Kbps</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.MegabitsPerSecond" xml:space="preserve">
     <value>Mbps</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="UnitText.GigabitsPerSecond" xml:space="preserve">
     <value>Gbps</value>
+    <comment>A unit's symbol, the same in Spanish.</comment>
   </data>
   <data name="ChangedField.Bits" xml:space="preserve">
     <value>Bits por segundo</value>
@@ -2198,6 +2242,7 @@
   </data>
   <data name="OverlayText.Driver" xml:space="preserve">
     <value>Driver</value>
+    <comment>The word the rest of the Spanish texts use for the driver.</comment>
   </data>
   <data name="OverlayText.Throttling" xml:space="preserve">
     <value>Limitando su velocidad: {0}, bajo su reloj base de {1}, a {2}.</value>
@@ -2357,6 +2402,7 @@
   </data>
   <data name="AgentText.ClaudeCode" xml:space="preserve">
     <value>Claude Code</value>
+    <comment>A name, never translated.</comment>
   </data>
   <data name="AgentText.ByFile" xml:space="preserve">
     <value>Otras apps</value>
