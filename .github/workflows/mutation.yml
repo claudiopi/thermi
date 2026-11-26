@@ -1,6 +1,6 @@
 name: Mutation
 
-# The mutation scores of Thermi.Core's tests (Stryker.NET) and of the page's logic (StrykerJS), which measure the tests
+# The mutation scores of Thermi.Tests on Thermi.Core and Thermi.Cli (Stryker.NET) and of the page's logic (StrykerJS), which measure the tests
 # better than coverage. Too slow to gate a merge, so they run each night and on demand; each run records its score in
 # its summary and keeps its report.
 on:
@@ -22,7 +22,7 @@ env:
 jobs:
   core:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,13 +34,13 @@ jobs:
         run: |
           pwsh -NoProfile -File scripts/mutation.ps1 | Tee-Object -Variable printed
           $code = $LASTEXITCODE
-          "### Thermi.Core`n`n$($printed | Where-Object { $_ -match 'mutation:' })" >> $env:GITHUB_STEP_SUMMARY
+          "### Thermi.Core and Thermi.Cli`n`n$($printed | Where-Object { $_ -match 'mutation:' })" >> $env:GITHUB_STEP_SUMMARY
           exit $code
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutation-core
-          path: TestResults/mutation/reports
+          path: TestResults/mutation/**/reports
           if-no-files-found: ignore
 
   web:

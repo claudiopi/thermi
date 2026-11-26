@@ -35,7 +35,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | Command | What it does, and when |
 | --- | --- |
 | `pwsh scripts/check.ps1` | The one check: restore, format, build, notices, test count, tests and coverage, then the page's build, lint, unit, dead-code and Playwright tests. Here it runs only what the change can affect since this worktree's last green check, or since it left `main` (`-Base <branch>` for another), with the .NET half and the page's side by side. `-Full` runs every step, as the CI does. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. |
-| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of Core's tests and the page's logic, each with the rows that kill and run nothing of their own (`scripts/redundant.ps1`). Slow: run it when you change Core, the page's logic or their tests. The CI runs them each night. |
+| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of the tests of Core and the CLI and of the page's logic, each with the rows that kill and run nothing of their own (`scripts/redundant.ps1`). Slow: run it when you change Core, the CLI, the page's logic or their tests. The CI runs them each night. |
 | `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. Set `THERMI_WEB_PORT` to another port than 4173 if something else holds it. |
 | `dotnet format whitespace thermi.slnx` | Fixes formatting. |
 | `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]` | Clicks through every screen of the real settings window and fails on any error the page shows or logs. Run it before a person gets a build, with no settings window open. |
@@ -71,7 +71,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | Docs are short and scannable: the why before the what, short sentences, tables over walls of bullets, and no list of every file, which the code already is. | the README table rule in `RepoRulesTests`; review for the rest |
 | Nothing merges red. A check on a PC runs what the change can affect, which the projects' references and what `Thermi.Settings.Types` writes tell, and everything when a file says nothing; the CI runs every step on every PR and push to main, in jobs side by side, all of them required. Mutation runs each night and on demand, and gates nothing. | `scripts/check-scope.ps1`, `.github/workflows/ci.yml`, the `CI gate` check (`docs/RELEASES.md`) |
-| `Thermi.Core` keeps 90 % line and branch coverage. | `scripts/check.ps1` |
+| `Thermi.Core` keeps 90 % line and branch coverage, and `Thermi.Cli` 85 %. | `scripts/check.ps1` |
 | A new field of the settings goes into `src/Thermi.Core/Editing/ConfigFields.cs`, or undo cannot take it back. | `UndoRulesTests` |
 | The settings change shape only with a new format version and its migration, or with the reason an earlier version reads them as they are, recorded in `tests/Thermi.Tests/Configs/shapes.json`; what a version does not know it keeps. | `RepoRulesTests`, `UnknownFields` |
 | Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
