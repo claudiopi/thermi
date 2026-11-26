@@ -4,7 +4,8 @@ namespace Thermi.Core.Settings;
 
 /// <summary>
 /// The members of an object of the settings that this version does not know, as a later version wrote them, kept as they
-/// came and written back with the object, so a version rolled back to takes nothing away when it writes.
+/// came and written back with the object, so a version rolled back to takes nothing away when it writes. Only the reader
+/// sets it: an init-only member would be one of the reader's constructor parameters, which extension data cannot be.
 /// </summary>
 public sealed class UnknownFields : Dictionary<string, JsonElement>, IEquatable<UnknownFields>
 {

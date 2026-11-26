@@ -16,7 +16,6 @@ internal sealed partial class AgentCommands
     // the file of when the last one started keeps across the agents' processes.
     private static readonly TimeSpan FinderRest = TimeSpan.FromMinutes(2);
 
-
     // One at a time with the other changes, as its pick may be one.
     private Task<AgentReply> FindCpuFanAsync(bool use, CancellationToken stop) => OneAtATimeAsync(() => ClaimedAsync(use, stop), stop);
 

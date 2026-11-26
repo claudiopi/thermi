@@ -56,7 +56,6 @@ public sealed record StyleConfig(int Gap = 8, bool Units = true)
     public UnknownFields? Unknown { get; internal set; }
 }
 
-
 /// <summary>A text's size in pixels at 100 %, and its weight.</summary>
 public sealed record TextStyle(double Size, TextWeight Weight)
 {
@@ -69,7 +68,6 @@ public sealed record TextStyle(double Size, TextWeight Weight)
     public UnknownFields? Unknown { get; internal set; }
 }
 
-
 /// <summary>The pills' background, 0 to 1, and the whole overlay's, text and meters included, 0.2 to 1 so it never vanishes.</summary>
 public sealed record OpacityConfig(double Background = 1, double Overlay = 1)
 {
@@ -77,7 +75,6 @@ public sealed record OpacityConfig(double Background = 1, double Overlay = 1)
     [JsonExtensionData, JsonInclude]
     public UnknownFields? Unknown { get; internal set; }
 }
-
 
 /// <summary>
 /// Colors as #RRGGBB. A meter color left out takes its default, a text color left out is Auto, and the pills' color left
@@ -105,7 +102,6 @@ public sealed record StyleColors
     [JsonExtensionData, JsonInclude]
     public UnknownFields? Unknown { get; internal set; }
 }
-
 
 /// <summary>Pills as runs of one label, one pill per item, or one bar for all.</summary>
 [Translated]

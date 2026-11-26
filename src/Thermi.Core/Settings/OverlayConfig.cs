@@ -50,7 +50,6 @@ public sealed record ThermiConfig
     public UnknownFields? Unknown { get; internal set; }
 }
 
-
 /// <summary>One overlay: its items, where it sits, its look, and when it shows. <see cref="Size"/> is a factor over the monitor's scale.</summary>
 public sealed record OverlayConfig(double Size = 1)
 {
@@ -207,7 +206,6 @@ public sealed record ItemConfig
     public UnknownFields? Unknown { get; internal set; }
 }
 
-
 /// <summary>A reading an item warns by: a <see cref="Metric"/>, or a <see cref="Sensor"/> that keeps the metric it came from as <see cref="Auto"/>.</summary>
 public sealed record WarnByConfig
 {
@@ -235,7 +233,6 @@ public sealed record SnapConfig(SnapSpot Spot, string? Monitor = null)
     public UnknownFields? Unknown { get; internal set; }
 }
 
-
 public sealed record Position(int X, int Y);
 
 /// <summary>Each combination like "Ctrl+Alt+T", or null for off.</summary>
@@ -253,7 +250,6 @@ public sealed record HotkeysConfig
     [JsonExtensionData, JsonInclude]
     public UnknownFields? Unknown { get; internal set; }
 }
-
 
 [JsonConverter(typeof(ConfigEnum<TemperatureUnit>))]
 public enum TemperatureUnit
