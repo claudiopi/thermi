@@ -15,8 +15,15 @@ internal sealed class GestureUndo(TimeProvider time, Action<Gesture> tell)
 {
     private Done? _last;
 
-    /// <summary>The menu entry that takes the last gesture back, while it is offered; null after that.</summary>
-    public OverlayText? Offered => _last is { } last && time.GetElapsedTime(last.At) < Menus.GestureUndo ? last.Undo : null;
+    /// <summary>
+    /// The menu entry that takes the last gesture back, while it is offered and <paramref name="settings"/> still hold some
+    /// of what it wrote; null once taking it back would change nothing, as after the window's own undo took it back.
+    /// </summary>
+    public OverlayText? Offered(ThermiConfig settings) =>
+        _last is { } last && time.GetElapsedTime(last.At) < Menus.GestureUndo
+            && ConfigEdits.Replay(last.After, last.Before) is { } back && ConfigEdits.Replay(settings, back(settings)) is not null
+            ? last.Undo
+            : null;
 
     /// <summary>
     /// A gesture written: offered for undo, named by <paramref name="undo"/> or else by its kind, and told to the window.

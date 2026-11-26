@@ -92,7 +92,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | `THIRD-PARTY-NOTICES.md` lists every package that ships, NuGet and npm, with its license, and each license's text with every copyright line. | `scripts/notices.ps1 -Check` in `scripts/check.ps1` |
 | thermi's version lives only in `Directory.Build.props`, and About shows it. | `BridgeContractTests` |
 | Every agent brief pins its model. | `RepoRulesTests` |
-| Every text a user reads is a member of an enum marked `[Translated]`, and every translation has every text of the English one, with the same blanks, and no others. None is blank or names the driver's product. | `RepoRulesTests` |
+| Every text a user reads is a member of an enum marked `[Translated]`, and every translation has every text of the English one, with the same blanks, and no others. None is blank or names the driver's product, and one left as English says why in its comment. | `RepoRulesTests` |
 | A spec is a folder with `spec.md`, `tasks.md` and `acceptance.json`. Every requirement has an acceptance step, every check is a real test (once approved) or `by hand`, and `done` means every step passes. | `RepoRulesTests` |
 | PR titles follow Conventional Commits (they become the squash commit). | CI `pr-title` |
 | One behavior, one test, at the cheapest layer that proves it. Its first test is written red at the unit's edge, as its acceptance step. | the ratchet: `scripts/test-count.ps1` holds the count of cases (each `[Fact]`, each row of a `[Theory]`, each Playwright and Vitest case) to `tests/test-count.json`, each half on its own, raised only in a change of its own, which in a pull request is compared with main's: main holds the file before a branch raises it |

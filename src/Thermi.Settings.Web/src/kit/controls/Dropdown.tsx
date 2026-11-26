@@ -1,9 +1,10 @@
-import { Combobox, Option, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import { Combobox, Option, makeStyles, mergeClasses, tokens, useMergedRefs } from '@fluentui/react-components';
 import { steady } from '../steady';
 import { useState, type KeyboardEvent, type Ref } from 'react';
 import { fluentRef } from '../fluentRef';
 import { text } from '../theme/look';
 import { partsOf, useFound, type Find, type Found } from './dropdownSearch';
+import { useFitsChoices } from './fitsChoices';
 import { HighlightedText } from './HighlightedText';
 
 export interface Choice {
@@ -181,6 +182,12 @@ function DropdownBoxDrawn({
   const styles = useStyles();
   const current = choices.find((choice) => choice.value === value);
   const shown = shownOf(choices, found);
+  // A list long enough to filter names sensors, whose box keeps the width its page gives it and shows the start of each.
+  const fits = useFitsChoices(
+    choices.map((choice) => choice.shown ?? choice.text),
+    !inline && filter === undefined,
+  );
+  const input = useMergedRefs(fits, ref);
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     const first = found === null ? undefined : shown[0]?.choice.value;
     if (takesFirst(event, first)) {
@@ -202,7 +209,7 @@ function DropdownBoxDrawn({
   return (
     <>
     <Combobox
-      ref={fluentRef(ref)}
+      ref={fluentRef(input)}
       className={mergeClasses(styles.dropdown, inline && styles.inline, className)}
       appearance={inline ? 'underline' : 'outline'}
       inlinePopup

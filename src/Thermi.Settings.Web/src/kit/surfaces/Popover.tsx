@@ -17,7 +17,8 @@ export interface PopoverProps {
 }
 
 const useStyles = makeStyles({
-  surface: { display: 'flex', flexDirection: 'column', gap: space.inside, padding: space.row },
+  // Fixed before Fluent first places it too, so it never takes room in its row, which would wrap the row's controls.
+  surface: { display: 'flex', flexDirection: 'column', gap: space.inside, padding: space.row, position: 'fixed' },
 });
 
 /**

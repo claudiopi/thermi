@@ -166,7 +166,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     internal (IReadOnlyList<MenuRow> Rows, MenuPlace Place) RowsOf(int? overlay, bool fromTray = false, string? item = null)
     {
         var config = Settings.Config;
-        var undo = Actions.Gestures?.Offered;
+        var undo = Actions.Gestures?.Offered(config);
         var state = new MenuState(
             parts.Visibility.HideOverlays,
             Settings.Problem is not null,

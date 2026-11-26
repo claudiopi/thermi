@@ -309,20 +309,28 @@ public sealed class SensorProgramTests : IAsyncDisposable
         public async Task<Snapshot> ReadAsync(CancellationToken stop)
         {
             var reads = ++Reads;
-            _read.Release();
-            var read = await _updates!.UpdateAsync(
-                [new DeviceUpdate("/test", "Test", () => Task.Delay(reads == 1 ? FirstUpdate : TimeSpan.Zero, _clock, stop), Due: true)], stop);
+            var read = await _updates!.UpdateAsync([new DeviceUpdate("/test", "Test", () => Update(reads, stop), Due: true)], stop);
             var counter = read["/test"] == DeviceRead.Updated ? reads : (double?)null;
             return new Snapshot([.. Recorded.Sensors, new RawSensor(Counter, "Test", "Test", "Load", "Reads", counter)]);
         }
 
-        /// <summary>Waits for the read numbered <paramref name="count"/>, from 1.</summary>
+        /// <summary>
+        /// Waits for the read numbered <paramref name="count"/>, from 1, to have its update under way, its delay already on
+        /// the clock: told any sooner, a test that moves the clock could move it before the delay began, which then never ends.
+        /// </summary>
         public async Task ReadCountAsync(int count)
         {
             while (Reads < count)
             {
                 Assert.True(await _read.WaitAsync(Patience, TestContext.Current.CancellationToken), $"Read {count} never came: {Reads} so far.");
             }
+        }
+
+        private Task Update(int reads, CancellationToken stop)
+        {
+            var update = Task.Delay(reads == 1 ? FirstUpdate : TimeSpan.Zero, _clock, stop);
+            _read.Release();
+            return update;
         }
 
         public void Dispose()

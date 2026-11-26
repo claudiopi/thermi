@@ -114,7 +114,12 @@ public sealed class VisibilityWindowsTests : IDisposable
             // The window sets a hotkey, and the overlay is dragged before it has read it.
             Assert.True(_folder.Settled(() => _folder.Store().WriteAsync(config => config with { Hotkeys = First })).IsCompletedSuccessfully);
             settings.Release(new Press(new Position(100, 100), new Position(40, 90)), new Position(300, 260), new DragDistance(4, 4));
-            HostRun.Until(host, _folder.Clock, () => Hotkeys.Trusted(OverlayHost.AskHotkeyStatus()!.Value, First) is not null);
+            // The drag's write lands on a thread of its own, after the hotkeys may have been trusted.
+            HostRun.Until(
+                host,
+                _folder.Clock,
+                () => Hotkeys.Trusted(OverlayHost.AskHotkeyStatus()!.Value, First) is not null
+                    && _folder.Written()?.Contains("\"position\"", StringComparison.Ordinal) == true);
             trusted = Hotkeys.Trusted(OverlayHost.AskHotkeyStatus()!.Value, First);
         });
 

@@ -170,6 +170,10 @@ export async function layoutFaults(page: Page): Promise<string[]> {
       if (!scrolls && element.childElementCount === 0 && (element.textContent ?? '').trim() !== '' && element.scrollWidth > element.clientWidth + 1) {
         faults.push(`cut: ${named(element)}`);
       }
+      // A box's text is its value, as a dropdown shows its choice.
+      if (element instanceof HTMLInputElement && element.value !== '' && element.scrollWidth > element.clientWidth + 1) {
+        faults.push(`cut: ${element.value}`);
+      }
     }
     const controls = shown.filter((element) =>
       element.matches(

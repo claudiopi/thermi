@@ -13,6 +13,7 @@ import {
   selectedRow,
   setFake,
   settled,
+  startingWith,
   test,
   text,
   texts,
@@ -35,8 +36,13 @@ interface View {
 }
 
 const pages: View[] = [
-  // The first overlay's row, named in the window's language, the long one too.
-  { name: 'an overlay', open: (page) => list(page).getByRole('treeitem', { level: 1 }).first().click() },
+  // The first overlay's row, named in the window's language, the long one too, its cards that open opened.
+  { name: 'an overlay', open: async (page, say) => {
+    await list(page).getByRole('treeitem', { level: 1 }).first().click();
+    for (const card of ['OverlayPageText.TextAndShape', 'OverlayPageText.ColorsField', 'OverlayPageText.LockGroup']) {
+      await page.getByRole('main').getByRole('button', { name: startingWith(say(card)), expanded: false }).click();
+    }
+  } },
   { name: 'an item', open: () => Promise.resolve() },
   { name: "an item's more options", open: (page, say) => page.getByRole('button', { name: say('UiText.MoreOptions') }).click() },
   { name: 'Settings', open: (page) => page.keyboard.press('Control+Comma') },
