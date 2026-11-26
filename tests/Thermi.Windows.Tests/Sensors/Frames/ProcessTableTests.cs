@@ -3,7 +3,7 @@ extern alias sensors;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.Sensors.Windows.Frames;
 
-namespace Thermi.Windows.Tests.Sensors;
+namespace Thermi.Windows.Tests.Sensors.Frames;
 
 /// <summary>The processes that present, each read once and held while it runs, as the service's frames ask of them.</summary>
 public sealed class ProcessTableTests
@@ -14,9 +14,9 @@ public sealed class ProcessTableTests
     public void AProcessIsReadOnceAndItsIdAnewOnceItEnded()
     {
         var clock = new FakeTimeProvider();
-        using var first = new Held(new ProcessFacts(1, Compositor: false));
-        using var second = new Held(new ProcessFacts(2, Compositor: true));
-        var opens = new Queue<Held>([first, second]);
+        using var first = new EndingProcess(new ProcessFacts(1, Compositor: false));
+        using var second = new EndingProcess(new ProcessFacts(2, Compositor: true));
+        var opens = new Queue<EndingProcess>([first, second]);
         using var table = new ProcessTable(clock, _ => opens.Dequeue(), () => []);
 
         var asked = (table.Of(7), table.Of(7));
@@ -29,16 +29,5 @@ public sealed class ProcessTableTests
         Assert.Equal(first.Facts, ended);
         Assert.True(first.Disposed);
         Assert.Equal(second.Facts, taken);
-    }
-
-    private sealed class Held(ProcessFacts facts) : IHeldProcess
-    {
-        public ProcessFacts Facts { get; } = facts;
-
-        public bool Exited { get; set; }
-
-        public bool Disposed { get; private set; }
-
-        public void Dispose() => Disposed = true;
     }
 }

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.Sensors.Windows.Frames;
 using Thermi.Core.Frames;
 
-namespace Thermi.Windows.Tests.Sensors;
+namespace Thermi.Windows.Tests.Sensors.Frames;
 
 /// <summary>The service's frames over a trace's life, with a trace that fails, starts and is stopped from outside as asked.</summary>
 public sealed class FramedSourceTests
@@ -45,6 +45,26 @@ public sealed class FramedSourceTests
         Assert.True(started);
         Assert.True(restarted);
         Assert.Equal([true, true, true], traces.Select(trace => trace.Disposed));
+    }
+
+    // A game that presented, then ended after the trace stopped with no client left, is no longer held: its id may go to
+    // another process, and the next trace reads that one anew.
+    [Fact]
+    public async Task TheProcessesThatPresentedAreLetGoWhenTheTraceStops()
+    {
+        var clock = new FakeTimeProvider();
+        using var game = new EndingProcess(new ProcessFacts(1, Compositor: false));
+        using var trace = new Trace(true);
+        using var sensors = new NoSensors();
+        using var processes = new ProcessTable(clock, _ => game, () => []);
+        using var source = new FramedSource(sensors, () => trace, processes, clock, _ => { });
+        await source.ReadAsync(TestContext.Current.CancellationToken);
+        trace.Sink!(new TracedPresent(7, 0, PresentSource.KernelDetailed));
+
+        clock.Advance(FramedSource.Idle);
+
+        Assert.True(trace.Disposed);
+        Assert.True(game.Disposed);
     }
 
     // Zwift's presents, delivered as late as the real trace delivered them, up to 0.74 s after they happened: each second
@@ -102,6 +122,10 @@ public sealed class FramedSourceTests
     private sealed class NoProcesses : IProcessTable
     {
         public ProcessFacts? Of(int process) => null;
+
+        public void Release()
+        {
+        }
 
         public void Dispose()
         {

@@ -20,6 +20,9 @@ internal interface IProcessTable : IDisposable
 {
     /// <summary>What is known of <paramref name="process"/>, or null for one that has gone or cannot be opened.</summary>
     ProcessFacts? Of(int process);
+
+    /// <summary>Lets every held process go, as when the trace stops: one that ends before the next trace must not keep its id.</summary>
+    void Release();
 }
 
 /// <summary>A process held open, so Windows gives its id to no other while it is held.</summary>
@@ -75,7 +78,9 @@ internal sealed class ProcessTable(TimeProvider time, Func<int, IHeldProcess?> o
         }
     }
 
-    public void Dispose()
+    public void Dispose() => Release();
+
+    public void Release()
     {
         lock (_gate)
         {

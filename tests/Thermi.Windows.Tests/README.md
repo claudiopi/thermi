@@ -8,6 +8,7 @@ They never touch the user's PC. Windows go on a desktop of the test's own (`Test
 | --- | --- |
 | `Overlay` | The overlay host and its windows, drags, menus, the settings file and the sensor client, over a pipe of the test's own. |
 | `Sensors` | `src/Thermi.Sensors.Windows`: the pipe server, the service, a device that stalls, the command line, on recorded sensors. |
+| `Sensors/Frames` | The service's frames: the trace's life, and the processes that present, held while they run. |
 | `OnTop` | Staying above the taskbar while another process raises its windows. |
 | `Window` | The settings window's process, editor, undo and fan finder. |
 | `Agents` | The rig that runs `thermi-cli`'s commands and an MCP session against a pipe and a settings file of the test's own. |

@@ -8,7 +8,7 @@ namespace Thermi.Sensors.Windows.Frames;
 /// <summary>
 /// The sensors with each second's frame slots added (docs/adr/0014-frames-from-etw.md), the sensors left to their owner to
 /// close. The trace starts with the first read, so only while a client is connected, and stops once reads have stopped for
-/// <see cref="Idle"/>. A trace that cannot start sends the slots without values, says why once, and is tried again after
+/// <see cref="Idle"/>, letting go of the processes it held. A trace that cannot start sends the slots without values, says why once, and is tried again after
 /// <see cref="Retry"/>, as one stopped from outside is started again. The compositor's presents are left out: they are the
 /// desktop's, never an app's.
 /// </summary>
@@ -125,6 +125,7 @@ internal sealed class FramedSource : ISensorSource
             {
                 _trace.Dispose();
                 _trace = null;
+                _processes.Release();
             }
         }
     }
