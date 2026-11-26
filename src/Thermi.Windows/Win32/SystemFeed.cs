@@ -76,7 +76,7 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
             var (front, fills) = _front.Front();
             var with = GameSensors.With(
                 SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now)),
-                _game.Next(FrameSlots.Read(read), front, fills, _front.Filling));
+                _game.Next(FrameSlots.Read(read), front, fills, _front.Windows));
             _last = (read, second, with);
             return with;
         }
