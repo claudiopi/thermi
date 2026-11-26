@@ -1,5 +1,9 @@
 # thermi
 
+[![CI](https://github.com/claudiopi/thermi/actions/workflows/ci.yml/badge.svg)](https://github.com/claudiopi/thermi/actions/workflows/ci.yml)
+[![Mutation](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml/badge.svg)](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltages and the FPS of the game in front in a small overlay you place anywhere: over the taskbar, in a corner, or floating.
 
 **Status: v1 preview, 0.9.0.** There is no release to download yet: you build it from source and install it on your own PC. Expect rough edges, and please report them.
@@ -17,10 +21,10 @@ A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltag
 ## Tested on
 
 - **The development PC**: a desktop with a Ryzen 9 9950X and an NVIDIA GeForce RTX 5060 Ti, on Windows 11.
-- **Automated tests on every change**: 1,366 .NET cases and 267 of the settings page, counted in [`tests/test-count.json`](tests/test-count.json). Every night, a [mutation run](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml) measures them and fails below 78 % of mutants killed; the last killed 81 % in `Thermi.Core` and `Thermi.Cli` and 88 % in the page's logic.
+- **Automated tests on every change**, their count held by a ratchet in [`tests/test-count.json`](tests/test-count.json). Each [CI run](https://github.com/claudiopi/thermi/actions/workflows/ci.yml)'s summary shows the counts, the coverage and react-doctor's score. Every night, a [mutation run](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml) measures how many planted bugs the tests catch, and fails below its break.
 - **Sensor data recorded on real PCs**, which the tests replay: the PC above with and without admin rights, and an Intel desktop with a Core i9-12900K, in [`tests/Thermi.Tests/Recordings`](tests/Thermi.Tests/Recordings).
 
-Other hardware: see [Hardware reports](https://github.com/claudiopi/thermi/issues/HARDWARE_REPORTS).
+Other hardware: see [Hardware reports](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml).
 
 ## Privacy
 

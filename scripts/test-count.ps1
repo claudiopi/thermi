@@ -130,6 +130,8 @@ if ($failed) {
 }
 
 $notes = @()
+# A line starting "summary: " goes into the CI's summary, as scripts/check-steps.ps1 picks it out.
+$measured = @($cases.Keys | ForEach-Object { "summary: $($cases[$_].Count) $($halfNames[$_]) cases of the ratchet's $($baseline.$_)" })
 foreach ($spec in Get-Specs) {
     if (-not $spec.Budget) {
         $failed += "$($spec.Name)'s spec.md declares no budget: a line '**Budget**: <n> .NET and <n> page cases' under its status."
@@ -138,6 +140,7 @@ foreach ($spec in Get-Specs) {
     foreach ($half in $cases.Keys) {
         $count = @($cases[$half] | Where-Object { $_.Names | Where-Object { $spec.Tests -contains $_ } }).Count
         $budget = $spec.Budget.$half
+        $measured += "summary: ``$($spec.Name)``: $count of its budget of $budget"
         if ($count -gt $budget) {
             $failed += ("$($spec.Name)'s tests have $count $($halfNames[$half]) cases, over the budget of $budget its spec.md declares: " +
                 'merge rows and cut what another case proves, or ask the person who approved the spec to raise it.')
@@ -226,6 +229,7 @@ function Get-SideRaiseFaults([string]$Root, [string]$Side, [string]$From, [strin
 }
 
 $failed += @(Get-RaiseFaults $root $baseline @($cases.Keys))
+$measured | ForEach-Object { Write-Host $_ }
 
 if ($failed) {
     $failed | ForEach-Object { Write-Host $_ }

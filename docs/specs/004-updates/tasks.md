@@ -4,7 +4,7 @@
 
 ## Open
 
-Checks on hardware other than the development PC: [Hardware reports](https://github.com/claudiopi/thermi/issues/HARDWARE_REPORTS) (A1 on clean x64 and Arm64 PCs, A34 with a per-user install).
+Checks on hardware other than the development PC: [Hardware reports](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml) (A1 on clean x64 and Arm64 PCs, A34 with a per-user install).
 
 By hand on the development PC, before publishing:
 

@@ -123,6 +123,7 @@ function Invoke-DotNet($Scope) {
     Invoke-Together @(if ($alone) { New-WindowsStep 'Windows tests alone' $Scope.WindowsFilter $split 'alone' })
     Invoke-Together @(if ($alone) { New-WindowsStep 'Windows tests under load' $Scope.WindowsFilter $split 'load' })
     if ($windows -and $alone -and -not $Scope.WindowsFilter) { Show-AppCoverage }
+    elseif ($windows -and $Ci) { Show-AppCoverage -Partial }
     if ($Mutation) {
         pwsh -NoProfile -File scripts/mutation.ps1
         if ($LASTEXITCODE -ne 0) { exit 1 }
@@ -161,8 +162,7 @@ function Invoke-Web {
     # Playwright with axe, against the built page in the Edge that Windows ships.
     Invoke-Step 'web page tests' { npm run test:e2e --prefix $web }
     if ($Mutation) {
-        Invoke-Step 'web mutation' { npm run mutation --prefix $web }
-        & (Join-Path $PSScriptRoot 'redundant.ps1') -Report (Join-Path $results 'mutation-web' 'mutation-report.json') -Root $web
+        pwsh -NoProfile -File scripts/mutation.ps1 -Web
         if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 }
@@ -204,4 +204,8 @@ try {
 finally {
     if ($webHalf -and -not $webHalf.HasExited) { $webHalf.WaitForExit() }
     if (-not $Ci) { Exit-Check }
+    $titles = @{
+        All = 'Check'; DotNet = '.NET'; Core = 'Build and Thermi.Tests'; Windows = 'Windows tests'; WindowsAlone = 'Windows tests alone'; Web = 'Settings page'
+    }
+    Write-Summary $titles[$Part]
 }

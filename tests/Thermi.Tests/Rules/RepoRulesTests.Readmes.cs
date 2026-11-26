@@ -59,4 +59,20 @@ public sealed partial class RepoRulesTests
 
     [GeneratedRegex(@"^`(?<folder>[\w./-]+)`$", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
     private static partial Regex FolderCell();
+
+    // A count or a score quoted in the README is stale by the next change, and the ratchet's own raise may touch nothing
+    // else: its badges and each CI run's summary show the tests' counts, the coverage and the scores.
+    [Fact]
+    public void TheReadmeQuotesNoMeasuredNumber()
+    {
+        var quoted = File.ReadAllLines(Path.Combine(Root, "README.md"))
+            .Select((line, index) => (Line: line, Number: index + 1))
+            .Where(each => MeasuredNumber().IsMatch(each.Line))
+            .Select(each => $"README.md:{each.Number} quotes a count or a score, which goes stale: link the CI's summary or a badge");
+
+        AssertNone(quoted);
+    }
+
+    [GeneratedRegex(@"\d\s*%|\d[\d,]*\s+(\.NET\s+|page\s+)?cases\b", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex MeasuredNumber();
 }

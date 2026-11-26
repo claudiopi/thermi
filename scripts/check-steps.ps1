@@ -1,5 +1,9 @@
 # Dot-sourced by scripts/check.ps1: how a step runs and reports, alone or beside others, and the coverage it shows.
 . (Join-Path $PSScriptRoot 'sources.ps1')
+. (Join-Path $PSScriptRoot 'summary.ps1')
+
+# What a step's output measured, for the CI's summary: the lines a script of the check marks for it, and react-doctor's score.
+$measuredLine = '^(summary: |Score: \d+ / 100)'
 
 # The Windows tests' collection whose test spins every core: it runs after the rest, which would only measure its load.
 $underLoad = 'FullLoadTests'
@@ -40,6 +44,9 @@ function Invoke-Together([object[]]$Steps) {
 }
 
 function Write-Step([string]$Name, [int]$Code, [string[]]$Output, [double]$Seconds, [scriptblock]$Explain) {
+    $measured = $Output | ForEach-Object { $_ -replace '\e\[[\d;]*m', '' } | Where-Object { $_ -match $measuredLine } |
+        ForEach-Object { $_ -replace '^summary: ', '' }
+    Add-SummaryRow $Name $(if ($Code -eq 0) { 'ok' } else { 'fail' }) $Seconds $measured
     if ($Code -eq 0) {
         Write-Host ('ok   {0} ({1:n0}s)' -f $Name, $Seconds)
         $Output | Where-Object { $_ -like 'note: *' } | ForEach-Object { Write-Host "     $_" }
@@ -117,14 +124,17 @@ function New-WindowsStep([string]$Name, [string]$Namespace, $Split, [string]$Run
 function Assert-Coverage {
     $report = Get-ChildItem $results -Filter '*.cobertura.*' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
     $packages = if ($report) { ([xml](Get-Content $report.FullName)).coverage.packages.package }
+    $shown = @()
     $low = foreach ($name in $coverageFloors.Keys) {
         $package = $packages | Where-Object name -eq $name
         $rates = if ($package) { [double]$package.'line-rate', [double]$package.'branch-rate' } else { 0, 0 }
+        $shown += '{0}: lines {1:p0}, branches {2:p0}, floor {3} %' -f $name, $rates[0], $rates[1], $coverageFloors[$name]
         if ([Math]::Min($rates[0], $rates[1]) * 100 -lt $coverageFloors[$name]) {
             '  {0} coverage: lines {1:p0}, branches {2:p0}. Its gate is {3} %: add behavior tests for the new code.' -f
                 $name, $rates[0], $rates[1], $coverageFloors[$name]
         }
     }
+    Add-SummaryRow 'coverage' $(if ($low) { 'fail' } else { 'ok' }) 0 $shown
     if (-not $low) { return }
     Write-Host 'FAIL coverage'
     $low | ForEach-Object { Write-Host $_ }
@@ -133,8 +143,9 @@ function Assert-Coverage {
 
 # Shown, not gated: what the tests' windows run depends on the PC's monitors, DPI and theme, and a little on timing.
 # Each test project's runs must hold what it runs, so one that measured nothing never hides behind the other's;
-# a line or branch that any test process ran counts once.
-function Show-AppCoverage {
+# a line or branch that any test process ran counts once. -Partial shows what one CI job's runs measured, which need not
+# hold it all, as the tests that run alone run in a job of their own.
+function Show-AppCoverage([switch]$Partial) {
     $modules = @{}
     foreach ($tests in $appReports.Keys) {
         $names = @{}
@@ -143,7 +154,7 @@ function Show-AppCoverage {
             foreach ($module in $measured.GetEnumerator()) { $names[[IO.Path]::GetFileNameWithoutExtension($module.Key)] += @($module.Value) }
         }
         foreach ($name in $appReports[$tests]) {
-            if (-not $names[$name]) {
+            if (-not $names[$name] -and -not $Partial) {
                 Write-Host ("FAIL app coverage: $tests did not measure $name. Coverlet leaves out an assembly the test process loaded " +
                     'before the tests, as a [ModuleInitializer] that uses its types does.')
                 exit 1
@@ -156,9 +167,12 @@ function Show-AppCoverage {
     }
 
     $shown = foreach ($name in 'thermi', 'thermi-sensors', 'Thermi.App') {
+        if (-not $modules[$name]) { "$name not measured"; continue }
         '{0} lines {1:n0} %, branches {2:n0} %' -f $name, (Get-Rate $modules[$name].Lines), (Get-Rate $modules[$name].Branches)
     }
-    Write-Host "info app coverage: $($shown -join '; ')"
+    $of = if ($Partial) { ' of the tests that run in parallel' } else { '' }
+    Write-Host "info app coverage${of}: $($shown -join '; ')"
+    Add-SummaryRow "app coverage$of" 'info' 0 $shown
 }
 
 # A report holds file, class, method, then each method's lines and branches.

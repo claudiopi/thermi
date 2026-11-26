@@ -6,7 +6,7 @@
 
 - **A Node package and a Python package for the contract**: each its own spec, as thin as the .NET SDK in `src/Thermi.Client`, starting `thermi-cli` and reading its JSON.
 
-Checks on hardware other than the development PC: [Hardware reports](https://github.com/claudiopi/thermi/issues/HARDWARE_REPORTS) (A20).
+Checks on hardware other than the development PC: [Hardware reports](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml) (A20).
 
 By hand on the development PC, before publishing:
 
