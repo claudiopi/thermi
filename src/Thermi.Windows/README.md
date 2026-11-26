@@ -1,6 +1,6 @@
 # Thermi.Windows
 
-`thermi.exe` and `thermi-cli.exe`: the overlay, the tray, the settings window and the agents' door. Everything here runs as the user, never with admin rights, and decides as little as it can: what to show, what an edit may do and what an agent gets back are Core's. This project is the Windows side of those decisions: Win32 windows, GDI+, WebView2, the pipe and the settings file.
+`thermi.exe` and `thermi-cli.exe`: the overlay, the tray, the settings window and the agents' door. It runs as the user, never with admin rights, but for `thermi elevated <verb>`, which only `thermi-elevated` starts, as SYSTEM, for one of the window's two fixes (`Commands/Elevated.cs`). It decides as little as it can: what to show, what an edit may do and what an agent gets back are Core's. This project is the Windows side of those decisions: Win32 windows, GDI+, WebView2, the pipe and the settings file.
 
 One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. `thermi settings` is the settings window, in a process of its own that closes with it (`docs/adr/0005-settings-window-process.md`). `thermi-cli` is the same program behind a console apphost, so a shell waits for it (`docs/adr/0013-agents-cli-and-mcp.md`).
 
