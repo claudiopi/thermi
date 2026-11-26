@@ -2,20 +2,6 @@
   "spec": "004-updates",
   "steps": [
     {
-      "id": "A1",
-      "covers": ["R1", "R2"],
-      "description": "Given a published release, when the author runs its machine MSI on a clean Windows 11 PC, x64 and then Arm64, then one UAC prompt installs thermi, both services, the Start menu entry and the start at sign-in with nothing downloaded, every executable and library under %ProgramFiles%\\thermi is Valid for Get-AuthenticodeSignature, and uninstalling removes that folder whole and leaves %APPDATA%\\thermi.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A2",
-      "covers": ["R3"],
-      "description": "Given the previous release installed and used, with a saved style, \"Start with Windows\" off and a tray value shown in the taskbar, when the new MSI installs over it and then an update and a rollback run, then each time the settings, the style, the log, the start choice and the shown tray value are as they were.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A3",
       "covers": ["R4", "R5", "R7", "R8"],
       "description": "Given a fake clock and a service with updates built in, when it runs, then it checks a minute after it starts, every 4 hours and after a resume past 4 hours; it asks the beta address only under the beta policy; it never checks with Updates = 0 or in a build without a key; and on a metered network it downloads only an urgent version.",
@@ -107,13 +93,6 @@
       "passes": true
     },
     {
-      "id": "A15",
-      "covers": ["R14", "R15", "R16", "R17", "R22", "R24"],
-      "description": "Given thermi installed for a test channel served from this PC, when a newer build is published, then it switches with no prompt while the author is away and the overlay never blinks; when the channel is rolled back, the PC goes back within a check; when a build made to fail at start is published, the PC goes back by itself and the event log says why; the service stays under 80 MB a day later; and on R2, curl shows the manifest's max-age of 60 and the zip's immutable cache.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
       "id": "A16",
       "covers": ["R25"],
       "description": "Given About asked for a check, when it reads the state, then it says it checks until the service has checked since a minute before the ask, for half a minute at most, and then says up to date, checked just now, or names the version ready, offering a restart only when its switch is not held.",
@@ -132,13 +111,6 @@
       "covers": ["R25"],
       "description": "Given a version ready right after a quiet session's code, when About's restart asks for it while a check runs, then the switch begins once the check ends.",
       "check": "ARestartSwitchesAtOnce",
-      "passes": true
-    },
-    {
-      "id": "A19",
-      "covers": ["R25"],
-      "description": "Given thermi installed for a test channel served from this PC, when About opens with a newer build published, then it says it checks, then that the version is ready with Restart to update, which switches and closes the window; and reopened within a minute, it checks nothing more.",
-      "check": "by hand",
       "passes": true
     },
     {
@@ -184,27 +156,6 @@
       "passes": true
     },
     {
-      "id": "A26",
-      "covers": ["R31"],
-      "description": "Given the user's installed products, per-user and machine, of thermi and of others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi, by its per-user UpgradeCode, in the user's unmanaged context alone.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A27",
-      "covers": ["R26", "R29", "R30", "R31"],
-      "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows the GPU and the CPU's load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, to a prompt naming thermi that comes to the front even after a slow download, then the machine install, the service and the driver arrive, the CPU's temperature reads, the start at sign-in stays as it was, and the per-user install is gone with the settings kept; and with the driver's download blocked, thermi still installs, the event log says why and the fix is still offered.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A28",
-      "covers": ["R27", "R32"],
-      "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; the watchdog places the launchers only once the new host serves, and starts the old host again when a build that never serves is published; and the user's host stays within the service's budget, 80 MB and 3 % of a core.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
       "id": "A29",
       "covers": ["R30"],
       "description": "Given the machine MSI's source, when its driver action is read, then ADDDRIVER is a secure property and the action runs only under NOT Installed AND ADDDRIVER = 1, so no repair adds the driver.",
@@ -238,13 +189,6 @@
       "description": "Given the pinned driver or a later one already installed, when the elevated service's install-driver runs, then it downloads and runs nothing and only starts the sensors again.",
       "check": "OnlyThePinnedInstallerRunsAndTheSensorsStartAgain",
       "passes": true
-    },
-    {
-      "id": "A34",
-      "covers": ["R27"],
-      "description": "Given a per-user install whose host serves, when the user signs out or restarts Windows, then the host's run ends with the Stopped mark in update\\state.json, and no crash is counted at the next start.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A35",
@@ -296,11 +240,18 @@
       "passes": true
     },
     {
-      "id": "A42",
-      "covers": ["R34"],
-      "description": "Given a PC or VM with UAC at its default and a standard account, each msiexec run logged with /l*v, when an administrator installs the machine MSI from an elevated console, then the overlay starts at medium integrity; when Explorer was ended first, then no overlay runs elevated, thermi and thermi settings started from that console exit with 1 and say why, and %LOCALAPPDATA%\\thermi is unchanged; when a standard user installs and an administrator consents, then the overlay runs as that user, unelevated; when a standard user repairs with msiexec /fa, then no console window shows and the services and launchers are back; when an install fails after Adopt, then --undo leaves the PC as before; after a good install, update\\adopt-undo.json is gone; and the per-user MSI from an elevated console starts its overlay unelevated too.",
-      "check": "by hand",
-      "passes": false
+      "id": "A44",
+      "covers": ["R2"],
+      "description": "Given a signed program and an unsigned catalog, when thermi checks who signed them, then it trusts the program by its signer's thumbprint, never by a name another certificate could carry, and refuses the unsigned catalog.",
+      "check": "OnlyThermisCertificateSignsACatalog",
+      "passes": true
+    },
+    {
+      "id": "A45",
+      "covers": ["R31"],
+      "description": "Given the per-user MSI's source, when the machine's overlay looks for the per-user product to remove, then the UpgradeCode it looks for is the one the per-user MSI is built with.",
+      "check": "ThePerUserMsiCarriesTheUpgradeCodeItIsRemovedBy",
+      "passes": true
     }
   ]
 }

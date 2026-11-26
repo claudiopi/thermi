@@ -1,6 +1,6 @@
 # Releases and updates
 
-How a version of thermi reaches PCs, and the levers on it. Why it works this way is in `docs/adr/0008-updates.md`; what it must do is in `docs/specs/004-updates/spec.md`.
+How a version of thermi reaches PCs, the levers on it, and the checks a person runs before each release. Why it works this way is in `docs/adr/0008-updates.md`; what it must do is in `docs/specs/004-updates/spec.md`.
 
 ## The channels
 
@@ -70,6 +70,71 @@ Why some of it is this way:
 - `scripts/channel-sync.ps1` moves the channels between the run and the bucket, the zips before the manifests, and writes a manifest only if the bucket still holds what the run fetched. Of two runs at once, the second fails and is run again.
 - Right after a stable release, raise `Directory.Build.props`' version: a beta of the version released is older than it, and the channel refuses it.
 - `revoke` never runs there, since it needs the backup key: on your PC run `scripts/channel-sync.ps1 down`, then `revoke`, then `scripts/channel-sync.ps1 up`.
+
+## Before each release
+
+The specs are proven by tests alone. What only a person can see, on the development PC and its installed build, is checked here before a version goes to stable; none of it holds back a spec, and a spec's requirement names the check that covers what its tests cannot (`docs/specs/README.md`). What needs other hardware, such as Windows 10, Arm64 or a laptop, comes from [Hardware reports](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml) instead.
+
+Run them on the release's build, installed. A check that fails is a bug: it starts with a test that reproduces it, where one can (`docs/BUGS.md`).
+
+### Install and start
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **Install the release's MSI** | Uninstall thermi. Run the release's x64 machine MSI, then uninstall it from Installed apps. | One UAC prompt installs thermi, both services, the Start menu entry and the start at sign-in, with nothing downloaded. `Get-AuthenticodeSignature` says Valid for every `.exe` and `.dll` under `%ProgramFiles%\thermi`. The uninstall removes that folder whole and keeps `%APPDATA%\thermi`. |
+| **Install over the previous release** | With the previous release installed and used, a saved style, Start with Windows off and a tray value shown, install the new MSI over it. Let an update and a rollback run. Run `scripts/install.ps1` over it. | Each time, the settings, the style, the log, Start with Windows and the shown tray value are as they were, and one overlay runs. |
+| **Restart and sign-in** | Drag an overlay somewhere and snap another to the second monitor. Restart and sign in. Turn Start with Windows off, reinstall, sign out and in. | The overlay is on the taskbar with live values and no UAC prompt, each overlay is where it was, and the snap finds its monitor. With the start off, no overlay starts, and Ctrl+Z in the window never touched the switch. |
+| **A standard user's install** | On a standard account with UAC at its default, install the per-user MSI, sign out and in, then double-click the CPU's temperature and consent as an administrator. Then run the machine MSI from an administrator's elevated console, a repair with `msiexec /fa`, and an install that fails after its adopt step, each logged with `/l*v`. | The per-user MSI asks nothing and shows the GPU and the CPU's load, with the temperature as "–". After the sign-out, the user's host ended with the Stopped mark in `update\state.json`, and no crash is counted. After the consent, the machine install, the service and the driver arrive, the temperature reads, and the per-user install is gone with the settings kept. The overlay never runs elevated, a repair shows no console and puts back the services and the launchers, and the failed install leaves the PC as before. |
+| **A sensors-only install** | Uninstall thermi. Run `scripts/install.ps1 -SensorsOnly` for a test channel, as in "Trying it on this PC", sign out and in, and run `thermi-cli read`. Publish the next build to the channel. Then install the full thermi over it. | One administrator prompt installs the services, `thermi-cli` and the driver when it is missing, no overlay starts, and `thermi-cli read` gives a CPU temperature. The update installs the sensors alone at the new version. The full install adds the overlay and the window. |
+
+### Updates
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **An update from a test channel** | As in "Trying it on this PC", publish a newer build and leave the PC idle. Roll the channel back. Publish a build made to fail at start. Open About with a newer build published. Do the first publish again with a per-user install. | The PC switches with no prompt and the overlay never blinks. The rollback takes it back within a check. The failing build goes back by itself, and the event log says why. About says it checks, then that the version is ready with Restart to update, which switches and closes the window; reopened within a minute, it checks nothing. The per-user install switches too. A day later the service is still under 80 MB. |
+| **The update server's cache** | `curl -I` a channel's manifest and a zip on the update server. | The manifest says `max-age=60` and the zip `immutable`. |
+
+### Costs
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **Costs at rest** | Run `scripts/measure.ps1`, then with `-Window`. Again with Fade near the pointer on, with an agent's MCP server running, and with a game presenting at 144 FPS in front. Then `logman query -ets` with no client connected. | Every budget of `AGENTS.md` holds each time: the overlay 48 MB and 0.5 % of one core, the idle window with its renderer 1 %, the service 80 MB and 3 %, on this PC's two drives and two adapters. No thermi-frames session is listed. |
+| **The window's speed** | Open the window with `--trace` the first time after sign-in, and again. Drag a knob for a minute. Use it for an hour. Close it. | The first frame shows within 2 s the first time and 1 s after. Each paint lands within 300 ms of its input, at most 10 times a second, and the overlay stays under 2 % of one core. Its memory stays within 5 MB of its first minute. Once closed, no window or WebView2 process is left. |
+
+### The overlay
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **On top, hidden and shown** | Click the taskbar, open Start and search. Sleep and wake the PC, and turn a monitor off and on. Play a full-screen video and a borderless game. Press the four hotkeys, one of them held by another app. | The overlay stays on screen and on top, hides from full-screen apps, and follows each hotkey; the one another app holds is refused. |
+| **Monitors and taskbars** | Move the second monitor to another port. On a 1080p monitor at 100 % and a 4K one at 150 %, set 400 % with 36 px text and a pill color, free, in each corner and on the taskbar. Drop the overlay along the taskbar, restart Explorer, change the resolution and the scale, and drop one half off the screen. | The snap still finds its monitor. The overlay paints sharp and whole, as high as the taskbar on it, and the preview and Copy as image match it. It follows the taskbar within a second at the same offset, and shows whole inside the work area. |
+| **Gestures on the desktop** | With four overlays on two monitors and a crowded taskbar: click values with the window open; hold pills and items until they lift and drag them over their own pill, onto another overlay and onto the desktop; drag before the hold; press Esc mid-drag; merge and resize overlays; open and close apps; undo a gesture from the overlay's menu; use the Size menu and Ctrl+wheel, free, in a corner and on the taskbar. | The window follows. A lifted pill or item joins where it is let go, or becomes an overlay that snaps; a drag before the hold moves the whole overlay; Esc puts everything back and reaches no other app. No overlay on the taskbar moves as apps open and close, and none grows past its height. A spin undoes whole, and "Custom…" lands on the Size slider. |
+| **The overlay reads well** | On light and dark wallpapers and taskbars, go through each theme, font, effect and a 0 % background, each level, the first critical and a stopped service. Look at thermi's icon and three item icons at 100 %, 150 % and 200 %, across a restart, an Explorer restart and level changes. | Every value reads well, the levels read without color, the glow comes once, and the tooltips say what to do. The icons read at a glance, keep their pins and come back. |
+| **Menus, notices and the overlay's additions** | In English and Spanish, light, dark and high contrast, right-click a pill, the edge and an item's tray icon, and choose each entry by mouse and by its key. Open Task Manager from both menus. Point at the CPU and GPU values during `thermi cpu-load 30`. Copy the overlay as an image into Paint. Turn on Fade near the pointer. Remove the driver. Then see the first start's notice, hide the overlays from thermi's menu, turn click-through on, and let an item with Notify me go critical. | Every entry does what it says at once, and Undo takes it back. The menus are Windows' own and follow the theme. The tooltips name the models, the busiest process and any throttling. The picture is the overlay. The overlay fades and still takes a double-click. The CPU pill says Driver, and its double-click opens the window on the driver's bar. Each notice comes from thermi's icon and its buttons work, and clicks pass through until click-through is off. |
+| **Recover from failures** | End the service from Task Manager, then stop and start it. Open the window without the overlay. Install the driver refusing Windows' prompt, then accepting it. Edit the settings file by hand, break it with a typo, restore it. Crash the overlay after its first minute, then hang it until Windows offers to close it. End it from Task Manager, and with "Exit thermi". | The values are back within 10 s. The window and the overlay follow each change and recover on their own, and a broken file shows as broken and keeps its text. Windows offers to restart a crashed or hung overlay and one overlay comes back, with no settings window; nothing starts it again after Task Manager or "Exit thermi". |
+
+### The settings window
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **Open the window every way** | With the window closed, and then behind others, open it from the overlay's menu, thermi's menu, a double-click on a value and on the edge, `thermi settings`, and Start. | One window opens on the right item or overlay, or comes to the front focused. |
+| **Narrator, themes and the window's frame** | With Narrator, and in light, dark, another accent, high contrast and with animation effects off, move through the window. Resize, maximize, snap and activate it over the overlays, and maximize and restore it from its caption button and its system menu. Type in the catalog's search and a Sensor dropdown's filter. Set Theme to Light, Dark and Windows, and open the window again in Light. | Everything is read with its name, role and value, and looks right. Nothing animates. The focus stays where it was, also once Esc closes the system menu. The edited overlay stays above the window unless it would cover the caption buttons. The search's marks read in both themes. Each theme applies at once to the page, the title row, the caption buttons and Mica, and the window opened in Light is light from its first frame. |
+| **Spanish and long texts** | With Windows in Spanish, go through both menus, every page and the catalog. Then again with `thermi settings --pseudo`. | Every text thermi writes is Spanish, and long texts fit. |
+
+### Sensors
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **Values against another monitor** | Show another hardware monitor, such as HWiNFO, beside the overlay for a minute. | The values agree. |
+| **CPU load against Task Manager** | Keep Task Manager's CPU utilization beside the overlay at rest and during `thermi cpu-load 30`. | CPU load stays within 3 points of it. |
+| **Network and disks** | With WSL or Hyper-V and a VPN on, download a large file, and copy one between drives. | The NET pill follows the physical adapter, the disk items follow the busy drive, and the catalog lists both groups. |
+| **The fan finder's load** | With Task Manager open, run the fan finder and cancel it. | Every core is loaded at idle priority, and the load ends within a second of Cancel. |
+| **FPS against Zwift and PresentMon** | Ride Zwift windowed, borderless and in full screen, and run free Direct3D 9, 11 and 12 and Vulkan demos beside PresentMon, a minute each. Then give the focus to a terminal maximized on the other monitor that streams text. | The window's FPS is within 2 % of Zwift's own counter and of PresentMon's, and keeps showing Zwift while the terminal has the focus. |
+
+### Agents
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **thermi-cli in Claude Code and Claude Desktop** | Add `thermi-cli` with the README's one command. Ask a new session how hot the CPU is, then to set its warning at 70 °C. Then the same in Claude Desktop. | The answer matches the overlay, and the overlay shows the new warning. |
 
 ## If the release key is stolen
 

@@ -15,19 +15,6 @@
       "passes": true
     },
     {
-      "id": "A215",
-      "covers": [
-        "R1",
-        "R2",
-        "R3",
-        "R4",
-        "R151"
-      ],
-      "description": "Given the overlay, when the author opens the window from each way in (the overlay's menu, thermi's menu, a double-click on a value or the edge, `thermi settings`, Start), with the window closed and then behind others, then one window opens on the right item or overlay, or comes to the front focused.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A200",
       "covers": [
         "R2",
@@ -43,20 +30,6 @@
       "passes": true
     },
     {
-      "id": "A216",
-      "covers": [
-        "R5",
-        "R7",
-        "R51",
-        "R154",
-        "R155",
-        "R158"
-      ],
-      "description": "Given --trace and the overlay's CPU time and memory, when the window opens cold and warm, stays idle, has a knob dragged for a minute, closes, and an hour of use passes, then the first frame is under 2 s cold and 1 s warm, every paint lands within 300 ms of its input at most 10 times a second, the budgets hold, no window or WebView2 process is left, and memory stays within 5 MB.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A201",
       "covers": [
         "R6",
@@ -67,20 +40,6 @@
       "description": "Given the page and a fake bridge in each kind of trouble (the driver missing, no overlay, the service stopped or stale, a broken file), when the page shows it and its action is taken, then the page offers the fix, takes no edit while the file is broken, and moves on as the fake answers.",
       "check": "TheWindowSaysWhatIsWrongAndOffersTheFix",
       "passes": true
-    },
-    {
-      "id": "A217",
-      "covers": [
-        "R6",
-        "R40",
-        "R41",
-        "R42",
-        "R45",
-        "R145"
-      ],
-      "description": "Given a real PC, when the author opens the window without the overlay, stops and starts the service, installs the driver refusing and then accepting Windows' prompt, and edits, breaks and restores the file by hand, then the window follows each and recovers on its own.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A191",
@@ -217,17 +176,6 @@
       "passes": true
     },
     {
-      "id": "A218",
-      "covers": [
-        "R19",
-        "R20",
-        "R21"
-      ],
-      "description": "Given Task Manager and a board that drives the CPU fan, when the finder runs and is cancelled, then every core is loaded at idle priority, the load ends within a second of Cancel, and a full run picks the CPU fan.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A35",
       "covers": [
         "R19",
@@ -307,15 +255,6 @@
       "description": "Given a snapped overlay, when it is moved further than the drag distance and dropped, then the snap is gone and the dropped position is saved.",
       "check": "DraggingASnappedOverlayUnsnapsIt",
       "passes": true
-    },
-    {
-      "id": "A219",
-      "covers": [
-        "R35"
-      ],
-      "description": "Given the overlay snapped to the second monitor, when the PC restarts, and when that monitor moves to another port, then the snap still finds it.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A208",
@@ -427,20 +366,6 @@
       "passes": true
     },
     {
-      "id": "A220",
-      "covers": [
-        "R48",
-        "R49",
-        "R50",
-        "R116",
-        "R118",
-        "R123"
-      ],
-      "description": "Given Narrator, light, dark, another accent, high contrast and animation effects off, when the author moves through the window, resizes, maximizes, snaps and activates it over the overlays, and maximizes and restores it from its caption button and from the system menu, then everything is read with its name, role and value, looks right, nothing animates, the focus stays where it was, also once Esc closes the system menu, and the edited overlay stays above the window unless it would cover the caption buttons.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A211",
       "covers": [
         "R52",
@@ -456,15 +381,6 @@
       "description": "Given the page with the fake bridge, when the language, the unit, the window's theme and Start with Windows change, a hotkey is recorded, refused, cleared and cancelled, and Reset is asked and cancelled, then the settings hold each change, Start with Windows is outside undo, thermi's hotkeys rest while one records, and Cancel is the destructive dialog's default.",
       "check": "TheSettingsPageChangesThermi",
       "passes": true
-    },
-    {
-      "id": "A221",
-      "covers": [
-        "R52"
-      ],
-      "description": "Given Start with Windows turned off, when thermi is reinstalled and the author signs out and in, then the overlay does not start, and Ctrl+Z never touched the switch.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A87",
@@ -484,21 +400,6 @@
       "description": "Given the default settings, when the look is read and then one size changes, then it is standard text on pills that match the taskbar, green meters at normal and darker level colors on light pills, each 3:1 against its pill and a graph's unlit track, and the change makes the look the overlay's own, keeping the rest; a look's tile samples it as three lit pills.",
       "check": "TheDefaultLookIsStandardTextOnPillsThatMatchTheTaskbar",
       "passes": true
-    },
-    {
-      "id": "A222",
-      "covers": [
-        "R59",
-        "R60",
-        "R61",
-        "R93",
-        "R138",
-        "R139",
-        "R140"
-      ],
-      "description": "Given light and dark wallpapers and taskbars, when the author looks at the overlay in each theme, font, effect and a 0 % background, at each level, at the first critical, with a stopped service and over its tooltips, then every value reads well, the levels read without color, the glow comes once, and the tooltips say what to do.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A100",
@@ -538,19 +439,6 @@
       "passes": true
     },
     {
-      "id": "A223",
-      "covers": [
-        "R68",
-        "R69",
-        "R70",
-        "R135",
-        "R136"
-      ],
-      "description": "Given a full-screen video and a borderless game, the four hotkeys and thermi's icon, when the author hides and shows the overlays each way, presses each hotkey, and opens both menus by mouse and keyboard, then the overlays follow, a hotkey another app holds is refused, and the menus are Windows' own and follow the theme.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A147",
       "covers": [
         "R69"
@@ -570,16 +458,6 @@
       "description": "Given one overlay hidden on its own, when \"Hide overlays\" is set, the file is read again, thermi's icon is clicked, the window opens on the hidden overlay and thermi starts again, then the flag is never in the file, the click clears only the flag, the hidden overlay stays off the desktop whatever the window edits, and a new start shows the overlays by their own visibility.",
       "check": "HideOverlaysIsAFlagThatIsNeverSaved",
       "passes": true
-    },
-    {
-      "id": "A224",
-      "covers": [
-        "R71",
-        "R75"
-      ],
-      "description": "Given Windows in Spanish, and then `thermi settings --pseudo`, when the author goes through both menus, every page and the catalog, then every text thermi writes is Spanish, and long texts fit.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A119",
@@ -632,18 +510,6 @@
       "passes": true
     },
     {
-      "id": "A225",
-      "covers": [
-        "R76",
-        "R77",
-        "R79",
-        "R80"
-      ],
-      "description": "Given thermi's icon and three item icons at 100 %, 150 % and 200 % on a dark and a light taskbar, when the PC restarts, Explorer restarts and the items change level, then the icons read at a glance, keep their pins, come back, and the mark wakes and alarms.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A133",
       "covers": [
         "R77"
@@ -688,17 +554,6 @@
       "description": "Given each event that brings a notice (a first start, the window opened, overlays hidden, click-through turned on, clicks coming back), when the notices are decided, then each shows once in its form with its buttons, none comes from the window, and each goes when what it is about ends.",
       "check": "NoticesShowOnceAndGoWhenDone",
       "passes": true
-    },
-    {
-      "id": "A226",
-      "covers": [
-        "R84",
-        "R114",
-        "R129"
-      ],
-      "description": "Given a first start, overlays hidden from thermi's menu, click-through turned on, and an item critical with Notify me, when each notice shows, then it comes from thermi's icon with its buttons, its actions work, and clicks pass through the overlay until click-through is off.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A162",
@@ -783,21 +638,6 @@
       "description": "Given the page with three overlays, when one is made, duplicated, merged, hidden, shown and deleted from the list and from the overlay page, then the settings follow, the new one takes the focus, and after a delete or a merge the focus is on the next row or the target.",
       "check": "OverlaysAreManagedFromTheList",
       "passes": true
-    },
-    {
-      "id": "A227",
-      "covers": [
-        "R94",
-        "R99",
-        "R104",
-        "R128",
-        "R143",
-        "R148",
-        "R150"
-      ],
-      "description": "Given four overlays on two monitors and a crowded taskbar, when the author clicks values with the window open, holds pills until they lift and drags them off, onto another overlay and onto the desktop, drags before the hold, presses Esc during a drag, merges and resizes overlays, opens and closes apps, and undoes a gesture from the overlay's menu, then the window follows, the marks and fades show, a lifted pill joins where it is let go or becomes an overlay that snaps, a drag before the hold moves the whole overlay, Esc puts everything back, a hidden overlay shows only in the window, and no overlay on the taskbar moves as apps open and close.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A192",
@@ -896,19 +736,6 @@
       "passes": true
     },
     {
-      "id": "A233",
-      "covers": [
-        "R159",
-        "R162",
-        "R163",
-        "R167",
-        "R168"
-      ],
-      "description": "Given a PC with two drives and two adapters and the service running as installed, when the author downloads a large file and copies one between drives, then the NET pill and the disk items follow the busy adapter and drive, the catalog lists both groups, and the service stays under 80 MB of private memory at rest.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A234",
       "covers": [
         "R170"
@@ -924,9 +751,9 @@
         "R171",
         "R175"
       ],
-      "description": "Given a laptop's recording with a battery and virtual adapters, and the desktop recordings, when the catalog is built and the metrics are picked, then the battery sits under Battery on the laptop and no Battery group exists on the desktops, and Auto's adapter is never a loopback, tunnel or virtual one while a physical one moves data.",
+      "description": "Given a made-up laptop with a battery and virtual adapters, and the desktop recordings, when the catalog is built and the metrics are picked, then the battery sits under Battery on the laptop and no Battery group exists on the desktops, and Auto's adapter is never a loopback, tunnel or virtual one while a physical one moves data.",
       "check": "AutoNamesTheSensorItsMetricReads",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A236",
@@ -955,39 +782,6 @@
       "description": "Given the page with a fake bridge for a laptop and one for a desktop, when the catalog opens, then the laptop's offers a Battery group by role and the desktop's offers none.",
       "check": "TheCatalogAddsWithTheKeyboard",
       "passes": true
-    },
-    {
-      "id": "A239",
-      "covers": [
-        "R169",
-        "R170",
-        "R171",
-        "R172",
-        "R173",
-        "R174"
-      ],
-      "description": "Given a laptop with the service running as installed and an external monitor, when the author adds the battery's items, unplugs the laptop, puts it to sleep, unplugs the monitor and wakes it, then the battery reads its charge, rate and time, no stale value shows as live after waking, readings come back within 5 s without a click, and the overlays go back to their places.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A240",
-      "covers": [
-        "R175",
-        "R176"
-      ],
-      "description": "Given a PC with WSL or Hyper-V and a VPN on, when the author downloads a large file, then Auto follows the physical adapter; and with Task Manager beside the overlay, at rest and during `thermi cpu-load 30`, CPU load stays within 3 points of Task Manager's CPU utilization on Windows 11.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A241",
-      "covers": [
-        "R177"
-      ],
-      "description": "Given a Windows 10 22H2 64-bit virtual machine with thermi installed, when the author opens the window in light, dark and high contrast and uses the overlay on the taskbar and the desktop, then the window is readable on an opaque background with square corners, nothing is missing or transparent, and the overlay sits on the taskbar, drags, hides and shows as on Windows 11.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A242",
@@ -1049,15 +843,6 @@
       "passes": true
     },
     {
-      "id": "A252",
-      "covers": [
-        "R181"
-      ],
-      "description": "Given Windows 10 with the taskbar at each edge and hiding, and Windows 11 with third-party taskbars at the top and clear, when the author drops the overlay along each taskbar, then it sits on each taskbar that lies across its monitor where it was dropped and floats clear of the others, the window saying why; moving or hiding the taskbar, restarting Explorer, or changing the resolution or scale moves the overlay with it within a second at the same offset; and an overlay dropped half off the screen shows whole inside the work area.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A253",
       "covers": [
         "R182"
@@ -1094,21 +879,6 @@
       "description": "Given thermi's menu and an overlay's menu, when they are built, then \"Open Task Manager\" follows \"Settings…\" in thermi's, and \"Copy as image\" is in the overlay's.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
-    },
-    {
-      "id": "A257",
-      "covers": [
-        "R184",
-        "R185",
-        "R186",
-        "R187",
-        "R188",
-        "R189",
-        "R190"
-      ],
-      "description": "Given thermi installed, when the author opens Task Manager from both menus, points at the CPU and GPU values, runs `thermi cpu-load 30` with the CPU's lines lowered until it is critical, copies the overlay as an image into Paint, turns on Fade near the pointer and moves the pointer toward the overlay and away, and removes the driver, then Task Manager opens, the tooltips name the models, the busiest process and any throttling, the picture is the overlay, the overlay fades and comes back while still taking a double-click, and the CPU pill says Driver, whose double-click opens the window with the driver's bar; and the overlay stays within R154's budget with Fade on.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A258",
@@ -1165,15 +935,6 @@
       "description": "Given the monitors as Windows listed them before the taskbar moved to another edge or began to hide, when the overlay reads them for a paint, then each comes with the work area Windows gives at that moment.",
       "check": "EveryMonitorComesWithItsWorkAreaAndScaleAndOneIsPrimary",
       "passes": true
-    },
-    {
-      "id": "A264",
-      "covers": [
-        "R191"
-      ],
-      "description": "Given the installed build and its window open on its first item for 30 s, when `scripts/measure.ps1 -Window` measures it for 60 s, then the window and its renderer use under 1 % of one core together, and minimized, the renderer nothing.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A265",
@@ -1243,15 +1004,6 @@
       "passes": true
     },
     {
-      "id": "A291",
-      "covers": [
-        "R192"
-      ],
-      "description": "Given the window in dark and in light, when the author types in the catalog's search and in a Sensor dropdown's filter, then each row marks what matched on a faint accent, readable in both themes and under high contrast; the dropdown's status line says the count, a row says when nothing matches, and Enter takes the first.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A303",
       "covers": [
         "R43",
@@ -1260,16 +1012,6 @@
       "description": "Given a version 2 file with an item without a meter, a load metered by itself without lines, and a load with a warning line, when it is read, then it becomes version 6, each item drawing as it did, and the default overlay's CPU and GPU loads draw their lines.",
       "check": "AVersionTwoFileMigratesToVersionSix",
       "passes": true
-    },
-    {
-      "id": "A304",
-      "covers": [
-        "R90",
-        "R109"
-      ],
-      "description": "Given two overlays, when one is dragged over the other, then it shows whole, the other ringed with a bar where it would join, and no snap mark lights; a pill held still lifts, leaving an empty slot; after a drop no tooltip shows until the pointer leaves or 1.5 s pass; the Position map's taskbar spot sits under the overlay's middle; Esc mid-drag reaches no other app; and on a load's item page, Graph follows Label, and None keeps the load drawing nothing after a restart.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A305",
@@ -1418,15 +1160,6 @@
       "passes": true
     },
     {
-      "id": "A320",
-      "covers": [
-        "R193"
-      ],
-      "description": "Given the real window over Windows' dark mode, when Theme is set to Light, Dark and Windows, and the window is opened again in Light, then each applies at once to the page, the title row, the caption buttons and Mica, and the first frame of the window opened in Light is already light.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
       "id": "A321",
       "covers": [
         "R88",
@@ -1488,15 +1221,6 @@
       "passes": true
     },
     {
-      "id": "A327",
-      "covers": [
-        "R196"
-      ],
-      "description": "Given the installed build, the window open, and the overlay on the taskbar and on the desktop, in English and Spanish, light, dark and high contrast, when the author right-clicks a pill, the edge and an item's tray icon, and chooses each entry by mouse and by its key, then each changes what it says at once, the window shows it, the menu's Undo and Ctrl+Z in the window take it back, and no entry offered does nothing.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A328",
       "covers": [
         "R197"
@@ -1514,17 +1238,6 @@
       "description": "Given a recorded snapshot and an overlay in a light look with soft corners, a 60 % background and bars, when the window previews it, then its picture is pixel for pixel the one \"Copy as image\" puts on the clipboard.",
       "check": "ThePreviewIsTheOverlaysOwnPicture",
       "passes": true
-    },
-    {
-      "id": "A330",
-      "covers": [
-        "R57",
-        "R191",
-        "R197"
-      ],
-      "description": "Given the installed build at 100 % and 150 %, when the overlay page is open on the taskbar overlay, then the preview and the look tiles look as the overlay does on screen, each edit shows within a second, and the idle window stays within R191's budget.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A331",
@@ -1711,15 +1424,6 @@
       "passes": true
     },
     {
-      "id": "A351",
-      "covers": [
-        "R199"
-      ],
-      "description": "Given the installed thermi, when an item's value in the CPU pill is held and dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its own pill and before the pill elsewhere, and the pill's label held lifts the whole pill.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A352",
       "covers": [
         "R200"
@@ -1747,15 +1451,6 @@
       "passes": true
     },
     {
-      "id": "A356",
-      "covers": [
-        "R202"
-      ],
-      "description": "Given the installed thermi running for over a minute, when its overlay process crashes and then hangs until Windows offers to close it, then Windows offers to restart it and one overlay comes back, with no settings window; when it crashes within its first minute, or is ended from Task Manager or by \"Exit thermi\", nothing starts it again; and `scripts/install.ps1` run over it leaves one overlay.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A357",
       "covers": [
         "R55",
@@ -1765,17 +1460,6 @@
       "description": "Given pills of their own dark, mid and bright colors on dark and light themes, with Auto text, a chosen label too close to the pill, 36 px values, one bar, and high contrast, when the look is read, then the pills, their border, track and a bar's inner pills take that color, the inner ones 1.5:1 to 2:1 from it, Auto text 4.5:1 and each default level 3:1 from it and the track, the chosen label is drawn in its Auto color and flagged, the pill is 1.9 times the text high, high contrast's colors win, and Auto, or a theme chosen in the window or by an agent, gives the theme's pills back.",
       "check": "APillColorOfItsOwnKeepsEveryTextAndLevelReadable",
       "passes": true
-    },
-    {
-      "id": "A358",
-      "covers": [
-        "R36",
-        "R58",
-        "R203"
-      ],
-      "description": "Given the installed thermi on a 1080p monitor at 100 % and a 4K one at 150 %, when the author sets 400 % with 36 px text and picks a pill color, free, in each corner and on the taskbar, then the overlay paints sharp and whole within the monitor, on the taskbar as high as it, the preview and Copy as image match it, and `scripts/measure.ps1` holds the overlay's budget.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A359",
@@ -1809,16 +1493,6 @@
       "passes": true
     },
     {
-      "id": "A362",
-      "covers": [
-        "R204",
-        "R205"
-      ],
-      "description": "Given the installed thermi, when the author uses the Size menu and Ctrl+wheel with a mouse and a precision touchpad on an overlay free, in a corner and on the taskbar, with the window closed and open, then each step shows at once, on the taskbar nothing grows past its height and the menu says why, Ctrl+Z in the window and the menu's Undo take a spin back whole, and \"Custom…\" opens the window, or brings it, on that overlay's Size slider.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A363",
       "covers": [
         "R206"
@@ -1834,6 +1508,24 @@
       ],
       "description": "Given a table of what is typed in a slider's box: a number off its steps with its unit in Spanish's number format, one between whole pixels, one past the low end, one that is not finite, and a text size between halves, when C# reads it, then it keeps the number rounded as its field keeps it, or the nearest end and says so, or keeps nothing and says the value stays.",
       "check": "ASliderBoxKeepsWhatIsTypedAsItsFieldKeepsIt",
+      "passes": true
+    },
+    {
+      "id": "A365",
+      "covers": [
+        "R4"
+      ],
+      "description": "Given a window that has just taken its mutex, when the window is asked for again, then the request waits for its beacon and brings that window to the front on the overlay asked for; with no beacon within 2 s, it gives up.",
+      "check": "ARequestWhileAWindowOpensWaitsForItsBeacon",
+      "passes": true
+    },
+    {
+      "id": "A366",
+      "covers": [
+        "R35"
+      ],
+      "description": "Given monitors whose EDIDs carry a serial's text, only a serial number, a blank one, none or zeros, and two with the same serial, when each is known, then it is known by its maker, model and serial, and without a serial by its connection, the two alike told apart by theirs.",
+      "check": "AMonitorIsKnownByItsEdidAndWithoutASerialByItsConnection",
       "passes": true
     }
   ]

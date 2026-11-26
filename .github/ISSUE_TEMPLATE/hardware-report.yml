@@ -52,6 +52,18 @@ body:
     attributes:
       label: Motherboard, or the laptop's model
       placeholder: MSI B650 Tomahawk, or Lenovo ThinkPad T14 Gen 3
+  - type: checkboxes
+    id: tried
+    attributes:
+      label: What you tried
+      description: >-
+        What thermi's development PC cannot check, and we would love reports on. Tick what you tried, and say below how it went.
+      options:
+        - label: "Windows 10 22H2: the settings window in light, dark and high contrast, and the overlay on the taskbar at each edge and hidden"
+        - label: "Arm64: the machine MSI installs, and the overlay reads the CPU, the GPU and the fans"
+        - label: "A laptop: the battery's items, unplugged, asleep and woken with an external monitor; Ctrl+wheel on a precision touchpad"
+        - label: "A board whose CPU fan follows the load: the fan finder picks the CPU fan"
+        - label: "A taskbar at the top, or a third-party one: the overlay sits on it where it is dropped"
   - type: textarea
     id: dumps
     attributes:

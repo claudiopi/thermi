@@ -102,88 +102,21 @@
       "passes": true
     },
     {
-      "id": "A12",
-      "covers": [
-        "R1",
-        "R4"
-      ],
-      "description": "Given thermi installed, when the PC restarts and a person signs in, then the overlay is on the taskbar with live values and no UAC prompt.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A13",
+      "id": "A21",
       "covers": [
         "R4"
       ],
-      "description": "Given the overlay on the taskbar, when a person clicks the taskbar, opens Start and searches, then the overlay stays visible on top.",
-      "check": "by hand",
+      "description": "Given the overlay and its value's tooltip on top, when the taskbar is raised over them, then the overlay rises above it again, the tooltip with it.",
+      "check": "ATaskbarRaisedAboveTheOverlayRaisesItAgain",
       "passes": true
     },
     {
-      "id": "A14",
+      "id": "A22",
       "covers": [
         "R5"
       ],
-      "description": "Given the overlay was dragged somewhere, when the PC restarts, then it is in the same place.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A15",
-      "covers": [
-        "R2",
-        "R3"
-      ],
-      "description": "Given the two tools thermi replaced shown beside it for a minute, when a person compares them, then the values agree and thermi looks the same: one pill per group, the same units and the same meter colors at the same values.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A16",
-      "covers": [
-        "R3",
-        "R7"
-      ],
-      "description": "Given the settings file open in an editor, when a person changes a threshold and saves, then the overlay applies it; when the file has a typo, then the overlay shows that the settings are broken and the file keeps the person's text.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A17",
-      "covers": [
-        "R1"
-      ],
-      "description": "Given the service's process killed from Task Manager, when 10 seconds pass, then the values are back.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A18",
-      "covers": [
-        "R4",
-        "R5"
-      ],
-      "description": "Given the overlay on screen, when the PC sleeps and wakes, or a monitor is turned off and on, then the overlay is still on screen and on top.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A19",
-      "covers": [
-        "R9"
-      ],
-      "description": "Given the overlay running for a minute at rest, when its cost is measured, then it is under 0.5 % of one core and 48 MB of private memory.",
-      "check": "by hand",
-      "passes": true
-    },
-    {
-      "id": "A20",
-      "covers": [
-        "R1"
-      ],
-      "description": "Given thermi installed, when `install.ps1 -Uninstall` finishes, then the service, the files and the sign-in entry are gone, and the settings stay.",
-      "check": "by hand",
+      "description": "Given an overlay of several pills, when it is pressed on one and dragged past the drag distance and let go, then it follows the cursor whole, stays where it was let go, and the settings file holds that spot.",
+      "check": "ADragMovesTheOverlayAndWritesWhereItWasDropped",
       "passes": true
     }
   ]

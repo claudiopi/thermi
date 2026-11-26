@@ -1,8 +1,8 @@
 # 002. A settings window where every change shows on the real overlay
 
-**Status**: approved
+**Status**: done
 
-**Budget**: 483 .NET and 80 page cases
+**Budget**: 490 .NET and 80 page cases
 
 The settings window sets thermi up visually: which sensors each overlay shows, their thresholds over the values they guard, where the overlays sit and how they look. Nobody has to know sensor ids or edit JSON. It follows four rules. **The overlay is the preview**: every change shows on the real overlay at once, and there is no Save button, since undo replaces confirmation. **Real data everywhere**: every choice shows its live value. **Nothing can break it**: the window writes only valid settings, and hand edits keep working. **Free when closed**: the window is a process of its own, and the overlay pays nothing for it.
 
@@ -15,15 +15,19 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 - R1. "Settings…" in the overlay's menu and in thermi's tray menu opens the window. In the overlay's menu it is the default entry, in bold, the one a double-click runs. The file itself opens from the window's "Open in editor" (R152).
 - R2. A double-click on an overlay opens the window with the item under the pointer selected, or the overlay when the pointer is on no value.
 - R3. `thermi settings` opens the window.
+  Release check: Open the window every way.
 - R4. Only one window exists: asking again brings it to the front.
 - R151. Starting thermi while it runs opens the window, or brings it to the front, and starts no second overlay.
 - R5. The first frame shows within 1 s of the request when the window was opened before in this sign-in, and within 2 s the first time.
+  Release check: The window's speed.
 - R6. Without the overlay running, the window still works, and offers to start it.
 - R155. Closing the window leaves no process of it behind, WebView2's included.
+  Release check: The window's speed.
 
 ### Live editing and undo
 
 - R7. A change shows on the real overlay within 300 ms of the input, also while a slider moves. There is no Save button.
+  Release check: The window's speed.
 - R8. Ctrl+Z and Ctrl+Y, and the Undo and Redo buttons of the title row, undo and redo the window's changes since it opened, also while a slider has the focus. One gesture is one step: a drag from press to release, typing until the field loses focus, and repeated changes of one control within 1 s. The page has the keyboard's focus as the window opens and each time it is activated, so Ctrl+Z works without a click in it first.
 - R9. Undo never reverts a change made outside the window's history, a hand edit of the file or a drag while the window was closed, even of the same item: a step whose target no longer holds what the window left there is skipped, and the window says so.
 - R206. Each slider, Size, Background opacity and the gap between pills, shows its value beside it in a box that takes a typed number, as "137" or "137 %", and each text size's box lists its sizes and takes one typed too, as "23", as a word processor's does: Enter or the focus leaving keeps it, and Esc puts the value back. Any number in the field's range is kept, not only its steps or the sizes listed, rounded as its field is kept, to a whole percent, a whole pixel or, for a text size, a half; one outside the range is held at its nearest end, and text that is no number leaves the value as it was, and Narrator says either. C# reads what was typed, in Windows' number format, and decides all of it.
@@ -35,6 +39,7 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 - R97. The window is a list beside a pane. The list holds each overlay as a row, each of its pills as a row under it, named as "CPU pill, 4 items", and each item under its pill; "Settings" is a row of its own below the list. The pane shows what is selected: an item's page, an overlay's page with its Appearance and Placement, or Settings.
 - R116. The first time, the window opens at 90 % of the work area, up to 1500 × 900, centered on the first overlay's monitor; where 90 % of the width is under 860 px and the whole is not, it takes the whole width. Later it opens at the size and place it had, remembered for each setup of monitors. The window moves, resizes from any edge or corner down to 760 × 560 (or the work area, when smaller), maximizes, and snaps to halves like any window; its system menu (Alt+Space) and Win+arrows work. Its first place and the remembered one stay off thermi's overlays that are not on a taskbar, shortening on their side while it keeps its minimum.
 - R118. While the window is the active window, it sits above thermi's overlays, except the one being edited, which stays above it unless it would cover the window's caption buttons.
+  Release check: Narrator, themes and the window's frame.
 - R119. From a window of 1500 px, the list is 344 px wide; from 860 px to 1499 px, it is 32 % of the window, at least 240 px and at most 296 px. Under 860 px, the list folds into a button in the title row and opens over the pane, 320 px wide or 85 % of the window when that is less, and the pane then takes no input; choosing a row, or Esc, closes it. One column of the pane is at most 720 px wide. From 864 px of pane, the pane shows two columns of at least 420 px that share its whole width, the chart taking three fifths of a pane from 1400 px, the item's chart staying in view beside its rows as they scroll: Appearance beside Placement, with "Text and colors" under Placement, the chart beside the item's rows, and General beside About. In a card under 520 px wide, a row's controls wrap among themselves at its end; under 420 px, a control goes under its name, except a switch or a row that is clicked as a whole, which keep their control on the right. In a window under 640 px tall, bars keep their title and action, without the rest of their sentence.
 
 ### The list
@@ -78,7 +83,9 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 
 - R19. "Find it", on the Sensor row of the CPU fan item, first asks: "This loads the CPU for up to 30 s, so your fans speed up and may be loud.", with "Load the CPU" and Cancel. Once asked to, it says that the fans will speed up for up to 30 s, then first waits, saying so, for 3 s of fresh readings in which no fan fell by 100 RPM or more, as one does for a while after a run, nor rose as much as R21 asks of an answer, at most 30 s, then loads every logical core at idle priority, in a process of its own, for at least 8 s and at most 30 s, while the sensor service and the overlay run above normal priority, so the readings keep coming under the load. Once past 8 s, it stops when one fan has met the rule of R21 for 3 s in a row. After the load it watches the fans for up to 40 s more, saying so, and a fan that meets the rule for 3 s in a row then is picked too: a fan-control curve may answer a load only once it has ended, and a fan already up from an earlier load may hold its speed through this one and fall only once it ends, so once the load has ended a fall counts as a rise does. A pause of a few seconds in the readings only leaves it fewer to average; readings gone for longer than 8 s end the load, and when they stay gone for 8 s more, or no fan answers once they are back, it says the readings stopped.
 - R20. It can be cancelled at any time, and the load stops within a second.
+  Release check: The fan finder's load.
 - R21. It picks the fan whose speed, averaged over its last 3 s, rose by at least 100 RPM and 20 % over its average in the 3 s before the load, or, once the load has ended, fell by as much, and by at least twice as many RPM as any other fan answered at any time since the load started, so two fans that rose alike stay alike however they fall once it ends. It then says which fan, and how much it rose when it rose, and "Use it" makes the CPU fan item show that fan, as one undo step, keeping what it warns by; when the item already shows it, it says so instead.
+  Hardware report: A board whose CPU fan follows the load.
 - R22. Otherwise it picks nothing and says why: no fan rose, two rose alike, or the CPU load, averaged after its first 2 s, stayed under 80 %. When no fan rose and the load raised neither the CPU's temperature by 5 °C nor its power by 20 %, each averaged through the load against the 3 s before it, something else already held the CPU busy and hot: it says so, and to close what loads the PC and try again. Otherwise, when no fan rose, it adds that the fans may follow a curve set by fan-control software, and that the fan can be picked by hand in the Sensor dropdown. With no fan sensor outside the GPUs, it cannot start. It says the driver may be missing when the CPU temperature also reads zero, and that the board reports no fans otherwise.
 
 ### An item's page
@@ -156,10 +163,14 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 - R33. Moving a snapped overlay by more than the system's drag distance, times the monitor's scale, unsnaps it, and it stays where it was dropped. A click or a double-click keeps the snap, and a free drop is kept where the overlay then shows, inside its work area. Dropped with its middle on a horizontal taskbar, an overlay stays on that taskbar where it was let go along it, centered across it and whole on it, over the app buttons or the notification area too, since a free overlay never sits on a taskbar. Two overlays may sit anywhere on a taskbar, touching included; dropped onto another, an overlay merges into it (R148). The marks are magnets, at the taskbar's start and beside its notification area, and at the corners. Snaps reach 96 px, times the monitor's scale: an overlay dropped on a taskbar within 96 px along it of one of its marks goes to that mark; dropped off the taskbars with its edge nearest a corner's mark within 96 px of it, to that corner, the mark filling as soon as it is in reach, measured where the overlay would show, so one pushed past the monitor's edge into the corner reaches it; and one whose edge facing a taskbar is within 96 px of it goes onto that taskbar the same way. Dropped farther, it stays free where it was let go; with Alt held no mark, no reach and no other overlay pulls it, so it stays where it was let go, on the taskbar or free. Where two marks' places overlap, the one beside the notification area is offered.
 - R34. A snap to a monitor that is not connected falls back to the same spot on the primary monitor, and goes back when the monitor returns.
 - R35. A monitor is known by the maker, model and serial in its EDID, which survive restarts and a change of port; a monitor without a serial is known by its connection.
+  Release check: Monitors and taskbars.
 - R36. The size is one slider in Appearance, from 75 % to 400 % over the monitor's own scale, 100 % by default, so a big screen read from afar is served. The look never changes it. On a taskbar the overlay shows at most as high as the taskbar, never cut, its pills and their text with it; the size kept applies again off it, and the Size row says so under it while the overlay sits on a horizontal taskbar. Off a taskbar, free or in any corner, an overlay never shows larger than its monitor's work area less a corner's margin on each side: one that would shows smaller, whole within it, and the Size row says so under it.
 - R204. The overlay's menu has "Size ▸": "Bigger" and "Smaller", each one step of the Size slider, 5 %, from the size the overlay shows; then 75 %, 100 %, 125 %, 150 % and 200 %, as radio choices with the overlay's own checked; then "Custom…", which opens the window on that overlay with the focus on its Size slider, or brings the open window there. No entry is offered that would change nothing the overlay shows: "Bigger" at 400 % and "Smaller" at 75 %, and on a taskbar, where it shows at most as high as the taskbar (R36), "Bigger" once it shows that high and every size above that, the Size row's "On the taskbar it never grows taller than the taskbar." closing the submenu, grayed, while it caps it; "Smaller" there steps down from what it shows. Each choice is one step, as every edit of the menu is (R196): "Undo resize" in the overlay's menu for 30 s, and a step of the open window's history, whose Size slider shows the new size at once.
 - R143. Labels show as "Show labels" says (R82), never hidden or shown by thermi on its own. An overlay on the taskbar sits where the person put it, over the app buttons, Start or the notification area too: thermi reads no app buttons, keeps no room beside them, decides no fit and says nothing about one, and never moves an overlay to make room for another, but for one dropped, shown or grown into it on its taskbar, which pushes it toward the notification area, where it then stays (R30). The only fit it decides is between overlays: a move onto a taskbar where the others leave no room for the overlay at its size is refused (R30).
 - R181. The overlay sits on a taskbar at the top of its monitor as on one at the bottom. On a taskbar at the left or right, as Windows 10 and StartAllBack allow, or on one that hides itself, an overlay on the taskbar shows just above the work area's bottom at its offset from the monitor's left edge, or in its bottom right corner without one, as on a monitor without a taskbar, and a hiding taskbar's band is kept free, so it never slides over the overlay. The Position row says why, as "Your taskbar is on a side, so the overlay floats beside it." or "Your taskbar hides itself, so the overlay floats clear of it." A taskbar restyled by StartAllBack or made clear by TranslucentTB is still Windows' own taskbar window, and the overlay sits on it the same way. A snapped overlay follows its taskbar within a second when it moves to another edge or starts or stops hiding, with no restart, since the work area is read again at every paint. A free overlay always shows whole, inside the work area of the monitor it lies most on, never off the screen or under a taskbar.
+  Release check: Monitors and taskbars.
+  Hardware report: Windows 10 22H2.
+  Hardware report: A taskbar at the top, or a third-party one.
 - R95. OLED care, off by default, moves an overlay 1 px every 3 minutes through four spots, the corners of a 1 px square, and back. On each axis, the square lies inward of a snapped edge, and up or to the left where there is none, as for a free position or an overlay on the taskbar. The offset is never written to the file.
 
 ### Several overlays
@@ -214,6 +225,7 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 ### Language
 
 - R71. Every text a user reads comes from the translations: the window, the overlay's menu and messages, the tray tooltips and the default labels. Sensor and device names, units and messages from Windows itself are shown as they come; the command line, the log and the service stay in English. English and Spanish ship.
+  Release check: Spanish and long texts.
 - R72. thermi uses Windows' display language when it has a translation for it, English otherwise. The window can choose another, which applies to the window and the overlay at once, and is undone like any change.
 - R73. Numbers follow Windows' regional format, whatever the language.
 - R74. Every translation has every text the English one has, and no others.
@@ -251,10 +263,12 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 - R167. Download and upload added from the catalog share the label NET, so together they make one pill, as "NET ↓ 12.4 MB/s ↑ 1.2 MB/s": the arrows are symbols drawn before each value, the same in every language, and no part of the label. A drive's read and write rates take its drive's label, so they join that drive's pill. The default overlay does not change.
 - R183. A network throughput item, and no other, can show its value in bits per second, in its "More options", off by default: in the largest of bps, Kbps, Mbps and Gbps that keeps three significant digits, with 1 Kbps = 1000 bps, as 99.2 Mbps, in the regional format and with its units translated, and with units hidden or in a tray icon with its scale letter, as R161 says. Its lines, its chart and the file stay in bytes per second.
 - R168. With network adapters and drives read, the sensor service stays within ADR 0011's budget for it at rest, under 80 MB of private memory, on a PC with two drives and two adapters.
+  Release check: Costs at rest.
 
 ### Battery, sleep, adapters and CPU load
 
 - R169. The sensor service also reads batteries: the charge level, the charge or discharge rate, and the time remaining when Windows estimates it. A PC without a battery reads none, and nothing about a battery shows, warns or fails.
+  Hardware report: A laptop.
 - R170. A battery's charge is a percentage; its rate is in watts, with a minus sign while it discharges, as "−12.4 W"; its time remaining reads in hours and minutes, as "2 h 14 min", with units translated, and as missing while the battery charges or the PC is plugged in.
 - R171. The catalog lists a battery under Battery, a group that does not show on a PC without one. Battery items added from the catalog take the label BAT, translated like the other default labels, and start with no lines, since a line warns above a value and a battery's trouble is below.
 - R172. After the PC wakes from sleep or hibernation, no reading from before it slept shows as live: until fresh data arrives, values show as missing as R45 and R140 say, and minimums, maximums, averages and charts leave the time asleep out instead of joining across it.
@@ -262,15 +276,20 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 - R174. When the PC wakes with different monitors, each overlay goes back to its snap within 5 s of the new layout, as R34 says.
 - R175. Auto for network download and upload skips adapters that are not physical: loopback, tunnels and VPNs, Hyper-V and WSL switches, and any other that Windows marks as not a hardware interface, unless no other adapter moves data. Any adapter can still be picked by hand.
 - R176. CPU load reads within 3 points of the CPU utilization on Windows 11's Task Manager, at rest and under a full load: busy time over elapsed time across all logical processors, Windows' "% Processor Time".
+  Release check: CPU load against Task Manager.
 
 ### Budgets and Windows 10
 
 - R51. While the window is open and idle, the overlay stays within its budget (spec 001's R9, as `docs/adr/0001-architecture.md` amends it).
+  Release check: Costs at rest.
 - R191. Open and idle, the window itself and its page's renderer stay under 1 % of one core together: each second's readings draw once, and only what they change, sent with the view and status they give so the page asks C# only for what reads them live, as a chart. Minimized, it draws and reads nothing, and once it shows again it shows the latest readings.
 - R154. While a slider or a knob moves, the overlay repaints at most 10 times a second, its own once-a-second refresh included, and stays under 2 % of one core.
+  Release check: The window's speed.
 - R158. An hour of use leaves the overlay's private memory within 5 MB of its first minute.
+  Release check: The window's speed.
 - R86. However many times the overlay paints, refreshes its tray icons, reloads the settings and sees the window open and close, its GDI and USER handles stay where they were, and its managed heap, after a full collection, stays within 1 MB.
 - R177. thermi works on Windows 10 22H2, 64-bit, with what Windows 10 lacks falling back: the window's background is opaque in the system's colors where Mica is missing, corners stay square, Segoe UI stands in for Segoe UI Variable, and the overlay sits on Windows 10's taskbar as it does on Windows 11's.
+  Hardware report: Windows 10 22H2.
 
 ## Design
 
@@ -328,7 +347,7 @@ The overlay's process has one hidden top-level window, class `thermi-host`, whic
 
 ### The fan finder
 
-The finder (`src/Thermi.App/Finder`) treats every fan sensor as a candidate and reads `cpu.load` during the run. Its tests replay series recorded with `thermi-sensors --dump <file> --seconds <n>`, one snapshot per second, 5 s before a 30 s CPU load and 10 s after, in `tests/Thermi.Tests/Recordings`. On a replay, the load starts at the first second whose CPU load passes 50 %. The author's PC has fan-control software that barely answers during the load and rises after it; a board that answers the load is covered by series derived from the real one, and by hand.
+The finder (`src/Thermi.App/Finder`) treats every fan sensor as a candidate and reads `cpu.load` during the run. Its tests replay series recorded with `thermi-sensors --dump <file> --seconds <n>`, one snapshot per second, 5 s before a 30 s CPU load and 10 s after, in `tests/Thermi.Tests/Recordings`. On a replay, the load starts at the first second whose CPU load passes 50 %. The author's PC has fan-control software that barely answers during the load and rises after it; a board that answers the load is covered by series derived from the real one, and by hardware reports (`.github/ISSUE_TEMPLATE/hardware-report.yml`).
 
 ### The settings file, version 6
 

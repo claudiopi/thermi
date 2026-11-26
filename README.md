@@ -24,7 +24,9 @@ A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltag
 - **Automated tests on every change**, their count held by a ratchet in [`tests/test-count.json`](tests/test-count.json). Each [CI run](https://github.com/claudiopi/thermi/actions/workflows/ci.yml)'s summary shows the counts, the coverage and react-doctor's score. Every night, a [mutation run](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml) measures how many planted bugs the tests catch, and fails below its break.
 - **Sensor data recorded on real PCs**, which the tests replay: the PC above with and without admin rights, and an Intel desktop with a Core i9-12900K, in [`tests/Thermi.Tests/Recordings`](tests/Thermi.Tests/Recordings).
 
-Other hardware: see [Hardware reports](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml).
+- **Checks by hand before each release**, on the PC above: what only a person can see, such as Narrator, the FPS against Zwift's own counter, installing over the last release and the start with Windows ([`docs/RELEASES.md`](docs/RELEASES.md)).
+
+Not tested yet, and the reports we would love most: Windows 10 22H2, an Arm64 PC, a laptop on battery, a board whose CPU fan follows the load, and a taskbar at the top or a third-party one. Each [hardware report](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml) that comes in adds its PC to the list above.
 
 ## Privacy
 

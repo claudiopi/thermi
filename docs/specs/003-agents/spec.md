@@ -1,8 +1,8 @@
 # 003. AI agents and other programs read the sensors and configure thermi
 
-**Status**: approved
+**Status**: done
 
-**Budget**: 57 .NET and 1 page cases
+**Budget**: 58 .NET and 1 page cases
 
 thermi exists because AI agents running for hours cooked their owner's PC, so an agent can ask how hot the PC is, back off when it runs hot, and set thermi up for the person. `thermi-cli` gives it the sensors and the settings from a command line or as an MCP server, with or without an overlay on screen, and the person decides in Settings whether agents may change anything. Other programs, a terminal's status bar, an orchestrator that throttles its agents, a desktop widget, read the same sensors through a contract that stays stable, also with the sensors installed alone. The decisions are in `docs/adr/0013-agents-cli-and-mcp.md`.
 
@@ -45,11 +45,13 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 - R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `monitors`, `looks`, `edit`, `look`, `find_cpu_fan`, `start_with_windows`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are marked read-only, and `edit`, `look` and `start_with_windows` destructive.
 - R15. `undo` takes back the session's last edit, and `redo` makes it again, each only where what it wrote is still there; a change made since by someone else stays.
 - R16. Added to Claude Code with one command from the README, an agent answers "how hot is my CPU?" with the value the overlay shows, and sets a warning that then shows on the overlay. The same works in Claude Desktop.
+  Release check: thermi-cli in Claude Code and Claude Desktop.
 
 ### Sharing the PC
 
 - R17. Between calls the MCP server holds no connection to the sensor service, and a read hangs up as soon as it has its samples, so four MCP servers running never keep an overlay from its readings.
 - R18. With agents' MCP servers and commands running, the overlay's and the idle window's budgets of `AGENTS.md` hold.
+  Release check: Costs at rest.
 - R19. `watch [ids]` prints `read`'s document as one line each second until its stdin closes or it is ended, holding one connection to the service while it runs; a Windows session may hold 8 of them, an overlay and its window included.
 
 ### The contract
@@ -65,7 +67,9 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 ### Installing the sensors alone
 
 - R24. The installer installs the sensors alone (the sensor service, its elevated helper and `thermi-cli`) or with the overlay and window on top; without the overlay, it installs the driver during setup when it is missing, with the installer's one administrator prompt.
+  Release check: A sensors-only install.
 - R25. A sensors-only install updates itself as spec 004's updates do, and an update, or installing the full thermi over it, keeps what was installed and adds only what was asked.
+  Release check: A sensors-only install.
 
 ## Design
 

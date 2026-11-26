@@ -109,7 +109,7 @@ function Get-Specs {
             @{ dotnet = [int]$Matches.dotnet; web = [int]$Matches.web }
         }
         $steps = (Get-Content (Join-Path $folder.FullName 'acceptance.json') -Raw | ConvertFrom-Json).steps
-        [pscustomobject]@{ Name = $folder.Name; Budget = $budget; Tests = @($steps.check | Where-Object { $_ -ne 'by hand' } | Sort-Object -Unique) }
+        [pscustomobject]@{ Name = $folder.Name; Budget = $budget; Tests = @($steps.check | Sort-Object -Unique) }
     }
 }
 

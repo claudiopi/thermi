@@ -114,15 +114,6 @@
       "passes": true
     },
     {
-      "id": "A13",
-      "covers": [
-        "R16"
-      ],
-      "description": "Given thermi installed and thermi-cli added to Claude Code with the README's one command, when a person asks a new session how hot the CPU is and then to set its warning at 70 °C, then the answer matches the overlay and the overlay shows the new warning; then the same in Claude Desktop.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A14",
       "covers": [
         "R17",
@@ -131,15 +122,6 @@
       "description": "Given a service pipe of the test's own with a session share of 8, four MCP servers that each made a read and wait idle, and three watch commands running, when an overlay's client connects, then it reads; a read --seconds 2 has hung up 2 s after it connected; and watch prints a line a second, each read's document, and ends when its stdin closes.",
       "check": "AgentsNeverHoldThePipe",
       "passes": true
-    },
-    {
-      "id": "A15",
-      "covers": [
-        "R18"
-      ],
-      "description": "Given the installed build, when scripts/measure.ps1 runs with and without -Window, then the overlay, the window and the service stay within their budgets.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A16",
@@ -185,24 +167,6 @@
       "description": "Given thermi-cli on PATH, under Program Files, or in a per-user install's %LOCALAPPDATA%\\Programs\\thermi, when the SDK looks for it, then it finds it on PATH first, then for everyone, then for one person, and none when it is in neither.",
       "check": "TheSdkFindsThermiCliWhereEitherInstallPutsIt",
       "passes": true
-    },
-    {
-      "id": "A20",
-      "covers": [
-        "R24"
-      ],
-      "description": "Given a test PC without thermi or the driver, when a person installs the sensors alone, then one administrator prompt installs the services, thermi-cli and the driver, no overlay starts at sign-in, and thermi-cli read gives a CPU temperature; when the full thermi is installed over it, then it adds the overlay and the window.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A21",
-      "covers": [
-        "R25"
-      ],
-      "description": "Given a sensors-only install of a signed beta, when spec 004's update to the next beta applies, then the sensors alone are installed after it, at the new version, and no overlay starts.",
-      "check": "by hand",
-      "passes": false
     },
     {
       "id": "A22",
@@ -268,6 +232,15 @@
       ],
       "description": "Given the window, when Settings opens, then AI agents shows the command and the JSON, each copied by its button; its switch is on, turns off as an edit, and undo turns it on again; with no change by an agent it lists none, and with some it lists them with a link to the log; and the page stays axe clean.",
       "check": "TheAgentsSectionConnectsAndShowsWhatAgentsDid",
+      "passes": true
+    },
+    {
+      "id": "A30",
+      "covers": [
+        "R24"
+      ],
+      "description": "Given the MSI's source, when it installs per machine or per user, then its folder, where thermi-cli is, goes on PATH; and per machine, SENSORSONLY=1 or the choice an upgrade finds leaves out the overlay with its Start menu entry and its start at sign-in, and SENSORSONLY=0 brings it back.",
+      "check": "TheMsiPutsThermiCliOnPathAndMayLeaveTheOverlayOut",
       "passes": true
     }
   ]

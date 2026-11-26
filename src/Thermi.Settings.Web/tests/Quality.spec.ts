@@ -194,7 +194,7 @@ async function perform(page: Page, act: Act): Promise<void> {
 
 // A213: the design prototype's focus contract, its steps in the page as one table: after each, the focus is on a control
 // in view, never the page, a dialog keeps it inside, and a menu or dialog gives it back to what opened it. Its steps on
-// Windows' own frame, the caption's maximize and the system menu, no page test can press, so they are A220's by hand.
+// Windows' own frame, the caption's maximize and the system menu, no page test can press, so a release check presses them.
 // A scene is a case; a step that waits for its task is a fixme of its own, so the report shows it.
 test.describe('TheFocusContractHolds', () => {
   for (const run of focusContract) {

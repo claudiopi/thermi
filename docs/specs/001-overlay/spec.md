@@ -2,7 +2,7 @@
 
 **Status**: done
 
-**Budget**: 41 .NET and 0 page cases
+**Budget**: 43 .NET and 0 page cases
 
 A service reads the PC's sensors with administrator rights from boot, and an overlay, running as the user, shows them in a strip above the taskbar or anywhere on screen, refreshed every second. thermi began as the one program to replace two monitoring tools and the scheduled tasks that kept them above the taskbar, so it has to be trusted all day: a value it cannot read shows as missing, nothing it reads can crash it, and it costs next to nothing at rest.
 
@@ -23,11 +23,13 @@ A service reads the PC's sensors with administrator rights from boot, and an ove
 
 - R4. The overlay stays above the taskbar without any other program's help.
 - R5. It is placed by dragging and stays where it was put, across restarts and monitor changes.
+  Release check: Restart and sign-in.
 
 ### Settings and cost
 
 - R7. Settings live in a JSON file the user can edit; changes apply at once, and a broken file is reported and never overwritten.
 - R9. At rest the overlay uses under 0.5 % of one core and 48 MB of private memory (`docs/adr/0001-architecture.md`).
+  Release check: Costs at rest.
 
 ## Design
 

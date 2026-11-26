@@ -37,20 +37,6 @@
       "passes": true
     },
     {
-      "id": "A6",
-      "covers": ["R3", "R4"],
-      "description": "Given the installed build, when a person rides Zwift windowed, borderless and in full screen, and free demos present through Direct3D 9, 11 and 12 and Vulkan, then the window's FPS is within 2 % of Zwift's own counter and of PresentMon's beside each demo over a minute, and it keeps showing Zwift while a terminal maximized on the other monitor has the focus and streams text.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
-      "id": "A7",
-      "covers": ["R10"],
-      "description": "Given the installed build with a game presenting at 144 FPS in front, when scripts/measure.ps1 runs for 60 s, then the service stays under 3 % of one core and 80 MB, and with no client connected no thermi-frames session exists.",
-      "check": "by hand",
-      "passes": false
-    },
-    {
       "id": "A8",
       "covers": ["R13"],
       "description": "Given a desktop recorded as administrator, with its board's inputs named as the library names them, each core's VID and both GPUs' voltages, when the catalog is built and searched, then every voltage is listed under its device, found by \"volts\", by the voltage kind and by its own name, and shown in volts with three decimals under 10 V and two from there; one added as an item has no lines and takes no offset, a sum of two is refused, a CPU's voltage of exactly 0 is missing, and no default overlay reads one. Given the same desktop recorded without admin rights, then each core's VID is the driver's to read and the GPUs' voltages have their values.",
@@ -83,6 +69,13 @@
       "covers": ["R3"],
       "description": "Given Zwift's recorded presents riding, in its menus, where the kernel tells them only by BlitRect, and riding again, replayed second by second, when each second is tallied, then every second from the third reads at least 60 FPS and a frame time under 100 ms, never 0.",
       "check": "AGameThatChangesHowItPresentsKeepsItsFrames",
+      "passes": true
+    },
+    {
+      "id": "A13",
+      "covers": ["R10"],
+      "description": "Given a frames trace that cannot start, one stopped from outside, and reads that stop, when the service reads frames, then it says so once and tries again a minute later, starts it again at the next read, and stops it 5 s after the last read, as when the last client leaves.",
+      "check": "TheTraceRunsWhileReadsComeAndIsTriedAgainAMinuteLater",
       "passes": true
     }
   ]

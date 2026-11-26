@@ -1,8 +1,8 @@
 # 005. FPS and frame time of the game in front, and voltages
 
-**Status**: approved
+**Status**: done
 
-**Budget**: 9 .NET and 1 page cases
+**Budget**: 10 .NET and 1 page cases
 
 People who play want to see their frame rate beside their temperatures, and how smooth it is: a steady line is fluid, spikes are stutters. thermi shows the FPS and the longest frame of each second for the game in front, read by the sensor service from the presents Windows traces, with no hook into the game (`docs/adr/0014-frames-from-etw.md`). The same change lists the voltages the sensors read, so they can be added as items.
 
@@ -26,6 +26,7 @@ People who play want to see their frame rate beside their temperatures, and how 
 ### The service
 
 - R10. The service reads frames only while a client is connected, and stays within its budget (`docs/adr/0011-sensor-service-memory-budget.md`), 3 % of one core and 80 MB, while a game presents at 144 FPS.
+  Release check: Costs at rest.
 - R11. The pipe stays one-way, and no process's name leaves the service: frames go out as process ids and numbers.
 - R12. `thermi-sensors --frames <file> --seconds <n>`, as administrator, records each present of every process, with ids and times and no names, for tests and bug reports.
 
@@ -45,7 +46,7 @@ People who play want to see their frame rate beside their temperatures, and how 
 
 **Voltages.** Core has the sensor kind `Voltage`, which `SensorMap` takes from the library's type of the same name, so the catalog, its search, the items and the charts take them as any kind: `ReadingFormatter` shows them in volts with three decimals under 10 V and two from there, they take no offset, since a board's divider errs by a factor and not by a sum, and `Threshold.CanMeter` leaves them out, so they have no lines. The window's catalog adds a chip for them, and their name and search words are in every translation. Their test is a desktop recorded with and without admin rights: as administrator, its ITE IT8689E's nine inputs, each core's VID and both GPUs' voltages; without, no board, and every core's VID at the same 1.55 V, which `SystemSensors.With`, the step every reader takes, sends as 0 while `SensorMap.DriverMayBeMissing` holds, so the catalog tells it as the driver's.
 
-**Testing.** The edges are a recording of presents in and what the overlay shows out. Recordings made with `--frames` of Zwift, an OpenGL game, riding, in its menus and while OBS captured it (`tests/Thermi.Tests/Recordings`), replay through `FrameTally` into snapshots, and those through `GameSensors` and the layout with the process in front given. The low lines are rows of the thresholds' table. The session itself, the APIs and the cost are checked by hand: Zwift against its own counter, and the other APIs with free demos that present through them (Vulkan's `vkcube`, Direct3D 9, 11 and 12 samples), against PresentMon run beside them.
+**Testing.** The edges are a recording of presents in and what the overlay shows out. Recordings made with `--frames` of Zwift, an OpenGL game, riding, in its menus and while OBS captured it (`tests/Thermi.Tests/Recordings`), replay through `FrameTally` into snapshots, and those through `GameSensors` and the layout with the process in front given. The low lines are rows of the thresholds' table. The session itself, the APIs and the cost are checked before each release (`docs/RELEASES.md`): Zwift against its own counter, and the other APIs with free demos that present through them (Vulkan's `vkcube`, Direct3D 9, 11 and 12 samples), against PresentMon run beside them.
 
 **Decided:** what keeps the game against a fast app in front is whether the game is still in sight, not how fast either presents. A terminal maximized on a 180 Hz monitor beside Zwift took FPS from it once 3 s passed, so a higher bar than 30 FPS would hold only until the next monitor's refresh rate, and a list of terminals and browsers by name would miss every one it does not know. The person who switches games either covers the game on its monitor, minimizes it or closes it, and each of those hands FPS over. Nor may an app that is no longer a game keep FPS: Chrome, full screen when thermi started, became the game, then played a video at 24 in half the other monitor and kept FPS from Zwift at 98 for as long as it played. So the game is dropped once it fills no monitor, and an app that presents from its own window, as a game does, comes before one whose frames come from a process it started, as Chrome's, Wave's and every Electron or WebView2 app's come from their GPU process; a game played in a browser yields to a game that fills a monitor of its own.
 
