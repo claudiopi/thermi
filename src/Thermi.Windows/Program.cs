@@ -255,6 +255,6 @@ internal static class Program
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);
         return await ThermiLog.RunLoggedAsync(
             logs.CreateLogger("Thermi.Ui"),
-            () => WindowProcess.RunAsync(request.Overlay, WindowEnvironment.Of(logs, time), request.Pseudo, time, request.Item));
+            () => WindowProcess.RunAsync(request.Overlay, WindowEnvironment.Of(logs, time), request.Pseudo, time, request.Item, request.SizeRow));
     }
 }

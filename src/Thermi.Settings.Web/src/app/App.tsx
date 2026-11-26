@@ -12,7 +12,7 @@ import { TextsProvider, useText, type TextKey } from '../texts/Texts';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ShortcutSheet } from './Dialogs';
 import { Pane } from './Pane';
-import { focusPane } from './paneFocus';
+import { focusPane, sizeRow, sizeSlider } from './paneFocus';
 import { AppName } from './AppName';
 import { TitleRow } from './TitleRow';
 import { useDesktop } from './useDesktop';
@@ -78,7 +78,7 @@ function Window({ data }: { data: WindowData }) {
     if (focusAsk === null || focusDone.current === focusAsk.count) {
       return;
     }
-    const target = focusAsk.to === 'pane' ? null : focusAsk.to === 'nav' ? nav.current : rowOf(focusAsk.to);
+    const target = focusAsk.to === 'pane' ? null : focusAsk.to === 'nav' ? nav.current : focusAsk.to === sizeRow ? sizeSlider() : rowOf(focusAsk.to);
     if (focusAsk.to === 'pane') {
       focusPane();
     } else if (target === null) {
@@ -195,12 +195,13 @@ function Window({ data }: { data: WindowData }) {
     }
   };
   // A value or an overlay's edge clicked on the desktop, or what the window opened on: its row unfolds and is selected.
-  const pickOnDesktop = (overlay: number, item: string | null): void => {
+  // "Custom…" of an overlay's Size menu goes on to its Size slider.
+  const pickOnDesktop = (overlay: number, item: string | null, size: boolean): void => {
     const key = item === null ? overlayKey(overlay) : itemKey(item);
     setFolded((folds) => new Set([...folds].filter((one) => one !== overlayKey(overlay) && !one.startsWith(`p:${overlay}:`))));
     select(key);
     closeList();
-    focusTo(narrow ? 'pane' : key);
+    focusTo(size ? sizeRow : narrow ? 'pane' : key);
   };
   const pointedValue = useDesktop(
     {
@@ -208,7 +209,7 @@ function Window({ data }: { data: WindowData }) {
       selected: selected.startsWith(itemKey('')) ? selected.slice(itemKey('').length) : null,
       pointed: pointedRow,
     },
-    (pick) => pickOnDesktop(pick.overlay, pick.item),
+    (pick) => pickOnDesktop(pick.overlay, pick.item, pick.how === 'size'),
   );
   useInputKind();
   useShortcuts({

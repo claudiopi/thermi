@@ -86,6 +86,9 @@ internal sealed record WindowStart(int Overlay, Settings Settings, Texts Texts, 
     /// <summary>The item of <see cref="Overlay"/> the window opens on, as a double-click on a value asks, or null for the overlay.</summary>
     public string? Item { get; init; }
 
+    /// <summary>True with <c>--size</c>: the window opens on the overlay's Size row.</summary>
+    public bool SizeRow { get; init; }
+
     private void StartLoad(CancellationToken stop) => CpuLoad.Start(Environment.ExePath, (int)Core.Sensors.FanFinder.MaxRun.TotalSeconds, stop);
 }
 
@@ -99,9 +102,10 @@ internal static class WindowProcess
     // A window that has just taken the mutex needs a moment before its hidden window can be found.
     private static readonly TimeSpan FindFor = TimeSpan.FromSeconds(2);
 
-    public static async Task<int> RunAsync(int overlay, WindowEnvironment environment, bool pseudo, TimeProvider time, string? item = null)
+    public static async Task<int> RunAsync(
+        int overlay, WindowEnvironment environment, bool pseudo, TimeProvider time, string? item = null, bool sizeRow = false)
     {
-        if (await ShowAsync(overlay, item, environment, pseudo, time))
+        if (await ShowAsync(overlay, (item, sizeRow), environment, pseudo, time))
         {
             return 0;
         }
@@ -120,7 +124,7 @@ internal static class WindowProcess
     // The settings are read before the window opens, for its language and its overlays, and every write that waits goes
     // out once it has closed. The sensors are read only while it is open. What fails on the window's thread is thrown
     // again here, so the process's entry logs it.
-    private static async Task<bool> ShowAsync(int overlay, string? item, WindowEnvironment environment, bool pseudo, TimeProvider time)
+    private static async Task<bool> ShowAsync(int overlay, (string? Item, bool SizeRow) on, WindowEnvironment environment, bool pseudo, TimeProvider time)
     {
         using var store = new ConfigStore(environment.SettingsPath, time, ThermiPaths.RunsInstalled);
         await using var settings = new Settings(store, time, environment.Log);
@@ -136,7 +140,7 @@ internal static class WindowProcess
             try
             {
                 opened = Open(
-                    new WindowStart(overlay, settings, texts, environment, time) { Pseudo = pseudo, Item = item },
+                    new WindowStart(overlay, settings, texts, environment, time) { Pseudo = pseudo, Item = on.Item, SizeRow = on.SizeRow },
                     () => reading = Task.Run(() => environment.Sensors.RunAsync(stop.Token), stop.Token));
             }
 #pragma warning disable CA1031 // Not handled: thrown again on the caller's thread, which a thread's own failure would never reach.

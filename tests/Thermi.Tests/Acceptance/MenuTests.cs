@@ -2,6 +2,7 @@ using Microsoft.Extensions.Time.Testing;
 using Thermi.App.Gestures;
 using Thermi.Core.Editing;
 using Thermi.Core.Messages;
+using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
@@ -15,130 +16,144 @@ public sealed class MenuTests
 {
     private const string Graph = "Graph[Auto+ None Bars Line]";
 
+    private const string Size = "Size[Bigger Smaller | 75 100+ 125 150 200 | SizeCustom]";
+
+    // A 48 px taskbar, where an overlay shows at most 126 %.
+    private static readonly Screen Pc = new("main", true, new PixelRect(0, 0, 2560, 1440), new PixelRect(0, 0, 2560, 1392), 1)
+    {
+        Taskbar = new PixelRect(0, 1392, 2560, 1440),
+    };
+
     // Overlays as JSON objects between '|', with ' for ", and words for the rest of the state, "on:" naming the item whose
     // pill the overlay's menu opens on. An entry is written as its name, a graph's choice as its graph, then * for the bold
     // default, - for a heading, + for checked and @ for a hotkey beside it; | starts a group and a submenu's entries go in [].
-    [Theory] // Rows: each state its step names changes the entries, and a gesture's undo has its 30 s boundary and a fix's worn look
+    [Theory] // Rows: each state its step names changes the entries, a gesture's undo has its 30 s boundary, a fix's worn look, a taskbar's cap
     [InlineData(
         "{}",
         "flag",
         "ShowOverlays* | Settings TaskManager CopyImage Vertical ClickThrough Lock | Exit",
-        $"Settings* | {Graph} Vertical Lock | TaskManager | ShowOverlays | Exit")]
+        $"Settings* | {Graph} Vertical {Size} Lock | TaskManager | ShowOverlays | Exit")]
     [InlineData(
         "{}|{'hidden':true}",
         "",
         "ShowOverlay* | Settings TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
+        $"Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
     [InlineData(
         "{'hidden':true}|{'hidden':true}",
         "",
         "ShowHiddenOverlays* | Settings TaskManager ClickThrough Lock | Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] | Exit",
-        $"Settings* | {Graph} Vertical Lock | TaskManager | ShowOverlay | Exit")]
+        $"Settings* | {Graph} Vertical {Size} Lock | TaskManager | ShowOverlay | Exit")]
     [InlineData(
         "{}",
         "broken",
         "SettingsBroken | Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"SettingsBroken | Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"SettingsBroken | Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "stopped",
         "StartSensors | Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'clickThrough':true,'locked':true,'style':{'orientation':'vertical'}}",
         "",
         "Settings* TaskManager CopyImage Vertical+ ClickThrough+ Lock+ HideOverlays | Exit",
-        $"Settings* | {Graph} Vertical+ Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Graph} Vertical+ {Size} Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','stat':'max'}]}",
         "",
         "Settings* TaskManager CopyImage ClickThrough Lock ResetMinMax HideOverlays | Exit",
-        $"Settings* | {Graph} Lock | CopyImage TaskManager ResetMinMax | HideOverlays | Exit")]
+        $"Settings* | {Graph} {Size} Lock | CopyImage TaskManager ResetMinMax | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "hotkeys",
         "Settings* TaskManager CopyImage Vertical ClickThrough@ Lock ResetMinMax@ HideOverlays@ | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays@ | Exit")]
+        $"Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays@ | Exit")]
     [InlineData(
         "{}",
         "gesture10",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"UndoGesture | Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"UndoGesture | Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "gesture31",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'style':{'name':'Night'}}",
         "looks",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"Settings* | {Graph} Look Look+ Look Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Graph} Look Look+ Look Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     // The look worn is the one the overlay draws as, as the window's tile checks it: Ocean, just saved from it, unnamed.
     [InlineData(
         "{'style':{'gap':2}}",
         "looks",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"Settings* | {Graph} Look Look Look+ Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Graph} Look Look Look+ Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "update",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     // On a pill: of several, on the taskbar or the desktop, it can be separated; not the overlay's only pill, nor while the
     // overlay is hidden or locked, which a hold to lift the pill is not either; once no other overlay fits, grayed with why.
     [InlineData(
         "{}",
         "on:gpu.load",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"EditItem* Settings | Separate {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"EditItem* Settings | Separate {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'position':{'x':100,'y':100}}",
         "on:gpu.load",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"EditItem* Settings | Separate {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"EditItem* Settings | Separate {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'locked':true,'position':{'x':100,'y':100}}",
         "on:gpu.load",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock+ HideOverlays | Exit",
-        $"EditItem* Settings | {Graph} Vertical Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
+        $"EditItem* Settings | {Graph} Vertical {Size} Lock+ | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature'},{'id':'cpu.load','metric':'cpu.load'}]}",
         "on:cpu.load",
         "Settings* TaskManager CopyImage ClickThrough Lock HideOverlays | Exit",
-        $"EditItem* Settings | {Graph} Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"EditItem* Settings | {Graph} {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}|{}|{}|{}",
         "on:gpu.load",
         "Settings* TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
-        $"EditItem* Settings | Separate-(SeparateFull) {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
+        $"EditItem* Settings | Separate-(SeparateFull) {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
     [InlineData(
         "{'hidden':true}|{}",
         "on:gpu.load",
         "ShowOverlay* | Settings TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock ShowOverlay] "
             + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
-        $"EditItem* Settings | {Graph} Vertical Lock | TaskManager | ShowOverlay HideOverlays | Exit")]
+        $"EditItem* Settings | {Graph} Vertical {Size} Lock | TaskManager | ShowOverlay HideOverlays | Exit")]
     // The overlay's graph, while an item it judges follows it, says when some items keep their own.
     [InlineData(
         "{'graph':'line','items':[{'id':'cpu.temperature','metric':'cpu.temperature','graph':'bars'},{'id':'gpu.load','metric':'gpu.load'}]}",
         "",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        "Settings* | Graph[Auto None Bars Line+ | GraphOwn-] Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | Graph[Auto None Bars Line+ | GraphOwn-] Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{'items':[{'id':'cpu.temperature','metric':'cpu.temperature','graph':'none'},{'id':'cpu.power','metric':'cpu.power'}]}",
         "",
         "Settings* TaskManager CopyImage ClickThrough Lock HideOverlays | Exit",
-        "Settings* | Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     // Vertical is offered while it stacks pills, or while it is on, so it can be turned off; one bar of one run stacks nothing.
     [InlineData(
         "{'style':{'layout':'one','orientation':'vertical'},'items':[{'id':'cpu.temperature','metric':'cpu.temperature'}]}",
         "",
         "Settings* TaskManager CopyImage Vertical+ ClickThrough Lock HideOverlays | Exit",
-        $"Settings* | {Graph} Vertical+ Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        $"Settings* | {Graph} Vertical+ {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // At 200 % on a taskbar that caps it at 126 %, no size would show bigger: the submenu offers what would, and says why.
+    [InlineData(
+        "{'size':2}",
+        "taskbar",
+        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical Size[Smaller | 75 100 125 | SizeCustom | SizeOnTaskbar-] Lock | CopyImage TaskManager | HideOverlays | Exit")]
     public void MenusHaveTheirEntriesInOrder(string overlays, string state, string thermis, string overlaysMenu)
     {
         var words = state.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -154,7 +169,10 @@ public sealed class MenuTests
             Service: words.Contains("stopped") ? ServiceState.Stopped : ServiceState.Running,
             SinceGesture: gesture,
             SavedLooks: words.Contains("looks") ? [new StyleConfig { Name = "Night" }, new StyleConfig(Gap: 2) { Name = "Ocean" }] : [],
-            UpdateReady: words.Contains("update"));
+            UpdateReady: words.Contains("update"))
+        {
+            Screens = words.Contains("taskbar") ? [Pc] : [],
+        };
 
         Assert.Null(problem);
         Assert.Equal(thermis, Describe(Menus.Thermis(config, menu)));
@@ -206,9 +224,11 @@ public sealed class MenuTests
 
     private static string Describe(IReadOnlyList<MenuRow> rows) => string.Join(' ', rows.Select((row, at) => string.Concat(
         row.Starts && at > 0 ? "| " : "",
-        row.Graph?.ToString() ?? row.Entry.ToString(),
+        row.Graph?.ToString() ?? (row is { Entry: MenuEntry.Size, Size: { } size } ? Percent(size) : row.Entry.ToString()),
         Marks(row),
         row.Entries.Count == 0 ? "" : $"[{Describe(row.Entries)}]")));
+
+    private static string Percent(double size) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{size * 100:0}");
 
     private static string Marks(MenuRow row) => string.Concat(
         row.Default ? "*" : "",

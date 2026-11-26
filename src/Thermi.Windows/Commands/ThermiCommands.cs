@@ -8,10 +8,15 @@ namespace Thermi.Windows.Commands;
 /// <summary>The overlay, with no command: what Windows starts at sign-in.</summary>
 internal sealed record OverlayRequest(bool Trace) : IThermiRequest;
 
-/// <summary><c>thermi settings [--overlay n] [--item id]</c>: the window, on an overlay counted from 1, or 0 for none, and an item to select.</summary>
+/// <summary>
+/// <c>thermi settings [--overlay n] [--item id | --size]</c>: the window, on an overlay counted from 1, or 0 for none, and
+/// an item to select or the overlay's Size row.
+/// </summary>
 internal sealed record SettingsRequest(int Overlay, bool Trace, bool Pseudo) : IThermiRequest
 {
     public string? Item { get; init; }
+
+    public bool SizeRow { get; init; }
 }
 
 /// <summary>
@@ -34,6 +39,8 @@ internal static class ThermiCommands
     public const string OverlayOption = "--overlay";
 
     public const string ItemOption = "--item";
+
+    public const string SizeOption = "--size";
 
     public const int MaxLoadSeconds = 600;
 
@@ -58,7 +65,8 @@ internal static class ThermiCommands
         var pseudo = new Option<bool>("--pseudo") { Recursive = true, Hidden = true };
         var overlay = new Option<int>(OverlayOption) { Description = "The overlay to edit, counted from 1.", CustomParser = Whole(1, int.MaxValue) };
         var item = new Option<string?>(ItemOption) { Description = "The id of the item to select." };
-        var settings = new Command("settings", "Opens the settings window.") { overlay, item };
+        var size = new Option<bool>(SizeOption) { Description = "Goes to the overlay's Size row." };
+        var settings = new Command("settings", "Opens the settings window.") { overlay, item, size };
         var snapshot = new Argument<FileInfo>("snapshot")
         {
             Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds.",
@@ -75,7 +83,11 @@ internal static class ThermiCommands
         var root = new RootCommand("thermi: a light, always-on-top hardware monitor.") { trace, pseudo, settings, preview, cpuLoad, elevated };
         var requests = new Dictionary<Command, Func<ParseResult, IThermiRequest>>
         {
-            [settings] = it => new SettingsRequest(it.GetValue(overlay), it.GetValue(trace), it.GetValue(pseudo)) { Item = it.GetValue(item) },
+            [settings] = it => new SettingsRequest(it.GetValue(overlay), it.GetValue(trace), it.GetValue(pseudo))
+            {
+                Item = it.GetValue(item),
+                SizeRow = it.GetValue(size),
+            },
             [preview] = it => new PreviewRequest(it.GetValue(snapshot)!.FullName, it.GetValue(png)!, it.GetValue(scale), it.GetValue(file)),
             [cpuLoad] = it => new CpuLoadRequest(it.GetValue(seconds)),
             [elevated] = it => new ElevatedRequest(it.GetValue(verb)!),

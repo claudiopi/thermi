@@ -67,6 +67,9 @@ public enum HostText
     /// <summary>A length in whole seconds.</summary>
     Seconds,
 
+    /// <summary>A size of the overlay's Size menu, as its Size slider writes it.</summary>
+    SizePercent,
+
     /// <summary>The title of the notice thermi's tray icon shows as an overlay's click-through turns on, within 63 characters.</summary>
     ClickThroughOnTitle,
 

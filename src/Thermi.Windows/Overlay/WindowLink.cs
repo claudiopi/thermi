@@ -106,10 +106,15 @@ internal sealed class WindowLink(LinkParts parts)
     /// An open window takes a double-click on a value as a selection; when none takes it, as none runs or one closing or
     /// still starting answers without taking it, the window opens, or comes to the front, on the overlay and item.
     /// </summary>
-    public void OpenWindow(int overlay, string? item)
+    public void OpenWindow(int overlay, string? item) => Open(overlay, item, item is null ? null : SelectHow.DoubleClick);
+
+    /// <summary>"Custom…" of an overlay's Size menu: the open window goes to its Size row, or the window opens there.</summary>
+    public void OpenSize(int overlay) => Open(overlay, null, SelectHow.Size);
+
+    private void Open(int overlay, string? item, SelectHow? how)
     {
         parts.Log.OpeningSettings();
-        if (item is not null && Tell(new Select(overlay + 1, item, SelectHow.DoubleClick)))
+        if (how is { } asked && Tell(new Select(overlay + 1, item, asked)))
         {
             return;
         }
@@ -121,7 +126,7 @@ internal sealed class WindowLink(LinkParts parts)
         else
         {
             // A traced overlay starts the window traced, so one trace follows a click to the first frame.
-            parts.Environment.StartWindow(overlay, item, parts.Log.IsEnabled(LogLevel.Debug));
+            parts.Environment.StartWindow(overlay, item, parts.Log.IsEnabled(LogLevel.Debug), sizeRow: how == SelectHow.Size);
         }
     }
 
@@ -154,5 +159,8 @@ internal sealed class WindowLink(LinkParts parts)
 
     // A click lets the window take the front. False when no window answers.
     private static bool Tell(Select select) =>
-        HiddenWindow.Send(HiddenWindow.WindowClass, select, select.How is SelectHow.Click or SelectHow.DoubleClick ? HiddenWindow.LetTakeTheFront : null);
+        HiddenWindow.Send(
+            HiddenWindow.WindowClass,
+            select,
+            select.How is SelectHow.Click or SelectHow.DoubleClick or SelectHow.Size ? HiddenWindow.LetTakeTheFront : null);
 }

@@ -10,6 +10,7 @@ using Thermi.Windows.Overlay;
 using Thermi.Windows.Painting;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.System.SystemServices;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 
@@ -54,6 +55,9 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
 
     // Whether Esc is the overlay's hotkey now, which it lets go with the press.
     private bool _escape;
+
+    // What the wheel's turns left short of a notch, which the next turn adds to.
+    private int _turned;
 
     /// <summary>The drag a press holds, which the overlay is painted as, or null.</summary>
     public DesktopDrag? Drag { get; private set; }
@@ -226,6 +230,40 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// The wheel turned over the overlay, as <c>WM_MOUSEWHEEL</c>'s <paramref name="wParam"/> says: with Ctrl, the overlay
+    /// takes the size Core's steps give, a notch within a second of the last joining its step, and true. A locked overlay
+    /// keeps its size, as it keeps its corner, and so does one a press holds.
+    /// </summary>
+    public bool Wheel(nuint wParam, IReadOnlyList<Screen> screens)
+    {
+        var before = settings.Config;
+        if ((wParam & (nuint)MODIFIERKEYS_FLAGS.MK_CONTROL) == 0)
+        {
+            return false;
+        }
+
+        if (Drag is null && index < before.Overlays.Count && !before.Overlays[index].Locked)
+        {
+            Resize(before, (short)(wParam >> 16), screens);
+        }
+
+        return true;
+    }
+
+    private void Resize(ThermiConfig before, int delta, IReadOnlyList<Screen> screens)
+    {
+        (var size, _turned) = OverlaySizes.Wheel(before.Overlays[index], screens, _turned, delta);
+        var resized = size is { } to ? OverlayEdits.SetSize(before, index, to) : null;
+        var after = resized is { Refused: null } ? actions.Settle(before, resized.Config).Config : before;
+        if (ConfigEdits.Replay(before, after) is { } change)
+        {
+            settings.Edit(change);
+            actions.Gestures?.Add(GestureKind.Resize, before, after, joins: true);
+            actions.RequestPaint();
+        }
     }
 
     /// <summary>Shows the resizing cursor on a floating overlay's corner; false elsewhere, where the class's cursor shows.</summary>

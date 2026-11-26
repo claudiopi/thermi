@@ -58,11 +58,12 @@ internal sealed class SettingsBeacon : IDisposable
         {
             if (HiddenWindow.Receive(message, wParam, lParam, HiddenWindow.HostClass, out var dropped) is { } received)
             {
-                // A double-click on a value opens the window on it, so a window behind others or minimized comes up too.
+                // A double-click on a value, or "Custom…" of a Size menu, opens the window there, so a window behind others or
+                // minimized comes up too.
                 var raised = received switch
                 {
                     Raise raise => raise.Overlay,
-                    Select { How: SelectHow.DoubleClick } select => select.Overlay,
+                    Select { How: SelectHow.DoubleClick or SelectHow.Size } select => select.Overlay,
                     _ => (int?)null,
                 };
                 if (raised is { } overlay)

@@ -1191,6 +1191,9 @@
   <data name="HostText.Seconds" xml:space="preserve">
     <value>{0} seconds</value>
   </data>
+  <data name="HostText.SizePercent" xml:space="preserve">
+    <value>{0} %</value>
+  </data>
   <data name="HotkeyRefusal.NeedsCtrlOrAlt" xml:space="preserve">
     <value>Add Ctrl or Alt: a key alone, or with Shift, types in every app. F13 to F24 work alone.</value>
   </data>
@@ -1307,6 +1310,21 @@
   </data>
   <data name="MenuEntry.SeparateFull" xml:space="preserve">
     <value>4 overlays at most</value>
+  </data>
+  <data name="MenuEntry.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="MenuEntry.Bigger" xml:space="preserve">
+    <value>Bigger</value>
+  </data>
+  <data name="MenuEntry.Smaller" xml:space="preserve">
+    <value>Smaller</value>
+  </data>
+  <data name="MenuEntry.SizeCustom" xml:space="preserve">
+    <value>Custom…</value>
+  </data>
+  <data name="MenuEntry.SizeOnTaskbar" xml:space="preserve">
+    <value>On the taskbar it never grows taller than the taskbar.</value>
   </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
@@ -1570,7 +1588,7 @@
     <value>A name cannot be empty.</value>
   </data>
   <data name="Refusal.SizeOutOfRange" xml:space="preserve">
-    <value>The size goes from 75 % to 200 %.</value>
+    <value>The size goes from 75 % to 400 %.</value>
   </data>
   <data name="Refusal.TooManyOverlays" xml:space="preserve">
     <value>There can be up to 4 overlays.</value>
