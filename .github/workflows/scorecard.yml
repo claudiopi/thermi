@@ -1,4 +1,4 @@
-name: Scorecard
+name: "🏅 Supply chain · OpenSSF Scorecard"
 
 # Publishing the results to scorecard.dev allows no env, defaults or run steps here, only the actions it trusts.
 on:

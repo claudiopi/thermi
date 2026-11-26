@@ -25,6 +25,7 @@ $baselineFile = 'tests/test-count.json'
 $web = Join-Path $root 'src' 'Thermi.Settings.Web'
 . (Join-Path $PSScriptRoot 'rows.ps1')
 . (Join-Path $PSScriptRoot 'sources.ps1')
+. (Join-Path $PSScriptRoot 'summary.ps1')
 # The most rows a table holds without saying why: the 95th percentile of the tables once their redundant rows were cut.
 $rowCap = 17
 $halfNames = @{ dotnet = '.NET'; web = 'page' }
@@ -41,7 +42,7 @@ function Get-DotNetCases {
         $listed = & $exe -list full/json -preEnumerateTheories | Out-String
         if ($LASTEXITCODE -ne 0) { throw "$exe could not list its tests." }
         foreach ($case in @($listed | ConvertFrom-Json)) {
-            [pscustomobject]@{ Names = @($case.Method); Table = "$($case.Class).$($case.Method)"; Folder = $project.FullName; Line = 0 }
+            [pscustomobject]@{ Names = @($case.Method); Table = "$($case.Class).$($case.Method)"; Folder = $project.FullName; Line = 0; Runner = $project.Name }
         }
     }
 }
@@ -51,7 +52,8 @@ function Get-PlaywrightCases($Suites, [string[]]$Titles) {
         $names = @($Titles) + $suite.title
         foreach ($spec in $suite.specs) {
             foreach ($test in $spec.tests) {
-                [pscustomobject]@{ Names = $names + $spec.title; Table = "$($spec.file):$($spec.line)"; Folder = (Join-Path $web 'tests'); Line = $spec.line }
+                $table = "$($spec.file):$($spec.line)"
+                [pscustomobject]@{ Names = $names + $spec.title; Table = $table; Folder = (Join-Path $web 'tests'); Line = $spec.line; Runner = 'Playwright' }
             }
         }
         Get-PlaywrightCases $suite.suites $names
@@ -77,7 +79,7 @@ function Get-WebCases {
     Get-PlaywrightCases $playwright.suites @()
     foreach ($file in $vitest.testResults) {
         foreach ($case in $file.assertionResults) {
-            [pscustomobject]@{ Names = @(); Table = "$($file.name):$($case.location.line)"; Folder = ''; Line = $case.location.line }
+            [pscustomobject]@{ Names = @(); Table = "$($file.name):$($case.location.line)"; Folder = ''; Line = $case.location.line; Runner = 'Vitest' }
         }
     }
 }
@@ -132,6 +134,7 @@ if ($failed) {
 $notes = @()
 # A line starting "summary: " goes into the CI's summary, as scripts/check-steps.ps1 picks it out.
 $measured = @($cases.Keys | ForEach-Object { "summary: $($cases[$_].Count) $($halfNames[$_]) cases of the ratchet's $($baseline.$_)" })
+$specCases = @{}
 foreach ($spec in Get-Specs) {
     if (-not $spec.Budget) {
         $failed += "$($spec.Name)'s spec.md declares no budget: a line '**Budget**: <n> .NET and <n> page cases' under its status."
@@ -140,6 +143,7 @@ foreach ($spec in Get-Specs) {
     foreach ($half in $cases.Keys) {
         $count = @($cases[$half] | Where-Object { $_.Names | Where-Object { $spec.Tests -contains $_ } }).Count
         $budget = $spec.Budget.$half
+        $specCases["$($spec.Name)|$half"] = @{ cases = $count; budget = $budget }
         if ($budget) { $measured += "summary: ``$($spec.Name)``: $count of its budget of $budget" }
         if ($count -gt $budget) {
             $failed += ("$($spec.Name)'s tests have $count $($halfNames[$half]) cases, over the budget of $budget its spec.md declares: " +
@@ -230,6 +234,13 @@ function Get-SideRaiseFaults([string]$Root, [string]$Side, [string]$From, [strin
 
 $failed += @(Get-RaiseFaults $root $baseline @($cases.Keys))
 $measured | ForEach-Object { Write-Host $_ }
+foreach ($half in $cases.Keys) {
+    $runners = [ordered]@{}
+    $cases[$half] | Group-Object Runner | ForEach-Object { $runners[$_.Name] = $_.Count }
+    $specs = [ordered]@{}
+    $specCases.Keys | Where-Object { $_.EndsWith("|$half") } | Sort-Object | ForEach-Object { $specs[$_.Split('|')[0]] = $specCases[$_] }
+    Save-Stats "tests-$half" @{ cases = $cases[$half].Count; baseline = $baseline.$half; runners = $runners; specs = $specs }
+}
 
 if ($failed) {
     $failed | ForEach-Object { Write-Host $_ }

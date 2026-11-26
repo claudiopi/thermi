@@ -73,21 +73,32 @@ function Invoke-DotNet {
 # A static initializer runs once, before Stryker.NET's runner turns any mutant on, so a static field's mutant reads
 # Survived whatever the tests do: blanking "GpuNvidia" in SensorMap's table fails 19 tests by hand, yet Stryker lists it
 # alive. The score left after them is what the tests can be held to. StrykerJS leaves them out itself.
-function Assert-Score([string]$Report, [string]$Of, [double]$Break) {
+function Measure-Caught([string]$Report) {
     $mutants = (Get-Content $Report -Raw | ConvertFrom-Json -AsHashtable).files.Values | ForEach-Object { $_.mutants }
     $counted = @($mutants | Where-Object { -not $_.static -and $_.status -in 'Killed', 'Timeout', 'Survived', 'NoCoverage' })
-    $killed = @($counted | Where-Object { $_.status -in 'Killed', 'Timeout' }).Count
-    $score = [math]::Round(100 * $killed / [Math]::Max(1, $counted.Count), 2)
-    $static = @($mutants | Where-Object { $_.static }).Count
-    $left = if ($static) { " ($static in static initializers left out)" } else { '' }
-    $line = "$score % of $($counted.Count) mutants of $Of$left, break at $Break %"
+    $caught = @($counted | Where-Object { $_.status -in 'Killed', 'Timeout' }).Count
+    @{ caught = $caught; missed = $counted.Count - $caught; static = @($mutants | Where-Object { $_.static }).Count }
+}
+
+function Assert-Score([string]$Report, [string]$Of, [double]$Break) {
+    $measured = Measure-Caught $Report
+    $counted = $measured.caught + $measured.missed
+    $score = [math]::Round(100 * $measured.caught / [Math]::Max(1, $counted), 2)
+    $left = if ($measured.static) { " ($($measured.static) in static initializers left out)" } else { '' }
+    $line = "$score % of $counted mutants of $Of$left, break at $Break %"
     $ok = $score -ge $Break
-    Add-SummaryRow 'mutation score' $(if ($ok) { 'ok' } else { 'fail' }) 0 "$score % of $($counted.Count) mutants, break at $Break %"
+    Add-SummaryRow 'bugs caught' $(if ($ok) { 'ok' } else { 'fail' }) 0 "$score % of $counted planted bugs, break at $Break %"
     if (-not $ok) {
         Write-Host "FAIL mutation: $line"
         exit 1
     }
     Write-Host "ok   mutation: $line"
+}
+
+# The Bug hunt's caught and missed of each project, for the CI's dashboard, saved before any gate stops the run.
+function Save-BugHunt([string]$Name, [hashtable]$Reports, [double]$Break) {
+    $projects = foreach ($project in $Reports.Keys) { @{ name = $project } + (Measure-Caught $Reports[$project]) }
+    Save-Stats "bughunt-$Name" @{ at = [DateTime]::UtcNow.ToString('o'); break = $Break; projects = @($projects) }
 }
 
 function Assert-Redundant([string]$Report, [hashtable]$Arguments) {
@@ -103,6 +114,11 @@ function Assert-Redundant([string]$Report, [hashtable]$Arguments) {
 function Measure-DotNet {
     $json = Invoke-DotNet
     $break = (Get-Content (Join-Path $tests 'stryker-config.json') -Raw | ConvertFrom-Json).'stryker-config'.thresholds.break
+    $reports = [ordered]@{}
+    foreach ($project in 'Thermi.Core', 'Thermi.Cli') {
+        $reports[$project] = Join-Path $root 'TestResults' 'mutation' $project 'reports' 'mutation-report.json'
+    }
+    Save-BugHunt 'dotnet' $reports $break
     Assert-Score $json 'Thermi.Core and Thermi.Cli' $break
     foreach ($project in 'Thermi.Core', 'Thermi.Cli') {
         $report = Get-ChildItem (Join-Path $root 'TestResults' 'mutation' $project) -Recurse -Filter 'mutation-report.html' |
@@ -123,6 +139,7 @@ function Measure-Page {
     $run = @('npm', 'run', 'mutation', '--prefix', $page) + @(if ($passed) { '--' } ) + $passed
     Invoke-Stryker "StrykerJS on the page's logic" $json $run -BreaksItself
     $break = (Get-Content (Join-Path $page 'stryker.config.json') -Raw | ConvertFrom-Json).thresholds.break
+    Save-BugHunt 'web' @{ "The page's logic" = $json } $break
     Assert-Score $json "the page's logic" $break
     Write-Host "     report: $(Join-Path $root 'TestResults' 'mutation-web' 'mutation-report.html')"
     Assert-Redundant $json @{ Root = $page }
@@ -132,5 +149,5 @@ try {
     if ($web) { Measure-Page } else { Measure-DotNet }
 }
 finally {
-    Write-Summary $(if ($web) { "Mutation of the page's logic" } else { 'Mutation of Thermi.Core and Thermi.Cli' })
+    if ($web) { Write-Summary "🐛 Bug hunt · the page's logic" 'BugHuntWeb' } else { Write-Summary '🐛 Bug hunt · Thermi.Core and Thermi.Cli' 'BugHunt' }
 }

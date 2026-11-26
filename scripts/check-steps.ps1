@@ -1,6 +1,7 @@
 # Dot-sourced by scripts/check.ps1: how a step runs and reports, alone or beside others, and the coverage it shows.
 . (Join-Path $PSScriptRoot 'sources.ps1')
 . (Join-Path $PSScriptRoot 'summary.ps1')
+. (Join-Path $PSScriptRoot 'coverage.ps1')
 
 # What a step's output measured, for the CI's summary: the lines a script of the check marks for it, and react-doctor's score.
 $measuredLine = '^(summary: |Score: \d+ / 100)'
@@ -125,9 +126,11 @@ function Assert-Coverage {
     $report = Get-ChildItem $results -Filter '*.cobertura.*' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
     $packages = if ($report) { ([xml](Get-Content $report.FullName)).coverage.packages.package }
     $shown = @()
+    $measured = [ordered]@{}
     $low = foreach ($name in $coverageFloors.Keys) {
         $package = $packages | Where-Object name -eq $name
         $rates = if ($package) { [double]$package.'line-rate', [double]$package.'branch-rate' } else { 0, 0 }
+        $measured[$name] = @{ lines = 100 * $rates[0]; branches = 100 * $rates[1]; floor = $coverageFloors[$name] }
         $shown += '{0}: lines {1:n0} %, branches {2:n0} %, floor {3} %' -f $name, ($rates[0] * 100), ($rates[1] * 100), $coverageFloors[$name]
         if ([Math]::Min($rates[0], $rates[1]) * 100 -lt $coverageFloors[$name]) {
             '  {0} coverage: lines {1:p0}, branches {2:p0}. Its gate is {3} %: add behavior tests for the new code.' -f
@@ -135,6 +138,7 @@ function Assert-Coverage {
         }
     }
     Add-SummaryRow 'coverage' $(if ($low) { 'fail' } else { 'ok' }) 0 $shown
+    Save-Stats 'coverage' $measured
     if (-not $low) { return }
     Write-Host 'FAIL coverage'
     $low | ForEach-Object { Write-Host $_ }
@@ -142,30 +146,22 @@ function Assert-Coverage {
 }
 
 # Shown, not gated: what the tests' windows run depends on the PC's monitors, DPI and theme, and a little on timing.
-# Each test project's runs must hold what it runs, so one that measured nothing never hides behind the other's;
-# a line or branch that any test process ran counts once. -Partial shows what one CI job's runs measured, which need not
-# hold it all, as the tests that run alone run in a job of their own.
+# Each test project's runs must hold what it runs, so one that measured nothing never hides behind the other's.
+# -Partial shows what one CI job's runs measured, which need not hold it all, as the tests that run alone run in a job of
+# their own.
 function Show-AppCoverage([switch]$Partial) {
-    $modules = @{}
+    $coverage = Read-AppCoverage $appResults @($appReports.Keys)
     foreach ($tests in $appReports.Keys) {
-        $names = @{}
-        foreach ($report in Get-ChildItem $appResults -Filter "$tests.*coverage*.json" -ErrorAction SilentlyContinue) {
-            $measured = Get-Content $report.FullName -Raw | ConvertFrom-Json -AsHashtable
-            foreach ($module in $measured.GetEnumerator()) { $names[[IO.Path]::GetFileNameWithoutExtension($module.Key)] += @($module.Value) }
-        }
         foreach ($name in $appReports[$tests]) {
-            if (-not $names[$name] -and -not $Partial) {
+            if ($name -notin $coverage.Measured[$tests] -and -not $Partial) {
                 Write-Host ("FAIL app coverage: $tests did not measure $name. Coverlet leaves out an assembly the test process loaded " +
                     'before the tests, as a [ModuleInitializer] that uses its types does.')
                 exit 1
             }
         }
-        foreach ($name in $names.Keys) {
-            if (-not $modules[$name]) { $modules[$name] = @{ Lines = @{}; Branches = @{} } }
-            foreach ($files in $names[$name]) { Add-Hits $modules[$name] $files }
-        }
     }
 
+    $modules = $coverage.Modules
     $shown = foreach ($name in 'thermi', 'thermi-sensors', 'Thermi.App') {
         if (-not $modules[$name]) { "$name not measured"; continue }
         '{0} lines {1:n0} %, branches {2:n0} %' -f $name, (Get-Rate $modules[$name].Lines), (Get-Rate $modules[$name].Branches)
@@ -173,25 +169,4 @@ function Show-AppCoverage([switch]$Partial) {
     $of = if ($Partial) { ' of the tests that run in parallel' } else { '' }
     Write-Host "info app coverage${of}: $($shown -join '; ')"
     Add-SummaryRow "app coverage$of" 'info' 0 $shown
-}
-
-# A report holds file, class, method, then each method's lines and branches.
-function Add-Hits($Into, $Files) {
-    foreach ($file in $Files.GetEnumerator()) {
-        foreach ($method in $file.Value.Values.ForEach({ $_.GetEnumerator() })) {
-            foreach ($line in $method.Value.Lines.GetEnumerator()) {
-                $key = "$($file.Key)|$($line.Key)"
-                $Into.Lines[$key] = $Into.Lines[$key] -or $line.Value -gt 0
-            }
-            foreach ($branch in $method.Value.Branches) {
-                $key = "$($method.Key)|$($branch.Line)|$($branch.Offset)|$($branch.EndOffset)|$($branch.Path)|$($branch.Ordinal)"
-                $Into.Branches[$key] = $Into.Branches[$key] -or $branch.Hits -gt 0
-            }
-        }
-    }
-}
-
-function Get-Rate([hashtable]$Hits) {
-    if ($Hits.Count -eq 0) { return 100 }
-    100 * @($Hits.Values | Where-Object { $_ }).Count / $Hits.Count
 }

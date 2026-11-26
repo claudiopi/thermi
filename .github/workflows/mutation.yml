@@ -1,8 +1,9 @@
-name: Mutation
+name: "🐛 Bug hunt · nightly"
 
-# The mutation scores of Thermi.Tests on Thermi.Core and Thermi.Cli (Stryker.NET) and of the page's logic (StrykerJS), which measure the tests
-# better than coverage. Too slow to gate a merge, so they run each night and on demand; each run records its score in
-# its summary and keeps its report.
+# The Bug hunt: Stryker plants small bugs in Thermi.Core and Thermi.Cli (Stryker.NET) and in the page's logic (StrykerJS),
+# one at a time, and measures the share Thermi.Tests and the page's unit tests catch, which tells more of the tests than
+# coverage. Too slow to gate a merge, so it runs each night and on demand; each run records its score in its summary,
+# keeps its report, and hands its results to CI's 📊 Stats dashboard.
 on:
   schedule:
     - cron: '0 5 * * *'
@@ -21,6 +22,7 @@ env:
 
 jobs:
   core:
+    name: 🐛 Bug hunt · Thermi.Core and Thermi.Cli
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -38,8 +40,16 @@ jobs:
           name: mutation-core
           path: TestResults/mutation/**/reports
           if-no-files-found: ignore
+      # Caught and missed, which CI's 📊 Stats dashboard reads from the last run.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-bughunt-core
+          path: TestResults/stats/bughunt-*.json
+          if-no-files-found: ignore
 
   web:
+    name: 🐛 Bug hunt · the page's logic
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -58,4 +68,11 @@ jobs:
         with:
           name: mutation-web
           path: TestResults/mutation-web
+          if-no-files-found: ignore
+      # Caught and missed, which CI's 📊 Stats dashboard reads from the last run.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-bughunt-web
+          path: TestResults/stats/bughunt-*.json
           if-no-files-found: ignore

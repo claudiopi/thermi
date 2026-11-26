@@ -207,5 +207,5 @@ finally {
     $titles = @{
         All = 'Check'; DotNet = '.NET'; Core = 'Build and Thermi.Tests'; Windows = 'Windows tests'; WindowsAlone = 'Windows tests alone'; Web = 'Settings page'
     }
-    Write-Summary $titles[$Part]
+    Write-Summary $titles[$Part] $Part
 }

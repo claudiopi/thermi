@@ -1,8 +1,28 @@
-# thermi
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/thermi-dark.png">
+    <img alt="thermi's mark, a small creature peeking over the taskbar's edge" src="docs/images/thermi-light.png" width="112">
+  </picture>
+</p>
 
-[![CI](https://github.com/claudiopi/thermi/actions/workflows/ci.yml/badge.svg)](https://github.com/claudiopi/thermi/actions/workflows/ci.yml)
-[![Mutation](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml/badge.svg)](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<h1 align="center">thermi</h1>
+
+<p align="center">Your PC's temperatures, loads and FPS, always on top.</p>
+
+<p align="center">
+  <img alt="thermi's pills on the Windows taskbar, and a floating overlay above them, showing the CPU, the GPU and the RAM" src="docs/images/overlay.png" width="680">
+</p>
+
+<p align="center">
+  <a href="https://github.com/claudiopi/thermi/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/claudiopi/thermi/stats/badges/ci.json"></a>
+  <a href="https://github.com/claudiopi/thermi/actions/workflows/ci.yml"><img alt="Coverage" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/claudiopi/thermi/stats/badges/coverage.json"></a>
+  <a href="https://github.com/claudiopi/thermi/actions/workflows/mutation.yml"><img alt="Bug hunt" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/claudiopi/thermi/stats/badges/bughunt.json"></a>
+  <a href="https://github.com/claudiopi/thermi/actions/workflows/ci.yml"><img alt="Tests" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/claudiopi/thermi/stats/badges/tests.json"></a>
+  <a href="https://github.com/claudiopi/thermi/actions/workflows/ci.yml"><img alt="React Doctor" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/claudiopi/thermi/stats/badges/react-doctor.json"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/claudiopi/thermi/stats/badges/license.json"></a>
+</p>
+
+<p align="center"><b>Windows 10 and 11 today · Linux next</b></p>
 
 A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltages and the FPS of the game in front in a small overlay you place anywhere: over the taskbar, in a corner, or floating.
 
@@ -21,7 +41,7 @@ A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltag
 ## Tested on
 
 - **The development PC**: a desktop with a Ryzen 9 9950X and an NVIDIA GeForce RTX 5060 Ti, on Windows 11.
-- **Automated tests on every change**, their count held by a ratchet in [`tests/test-count.json`](tests/test-count.json). Each [CI run](https://github.com/claudiopi/thermi/actions/workflows/ci.yml)'s summary shows the counts, the coverage and react-doctor's score. Every night, a [mutation run](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml) measures how many planted bugs the tests catch, and fails below its break.
+- **Automated tests on every change**, their count held by a ratchet in [`tests/test-count.json`](tests/test-count.json). Each [CI run](https://github.com/claudiopi/thermi/actions/workflows/ci.yml)'s dashboard shows the counts, the coverage and react-doctor's score, against the last ones on `main`. Every night, the [Bug hunt](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml) plants small bugs in the code, one at a time, and measures the share the tests catch.
 - **Sensor data recorded on real PCs**, which the tests replay: the PC above with and without admin rights, and an Intel desktop with a Core i9-12900K, in [`tests/Thermi.Tests/Recordings`](tests/Thermi.Tests/Recordings).
 
 - **Checks by hand before each release**, on the PC above: what only a person can see, such as Narrator, the FPS against Zwift's own counter, installing over the last release and the start with Windows ([`docs/RELEASES.md`](docs/RELEASES.md)).

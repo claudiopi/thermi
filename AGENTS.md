@@ -35,7 +35,8 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | Command | What it does, and when |
 | --- | --- |
 | `pwsh scripts/check.ps1` | The one check: restore, format, build, notices, test count, tests and coverage, then the page's build, lint, react-doctor, unit, dead-code and Playwright tests. Here it runs only what the change can affect since this worktree's last green check, or since it left `main` (`-Base <branch>` for another), with the .NET half and the page's side by side. `-Full` runs every step, as the CI does. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. |
-| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of the tests of Core and the CLI and of the page's logic, each with the rows that kill and run nothing of their own (`scripts/redundant.ps1`). Slow: run it when you change Core, the CLI, the page's logic or their tests. The CI runs them each night. |
+| `pwsh scripts/check.ps1 -Mutation` | The same, then the Bug hunt: Stryker plants small bugs in Core, the CLI and the page's logic, one at a time, and scores the share their tests catch, with the rows that catch and run nothing of their own (`scripts/redundant.ps1`). Slow: run it when you change Core, the CLI, the page's logic or their tests. The CI runs it each night. |
+| `pwsh scripts/stats.ps1` | Prints the CI's dashboard for the last check here: counts, coverage, the Bug hunt if it ran, specs, timings, each against `main`'s last from the `stats` branch. The CI writes it into each run's summary. |
 | `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. Set `THERMI_WEB_PORT` to another port than 4173 if something else holds it. |
 | `dotnet format whitespace thermi.slnx` | Fixes formatting. |
 | `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]` | Clicks through every screen of the real settings window and fails on any error the page shows or logs. Run it before a person gets a build, with no settings window open. |
@@ -44,7 +45,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | `pwsh scripts/doc-impact.ps1 [-Base <branch>]` | Lists the docs that name a file or type this change touched, for the reviewer to read. |
 | `pwsh scripts/audit.ps1` | Fails on a package with a known vulnerability, as the CI does on every PR and each day. Run it after adding or updating a package. |
 | `pwsh scripts/notices.ps1` | Writes `THIRD-PARTY-NOTICES.md` again, after adding, removing or updating a package. |
-| `pwsh scripts/mark-icon.ps1` | Draws the program's icon, `src/Thermi.Windows/thermi.ico`, after changing thermi's mark. |
+| `pwsh scripts/mark-icon.ps1` | Draws the program's icon, `src/Thermi.Windows/thermi.ico`, and the README's logo in `docs/images`, after changing thermi's mark. |
 | `pwsh scripts/install.ps1` | Installs this build on your PC, as yourself; it asks for admin rights once. `-SensorsOnly` installs the sensors and `thermi-cli` alone; `-Uninstall` removes it. |
 | `pwsh scripts/updates.ps1 <command>` | Packs a version and its MSIs, makes keys, and pulls the update channels' levers: `docs/RELEASES.md`. |
 | `thermi-sensors --dump <file> [--seconds <n>]` | Saves what the sensors read now, or a series of one snapshot a second, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case. |
@@ -72,9 +73,9 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | The page has no `<i>` but the icon's: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
 | The page scores 100 with react-doctor: a warning fails the check as an error does. | `--blocking warning` in the page's `doctor` script |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
-| The README quotes no count or score a run measures, which goes stale: its badges and each CI run's summary show them. | `RepoRulesTests` |
+| The README quotes no count or score a run measures, which goes stale: its badges and each CI run's dashboard show them. | `RepoRulesTests` |
 | Docs are short and scannable: the why before the what, short sentences, tables over walls of bullets, and no list of every file, which the code already is. | the README table rule in `RepoRulesTests`; review for the rest |
-| Nothing merges red. A check on a PC runs what the change can affect, which the projects' references and what `Thermi.Settings.Types` writes tell, and everything when a file says nothing; the CI runs every step on every PR and push to main, in jobs side by side, all of them required. Mutation runs each night and on demand, and gates nothing. | `scripts/check-scope.ps1`, `.github/workflows/ci.yml`, the `CI gate` check (`docs/RELEASES.md`) |
+| Nothing merges red. A check on a PC runs what the change can affect, which the projects' references and what `Thermi.Settings.Types` writes tell, and everything when a file says nothing; the CI runs every step on every PR and push to main, in jobs side by side, all of them required. The Bug hunt runs each night and on demand, and gates nothing. | `scripts/check-scope.ps1`, `.github/workflows/ci.yml`, the `CI gate` check (`docs/RELEASES.md`) |
 | `Thermi.Core` keeps 90 % line and branch coverage, and `Thermi.Cli` 85 %. | `scripts/check.ps1` |
 | A new field of the settings goes into `src/Thermi.Core/Editing/ConfigFields.cs`, or undo cannot take it back. | `UndoRulesTests` |
 | The settings change shape only with a new format version and its migration, or with the reason an earlier version reads them as they are, recorded in `tests/Thermi.Tests/Configs/shapes.json`; what a version does not know it keeps. | `RepoRulesTests`, `UnknownFields` |

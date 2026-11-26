@@ -2,8 +2,9 @@
 <#
 .SYNOPSIS
     Draws the program's icon, src/Thermi.Windows/thermi.ico, from thermi's mark, with the tray's own painter, at every size
-    Windows shows a program's icon at. Run it after changing the mark: the build embeds the file as thermi.exe's icon,
-    and TrayIconsTests.TheProgramsIconIsTheMark fails while the file is not the mark.
+    Windows shows a program's icon at, and the README's logo, docs/images/thermi-light.png and thermi-dark.png. Run it
+    after changing the mark: the build embeds the icon as thermi.exe's, and ProgramIconTests.TheProgramsIconIsTheMark
+    fails while a file is not the mark.
 #>
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -15,4 +16,4 @@ try {
 finally {
     Remove-Item Env:THERMI_WRITE_ICON
 }
-Write-Host "ok   $(Join-Path $root 'src' 'Thermi.Windows' 'thermi.ico')"
+Write-Host "ok   $(Join-Path $root 'src' 'Thermi.Windows' 'thermi.ico'), $(Join-Path $root 'docs' 'images')"

@@ -1,4 +1,4 @@
-name: CodeQL
+name: "🔍 Code scanning · CodeQL"
 
 # Weekly as well, as its queries grow. None of the three languages needs a build.
 on:

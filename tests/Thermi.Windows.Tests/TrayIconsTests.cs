@@ -28,16 +28,7 @@ public sealed class TrayIconsTests : IDisposable
     // Set to a folder, the picture test also saves the icons there, to look at them.
     private const string PicturesFolder = "THERMI_TRAY_PNG";
 
-    // Set to 1, the program's icon test draws the icon into its file first: scripts/mark-icon.ps1.
-    private const string IconWriting = "THERMI_WRITE_ICON";
-
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
-
-    // Every size Windows shows a program's icon at, from 100 % to 250 % and Explorer's largest view.
-    private static readonly int[] ProgramIconSizes = [16, 20, 24, 32, 40, 48, 64, 256];
-
-    // The line under the mark sits on light and dark alike, in Explorer, Start and the taskbar, so it is a middle gray.
-    private static readonly Rgb ProgramIconInk = Rgb.Parse("#8A8A8A");
 
     private readonly SettingsFolder _folder = new();
     private readonly FakeTray _tray = new();
@@ -240,79 +231,6 @@ public sealed class TrayIconsTests : IDisposable
                 pictures.ForEach(picture => picture.Dispose());
             }
         }
-    }
-
-    // The program's icon is the mark in its app form, drawn by the tray's painter at each size Windows asks of an icon,
-    // hand-placed pixels included; `pwsh scripts/mark-icon.ps1` draws it again into the file after the mark changes.
-    // Another Windows may smooth the vector's edges a little differently, so a channel may differ by a little.
-    [Fact]
-    public void TheProgramsIconIsTheMark()
-    {
-        var file = Path.Combine(TestRecordings.RepoRoot(), "src", "Thermi.Windows", "thermi.ico");
-        var painted = ProgramIconSizes
-            .Select(size => TrayPainter.Paint(new TrayIcon(Guid.Empty, null, null, ProgramIconInk, "") { Mark = MarkState.App }, size))
-            .ToList();
-        if (Environment.GetEnvironmentVariable(IconWriting) == "1")
-        {
-            File.WriteAllBytes(file, IconFile(painted));
-        }
-
-        var icon = File.ReadAllBytes(file);
-        Assert.Equal(ProgramIconSizes.Length, BitConverter.ToUInt16(icon, 4));
-        foreach (var (picture, at) in painted.Select((picture, at) => (picture, at)))
-        {
-            var entry = 6 + (16 * at);
-            using var stream = new MemoryStream(icon, BitConverter.ToInt32(icon, entry + 12), BitConverter.ToInt32(icon, entry + 8));
-            using var frame = new Bitmap(stream);
-            Assert.Equal(picture.Size, frame.Size);
-            var far = Enumerable.Range(0, frame.Height)
-                .SelectMany(y => Enumerable.Range(0, frame.Width).Where(x => Differs(picture.GetPixel(x, y), frame.GetPixel(x, y))))
-                .Count();
-            Assert.True(far == 0, $"{far} pixels of the {picture.Width} px icon are not the mark's");
-        }
-
-        painted.ForEach(picture => picture.Dispose());
-    }
-
-    // A faint edge's color says little, so colors are compared where both pixels are at least half opaque.
-    private static bool Differs(Color painted, Color stored)
-    {
-        const int Near = 24;
-        var color = new[] { painted.R - stored.R, painted.G - stored.G, painted.B - stored.B }.Max(Math.Abs);
-        return Math.Abs(painted.A - stored.A) > Near || (Math.Min(painted.A, stored.A) >= 128 && color > Near);
-    }
-
-    // An .ico of PNG frames, which Windows reads at every size since Vista: the header, one entry per frame, then the frames.
-    private static byte[] IconFile(List<Bitmap> pictures)
-    {
-        var frames = pictures.Select(picture =>
-        {
-            using var png = new MemoryStream();
-            picture.Save(png, ImageFormat.Png);
-            return png.ToArray();
-        }).ToList();
-        using var file = new MemoryStream();
-        using var writer = new BinaryWriter(file);
-        writer.Write((ushort)0);
-        writer.Write((ushort)1);
-        writer.Write((ushort)frames.Count);
-        var offset = 6 + (16 * frames.Count);
-        foreach (var (picture, frame) in pictures.Zip(frames))
-        {
-            // A side of 256 is written as 0, the byte's only way to say it.
-            writer.Write((byte)(picture.Width % 256));
-            writer.Write((byte)(picture.Height % 256));
-            writer.Write((ushort)0);
-            writer.Write((ushort)1);
-            writer.Write((ushort)32);
-            writer.Write(frame.Length);
-            writer.Write(offset);
-            offset += frame.Length;
-        }
-
-        frames.ForEach(writer.Write);
-        writer.Flush();
-        return file.ToArray();
     }
 
     private static TrayIcon Icon(string? text, Rgb color) => new(Guid.NewGuid(), text is null ? null : "item", text, color, "");

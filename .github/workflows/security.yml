@@ -1,4 +1,4 @@
-name: Security
+name: "🔐 Security · secrets and packages"
 
 # CI calls this on every PR and push, so the CI gate holds it; it also runs each day, as advisories come out long after a
 # package was chosen.
@@ -19,6 +19,7 @@ jobs:
   # Every commit of every branch: a secret deleted later is still public in the history. The release's binary, checked
   # against its checksums, as a container action would need Docker.
   gitleaks:
+    name: 🔐 Secrets · gitleaks
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -41,6 +42,7 @@ jobs:
           "$RUNNER_TEMP/gitleaks" git --redact --no-banner --log-opts="--all" .
 
   packages:
+    name: 🛡️ Vulnerable packages
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -56,6 +58,7 @@ jobs:
       - run: pwsh -NoProfile -File scripts/audit.ps1
 
   dependency-review:
+    name: 🔎 Dependency review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5

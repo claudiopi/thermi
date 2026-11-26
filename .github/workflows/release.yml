@@ -1,4 +1,4 @@
-name: Release
+name: "🚀 Release · signed installers and updates"
 
 # thermi's update channels (docs/adr/0008-updates.md, docs/RELEASES.md). Each merge to main goes to beta as
 # <version>-beta.<run>; the owner releases Directory.Build.props' version to stable, with its MSIs, and pulls the other
