@@ -46,7 +46,8 @@ function Get-NuGetRows([string]$Project) {
     foreach ($package in $targets[@($targets.Keys | Where-Object { $_ -notmatch '/' })[0]].GetEnumerator()) { $graph[$package.Key] = $package.Value }
     $buildOnly = @(Get-BuildOnly $folder)
     $queue = [Collections.Generic.Queue[string]]::new()
-    $graph.Keys | Where-Object { $graph[$_].type -eq 'Direct' -and $_ -notin $buildOnly } | ForEach-Object { $queue.Enqueue($_) }
+    # A project it references, as Thermi.App, brings its own packages, which ship with it.
+    $graph.Keys | Where-Object { $graph[$_].type -in 'Direct', 'Project' -and $_ -notin $buildOnly } | ForEach-Object { $queue.Enqueue($_) }
     $seen = @{}
     while ($queue.Count) {
         $id = $queue.Dequeue()
@@ -55,7 +56,7 @@ function Get-NuGetRows([string]$Project) {
         $seen[$id] = $true
         $entry = $graph[$id]
         if ($entry.dependencies) { foreach ($dependency in $entry.dependencies.Keys) { $queue.Enqueue($dependency) } }
-        Get-NuGetRow $id $entry.resolved
+        if ($entry.type -ne 'Project') { Get-NuGetRow $id $entry.resolved }
     }
 }
 

@@ -42,6 +42,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Thermi.App\Thermi.App.csproj" />
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
     <ProjectReference Include="..\Thermi.Trust\Thermi.Trust.csproj" />
   </ItemGroup>

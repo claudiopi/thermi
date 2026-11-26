@@ -1,3 +1,4 @@
+using Thermi.App.SettingsFile;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;

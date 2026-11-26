@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
 using Thermi.Core.Messages;
 using Thermi.Core.Settings;

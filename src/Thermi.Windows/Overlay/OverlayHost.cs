@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
 using Thermi.Core;
 using Thermi.Core.Messages;
 using Thermi.Core.Placement;
@@ -32,7 +33,6 @@ internal sealed class OverlayHost : IDisposable
     private const uint SettingsArrived = PInvoke.WM_APP + 3;
 
     private static readonly uint ShowMessage = PInvoke.RegisterWindowMessage("thermi-show");
-
     private static readonly uint HotkeyStatusMessage = PInvoke.RegisterWindowMessage("thermi-hotkey-status");
 
     private readonly Settings _settings;

@@ -82,7 +82,7 @@ Without administrator rights (`docs/adr/0016-admin-on-demand.md`)
 
 **The levers** are `src/Thermi.Releases`, a console tool that `scripts/updates.ps1` runs: `keys`, `pack`, `publish`, `promote`, `rollback`, `disable`, `refresh`, `status` and `serve`, over a folder or the R2 bucket through its S3 API, signing with a private key from a file or `THERMI_UPDATES_KEY`. `serve` answers a folder over HTTP on this PC, for a test build. The tool and the service share Core's manifest code; nothing of the tool ships.
 
-**Settings.** `src/Thermi.Windows/Overlay/ConfigStore.cs` already keeps the file of an earlier format beside it when it writes the new one, as `config.v<N>.json`; it gains the way back of R19.
+**Settings.** `src/Thermi.App/SettingsFile/ConfigStore.cs` already keeps the file of an earlier format beside it when it writes the new one, as `config.v<N>.json`; it gains the way back of R19.
 
 **Builds.** `ThermiUpdatesFrom` and its keys, in `Directory.Build.props`, are empty by default, and a build without them never checks. The release workflow builds with the real manifest address and both public keys, kept as the repository's variables, with the catalog required; `scripts/install.ps1 -UpdatesFrom <url> -UpdatesKeys <folder>` builds a test install that trusts the keys in that folder, without the catalog.
 

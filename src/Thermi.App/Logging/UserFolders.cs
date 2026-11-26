@@ -1,4 +1,4 @@
-namespace Thermi.Windows.Logging;
+namespace Thermi.App.Logging;
 
 /// <summary>
 /// The user's application data folders, the environment's first, so a test or a person trying a build gives that thermi a

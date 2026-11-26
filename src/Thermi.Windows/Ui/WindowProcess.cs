@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Translations;
@@ -120,7 +121,7 @@ internal static class WindowProcess
     // again here, so the process's entry logs it.
     private static async Task<bool> ShowAsync(int overlay, string? item, WindowEnvironment environment, bool pseudo, TimeProvider time)
     {
-        using var store = new ConfigStore(environment.SettingsPath, time);
+        using var store = new ConfigStore(environment.SettingsPath, time, ThermiPaths.RunsInstalled);
         await using var settings = new Settings(store, time, environment.Log);
         await settings.SyncAsync();
         using var watcher = settings.Watch(environment.Log);

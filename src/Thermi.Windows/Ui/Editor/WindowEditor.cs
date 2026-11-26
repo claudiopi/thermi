@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
 using Thermi.Windows.Logging;
-using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Ui.Editor;
 

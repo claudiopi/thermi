@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.App.SettingsFile;
 using Thermi.Core;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;

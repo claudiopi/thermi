@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.App.Logging;
 using Thermi.Windows.Logging;
 using Thermi.Windows.Tests.Processes;
 

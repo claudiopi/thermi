@@ -1,12 +1,12 @@
 using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Windows.Commands;
-using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Overlay;
 

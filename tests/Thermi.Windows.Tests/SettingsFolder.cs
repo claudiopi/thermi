@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Pipe;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui;
 using Thermi.Windows.Ui.Editor;
 using Thermi.Windows.Ui.Web;

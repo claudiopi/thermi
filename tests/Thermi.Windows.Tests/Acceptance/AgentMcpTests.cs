@@ -1,13 +1,13 @@
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using Thermi.Windows.Agents;
 using Thermi.Windows.Commands;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Tests.Agents;
 using Thermi.Windows.Tests.Processes;
 

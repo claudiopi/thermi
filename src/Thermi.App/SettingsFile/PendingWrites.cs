@@ -1,7 +1,7 @@
 using Thermi.Core.Editing;
 using Thermi.Core.Settings;
 
-namespace Thermi.Windows.SettingsFile;
+namespace Thermi.App.SettingsFile;
 
 /// <summary>
 /// The overlay's own changes that wait to be written to the settings file: each drag, by its overlay's first item, since

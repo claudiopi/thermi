@@ -4,6 +4,7 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
+using Thermi.App.Logging;
 
 namespace Thermi.Windows.Logging;
 

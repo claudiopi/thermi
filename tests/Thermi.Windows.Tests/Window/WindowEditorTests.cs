@@ -1,8 +1,8 @@
+using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui.Editor;
 
 namespace Thermi.Windows.Tests.Window;

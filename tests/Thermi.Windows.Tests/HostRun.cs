@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Sensors;
 using Thermi.Windows.Overlay;
 using Windows.Win32;

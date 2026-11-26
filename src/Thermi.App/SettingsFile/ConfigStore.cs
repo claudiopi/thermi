@@ -2,9 +2,8 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Thermi.Core.Settings;
-using Thermi.Windows.Updates;
 
-namespace Thermi.Windows.Overlay;
+namespace Thermi.App.SettingsFile;
 
 /// <summary>What a read found: the settings, why the file cannot be used, and whether it holds other than what this store last wrote or read.</summary>
 internal sealed record ConfigRead(ThermiConfig Config, ConfigProblem? Problem, bool Outside);
@@ -23,7 +22,7 @@ internal enum WriteOutcome
     Good,
 }
 
-/// <summary>What a write did: what it wrote, or why it wrote nothing, with what Windows said when it refused the write itself.</summary>
+/// <summary>What a write did: what it wrote, or why it wrote nothing, with what the OS said when it refused the write itself.</summary>
 internal sealed record ConfigWrite(WriteOutcome Outcome, ThermiConfig? Config = null, ConfigProblem? Problem = null, Exception? Error = null);
 
 /// <summary>
@@ -54,11 +53,12 @@ internal sealed class ConfigStore : IDisposable
     // another is one.
     private volatile string? _known;
 
+    // Whether this process runs the installed version, so a newer file is a rollback to it: always, unless its host says.
     public ConfigStore(string path, TimeProvider time, Func<bool>? installed = null)
     {
         FilePath = Path.GetFullPath(path);
         _time = time;
-        _installed = installed ?? ThermiPaths.RunsInstalled;
+        _installed = installed ?? (() => true);
         _mutex = new Mutex(initiallyOwned: false, MutexNameOf(FilePath));
     }
 
@@ -156,7 +156,7 @@ internal sealed class ConfigStore : IDisposable
     }
 
     // A lock that outlasts the settle is another program's, which may hold it for good: it is said as the file's problem
-    // and as a write Windows refused, so the retries slow down and the first is logged.
+    // and as a write the OS refused, so the retries slow down and the first is logged.
     private static Plan Changed(Look found, Func<ThermiConfig, ThermiConfig> change)
     {
         if (found.Kind == Found.Locked)
@@ -169,7 +169,7 @@ internal sealed class ConfigStore : IDisposable
     }
 
     // A restore is asked for over a file that cannot be used, so a lock that outlasts an editor's save is why it does not
-    // land, and it is said as a write Windows refused.
+    // land, and it is said as a write the OS refused.
     private Plan Restored(Look found, ThermiConfig good)
     {
         if (found.Kind == Found.Locked)
@@ -391,7 +391,7 @@ internal sealed class ConfigStore : IDisposable
         return new ConfigRead(config, problem, outside);
     }
 
-    /// <summary>What a look at the file found, with what Windows said when it was locked.</summary>
+    /// <summary>What a look at the file found, with what the OS said when it was locked.</summary>
     private readonly record struct Look(Found Kind, string Text, Exception? Lock = null);
 
     /// <summary>What a write puts in place, keeping the file it found beside it, or what it gives instead of writing.</summary>

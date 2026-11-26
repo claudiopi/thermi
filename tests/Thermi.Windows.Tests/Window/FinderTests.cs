@@ -1,10 +1,10 @@
 using System.Globalization;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui;
 using Thermi.Windows.Ui.Editor;
 using Thermi.Windows.Ui.Web;

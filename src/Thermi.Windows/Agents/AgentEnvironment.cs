@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using Thermi.App.Logging;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Install;
-using Thermi.Windows.Logging;
 using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui;
 using Thermi.Windows.Updates;

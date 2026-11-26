@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Updates;
 using Thermi.Windows.Agents;
 using Thermi.Windows.Commands;
@@ -203,7 +204,7 @@ internal static class Program
     private static async Task RunHostOnceAsync(
         ILoggerFactory logs, TimeProvider time, SensorClient sensors, SystemFeed feed, bool firstStart, Action<OverlayHost?> running)
     {
-        using var store = new ConfigStore(ConfigStore.DefaultPath, time);
+        using var store = new ConfigStore(ConfigStore.DefaultPath, time, ThermiPaths.RunsInstalled);
         await using var settings = new Settings(store, time, logs.CreateLogger<Settings>());
         using var host = new OverlayHost(settings, () => feed.Shown, CultureInfo.CurrentCulture, time, logs.CreateLogger<OverlayHost>())
         {

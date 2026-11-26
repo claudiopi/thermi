@@ -23,11 +23,13 @@ $root = Split-Path $PSScriptRoot -Parent
 $results = Join-Path $root 'TestResults'
 $minCoverage = 90
 $appResults = Join-Path $results 'app'
-# thermi and thermi-sensors, measured where their tests run them; CsWin32's generated declarations are not thermi's code.
+# thermi, thermi-sensors and what they share beyond Core, measured where their tests run them; CsWin32's generated
+# declarations are not thermi's code.
 $appCoverage = '--results-directory', $appResults, '--', '--coverlet', '--coverlet-include', '[thermi]*', '--coverlet-include', '[thermi-sensors]*',
+    '--coverlet-include', '[Thermi.App]*',
     '--coverlet-exclude', '[*]Windows.Win32.*', '--coverlet-single-hit', '--coverlet-output-format', 'json'
 # Each test project's report, named for it, and what it must have measured.
-$appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors' }
+$appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors', 'Thermi.App' }
 Set-Location $root
 
 . (Join-Path $PSScriptRoot 'check-lock.ps1')
@@ -115,7 +117,7 @@ function Show-AppCoverage {
         }
     }
 
-    $shown = foreach ($name in 'thermi', 'thermi-sensors') {
+    $shown = foreach ($name in 'thermi', 'thermi-sensors', 'Thermi.App') {
         '{0} lines {1:n0} %, branches {2:n0} %' -f $name, (Get-Rate $modules[$name].Lines), (Get-Rate $modules[$name].Branches)
     }
     Write-Host "info app coverage: $($shown -join '; ')"

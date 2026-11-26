@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Globalization;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;

@@ -1,7 +1,7 @@
+using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tests.Acceptance;
 

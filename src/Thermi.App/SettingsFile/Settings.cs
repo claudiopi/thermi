@@ -3,10 +3,9 @@ using Thermi.Core;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.Windows.Logging;
-using Thermi.Windows.SettingsFile;
+using Thermi.App.Logging;
 
-namespace Thermi.Windows.Overlay;
+namespace Thermi.App.SettingsFile;
 
 /// <summary>
 /// The overlay's settings as the user's file holds them. Every read and write goes through one throttle, off the
@@ -289,7 +288,7 @@ internal sealed class Settings : IAsyncDisposable
         return Waiting().Any ? TimeSpan.Zero : null;
     }
 
-    // A write Windows refuses, as on a read-only file or a folder without access, may never land: the first failure is
+    // A write the OS refuses, as on a read-only file or a folder without access, may never land: the first failure is
     // logged, and after a few quick tries it waits a second between them. A busy mutex, or a lock an ordinary write meets,
     // waits on its own.
     private TimeSpan Failed(Exception? error)

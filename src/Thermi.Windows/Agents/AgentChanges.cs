@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -7,7 +8,6 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Windows.Commands;
-using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Agents;
 

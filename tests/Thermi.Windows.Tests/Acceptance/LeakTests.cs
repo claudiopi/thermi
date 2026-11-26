@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO.Pipes;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.Sensors.Windows.Pipe;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;

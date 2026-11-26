@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.App.SettingsFile;
 using Thermi.Core;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;

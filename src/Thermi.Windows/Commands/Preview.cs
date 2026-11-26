@@ -1,12 +1,12 @@
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 using Windows.Win32.System.Console;

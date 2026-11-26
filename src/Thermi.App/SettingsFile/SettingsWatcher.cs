@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using Thermi.Windows.Logging;
+using Thermi.App.Logging;
 
-namespace Thermi.Windows.SettingsFile;
+namespace Thermi.App.SettingsFile;
 
 /// <summary>Watches the settings file for changes made by any process, as the overlay and the window both do.</summary>
 internal static class SettingsWatcher
@@ -35,7 +35,7 @@ internal static class SettingsWatcher
         }
     }
 
-    // Windows drops a watcher's events when they come faster than it is read, and stops one whose folder failed, saying
+    // The OS drops a watcher's events when they come faster than it is read, and stops one whose folder failed, saying
     // so only here: it watches again and the file is read again, since a change may have been lost.
     private static void Rewatch(FileSystemWatcher watcher, Action changed, ILogger log, Exception error)
     {
