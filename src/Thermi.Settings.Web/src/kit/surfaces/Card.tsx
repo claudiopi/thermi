@@ -20,12 +20,15 @@ const useStyles = makeStyles({
     minHeight: '64px',
     padding: `${space.inside} ${space.row}`,
     boxSizing: 'border-box',
+    // A control wider than the name leaves room for, as a long translation's dropdown, goes under it, at the row's end.
+    flexWrap: 'wrap',
+    rowGap: '8px',
     '& + &': { borderTop: `1px solid ${surface.divider}` },
   },
-  text: { flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column' },
+  text: { flex: '1', minWidth: 'min-content', display: 'flex', flexDirection: 'column' },
   label: { color: tokens.colorNeutralForeground1, fontSize: tokens.fontSizeBase300, lineHeight: tokens.lineHeightBase300 },
   description: { color: text.secondary, fontSize: tokens.fontSizeBase200, lineHeight: tokens.lineHeightBase200 },
-  control: { flex: 'none', display: 'flex', alignItems: 'center', gap: space.inside },
+  control: { flex: 'none', display: 'flex', alignItems: 'center', gap: space.inside, marginLeft: 'auto' },
   // In a narrow card, a row's several controls wrap among themselves at its end, as the prototype's do.
   wraps: { flex: '0 1 auto', minWidth: '0', flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: '8px' },
   // Beside controls that wrap, the name keeps its longest word, so the controls wrap before the name is cut.
