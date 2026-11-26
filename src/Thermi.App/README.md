@@ -5,6 +5,7 @@ What the overlay and the settings window decide beyond Core that needs a package
 | Folder | What lives there |
 | --- | --- |
 | `SettingsFile` | `config.json` read and written under its mutex, the settings a host holds over it, the edits that wait to be written, and watching the file. |
+| `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
 | `Logging` | The events of what lives here, each a `[LoggerMessage]`, and the user's folders. |
 
 Its tests run where its hosts are: `tests/Thermi.Windows.Tests` drives it with real files, other writers and the clock.

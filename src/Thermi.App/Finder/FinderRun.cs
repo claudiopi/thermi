@@ -4,9 +4,9 @@ using Thermi.Core.Bridge;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Windows.Logging;
+using Thermi.App.Logging;
 
-namespace Thermi.Windows.Ui.Views;
+namespace Thermi.App.Finder;
 
 /// <summary>
 /// "Find it" in the CPU fan's Sensor row: Core's <see cref="FanFinder"/> fed every fresh snapshot once and ticked four
@@ -14,13 +14,13 @@ namespace Thermi.Windows.Ui.Views;
 /// cancel or 30 s at most, and its ticks on while the finder watches the fans after the load. Its pick changes nothing:
 /// "Use it" on the page makes the item show it. Its result stays until it is put away. Used on the window's thread alone.
 /// </summary>
-/// <param name="load">Spins every core until its token is cancelled; <see cref="Commands.CpuLoad.Start"/>, or the tests' own.</param>
+/// <param name="load">Spins every core until its token is cancelled; <see cref="CpuLoad.Start"/>, or the tests' own.</param>
 /// <param name="time">The clock the finder, its ticks and the load's longest run follow.</param>
 /// <param name="onTurn">Runs an action on the window's thread, where the clock's ticks are taken.</param>
 /// <param name="changed">Tells the page that where the finder stands changed.</param>
 /// <param name="log">Where how each run ended goes, with how long since the last reading and how the service stood.</param>
 /// <param name="state">How the sensor service stands, which the log says when a run ends.</param>
-internal sealed class WindowFinder(
+internal sealed class FinderRun(
     Action<CancellationToken> load,
     TimeProvider time,
     Action<Action> onTurn,

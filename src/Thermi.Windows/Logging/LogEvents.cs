@@ -24,9 +24,6 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Warning, Message = "No readings came for {Seconds} s, then they came again")]
     public static partial void ReadingsPaused(this ILogger logger, double seconds);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Find it ended: {Outcome}, {Seconds} s after the last reading, the service {State}")]
-    public static partial void FanFinderEnded(this ILogger logger, Core.Sensors.FanFinderOutcome outcome, double seconds, Core.Tray.ServiceState state);
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "Windows did not take the tray icon of {Item}; it is tried again every {Seconds} s")]
     public static partial void TrayIconRefused(this ILogger logger, string item, int seconds);
 

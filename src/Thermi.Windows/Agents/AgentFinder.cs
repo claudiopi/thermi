@@ -1,11 +1,11 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Finder;
 using Thermi.Core.Pipe;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
-using Thermi.Windows.Ui.Views;
 
 namespace Thermi.Windows.Agents;
 
@@ -46,7 +46,7 @@ internal sealed partial class AgentCommands
         var gate = new Lock();
         var feed = environment.Sensors();
         // The rest counts from a load that started: a finder that cannot start loads nothing.
-        var finder = new WindowFinder(
+        var finder = new FinderRun(
             load =>
             {
                 Stamp(claim);
@@ -70,7 +70,7 @@ internal sealed partial class AgentCommands
         }
     }
 
-    private async Task<AgentReply> FindAsync(WindowFinder finder, ISensorFeed feed, Lock gate, bool use, CancellationToken stop)
+    private async Task<AgentReply> FindAsync(FinderRun finder, ISensorFeed feed, Lock gate, bool use, CancellationToken stop)
     {
         Snapshot? last = null;
         await foreach (var snapshot in AgentSamples.StreamAsync(feed, time, stop))
@@ -109,7 +109,7 @@ internal sealed partial class AgentCommands
         return ResultOf(finder, gate) is { } result ? await FoundAsync(result, last!, use) : Unread(feed.State, feed.Taken, last);
     }
 
-    private static FanFinderResult? ResultOf(WindowFinder finder, Lock gate)
+    private static FanFinderResult? ResultOf(FinderRun finder, Lock gate)
     {
         lock (gate)
         {

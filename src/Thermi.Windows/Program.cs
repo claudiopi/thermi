@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Thermi.App.Finder;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Updates;
 using Thermi.Windows.Agents;

@@ -15,11 +15,11 @@ One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. 
 | `Install` | Which sensor pipe to trust, the per-user sensor host, and the move to a machine install. |
 | `Updates` | The overlay's and the window's side of an update: the quiet moment, the hand-over, About's check. |
 | `Logging` | The logs in `%LOCALAPPDATA%\thermi`, each event a `[LoggerMessage]`. |
-| `Commands` | The command line, `thermi preview`, `thermi cpu-load` and the elevated mode's two fixes. |
+| `Commands` | The command line, `thermi preview` and the elevated mode's two fixes. |
 | `Agents` | `thermi-cli`: its commands and the MCP server, answered from Core's `Agents`. |
 | `Ui` | The settings window's process, its beacon, "Start with Windows" and the elevation check. |
 | `Ui/Web` | The Win32 window that hosts the page in WebView2, and the C# side of the bridge. |
-| `Ui/Views` | What the bridge reads beyond plain edits: sensors, charts, previews, looks, the fan finder. |
+| `Ui/Views` | What the bridge reads beyond plain edits: sensors, charts, previews, looks. |
 | `Ui/Editor` | The window's edits and undo, written through `Settings`. |
 
 Entry points worth knowing:

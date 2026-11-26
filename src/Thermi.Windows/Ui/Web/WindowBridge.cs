@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Finder;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
@@ -42,7 +43,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     private readonly WindowViews _views;
     private readonly WindowCharts _charts;
     private readonly WindowPreviews _previews;
-    private readonly WindowFinder _finder;
+    private readonly FinderRun _finder;
     private readonly WindowLooks _looks;
     private readonly PageWatch _watch;
     private readonly WindowFixes _fixes;
@@ -60,7 +61,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         _views = new WindowViews(editor, _sensors, readings, chart.Items);
         _charts = new WindowCharts(editor, chart, _sensors, readings);
         _previews = new WindowPreviews(editor, _sensors, _charts, start.Environment.Screens);
-        _finder = new WindowFinder(start.Load, start.Time, onTurn, Tell, start.Environment.Log, () => _sensors.State);
+        _finder = new FinderRun(start.Load, start.Time, onTurn, Tell, start.Environment.Log, () => _sensors.State);
         _looks = new WindowLooks(editor, new SavedStyles(ConfigStore.StylesFolder(start.Environment.SettingsPath)), Tell);
         _watch = new PageWatch(start.Environment with { Sensors = _sensors }, start.Time, onTurn, Tell, Arrived);
         _fixes = new WindowFixes(start.Environment, start.Time);

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using Thermi.App.Finder;
 using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Pipe;

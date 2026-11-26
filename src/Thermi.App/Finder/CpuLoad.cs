@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 
-namespace Thermi.Windows.Commands;
+namespace Thermi.App.Finder;
 
 /// <summary>
 /// The CPU load of the window's fan finder and of <c>thermi cpu-load</c>, which records the fans' answer for tests: a
