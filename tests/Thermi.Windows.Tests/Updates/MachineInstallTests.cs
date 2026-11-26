@@ -1,6 +1,7 @@
 extern alias sensors;
 
 using System.Security.Cryptography;
+using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.Sensors.Windows.Updates;
 using sensors::Thermi.Sensors.Windows.User;
 using Thermi.Core.Install;
@@ -44,7 +45,9 @@ public sealed class MachineInstallTests
         {
             pc.Publish(pc.Offer(UpdatePc.Built, pc.Zip(UpdatePc.Built)) with { Msis = new Dictionary<string, Package> { ["x64"] = package } });
         }
-        using var client = new ManifestClient(pc.Clock);
+        // A clock of its own, never stepped: the loop below steps the lock's tries, and would run out a download's idle limit
+        // on a PC slow enough.
+        using var client = new ManifestClient(new FakeTimeProvider());
         var host = new UpdateHost(() => pc.Policy, () => false, _ => { });
         var log = new FileLog(Path.Combine(pc.Top, "thermi-sensors.log"), pc.Clock);
         using var busy = new SemaphoreSlim(1, 1);
