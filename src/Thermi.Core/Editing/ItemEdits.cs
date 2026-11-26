@@ -94,7 +94,10 @@ public static class ItemEdits
 
     /// <summary>The item moved among its overlay's items, <paramref name="by"/> places, up when negative, as far as either end.</summary>
     public static EditResult MoveBy(ThermiConfig config, string id, int by) =>
-        ConfigEdits.Find(config, id) is var (_, from) ? Move(config, id, from + by) : ConfigEdits.Refuse(config, Refusal.NotFound);
+        ConfigEdits.Find(config, id) is var (_, from) ? Move(config, id, Stepped(from, by, int.MaxValue)) : ConfigEdits.Refuse(config, Refusal.NotFound);
+
+    // In long, so a step as far as an int goes stops at the end instead of wrapping around to the other.
+    private static int Stepped(int from, int by, int last) => (int)Math.Clamp((long)from + by, 0, last);
 
     /// <summary>
     /// An item's row dropped on an overlay's, its own or another, or put in a new overlay when <paramref name="overlay"/> is
@@ -139,7 +142,7 @@ public static class ItemEdits
         var items = config.Overlays[overlay].Items;
         List<int> starts = [.. OverlayLayout.Runs(config.Overlays[overlay]).Select(run => run.First)];
         var at = starts.FindLastIndex(first => first <= index);
-        var to = Math.Clamp(at + by, 0, starts.Count - 1);
+        var to = Stepped(at, by, starts.Count - 1);
         if (to == at)
         {
             return new EditResult(config);
