@@ -33,6 +33,8 @@ export default defineConfig(
         { selector: `${child} > :matches(ConditionalExpression, LogicalExpression) > Literal[value=/\\S/]`, message: noText },
         { selector: `${child} > TemplateLiteral > TemplateElement[value.raw=/\\S/]`, message: noText },
         { selector: `JSXAttribute[name.name=${readAttributes}] > Literal`, message: noText },
+        // An <i> makes Edge load the italic face the page never uses, and the page waits for it: seconds on a busy PC.
+        { selector: "JSXOpeningElement[name.name='i']", message: 'An i element is drawn in the italic face, which the page never loads: use a span.' },
       ],
     },
   },

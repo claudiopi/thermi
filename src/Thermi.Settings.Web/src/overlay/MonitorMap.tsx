@@ -111,7 +111,7 @@ export function MonitorMap({ shown, placed, place, vertical, hidden, onSnap }: M
           return (
             <div key={box.one.id} className={`t-mon${mine ? ' t-on' : ''}`} style={style}>
               <span className="t-mon-name">{label(box.one, box.index)}</span>
-              {box.one.taskbar && <i className="t-mon-bar" style={{ height: bar }} />}
+              {box.one.taskbar && <span className="t-mon-bar" style={{ height: bar }} />}
               {all
                 .filter((spot) => spot.display === box.index)
                 .map((spot) => (

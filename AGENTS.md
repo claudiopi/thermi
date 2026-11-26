@@ -68,6 +68,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | What every OS's host shares, `Thermi.Core`, `Thermi.App`, `Thermi.Cli` and `Thermi.Client`, targets plain `net10.0` and builds on no Windows-only project. | `RepoRulesTests` |
 | Each file of a `*.Windows` project uses a Windows-only API, or a type of its project that does, or is listed in the rule with why it stays. | `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
+| The page has no `<i>` but the icon's: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | Docs are short and scannable: the why before the what, short sentences, tables over walls of bullets, and no list of every file, which the code already is. | the README table rule in `RepoRulesTests`; review for the rest |
 | Nothing merges red. A check on a PC runs what the change can affect, which the projects' references and what `Thermi.Settings.Types` writes tell, and everything when a file says nothing; the CI runs every step on every PR and push to main, in jobs side by side, all of them required. Mutation runs each night and on demand, and gates nothing. | `scripts/check-scope.ps1`, `.github/workflows/ci.yml`, the `CI gate` check (`docs/RELEASES.md`) |
