@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Writes the settings window page's TypeScript from Core: the bridge's types and the texts' keys. The .NET build of
-       src/Thermi runs it before the web build, so a change on either side of the bridge fails that build. -->
+       src/Thermi.Windows runs it before the web build, so a change on either side of the bridge fails that build. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>

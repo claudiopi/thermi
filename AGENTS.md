@@ -75,7 +75,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | No test writes to Windows' Event Log: only the sinks each program's Main hands down reach it, and no test names one. | `RepoRulesTests` |
 | No TODOs in code: open an issue. | MA0026 |
 | Comments say why, never what. No process history (issue numbers, "for now") in production code. | `RepoRulesTests`, comment-trimmer |
-| Docs only cite paths that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |
+| Docs only cite paths that exist, and code and its comments only repo paths and project files that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |
 | A doc names only what the code has: each type, member and file in backticks, and each participant and call of a Mermaid diagram. ADRs and specs keep the names of their day. | `RepoRulesTests` |
 | What can be listed from the code is checked against it: `thermi.slnx` holds every project, this map has a row for each, and `docs/agents/README.md` lists every command `thermi-cli` parses. | `RepoRulesTests` |
 | A change's reviewer reads every doc `scripts/doc-impact.ps1` lists for it and says which the change made false. Docs say why and how things flow; the detail of each file is left to the code, so less can rot. | `.claude/agents/reviewer.md` |

@@ -14,7 +14,7 @@ using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.System.Console;
 
-// Windows 10 1607 and later, which every Win32 call thermi makes needs (Thermi.csproj says why it is set here).
+// Windows 10 1607 and later, which every Win32 call thermi makes needs (Thermi.Windows.csproj says why it is set here).
 [assembly: System.Runtime.Versioning.SupportedOSPlatform("windows10.0.14393")]
 
 namespace Thermi.Windows;

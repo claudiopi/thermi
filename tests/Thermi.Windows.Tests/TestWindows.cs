@@ -20,7 +20,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 [assembly: AssemblyFixture(typeof(Thermi.Windows.Tests.NoInputMethods))]
 [assembly: AssemblyFixture(typeof(Thermi.Windows.Tests.NothingOnTheUsersDesktop))]
 
-// Windows 10 1607 and later, as thermi itself (Thermi.csproj says why it is set in code).
+// Windows 10 1607 and later, as thermi itself (Thermi.Windows.csproj says why it is set in code).
 [assembly: System.Runtime.Versioning.SupportedOSPlatform("windows10.0.14393")]
 
 namespace Thermi.Windows.Tests;

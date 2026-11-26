@@ -21,7 +21,8 @@ public sealed class ContractTests
         foreach (var (name, schema) in AgentSchemas.Current)
         {
             Assert.True(
-                JsonNode.DeepEquals(schema, Schema(Schemas, name)), $"docs/agents/schema/{name}.schema.json is stale: build src/Thermi to write it again.");
+                JsonNode.DeepEquals(schema, Schema(Schemas, name)),
+                $"docs/agents/schema/{name}.schema.json is stale: build src/Thermi.Windows to write it again.");
         }
 
         var findings = ContractAnswers.All()

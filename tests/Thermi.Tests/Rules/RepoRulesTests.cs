@@ -145,8 +145,25 @@ public sealed partial class RepoRulesTests
                 .Select(match => match.Groups["path"].Value)
                 .Where(cited => !Exists(Root, cited) && !Exists(Path.GetDirectoryName(doc)!, cited))
                 .Select(cited => $"{Relative(doc)} cites {cited}"));
+        var projects = RepoFiles([".csproj", ".wixproj"]).Select(Path.GetFileName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var folders = ProjectFolders().ToList();
+        var stale = RepoFiles([.. CodeExtensions, ".csproj", ".props", ".targets", ".wxs"])
+            .SelectMany(code => CodePath().Matches(File.ReadAllText(code))
+                .Select(match => match.Groups["path"].Value.TrimEnd('.'))
+                .Where(cited => cited.EndsWith("proj", StringComparison.Ordinal)
+                    ? !projects.Contains(cited)
+                    : !Ancestors(Path.GetDirectoryName(code)!).Concat(folders).Any(folder => Exists(folder, cited)))
+                .Select(cited => $"{Relative(code)} cites {cited}"));
 
-        AssertNone(broken);
+        AssertNone(broken.Concat(stale));
+    }
+
+    private static IEnumerable<string> Ancestors(string folder)
+    {
+        for (var at = folder; at.Length >= Root.Length; at = Path.GetDirectoryName(at)!)
+        {
+            yield return at;
+        }
     }
 
     // A path from the repo's root, or, in a project's README, from the project's folder.
@@ -235,6 +252,14 @@ public sealed partial class RepoRulesTests
     // A backticked repo path with a folder and an extension, like `src/Thermi.Core/Sensors/Reading.cs`.
     [GeneratedRegex(@"`(?<path>(?:src|tests|docs|scripts|\.github|\.claude)/[\w./-]+)`", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex CitedPath();
+
+    // A repo path or a project file that code or its comments name, like src/Thermi.Windows/Program.cs or Thermi.Core.csproj,
+    // from the root, a folder above the file or a project's folder; not one a template string goes on to build.
+    [GeneratedRegex(
+        @"(?<![\w./\\-])(?<path>(?:src|tests|docs|scripts)/[\w.-]+(?:/[\w.-]+)*|[A-Z][\w.]*\.(?:csproj|wixproj))(?![\w$*{<./-])",
+        RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex CodePath();
 
     // A drive path other than the standard install folders, like a user profile or a work folder.
     [GeneratedRegex(@"\b[A-Za-z]:[\\/](?!Program Files|Windows[\\/])", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
