@@ -19,7 +19,7 @@ public sealed partial class RepoRulesTests
     ];
 
     // Helpers that make windows only for a caller already on its own desktop, or that join one before they make any; a
-    // test run through HostRun.Run is on its own desktop.
+    // test run through HostRun.Run, or through the Run of OverlayPresses, which calls it, is on its own desktop.
     private static readonly string[] OnTheirCallersDesktop = ["TestWindows.cs", "MenuWatcher.cs", "OtherProcess.cs"];
 
     // No test shows anything on the user's desktop, nor starts a process there: every process starts through
@@ -44,7 +44,7 @@ public sealed partial class RepoRulesTests
         var showing = tests
             .Where(file => !OnTheirCallersDesktop.Contains(file.Name)
                 && MakesWindows.Any(make => file.Text.Contains(make, StringComparison.Ordinal))
-                && !new[] { "OnOwnDesktop(", "HostRun.Run(" }.Any(own => file.Text.Contains(own, StringComparison.Ordinal)))
+                && !new[] { "OnOwnDesktop(", "HostRun.Run(", ": OverlayPresses" }.Any(own => file.Text.Contains(own, StringComparison.Ordinal)))
             .Select(file => file.Name);
 
         Assert.Empty(starting.Concat(showing));
