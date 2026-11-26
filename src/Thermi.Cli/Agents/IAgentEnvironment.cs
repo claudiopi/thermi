@@ -44,4 +44,7 @@ internal interface IAgentEnvironment
 
     /// <summary>Loads every core until <paramref name="stop"/>, in a process of its own, for the fan finder.</summary>
     void Load(CancellationToken stop);
+
+    /// <summary>Whether a file failed to open because another process holds it, as each OS says so in its own error.</summary>
+    bool HeldElsewhere(IOException error);
 }

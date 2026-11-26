@@ -203,5 +203,8 @@ internal sealed class AgentRig : IDisposable
         public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 
         public void Load(CancellationToken stop) => rig.Loaded(stop);
+
+        // A test holds the file the finder claims, and nothing else fails to open it here.
+        public bool HeldElsewhere(IOException error) => true;
     }
 }
