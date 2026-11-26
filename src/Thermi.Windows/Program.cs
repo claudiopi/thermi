@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.App.Finder;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Agents;
+using Thermi.Cli.Commands;
 using Thermi.Core.Updates;
 using Thermi.Windows.Agents;
 using Thermi.Windows.Commands;

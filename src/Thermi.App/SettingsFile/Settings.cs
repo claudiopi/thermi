@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.Logging;
 using Thermi.Core;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
-using Thermi.App.Logging;
 
 namespace Thermi.App.SettingsFile;
 

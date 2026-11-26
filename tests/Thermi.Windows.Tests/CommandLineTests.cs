@@ -2,6 +2,7 @@ extern alias sensors;
 
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.Sensors.Windows.Service;
+using Thermi.Cli.Commands;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Tests.Processes;
 using Thermi.Windows.Win32;

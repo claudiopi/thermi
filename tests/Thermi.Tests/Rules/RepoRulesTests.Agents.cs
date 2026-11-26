@@ -15,7 +15,7 @@ public sealed partial class RepoRulesTests
         [
             Path.Combine("src", "Thermi.Windows", "Agents"),
             Path.Combine("src", "Thermi.Core", "Agents"),
-            Path.Combine("src", "Thermi.Windows", "Commands", "AgentCommandLine.cs"),
+            Path.Combine("src", "Thermi.Cli") + Path.DirectorySeparatorChar,
         ];
         var reached = RepoFiles([".cs"])
             .Where(path => agents.Any(part => Relative(path).StartsWith(part, StringComparison.Ordinal)))
@@ -36,7 +36,7 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void TheAgentsReadmeNamesEveryCommand()
     {
-        var parsed = CliCommand().Matches(File.ReadAllText(Path.Combine(Root, "src", "Thermi.Windows", "Commands", "AgentCommandLine.cs")))
+        var parsed = CliCommand().Matches(File.ReadAllText(Path.Combine(Root, "src", "Thermi.Cli", "Commands", "AgentCommandLine.cs")))
             .Select(match => match.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
         var readme = File.ReadAllLines(Path.Combine(Root, "docs", "agents", "README.md"));
         var table = readme.SkipWhile(line => line != "## Commands")

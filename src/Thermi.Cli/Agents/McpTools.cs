@@ -3,10 +3,10 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Thermi.Cli.Commands;
 using Thermi.Core.Sensors;
-using Thermi.Windows.Commands;
 
-namespace Thermi.Windows.Agents;
+namespace Thermi.Cli.Agents;
 
 /// <summary>
 /// <c>thermi-cli mcp</c>: the agents' commands as an MCP server's tools, through the official SDK, each answering its

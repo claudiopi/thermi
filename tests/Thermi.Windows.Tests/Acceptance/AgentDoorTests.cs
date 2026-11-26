@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using Thermi.Core.Agents;
 using Thermi.Windows.Tests.Processes;
 
@@ -61,6 +63,19 @@ public sealed class AgentDoorTests : IDisposable
         var (helped, help) = await DesktopProcess.RunAsync(Cli, ["--help"], TimeSpan.FromSeconds(60), _folder.Profile);
         Assert.Equal(0, helped);
         Assert.Contains("monitors", help, StringComparison.Ordinal);
+    }
+
+    // The built door serves the tools over its stdio, on a desktop of its own; monitors reads no settings.
+    [Fact]
+    public async Task TheCliServesItsToolsOverMcp()
+    {
+        using var process = DesktopProcess.Start(Cli, ["mcp"], _folder.Profile, talks: true);
+        await using var client = await McpClient.CreateAsync(
+            new StreamClientTransport(process.Input.BaseStream, process.Output.BaseStream),
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(12, (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).Count);
+        var monitors = await client.CallToolAsync("monitors", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
+        Assert.False(monitors.IsError ?? false);
     }
 
     private static string Script(string folder, string name, string text)

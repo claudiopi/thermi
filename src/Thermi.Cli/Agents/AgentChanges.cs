@@ -1,15 +1,15 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Windows.Commands;
 
-namespace Thermi.Windows.Agents;
+namespace Thermi.Cli.Agents;
 
 /// <summary>
 /// The commands that change something: the settings, through Core's edits written over the file as it is then, under its
@@ -73,7 +73,7 @@ internal sealed partial class AgentCommands
 
     private async Task<AgentReply> LookAsync(AgentRequest request)
     {
-        var saved = new SavedStyles(environment.StylesFolder);
+        var saved = new SavedStyles(ConfigStore.StylesFolder(environment.SettingsPath));
         var name = request.Text ?? "";
         return request.Look switch
         {
@@ -286,7 +286,7 @@ internal sealed partial class AgentCommands
             : Refused(Refusal.NotFound);
     }
 
-    private IReadOnlyList<string> Saved() => [.. new SavedStyles(environment.StylesFolder).List().Select(style => style.Name!)];
+    private IReadOnlyList<string> Saved() => [.. new SavedStyles(ConfigStore.StylesFolder(environment.SettingsPath)).List().Select(style => style.Name!)];
 
     // A saved look's file Windows refused to write or delete changes nothing, and says why.
     private static AgentReply Filed(Func<Refusal?> change)

@@ -1,17 +1,14 @@
 using System.Text.Json.Nodes;
-using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Agents;
+using Thermi.Cli.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
-using Thermi.Windows.Agents;
-using Thermi.Windows.Commands;
-using Thermi.Windows.Tests.Agents;
-using Thermi.Windows.Tests.Processes;
+using Thermi.Tests.Agents;
 
-namespace Thermi.Windows.Tests.Acceptance;
+namespace Thermi.Tests.Acceptance;
 
 /// <summary>
 /// <c>thermi-cli mcp</c> as an agent's client sees it (<c>docs/specs/003-agents/spec.md</c>): the commands as tools, each
@@ -28,10 +25,10 @@ public sealed class AgentMcpTests : IDisposable
     public void Dispose() => _rig.Dispose();
 
     [Fact]
-    public async Task McpToolsAreTheCommands()
+    public Task McpToolsAreTheCommands()
     {
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        await McpSession.RunAsync(_rig, async session =>
+        return McpSession.RunAsync(_rig, async session =>
         {
             var tools = await session.Client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(ReadOnly.Concat(Changing).Order(StringComparer.Ordinal), tools.Select(tool => tool.Name).Order(StringComparer.Ordinal));
@@ -71,15 +68,6 @@ public sealed class AgentMcpTests : IDisposable
             Assert.True(unread);
             Assert.NotEmpty(said);
         });
-
-        // The built door, over its stdio, on a desktop of its own; monitors reads no settings.
-        using var process = DesktopProcess.Start(Path.Combine(AppContext.BaseDirectory, "thermi-cli.exe"), ["mcp"], _rig.Folder.Profile, talks: true);
-        await using var client = await McpClient.CreateAsync(
-            new StreamClientTransport(process.Input.BaseStream, process.Output.BaseStream),
-            cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal(12, (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).Count);
-        var monitors = await client.CallToolAsync("monitors", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
-        Assert.False(monitors.IsError ?? false);
     }
 
     [Fact]

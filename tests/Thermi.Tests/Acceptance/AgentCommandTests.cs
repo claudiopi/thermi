@@ -8,9 +8,9 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Windows.Tests.Agents;
+using Thermi.Tests.Agents;
 
-namespace Thermi.Windows.Tests.Acceptance;
+namespace Thermi.Tests.Acceptance;
 
 /// <summary>
 /// <c>thermi-cli</c>'s commands as an agent runs them (<c>docs/specs/003-agents/spec.md</c>): one JSON document or nothing

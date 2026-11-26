@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Agents;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -16,12 +17,11 @@ using Thermi.Windows.Win32;
 namespace Thermi.Windows.Agents;
 
 /// <summary>
-/// What an agent's command reaches outside its process, which tests replace: the settings file, the sensors, read from the
-/// pipe as the overlay reads them with a new connection for each read, whether the service is installed or this is a per-user
-/// install, whether an overlay runs, whether this install is the sensors alone, the start at sign-in, the monitors, the keys
-/// AltGr types with, and the fan finder's load and the file that says when it last ran.
+/// What an agent's command reaches on Windows, each part of which a test may replace: the sensors read from the pipe as the
+/// overlay reads them, the service's registration and the installer's key, the overlay's mutex, UAC's raised token, the
+/// Run key, the monitors and taskbars, the keyboard layouts' AltGr keys and a <c>thermi cpu-load</c> of its own.
 /// </summary>
-internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> Sensors, StartWithWindows Startup, ILogger Log)
+internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> Sensors, StartWithWindows Startup, ILogger Log) : IAgentEnvironment
 {
     // The services' key, which every user may read; the service's own key there is its registration.
     private const string Services = @"SYSTEM\CurrentControlSet\Services\";
@@ -61,7 +61,7 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
 
     public string FinderRan { get; init; } = Path.Combine(UserFolders.Local, "thermi", "fan-finder-ran.txt");
 
-    public string StylesFolder => ConfigStore.StylesFolder(SettingsPath);
+    IStartAtSignIn IAgentEnvironment.Startup => Startup;
 
     public static AgentEnvironment Of(ILoggerFactory logs, TimeProvider time)
     {
@@ -72,6 +72,26 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
             StartWithWindows.Of(ThermiPaths.Launcher),
             logs.CreateLogger("Thermi.Agents"));
     }
+
+    ISensorFeed IAgentEnvironment.Sensors() => Sensors();
+
+    bool IAgentEnvironment.Installed() => Installed();
+
+    bool IAgentEnvironment.PerUser() => PerUser();
+
+    bool IAgentEnvironment.Overlay() => Overlay();
+
+    bool IAgentEnvironment.SensorsOnly() => SensorsOnly();
+
+    bool IAgentEnvironment.Raised() => Raised();
+
+    bool IAgentEnvironment.RunsInstalled() => RunsInstalled();
+
+    IReadOnlyList<Screen> IAgentEnvironment.Screens() => Screens();
+
+    IReadOnlySet<int> IAgentEnvironment.AltGrKeys() => AltGrKeys();
+
+    void IAgentEnvironment.Load(CancellationToken stop) => Load(stop);
 
     private static bool Exists(string key)
     {

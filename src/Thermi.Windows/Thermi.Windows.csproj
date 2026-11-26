@@ -36,13 +36,13 @@
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.CommandLine" />
-    <PackageReference Include="ModelContextProtocol.Core" />
     <PackageReference Include="System.ServiceProcess.ServiceController" />
     <PackageReference Include="Microsoft.Web.WebView2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Thermi.App\Thermi.App.csproj" />
+    <ProjectReference Include="..\Thermi.Cli\Thermi.Cli.csproj" />
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
     <ProjectReference Include="..\Thermi.Trust\Thermi.Trust.csproj" />
   </ItemGroup>

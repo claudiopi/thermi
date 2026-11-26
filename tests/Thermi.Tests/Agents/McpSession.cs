@@ -4,9 +4,9 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Thermi.Windows.Agents;
+using Thermi.Cli.Agents;
 
-namespace Thermi.Windows.Tests.Agents;
+namespace Thermi.Tests.Agents;
 
 /// <summary>
 /// The MCP SDK's own client talking to thermi's server over in-memory pipes, on the rig's settings and service, with the

@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using Thermi.Windows.Logging;
 
-namespace Thermi.Windows.Tests;
+namespace Thermi.Windows.Tests.Logging;
 
 /// <summary>
 /// The test assembly started again as a process that ends on a failure, for <see cref="ThermiLogTests"/>: with

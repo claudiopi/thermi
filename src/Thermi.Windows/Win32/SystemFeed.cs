@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using Thermi.Core.Pipe;
 using Thermi.Core.Frames;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 

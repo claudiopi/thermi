@@ -4,7 +4,13 @@ using System.Globalization;
 using Thermi.Core.Agents;
 using Thermi.Core.Sensors;
 
-namespace Thermi.Windows.Commands;
+namespace Thermi.Cli.Commands;
+
+/// <summary>What <c>thermi</c> was asked to do; null from <see cref="AgentCommandLine.Parse"/>, with why, when its arguments make no sense.</summary>
+internal interface IThermiRequest;
+
+/// <summary><c>--help</c> or <c>--version</c>, which System.CommandLine answers itself.</summary>
+internal sealed record BuiltInRequest(ParseResult Parsed) : IThermiRequest;
 
 /// <summary>The agents' commands (<c>docs/adr/0013-agents-cli-and-mcp.md</c>), each answering one JSON document on stdout.</summary>
 internal enum AgentVerb
@@ -76,7 +82,31 @@ internal static class AgentCommandLine
         CustomParser = SchemaOf,
     };
 
-    public static void Add(RootCommand root, Dictionary<Command, Func<ParseResult, IThermiRequest>> requests)
+    /// <summary>
+    /// A host's command line, its own commands and the agents': the request <paramref name="args"/> make, help or the version,
+    /// <paramref name="none"/>'s with no command, or null with <paramref name="errors"/> saying why they make no sense, as
+    /// System.CommandLine or <paramref name="refused"/> finds.
+    /// </summary>
+    public static IThermiRequest? Parse(
+        RootCommand root,
+        Dictionary<Command, Func<ParseResult, IThermiRequest>> requests,
+        IReadOnlyList<string> args,
+        Func<ParseResult, IEnumerable<string>> refused,
+        Func<ParseResult, IThermiRequest?> none,
+        out IReadOnlyList<string> errors)
+    {
+        Add(root, requests);
+
+        // A root with commands and no action of its own must be given one of them; a host's runs what none gives.
+        root.SetAction(_ => 0);
+        var parsed = root.Parse(args, new ParserConfiguration { ResponseFileTokenReplacer = null });
+        errors = [.. parsed.Errors.Select(error => error.Message), .. refused(parsed)];
+        return errors.Count > 0 ? null
+            : parsed.Action is not null && parsed.Action != root.Action ? new BuiltInRequest(parsed)
+            : requests.TryGetValue(parsed.CommandResult.Command, out var request) ? request(parsed) : none(parsed);
+    }
+
+    private static void Add(RootCommand root, Dictionary<Command, Func<ParseResult, IThermiRequest>> requests)
     {
         root.Options.Add(Schema);
         var looks = LookCommands(out var look);

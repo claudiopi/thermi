@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Agents;
+using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -7,11 +9,9 @@ using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Windows.Agents;
-using Thermi.Windows.Commands;
-using Thermi.Windows.Tests.Agents;
+using Thermi.Tests.Agents;
 
-namespace Thermi.Windows.Tests.Acceptance;
+namespace Thermi.Tests.Acceptance;
 
 /// <summary>
 /// What an agent finds and changes as the settings window does (<c>docs/specs/003-agents/spec.md</c>): the sensors and the

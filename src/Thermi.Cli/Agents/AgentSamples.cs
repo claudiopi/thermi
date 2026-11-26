@@ -4,7 +4,7 @@ using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 
-namespace Thermi.Windows.Agents;
+namespace Thermi.Cli.Agents;
 
 /// <summary>
 /// The snapshots an agent's command takes from a feed of its own, each as it comes, once a second; the feed's connection

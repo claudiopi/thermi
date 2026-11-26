@@ -10,11 +10,11 @@ They never touch the user's PC. Windows go on a desktop of the test's own (`Test
 | `Sensors` | `src/Thermi.Sensors.Windows`: the pipe server, the service, a device that stalls, the command line, on recorded sensors. |
 | `Sensors/Frames` | The service's frames: the trace's life, and the processes that present, held while they run. |
 | `OnTop` | Staying above the taskbar while another process raises its windows. |
-| `Window` | The settings window's process, editor, undo and fan finder. |
-| `Agents` | The rig that runs `thermi-cli`'s commands and an MCP session against a pipe and a settings file of the test's own. |
+| `Window` | The settings window's process, editor, undo and fan finder, and a window on a test's settings file. |
 | `Updates` | The updater, the watchdog's switch and a machine install, on a folder of the test's own. |
 | `Updates/Catalog` | A release's files and its `thermi.cat`, byte for byte, for the catalog's check. |
 | `Driver` | Installing the driver from the window. |
+| `Logging` | The overlay's and the window's logs, and a child process that ends on a failure, which they log. |
 | `Processes` | `DesktopProcess`, which starts a process on the test's desktop. |
 | `Acceptance` | The tests a spec's acceptance steps name. |
 

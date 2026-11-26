@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- thermi-cli's commands and its MCP server, which serves the same commands over stdio, for any OS
+       (docs/adr/0013-agents-cli-and-mcp.md, docs/adr/0018-shared-and-windows-projects.md). Plain net10.0 and no
+       Windows-only project, checked by RepoRulesTests: what an OS answers comes in through IAgentEnvironment. The
+       host's executable serves it, as thermi.exe and thermi-cli.exe do; its types are internal, seen only by them and
+       the tests named below. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="thermi" />
+    <InternalsVisibleTo Include="Thermi.Tests" />
+    <InternalsVisibleTo Include="Thermi.Windows.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.Core" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Thermi.App\Thermi.App.csproj" />
+    <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+  </ItemGroup>
+
+</Project>

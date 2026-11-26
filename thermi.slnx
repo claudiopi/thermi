@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Thermi.Core/Thermi.Core.csproj" />
     <Project Path="src/Thermi.App/Thermi.App.csproj" />
+    <Project Path="src/Thermi.Cli/Thermi.Cli.csproj" />
     <Project Path="src/Thermi.Windows/Thermi.Windows.csproj" />
     <Project Path="src/Thermi.Releases/Thermi.Releases.csproj" />
     <Project Path="src/Thermi.Sensors.Windows/Thermi.Sensors.Windows.csproj" />

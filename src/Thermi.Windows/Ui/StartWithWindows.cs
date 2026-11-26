@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Thermi.Cli.Agents;
 using Thermi.Core.Install;
 
 namespace Thermi.Windows.Ui;
@@ -12,7 +13,7 @@ namespace Thermi.Windows.Ui;
 /// <param name="key">The Run key under the user's hive; tests give one of their own.</param>
 /// <param name="approvedKey">Task Manager's StartupApproved key.</param>
 /// <param name="exePath">What the value starts at sign-in.</param>
-internal sealed class StartWithWindows(string key, string approvedKey, string exePath)
+internal sealed class StartWithWindows(string key, string approvedKey, string exePath) : IStartAtSignIn
 {
     public const string ApprovedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 

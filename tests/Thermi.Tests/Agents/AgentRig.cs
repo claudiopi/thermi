@@ -1,15 +1,16 @@
+using System.CommandLine;
 using System.Text;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Thermi.Cli.Agents;
+using Thermi.Cli.Commands;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
-using Thermi.Windows.Agents;
-using Thermi.Windows.Commands;
-using Thermi.Windows.Ui;
 
-namespace Thermi.Windows.Tests.Agents;
+namespace Thermi.Tests.Agents;
 
 /// <summary>
 /// The service as a recording plays it: each connection gets the snapshots in order, at once or, with <paramref name="pace"/>,
@@ -98,14 +99,11 @@ internal sealed record AgentEnd(int Exit, string Out, string Error)
 }
 
 /// <summary>
-/// <c>thermi-cli</c> run in the test's process as <c>Program</c> runs it, on a settings file of the test's own, a recorded
-/// service, one monitor, no overlay and the start at sign-in under a key of the tests', on the folder's fake clock.
+/// <c>thermi-cli</c> run in the test's process as a host runs it, on a settings file of the test's own, a recorded service,
+/// one monitor, no overlay and a start at sign-in of its own, on the folder's fake clock.
 /// </summary>
 internal sealed class AgentRig : IDisposable
 {
-    // A key of each rig's own, since tests run at once.
-    private readonly string _keys = @"Software\thermi-tests\agents\" + Guid.NewGuid().ToString("N") + @"\";
-
     public SettingsFolder Folder { get; } = new();
 
     public Func<ISensorFeed> Sensors { get; set; } = () => new RecordedFeed([TestRecordings.Read(TestRecordings.Admin)]);
@@ -126,29 +124,14 @@ internal sealed class AgentRig : IDisposable
     /// <summary>When each run of the fan finder's load started and ended, on the folder's clock.</summary>
     public List<(long Started, long? Ended)> Loads { get; } = [];
 
-    public AgentEnvironment Environment => new(
-        Folder.File,
-        () => Sensors(),
-        Startup,
-        Folder.Log)
-    {
-        FinderRan = Path.Combine(Path.GetDirectoryName(Folder.File)!, "fan-finder-ran.txt"),
-        Installed = () => Installed,
-        PerUser = () => PerUser,
-        Raised = () => Raised,
-        Overlay = () => Overlay,
-        SensorsOnly = () => SensorsOnly,
-        Screens = () => Screens,
-        AltGrKeys = () => new HashSet<int>(),
-        Load = Loaded,
-    };
+    public IAgentEnvironment Environment => new RigEnvironment(this);
 
-    public StartWithWindows Startup => new(_keys + "Run", _keys + "Approved", "thermi.exe");
+    public StartAtSignIn Startup { get; } = new();
 
-    /// <summary>Parses the arguments as thermi does, and runs the agent's command they make, stepping the clock until it ends.</summary>
+    /// <summary>Parses the arguments as a host does, and runs the agent's command they make, stepping the clock until it ends.</summary>
     public async Task<AgentEnd> RunAsync(params string[] args)
     {
-        if (ThermiCommands.Parse(args, out var errors) is not AgentRequest request)
+        if (AgentCommandLine.Parse(new RootCommand(), [], args, _ => [], _ => null, out var errors) is not AgentRequest request)
         {
             return new AgentEnd(2, "", string.Join('\n', errors));
         }
@@ -177,9 +160,45 @@ internal sealed class AgentRig : IDisposable
         }
     }
 
-    public void Dispose()
+    public void Dispose() => Folder.Dispose();
+
+    /// <summary>The start at sign-in as the OS would hold it, here a switch of the rig's own.</summary>
+    internal sealed class StartAtSignIn : IStartAtSignIn
     {
-        Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(_keys.TrimEnd('\\'), throwOnMissingSubKey: false);
-        Folder.Dispose();
+        public bool On { get; private set; }
+
+        public void Set(bool on) => On = on;
+    }
+
+    // What the rig says, read at each call, so a test changes it between commands.
+    private sealed class RigEnvironment(AgentRig rig) : IAgentEnvironment
+    {
+        public string SettingsPath => rig.Folder.File;
+
+        public ILogger Log => rig.Folder.Log;
+
+        public IStartAtSignIn Startup => rig.Startup;
+
+        public string FinderRan => Path.Combine(Path.GetDirectoryName(rig.Folder.File)!, "fan-finder-ran.txt");
+
+        public ISensorFeed Sensors() => rig.Sensors();
+
+        public bool Installed() => rig.Installed;
+
+        public bool PerUser() => rig.PerUser;
+
+        public bool Overlay() => rig.Overlay;
+
+        public bool SensorsOnly() => rig.SensorsOnly;
+
+        public bool Raised() => rig.Raised;
+
+        public bool RunsInstalled() => true;
+
+        public IReadOnlyList<Screen> Screens() => rig.Screens;
+
+        public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
+
+        public void Load(CancellationToken stop) => rig.Loaded(stop);
     }
 }

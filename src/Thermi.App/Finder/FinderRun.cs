@@ -1,10 +1,10 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Logging;
 using Thermi.Core.Bridge;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.App.Logging;
 
 namespace Thermi.App.Finder;
 

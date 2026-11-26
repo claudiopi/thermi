@@ -17,9 +17,11 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
-  <!-- The Windows tests' reading of a recording, shared rather than copied. -->
+  <!-- The Windows tests' reading of a recording, their settings folder and their log, shared rather than copied. -->
   <ItemGroup>
     <Compile Include="..\Thermi.Windows.Tests\TestRecordings.cs" Link="Shared\TestRecordings.cs" />
+    <Compile Include="..\Thermi.Windows.Tests\SettingsFolder.cs" Link="Shared\SettingsFolder.cs" />
+    <Compile Include="..\Thermi.Windows.Tests\ListLogger.cs" Link="Shared\ListLogger.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +29,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Thermi.App\Thermi.App.csproj" />
+    <ProjectReference Include="..\..\src\Thermi.Cli\Thermi.Cli.csproj" />
     <ProjectReference Include="..\..\src\Thermi.Core\Thermi.Core.csproj" />
     <ProjectReference Include="..\..\src\Thermi.Client\Thermi.Client.csproj" />
     <ProjectReference Include="..\..\src\Thermi.Releases\Thermi.Releases.csproj" />

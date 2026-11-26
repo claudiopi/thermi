@@ -37,16 +37,6 @@
           "Microsoft.Windows.WDK.Win32Metadata": "0.13.25-experimental"
         }
       },
-      "ModelContextProtocol.Core": {
-        "type": "Direct",
-        "requested": "[2.4.0, )",
-        "resolved": "2.4.0",
-        "contentHash": "q98pZMlcxhsh0LpGXcT2ow7sGNveCPhDlJT3zJ7Cz5nNyPmPkm8P57dUIUpzv1w6qWbdSZcR/Z+RbZtNYjEmXQ==",
-        "dependencies": {
-          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.14"
-        }
-      },
       "Serilog": {
         "type": "Direct",
         "requested": "[4.4.0, )",
@@ -162,6 +152,15 @@
           "Thermi.Core": "[0.9.0, )"
         }
       },
+      "thermi.cli": {
+        "type": "Project",
+        "dependencies": {
+          "ModelContextProtocol.Core": "[2.4.0, )",
+          "System.CommandLine": "[3.0.0, )",
+          "Thermi.App": "[0.9.0, )",
+          "Thermi.Core": "[0.9.0, )"
+        }
+      },
       "thermi.core": {
         "type": "Project"
       },
@@ -176,6 +175,16 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "11.0.0",
           "System.Diagnostics.DiagnosticSource": "11.0.0"
+        }
+      },
+      "ModelContextProtocol.Core": {
+        "type": "CentralTransitive",
+        "requested": "[2.4.0, )",
+        "resolved": "2.4.0",
+        "contentHash": "q98pZMlcxhsh0LpGXcT2ow7sGNveCPhDlJT3zJ7Cz5nNyPmPkm8P57dUIUpzv1w6qWbdSZcR/Z+RbZtNYjEmXQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.14"
         }
       }
     },

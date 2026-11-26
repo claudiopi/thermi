@@ -10,6 +10,7 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | --- | --- |
 | `src/Thermi.Core` | Everything that does not need Windows: readings, sensor mapping, config and layout. No dependencies. |
 | `src/Thermi.App` | What the overlay and the window share across OSes beyond Core, needing a package or the file system: the settings file and the settings a host holds. `net10.0`. |
+| `src/Thermi.Cli` | `thermi-cli`'s commands and its MCP server, the same commands over stdio, for any OS: what an OS answers comes in through `IAgentEnvironment`. `net10.0`. |
 | `src/Thermi.Windows` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
 | `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
@@ -64,6 +65,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Code lines up to 160 characters (generated `.g.ts` aside). | `RepoRulesTests` |
 | Code lives in folders by topic, at most 12 C# files directly in any folder, and a namespace follows its folder. | `RepoRulesTests`, IDE0130 |
 | `Thermi.Core` depends on nothing, Windows included. | its target framework, `RepoRulesTests` |
+| What every OS's host shares, `Thermi.Core`, `Thermi.App`, `Thermi.Cli` and `Thermi.Client`, targets plain `net10.0` and builds on no Windows-only project. | `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | Docs are short and scannable: the why before the what, short sentences, tables over walls of bullets, and no list of every file, which the code already is. | the README table rule in `RepoRulesTests`; review for the rest |

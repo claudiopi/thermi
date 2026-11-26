@@ -1,11 +1,9 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Globalization;
+using Thermi.Cli.Commands;
 
 namespace Thermi.Windows.Commands;
-
-/// <summary>What <c>thermi</c> was asked to do; null from <see cref="ThermiCommands.Parse"/>, with why, when its arguments make no sense.</summary>
-internal interface IThermiRequest;
 
 /// <summary>The overlay, with no command: what Windows starts at sign-in.</summary>
 internal sealed record OverlayRequest(bool Trace) : IThermiRequest;
@@ -24,9 +22,6 @@ internal sealed record PreviewRequest(string Snapshot, string Png, float Scale, 
 
 /// <summary><c>thermi cpu-load &lt;seconds&gt;</c>: every core loaded, to record how the fans answer.</summary>
 internal sealed record CpuLoadRequest(int Seconds) : IThermiRequest;
-
-/// <summary><c>--help</c> or <c>--version</c>, which System.CommandLine answers itself.</summary>
-internal sealed record BuiltInRequest(ParseResult Parsed) : IThermiRequest;
 
 /// <summary>
 /// <c>thermi</c>'s command line, parsed before anything else runs, the overlay's single-instance mutex included. Numbers
@@ -85,15 +80,8 @@ internal static class ThermiCommands
             [cpuLoad] = it => new CpuLoadRequest(it.GetValue(seconds)),
             [elevated] = it => new ElevatedRequest(it.GetValue(verb)!),
         };
-        AgentCommandLine.Add(root, requests);
-
-        // A root with commands and no action of its own must be given one of them; thermi's runs the overlay.
-        root.SetAction(_ => 0);
-        var parsed = root.Parse(args, new ParserConfiguration { ResponseFileTokenReplacer = null });
-        errors = [.. parsed.Errors.Select(error => error.Message), .. OnlyItsVerb(parsed, elevated, args)];
-        return errors.Count > 0 ? null
-            : parsed.Action is not null && parsed.Action != root.Action ? new BuiltInRequest(parsed)
-            : requests.TryGetValue(parsed.CommandResult.Command, out var request) ? request(parsed) : new OverlayRequest(parsed.GetValue(trace));
+        return AgentCommandLine.Parse(
+            root, requests, args, parsed => OnlyItsVerb(parsed, elevated, args), parsed => new OverlayRequest(parsed.GetValue(trace)), out errors);
     }
 
     // The mode thermi starts behind a UAC prompt, with its verb and nothing else (docs/adr/0010-driver-and-service-from-the-window.md).

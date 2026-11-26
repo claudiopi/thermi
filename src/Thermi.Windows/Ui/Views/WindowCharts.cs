@@ -1,8 +1,8 @@
 using System.Globalization;
-using Thermi.Core.Pipe;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;

@@ -1,13 +1,13 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
-using Thermi.Core.Pipe;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
 
-namespace Thermi.Windows.Agents;
+namespace Thermi.Cli.Agents;
 
 /// <summary>The fan finder as the window runs it, fed by a connection of its own, its pick made the CPU fan only when asked.</summary>
 internal sealed partial class AgentCommands

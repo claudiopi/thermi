@@ -4,7 +4,7 @@ using Thermi.App.Logging;
 using Thermi.Windows.Logging;
 using Thermi.Windows.Tests.Processes;
 
-namespace Thermi.Windows.Tests;
+namespace Thermi.Windows.Tests.Logging;
 
 /// <summary>The log of the overlay or the window, written to a folder of the test's own.</summary>
 public sealed class ThermiLogTests : IDisposable

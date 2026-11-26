@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Thermi.Cli.Commands;
 using Thermi.Windows.Logging;
 
 namespace Thermi.Windows.Commands;

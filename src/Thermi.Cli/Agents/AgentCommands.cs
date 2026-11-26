@@ -1,13 +1,13 @@
 using Microsoft.Extensions.Logging;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Windows.Commands;
 
-namespace Thermi.Windows.Agents;
+namespace Thermi.Cli.Agents;
 
 /// <summary>How an agent's command ended, which is its process's exit code (<c>docs/adr/0013-agents-cli-and-mcp.md</c>).</summary>
 internal enum AgentExit
@@ -27,7 +27,7 @@ internal sealed record AgentReply(AgentExit Exit, string? Json = null, string? E
 /// a connection of its own and the settings from the file. Edits are kept in <see cref="History"/> for the MCP server's
 /// undo; a command line process forgets them as it exits.
 /// </summary>
-internal sealed partial class AgentCommands(AgentEnvironment environment, TimeProvider time) : IDisposable
+internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeProvider time) : IDisposable
 {
     // An MCP client may call tools at once; the changes go one at a time, so each is its own step and History stays whole.
     private readonly SemaphoreSlim _changing = new(1, 1);

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using Thermi.Windows.Commands;
+using Thermi.Cli.Commands;
 
-namespace Thermi.Windows.Agents;
+namespace Thermi.Cli.Agents;
 
 /// <summary>A command's standard streams: its JSON goes to <see cref="Out"/>, why it did not finish to <see cref="Error"/>.</summary>
 internal sealed record AgentConsole(Stream In, Stream Out, TextWriter Error);
@@ -16,7 +16,7 @@ internal static partial class AgentRun
     public const string RaisedRefusal =
         "thermi-cli was started elevated, so it reads but changes nothing: run a command that writes from an unelevated terminal.";
 
-    public static async Task<int> RunAsync(AgentRequest request, AgentEnvironment environment, AgentConsole console, ILoggerFactory logs, TimeProvider time)
+    public static async Task<int> RunAsync(AgentRequest request, IAgentEnvironment environment, AgentConsole console, ILoggerFactory logs, TimeProvider time)
     {
         if (request.Writes && environment.Raised())
         {

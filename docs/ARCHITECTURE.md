@@ -138,14 +138,16 @@ sequenceDiagram
 | --- | --- | --- |
 | `src/Thermi.Core` | a library, any OS | Snapshots, sensor mapping, formatting, thresholds, config and its edits and undo, layout and looks, the tray's texts, translations, the agents' answers, update decisions. Depends on nothing. |
 | `src/Thermi.Sensors.Windows` | `thermi-sensors.exe`, a service as SYSTEM, or a process of the user's in a per-user install | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down for the MSI and `scripts/install.ps1`. |
-| `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and the agents' commands and MCP server. |
+| `src/Thermi.App` | a library, any OS | What the overlay and the window share beyond Core, needing a package or the file system: the settings file under its mutex, the settings a host holds, the fan finder's run. |
+| `src/Thermi.Cli` | a library, any OS | `thermi-cli`'s commands and its MCP server, over what each OS answers in `IAgentEnvironment`. |
+| `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and what an agent's command reaches on Windows. |
 | `src/Thermi.Settings.Web` | the page in WebView2 | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
 | `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core. |
 | `src/Thermi.Client` | a library other programs ship | The .NET SDK of the agents' contract. |
 | `src/Thermi.Trust` | a library | Windows' own trust checks: admin-only folders, Authenticode, signed catalogs. |
 | `src/Thermi.Releases` | `thermi-releases.exe`, the owner | Signs the update channels' manifests. |
 | `src/Thermi.Installer` | the MSIs | The machine's and the per-user installer, built with WiX. |
-| `tests/Thermi.Tests` | the test runner | Behavior from recordings, file formats and the repo rules. |
+| `tests/Thermi.Tests` | the test runner | Behavior from recordings, file formats, the agents' commands and MCP server, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | the test runner | Real pipes, the service, the painter, the settings file and the window. |
 
 Which projects are shared and which are Windows-only, and how another OS would plug in: `docs/adr/0018-shared-and-windows-projects.md`. Why these packages and no others: `docs/adr/0006-proven-libraries-for-logging-and-win32.md`.
@@ -197,7 +199,7 @@ Which projects are shared and which are Windows-only, and how another OS would p
 | What a tray icon shows | `src/Thermi.Core/Tray`, drawn by `src/Thermi.Windows/Tray` |
 | What the page shows and does | `src/Thermi.Settings.Web/src`, tested in `src/Thermi.Settings.Web/tests` |
 | What the page may ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered in `src/Thermi.Windows/Ui` |
-| What an agent's command answers | `src/Thermi.Core/Agents`, served by `src/Thermi.Windows/Agents` |
+| What an agent's command answers | `src/Thermi.Core/Agents`, served by `src/Thermi.Cli`, which reaches Windows through `src/Thermi.Windows/Agents` |
 | What the service reads | `src/Thermi.Sensors.Windows/Reading` |
 | How updates switch and roll back | `src/Thermi.Core/Updates`, `src/Thermi.Sensors.Windows/Updates` |
 | Install and uninstall | `scripts/install.ps1`, `src/Thermi.Installer` |

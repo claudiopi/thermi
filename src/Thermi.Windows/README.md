@@ -16,7 +16,7 @@ One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. 
 | `Updates` | The overlay's and the window's side of an update: the quiet moment, the hand-over, About's check. |
 | `Logging` | The logs in `%LOCALAPPDATA%\thermi`, each event a `[LoggerMessage]`. |
 | `Commands` | The command line, `thermi preview` and the elevated mode's two fixes. |
-| `Agents` | `thermi-cli`: its commands and the MCP server, answered from Core's `Agents`. |
+| `Agents` | What `thermi-cli`'s commands, `src/Thermi.Cli`'s, reach on Windows: the pipe, the service's registration, the overlay's mutex, the Run key, the monitors. |
 | `Ui` | The settings window's process, its beacon, "Start with Windows" and the elevation check. |
 | `Ui/Web` | The Win32 window that hosts the page in WebView2, and the C# side of the bridge. |
 | `Ui/Views` | What the bridge reads beyond plain edits: sensors, charts, previews, looks. |
@@ -24,7 +24,7 @@ One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. 
 
 Entry points worth knowing:
 
-- `Program.cs` reads the command line and starts the overlay, the window or an agent's command.
+- `Program.cs` reads the command line and starts the overlay, the window or an agent's command, which `src/Thermi.Cli` runs.
 - `Overlay/OverlayHost.cs` runs the overlay's message loop, its once-a-second tick and every paint.
 - `Overlay/SensorClient.cs` reads snapshots from the pipe it trusts, for the overlay and the window.
 - `Ui/Web/WindowBridge.cs` answers the page's calls.
