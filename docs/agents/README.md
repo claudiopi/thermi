@@ -38,7 +38,7 @@ The tools are the commands below, with `find_cpu_fan` and `start_with_windows` s
 
 An overlay is counted from 0 here, as in `config`, where `thermi settings --overlay` counts from 1. In Git Bash, which rewrites an argument that starts with `/` into a Windows path, run a command that names a sensor id as `MSYS_NO_PATHCONV=1 thermi-cli read /lpc/...`; PowerShell, cmd and MCP pass ids as they are.
 
-An edit is a JSON object with its `kind`; its fields are in `src/Thermi.Core/Bridge/BridgeTypes.cs`.
+An edit is a JSON object with its `kind`; its fields are in `src/Thermi.Core/Bridge/BridgeTypes.cs`, each one given, and null only where its type takes null: an edit short of one is a bad argument.
 
 | Kind | Does |
 | --- | --- |
