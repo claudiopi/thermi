@@ -107,7 +107,7 @@
         "R1",
         "R4"
       ],
-      "description": "Given thermi was installed, when the PC restarts and the author signs in, then the overlay is on the taskbar with live values and no UAC prompt.",
+      "description": "Given thermi installed, when the PC restarts and a person signs in, then the overlay is on the taskbar with live values and no UAC prompt.",
       "check": "by hand",
       "passes": true
     },
@@ -116,7 +116,7 @@
       "covers": [
         "R4"
       ],
-      "description": "Given the overlay on the taskbar, when the author clicks the taskbar, opens Start and searches, then the overlay stays visible on top.",
+      "description": "Given the overlay on the taskbar, when a person clicks the taskbar, opens Start and searches, then the overlay stays visible on top.",
       "check": "by hand",
       "passes": true
     },
@@ -135,7 +135,7 @@
         "R2",
         "R3"
       ],
-      "description": "Given Cleanmeter and the fan widget side by side with thermi, when the author compares them for a minute, then the values agree and thermi looks the same: one pill per group, the same units, the same meter colors at the same values.",
+      "description": "Given the two tools thermi replaced shown beside it for a minute, when a person compares them, then the values agree and thermi looks the same: one pill per group, the same units and the same meter colors at the same values.",
       "check": "by hand",
       "passes": true
     },
@@ -145,7 +145,7 @@
         "R3",
         "R7"
       ],
-      "description": "Given the settings are open from the right-click menu, when the author changes a threshold and saves, then the overlay applies it; with a typo, it shows CONFIG error and the file keeps the author's text.",
+      "description": "Given the settings file open in an editor, when a person changes a threshold and saves, then the overlay applies it; when the file has a typo, then the overlay shows that the settings are broken and the file keeps the person's text.",
       "check": "by hand",
       "passes": true
     },
@@ -154,7 +154,7 @@
       "covers": [
         "R1"
       ],
-      "description": "Given the service process is killed from Task Manager, when 10 seconds pass, then the values are back.",
+      "description": "Given the service's process killed from Task Manager, when 10 seconds pass, then the values are back.",
       "check": "by hand",
       "passes": true
     },
@@ -164,7 +164,7 @@
         "R4",
         "R5"
       ],
-      "description": "Given the PC sleeps and wakes, or a monitor is turned off and on, then the overlay is still on screen and on top.",
+      "description": "Given the overlay on screen, when the PC sleeps and wakes, or a monitor is turned off and on, then the overlay is still on screen and on top.",
       "check": "by hand",
       "passes": true
     },
@@ -173,7 +173,7 @@
       "covers": [
         "R9"
       ],
-      "description": "Given the overlay running for a minute at rest, when Task Manager is checked, then it is under 0.5 % CPU and 40 MB.",
+      "description": "Given the overlay running for a minute at rest, when its cost is measured, then it is under 0.5 % of one core and 48 MB of private memory.",
       "check": "by hand",
       "passes": true
     },
@@ -182,7 +182,7 @@
       "covers": [
         "R1"
       ],
-      "description": "Given `install.ps1 -Uninstall`, when it finishes, then the service, the files and the sign-in entry are gone, and the config stays.",
+      "description": "Given thermi installed, when `install.ps1 -Uninstall` finishes, then the service, the files and the sign-in entry are gone, and the settings stay.",
       "check": "by hand",
       "passes": true
     }
