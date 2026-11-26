@@ -27,7 +27,7 @@ jobs:
   # Each .NET job builds for itself: the build of thermi builds the settings window's page, which needs Node 22.12 or later.
   core:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,7 +47,7 @@ jobs:
   # The Windows tests that run in parallel.
   windows:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,13 +58,15 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+      # The window's tests host the page in WebView2, which a runner's image may lack.
+      - run: pwsh -NoProfile -File scripts/webview2.ps1
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Windows
 
   # The slow Windows tests, which run one at a time: those that count the whole process's handles and windows, as
   # LeakTests' ten thousand rounds, then FullLoadTests, which spins every core.
   windows-alone:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,6 +77,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+      # The window's tests host the page in WebView2, which a runner's image may lack.
+      - run: pwsh -NoProfile -File scripts/webview2.ps1
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part WindowsAlone
 
   # The settings window's page: its build with its type check, the test count, lint, react-doctor, unit tests, dead code
