@@ -83,8 +83,8 @@ public interface IWindowBridge
     /// <summary>The AI agents section: how to add thermi to an agent, and the last changes agents made.</summary>
     Task<Agents.AgentsView> Agents();
 
-    /// <summary>Writes a text the page shows, as a command to paste, to Windows' clipboard.</summary>
-    Task Copy(string text);
+    /// <summary>Writes a text the page shows, as a command to paste, to Windows' clipboard: false while another app holds it.</summary>
+    Task<bool> Copy(string text);
 
     /// <summary>Has the overlay wear the look file whose text Windows' clipboard holds: null when worn, else the refusal's key.</summary>
     Task<string?> PasteLook(int overlay);

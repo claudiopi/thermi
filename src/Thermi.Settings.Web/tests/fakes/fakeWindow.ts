@@ -38,8 +38,12 @@ export function installFakeWindow(): void {
   bridge.about = async () => ({ version: '0.6.0', languages: state.languages, windows: state.languages[0]?.name ?? '', updates: 'Up to date', restart: false });
   bridge.open = async () => {};
   bridge.agents = async () => state.agents;
-  // What a copy button copied is what Windows' clipboard then holds.
+  // What a copy button copied is what Windows' clipboard then holds, unless another app holds it.
   bridge.copy = async (copied) => {
+    if (state.clipboard === null) {
+      return false;
+    }
     state.clipboard = copied;
+    return true;
   };
 }
