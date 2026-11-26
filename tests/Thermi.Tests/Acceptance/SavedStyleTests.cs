@@ -216,10 +216,11 @@ public sealed class SavedStyleTests
             """{ "thermiStyle": 1, "style": { "gap": 4 """,
             """{ "thermiStyle": 1, "style": { "gap": "wide" } }""",
             """{ "thermiStyle": 2, "style": {} }""",
-            """{ "thermiStyle": 1, "style": { "preset": "custom", "label": { "size": 30, "weight": "bold" } } }""",
+            """{ "thermiStyle": 1, "style": { "preset": "custom", "label": { "size": 40, "weight": "bold" } } }""",
             """{ "thermiStyle": 1, "style": { "opacity": { "background": 5 } } }""",
             """{ "thermiStyle": 1, "style": { "opacity": { "overlay": 0.1 } } }""",
             """{ "thermiStyle": 1, "style": { "colors": { "normal": "red" } } }""",
+            """{ "thermiStyle": 1, "style": { "colors": { "background": "blue" } } }""",
             """{ "style": {} }""",
             """[]""",
             new string(' ', StyleFile.MaxLength + 1),
@@ -228,7 +229,7 @@ public sealed class SavedStyleTests
         var results = files.Select(text => StyleEdits.Import(before, 0, text)).ToList();
 
         Assert.Equal(
-            [Refusal.BrokenStyle, Refusal.BrokenStyle, Refusal.NewerStyle, .. Enumerable.Repeat(Refusal.BrokenStyle, 6), Refusal.StyleTooLarge],
+            [Refusal.BrokenStyle, Refusal.BrokenStyle, Refusal.NewerStyle, .. Enumerable.Repeat(Refusal.BrokenStyle, 7), Refusal.StyleTooLarge],
             results.Select(result => result.Refused));
         Assert.All(results, result => Assert.Same(before, result.Config));
         Assert.All(
@@ -241,6 +242,7 @@ public sealed class SavedStyleTests
                 "style.opacity.background",
                 "style.opacity.overlay",
                 "style.colors.normal",
+                "style.colors.background",
                 "thermiStyle",
                 "not a JSON object",
                 "more than 1048576",

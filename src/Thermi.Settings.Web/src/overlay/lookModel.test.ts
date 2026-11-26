@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Style } from '../bridge/bridge.g';
 import { sayKeys } from '../testSay';
-import { enumChoices, hexColor, isColorblindSafe, pillsShown, shownStyle } from './lookModel';
+import { enumChoices, hexColor, isColorblindSafe, shownStyle } from './lookModel';
 
 const standard = { label: { size: 13, weight: 'semibold' }, value: { size: 13.5, weight: 'bold' } };
 const defaults = {
@@ -73,15 +73,6 @@ describe('a look', () => {
     ['##a1b2c3', null],
   ])('takes "%s" in the hex box as %s', (typed, color) => {
     expect(hexColor(typed)).toBe(color);
-  });
-
-  // A sample draws its pills as the overlay does: "Match taskbar" in the taskbar's mode, never the window's.
-  test.each([
-    { pills: 'system', lightTaskbar: true, shown: 'light' },
-    { pills: 'system', lightTaskbar: false, shown: 'dark' },
-    { pills: 'light', lightTaskbar: false, shown: 'light' },
-  ] as const)('draws $pills pills $shown on a taskbar light: $lightTaskbar', ({ pills, lightTaskbar, shown }) => {
-    expect(pillsShown(pills, lightTaskbar)).toBe(shown);
   });
 
   test('words each choice by the text of its enum', () => {

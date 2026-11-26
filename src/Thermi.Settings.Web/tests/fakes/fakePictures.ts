@@ -32,7 +32,8 @@ export function installFakePictures(): void {
   // In device pixels, as C# paints at the monitor's scale, here the page's; one wider than `room`, when it is more than 0,
   // is painted smaller to fit it.
   const paint = (runs: Run[], style: Style, size: number, taskbar: string | null, room = 0): OverlayPicture => {
-    const [fill, border, label, value] = themes[style.pills === 'light' ? 'light' : 'dark'];
+    const [themed, border, label, value] = themes[style.pills === 'light' ? 'light' : 'dark'];
+    const fill = style.colors?.background ?? themed;
     const values = (run: Run): string => run.values.map((one) => (style.units === false ? (one.split(' ')[0] ?? one) : one)).join('  ');
     const widths = runs.map((run) => 24 + (style.noLabels === true ? 0 : run.label.length + 1) * 7 + values(run).length * 7);
     const vertical = style.orientation === 'vertical';

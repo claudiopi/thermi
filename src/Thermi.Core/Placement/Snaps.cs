@@ -96,10 +96,12 @@ public static class Snaps
 
     /// <summary>
     /// The size an overlay shows at: its own, but on a taskbar at most what keeps it within the taskbar's height, as a pill
-    /// <see cref="OverlayLook.PillHeight"/> pixels high at 100 % grows with it, so it is never cut.
+    /// <see cref="OverlayLook.HeightOf"/> pixels high at 100 % grows with it, so it is never cut.
     /// </summary>
     public static double SizeShown(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
-        OnTaskbar(overlay, screens) is var (screen, bar) ? Math.Min(overlay.Size, (bar.Height - 0.01) / (OverlayLook.PillHeight * screen.Scale)) : overlay.Size;
+        OnTaskbar(overlay, screens) is var (screen, bar)
+            ? Math.Min(overlay.Size, (bar.Height - 0.01) / (OverlayLook.HeightOf(overlay.Style) * screen.Scale))
+            : overlay.Size;
 
     internal static (Screen Screen, PixelRect Bar)? OnTaskbar(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
         overlay.Snapped is { Spot: SnapSpot.Taskbar } snap
@@ -288,13 +290,14 @@ public static class Snaps
         var margin = Scaled(Margin, screen);
         var work = Clear(screen);
         var top = work.Top + Scaled(BelowTop, screen);
+        var (right, bottom) = (Math.Max(work.Left, work.Right - margin - width), Math.Max(work.Top, work.Bottom - margin - height));
         return snap.Spot switch
         {
             SnapSpot.Taskbar => OnTaskbar(screen, snap.Offset, orientation, width, height),
             SnapSpot.TopLeft => new Position(work.Left + margin, top),
-            SnapSpot.TopRight => new Position(work.Right - margin - width, top),
-            SnapSpot.BottomLeft => new Position(work.Left + margin, work.Bottom - margin - height),
-            SnapSpot.BottomRight => new Position(work.Right - margin - width, work.Bottom - margin - height),
+            SnapSpot.TopRight => new Position(right, top),
+            SnapSpot.BottomLeft => new Position(work.Left + margin, bottom),
+            SnapSpot.BottomRight => new Position(right, bottom),
             _ => throw new ArgumentOutOfRangeException(nameof(snap), snap.Spot, "Unknown snap spot."),
         };
     }
@@ -311,7 +314,7 @@ public static class Snaps
         var margin = Scaled(Margin, screen);
         var work = Clear(screen);
         var left = offset is { } kept ? screen.Bounds.Left + kept : work.Right - margin - width;
-        return new Position(Math.Clamp(left, work.Left, Math.Max(work.Left, work.Right - width)), work.Bottom - margin - height);
+        return new Position(Math.Clamp(left, work.Left, Math.Max(work.Left, work.Right - width)), Math.Max(work.Top, work.Bottom - margin - height));
     }
 
     /// <summary>

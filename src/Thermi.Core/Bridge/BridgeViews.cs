@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Thermi.Core.Look;
 using Thermi.Core.Search;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -96,7 +97,23 @@ public sealed record WindowView(
     IReadOnlyList<IReadOnlyList<PillView>> Pills,
     IReadOnlyDictionary<string, ItemView> Items,
     IReadOnlyDictionary<string, string> Values,
-    MarkState Mark);
+    MarkState Mark)
+{
+    /// <summary>Each overlay's colors as its look draws them, which its color swatches show.</summary>
+    public IReadOnlyList<LookColors> Colors { get; init; } = [];
+}
+
+/// <summary>The colors a look draws, each as #RRGGBB, a default or Auto one as it shows.</summary>
+public sealed record LookColors(string Background, string Normal, string Warning, string Critical, string Label, string Value)
+{
+    public static LookColors Of(OverlayLook look) => new(
+        look.Pills.Outer.ToString(),
+        look.Normal.ToString(),
+        look.Warning.ToString(),
+        look.Critical.ToString(),
+        look.LabelColor.Color.ToString(),
+        look.ValueColor.Color.ToString());
+}
 
 /// <summary>
 /// An overlay, or a look's sample, painted as the overlay paints it: a PNG as a data URL, its size in its own pixels, which

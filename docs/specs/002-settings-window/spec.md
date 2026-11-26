@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 453 .NET and 80 page cases
+**Budget**: 458 .NET and 80 page cases
 
 ## Why
 
@@ -76,7 +76,7 @@ Placement
 - R33. Moving a snapped overlay by more than the system's drag distance, times the monitor's scale, unsnaps it, and it stays where it was dropped. A click or a double-click keeps the snap, and a free drop is kept where the overlay then shows, inside its work area. Dropped with its middle on a horizontal taskbar, an overlay stays on that taskbar where it was let go along it, centered across it and whole on it, over the app buttons or the notification area too, since a free overlay never sits on a taskbar. Two overlays may sit anywhere on a taskbar, touching included; dropped onto another, an overlay merges into it (R148). The marks are magnets, at the taskbar's start and beside its notification area, and at the corners. Snaps reach 96 px, times the monitor's scale: an overlay dropped on a taskbar within 96 px along it of one of its marks goes to that mark; dropped off the taskbars with its edge nearest a corner's mark within 96 px of it, to that corner, the mark filling as soon as it is in reach, measured where the overlay would show, so one pushed past the monitor's edge into the corner reaches it; and one whose edge facing a taskbar is within 96 px of it goes onto that taskbar the same way. Dropped farther, it stays free where it was let go; with Alt held no mark, no reach and no other overlay pulls it, so it stays where it was let go, on the taskbar or free. Where two marks' places overlap, the one beside the notification area is offered.
 - R34. A snap to a monitor that is not connected falls back to the same spot on the primary monitor, and goes back when the monitor returns.
 - R35. A monitor is known by the maker, model and serial in its EDID, which survive restarts and a change of port; a monitor without a serial is known by its connection.
-- R36. The size is one slider in Appearance, from 75 % to 200 % over the monitor's own scale, 100 % by default. The look never changes it. On a taskbar the overlay shows at most as high as the taskbar, never cut; the size kept applies again off it, and the Size row says so under it while the overlay sits on a horizontal taskbar.
+- R36. The size is one slider in Appearance, from 75 % to 400 % over the monitor's own scale, 100 % by default, so a big screen read from afar is served. The look never changes it. On a taskbar the overlay shows at most as high as the taskbar, never cut, its pills and their text with it; the size kept applies again off it, and the Size row says so under it while the overlay sits on a horizontal taskbar. An overlay larger than its monitor's work area keeps its top-left corner inside it, free or in any corner.
 
 The settings file
 
@@ -112,11 +112,12 @@ Style
 - R56. The overlay can be horizontal (the default) or vertical, where the pills stack from top to bottom, all as wide as the widest; in one bar, the bar stands, its pills stacked inside it the same way, 4 px apart. No choice is offered that does nothing: with one pill, or one bar of one run, there is nothing to stack, so the menus leave "Vertical" out and the window grays Direction and says why, unless the overlay is vertical already, so it can be turned off. While vertical, the taskbar place of R30 is not offered, and an overlay on the taskbar shows just above the work area's bottom at its offset, or in its bottom right corner without one, which the window calls "Above the taskbar (vertical doesn't fit in it)".
 - R57. The Look is Default or one of the user's saved looks, the tile checked being the look the overlay draws as, none once it was changed in any way, and Default worn as one step, each a tile with a sample of three pills in that look, CPU temperature and load, GPU load and RAM used with their values now, painted as the overlay paints them (R197). Default is Standard text (13 px semibold labels and 13.5 px bold values at 100 %) on pills that match the taskbar, with green meters at normal. The text sizes and weights sit under "Text and shape"; changing one makes the look the overlay's own, keeping the rest.
 - R197. Appearance starts with a preview of the overlay: its pills, labels, graphs and values now, painted by the overlay's own painter as "Copy as image" paints it (R188), at its size and its monitor's scale, one pixel of the picture on each of the screen's, so it is as sharp as the overlay; in a column narrower than the overlay it is painted smaller to the column, never shrunk as a picture. It shows each change to the overlay as it is made, and its values once a second; on the taskbar it sits on the taskbar's color, and anywhere else on nothing but the page.
-- R58. Labels and values each have a text size, from 9 to 20 px at 100 % in steps of 0.5, and a weight: regular, semibold or bold.
+- R58. Labels and values each have a text size, from 9 to 36 px at 100 % in steps of 0.5, and a weight: regular, semibold or bold. A pill is 38 px high at 100 %, and for text over 20 px 1.9 times its larger text, so no text leaves its pill.
 - R59. The pills' background has an opacity from 0 % to 100 %, 100 % by default; below 30 %, the text gets a shadow so it stays readable on any wallpaper, unless the look's text effect (R93) says otherwise.
 - R60. The pills' theme is Dark, Light, or Match taskbar, the default, which follows the mode of the taskbar the overlay sits on within a second of it changing. With several overlays, "Use on all overlays" gives every overlay this theme and nothing else.
 - R61. Meters speak the level by color, as CleanMeter's do: green at normal, Windows' success green `#6CCB5F`, and the warning and critical colors at those levels; the values' text stays in its own color at normal, so only the meters turn green. Each of the three colors can be changed, the normal one's default choice named "Green", and "Reset colors" brings them back; a color chosen is the overlay's, while the window's chart keeps the window's own (R24), which hold 3:1 against it. On light pills, the default colors are drawn in their darker forms, `#0F7B0F`, `#9D5D00` and `#C42B1C`. Each default keeps 3:1 against its pill and the meters' unlit track, which stays faint.
 - R62. Labels and values each have a text color, Auto by default: today's colors on dark pills, and dark ones on light pills. A color with a contrast under 3:1 against its pill, taken as opaque, is drawn in its Auto color instead, and the window says so, so text never disappears when the pills change.
+- R203. The pills can take a color of their own, under Colors with the same swatch as the others, Auto by default, which is the theme's (the owner, 2026-11-25). A chosen color fills the pills; their border, the meters' unlit track and a single bar's inner pills (R55) are drawn from it, and the background opacity still applies. Auto text then takes light or dark text, whichever reads on it: values and labels at least 4.5:1 against it, a label taking the values' color where its own would not, and the default level colors keep 3:1 against it and the unlit track, drawn toward the text color until they do. A chosen text color is held to R62's 3:1 against it. A look carries it, a look file and an agent's edit set it, Ctrl+Z takes it back, and high contrast replaces it as every color (R96).
 
 Your own looks
 
@@ -367,7 +368,7 @@ Redo checks the same way. A step that cannot apply is skipped, and the window sa
 - `warnBy` (optional): another reading of the item that its lines judge, `{ "metric": ... }` or `{ "sensor": ..., "auto": ... }`, left out for its own. `threshold` as today, in the unit of what it warns by, RPM for a fan speed.
 - `graph` (optional, per overlay): what its items draw beside their values, `auto` (the default), `none`, `bars` or `line`.
 - `snap` (optional): `monitor` (left out for the primary monitor) and `spot`, one of `taskbar`, `top-left`, `top-right`, `bottom-left`, `bottom-right`; on the taskbar, `offset` (optional), how far the overlay's left edge sits from the taskbar's start in physical pixels, which every drop writes and which, left out, puts it beside the notification area (R30). With both, `snap` wins. With neither, the overlay sits on the primary monitor's taskbar beside the notification area.
-- `size` (optional): 0.75 to 2, 1 by default.
+- `size` (optional): 0.75 to 4, 1 by default.
 - `style` (optional), the look, every field optional:
   - `name`: the saved look it came from, left out once anything else changes it;
   - `layout`: `pills` (the default), `each` or `one`, and `orientation`: `horizontal` or `vertical`, which belong to the overlay and stay when a look is worn;
@@ -375,7 +376,7 @@ Redo checks the same way. A step that cannot apply is skipped, and the window sa
   - `label` and `value`: each a `size` and a `weight`;
   - `opacity`: `background` (0 to 1), and `overlay` (0.2 to 1), which the window no longer shows but hand edits and imported looks still set;
   - `pills`: `dark`, `light` or `system`, the default;
-  - `colors`: `normal` (left out for green, the default), `warning` and `critical`, and `label` and `value` (left out for Auto), as `#RRGGBB`;
+  - `colors`: `normal` (left out for green, the default), `warning` and `critical`, `label` and `value` (left out for Auto), and `background`, the pills' own (left out for the theme's), as `#RRGGBB`;
   - `units`: true (the default) or false;
   - `font`: `segoe`, `bahnschrift` or `consolas`; `corners`: `round`, `soft` or `square`; `gap`: 0 to 16; `effect`: `auto`, `shadow`, `outline` or `none`.
 - `visibility` (optional): `always`, `hide-in-fullscreen` or `only-in-fullscreen`.
@@ -391,6 +392,8 @@ Redo checks the same way. A step that cannot apply is skipped, and the window sa
 The file keeps the word "style" where the window says "look", so version 2 keeps one set of names. The presets, at 100 %: labels are semibold and values bold; Standard is 13 and 13.5 px, as today; Compact, 11 and 12 px, and Large, 16 and 17 px, read from hand-written files only.
 
 The pills' colors, as outer, border and unlit meter: dark is `#20201E`, `#31312F` and `#2E2E2C`, as today; light is `#F3F3F1`, `#DADAD8` and `#D5D5D3`. A pill is flat: its outer color inside its border, with no inner layer; where a rule names the pill's color (R62, the outline), it is the outer one. Auto text is `#A9A9A7` labels and `#EFEFEE` values on dark pills, as today, and `#5C5C5A` and `#1A1A1A` on light ones. A meter at normal, as in a graph, is green (R61).
+
+A pill color of its own (R203) counts as light where black stands farther from it than white, and takes that kind's Auto text, its values in pure black or white where the kind's own is under 4.5:1. Its border is it mixed 12 % toward the values' Auto color, the unlit track 8 %, and a bar's inner pills the least mix, in steps of 1 %, that stands 1.5:1 from it; each default level color of that kind moves toward the values' color in steps of 5 % until it keeps 3:1 against the pill and the track. Choosing a theme, on one overlay or all, gives the pills back the theme's color, so no choice does nothing.
 
 **A look file** is `{ "thermiStyle": 1, "style": { ... } }`, with the look's fields of `style` above and its `name`. A saved look is one such file in `%APPDATA%\thermi\styles`, named from its name with the characters Windows refuses replaced and a number added if the name is taken; the name inside is what counts. An export is the same file. Plain JSON, small enough to paste in a chat, readable by people and agents.
 

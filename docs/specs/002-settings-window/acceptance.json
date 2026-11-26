@@ -282,9 +282,10 @@
     {
       "id": "A49",
       "covers": [
-        "R31"
+        "R31",
+        "R36"
       ],
-      "description": "Given monitors at 100 % and 150 %, when the overlay snaps to each corner, then it sits inside the work area, the top corners 64 px below its top times the scale.",
+      "description": "Given monitors at 100 % and 150 %, when the overlay snaps to each corner, then it sits inside the work area, the top corners 64 px below its top times the scale; and an overlay larger than the work area keeps its top-left corner inside it in each corner.",
       "check": "ACornerSnapSitsInsideTheWorkArea",
       "passes": true
     },
@@ -331,9 +332,10 @@
         "R82",
         "R90",
         "R93",
-        "R96"
+        "R96",
+        "R203"
       ],
-      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size and Theme with Use on all overlays, Layout and direction with Graph and opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe with Save as my look and each look's menu and Export), when each is changed by keys, then the settings hold the row's change; Default takes the whole look back, its tile checked, no tile is checked once the look changed, and a look saved is the one checked, the page not moving.",
+      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size and Theme with Use on all overlays, Layout and direction with Graph and opacity, Text and shape with Show units and Show labels, Colors with the pills' own and colorblind-safe with Save as my look and each look's menu and Export), when each is changed by keys, then the settings hold the row's change; Default takes the whole look back, its tile checked, no tile is checked once the look changed, and a look saved is the one checked, the page not moving.",
       "check": "TheAppearancePageChangesTheLook",
       "passes": true
     },
@@ -526,9 +528,10 @@
     {
       "id": "A109",
       "covers": [
-        "R67"
+        "R67",
+        "R203"
       ],
-      "description": "Given a broken style file, one with thermiStyle 2, one with a size of 30, one with a background opacity of 5, one with an overlay opacity of 0.1, and one with the color red, when they are imported, then each is refused with its reason naming the field, and nothing changes.",
+      "description": "Given a broken style file, one with thermiStyle 2, one with a size of 40, one with a background opacity of 5, one with an overlay opacity of 0.1, one with the color red and one with the pill color blue, when they are imported, then each is refused with its reason naming the field, and nothing changes.",
       "check": "ABrokenNewerOrOutOfRangeStyleIsRefused",
       "passes": true
     },
@@ -1565,7 +1568,7 @@
       "covers": [
         "R36"
       ],
-      "description": "Given an overlay at 100 % and 200 % on a 48 px taskbar at 100 %, at 200 % on a 72 px taskbar at 150 %, and at 200 % free or vertical, when the size it shows at is worked out, then on a taskbar it is at most the taskbar's height, and elsewhere its own.",
+      "description": "Given an overlay at 100 %, 200 % and 400 % on a 48 px taskbar at 100 %, at 200 % on a 72 px taskbar at 150 %, at 400 % with 36 px text on the 48 px one, and at 200 % free or vertical, when the size it shows at is worked out, then on a taskbar it is at most the taskbar's height, its pills grown for the text included, and elsewhere its own.",
       "check": "AnOverlayOnTheTaskbarNeverOverflowsIt",
       "passes": true
     },
@@ -1748,6 +1751,28 @@
         "R202"
       ],
       "description": "Given the installed thermi running for over a minute, when its overlay process is made to crash (as by a debugger's injected access violation) and then to hang until Windows offers to close it, then Windows offers to restart it and one overlay comes back, with no settings window; when it crashes within its first minute, or is ended from Task Manager or by \"Exit thermi\", then nothing starts it again; and `scripts/install.ps1` run over it leaves one overlay.",
+      "check": "by hand",
+      "passes": false
+    },
+    {
+      "id": "A357",
+      "covers": [
+        "R55",
+        "R58",
+        "R203"
+      ],
+      "description": "Given pills of their own color, black, a mid gray and a yellow, on dark and on light themes, with Auto text, a chosen label too close to the pill, 36 px values, one bar, and high contrast, when the look is read, then the pills take that color, their border, track and a bar's inner pills drawn from it, the inner ones 1.5:1 to 2:1 from it, Auto values and labels stand 4.5:1 from it, each default level 3:1 from it and the track, the chosen label is drawn in its Auto color and flagged, the pill is 1.9 times the 36 px text high, under high contrast Windows' colors win, and Auto gives the theme's pills back.",
+      "check": "APillColorOfItsOwnKeepsEveryTextAndLevelReadable",
+      "passes": true
+    },
+    {
+      "id": "A358",
+      "covers": [
+        "R36",
+        "R58",
+        "R203"
+      ],
+      "description": "Given the installed thermi on a 1080p monitor at 100 % and a 4K one at 150 %, when the author sets 400 % with 36 px text and picks a pill color, free, in each corner and on the taskbar, then the overlay paints sharp and whole within the monitor, on the taskbar as high as it, the preview and Copy as image match it, and `scripts/measure.ps1` holds the overlay's budget.",
       "check": "by hand",
       "passes": false
     }

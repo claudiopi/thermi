@@ -173,7 +173,9 @@ public static class TrayScene
         var level = OverlayLayout.LevelOf(item, meter);
         // The icon sits on the taskbar, not on a pill: the look's colors on dark pills are the ones chosen or the dark
         // taskbar's, and a light taskbar takes its own for any that would not read on it.
-        var look = OverlayLook.Of(scene.Config.Overlays[overlay].Style with { Pills = PillTheme.Dark }, lightTaskbar: false);
+        var style = scene.Config.Overlays[overlay].Style;
+        var unfilled = style with { Pills = PillTheme.Dark, Colors = style.Colors is { } colors ? colors with { Background = null } : null };
+        var look = OverlayLook.Of(unfilled, lightTaskbar: false);
         return (level, scene.Taskbar.Readable(look.MeterColor(level), level));
     }
 

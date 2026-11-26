@@ -10,7 +10,7 @@ public enum TextPart
     Value,
 }
 
-/// <summary>A color of the style: the meter's three levels, and the labels' and values' text.</summary>
+/// <summary>A color of the style: the meter's three levels, the labels' and values' text, and the pills'.</summary>
 [Translated]
 public enum StyleColor
 {
@@ -19,6 +19,7 @@ public enum StyleColor
     Critical,
     Label,
     Value,
+    Background,
 }
 
 /// <summary>
@@ -91,7 +92,7 @@ public static class StyleEdits
     public static EditResult SetOpacity(ThermiConfig config, int overlay, OpacityConfig opacity) =>
         Restyle(config, overlay, style => style with { Opacity = opacity });
 
-    /// <summary>Sets a color as #RRGGBB, or with null gives it back its default: the meter's own, or Auto for text.</summary>
+    /// <summary>Sets a color as #RRGGBB, or with null gives it back its default: the meter's own, Auto for text, or the theme's for the pills.</summary>
     public static EditResult SetColor(ThermiConfig config, int overlay, StyleColor which, string? color) =>
         Restyle(config, overlay, style => style with { Colors = WithColor(style.Colors ?? new StyleColors(), which, color) });
 
@@ -114,6 +115,7 @@ public static class StyleEdits
             StyleColor.Critical => colors with { Critical = color },
             StyleColor.Label => colors with { Label = color },
             StyleColor.Value => colors with { Value = color },
+            StyleColor.Background => colors with { Background = color },
             _ => throw new ArgumentOutOfRangeException(nameof(which), which, "Unknown style color."),
         };
         return changed == new StyleColors() ? null : changed;

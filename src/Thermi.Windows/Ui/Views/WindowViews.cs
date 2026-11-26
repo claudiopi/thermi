@@ -71,7 +71,11 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             }
         }
 
-        return new WindowView(pills, items, Values(snapshot, Format(texts)), Mark(config, snapshot, texts));
+        var light = Desktop.LightTaskbar();
+        return new WindowView(pills, items, Values(snapshot, Format(texts)), Mark(config, snapshot, texts))
+        {
+            Colors = [.. config.Overlays.Select(overlay => LookColors.Of(OverlayLook.Of(overlay.Style, light)))],
+        };
     }
 
     /// <summary>

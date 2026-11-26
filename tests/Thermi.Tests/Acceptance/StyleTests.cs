@@ -134,13 +134,13 @@ public sealed class StyleTests
     }
 
     [Fact]
-    public void TextSizesStayBetweenNineAndTwentyInHalfSteps()
+    public void TextSizesStayBetweenNineAndThirtySixInHalfSteps()
     {
         foreach (var part in new[] { TextPart.Label, TextPart.Value })
         {
             foreach (var weight in new[] { TextWeight.Regular, TextWeight.Semibold, TextWeight.Bold })
             {
-                foreach (var size in new[] { 9, 20 })
+                foreach (var size in new[] { 9, 36 })
                 {
                     var (label, value) = StylePresets.Text(
                         Done(StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(size, weight))).Overlays[0].Style);
@@ -149,14 +149,14 @@ public sealed class StyleTests
 
                 var field = part == TextPart.Label ? "label" : "value";
                 Assert.Equal(
-                    $"overlays[0].style.{field}.size is 8.5, not 9 to 20",
+                    $"overlays[0].style.{field}.size is 8.5, not 9 to 36",
                     StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(8.5, weight)).Problem);
                 Assert.Equal(
                     $"overlays[0].style.{field}.size is 12.25, not a step of 0.5",
                     StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(12.25, weight)).Problem);
                 Assert.Equal(
-                    $"overlays[0].style.{field}.size is 20.5, not 9 to 20",
-                    StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(20.5, weight)).Problem);
+                    $"overlays[0].style.{field}.size is 36.5, not 9 to 36",
+                    StyleEdits.SetText(new ThermiConfig(), 0, part, new TextStyle(36.5, weight)).Problem);
             }
         }
     }

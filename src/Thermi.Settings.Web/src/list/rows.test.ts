@@ -57,6 +57,7 @@ describe('the list', () => {
       },
       values: {},
       mark: 'calm',
+      colors: [],
     };
 
     const rows = rowsOf(shown, view, new Set(['p:0:gpu']), sayKeys);

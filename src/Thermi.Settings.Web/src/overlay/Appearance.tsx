@@ -3,7 +3,7 @@ import { asOneStep, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Card, CardRow, CardStack, Dropdown, Segmented, Slider } from '../kit';
 import { useText } from '../texts/Texts';
 import { LookCard } from './LookCard';
-import { enumChoices as choicesOf, shownStyle } from './lookModel';
+import { enumChoices as choicesOf, colorsValue, shownStyle } from './lookModel';
 import { placedOf } from './placeModel';
 import { Preview } from './Preview';
 
@@ -29,12 +29,17 @@ export function Appearance({ data, overlay }: AppearanceProps) {
   const capped = placedOf(one, [])?.spot === 'taskbar' && shown.orientation !== 'vertical';
   // Vertical stacks the pills C# lists, so with one it would change nothing; once on, it can still be turned off.
   const stacksNothing = (data.view.pills[overlay]?.length ?? 0) < 2 && shown.orientation !== 'vertical';
+  // A theme gives the pills back its own color, so choosing one is never hidden under the pills' color.
+  const themed = async (index: number, pills: Value): Promise<void> => {
+    const { background, ...rest } = overlays[index]?.style?.colors ?? {};
+    await edit({ kind: 'style', overlay: index, field: 'pills', value: pills });
+    if (background !== undefined) {
+      await edit({ kind: 'style', overlay: index, field: 'colors', value: colorsValue(rest) });
+    }
+  };
   const themeOnAll = (): void =>
     void asOneStep(() =>
-      overlays.reduce<Promise<unknown>>(
-        (done, _, index) => done.then(() => edit({ kind: 'style', overlay: index, field: 'pills', value: shown.pills })),
-        Promise.resolve(),
-      ),
+      overlays.reduce<Promise<unknown>>((done, _, index) => done.then(() => themed(index, shown.pills)), Promise.resolve()),
     );
   return (
     <section className="t-col t-col-look" aria-label={t('OverlayPageText.AppearanceSection')}>
@@ -48,7 +53,7 @@ export function Appearance({ data, overlay }: AppearanceProps) {
               className="t-slider"
               label={t('UiText.SizeField')}
               min={0.75}
-              max={2}
+              max={4}
               step={0.05}
               value={size}
               valueText={percent(size)}
@@ -62,7 +67,7 @@ export function Appearance({ data, overlay }: AppearanceProps) {
               label={t('OverlayPageText.ThemeField')}
               choices={choicesOf(t, 'PillTheme', ['dark', 'light', 'system'])}
               value={shown.pills}
-              onChange={(value) => style('pills', value)}
+              onChange={(value) => void (one.style?.colors?.background === undefined ? themed(overlay, value) : asOneStep(() => themed(overlay, value)))}
             />
             {overlays.length > 1 && (
               <Button kind="subtle" onClick={themeOnAll}>

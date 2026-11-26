@@ -3,6 +3,7 @@ import type {
   ColorStop,
   Item,
   ItemView,
+  LookColors,
   MarkState,
   Overlay,
   PillView,
@@ -197,6 +198,13 @@ export function installFakeViews(): void {
     return levels.includes('critical') ? 'hot' : levels.includes('warning') ? 'warm' : 'calm';
   };
 
+  // As Core's look draws it on the fake's dark taskbar, roughly: a color the style holds, else its theme's default.
+  const themes = {
+    dark: { background: '#20201E', normal: '#6CCB5F', warning: '#FEC84B', critical: '#F05A50', label: '#A9A9A7', value: '#EFEFEE' },
+    light: { background: '#F3F3F1', normal: '#0F7B0F', warning: '#9D5D00', critical: '#C42B1C', label: '#5C5C5A', value: '#1A1A1A' },
+  } as const;
+  const colorsShown = (overlay: Overlay): LookColors => ({ ...themes[overlay.style?.pills === 'light' ? 'light' : 'dark'], ...overlay.style?.colors });
+
   bridge.view = async (): Promise<WindowView> => {
     const items = state.settings.overlays.flatMap((overlay) => overlay.items);
     return {
@@ -204,6 +212,7 @@ export function installFakeViews(): void {
       items: Object.fromEntries(state.settings.overlays.flatMap((overlay) => overlay.items.map((item) => [item.id, itemView(item)]))),
       values: Object.fromEntries(state.sensors.flatMap((one) => (live(one) === null ? [] : [[one.id, format(one.type, one.value ?? 0)]]))),
       mark: markOf(items),
+      colors: state.settings.overlays.map(colorsShown),
     };
   };
 

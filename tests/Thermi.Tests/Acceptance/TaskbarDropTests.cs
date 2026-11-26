@@ -166,27 +166,29 @@ public sealed class TaskbarDropTests
     }
 
     // Night QA: at 200 % an overlay on the 48 px taskbar was 76 px high and cut. On a taskbar it shows at most as high as
-    // the taskbar, at 100 % and on a 72 px taskbar at 150 %; free, or vertical above the taskbar, at its own size.
-    [Theory] // Rows: the night QA's overflow at 200 %, and each operand of when the taskbar caps it: 100 %, 150 %, free, vertical
+    // the taskbar, at 100 % and on a 72 px taskbar at 150 %; free, or vertical above the taskbar, at its own size. Pills
+    // grown for 36 px text are capped the same.
+    [Theory] // Rows: the night QA's overflow at 200 %, each operand of when the taskbar caps it: 100 %, 150 %, free, vertical, and the largest size and text
     [InlineData("taskbar 1", 38)]
     [InlineData("taskbar 2", 48)]
     [InlineData("taskbar 2 150%", 72)]
     [InlineData("free 2", 76)]
     [InlineData("vertical 2", 76)]
+    [InlineData("taskbar 4 36px", 48)]
     public void AnOverlayOnTheTaskbarNeverOverflowsIt(string overlay, int high)
     {
         var words = overlay.Split(' ');
-        var scaled = words.Length > 2;
-        var screen = scaled ? Pc with { Scale = 1.5, Work = Pc.Work with { Bottom = 1368 }, Taskbar = new PixelRect(0, 1368, 2560, 1440) } : Pc;
+        var screen = words.Contains("150%") ? Pc with { Scale = 1.5, Work = Pc.Work with { Bottom = 1368 }, Taskbar = new PixelRect(0, 1368, 2560, 1440) } : Pc;
+        var style = new StyleConfig { Orientation = words[0] == "vertical" ? Orientation.Vertical : Orientation.Horizontal };
         var shown = new OverlayConfig(double.Parse(words[1], CultureInfo.InvariantCulture))
         {
             Position = words[0] == "free" ? new Position(100, 100) : null,
-            Style = new StyleConfig { Orientation = words[0] == "vertical" ? Orientation.Vertical : Orientation.Horizontal },
+            Style = words.Contains("36px") ? style with { Preset = StylePreset.Custom, Value = new TextStyle(36, TextWeight.Bold) } : style,
         };
 
         var size = Snaps.SizeShown(shown, [screen]);
 
-        Assert.Equal(high, (int)Math.Ceiling(OverlayLook.PillHeight * screen.Scale * size));
+        Assert.Equal(high, (int)Math.Ceiling(OverlayLook.Of(shown.Style, lightTaskbar: false).Height * screen.Scale * size));
     }
 
     // Night QA: two overlays side by side on the taskbar, and one raised to 200 % covered its neighbour. Each overlay as

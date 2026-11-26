@@ -53,12 +53,20 @@ public sealed record StyleConfig(int Gap = 8, bool Units = true)
 }
 
 /// <summary>A text's size in pixels at 100 %, and its weight.</summary>
-public sealed record TextStyle(double Size, TextWeight Weight);
+public sealed record TextStyle(double Size, TextWeight Weight)
+{
+    public const double MinSize = 9;
+
+    public const double MaxSize = 36;
+}
 
 /// <summary>The pills' background, 0 to 1, and the whole overlay's, text and meters included, 0.2 to 1 so it never vanishes.</summary>
 public sealed record OpacityConfig(double Background = 1, double Overlay = 1);
 
-/// <summary>Colors as #RRGGBB. A meter color left out takes its default, and a text color left out is Auto.</summary>
+/// <summary>
+/// Colors as #RRGGBB. A meter color left out takes its default, a text color left out is Auto, and the pills' color left
+/// out is the theme's.
+/// </summary>
 public sealed record StyleColors
 {
     /// <summary>Okabe-Ito's blue, orange and vermilion, which people with any common color blindness tell apart.</summary>
@@ -73,6 +81,9 @@ public sealed record StyleColors
     public string? Label { get; init; }
 
     public string? Value { get; init; }
+
+    /// <summary>The pills' own color, over the theme's.</summary>
+    public string? Background { get; init; }
 }
 
 /// <summary>Pills as runs of one label, one pill per item, or one bar for all.</summary>

@@ -122,7 +122,8 @@ public sealed class SnapTests
         Assert.Equal(72, Placed(SnappedTo(SnapSpot.TopLeft), [hidingOnTop], 600, 57).Top - Placed(SnappedTo(SnapSpot.TopLeft), [Main], 600, 57).Top);
     }
 
-    // The top corners sit 64 px below the work area's top, at the monitor's scale.
+    // The top corners sit 64 px below the work area's top, at the monitor's scale. One larger than the work area, as at
+    // 400 % on a small monitor, keeps its top-left corner in it, and so on screen.
     [Fact]
     public void ACornerSnapSitsInsideTheWorkArea()
     {
@@ -131,8 +132,10 @@ public sealed class SnapTests
             foreach (var spot in new[] { SnapSpot.TopLeft, SnapSpot.TopRight, SnapSpot.BottomLeft, SnapSpot.BottomRight })
             {
                 var placed = Placed(SnappedTo(spot, screen.Id), [Main, Side], 600, 57);
+                var large = Placed(SnappedTo(spot, screen.Id), [Main, Side], 3000, 1500);
 
                 Assert.True(screen.Work.Contains(placed), $"{spot} on {screen.Id} is at {placed}");
+                Assert.True(screen.Work.Contains(new Position(large.Left, large.Top)), $"{spot} on {screen.Id} is at {large}");
             }
         }
 

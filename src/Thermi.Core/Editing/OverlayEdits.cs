@@ -7,7 +7,7 @@ namespace Thermi.Core.Editing;
 /// <summary>The window's edits of whole overlays, each found by its place in the file, and the reset.</summary>
 public static class OverlayEdits
 {
-    /// <summary>Sets the size, a factor from 75 % to 200 % over the monitor's own scale.</summary>
+    /// <summary>Sets the size, a factor from 75 % to 400 % over the monitor's own scale.</summary>
     public static EditResult SetSize(ThermiConfig config, int overlay, double size) =>
         ConfigEdits.OnOverlay(config, overlay, () => size is >= OverlayConfig.MinSize and <= OverlayConfig.MaxSize
             ? ConfigEdits.Apply(config, current => ConfigEdits.WithOverlay(current, overlay, current.Overlays[overlay] with { Size = size }))

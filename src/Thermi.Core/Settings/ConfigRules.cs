@@ -52,6 +52,7 @@ public static partial class ConfigRules
         Color($"{at}.colors.critical", style.Colors?.Critical),
         Color($"{at}.colors.label", style.Colors?.Label),
         Color($"{at}.colors.value", style.Colors?.Value),
+        Color($"{at}.colors.background", style.Colors?.Background),
     ];
 
     private static IEnumerable<string?> Item(ItemConfig item, string at, string warnBy) =>
@@ -100,7 +101,9 @@ public static partial class ConfigRules
             : Say($"sensorNames[\"{id}\"] is blank or longer than {SensorNames.MaxLength} characters");
 
     private static string? TextSize(string field, TextStyle? text) =>
-        text is null ? null : Range(field, text.Size, 9, 20) ?? (double.IsInteger(text.Size * 2) ? null : Say($"{field} is {text.Size}, not a step of 0.5"));
+        text is null ? null
+        : Range(field, text.Size, TextStyle.MinSize, TextStyle.MaxSize)
+            ?? (double.IsInteger(text.Size * 2) ? null : Say($"{field} is {text.Size}, not a step of 0.5"));
 
     private static string? Range(string field, double value, double min, double max) =>
         value >= min && value <= max ? null : Say($"{field} is {value}, not {min} to {max}");

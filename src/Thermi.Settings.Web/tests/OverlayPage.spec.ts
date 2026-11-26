@@ -163,6 +163,18 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       await page.getByRole('textbox', { name: text('UiText.HexColor') }).fill('#FFC000');
       await page.keyboard.press('Enter');
     }, read: (state) => overlayOf(state.settings, 0).style?.colors?.warning, expected: '#FFC000' },
+    { name: 'the pills\' color', act: async () => {
+      await pressOn(control('button', 'StyleColor.Background'), 'Enter');
+      await page.getByRole('textbox', { name: text('UiText.HexColor') }).fill('#0B2E4F');
+      await page.keyboard.press('Enter');
+    }, read: (state) => overlayOf(state.settings, 0).style?.colors?.background, expected: '#0B2E4F' },
+    // A theme gives the pills back its color, keeping the others chosen.
+    {
+      name: 'a theme over the pills\' color',
+      act: () => pressOn(control('radio', 'PillTheme.Dark'), 'Space'),
+      read: (state) => [overlayOf(state.settings, 0).style?.pills, overlayOf(state.settings, 0).style?.colors],
+      expected: ['dark', { warning: '#FFC000' }],
+    },
     {
       name: 'Colorblind-safe',
       act: () => pressOn(control('switch', 'OverlayPageText.ColorblindSafe'), 'Space'),

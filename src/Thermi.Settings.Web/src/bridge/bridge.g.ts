@@ -197,6 +197,15 @@ export type Level = 'normal' | 'warning' | 'critical';
 
 export type Line = 'warning' | 'critical';
 
+export interface LookColors {
+  background: string;
+  normal: string;
+  warning: string;
+  critical: string;
+  label: string;
+  value: string;
+}
+
 export interface LookSamples {
   default: OverlayPicture;
   saved: Record<string, OverlayPicture>;
@@ -346,6 +355,7 @@ export interface StyleColors {
   critical?: string;
   label?: string;
   value?: string;
+  background?: string;
 }
 
 export type StyleFont = 'segoe' | 'bahnschrift' | 'consolas';
@@ -420,6 +430,7 @@ export interface WindowView {
   items: Record<string, ItemView>;
   values: Record<string, string>;
   mark: MarkState;
+  colors: LookColors[];
 }
 
 export interface WornLook {

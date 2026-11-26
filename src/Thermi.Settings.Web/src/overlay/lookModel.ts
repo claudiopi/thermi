@@ -1,4 +1,4 @@
-import type { CornerStyle, Orientation, PillLayout, PillTheme, Style, StyleColors, StyleFont, TextEffect, TextStyle } from '../bridge/bridge.g';
+import type { CornerStyle, Orientation, PillLayout, PillTheme, Style, StyleColors, StyleFont, TextEffect, TextStyle, Value } from '../bridge/bridge.g';
 import type { TextKey } from '../texts/Texts';
 
 // What the Appearance column reads from a look: each field as the overlay draws it, a field the file leaves out taking
@@ -47,11 +47,6 @@ export function shownStyle(style: Style | undefined): ShownStyle {
   };
 }
 
-/** The pills a look draws, as the overlay does: "Match taskbar" takes the taskbar's mode, never the window's own theme. */
-export function pillsShown(pills: PillTheme, lightTaskbar: boolean): 'dark' | 'light' {
-  return pills === 'system' ? (lightTaskbar ? 'light' : 'dark') : pills;
-}
-
 /** The meter's colors that "Colorblind-safe" sets: Okabe-Ito's blue, orange and vermilion. */
 export const colorblindSafe = { normal: '#0072B2', warning: '#E69F00', critical: '#D55E00' } as const;
 
@@ -59,10 +54,13 @@ export function isColorblindSafe(colors: StyleColors): boolean {
   return (['normal', 'warning', 'critical'] as const).every((level) => colors[level]?.toLowerCase() === colorblindSafe[level].toLowerCase());
 }
 
-/** The default meter colors, as the overlay draws them on dark pills. */
-export const levelDefaults = { normal: '#6CCB5F', warning: '#FEC84B', critical: '#F05A50' } as const;
-
 export type ColorKey = keyof StyleColors;
+
+/** The colors as the file holds them: only the ones set, and none at all once all are back to their defaults. */
+export function colorsValue(colors: { [key in ColorKey]?: string | undefined }): Value {
+  const set = Object.entries(colors).filter((entry): entry is [string, string] => typeof entry[1] === 'string');
+  return set.length === 0 ? null : Object.fromEntries(set);
+}
 
 /** The prototype's choices for each color, a null one being its default: green for normal, or Auto for text. */
 export const colorChoices: Record<ColorKey, { text: TextKey; color: string | null }[]> = {
@@ -94,6 +92,13 @@ export const colorChoices: Record<ColorKey, { text: TextKey; color: string | nul
     { text: 'OverlayPageText.ColorGray', color: '#A9A9A7' },
     { text: 'OverlayPageText.ColorSky', color: '#60CDFF' },
     { text: 'OverlayPageText.ColorBlack', color: '#1A1A1A' },
+  ],
+  background: [
+    { text: 'UiText.Auto', color: null },
+    { text: 'OverlayPageText.ColorBlack', color: '#000000' },
+    { text: 'OverlayPageText.ColorBlue', color: '#0B2E4F' },
+    { text: 'OverlayPageText.ColorGray', color: '#5A5A58' },
+    { text: 'OverlayPageText.ColorWhite', color: '#FFFFFF' },
   ],
 };
 

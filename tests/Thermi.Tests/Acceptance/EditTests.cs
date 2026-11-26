@@ -299,7 +299,7 @@ public sealed class EditTests
     private static ThermiConfig Laid(ThermiConfig config, PillLayout layout) =>
         WithOverlay(config, 0, overlay => overlay with { Style = overlay.Style with { Layout = layout } });
 
-    // The warning is never above the critical, and the size stays between 75 and 200 %: each limit itself is allowed.
+    // The warning is never above the critical, and the size stays between 75 and 400 %: each limit itself is allowed.
     [Fact]
     public void TheWindowCannotSaveAnInvalidConfig()
     {
@@ -309,7 +309,7 @@ public sealed class EditTests
             .. RefusedEdits(config),
             (ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, 90, 85), config, Refusal.WarningAboveCritical),
             (OverlayEdits.SetSize(config, 0, 0.5), config, Refusal.SizeOutOfRange),
-            (OverlayEdits.SetSize(config, 0, 3), config, Refusal.SizeOutOfRange),
+            (OverlayEdits.SetSize(config, 0, 4.01), config, Refusal.SizeOutOfRange),
         ];
 
         Assert.All(refused, entry => Assert.Equal(((Refusal?)entry.Refusal, true), (entry.Result.Refused, ReferenceEquals(entry.Given, entry.Result.Config))));
@@ -318,7 +318,7 @@ public sealed class EditTests
         Assert.Equal(
             new Threshold(85, 85),
             Item(Done(ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, 85, 85)), Metrics.CpuTemperature.Id).Threshold);
-        Assert.Equal(1.5, Done(OverlayEdits.SetSize(config, 0, 1.5)).Overlays[0].Size);
+        Assert.Equal(4, Done(OverlayEdits.SetSize(config, 0, 4)).Overlays[0].Size);
     }
 
     private static (EditResult Result, ThermiConfig Given, Refusal Refusal)[] RefusedEdits(ThermiConfig config)

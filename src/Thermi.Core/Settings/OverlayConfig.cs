@@ -47,7 +47,7 @@ public sealed record OverlayConfig(double Size = 1)
 {
     public const double MinSize = 0.75;
 
-    public const double MaxSize = 2;
+    public const double MaxSize = 4;
 
     // Left unnamed, so each takes its metric's name in the window's language.
     public static IReadOnlyList<ItemConfig> DefaultItems { get; } =

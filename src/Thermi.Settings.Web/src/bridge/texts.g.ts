@@ -35,7 +35,7 @@ export type TextKey =
   | 'ServiceState.Running' | 'ServiceState.Stopped' | 'ServiceState.Stale'
   | 'SheetText.AnywhereInWindows' | 'SheetText.InThisWindow' | 'SheetText.OnYourDesktop' | 'SheetText.SelectOnDesktop' | 'SheetText.Click' | 'SheetText.OpenOnDesktop' | 'SheetText.DoubleClick' | 'SheetText.PlacePill' | 'SheetText.DragOff' | 'SheetText.ResizeOverlay' | 'SheetText.ItsCorner'
   | 'SnapSpot.Taskbar' | 'SnapSpot.TopLeft' | 'SnapSpot.TopRight' | 'SnapSpot.BottomLeft' | 'SnapSpot.BottomRight'
-  | 'StyleColor.Normal' | 'StyleColor.Warning' | 'StyleColor.Critical' | 'StyleColor.Label' | 'StyleColor.Value'
+  | 'StyleColor.Normal' | 'StyleColor.Warning' | 'StyleColor.Critical' | 'StyleColor.Label' | 'StyleColor.Value' | 'StyleColor.Background'
   | 'StyleFont.Segoe' | 'StyleFont.Bahnschrift' | 'StyleFont.Consolas'
   | 'StylePreset.Standard' | 'StylePreset.Compact' | 'StylePreset.Large' | 'StylePreset.Custom'
   | 'Synonyms.Temperature' | 'Synonyms.Load' | 'Synonyms.Clock' | 'Synonyms.Power' | 'Synonyms.Fan' | 'Synonyms.Control' | 'Synonyms.Data' | 'Synonyms.Throughput' | 'Synonyms.Duration' | 'Synonyms.Time' | 'Synonyms.Address' | 'Synonyms.FrameRate' | 'Synonyms.FrameTime' | 'Synonyms.Voltage' | 'Synonyms.Cpu' | 'Synonyms.Gpu' | 'Synonyms.Ram' | 'Synonyms.Board' | 'Synonyms.Ssd' | 'Synonyms.Network' | 'Synonyms.Battery' | 'Synonyms.System' | 'Synonyms.Game'

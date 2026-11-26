@@ -18,7 +18,6 @@ namespace Thermi.Windows.Painting;
 /// </param>
 internal sealed class Painter(bool reuse = false) : IDisposable
 {
-    private const float Height = OverlayLook.PillHeight;
     internal const float InnerPadding = 10;
     private const float LabelGap = 10;
     private const float MeterGap = 6;
@@ -118,18 +117,18 @@ internal sealed class Painter(bool reuse = false) : IDisposable
 
     private static (int Width, int Height, Arrangement Arranged) SizeOf(List<PaintedPill> pills, OverlayLook look, float scale)
     {
-        var height = Math.Ceiling(Height * scale);
+        var height = Math.Ceiling(look.Height * scale);
         var arranged = look.Arrange([.. pills.Select(pill => (double)pill.Width)], height, scale, [.. pills.Select(pill => pill.HeightOf(height))]);
         return (Math.Max((int)height, (int)Math.Ceiling(arranged.Width)), Math.Max((int)height, (int)Math.Ceiling(arranged.Height)), arranged);
     }
 
     private Bitmap Painted(List<PaintedPill> pills, OverlayLook look, float scale, Func<string, double>? glow, bool mark)
     {
-        var size = SizeOf(pills, look, scale);
-        var bitmap = Canvas(size.Width, size.Height);
+        var (width, height, arranged) = SizeOf(pills, look, scale);
+        var bitmap = Canvas(width, height);
         try
         {
-            var boxes = size.Arranged.Pills.Select(box => new RectangleF((float)box.Left, (float)box.Top, (float)box.Width, (float)box.Height)).ToList();
+            var boxes = arranged.Pills.Select(box => new RectangleF((float)box.Left, (float)box.Top, (float)box.Width, (float)box.Height)).ToList();
             DrawPills(bitmap, pills, boxes, look, scale);
 
             // The stopped pill's place goes first, as its tooltip does.
@@ -179,7 +178,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             g.SmoothingMode = SmoothingMode.AntiAlias;
             for (var p = 0; p < pills.Count; p++)
             {
-                PainterShapes.Pill(g, look, boxes[p], scale, (float)Math.Ceiling(Height * scale));
+                PainterShapes.Pill(g, look, boxes[p], scale, (float)Math.Ceiling(look.Height * scale));
                 var inner = pills[p].Runs is null ? [] : pills[p].PartsIn(boxes[p]);
                 foreach (var part in inner)
                 {

@@ -61,7 +61,7 @@ export function OverlayPage({ data, overlay, onOverlayEdit }: OverlayPageProps) 
         <section className="t-col t-col-text" aria-label={t('OverlayPageText.TextSection')}>
           <h3 className="t-pane-h">{t('OverlayPageText.TextSection')}</h3>
           <TextAndShape overlay={overlay} style={one.style} open={textOpen} onOpen={setTextOpen} />
-          <ColorsCard overlay={overlay} style={one.style} lightTaskbar={data.status.lightTaskbar} open={colorsOpen} onOpen={setColorsOpen} />
+          <ColorsCard overlay={overlay} style={one.style} drawn={data.view.colors[overlay]} open={colorsOpen} onOpen={setColorsOpen} />
         </section>
         <Placement data={data} overlay={overlay} shown={shown} lockOpen={lockOpen} onLockOpen={setLockOpen} />
       </div>

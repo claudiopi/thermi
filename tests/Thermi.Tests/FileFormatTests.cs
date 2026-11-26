@@ -56,7 +56,7 @@ public sealed class FileFormatTests
     [InlineData("{\"version\":0}", null)]
     [InlineData("{\"version\":\"two\"}", null)]
     [InlineData("{\"version\":2,\"overlays\":[]}", "overlays holds 0")]
-    [InlineData("{\"version\":2,\"overlays\":[{\"size\":2.5}]}", "overlays[0].size")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"size\":4.5}]}", "overlays[0].size")]
     [InlineData("{\"version\":2,\"overlays\":[{\"snap\":{\"monitor\":\"DEL-41A8\"}}]}", "spot")]
     [InlineData("{\"version\":2,\"temperature\":\"k\"}", "temperature")]
     [InlineData("{\"version\":2,\"sensorNames\":{\"/a\":\" \"}}", "sensorNames")]
@@ -73,7 +73,7 @@ public sealed class FileFormatTests
         "items[0].warnBy.auto")]
     [InlineData("{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"graph\":\"auto\"}]}]}", "items[0].graph")]
     [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"name\":\"\"}}]}", "style.name")]
-    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"label\":{\"size\":21,\"weight\":\"bold\"}}}]}", "style.label.size")]
+    [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"label\":{\"size\":37,\"weight\":\"bold\"}}}]}", "style.label.size")]
     [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"opacity\":{\"background\":1.5}}}]}", "style.opacity.background")]
     [InlineData("{\"version\":2,\"overlays\":[{\"style\":{\"colors\":{\"value\":\"#12345\"}}}]}", "style.colors.value")]
     public void ABrokenOrNewerConfigGivesTheDefaultsAndSaysWhy(string json, string? field)

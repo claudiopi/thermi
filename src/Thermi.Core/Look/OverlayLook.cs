@@ -16,7 +16,12 @@ public readonly record struct Rgb(byte R, byte G, byte B)
         return (lighter + 0.05) / (darker + 0.05);
     }
 
+    /// <summary>This color moved <paramref name="share"/> of the way, 0 to 1, toward <paramref name="other"/>.</summary>
+    public Rgb Toward(Rgb other, double share) => new(Mix(R, other.R, share), Mix(G, other.G, share), Mix(B, other.B, share));
+
     public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"#{R:X2}{G:X2}{B:X2}");
+
+    private static byte Mix(byte from, byte to, double share) => (byte)Math.Round(from + ((to - from) * share));
 
     private double Luminance => (0.2126 * Linear(R)) + (0.7152 * Linear(G)) + (0.0722 * Linear(B));
 
@@ -29,15 +34,49 @@ public readonly record struct Rgb(byte R, byte G, byte B)
     private static byte Channel(string hex, int at) => byte.Parse(hex.AsSpan(at, 2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
 }
 
-/// <summary>One kind of flat pill: its colors inside and border, a graph's unlit background, Auto label and value, and the pills a single bar holds.</summary>
+/// <summary>
+/// One kind of flat pill: its colors inside and border, a graph's unlit background, Auto label and value, and the pills a
+/// single bar holds. <see cref="IsLight"/> pills take dark text.
+/// </summary>
 public sealed record PillColors(Rgb Outer, Rgb Border, Rgb MeterOff, Rgb Label, Rgb Value, Rgb Inner)
 {
+    /// <summary>The least contrast Auto text keeps against pills of a color of their own, the web's guidelines' for text.</summary>
+    public const double TextContrast = 4.5;
+
     // The inner pills stand 1.5:1 from the bar, lighter on dark and darker on light, so the runs read apart quietly.
+    // The inner pills stand 1.5:1 from the bar, lighter on dark and darker on light, so the runs read apart quietly.
+    private const double InnerContrast = 1.5;
+
+    private static readonly Rgb Black = new(0, 0, 0);
+
+    private static readonly Rgb White = new(255, 255, 255);
+
     public static PillColors Dark { get; } =
         new(Rgb.Parse("#20201E"), Rgb.Parse("#31312F"), Rgb.Parse("#2E2E2C"), Rgb.Parse("#A9A9A7"), Rgb.Parse("#EFEFEE"), Rgb.Parse("#3E3E3B"));
 
     public static PillColors Light { get; } =
-        new(Rgb.Parse("#F3F3F1"), Rgb.Parse("#DADAD8"), Rgb.Parse("#D5D5D3"), Rgb.Parse("#5C5C5A"), Rgb.Parse("#1A1A1A"), Rgb.Parse("#C8C8C6"));
+        new(Rgb.Parse("#F3F3F1"), Rgb.Parse("#DADAD8"), Rgb.Parse("#D5D5D3"), Rgb.Parse("#5C5C5A"), Rgb.Parse("#1A1A1A"), Rgb.Parse("#C8C8C6"))
+        {
+            IsLight = true,
+        };
+
+    public bool IsLight { get; init; }
+
+    /// <summary>
+    /// Pills of <paramref name="fill"/>, light where black stands farther from it than white, with Auto text that keeps
+    /// <see cref="TextContrast"/> against it.
+    /// </summary>
+    public static PillColors Of(Rgb fill)
+    {
+        var light = fill.ContrastWith(Black) >= fill.ContrastWith(White);
+        var kind = light ? Light : Dark;
+        var value = kind.Value.ContrastWith(fill) >= TextContrast ? kind.Value : light ? Black : White;
+        var label = kind.Label.ContrastWith(fill) >= TextContrast ? kind.Label : value;
+        var inner = Enumerable.Range(1, 100)
+            .Select(step => fill.Toward(value, step / 100.0))
+            .FirstOrDefault(mixed => mixed.ContrastWith(fill) >= InnerContrast, value);
+        return new PillColors(fill, fill.Toward(value, 0.12), fill.Toward(value, 0.08), label, value, inner) { IsLight = light };
+    }
 }
 
 /// <summary>
@@ -65,10 +104,16 @@ public sealed record Arrangement(IReadOnlyList<PillBox> Pills, double Width, dou
 /// </summary>
 public sealed record OverlayLook
 {
-    /// <summary>A pill's height in pixels at 100 %.</summary>
+    /// <summary>A pill's height in pixels at 100 %, for text up to 20 px.</summary>
     public const int PillHeight = 38;
 
-    /// <summary>The least contrast a chosen text color needs against its pill's color, taken as opaque.</summary>
+    /// <summary>A pill's height over its larger text's size, for text over 20 px, so no text leaves its pill.</summary>
+    public const double TextRoom = 1.9;
+
+    /// <summary>
+    /// The least contrast a chosen text color needs against its pill's color, taken as opaque, and a default level color
+    /// against it and the unlit track.
+    /// </summary>
     public const double MinContrast = 3;
 
     /// <summary>Below this background opacity, Auto text gets a shadow so it reads on any wallpaper.</summary>
@@ -109,6 +154,9 @@ public sealed record OverlayLook
     public required TextStyle Label { get; init; }
 
     public required TextStyle Value { get; init; }
+
+    /// <summary>A pill's height in pixels at 100 %, as <see cref="HeightOf"/> gives it.</summary>
+    public double Height { get; init; } = PillHeight;
 
     public required PillColors Pills { get; init; }
 
@@ -172,10 +220,18 @@ public sealed record OverlayLook
     /// <summary>The inner pill's corner radius: the bar's less the padding, so both curves share a center and the band stays even.</summary>
     public double InnerRadius(double barHeight, double padding) => Math.Max(0, Radius(barHeight) - padding);
 
+    /// <summary>A pill's height in pixels at 100 % for a style's text.</summary>
+    public static double HeightOf(StyleConfig style)
+    {
+        var (label, value) = StylePresets.Text(style);
+        return Math.Max(PillHeight, TextRoom * Math.Max(label.Size, value.Size));
+    }
+
     private static OverlayLook Styled(StyleConfig style, bool lightTaskbar)
     {
-        var light = style.Pills == PillTheme.Light || (style.Pills == PillTheme.System && lightTaskbar);
-        var pills = light ? PillColors.Light : PillColors.Dark;
+        var themed = style.Pills == PillTheme.Light || (style.Pills == PillTheme.System && lightTaskbar) ? PillColors.Light : PillColors.Dark;
+        var pills = style.Colors?.Background is { } own ? PillColors.Of(Rgb.Parse(own)) : themed;
+        var light = pills.IsLight;
         var (label, value) = StylePresets.Text(style);
         var valueColor = Readable(style.Colors?.Value, pills, pills.Value);
         return new OverlayLook
@@ -188,12 +244,13 @@ public sealed record OverlayLook
             Corners = style.Corners,
             Label = label,
             Value = value,
+            Height = HeightOf(style),
             Pills = pills,
             LabelColor = Readable(style.Colors?.Label, pills, pills.Label),
             ValueColor = valueColor,
-            Normal = Color(style.Colors?.Normal, light ? LightNormal : DefaultNormal),
-            Warning = Color(style.Colors?.Warning, light ? LightWarning : DefaultWarning),
-            Critical = Color(style.Colors?.Critical, light ? LightCritical : DefaultCritical),
+            Normal = Color(style.Colors?.Normal, Kept(light ? LightNormal : DefaultNormal, pills)),
+            Warning = Color(style.Colors?.Warning, Kept(light ? LightWarning : DefaultWarning, pills)),
+            Critical = Color(style.Colors?.Critical, Kept(light ? LightCritical : DefaultCritical, pills)),
             Background = style.Opacity.Background,
             Opacity = style.Opacity.Overlay,
             Effect = style.Effect != TextEffect.Auto ? style.Effect : style.Opacity.Background < ShadowBelow ? TextEffect.Shadow : TextEffect.None,
@@ -242,6 +299,12 @@ public sealed record OverlayLook
     }
 
     private static Rgb Color(string? hex, Rgb fallback) => hex is null ? fallback : Rgb.Parse(hex);
+
+    // On pills of a color of their own, a default level color may fall under 3:1 against them or the unlit track.
+    private static Rgb Kept(Rgb level, PillColors pills) =>
+        Enumerable.Range(0, 21)
+            .Select(step => level.Toward(pills.Value, step * 0.05))
+            .FirstOrDefault(moved => Math.Min(moved.ContrastWith(pills.Outer), moved.ContrastWith(pills.MeterOff)) >= MinContrast, pills.Value);
 
     private static TextColor Readable(string? hex, PillColors pills, Rgb auto) =>
         hex is null ? new TextColor(auto)

@@ -30,7 +30,7 @@ public static class LevelMarks
         Level.Warning when metered => new LevelMark(MarkKind.None, default, default),
         Level.Warning => new LevelMark(MarkKind.Underline, look.HighContrast ? look.Pills.Value : look.Warning, default),
         Level.Critical when look.HighContrast => new LevelMark(MarkKind.Reversed, look.Pills.Value, look.Pills.Outer),
-        Level.Critical => new LevelMark(MarkKind.Reversed, look.Critical, look.Pills == PillColors.Light ? White : Black),
+        Level.Critical => new LevelMark(MarkKind.Reversed, look.Critical, look.Pills.IsLight ? White : Black),
         Level.Normal => new LevelMark(MarkKind.None, default, default),
         _ => new LevelMark(MarkKind.None, default, default),
     };

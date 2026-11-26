@@ -1,16 +1,17 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import type { Style, Value } from '../bridge/bridge.g';
+import type { LookColors, Style } from '../bridge/bridge.g';
 import { useEdit } from '../bridge/useWindow';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
 import { Button, CardRow, Popover, TextField } from '../kit';
-import { useText } from '../texts/Texts';
-import { colorChoices, colorblindSafe, hexColor, isColorblindSafe, levelDefaults, pillsShown, type ColorKey } from './lookModel';
+import { useText, type TextKey } from '../texts/Texts';
+import { colorChoices, colorblindSafe, colorsValue, hexColor, isColorblindSafe, type ColorKey } from './lookModel';
 
 export interface ColorsCardProps {
   overlay: number;
   style: Style | undefined;
-  lightTaskbar: boolean;
+  /** The colors the overlay draws now, as C# says, which a swatch the look leaves at its default shows. */
+  drawn: LookColors | undefined;
   open: boolean;
   onOpen: (open: boolean) => void;
 }
@@ -23,37 +24,16 @@ const names = {
   critical: 'StyleColor.Critical',
   label: 'StyleColor.Label',
   value: 'StyleColor.Value',
+  background: 'StyleColor.Background',
 } as const;
-const words = {
+// The pills' color stands alone in its row, which already names it.
+const words: Partial<Record<ColorKey, TextKey>> = {
   normal: 'OverlayPageText.SwatchNormal',
   warning: 'OverlayPageText.SwatchWarning',
   critical: 'OverlayPageText.SwatchCritical',
   label: 'OverlayPageText.SwatchLabels',
   value: 'OverlayPageText.SwatchValues',
-} as const;
-
-/** The color a swatch shows while the look leaves it out: the level's default, or the pills' text. */
-function fallbackOf(key: ColorKey, pills: 'dark' | 'light'): string {
-  const light = pills === 'light';
-  switch (key) {
-    case 'normal':
-      return light ? '#0F7B0F' : levelDefaults.normal;
-    case 'warning':
-      return light ? '#9D5D00' : levelDefaults.warning;
-    case 'critical':
-      return light ? '#C42B1C' : levelDefaults.critical;
-    case 'label':
-      return light ? '#5C5C5A' : '#A9A9A7';
-    case 'value':
-      return light ? '#1A1A1A' : '#EFEFEE';
-  }
-}
-
-/** The colors as the file holds them: only the ones set, and none at all once all are back to their defaults. */
-function colorsValue(colors: { [key in ColorKey]?: string | undefined }): Value {
-  const set = Object.entries(colors).filter((entry): entry is [string, string] => typeof entry[1] === 'string');
-  return set.length === 0 ? null : Object.fromEntries(set);
-}
+};
 
 interface SwatchProps {
   name: string;
@@ -154,43 +134,48 @@ function Swatch({ name, color, fallback, filledDefault, choices, onColor }: Swat
   );
 }
 
-export function ColorsCard({ overlay, style, lightTaskbar, open, onOpen }: ColorsCardProps) {
+export function ColorsCard({ overlay, style, drawn, open, onOpen }: ColorsCardProps) {
   const t = useText();
   const edit = useEdit();
   const colors = style?.colors ?? {};
-  const pills = pillsShown(style?.pills ?? 'system', lightTaskbar);
   const setColors = (next: { [key in ColorKey]?: string | undefined }): void =>
     void edit({ kind: 'style', overlay, field: 'colors', value: colorsValue(next) });
   // Its word under it is what the swatch's name already tells Narrator.
-  const swatch = (key: ColorKey) => (
-    <span key={key} className="t-swatch-named">
-      <Swatch
-        name={t(names[key])}
-        color={colors[key]}
-        fallback={fallbackOf(key, pills)}
-        filledDefault={key === 'normal'}
-        choices={colorChoices[key]}
-        onColor={(color) => setColors({ ...colors, [key]: color ?? undefined })}
-      />
-      <span aria-hidden="true">{t(words[key])}</span>
-    </span>
-  );
+  const swatch = (key: ColorKey) => {
+    const word = words[key];
+    return (
+      <span key={key} className="t-swatch-named">
+        <Swatch
+          name={t(names[key])}
+          color={colors[key]}
+          fallback={drawn?.[key] ?? ''}
+          filledDefault={key === 'normal'}
+          choices={colorChoices[key]}
+          onColor={(color) => setColors({ ...colors, [key]: color ?? undefined })}
+        />
+        {word !== undefined && <span aria-hidden="true">{t(word)}</span>}
+      </span>
+    );
+  };
   const safe = isColorblindSafe(colors);
   const levels = (
     <span className="t-color-row" aria-hidden="true">
       {levelKeys.map((key) => {
-        return <i key={key} style={{ background: colors[key] ?? fallbackOf(key, pills) }} />;
+        return <i key={key} style={{ background: colors[key] ?? drawn?.[key] }} />;
       })}
     </span>
   );
   return (
     <Expander label={t('OverlayPageText.ColorsField')} aside={levels} open={open} onOpen={onOpen}>
+      <CardRow label={t('StyleColor.Background')}>{swatch('background')}</CardRow>
       <CardRow label={t('UiText.MeterColorsField')}>{levelKeys.map(swatch)}</CardRow>
       <SwitchLine
         label={t('OverlayPageText.ColorblindSafe')}
         description={t('OverlayPageText.ColorblindHint')}
         checked={safe}
-        onChange={(on) => setColors(on ? { ...colors, ...colorblindSafe } : { label: colors.label, value: colors.value })}
+        onChange={(on) =>
+          setColors(on ? { ...colors, ...colorblindSafe } : { label: colors.label, value: colors.value, background: colors.background })
+        }
       />
       <CardRow
         label={t('UiText.TextColorsField')}

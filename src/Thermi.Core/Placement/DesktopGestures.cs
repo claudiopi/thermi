@@ -87,7 +87,7 @@ public static class DesktopGestures
     /// <summary>
     /// The size and direction a floating overlay of <paramref name="width"/> by <paramref name="height"/> pixels at
     /// <paramref name="size"/> takes when its corner is dragged by <paramref name="dx"/> and <paramref name="dy"/>: vertical
-    /// when the box dragged out is taller than wide, and grown as its longer side grew, in steps of 5 %, from 75 % to 200 %.
+    /// when the box dragged out is taller than wide, and grown as its longer side grew, in steps of 5 %, from 75 % to 400 %.
     /// </summary>
     public static (double Size, Orientation Orientation) Corner(double size, int width, int height, int dx, int dy)
     {

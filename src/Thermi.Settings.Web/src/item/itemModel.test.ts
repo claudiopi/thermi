@@ -25,6 +25,7 @@ function view(shows: Partial<ItemView>): WindowView {
     },
     values: { package: '50 °C', ethernet: '1 MB/s' },
     mark: 'calm',
+    colors: [],
   };
 }
 

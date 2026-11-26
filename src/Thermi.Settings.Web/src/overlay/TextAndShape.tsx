@@ -16,8 +16,8 @@ export interface TextAndShapeProps {
 const textValue = (text: TextStyle): Value => ({ size: text.size, weight: text.weight });
 
 // The sizes each text offers, as the design prototype lists them; a size the file holds outside them shows too.
-const labelSizes = [9, 10, 11, 12, 13, 14, 16, 18, 20];
-const valueSizes = [9, 10, 11, 12, 13, 13.5, 14, 16, 17, 18, 20];
+const labelSizes = [9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36];
+const valueSizes = [9, 10, 11, 12, 13, 13.5, 14, 16, 17, 18, 20, 24, 28, 32, 36];
 
 const sizeChoices = (sizes: readonly number[], current: number) =>
   [...new Set([...sizes, current])].sort((a, b) => a - b).map((size) => ({ value: String(size), text: `${size} px` }));

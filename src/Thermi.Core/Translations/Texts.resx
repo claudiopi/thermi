@@ -1701,6 +1701,9 @@
   <data name="StyleColor.Value" xml:space="preserve">
     <value>Value color</value>
   </data>
+  <data name="StyleColor.Background" xml:space="preserve">
+    <value>Pill color</value>
+  </data>
   <data name="StyleFont.Segoe" xml:space="preserve">
     <value>Segoe UI Variable</value>
   </data>
