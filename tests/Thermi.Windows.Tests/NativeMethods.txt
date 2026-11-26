@@ -60,3 +60,5 @@ GetSecurityDescriptorSacl
 SetSecurityInfo
 SDDL_REVISION_1
 LocalFree
+// What a pipe holds for its reader now, which the sensor pipe's tests wait on before they move the clock
+PeekNamedPipe
