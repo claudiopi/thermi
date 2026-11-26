@@ -1,0 +1,83 @@
+name: Hardware report
+description: How thermi did on your PC, right or wrong. It helps us test hardware we do not have.
+labels: [hardware]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks. A report that everything looked right helps as much as one that something broke.
+        Before you attach a file, look it over: the logs name files under your profile, so they may show your Windows user name.
+  - type: input
+    id: version
+    attributes:
+      label: thermi version
+      description: The settings window's About shows it.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Desktop or laptop
+      options:
+        - Desktop
+        - Laptop
+        - Other (say below)
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Settings > System > About shows it.
+      placeholder: Windows 11 24H2, or Windows 10 22H2
+    validations:
+      required: true
+  - type: input
+    id: cpu
+    attributes:
+      label: CPU
+      placeholder: Intel Core i5-1240P
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      description: Every GPU, the CPU's own graphics included.
+      placeholder: AMD Radeon RX 7800 XT, Intel Iris Xe
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Motherboard, or the laptop's model
+      placeholder: MSI B650 Tomahawk, or Lenovo ThinkPad T14 Gen 3
+  - type: textarea
+    id: dumps
+    attributes:
+      label: What the sensors read
+      description: >-
+        Run `thermi-sensors --dump admin.json` in a terminal opened as administrator, and
+        `thermi-sensors --dump user.json` in a normal one, and attach both files.
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: A screenshot of the overlay
+      description: Paste it here, and one of the settings window if something looked wrong there.
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What looked wrong
+      description: A missing or wrong value, the overlay out of place, a notice, a crash. Or "nothing".
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        If something went wrong, attach `thermi.log` and, for the settings window, `thermi-window.log`, from `%LOCALAPPDATA%\thermi`.

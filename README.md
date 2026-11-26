@@ -13,6 +13,15 @@ A light, always-on-top hardware monitor for Windows. CPU, GPU, RAM, fans, voltag
 - The CPU's temperature, power and clocks need a small signed driver. When they read nothing, the settings window offers to install it, behind one Windows prompt.
 - AI agents and other programs read the sensors and change the settings with `thermi-cli`, from any shell or as an MCP server: [thermi for agents](docs/agents/README.md). For Claude Code, `claude mcp add thermi -- thermi-cli mcp`.
 - Keeps itself up to date silently, as a browser does. A new version is checked against thermi's signatures and switched to at a quiet moment; one that fails is set aside, and the PC stays on the one that worked.
+
+## Tested on
+
+- **The development PC**: a desktop with a Ryzen 9 9950X and an NVIDIA GeForce RTX 5060 Ti, on Windows 11.
+- **Automated tests on every change**: 1,366 .NET cases and 267 of the settings page, counted in [`tests/test-count.json`](tests/test-count.json). Every night, a [mutation run](https://github.com/claudiopi/thermi/actions/workflows/mutation.yml) measures them and fails below 78 % of mutants killed; the last killed 81 % in `Thermi.Core` and `Thermi.Cli` and 88 % in the page's logic.
+- **Sensor data recorded on real PCs**, which the tests replay: the PC above with and without admin rights, and an Intel desktop with a Core i9-12900K, in [`tests/Thermi.Tests/Recordings`](tests/Thermi.Tests/Recordings).
+
+Other hardware: see [Hardware reports](https://github.com/claudiopi/thermi/issues/HARDWARE_REPORTS).
+
 ## Privacy
 
 thermi sends nothing about you or your PC. Its only connection is the update check, a minute after the service starts and every 4 hours: one HTTPS request for the channel's manifest, with no query, no cookie, no identifier and `thermi` as its whole User-Agent, and then the zip of a new version, whose signature Windows checks against the certificate authority's revocation servers, as it does for any signed program. The server sees the address a request comes from, as any server does. An administrator turns updates off with the `Updates` policy value in `HKLM\SOFTWARE\Policies\thermi`, and a build from source never checks unless it is told where.
