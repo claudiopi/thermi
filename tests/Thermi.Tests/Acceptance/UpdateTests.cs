@@ -296,7 +296,8 @@ public sealed class UpdateTests
         var local = good with { Packages = Zips("arm64", Zip with { Url = new Uri("http://127.0.0.1:8765/v1/z.zip") }) };
         Assert.Null(ManifestEnvelope.Open(ManifestEnvelope.Seal(local, key), release, release).Problem);
         // A package signed without its hash or its address is no package either.
-        Assert.All(["sha256", "url"], field => Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(Without(good, field, key), release, release).Problem));
+        Assert.All(["sha256", "url"], field =>
+            Assert.Equal(ManifestProblem.Invalid, ManifestEnvelope.Open(Without(good, field, key), release, release).Problem));
     }
 
     // A version put in place by hand, as the MSI does, is what the PC runs from then on, with nothing to go back to.

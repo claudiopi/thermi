@@ -55,7 +55,7 @@ internal sealed class ElevatedService : ServiceBase
         {
             ExitCode = await _run(["elevated", .. args], _time);
         }
-#pragma warning disable CA1031 // Whatever fails, as a kill past the wait that Windows refuses, the service must stop: with CanStop false, nothing else stops it.
+#pragma warning disable CA1031 // Whatever fails, as a kill past the wait that Windows refuses, the service must stop: with CanStop false, nothing else does.
         catch (Exception ex)
 #pragma warning restore CA1031
         {
