@@ -180,7 +180,8 @@ internal sealed class TypeScriptWriter
         foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(property => property.GetIndexParameters().Length == 0))
         {
             var ignore = property.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition;
-            if (ignore == JsonIgnoreCondition.Always)
+            // What a later version added to the settings goes back to the file as it came, never through the page.
+            if (ignore == JsonIgnoreCondition.Always || property.GetCustomAttribute<JsonExtensionDataAttribute>() is not null)
             {
                 continue;
             }

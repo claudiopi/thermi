@@ -20,10 +20,10 @@ internal static class ClipboardImage
         using var png = new MemoryStream();
         picture.Save(png, ImageFormat.Png);
         var dib = Dib(picture);
-        ClipboardData.Write(owner, () =>
+        _ = ClipboardData.Write(owner, () =>
         {
-            ClipboardData.Put(Png, png.ToArray());
-            ClipboardData.Put((uint)CLIPBOARD_FORMAT.CF_DIB, dib);
+            var both = ClipboardData.Put(Png, png.ToArray());
+            return ClipboardData.Put((uint)CLIPBOARD_FORMAT.CF_DIB, dib) && both;
         });
     }
 

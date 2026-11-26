@@ -10,18 +10,21 @@ namespace Thermi.Windows.Win32.Clipboard;
 /// <summary>What thermi leaves on Windows' clipboard: a picture's formats, or a text.</summary>
 internal static class ClipboardData
 {
-    /// <summary>Takes the clipboard for <paramref name="owner"/>, empties it and leaves what <paramref name="put"/> puts, unless another holds it.</summary>
-    public static void Write(HWND owner, Action put)
+    /// <summary>
+    /// Takes the clipboard for <paramref name="owner"/>, empties it and leaves what <paramref name="put"/> puts, unless another
+    /// holds it; whether all of it is there.
+    /// </summary>
+    public static bool Write(HWND owner, Func<bool> put)
     {
         if (!PInvoke.OpenClipboard(owner))
         {
-            return;
+            return false;
         }
 
         try
         {
             PInvoke.EmptyClipboard();
-            put();
+            return put();
         }
         finally
         {
@@ -30,16 +33,16 @@ internal static class ClipboardData
     }
 
     /// <summary>Leaves <paramref name="text"/> on the clipboard as Unicode text, which every app pastes.</summary>
-    public static void WriteText(HWND owner, string text) =>
+    public static bool WriteText(HWND owner, string text) =>
         Write(owner, () => Put((uint)CLIPBOARD_FORMAT.CF_UNICODETEXT, Encoding.Unicode.GetBytes(text + '\0')));
 
     // Once set, the memory is the clipboard's; only memory it refused is freed here.
-    public static unsafe void Put(uint format, byte[] bytes)
+    public static unsafe bool Put(uint format, byte[] bytes)
     {
         var memory = PInvoke.GlobalAlloc(GLOBAL_ALLOC_FLAGS.GMEM_MOVEABLE, (nuint)bytes.Length);
         if (memory.IsNull)
         {
-            return;
+            return false;
         }
 
         var at = PInvoke.GlobalLock(memory);
@@ -52,6 +55,9 @@ internal static class ClipboardData
         if (at is null || PInvoke.SetClipboardData(format, new HANDLE(memory.Value)).IsNull)
         {
             PInvoke.GlobalFree(memory);
+            return false;
         }
+
+        return true;
     }
 }

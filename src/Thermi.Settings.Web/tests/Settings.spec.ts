@@ -81,7 +81,7 @@ test('TheSettingsPageChangesThermi', async ({ page }) => {
 // and the last changes agents made show, with a link to their log, only once there are some.
 test('TheAgentsSectionConnectsAndShowsWhatAgentsDid', async ({ page }) => {
   const start = fakeState();
-  await openWindow(page, { ...start, agents: { ...start.agents, changes: [] } });
+  await openWindow(page, { ...start, clipboard: '', agents: { ...start.agents, changes: [] } });
   await list(page).waitFor();
   await page.keyboard.press('Control+Comma');
   const pane = page.getByRole('main');
@@ -95,6 +95,13 @@ test('TheAgentsSectionConnectsAndShowsWhatAgentsDid', async ({ page }) => {
       await pane.getByRole('button', { name: text('AgentText.CopyOf', text(row)) }).press('Enter');
       await expect.poll(async () => (await fakeOf(page)).clipboard).toBe(copied);
     }
+  });
+
+  await test.step('a copy while another app holds the clipboard', async () => {
+    await setFake(page, { clipboard: null });
+    const claude = pane.getByRole('button', { name: text('AgentText.CopyOf', text('AgentText.ClaudeCode')) });
+    await claude.press('Enter');
+    await expect(claude).toHaveText(text('AgentText.Copy'));
   });
 
   await test.step('the switch, and undo', async () => {

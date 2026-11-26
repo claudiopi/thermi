@@ -2,7 +2,7 @@
 <#
 .SYNOPSIS
     The one quality check: restore, format, Release build, the third-party notices, the test-count ratchet, tests, the
-    Thermi.Core coverage gate and the app's coverage; then the settings window's page: lint, react-doctor, unit tests,
+    coverage gates of Thermi.Core and Thermi.Cli and the app's coverage; then the settings window's page: lint, react-doctor, unit tests,
     dead code and the page's tests with axe, its type check in its build.
     Here it runs only what the change can affect (scripts/check-scope.ps1), with the .NET half and the page's side by side
     and the steps that need nothing of each other at once; -Full runs every step. The CI runs every step of this same
@@ -12,8 +12,8 @@
 param(
     # CI mode: every step, and packages must match the committed lock files exactly.
     [switch]$Ci,
-    # Then the mutation score of the tests of the halves run, too slow for every run: Stryker.NET on Thermi.Core
-    # (scripts/mutation.ps1) and StrykerJS on the page's logic, each with the cases that hold nothing of their own
+    # Then the mutation score of the tests of the halves run, too slow for every run: Stryker.NET on Thermi.Core and
+    # Thermi.Cli (scripts/mutation.ps1) and StrykerJS on the page's logic, each with the cases that hold nothing of their own
     # (scripts/redundant.ps1).
     [switch]$Mutation,
     # One part alone. DotNet is Core, Windows and WindowsAlone: Core's tests with the build's own checks, the Windows tests
@@ -33,7 +33,9 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $results = Join-Path $root 'TestResults'
 $web = Join-Path $root 'src' 'Thermi.Settings.Web'
-$minCoverage = 90
+# The least line and branch coverage of each project Thermi.Tests measures. thermi-cli's commands are mostly answered by
+# Core, so its own branches are what it adds: the console, the MCP session and the environment's answers.
+$coverageFloors = [ordered]@{ 'Thermi.Core' = 90; 'Thermi.Cli' = 85 }
 $appResults = Join-Path $results 'app'
 # Each test project's reports, named for it, and what they must have measured.
 $appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors', 'Thermi.App' }
@@ -105,15 +107,16 @@ function Invoke-DotNet($Scope) {
         if ($Scope.TestCount) {
             $together += New-Step 'test count' 'pwsh', '-NoProfile', '-File', 'scripts/test-count.ps1', '-Part', 'DotNet'
         }
-        # Coverage counts only Core's own tests: the Windows tests would inflate Core's numbers by counting code they run
-        # only in passing.
+        # Coverage counts only Thermi.Tests: the Windows tests would inflate Core's and the CLI's numbers by counting code
+        # they run only in passing. Each project's floor is gated once the tests passed.
+        $measured = @($coverageFloors.Keys | ForEach-Object { '--coverlet-include', "[$_]*" })
         $together += New-Step 'tests and coverage' (@('dotnet', 'test', '--project', 'tests/Thermi.Tests', '-c', 'Release', '--no-build',
-                '--results-directory', $results, '--', '--coverlet', '--coverlet-include', '[Thermi.Core]*', '--coverlet-output-format', 'cobertura',
-                '--coverlet-threshold', $minCoverage, '--coverlet-threshold-type', 'line,branch') + $share) -Explain { Show-Coverage }
+                '--results-directory', $results, '--', '--coverlet') + $measured + @('--coverlet-output-format', 'cobertura') + $share)
     }
     $split = Get-AloneClasses
     if ($windows) { $together += New-WindowsStep 'Windows tests' $Scope.WindowsFilter $split 'rest' $share }
     Invoke-Together $together
+    if ($core) { Assert-Coverage }
     # The tests that run alone paint ten thousand rounds of overlays, and the page's tests beside them time out: those
     # wait for the page's half.
     if ($alone -and $webHalf) { $webHalf.WaitForExit() }

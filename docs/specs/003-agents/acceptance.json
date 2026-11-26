@@ -245,7 +245,7 @@
       "covers": [
         "R31"
       ],
-      "description": "Given settings whose agents only read, when a table of commands runs (an edit, a look's save, a look worn, the start at sign-in set, the fan finder), and an MCP session's edit and undo, then each exits 1, or is a tool error, with the refusal's key and its English text, and writes nothing, while config still answers; given agents that change, an edit that lets them change is refused and one that stops them is made.",
+      "description": "Given settings whose agents only read, when a table of commands runs (an edit, a look's save, a look worn, the start at sign-in set, the fan finder), and an MCP session's edit and undo, then each exits 1, or is a tool error, with the refusal's key and its English text, and writes nothing, while config still answers; given agents that change, an edit that lets them change is refused and one that stops them is made; and on a file that cannot be read, a look's delete exits 4 and the look stays.",
       "check": "AgentsOnlyReadWhenThePersonSaysSo",
       "passes": true
     },

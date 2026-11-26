@@ -1760,7 +1760,7 @@
         "R58",
         "R203"
       ],
-      "description": "Given pills of their own dark, mid and bright colors on dark and light themes, with Auto text, a chosen label too close to the pill, 36 px values, one bar, and high contrast, when the look is read, then the pills, their border, track and a bar's inner pills take that color, the inner ones 1.5:1 to 2:1 from it, Auto text 4.5:1 and each default level 3:1 from it and the track, the chosen label is drawn in its Auto color and flagged, the pill is 1.9 times the text high, high contrast's colors win, and Auto gives the theme's pills back.",
+      "description": "Given pills of their own dark, mid and bright colors on dark and light themes, with Auto text, a chosen label too close to the pill, 36 px values, one bar, and high contrast, when the look is read, then the pills, their border, track and a bar's inner pills take that color, the inner ones 1.5:1 to 2:1 from it, Auto text 4.5:1 and each default level 3:1 from it and the track, the chosen label is drawn in its Auto color and flagged, the pill is 1.9 times the text high, high contrast's colors win, and Auto, or a theme chosen in the window or by an agent, gives the theme's pills back.",
       "check": "APillColorOfItsOwnKeepsEveryTextAndLevelReadable",
       "passes": true
     },

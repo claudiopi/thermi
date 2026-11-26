@@ -30,10 +30,8 @@ export function AgentsCard({ data }: { data: WindowData }) {
   const edit = useEdit();
   const agents = useBridgeRead(readAgents, data.settings.language ?? '', data.changes);
   const [copied, setCopied] = useState<string | null>(null);
-  const copy = (text: string): void => {
-    setCopied(text);
-    void bridge()?.copy(text);
-  };
+  // Copied only once it is on the clipboard, which another app may hold.
+  const copy = async (text: string): Promise<void> => setCopied((await bridge()?.copy(text)) === true ? text : null);
   return (
     <CardStack>
       <Card>
@@ -46,13 +44,13 @@ export function AgentsCard({ data }: { data: WindowData }) {
       </Card>
       {agents !== null && (
         <Card>
-          <Setup label={t('AgentText.ClaudeCode')} text={agents.command} copied={copied === agents.command} onCopy={() => copy(agents.command)} />
+          <Setup label={t('AgentText.ClaudeCode')} text={agents.command} copied={copied === agents.command} onCopy={() => void copy(agents.command)} />
           <Setup
             label={t('AgentText.ByFile')}
             description={t('AgentText.ByFileHow')}
             text={agents.file}
             copied={copied === agents.file}
-            onCopy={() => copy(agents.file)}
+            onCopy={() => void copy(agents.file)}
           />
         </Card>
       )}

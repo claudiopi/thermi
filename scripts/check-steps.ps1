@@ -113,13 +113,22 @@ function New-WindowsStep([string]$Name, [string]$Namespace, $Split, [string]$Run
             '--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', "Thermi.Windows.Tests.$Run") + $filters + $Options)
 }
 
-function Show-Coverage {
-    $report = Get-ChildItem $results -Filter '*.cobertura.*' -ErrorAction SilentlyContinue | Select-Object -Last 1
-    if (-not $report) { return }
-    $coverage = ([xml](Get-Content $report.FullName)).coverage
-    if ([Math]::Min([double]$coverage.'line-rate', [double]$coverage.'branch-rate') * 100 -ge $minCoverage) { return }
-    Write-Host ('  Thermi.Core coverage: lines {0:p0}, branches {1:p0}. The gate is {2} %: add behavior tests for the new code.' -f
-        [double]$coverage.'line-rate', [double]$coverage.'branch-rate', $minCoverage)
+# Each project Thermi.Tests measures against its floor, from the report its run just wrote.
+function Assert-Coverage {
+    $report = Get-ChildItem $results -Filter '*.cobertura.*' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+    $packages = if ($report) { ([xml](Get-Content $report.FullName)).coverage.packages.package }
+    $low = foreach ($name in $coverageFloors.Keys) {
+        $package = $packages | Where-Object name -eq $name
+        $rates = if ($package) { [double]$package.'line-rate', [double]$package.'branch-rate' } else { 0, 0 }
+        if ([Math]::Min($rates[0], $rates[1]) * 100 -lt $coverageFloors[$name]) {
+            '  {0} coverage: lines {1:p0}, branches {2:p0}. Its gate is {3} %: add behavior tests for the new code.' -f
+                $name, $rates[0], $rates[1], $coverageFloors[$name]
+        }
+    }
+    if (-not $low) { return }
+    Write-Host 'FAIL coverage'
+    $low | ForEach-Object { Write-Host $_ }
+    exit 1
 }
 
 # Shown, not gated: what the tests' windows run depends on the PC's monitors, DPI and theme, and a little on timing.

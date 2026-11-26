@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 151 .NET and 0 page cases
+**Budget**: 152 .NET and 0 page cases
 
 thermi installs from a signed MSI, for the whole PC or, with no administrator rights, for one user, and then updates itself the way Chrome does: no prompt, no website, no gap in the overlay. The sensor service checks a signed manifest, downloads the new version beside the running one and switches when the PC is quiet, going back by itself when the new version fails. The owner has levers to stage a release, stop it and take it back within a minute. The service runs as LocalSystem, so it can never be made to run anything but a release signed by thermi's author.
 
@@ -48,6 +48,7 @@ The decisions, the threat model and the alternatives are in `docs/adr/0008-updat
 - R17. The new service passes when it serves a snapshot within 120 polls of its pipe, one a second, and fails when it does not, or when a second run of it ends without stopping within 10 minutes of its switch. A failure takes the PC back to the previous version and marks the failed one, never to be taken again. Sleep never fails a version, nor can any user through thermi; a user who floods its pipe through a probation can fail that one version on that PC (`docs/adr/0008-updates.md`).
 - R18. The service keeps the installed version, the previous one, the one ready and the one the launcher at the top still starts, and deletes every other version's folder once Windows lets it rename that folder aside. It writes its state whole or not at all.
 - R19. A version that finds the settings in a newer format than it reads, with the copy it kept of them in its own format beside them, reads that copy and keeps the newer file beside it.
+- R35. A version keeps what a later one added to the settings without changing their format, in any object of the file, through every edit and undo it writes, so the later version finds it again after a rollback.
 - R20. A service serves the pipe of the release before it: the lines it writes for a recording are held to a golden file, which a change of format must replace on purpose.
 
 ### The owner's levers

@@ -208,11 +208,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
 
     public Task<AgentsView> Agents() => Task.FromResult(WindowAgents.View(_views.Format(_texts), _start.Time.LocalTimeZone));
 
-    public Task Copy(string text)
-    {
-        ClipboardData.WriteText(Window, text);
-        return Task.CompletedTask;
-    }
+    public Task<bool> Copy(string text) => Task.FromResult(ClipboardData.WriteText(Window, text));
 
     // As an import does, once the page's message has been answered.
     public async Task<string?> PasteLook(int overlay)

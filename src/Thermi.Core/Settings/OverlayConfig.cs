@@ -44,6 +44,10 @@ public sealed record ThermiConfig
     public static ThermiConfig New { get; } = new() { Overlays = [OverlayConfig.First] };
 
     public IReadOnlyList<OverlayConfig> Overlays { get; init; } = [new OverlayConfig()];
+
+    /// <summary>What a later version added here, written back as it came.</summary>
+    [JsonExtensionData, JsonInclude]
+    public UnknownFields? Unknown { get; internal set; }
 }
 
 /// <summary>One overlay: its items, where it sits, its look, and when it shows. <see cref="Size"/> is a factor over the monitor's scale.</summary>
@@ -113,6 +117,10 @@ public sealed record OverlayConfig(double Size = 1)
     /// </summary>
     [JsonIgnore]
     public SnapConfig? Snapped => Snap ?? (Position is null ? new SnapConfig(SnapSpot.Taskbar) : null);
+
+    /// <summary>What a later version added here, written back as it came.</summary>
+    [JsonExtensionData, JsonInclude]
+    public UnknownFields? Unknown { get; internal set; }
 
     private static ItemConfig Default(Metric metric, Metric? warnBy = null) => new()
     {
@@ -192,6 +200,10 @@ public sealed record ItemConfig
     /// <summary>True when Windows tells once the item has been critical for a while.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Notify { get; init; }
+
+    /// <summary>What a later version added here, written back as it came.</summary>
+    [JsonExtensionData, JsonInclude]
+    public UnknownFields? Unknown { get; internal set; }
 }
 
 /// <summary>A reading an item warns by: a <see cref="Metric"/>, or a <see cref="Sensor"/> that keeps the metric it came from as <see cref="Auto"/>.</summary>
@@ -202,6 +214,10 @@ public sealed record WarnByConfig
     public string? Sensor { get; init; }
 
     public string? Auto { get; init; }
+
+    /// <summary>What a later version added here, written back as it came.</summary>
+    [JsonExtensionData, JsonInclude]
+    public UnknownFields? Unknown { get; internal set; }
 }
 
 /// <summary>
@@ -211,6 +227,10 @@ public sealed record WarnByConfig
 public sealed record SnapConfig(SnapSpot Spot, string? Monitor = null)
 {
     public int? Offset { get; init; }
+
+    /// <summary>What a later version added here, written back as it came.</summary>
+    [JsonExtensionData, JsonInclude]
+    public UnknownFields? Unknown { get; internal set; }
 }
 
 public sealed record Position(int X, int Y);
@@ -225,6 +245,10 @@ public sealed record HotkeysConfig
     public string? ClickThrough { get; init; }
 
     public string? ResetMinMax { get; init; }
+
+    /// <summary>What a later version added here, written back as it came.</summary>
+    [JsonExtensionData, JsonInclude]
+    public UnknownFields? Unknown { get; internal set; }
 }
 
 [JsonConverter(typeof(ConfigEnum<TemperatureUnit>))]

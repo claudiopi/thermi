@@ -88,6 +88,10 @@ public static class StyleEdits
     public static EditResult SetText(ThermiConfig config, int overlay, TextPart part, TextStyle text) =>
         Restyle(config, overlay, style => part == TextPart.Label ? Customized(style) with { Label = text } : Customized(style) with { Value = text });
 
+    /// <summary>A theme chosen gives the pills back its own color, so choosing one is never hidden under the pills' color.</summary>
+    public static EditResult SetTheme(ThermiConfig config, int overlay, PillTheme theme) =>
+        Restyle(config, overlay, style => style with { Pills = theme, Colors = WithColor(style.Colors ?? new StyleColors(), StyleColor.Background, null) });
+
     /// <summary>Sets the pills' background and the whole overlay's opacity, which leaves the preset as it is.</summary>
     public static EditResult SetOpacity(ThermiConfig config, int overlay, OpacityConfig opacity) =>
         Restyle(config, overlay, style => style with { Opacity = opacity });

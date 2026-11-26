@@ -13,6 +13,7 @@ using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui;
 using Thermi.Windows.Updates;
 using Thermi.Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace Thermi.Windows.Agents;
 
@@ -92,6 +93,10 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     IReadOnlySet<int> IAgentEnvironment.AltGrKeys() => AltGrKeys();
 
     void IAgentEnvironment.Load(CancellationToken stop) => Load(stop);
+
+    // Only a share or a lock another process holds: any other failure is no run under way elsewhere.
+    bool IAgentEnvironment.HeldElsewhere(IOException error) =>
+        (WIN32_ERROR)(error.HResult & 0xFFFF) is WIN32_ERROR.ERROR_SHARING_VIOLATION or WIN32_ERROR.ERROR_LOCK_VIOLATION;
 
     private static bool Exists(string key)
     {

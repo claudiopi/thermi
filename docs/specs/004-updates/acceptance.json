@@ -72,6 +72,13 @@
       "passes": true
     },
     {
+      "id": "A43",
+      "covers": ["R35"],
+      "description": "Given settings of this version holding a member it does not know in each of their objects, when an edit is made and undone, then each written file still holds every one of them.",
+      "check": "WhatALaterVersionAddedSurvivesAnEditAndItsUndo",
+      "passes": true
+    },
+    {
       "id": "A11",
       "covers": ["R20"],
       "description": "Given a recording, when the service writes its pipe's lines for it, then they are the golden file's, byte for byte.",

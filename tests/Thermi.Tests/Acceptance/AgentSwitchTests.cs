@@ -27,7 +27,8 @@ public sealed class AgentSwitchTests : IDisposable
 
     // Every command that would write something, the settings, a look's file, the start at sign-in or the finder's load, is
     // refused before it does while agents only read, and so are an MCP session's edit and undo; an agent may stop agents
-    // changing anything, never let them.
+    // changing anything, never let them. A file that cannot be read says nothing of what the person lets them do, so every
+    // change is refused there too, as for a broken file, and a look's file stays.
     [Theory]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "edit", Rename)]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "look", "save", "Mine", "--overlay", "0")]
@@ -35,18 +36,27 @@ public sealed class AgentSwitchTests : IDisposable
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "start-with-windows", "on")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "find-cpu-fan")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "mcp")]
+    [InlineData(AgentAccess.Read, Refusal.SettingsBroken, "look", "delete", "Calm")]
     [InlineData(AgentAccess.Change, Refusal.AgentsOnlyByPerson, "edit", """{"kind":"thermi","field":"agents","value":"change"}""")]
     [InlineData(AgentAccess.Change, null, "edit", """{"kind":"thermi","field":"agents","value":"read"}""")]
     public async Task AgentsOnlyReadWhenThePersonSaysSo(AgentAccess access, Refusal? refusal, params string[] args)
     {
         var looks = new SavedStyles(ConfigStore.StylesFolder(_rig.Folder.File));
         Assert.Null(looks.Save(new StyleConfig(Gap: 12), "Calm"));
-        _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig { Agents = access }));
+        var broken = refusal == Refusal.SettingsBroken;
+        _rig.Folder.Write(broken ? """{ "version": 6, "agents": "read", """ : ThermiConfigJson.Write(new ThermiConfig { Agents = access }));
         var before = _rig.Folder.Text();
 
         if (args is ["mcp"])
         {
             await RefusedOverMcpAsync();
+        }
+        else if (broken)
+        {
+            var end = await _rig.RunAsync(args);
+
+            Assert.Equal((4, ""), (end.Exit, end.Out));
+            Assert.NotEmpty(end.Error);
         }
         else
         {
@@ -55,12 +65,12 @@ public sealed class AgentSwitchTests : IDisposable
             Assert.Equal(refusal is null ? 0 : 1, end.Exit);
             Assert.Equal(refusal is { } key ? Texts.Key(key) : null, (string?)end.Json["refusal"]);
             Assert.Equal(refusal is { } said ? Texts.English.All[Texts.Key(said)] : "", end.Error.Trim());
+            Assert.Equal(refusal is null ? AgentAccess.Read : access, ThermiConfigJson.Read(_rig.Folder.Text()).Config.Agents);
         }
 
-        Assert.Equal(refusal is null ? AgentAccess.Read : access, ThermiConfigJson.Read(_rig.Folder.Text()).Config.Agents);
         Assert.Equal(refusal is not null, before == _rig.Folder.Text());
         Assert.Equal((false, 0, 1), (_rig.Startup.On, _rig.Loads.Count, looks.List().Count));
-        Assert.Equal(0, (await _rig.RunAsync("config")).Exit);
+        Assert.Equal(broken ? 4 : 0, (await _rig.RunAsync("config")).Exit);
     }
 
     // The settings window's section on a log thermi-cli wrote: six edits, one refused, and an undo; thermi-cli by its name

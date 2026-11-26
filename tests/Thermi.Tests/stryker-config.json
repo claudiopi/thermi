@@ -1,6 +1,5 @@
 {
   "stryker-config": {
-    "project": "Thermi.Core.csproj",
     "test-runner": "mtp",
     "mutation-level": "Standard",
     "test-case-filter": "FullyQualifiedName!~RepoRulesTests",

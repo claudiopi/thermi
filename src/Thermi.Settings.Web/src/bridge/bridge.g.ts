@@ -471,7 +471,7 @@ export interface Bridge {
   restartToUpdate(): Promise<void>;
   open(what: Opened): Promise<void>;
   agents(): Promise<AgentsView>;
-  copy(text: string): Promise<void>;
+  copy(text: string): Promise<boolean>;
   pasteLook(overlay: number): Promise<string | null>;
   snapshot(): Promise<SensorView>;
   history(id: string): Promise<(number | null)[]>;

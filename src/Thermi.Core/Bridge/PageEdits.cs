@@ -80,6 +80,7 @@ public static class PageEdits
     private static EditResult Style(string field, int overlay, ThermiConfig config, JsonElement value) =>
         !StyleFields.Contains(field) ? throw NoField(field)
         : field == "preset" && value.ValueKind != JsonValueKind.Null ? StyleEdits.SetPreset(config, overlay, Read<StylePreset>(value))
+        : field == "pills" ? StyleEdits.SetTheme(config, overlay, value.ValueKind == JsonValueKind.Null ? default : Read<PillTheme>(value))
         : StyleEdits.Restyle(config, overlay, style => Merged(style, field, value));
 
     private static EditResult Item(ItemField edit, ThermiConfig config)

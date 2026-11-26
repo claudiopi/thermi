@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 56 .NET and 1 page cases
+**Budget**: 57 .NET and 1 page cases
 
 thermi exists because AI agents running for hours cooked their owner's PC, so an agent can ask how hot the PC is, back off when it runs hot, and set thermi up for the person. `thermi-cli` gives it the sensors and the settings from a command line or as an MCP server, with or without an overlay on screen, and the person decides in Settings whether agents may change anything. Other programs, a terminal's status bar, an orchestrator that throttles its agents, a desktop widget, read the same sensors through a contract that stays stable, also with the sensors installed alone. The decisions are in `docs/adr/0013-agents-cli-and-mcp.md`.
 
@@ -37,7 +37,7 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 ### The person's say, in the settings window
 
 - R30. Settings has an "AI agents" section, for all of thermi rather than one overlay, beside About. One line says what agents do through thermi: read the sensors, and change the settings by the window's rules. Below it, the command that adds thermi to Claude Code and the JSON that adds it to a client set up by a file, as Claude Desktop, Cursor or VS Code, each with a button that copies it; both name `thermi-cli` as it is when its folder is on the `PATH`, and by its full path when it is not.
-- R31. A switch "Let agents change settings", on by default, is a field of the settings file that undo takes back. Off, every command and MCP tool that writes (`edit`, `look` but `export`, `start-with-windows on` or `off`, `find-cpu-fan`, `undo` and `redo`) is refused with exit 1 and writes nothing, its refusal's key and English text saying the person turned it off in Settings, AI agents; reads still answer. An agent may turn it off, never on: an edit that turns it on is refused, on or off.
+- R31. A switch "Let agents change settings", on by default, is a field of the settings file that undo takes back. Off, every command and MCP tool that writes (`edit`, `look` but `export`, `start-with-windows on` or `off`, `find-cpu-fan`, `undo` and `redo`) is refused with exit 1 and writes nothing, its refusal's key and English text saying the person turned it off in Settings, AI agents; reads still answer. An agent may turn it off, never on: an edit that turns it on is refused, on or off. A settings file that cannot be read, broken, newer or locked, says nothing of the switch, so every write exits 4 and writes nothing, as R13 has an edit do.
 - R32. The section lists the last 5 changes agents made, newest first, from `thermi-agents.log`, each with its time and what it changed, with a link that opens the log; it lists nothing when no agent changed anything.
 
 ### MCP

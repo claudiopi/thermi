@@ -41,5 +41,6 @@ In scope:
 Out of scope:
 
 - What an MCP client or agent the person connected does with thermi's tools: changing thermi's settings is what they are for.
+- An agent that changes the settings file itself, with a shell or file tools of its own. Settings' "Let agents change settings" governs what agents ask `thermi-cli` and its MCP server for; it is no sandbox, and the file is the person's, as everything else they run may write it.
 - An attack that needs administrator rights to begin with.
 - Bugs in [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), the [PawnIO](https://github.com/namazso/PawnIO) driver and the [MCP C# SDK](https://github.com/modelcontextprotocol/csharp-sdk): please report them upstream.
