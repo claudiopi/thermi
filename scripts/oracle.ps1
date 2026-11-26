@@ -5,7 +5,7 @@
     src/Thermi.Settings.Web/tests/oracle/edits.json, has no answer for; Thermi.Windows.Tests' BridgeOracleTests then runs
     those calls through the real WindowBridge and writes its answers into the table. Again, until no test asks for more.
     Check the new answers in the diff: they are what C# does, which the tests then hold the page to.
-    -Prune also drops what no test asks for any longer, after a run of every test.
+    -Prune also drops what no test asks for any longer, after a run of every test in which every test passed.
 #>
 param(
     [switch]$Prune,
@@ -43,6 +43,7 @@ for ($round = 1; $round -le $Rounds; $round++) {
     try {
         $only = $every ? @() : @('--last-failed')
         npx playwright test --reporter=dot @only | Out-Host
+        $passed = $LASTEXITCODE -eq 0
     }
     finally {
         Pop-Location
@@ -55,6 +56,11 @@ for ($round = 1; $round -le $Rounds; $round++) {
     }
 
     if (-not $asked) {
+        # A test that failed stopped before its last calls, which then read as asked by none: pruning would drop them.
+        if ($Prune -and -not $passed) {
+            Write-Host 'FAIL oracle: a test failed, so what it asks the real bridge is not known whole; nothing was pruned.'
+            exit 1
+        }
         if ($Prune) { Invoke-Answers 'prune' }
         Write-Host 'ok   oracle: no test asks the real bridge for more'
         exit 0
