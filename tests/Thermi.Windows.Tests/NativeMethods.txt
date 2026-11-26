@@ -11,7 +11,8 @@ DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
 EVENT_OBJECT_SHOW
 GetCurrentThreadId
 PostThreadMessage
-// What a window shows and where a click lands
+// What a window shows and where a click lands, a layered one's picture as Windows composes it
+PrintWindow
 WindowFromPoint
 IsWindowVisible
 EnumWindows

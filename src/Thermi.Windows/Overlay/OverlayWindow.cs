@@ -53,10 +53,6 @@ internal sealed class OverlayWindow : IDisposable
     private OverlayScene? _scene;
     private PaintedOverlay? _painted;
 
-#pragma warning disable CA2213 // The painter owns the bitmap, draws it again while its size holds, and disposes it.
-    private Bitmap? _shown;
-#pragma warning restore CA2213
-
     /// <summary>Whether a value's tooltip may show now, which Windows' tooltip control never says itself.</summary>
     internal bool TipsShow => _tips.Speaks;
 
@@ -206,7 +202,6 @@ internal sealed class OverlayWindow : IDisposable
         OverlayGestures.HoldCorner(bitmap, overlay, scale);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
-        _shown = bitmap;
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
         var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
@@ -391,9 +386,6 @@ internal sealed class OverlayWindow : IDisposable
 
     /// <summary>The overlay as last painted, afresh without what only the window or a broken file adds; "Sensors stopped" while they are.</summary>
     internal Bitmap? Picture() => _painted is { } painted && _scene is not null ? painted.Picture(Translations.Of(OverlayText.SensorsStopped)) : null;
-
-    /// <summary>A copy of what it last showed, a drag's marks included, the caller's to dispose: Windows hands no layered window's pixels back.</summary>
-    internal Bitmap? ShownPicture() => _shown?.Clone(new Rectangle(0, 0, _shown.Width, _shown.Height), _shown.PixelFormat);
 
     internal void UndoGesture() => _gestures.Undo();
 }

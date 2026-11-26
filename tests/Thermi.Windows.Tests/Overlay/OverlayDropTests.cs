@@ -27,7 +27,7 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
             var held = host.Overlays[1];
             MoveTo(host, held, Middle(held.Hwnd), PInvoke.WM_LBUTTONDOWN);
             MoveTo(host, held, DroppedAt(host, "merge", Nowhere));
-            using var shown = host.Overlays[0].ShownPicture()!;
+            using var shown = Picture(host.Overlays[0].Hwnd);
             ring = shown.GetPixel(shown.Width / 2, 1);
             End(host, held.Hwnd, "esc");
         });
@@ -118,15 +118,15 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
 
         return speaks;
     }
+
     // The 12 columns of pixels from x on of what the overlay shows, as ARGB.
     private static List<int> Column(OverlayWindow overlay, int x)
     {
-        using var picture = overlay.ShownPicture()!;
+        using var picture = Picture(overlay.Hwnd);
         return [.. Enumerable.Range(x, 12).SelectMany(at => Enumerable.Range(0, picture.Height).Select(y => picture.GetPixel(at, y).ToArgb()))];
     }
 
     private static OverlayWindow? Under(OverlayHost host, Position at) =>
         host.Overlays.FirstOrDefault(overlay => overlay.OnScreen && PInvoke.GetWindowRect(overlay.Hwnd, out var rect)
             && at.X >= rect.left && at.X < rect.right && at.Y >= rect.top && at.Y < rect.bottom);
-
 }

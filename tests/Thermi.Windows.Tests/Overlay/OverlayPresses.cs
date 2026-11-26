@@ -1,3 +1,5 @@
+using System.Drawing;
+using System.Drawing.Imaging;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -6,6 +8,8 @@ using Thermi.Windows.Gestures;
 using Thermi.Windows.Overlay;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Gdi;
+using Windows.Win32.Storage.Xps;
 
 namespace Thermi.Windows.Tests.Overlay;
 
@@ -141,6 +145,28 @@ public abstract class OverlayPresses
             },
             0);
         return shown;
+    }
+
+    // PW_RENDERFULLCONTENT, which Windows' metadata leaves out of the flags.
+    private const PRINT_WINDOW_FLAGS RenderFullContent = (PRINT_WINDOW_FLAGS)2;
+
+    // What the window shows, as Windows composes it: a layered window's picture, which no other call hands back.
+    private protected static Bitmap Picture(HWND window)
+    {
+        PInvoke.GetWindowRect(window, out var rect);
+        var picture = new Bitmap(rect.right - rect.left, rect.bottom - rect.top, PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(picture);
+        var dc = graphics.GetHdc();
+        try
+        {
+            TestPInvoke.PrintWindow(window, new HDC(dc), RenderFullContent);
+        }
+        finally
+        {
+            graphics.ReleaseHdc(dc);
+        }
+
+        return picture;
     }
 
     private protected static Position Corner(HWND window) =>
