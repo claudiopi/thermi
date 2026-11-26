@@ -49,6 +49,8 @@ public sealed class AgentEditTests
         Assert.Equal(new Threshold(critical: 90), critical.Overlays[0].Items[0].Threshold);
         Assert.Equal(config.Overlays[0].Items[0].Threshold, Edit("""{"kind":"resetLines","item":"cpu.temperature"}""", lines).Overlays[0].Items[0].Threshold);
         Assert.Equal(ThermiConfigJson.Write(config), ThermiConfigJson.Write(Edit("""{"kind":"reset"}""", Edit("""{"kind":"newOverlay"}""", lines))));
+        // A move however far stops at the end.
+        Assert.Equal("cpu.load", Edit("""{"kind":"moveItem","item":"cpu.load","by":2147483647}""", config).Overlays[0].Items[^1].Id);
         Assert.All(NoEdits(), json => Assert.Throws<AgentInputException>(() => Edit(json, config)));
         (string Json, Refusal Refusal)[] refused =
         [
