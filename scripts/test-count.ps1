@@ -157,28 +157,61 @@ foreach ($half in $cases.Keys) {
 
 # The change is what the working tree changed since the last commit, or, with nothing changed, that commit: a change
 # that raises the baseline raises it alone, so a raise inside a commit of other work fails. Its baseline is compared with
-# the one before it, the last commit's or its parent's; in a pull request's run that is its base branch's. With no
-# baseline there, no raise could be seen, so that fails too: main holds the baseline before any branch raises it.
-$changed = @(git -C $root status --porcelain 2>$null)
-$from = if ($changed) { 'HEAD' } elseif (git -C $root rev-parse --verify --quiet 'HEAD~1' 2>$null) { 'HEAD~1' }
-if (-not $from) {
-    $failed += 'git has no commit before this one to compare the baseline with: fetch two commits at least (fetch-depth: 2).'
-}
-else {
-    $before = git -C $root show "${from}:$baselineFile" 2>$null | ConvertFrom-Json
+# the one before it, the last commit's or its first parent's; in a pull request's run, GitHub's merge of it into its base
+# branch, that is the base branch's. A merge, made or under way, brings in its other side's work along with that side's
+# raise, so the raise passes when each commit there that raised it raised it alone; a merge that holds more than any of
+# its parents raised it itself, and fails. With no baseline before, no raise could be seen, so that fails too: main holds
+# the baseline before any branch raises it.
+function Get-RaiseFaults([string]$Root, $Baseline, [string[]]$Halves, [string]$File = 'tests/test-count.json') {
+    $changed = @(git -C $Root status --porcelain 2>$null)
+    $from = if ($changed) { 'HEAD' } elseif (git -C $Root rev-parse --verify --quiet 'HEAD~1' 2>$null) { 'HEAD~1' }
+    if (-not $from) { return 'git has no commit before this one to compare the baseline with: fetch the whole history (fetch-depth: 0).' }
+    $before = Read-Baseline $Root $from $File
     if (-not $before) {
-        $failed += ("$from has no $baselineFile, so a raise cannot be seen: commit the baseline to main in a change of its own " +
-            'before a branch raises it.')
+        return "$from has no $File, so a raise cannot be seen: commit the baseline to main in a change of its own before a branch raises it."
     }
-    $raised = foreach ($half in $cases.Keys) { if ($before -and $before.$half -lt $baseline.$half) { $half } }
-    if ($raised) {
-        $others = @(git -C $root diff --name-only $from) + @(git -C $root ls-files --others --exclude-standard) | Where-Object { $_ -ne $baselineFile }
+    $raised = @($Halves | Where-Object { $before.$_ -lt $Baseline.$_ })
+    if (-not $raised) { return }
+    $sides = if ($changed) { @(git -C $Root rev-parse --verify --quiet MERGE_HEAD 2>$null) } else { @(git -C $Root rev-parse 'HEAD^@' | Select-Object -Skip 1) }
+    if (-not $sides) {
+        $others = @(git -C $Root diff --name-only $from) + @(git -C $Root ls-files --others --exclude-standard) | Where-Object { $_ -ne $File }
         if ($others) {
-            $failed += "This change raises the baseline of $($raised -join ' and ') in $baselineFile along with other files."
-            $failed += 'Raise it in a change of its own, which a person approves.'
+            return ("This change raises the baseline of $($raised -join ' and ') in $File along with other files: " +
+                'raise it in a change of its own, which a person approves.')
+        }
+        return
+    }
+    if ((git -C $Root rev-parse --is-shallow-repository) -eq 'true') {
+        return "This merge raises the baseline in $File, and a shallow clone cannot show where: fetch the whole history (fetch-depth: 0)."
+    }
+    foreach ($half in $raised) {
+        $side = $sides | Where-Object { (Read-Baseline $Root $_ $File).$half -eq $Baseline.$half } | Select-Object -First 1
+        if (-not $side) { "This merge raises the baseline of $half in $File above all its parents': raise it in a change of its own, which a person approves." }
+        else { Get-SideRaiseFaults $Root $side $from $half $File }
+    }
+}
+
+function Read-Baseline([string]$Root, [string]$Commit, [string]$File) {
+    git -C $Root show "${Commit}:$File" 2>$null | ConvertFrom-Json
+}
+
+# The commits a merge brings in from $Side that raise $Half's baseline, each of which must touch nothing else.
+function Get-SideRaiseFaults([string]$Root, [string]$Side, [string]$From, [string]$Half, [string]$File) {
+    $raises = @(git -C $Root rev-list --no-merges $Side "^$From" -- $File | Where-Object {
+            (Read-Baseline $Root "$_~1" $File).$Half -lt (Read-Baseline $Root $_ $File).$Half
+        })
+    if (-not $raises) {
+        return "This merge raises the baseline of $Half in $File, and no commit it brings in raised it alone: raise it in a change of its own."
+    }
+    foreach ($commit in $raises) {
+        if (git -C $Root diff-tree --no-commit-id --name-only -r $commit | Where-Object { $_ -ne $File }) {
+            "$(git -C $Root log -1 --format='%h "%s"' $commit), which this merge brings in, raises the baseline of $Half in $File along with other files: " +
+                'raise it in a change of its own, which a person approves.'
         }
     }
 }
+
+$failed += @(Get-RaiseFaults $root $baseline @($cases.Keys))
 
 if ($failed) {
     $failed | ForEach-Object { Write-Host $_ }
