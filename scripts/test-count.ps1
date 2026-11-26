@@ -24,6 +24,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $baselineFile = 'tests/test-count.json'
 $web = Join-Path $root 'src' 'Thermi.Settings.Web'
 . (Join-Path $PSScriptRoot 'rows.ps1')
+. (Join-Path $PSScriptRoot 'sources.ps1')
 # The most rows a table holds without saying why: the 95th percentile of the tables once their redundant rows were cut.
 $rowCap = 17
 $halfNames = @{ dotnet = '.NET'; web = 'page' }
@@ -87,7 +88,7 @@ function Test-TableSaysWhy($Case) {
         $class, $method = $Case.Table -split '\.(?=[^.]+$)'
         $class = $class -replace '^.*\.', ''
         $test = "\[Theory\b[^\n]*\n((?!\s*public\s)[^\n]*\n)*?\s*public\s+(async\s+)?(void|Task)\s+$method\s*\("
-        foreach ($file in Get-ChildItem $Case.Folder -Recurse -Filter '*.cs' | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' }) {
+        foreach ($file in Get-SourceFiles $Case.Folder) {
             $source = (Get-Content $file.FullName -Raw) -replace "`r", ''
             if ($source -notmatch "\bclass\s+$class\b" -or $source -notmatch $test) { continue }
             $at = ($source.Substring(0, $source.IndexOf($Matches[0], [StringComparison]::Ordinal)) -split "`n").Count - 1

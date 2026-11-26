@@ -45,7 +45,7 @@ public sealed partial class RepoRulesTests
     public void EveryoneNamesThermisProgramsAsTheLayoutDoes()
     {
         var programs = string.Join(", ", InstallLayout.Programs.Select(program => $"'{program}'"));
-        string[] listed = [.. Directory.EnumerateFiles(Path.Combine(Root, "src"), "*.cs", SearchOption.AllDirectories)
+        string[] listed = [.. FilesUnder(Path.Combine(Root, "src")).Where(file => file.EndsWith(".cs", StringComparison.Ordinal))
             .Where(file => File.ReadAllText(file).Contains("GetProcessesByName(\"thermi", StringComparison.Ordinal))
             .Select(file => Path.GetRelativePath(Root, file))];
 

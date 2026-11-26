@@ -303,7 +303,8 @@ public sealed partial class RepoRulesTests
     private static IEnumerable<string> RepoFiles(string[] extensions) =>
         FilesUnder(Root).Where(path => extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase));
 
-    // Skipped folders are never entered: node_modules alone holds thousands of files.
+    // Skipped folders are never entered: node_modules alone holds thousands of files, and a walk through bin holds open
+    // the folders that the Windows tests, run beside these, are moving there.
     private static IEnumerable<string> FilesUnder(string folder) =>
         Directory.EnumerateFiles(folder).Concat(Directory.EnumerateDirectories(folder)
             .Where(child => !SkippedFolders.Contains(Path.GetFileName(child), StringComparer.OrdinalIgnoreCase))

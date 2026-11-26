@@ -27,9 +27,8 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void TestsMakeWindowsAndProcessesOnlyOnADesktopOfTheirOwn()
     {
-        var tests = Directory.EnumerateFiles(Path.Combine(Root, "tests"), "*.cs", SearchOption.AllDirectories)
-            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+        var tests = FilesUnder(Path.Combine(Root, "tests"))
+            .Where(file => file.EndsWith(".cs", StringComparison.Ordinal))
             .Select(file => (Name: Path.GetFileName(file), Text: File.ReadAllText(file)))
             .Where(file => file.Name != "RepoRulesTests.Desktop.cs")
             .ToList();

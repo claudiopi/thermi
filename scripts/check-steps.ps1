@@ -1,4 +1,5 @@
 # Dot-sourced by scripts/check.ps1: how a step runs and reports, alone or beside others, and the coverage it shows.
+. (Join-Path $PSScriptRoot 'sources.ps1')
 
 # The Windows tests' collection whose test spins every core: it runs after the rest, which would only measure its load.
 $underLoad = 'FullLoadTests'
@@ -78,8 +79,7 @@ function Show-Errors([string[]]$Output) {
 # The classes of the Windows tests' collections that run one test at a time, as their tests count the whole process's
 # handles or windows: those run in a process of their own, beside the rest, and the one under load after both.
 function Get-AloneClasses {
-    $texts = Get-ChildItem (Join-Path $root 'tests' 'Thermi.Windows.Tests') -Recurse -Filter '*.cs' |
-        Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' } | ForEach-Object { Get-Content $_.FullName -Raw }
+    $texts = Get-SourceFiles (Join-Path $root 'tests' 'Thermi.Windows.Tests') | ForEach-Object { Get-Content $_.FullName -Raw }
     $alone = $texts | ForEach-Object { [regex]::Matches($_, 'CollectionDefinition\(nameof\((\w+)\), DisableParallelization = true\)') } |
         ForEach-Object { $_.Groups[1].Value }
     $classes = foreach ($text in $texts) {
