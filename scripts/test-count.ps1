@@ -140,7 +140,7 @@ foreach ($spec in Get-Specs) {
     foreach ($half in $cases.Keys) {
         $count = @($cases[$half] | Where-Object { $_.Names | Where-Object { $spec.Tests -contains $_ } }).Count
         $budget = $spec.Budget.$half
-        $measured += "summary: ``$($spec.Name)``: $count of its budget of $budget"
+        if ($budget) { $measured += "summary: ``$($spec.Name)``: $count of its budget of $budget" }
         if ($count -gt $budget) {
             $failed += ("$($spec.Name)'s tests have $count $($halfNames[$half]) cases, over the budget of $budget its spec.md declares: " +
                 'merge rows and cut what another case proves, or ask the person who approved the spec to raise it.')

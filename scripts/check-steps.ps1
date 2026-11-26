@@ -128,7 +128,7 @@ function Assert-Coverage {
     $low = foreach ($name in $coverageFloors.Keys) {
         $package = $packages | Where-Object name -eq $name
         $rates = if ($package) { [double]$package.'line-rate', [double]$package.'branch-rate' } else { 0, 0 }
-        $shown += '{0}: lines {1:p0}, branches {2:p0}, floor {3} %' -f $name, $rates[0], $rates[1], $coverageFloors[$name]
+        $shown += '{0}: lines {1:n0} %, branches {2:n0} %, floor {3} %' -f $name, ($rates[0] * 100), ($rates[1] * 100), $coverageFloors[$name]
         if ([Math]::Min($rates[0], $rates[1]) * 100 -lt $coverageFloors[$name]) {
             '  {0} coverage: lines {1:p0}, branches {2:p0}. Its gate is {3} %: add behavior tests for the new code.' -f
                 $name, $rates[0], $rates[1], $coverageFloors[$name]
