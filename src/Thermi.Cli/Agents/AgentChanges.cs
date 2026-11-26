@@ -34,7 +34,7 @@ internal sealed partial class AgentCommands
     // A file that cannot be read, broken, newer or locked, says nothing of what the person lets agents do: nothing changes.
     private async Task<AgentReply?> HeldAsync()
     {
-        var settings = await SettingsAsync();
+        var settings = await SettledAsync();
         return settings.Problem is { } problem ? Broken(problem)
             : AgentRules.Refused(settings.Config) is { } refused ? Refused(refused)
             : null;

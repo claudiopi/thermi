@@ -34,10 +34,10 @@ public static class PageEdits
         ItemFieldEdit item => config => Item(new ItemField(item.Field, item.Item, item.Value, snapshot), config),
         AddItemEdit add => config => ItemEdits.AddSensor(config, add.Overlay, snapshot, add.Sensor, texts),
         RemoveItemEdit remove => config => ItemEdits.Delete(config, remove.Item),
-        MoveItemEdit move => config => Move(config, move),
-        DropItemEdit drop => config => ItemEdits.DropItem(config, drop.Item, drop.Overlay, drop.Before, drop.Apart),
-        MovePillEdit pill => config => ItemEdits.MovePill(config, pill.Item, pill.By),
-        DropPillEdit drop => config => OverlayEdits.PillInto(config, drop.Item, drop.Overlay, drop.Before),
+        MoveItemEdit move => config => Moved(config, ItemEdits.MoveBy(config, move.Item, move.By)),
+        DropItemEdit drop => config => Moved(config, ItemEdits.DropItem(config, drop.Item, drop.Overlay, drop.Before, drop.Apart)),
+        MovePillEdit pill => config => Moved(config, ItemEdits.MovePill(config, pill.Item, pill.By)),
+        DropPillEdit drop => config => Moved(config, OverlayEdits.PillInto(config, drop.Item, drop.Overlay, drop.Before)),
         NewOverlayEdit => OverlayEdits.Add,
         DuplicateOverlayEdit duplicate => config => OverlayEdits.Duplicate(config, duplicate.Overlay),
         MergeOverlayEdit merge => config => OverlayEdits.Merge(config, merge.Overlay, merge.Into),
@@ -74,7 +74,7 @@ public static class PageEdits
         "hidden" => OverlayEdits.SetHidden(config, overlay, Flag(value)),
         "visibility" => OverlayEdits.SetVisibility(config, overlay, Read<Visibility>(value)),
         "graph" => OverlayEdits.SetGraph(config, overlay, Read<GraphStyle>(value)),
-        "snap" => OverlayEdits.Snap(config, overlay, value.Deserialize<SnapConfig>(BridgeCalls.Options) ?? throw NoField(field)),
+        "snap" => OverlayEdits.Snap(config, overlay, Snap(config, overlay, value)),
         _ => throw NoField(field),
     };
 
@@ -94,11 +94,7 @@ public static class PageEdits
             "name" => ItemEdits.Rename(config, id, Text(value) ?? ""),
             "label" => ItemEdits.RenamePill(config, id, Text(value) ?? ""),
             "sensor" => Text(value) is { } sensor ? ItemEdits.ChangeSensor(config, id, snapshot, sensor) : ItemEdits.BackToAuto(config, id),
-            "warnBy" => ItemEdits.SetWarnBy(
-                config,
-                id,
-                snapshot,
-                value.ValueKind == JsonValueKind.Null ? null : value.Deserialize<WarnByConfig>(BridgeCalls.Options)),
+            "warnBy" => ItemEdits.SetWarnBy(config, id, snapshot, WarnBy(config, id, value)),
             "own" => ItemEdits.SetOwn(config, id, Flag(value)),
             "tray" => ItemEdits.SetTray(config, id, Flag(value)),
             "color" => ItemEdits.SetColor(config, id, Text(value)),
@@ -137,15 +133,21 @@ public static class PageEdits
             fields[field] = set;
         }
 
-        return fields.Deserialize<StyleConfig>(BridgeCalls.Options) ?? style;
+        return UnknownFields.Kept(fields.Deserialize<StyleConfig>(BridgeCalls.Options) ?? style, style);
     }
 
-    // An item moved to another overlay, or to one of its own, goes to its end there, then to its place.
-    private static EditResult Move(ThermiConfig config, MoveItemEdit move)
-    {
-        var moved = OverlayEdits.MoveItem(config, move.Item, move.Overlay);
-        return moved.Refused is null ? ItemEdits.Move(moved.Config, move.Item, move.Index) : moved;
-    }
+    private static SnapConfig Snap(ThermiConfig config, int overlay, JsonElement value) =>
+        UnknownFields.Kept(value.Deserialize<SnapConfig>(BridgeCalls.Options) ?? throw NoField("snap"), config.Overlays.ElementAtOrDefault(overlay)?.Snap);
+
+    private static WarnByConfig? WarnBy(ThermiConfig config, string id, JsonElement value) =>
+        UnknownFields.Kept(
+            value.ValueKind == JsonValueKind.Null ? null : value.Deserialize<WarnByConfig>(BridgeCalls.Options),
+            ConfigEdits.Item(config, id)?.WarnBy);
+
+    // The page says a move once it shows, so one that moves nothing says so, or the page would wait for it and say it
+    // at the next change of anything else.
+    private static EditResult Moved(ThermiConfig before, EditResult move) =>
+        move.Refused is null && ConfigEdits.Replay(before, move.Config) is null ? ConfigEdits.Refuse(before, Refusal.NotMoved) : move;
 
     private static string? Text(JsonElement value) => value.ValueKind == JsonValueKind.Null ? null : value.GetString();
 

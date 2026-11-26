@@ -55,6 +55,10 @@ internal sealed class ValueTips : IDisposable
     private DropQuiet? _quiet;
     private long? _heard;
 
+    // A tooltip shows again only once no hush holds, so a drop's quiet ending mid-press, or a menu closing within it,
+    // frees nothing the others hold.
+    private Hush _hush;
+
     public unsafe ValueTips(HWND owner)
     {
         _owner = owner;
@@ -174,17 +178,19 @@ internal sealed class ValueTips : IDisposable
     }
 
     /// <summary>Whether a tooltip may show now.</summary>
-    public bool Speaks { get; private set; } = true;
+    public bool Speaks => _hush == Hush.None;
 
-    /// <summary>Hides the tooltip and shows none while the overlay is dragged or its menu shows, which it would cover.</summary>
-    public void Quiet(bool quiet)
+    /// <summary>
+    /// Hides the tooltip and shows none while the overlay is pressed or dragged, its menu shows, which it would cover, or a
+    /// drop's quiet lasts, until none of them does.
+    /// </summary>
+    public void Quiet(Hush why, bool quiet)
     {
+        _hush = quiet ? _hush | why : _hush & ~why;
         if (!_tips.IsNull)
         {
-            PInvoke.SendMessage(_tips, PInvoke.TTM_ACTIVATE, quiet ? 0u : 1u, 0);
+            PInvoke.SendMessage(_tips, PInvoke.TTM_ACTIVATE, Speaks ? 1u : 0u, 0);
         }
-
-        Speaks = !quiet;
     }
 
     /// <summary>
@@ -199,7 +205,7 @@ internal sealed class ValueTips : IDisposable
         }
 
         (_heard, _quiet) = (drop.At, drop);
-        Quiet(true);
+        Quiet(Hush.Drop, true);
         var track = new TRACKMOUSEEVENT { cbSize = (uint)sizeof(TRACKMOUSEEVENT), dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE, hwndTrack = _owner };
         PInvoke.TrackMouseEvent(ref track);
         Wake(drop.Left);
@@ -230,7 +236,7 @@ internal sealed class ValueTips : IDisposable
     private void Speak()
     {
         _quiet = null;
-        Quiet(false);
+        Quiet(Hush.Drop, false);
     }
 
     private void Wake(TimeSpan after) => PInvoke.SetTimer(_owner, QuietTimer, (uint)Math.Ceiling(after.TotalMilliseconds), null);
@@ -288,4 +294,14 @@ internal sealed class ValueTips : IDisposable
             PInvoke.SendMessage(_tips, message, 0, (nint)(&tool));
         }
     }
+}
+
+/// <summary>What holds an overlay's tooltips quiet.</summary>
+[Flags]
+internal enum Hush
+{
+    None = 0,
+    Press = 1,
+    Menu = 2,
+    Drop = 4,
 }

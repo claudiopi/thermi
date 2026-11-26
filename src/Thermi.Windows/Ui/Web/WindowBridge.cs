@@ -340,6 +340,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     {
         _finder.Dispose();
         _watch.Dispose();
+        _views.Dispose();
     }
 
     // What reads the readings waits for the first ones, as PageWatch says.

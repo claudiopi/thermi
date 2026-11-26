@@ -2,9 +2,9 @@
 # Several checks at once, each in a worktree of its own, make the PC slow to type on. So a check or a test run goes to
 # idle priority, and so does all it starts, since Windows gives a child its parent's idle class: below normal would still
 # outrank the apps that drop to idle while they wait in the background, as a terminal's renderer, which then answers
-# the keyboard a second late once it comes back to the front. And one .NET half and one page's half run at a time on the
-# machine, each under a name that is the same in every worktree, so a check of both runs its halves side by side. The
-# CI's machine runs nothing else.
+# the keyboard a second late once it comes back to the front. The page tests' browsers alone go to below normal, which
+# playwright.config.ts explains. And one .NET half and one page's half run at a time on the machine, each under a name
+# that is the same in every worktree, so a check of both runs its halves side by side. The CI's machine runs nothing else.
 function Enter-Check([ValidateSet('dotnet', 'web')][string]$Half) {
     $self = [Diagnostics.Process]::GetCurrentProcess()
     $script:priority = $self.PriorityClass
@@ -27,10 +27,15 @@ function Enter-Check([ValidateSet('dotnet', 'web')][string]$Half) {
 
 # The compiler server and MSBuild's reused nodes serve every build after the one that started them, at that one's
 # priority: one a build at normal priority left running would compile this check's code at normal priority. They are
-# lowered as the check starts; those the check starts are idle already. Lowering keeps them, and builds fast.
+# lowered as the check starts; those the check starts are idle already. Lowering keeps them, and builds fast. Only the
+# servers of the SDK in global.json serve the check, so Visual Studio's and other SDKs' keep the priority of the builds
+# they serve.
 function Limit-BuildServers {
-    Get-CimInstance Win32_Process -Filter "Name = 'VBCSCompiler.exe' OR Name = 'dotnet.exe' OR Name = 'MSBuild.exe'" |
-        Where-Object { $_.Name -eq 'VBCSCompiler.exe' -or $_.CommandLine -match 'VBCSCompiler\.dll|/nodemode' } |
+    Push-Location (Split-Path $PSScriptRoot -Parent)
+    $sdk = [regex]::Escape("\sdk\$(dotnet --version)\")
+    Pop-Location
+    Get-CimInstance Win32_Process -Filter "Name = 'VBCSCompiler.exe' OR Name = 'dotnet.exe'" |
+        Where-Object { $_.CommandLine -match $sdk -and ($_.Name -eq 'VBCSCompiler.exe' -or $_.CommandLine -match 'VBCSCompiler\.dll|/nodemode') } |
         ForEach-Object {
             $server = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
             # Another user's server, or one that just ended, is left as it is.

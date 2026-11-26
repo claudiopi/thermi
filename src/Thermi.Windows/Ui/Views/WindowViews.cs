@@ -9,6 +9,7 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
+using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Ui.Views;
@@ -22,9 +23,12 @@ namespace Thermi.Windows.Ui.Views;
 /// <param name="sensors">The readings now, null while none are fresh.</param>
 /// <param name="readings">What the window has read since it opened.</param>
 /// <param name="history">The window's history of its items, which takes the overlay's, so each value is the overlay's.</param>
-internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Readings readings, ItemHistory history)
+internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Readings readings, ItemHistory history) : IDisposable
 {
     private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
+
+    // One painter for each overlay, kept from one reading to the next, as each overlay's window keeps its own.
+    private readonly List<Painter> _painters = [];
 
     /// <summary>A fresh snapshot, kept for the catalog's last minute.</summary>
     public void Arrived()
@@ -75,7 +79,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         return new WindowView(pills, items, Values(snapshot, Format(texts)), Mark(config, snapshot, texts))
         {
             Colors = [.. config.Overlays.Select(overlay => LookColors.Of(OverlayLook.Of(overlay.Style, light)))],
-            Fitted = OverlayPlaces.Fitted(config, Input(texts), screens),
+            Fitted = OverlayPlaces.Fitted(config, Input(texts), screens, PainterOf),
         };
     }
 
@@ -105,6 +109,18 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
     /// </summary>
     public EditResult Settled(ThermiConfig before, ThermiConfig after, Texts texts, IReadOnlyList<Screen> screens) =>
         OverlayPlaces.Settled(before, after, Input(texts), screens);
+
+    public void Dispose() => _painters.ForEach(painter => painter.Dispose());
+
+    private Painter PainterOf(int overlay)
+    {
+        while (_painters.Count <= overlay)
+        {
+            _painters.Add(new Painter());
+        }
+
+        return _painters[overlay];
+    }
 
     private TrayInput Input(Texts texts) =>
         new(sensors.Latest, sensors.State, CultureInfo.CurrentCulture, texts, LightTaskbar: false, ExePath: "") { WindowOpen = true };

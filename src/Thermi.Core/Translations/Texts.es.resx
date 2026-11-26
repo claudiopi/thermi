@@ -1610,6 +1610,9 @@
   <data name="Refusal.NoRoomOnTaskbar" xml:space="preserve">
     <value>En esa barra de tareas no hay espacio para esta superposición a su tamaño.</value>
   </data>
+  <data name="Refusal.NotMoved" xml:space="preserve">
+    <value>Ya está ahí, así que no se movió nada.</value>
+  </data>
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi no tiene traducción a ese idioma.</value>
   </data>

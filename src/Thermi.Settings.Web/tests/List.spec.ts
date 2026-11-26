@@ -78,6 +78,9 @@ test('TheListWorksWithTheKeyboard', async ({ page }) => {
     { name: 'letters go to the next row they start', keys: [], type: cpuLoad.slice(0, 5), selected: cpuLoad },
     { name: 'F2 renames and Enter keeps it', keys: ['F2'], type: 'Cores', check: (settings) => itemOf(settings, 'cpu.load').name, expected: 'Cores' },
     { name: 'Esc puts the name back', keys: ['F2'], type: 'Other', check: (settings) => itemOf(settings, 'cpu.load').name, expected: 'Cores' },
+    // Cold review: a move that moved nothing was said, and its row selected, at the next edit of anything.
+    { name: 'Alt+Up on the first pill moves nothing', keys: ['ArrowLeft', 'Alt+ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowDown'], selected: 'Cores' },
+    { name: 'and the next edit keeps the selection', keys: ['F2'], type: 'CPU cores', selected: 'CPU cores' },
     { name: 'Alt+Down moves the item within its overlay', keys: ['Alt+ArrowDown'], check: (settings) => ids(settings, 0).indexOf('cpu.load'), expected: 3 },
     { name: 'Alt+Up moves it back', keys: ['Alt+ArrowUp'], check: (settings) => ids(settings, 0).indexOf('cpu.load'), expected: 2 },
     { name: 'Shift+F10 opens the row menu and Esc gives the row back', keys: ['Shift+F10'], then: async (on) => {

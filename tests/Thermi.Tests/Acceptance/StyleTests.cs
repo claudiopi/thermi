@@ -161,8 +161,8 @@ public sealed class StyleTests
         }
     }
 
-    // Below 30 % what shows behind the text is what is behind the overlay, so Light or Dark pills there take the taskbar's
-    // mode, as System's do: their text, unlit meter segments and shadow read on a dark taskbar as on a light one.
+    // Below 30 % what shows behind the text is what is behind the overlay, so Light, Dark or own-colored pills there take the
+    // taskbar's mode, as System's do: their text, unlit meter segments and shadow read on a dark taskbar as on a light one.
     [Fact]
     public void BelowThirtyPercentTheTextGetsAShadow()
     {
@@ -174,13 +174,15 @@ public sealed class StyleTests
         Assert.Equal([TextEffect.Shadow, TextEffect.Shadow, TextEffect.None, TextEffect.None], effects);
         Assert.Equal(TextEffect.Outline, Look(outlined).Effect);
         Assert.Equal((0.0, 1.0), (Look(outlined).Background, Look(outlined).Opacity));
-        foreach (var (pills, light) in new[] { (PillTheme.Light, false), (PillTheme.Dark, true) })
+        foreach (var (pills, own, light) in new[] { (PillTheme.Light, null, false), (PillTheme.Dark, null, true), (PillTheme.Dark, "#FFFFFF", false) })
         {
-            var look = Look(Done(StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills, Opacity = new OpacityConfig(0.2) })), light);
+            var colors = own is null ? null : new StyleColors { Background = own };
+            var faint = Done(StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills, Opacity = new(0.2), Colors = colors }));
+            var (look, name) = (Look(faint, light), own ?? pills.ToString());
             var behind = Core.Tray.Taskbar.Of(light).Background;
-            Assert.True(
-                look.LabelColor.Color.ContrastWith(behind) >= PillColors.TextContrast, $"{pills} pills' label on a {(light ? "light" : "dark")} taskbar.");
-            Assert.True(look.Pills.Outer.ContrastWith(look.ValueColor.Color) >= PillColors.TextContrast, $"{pills} pills' shadow under their values.");
+            var on = light ? "light" : "dark";
+            Assert.True(look.LabelColor.Color.ContrastWith(behind) >= PillColors.TextContrast, $"{name} pills' label on a {on} taskbar.");
+            Assert.True(look.Pills.Outer.ContrastWith(look.ValueColor.Color) >= PillColors.TextContrast, $"{name} pills' shadow under their values.");
         }
     }
 

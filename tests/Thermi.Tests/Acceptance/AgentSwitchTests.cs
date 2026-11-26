@@ -28,13 +28,14 @@ public sealed class AgentSwitchTests : IDisposable
     // Every command that would write something, the settings, a look's file, the start at sign-in or the finder's load, is
     // refused before it does while agents only read, and so are an MCP session's edit and undo; an agent may stop agents
     // changing anything, never let them. A file that cannot be read says nothing of what the person lets them do, so every
-    // change is refused there too, as for a broken file, and a look's file stays.
+    // change is refused there too, as for a broken file, and a look's file stays. A file missing while an editor saves it
+    // is waited out, so its switch holds for a change that writes no settings as well.
     [Theory]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "edit", Rename)]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "look", "save", "Mine", "--overlay", "0")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "look", "wear", "Calm")]
-    [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "start-with-windows", "on")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "find-cpu-fan")]
+    [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "saving", "start-with-windows", "on")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "mcp")]
     [InlineData(AgentAccess.Read, Refusal.SettingsBroken, "look", "delete", "Calm")]
     [InlineData(AgentAccess.Change, Refusal.AgentsOnlyByPerson, "edit", """{"kind":"thermi","field":"agents","value":"change"}""")]
@@ -44,23 +45,25 @@ public sealed class AgentSwitchTests : IDisposable
         var looks = new SavedStyles(ConfigStore.StylesFolder(_rig.Folder.File));
         Assert.Null(looks.Save(new StyleConfig(Gap: 12), "Calm"));
         var broken = refusal == Refusal.SettingsBroken;
-        _rig.Folder.Write(broken ? """{ "version": 6, "agents": "read", """ : ThermiConfigJson.Write(new ThermiConfig { Agents = access }));
-        var before = _rig.Folder.Text();
+        var before = broken ? """{ "version": 6, "agents": "read", """ : ThermiConfigJson.Write(new ThermiConfig { Agents = access });
+        var saving = args is ["saving", ..];
+        var command = saving ? args[1..] : args;
+        using var editor = Written(before, saving);
 
-        if (args is ["mcp"])
+        if (command is ["mcp"])
         {
             await RefusedOverMcpAsync();
         }
         else if (broken)
         {
-            var end = await _rig.RunAsync(args);
+            var end = await _rig.RunAsync(command);
 
             Assert.Equal((4, ""), (end.Exit, end.Out));
             Assert.NotEmpty(end.Error);
         }
         else
         {
-            var end = await _rig.RunAsync(args);
+            var end = await _rig.RunAsync(command);
 
             Assert.Equal(refusal is null ? 0 : 1, end.Exit);
             Assert.Equal(refusal is { } key ? Texts.Key(key) : null, (string?)end.Json["refusal"]);
@@ -71,6 +74,18 @@ public sealed class AgentSwitchTests : IDisposable
         Assert.Equal(refusal is not null, before == _rig.Folder.Text());
         Assert.Equal((false, 0, 1), (_rig.Startup.On, _rig.Loads.Count, looks.List().Count));
         Assert.Equal(broken ? 4 : 0, (await _rig.RunAsync("config")).Exit);
+    }
+
+    // The file as a person left it, or as an editor saves it: missing a moment, then written.
+    private ITimer? Written(string text, bool saving)
+    {
+        if (saving)
+        {
+            return _rig.Folder.Clock.CreateTimer(_ => _rig.Folder.Write(text), null, TimeSpan.FromMilliseconds(200), Timeout.InfiniteTimeSpan);
+        }
+
+        _rig.Folder.Write(text);
+        return null;
     }
 
     // The settings window's section on a log thermi-cli wrote: six edits, one refused, and an undo; thermi-cli by its name

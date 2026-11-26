@@ -1584,6 +1584,9 @@
   <data name="Refusal.NoRoomOnTaskbar" xml:space="preserve">
     <value>That taskbar has no room for this overlay at its size.</value>
   </data>
+  <data name="Refusal.NotMoved" xml:space="preserve">
+    <value>It is already there, so nothing moved.</value>
+  </data>
   <data name="Refusal.UnknownLanguage" xml:space="preserve">
     <value>thermi has no translation for that language.</value>
   </data>

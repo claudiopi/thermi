@@ -14,17 +14,25 @@ declare module 'node:net' {
   interface Server {
     once(event: 'error', listener: () => void): Server;
     listen(path: string, listener: () => void): Server;
-    close(listener: () => void): Server;
   }
   export function createServer(): Server;
 }
 
+declare module 'node:child_process' {
+  export function spawn(command: string, args: string[], options: { stdio: 'inherit' }): { on(event: 'exit', listener: (code: number | null) => void): void };
+}
+
 declare module 'node:os' {
   export function availableParallelism(): number;
+  export function setPriority(priority: number): void;
+  export const constants: { priority: { PRIORITY_BELOW_NORMAL: number } };
 }
 
 declare const process: {
   pid: number;
+  argv: string[];
+  execPath: string;
+  exit(code: number): never;
   env: Record<string, string | undefined>;
   on(event: 'exit', listener: () => void): void;
 };

@@ -9,7 +9,7 @@ import { useText, type TextKey } from '../texts/Texts';
 import { ListRow } from './ListRow';
 import { rowKey, type ListMoves } from './listKeys';
 import { rowMenu } from './rowMenus';
-import { afterRemoving, itemKey, itemName, movedIndex, rowsOf, settingsKey, shownRows, type Row } from './rows';
+import { afterRemoving, itemKey, itemName, rowsOf, settingsKey, shownRows, type Row } from './rows';
 import './list.css';
 
 export interface ItemListProps {
@@ -180,7 +180,7 @@ export function ItemList({
       onOverlayEdit(one);
       return;
     }
-    if (one.kind === 'moveItem' || one.kind === 'dropPill') {
+    if (one.kind === 'dropItem' || one.kind === 'dropPill') {
       move(one, { item: one.item, pill: one.kind === 'dropPill' }, row.key);
       return;
     }
@@ -195,11 +195,10 @@ export function ItemList({
     rename: (row) => (row.kind === 'pill' ? onEditLabel(row.items[0] ?? '') : setRenaming(row.key)),
     move: (row, by) => {
       const item = row.items[0] ?? '';
-      const to = row.kind === 'item' ? movedIndex(data.settings, item, by) : null;
       if (row.kind === 'pill') {
         move({ kind: 'movePill', item, by }, { item, pill: true }, row.key);
-      } else if (to !== null) {
-        move({ kind: 'moveItem', item, overlay: to.overlay, index: to.index }, { item, pill: false }, row.key);
+      } else if (row.kind === 'item') {
+        move({ kind: 'moveItem', item, by }, { item, pill: false }, row.key);
       }
     },
     remove: (row) => {

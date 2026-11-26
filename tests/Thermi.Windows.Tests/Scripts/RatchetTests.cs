@@ -19,8 +19,9 @@ public sealed class RatchetTests : IDisposable
     }
 
     // A merge brings in its other side's work along with the raise made there, so the raise passes when it landed there
-    // in a commit of its own, made or under way; a merge holding more than either parent raised it itself.
-    // Rows: a commit, then each way a merge brings a raise in.
+    // in a commit of its own, made or under way; a merge holding more than either parent raised it itself, on either side.
+    // GitHub's squash of a pull request holds all its commits, which its own run checked.
+    // Rows: a commit, then each way a merge brings a raise in, then the squash.
     [Theory]
     [InlineData("raised alone", false)]
     [InlineData("raised with other work", true)]
@@ -28,6 +29,8 @@ public sealed class RatchetTests : IDisposable
     [InlineData("merging, raised alone on its side", false)]
     [InlineData("merged, raised with other work on its side", true)]
     [InlineData("merged, raised by the merge", true)]
+    [InlineData("merged, raised by a merge on its side", true)]
+    [InlineData("squashed by GitHub", false)]
     public async Task TheBaselineIsRaisedOnlyInACommitOfItsOwn(string history, bool refused)
     {
         var made = history switch
@@ -38,7 +41,10 @@ public sealed class RatchetTests : IDisposable
             "merging, raised alone on its side" => SideRaisedAlone + "git merge -q --no-ff --no-commit side",
             "merged, raised with other work on its side" =>
                 "git switch -q -c side; Save 2 'code'; git switch -q main; Save 0 'docs'; git merge -q --no-ff side -m merge",
-            _ => SideRaisedAlone + "git merge -q --no-ff --no-commit side; Save 3 ''",
+            "merged, raised by the merge" => SideRaisedAlone + "git merge -q --no-ff --no-commit side; Save 3 ''",
+            "merged, raised by a merge on its side" => "git switch -q -c side; Save 2 ''; git switch -q -c other; Save 0 'more'; git switch -q side; "
+                + "git merge -q --no-ff --no-commit other; Save 3 ''; git switch -q main; Save 0 'docs'; git merge -q --no-ff side -m merge",
+            _ => "$env:GIT_COMMITTER_NAME = 'GitHub'; $env:GIT_COMMITTER_EMAIL = 'noreply@github.com'; Save 2 'code' 'test: the work (#12)'",
         };
 
         // 3 is the refusal; anything else but 0, the script failing.
@@ -57,7 +63,7 @@ public sealed class RatchetTests : IDisposable
     }
 
     // The script's functions are read from its syntax tree, so running them lists no tests. Save commits a baseline of
-    // that many cases, none for the one before, and a file of work by that name, none for none.
+    // that many cases, none for the one before, and a file of work by that name, none for none, with the message given.
     private async Task<int> RatchetAsync(string history)
     {
         var script = Path.Combine(TestRecordings.RepoRoot(), "scripts", "test-count.ps1");
@@ -66,8 +72,9 @@ public sealed class RatchetTests : IDisposable
             + "{ . ([scriptblock]::Create($function.Extent.Text)) }; ";
         var repository = $"Set-Location '{_folder}'; git init -q -b main; git config user.name tests; git config user.email tests@thermi; "
             + "git config commit.gpgsign false; New-Item tests -ItemType Directory | Out-Null; "
-            + "function Save([int]$count, [string]$work) { if ($count) { Set-Content tests/test-count.json ('{\"dotnet\": ' + $count + '}') }; "
-            + "if ($work) { Set-Content \"$work.txt\" $work }; git add -A; git commit -q -m \"$count $work\" }; "
+            + "function Save([int]$count, [string]$work, [string]$message = \"$count $work\") { "
+            + "if ($count) { Set-Content tests/test-count.json ('{\"dotnet\": ' + $count + '}') }; "
+            + "if ($work) { Set-Content \"$work.txt\" $work }; git add -A; git commit -q -m $message }; "
             + "Save 1 'base'; ";
         var check = "; $faults = @(Get-RaiseFaults (Get-Location).Path (Get-Content tests/test-count.json -Raw | ConvertFrom-Json) @('dotnet')); "
             + "$faults | Write-Host; exit ($faults ? 3 : 0)";

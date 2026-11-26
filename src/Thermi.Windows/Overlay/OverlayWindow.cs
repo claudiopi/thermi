@@ -53,10 +53,11 @@ internal sealed class OverlayWindow : IDisposable
     private OverlayScene? _scene;
     private PaintedOverlay? _painted;
 
-    /// <summary>What the overlay last put on screen, what a drag marks on it included; its painter owns it.</summary>
-    internal Bitmap? OnScreenPicture { get; private set; }
+#pragma warning disable CA2213 // The painter owns the bitmap, draws it again while its size holds, and disposes it.
+    private Bitmap? _shown;
+#pragma warning restore CA2213
 
-    /// <summary>Whether a value's tooltip may show now.</summary>
+    /// <summary>Whether a value's tooltip may show now, which Windows' tooltip control never says itself.</summary>
     internal bool TipsShow => _tips.Speaks;
 
     // The item the pointer is on, which the open window marks on its row.
@@ -205,7 +206,7 @@ internal sealed class OverlayWindow : IDisposable
         OverlayGestures.HoldCorner(bitmap, overlay, scale);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
-        OnScreenPicture = bitmap;
+        _shown = bitmap;
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
         var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
@@ -288,7 +289,7 @@ internal sealed class OverlayWindow : IDisposable
     private void Pressed(OverlayConfig overlay)
     {
         PInvoke.SetCapture(Hwnd);
-        _tips.Quiet(true);
+        _tips.Quiet(Hush.Press, true);
         _gestures.Let();
         if (_painted is { } painted && _scene is { } scene)
         {
@@ -297,18 +298,16 @@ internal sealed class OverlayWindow : IDisposable
     }
 
     // A drop leaves the pointer on a value of this overlay or another, whose tooltip waits until the pointer leaves or a
-    // while passes, as each overlay hears at its next paint.
+    // while passes: this overlay's from the drop on, as its press lets go, the others' as each hears at its next paint.
     private void Dropped(bool dragged)
     {
         if (dragged)
         {
             _actions.Quiet.Dropped();
-        }
-        else
-        {
-            _tips.Quiet(false);
+            _tips.After(_actions.Quiet);
         }
 
+        _tips.Quiet(Hush.Press, false);
         _gestures.Let();
         _actions.RequestPaint();
     }
@@ -383,18 +382,18 @@ internal sealed class OverlayWindow : IDisposable
 
     private void ShowMenu()
     {
-        _tips.Quiet(true);
+        _tips.Quiet(Hush.Menu, true);
         _actions.Menu(_index, ItemAt(_actions.Cursor()));
-        _tips.Quiet(false);
+        _tips.Quiet(Hush.Menu, false);
     }
 
     internal void Separate(string item) => _gestures.Separate(item, _painted, _scene?.Screens ?? []);
 
-    /// <summary>
-    /// The overlay as its last paint drew it, painted afresh without what only the open window or a broken file adds; the
-    /// "Sensors stopped" pill while they are. Null before the first paint.
-    /// </summary>
+    /// <summary>The overlay as last painted, afresh without what only the window or a broken file adds; "Sensors stopped" while they are.</summary>
     internal Bitmap? Picture() => _painted is { } painted && _scene is not null ? painted.Picture(Translations.Of(OverlayText.SensorsStopped)) : null;
+
+    /// <summary>A copy of what it last showed, a drag's marks included, the caller's to dispose: Windows hands no layered window's pixels back.</summary>
+    internal Bitmap? ShownPicture() => _shown?.Clone(new Rectangle(0, 0, _shown.Width, _shown.Height), _shown.PixelFormat);
 
     internal void UndoGesture() => _gestures.Undo();
 }

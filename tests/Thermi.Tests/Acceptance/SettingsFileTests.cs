@@ -275,8 +275,44 @@ public sealed class SettingsFileTests
             written => Assert.Equal(places, places.Where(place => (string?)At(written, place)["later"] == place)));
     }
 
+    // Only the settings file carries what a later version added: a field no thermi knows in an edit's value, from the page
+    // or an agent, or in a look file never reaches the file, and what the file had where the edit lands stays, unless a
+    // look takes the style's place. Where the file has a later field, the value set there, and the later fields written.
+    [Theory]
+    [InlineData("overlays/0/style/colors", """{ "normal": "#112233", "later": "page" }""", "file")]
+    [InlineData("overlays/0/style/label", """{ "size": 15, "weight": "bold", "later": "page" }""", "file")]
+    [InlineData("overlays/0/style/opacity", """{ "background": 0.5, "overlay": 1, "later": "page" }""", "file")]
+    [InlineData("overlays/0/snap", """{ "spot": "top-left", "later": "page" }""", "file")]
+    [InlineData("overlays/1/items/1/warnBy", """{ "metric": "cpu.load", "later": "page" }""", "file")]
+    [InlineData("overlays/0/style", """{ "thermiStyle": 1, "style": { "gap": 2, "later": "page", "colors": { "later": "page" } } }""", "")]
+    public void OnlyTheSettingsFileCarriesWhatALaterVersionAdded(string place, string value, string kept)
+    {
+        var file = JsonNode.Parse(TestFiles.Config("v6.json"))!;
+        At(file, place)["later"] = "file";
+        var config = ThermiConfigJson.Read(file.ToJsonString()).Config;
+        var sent = JsonSerializer.Deserialize<JsonElement>(value);
+        PageEdit? edit = place.Split('/') switch
+        {
+            [_, _, "style", var field] => new StyleFieldEdit(0, field, sent),
+            [_, _, "snap"] => new OverlayFieldEdit(0, "snap", sent),
+            [.., "warnBy"] => new ItemFieldEdit("ram.used", "warnBy", sent),
+            _ => null,
+        };
+
+        var result = edit is null ? StyleEdits.Import(config, 0, value) : PageEdits.Of(edit, Desktop, Texts.English, () => new HashSet<int>())(config);
+
+        Assert.Equal(kept, string.Join(' ', Later(JsonNode.Parse(ThermiConfigJson.Write(Edited.Done(result))))));
+    }
+
     private static JsonNode At(JsonNode root, string place) =>
         place.Split('/', StringSplitOptions.RemoveEmptyEntries).Aggregate(root, (node, step) => int.TryParse(step, out var at) ? node[at]! : node[step]!);
+
+    private static IEnumerable<string> Later(JsonNode? node) => node switch
+    {
+        JsonObject fields => fields.SelectMany(pair => pair.Key == "later" ? [(string)pair.Value!] : Later(pair.Value)),
+        JsonArray items => items.SelectMany(Later),
+        _ => [],
+    };
 
     private static List<string?> ItemNames(ThermiConfig config) => [.. config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Name)];
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Item, Overlay, Settings, WindowView } from '../bridge/bridge.g';
 import { sayKeys } from '../testSay';
-import { afterRemoving, movedIndex, rowStarting, rowsOf, shownRows, type Row } from './rows';
+import { afterRemoving, rowStarting, rowsOf, shownRows, type Row } from './rows';
 
 function overlay(name: string, ...items: Item[]): Overlay {
   return { name, items };
@@ -178,13 +178,6 @@ describe('the list', () => {
   });
 
   const three = settings(overlay('A', ...ids('a', 'b', 'c')), overlay('B', ...ids('d', 'e')), overlay('C', ...ids('f')));
-  test.each([
-    { id: 'e', by: -1, to: { overlay: 1, index: 0 } },
-    { id: 'a', by: -1, to: null },
-    { id: 'f', by: 1, to: null },
-  ] as const)('moves $id by $by', ({ id, by, to }) => {
-    expect(movedIndex(three, id, by)).toEqual(to);
-  });
 
   // Rows: the next item, the one before, the overlay, and settings once nothing is left, each a line of its own.
   test.each([

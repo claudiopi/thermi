@@ -188,13 +188,12 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             Error: $"No metric, sensor or item is named {string.Join(", ", answer.Unknown)}; sensors lists the sensors, config the items.");
 
     // No file yet is the defaults at once, with no settle to wait out.
-    private async Task<ConfigRead> SettingsAsync()
-    {
-        if (!File.Exists(environment.SettingsPath))
-        {
-            return new ConfigRead(new ThermiConfig(), null, Outside: true);
-        }
+    private async Task<ConfigRead> SettingsAsync() =>
+        File.Exists(environment.SettingsPath) ? await SettledAsync() : new ConfigRead(new ThermiConfig(), null, Outside: true);
 
+    // A file missing is waited out as an editor's save, so what the person lets agents do never reads as the defaults' meanwhile.
+    private async Task<ConfigRead> SettledAsync()
+    {
         using var store = new ConfigStore(environment.SettingsPath, time, environment.RunsInstalled);
         return await store.ReadOnlyAsync();
     }

@@ -142,18 +142,6 @@ export function rowStarting(rows: readonly Row[], from: number, typed: string): 
   return null;
 }
 
-/** Where an item lands when Alt+Up or Alt+Down moves it within its overlay, or null at an end. */
-export function movedIndex(settings: Settings, id: string, by: -1 | 1): { overlay: number; index: number } | null {
-  for (const [overlay, one] of settings.overlays.entries()) {
-    const index = one.items.findIndex((item) => item.id === id);
-    if (index >= 0) {
-      const next = index + by;
-      return next < 0 || next >= one.items.length ? null : { overlay, index: next };
-    }
-  }
-  return null;
-}
-
 /** The item to select once one goes: the next in its overlay, else the one before, else the overlay. */
 export function afterRemoving(settings: Settings, id: string): string {
   for (const [overlay, one] of settings.overlays.entries()) {
