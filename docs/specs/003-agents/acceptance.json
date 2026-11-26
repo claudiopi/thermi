@@ -25,7 +25,7 @@
         "R3",
         "R5"
       ],
-      "description": "Given a recorded feed and no overlay or window running, when status, read, sensors, config and edit run, then each answers as with an overlay running, and status says no overlay runs; with the service stopped, stale, or its pipe taken, status says which, and with the no-driver recording, that the driver looks missing; in a per-user install, its own host is read while it runs, and status says thermi is not running when it does not.",
+      "description": "Given a recorded feed and no overlay or window running, when status, read, sensors, config and edit run, then each answers as with an overlay, and status says no overlay runs. Given the service stopped, stale or its pipe taken, or the no-driver recording, then status says which; in a per-user install, it reads its own host while that runs.",
       "check": "AgentsNeedNoOverlay",
       "passes": true
     },
@@ -45,7 +45,7 @@
         "R8",
         "R9"
       ],
-      "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item but network addresses, and sensors an address's text only when its type is asked for, then those three alone, and every type has its unit; the CPU fan is the chosen one; each value has its unit; a CPU temperature of 0 in the no-driver recording is null with why; and each item's level and thresholds are what the overlay's layout gives for the same snapshot.",
+      "description": "Given each recording and the default settings with a CPU fan chosen, when read runs with no ids and then with a metric, a sensor id and an item id, then it gives every metric and item but network addresses, and then those three alone; every value has its unit, the CPU fan is the chosen one, a CPU temperature of 0 without the driver is null with why, and each item's level and thresholds are the overlay's for the same snapshot.",
       "check": "ReadGivesWhatTheOverlayShows",
       "passes": true
     },
@@ -109,7 +109,7 @@
       "covers": [
         "R15"
       ],
-      "description": "Given an MCP session's commands, an undo called while a look is being worn and waits for the settings file waits for it and takes it back. Given an MCP session that set one item's name twice and another's once, the other renamed since by hand, when an undo is kept from writing by the file's lock, then the next undo is still that step, and finds nothing of its own left to take back; the next takes back only the second name, the hand edit stays, and redo sets it again.",
+      "description": "Given an MCP session's edits and another person's edit by hand since, when undo and redo run, then undo takes back only the session's own last step that is still there, waiting for a look being worn and keeping its place when the file's lock stops a write, the hand edit stays, and redo makes the step again.",
       "check": "McpUndoTakesBackOnlyItsOwn",
       "passes": true
     },
@@ -118,7 +118,7 @@
       "covers": [
         "R16"
       ],
-      "description": "Given thermi installed and thermi-cli added to Claude Code with the README's one command, when the author asks a new session how hot the CPU is and then to set its warning at 70 °C, then the answer matches the overlay, and the overlay shows the new warning. Then the same in Claude Desktop.",
+      "description": "Given thermi installed and thermi-cli added to Claude Code with the README's one command, when a person asks a new session how hot the CPU is and then to set its warning at 70 °C, then the answer matches the overlay and the overlay shows the new warning; then the same in Claude Desktop.",
       "check": "by hand",
       "passes": false
     },
@@ -155,7 +155,7 @@
       "covers": [
         "R21"
       ],
-      "description": "Given the contract's schemas as the last release shipped them, kept in the tests, when today's answers are validated against them, then every field they had is there with its type and meaning, and --schema 1 answers as before; --schema 0 or one not known exits 2.",
+      "description": "Given the contract's schemas as the last release shipped them, kept in the tests, when today's answers are validated against them, then every field they had is there with its type and meaning; --schema 1 answers, and --schema 0 or one not known exits 2.",
       "check": "TheContractOnlyGrows",
       "passes": true
     },
@@ -191,7 +191,7 @@
       "covers": [
         "R24"
       ],
-      "description": "Given a test PC without thermi or the driver, when the author installs the sensors alone, then one administrator prompt installs the services, thermi-cli and the driver, no overlay starts at sign-in, and thermi-cli read gives a CPU temperature; then installing the full thermi over it adds the overlay and the window.",
+      "description": "Given a test PC without thermi or the driver, when a person installs the sensors alone, then one administrator prompt installs the services, thermi-cli and the driver, no overlay starts at sign-in, and thermi-cli read gives a CPU temperature; when the full thermi is installed over it, then it adds the overlay and the window.",
       "check": "by hand",
       "passes": false
     },
@@ -209,7 +209,7 @@
       "covers": [
         "R26"
       ],
-      "description": "Given a settings folder with two saved looks, when looks runs and then look saves, under a name that starts with @ and is no file to read, overlay 1's look under a new name, wears a saved one on every overlay, renames one while Windows holds its file, which leaves the one look and changes nothing, renames one to a name taken, exports one, deletes one, and imports the exported text and a broken text, then each changes what the window's same action changes, the taken name and the broken text are refused with their keys, and no file outside the looks' folder is read or written.",
+      "description": "Given a settings folder with two saved looks, when looks lists them and look saves, wears, renames, exports, deletes and imports them, then each changes what the window's same action changes: a name taken and a broken text are refused with their keys, a rename while Windows holds the file changes nothing, a name that starts with @ is a name and no file to read, and no file outside the looks' folder is read or written.",
       "check": "AgentLooksAreTheWindowsLooks",
       "passes": true
     },
@@ -227,7 +227,7 @@
       "covers": [
         "R28"
       ],
-      "description": "Given a recorded series of a CPU load with its fan answering, and one where no fan answers, fed as the pipe would, when find-cpu-fan runs on a fake clock, then the first names that fan and the load ran no longer than the window's finder runs it, the second says why none answered, and with --use the first overlay's CPU fan is that fan, one edit; with settings that have no CPU fan item, --use exits 1 and still names the fan with the edit's refusal key; a run within 2 minutes of the last load exits 1 with runsAgainIn and loads nothing, and a change called while the finder runs waits for it.",
+      "description": "Given a recorded CPU load with its fan answering and one where no fan answers, when find-cpu-fan runs on a fake clock, then the first names that fan after a load no longer than the window's, and the second says why none answered. With --use, the first overlay's CPU fan becomes that fan in one edit, or the answer still names it with the edit's refusal; a run within 2 minutes of the last exits 1 and loads nothing, and a change made meanwhile waits for it.",
       "check": "AgentsFindTheCpuFan",
       "passes": true
     },
