@@ -67,7 +67,7 @@
     {
       "id": "A10",
       "covers": ["R2"],
-      "description": "Given apps that present behind and in front, filling their monitor or not, faster or slower than the game, when each second picks the game, then with no game yet a game behind that fills its monitor is the game at once, never a video in a window; a terminal in front, maximized on the other monitor, never takes over from a game that presents and shows on its own, at 35 FPS nor at its monitor's 180, and does at its third second once the game is minimized; a second game that fills the game's monitor takes over at its third second and keeps it while the first is in front; and once it stops, the first is the game again at once.",
+      "description": "Given apps that present behind and in front, filling their monitor or not, faster or slower than the game, when each second picks the game, then with no game yet a game behind that fills its monitor is the game at once, never a video in a window; a terminal in front, maximized on the other monitor, never takes over from a game that presents and shows on its own, at 35 FPS nor at its monitor's 180, and is the game at once when the game is minimized; a second game that fills the game's monitor takes over at its third second and keeps it while the first is in front; once it stops, the first is the game again at once; and as seen live, with Zwift maximized at 98 on a monitor at negative X, thermi starting with Chrome full screen on the other at 60 or Wave maximized in front at 180, both presenting from a child, Zwift is the game from the first second, and stays it once Chrome plays a video at 24 in half that monitor beside Wave in the other half.",
       "check": "FpsFollowsTheGameNotTheFocus",
       "passes": true
     },
