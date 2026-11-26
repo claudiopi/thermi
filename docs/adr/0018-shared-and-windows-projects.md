@@ -13,7 +13,7 @@ Projects that only make sense on Windows say so in their name. The names users s
 | Project | Runs on | What it is |
 | --- | --- | --- |
 | `src/Thermi.Core` | any OS | Readings, sensor mapping, layout, config, edits and undo, the agents' answers, update decisions. |
-| `src/Thermi.App` | any OS | What the overlay and the window share beyond Core: the settings file and the settings a host holds over it, the fan finder's run. |
+| `src/Thermi.App` | any OS | What the overlay and the window share beyond Core: the settings file and the settings a host holds over it, the window's edits and readings, a gesture's undo, the fan finder's run, the user's logs. |
 | `src/Thermi.Cli` | any OS | `thermi-cli`'s commands and its MCP server, over `IAgentEnvironment`. |
 | `src/Thermi.Settings.Web` | any OS's web view | The settings page. It talks to its host only through the bridge. |
 | `src/Thermi.Settings.Types` | build time | Writes the page's TypeScript from Core. |
@@ -42,4 +42,4 @@ What any host shares lands by what it needs. Core takes what needs no package an
 
 - A reader sees at once what is shared and what is Windows: what ends in `.Windows` can be left alone when you work on another OS.
 - Every path in the docs moved. `RepoRulesTests` fails on any doc that still cites an old path.
-- What to watch: shared logic must keep landing in the shared projects, not in a `.Windows` project because it is closer at hand. `RepoRulesTests` checks that the shared projects target plain `net10.0` and reference no Windows-only project, and that each file of a `.Windows` project uses a Windows API or is listed, with why, as one that may stay.
+- What to watch: shared logic must keep landing in the shared projects, not in a `.Windows` project because it is closer at hand. `RepoRulesTests` checks that the shared projects target plain `net10.0` and reference no Windows-only project, and that each file of a `.Windows` project uses a Windows-only API, or a type of its project that does, or is listed, with why, as one that may stay.
