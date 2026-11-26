@@ -2,6 +2,8 @@
 
 **Status**: approved
 
+**Budget**: 46 .NET and 0 page cases
+
 ## Why
 
 thermi exists because AI agents running for hours cooked their owner's PC. The agent itself should be able to ask how hot the PC is, back off when it runs hot, and set thermi up for the person, from a command line or as an MCP server, with or without an overlay on screen. Other programs, a terminal's status bar, an orchestrator that throttles its agents, a desktop widget, should read the same sensors through a contract that stays stable, as HWiNFO's shared memory grew an ecosystem, with or without thermi's overlay installed. The decisions are in `docs/adr/0013-agents-cli-and-mcp.md`.

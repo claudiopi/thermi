@@ -2,6 +2,8 @@
 
 **Status**: approved
 
+**Budget**: 453 .NET and 80 page cases
+
 ## Why
 
 Today thermi is configured by editing JSON: picking the fan that cools the CPU means knowing sensor ids, and thresholds are guesses made without seeing the values they guard. Version 0.9 makes it visual, live and impossible to break, without making the overlay any heavier.

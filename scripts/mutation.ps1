@@ -3,8 +3,9 @@
 .SYNOPSIS
     Measures Thermi.Core's tests with Stryker.NET: each mutant of the code that no test kills is a behavior no test holds.
     Too slow for every check, so it runs on its own or as `pwsh scripts/check.ps1 -Mutation`.
-    Prints the score; the HTML report, with every surviving mutant, is under TestResults/mutation.
-    Arguments go on to Stryker: `--disable-bail` lists every test that kills each mutant, to see which test kills none of its own.
+    Prints the score; the HTML report, with every surviving mutant, is under TestResults/mutation. Bail is off, so the
+    report lists every test that kills each mutant, and the cases that hold nothing of their own are listed and gated
+    (scripts/redundant.ps1). Arguments go on to Stryker.
 #>
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -20,7 +21,8 @@ $self.PriorityClass = 'BelowNormal'
 Push-Location $tests
 try {
     dotnet tool restore | Out-Null
-    $log = dotnet dotnet-stryker --output $output --skip-version-check --break-at 0 @args 2>&1 | ForEach-Object { "$_" }
+    $passed = @($args | Where-Object { $_ -ne '--disable-bail' })
+    $log = dotnet dotnet-stryker --output $output --skip-version-check --break-at 0 --disable-bail @passed 2>&1 | ForEach-Object { "$_" }
     $failed = $LASTEXITCODE -ne 0
 }
 finally {
@@ -51,3 +53,12 @@ if ($score -lt $break) {
 Write-Host "ok   mutation: $line"
 $report = Get-ChildItem $output -Recurse -Filter 'mutation-report.html' | Sort-Object LastWriteTime | Select-Object -Last 1 -ExpandProperty FullName
 Write-Host "     report: $report"
+
+# The report names a table's rows by their method alone; the built tests' own listing names each row.
+$names = @{}
+$exe = Get-ChildItem (Join-Path $tests 'bin') -Recurse -Filter 'Thermi.Tests.exe' -ErrorAction Ignore | Sort-Object LastWriteTime | Select-Object -Last 1
+if ($exe) {
+    & $exe.FullName -list full/json -preEnumerateTheories | Out-String | ConvertFrom-Json | ForEach-Object { $names[$_.ID] = $_.DisplayName }
+}
+& (Join-Path $PSScriptRoot 'redundant.ps1') -Report $json -Names $names
+exit $LASTEXITCODE

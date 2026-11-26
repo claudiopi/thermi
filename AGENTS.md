@@ -33,7 +33,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | Command | What it does, and when |
 | --- | --- |
 | `pwsh scripts/check.ps1` | The one check, the CI's too: restore, format, build, notices, test count, tests and coverage, then the page's type check, lint, unit, dead-code and Playwright tests. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. Set `THERMI_WEB_PORT` to another port than 4173 to check two worktrees at once. |
-| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of Core's tests and the page's logic. Slow: run it when you change Core, the page's logic or their tests. |
+| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of Core's tests and the page's logic, each with the rows that kill and run nothing of their own (`scripts/redundant.ps1`). Slow: run it when you change Core, the page's logic or their tests. |
 | `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. |
 | `dotnet format whitespace thermi.slnx` | Fixes formatting. |
 | `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]` | Clicks through every screen of the real settings window and fails on any error the page shows or logs. Run it before a person gets a build, with no settings window open. |
@@ -89,8 +89,11 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Every text a user reads is a member of an enum marked `[Translated]`, and every translation has every text of the English one, with the same blanks, and no others. None is blank or names the driver's product. | `RepoRulesTests` |
 | A spec is a folder with `spec.md`, `tasks.md` and `acceptance.json`. Every requirement has an acceptance step, every check is a real test (once approved) or `by hand`, and `done` means every step passes. | `RepoRulesTests` |
 | PR titles follow Conventional Commits (they become the squash commit). | CI `pr-title` |
-| One behavior, one test, at the cheapest layer that proves it. Its first test is written red at the unit's edge, as its acceptance step. | the ratchet: `scripts/test-count.ps1` holds the count of cases (each `[Fact]`, each row of a `[Theory]`, each Playwright and Vitest case) to `tests/test-count.json`, each half on its own, raised only in a change of its own |
+| One behavior, one test, at the cheapest layer that proves it. Its first test is written red at the unit's edge, as its acceptance step. | the ratchet: `scripts/test-count.ps1` holds the count of cases (each `[Fact]`, each row of a `[Theory]`, each Playwright and Vitest case) to `tests/test-count.json`, each half on its own, raised only in a change of its own, which in a pull request is compared with main's: main holds the file before a branch raises it |
 | Near-identical cases are one table-driven test; a bug's reproduction is a new row when the behavior has its test. | the ratchet |
+| An acceptance step names the kinds of case its test proves, never the test's rows: its "table of" lists at most five. | `RepoRulesTests` |
+| Each spec's `spec.md` declares its budget, `**Budget**: <n> .NET and <n> page cases`, and the tests its steps name hold no more cases. | `scripts/test-count.ps1` |
+| A table holds at most 17 rows, and a row kills or runs a mutant no other case does. A table whose rows are each a behavior of their own past that, or that Stryker cannot judge (an operand of `&&` or `\|\|`, a number at a boundary, a static table's entry, a bug), says why on its `[Theory]` line, or on or above the line that opens a page's loop or `.each`, as `// Rows: ...`. | `scripts/test-count.ps1`; `scripts/redundant.ps1` in `scripts/check.ps1 -Mutation`, which fails past 3 % of the cases judged |
 | Inner tests only for pure logic with real decisions. A test that drove a small step goes at the refactor once an edge test covers it and no new mutant survives without it. Characterization tests and oracles go when their spec passes. | the ratchet, `scripts/mutation.ps1` |
 | The page's fake never decides what C# decides: an edit, an undo, a gesture, a saved look or a search is answered from the real bridge's answers to the same calls. | `BridgeOracleTests`, the `oracle` fixture of `src/Thermi.Settings.Web/tests/oracle.ts` |
 

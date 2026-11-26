@@ -38,7 +38,7 @@ public sealed partial class RepoRulesTests
         var requirements = spec.Select(line => Requirement().Match(line)).Where(match => match.Success).Select(match => match.Groups["id"].Value).ToList();
         var steps = Steps(Path.Combine(folder, "acceptance.json"));
         var covered = steps.SelectMany(step => step.Covers).ToList();
-        bool Checked((string Id, List<string> Covers, string Check, bool Passes) step)
+        bool Checked((string Id, List<string> Covers, string Check, bool Passes, string Description) step)
         {
             return step.Check == "by hand" || (status is "draft" or "dropped" ? TestName().IsMatch(step.Check) : tests.Contains(step.Check));
         }
@@ -51,17 +51,32 @@ public sealed partial class RepoRulesTests
             .Concat(steps.Where(step => !Checked(step))
                 .Select(step => $"{name} {step.Id} checks with '{step.Check}', which is neither a test nor 'by hand'"))
             .Concat(status == "done" ? steps.Where(step => !step.Passes).Select(step => $"{name} is done but {step.Id} does not pass") : [])
+            .Concat(steps.Where(step => step.Check != "by hand").Select(step => (step.Id, Rows: TableRows(step.Description)))
+                .Where(step => step.Rows > MaxKindsPerStep)
+                .Select(step => $"{name} {step.Id} lists {step.Rows} cases of its table, more than {MaxKindsPerStep}: a step names the kinds of " +
+                    "case its test proves, and the rows are the test's"))
             .OfType<string>();
     }
 
-    private static List<(string Id, List<string> Covers, string Check, bool Passes)> Steps(string file)
+    // A table's cases, as "a table of edits (new, a move, a drop)" lists them: a step names their kinds, so a row its test no
+    // longer needs goes without changing what a person approved.
+    private const int MaxKindsPerStep = 5;
+
+    private static int TableRows(string description)
+    {
+        var table = StepTable().Match(description);
+        return table.Success ? table.Groups["cases"].Value.Count(letter => letter is ',' or ';') + 1 : 0;
+    }
+
+    private static List<(string Id, List<string> Covers, string Check, bool Passes, string Description)> Steps(string file)
     {
         using var acceptance = JsonDocument.Parse(File.ReadAllText(file));
         return [.. acceptance.RootElement.GetProperty("steps").EnumerateArray().Select(step => (
             step.GetProperty("id").GetString() ?? "",
             step.GetProperty("covers").EnumerateArray().Select(cover => cover.GetString() ?? "").ToList(),
             step.GetProperty("check").GetString() ?? "",
-            step.GetProperty("passes").GetBoolean()))];
+            step.GetProperty("passes").GetBoolean(),
+            step.GetProperty("description").GetString() ?? ""))];
     }
 
     // The settings window's tests are Playwright's, titled as one PascalCase word so a step names them as it names a .NET test.
@@ -78,6 +93,9 @@ public sealed partial class RepoRulesTests
         RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex PlaywrightTest();
+
+    [GeneratedRegex(@"\btables? of [^()]*?\((?<cases>[^()]*)\)", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex StepTable();
 
     // A draft names the tests it will need; they exist once it is approved, before any code.
     [GeneratedRegex(@"^[A-Z]\w+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]

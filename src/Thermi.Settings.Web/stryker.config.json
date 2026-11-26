@@ -4,6 +4,7 @@
   "vitest": { "dir": "src" },
   "mutate": [
     "src/app/shortcuts.ts",
+    "src/catalog/shownBy.ts",
     "src/chart/geometry.ts",
     "src/item/itemModel.ts",
     "src/list/rows.ts",
@@ -13,10 +14,12 @@
     "src/settings/combination.ts"
   ],
   "coverageAnalysis": "perTest",
+  "disableBail": true,
   "ignoreStatic": true,
   "thresholds": { "high": 90, "low": 78, "break": 78 },
-  "reporters": ["clear-text", "html"],
+  "reporters": ["clear-text", "html", "json"],
   "htmlReporter": { "fileName": "../../TestResults/mutation-web/mutation-report.html" },
+  "jsonReporter": { "fileName": "../../TestResults/mutation-web/mutation-report.json" },
   "tempDirName": "../../TestResults/stryker-tmp",
   "cleanTempDir": "always"
 }

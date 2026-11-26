@@ -2,6 +2,8 @@
 
 **Status**: done
 
+**Budget**: 41 .NET and 0 page cases
+
 ## Why
 
 On the author's PC, two tools and three scheduled tasks do what thermi should do alone: one shows CPU, GPU and RAM over the taskbar, another shows the CPU fan, and a script keeps re-raising them above the taskbar. Version 0.1 replaces all of it, and has to be trusted all day.

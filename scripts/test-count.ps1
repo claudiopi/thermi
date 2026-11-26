@@ -3,10 +3,12 @@
 .SYNOPSIS
     The test-case ratchet: counts every case the runners would run, each row of a [Theory] (inline or member data), each
     Playwright test a loop or a describe makes and each Vitest case of a table, and fails when a half's count is above its
-    baseline in tests/test-count.json, or when this change raised that baseline.
+    baseline in tests/test-count.json, or when this change raised that baseline along with anything else.
     Rows count as cases so that splitting a test that bundles many checks into rows never looks like growth, and bundling
     them never looks like thrift. A new behavior takes the cheapest test that proves it, and a test an edge test now
     covers goes; so the count stays flat while the code grows.
+    It also holds each spec to the budget of cases its spec.md declares, counting the cases of the tests its acceptance
+    steps name, and each table to a cap of rows, past which its table says why.
     The .NET half lists the built test projects, so it runs after the build; the page's half lists with its installed runners.
 #>
 param(
@@ -21,10 +23,13 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $baselineFile = 'tests/test-count.json'
 $web = Join-Path $root 'src' 'Thermi.Settings.Web'
+. (Join-Path $PSScriptRoot 'rows.ps1')
+# The most rows a table holds without saying why: the 95th percentile of the tables once their redundant rows were cut.
+$rowCap = 17
+$halfNames = @{ dotnet = '.NET'; web = 'page' }
 
-# xUnit's own listing, with each theory's rows enumerated as the runner finds them.
+# xUnit's own listing, with each theory's rows enumerated as the runner finds them: per case, the test it is a row of.
 function Get-DotNetCases {
-    $total = 0
     foreach ($project in Get-ChildItem (Join-Path $root 'tests') -Directory | Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") }) {
         $exe = if ($ArtifactsPath) { Join-Path $ArtifactsPath 'bin' $project.Name $Configuration.ToLowerInvariant() "$($project.Name).exe" }
             else {
@@ -34,21 +39,26 @@ function Get-DotNetCases {
         if (-not $exe -or -not (Test-Path $exe)) { throw "$($project.Name) is not built: build $Configuration first." }
         $listed = & $exe -list full/json -preEnumerateTheories | Out-String
         if ($LASTEXITCODE -ne 0) { throw "$exe could not list its tests." }
-        $total += @($listed | ConvertFrom-Json).Count
+        foreach ($case in @($listed | ConvertFrom-Json)) {
+            [pscustomobject]@{ Names = @($case.Method); Table = "$($case.Class).$($case.Method)"; Folder = $project.FullName; Line = 0 }
+        }
     }
-    $total
 }
 
-function Get-PlaywrightCases($Suites) {
-    $count = 0
+function Get-PlaywrightCases($Suites, [string[]]$Titles) {
     foreach ($suite in $Suites) {
-        foreach ($spec in $suite.specs) { $count += @($spec.tests).Count }
-        $count += Get-PlaywrightCases $suite.suites
+        $names = @($Titles) + $suite.title
+        foreach ($spec in $suite.specs) {
+            foreach ($test in $spec.tests) {
+                [pscustomobject]@{ Names = $names + $spec.title; Table = "$($spec.file):$($spec.line)"; Folder = (Join-Path $web 'tests'); Line = $spec.line }
+            }
+        }
+        Get-PlaywrightCases $suite.suites $names
     }
-    $count
 }
 
 # Playwright's and Vitest's listings, as each runner expands its loops and tables; a fixme or a skip is still a case.
+# A Vitest case is named by no acceptance step, which names Playwright's tests, so it counts in no spec's budget.
 function Get-WebCases {
     Push-Location $web
     try {
@@ -56,60 +66,128 @@ function Get-WebCases {
         if ($LASTEXITCODE -ne 0 -or $playwright.errors) { throw "Playwright could not list its tests: $($playwright.errors.message)" }
         # Vitest's listing names a table once, so its cases are counted from a run, which takes a second.
         $report = Join-Path $root 'TestResults' 'vitest-count.json'
-        npx --no-install vitest run --dir src --reporter=json --silent "--outputFile.json=$report" | Out-Null
+        npx --no-install vitest run --dir src --reporter=json --silent --includeTaskLocation "--outputFile.json=$report" | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Vitest could not run its tests.' }
         $vitest = Get-Content $report -Raw | ConvertFrom-Json
     }
     finally {
         Pop-Location
     }
-    (Get-PlaywrightCases $playwright.suites) + $vitest.numTotalTests
+    Get-PlaywrightCases $playwright.suites @()
+    foreach ($file in $vitest.testResults) {
+        foreach ($case in $file.assertionResults) {
+            [pscustomobject]@{ Names = @(); Table = "$($file.name):$($case.location.line)"; Folder = ''; Line = $case.location.line }
+        }
+    }
+}
+
+# Where a table's case starts, as the lines of its file and the line to look from: a .NET test's [Theory], a page's title.
+function Test-TableSaysWhy($Case) {
+    if ($Case.Line -eq 0) {
+        $class, $method = $Case.Table -split '\.(?=[^.]+$)'
+        $class = $class -replace '^.*\.', ''
+        $test = "\[Theory\b[^\n]*\n((?!\s*public\s)[^\n]*\n)*?\s*public\s+(async\s+)?(void|Task)\s+$method\s*\("
+        foreach ($file in Get-ChildItem $Case.Folder -Recurse -Filter '*.cs' | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' }) {
+            $source = (Get-Content $file.FullName -Raw) -replace "`r", ''
+            if ($source -notmatch "\bclass\s+$class\b" -or $source -notmatch $test) { continue }
+            $at = ($source.Substring(0, $source.IndexOf($Matches[0], [StringComparison]::Ordinal)) -split "`n").Count - 1
+            if (Test-RowsSayWhy ($source -split "`n") $at) { return $true }
+        }
+        return $false
+    }
+    $path = $Case.Table -replace ':\d+$', ''
+    Test-RowsSayWhy (Get-Content $(if ([IO.Path]::IsPathRooted($path)) { $path } else { Join-Path $Case.Folder $path })) ($Case.Line - 1)
+}
+
+# Each spec's budget, from its spec.md, and the tests its acceptance steps name; a dropped spec has none.
+function Get-Specs {
+    foreach ($folder in Get-ChildItem (Join-Path $root 'docs' 'specs') -Directory) {
+        $spec = Get-Content (Join-Path $folder.FullName 'spec.md') -Raw
+        if ($spec -match '\*\*Status\*\*: dropped') { continue }
+        $budget = if ($spec -match '(?m)^\*\*Budget\*\*: (?<dotnet>\d+) \.NET and (?<web>\d+) page cases') {
+            @{ dotnet = [int]$Matches.dotnet; web = [int]$Matches.web }
+        }
+        $steps = (Get-Content (Join-Path $folder.FullName 'acceptance.json') -Raw | ConvertFrom-Json).steps
+        [pscustomobject]@{ Name = $folder.Name; Budget = $budget; Tests = @($steps.check | Where-Object { $_ -ne 'by hand' } | Sort-Object -Unique) }
+    }
 }
 
 $baseline = Get-Content (Join-Path $root $baselineFile) -Raw | ConvertFrom-Json
-$halves = [ordered]@{}
-if ($Part -ne 'Web') { $halves.dotnet = Get-DotNetCases }
-if ($Part -ne 'DotNet') { $halves.web = Get-WebCases }
+$cases = [ordered]@{}
+if ($Part -ne 'Web') { $cases.dotnet = @(Get-DotNetCases) }
+if ($Part -ne 'DotNet') { $cases.web = @(Get-WebCases) }
+$failed = @()
 
-$raise = "To add tests beyond it, raise it in $baselineFile in a change of its own, which a person approves."
-$failed = $false
-foreach ($half in $halves.Keys) {
-    if ($halves[$half] -gt $baseline.$half) {
-        Write-Host "$($halves[$half]) $half test cases, above the baseline of $($baseline.$half)."
-        $failed = $true
+foreach ($half in $cases.Keys) {
+    if ($cases[$half].Count -gt $baseline.$half) {
+        $failed += "$($cases[$half].Count) $half test cases, above the baseline of $($baseline.$half)."
     }
 }
 if ($failed) {
-    Write-Host 'Merge near-identical cases into one table, and delete tests an edge test already covers.'
-    Write-Host $raise
-    exit 1
+    $failed += 'Merge near-identical cases into one table, and delete tests an edge test already covers.'
+    $failed += "To add tests beyond it, raise it in $baselineFile in a change of its own, which a person approves."
+}
+
+$notes = @()
+foreach ($spec in Get-Specs) {
+    if (-not $spec.Budget) {
+        $failed += "$($spec.Name)'s spec.md declares no budget: a line '**Budget**: <n> .NET and <n> page cases' under its status."
+        continue
+    }
+    foreach ($half in $cases.Keys) {
+        $count = @($cases[$half] | Where-Object { $_.Names | Where-Object { $spec.Tests -contains $_ } }).Count
+        $budget = $spec.Budget.$half
+        if ($count -gt $budget) {
+            $failed += ("$($spec.Name)'s tests have $count $($halfNames[$half]) cases, over the budget of $budget its spec.md declares: " +
+                'merge rows and cut what another case proves, or ask the person who approved the spec to raise it.')
+        }
+        elseif ($count -lt $budget) { $notes += "$($spec.Name)'s tests have $count $($halfNames[$half]) cases, under its budget of ${budget}: lower it." }
+    }
+}
+
+foreach ($half in $cases.Keys) {
+    foreach ($table in $cases[$half] | Group-Object Table | Where-Object Count -GT $rowCap) {
+        if (-not (Test-TableSaysWhy $table.Group[0])) {
+            $failed += ("$($table.Name) has $($table.Count) rows, more than the $rowCap a table holds: merge or cut rows, or say why " +
+                "each is a behavior of its own in a '// Rows: ...' comment on its [Theory] line, or on or above the line that opens its loop.")
+        }
+    }
 }
 
 # The change is what the working tree changed since the last commit, or, with nothing changed, that commit: a change
 # that raises the baseline raises it alone, so a raise inside a commit of other work fails. Its baseline is compared with
-# the one before it, the last commit's or its parent's, else the one where this branch left main, when git can tell; a
-# baseline that counted something else then has nothing to compare with.
+# the one before it, the last commit's or its parent's; in a pull request's run that is its base branch's. With no
+# baseline there, no raise could be seen, so that fails too: main holds the baseline before any branch raises it.
 $changed = @(git -C $root status --porcelain 2>$null)
 $from = if ($changed) { 'HEAD' } elseif (git -C $root rev-parse --verify --quiet 'HEAD~1' 2>$null) { 'HEAD~1' }
-    else {
-        $main = @('origin/main', 'main') | Where-Object { git -C $root rev-parse --verify --quiet $_ 2>$null } | Select-Object -First 1
-        if ($main) { git -C $root merge-base HEAD $main 2>$null }
+if (-not $from) {
+    $failed += 'git has no commit before this one to compare the baseline with: fetch two commits at least (fetch-depth: 2).'
+}
+else {
+    $before = git -C $root show "${from}:$baselineFile" 2>$null | ConvertFrom-Json
+    if (-not $before) {
+        $failed += ("$from has no $baselineFile, so a raise cannot be seen: commit the baseline to main in a change of its own " +
+            'before a branch raises it.')
     }
-$before = if ($from) { git -C $root show "${from}:$baselineFile" 2>$null | ConvertFrom-Json }
-$raised = foreach ($half in $halves.Keys) { if ($null -ne $before.$half -and $before.$half -lt $baseline.$half) { $half } }
-if ($raised) {
-    $others = @(git -C $root diff --name-only $from) + @(git -C $root ls-files --others --exclude-standard) | Where-Object { $_ -ne $baselineFile }
-    if ($others) {
-        Write-Host "This change raises the baseline of $($raised -join ' and ') in $baselineFile along with other files."
-        Write-Host $raise
-        exit 1
+    $raised = foreach ($half in $cases.Keys) { if ($before -and $before.$half -lt $baseline.$half) { $half } }
+    if ($raised) {
+        $others = @(git -C $root diff --name-only $from) + @(git -C $root ls-files --others --exclude-standard) | Where-Object { $_ -ne $baselineFile }
+        if ($others) {
+            $failed += "This change raises the baseline of $($raised -join ' and ') in $baselineFile along with other files."
+            $failed += 'Raise it in a change of its own, which a person approves.'
+        }
     }
 }
 
-foreach ($half in $halves.Keys) {
-    if ($halves[$half] -lt $baseline.$half) {
-        Write-Host ("note: $($halves[$half]) $half test cases, below the baseline of $($baseline.$half): " +
+if ($failed) {
+    $failed | ForEach-Object { Write-Host $_ }
+    exit 1
+}
+foreach ($half in $cases.Keys) {
+    if ($cases[$half].Count -lt $baseline.$half) {
+        $notes += ("$($cases[$half].Count) $half test cases, below the baseline of $($baseline.$half): " +
             "lower it in $baselineFile so the ratchet holds what was won.")
     }
 }
+$notes | ForEach-Object { Write-Host "note: $_" }
 exit 0

@@ -2,6 +2,8 @@
 
 **Status**: approved
 
+**Budget**: 9 .NET and 1 page cases
+
 ## Why
 
 People who play want to see their frame rate beside their temperatures, and how smooth it is: a steady line is fluid, spikes are stutters. It is the one thing other overlays show that thermi does not. thermi already has a service with the rights to see it (`docs/adr/0003-sensor-service.md`); how it reads frames, and why that way, is `docs/adr/0014-frames-from-etw.md`.

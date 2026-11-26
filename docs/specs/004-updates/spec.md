@@ -2,6 +2,8 @@
 
 **Status**: draft
 
+**Budget**: 151 .NET and 0 page cases
+
 ## Why
 
 Today thermi is built and installed from the repo by `scripts/install.ps1`. A public release needs an installer people trust, and fixes that reach every PC without a UAC prompt, a visit to a website or a gap in the overlay, as Chrome updates itself; and its owner needs Mi Basket's levers to stage a release, stop it and take it back within a minute. The service that installs runs as LocalSystem, so it must be impossible to make it run anything but a release signed by thermi's author.
