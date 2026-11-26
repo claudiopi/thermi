@@ -16,11 +16,12 @@ import {
   type FakeState,
   type Item,
 } from './fakeBridge';
+import { edge } from './edge';
 
 const itemIn = async (page: Page, id: string): Promise<Item> => itemOf(await settingsOf(page), id);
 
 // Edge draws its scrollbars here as the window does, where headless Edge would hide them.
-test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
+test.use({ launchOptions: { ...edge, ignoreDefaultArgs: ['--hide-scrollbars'] } });
 
 const cpuTemperatures = recording('admin').filter(
   (sensor) => sensor.hardwareType === 'Cpu' && sensor.type === 'Temperature' && sensor.value !== null,

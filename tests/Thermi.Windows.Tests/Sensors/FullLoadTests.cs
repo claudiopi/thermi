@@ -22,7 +22,7 @@ public sealed class FullLoadTests
 
     // Night QA: "Find it" said the readings stopped as its load started. With every core spun by the finder's own load,
     // `thermi cpu-load`, the sensor pipe still gives a snapshot each second, and the load runs at idle priority. The pipe
-    // here runs in the test process, below normal under scripts/check.ps1, which is still above the load.
+    // here runs in the test process, idle under scripts/check.ps1, whose threads at normal are still above the load's.
     [Fact]
     public async Task UnderALoadOnEveryCoreTheReadingsKeepComing()
     {

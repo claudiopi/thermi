@@ -16,10 +16,10 @@ $tests = Join-Path $root 'tests' 'Thermi.Tests'
 $json = Join-Path $output 'reports' 'mutation-report.json'
 $projects = 'Thermi.Core', 'Thermi.Cli'
 Remove-Item $json -ErrorAction Ignore
-# Stryker keeps every core busy for minutes: below normal priority, which its processes inherit, the PC stays usable.
+# Stryker keeps every core busy for minutes: at idle priority, which its processes inherit, the PC stays usable.
 $self = [Diagnostics.Process]::GetCurrentProcess()
 $priority = $self.PriorityClass
-$self.PriorityClass = 'BelowNormal'
+$self.PriorityClass = 'Idle'
 # Stryker finds its config and the test project from where it runs, and each project it mutates among those the tests
 # reference. It breaks at nothing: the gate is below.
 Push-Location $tests
