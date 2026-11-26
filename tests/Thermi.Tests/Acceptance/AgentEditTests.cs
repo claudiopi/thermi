@@ -129,6 +129,8 @@ public sealed class AgentEditTests
         """{"kind":"overlay","overlay":0,"field":"nothing","value":1}""",
         """{"kind":"thermi","field":"nothing","value":1}""",
         """{"kind":"style","overlay":0,"field":"nothing","value":1}""",
+        """{"kind":"moveItem","by":1}""",
+        """{"kind":"removeItem","item":null}""",
     ];
 
     private static ThermiConfig Edit(string json, ThermiConfig config)

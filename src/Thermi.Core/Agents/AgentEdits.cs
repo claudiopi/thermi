@@ -57,8 +57,14 @@ public static class AgentEdits
         };
     }
 
-    // An agent writes an edit's fields in any order, its kind among them; the page writes its kind first.
-    private static readonly JsonSerializerOptions Options = new(BridgeCalls.Options) { AllowOutOfOrderMetadataProperties = true };
+    // An agent writes an edit's fields in any order, its kind among them; the page writes its kind first. A field the edit
+    // names is one the agent gives, and null only where the edit takes none, as the page's types make it.
+    private static readonly JsonSerializerOptions Options = new(BridgeCalls.Options)
+    {
+        AllowOutOfOrderMetadataProperties = true,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
+    };
 
     private static Func<ThermiConfig, EditResult> Page(PageEdit edit, Snapshot snapshot, Texts texts, Func<IReadOnlySet<int>> altGrKeys) =>
         edit switch
