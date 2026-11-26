@@ -253,6 +253,37 @@ public sealed class OverlayDragTests : IDisposable
         Assert.Equal((true, true), (quiet, after));
     }
 
+    // A value held in the CPU pill lifts its item alone, whose empty slot takes its value's place and leaves the pill its label.
+    [Fact]
+    public async Task AnItemLiftedAloneLeavesItsPillItsLabel()
+    {
+        var settings = await _folder.LoadedAsync(new ThermiConfig());
+        var (before, lifted, value) = (new List<int>(), new List<int>(), new List<int>());
+
+        Run(settings, host =>
+        {
+            var overlay = host.Overlays[0];
+            var label = EndOf(overlay, Metrics.CpuTemperature.Id, label: true);
+            PInvoke.GetWindowRect(overlay.Hwnd, out var rect);
+            before.AddRange(Column(overlay.OnScreenPicture!, label.X - rect.left));
+            var held = EndOf(overlay, Metrics.CpuTemperature.Id, label: false);
+            value.AddRange(Column(overlay.OnScreenPicture!, held.X - rect.left - 12));
+            MoveTo(host, overlay, held, PInvoke.WM_LBUTTONDOWN);
+            Hold(host, overlay);
+            HostRun.Tick(host);
+            lifted.AddRange(Column(overlay.OnScreenPicture!, label.X - rect.left));
+            value = [.. value.Zip(Column(overlay.OnScreenPicture!, held.X - rect.left - 12), (was, now) => was - now).Where(change => change != 0)];
+            End(host, overlay.Hwnd, "esc");
+        });
+
+        Assert.Equal(before, lifted);
+        Assert.NotEmpty(value);
+    }
+
+    // The 12 columns of pixels from x on, as ARGB.
+    private static List<int> Column(Bitmap picture, int x) =>
+        [.. Enumerable.Range(x, 12).SelectMany(at => Enumerable.Range(0, picture.Height).Select(y => picture.GetPixel(at, y).ToArgb()))];
+
     private static OverlayWindow? Under(OverlayHost host, Position at) =>
         host.Overlays.FirstOrDefault(overlay => overlay.OnScreen && PInvoke.GetWindowRect(overlay.Hwnd, out var rect)
             && at.X >= rect.left && at.X < rect.right && at.Y >= rect.top && at.Y < rect.bottom);

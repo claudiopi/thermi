@@ -79,10 +79,10 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         Let();
         var carried = DesktopGestures.Grip(settings.Config, on.Item, on.OnLabel);
         var held = InCorner(overlay, painted, at, actions.Cursor()) ? Held.Corner : carried is null ? Held.Edge : Held.Pill;
-        var (box, picture) = carried is { Alone: true } alone ? (on.Place, () => ItemPicture(alone.Item, painted))
-            : carried is { } pill ? (on.Pill, () => PillPicture(pill.Item, painted))
-            : (on.Pill, (Func<Bitmap>?)null);
-        var start = new DragStart(held, carried, box, at, painted.Size, painted.Scale, picture);
+        var (box, gap, picture) = carried is { Alone: true } alone ? (on.Place, on.Alone, () => ItemPicture(alone.Item, painted))
+            : carried is { } pill ? (on.Pill, on.Pill, () => PillPicture(pill.Item, painted))
+            : (on.Pill, on.Pill, (Func<Bitmap>?)null);
+        var start = new DragStart(held, carried, box, gap, at, painted.Size, painted.Scale, picture);
         Drag = new DesktopDrag(index, settings, start, screens, hwnd, actions.Settle);
         _pressed = actions.Time.GetTimestamp();
         _escape = PInvoke.RegisterHotKey(hwnd, (int)EscapeKey, HOT_KEY_MODIFIERS.MOD_NOREPEAT, (uint)VIRTUAL_KEY.VK_ESCAPE);
@@ -198,7 +198,7 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
     {
         if (Drag is { Lifted: true } drag)
         {
-            DragMarks.Gap(bitmap, drag.PillBox, scale);
+            DragMarks.Gap(bitmap, drag.Gap, scale);
         }
 
         if (actions.Preview.Onto == index)

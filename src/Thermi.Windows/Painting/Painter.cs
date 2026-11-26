@@ -223,10 +223,12 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             var (item, width) = (pill.Items[i], pill.ItemWidths[i]);
             var value = DrawItem(g, item, look, new PointF(x, box.Top + (box.Height / 2)), scale);
             var place = new RectangleF(x - (gap / 2), box.Top, width + gap, box.Height);
+            var alone = item.Label is null ? place.Left : value - (MeterRoom(item, look) * scale) - (LabelGap * scale / 2);
             _places.Add(new PaintedItem(item.Id, place, new RectangleF(value, box.Top, x + width - value, box.Height))
             {
                 Pill = part.Box,
-                Label = item.Label is null ? RectangleF.Empty : new RectangleF(place.Left, box.Top, value - place.Left, box.Height),
+                Label = item.Label is null ? RectangleF.Empty : new RectangleF(place.Left, box.Top, alone - place.Left, box.Height),
+                Alone = RectangleF.FromLTRB(alone, place.Top, place.Right, place.Bottom),
             });
             x += width + gap;
         }

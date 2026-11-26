@@ -24,10 +24,12 @@ internal enum Held
 }
 
 /// <summary>
-/// Where a press on an overlay began: what it held, the pill or the item alone a hold takes, where that sits in the
-/// overlay's pixels, the overlay's corner on the screen, its size and scale, and its own picture, which it carries lifted.
+/// Where a press on an overlay began: what it held, the pill or the item alone a hold takes, where its picture sits in the
+/// overlay's pixels and the gap it leaves there once lifted, the overlay's corner on the screen, its size and scale, and
+/// its own picture, which it carries lifted.
 /// </summary>
-internal sealed record DragStart(Held Held, Carried? Carried, RectangleF PillBox, Position Origin, Size Size, float Scale, Func<Bitmap>? PillPicture);
+internal sealed record DragStart(
+    Held Held, Carried? Carried, RectangleF PillBox, RectangleF Gap, Position Origin, Size Size, float Scale, Func<Bitmap>? PillPicture);
 
 /// <summary>
 /// One press on an overlay, from its capture to its release, as a desktop gesture: the overlay moved over snap marks and
@@ -58,8 +60,8 @@ internal sealed class DesktopDrag(
     /// <summary>Whether the pill was held long enough to lift but no other overlay fits, so the press does nothing.</summary>
     public bool Refused { get; private set; }
 
-    /// <summary>Where the pill or item a hold takes sits in the overlay's pixels, which it leaves as a gap once lifted.</summary>
-    public RectangleF PillBox => start.PillBox;
+    /// <summary>Where the pill or item a hold takes leaves a gap in the overlay's pixels once lifted: an item alone, its pill's label kept.</summary>
+    public RectangleF Gap => start.Gap;
 
     /// <summary>What a hold takes: the pill pressed, or the item alone, or nothing on the edge or the corner.</summary>
     public Carried? Carried => start.Carried;
