@@ -92,6 +92,9 @@ public enum UiText
     /// <summary>Under Size, for an overlay on a horizontal taskbar, which it never outgrows whatever the size says.</summary>
     SizeOnTaskbar,
 
+    /// <summary>Under Size, for an overlay that would not fit its display at its size, which shows it smaller.</summary>
+    SizeFitsDisplay,
+
     StartWithWindows,
 
     ResetToDefaults,

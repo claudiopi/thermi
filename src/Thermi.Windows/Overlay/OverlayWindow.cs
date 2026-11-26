@@ -190,9 +190,10 @@ internal sealed class OverlayWindow : IDisposable
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
         IReadOnlyList<Screen> screens = heldAt is null ? scene.Screens : [];
         var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
-        var items = Extras(scene, texts, shown.Items);
+        var items = scene.WithProblem(texts, shown.Items);
         var room = TaskbarRow.RoomOf(overlays, _index, screens, _actions.Shown());
         var scale = _painter.Within(items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), room);
+        scale = _painter.Fitting(items, look, scale, Snaps.Most(overlay, screens));
         _glow.Update(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
         var bitmap = shown.SensorsStopped
@@ -229,18 +230,6 @@ internal sealed class OverlayWindow : IDisposable
             BaseClock = scene.Cpu?.BaseClock,
             Busiest = scene.Cpu?.Busiest,
         };
-
-    // After the items, the settings' error.
-    private static IReadOnlyList<OverlayItem> Extras(OverlayScene scene, Texts texts, IReadOnlyList<OverlayItem> items)
-    {
-        if (scene.Problem is null)
-        {
-            return items;
-        }
-
-        var error = texts.Of(OverlayText.ConfigError);
-        return [.. items, new OverlayItem(texts.Of(OverlayText.ConfigLabel), error, Level.Critical, error)];
-    }
 
     // Each value's tooltip where the painter drew its item, the "Sensors stopped" pill's over the whole pill.
     private void Tips(OverlayScene scene, TrayInput input, Core.Tray.OverlayScene shown)

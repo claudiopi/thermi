@@ -213,6 +213,8 @@ export function installFakeViews(): void {
       values: Object.fromEntries(state.sensors.flatMap((one) => (live(one) === null ? [] : [[one.id, format(one.type, one.value ?? 0)]]))),
       mark: markOf(items),
       colors: state.settings.overlays.map(colorsShown),
+      // Whether an overlay fits its display is measured by C#, which the fake leaves to the window's own tests.
+      fitted: [],
     };
   };
 

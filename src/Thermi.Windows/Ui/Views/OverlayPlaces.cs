@@ -50,13 +50,36 @@ internal static class OverlayPlaces
         return TaskbarRow.Settled(before, after, scene.Screens, shown, Fit(painter, after, input, scene.Screens));
     }
 
+    /// <summary>
+    /// Whether each overlay off a taskbar shows smaller than its size so as to fit its monitor's work area, as its window
+    /// fits it; none is measured at 100 % or under, where the size could not shrink it further.
+    /// </summary>
+    public static IReadOnlyList<bool> Fitted(ThermiConfig config, TrayInput input, Func<IReadOnlyList<Screen>> screens)
+    {
+        if (!config.Overlays.Any(overlay => overlay.Size > 1))
+        {
+            return [];
+        }
+
+        var on = screens();
+        using var painter = new Painter();
+        bool Over(OverlayConfig overlay, int at)
+        {
+            var items = ThermiMark.Overlay(config, at, input, windowOpenedOnce: true).Items;
+            var size = painter.Measure(items, OverlayLook.Of(overlay.Style, input.LightTaskbar), OverlayWindow.ScaleOf(96, overlay, on));
+            return Snaps.Most(overlay, on) is var (width, height) && (size.Width > width || size.Height > height);
+        }
+
+        return [.. config.Overlays.Select((overlay, at) => overlay.Size > 1 && Over(overlay, at))];
+    }
+
     // Each overlay's items measured as its painter keeps their room at its monitor's scale: at its own size, or within a room.
     private static OverlayFit Fit(Painter painter, ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens) => (at, room) =>
     {
         var overlay = config.Overlays[at];
         var items = ThermiMark.Overlay(config, at, input, windowOpenedOnce: true).Items;
         var look = OverlayLook.Of(overlay.Style, input.LightTaskbar);
-        var scale = OverlayWindow.ScaleOf(96, overlay, screens);
+        var scale = painter.Fitting(items, look, OverlayWindow.ScaleOf(96, overlay, screens), Snaps.Most(overlay, screens));
         var size = painter.Measure(items, look, room is null ? scale : painter.Within(items, look, scale, room));
         return new PixelRect(0, 0, size.Width, size.Height);
     };

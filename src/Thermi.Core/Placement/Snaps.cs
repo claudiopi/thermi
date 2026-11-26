@@ -103,6 +103,16 @@ public static class Snaps
             ? Math.Min(overlay.Size, (bar.Height - 0.01) / (OverlayLook.HeightOf(overlay.Style) * screen.Scale))
             : overlay.Size;
 
+    /// <summary>
+    /// The largest box an overlay off a taskbar shows as, so it shows whole: its monitor's work area, kept clear of a
+    /// taskbar that hides, less the margin a corner keeps on each side; null on a taskbar, where <see cref="SizeShown"/>
+    /// keeps it within the taskbar's height, or with no monitor.
+    /// </summary>
+    public static (int Width, int Height)? Most(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
+        OnTaskbar(overlay, screens) is null && ScreenOf(overlay, screens) is { } screen && Clear(screen) is var work && Scaled(Margin, screen) is var margin
+            ? (Math.Max(1, work.Width - (2 * margin)), Math.Max(1, work.Height - (2 * margin)))
+            : null;
+
     internal static (Screen Screen, PixelRect Bar)? OnTaskbar(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
         overlay.Snapped is { Spot: SnapSpot.Taskbar } snap
         && overlay.Style.Orientation == Orientation.Horizontal
@@ -289,8 +299,10 @@ public static class Snaps
     {
         var margin = Scaled(Margin, screen);
         var work = Clear(screen);
-        var top = work.Top + Scaled(BelowTop, screen);
         var (right, bottom) = (Math.Max(work.Left, work.Right - margin - width), Math.Max(work.Top, work.Bottom - margin - height));
+
+        // Below a maximized window's caption buttons while there is room for it, else as high as keeps it whole.
+        var top = Math.Min(work.Top + Scaled(BelowTop, screen), bottom);
         return snap.Spot switch
         {
             SnapSpot.Taskbar => OnTaskbar(screen, snap.Offset, orientation, width, height),

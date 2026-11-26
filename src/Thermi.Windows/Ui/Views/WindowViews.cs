@@ -35,7 +35,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         }
     }
 
-    public WindowView View(Texts texts)
+    public WindowView View(Texts texts, Func<IReadOnlyList<Screen>> screens)
     {
         var config = editor.Config;
         var snapshot = sensors.Latest;
@@ -75,6 +75,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         return new WindowView(pills, items, Values(snapshot, Format(texts)), Mark(config, snapshot, texts))
         {
             Colors = [.. config.Overlays.Select(overlay => LookColors.Of(OverlayLook.Of(overlay.Style, light)))],
+            Fitted = OverlayPlaces.Fitted(config, Input(texts), screens),
         };
     }
 

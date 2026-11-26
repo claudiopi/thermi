@@ -5,6 +5,7 @@ using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Windows.Win32;
 using Select = Thermi.Core.Messages.Select;
@@ -81,4 +82,16 @@ internal sealed record OverlayScene(
 
     /// <summary>The CPU's base clock, read once, and what is busiest now, read only while a CPU or GPU value is critical.</summary>
     public CpuWatch? Cpu { get; init; }
+
+    /// <summary>The items an overlay shows, and after them the settings' error while the file is broken.</summary>
+    public IReadOnlyList<OverlayItem> WithProblem(Texts texts, IReadOnlyList<OverlayItem> items)
+    {
+        if (Problem is null)
+        {
+            return items;
+        }
+
+        var error = texts.Of(OverlayText.ConfigError);
+        return [.. items, new OverlayItem(texts.Of(OverlayText.ConfigLabel), error, Level.Critical, error)];
+    }
 }
