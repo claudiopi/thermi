@@ -34,7 +34,7 @@ public sealed class ChartTests
     // off it. A line moved past the other pushes it by the push, and the chart says where it went. After #, the meters an item
     // of that sensor is offered, = for itself: only readings of the item, a fan's duty beside its speed and the other way
     // round, never another device's or another kind's.
-    [Theory]
+    [Theory] // Rows: each sensor type's entry of static tables of lines, steps and ranges, which Stryker cannot judge
     [InlineData("/amdcpu/0/temperature/2", SensorKind.Temperature, 90.0, 95.0, 1.0, 5.0, "70 100|0|100 °C#=#90 95")]
     [InlineData(IntelPackage, SensorKind.Temperature, 95.0, 100.0, 1.0, 5.0, "50 100|0|100 °C#=#95 100")]
     [InlineData("/gpu-nvidia/0/temperature/0", SensorKind.Temperature, 80.0, 88.0, 1.0, 5.0, "30 95|0|100 °C#=#80 88")]

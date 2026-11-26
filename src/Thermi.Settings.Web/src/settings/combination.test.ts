@@ -10,6 +10,7 @@ function press(key: string, code: string, { ctrl = false, alt = false, shift = f
 
 const combination = (text: string): Pressed => ({ kind: 'combination', combination: text });
 
+// Rows: each key of the named and the modifier tables, static so Stryker leaves them out, and each modifier that makes Esc or Tab a combination.
 test.each([
   { key: 'Control', code: 'KeyA', keys: { ctrl: true }, means: null },
   { key: 'AltGraph', code: 'KeyA', keys: {}, means: null },

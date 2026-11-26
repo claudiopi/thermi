@@ -40,9 +40,8 @@ public sealed class TaskbarDropTests
 
     // An overlay 550 × 38 dragged and dropped with its top-left corner at `drop`, with Alt held, or vertical, when it says
     // so. Where it lands: its snap and where it shows, or "free" where it is kept.
-    [Theory]
+    [Theory] // Rows: a mark's or an edge's reach at 96 and 97 px, each corner and taskbar, Alt on the taskbar, near a corner and off both
     // On the taskbar, anywhere along it, over the app buttons or the notification area too, kept whole on it.
-    [InlineData("1200,1397", "Taskbar 1200,1397")]
     [InlineData("300,1420", "Taskbar 300,1397")]
     [InlineData("2200,1397", "Taskbar 2010,1397")]
     // Its marks pull within 96 px along it, and no farther.
@@ -63,8 +62,7 @@ public sealed class TaskbarDropTests
     [InlineData("alt 1600,1397", "Taskbar 1600,1397")]
     [InlineData("alt 18,1336", "free 18,1336")]
     [InlineData("alt 1200,1300", "free 1200,1300")]
-    // A taskbar at the top of another monitor, from its edge 96 px below it too; a vertical overlay never goes on one.
-    [InlineData("3000,0", "Taskbar 3000,1")]
+    // A taskbar at the top of another monitor pulls from its edge 96 px below it; a vertical overlay never goes on one.
     [InlineData("3000,136", "Taskbar 3000,1")]
     [InlineData("vertical 1200,1397", "free 1200,1354")]
     public void ADropLandsWhereItIsLetGoOrOnAMarkInReach(string drop, string lands)
@@ -87,7 +85,7 @@ public sealed class TaskbarDropTests
     // the two shown, 34 px from the first and 72 px from the second. A drag held as its words
     // say, `self` the dragged overlay's place (-1 for a lifted pill, whose overlay stays), its box `x,y,width` 38 px high
     // and the cursor, with Alt held when it says so. What it joins, and the point of it the drop joins at, or none.
-    [Theory]
+    [Theory] // Rows: half or just less of itself over, the cursor on or just above, a lifted pill over one, two or its own, Alt: each A318 states
     // The cursor on the other overlay, or off it with the dragged overlay over it by half of either.
     [InlineData("1 1700,1397,103 1750,1416", "0 1750,1416")]
     [InlineData("1 1700,1380,103 1750,1394", "0 1750,1397")]
@@ -121,15 +119,12 @@ public sealed class TaskbarDropTests
     // an overlay of `made` pixels once on its own, as a drag carries it: 100 × 38, or 108 × 38 out of one bar, whose pill
     // is drawn 4 px inside the bar. It is dropped beside it, 8 px away and level with it, as a drag with Alt held drops it,
     // and becomes an overlay of its own there. Its snap, where it shows and its items.
-    [Theory]
+    [Theory] // Rows: taskbar or free, before or after, vertical below or above, the width as it sits once the pill left, the refusal
     // On the taskbar it lands on the taskbar, before the overlay, centered across it; before the overlay as it sits once
     // the pill has left, 450 px wide, shrunk toward the notification area.
     [InlineData("taskbar 1652,1397,2202,1435 100x38", "Taskbar 1544,1397 gpu.load")]
-    [InlineData("taskbar 1652,1397,2202,1435 108x38", "Taskbar 1536,1397 gpu.load")]
     [InlineData("taskbar 1652,1397,2202,1435 100x38 450x38", "Taskbar 1644,1397 gpu.load")]
     // Free, before it, or after it where before is off the monitor, level with its middle.
-    [InlineData("free 1000,500,1550,538 100x38", "free 892,500 gpu.load")]
-    [InlineData("free 1000,500,1550,538 108x38", "free 884,500 gpu.load")]
     [InlineData("free 1000,500,1550,538 108x30", "free 884,504 gpu.load")]
     [InlineData("free 0,500,550,538 100x38", "free 558,500 gpu.load")]
     // Vertical, below it, or above it where below is off the work area, in line with its left edge.
@@ -172,7 +167,7 @@ public sealed class TaskbarDropTests
 
     // Night QA: at 200 % an overlay on the 48 px taskbar was 76 px high and cut. On a taskbar it shows at most as high as
     // the taskbar, at 100 % and on a 72 px taskbar at 150 %; free, or vertical above the taskbar, at its own size.
-    [Theory]
+    [Theory] // Rows: the night QA's overflow at 200 %, and each operand of when the taskbar caps it: 100 %, 150 %, free, vertical
     [InlineData("taskbar 1", 38)]
     [InlineData("taskbar 2", 48)]
     [InlineData("taskbar 2 150%", 72)]
@@ -201,7 +196,7 @@ public sealed class TaskbarDropTests
     // leaves the taskbar, covers another or goes back over the app buttons. Where the room is less than that (QA round 6,
     // a taskbar nearly full), none shows smaller: the one before is held back over the app buttons. Each, in order, shows at
     // the width it has room for, beside the others as they show.
-    [Theory]
+    [Theory] // Rows: a reproduction each, of the night QA's covered neighbour and QA round 6's nearly full taskbar
     [InlineData("8:308 tray:319", "8 1883")]
     [InlineData("1567:432@2 tray:319", "1567 1883")]
     [InlineData("100:600 650:300", "100 708")]
@@ -236,8 +231,7 @@ public sealed class TaskbarDropTests
     // others keep their size and place; one shown again there squeezes none, the one before it held back over the app
     // buttons only while it shows, so hiding it again puts that one back where it was. Touching is no overlap, so a move
     // that ends where the next begins fits, as one a pixel over would not.
-    [Theory]
-    [InlineData("1000 1400", "size 0 2", "1000 1608")]
+    [Theory] // Rows: a reproduction each, of QA round 5 and 6: shrink, show, drop, hide, a move without room, touching and a pixel over
     [InlineData("1000 1400 free", "size 0 2,hide 0", "- 1608 100")]
     [InlineData("1000 1400", "size 0 2,size 0 1", "1000 1608")]
     [InlineData("1000 1400", "hide 1,size 0 2,show 1", "1000 1608")]

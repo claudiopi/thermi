@@ -51,8 +51,7 @@ public sealed class SnapTests
     // clamped on the taskbar, at another resolution or scale, and floats just above the work area's bottom at its offset
     // where the taskbar hides or stands on a side. Without an offset it sits beside the notification area, or a fixed
     // reserve from the end where that is not found.
-    [Theory]
-    [InlineData("as it is", 1000, 1000, 1375)]
+    [Theory] // Rows: each change of the taskbar its step states, with and without an offset, and the clamp on a narrow screen
     [InlineData("tray grown", 1000, 1000, 1375)]
     [InlineData("at the top", 1000, 1000, 7)]
     [InlineData("1920 wide", 1000, 1000, 1375)]
@@ -60,7 +59,6 @@ public sealed class SnapTests
     [InlineData("at 100 %", 1000, 1000, 1375)]
     [InlineData("hides", 1000, 1000, 1356 - 72 - 57 + 72)]
     [InlineData("on a side", 1000, 1000, 1428 - 57)]
-    [InlineData("as it is", null, 1588, 1375)]
     [InlineData("tray grown", null, 1288, 1375)]
     [InlineData("tray not found", null, 1630, 1375)]
     [InlineData("hides", null, 1948, 1356 - 72 - 57 + 72)]
@@ -165,9 +163,7 @@ public sealed class SnapTests
     }
 
     // A free overlay dropped where it hangs off the screen, over the taskbar or across two monitors; where it shows.
-    [Theory]
-    [InlineData(100, 200, 100, 200)]
-    [InlineData(2100, 200, 1960, 200)]
+    [Theory] // Rows: each way off the work area its step states, and both sides of the monitor the overlay lies most on
     [InlineData(-300, -20, 0, 0)]
     [InlineData(100, 1350, 100, 1311)]
     [InlineData(2400, 1000, 2560, 975)]

@@ -17,7 +17,7 @@ public sealed class BridgeTests
     // "event:none" raise one with a value and without; "failed:" and a call give the answer that rejects that call. An
     // error of "*" is one whose words are the bridge's, which only a log reads: that it fails is the behavior, and an
     // exception's own message crosses as it is.
-    [Theory]
+    [Theory] // Rows: each a field a call may lack, an exception the catch's filter names, or a type the static options write.
     [InlineData(
         """{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""",
         """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]
@@ -69,7 +69,7 @@ public sealed class BridgeTests
     // The overlay's ten minutes, its newest the reading of a tenth of a second before it sent them, moved on by the seconds
     // since, under what the window read itself a second apart from then on; a gap stays a gap. Drawn at any moment of a
     // second, the overlay's newest second sits right before the window's first.
-    [Theory]
+    [Theory] // Rows: each a bound of the seconds moved on, a gap, or a second with no reading of its own.
     [InlineData(0.1, 0, 599, 599.0)]
     [InlineData(10.1, 0, 599, null)]
     [InlineData(0.1, 0, 300, null)]

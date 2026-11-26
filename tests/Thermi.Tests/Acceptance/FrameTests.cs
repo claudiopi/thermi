@@ -273,7 +273,7 @@ public sealed class FrameTests
     // counted in order. The kernel's presents, marked k, and its detailed ones, marked d, repeat the runtime's, so a second
     // counts the source that told of most, the runtime's on a tie. Each row comes after 3 s of
     // steady presents of its first source, so the app counts as presenting, and its times from half a millisecond after.
-    [Theory]
+    [Theory] // Rows: each a rule the comment states, or the change of source a fix reproduced.
     [InlineData("0 100 200 300 400 500 600 700 800 900 1000", "1000", "11 100.0 ms")]
     [InlineData("0 100", "1000 2000 3000 4000 5000 6000 7000", "2 900.0 ms|0 999.9 ms|0 999.9 ms|0 999.9 ms|0 999.9 ms||")]
     [InlineData("100 1050 950", "1000 2000", "1 900.0 ms|1 950.0 ms")]

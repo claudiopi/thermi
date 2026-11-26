@@ -22,7 +22,7 @@ public sealed class PipeTests
     }
 
     // Split after its first bytes, inside a character of two bytes, or before its end alone.
-    [Theory]
+    [Theory] // Rows: each a place a split can fall, inside a character among them.
     [InlineData(false, "10")]
     [InlineData(true, "in ñ")]
     [InlineData(false, "before the end")]
@@ -126,7 +126,7 @@ public sealed class PipeTests
 
     // Whatever the wall clock does meanwhile: set back an hour, as by a person or a time sync, frozen numbers would look
     // live for that hour.
-    [Theory]
+    [Theory] // Rows: a wall clock set back must not keep frozen numbers live.
     [InlineData(0)]
     [InlineData(-60)]
     public void AHostThatGoesQuietStopsShowingNumbers(int wallMinutes)

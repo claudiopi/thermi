@@ -17,6 +17,7 @@ const press = (key: string, held: Partial<Press> = {}): Press => ({
 const ctrl = { ctrlKey: true };
 
 describe("the window's shortcuts", () => {
+  // Rows: each modifier, typing and a key taken already is an operand of its condition, which Stryker never drops.
   test.each([
     { press: press('y', ctrl), typing: false, runs: 'redo' },
     { press: press('v', ctrl), typing: false, runs: 'paste' },

@@ -207,7 +207,7 @@ public sealed class ReadableCatalogTests
     // default item already shows takes a number. Named by thermi alone, told apart and numbered too, it stays unnamed in
     // the file and reads in the window's language as if added in it (night QA: a GPU fan stayed "GPU fan" in Spanish, and
     // one told apart kept the Spanish name it was added with).
-    [Theory]
+    [Theory] // Rows: each a way of naming the comment states, or a name the night QA found wrong.
     [InlineData("/gpu-nvidia/0/fan/1", DeviceKind.Gpu, "fan", "")]
     [InlineData("/nvme/0/load/30", DeviceKind.Ssd, "used space", "")]
     [InlineData("/nvme/0/temperature/0", DeviceKind.Ssd, "temperature", "")]

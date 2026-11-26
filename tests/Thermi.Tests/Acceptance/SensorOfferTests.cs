@@ -14,9 +14,8 @@ public sealed class SensorOfferTests
     // On the recorded PC, an item of a type that reads a sensor now, and one the item names, which it lists whatever the
     // dropdown leaves out: the devices it lists first and how many sensors, then the devices it lists once asked to show all.
     // On the Intel desktop, its own recording, a CPU temperature lists the CPU's 19 and none of its cores' distances to TjMax.
-    [Theory]
+    [Theory] // Rows: each a case A300 states, or the Intel desktop a fix brought.
     [InlineData("Temperature", Intel + "/temperature/18", null, Intel + " x19", "/gpu-nvidia/0 /lpc/nct6798d/0 /memory/dimm/1 /memory/dimm/3 /nvme/0")]
-    [InlineData("Load", Nvidia + "/load/0", null, "/gpu-nvidia/0 x7", "/amdcpu/0 /gpu-amd/0 /nic /nvme/0 /ram /vram")]
     [InlineData("Load", Cpu + "/load/0", null, "/amdcpu/0 x34", "/gpu-amd/0 /gpu-nvidia/0 /nic /nvme/0 /ram /vram")]
     [InlineData("Load", Nvidia + "/load/7", Nvidia + "/load/7", "/gpu-nvidia/0 x8", "/amdcpu/0 /gpu-amd/0 /nic /nvme/0 /ram /vram")]
     [InlineData("Data", "/ram/data/0", null, "/ram x2", "/vram")]

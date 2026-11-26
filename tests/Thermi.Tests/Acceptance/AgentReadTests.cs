@@ -11,7 +11,7 @@ namespace Thermi.Tests.Acceptance;
 /// <summary>What an agent reads is what the overlay shows, from the same snapshots and settings, never a value it made up.</summary>
 public sealed class AgentReadTests
 {
-    [Theory]
+    [Theory] // Rows: each a recording, as A5 asks of every one.
     [InlineData(TestRecordings.Admin)]
     [InlineData(TestRecordings.NoAdmin)]
     [InlineData(TestRecordings.IntelAdmin)]

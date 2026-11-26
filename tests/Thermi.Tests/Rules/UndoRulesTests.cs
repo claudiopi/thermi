@@ -81,7 +81,7 @@ public sealed class UndoRulesTests
     };
 
     // Whatever the window changed, a change made by hand over it after the edit stays when the edit is undone.
-    [Theory]
+    [Theory] // Rows: each a field of ConfigFields' static table, or a way a hand edit meets the window's.
     [InlineData("a threshold set again")]
     [InlineData("a drag after a snap")]
     [InlineData("the item deleted")]

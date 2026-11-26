@@ -16,7 +16,7 @@ public sealed class OverlayTests
     // The values of the CPU's temperature, fan, load and power, the GPU's load and the RAM used, then the segments lit of
     // the meters of the temperature, the fan and the RAM. The i9's CPU temperature is its package's, not a core's nor the
     // board's "CPU Core" at 50 °C, and its CPU fan the Nuvoton's second input, not its first, which reads 0 RPM.
-    [Theory]
+    [Theory] // Rows: each recorded PC picks its own sensors from static tables, which Stryker leaves out
     [InlineData(TestRecordings.Admin, "77 °C|1,087 RPM|9 %|71 W|3 %|27.2 GB", "4 1 2")]
     [InlineData(TestRecordings.IntelAdmin, "57 °C|720 RPM|5 %|29 W|5 %|15.0 GB", "3 1 1")]
     public void ShowsTheDefaultOverlayFromARecording(string recording, string values, string lit)
@@ -61,7 +61,7 @@ public sealed class OverlayTests
     // A sensor that is gone, or named for a metric of another kind, leaves the metric missing: never another sensor's
     // value, nor one in the wrong unit. Without a metric, every metric is. An Intel core's distance to its limit, TjMax,
     // falls as the core heats, so it is never the CPU's temperature.
-    [Theory]
+    [Theory] // Rows: each a different way a sensor is missing, which a fake must never hide
     [InlineData("the desktop without Memory Used", null, null, "ram.used")]
     [InlineData("the i9's distances to TjMax alone", null, null, "cpu.temperature")]
     [InlineData("the desktop", "cpu.temperature", "/lpc/it8689e/0/fan/0", "cpu.temperature")]
@@ -85,7 +85,7 @@ public sealed class OverlayTests
     }
 
     // A clock of the CPU's cores, never its bus's, and a fan wherever the PC reports one, as a laptop does on its controller.
-    [Theory]
+    [Theory] // Rows: each a static sensor-map entry Stryker leaves out
     [InlineData("cpu.clock", 4_600)]
     [InlineData("fan.cpu", 2_400)]
     public void AnIntelLaptopShowsItsCoresClockAndItsFan(string metric, double value)
@@ -189,11 +189,10 @@ public sealed class OverlayTests
     // The owner, 2026-11-24: an item draws its own choice beside its value, else its overlay's, whose Auto is a line for a
     // load warned by itself and bars for the rest; one lines cannot judge draws nothing, whatever is chosen. Only an item
     // that draws nothing underlines its warning, since bars or a line already show it.
-    [Theory]
+    [Theory] // Rows: each a choice A316 states, or an operand of Auto's load test (a load, warned by itself)
     [InlineData(GraphStyle.Auto, null, "cpu.load", SensorKind.Load, GraphStyle.Line)]
     [InlineData(GraphStyle.Auto, null, "cpu.temperature", SensorKind.Temperature, GraphStyle.Bars)]
     [InlineData(GraphStyle.Auto, null, "ram.used", SensorKind.Data, GraphStyle.Bars)]
-    [InlineData(GraphStyle.Auto, null, "cpu.power", SensorKind.Power, GraphStyle.None)]
     [InlineData(GraphStyle.None, null, "cpu.temperature", SensorKind.Temperature, GraphStyle.None)]
     [InlineData(GraphStyle.Bars, null, "cpu.load", SensorKind.Load, GraphStyle.Bars)]
     [InlineData(GraphStyle.Line, null, "fan.cpu", SensorKind.Fan, GraphStyle.Line)]

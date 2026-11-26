@@ -234,6 +234,7 @@ test.describe('AxeFindsNothingInAnyState', () => {
     { name: 'light without Mica', colorScheme: 'light', forcedColors: 'none', solid: true },
     { name: 'dark without Mica', colorScheme: 'dark', forcedColors: 'none', solid: true },
   ];
+  // Rows: axe judges each page, dialog, menu, bar and toast on its own, as A214 asks of every view.
   for (const view of [...pages, ...dialogsAndMenus, ...barsAndToasts]) {
     if (view.waits !== undefined) {
       test.fixme(`${view.name}, until ${view.waits}`, () => {});

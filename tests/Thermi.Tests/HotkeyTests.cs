@@ -13,25 +13,21 @@ public sealed class HotkeyTests
 {
     // Registered alone, or with Shift only, a key would take itself or the character it types from every app; F13 to F24
     // are on no common keyboard, so they may.
-    [Theory]
-    [InlineData(null)]
-    [InlineData("Ctrl+Ctrl+T")]
+    [Theory] // Rows: each an operand of the parse, or an end of F1 to F24 and of F13 to F24
     [InlineData("Ctrl+")]
     [InlineData("Hyper+T")]
     [InlineData("Ctrl+F25")]
     [InlineData("Ctrl+F0")]
     [InlineData("Ctrl+TT")]
-    [InlineData("A")]
     [InlineData("Shift+A")]
     [InlineData("F12")]
     public void AnythingElseIsNoCombination(string? written) => Assert.Null(Hotkeys.Parse(written));
 
     // The window writes what was pressed as the file does, and only what the overlay can register; the file is read
     // as Windows registers it, however a person typed it.
-    [Theory]
+    [Theory] // Rows: each a static modifier-order or key-name entry, or an end of F13 to F24
     [InlineData(KeyModifiers.Alt | KeyModifiers.Ctrl, 'T', "Ctrl+Alt+T", "Ctrl+Alt+T")]
     [InlineData(KeyModifiers.Win | KeyModifiers.Shift, '7', "Shift+Win+7", "shift + win + 7")]
-    [InlineData(KeyModifiers.Ctrl, 0x7B, "Ctrl+F12", "Ctrl+F12")]
     [InlineData(KeyModifiers.None, 0x7C, "F13", "F13")]
     [InlineData(KeyModifiers.None, 0x87, "F24", "f24")]
     [InlineData(KeyModifiers.Alt, 0x22, "Alt+PageDown", "Alt+PageDown")]

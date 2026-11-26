@@ -22,7 +22,7 @@ public sealed class WindowRequestTests
         Assert.Equal(Refusal.NotFound, OverlayEdits.SetLocked(two, -1, on: true).Refused);
     }
 
-    [Theory]
+    [Theory] // Rows: each a bound of the overlay asked for or the current one.
     [InlineData(2, 0, 3, 1)]
     [InlineData(4, 1, 3, 0)]
     [InlineData(0, 2, 3, 2)]

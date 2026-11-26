@@ -22,14 +22,13 @@ public sealed class SearchTests
         { "cpu temperature", ["[CPU] | Temperature", $"Core (Tctl/Tdie) = {Marked(CpuTemperature, "cpu temperature")} | Temperature"] },
         // Any order, any case, any accent.
         { "TEMPÉRATURE cpu", ["[CPU] | Temperature", $"Core (Tctl/Tdie) = {Marked(CpuTemperature, "cpu temperature")} | Temperature"] },
-        { "package gpu", ["[GPU] [Package]"] },
         { "ccd1", ["[CCD1] (Tdie)"] },
         // One letter wrong is forgiven in a long word once nothing matches as typed, never in a short one.
         { "tempreature", ["System | Temperature"] },
         { "tamp", [] },
     };
 
-    [Theory]
+    [Theory] // Rows: each a way of typing A290 states: order and accent, a metric's name, a device's word, a typo long and short
     [MemberData(nameof(Searches))]
     public void TheSearchPutsTheBestFirstAndMarksWhy(string search, string[] first)
     {

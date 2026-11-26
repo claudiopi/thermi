@@ -33,6 +33,7 @@ function plot(chart: Partial<ChartView> = {}): Plot {
 }
 
 describe('the chart', () => {
+  // Rows: each bound of the height, 140 and 640 px, half the width and the pane beside the cards, is a number Stryker leaves as it is.
   test.each([
     [1600, 2000, 640],
     [300, 1000, 150],
@@ -45,6 +46,7 @@ describe('the chart', () => {
     expect(chartHeight(width, pane, beside)).toBe(height);
   });
 
+  // Rows: the pads that hold the scale's numbers clear of the line (night QA), and a span of none.
   test.each([
     { value: 50, y: 66, chart: {} },
     { value: 49, y: 116, chart: { from: 50, to: 50 } },
@@ -52,6 +54,7 @@ describe('the chart', () => {
     expect(yOf(plot(chart), value)).toBe(y);
   });
 
+  // Rows: a drag rounds up and down to a step, and each end of the track and the chart holds it.
   test.each([
     { y: 68, value: 50, chart: {} },
     { y: 70, value: 45, chart: {} },
@@ -64,6 +67,7 @@ describe('the chart', () => {
     expect(valueAt(plot(chart), y)).toBe(value);
   });
 
+  // Rows: a reading alone (cold review 4) and a dip to 0 RPM (night QA) are bugs' reproductions.
   test.each([
     // Cold review 4 (Q6): a reading alone is no line, so it draws nothing; the dot at its end says it.
     { readings: [50], path: '' },
@@ -124,6 +128,7 @@ describe('the chart', () => {
     expect(levelAt(plot({ colors, low: low ?? false }).chart, value)).toBe(level);
   });
 
+  // Rows: the knobs held inside the plot at each end, and apart either way, are numbers and operands Stryker does not change.
   test.each([
     { warning: 50, critical: 90, tops: { warning: 66, critical: 26 } },
     { warning: 50, critical: 60, tops: { warning: 74, critical: 48 } },

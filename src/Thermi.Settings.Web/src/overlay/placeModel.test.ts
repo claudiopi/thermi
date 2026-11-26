@@ -36,6 +36,7 @@ describe('where an overlay sits', () => {
     expect(placedOf({ name: 'A', items: [], ...overlay }, shown)).toEqual(placed);
   });
 
+  // Rows: a spot is kept and a free overlay is given one, two sides of one condition.
   test.each([
     { overlay: { snap: { spot: 'top-left' } }, display: second, snap: { spot: 'top-left', monitor: 'm2' } },
     { overlay: { position: { x: 5, y: 5 } }, display: second, snap: { spot: 'top-right', monitor: 'm2' } },
@@ -59,6 +60,7 @@ describe('where an overlay sits', () => {
     expect(placeText({ name: 'A', items: [], ...overlay }, shown, lower)).toBe(text);
   });
 
+  // Rows: each taskbar's state, read from the overlay's own display, is an operand of its condition.
   test.each([
     { placed: null, vertical: false, floats: undefined, hint: 'OverlayPageText.FreeHint' },
     { placed: { spot: 'top-right', display: 0, gone: false }, vertical: true, floats: 'side', hint: null },

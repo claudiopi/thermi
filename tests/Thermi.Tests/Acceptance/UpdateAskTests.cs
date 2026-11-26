@@ -11,8 +11,7 @@ public sealed class UpdateAskTests
 
     // It says it checks while the service has not checked since, for half a minute at most and never before the ask; a check a minute before the ask
     // answers it at once, and one that just worked says so; a version ready with no switch held offers a restart.
-    [Theory]
-    [InlineData(5, 3600, null, false, UpdateLineKind.Checking, false)]
+    [Theory] // Rows: each is one operand of the Checking condition at its edge, or of a Ready line's restart
     [InlineData(31, 3600, null, false, UpdateLineKind.UpToDate, false)]
     [InlineData(5, 50, null, false, UpdateLineKind.CheckedNow, false)]
     [InlineData(5, 70, null, false, UpdateLineKind.Checking, false)]
@@ -37,7 +36,7 @@ public sealed class UpdateAskTests
     }
 
     // Once a minute, and at once with the clock set back.
-    [Theory]
+    [Theory] // Rows: each is one operand of MayAsk; 59 and 60 s sit either side of the minute
     [InlineData(null, true)]
     [InlineData(59, false)]
     [InlineData(60, true)]

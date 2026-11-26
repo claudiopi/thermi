@@ -48,7 +48,7 @@ public sealed class HistoryTests
     // Readings, "-" for none, with the seconds between their arrivals, and the last minute kept. A reading within half a
     // second of the last replaces it; but one that arrives late, a second skipped, and the next soon after, as under a full
     // load (night QA: the chart went blank for 15 s while the list kept changing), each keep a second of their own.
-    [Theory]
+    [Theory] // Rows: each a timing: within half a second, late, skipped (night QA).
     [InlineData("20 30 - -5 150", "1.4 0.7 1.3 0.2", "20 30 - 150")]
     [InlineData("1 2 3 4 5 6", "1.6 0.4 1.6 0.4 1", "1 2 3 4 5 6")]
     [InlineData("1 2 3 4 5", "3.6 0.1 0.1 1", "1 - 2 3 4 5")]

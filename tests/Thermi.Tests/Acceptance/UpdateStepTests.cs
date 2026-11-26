@@ -15,7 +15,7 @@ public sealed class UpdateStepTests
     // left as "ready urgent refused" and the switch begun. The PC runs 1.2.0 with 1.3.0 ready and urgent, and a zip refused
     // before, "old". A zip refused for what it holds is never fetched again; a rollback goes back whatever holds, and one to
     // the version running is no step back.
-    [Theory]
+    [Theory] // Rows: each is one kind of plan or fetch, or a hold or urgency that is one operand of the switch
     [InlineData("Download 1.4.0", true, "Ready", false, "1.4.0 urgent - 1.4.0")]
     [InlineData("Download 1.4.0", false, "Ready", false, "1.4.0 - - -")]
     [InlineData("Download 1.4.0", true, "Ready", true, "1.4.0 urgent - -")]
@@ -50,7 +50,7 @@ public sealed class UpdateStepTests
 
     // A quiet session or About's restart switches the version installed, and only forward, to the version ready, once no hold
     // stops it.
-    [Theory]
+    [Theory] // Rows: each is one operand of ReadyFor: a hold, none ready, the same version, or an installed one not the running one
     [InlineData("1.2.0", "1.3.0", false, "1.3.0")]
     [InlineData("1.2.0", "1.3.0", true, null)]
     [InlineData("1.2.0", "1.2.0", false, null)]
@@ -79,7 +79,7 @@ public sealed class UpdateStepTests
 
     // A zip's entry lands inside the folder it is unpacked into, or the zip is refused: never a rooted path, even one inside
     // it, a drive's, a stream's, one that climbs out, even into a folder whose name starts as this one's, or a link.
-    [Theory]
+    [Theory] // Rows: each is one operand of LandsInside, or an escape A37 states; a security check holds each
     [InlineData("thermi.dll", 0x81A4, true)]
     [InlineData("launchers/../thermi.exe", 0, true)]
     [InlineData("../outside.txt", 0, false)]

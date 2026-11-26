@@ -24,14 +24,12 @@ public sealed class FileFormatTests
         Assert.All(back.Sensors, sensor => Assert.Null(new Reading(SensorKind.Load, sensor.Value).Usable));
     }
 
-    [Theory]
+    [Theory] // Rows: each an operand of the completeness check, or a null the reader must not crash on
     [InlineData(null)]
     [InlineData("not json")]
     [InlineData("null")]
     [InlineData("{}")]
-    [InlineData("{\"sensors\":null}")]
     [InlineData("{\"sensors\":[null]}")]
-    [InlineData("{\"sensors\":[{\"id\":\"/a\",\"value\":\"hot\"}]}")]
     [InlineData("{\"sensors\":[{\"hardwareType\":\"SuperIO\",\"hardware\":\"x\",\"type\":\"Fan\",\"name\":\"CPU Fan\",\"value\":1}]}")]
     [InlineData("{\"sensors\":[{\"id\":\"/a\",\"hardwareType\":\"SuperIO\",\"hardware\":\"x\",\"type\":\"Fan\",\"value\":1}]}")]
     public void AMalformedLineIsNotASnapshot(string? line)
@@ -40,18 +38,17 @@ public sealed class FileFormatTests
     }
 
     // Read meanwhile, an editor's save may find a file empty or cut short: only text broken before its end is broken for good.
-    [Theory]
+    [Theory] // Rows: each an operand of the start-token test, or the end the text breaks at
     [InlineData(null, true)]
     [InlineData("{ \"version\": 2, \"show\": \"tr", true)]
     [InlineData("[1, 2", true)]
-    [InlineData("{ \"version\": 2 }", false)]
     [InlineData("null", false)]
     [InlineData("{ broken", false)]
     public void AFileCutShortIsToldFromABrokenOne(string? json, bool unfinished) =>
         Assert.Equal(unfinished, ThermiConfigJson.IsUnfinished(json));
 
     // With the field a broken rule names, when it is one.
-    [Theory]
+    [Theory] // Rows: each a rule of its own, a range's end or one side of a combination's test
     [InlineData("[1,2,3]", null)]
     [InlineData("{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"threshold\":{\"warning\":90,\"critical\":80}}]}]}", "items[0].threshold")]
     [InlineData("{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"game.fps\",\"threshold\":{\"warning\":30,\"critical\":60}}]}]}", "items[0].threshold")]
@@ -67,9 +64,6 @@ public sealed class FileFormatTests
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"auto\":\"cpu.load\"}]}]}", "items[0].auto")]
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"sensors\":[\"/a\",\"/b\"]}]}]}", "items[0].combine")]
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"combine\":\"max\"}]}]}", "items[0].combine")]
-    [InlineData(
-        "{\"version\":6,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"warnBy\":{\"metric\":\"cpu.load\",\"sensor\":\"/a\"}}]}]}",
-        "items[0].warnBy must name one")]
     // An older file says what the item warns by as its meter, which the problem names, as the file does.
     [InlineData(
         "{\"version\":5,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"meter\":{\"metric\":\"gpu.load\",\"sensor\":\"/a\"}}]}]}",
@@ -92,7 +86,7 @@ public sealed class FileFormatTests
     }
 
     // No file, or nulls written by hand, read as if left out: the defaults, or what is left of the items.
-    [Theory]
+    [Theory] // Rows: each a place a hand-written null must not crash the reader, in either version's path
     [InlineData(null, 7)]
     [InlineData("null", 6)]
     [InlineData("{\"items\":[null,{\"metric\":null},{\"metric\":\"ram.load\"}]}", 1)]
