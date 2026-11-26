@@ -19,8 +19,7 @@ One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. 
 | `Agents` | What `thermi-cli`'s commands, `src/Thermi.Cli`'s, reach on Windows: the pipe, the service's registration, the overlay's mutex, the Run key, the monitors. |
 | `Ui` | The settings window's process, its beacon, "Start with Windows" and the elevation check. |
 | `Ui/Web` | The Win32 window that hosts the page in WebView2, and the C# side of the bridge. |
-| `Ui/Views` | What the bridge reads beyond plain edits: sensors, charts, previews, looks. |
-| `Ui/Editor` | The window's edits and undo, written through `Settings`. |
+| `Ui/Views` | What the bridge reads beyond plain edits on Windows: previews, looks, monitors. |
 
 Entry points worth knowing:
 

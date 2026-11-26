@@ -80,9 +80,6 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Error, Message = "The window's page threw: {Error}")]
     public static partial void PageThrew(this ILogger logger, string error);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "The window could not read the sensors' snapshot; it shows the last it read until one reads")]
-    public static partial void SnapshotUnread(this ILogger logger, Exception error);
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "The window's size and place could not be read or kept")]
     public static partial void WindowPlaceFailed(this ILogger logger, Exception error);
 
@@ -103,9 +100,6 @@ internal static partial class LogEvents
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "open settings")]
     public static partial void OpeningSettings(this ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Debug, Message = "input {Input}")]
-    public static partial void Input(this ILogger logger, string input);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "first frame {Milliseconds} ms")]
     public static partial void FirstFrame(this ILogger logger, long milliseconds);

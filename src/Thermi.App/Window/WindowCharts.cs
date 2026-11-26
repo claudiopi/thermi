@@ -7,9 +7,8 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Windows.Ui.Editor;
 
-namespace Thermi.Windows.Ui.Views;
+namespace Thermi.App.Window;
 
 /// <summary>
 /// Each item's chart: the meter's ten minutes, the overlay's under the window's own, its lines and their texts, the colors

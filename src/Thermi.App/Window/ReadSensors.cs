@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.Logging;
 using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
-using Thermi.Windows.Logging;
 
-namespace Thermi.Windows.Ui.Views;
+namespace Thermi.App.Window;
 
 /// <summary>
 /// The window's sensors: the pipe's, but a snapshot Core failed to read stands for the last one it read, so the window

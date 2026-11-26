@@ -1,7 +1,7 @@
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
-namespace Thermi.Windows.Ui;
+namespace Thermi.App.Window;
 
 /// <summary>
 /// What the window has read since it opened: ten minutes of every sensor the catalog lists and every metric of the overlay

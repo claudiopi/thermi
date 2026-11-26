@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
-using Thermi.Windows.Logging;
 
-namespace Thermi.Windows.Ui.Editor;
+namespace Thermi.App.Window;
 
 /// <summary>Why the last edit, undo or redo did not do all it was asked: refused by Core's rules, or part of its step skipped.</summary>
 internal sealed record EditNote(Refusal? Refused, string? Problem, bool Skipped);

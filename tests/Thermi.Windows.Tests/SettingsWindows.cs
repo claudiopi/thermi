@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using Thermi.App.SettingsFile;
+using Thermi.App.Window;
 using Thermi.Core.Look;
 using Thermi.Core.Pipe;
 using Thermi.Core.Translations;
 using Thermi.Windows.Ui;
-using Thermi.Windows.Ui.Editor;
 using Thermi.Windows.Ui.Web;
 
 namespace Thermi.Windows.Tests;

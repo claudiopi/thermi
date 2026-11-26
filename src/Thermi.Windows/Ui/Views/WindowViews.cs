@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.App.Window;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -8,7 +9,6 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Windows.Ui.Editor;
 using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Ui.Views;

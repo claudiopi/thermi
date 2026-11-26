@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
+using Thermi.App.Window;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Pipe;
@@ -10,7 +11,6 @@ using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Windows.Gestures;
 using Thermi.Windows.Overlay;
-using Thermi.Windows.Ui.Editor;
 using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Ui.Views;

@@ -1,10 +1,10 @@
+using Thermi.App.Window;
 using Thermi.Core.Messages;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
 using Thermi.Windows.Tests.OnTop;
 using Thermi.Windows.Ui;
-using Thermi.Windows.Ui.Editor;
 using Thermi.Windows.Ui.Web;
 using Thermi.Windows.Win32;
 using Windows.Win32;
