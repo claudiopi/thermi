@@ -1,9 +1,9 @@
-using Thermi.App.SettingsFile;
+using Thermi.Core.Messages;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Windows.Gestures;
 using Thermi.Windows.Overlay;
+using Thermi.Windows.Ui;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -11,31 +11,18 @@ using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Tests.Overlay;
 
-/// <summary>
-/// A press on an overlay as Windows brings it, on a desktop of the test's own: the mouse's messages posted to the
-/// overlay's window, with the cursor where the test puts it, never the user's.
-/// </summary>
+/// <summary>What a drag on an overlay moves, lifts and writes.</summary>
 [Collection(nameof(HostRun))]
-public sealed class OverlayDragTests : IDisposable
+public sealed class OverlayDragTests : OverlayPresses, IDisposable
 {
-    // Far past any drag distance, and still on the primary monitor from its taskbar's right end.
-    private static readonly Position By = new(-300, -200);
-
-    private static readonly Position Nowhere = new(int.MinValue, int.MinValue);
-
-    private readonly SettingsFolder _folder = new();
-    private readonly FakeTray _tray = new();
-    private readonly string _windowMutex = HostRun.WindowMutex();
-    private Position _cursor = new(0, 0);
-
-    public void Dispose() => _folder.Dispose();
+    public void Dispose() => Folder.Dispose();
 
     // The overlay of several pills, pressed on one of them, follows the cursor whole only past the drag distance, stays
     // where it was let go, and the file gets that spot, off its snap.
     [Fact]
     public async Task ADragMovesTheOverlayAndWritesWhereItWasDropped()
     {
-        var settings = await _folder.LoadedAsync(new ThermiConfig());
+        var settings = await Folder.LoadedAsync(new ThermiConfig());
         var (start, nudged, during, after, written) = (Nowhere, Nowhere, Nowhere, Nowhere, false);
 
         Run(settings, host =>
@@ -44,7 +31,7 @@ public sealed class OverlayDragTests : IDisposable
             start = Corner(overlay);
             (nudged, during) = Drag(host, overlay);
             Post(overlay, PInvoke.WM_LBUTTONUP);
-            written = HostRun.Until(host, _folder.Clock, () => _folder.Written()?.Contains("\"position\"", StringComparison.Ordinal) == true);
+            written = HostRun.Until(host, Folder.Clock, () => Folder.Written()?.Contains("\"position\"", StringComparison.Ordinal) == true);
             HostRun.Tick(host);
             after = Corner(overlay);
         });
@@ -52,7 +39,7 @@ public sealed class OverlayDragTests : IDisposable
         var dropped = new Position(start.X + By.X, start.Y + By.Y);
         Assert.True(written, "The drop was never written.");
         Assert.Equal((start, dropped, dropped), (nudged, during, after));
-        Assert.Equal((dropped, null), (_folder.Read().Overlays[0].Position, _folder.Read().Overlays[0].Snap));
+        Assert.Equal((dropped, null), (Folder.Read().Overlays[0].Position, Folder.Read().Overlays[0].Snap));
     }
 
     // A locked overlay takes no drag, nor a press held still on a value until it would lift, and a double-click on it still
@@ -60,8 +47,8 @@ public sealed class OverlayDragTests : IDisposable
     [Fact]
     public async Task ALockedOverlayStaysWhereItIs()
     {
-        var settings = await _folder.LoadedAsync(new ThermiConfig { Overlays = [new OverlayConfig { Locked = true }] });
-        var before = _folder.Text();
+        var settings = await Folder.LoadedAsync(new ThermiConfig { Overlays = [new OverlayConfig { Locked = true }] });
+        var before = Folder.Text();
         var corners = new List<Position>();
         var opened = new List<int>();
 
@@ -74,7 +61,7 @@ public sealed class OverlayDragTests : IDisposable
             HostRun.Pump(host);
             MoveTo(host, host.Overlays[0], EndOf(host.Overlays[0], Metrics.CpuLoad.Id, label: false), PInvoke.WM_LBUTTONDOWN);
             Hold(host, host.Overlays[0]);
-            MoveTo(host, host.Overlays[0], new Position(_cursor.X + By.X, _cursor.Y + By.Y));
+            MoveTo(host, host.Overlays[0], new Position(Pointer.X + By.X, Pointer.Y + By.Y));
             Post(overlay, PInvoke.WM_LBUTTONUP);
             HostRun.Pump(host);
             HostRun.Tick(host);
@@ -85,9 +72,43 @@ public sealed class OverlayDragTests : IDisposable
 
         Assert.Single(corners.Distinct());
         Assert.Null(settings.Config.Overlays[0].Position);
-        Assert.Equal(before, _folder.Text());
+        Assert.Equal(before, Folder.Text());
         Assert.Equal([0], opened);
         Assert.True(OverlayWindow.WindowClass(TestWindows.DefaultProcedure, default).style.HasFlag(WNDCLASS_STYLES.CS_DBLCLKS));
+    }
+
+    // A double-click on a value asks an open window to select it, and opens the window, or brings it up, whenever none took
+    // that: none runs, or one of its class answers without taking it, as a window closing or still starting does.
+    [Theory]
+    [InlineData("none", true)]
+    [InlineData("drops", true)]
+    [InlineData("takes", false)]
+    public async Task ADoubleClickOnAValueOpensTheWindowUnlessOneTookIt(string window, bool opens)
+    {
+        var settings = await Folder.LoadedAsync(new ThermiConfig());
+        var (opened, taken) = (new List<int>(), new List<WindowMessage>());
+
+        Run(settings, host =>
+        {
+            using var beacon = window == "takes" ? new SettingsBeacon(_ => { }, Folder.Log) { Received = taken.Add } : null;
+            if (window == "drops")
+            {
+                HiddenWindow.Register(HiddenWindow.WindowClass, name => HiddenWindow.Plain(TestWindows.DefaultProcedure, name));
+            }
+
+            var drops = window == "drops" ? HiddenWindow.Create(HiddenWindow.WindowClass) : HWND.Null;
+            MoveTo(host, host.Overlays[0], EndOf(host.Overlays[0], Metrics.CpuLoad.Id, label: false));
+            Post(host.Overlays[0].Hwnd, PInvoke.WM_LBUTTONDBLCLK);
+            HostRun.Pump(host);
+            if (!drops.IsNull)
+            {
+                PInvoke.DestroyWindow(drops);
+                HiddenWindow.Unregister(HiddenWindow.WindowClass);
+            }
+        }, opened.Add);
+
+        Assert.Equal(opens ? [0] : [], opened);
+        Assert.Equal(!opens, taken.Any(message => message is Select { How: SelectHow.DoubleClick }));
     }
 
     // A drag ends with nothing of it on screen but the overlay, its marks gone: let go near a corner's mark it snaps there,
@@ -102,8 +123,8 @@ public sealed class OverlayDragTests : IDisposable
     [InlineData("lost", "back")]
     public async Task ADragEndsWithNothingOfItLeftOnScreen(string end, string lands)
     {
-        var settings = await _folder.LoadedAsync(new ThermiConfig());
-        var before = _folder.Text();
+        var settings = await Folder.LoadedAsync(new ThermiConfig());
+        var before = Folder.Text();
         var (start, near, after, written) = (Nowhere, Nowhere, Nowhere, false);
         var (during, left) = (new List<HWND>(), new List<HWND>());
         HWND overlay = default;
@@ -119,7 +140,7 @@ public sealed class OverlayDragTests : IDisposable
             DragBy(host, overlay, new Position(near.X - start.X, near.Y - start.Y));
             during.AddRange(Shown());
             End(host, overlay, end);
-            written = HostRun.Until(host, _folder.Clock, () => _folder.Text() != before);
+            written = HostRun.Until(host, Folder.Clock, () => Folder.Text() != before);
             HostRun.Tick(host);
             after = Corner(overlay);
             left.AddRange(Shown());
@@ -127,7 +148,7 @@ public sealed class OverlayDragTests : IDisposable
 
         Assert.True(during.Count > 1, "No snap mark showed during the drag.");
         Assert.Equal([overlay], left);
-        var file = _folder.Read().Overlays[0];
+        var file = Folder.Read().Overlays[0];
         Assert.Equal(
             lands switch
             {
@@ -161,8 +182,8 @@ public sealed class OverlayDragTests : IDisposable
     {
         var solo = new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight), Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] };
         var two = drag is "merge" or "alt" or "lifted" or "over";
-        var settings = await _folder.LoadedAsync(two ? new ThermiConfig { Overlays = [new OverlayConfig(), solo] } : new ThermiConfig());
-        var before = _folder.Text();
+        var settings = await Folder.LoadedAsync(two ? new ThermiConfig { Overlays = [new OverlayConfig(), solo] } : new ThermiConfig());
+        var before = Folder.Text();
         byte during = 0;
 
         Run(settings, host =>
@@ -184,14 +205,15 @@ public sealed class OverlayDragTests : IDisposable
             MoveTo(host, held, DroppedAt(host, drag, pressed));
             during = held.Alpha;
             End(host, held.Hwnd, drag == "alt" ? "alt" : "drop");
-            HostRun.Until(host, _folder.Clock, () => _folder.Text() != before);
+            HostRun.Until(host, Folder.Clock, () => Folder.Text() != before);
         });
 
-        var file = _folder.Read();
+        var file = Folder.Read();
         var firsts = string.Join(',', file.Overlays.Select(overlay => overlay.Items[0].Id));
         Assert.Equal(expected, $"{file.Overlays.Count} {firsts} {(file.Overlays[0].Snapped is null ? "free" : "snapped")}");
         Assert.Equal(255, during);
     }
+
 
     // An overlay in its middle, a value or the label in the CPU pill, or the GPU's pill.
     private static Position PressedAt(OverlayHost host, string drag) => drag switch
@@ -204,149 +226,4 @@ public sealed class OverlayDragTests : IDisposable
         _ => PillOf(host.Overlays[0], Metrics.GpuLoad.Id),
     };
 
-    // In front of the first overlay's first pill, or of the overlay of one pill, or, for the overlay of many held in its
-    // middle, 20 px left of the overlay of one pill, the overlay of many then over all of it; or on the CPU power's value.
-    private static Position DroppedAt(OverlayHost host, string drag, Position pressed)
-    {
-        PInvoke.GetWindowRect(host.Overlays[drag is "lifted" or "over" ? 1 : 0].Hwnd, out var rect);
-        var middle = (rect.top + rect.bottom) / 2;
-        return drag switch
-        {
-            "back" or "off" or "value" or "label" => new Position(pressed.X + By.X, pressed.Y + By.Y),
-            "within" => EndOf(host.Overlays[0], Metrics.CpuPower.Id, label: false),
-            "over" => new Position(rect.left - 20, middle),
-            _ => new Position(rect.left + 3, middle),
-        };
-    }
-
-    // The cursor put at a point and the mouse's message sent, then the paints it asks for let out.
-    private void MoveTo(OverlayHost host, OverlayWindow overlay, Position to, uint message = PInvoke.WM_MOUSEMOVE)
-    {
-        _cursor = to;
-        Post(overlay.Hwnd, message);
-        for (var paints = 0; paints < 3; paints++)
-        {
-            _folder.Clock.Advance(Settings.Interval);
-            HostRun.Pump(host);
-        }
-    }
-
-    // The press held still until it lifts, as the hold's timer wakes the overlay.
-    private void Hold(OverlayHost host, OverlayWindow held)
-    {
-        _folder.Clock.Advance(DesktopGestures.Hold);
-        PInvoke.PostMessage(held.Hwnd, PInvoke.WM_TIMER, OverlayGestures.HoldTimer, 0);
-        HostRun.Pump(host);
-    }
-
-    // On the overlay's middle row, 2 px into an item: from its start, on the label of the pill it starts, or from its end,
-    // on its value.
-    private static Position EndOf(OverlayWindow overlay, string item, bool label)
-    {
-        PInvoke.GetWindowRect(overlay.Hwnd, out var rect);
-        var y = (rect.top + rect.bottom) / 2;
-        var on = Enumerable.Range(rect.left, rect.right - rect.left).Where(x => overlay.ItemAt(new Position(x, y)) == item).ToList();
-        return new Position(label ? on[0] + 2 : on[^1] - 2, y);
-    }
-
-    private static Position Middle(HWND window) =>
-        PInvoke.GetWindowRect(window, out var rect) ? new Position((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) : new Position(0, 0);
-
-    /// <summary>The middle of the run of the overlay's middle row the item's pill is drawn on.</summary>
-    internal static Position PillOf(OverlayWindow overlay, string item)
-    {
-        PInvoke.GetWindowRect(overlay.Hwnd, out var rect);
-        var y = (rect.top + rect.bottom) / 2;
-        var on = Enumerable.Range(rect.left, rect.right - rect.left).Where(x => overlay.ItemAt(new Position(x, y)) == item).ToList();
-        return new Position((on[0] + on[^1]) / 2, y);
-    }
-
-    // Esc comes as the overlay's hotkey, with the mouse still; or Esc and Alt are down as the move or the drop is sent, as
-    // the window's thread reads them.
-    private static void End(OverlayHost host, HWND overlay, string end)
-    {
-        switch (end)
-        {
-            case "esc":
-                PInvoke.PostMessage(overlay, PInvoke.WM_HOTKEY, OverlayGestures.EscapeKey, 0);
-                HostRun.Pump(host);
-                break;
-            case "esc-moved":
-                Holding(0x1B, () => Post(overlay, PInvoke.WM_MOUSEMOVE), host);
-                break;
-            case "lost":
-                using (var other = new HiddenTestWindow("thermi-test-" + Guid.NewGuid().ToString("N")))
-                {
-                    PInvoke.SetCapture(other.Hwnd);
-                    HostRun.Pump(host);
-                    PInvoke.ReleaseCapture();
-                }
-
-                break;
-            case "alt":
-                Holding(0x12, () => Post(overlay, PInvoke.WM_LBUTTONUP), host);
-                return;
-            default:
-                break;
-        }
-
-        Post(overlay, PInvoke.WM_LBUTTONUP);
-        HostRun.Pump(host);
-    }
-
-    private static void Holding(byte key, Action send, OverlayHost host)
-    {
-        var keys = new byte[256];
-        keys[key] = 0x80;
-        TestPInvoke.SetKeyboardState(keys);
-        send();
-        HostRun.Pump(host);
-        TestPInvoke.SetKeyboardState(new byte[256]);
-    }
-
-    // The windows the test's desktop shows, which only the host's process has windows on.
-    private static List<HWND> Shown()
-    {
-        var shown = new List<HWND>();
-        TestPInvoke.EnumWindows(
-            (hwnd, _) =>
-            {
-                if (TestPInvoke.IsWindowVisible(hwnd))
-                {
-                    shown.Add(hwnd);
-                }
-
-                return true;
-            },
-            0);
-        return shown;
-    }
-
-    private static Position Corner(HWND window) => PInvoke.GetWindowRect(window, out var rect) ? new Position(rect.left, rect.top) : new Position(0, 0);
-
-    private static void Post(HWND window, uint message) => PInvoke.PostMessage(window, message, 0, 0);
-
-    private void Run(Settings settings, Action<OverlayHost> body, Action<int>? openSettings = null) =>
-        HostRun.Run(settings, _folder, _tray.Environment(_windowMutex, openSettings) with { Cursor = () => _cursor }, body);
-
-    // A press in the overlay's middle, the cursor nudged by a pixel, within any drag distance, then moved by By, or by
-    // `by`, the button still down; gives where the overlay is after each move.
-    private (Position Nudged, Position Dragged) Drag(OverlayHost host, HWND overlay) => DragBy(host, overlay, By);
-
-    private (Position Nudged, Position Dragged) DragBy(OverlayHost host, HWND overlay, Position by)
-    {
-        PInvoke.GetWindowRect(overlay, out var rect);
-        var pressed = new Position((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2);
-        _cursor = pressed;
-        Post(overlay, PInvoke.WM_LBUTTONDOWN);
-        HostRun.Pump(host);
-        _cursor = new Position(pressed.X + 1, pressed.Y + 1);
-        Post(overlay, PInvoke.WM_MOUSEMOVE);
-        HostRun.Pump(host);
-        var nudged = Corner(overlay);
-        _cursor = new Position(pressed.X + by.X, pressed.Y + by.Y);
-        Post(overlay, PInvoke.WM_MOUSEMOVE);
-        HostRun.Pump(host);
-        return (nudged, Corner(overlay));
-    }
 }

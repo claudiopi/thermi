@@ -53,6 +53,12 @@ internal sealed class OverlayWindow : IDisposable
     private OverlayScene? _scene;
     private PaintedOverlay? _painted;
 
+    /// <summary>What the overlay last put on screen, what a drag marks on it included; its painter owns it.</summary>
+    internal Bitmap? OnScreenPicture { get; private set; }
+
+    /// <summary>Whether a value's tooltip may show now.</summary>
+    internal bool TipsShow => _tips.Speaks;
+
     // The item the pointer is on, which the open window marks on its row.
     private string? _pointed;
 
@@ -157,7 +163,7 @@ internal sealed class OverlayWindow : IDisposable
                 _gestures.Hold();
                 return true;
             case PInvoke.WM_TIMER when wParam == ValueTips.QuietTimer:
-                _tips.Woke(_actions.Time);
+                _tips.Woke();
                 return true;
             case PInvoke.WM_HOTKEY when wParam == OverlayGestures.EscapeKey:
                 Cancel();
@@ -184,9 +190,10 @@ internal sealed class OverlayWindow : IDisposable
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
         IReadOnlyList<Screen> screens = heldAt is null ? scene.Screens : [];
         var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
-        var items = Extras(scene, texts, shown.Items);
+        var items = scene.WithProblem(texts, shown.Items);
         var room = TaskbarRow.RoomOf(overlays, _index, screens, _actions.Shown());
         var scale = _painter.Within(items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), room);
+        scale = _painter.Fitting(items, look, scale, Snaps.Most(overlay, screens));
         _glow.Update(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
         var bitmap = shown.SensorsStopped
@@ -194,10 +201,11 @@ internal sealed class OverlayWindow : IDisposable
             : _painter.Paint(items, look, scale, _glow.Glowing ? _glow.Of : null);
 #pragma warning restore CA2000
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
-        _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, marks.Accent);
+        _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, scene.Accent);
         OverlayGestures.HoldCorner(bitmap, overlay, scale);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
+        OnScreenPicture = bitmap;
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
         var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
@@ -210,6 +218,8 @@ internal sealed class OverlayWindow : IDisposable
             PInvoke.SetWindowPos(Hwnd, HWND.HWND_TOPMOST, 0, 0, 0, 0, Shown);
             OnScreen = true;
         }
+
+        _tips.After(_actions.Quiet);
     }
 
     private TrayInput InputOf(OverlayScene scene, Texts texts) =>
@@ -221,23 +231,11 @@ internal sealed class OverlayWindow : IDisposable
             Busiest = scene.Cpu?.Busiest,
         };
 
-    // After the items, the settings' error.
-    private static IReadOnlyList<OverlayItem> Extras(OverlayScene scene, Texts texts, IReadOnlyList<OverlayItem> items)
-    {
-        if (scene.Problem is null)
-        {
-            return items;
-        }
-
-        var error = texts.Of(OverlayText.ConfigError);
-        return [.. items, new OverlayItem(texts.Of(OverlayText.ConfigLabel), error, Level.Critical, error)];
-    }
-
     // Each value's tooltip where the painter drew its item, the "Sensors stopped" pill's over the whole pill.
     private void Tips(OverlayScene scene, TrayInput input, Core.Tray.OverlayScene shown)
     {
         _tips.Theme(!scene.LightApps && scene.HighContrast is null);
-        _tips.Update([.. _painter.Places.Zip(shown.Tooltips, (place, tip) => (place.Item, ValueTooltips.Text(scene.Config, _index, input, tip)))]);
+        _tips.Update(_painter.Places, shown.Tooltips.Count, at => ValueTooltips.Text(scene.Config, _index, input, shown.Tooltips[at]));
     }
 
     private void Glow()
@@ -265,7 +263,7 @@ internal sealed class OverlayWindow : IDisposable
                 return true;
             case MouseAction.Release:
                 PInvoke.ReleaseCapture();
-                var dropped = !Clicked(step.Press!, overlay.Locked);
+                var dropped = step.Moved || !Clicked(step.Press!, overlay.Locked);
                 _gestures.Release(step.Press!, DragDistance());
                 Dropped(dropped);
                 return true;
@@ -298,12 +296,13 @@ internal sealed class OverlayWindow : IDisposable
         }
     }
 
-    // A drop leaves the pointer on a value, whose tooltip waits until the pointer leaves or a while passes.
+    // A drop leaves the pointer on a value of this overlay or another, whose tooltip waits until the pointer leaves or a
+    // while passes, as each overlay hears at its next paint.
     private void Dropped(bool dragged)
     {
         if (dragged)
         {
-            _tips.Dropped(_actions.Time);
+            _actions.Quiet.Dropped();
         }
         else
         {
@@ -356,6 +355,7 @@ internal sealed class OverlayWindow : IDisposable
         }
 
         _pointed = item;
+        _tips.On(item is not null);
     }
 
     /// <summary>Where a drop at a point of the screen joins this overlay, as <see cref="PaintedPlaces.JoinAt"/> says.</summary>

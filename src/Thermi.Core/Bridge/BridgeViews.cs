@@ -101,6 +101,9 @@ public sealed record WindowView(
 {
     /// <summary>Each overlay's colors as its look draws them, which its color swatches show.</summary>
     public IReadOnlyList<LookColors> Colors { get; init; } = [];
+
+    /// <summary>Each overlay's: whether it shows smaller than its size so as to fit its monitor's work area, which its Size row says.</summary>
+    public IReadOnlyList<bool> Fitted { get; init; } = [];
 }
 
 /// <summary>The colors a look draws, each as #RRGGBB, a default or Auto one as it shows.</summary>

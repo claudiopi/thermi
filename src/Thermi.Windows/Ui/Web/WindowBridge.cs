@@ -152,7 +152,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task<WindowView> View() => Ready(() => _views.View(_texts));
+    public Task<WindowView> View() => Ready(() => _views.View(_texts, _start.Environment.Screens));
 
     public Task<OverlayPicture?> Preview(int overlay, int room) => Ready(() => _previews.Preview(overlay, room, _texts));
 
@@ -355,7 +355,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             _finder.Add(snapshot);
         }
 
-        return new WindowReadingsEventArgs(_views.View(_texts), StatusNow());
+        return new WindowReadingsEventArgs(_views.View(_texts, _start.Environment.Screens), StatusNow());
     }
 
     private WindowStatus StatusNow()

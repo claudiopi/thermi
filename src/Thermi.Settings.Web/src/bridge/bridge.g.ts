@@ -449,6 +449,7 @@ export interface WindowView {
   values: Record<string, string>;
   mark: MarkState;
   colors: LookColors[];
+  fitted: boolean[];
 }
 
 export interface WornLook {

@@ -238,7 +238,7 @@ public sealed class OverlayMenuTests : IDisposable
 
         HostRun.Run(settings, _folder, _tray.Environment(_windowMutex) with { Cursor = () => cursor }, host =>
         {
-            cursor = OverlayDragTests.PillOf(host.Overlays[0], gpu);
+            cursor = OverlayPresses.PillOf(host.Overlays[0], gpu);
             var key = HostMenus.KeyOf(host, 0, gpu, MenuEntry.Separate);
             var typed = false;
             using (new MenuWatcher(() =>

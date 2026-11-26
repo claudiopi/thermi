@@ -25,8 +25,10 @@ export function Appearance({ data, overlay }: AppearanceProps) {
   const shown = shownStyle(one.style);
   const style = (field: string, value: Value): void => void edit({ kind: 'style', overlay, field, value });
   const size = one.size ?? 1;
-  // On a horizontal taskbar the overlay is never taller than the taskbar, whatever the size says.
+  // On a horizontal taskbar the overlay is never taller than the taskbar, and elsewhere never larger than its display,
+  // whatever the size says.
   const capped = placedOf(one, [])?.spot === 'taskbar' && shown.orientation !== 'vertical';
+  const note = capped ? t('UiText.SizeOnTaskbar') : data.view.fitted[overlay] === true ? t('UiText.SizeFitsDisplay') : null;
   // Vertical stacks the pills C# lists, so with one it would change nothing; once on, it can still be turned off.
   const stacksNothing = (data.view.pills[overlay]?.length ?? 0) < 2 && shown.orientation !== 'vertical';
   const themed = (index: number, pills: Value): Promise<unknown> => edit({ kind: 'style', overlay: index, field: 'pills', value: pills });
@@ -41,7 +43,7 @@ export function Appearance({ data, overlay }: AppearanceProps) {
       <LookCard data={data} overlay={overlay} />
       <CardStack>
         <Card>
-          <CardRow label={t('UiText.SizeField')} {...(capped ? { description: t('UiText.SizeOnTaskbar') } : {})}>
+          <CardRow label={t('UiText.SizeField')} {...(note === null ? {} : { description: note })}>
             <Slider
               className="t-slider"
               label={t('UiText.SizeField')}

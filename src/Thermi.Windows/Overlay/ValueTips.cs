@@ -1,5 +1,7 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using Thermi.App.Gestures;
+using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -22,9 +24,6 @@ internal sealed class ValueTips : IDisposable
     /// <summary>The timer that wakes the overlay when the quiet after a drop may end.</summary>
     internal const nuint QuietTimer = 4;
 
-    /// <summary>How long after a drop no tooltip shows while the pointer stays on the overlay.</summary>
-    public static readonly TimeSpan AfterDrop = TimeSpan.FromSeconds(1.5);
-
     // Wide enough for a name and its value on one line, so only the tooltip's own lines break it.
     private const int MaxWidth = 480;
 
@@ -41,13 +40,20 @@ internal sealed class ValueTips : IDisposable
     private readonly HWND _owner;
     private readonly HWND _tips;
     private readonly List<string> _texts = [];
+    private readonly List<RectangleF> _places = [];
+
+    // A tooltip shows only with the pointer on a value, and making its text costs a reading of every sensor, so the texts
+    // are made only while it is on one, and as it comes onto one, before the tooltip shows.
+    private Func<int, string> _textOf = _ => "";
+    private bool _on;
 
     // Kept alive as long as the tooltip, which calls it.
     private readonly SUBCLASSPROC _placed;
     private bool? _dark;
 
-    // When the last drop let go, on the injected clock, while its quiet lasts.
-    private long? _dropped;
+    // The drop whose quiet holds the tooltips, while it does, and the last one heard of, which holds them only once.
+    private DropQuiet? _quiet;
+    private long? _heard;
 
     public unsafe ValueTips(HWND owner)
     {
@@ -94,36 +100,61 @@ internal sealed class ValueTips : IDisposable
         PInvoke.SendMessage(_tips, PInvoke.TTM_SETMARGIN, 0, (nint)(&margins));
     }
 
-    /// <summary>One tool per place, in the overlay's pixels, with its text; tools past the places go.</summary>
-    public void Update(IReadOnlyList<(RectangleF Place, string Text)> tips)
+    /// <summary>
+    /// One tool over each of the first <paramref name="count"/> items painted, in the overlay's pixels, each with the text
+    /// <paramref name="textOf"/> makes; tools past them go.
+    /// </summary>
+    public void Update(IReadOnlyList<PaintedItem> painted, int count, Func<int, string> textOf)
     {
         if (_tips.IsNull)
         {
             return;
         }
 
-        for (var at = 0; at < tips.Count; at++)
+        _textOf = textOf;
+        count = Math.Min(count, painted.Count);
+        for (var at = 0; at < count; at++)
         {
-            var (place, text) = tips[at];
+            var place = painted[at].Item;
             if (at >= _texts.Count)
             {
-                Send(PInvoke.TTM_ADDTOOLW, at, place, text);
-                _texts.Add(text);
+                Send(PInvoke.TTM_ADDTOOLW, at, place, "");
+                _texts.Add("");
+                _places.Add(place);
                 continue;
             }
 
             Send(PInvoke.TTM_NEWTOOLRECTW, at, place, null);
-            if (_texts[at] != text)
-            {
-                Send(PInvoke.TTM_UPDATETIPTEXTW, at, place, text);
-                _texts[at] = text;
-            }
+            _places[at] = place;
         }
 
-        while (_texts.Count > tips.Count)
+        while (_texts.Count > count)
         {
             Send(PInvoke.TTM_DELTOOLW, _texts.Count - 1, default, null);
             _texts.RemoveAt(_texts.Count - 1);
+            _places.RemoveAt(_places.Count - 1);
+        }
+
+        Texts();
+    }
+
+    /// <summary>Whether the pointer is on a value; coming onto one, the texts are made now.</summary>
+    public void On(bool on)
+    {
+        _on = on;
+        Texts();
+    }
+
+    private void Texts()
+    {
+        for (var at = 0; _on && at < _texts.Count; at++)
+        {
+            var text = _textOf(at);
+            if (_texts[at] != text)
+            {
+                Send(PInvoke.TTM_UPDATETIPTEXTW, at, _places[at], text);
+                _texts[at] = text;
+            }
         }
     }
 
@@ -142,6 +173,9 @@ internal sealed class ValueTips : IDisposable
         _dark = dark;
     }
 
+    /// <summary>Whether a tooltip may show now.</summary>
+    public bool Speaks { get; private set; } = true;
+
     /// <summary>Hides the tooltip and shows none while the overlay is dragged or its menu shows, which it would cover.</summary>
     public void Quiet(bool quiet)
     {
@@ -149,27 +183,35 @@ internal sealed class ValueTips : IDisposable
         {
             PInvoke.SendMessage(_tips, PInvoke.TTM_ACTIVATE, quiet ? 0u : 1u, 0);
         }
+
+        Speaks = !quiet;
     }
 
     /// <summary>
-    /// A drop leaves the pointer on a value, whose tooltip would show at once: none shows until the pointer leaves the
-    /// overlay, or for <see cref="AfterDrop"/>.
+    /// The overlay shows on screen after <paramref name="drop"/>: while its quiet lasts, a drop it has not yet heard of
+    /// holds the tooltips until the pointer leaves the overlay, which Windows says at once of one the pointer is not on.
     /// </summary>
-    public unsafe void Dropped(TimeProvider time)
+    public unsafe void After(DropQuiet drop)
     {
-        _dropped = time.GetTimestamp();
+        if (drop.At == _heard || drop.Left <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        (_heard, _quiet) = (drop.At, drop);
+        Quiet(true);
         var track = new TRACKMOUSEEVENT { cbSize = (uint)sizeof(TRACKMOUSEEVENT), dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE, hwndTrack = _owner };
         PInvoke.TrackMouseEvent(ref track);
-        Wake(AfterDrop);
+        Wake(drop.Left);
     }
 
     /// <summary>The quiet's timer woke the overlay: the tooltips show again once the clock says it has lasted, or it waits on.</summary>
-    public void Woke(TimeProvider time)
+    public void Woke()
     {
         PInvoke.KillTimer(_owner, QuietTimer);
-        if (_dropped is { } at && time.GetElapsedTime(at) < AfterDrop)
+        if (_quiet is { Left: var left } && left > TimeSpan.Zero)
         {
-            Wake(AfterDrop - time.GetElapsedTime(at));
+            Wake(left);
             return;
         }
 
@@ -178,7 +220,7 @@ internal sealed class ValueTips : IDisposable
 
     public void Left()
     {
-        if (_dropped is not null)
+        if (_quiet is not null)
         {
             PInvoke.KillTimer(_owner, QuietTimer);
             Speak();
@@ -187,7 +229,7 @@ internal sealed class ValueTips : IDisposable
 
     private void Speak()
     {
-        _dropped = null;
+        _quiet = null;
         Quiet(false);
     }
 

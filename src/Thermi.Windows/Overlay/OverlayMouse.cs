@@ -25,7 +25,8 @@ internal enum MouseAction
     Open,
 }
 
-internal sealed record MouseStep(MouseAction Action, Press? Press = null, Position? At = null);
+/// <summary>What a mouse message does, and for a release whether the press ever left the drag distance, which makes it no click.</summary>
+internal sealed record MouseStep(MouseAction Action, Press? Press = null, Position? At = null, bool Moved = false);
 
 /// <summary>
 /// What each mouse message does to the overlay. It moves only once the cursor passes the drag distance, and never when
@@ -34,6 +35,7 @@ internal sealed record MouseStep(MouseAction Action, Press? Press = null, Positi
 internal sealed class OverlayMouse
 {
     private Press? _press;
+    private bool _moved;
 
     /// <summary>Where a drag in progress has the overlay once past the drag distance, so a repaint leaves it there.</summary>
     public Position? Dragged { get; private set; }
@@ -55,7 +57,7 @@ internal sealed class OverlayMouse
         switch (message)
         {
             case PInvoke.WM_LBUTTONDOWN:
-                (_press, Dragged) = (new Press(cursor, overlay), null);
+                (_press, Dragged, _moved) = (new Press(cursor, overlay), null, false);
                 return new MouseStep(MouseAction.Capture);
 
             // The overlay never has the keyboard's focus: while another app holds Esc as its hotkey, Esc's state is read as each
@@ -65,12 +67,13 @@ internal sealed class OverlayMouse
                 return new MouseStep(MouseAction.Lost);
             case PInvoke.WM_MOUSEMOVE when _press is { } press:
                 Dragged = Snaps.Dragged(press, cursor, distance, locked);
+                _moved |= Dragged is not null;
                 return new MouseStep(MouseAction.Move, At: Dragged ?? press.Overlay);
 
             // The press ends here, before the overlay lets the mouse go, so that change of capture is not a lost press.
             case PInvoke.WM_LBUTTONUP when _press is { } press:
                 (_press, Dragged) = (null, null);
-                return new MouseStep(MouseAction.Release, press);
+                return new MouseStep(MouseAction.Release, press, Moved: _moved);
             case PInvoke.WM_CAPTURECHANGED when _press is not null:
                 (_press, Dragged) = (null, null);
                 return new MouseStep(MouseAction.Lost);

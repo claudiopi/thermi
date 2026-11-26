@@ -4,10 +4,10 @@ using Thermi.Core.Placement;
 namespace Thermi.Windows.Painting;
 
 /// <summary>
-/// Where a press landed in an overlay's pixels: the item under it, the pill it is drawn in, its own place, and whether it
-/// is on the label its pill shows.
+/// Where a press landed in an overlay's pixels: the item under it, the pill it is drawn in, its own place, the part of it
+/// past its pill's label, and whether it is on that label.
 /// </summary>
-internal readonly record struct PressedOn(string? Item, RectangleF Pill, RectangleF Place, bool OnLabel);
+internal readonly record struct PressedOn(string? Item, RectangleF Pill, RectangleF Place, RectangleF Alone, bool OnLabel);
 
 /// <summary>What a point of an overlay's last paint is on, as the places its painter drew say, the overlay's edge being none.</summary>
 internal static class PaintedPlaces
@@ -18,7 +18,7 @@ internal static class PaintedPlaces
 
     /// <summary>What a press at a point is on: an item, on its pill's label or not, or nothing on the overlay's edge.</summary>
     public static PressedOn Pressed(this IReadOnlyList<PaintedItem> places, PointF at) =>
-        places.At(at) is { } place ? new PressedOn(place.Id, place.Pill, place.Item, place.Label.Contains(at)) : default;
+        places.At(at) is { } place ? new PressedOn(place.Id, place.Pill, place.Item, place.Alone, place.Label.Contains(at)) : default;
 
     /// <summary>
     /// Where a drop at a point joins the overlay <paramref name="onto"/>: before the first item whose pill's middle lies past

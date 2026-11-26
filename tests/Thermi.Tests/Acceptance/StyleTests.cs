@@ -161,6 +161,8 @@ public sealed class StyleTests
         }
     }
 
+    // Below 30 % what shows behind the text is what is behind the overlay, so Light or Dark pills there take the taskbar's
+    // mode, as System's do: their text, unlit meter segments and shadow read on a dark taskbar as on a light one.
     [Fact]
     public void BelowThirtyPercentTheTextGetsAShadow()
     {
@@ -172,6 +174,14 @@ public sealed class StyleTests
         Assert.Equal([TextEffect.Shadow, TextEffect.Shadow, TextEffect.None, TextEffect.None], effects);
         Assert.Equal(TextEffect.Outline, Look(outlined).Effect);
         Assert.Equal((0.0, 1.0), (Look(outlined).Background, Look(outlined).Opacity));
+        foreach (var (pills, light) in new[] { (PillTheme.Light, false), (PillTheme.Dark, true) })
+        {
+            var look = Look(Done(StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills, Opacity = new OpacityConfig(0.2) })), light);
+            var behind = Core.Tray.Taskbar.Of(light).Background;
+            Assert.True(
+                look.LabelColor.Color.ContrastWith(behind) >= PillColors.TextContrast, $"{pills} pills' label on a {(light ? "light" : "dark")} taskbar.");
+            Assert.True(look.Pills.Outer.ContrastWith(look.ValueColor.Color) >= PillColors.TextContrast, $"{pills} pills' shadow under their values.");
+        }
     }
 
     [Fact]

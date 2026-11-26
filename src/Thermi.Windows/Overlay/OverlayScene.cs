@@ -5,6 +5,7 @@ using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Windows.Win32;
 using Select = Thermi.Core.Messages.Select;
@@ -40,6 +41,9 @@ internal sealed record OverlayActions(
     /// <summary>The overlay a drag is over now, and where a drop would join it, which that overlay marks.</summary>
     public DropPreview Preview { get; } = new();
 
+    /// <summary>When the last drop let go, after which the overlay left under the pointer shows no tooltip for a while.</summary>
+    public DropQuiet Quiet { get; } = new(Time);
+
     /// <summary>The last desktop gesture, which the overlays' menus offer to undo.</summary>
     public GestureUndo? Gestures { get; init; }
 
@@ -67,9 +71,27 @@ internal sealed record OverlayScene(
     /// <summary>Whether apps are in light mode, which the values' tooltips follow as thermi's menus do.</summary>
     public bool LightApps { get; init; } = true;
 
+    /// <summary>Windows' accent color, which high contrast's highlight stands in for.</summary>
+    public Rgb WindowsAccent { get; init; }
+
+    /// <summary>What a drag and the open window mark the overlays in.</summary>
+    public Rgb Accent => HighContrast?.Highlight ?? WindowsAccent;
+
     /// <summary>Whether Windows' animation effects are on, without which no pill glows.</summary>
     public bool Animate { get; init; }
 
     /// <summary>The CPU's base clock, read once, and what is busiest now, read only while a CPU or GPU value is critical.</summary>
     public CpuWatch? Cpu { get; init; }
+
+    /// <summary>The items an overlay shows, and after them the settings' error while the file is broken.</summary>
+    public IReadOnlyList<OverlayItem> WithProblem(Texts texts, IReadOnlyList<OverlayItem> items)
+    {
+        if (Problem is null)
+        {
+            return items;
+        }
+
+        var error = texts.Of(OverlayText.ConfigError);
+        return [.. items, new OverlayItem(texts.Of(OverlayText.ConfigLabel), error, Level.Critical, error)];
+    }
 }

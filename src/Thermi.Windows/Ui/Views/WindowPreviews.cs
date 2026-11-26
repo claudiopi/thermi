@@ -11,6 +11,7 @@ using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Windows.Gestures;
 using Thermi.Windows.Overlay;
+using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Ui.Views;
@@ -57,7 +58,9 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
             return last.Picture;
         }
 
-        var scale = OverlayWindow.ScaleOf(96, one, drawn.Screens);
+        // Smaller where the overlay would not fit its monitor, as the overlay shows itself.
+        using var measure = new Painter();
+        var scale = measure.Fitting(items, drawn.Look, OverlayWindow.ScaleOf(96, one, drawn.Screens), Snaps.Most(one, drawn.Screens));
         var bitmap = Painted(items, drawn.Stopped, drawn.Look, scale, texts);
         var taskbar = OnTaskbar(one, drawn.Screens, bitmap.Size) ? Taskbar.Of(light).Background.ToString() : null;
 

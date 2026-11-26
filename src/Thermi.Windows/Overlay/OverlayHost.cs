@@ -35,6 +35,9 @@ internal sealed class OverlayHost : IDisposable
     private static readonly uint ShowMessage = PInvoke.RegisterWindowMessage("thermi-show");
     private static readonly uint HotkeyStatusMessage = PInvoke.RegisterWindowMessage("thermi-hotkey-status");
 
+    // Readings drift from a second apart, so the tick paints only once they are late, never a second time between two.
+    private static readonly TimeSpan Late = TimeSpan.FromSeconds(1.5);
+
     private readonly Settings _settings;
     private readonly Func<Snapshot?> _latest;
     private readonly ILogger _log;
@@ -47,9 +50,9 @@ internal sealed class OverlayHost : IDisposable
     private readonly DesktopReads _desktop;
     private readonly CpuWatch _cpu = new();
 
-    // Every paint, the once-a-second one included, goes through it, and each comes out on the window's thread.
+    // Every paint, the tick's included, goes through it, and each comes out on the window's thread.
     private readonly Throttle<bool> _paints;
-    private bool _paintedSinceTick;
+    private long? _readAt;
 
     // Held in a field so the garbage collector never frees it while Windows still calls it.
     private readonly WNDPROC _procedure;
@@ -289,12 +292,10 @@ internal sealed class OverlayHost : IDisposable
         }
 
         Raise();
-        if (!_paintedSinceTick)
+        if (_readAt is not { } read || _actions.Time.GetElapsedTime(read) >= Late)
         {
             RequestPaint();
         }
-
-        _paintedSinceTick = false;
     }
 
     private void Pressed(int id)
@@ -314,13 +315,7 @@ internal sealed class OverlayHost : IDisposable
         RequestPaint();
     }
 
-    private void Post(uint message)
-    {
-        if (!Hwnd.IsNull)
-        {
-            PInvoke.PostMessage(Hwnd, message, 0, 0);
-        }
-    }
+    private void Post(uint message) => _ = !Hwnd.IsNull && PInvoke.PostMessage(Hwnd, message, 0, 0);
 
     private void Record()
     {
@@ -336,7 +331,7 @@ internal sealed class OverlayHost : IDisposable
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint
         // found it: one a second at least, so asking Windows again for each reading would only repeat it.
         Tray?.Critical(config, snapshot, _fullScreen);
-        _paintedSinceTick = true;
+        _readAt = _actions.Time.GetTimestamp();
         RequestPaint();
     }
 
@@ -356,12 +351,11 @@ internal sealed class OverlayHost : IDisposable
         var fullScreen = OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState());
         _fullScreen = fullScreen.Any(full => full);
         var shown = _visibility.Decide(config, fullScreen);
-        var accent = scene.HighContrast?.Highlight ?? _desktop.Accent();
         for (var at = 0; at < _overlays.Count; at++)
         {
             if (shown[at] == OverlayShown.Shown)
             {
-                _overlays[at].Marks = _link.Marks(at, editing, config.Overlays[at], scene.LightTaskbar, accent);
+                _overlays[at].Marks = _link.Marks(at, editing, config.Overlays[at], scene.LightTaskbar, scene.Accent);
                 _overlays[at].Repaint(scene);
             }
             else
@@ -391,6 +385,7 @@ internal sealed class OverlayHost : IDisposable
     private OverlayScene Scene(Core.Settings.ThermiConfig config, IReadOnlyList<Screen> screens) =>
         new(config, _settings.Problem, _latest(), screens, _desktop.LightTaskbar(), Desktop.HighContrast(), _link.WindowOpen)
         {
+            WindowsAccent = _desktop.Accent(),
             Service = Service(),
             Animate = Desktop.Animations(),
             LightApps = _desktop.LightApps(),
