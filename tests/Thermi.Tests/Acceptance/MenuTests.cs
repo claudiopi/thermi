@@ -1,4 +1,9 @@
+using Microsoft.Extensions.Time.Testing;
+using Thermi.App.Gestures;
+using Thermi.Core.Editing;
+using Thermi.Core.Messages;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 
 namespace Thermi.Tests.Acceptance;
@@ -160,6 +165,28 @@ public sealed class MenuTests
         Assert.Equal(
             "Overlay- | " + overlaysMenu.Replace(" Lock", $" {clickThrough} Lock", StringComparison.Ordinal),
             Describe(Menus.OfOverlay(config, 0, menu, item, fromTray: true)));
+    }
+
+    // The menu offers to take back a lock chosen from it only while the settings still hold it: after the window's Ctrl+Z
+    // took it back the entry would do nothing, while an edit made elsewhere since leaves it to do.
+    [Theory] // Rows: the settings as the lock left them, taken back by the window, and changed elsewhere since
+    [InlineData("locked", true)]
+    [InlineData("undone", false)]
+    [InlineData("other", true)]
+    public void AMenuEditsUndoIsOfferedOnlyWhileItWouldChangeTheSettings(string now, bool offered)
+    {
+        var before = new ThermiConfig();
+        var after = OverlayEdits.SetLocked(before, 0, true).Config;
+        var undo = new GestureUndo(new FakeTimeProvider(), _ => { });
+        undo.Add(GestureKind.Menu, before, after, OverlayText.UndoLock);
+        var settings = now switch
+        {
+            "locked" => after,
+            "undone" => before,
+            _ => OverlayEdits.SetClickThrough(after, 0, true).Config,
+        };
+
+        Assert.Equal(offered ? OverlayText.UndoLock : null, undo.Offered(settings));
     }
 
     // Each entry of one menu gets its own key, from the start of a word first, whatever its case or language, and an
