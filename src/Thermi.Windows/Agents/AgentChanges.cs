@@ -154,7 +154,7 @@ internal sealed partial class AgentCommands
     // Core's edit, tried on the file as read and refused there without a write, then made over the file as it is then.
     private async Task<AgentReply> WriteAsync(Func<ThermiConfig, EditResult> edit, bool keep = true)
     {
-        using var store = new ConfigStore(environment.SettingsPath, time);
+        using var store = new ConfigStore(environment.SettingsPath, time, environment.RunsInstalled);
         var read = await store.ReadAsync();
         if (read.Problem is { } problem)
         {

@@ -183,7 +183,7 @@ internal sealed partial class AgentCommands(AgentEnvironment environment, TimePr
             return new ConfigRead(new ThermiConfig(), null, Outside: true);
         }
 
-        using var store = new ConfigStore(environment.SettingsPath, time);
+        using var store = new ConfigStore(environment.SettingsPath, time, environment.RunsInstalled);
         return await store.ReadOnlyAsync();
     }
 }

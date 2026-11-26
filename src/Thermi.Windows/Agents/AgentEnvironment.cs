@@ -45,6 +45,9 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
         return key?.GetValue(SensorsOnlyValue) is 1;
     };
 
+    /// <summary>Whether this process runs the installed version, so a newer settings file is a rollback to it.</summary>
+    public Func<bool> RunsInstalled { get; init; } = ThermiPaths.RunsInstalled;
+
     /// <summary>Whether this process runs with a token UAC raised, as from an elevated terminal, which only reads.</summary>
     public Func<bool> Raised { get; init; } = Elevation.Raised;
 
