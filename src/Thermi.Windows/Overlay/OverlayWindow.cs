@@ -235,7 +235,7 @@ internal sealed class OverlayWindow : IDisposable
     private void Tips(OverlayScene scene, TrayInput input, Core.Tray.OverlayScene shown)
     {
         _tips.Theme(!scene.LightApps && scene.HighContrast is null);
-        _tips.Update([.. _painter.Places.Zip(shown.Tooltips, (place, tip) => (place.Item, ValueTooltips.Text(scene.Config, _index, input, tip)))]);
+        _tips.Update(_painter.Places, shown.Tooltips.Count, at => ValueTooltips.Text(scene.Config, _index, input, shown.Tooltips[at]));
     }
 
     private void Glow()
@@ -355,6 +355,7 @@ internal sealed class OverlayWindow : IDisposable
         }
 
         _pointed = item;
+        _tips.On(item is not null);
     }
 
     /// <summary>Where a drop at a point of the screen joins this overlay, as <see cref="PaintedPlaces.JoinAt"/> says.</summary>

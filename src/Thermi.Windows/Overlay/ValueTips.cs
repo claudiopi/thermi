@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Thermi.App.Gestures;
+using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -39,6 +40,12 @@ internal sealed class ValueTips : IDisposable
     private readonly HWND _owner;
     private readonly HWND _tips;
     private readonly List<string> _texts = [];
+    private readonly List<RectangleF> _places = [];
+
+    // A tooltip shows only with the pointer on a value, and making its text costs a reading of every sensor, so the texts
+    // are made only while it is on one, and as it comes onto one, before the tooltip shows.
+    private Func<int, string> _textOf = _ => "";
+    private bool _on;
 
     // Kept alive as long as the tooltip, which calls it.
     private readonly SUBCLASSPROC _placed;
@@ -93,36 +100,61 @@ internal sealed class ValueTips : IDisposable
         PInvoke.SendMessage(_tips, PInvoke.TTM_SETMARGIN, 0, (nint)(&margins));
     }
 
-    /// <summary>One tool per place, in the overlay's pixels, with its text; tools past the places go.</summary>
-    public void Update(IReadOnlyList<(RectangleF Place, string Text)> tips)
+    /// <summary>
+    /// One tool over each of the first <paramref name="count"/> items painted, in the overlay's pixels, each with the text
+    /// <paramref name="textOf"/> makes; tools past them go.
+    /// </summary>
+    public void Update(IReadOnlyList<PaintedItem> painted, int count, Func<int, string> textOf)
     {
         if (_tips.IsNull)
         {
             return;
         }
 
-        for (var at = 0; at < tips.Count; at++)
+        _textOf = textOf;
+        count = Math.Min(count, painted.Count);
+        for (var at = 0; at < count; at++)
         {
-            var (place, text) = tips[at];
+            var place = painted[at].Item;
             if (at >= _texts.Count)
             {
-                Send(PInvoke.TTM_ADDTOOLW, at, place, text);
-                _texts.Add(text);
+                Send(PInvoke.TTM_ADDTOOLW, at, place, "");
+                _texts.Add("");
+                _places.Add(place);
                 continue;
             }
 
             Send(PInvoke.TTM_NEWTOOLRECTW, at, place, null);
-            if (_texts[at] != text)
-            {
-                Send(PInvoke.TTM_UPDATETIPTEXTW, at, place, text);
-                _texts[at] = text;
-            }
+            _places[at] = place;
         }
 
-        while (_texts.Count > tips.Count)
+        while (_texts.Count > count)
         {
             Send(PInvoke.TTM_DELTOOLW, _texts.Count - 1, default, null);
             _texts.RemoveAt(_texts.Count - 1);
+            _places.RemoveAt(_places.Count - 1);
+        }
+
+        Texts();
+    }
+
+    /// <summary>Whether the pointer is on a value; coming onto one, the texts are made now.</summary>
+    public void On(bool on)
+    {
+        _on = on;
+        Texts();
+    }
+
+    private void Texts()
+    {
+        for (var at = 0; _on && at < _texts.Count; at++)
+        {
+            var text = _textOf(at);
+            if (_texts[at] != text)
+            {
+                Send(PInvoke.TTM_UPDATETIPTEXTW, at, _places[at], text);
+                _texts[at] = text;
+            }
         }
     }
 
