@@ -272,6 +272,25 @@ public sealed class FrameTests
         _ = minimized.Next(Rates(zwiftInFront), Zwift, 1, Windows);
         Assert.Equal<int?>([Zwift, Zwift, Wave], [.. Enumerable.Repeat(waveStreaming, 3).Select(rates => minimized.Next(Rates(rates), Wave, 2, _ => []))]);
 
+        // As seen live: Zwift maximized at 98 on the left monitor, at negative X, while thermi starts with Chrome full screen on
+        // the right one at 60, then in its left half playing a video at 24 under Wave in its right half; or with Wave in front
+        // maximized at 180, then in its right half. Chrome and Wave present from a child, Zwift itself.
+        FrameRate zwift = new(37756, 23716, 98, 10);
+        (FrameRate[] Rates, int Front, bool Full) halves = ([zwift, new(4344, 35180, 24, 42), new(13848, 21308, 20, 50)], 21308, false);
+        (FrameRate[] Rates, int Front, bool Full) waveFull = ([zwift, new(13848, 21308, 180, 6)], 21308, true);
+        (FrameRate[] Rates, int Front, bool Full)[] netflix = [([zwift, new(4344, 35180, 60, 16)], 35180, true), halves, halves, halves];
+        (FrameRate[] Rates, int Front, bool Full)[] wave = [waveFull, waveFull, waveFull, halves];
+        foreach (var history in new[] { netflix, wave })
+        {
+            var live = new FrontGame();
+            Assert.All(history, second => Assert.Equal<int?>(37756, live.Next(second.Rates, second.Front, second.Full ? 0x1006d : null, rate => Live(rate, second.Full))));
+        }
+
+        static AppWindow[] Live(FrameRate rate, bool full)
+        {
+            return rate.Process == 37756 ? [new(0x20001, true)] : [new(0x1006d, full)];
+        }
+
         static FrameRate[] Rates((int Process, double Fps)[] rates)
         {
             return [.. rates.Select(rate => new FrameRate(rate.Process, 0, rate.Fps, 10))];
