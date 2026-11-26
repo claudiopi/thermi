@@ -157,12 +157,7 @@ internal sealed class AgentRig : IDisposable
         using var output = new MemoryStream();
         await using var error = new StringWriter();
         var run = AgentRun.RunAsync(request, Environment, new AgentConsole(input, output, error), NullLoggerFactory.Instance, Folder.Clock);
-        for (var step = 0; !run.IsCompleted && step < 2000; step++)
-        {
-            Folder.Clock.Advance(TimeSpan.FromMilliseconds(100));
-            await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System);
-        }
-
+        await Folder.StepWhileAsync(run);
         return new AgentEnd(await run, Encoding.UTF8.GetString(output.ToArray()), error.ToString());
     }
 

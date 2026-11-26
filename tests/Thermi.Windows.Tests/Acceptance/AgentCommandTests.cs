@@ -213,9 +213,13 @@ public sealed class AgentCommandTests : IDisposable
             var dropped = new Position(10 * round, 20);
             overlay.Edit(config => OverlayEdits.Drop(config, 0, dropped).Config);
             var agent = _rig.RunAsync("edit", $$"""{"kind":"threshold","item":"cpu.temperature","warning":{{60 + round}},"critical":95}""");
-            folder.RunOut(overlay.SyncAsync());
+            var sync = overlay.SyncAsync();
+            await folder.StepWhileAsync(sync);
+            await sync;
             Assert.Equal(0, (await agent).Exit);
-            folder.RunOut(overlay.SyncAsync());
+            var after = overlay.SyncAsync();
+            await folder.StepWhileAsync(after);
+            await after;
 
             var written = folder.Read().Overlays[0];
             Assert.Equal((dropped, 60.0 + round), (written.Position!, written.Items[0].Threshold!.Warning!.Value));

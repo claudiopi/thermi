@@ -120,12 +120,29 @@ internal sealed class SettingsFolder : IDisposable
         return task;
     }
 
-    /// <summary>Steps the clock a poll at a time until <paramref name="task"/> has ended.</summary>
+    /// <summary>
+    /// Steps the clock a poll at a time, at most 100 times, until <paramref name="task"/> has ended: for work this thread
+    /// drives alone, which the caller then awaits.
+    /// </summary>
     public void RunOut(Task task)
     {
         for (var step = 0; !task.IsCompleted && step < 100; step++)
         {
             Clock.Advance(ConfigStore.Poll);
+        }
+    }
+
+    /// <summary>
+    /// Steps the clock, with a moment of real time between steps for work that waits on another thread, while
+    /// <paramref name="task"/> runs; the caller then awaits it. The steps alone outrun such work, as a sync that waits its
+    /// turn behind the throttle's, and would leave it unfinished while the test reads what it was to write.
+    /// </summary>
+    public async Task StepWhileAsync(Task task)
+    {
+        for (var step = 0; !task.IsCompleted && step < 2000; step++)
+        {
+            Clock.Advance(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System);
         }
     }
 
