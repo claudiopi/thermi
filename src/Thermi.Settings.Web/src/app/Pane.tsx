@@ -32,9 +32,11 @@ export function Pane({ data, selected, inert, labelAsked, onOverlayEdit }: PaneP
   return (
     <main ref={main} className="t-pane" inert={inert}>
       <div className="t-pane-in">
-        {selected === settingsKey && <SettingsPage data={data} />}
-        {item !== null && <ItemPage key={item} data={data} id={item} labelAsked={labelAsked} />}
-        {(kind === 'o' || kind === 'p') && <OverlayPage key={overlay} data={data} overlay={Number(overlay)} onOverlayEdit={onOverlayEdit} />}
+        <div>
+          {selected === settingsKey && <SettingsPage data={data} />}
+          {item !== null && <ItemPage key={item} data={data} id={item} labelAsked={labelAsked} />}
+          {(kind === 'o' || kind === 'p') && <OverlayPage key={overlay} data={data} overlay={Number(overlay)} onOverlayEdit={onOverlayEdit} />}
+        </div>
       </div>
     </main>
   );
