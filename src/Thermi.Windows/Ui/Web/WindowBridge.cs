@@ -118,7 +118,9 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public void Pick(DesktopPickEventArgs pick) => Picked?.Invoke(this, pick);
 
     public Task<DesktopPickEventArgs?> Start() =>
-        Task.FromResult(_start.Overlay > 0 ? new DesktopPickEventArgs(_start.Overlay - 1, _start.Item, SelectHow.DoubleClick) : null);
+        Task.FromResult(_start.Overlay > 0
+            ? new DesktopPickEventArgs(_start.Overlay - 1, _start.Item, _start.SizeRow ? SelectHow.Size : SelectHow.DoubleClick)
+            : null);
 
     public void Tell() => Changed?.Invoke(this, new WindowChangeEventArgs(sensors: false));
 

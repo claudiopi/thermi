@@ -27,10 +27,17 @@ internal sealed class GestureUndo(TimeProvider time, Action<Gesture> tell)
 
     /// <summary>
     /// A gesture written: offered for undo, named by <paramref name="undo"/> or else by its kind, and told to the window.
+    /// One that <paramref name="joins"/> the last, of its kind, from where that left the settings and within
+    /// <see cref="UndoHistory.Repeat"/>, is one step with it, as the window's history makes of them.
     /// </summary>
-    public void Add(GestureKind kind, ThermiConfig before, ThermiConfig after, OverlayText? undo = null)
+    public void Add(GestureKind kind, ThermiConfig before, ThermiConfig after, OverlayText? undo = null, bool joins = false)
     {
-        _last = new Done(undo ?? DesktopGestures.UndoOf(kind), before, after, time.GetTimestamp());
+        var now = time.GetTimestamp();
+        var from = joins && _last is { } last && last.Kind == kind && time.GetElapsedTime(last.At, now) <= UndoHistory.Repeat
+            && ConfigEdits.Replay(last.After, before) is null
+                ? last.Before
+                : before;
+        _last = new Done(kind, undo ?? DesktopGestures.UndoOf(kind), from, after, now);
         tell(new Gesture(kind, ThermiConfigJson.Write(before), ThermiConfigJson.Write(after)));
     }
 
@@ -45,5 +52,5 @@ internal sealed class GestureUndo(TimeProvider time, Action<Gesture> tell)
         return last is null ? null : ConfigEdits.Replay(last.After, last.Before);
     }
 
-    private sealed record Done(OverlayText Undo, ThermiConfig Before, ThermiConfig After, long At);
+    private sealed record Done(GestureKind Kind, OverlayText Undo, ThermiConfig Before, ThermiConfig After, long At);
 }

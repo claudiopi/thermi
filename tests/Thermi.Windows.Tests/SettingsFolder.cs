@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
@@ -11,6 +12,8 @@ namespace Thermi.Windows.Tests;
 /// </summary>
 internal sealed class SettingsFolder : IDisposable
 {
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
+
     private readonly string _folder = Path.Combine(AppContext.BaseDirectory, "settings-files", Guid.NewGuid().ToString("N"));
     private readonly List<IDisposable> _stores = [];
 
@@ -112,15 +115,44 @@ internal sealed class SettingsFolder : IDisposable
     /// <summary>
     /// Steps the clock, with a moment of real time between steps for work that waits on another thread, while
     /// <paramref name="task"/> runs; the caller then awaits it. The steps alone outrun such work, as a sync that waits its
-    /// turn behind the throttle's, and would leave it unfinished while the test reads what it was to write.
+    /// turn behind the throttle's, and would leave it unfinished while the test reads what it was to write. No step is
+    /// taken while a writer of this process holds the file's mutex: one the PC held back mid-write would have the clock
+    /// run another writer out of its wait for it. A <see cref="MutexHolder"/>, which stands for another process, is
+    /// waited out as the clock moves.
     /// </summary>
     public async Task StepWhileAsync(Task task)
     {
-        for (var step = 0; !task.IsCompleted && step < 2000; step++)
+        using var probe = new Mutex(initiallyOwned: false, MutexName);
+        var start = TimeProvider.System.GetTimestamp();
+        for (var step = 0; !task.IsCompleted && step < 2000 && TimeProvider.System.GetElapsedTime(start) < Patience;)
         {
-            Clock.Advance(TimeSpan.FromMilliseconds(100));
+            if (Free(probe) || MutexHolder.Holds(MutexName))
+            {
+                Clock.Advance(TimeSpan.FromMilliseconds(100));
+                step++;
+            }
+
             await Task.Delay(TimeSpan.FromMilliseconds(2), TimeProvider.System);
         }
+    }
+
+    // Taken and given back at once on this thread, as a mutex is the thread's that takes it.
+    private static bool Free(Mutex probe)
+    {
+        try
+        {
+            if (!probe.WaitOne(0))
+            {
+                return false;
+            }
+        }
+        catch (AbandonedMutexException)
+        {
+            // Ours now, as it would be the next writer's.
+        }
+
+        probe.ReleaseMutex();
+        return true;
     }
 
     /// <summary>Steps the clock a poll at a time for <paramref name="span"/>.</summary>
@@ -149,9 +181,13 @@ internal sealed class SettingsFolder : IDisposable
 /// </summary>
 internal sealed class MutexHolder : IDisposable
 {
+    private static readonly ConcurrentDictionary<string, int> Held = new();
+
     private readonly ManualResetEventSlim _taken = new();
     private readonly ManualResetEventSlim _release = new();
     private readonly Thread _thread;
+    private readonly string? _name;
+    private int _released;
     private volatile bool _crash;
 
     private MutexHolder(string name, bool dies)
@@ -175,8 +211,14 @@ internal sealed class MutexHolder : IDisposable
         if (dies)
         {
             _thread.Join();
+            return;
         }
+
+        _name = name;
+        Held.AddOrUpdate(name, 1, (_, holders) => holders + 1);
     }
+
+    public static bool Holds(string name) => Held.TryGetValue(name, out var holders) && holders > 0;
 
     public static MutexHolder Holding(string name) => new(name, dies: false);
 
@@ -196,6 +238,10 @@ internal sealed class MutexHolder : IDisposable
     {
         _release.Set();
         _thread.Join();
+        if (_name is not null && Interlocked.Exchange(ref _released, 1) == 0)
+        {
+            Held.AddOrUpdate(_name, 0, (_, holders) => holders - 1);
+        }
     }
 
     public void Dispose()

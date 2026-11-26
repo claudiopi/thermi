@@ -305,7 +305,7 @@ export interface Rect {
   height: number;
 }
 
-export type SelectHow = 'click' | 'double-click' | 'point-in' | 'point-out';
+export type SelectHow = 'click' | 'double-click' | 'point-in' | 'point-out' | 'size';
 
 export interface Sensor {
   id: string;

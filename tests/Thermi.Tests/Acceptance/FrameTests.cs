@@ -31,16 +31,16 @@ public sealed class FrameTests
         const int Zwift = 63632;
         const int Terminal = 27540;
         var overlay = OverlayConfig.First with { Items = [.. OverlayConfig.First.Items, FrameTimeItem] };
-        (int? Front, bool Fills)[] fronts =
-            [(Zwift, true), (Zwift, true), (Zwift, true), (Zwift, true), (Zwift, true), (Terminal, false), (Terminal, true), (null, false)];
+        (int? Front, nint? Fills)[] fronts =
+            [(Zwift, 1), (Zwift, 1), (Zwift, 1), (Zwift, 1), (Zwift, 1), (Terminal, null), (Terminal, 2), (null, null)];
         var (game, terminal) = (new FrontGame(), new FrontGame());
 
         var seconds = Replay(TestFiles.Presents(TestRecordings.ZwiftFrames)).Zip(fronts).Select(each => string.Join(
             " | ",
             new[]
             {
-                game.Next(each.First, each.Second.Front, each.Second.Fills, rate => rate.Process == Zwift),
-                terminal.Next(each.First, Terminal, false, _ => false),
+                game.Next(each.First, each.Second.Front, each.Second.Fills, rate => rate.Process == Zwift ? [new(1, true, true)] : []),
+                terminal.Next(each.First, Terminal, null, _ => []),
             }
                 .Select(shown => Shown(overlay, Desktop, each.First, shown))
                 .Select(shown => string.Join(" ", new[] { Metrics.Fps.Id, Metrics.FrameTime.Id }.Select(shown.GetValueOrDefault).OfType<string>()))));
@@ -68,7 +68,7 @@ public sealed class FrameTests
         var game = new FrontGame();
 
         var shown = Replay(TestFiles.Presents(TestRecordings.ZwiftObsFrames)).Take(5)
-            .Select(rates => Fps(OverlayConfig.First, Desktop, rates, game.Next(rates, Zwift, true, _ => true)));
+            .Select(rates => Fps(OverlayConfig.First, Desktop, rates, game.Next(rates, Zwift, 1, _ => [new(1, true, true)])));
 
         Assert.Equal([null, null, "67", "162", "111"], shown);
     }
@@ -225,11 +225,13 @@ public sealed class FrameTests
     }
 
     // FPS follows the game, second by second: with no game, a game that fills its monitor in front is one at once; a terminal
-    // that fills its own and repaints at 35 FPS in front never takes it from a game that presents faster, even at 65 while
-    // in the background; another game takes over once it presents faster, and the old one, in front again but slower, never
-    // takes it back; once the game stops presenting, the one in front is the game at once. With no game, as when thermi
-    // starts with a game running behind, the fastest app that fills its monitor and presents at 30 or more is the game, in
-    // front or not, and a video in a window that does not fill its monitor never is.
+    // that fills the other monitor never takes it from a game shown on its own, at 35 FPS while the game presents at 65, nor
+    // at its monitor's 180 while the game presents at 75; another game that fills the game's monitor takes over once it
+    // presents faster, and the old one, in front again but slower, never takes it back; once the game stops presenting, or
+    // fills no monitor, as minimized, the one in front is the game at once. With no game, as when thermi starts with a game
+    // running behind, the fastest app that fills its monitor and presents at 30 or more is the game, in front or not, one
+    // that presents from its own window before a browser's or a terminal's, which present from a child, and a video in a
+    // window that does not fill its monitor never is.
     [Fact]
     public void FpsFollowsTheGameNotTheFocus()
     {
@@ -241,28 +243,65 @@ public sealed class FrameTests
         var started = new FrontGame();
         Assert.Equal<int?>(
             [Zwift, Zwift, Zwift, Zwift],
-            [.. Enumerable.Range(0, 4).Select(_ => started.Next(Rates(behind), Wave, true, rate => rate.Process != Video))]);
+            [.. Enumerable.Range(0, 4).Select(_ => started.Next(Rates(behind), Wave, 2, Windows))]);
 
         (int Process, double Fps)[] zwiftInFront = [(Zwift, 160), (Wave, 20)];
         (int Process, double Fps)[] waveBusy = [(Zwift, 65), (Wave, 35)];
+        (int Process, double Fps)[] waveStreaming = [(Zwift, 75), (Wave, 180)];
         (int Process, double Fps)[] twoGames = [(Zwift, 65), (Other, 90)];
         ((int Process, double Fps)[] Rates, int? Front)[] seconds =
         [
             (zwiftInFront, Zwift), (zwiftInFront, Zwift), (zwiftInFront, Zwift),
             (waveBusy, Wave), (waveBusy, Wave), (waveBusy, Wave), (waveBusy, Wave),
+            (waveStreaming, Wave), (waveStreaming, Wave), (waveStreaming, Wave), (waveStreaming, Wave),
             (twoGames, Other), (twoGames, Other), (twoGames, Other),
             (twoGames, Zwift), (twoGames, Zwift), (twoGames, Zwift),
             ([(Zwift, 65)], Zwift), ([(Zwift, 65)], Zwift), ([(Zwift, 65)], Zwift),
         ];
         var game = new FrontGame();
 
-        var shown = seconds.Select(second => game.Next(Rates(second.Rates), second.Front, true, _ => true));
+        var shown = seconds.Select(second => game.Next(Rates(second.Rates), second.Front, second.Front == Wave ? 2 : 1, Windows));
 
-        Assert.Equal<int?>([Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Other, Other, Other, Other, Zwift, Zwift, Zwift], shown);
+        Assert.Equal<int?>(
+            [
+                Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift,
+                Zwift, Zwift, Other, Other, Other, Other, Zwift, Zwift, Zwift,
+            ],
+            shown);
+
+        var minimized = new FrontGame();
+        _ = minimized.Next(Rates(zwiftInFront), Zwift, 1, Windows);
+        Assert.Equal<int?>(Wave, minimized.Next(Rates(waveStreaming), Wave, 2, rate => rate.Process == Wave ? Windows(rate) : []));
+
+        // As seen live: Zwift maximized at 98 on the left monitor, at negative X, while thermi starts with Chrome full screen on
+        // the right one at 60, then in its left half playing a video at 24 under Wave in its right half; or with Wave in front
+        // maximized at 180, then in its right half. Chrome and Wave present from a child, Zwift itself.
+        FrameRate zwift = new(37756, 23716, 98, 10);
+        (FrameRate[] Rates, int Front, bool Full) halves = ([zwift, new(4344, 35180, 24, 42), new(13848, 21308, 20, 50)], 21308, false);
+        (FrameRate[] Rates, int Front, bool Full) waveFull = ([zwift, new(13848, 21308, 180, 6)], 21308, true);
+        (FrameRate[] Rates, int Front, bool Full)[] netflix = [([zwift, new(4344, 35180, 60, 16)], 35180, true), halves, halves, halves];
+        (FrameRate[] Rates, int Front, bool Full)[] wave = [waveFull, waveFull, waveFull, halves];
+        foreach (var history in new[] { netflix, wave })
+        {
+            var live = new FrontGame();
+            Assert.All(history, second =>
+                Assert.Equal<int?>(37756, live.Next(second.Rates, second.Front, second.Full ? 0x1006d : null, rate => Live(rate, second.Full))));
+        }
+
+        static AppWindow[] Live(FrameRate rate, bool full)
+        {
+            return rate.Process == 37756 ? [new(0x20001, true, true)] : [new(0x1006d, full, false)];
+        }
 
         static FrameRate[] Rates((int Process, double Fps)[] rates)
         {
             return [.. rates.Select(rate => new FrameRate(rate.Process, 0, rate.Fps, 10))];
+        }
+
+        // The terminal and a video on the second monitor, the rest filling the first.
+        static AppWindow[] Windows(FrameRate rate)
+        {
+            return rate.Process switch { Wave => [new(2, true, false)], Video => [new(2, false, false)], _ => [new(1, true, true)] };
         }
     }
 

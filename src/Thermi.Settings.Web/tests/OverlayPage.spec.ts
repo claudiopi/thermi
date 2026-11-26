@@ -42,7 +42,7 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
   };
   const tile = (look: string): Locator => control('radio', 'OverlayPageText.LookTile', look);
   const checkedTiles = (): Locator => pane.getByRole('radiogroup', { name: text('UiText.LookField') }).getByRole('radio', { checked: true });
-  // A360: a slider's box, its number typed and kept with Enter or the focus leaving, or put back with Esc.
+  // A363: a slider's box, its number typed and kept with Enter or the focus leaving, or put back with Esc.
   const box = (key: string): Locator => pane.getByRole('textbox', { name: text(key) });
   const typed = async (key: string, value: string, end: string): Promise<void> => {
     await box(key).fill(value);

@@ -1,4 +1,5 @@
 import type { Value } from '../bridge/bridge.g';
+import { sizeRow } from '../app/paneFocus';
 import { editsAsOneStep, useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Card, CardRow, CardStack, Dropdown, Segmented, Slider } from '../kit';
 import { useText } from '../texts/Texts';
@@ -42,7 +43,7 @@ export function Appearance({ data, overlay }: AppearanceProps) {
       <LookCard data={data} overlay={overlay} />
       <CardStack>
         <Card>
-          <CardRow label={t('UiText.SizeField')} {...(note === null ? {} : { description: note })}>
+          <CardRow id={sizeRow} label={t('UiText.SizeField')} {...(note === null ? {} : { description: note })}>
             <Slider
               className="t-slider"
               label={t('UiText.SizeField')}

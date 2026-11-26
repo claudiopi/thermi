@@ -266,6 +266,63 @@ public sealed class OverlayMenuTests : IDisposable
         Assert.Equal(ids, _folder.Read().Overlays.Single().Items.Select(item => item.Id));
     }
 
+    // A size from the overlay's menu, and from Ctrl and the wheel, two notches half a second apart: each is one step that
+    // the menu's Undo takes back whole. A locked overlay keeps its size to the wheel. "Custom…" asks the open window for
+    // the overlay's Size row, which brings it to the front.
+    [Theory] // Rows: the menu and the wheel, the lock, and Custom…
+    [InlineData("preset", 1.5)]
+    [InlineData("wheel", 1.1)]
+    [InlineData("locked", 1)]
+    [InlineData("custom", 1)]
+    public async Task TheSizeMenuAndTheWheelResizeTheOverlayAsOneStep(string how, double size)
+    {
+        var free = new OverlayConfig { Position = new Position(100, 100), Locked = how == "locked" };
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [free] });
+        var (resized, undone) = (0.0, 0.0);
+        var raised = new List<int>();
+        var received = new List<Core.Messages.WindowMessage>();
+
+        HostRun.Run(settings, _folder, _tray.Environment(_windowMutex), host =>
+        {
+            using var beacon = new Ui.SettingsBeacon(raised.Add, _folder.Log) { Received = received.Add };
+            if (how is "wheel" or "locked")
+            {
+                Wheel(host);
+                _folder.Clock.Advance(TimeSpan.FromMilliseconds(500));
+                Wheel(host);
+            }
+            else
+            {
+                var sizes = host.Tray!.RowsOf(0).Rows.Single(row => row.Entries.Count > 0 && row.Entry == MenuEntry.Size).Entries;
+                host.Tray.Choose(sizes.First(row => how == "preset" ? row is { Entry: MenuEntry.Size, Size: 1.5 } : row.Entry == MenuEntry.SizeCustom), 0);
+            }
+
+            HostRun.Until(host, _folder.Clock, () => Near(_folder.Read().Overlays[0].Size, size));
+            resized = _folder.Read().Overlays[0].Size;
+            if (!Near(resized, 1))
+            {
+                HostMenus.Choose(host, 0, Texts.English.Of(OverlayText.UndoResize));
+                HostRun.Until(host, _folder.Clock, () => Near(_folder.Read().Overlays[0].Size, 1));
+            }
+
+            undone = _folder.Read().Overlays[0].Size;
+        });
+
+        Assert.Equal((size, 1.0), (resized, undone));
+        Assert.Equal(how == "custom", received.Contains(new Core.Messages.Select(1, null, Core.Messages.SelectHow.Size)));
+        Assert.Equal(how == "custom" ? [1] : [], raised);
+    }
+
+    // A notch up with Ctrl held, as Windows sends it to the window under the pointer.
+    private static void Wheel(OverlayHost host) =>
+        PInvoke.SendMessage(
+            host.Overlays[0].Hwnd,
+            PInvoke.WM_MOUSEWHEEL,
+            (120 << 16) | (int)global::Windows.Win32.System.SystemServices.MODIFIERKEYS_FLAGS.MK_CONTROL,
+            0);
+
+    private static bool Near(double size, double other) => Math.Abs(size - other) < 0.001;
+
     private static double? Temperature(Snapshot snapshot) =>
         SensorMap.Read(snapshot, new OverlayConfig())[OverlayConfig.DefaultItems[1].Id].Value;
 

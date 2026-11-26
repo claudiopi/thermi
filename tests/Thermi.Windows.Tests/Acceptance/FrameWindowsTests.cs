@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.Sensors.Windows.Frames;
+using sensors::Thermi.Sensors.Windows.Pipe;
 using sensors::Thermi.Sensors.Windows.Service;
 using Thermi.Core.Frames;
 using Thermi.Core.Sensors;
@@ -20,7 +21,7 @@ public sealed class FrameWindowsTests : IAsyncDisposable
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
     private readonly string _folder = Path.Combine(AppContext.BaseDirectory, "frames", Guid.NewGuid().ToString("N"));
-    private readonly FakeTimeProvider _clock = new();
+    private readonly HostClock _clock = new();
     private readonly string _pipeName = $"thermi-test-{Guid.NewGuid():N}";
     private readonly CancellationTokenSource _stop = new();
     private readonly List<Task<int>> _runs = [];
@@ -65,10 +66,10 @@ public sealed class FrameWindowsTests : IAsyncDisposable
         _ = Run(["--console"]);
         await using var client = new NamedPipeClientStream(".", _pipeName, PipeDirection.In, PipeOptions.Asynchronous);
         await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
-        var served = await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+        var served = await PipeReading.NextSnapshotAsync(client, _clock, Patience, _clock.Ready);
         for (var read = 0; read < FrameTally.SteadyFor + 2 && FrameSlots.Read(served) is not [_, ..]; read++)
         {
-            served = await PipeReading.NextSnapshotAsync(client, _clock, Patience);
+            served = await PipeReading.NextSnapshotAsync(client, _clock, Patience, _clock.Ready);
         }
 
         Assert.Equal(0, exit);
@@ -100,6 +101,30 @@ public sealed class FrameWindowsTests : IAsyncDisposable
             _clock.Advance(TimeSpan.FromSeconds(1));
             return run.IsCompleted;
         }, Patience));
+
+    /// <summary>
+    /// The fake clock, which also tells when the host last began to read its sensors, and so keeps a step from running out
+    /// the trace's idle limit while the PC holds the host back: the trace would stop, and its count start again.
+    /// </summary>
+    private sealed class HostClock : FakeTimeProvider
+    {
+        // In ticks, none before the first read.
+        private long _read = long.MinValue;
+
+        public bool Ready() =>
+            Interlocked.Read(ref _read) is var read
+            && (read == long.MinValue || GetUtcNow().UtcTicks + TimeSpan.TicksPerSecond - read < FramedSource.Idle.Ticks);
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            if (dueTime == SensorPipeServer.ReadLimit)
+            {
+                Interlocked.Exchange(ref _read, GetUtcNow().UtcTicks);
+            }
+
+            return base.CreateTimer(callback, state, dueTime, period);
+        }
+    }
 
     // Each second, as the clock moves, 15 presents of this test's process in the last 0.4 s, which the service has not
     // closed yet, so it counts as presenting from the third second it closes, and one of the compositor's, which neither

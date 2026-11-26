@@ -29,6 +29,9 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
             case MenuEntry.SettingsBroken or MenuEntry.Settings or MenuEntry.EditItem:
                 Actions.OpenSettings(target ?? 0, row.Item);
                 break;
+            case MenuEntry.SizeCustom:
+                Actions.OpenSize(target ?? 0);
+                break;
             case MenuEntry.StartSensors or MenuEntry.TaskManager or MenuEntry.CopyImage:
                 Reach(row.Entry, target ?? 0);
                 break;
@@ -48,10 +51,10 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
                 Actions.Exit();
                 break;
             case MenuEntry.ShowHiddenOverlays or MenuEntry.ShowOverlay or MenuEntry.HideThisOverlay or MenuEntry.ClickThrough or MenuEntry.Lock
-                or MenuEntry.Graph or MenuEntry.Vertical or MenuEntry.Look:
+                or MenuEntry.Graph or MenuEntry.Vertical or MenuEntry.Look or MenuEntry.Size or MenuEntry.Bigger or MenuEntry.Smaller:
                 Write(row, EditOf(row, On(target), target ?? 0));
                 break;
-            case MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull or MenuEntry.Overlay or MenuEntry.Update:
+            case MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull or MenuEntry.Overlay or MenuEntry.Update or MenuEntry.SizeOnTaskbar:
             default:
                 break;
         }
@@ -75,9 +78,11 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
             StyleEdits.Restyle(config, at, style => style with { Orientation = row.Checked ? Orientation.Horizontal : Orientation.Vertical }).Config,
         MenuEntry.Look when (row.Look is null ? new StyleConfig() : Looks().FirstOrDefault(look => look.Name == row.Look)) is { } look => config =>
             StyleEdits.Choose(config, at, look).Config,
+        MenuEntry.Size or MenuEntry.Bigger or MenuEntry.Smaller when row.Size is { } size => config => OverlayEdits.SetSize(config, at, size).Config,
         MenuEntry.SettingsBroken or MenuEntry.StartSensors or MenuEntry.ShowOverlays or MenuEntry.UndoGesture or MenuEntry.Settings
             or MenuEntry.TaskManager or MenuEntry.CopyImage or MenuEntry.HideOverlays or MenuEntry.ResetMinMax or MenuEntry.Overlay
-            or MenuEntry.Update or MenuEntry.Exit or MenuEntry.EditItem or MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull => null,
+            or MenuEntry.Update or MenuEntry.Exit or MenuEntry.EditItem or MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull
+            or MenuEntry.SizeCustom or MenuEntry.SizeOnTaskbar => null,
         _ => null,
     };
 

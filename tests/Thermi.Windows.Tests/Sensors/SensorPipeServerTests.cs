@@ -121,13 +121,27 @@ public sealed class SensorPipeServerTests : IAsyncDisposable
             () => ended = true);
         await ConnectAsync();
 
-        // A second at a time until the server, which reads once a client is in, has ended; the real clock only bounds a hang.
-        SpinWait.SpinUntil(() =>
+        // A second at a time until the server, which reads once a client is in, has begun to read; then past the read's
+        // limit, which only a hang reaches. Stepping on while the read waits for a thread would make any read a hang.
+        try
         {
-            _clock.Advance(TimeSpan.FromSeconds(1));
-            return running.IsCompleted;
-        }, Patience);
-        stuck.Set();
+            SpinWait.SpinUntil(() =>
+            {
+                _clock.Advance(TimeSpan.FromSeconds(1));
+                return _clock.ReadBegun.Task.IsCompleted;
+            }, Patience);
+            if (hangs)
+            {
+                _clock.Advance(SensorPipeServer.ReadLimit);
+            }
+
+            await running.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken)
+                .ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing | ConfigureAwaitOptions.ContinueOnCapturedContext);
+        }
+        finally
+        {
+            stuck.Set();
+        }
 
         Assert.True(running.IsFaulted, "The server should have failed.");
         Assert.Equal(
@@ -251,16 +265,23 @@ public sealed class SensorPipeServerTests : IAsyncDisposable
         return false;
     }
 
-    /// <summary>The fake clock, which also tells when the server first waits to try its pipe's name again.</summary>
+    /// <summary>The fake clock, which also tells when the server first waits to try its pipe's name again, and to read.</summary>
     private sealed class WatchedClock : FakeTimeProvider
     {
         public TaskCompletionSource RetryWaited { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource ReadBegun { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             if (dueTime == SensorPipeServer.Retry)
             {
                 RetryWaited.TrySetResult();
+            }
+
+            if (dueTime == SensorPipeServer.ReadLimit)
+            {
+                ReadBegun.TrySetResult();
             }
 
             return base.CreateTimer(callback, state, dueTime, period);

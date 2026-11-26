@@ -11,7 +11,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 namespace Thermi.Windows.Win32;
 
 /// <summary>
-/// The process of the app in front, and whether its window fills its monitor, from which <c>FrontGame</c> tells the game:
+/// The process of the app in front, and the monitor its window fills, from which <c>FrontGame</c> tells the game:
 /// the foreground window's, or while a window of thermi's or of a process it started is in front, the first window under
 /// it that is shown. The desktop, the taskbar and any of Explorer's windows give none: Explorer starts nearly every app,
 /// so frames matched by their parent would name any game behind it.
@@ -27,55 +27,66 @@ internal sealed class FrontApp
     private uint _asked;
     private bool _ours;
 
-    public (int? Process, bool Fills) Front()
+    public (int? Process, nint? Fills) Front()
     {
         var window = PInvoke.GetForegroundWindow();
         for (var depth = 0; !window.IsNull && depth < Deepest; depth++, window = PInvoke.GetWindow(window, GET_WINDOW_CMD.GW_HWNDNEXT))
         {
             if (PInvoke.GetWindowThreadProcessId(window, out var process) == 0)
             {
-                return (null, false);
+                return (null, null);
             }
 
             if ((depth == 0 || Shown(window)) && !Ours(process))
             {
-                return Shell.Contains(HiddenWindow.ClassOf(window)) || IsShell(process) ? (null, false) : ((int)process, Fills(window));
+                return Shell.Contains(HiddenWindow.ClassOf(window)) || IsShell(process) ? (null, null) : ((int)process, Filled(window));
             }
         }
 
-        return (null, false);
+        return (null, null);
     }
 
     /// <summary>
-    /// Whether the process that presents, or the one that started it, as a browser, shows a window that fills its monitor,
-    /// never thermi's nor the shell's, which started nearly every app and whose desktop fills every monitor.
+    /// The windows the process that presents, or the one that started it, as a browser, shows on screen, never thermi's
+    /// nor the shell's, which started nearly every app and whose desktop fills every monitor.
     /// </summary>
-    public bool Filling(FrameRate rate)
+    public IReadOnlyList<AppWindow> Windows(FrameRate rate)
     {
-        var filling = false;
+        var windows = new List<AppWindow>();
         PInvoke.EnumWindows(
             (window, _) =>
             {
-                filling = PInvoke.GetWindowThreadProcessId(window, out var process) != 0
+                if (PInvoke.GetWindowThreadProcessId(window, out var process) != 0
                     && (process == (uint)rate.Process || process == (uint)rate.Parent)
-                    && Shown(window) && Fills(window)
-                    && !Ours(process) && !IsShell(process) && !Shell.Contains(HiddenWindow.ClassOf(window));
-                return !filling;
+                    && Shown(window) && !Ours(process) && !IsShell(process) && !Shell.Contains(HiddenWindow.ClassOf(window))
+                    && Placed(window) is { } placed)
+                {
+                    windows.Add(placed with { Own = process == (uint)rate.Process });
+                }
+
+                return true;
             },
             0);
-        return filling;
+        return windows;
     }
 
-    // Maximized, or as large as its monitor's work area, as a game full screen, borderless or in a window of the
-    // monitor's size is, wherever that window sits.
-    private static bool Fills(HWND window)
+    private static nint? Filled(HWND window) => Placed(window) is { Fills: true } placed ? placed.Monitor : null;
+
+    // The monitor a window is on, and whether it fills it: maximized, or as large as the monitor's work area, as a game
+    // full screen, borderless or in a window of the monitor's size is, wherever that window sits.
+    private static unsafe AppWindow? Placed(HWND window)
     {
         var info = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
-        var monitor = PInvoke.MonitorFromWindow(window, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONULL);
-        return PInvoke.IsZoomed(window)
-            || (!monitor.IsNull && PInvoke.GetMonitorInfo(monitor, ref info) && PInvoke.GetWindowRect(window, out var rect)
-                && rect.right - rect.left >= info.rcWork.right - info.rcWork.left
-                && rect.bottom - rect.top >= info.rcWork.bottom - info.rcWork.top);
+        var monitor = PInvoke.MonitorFromWindow(window, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST);
+        return monitor.IsNull
+            ? null
+            : new AppWindow(
+                (nint)monitor.Value,
+                PInvoke.IsZoomed(window)
+                    || (PInvoke.GetMonitorInfo(monitor, ref info) && PInvoke.GetWindowRect(window, out var rect)
+                        && rect.right - rect.left >= info.rcWork.right - info.rcWork.left
+                        && rect.bottom - rect.top >= info.rcWork.bottom - info.rcWork.top),
+                Own: false);
     }
 
     // Explorer's own process, whose dialogs, flyouts and folder windows are the shell's too, whatever their class.

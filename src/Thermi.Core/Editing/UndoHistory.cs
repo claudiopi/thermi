@@ -121,7 +121,8 @@ public sealed record UndoResult(ThermiConfig Config, int Applied, int Skipped);
 /// </summary>
 public sealed class UndoHistory
 {
-    private static readonly TimeSpan Repeat = TimeSpan.FromSeconds(1);
+    /// <summary>How close repeated changes of one field come to be one step, as a key held on a slider makes them.</summary>
+    public static readonly TimeSpan Repeat = TimeSpan.FromSeconds(1);
 
     private readonly Stack<Step> _undo = new();
     private readonly Stack<Step> _redo = new();

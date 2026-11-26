@@ -56,13 +56,15 @@ export interface CardRowProps {
   children?: ReactNode;
   /** Whether its controls wrap when the card is narrow, for a row of more than one. */
   wraps?: boolean;
+  /** The row's id, for what goes to its control from elsewhere. */
+  id?: string;
 }
 
 /** A row of a card: what it sets, what that means, and its control. */
-export function CardRow({ label, description, descriptionId, children, wraps = false }: CardRowProps) {
+export function CardRow({ label, description, descriptionId, children, wraps = false, id }: CardRowProps) {
   const styles = useStyles();
   return (
-    <div className={styles.row}>
+    <div className={styles.row} id={id}>
       <div className={mergeClasses(styles.text, wraps && styles.kept)}>
         <span className={styles.label}>{label}</span>
         {description !== undefined && (

@@ -10,6 +10,9 @@ public enum SelectHow
     DoubleClick,
     PointIn,
     PointOut,
+
+    /// <summary>"Custom…" in the overlay's Size menu, which asks for its Size row.</summary>
+    Size,
 }
 
 /// <summary>The desktop gestures and the edits chosen from a menu, each of which the window takes as a step of its own history.</summary>

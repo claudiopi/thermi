@@ -151,6 +151,8 @@ internal sealed class OverlayWindow : IDisposable
                 Point(null);
                 _tips.Left();
                 return true;
+            case PInvoke.WM_MOUSEWHEEL:
+                return _gestures.Wheel(wParam, _scene?.Screens ?? []);
             case PInvoke.WM_SETCURSOR:
                 return _gestures.CornerCursor(overlay, _painted, WindowPosition());
             case PInvoke.WM_TIMER when wParam == OverlayFade.TimerId:

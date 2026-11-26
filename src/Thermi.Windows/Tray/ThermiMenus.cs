@@ -76,7 +76,7 @@ internal static class ThermiMenus
             }
 
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | StateOf(row), id, text);
-            if (row.Graph is not null && row.Checked)
+            if ((row.Graph is not null || row.Entry == MenuEntry.Size) && row.Checked)
             {
                 PInvoke.CheckMenuRadioItem(menu, (uint)id, (uint)id, (uint)id, (uint)MENU_ITEM_FLAGS.MF_BYCOMMAND);
             }
@@ -123,11 +123,15 @@ internal static class ThermiMenus
             return texts.Format(place.Numbers, entry, Menus.NameOf(config, row, place.Known, texts, place.Numbers));
         }
 
-        return row.Graph is { } graph ? texts.Of(graph)
-            : entry == MenuEntry.Look && row.Look is { } look ? look
-            : entry == MenuEntry.UndoGesture && place.UndoText is { } undo ? undo
-            : texts.Of(entry);
+        return ChoiceOf(row, place) ?? texts.Of(entry);
     }
+
+    private static string? ChoiceOf(MenuRow row, MenuPlace place) =>
+        row.Graph is { } graph ? place.Texts.Of(graph)
+        : row is { Entry: MenuEntry.Size, Size: { } size } ? place.Texts.Format(place.Numbers, HostText.SizePercent, Math.Round(size * 100))
+        : row.Entry == MenuEntry.Look ? row.Look
+        : row.Entry == MenuEntry.UndoGesture ? place.UndoText
+        : null;
 
     /// <summary>An overlay's name, as the window's list says it.</summary>
     public static string NameOf(ThermiConfig config, int overlay, Texts texts) =>

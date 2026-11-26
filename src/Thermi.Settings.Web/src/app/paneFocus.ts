@@ -54,6 +54,14 @@ export function useAnchorKept(main: RefObject<HTMLElement | null>, page: string)
   }, [main, page]);
 }
 
+/** The id of the overlay page's Size row, which "Custom…" of an overlay's Size menu opens the window on. */
+export const sizeRow = 't-size';
+
+/** The Size row's slider, once the overlay's page shows it. */
+export function sizeSlider(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`#${sizeRow} input[type="range"]`);
+}
+
 /** The first thing the pane can focus, for Enter on a row. */
 export function focusPane(): void {
   // A page without a control yet takes the focus on its heading, so it never falls to the page.
