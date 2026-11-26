@@ -1,6 +1,6 @@
 using Thermi.Core.Placement;
 
-namespace Thermi.Windows.Gestures;
+namespace Thermi.App.Gestures;
 
 /// <summary>
 /// The overlay a drag is over now, and the item before whose pill a drop there joins it, null past its last, or, for an

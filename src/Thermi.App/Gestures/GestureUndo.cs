@@ -5,7 +5,7 @@ using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 
-namespace Thermi.Windows.Gestures;
+namespace Thermi.App.Gestures;
 
 /// <summary>
 /// The last desktop gesture or edit chosen from a menu, which every overlay's menu offers to take back for

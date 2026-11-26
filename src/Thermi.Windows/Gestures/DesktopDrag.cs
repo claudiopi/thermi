@@ -1,4 +1,5 @@
 using System.Drawing;
+using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Messages;

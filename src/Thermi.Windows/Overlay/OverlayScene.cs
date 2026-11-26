@@ -1,11 +1,11 @@
 using System.Globalization;
+using Thermi.App.Gestures;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
-using Thermi.Windows.Gestures;
 using Thermi.Windows.Win32;
 using Select = Thermi.Core.Messages.Select;
 

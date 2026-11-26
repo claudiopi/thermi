@@ -8,7 +8,7 @@ One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. 
 | --- | --- |
 | `Overlay` | The overlay process: its hidden host window, one layered window per overlay, the mouse, the hotkeys and the pipe's client. |
 | `Painting` | Draws what Core's `OverlayLook` says with GDI+, for the screen, `thermi preview`, "Copy as image" and the window's preview alike. |
-| `Gestures` | The overlay's drags on the desktop, their snap marks, and undo of the last one. |
+| `Gestures` | The overlay's drags on the desktop, their snap marks and the hotkeys' presses. |
 | `Tray` | The tray icons, their painter and the overlay's menus. |
 | `Win32` | Thin wrappers over Win32 calls: monitors and taskbars, staying on top, hidden windows, the app in front, crash restart. |
 | `Win32/Clipboard` | "Copy as image" and copying text. |
