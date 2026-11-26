@@ -52,16 +52,11 @@ internal static class OverlayPlaces
 
     /// <summary>
     /// Whether each overlay off a taskbar shows smaller than its size so as to fit its monitor's work area, as its window
-    /// fits it, measured by <paramref name="painterOf"/> its painter, which keeps the answer until its items change; none is
-    /// measured at 100 % or under, where the size could not shrink it further.
+    /// fits it at any size, measured by <paramref name="painterOf"/> its painter, which keeps the answer until its items
+    /// change.
     /// </summary>
     public static IReadOnlyList<bool> Fitted(ThermiConfig config, TrayInput input, Func<IReadOnlyList<Screen>> screens, Func<int, Painter> painterOf)
     {
-        if (!config.Overlays.Any(overlay => overlay.Size > 1))
-        {
-            return [];
-        }
-
         var on = screens();
         bool Shrinks(OverlayConfig overlay, int at)
         {
@@ -70,7 +65,7 @@ internal static class OverlayPlaces
             return painterOf(at).Fitting(items, OverlayLook.Of(overlay.Style, input.LightTaskbar), scale, Snaps.Most(overlay, on)) < scale;
         }
 
-        return [.. config.Overlays.Select((overlay, at) => overlay.Size > 1 && Shrinks(overlay, at))];
+        return [.. config.Overlays.Select(Shrinks)];
     }
 
     // Each overlay's items measured as its painter keeps their room at its monitor's scale: at its own size, or within a room.
