@@ -158,6 +158,12 @@ public sealed record OverlayLook
     /// <summary>A pill's height in pixels at 100 %, as <see cref="HeightOf"/> gives it.</summary>
     public double Height { get; init; } = PillHeight;
 
+    /// <summary>
+    /// How much wider meters and graphs are drawn, with their gap to the value, than beside Standard's values: as much as
+    /// larger values are, so they keep their shape, and never narrower.
+    /// </summary>
+    public double MeterStretch => Math.Max(1, Value.Size / StylePresets.Of(StylePreset.Standard).Value.Size);
+
     public required PillColors Pills { get; init; }
 
     public required TextColor LabelColor { get; init; }

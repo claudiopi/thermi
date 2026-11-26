@@ -80,7 +80,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         var runs = OverlayLayout.InnerPills(items, look.Layout);
         var up = runs is not null && look.Orientation == Orientation.Vertical;
         return [.. OverlayLayout.Groups(items, look.Layout, look.Labels)
-            .Select(pill => new PaintedPill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, scale) * scale)], scale)
+            .Select(pill => new PaintedPill(pill, [.. pill.Select(item => ItemWidth(measure, fonts, item, look, scale) * scale)], scale)
             {
                 Runs = runs,
                 Stacked = up,
@@ -246,8 +246,8 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     }
 
     // In unscaled pixels.
-    private static float ItemWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale) =>
-        LabelWidth(g, fonts, item, scale) + ValueWidth(g, fonts, item, scale);
+    private static float ItemWidth(Graphics g, PainterFonts fonts, OverlayItem item, OverlayLook look, float scale) =>
+        LabelWidth(g, fonts, item, scale) + ValueWidth(g, fonts, item, scale) + MeterRoom(item, look);
 
     private static float LabelWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale) =>
         item.Label is null ? 0 : (g.MeasureString(item.Label, fonts.Label, 0, PainterFonts.Typographic).Width / scale) + LabelGap;
@@ -259,14 +259,14 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             g.MeasureString(item.Room, fonts.Value, 0, PainterFonts.Typographic).Width) / scale;
         var tag = item.Tag is null ? 0
             : TagGap + PainterShapes.ReversedPadding + (g.MeasureString(item.Tag, fonts.Tag, 0, PainterFonts.Typographic).Width / scale);
-        return width + tag + MeterRoom(item);
+        return width + tag;
     }
 
     // In unscaled pixels: a graph's or a meter's width and its gap to the value, or nothing.
-    private static float MeterRoom(OverlayItem item) =>
-        item.Graph is not null ? PainterShapes.GraphWidth + MeterGap
+    private static float MeterRoom(OverlayItem item, OverlayLook look) =>
+        (float)look.MeterStretch * (item.Graph is not null ? PainterShapes.GraphWidth + MeterGap
         : item.Lit is not null ? PainterShapes.MeterWidth + MeterGap
-        : 0;
+        : 0);
 
     // Gives where the value starts.
     private float DrawItem(Graphics g, OverlayItem item, OverlayLook look, PointF at, float scale)
@@ -287,7 +287,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             PainterShapes.Meter(g, lit, look.MeterColor(item.Level), look, new PointF(x, at.Y), scale);
         }
 
-        x += MeterRoom(item) * scale;
+        x += MeterRoom(item, look) * scale;
         var end = DrawValue(g, item, fonts.Value, look, new PointF(x, at.Y), scale);
         if (item.Tag is { } tag)
         {

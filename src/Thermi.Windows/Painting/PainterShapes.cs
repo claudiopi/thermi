@@ -150,14 +150,15 @@ internal static class PainterShapes
         g.PixelOffsetMode = offset;
     }
 
-    // As tall as the value's text, on whole pixels so the segments' edges stay sharp; the graph takes the same height.
+    // As tall as the value's text and as much wider as it is larger, on whole pixels so the segments' edges stay sharp; the
+    // graph takes the same height.
     private static (Rectangle Box, int Segment, int Gap) Frame(PointF at, float width, OverlayLook look, float scale)
     {
         const int Segments = OverlayLayout.Segments;
         var gap = Math.Max(1, (int)scale);
         var segment = Math.Max(1, (int)Math.Round(((look.Value.Size * scale) - (gap * (Segments - 1))) / Segments, MidpointRounding.AwayFromZero));
         var height = (segment * Segments) + (gap * (Segments - 1));
-        var box = new Rectangle((int)Math.Round(at.X), (int)Math.Round(at.Y - (height / 2f)), (int)Math.Round(width * scale), height);
+        var box = new Rectangle((int)Math.Round(at.X), (int)Math.Round(at.Y - (height / 2f)), (int)Math.Round(width * look.MeterStretch * scale), height);
         return (box, segment, gap);
     }
 
