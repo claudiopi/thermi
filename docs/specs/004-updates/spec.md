@@ -2,7 +2,7 @@
 
 **Status**: draft
 
-**Budget**: 151 .NET and 0 page cases
+**Budget**: 152 .NET and 0 page cases
 
 ## Why
 
@@ -66,6 +66,7 @@ Without administrator rights (`docs/adr/0016-admin-on-demand.md`)
 - R32. A per-user install updates itself as the service does, with the same checks, the machine's policy, levers, holds and failures, its rollout number and failures the user's own. Its watchdog, run as the user under `update\switch.lock`, ends the old host, starts the new version's host directly, and places its launchers only once it serves within 120 polls, else starts the old one again; a cut at any step leaves the launchers on a version that served. The overlay's quiet moment and About's check and restart reach the host as named events in the user's session.
 - R33. A version's entry in the manifest lists its machine MSI for each processor, with its URL, size and SHA-256, and `scripts/updates.ps1 pack --msi` builds both MSIs.
 - R34. Neither MSI shows a window for a program it runs, so a repair a standard user starts with `msiexec /fa` shows no console of a program running as SYSTEM, and still puts back the services and the launchers. Run by hand with its full UI, an MSI has Explorer start the overlay unelevated, as the person, even when it runs from an administrator's elevated console; where no shell runs, the overlay may be started with the elevated client's token, and then the overlay and the settings window refuse to run with an administrator's token that UAC raised, say why on the terminal and exit before any window, writing no file, and the overlay starts at the next sign-in.
+- R35. A version keeps what a later one added to the settings without changing their format, in any object of the file, through every edit and undo it writes, so the later version finds it again after a rollback.
 ## Design
 
 **Layout.** `C:\Program Files\thermi` holds `thermi.exe` and `thermi-sensors.exe`, .NET app hosts that the build writes to start `<version>\thermi.dll` and `<version>\thermi-sensors.dll`; a folder per kept version, each a self-contained publish of both programs with its own launchers in `<version>\launchers\`; and `update\`, with the service's `state.json`, its downloads and the files it renamed aside. The services' image paths name `<version>\thermi-sensors.exe`. The build makes the launchers with the SDK's own `CreateAppHost` task, from the app host and resources it gives the program, in `src/Launchers.targets`, which both programs import. `src/Thermi.Windows/Ui/StartWithWindows.cs` writes the launcher's path rather than its own process's, and the tray icons' ids come from it.

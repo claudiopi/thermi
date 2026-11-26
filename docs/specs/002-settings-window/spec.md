@@ -125,7 +125,7 @@ Your own looks
 - R64. "Save as my look…" saves the current look under a name of 1 to 40 characters, unique whatever the case, and says what a look keeps: "Saves colors, theme, opacity, text and shape. Not position or layout." Saved looks sit beside Default; each one's "…" renames, exports or deletes it, and with several overlays uses it on all of them; renaming the one worn renames it in the settings too. Saving, renaming and deleting change the saved looks, not the overlay, so Ctrl+Z does not touch them; choosing a look is one step that Ctrl+Z undoes.
 - R65. A look exports to a `.thermi-style` file that holds the look and its name, and no sensors, items, placement, language or paths, so it works on any PC.
 - R66. A look file chosen with "Import…", dropped on the window, or its text pasted with Ctrl+V when no text field has the focus, applies to the overlay at once, as one step that Ctrl+Z undoes. A toast then says "Applied “Ocean” (not saved)" with "Save as my look" and Undo; saving asks for another name when that one is taken.
-- R67. A look file that is broken, from a newer thermi, or with a value out of its range is refused whole with the reason, naming the field, and nothing changes. Unknown fields are ignored, and missing ones take their defaults.
+- R67. A look file that is broken, from a newer thermi, or with a value out of its range is refused whole with the reason, naming the field, and nothing changes. Unknown fields change nothing and are kept as they came, and missing ones take their defaults.
 
 Visibility and hotkeys
 

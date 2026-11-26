@@ -1,4 +1,11 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Schema;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
+using Thermi.Core.Settings;
 
 namespace Thermi.Tests.Rules;
 
@@ -291,6 +298,27 @@ public sealed partial class RepoRulesTests
                 yield return $"{file}:{index + 1} ends more than {MaxCommentBlock} comment lines in a row: a contract goes in /// docs, history goes away";
             }
         }
+    }
+
+    // A version rolled back to reads a file of its own version as its own. So the settings change shape only with a new
+    // version and its migration, or with the reason an earlier version reads them as they are, as what it keeps unknown.
+    [Fact]
+    public void TheSettingsChangeShapeOnlyWithTheirVersionOrAReason()
+    {
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
+        var schema = JsonSchemaExporter.GetJsonSchemaAsNode(options, typeof(ThermiConfig)).ToJsonString();
+        var shape = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(schema)))[..16];
+        var file = Path.Combine(Root, "tests", "Thermi.Tests", "Configs", "shapes.json");
+        var shapes = JsonNode.Parse(File.ReadAllText(file))!["shapes"]!.AsArray()
+            .Select(each => (Version: (int)each!["version"]!, Shape: (string)each["shape"]!, Why: (string?)each["why"] ?? "")).ToList();
+
+        AssertNone(shapes.Zip(shapes.Skip(1))
+            .Where(pair => pair.Second.Version < pair.First.Version || (pair.Second.Version == pair.First.Version && pair.Second.Why.Trim().Length == 0))
+            .Select(pair => $"{Relative(file)}: shape {pair.Second.Shape} keeps or lowers version {pair.First.Version} without saying why")
+            .Concat(shapes[^1] == (ThermiConfig.CurrentVersion, shape, shapes[^1].Why) ? [] : [
+                $"The settings' shape is {shape} at version {ThermiConfig.CurrentVersion}: add it to {Relative(file)}, with the reason a version"
+                + " that knows only the last shape reads it as it is when the version stays",
+            ]));
     }
 
     // Assert.Empty truncates long messages; a broken rule must say exactly where.

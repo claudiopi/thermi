@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.Json.Serialization;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -144,12 +146,16 @@ public sealed class UndoRulesTests
             .Concat(Untracked(item, full, each => new ThermiConfig { Overlays = [overlay with { Items = [each] }] }, ["Id"])));
     }
 
-    // Each settable property in turn takes the donor's value; undoing that change must give the start back.
+    // Each settable property in turn takes the donor's value; undoing that change must give the start back. What a later
+    // version added is no setting of this one, and stays as the file has it.
     private static IEnumerable<string> Untracked<T>(T start, T donor, Func<T, ThermiConfig> settings, string[] excluded)
         where T : class
     {
         var clone = typeof(T).GetMethod("<Clone>$")!;
-        foreach (var property in typeof(T).GetProperties().Where(each => each.SetMethod is not null && !excluded.Contains(each.Name, StringComparer.Ordinal)))
+        var tracked = typeof(T).GetProperties()
+            .Where(each => each.SetMethod is not null && each.GetCustomAttribute<JsonExtensionDataAttribute>() is null)
+            .Where(each => !excluded.Contains(each.Name, StringComparer.Ordinal));
+        foreach (var property in tracked)
         {
             var changed = (T)clone.Invoke(start, null)!;
             property.SetValue(changed, property.GetValue(donor));

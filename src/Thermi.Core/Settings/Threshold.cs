@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Core.Settings;
@@ -44,6 +45,10 @@ public sealed record Threshold
     public double? Warning { get; }
 
     public double? Critical { get; }
+
+    /// <summary>What a later version added here, written back as it came.</summary>
+    [JsonExtensionData, JsonInclude]
+    public UnknownFields? Unknown { get; internal set; }
 
     /// <summary>Whether lines can judge that type: a temperature, a load, a duty, a fan's speed, a throughput or frames.</summary>
     public static bool CanMeter(SensorKind kind) =>

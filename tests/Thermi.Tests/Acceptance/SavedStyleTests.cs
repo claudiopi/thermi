@@ -28,7 +28,7 @@ public sealed class SavedStyleTests
         Assert.Equal(
             [
                 "Colors", "Corners", "Effect", "Font", "Gap", "Label", "Layout", "Name",
-                "NoLabels", "Opacity", "Orientation", "Pills", "Preset", "Units", "Value",
+                "NoLabels", "Opacity", "Orientation", "Pills", "Preset", "Units", "Unknown", "Value",
             ],
             typeof(StyleConfig).GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.Equal(
@@ -259,7 +259,7 @@ public sealed class SavedStyleTests
         var noOpacity = Done(StyleEdits.Import(before, 0, """{ "thermiStyle": 1, "style": { "pills": "light", "opacity": null } }""")).Overlays[0].Style;
         var noStyle = Done(StyleEdits.Import(before, 0, """{ "thermiStyle": 1 }""")).Overlays[0].Style;
 
-        Assert.Equal(new StyleConfig(Gap: 4), unknown);
+        Assert.Equal((4, "sparkle"), (unknown.Gap, Assert.Single(unknown.Unknown!).Key));
         Assert.Equal(new StyleConfig { Pills = PillTheme.Light }, noOpacity);
         Assert.Equal(new OpacityConfig(), noOpacity.Opacity);
         Assert.Equal(new StyleConfig(), noStyle);

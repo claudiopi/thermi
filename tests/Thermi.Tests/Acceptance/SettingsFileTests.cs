@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -248,6 +249,34 @@ public sealed class SettingsFileTests
         Assert.Null(problem);
         Assert.Equal(file.ReplaceLineEndings().TrimEnd(), ThermiConfigJson.Write(config).ReplaceLineEndings());
     }
+
+    // A later version may add to any object of the file without changing its format; a version rolled back to keeps what
+    // it added through an edit and its undo, so nothing of it is lost when the later version comes back.
+    [Fact]
+    public void WhatALaterVersionAddedSurvivesAnEditAndItsUndo()
+    {
+        string[] places =
+        [
+            "", "hotkeys", "overlays/0", "overlays/0/snap", "overlays/0/style", "overlays/0/style/label", "overlays/0/style/opacity",
+            "overlays/0/style/colors", "overlays/0/items/0", "overlays/0/items/0/warnBy", "overlays/0/items/0/threshold",
+        ];
+        var file = JsonNode.Parse(TestFiles.Config("v6.json"))!;
+        foreach (var place in places)
+        {
+            At(file, place)["later"] = place;
+        }
+
+        var history = new UndoHistory();
+        var edited = Edited.Done(history, ThermiConfigJson.Read(file.ToJsonString()).Config, config => ItemEdits.RenamePill(config, "fan.cpu", "PUMP"));
+        var undone = history.Undo(edited)!.Config;
+
+        Assert.All(
+            new[] { edited, undone }.Select(config => JsonNode.Parse(ThermiConfigJson.Write(config))!),
+            written => Assert.Equal(places, places.Where(place => (string?)At(written, place)["later"] == place)));
+    }
+
+    private static JsonNode At(JsonNode root, string place) =>
+        place.Split('/', StringSplitOptions.RemoveEmptyEntries).Aggregate(root, (node, step) => int.TryParse(step, out var at) ? node[at]! : node[step]!);
 
     private static List<string?> ItemNames(ThermiConfig config) => [.. config.Overlays.SelectMany(overlay => overlay.Items).Select(item => item.Name)];
 
