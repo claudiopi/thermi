@@ -57,11 +57,15 @@ public sealed record AddItemEdit(int Overlay, string Sensor) : PageEdit;
 
 public sealed record RemoveItemEdit(string Item) : PageEdit;
 
-/// <summary>An item moved to a place in an overlay, or to a new overlay of its own when none is named.</summary>
-public sealed record MoveItemEdit(string Item, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? Overlay, int Index) : PageEdit;
+/// <summary>An item moved among its overlay's items, <see cref="By"/> places, up when negative.</summary>
+public sealed record MoveItemEdit(string Item, int By) : PageEdit;
 
-public sealed record DropItemEdit(string Item, int Overlay, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Before, bool Apart)
-    : PageEdit;
+/// <summary>An item put in an overlay, before an item or past its last, or into a new overlay of its own when none is named.</summary>
+public sealed record DropItemEdit(
+    string Item,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? Overlay,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Before,
+    bool Apart) : PageEdit;
 
 public sealed record MovePillEdit(string Item, int By) : PageEdit;
 

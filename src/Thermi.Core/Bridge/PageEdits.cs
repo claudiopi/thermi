@@ -34,7 +34,7 @@ public static class PageEdits
         ItemFieldEdit item => config => Item(new ItemField(item.Field, item.Item, item.Value, snapshot), config),
         AddItemEdit add => config => ItemEdits.AddSensor(config, add.Overlay, snapshot, add.Sensor, texts),
         RemoveItemEdit remove => config => ItemEdits.Delete(config, remove.Item),
-        MoveItemEdit move => config => Moved(config, Move(config, move)),
+        MoveItemEdit move => config => Moved(config, ItemEdits.MoveBy(config, move.Item, move.By)),
         DropItemEdit drop => config => Moved(config, ItemEdits.DropItem(config, drop.Item, drop.Overlay, drop.Before, drop.Apart)),
         MovePillEdit pill => config => Moved(config, ItemEdits.MovePill(config, pill.Item, pill.By)),
         DropPillEdit drop => config => Moved(config, OverlayEdits.PillInto(config, drop.Item, drop.Overlay, drop.Before)),
@@ -145,12 +145,6 @@ public static class PageEdits
     private static EditResult Moved(ThermiConfig before, EditResult move) =>
         move.Refused is null && ConfigEdits.Replay(before, move.Config) is null ? ConfigEdits.Refuse(before, Refusal.NotMoved) : move;
 
-    // An item moved to another overlay, or to one of its own, goes to its end there, then to its place.
-    private static EditResult Move(ThermiConfig config, MoveItemEdit move)
-    {
-        var moved = OverlayEdits.MoveItem(config, move.Item, move.Overlay);
-        return moved.Refused is null ? ItemEdits.Move(moved.Config, move.Item, move.Index) : moved;
-    }
 
     private static string? Text(JsonElement value) => value.ValueKind == JsonValueKind.Null ? null : value.GetString();
 

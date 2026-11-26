@@ -19,8 +19,8 @@ public sealed class BridgeTests
     // exception's own message crosses as it is.
     [Theory] // Rows: each a field a call may lack, an exception the catch's filter names, or a type the static options write.
     [InlineData(
-        """{"id":2,"method":"edit","args":[{"kind":"moveItem","item":"cpu.load","overlay":null,"index":2}]}""",
-        """{"id":2,"result":"MoveItemEdit { Item = cpu.load, Overlay = , Index = 2 }"}""")]
+        """{"id":2,"method":"edit","args":[{"kind":"dropItem","item":"cpu.load","overlay":null,"before":null,"apart":true}]}""",
+        """{"id":2,"result":"DropItemEdit { Item = cpu.load, Overlay = , Before = , Apart = True }"}""")]
     [InlineData("""{"id":4,"method":"history","args":["cpu.load"]}""", """{"id":4,"result":[1.5,null]}""")]
     [InlineData("""{"id":5,"method":"editing","args":[null,"cpu.load",null]}""", """{"id":5,"result":null}""")]
     [InlineData("""{"id":7,"method":"format","args":[]}""", """{"id":7,"error":"*"}""")]

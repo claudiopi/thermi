@@ -34,7 +34,7 @@ function moveEntries(row: Row, settings: Settings, say: Say, run: RowActions): M
               run.edit(
                 row.kind === 'pill'
                   ? { kind: 'dropPill', item: id, overlay: index, before: null }
-                  : { kind: 'moveItem', item: id, overlay: index, index: overlay.items.length },
+                  : { kind: 'dropItem', item: id, overlay: index, before: null, apart: false },
               ),
           },
         ],
@@ -53,7 +53,7 @@ function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): M
             kind: 'action',
             id: 'move-new',
             text: say('UiText.MoveToNewOverlay'),
-            onRun: () => run.edit({ kind: 'moveItem', item: id, overlay: null, index: 0 }),
+            onRun: () => run.edit({ kind: 'dropItem', item: id, overlay: null, before: null, apart: false }),
           },
         ]
       : [];

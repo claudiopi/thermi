@@ -92,12 +92,16 @@ public static class ItemEdits
         return ConfigEdits.Apply(config, current => ConfigEdits.WithItems(current, overlay, items));
     }
 
+    /// <summary>The item moved among its overlay's items, <paramref name="by"/> places, up when negative, as far as either end.</summary>
+    public static EditResult MoveBy(ThermiConfig config, string id, int by) =>
+        ConfigEdits.Find(config, id) is var (_, from) ? Move(config, id, from + by) : ConfigEdits.Refuse(config, Refusal.NotFound);
+
     /// <summary>
-    /// An item's row dropped on an overlay's, its own or another: before the item <paramref name="before"/>, or past the
-    /// overlay's last when none is named, and with <paramref name="apart"/> starting a pill of its own there. An overlay it
-    /// leaves empty goes.
+    /// An item's row dropped on an overlay's, its own or another, or put in a new overlay when <paramref name="overlay"/> is
+    /// null: before the item <paramref name="before"/>, or past the overlay's last when none is named, and with
+    /// <paramref name="apart"/> starting a pill of its own there. An overlay it leaves empty goes.
     /// </summary>
-    public static EditResult DropItem(ThermiConfig config, string id, int overlay, string? before, bool apart)
+    public static EditResult DropItem(ThermiConfig config, string id, int? overlay, string? before, bool apart)
     {
         if (before == id)
         {
