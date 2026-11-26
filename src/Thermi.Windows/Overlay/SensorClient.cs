@@ -1,29 +1,12 @@
 using System.IO.Pipes;
 using System.Security.Principal;
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 using Thermi.Windows.Logging;
 
 namespace Thermi.Windows.Overlay;
-
-/// <summary>Where the window's snapshots come from: the sensor pipe, as the overlay reads it, or a recording in its tests.</summary>
-internal interface ISensorFeed
-{
-    /// <summary>Raised on the reader's thread for every snapshot that comes, once it is <see cref="Latest"/>.</summary>
-    event EventHandler? Received;
-
-    /// <summary>Null while the sensor host is unreachable or has gone quiet.</summary>
-    Snapshot? Latest { get; }
-
-    /// <summary>Whether the readings are fresh or awaited, the service is not running, or its data went stale.</summary>
-    ServiceState State { get; }
-
-    /// <summary>Whether, the service stopped, a program other than it holds a pipe of its name, which the service then waits out.</summary>
-    bool Taken => false;
-
-    Task RunAsync(CancellationToken stop);
-}
 
 /// <summary>Which pipe a client reads, whether it trusts what answers, and what it does when none does.</summary>
 internal interface ISensorPipe

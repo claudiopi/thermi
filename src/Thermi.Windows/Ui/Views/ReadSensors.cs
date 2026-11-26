@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 using Thermi.Windows.Logging;
-using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Ui.Views;
 

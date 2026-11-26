@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Translations;
 using Thermi.Windows.Commands;

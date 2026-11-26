@@ -1,12 +1,12 @@
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
+using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 using Thermi.Windows.Agents;
 using Thermi.Windows.Commands;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui;
 
 namespace Thermi.Windows.Tests.Agents;

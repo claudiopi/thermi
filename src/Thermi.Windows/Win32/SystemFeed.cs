@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using Thermi.Core.Pipe;
 using Thermi.Core.Frames;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
-using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Win32;
 

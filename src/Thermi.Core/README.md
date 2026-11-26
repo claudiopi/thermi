@@ -13,7 +13,7 @@ It depends on nothing, Windows included: its target framework is `net10.0`, and 
 | `Placement` | Where an overlay goes: snaps, the taskbar row, desktop gestures, monitor ids, OLED care, visibility. |
 | `Search` | The window's one search. |
 | `Frames` | Presents counted into frame rates, and the game in front. |
-| `Pipe` | The sensor pipe's lines: the catalog once, then the values. |
+| `Pipe` | The sensor pipe's lines: the catalog once, then the values; and the feed a host reads them through. |
 | `Bridge` | The interface the settings page calls, and its wire. |
 | `Agents` | The answers of `thermi-cli`, the agents' contract. |
 | `Tray` | What the tray icons and the menus show, as data. |

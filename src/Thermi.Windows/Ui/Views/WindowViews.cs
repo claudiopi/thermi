@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Pipe;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -7,7 +8,6 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui.Editor;
 using Thermi.Windows.Win32;
 

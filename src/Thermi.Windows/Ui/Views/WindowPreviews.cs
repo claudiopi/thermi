@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
+using Thermi.Core.Pipe;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;

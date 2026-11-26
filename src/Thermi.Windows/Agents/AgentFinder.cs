@@ -1,10 +1,10 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Pipe;
 using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Translations;
-using Thermi.Windows.Overlay;
 using Thermi.Windows.Ui.Views;
 
 namespace Thermi.Windows.Agents;
