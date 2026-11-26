@@ -4,168 +4,168 @@
     {
       "id": "A1",
       "covers": ["R1", "R2"],
-      "description": "Given a published release, when the author runs its MSI on a clean Windows 11 PC, x64 and then Arm64, then thermi, both services, the Start menu entry and the start at sign-in are installed with one UAC prompt and nothing downloaded, every executable and library under %ProgramFiles%\\thermi is Valid for Get-AuthenticodeSignature, and uninstalling removes the folder whole and leaves %APPDATA%\\thermi.",
+      "description": "Given a published release, when the author runs its machine MSI on a clean Windows 11 PC, x64 and then Arm64, then one UAC prompt installs thermi, both services, the Start menu entry and the start at sign-in with nothing downloaded, every executable and library under %ProgramFiles%\\thermi is Valid for Get-AuthenticodeSignature, and uninstalling removes that folder whole and leaves %APPDATA%\\thermi.",
       "check": "by hand",
       "passes": false
     },
     {
       "id": "A2",
       "covers": ["R3"],
-      "description": "Given the previous release installed and used, with a saved style, \"Start with Windows\" off and a tray value shown in the taskbar, when the new MSI installs over it, then an update and a rollback run, then each time the settings, the style, the log, the start choice and the shown tray value are as they were.",
+      "description": "Given the previous release installed and used, with a saved style, \"Start with Windows\" off and a tray value shown in the taskbar, when the new MSI installs over it and then an update and a rollback run, then each time the settings, the style, the log, the start choice and the shown tray value are as they were.",
       "check": "by hand",
       "passes": false
     },
     {
       "id": "A3",
       "covers": ["R4", "R5", "R7", "R8"],
-      "description": "Given a fake clock, when the service runs with updates built in, then it checks a minute after it starts, every 4 hours and after a resume past 4 hours, at the beta address only with the beta policy, never with Updates = 0 or in a build without a key, and on a metered network downloads only an urgent version.",
+      "description": "Given a fake clock and a service with updates built in, when it runs, then it checks a minute after it starts, every 4 hours and after a resume past 4 hours; it asks the beta address only under the beta policy; it never checks with Updates = 0 or in a build without a key; and on a metered network it downloads only an urgent version.",
       "check": "ChecksFollowTheScheduleThePolicyAndTheNetwork",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A4",
       "covers": ["R6"],
       "description": "Given a check, when the request the service sends is read, then it is one HTTPS GET of the channel's fixed address, with no query, no cookie, no identifier and the User-Agent `thermi`.",
       "check": "ACheckSendsNothingThatIdentifies",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A5",
       "covers": ["R9", "R10", "R12"],
-      "description": "Given an update folder and a version that passes every check, when the manifest is of another channel than the PC's or older than the one it took last, or the release key signed it after one the backup key signed revoked that key, or the zip served is longer than the manifest signed, of another hash, holds an entry that leaves its folder or versions that are not the manifest's, or, in a release build, comes without its signed catalog, or the folder is writable by users, then nothing under the folder changes, no version runs, and the event log has a warning or an error; the version that passes is taken. Which check a warning names is read in review, but for the size and the hash, A36.",
+      "description": "Given an update folder and a version that passes every check, when anything fails one check instead (the manifest, the zip, what the zip holds, a release build's catalog, or the folder's access), then nothing under the folder changes, no version runs and the event log has a warning or an error; and the version that passes every check is taken.",
       "check": "TheUpdaterTakesOnlyWhatPassesEveryCheck",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A6",
       "covers": ["R11", "R13"],
-      "description": "Given an installed version and a manifest, when the service plans, then it takes only a higher version that has not failed here, is not withdrawn, and whose rollout reaches the PC's number, from 0 to 99, raising the rollout adds PCs and drops none, and a withdrawn installed version goes back to the kept previous one, only when that one is older, not withdrawn and has not failed, or stays.",
+      "description": "Given an installed version and a manifest, when the service plans, then it takes only a higher version that has not failed here, is not withdrawn and whose rollout reaches the PC's number; raising the rollout adds PCs and drops none; and when the installed version is withdrawn, the PC goes back to the kept previous version if that one is older, not withdrawn and has not failed, and otherwise stays.",
       "check": "TheUpdaterNeverGoesBackButToItsOwnPrevious",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A7",
       "covers": ["R14", "R16"],
-      "description": "Given a version ready, when a session has its window open, a drag under way or input within three minutes, then it is not quiet; when it has neither and is idle for three minutes, locked or has every overlay hidden, it is; and an urgent version waits only for the window and the drag.",
+      "description": "Given a version ready, when a session has its window open, a drag under way or input within three minutes, then it is not quiet; when it has none of them and is idle for three minutes, locked or has every overlay hidden, then it is quiet; and an urgent version waits only for the window and the drag.",
       "check": "AVersionSwitchesOnlyAtAQuietMoment",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A8",
       "covers": ["R15", "R18"],
-      "description": "Given an install folder with a process running from its launcher and a switch written down, when the switch is cut at each of its steps and the service starts again, then the launchers and the service's image path name the old version whole or the new one whole, the running process goes on, the next start runs the version the switch left, and only folders of versions neither kept nor running are deleted.",
+      "description": "Given an install folder with a process running from its launcher and a switch written down, when the switch is cut at any of its steps and the service starts again, then the launchers and the service's image path name either the old version or the new one whole, the running process goes on, the next start runs the version the switch left, and only folders of versions neither kept nor running are deleted.",
       "check": "ASwitchCutAtAnyStepLeavesOneVersionWhole",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A9",
       "covers": ["R17"],
-      "description": "Given a switch in probation, when the new service serves no snapshot in 120 polls, or a second run of it ends without stopping within 10 minutes, then the PC goes back to the previous version and never takes the failed one again; a sleep of any length in between fails nothing, and an overlay that cannot switch gives up after 60 of its ticks.",
+      "description": "Given a switch in probation, when the new service serves no snapshot in 120 polls, or a second run of it ends without stopping within 10 minutes, then the PC goes back to the previous version and never takes the failed one again; a sleep of any length in between fails nothing; and an overlay that cannot switch gives up after 60 of its ticks.",
       "check": "AFailedSwitchGoesBackByWhatHappenedNotByTheClock",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A10",
       "covers": ["R19"],
       "description": "Given settings a newer version wrote, with the earlier format's copy kept beside them, when the earlier version reads them, then it reads its copy and keeps the newer file beside it.",
       "check": "SettingsSurviveARollback",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A11",
       "covers": ["R20"],
       "description": "Given a recording, when the service writes its pipe's lines for it, then they are the golden file's, byte for byte.",
       "check": "ThePipeKeepsItsLines",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A12",
       "covers": ["R21"],
-      "description": "Given channels with history, when the owner publishes, promotes, rolls back, disables and signs again, then each makes the next signed manifest, expiring 45 days later, a version below the channel's is refused, stable reaching past beta lifts beta, and rollback withdraws the version and offers the one before it.",
+      "description": "Given channels with history, when the owner publishes, promotes, rolls back, turns a channel off and signs it again, then each makes the next signed manifest, expiring 45 days later; a version below the channel's is refused; stable passing beta lifts beta; and a rollback withdraws the version and offers the one before it.",
       "check": "LeversNeverSendAPcBackward",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A13",
       "covers": ["R23"],
-      "description": "Given each state of the updates, when About shows them, then it says up to date and when, a version ready, turned off by policy, the beta channel, no check for 14 days, or a build that does not update itself.",
+      "description": "Given each state of the updates, when About shows it, then its line says up to date and when, a version ready, turned off by policy, the beta channel, no check for 14 days, or a build that does not update itself.",
       "check": "TheUpdateLineSaysWhatThisPcDoes",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A14",
       "covers": ["R24"],
       "description": "Given a check that finds a version, a download, a switch, a rollback and a refusal, when each happens, then the event log has one entry for it under thermi-sensors.",
       "check": "EveryUpdateEventIsLogged",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A15",
       "covers": ["R14", "R15", "R16", "R17", "R22", "R24"],
-      "description": "Given thermi installed for a test channel served from this PC, when a newer build is published, then it switches with no prompt while the author is away and the overlay never blinks; when the channel is rolled back, the PC goes back within a check; when a build made to fail at start is published, the PC goes back by itself and the event log says why; the service stays under 80 MB a day later; and once on R2, curl shows the manifest's max-age of 60 and the zip's immutable cache.",
+      "description": "Given thermi installed for a test channel served from this PC, when a newer build is published, then it switches with no prompt while the author is away and the overlay never blinks; when the channel is rolled back, the PC goes back within a check; when a build made to fail at start is published, the PC goes back by itself and the event log says why; the service stays under 80 MB a day later; and on R2, curl shows the manifest's max-age of 60 and the zip's immutable cache.",
       "check": "by hand",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A16",
       "covers": ["R25"],
-      "description": "Given About asked for a check, when it reads the state, then it says it checks until the service has checked since a minute before the ask, for half a minute at most, then up to date, checked just now, or the version ready, which offers a restart only when its switch is not held.",
+      "description": "Given About asked for a check, when it reads the state, then it says it checks until the service has checked since a minute before the ask, for half a minute at most, and then says up to date, checked just now, or names the version ready, offering a restart only when its switch is not held.",
       "check": "AboutAsksForACheck",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A17",
       "covers": ["R25"],
-      "description": "Given About's last ask never made, made 59 s or 60 s ago, or made ahead of a clock set back, when the service hears a new ask, then it checks at once, not within the minute, again once the minute passed, and at once after the clock was set back.",
+      "description": "Given About's last ask, never made, made less or more than a minute ago, or made ahead of a clock set back, when the service hears a new ask, then it checks at once, except within a minute of the last ask; a clock set back behind the last ask holds nothing off.",
       "check": "AboutAsksOnceAMinute",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A18",
       "covers": ["R25"],
       "description": "Given a version ready right after a quiet session's code, when About's restart asks for it while a check runs, then the switch begins once the check ends.",
       "check": "ARestartSwitchesAtOnce",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A19",
       "covers": ["R25"],
-      "description": "Given thermi installed for a test channel served from this PC, when About opens with a newer build published, then it says it checks, then that the version is ready with Restart to update, which switches and closes the window; reopened within a minute, it checks nothing more.",
+      "description": "Given thermi installed for a test channel served from this PC, when About opens with a newer build published, then it says it checks, then that the version is ready with Restart to update, which switches and closes the window; and reopened within a minute, it checks nothing more.",
       "check": "by hand",
       "passes": true
     },
     {
       "id": "A20",
       "covers": ["R27", "R28"],
-      "description": "Given the service installed or not, a user's pipe owned by the user, SYSTEM, administrators or another user, a server process inside or outside the user's folder and at a lower integrity, a pipe labelled lower, and an overlay at medium, high or of an integrity unread, when the overlay picks a pipe, then it reads the service's whenever the service is installed, and the user's only when every check passes.",
+      "description": "Given the service installed or not, and a user's pipe whose owner, server process or label passes or fails one of the overlay's checks, when the overlay picks a pipe, then it reads the service's whenever the service is installed, and the user's only when every check passes.",
       "check": "TheOverlayReadsTheServiceOrTheUsersOwnHost",
       "passes": true
     },
     {
       "id": "A21",
       "covers": ["R27"],
-      "description": "Given the user's host started as the user, when an overlay connects and later leaves, then it serves the same lines on the pipe named for the user's SID, owned by that SID and closed to other users and remote clients, stays 10 s after its last client left and then ends with the Stopped mark, and one that no client came to ends after 30 s.",
+      "description": "Given the user's host started as the user, when an overlay connects and later leaves, then the host serves the same lines on the pipe named for the user's SID, owned by that SID and closed to other users and remote clients, stays 10 s after its last client left and then ends with the Stopped mark; and a host no client came to ends after 30 s.",
       "check": "AUsersHostServesItsUserUntilTheLastClientLeaves",
       "passes": true
     },
     {
       "id": "A22",
       "covers": ["R29"],
-      "description": "Given a per-user install's host and a channel offering a machine MSI, when it is asked to install for everyone, then msiexec starts only for the file the manifest names, with its bytes and, in a release build, thermi's signature, held open so no one changes it while it runs and under the updater's lock; a prompt refused with 1223 is written as refused and nothing that follows a good install runs; a manifest that cannot be read, a download of other bytes or an MSI not signed changes nothing and fails; the policy Updates = 0 opens the download page; each outcome is written for the window, but over a switch under way.",
+      "description": "Given a per-user install's host and a channel offering a machine MSI, when it is asked to install for everyone, then msiexec starts only for the file the manifest names, with its bytes and, in a release build, thermi's signature, held open while it runs and under the updater's lock; a refused prompt is written as refused and runs nothing that follows a good install; a manifest that cannot be read, other bytes or an unsigned MSI change nothing and fail; the policy Updates = 0 opens the download page; and each outcome is written for the window, but not over a switch under way.",
       "check": "InstallForEveryoneRunsOnlyTheCheckedMsi",
       "passes": true
     },
     {
       "id": "A23",
       "covers": ["R32"],
-      "description": "Given a per-user install and a channel offering a newer version, when the user's host checks, then it takes it by the same rules, only from a folder no one but the user, SYSTEM and administrators writes, and switches through its own watchdog, run as the user; the watchdog's placing the launchers only once the new host serves is A28's, by hand, as A15 is for the service.",
+      "description": "Given a per-user install and a channel offering a newer version, when the user's host checks, then it takes the version by the service's rules, only into a folder that no one but the user, SYSTEM and administrators may write, and switches through its own watchdog, run as the user.",
       "check": "AUserInstallUpdatesItselfThroughItsWatchdog",
       "passes": true
     },
     {
       "id": "A24",
       "covers": ["R32"],
-      "description": "Given the user's host serving a client, or waiting while another program holds its pipe's name, when the watchdog sets its stop event, then it ends; and given an event of its name someone made first, even one that shuts the user out, then the host does not run, so no other process steers it.",
+      "description": "Given the user's host serving a client, or waiting while another program holds its pipe's name, when the watchdog sets its stop event, then it ends; and given an event of its name that someone else made first, then the host does not run, so no other process steers it.",
       "check": "TheUsersHostIsSteeredOnlyByItsOwnEvents",
       "passes": true
     },
@@ -179,21 +179,21 @@
     {
       "id": "A26",
       "covers": ["R31"],
-      "description": "Given the user's installed products, per-user and machine, of thermi and others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi by its per-user UpgradeCode, in the user's unmanaged context alone.",
+      "description": "Given the user's installed products, per-user and machine, of thermi and of others, when the machine's overlay looks for the per-user install to remove, then it finds only this user's own thermi, by its per-user UpgradeCode, in the user's unmanaged context alone.",
       "check": "by hand",
       "passes": true
     },
     {
       "id": "A27",
       "covers": ["R26", "R29", "R30", "R31"],
-      "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows the GPU and the CPU's load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, to a prompt naming thermi that comes to the front even after a slow download, then the machine install, the service and the driver arrive, the CPU's temperature reads, the start at sign-in stays as it was, and the per-user install is gone with the settings kept. Run once more with the driver's download blocked: thermi installs, the event log says why, and the fix is still offered.",
+      "description": "Given a standard user on a PC without thermi, when the per-user MSI installs, then no prompt shows and the overlay shows the GPU and the CPU's load with the CPU's temperature as \"–\"; when the person double-clicks it and an administrator consents once, to a prompt naming thermi that comes to the front even after a slow download, then the machine install, the service and the driver arrive, the CPU's temperature reads, the start at sign-in stays as it was, and the per-user install is gone with the settings kept; and with the driver's download blocked, thermi still installs, the event log says why and the fix is still offered.",
       "check": "by hand",
       "passes": true
     },
     {
       "id": "A28",
       "covers": ["R27", "R32"],
-      "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; the watchdog places the launchers only once the new host serves, and puts the old host back when a build that never serves is published; and the user's host measures within the service's budget, 80 MB and 3 % of a core.",
+      "description": "Given a per-user install for a test channel served from this PC, when a newer build is published, then it switches with no prompt and the overlay hands over; About's check and restart reach the user's host; the watchdog places the launchers only once the new host serves, and starts the old host again when a build that never serves is published; and the user's host stays within the service's budget, 80 MB and 3 % of a core.",
       "check": "by hand",
       "passes": true
     },
@@ -207,28 +207,28 @@
     {
       "id": "A30",
       "covers": ["R27"],
-      "description": "Given hosts that ended long after their start, soon after it, after waits already doubled, and a switch's lock held, when the overlay finds no host, then it waits 2 s, doubling to a minute after hosts that ended within 10 s, and starts none under the lock.",
+      "description": "Given hosts that ended long after their start or soon after it, and a switch's lock held, when the overlay finds no host, then it waits 2 s, doubling up to a minute after hosts that ended within 10 s of their start, and starts none while the lock is held.",
       "check": "TheUsersHostIsStartedAgainAfterAWait",
       "passes": true
     },
     {
       "id": "A31",
       "covers": ["R29"],
-      "description": "Given a manifest offering the running version, a later one, an earlier one or none, a channel turned off, the running version withdrawn, and MSIs for one processor, when the fix picks the machine MSI, then it takes only that of the version offered, the running one or later, for this processor, and none otherwise, which opens the download page.",
+      "description": "Given a manifest that offers the running version, a later one, an earlier one or none, or a channel turned off or withdrawing the running version, when the fix picks the machine MSI, then it takes only the MSI of the version offered, when that is the running one or later, for this processor, and otherwise none, which opens the download page.",
       "check": "TheMachineMsiIsTheOfferedVersionsForThisProcessor",
       "passes": true
     },
     {
       "id": "A32",
       "covers": ["R28"],
-      "description": "Given a real pipe with no label and one labelled low, as a sandboxed process makes it, when the overlay reads its server, then it reads the server's image and integrity as Windows has them, and the pipe's label as medium and low.",
+      "description": "Given a real pipe with no label and one labelled low, as a sandboxed process makes it, when the overlay reads its server, then it reads the server's image and integrity as Windows has them, and the pipe's label as medium and as low.",
       "check": "ThePipesServerIsReadAsWindowsHasIt",
       "passes": true
     },
     {
       "id": "A33",
       "covers": ["R30"],
-      "description": "Given the pinned driver or a later one installed already, when the elevated mode's install-driver runs, then it downloads and runs nothing, and only starts the sensors again.",
+      "description": "Given the pinned driver or a later one already installed, when the elevated service's install-driver runs, then it downloads and runs nothing and only starts the sensors again.",
       "check": "OnlyThePinnedInstallerRunsAndTheSensorsStartAgain",
       "passes": true
     },
@@ -242,56 +242,56 @@
     {
       "id": "A35",
       "covers": ["R9"],
-      "description": "Given a state with a sequence and a manifest of another channel, an older sequence, expired, or expiring more than 45 days and a day ahead, when the service plans, then it refuses it, and takes one of the sequence it took last, one expiring now and one expiring 46 days ahead.",
+      "description": "Given the state's last sequence, when the service plans with a manifest of another channel, of an older sequence, expired, or expiring more than 45 days and a day ahead, then it refuses it; and it takes one of the same sequence, one expiring now and one expiring 46 days ahead.",
       "check": "TheUpdaterNeverGoesBackButToItsOwnPrevious",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A36",
       "covers": ["R10"],
-      "description": "Given a downloaded file of the package's size and SHA-256, one shorter, one longer and one of another hash, when the service checks it, then only the first is the package, and the refusal names the size or the hash that differs.",
+      "description": "Given a downloaded file, when the service checks it against the package, then only a file of the package's size and SHA-256 is the package, and a refusal names the size or the hash that differs.",
       "check": "AFileIsThePackageOnlyAtItsSizeAndHash",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A37",
       "covers": ["R12"],
-      "description": "Given zip entries inside the version's folder, rooted, naming a drive or a stream, climbing out, or a link, when the service unpacks the zip, then only those that land inside the folder pass.",
+      "description": "Given a zip's entries, when the service unpacks it, then only entries that land inside the version's folder pass, and rooted entries, drives, streams, climbs out and links are refused.",
       "check": "AZipsEntryLandsOnlyInsideItsFolder",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A38",
       "covers": ["R29"],
-      "description": "Given the policy Updates = 0, a manifest that cannot be read, a channel offering no MSI for the running version or later, or one offering it, when the user's host is asked to install for everyone, then the policy and no MSI open the download page, no manifest fails, and only the MSI offered runs.",
+      "description": "Given the user's host asked to install for everyone, when the policy turns updates off, the manifest cannot be read, or the channel offers no MSI for the running version or later, then the policy and the missing MSI open the download page and the unreadable manifest fails; and only an MSI the channel offers runs.",
       "check": "InstallForEveryoneRunsAnMsiOnlyWhenTheChannelOffersOne",
       "passes": true
     },
     {
       "id": "A39",
       "covers": ["R9"],
-      "description": "Given an envelope over 64 KB, one that is not an envelope, one signed by no key built into thermi, and one the release key signed after a manifest of the backup key's revoked it, when the service opens it, then it is refused; only the backup key revokes the release key, which it names, and sets the sequence back, once.",
+      "description": "Given an envelope the service opens, when it is too large, not an envelope, signed by no key built into thermi, or signed by the release key after the backup key revoked it, then it is refused; and only the backup key revokes the release key, naming it, and sets the sequence back, once.",
       "check": "LeversNeverSendAPcBackward",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A40",
       "covers": ["R29"],
-      "description": "Given msiexec's exit after the UAC prompt, when the user's host reads it, then 0 and 3010 are installed, 1223, a refused prompt, and 1602 are refused, and any other is a failure.",
+      "description": "Given msiexec's exit code after the UAC prompt, when the user's host reads it, then success and success needing a restart are installed, a refused prompt and a cancel are refused, and any other code is a failure.",
       "check": "MsiexecsExitIsWhatTheInstallCameTo",
       "passes": true
     },
     {
       "id": "A41",
       "covers": ["R34"],
-      "description": "Given both MSIs' source, when their custom actions are read, then each runs its program through the util extension's DLL native to the package's processor, given its command line by a property of its own set before it, WixQuietExec or, for the overlay, WixUnelevatedShellExec, immediate and impersonated, none as a plain executable action.",
+      "description": "Given both MSIs' source, when their custom actions are read, then each runs its program through the util extension's DLL native to the package's processor, with its command line in a property of its own set before it, as WixQuietExec or, for the overlay, WixUnelevatedShellExec run immediate and impersonated, and none as a plain executable action.",
       "check": "TheMsiRunsNoProgramInAWindowAndAsksExplorerForTheOverlay",
       "passes": true
     },
     {
       "id": "A42",
       "covers": ["R34"],
-      "description": "On a PC or VM with UAC at its default and a standard account, each msiexec run with /l*v: given the machine MSI, when an administrator runs msiexec /i on it from an elevated console, then it installs, the log shows StartOverlay returned 1, and the overlay starts at medium integrity, as Process Explorer shows; when Explorer is ended first and the same elevated console runs msiexec /i, then no overlay runs, or one that starts exits at once with code 1, %LOCALAPPDATA%\\thermi unchanged, and so does thermi settings started from that console, which says why there; scripts/install.ps1 and scripts/smoke-window.ps1 run from it fail with that reason; when a standard user runs it and an administrator consents, the overlay starts as that user, unelevated; when a standard user runs msiexec /fa on the installed product, no console window shows, the repair works, and both services and the launchers are back after one was deleted; when an install is made to fail after Adopt, its log shows --undo ran and the PC is as before; and after a good install, update\\adopt-undo.json is gone. The per-user MSI from an elevated console starts its overlay unelevated too.",
+      "description": "Given a PC or VM with UAC at its default and a standard account, each msiexec run logged with /l*v, when an administrator installs the machine MSI from an elevated console, then the overlay starts at medium integrity; when Explorer was ended first, then no overlay runs elevated, thermi and thermi settings started from that console exit with 1 and say why, and %LOCALAPPDATA%\\thermi is unchanged; when a standard user installs and an administrator consents, then the overlay runs as that user, unelevated; when a standard user repairs with msiexec /fa, then no console window shows and the services and launchers are back; when an install fails after Adopt, then --undo leaves the PC as before; after a good install, update\\adopt-undo.json is gone; and the per-user MSI from an elevated console starts its overlay unelevated too.",
       "check": "by hand",
       "passes": false
     }
