@@ -27,7 +27,7 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
             var held = host.Overlays[1];
             MoveTo(host, held, Middle(held.Hwnd), PInvoke.WM_LBUTTONDOWN);
             MoveTo(host, held, DroppedAt(host, "merge", Nowhere));
-            var shown = host.Overlays[0].OnScreenPicture!;
+            using var shown = host.Overlays[0].ShownPicture()!;
             ring = shown.GetPixel(shown.Width / 2, 1);
             End(host, held.Hwnd, "esc");
         });
@@ -83,14 +83,14 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
             var overlay = host.Overlays[0];
             var label = EndOf(overlay, Metrics.CpuTemperature.Id, label: true);
             PInvoke.GetWindowRect(overlay.Hwnd, out var rect);
-            before.AddRange(Column(overlay.OnScreenPicture!, label.X - rect.left));
+            before.AddRange(Column(overlay, label.X - rect.left));
             var held = EndOf(overlay, Metrics.CpuTemperature.Id, label: false);
-            value.AddRange(Column(overlay.OnScreenPicture!, held.X - rect.left - 12));
+            value.AddRange(Column(overlay, held.X - rect.left - 12));
             MoveTo(host, overlay, held, PInvoke.WM_LBUTTONDOWN);
             Hold(host, overlay);
             HostRun.Tick(host);
-            lifted.AddRange(Column(overlay.OnScreenPicture!, label.X - rect.left));
-            value = [.. value.Zip(Column(overlay.OnScreenPicture!, held.X - rect.left - 12), (was, now) => was - now).Where(change => change != 0)];
+            lifted.AddRange(Column(overlay, label.X - rect.left));
+            value = [.. value.Zip(Column(overlay, held.X - rect.left - 12), (was, now) => was - now).Where(change => change != 0)];
             End(host, overlay.Hwnd, "esc");
         });
 
@@ -118,9 +118,12 @@ public sealed class OverlayDropTests : OverlayPresses, IDisposable
 
         return speaks;
     }
-    // The 12 columns of pixels from x on, as ARGB.
-    private static List<int> Column(Bitmap picture, int x) =>
-        [.. Enumerable.Range(x, 12).SelectMany(at => Enumerable.Range(0, picture.Height).Select(y => picture.GetPixel(at, y).ToArgb()))];
+    // The 12 columns of pixels from x on of what the overlay shows, as ARGB.
+    private static List<int> Column(OverlayWindow overlay, int x)
+    {
+        using var picture = overlay.ShownPicture()!;
+        return [.. Enumerable.Range(x, 12).SelectMany(at => Enumerable.Range(0, picture.Height).Select(y => picture.GetPixel(at, y).ToArgb()))];
+    }
 
     private static OverlayWindow? Under(OverlayHost host, Position at) =>
         host.Overlays.FirstOrDefault(overlay => overlay.OnScreen && PInvoke.GetWindowRect(overlay.Hwnd, out var rect)

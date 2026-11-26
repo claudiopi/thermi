@@ -53,10 +53,12 @@ internal sealed class OverlayWindow : IDisposable
     private OverlayScene? _scene;
     private PaintedOverlay? _painted;
 
-    /// <summary>What the overlay last put on screen, what a drag marks on it included; its painter owns it.</summary>
-    internal Bitmap? OnScreenPicture { get; private set; }
+    // What the overlay last put on screen, what a drag marks on it included.
+#pragma warning disable CA2213 // The painter owns the bitmap, draws it again while its size holds, and disposes it.
+    private Bitmap? _shown;
+#pragma warning restore CA2213
 
-    /// <summary>Whether a value's tooltip may show now.</summary>
+    /// <summary>Whether a value's tooltip may show now, which Windows' tooltip control never says itself.</summary>
     internal bool TipsShow => _tips.Speaks;
 
     // The item the pointer is on, which the open window marks on its row.
@@ -205,7 +207,7 @@ internal sealed class OverlayWindow : IDisposable
         OverlayGestures.HoldCorner(bitmap, overlay, scale);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
-        OnScreenPicture = bitmap;
+        _shown = bitmap;
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
         var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
@@ -394,5 +396,10 @@ internal sealed class OverlayWindow : IDisposable
     /// </summary>
     internal Bitmap? Picture() => _painted is { } painted && _scene is not null ? painted.Picture(Translations.Of(OverlayText.SensorsStopped)) : null;
 
+    /// <summary>
+    /// A copy of what the overlay last put on screen, what a drag marks on it included, which the caller disposes: Windows
+    /// hands no layered window's pixels back. Null before the first paint.
+    /// </summary>
+    internal Bitmap? ShownPicture() => _shown?.Clone(new Rectangle(0, 0, _shown.Width, _shown.Height), _shown.PixelFormat);
     internal void UndoGesture() => _gestures.Undo();
 }
