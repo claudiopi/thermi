@@ -31,7 +31,14 @@ internal sealed partial class AgentCommands
             () => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo, AgentDid.Redo),
             stop);
 
-    private async Task<AgentReply?> HeldAsync() => AgentRules.Refused((await SettingsAsync()).Config) is { } refused ? Refused(refused) : null;
+    // A file that cannot be read, broken, newer or locked, says nothing of what the person lets agents do: nothing changes.
+    private async Task<AgentReply?> HeldAsync()
+    {
+        var settings = await SettingsAsync();
+        return settings.Problem is { } problem ? Broken(problem)
+            : AgentRules.Refused(settings.Config) is { } refused ? Refused(refused)
+            : null;
+    }
 
     /// <summary>Where the settings as they were before an agent's last write are kept, so a person can take any change back.</summary>
     public static string PreviousOf(string settingsPath) => Path.ChangeExtension(settingsPath, ".before-agent.json");
