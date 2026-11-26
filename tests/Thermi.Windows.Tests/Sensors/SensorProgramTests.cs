@@ -24,6 +24,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
     private readonly string _folder = Path.Combine(AppContext.BaseDirectory, "dumps", Guid.NewGuid().ToString("N"));
     private readonly FakeTimeProvider _clock = new();
+    private readonly WatchClock _host;
     private readonly FakeSensors _sensors = new();
     private readonly StringWriter _out = new();
     private readonly StringWriter _error = new();
@@ -34,6 +35,7 @@ public sealed class SensorProgramTests : IAsyncDisposable
 
     public SensorProgramTests()
     {
+        _host = new WatchClock(_clock);
         Directory.CreateDirectory(_folder);
     }
 
@@ -160,8 +162,11 @@ public sealed class SensorProgramTests : IAsyncDisposable
         var security = client.GetAccessControl();
         var readers = security.GetAccessRules(true, false, typeof(SecurityIdentifier)).Cast<PipeAccessRule>()
             .Where(rule => rule.AccessControlType == AccessControlType.Allow).Select(rule => ((SecurityIdentifier)rule.IdentityReference).Value).Order();
+
+        // A second the host's watch handles with the client in, from which its linger counts once the client leaves.
+        await PassAsync(TimeSpan.FromSeconds(1), serving);
         await client.DisposeAsync();
-        var lingered = await PassAsync(UserMode.Linger - TimeSpan.FromSeconds(1), serving);
+        var lingered = await PassAsync(UserMode.Linger - TimeSpan.FromSeconds(1), serving, _pipeName + "-" + user.User.Value);
         await PassAsync(TimeSpan.FromSeconds(4), serving);
         var served = await serving.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
 
@@ -246,21 +251,37 @@ public sealed class SensorProgramTests : IAsyncDisposable
         return text.ReadToEnd().Contains(what, StringComparison.Ordinal);
     }
 
-    // Moves the clock a second at a time, giving the run a moment at each; whether it had ended by then.
-    private async Task<bool> PassAsync(TimeSpan time, Task run)
+    // Moves the clock a second at a time, each once the host's watch has handled the last, and, given its pipe, once the
+    // host holds no client that left: moved sooner, a host the PC holds back would count its linger, or its wait for a
+    // first client, from a later second. Whether the run had ended by the last.
+    private async Task<bool> PassAsync(TimeSpan time, Task run, string? pipe = null)
     {
+        await _host.HandledAsync(() => run.IsCompleted);
         for (var passed = TimeSpan.Zero; passed < time; passed += TimeSpan.FromSeconds(1))
         {
             _clock.Advance(TimeSpan.FromSeconds(1));
-            await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, TestContext.Current.CancellationToken);
+            await DroppedAsync(pipe, () => run.IsCompleted);
+            await _host.HandledAsync(() => run.IsCompleted);
         }
 
         return run.IsCompleted;
     }
 
+    // Until the pipe has only the instance it listens on: the server drops a client that left at its next write, and Windows
+    // lists a pipe's instances as its length.
+    private static async Task DroppedAsync(string? pipe, Func<bool> ended)
+    {
+        var start = TimeProvider.System.GetTimestamp();
+        while (pipe is not null && !ended() && new DirectoryInfo(@"\\.\pipe\").EnumerateFiles(pipe).Sum(found => found.Length) > 1)
+        {
+            Assert.True(TimeProvider.System.GetElapsedTime(start) < Patience, "The host never dropped the client that left.");
+            await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+    }
+
     private Task<int> RunAsync(string[] args)
     {
-        var environment = new SensorHostEnvironment((_, patience) => _sensors.Open(_clock, patience), _clock, _out, _error, (said, _) => _logged.Enqueue(said))
+        var environment = new SensorHostEnvironment((_, patience) => _sensors.Open(_clock, patience), _host, _out, _error, (said, _) => _logged.Enqueue(said))
         {
             PipeName = _pipeName,
             UserLog = Path.Combine(_folder, "thermi-sensors.log"),
