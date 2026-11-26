@@ -135,10 +135,11 @@ public sealed partial class RepoRulesTests
                 var text = File.ReadAllText(file);
                 words.UnionWith(Word().Matches(text).Select(word => word.Value));
                 namespaces.UnionWith(Namespace().Matches(text).Select(match => match.Groups["name"].Value));
-                foreach (var type in Declared().Matches(text).Select(match => match.Groups["type"].Value))
+                foreach (Match declared in Declared().Matches(text))
                 {
+                    var type = declared.Groups["type"].Value;
                     types.TryAdd(type, []);
-                    types[type].Add(text);
+                    types[type].Add(BodyOf(text, declared.Index));
                 }
             }
 
@@ -147,7 +148,8 @@ public sealed partial class RepoRulesTests
             return new CodeNames { Types = types, Words = words, Namespaces = namespaces, Files = names.ToHashSet(StringComparer.OrdinalIgnoreCase) };
         }
 
-        // A dotted name is a namespace or package, of thermi's or outside it, or a type and a member it declares.
+        // A dotted name is a namespace or package, of thermi's or outside it, or a type and a member its own body declares:
+        // the name a method, property, field, record parameter or enum value is given there, not one the type only uses.
         public bool Has(string name)
         {
             var parts = name.Split('.');
@@ -166,7 +168,31 @@ public sealed partial class RepoRulesTests
                 return !Types.ContainsKey(parts[0]) && Array.TrueForAll(parts, Words.Contains);
             }
 
-            return declaring.Exists(text => Regex.IsMatch(text, $@"\b{Regex.Escape(parts[^1])}\b", RegexOptions.None, TimeSpan.FromSeconds(1)));
+            var member = Regex.Escape(parts[^1]);
+            var declares = $@"(?<=[\w>\]?)]\s+){member}\s*[(<{{=;,)]|^\s*{member}\s*[,=]?\s*$";
+            return declaring.Exists(body => Regex.IsMatch(body, declares, RegexOptions.Multiline, TimeSpan.FromSeconds(1)));
+        }
+
+        // A type's own text: its declaration to the brace that closes its body, or to the semicolon of one without a body.
+        private static string BodyOf(string text, int start)
+        {
+            var open = text.IndexOfAny(['{', ';'], start);
+            if (open < 0 || text[open] == ';')
+            {
+                return text[start..(open < 0 ? text.Length : open + 1)];
+            }
+
+            var depth = 0;
+            for (var at = open; at < text.Length; at++)
+            {
+                depth += text[at] switch { '{' => 1, '}' => -1, _ => 0 };
+                if (depth == 0)
+                {
+                    return text[start..(at + 1)];
+                }
+            }
+
+            return text[start..];
         }
 
         [GeneratedRegex(@"\b[A-Za-z_][A-Za-z0-9_]*\b", RegexOptions.None, matchTimeoutMilliseconds: 1000)]

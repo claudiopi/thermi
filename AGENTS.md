@@ -76,7 +76,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | No TODOs in code: open an issue. | MA0026 |
 | Comments say why, never what. No process history (issue numbers, "for now") in production code. | `RepoRulesTests`, comment-trimmer |
 | Docs only cite paths that exist, and code and its comments only repo paths and project files that exist. No absolute local paths anywhere. Build files never point outside the repo. | `RepoRulesTests` |
-| A doc names only what the code has: each type, member and file in backticks, and each participant and call of a Mermaid diagram. ADRs and specs keep the names of their day. | `RepoRulesTests` |
+| A doc names only what the code has: each type, member and file in backticks, and each participant and call of a Mermaid diagram, a member only where its type declares it. ADRs and specs keep the names of their day. | `RepoRulesTests` |
 | What can be listed from the code is checked against it: `thermi.slnx` holds every project, this map has a row for each, and `docs/agents/README.md` lists every command `thermi-cli` parses. | `RepoRulesTests` |
 | A change's reviewer reads every doc `scripts/doc-impact.ps1` lists for it and says which the change made false. Docs say why and how things flow; the detail of each file is left to the code, so less can rot. | `.claude/agents/reviewer.md` |
 | A rule is turned off only in `Thermi.globalconfig`, with the reason above it. In code, a suppression says why on the same line. NuGet warnings are never suppressed: update the package. | `RepoRulesTests` |
