@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent } from 'react';
 import type { Edit } from '../bridge/bridge.g';
-import { bridge, useEdit, useWindowData, type WindowData } from '../bridge/useWindow';
+import { bridge, inOrder, useEdit, useWindowData, type WindowData } from '../bridge/useWindow';
 import { Catalog, type CatalogAsk } from '../catalog/Catalog';
 import { ItemList } from '../list/ItemList';
 import { itemKey, overlayKey, overlayName, settingsKey } from '../list/rows';
@@ -163,7 +163,7 @@ function Window({ data }: { data: WindowData }) {
   const news = useWindowNews(() => undoFromToast.current());
   // An undo or redo says what it changed back and shows it: its item, or its overlay.
   const stepBack = async (how: 'undo' | 'redo', fromToast = false): Promise<void> => {
-    const undone = await bridge()?.[how]();
+    const undone = await inOrder(async () => (await bridge()?.[how]()) ?? null);
     if (undone === null || undone === undefined) {
       return;
     }

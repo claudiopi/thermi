@@ -135,10 +135,9 @@ export function installFakeCatalog(): void {
   // Which rows a search finds, in what order and with what marked, is Core's answer from the same sensors, language and
   // names, which the oracle keeps.
   const searched = async (search: string, chosen: SensorKind[], rows: Listed[]): Promise<{ listed: Listed[]; marks: Map<string, Mark[]> }> => {
-    const answer = await window.thermiPure?.({
-      method: 'catalogSearch',
-      args: [search, chosen, state.sensors, state.texts, state.settings.sensorNames ?? null],
-    });
+    const answer = await window.thermiFake?.answered(
+      window.thermiPure?.({ method: 'catalogSearch', args: [search, chosen, state.sensors, state.texts, state.settings.sensorNames ?? null] }),
+    );
     if (answer === undefined || 'missing' in answer) {
       throw new Error(`The oracle has no answer: ${answer?.missing ?? 'it is not installed'}.`);
     }

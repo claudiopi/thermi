@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import type { ChartEmpty, ChartView, Edit, Line } from '../bridge/bridge.g';
-import { bridge } from '../bridge/useWindow';
+import { bridge, inOrder } from '../bridge/useWindow';
 import { Creature } from '../app/Creature';
 import { useMeasured } from '../app/measured';
 import { Button, Icon } from '../kit';
 import { useText } from '../texts/Texts';
 import { chartHeight, knobColumn, knobTops, levelAt, nearestLine, plotPaths, stopsOf, tintsOf, valueAt, yOf, type Plot } from './geometry';
 import { Knob } from './Knob';
+import { useKeyMoves } from './useKeyMoves';
 import { ScrubLabel, ScrubMarks, useScrub } from './Scrub';
 import './chart.css';
 
@@ -111,15 +112,15 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
   const scrub = useScrub(plot);
   const live = chart.empty === null;
   const point = live ? scrub.ago : null;
-  const queue = useRef<Promise<unknown> | null>(null);
   const later = (work: () => Promise<unknown>): void => {
-    queue.current = (queue.current ?? Promise.resolve()).then(work);
+    void inOrder(work);
   };
+  const keys = useKeyMoves(given);
   const move = (line: Line, value: number | null): void => {
     if (value === null) {
       focus.after(`add-${line}`);
     }
-    later(() => edit({ kind: 'line', item, line, value }));
+    keys.move(line, value, () => edit({ kind: 'line', item, line, value }));
   };
   const drag = (line: Line, event: PointerEvent<HTMLElement>, open: () => void): void => {
     const target = event.currentTarget;
@@ -243,6 +244,7 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
                 line={one}
                 label={t(names[one])}
                 value={value}
+                from={() => keys.from(one) ?? value}
                 text={chart[one === 'warning' ? 'warningText' : 'criticalText'] ?? ''}
                 max={chart.max}
                 step={chart.step}

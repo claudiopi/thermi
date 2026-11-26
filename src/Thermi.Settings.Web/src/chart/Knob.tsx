@@ -7,6 +7,8 @@ export interface KnobProps {
   /** Its name, "Warning line", which its box takes too. */
   label: string;
   value: number;
+  /** Where the keys move on from: the value, or where they last moved it while the chart does not show it yet. */
+  from: () => number;
   text: string;
   max: number;
   step: number;
@@ -103,11 +105,11 @@ function Box({
 }
 
 /** A threshold's knob at its line: a slider that the arrows, a drag and a typed value move. */
-function KnobDrawn({ line, label, value, text, max, step, top, onMove, onTyped, onPress, onFocus }: KnobProps) {
+function KnobDrawn({ line, label, value, from, text, max, step, top, onMove, onTyped, onPress, onFocus }: KnobProps) {
   const [box, setBox] = useState<{ first: string; typed: boolean } | null>(null);
   const knob = useRef<HTMLDivElement>(null);
   const keyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    const next = moved(event, value, step, max);
+    const next = moved(event, from(), step, max);
     if (next !== null) {
       event.preventDefault();
       onMove(next);

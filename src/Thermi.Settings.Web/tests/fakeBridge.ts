@@ -38,6 +38,17 @@ function installFake(initial: FakeState): void {
   // settings only once the page has.
   let changes = 0;
   let read = -1;
+  // The answers on their way from the oracle, a round trip to the test that a busy PC makes long: until they come, the
+  // page still shows what it showed before the call.
+  let answering = 0;
+  const answered = async <T>(answer: Promise<T> | undefined): Promise<T | undefined> => {
+    answering += 1;
+    try {
+      return await answer;
+    } finally {
+      answering -= 1;
+    }
+  };
   // As C# tells it, with whether the sensors or the service may have changed.
   const changed = (sensors = false): void => {
     changes += 1;
@@ -46,7 +57,7 @@ function installFake(initial: FakeState): void {
 
   // As the real bridge's wire, a missing argument goes as null; a call the oracle lacks rejects, as one C# fails.
   const ask = async (method: OracleCall['method'], ...args: unknown[]): Promise<unknown> => {
-    const answer = await window.thermiOracle?.({ method, args: args.map((arg) => arg ?? null) });
+    const answer = await answered(window.thermiOracle?.({ method, args: args.map((arg) => arg ?? null) }));
     if (answer === undefined || answer === null || 'missing' in answer) {
       throw new Error(`The oracle has no answer: ${answer?.missing ?? 'it is not installed'}.`);
     }
@@ -81,7 +92,8 @@ function installFake(initial: FakeState): void {
       }
     },
     pick: (pick) => pickers.forEach((picker) => picker(pick)),
-    caughtUp: () => read === changes,
+    answered,
+    caughtUp: () => answering === 0 && read === changes,
   };
 
   // The views, the look files, the pictures, the catalog, the finder and the window's status are each installed apart, after this.
@@ -141,7 +153,7 @@ function installFake(initial: FakeState): void {
     catalog: notInstalled,
     // What a search finds and marks is C#'s, so the fake asks the oracle, as for an edit; it changes nothing.
     search: async (query, among) => {
-      const answer = await window.thermiPure?.({ method: 'search', args: [query, among] });
+      const answer = await answered(window.thermiPure?.({ method: 'search', args: [query, among] }));
       if (answer === undefined || 'missing' in answer) {
         throw new Error(`The oracle has no answer: ${answer?.missing ?? 'it is not installed'}.`);
       }

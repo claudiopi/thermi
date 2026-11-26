@@ -142,6 +142,8 @@ export async function settled(): Promise<void> {
 
 /** What a person would see as broken: the page scrolling sideways, a text cut, or two controls overlapping. */
 export async function layoutFaults(page: Page): Promise<string[]> {
+  // What the window shows once C# answered what the view asked, as a delete's: until then it still shows the page before.
+  await page.waitForFunction(() => window.thermiFake?.caughtUp() !== false, undefined, { timeout: 5000 });
   // After a resize, once the page measured its new size and drew again.
   await page.evaluate(settled);
   return page.evaluate(async () => {

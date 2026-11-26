@@ -112,7 +112,9 @@ interface FakeControl {
   pick(pick: DesktopPick): void;
   /** Lets the late answers go, the newest first, as a busy bridge's can arrive, and answers on time from then. */
   release?(): void;
-  /** Whether the page has read the settings since they last changed. */
+  /** The oracle's answer to a call, counted as on its way until it comes. */
+  answered<T>(answer: Promise<T> | undefined): Promise<T | undefined>;
+  /** Whether the page has every answer it asked for, and has read the settings since they last changed. */
   caughtUp(): boolean;
 }
 

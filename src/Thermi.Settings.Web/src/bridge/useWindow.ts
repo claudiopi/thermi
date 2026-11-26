@@ -29,6 +29,19 @@ export function bridge(): Bridge | null {
   return window.thermi ?? null;
 }
 
+// What the person changed, as C# gets it: each change once the one before it is answered.
+let changing: Promise<unknown> = Promise.resolve();
+
+/**
+ * Asks C# for `change` once every change asked before it is answered, so they apply in the order the person made them:
+ * an undo pressed while a knob's moves are on their way undoes those moves, never only what came before them.
+ */
+export async function inOrder<T>(change: () => Promise<T>): Promise<T> {
+  const answered = changing.then(change);
+  changing = answered.catch(() => undefined);
+  return answered;
+}
+
 /**
  * All the window shows, after a change. The texts, thousands of them, are read again only when the language changed,
  * and the sensors only when C# says they may have, or their names or the language changed: an edit, as each step of a
