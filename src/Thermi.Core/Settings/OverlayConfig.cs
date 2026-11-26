@@ -33,6 +33,10 @@ public sealed record ThermiConfig
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public WindowTheme WindowTheme { get; init; }
 
+    /// <summary>Whether AI agents may change the settings through thermi-cli or only read them, which only a person turns back.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public AgentAccess Agents { get; init; }
+
     /// <summary>The names the user gave sensors, by the id an item names each by; null while none has one.</summary>
     public IReadOnlyDictionary<string, string>? SensorNames { get; init; }
 
@@ -241,6 +245,15 @@ public enum WindowTheme
     System,
     Light,
     Dark,
+}
+
+/// <summary>What AI agents may do with the settings: change them, the default, or only read them.</summary>
+[Translated]
+[JsonConverter(typeof(ConfigEnum<AgentAccess>))]
+public enum AgentAccess
+{
+    Change,
+    Read,
 }
 
 public static class WindowThemes

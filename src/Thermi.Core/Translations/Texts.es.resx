@@ -2346,4 +2346,70 @@
   <data name="OfDevice.System" xml:space="preserve">
     <value>{0} del PC</value>
   </data>
+  <data name="AgentText.Section" xml:space="preserve">
+    <value>Agentes de IA</value>
+  </data>
+  <data name="AgentText.WhatTheyDo" xml:space="preserve">
+    <value>Los agentes leen los sensores a través de thermi y cambian su configuración con las reglas de esta ventana.</value>
+  </data>
+  <data name="AgentText.LetThemChange" xml:space="preserve">
+    <value>Permitir que los agentes cambien la configuración</value>
+  </data>
+  <data name="AgentText.ClaudeCode" xml:space="preserve">
+    <value>Claude Code</value>
+  </data>
+  <data name="AgentText.ByFile" xml:space="preserve">
+    <value>Otras apps</value>
+  </data>
+  <data name="AgentText.ByFileHow" xml:space="preserve">
+    <value>Claude Desktop, Cursor, VS Code y otras, en su archivo de configuración de MCP</value>
+  </data>
+  <data name="AgentText.Copy" xml:space="preserve">
+    <value>Copiar</value>
+  </data>
+  <data name="AgentText.Copied" xml:space="preserve">
+    <value>Copiado</value>
+  </data>
+  <data name="AgentText.CopyOf" xml:space="preserve">
+    <value>Copiar para {0}</value>
+  </data>
+  <data name="AgentText.LastChanges" xml:space="preserve">
+    <value>Últimos cambios de los agentes</value>
+  </data>
+  <data name="AgentText.OpenLog" xml:space="preserve">
+    <value>Abrir el registro</value>
+  </data>
+  <data name="AgentDid.Edit" xml:space="preserve">
+    <value>Cambió una opción</value>
+  </data>
+  <data name="AgentDid.Look" xml:space="preserve">
+    <value>Cambió un aspecto</value>
+  </data>
+  <data name="AgentDid.FindCpuFan" xml:space="preserve">
+    <value>Encontró el ventilador de la CPU</value>
+  </data>
+  <data name="AgentDid.StartWithWindows" xml:space="preserve">
+    <value>Cambió Iniciar con Windows</value>
+  </data>
+  <data name="AgentDid.Undo" xml:space="preserve">
+    <value>Deshizo un cambio</value>
+  </data>
+  <data name="AgentDid.Redo" xml:space="preserve">
+    <value>Rehízo un cambio</value>
+  </data>
+  <data name="AgentAccess.Change" xml:space="preserve">
+    <value>Cambian la configuración</value>
+  </data>
+  <data name="AgentAccess.Read" xml:space="preserve">
+    <value>Solo leen</value>
+  </data>
+  <data name="ChangedField.Agents" xml:space="preserve">
+    <value>Agentes de IA</value>
+  </data>
+  <data name="Refusal.AgentsReadOnly" xml:space="preserve">
+    <value>La persona deja que los agentes solo lean: desactivó sus cambios en Configuración de thermi, en Agentes de IA.</value>
+  </data>
+  <data name="Refusal.AgentsOnlyByPerson" xml:space="preserve">
+    <value>Solo una persona permite que los agentes cambien la configuración, en Configuración de thermi, en Agentes de IA.</value>
+  </data>
 </root>

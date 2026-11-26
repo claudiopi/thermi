@@ -29,6 +29,7 @@ internal static class ConfigFields
         new(ChangedField.Language, config => config.Language, (config, value) => config with { Language = (string?)value }),
         new(ChangedField.TemperatureUnit, config => config.Temperature, (config, value) => config with { Temperature = (TemperatureUnit)value! }),
         new(ChangedField.WindowTheme, config => config.WindowTheme, (config, value) => config with { WindowTheme = (WindowTheme)value! }),
+        new(ChangedField.Agents, config => config.Agents, (config, value) => config with { Agents = (AgentAccess)value! }),
         new(
             ChangedField.SensorName,
             config => config.SensorNames,

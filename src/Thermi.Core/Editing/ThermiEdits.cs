@@ -74,6 +74,10 @@ public static class ThermiEdits
     public static EditResult SetTemperature(ThermiConfig config, TemperatureUnit unit) =>
         ConfigEdits.Apply(config, current => current with { Temperature = unit });
 
+    /// <summary>The person's choice of what AI agents may do; an agent's own edit of it is <see cref="Agents.AgentRules"/>'s.</summary>
+    public static EditResult SetAgents(ThermiConfig config, AgentAccess access) =>
+        ConfigEdits.Apply(config, current => current with { Agents = access });
+
     public static EditResult SetWindowTheme(ThermiConfig config, WindowTheme theme) =>
         ConfigEdits.Apply(config, current => current with { WindowTheme = theme });
 }

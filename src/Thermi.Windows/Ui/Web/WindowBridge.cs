@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
 using Thermi.App.SettingsFile;
 using Thermi.App.Window;
+using Thermi.Core.Agents;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -202,6 +203,14 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     public Task Open(Opened what)
     {
         WindowLinks.Open(what, _start.Environment.SettingsPath, _start.Environment.Log);
+        return Task.CompletedTask;
+    }
+
+    public Task<AgentsView> Agents() => Task.FromResult(WindowAgents.View(_views.Format(_texts), _start.Time.LocalTimeZone));
+
+    public Task Copy(string text)
+    {
+        ClipboardData.WriteText(Window, text);
         return Task.CompletedTask;
     }
 

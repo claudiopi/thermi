@@ -118,6 +118,9 @@ internal sealed class AgentRig : IDisposable
 
     public bool Raised { get; set; }
 
+    /// <summary>Where the commands log, the folder's own list when null.</summary>
+    public ILogger? Log { get; set; }
+
     public IReadOnlyList<Screen> Screens { get; set; } =
         [new Screen("DISPLAY1", Primary: true, new PixelRect(0, 0, 1920, 1080), new PixelRect(0, 0, 1920, 1032), Scale: 1)];
 
@@ -175,7 +178,7 @@ internal sealed class AgentRig : IDisposable
     {
         public string SettingsPath => rig.Folder.File;
 
-        public ILogger Log => rig.Folder.Log;
+        public ILogger Log => rig.Log ?? rig.Folder.Log;
 
         public IStartAtSignIn Startup => rig.Startup;
 

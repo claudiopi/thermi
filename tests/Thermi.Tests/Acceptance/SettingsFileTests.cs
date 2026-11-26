@@ -197,13 +197,18 @@ public sealed class SettingsFileTests
 
     // The owner, 2026-11-24: version 6 splits the meter in two, what an item warns by and what it draws beside its value,
     // and a version 5 file draws and warns as it did. The everything file of version 6 is this one migrated, with its
-    // first overlay's bars chosen, which draw what it drew already, and the window's theme, which version 6 brought.
+    // first overlay's bars chosen, which draw what it drew already, and the window's theme and the agents' switch, which version 6 brought.
     [Fact]
     public void AVersionFiveFileMigratesToVersionSix()
     {
         var (config, problem) = ThermiConfigJson.Read(TestFiles.Config("v5.json"));
         var six = ThermiConfigJson.Read(TestFiles.Config("v6.json")).Config;
-        var migrated = six with { WindowTheme = WindowTheme.System, Overlays = [six.Overlays[0] with { Graph = GraphStyle.Auto }, six.Overlays[1]] };
+        var migrated = six with
+        {
+            WindowTheme = WindowTheme.System,
+            Agents = AgentAccess.Change,
+            Overlays = [six.Overlays[0] with { Graph = GraphStyle.Auto }, six.Overlays[1]],
+        };
 
         Assert.Null(problem);
         Assert.Equal(ThermiConfigJson.Write(migrated), ThermiConfigJson.Write(config));

@@ -3,7 +3,6 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.System.Memory;
 using Windows.Win32.System.Ole;
 
 namespace Thermi.Windows.Win32.Clipboard;
@@ -21,43 +20,11 @@ internal static class ClipboardImage
         using var png = new MemoryStream();
         picture.Save(png, ImageFormat.Png);
         var dib = Dib(picture);
-        if (!PInvoke.OpenClipboard(owner))
+        ClipboardData.Write(owner, () =>
         {
-            return;
-        }
-
-        try
-        {
-            PInvoke.EmptyClipboard();
-            Put(Png, png.ToArray());
-            Put((uint)CLIPBOARD_FORMAT.CF_DIB, dib);
-        }
-        finally
-        {
-            PInvoke.CloseClipboard();
-        }
-    }
-
-    // Once set, the memory is the clipboard's; only memory it refused is freed here.
-    private static unsafe void Put(uint format, byte[] bytes)
-    {
-        var memory = PInvoke.GlobalAlloc(GLOBAL_ALLOC_FLAGS.GMEM_MOVEABLE, (nuint)bytes.Length);
-        if (memory.IsNull)
-        {
-            return;
-        }
-
-        var at = PInvoke.GlobalLock(memory);
-        if (at is not null)
-        {
-            Marshal.Copy(bytes, 0, (nint)at, bytes.Length);
-            PInvoke.GlobalUnlock(memory);
-        }
-
-        if (at is null || PInvoke.SetClipboardData(format, new HANDLE(memory.Value)).IsNull)
-        {
-            PInvoke.GlobalFree(memory);
-        }
+            ClipboardData.Put(Png, png.ToArray());
+            ClipboardData.Put((uint)CLIPBOARD_FORMAT.CF_DIB, dib);
+        });
     }
 
     // A 32-bit bitmap's header and its rows, bottom row first, as a DIB keeps them.

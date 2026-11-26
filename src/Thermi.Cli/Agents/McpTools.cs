@@ -20,7 +20,8 @@ internal static class McpTools
         "(°C, %, MHz, W, RPM, GB, B/s, fps, ms, V); a value that cannot be read is null with why, never 0. An item's level is normal, " +
         "warning or critical, by the thresholds the person set. When status names a problem, tell the person its fix: never start the " +
         "service or install the driver yourself. Edits follow the settings window's rules, and undo takes back this session's own. " +
-        "find_cpu_fan loads every core for up to 30 s: run it only when the person asks.";
+        "find_cpu_fan loads every core for up to 30 s: run it only when the person asks. When the person lets agents only read, in thermi's " +
+        "Settings under AI agents, every change is refused: say so, and leave turning it back on to them.";
 
     public static async Task<int> ServeAsync(AgentCommands commands, Stream input, Stream output, ILoggerFactory logs, CancellationToken stop)
     {

@@ -64,6 +64,7 @@ public enum ChangedField
     Language,
     TemperatureUnit,
     WindowTheme,
+    Agents,
     SensorName,
     Changes,
 }

@@ -1,3 +1,6 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Commands;
@@ -32,6 +35,9 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
     // An MCP client may call tools at once; the changes go one at a time, so each is its own step and History stays whole.
     private readonly SemaphoreSlim _changing = new(1, 1);
 
+    // An edit as the log keeps it: its text as the agent wrote it, any letter included.
+    private static readonly JsonSerializerOptions OneLine = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     // Each agent edit is a step of its own, however soon the next comes: an undo takes back one call.
     public UndoHistory History { get; } = new();
 
@@ -39,29 +45,35 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
 
     public async Task<AgentReply> RunAsync(AgentRequest request, CancellationToken stop)
     {
-        var reply = await AnswerAsync(request, stop);
-        if (reply.Exit == AgentExit.Done && Change(request) is { } change)
+        // What the person lets agents do is read first, so a change that writes no settings is refused as well.
+        var reply = request.Writes && await HeldAsync() is { } held ? held : await AnswerAsync(request, stop);
+        if (reply.Exit == AgentExit.Done && Change(request) is var (did, change))
         {
-            Changed(environment.Log, request.Verb, change);
+            Changed(environment.Log, did, change);
         }
 
         return reply;
     }
 
     // What a command changed, for the log, or null for one that only read or said; a look file's text is not repeated.
-    private static string? Change(AgentRequest request) => request switch
+    private static (AgentDid, string)? Change(AgentRequest request) => request switch
     {
-        { Verb: AgentVerb.Edit } => request.Text,
+        { Verb: AgentVerb.Edit } => (AgentDid.Edit, Compact(request.Text ?? "")),
         { Verb: AgentVerb.Look, Look: LookAction.Export } => null,
-        { Verb: AgentVerb.Look, Look: LookAction.Import } => $"import on overlay {request.Overlay ?? 0}",
-        { Verb: AgentVerb.Look } => $"{request.Look} {request.Text} {request.To} {request.Overlay}".TrimEnd(),
-        { Verb: AgentVerb.FindCpuFan, Switch: true } => "its fan as the CPU fan",
-        { Verb: AgentVerb.StartWithWindows, Switch: { } on } => on ? "on" : "off",
+        { Verb: AgentVerb.Look, Look: LookAction.Import } => (AgentDid.Look, $"import on overlay {request.Overlay ?? 0}"),
+        { Verb: AgentVerb.Look } => (AgentDid.Look, Spaced($"{request.Look}".ToLowerInvariant(), request.Text, request.To, $"{request.Overlay}")),
+        { Verb: AgentVerb.FindCpuFan, Switch: true } => (AgentDid.FindCpuFan, "its fan as the CPU fan"),
+        { Verb: AgentVerb.StartWithWindows, Switch: { } on } => (AgentDid.StartWithWindows, on ? "on" : "off"),
         _ => null,
     };
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "An agent's {Verb} changed: {Change}")]
-    private static partial void Changed(ILogger log, AgentVerb verb, string change);
+    // An edit an agent wrote over several lines is one line of the log, which the window reads back line by line.
+    private static string Compact(string json) => JsonNode.Parse(json)?.ToJsonString(OneLine) ?? json;
+
+    private static string Spaced(params string?[] parts) => string.Join(' ', parts.Where(part => part is { Length: > 0 }));
+
+    [LoggerMessage(Level = LogLevel.Information, Message = AgentActivity.Message)]
+    private static partial void Changed(ILogger log, AgentDid did, string what);
 
     private Task<AgentReply> AnswerAsync(AgentRequest request, CancellationToken stop) => request.Verb switch
     {
@@ -149,7 +161,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
     private async Task<AgentReply> ConfigAsync()
     {
         var read = await SettingsAsync();
-        var answer = new ConfigAnswer(System.Text.Json.Nodes.JsonNode.Parse(ThermiConfigJson.Write(read.Config))!, read.Problem?.Kind)
+        var answer = new ConfigAnswer(JsonNode.Parse(ThermiConfigJson.Write(read.Config))!, read.Problem?.Kind)
         {
             Detail = read.Problem is { } problem ? problem.OneLine(Core.Translations.Texts.English, System.Globalization.CultureInfo.InvariantCulture) : null,
         };

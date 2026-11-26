@@ -1,12 +1,13 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Logging;
 using Thermi.Core.Bridge;
 using Thermi.Windows.Logging;
 
 namespace Thermi.Windows.Ui.Web;
 
-/// <summary>What the window opens outside itself: the settings file in its editor, and About's pages in the browser.</summary>
+/// <summary>What the window opens outside itself: the settings file and the agents' log in their editor, and About's pages in the browser.</summary>
 internal static class WindowLinks
 {
     private const string Repository = "https://github.com/claudiopi/thermi";
@@ -20,6 +21,7 @@ internal static class WindowLinks
         var target = what switch
         {
             Opened.SettingsFile => settingsPath,
+            Opened.AgentsLog => AgentsLog.Newest(ThermiLog.AgentsPath),
             Opened.Source => Repository,
             Opened.Report => $"{Repository}/issues/new/choose",
             Opened.Notices or _ => $"{Repository}/blob/main/THIRD-PARTY-NOTICES.md",

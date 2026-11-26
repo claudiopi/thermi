@@ -239,6 +239,36 @@
       "description": "Given a Run key of the test's own, when start-with-windows runs with off, with nothing and with on, then it writes and reads it as the window's switch does; and on a sensors-only install, it says there is no overlay to start and writes nothing.",
       "check": "AgentsSetStartWithWindows",
       "passes": true
+    },
+    {
+      "id": "A27",
+      "covers": [
+        "R31"
+      ],
+      "description": "Given settings whose agents only read, when a table of commands runs (an edit, a look's save, a look worn, the start at sign-in set, the fan finder), and an MCP session's edit and undo, then each exits 1, or is a tool error, with the refusal's key and its English text, and writes nothing, while config still answers; given agents that change, an edit that lets them change is refused and one that stops them is made.",
+      "check": "AgentsOnlyReadWhenThePersonSaysSo",
+      "passes": true
+    },
+    {
+      "id": "A28",
+      "covers": [
+        "R30",
+        "R32"
+      ],
+      "description": "Given thermi-cli's folder on the PATH or not, and the agents' log as thermi-cli writes it with edits, an undo and an error, when the window reads its AI agents section, then the command and the JSON name thermi-cli by its name or by its full path, and the changes are the newest 5, newest first, each with its time; with no log, there are none.",
+      "check": "TheWindowSaysHowToConnectAndWhatAgentsDid",
+      "passes": true
+    },
+    {
+      "id": "A29",
+      "covers": [
+        "R30",
+        "R31",
+        "R32"
+      ],
+      "description": "Given the window, when Settings opens, then AI agents shows the command and the JSON, each copied by its button; its switch is on, turns off as an edit, and undo turns it on again; with no change by an agent it lists none, and with some it lists them with a link to the log; and the page stays axe clean.",
+      "check": "TheAgentsSectionConnectsAndShowsWhatAgentsDid",
+      "passes": true
     }
   ]
 }

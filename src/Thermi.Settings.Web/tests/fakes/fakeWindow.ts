@@ -1,6 +1,6 @@
 import type { HotkeyRole, WindowStatus } from '../bridgeTypes';
 
-// The C# side's window status and About, as the fake gives them. Core decides these for real and tests them; the fake
+// The C# side's window status, About and the AI agents section, as the fake gives them. Core decides these for real and tests them; the fake
 // follows the same rules in rough form, only so the page has something true to show. The hotkeys and undo are the real
 // bridge's answers, which the fake replays. It runs in the page after the fake's other parts, so it may use nothing but
 // types.
@@ -37,4 +37,9 @@ export function installFakeWindow(): void {
   bridge.status = async () => status();
   bridge.about = async () => ({ version: '0.6.0', languages: state.languages, windows: state.languages[0]?.name ?? '', updates: 'Up to date', restart: false });
   bridge.open = async () => {};
+  bridge.agents = async () => state.agents;
+  // What a copy button copied is what Windows' clipboard then holds.
+  bridge.copy = async (copied) => {
+    state.clipboard = copied;
+  };
 }

@@ -7,6 +7,7 @@ import { SwitchLine } from '../app/SwitchLine';
 import { Button, Card, CardRow, CardStack, Dialog, Dropdown, LinkButton, Segmented } from '../kit';
 import { enumChoices } from '../overlay/lookModel';
 import { useText } from '../texts/Texts';
+import { AgentsCard } from './AgentsCard';
 import { HotkeysCard } from './HotkeysCard';
 import './settings.css';
 
@@ -163,6 +164,8 @@ export function SettingsPage({ data }: { data: WindowData }) {
           <FileCard open={fileOpen} onOpen={setFileOpen} />
         </section>
         <section className="t-col" aria-label={t('WindowText.AboutSection')}>
+          <h3 className="t-pane-h">{t('AgentText.Section')}</h3>
+          <AgentsCard data={data} />
           <h3 className="t-pane-h">{t('WindowText.AboutSection')}</h3>
           <AboutCard about={about} open={aboutOpen} onOpen={setAboutOpen} />
         </section>

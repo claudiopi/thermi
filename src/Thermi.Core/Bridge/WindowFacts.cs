@@ -62,10 +62,11 @@ public enum DriverInstall
     RestartWindows,
 }
 
-/// <summary>What "Open in editor" and About's links open, outside the window.</summary>
+/// <summary>What "Open in editor", the agents' log link and About's links open, outside the window.</summary>
 public enum Opened
 {
     SettingsFile,
+    AgentsLog,
     Source,
     Report,
     Notices,

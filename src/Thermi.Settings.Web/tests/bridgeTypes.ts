@@ -1,6 +1,7 @@
 // What the page's tests fake behind the bridge, whose shapes the build generates from the C# side.
 
 import type {
+  AgentsView,
   DesktopPick,
   FinderView,
   Language,
@@ -39,9 +40,11 @@ export interface FakeState {
   exported: string | null;
   /** The text of the look file Windows' dialog picks for an import, or null when it is cancelled. */
   importFile: string | null;
-  /** The text Windows' clipboard holds for a paste, or null while another app holds the clipboard. */
+  /** The text Windows' clipboard holds for a paste, or a copy put there, or null while another app holds the clipboard. */
   clipboard: string | null;
   startWithWindows: boolean;
+  /** The AI agents section as C# words it: the setups for thermi-cli, and the last changes agents made. */
+  agents: AgentsView;
   heldHotkeys: string[];
   /** Combinations whose check fails, as an exception on the C# side rejects it. */
   failingHotkeys: string[];

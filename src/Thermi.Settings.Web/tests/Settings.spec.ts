@@ -1,4 +1,4 @@
-import { chooseByKeys, expect, fakeOf, fakeState, list, openWindow, settingsOf, startingWith, test, text, texts } from './fakeBridge';
+import { chooseByKeys, expect, fakeOf, fakeState, list, openWindow, setFake, settingsOf, startingWith, test, text, texts } from './fakeBridge';
 
 // A211: the Settings page changes thermi's own fields; Start with Windows stays outside undo, hotkeys are recorded, refused,
 // cleared and cancelled while thermi's rest, and Reset asks with Cancel as its default.
@@ -74,5 +74,42 @@ test('TheSettingsPageChangesThermi', async ({ page }) => {
     await pane.getByRole('button', { name: text('UiText.ResetToDefaults') }).press('Enter');
     await dialog.getByRole('button', { name: text('WindowText.Reset'), exact: true }).press('Enter');
     await expect.poll(async () => (await settingsOf(page)).overlays.length).toBe(1);
+  });
+});
+
+// A29: AI agents says how to connect an agent, each setup copied as C# wrote it; its switch is an edit undo takes back;
+// and the last changes agents made show, with a link to their log, only once there are some.
+test('TheAgentsSectionConnectsAndShowsWhatAgentsDid', async ({ page }) => {
+  const start = fakeState();
+  await openWindow(page, { ...start, agents: { ...start.agents, changes: [] } });
+  await list(page).waitFor();
+  await page.keyboard.press('Control+Comma');
+  const pane = page.getByRole('main');
+  const log = pane.getByRole('button', { name: text('AgentText.OpenLog') });
+
+  await test.step('each setup copied', async () => {
+    for (const [row, copied] of [
+      ['AgentText.ClaudeCode', start.agents.command],
+      ['AgentText.ByFile', start.agents.file],
+    ] as const) {
+      await pane.getByRole('button', { name: text('AgentText.CopyOf', text(row)) }).press('Enter');
+      await expect.poll(async () => (await fakeOf(page)).clipboard).toBe(copied);
+    }
+  });
+
+  await test.step('the switch, and undo', async () => {
+    const letThem = pane.getByRole('switch', { name: text('AgentText.LetThemChange') });
+    await expect(letThem).toBeChecked();
+    await letThem.press('Space');
+    await expect.poll(async () => (await settingsOf(page)).agents).toBe('read');
+    await page.keyboard.press('Control+Z');
+    await expect.poll(async () => (await settingsOf(page)).agents).toBeUndefined();
+  });
+
+  await test.step('the last changes, once an agent made some', async () => {
+    await expect(log).toHaveCount(0);
+    await setFake(page, { agents: start.agents });
+    await expect(log).toBeVisible();
+    await expect(pane.getByRole('listitem')).toHaveCount(start.agents.changes.length);
   });
 });

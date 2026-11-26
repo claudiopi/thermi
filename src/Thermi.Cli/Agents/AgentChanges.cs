@@ -22,10 +22,16 @@ internal sealed partial class AgentCommands
 
     /// <summary>Takes back the last edit this session made, where what it wrote is still there.</summary>
     public Task<AgentReply> UndoAsync(CancellationToken stop) =>
-        OneAtATimeAsync(() => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, History.CancelUndo, "undo"), stop);
+        OneAtATimeAsync(
+            () => StepAsync(History.CanUndo ? found => History.Undo(found) : null, () => History.UndoName, History.CancelUndo, AgentDid.Undo),
+            stop);
 
     public Task<AgentReply> RedoAsync(CancellationToken stop) =>
-        OneAtATimeAsync(() => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo, "redo"), stop);
+        OneAtATimeAsync(
+            () => StepAsync(History.CanRedo ? found => History.Redo(found) : null, () => History.RedoName, History.CancelRedo, AgentDid.Redo),
+            stop);
+
+    private async Task<AgentReply?> HeldAsync() => AgentRules.Refused((await SettingsAsync()).Config) is { } refused ? Refused(refused) : null;
 
     /// <summary>Where the settings as they were before an agent's last write are kept, so a person can take any change back.</summary>
     public static string PreviousOf(string settingsPath) => Path.ChangeExtension(settingsPath, ".before-agent.json");
@@ -152,8 +158,9 @@ internal sealed partial class AgentCommands
     }
 
     // Core's edit, tried on the file as read and refused there without a write, then made over the file as it is then.
-    private async Task<AgentReply> WriteAsync(Func<ThermiConfig, EditResult> edit, bool keep = true)
+    private async Task<AgentReply> WriteAsync(Func<ThermiConfig, EditResult> change, bool keep = true)
     {
+        var edit = AgentRules.Guarded(change);
         using var store = new ConfigStore(environment.SettingsPath, time, environment.RunsInstalled);
         var read = await store.ReadAsync();
         if (read.Problem is { } problem)
@@ -229,12 +236,14 @@ internal sealed partial class AgentCommands
     [LoggerMessage(Level = LogLevel.Warning, Message = "The settings as they were before an agent's change could not be kept")]
     private static partial void PreviousLost(ILogger log, Exception error);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "An agent's {Step} changed the settings")]
-    private static partial void Stepped(ILogger log, string step);
-
     // A step taken but never written goes back where it was, so the next undo or redo is still that one.
-    private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name, Action back, string what)
+    private async Task<AgentReply> StepAsync(Func<ThermiConfig, UndoResult?>? step, Func<StepName?> name, Action back, AgentDid what)
     {
+        if (await HeldAsync() is { } held)
+        {
+            return held;
+        }
+
         if (step is null)
         {
             return new AgentReply(AgentExit.Done, AgentJson.Write(new EditAnswer(Done: false)));
@@ -269,7 +278,7 @@ internal sealed partial class AgentCommands
 
         if (taken is { Applied: > 0 })
         {
-            Stepped(environment.Log, what);
+            Changed(environment.Log, what, said ?? "");
         }
 
         // Done only where something was taken back: a step whose every change someone else has since changed takes nothing.

@@ -8,7 +8,11 @@
 claude mcp add thermi -- thermi-cli mcp
 ```
 
-In Claude Desktop, the same under `mcpServers` in its config: `"thermi": { "command": "thermi-cli", "args": ["mcp"] }`.
+In Claude Desktop, the same under `mcpServers` in its config: `"thermi": { "command": "thermi-cli", "args": ["mcp"] }`. thermi's Settings, under AI agents, shows both with a copy button, naming `thermi-cli` by its full path where its folder is not on the `PATH`, and lists the last changes agents made.
+
+## What the person lets agents do
+
+Settings, AI agents, has a switch, "Let agents change settings", on by default and kept in the settings file as `"agents": "read"` when off. Off, every command and tool that writes, `edit`, `look` but `export`, `start-with-windows on` or `off`, `find-cpu-fan`, `undo` and `redo`, exits 1 with the refusal `Refusal.AgentsReadOnly` and writes nothing; everything that reads answers as before. An agent may turn agents' changes off with `{"kind": "thermi", "field": "agents", "value": "read"}`, never on: only the person does, in the window.
 
 The tools are the commands below, with `find_cpu_fan` and `start_with_windows` spelled with underscores, no `watch`, and `undo` and `redo` of the session's own edits.
 
@@ -54,7 +58,7 @@ A command that ends with 0 or 1 prints one JSON document on stdout, with `"schem
 | Exit | Means |
 | --- | --- |
 | 0 | Done. |
-| 1 | Refused by thermi's rules: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. A command that writes, run from an elevated terminal, is refused with nothing on stdout. |
+| 1 | Refused by thermi's rules, or by the person, who lets agents only read: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. A command that writes, run from an elevated terminal, is refused with nothing on stdout. |
 | 2 | Bad arguments. |
 | 3 | The sensor service is not installed, stopped, stale or held by another program, or a per-user install's thermi is not running. |
 | 4 | The settings file is broken, newer than this thermi or locked, or Windows refused to write it or a saved look's file; nothing was written, and stderr says why. |

@@ -1,7 +1,7 @@
 # 003-agents: Tasks
 
-> Progress: 15 / 20
-> Current block: B6
+> Progress: 18 / 23
+> Current block: B7
 
 Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is closed.
 
@@ -45,3 +45,9 @@ Each `T` cites the requirements of `spec.md` it covers, and is ticked when it is
 - [ ] **T18** The comment-trimmer, `scripts/check.ps1`, the reviewer round after round until it approves.
 - [ ] **T19** Covers R16: the `by hand` steps, with Claude Code and Claude Desktop on the author's PC.
 - [ ] **T20** `acceptance.json` all `passes: true`, and the spec moves to `done`.
+
+## B7: The person's say
+
+- [x] **T21** Covers R31: `agents` in the settings, `AgentRules` in Core over every write of the commands and the MCP tools, an agent never turning it on.
+- [x] **T22** Covers R30, R32: the window's AI agents section, `AgentSetup` and `AgentActivity` in Core, the bridge's `Agents()` and `Copy`, en and es.
+- [x] **T23** Covers R31: `docs/agents/README.md` and `src/Thermi.Cli/README.md` say what the switch does.

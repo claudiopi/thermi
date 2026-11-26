@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 46 .NET and 0 page cases
+**Budget**: 56 .NET and 1 page cases
 
 ## Why
 
@@ -35,6 +35,12 @@ Changing
 - R27. `monitors` lists the monitors with their ids, bounds and taskbars, in Windows' pixels, and a `place` edit leaves an overlay where a drag let go at that point would, off its snap.
 - R28. `find-cpu-fan` loads the CPU as the window's finder does, at idle priority, for no longer, one at a time with the other changes and at most once in 2 minutes, and says which fan answered, or why none did; with `--use`, that fan becomes the first overlay's CPU fan, one edit, or the answer still names it with the edit's refusal.
 - R29. `start-with-windows [on|off]` says or sets whether the overlay starts at sign-in, as the window's switch does; on a sensors-only install it says there is no overlay to start.
+
+The person's say, in the settings window (the owner, 2026-11-25)
+
+- R30. Settings has an "AI agents" section, for all of thermi rather than one overlay, beside About. One line says what agents do through thermi: read the sensors, and change the settings by the window's rules. Below it, the command that adds thermi to Claude Code and the JSON that adds it to a client set up by a file, as Claude Desktop, Cursor or VS Code, each with a button that copies it; both name `thermi-cli` as it is when its folder is on the `PATH`, and by its full path when it is not.
+- R31. A switch "Let agents change settings", on by default, is a field of the settings file that undo takes back. Off, every command and MCP tool that writes (`edit`, `look` but `export`, `start-with-windows on` or `off`, `find-cpu-fan`, `undo` and `redo`) is refused with exit 1 and writes nothing, its refusal's key and English text saying the person turned it off in Settings, AI agents; reads answer as before. An agent may turn it off, never on: an edit that turns it on is refused, on or off.
+- R32. The section lists the last 5 changes agents made, newest first, from `thermi-agents.log`, each with its time and what it changed, with a link that opens the log; it lists nothing when no agent changed anything.
 
 MCP
 
@@ -74,6 +80,8 @@ Later, each its own spec on this contract: a Node package on npm and a Python pa
 **Edits.** The window's `PageEdits`, in `src/Thermi.Windows/Ui/Web`, moves to Core's `Bridge` folder, unchanged, and the window calls it there. An agent's edit is a `PageEdit` as the bridge's JSON writes it, or `{"kind": "threshold", "item", "warning", "critical"}`; or `{"kind": "place", "overlay", "x", "y"}`, which is `OverlayEdits.Drop`; the chart's own line gestures stay the window's. The saved looks go through `SavedStyles` and `StyleEdits` as `WindowLooks` does, with text in and out in place of the window's file dialogs and clipboard; the finder is `FanFinder` fed by the same pipe reads, with the load of `CpuLoad`; the start at sign-in is `StartWithWindows`. What the window and the agents share of these is one code: Core's, or the window's `WindowFinder` and `StartWithWindows`, which the agents call, so neither copies the other. Applied with `ConfigEdits.Apply` over the file read under its mutex, then written by `ConfigStore.WriteAsync`, it keeps whatever else is in the file.
 
 **MCP.** `McpTools`, in the app's `Agents` folder, hosts the tools with `ModelContextProtocol.Core` on stdio, each tool a call of the same command code, with an `UndoHistory` for the session. The package goes into `Directory.Packages.props` and the notices.
+
+**The person's say.** The switch is `agents` in the settings file, `change` by default and so left out, or `read`, with its undo field in `ConfigFields`. Core's `AgentRules` decides it: every write of `AgentCommands` goes through it, against the file as each write finds it, and so do the writes that touch no settings, a look's file, the start at sign-in and the finder, against the file as read; `AgentEdits` refuses an edit that sets it to `change`. The window's section reads `Agents()` over the bridge: Core's `AgentSetup` writes the command and the JSON from `thermi-cli`'s path and the folders on the `PATH`, and `AgentActivity` reads the changes from the log's lines, whose message `AgentCommands` writes with Core's template, so the two cannot drift; the window reads the log's newest file, shared, as its writers leave it. A copy button hands C# the text it showed, which writes it to Windows' clipboard.
 
 **Tests.** The reads, samples, levels and edits are tested in Core from the recordings, the zero-means-missing and no-driver ones included. The commands run in-process on a recorded feed, as the window's tests do, since only a pipe owned by SYSTEM is trusted and no command takes another. The door runs the built `thermi-cli` from each shell under `DesktopProcess`, with commands that need no pipe, its settings under a profile of the test's own. The MCP tools are tested through the SDK's client over in-memory streams to the same server code, and once over stdio to the built `thermi-cli`.
 

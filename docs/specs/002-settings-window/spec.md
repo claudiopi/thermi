@@ -251,7 +251,7 @@ Starting
 
 Settings
 
-- R152. Settings holds, under General, the language, the temperature unit and "Start with Windows"; then "Hotkeys", saying how many are set and that they work anywhere in Windows; then "Settings file and reset", with "Open in editor" and "Reset…"; and, under About, "About thermi" with the version and links to the source code, to report a problem and to the third-party notices. About also holds the update controls, which spec 004 specifies: Channel, Automatic updates, "Check now" and "What's new".
+- R152. Settings holds, under General, the language, the temperature unit and "Start with Windows"; then "Hotkeys", saying how many are set and that they work anywhere in Windows; then "Settings file and reset", with "Open in editor" and "Reset…"; and, under About, "About thermi" with the version and links to the source code, to report a problem and to the third-party notices. About also holds the update controls, which spec 004 specifies: Channel, Automatic updates, "Check now" and "What's new". Beside About, "AI agents" says how to connect an agent, lets agents change the settings or only read them, and lists what they changed last, as spec 003 specifies (R30 to R32).
 
 Budgets and clicks
 

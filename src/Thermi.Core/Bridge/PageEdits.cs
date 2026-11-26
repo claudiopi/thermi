@@ -51,6 +51,7 @@ public static class PageEdits
         "language" => ThermiEdits.SetLanguage(config, Text(value)),
         "temperature" => ThermiEdits.SetTemperature(config, Read<TemperatureUnit>(value)),
         "windowTheme" => ThermiEdits.SetWindowTheme(config, Read<WindowTheme>(value)),
+        "agents" => ThermiEdits.SetAgents(config, Read<AgentAccess>(value)),
         _ when HotkeyOf(field) is { } role => ThermiEdits.SetHotkey(config, role, Text(value), altGrKeys()),
         _ => throw NoField(field),
     };

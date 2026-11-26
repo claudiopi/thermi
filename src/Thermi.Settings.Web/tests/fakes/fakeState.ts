@@ -62,6 +62,12 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     importFile: null,
     clipboard: null,
     startWithWindows: false,
+    agents: {
+      command: 'claude mcp add thermi -- thermi-cli mcp',
+      file: '{\n  "mcpServers": {\n    "thermi": {\n      "command": "thermi-cli",\n      "args": [\n        "mcp"\n      ]\n    }\n  }\n}',
+      // One change, so every check of the Settings page sees the list too.
+      changes: [{ when: '11/26/2026 9:41 AM', did: text('AgentDid.Edit'), what: '{"kind":"threshold","item":"cpu.temperature","warning":80}' }],
+    },
     heldHotkeys: [],
     failingHotkeys: [],
     hotkeysResting: false,

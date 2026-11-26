@@ -64,9 +64,14 @@ public static class AgentEdits
         edit switch
         {
             LookEdit => throw new AgentInputException("A saved look is worn with the look command."),
+            ThermiFieldEdit { Field: "agents" } access when Lets(access.Value) => config => ConfigEdits.Refuse(config, Refusal.AgentsOnlyByPerson),
             _ when PageEdits.Elsewhere(edit) => throw new AgentInputException($"A meter's lines are set at once with the {Threshold} edit."),
             _ => PageEdits.Of(edit, snapshot, texts, altGrKeys),
         };
+
+    // Only a person lets agents change the settings: an agent may only stop them, whatever they may do now.
+    private static bool Lets(JsonElement access) =>
+        access.ValueKind == JsonValueKind.Null || (access.ValueKind == JsonValueKind.String && access.GetString() == "change");
 
     // A line given is set, null taking it out; a line left out stays as it is. Core refuses a warning past the critical.
     private static Func<ThermiConfig, EditResult> Lines(JsonObject edit)

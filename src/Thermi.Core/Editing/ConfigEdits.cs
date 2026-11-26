@@ -110,6 +110,12 @@ public enum Refusal
 
     /// <summary>The settings file cannot be used, so nothing changes until it is fixed or restored.</summary>
     SettingsBroken,
+
+    /// <summary>The person lets AI agents only read: every change an agent asks for is refused.</summary>
+    AgentsReadOnly,
+
+    /// <summary>Only a person lets AI agents change the settings: an agent may stop them, never let them.</summary>
+    AgentsOnlyByPerson,
 }
 
 /// <summary>

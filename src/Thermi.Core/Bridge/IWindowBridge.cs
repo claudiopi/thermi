@@ -77,8 +77,14 @@ public interface IWindowBridge
     /// <summary>Switches to the version ready now when About offers it, which closes the window.</summary>
     Task RestartToUpdate();
 
-    /// <summary>Opens the settings file in its editor, or one of About's pages in the browser.</summary>
+    /// <summary>Opens the settings file in its editor, the agents' log, or one of About's pages in the browser.</summary>
     Task Open(Opened what);
+
+    /// <summary>The AI agents section: how to add thermi to an agent, and the last changes agents made.</summary>
+    Task<Agents.AgentsView> Agents();
+
+    /// <summary>Writes a text the page shows, as a command to paste, to Windows' clipboard.</summary>
+    Task Copy(string text);
 
     /// <summary>Has the overlay wear the look file whose text Windows' clipboard holds: null when worn, else the refusal's key.</summary>
     Task<string?> PasteLook(int overlay);

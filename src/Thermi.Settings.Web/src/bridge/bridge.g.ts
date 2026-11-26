@@ -10,6 +10,20 @@ export interface About {
   restart: boolean;
 }
 
+export type AgentAccess = 'change' | 'read';
+
+export interface AgentChangeView {
+  when: string;
+  did: string;
+  what: string;
+}
+
+export interface AgentsView {
+  command: string;
+  file: string;
+  changes: AgentChangeView[];
+}
+
 export interface CatalogGroup {
   id: string;
   name: string;
@@ -237,7 +251,7 @@ export interface Opacity {
   overlay?: number;
 }
 
-export type Opened = 'settings-file' | 'source' | 'report' | 'notices';
+export type Opened = 'settings-file' | 'agents-log' | 'source' | 'report' | 'notices';
 
 export type Orientation = 'horizontal' | 'vertical';
 
@@ -319,6 +333,7 @@ export interface Settings {
   language?: string;
   temperature?: TemperatureUnit;
   windowTheme?: WindowTheme;
+  agents?: AgentAccess;
   sensorNames?: Record<string, string>;
   overlays: Overlay[];
 }
@@ -455,6 +470,8 @@ export interface Bridge {
   checkUpdates(): Promise<void>;
   restartToUpdate(): Promise<void>;
   open(what: Opened): Promise<void>;
+  agents(): Promise<AgentsView>;
+  copy(text: string): Promise<void>;
   pasteLook(overlay: number): Promise<string | null>;
   snapshot(): Promise<SensorView>;
   history(id: string): Promise<(number | null)[]>;
