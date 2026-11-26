@@ -8,8 +8,10 @@ using sensors::Thermi.Sensors.Windows.Pipe;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Core.Tray;
 using Thermi.Windows.Agents;
 using Thermi.Windows.Overlay;
 using Thermi.Windows.Tests.Sensors;
@@ -29,7 +31,10 @@ public sealed class AgentPipeTests : IDisposable
     private static readonly Snapshot Sent = new([new RawSensor("/amdcpu/0/load/0", "Cpu", "AMD Ryzen 9 9950X", "Load", "CPU Total", 40)]);
 
     private readonly string _pipe = $"thermi-test-{Guid.NewGuid():N}";
+    // The service's clock and the agents', which moves only as Tick says.
+    private readonly FakeTimeProvider _service = new();
     private readonly FakeTimeProvider _clock = new();
+    private readonly Feeds _feeds = new();
     private readonly SettingsFolder _folder = new();
 
     public void Dispose() => _folder.Dispose();
@@ -39,12 +44,12 @@ public sealed class AgentPipeTests : IDisposable
     {
         _folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         using var stop = new CancellationTokenSource();
-        using var server = new SensorPipeServer(_ => Task.FromResult(Sent), _clock, _pipe) { Hung = () => Assert.Fail("No read should hang.") };
+        using var server = new SensorPipeServer(_ => Task.FromResult(Sent), _service, _pipe) { Hung = () => Assert.Fail("No read should hang.") };
         var serving = Task.Run(() => server.RunAsync(stop.Token), CancellationToken.None);
         var ticking = Tick(stop.Token);
         var environment = new AgentEnvironment(
             _folder.File,
-            () => new SystemFeed(new SensorClient(_clock, NullLogger.Instance, new FixedPipe(_pipe, _ => true)), _clock),
+            () => _feeds.Add(new SystemFeed(new SensorClient(_clock, NullLogger.Instance, new FixedPipe(_pipe, _ => true)), _clock)),
             new StartWithWindows(@"Software\thermi-tests\unused", @"Software\thermi-tests\unused", "thermi.exe"),
             NullLogger.Instance);
         var clients = new List<NamedPipeClientStream>();
@@ -54,10 +59,10 @@ public sealed class AgentPipeTests : IDisposable
             var idle = Enumerable.Range(0, 4).Select(_ => new AgentCommands(environment, _clock)).ToList();
             foreach (var commands in idle)
             {
-                Assert.Equal(AgentExit.Done, (await commands.RunAsync(new AgentRequest(AgentVerb.Read), stop.Token)).Exit);
+                Assert.Equal(AgentExit.Done, (await Within(commands.RunAsync(new AgentRequest(AgentVerb.Read), stop.Token))).Exit);
             }
 
-            var sampled = await idle[0].RunAsync(new AgentRequest(AgentVerb.Read) { Ids = ["cpu.load"], Seconds = 2 }, stop.Token);
+            var sampled = await Within(idle[0].RunAsync(new AgentRequest(AgentVerb.Read) { Ids = ["cpu.load"], Seconds = 2 }, stop.Token));
             Assert.Equal(2, (int)JsonNode.Parse(sampled.Json!)!["values"]![0]!["samples"]!);
 
             // Three watches, each a line a second until its stdin closes.
@@ -72,7 +77,7 @@ public sealed class AgentPipeTests : IDisposable
             {
                 for (var line = 0; line < 2; line++)
                 {
-                    var said = await watch.Lines.ReadLineAsync(TestContext.Current.CancellationToken);
+                    var said = await Within(watch.Lines.ReadLineAsync(TestContext.Current.CancellationToken).AsTask());
                     Assert.Equal(AgentSchema.Current, (int)JsonNode.Parse(said!)!["schema"]!);
                 }
             }
@@ -83,11 +88,11 @@ public sealed class AgentPipeTests : IDisposable
                 var client = new NamedPipeClientStream(".", _pipe, PipeDirection.In, PipeOptions.Asynchronous);
                 clients.Add(client);
                 await client.ConnectAsync(Patience, TestContext.Current.CancellationToken);
-                Assert.Equal(Sent.Sensors, (await PipeReading.NextSnapshotAsync(client, _clock, Patience)).Sensors);
+                Assert.Equal(Sent.Sensors, (await PipeReading.NextSnapshotAsync(client, _service, Patience)).Sensors);
             }
 
             watches.ForEach(watch => watch.Input.Dispose());
-            var ended = await Task.WhenAll(watching).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+            var ended = await Within(Task.WhenAll(watching));
             Assert.Equal([0, 0, 0], ended);
             watches.ForEach(watch => watch.Dispose());
             idle.ForEach(commands => commands.Dispose());
@@ -102,13 +107,108 @@ public sealed class AgentPipeTests : IDisposable
         }
     }
 
-    // The service writes once a second on the fake clock, which runs ten times as fast as a person's.
+    // A wait the real clock bounds, as the agents' clock stands still while a feed hears nothing.
+    private static Task<T> Within<T>(Task<T> work) => work.WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+
+    // The service writes once a second on its clock, which runs ten times as fast as a person's. The agents' clock moves a
+    // second only once each of their feeds has heard the service since it last moved: on one clock, a feed the PC starved
+    // behind the service's seconds would take it as gone quiet, and the test would measure the PC's scheduling.
     private async Task Tick(CancellationToken stop)
     {
         while (!stop.IsCancellationRequested)
         {
-            _clock.Advance(TimeSpan.FromMilliseconds(100));
+            _service.Advance(TimeSpan.FromMilliseconds(100));
+            _feeds.Step(_clock);
             await Task.Delay(TimeSpan.FromMilliseconds(10), TimeProvider.System, stop).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        }
+    }
+
+    /// <summary>The agents' sensor feeds, and which of those running have not heard the service since their clock last moved.</summary>
+    private sealed class Feeds
+    {
+        private readonly Lock _lock = new();
+        private readonly HashSet<Feed> _running = [];
+        private readonly HashSet<Feed> _waiting = [];
+
+        public ISensorFeed Add(ISensorFeed feed)
+        {
+            var added = new Feed(feed, this);
+            lock (_lock)
+            {
+                _running.Add(added);
+                _waiting.Add(added);
+            }
+
+            return added;
+        }
+
+        /// <summary>A second of <paramref name="clock"/>, once no running feed waits; with none running, at once.</summary>
+        public void Step(FakeTimeProvider clock)
+        {
+            lock (_lock)
+            {
+                if (_waiting.Count > 0)
+                {
+                    return;
+                }
+            }
+
+            clock.Advance(TimeSpan.FromSeconds(1));
+
+            // What a feed heard while the clock moved counts for the second before, so it waits for the next.
+            lock (_lock)
+            {
+                _waiting.UnionWith(_running);
+            }
+        }
+
+        private void Heard(Feed feed)
+        {
+            lock (_lock)
+            {
+                _waiting.Remove(feed);
+            }
+        }
+
+        private void Ended(Feed feed)
+        {
+            lock (_lock)
+            {
+                _running.Remove(feed);
+                _waiting.Remove(feed);
+            }
+        }
+
+        // Hears after the agent's own handler, which subscribed before running it, has taken the snapshot.
+        private sealed class Feed(ISensorFeed feed, Feeds feeds) : ISensorFeed
+        {
+            public event EventHandler? Received
+            {
+                add => feed.Received += value;
+                remove => feed.Received -= value;
+            }
+
+            public Snapshot? Latest => feed.Latest;
+
+            public ServiceState State => feed.State;
+
+            public bool Taken => feed.Taken;
+
+            public async Task RunAsync(CancellationToken stop)
+            {
+                feed.Received += Heard;
+                try
+                {
+                    await feed.RunAsync(stop);
+                }
+                finally
+                {
+                    feed.Received -= Heard;
+                    feeds.Ended(this);
+                }
+            }
+
+            private void Heard(object? sender, EventArgs e) => feeds.Heard(this);
         }
     }
 
