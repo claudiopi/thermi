@@ -31,7 +31,6 @@ public sealed class AgentPipeTests : IDisposable
     private static readonly Snapshot Sent = new([new RawSensor("/amdcpu/0/load/0", "Cpu", "AMD Ryzen 9 9950X", "Load", "CPU Total", 40)]);
 
     private readonly string _pipe = $"thermi-test-{Guid.NewGuid():N}";
-    // The service's clock and the agents', which moves only as Tick says.
     private readonly FakeTimeProvider _service = new();
     private readonly FakeTimeProvider _clock = new();
     private readonly Feeds _feeds = new();
@@ -142,7 +141,6 @@ public sealed class AgentPipeTests : IDisposable
             return added;
         }
 
-        /// <summary>A second of <paramref name="clock"/>, once no running feed waits; with none running, at once.</summary>
         public void Step(FakeTimeProvider clock)
         {
             lock (_lock)

@@ -181,7 +181,6 @@ internal sealed class SettingsFolder : IDisposable
 /// </summary>
 internal sealed class MutexHolder : IDisposable
 {
-    // The names a holder holds now, each with how many hold it.
     private static readonly ConcurrentDictionary<string, int> Held = new();
 
     private readonly ManualResetEventSlim _taken = new();
@@ -219,7 +218,6 @@ internal sealed class MutexHolder : IDisposable
         Held.AddOrUpdate(name, 1, (_, holders) => holders + 1);
     }
 
-    /// <summary>Whether a holder holds the mutex of <paramref name="name"/> now.</summary>
     public static bool Holds(string name) => Held.TryGetValue(name, out var holders) && holders > 0;
 
     public static MutexHolder Holding(string name) => new(name, dies: false);

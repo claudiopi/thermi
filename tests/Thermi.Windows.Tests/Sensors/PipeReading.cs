@@ -45,7 +45,7 @@ internal static class PipeReading
             }
             catch (OperationCanceledException) when (!giveUp.IsCancellationRequested)
             {
-                // Nothing yet: tick again, if nothing is on its way.
+                // Nothing yet.
             }
         }
     }
