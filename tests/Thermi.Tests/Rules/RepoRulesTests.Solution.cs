@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using System.Xml.Linq;
 
 namespace Thermi.Tests.Rules;
@@ -15,7 +16,7 @@ public sealed partial class RepoRulesTests
         var listed = solution.Descendants().Select(node => node.Attribute("Path")?.Value).OfType<string>()
             .Select(path => path.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var missing = ProjectFolders()
-            .SelectMany(project => Directory.EnumerateFiles(project).Where(file => Shown(project, file)))
+            .SelectMany(project => Directory.EnumerateFiles(project).Where(file => Shown(project, file) && !Ignored(file)))
             .Select(file => Relative(file).Replace('\\', '/'))
             .Where(file => !listed.Contains(file))
             .Select(file => $"thermi.slnx does not list {file}");
@@ -45,6 +46,20 @@ public sealed partial class RepoRulesTests
             .Where(path => Path.GetExtension(path) != ".json" || Path.GetFileName(path) == "package.json")
             .Select(path => Path.GetDirectoryName(path)!)
             .Distinct(StringComparer.OrdinalIgnoreCase);
+
+    // What git ignores is no file of the project's, such as the TypeScript build's tsbuildinfo: a file name, or a pattern of
+    // one with a star, from the root's .gitignore or the project's own.
+    private static bool Ignored(string file)
+    {
+        var patterns = new[] { Root, Path.GetDirectoryName(file)! }
+            .Select(folder => Path.Combine(folder, ".gitignore"))
+            .Where(File.Exists)
+            .SelectMany(File.ReadLines)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && !line.StartsWith('#') && !line.Contains('/', StringComparison.Ordinal));
+        var name = Path.GetFileName(file);
+        return patterns.Any(pattern => FileSystemName.MatchesSimpleExpression(pattern, name));
+    }
 
     // A .NET project shows as its project file; any other as its files.
     private static bool Shown(string project, string file) =>
