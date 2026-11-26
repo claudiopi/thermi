@@ -34,10 +34,10 @@ public static class PageEdits
         ItemFieldEdit item => config => Item(new ItemField(item.Field, item.Item, item.Value, snapshot), config),
         AddItemEdit add => config => ItemEdits.AddSensor(config, add.Overlay, snapshot, add.Sensor, texts),
         RemoveItemEdit remove => config => ItemEdits.Delete(config, remove.Item),
-        MoveItemEdit move => config => Move(config, move),
-        DropItemEdit drop => config => ItemEdits.DropItem(config, drop.Item, drop.Overlay, drop.Before, drop.Apart),
-        MovePillEdit pill => config => ItemEdits.MovePill(config, pill.Item, pill.By),
-        DropPillEdit drop => config => OverlayEdits.PillInto(config, drop.Item, drop.Overlay, drop.Before),
+        MoveItemEdit move => config => Moved(config, Move(config, move)),
+        DropItemEdit drop => config => Moved(config, ItemEdits.DropItem(config, drop.Item, drop.Overlay, drop.Before, drop.Apart)),
+        MovePillEdit pill => config => Moved(config, ItemEdits.MovePill(config, pill.Item, pill.By)),
+        DropPillEdit drop => config => Moved(config, OverlayEdits.PillInto(config, drop.Item, drop.Overlay, drop.Before)),
         NewOverlayEdit => OverlayEdits.Add,
         DuplicateOverlayEdit duplicate => config => OverlayEdits.Duplicate(config, duplicate.Overlay),
         MergeOverlayEdit merge => config => OverlayEdits.Merge(config, merge.Overlay, merge.Into),
@@ -139,6 +139,11 @@ public static class PageEdits
 
         return fields.Deserialize<StyleConfig>(BridgeCalls.Options) ?? style;
     }
+
+    // The page says a move once it shows, so one that moves nothing says so, or the page would wait for it and say it
+    // at the next change of anything else.
+    private static EditResult Moved(ThermiConfig before, EditResult move) =>
+        move.Refused is null && ConfigEdits.Replay(before, move.Config) is null ? ConfigEdits.Refuse(before, Refusal.NotMoved) : move;
 
     // An item moved to another overlay, or to one of its own, goes to its end there, then to its place.
     private static EditResult Move(ThermiConfig config, MoveItemEdit move)

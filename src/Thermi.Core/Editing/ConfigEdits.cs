@@ -57,6 +57,9 @@ public enum Refusal
     /// <summary>The overlays already on that taskbar leave the one moved there no room at its own size, and none ever shows smaller for a move.</summary>
     NoRoomOnTaskbar,
 
+    /// <summary>A move that leaves every item where it was, as Alt+Up on the first pill or a row dropped on its own place.</summary>
+    NotMoved,
+
     /// <summary>thermi has no translation for the language.</summary>
     UnknownLanguage,
 
