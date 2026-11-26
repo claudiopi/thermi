@@ -5,6 +5,7 @@ import { SwitchLine } from '../app/SwitchLine';
 import { CardRow, Dropdown, Segmented, Slider } from '../kit';
 import { useText } from '../texts/Texts';
 import { enumChoices as choices, shownStyle } from './lookModel';
+import { useTyped } from './useTyped';
 
 export interface TextAndShapeProps {
   overlay: number;
@@ -59,6 +60,7 @@ function TextRow({
 export function TextAndShape({ overlay, style, open, onOpen }: TextAndShapeProps) {
   const t = useText();
   const edit = useEdit();
+  const typed = useTyped(overlay);
   const shown = shownStyle(style);
   const set = (field: string, value: Value): void => void edit({ kind: 'style', overlay, field, value });
   // A size or weight of its own makes the look the overlay's own, which keeps both texts as they show.
@@ -112,8 +114,10 @@ export function TextAndShape({ overlay, style, open, onOpen }: TextAndShapeProps
           max={16}
           step={1}
           value={shown.gap}
-          valueText={`${shown.gap} px`}
+          shown={String(shown.gap)}
+          unit="px"
           onChange={(gap) => set('gap', gap)}
+          onTyped={typed('gap')}
         />
       </CardRow>
       <CardRow label={t('OverlayPageText.EffectField')}>

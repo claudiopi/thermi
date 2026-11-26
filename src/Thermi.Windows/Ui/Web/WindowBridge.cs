@@ -133,9 +133,10 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
             return Task.FromResult(edit is LookEdit look ? _looks.Wear(look) : _charts.Line(edit, _views.Format(_texts)));
         }
 
+        var (made, said) = edit is TypedEdit typed ? TypedNumbers.Read(_editor.Config, typed, _views.Format(_texts)) : new TypedAnswer(edit, null);
         var snapshot = _sensors.Latest ?? new Snapshot([]);
-        var result = _editor.Edit(edit.GetType().Name, PageEdits.Of(edit, snapshot, _texts, _start.Environment.AltGrKeys));
-        return Task.FromResult(result.RefusalKey);
+        var result = made is null ? null : _editor.Edit(made.GetType().Name, PageEdits.Of(made, snapshot, _texts, _start.Environment.AltGrKeys));
+        return Task.FromResult(result?.RefusalKey ?? said);
     }
 
     public Task Gesture(bool active)

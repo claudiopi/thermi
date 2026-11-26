@@ -143,4 +143,10 @@ public enum OverlayPageText
 
     /// <summary>Why Direction is grayed: one pill has nothing to stack.</summary>
     DirectionOnePill,
+
+    /// <summary>What Narrator hears of a number typed in a slider's box past its range, from the slider's name, its ends and what it holds.</summary>
+    TypedOutOfRange,
+
+    /// <summary>What Narrator hears of text typed in a slider's box that is no number, from the slider's name and what it holds.</summary>
+    TypedNotANumber,
 }

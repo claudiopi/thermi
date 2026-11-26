@@ -6,17 +6,19 @@ import { LookCard } from './LookCard';
 import { enumChoices as choicesOf, shownStyle } from './lookModel';
 import { placedOf } from './placeModel';
 import { Preview } from './Preview';
+import { useTyped } from './useTyped';
 
 export interface AppearanceProps {
   data: WindowData;
   overlay: number;
 }
 
-const percent = (value: number): string => `${Math.round(value * 100)} %`;
+const percent = (value: number): string => String(Math.round(value * 100));
 
 export function Appearance({ data, overlay }: AppearanceProps) {
   const t = useText();
   const edit = useEdit();
+  const typed = useTyped(overlay);
   const { overlays } = data.settings;
   const one = overlays[overlay];
   if (one === undefined) {
@@ -48,8 +50,10 @@ export function Appearance({ data, overlay }: AppearanceProps) {
               max={4}
               step={0.05}
               value={size}
-              valueText={percent(size)}
+              shown={percent(size)}
+              unit="%"
               onChange={(value) => void edit({ kind: 'overlay', overlay, field: 'size', value: Math.round(value * 100) / 100 })}
+              onTyped={typed('size')}
             />
           </CardRow>
         </Card>
@@ -106,7 +110,9 @@ export function Appearance({ data, overlay }: AppearanceProps) {
               max={1}
               step={0.05}
               value={shown.background}
-              valueText={percent(shown.background)}
+              shown={percent(shown.background)}
+              unit="%"
+              onTyped={typed('background')}
               onChange={(value) =>
                 style(
                   'opacity',

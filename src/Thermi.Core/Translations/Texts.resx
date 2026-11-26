@@ -2244,6 +2244,12 @@
   <data name="OverlayPageText.DirectionOnePill" xml:space="preserve">
     <value>Vertical stacks pills, and this overlay has one</value>
   </data>
+  <data name="OverlayPageText.TypedOutOfRange" xml:space="preserve">
+    <value>{0} goes from {1} to {2}, so it is {3}.</value>
+  </data>
+  <data name="OverlayPageText.TypedNotANumber" xml:space="preserve">
+    <value>That is not a number, so {0} stays at {1}.</value>
+  </data>
   <data name="UiText.Bits" xml:space="preserve">
     <value>Show in bits per second</value>
   </data>

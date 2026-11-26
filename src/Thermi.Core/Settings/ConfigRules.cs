@@ -46,7 +46,7 @@ public static partial class ConfigRules
         TextSize($"{at}.value.size", style.Value),
         Range($"{at}.opacity.background", style.Opacity.Background, 0, 1),
         Range($"{at}.opacity.overlay", style.Opacity.Overlay, 0.2, 1),
-        Range($"{at}.gap", style.Gap, 0, 16),
+        Range($"{at}.gap", style.Gap, 0, StyleConfig.MaxGap),
         Color($"{at}.colors.normal", style.Colors?.Normal),
         Color($"{at}.colors.warning", style.Colors?.Warning),
         Color($"{at}.colors.critical", style.Colors?.Critical),

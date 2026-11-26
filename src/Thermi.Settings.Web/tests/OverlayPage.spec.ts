@@ -42,6 +42,14 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
   };
   const tile = (look: string): Locator => control('radio', 'OverlayPageText.LookTile', look);
   const checkedTiles = (): Locator => pane.getByRole('radiogroup', { name: text('UiText.LookField') }).getByRole('radio', { checked: true });
+  // A360: a slider's box, its number typed and kept with Enter or the focus leaving, or put back with Esc.
+  const box = (key: string): Locator => pane.getByRole('textbox', { name: text(key) });
+  const typed = async (key: string, value: string, end: string): Promise<void> => {
+    await box(key).fill(value);
+    await box(key).press(end);
+  };
+  const heard = (key: string, of: string, ...blanks: string[]): Promise<number> => pane.getByText(text(key, text(of), ...blanks), { exact: true }).count();
+  const sized = async (state: FakeState): Promise<unknown> => [overlayOf(state.settings, 0).size, await box('UiText.SizeField').inputValue()];
   let savedFrom = 0;
   const rows: { name: string; act: () => Promise<void>; read: (state: FakeState) => unknown; expected: unknown }[] = [
     {
@@ -139,6 +147,18 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       read: (state) => overlayOf(state.settings, 0).style?.gap,
       expected: 7,
     },
+    { name: 'Size typed off its steps', act: () => typed('UiText.SizeField', '137', 'Enter'), read: sized, expected: [1.37, '137'] },
+    { name: 'Background typed past its end', act: () => typed('UiText.BackgroundField', '150', 'Tab'), read: async (state) => [
+      overlayOf(state.settings, 0).style?.opacity?.background,
+      await box('UiText.BackgroundField').inputValue(),
+      await heard('OverlayPageText.TypedOutOfRange', 'UiText.BackgroundField', '0 %', '100 %', '100 %'),
+    ], expected: [1, '100', 1] },
+    { name: 'Gap typed as no number', act: () => typed('OverlayPageText.GapField', 'wide', 'Enter'), read: async (state) => [
+      overlayOf(state.settings, 0).style?.gap,
+      await box('OverlayPageText.GapField').inputValue(),
+      await heard('OverlayPageText.TypedNotANumber', 'OverlayPageText.GapField', '7 px'),
+    ], expected: [7, '7', 1] },
+    { name: 'Esc in a box', act: () => typed('UiText.SizeField', '300', 'Escape'), read: sized, expected: [1.37, '137'] },
     {
       name: 'Text effect',
       act: () => chooseByKeys(page, control('combobox', 'OverlayPageText.EffectField'), text('TextEffect.Outline')),

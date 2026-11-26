@@ -19,6 +19,7 @@ namespace Thermi.Core.Bridge;
 [JsonDerivedType(typeof(ThermiFieldEdit), "thermi")]
 [JsonDerivedType(typeof(OverlayFieldEdit), "overlay")]
 [JsonDerivedType(typeof(StyleFieldEdit), "style")]
+[JsonDerivedType(typeof(TypedEdit), "typed")]
 [JsonDerivedType(typeof(ItemFieldEdit), "item")]
 [JsonDerivedType(typeof(LookEdit), "look")]
 [JsonDerivedType(typeof(AddItemEdit), "addItem")]
@@ -47,6 +48,9 @@ public sealed record OverlayFieldEdit(int Overlay, string Field, JsonElement Val
 public sealed record StyleFieldEdit(int Overlay, string Field, JsonElement Value) : PageEdit;
 
 public sealed record ItemFieldEdit(string Item, string Field, JsonElement Value) : PageEdit;
+
+/// <summary>A slider's value as typed in the box beside it, which Core reads in the window's number format (<see cref="TypedNumbers"/>).</summary>
+public sealed record TypedEdit(int Overlay, TypedField Field, string Typed) : PageEdit;
 
 /// <summary>A saved look worn by one overlay, or by every overlay when none is named; without a name, the Default look.</summary>
 public sealed record LookEdit(

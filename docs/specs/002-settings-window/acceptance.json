@@ -1784,6 +1784,24 @@
       "description": "Given the default overlay and a second one, when a pill's row is moved by Alt+Up or Alt+Down, also past either end, and an item's row is dropped before another overlay's item, apart above its pill, on its heading, or on itself, then the pill moves whole, the item lands there, an overlay left empty goes, a move past an end or onto itself changes nothing, and each move is one undo step.",
       "check": "TheListMovesPillsAndItemsAmongOverlays",
       "passes": true
+    },
+    {
+      "id": "A360",
+      "covers": [
+        "R204"
+      ],
+      "description": "Given the Appearance page, when a number off the slider's steps is typed in Size's box and kept with Enter, one past the end in Background opacity's kept as the focus leaves, text that is no number in the gap's, and Esc after typing, then the settings hold the number typed, the nearest end, or what they held, each box shows what the settings hold, and Narrator hears why for the end and for the text.",
+      "check": "TheAppearancePageChangesTheLook",
+      "passes": true
+    },
+    {
+      "id": "A361",
+      "covers": [
+        "R204"
+      ],
+      "description": "Given a table of what is typed in a slider's box: a number off its steps with its unit in Spanish's number format, one between whole pixels, one past the low end, and one that is not finite, when C# reads it, then it keeps the number rounded as its field keeps it, or the nearest end and says so, or keeps nothing and says the value stays.",
+      "check": "ASliderBoxKeepsWhatIsTypedAsItsFieldKeepsIt",
+      "passes": true
     }
   ]
 }

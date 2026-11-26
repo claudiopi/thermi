@@ -297,6 +297,42 @@ public sealed class OverlayEditTests
         Assert.Equal(runs.Select(run => run.Label), drawn.Select(item => item.Label).OfType<string>());
     }
 
+    [Theory] // Rows: what the page's own test leaves: the other number format with a unit, rounding, the low end and no finite number
+    [InlineData("size 137,5 %", "es", "size 1.38", "")]
+    [InlineData("background -5", "en", "opacity 0 0.5", "range|0 %|100 %|0 %")]
+    [InlineData("gap 7.5 px", "en", "gap 8", "")]
+    [InlineData("background NaN", "en", "opacity 1 0.5", "kept|100 %")]
+    public void ASliderBoxKeepsWhatIsTypedAsItsFieldKeepsIt(string typed, string language, string expected, string said)
+    {
+        var words = typed.Split(' ', 2);
+        var field = Enum.Parse<TypedField>(words[0], ignoreCase: true);
+        var before = Restyled(style => style with { Opacity = new OpacityConfig(Overlay: 0.5) });
+        var format = new ValueFormat(Texts.Of(language), CultureInfo.GetCultureInfo(language == "es" ? "es-ES" : "en-US"));
+
+        var answer = TypedNumbers.Read(before, new TypedEdit(0, field, words[1]), format);
+        var after = answer.Edit is { } edit ? Done(PageEdits.Of(edit, new Snapshot([]), format.Texts, () => new HashSet<int>())(before)) : before;
+
+        var (overlay, texts) = (after.Overlays[0], format.Texts);
+        var (kept, label) = field switch
+        {
+            TypedField.Size => (string.Create(CultureInfo.InvariantCulture, $"size {overlay.Size}"), texts.Of(UiText.SizeField)),
+            TypedField.Background => (
+                string.Create(CultureInfo.InvariantCulture, $"opacity {overlay.Style.Opacity.Background} {overlay.Style.Opacity.Overlay}"),
+                texts.Of(UiText.BackgroundField)),
+            TypedField.Gap => (string.Create(CultureInfo.InvariantCulture, $"gap {overlay.Style.Gap}"), texts.Of(OverlayPageText.GapField)),
+            _ => throw new ArgumentOutOfRangeException(nameof(typed)),
+        };
+        object?[] blanks = [label, .. said.Split('|').Skip(1)];
+        Assert.Equal(
+            (expected, said.Split('|')[0] switch
+            {
+                "range" => texts.Format(format.Numbers, OverlayPageText.TypedOutOfRange, blanks),
+                "kept" => texts.Format(format.Numbers, OverlayPageText.TypedNotANumber, blanks),
+                _ => null,
+            }),
+            (kept, answer.Said));
+    }
+
     private static string Summary(ThermiConfig config, OverlayConfig overlay, int at)
     {
         var place = overlay.Snapped is { } snap ? $"{snap.Spot}{(snap.Offset is { } offset ? $"@{offset}" : "")}"

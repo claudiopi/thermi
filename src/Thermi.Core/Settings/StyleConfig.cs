@@ -13,6 +13,8 @@ public sealed record StyleConfig(int Gap = 8, bool Units = true)
 {
     public const int MaxNameLength = 40;
 
+    public const int MaxGap = 16;
+
     /// <summary>This look on an overlay whose style is <paramref name="overlay"/>: its layout and orientation stay the overlay's.</summary>
     public StyleConfig WornOn(StyleConfig overlay) => this with { Layout = overlay.Layout, Orientation = overlay.Orientation, NoLabels = overlay.NoLabels };
 

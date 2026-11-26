@@ -2289,6 +2289,12 @@
   <data name="OverlayPageText.DirectionOnePill" xml:space="preserve">
     <value>Vertical apila píldoras, y esta superposición tiene una</value>
   </data>
+  <data name="OverlayPageText.TypedOutOfRange" xml:space="preserve">
+    <value>{0} va de {1} a {2}, así que queda en {3}.</value>
+  </data>
+  <data name="OverlayPageText.TypedNotANumber" xml:space="preserve">
+    <value>Eso no es un número, así que {0} sigue en {1}.</value>
+  </data>
   <data name="UiText.Bits" xml:space="preserve">
     <value>Mostrar en bits por segundo</value>
   </data>

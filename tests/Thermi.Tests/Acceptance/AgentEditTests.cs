@@ -17,9 +17,9 @@ namespace Thermi.Tests.Acceptance;
 /// </summary>
 public sealed class AgentEditTests
 {
-    // Edits of a chart's lines and a look's are the window's gestures and its look command's, never an agent's edit; an undo
-    // or a look the window kept leaves the rest of a case to the window.
-    private static readonly string[] WindowsOwn = ["line", "typedLine", "addLine", "look"];
+    // Edits of a chart's lines, a look's and a slider's typed number are the window's gestures, its look command's and its
+    // boxes', never an agent's edit; an undo or a look the window kept leaves the rest of a case to the window.
+    private static readonly string[] WindowsOwn = ["line", "typedLine", "addLine", "look", "typed"];
 
     private static readonly Snapshot Admin = TestRecordings.Read(TestRecordings.Admin);
 

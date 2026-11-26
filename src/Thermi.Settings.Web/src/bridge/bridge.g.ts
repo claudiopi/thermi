@@ -104,6 +104,7 @@ export type Edit =
   | { kind: 'thermi'; field: string; value: Value }
   | { kind: 'overlay'; overlay: number; field: string; value: Value }
   | { kind: 'style'; overlay: number; field: string; value: Value }
+  | { kind: 'typed'; overlay: number; field: TypedField; typed: string }
   | { kind: 'item'; item: string; field: string; value: Value }
   | { kind: 'look'; overlay: number | null; name: string | null }
   | { kind: 'addItem'; overlay: number; sensor: string }
@@ -397,6 +398,8 @@ export interface Threshold {
   warning?: number;
   critical?: number;
 }
+
+export type TypedField = 'size' | 'background' | 'gap';
 
 export interface UndoSteps {
   undo: string | null;

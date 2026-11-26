@@ -33,7 +33,10 @@ public interface IWindowBridge
     /// <summary>Why the settings file cannot be used, or null when it can; while it cannot, every edit is refused.</summary>
     Task<ConfigProblemKind?> Problem();
 
-    /// <summary>Applies an edit through Core's rules, as one undo step: null when it was made, else the refusal's key.</summary>
+    /// <summary>
+    /// Applies an edit through Core's rules, as one undo step: null when it was made, else the refusal's key; for a number
+    /// typed in a slider's box, what Narrator hears when it was held to the range or was no number.
+    /// </summary>
     Task<string?> Edit(PageEdit edit);
 
     /// <summary>From true to false, as a drag from press to release, the edits are one undo step.</summary>
