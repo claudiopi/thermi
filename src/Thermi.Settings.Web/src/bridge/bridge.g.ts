@@ -399,7 +399,7 @@ export interface Threshold {
   critical?: number;
 }
 
-export type TypedField = 'size' | 'background' | 'gap';
+export type TypedField = 'size' | 'background' | 'gap' | 'label-size' | 'value-size';
 
 export interface UndoSteps {
   undo: string | null;

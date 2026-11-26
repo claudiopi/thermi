@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
@@ -12,14 +11,16 @@ public enum TypedField
     Size,
     Background,
     Gap,
+    LabelSize,
+    ValueSize,
 }
 
 /// <summary>What a typed number comes to: the edit that keeps it, or none, and what Narrator hears of it, or nothing when it was kept as typed.</summary>
-public sealed record TypedAnswer(PageEdit? Edit, string? Said);
+public sealed record TypedAnswer(Func<ThermiConfig, EditResult>? Edit, string? Said);
 
 /// <summary>
-/// A number typed in a slider's box, read in the window's number format with or without its unit, and kept as its field
-/// keeps it: a whole percent or a whole pixel, held to the slider's range.
+/// A number typed in a slider's box or a text size's, read in the window's number format with or without its unit, and
+/// kept as its field keeps it: a whole percent, a whole pixel or a half, held to the field's range.
 /// </summary>
 public static class TypedNumbers
 {
@@ -33,9 +34,9 @@ public static class TypedNumbers
         var rule = RuleOf(typed.Field);
         var label = rule.Label(format.Texts);
         var text = typed.Typed.Trim();
-        if (text.EndsWith(rule.Unit, StringComparison.OrdinalIgnoreCase))
+        if (text.EndsWith(rule.Range.Unit, StringComparison.OrdinalIgnoreCase))
         {
-            text = text[..^rule.Unit.Length].TrimEnd();
+            text = text[..^rule.Range.Unit.Length].TrimEnd();
         }
 
         if (!double.TryParse(text, NumberStyles.Float, format.Numbers, out var number) || !double.IsFinite(number))
@@ -43,60 +44,60 @@ public static class TypedNumbers
             return new(null, format.Texts.Format(format.Numbers, OverlayPageText.TypedNotANumber, label, Shown(rule, rule.Held(overlay), format)));
         }
 
-        var kept = Math.Round(number, MidpointRounding.AwayFromZero) / rule.PerShown;
-        var held = Math.Clamp(kept, rule.Min, rule.Max);
-        var said = kept >= rule.Min && kept <= rule.Max ? null
+        var kept = Stepped(rule, number) / rule.Range.PerShown;
+        var held = Math.Clamp(kept, rule.Range.Min, rule.Range.Max);
+        var said = kept >= rule.Range.Min && kept <= rule.Range.Max ? null
             : format.Texts.Format(
                 format.Numbers,
                 OverlayPageText.TypedOutOfRange,
                 label,
-                Shown(rule, rule.Min, format),
-                Shown(rule, rule.Max, format),
+                Shown(rule, rule.Range.Min, format),
+                Shown(rule, rule.Range.Max, format),
                 Shown(rule, held, format));
-        return new(rule.Edit(typed.Overlay, overlay, held), said);
+        return new(config => rule.Edit(config, typed.Overlay, held), said);
     }
 
-    // The background keeps the whole overlay's opacity, which only hand edits and look files set.
+    // The background keeps the whole overlay's opacity, which only hand edits and look files set; a text size keeps its
+    // weight and makes the look custom, the other text kept as it shows.
     private static Rule RuleOf(TypedField field) => field switch
     {
         TypedField.Size => new(
-            OverlayConfig.MinSize,
-            OverlayConfig.MaxSize,
-            100,
-            "%",
+            new(OverlayConfig.MinSize, OverlayConfig.MaxSize, 100, 1, "%"),
             texts => texts.Of(UiText.SizeField),
             overlay => overlay.Size,
-            (at, _, held) => new OverlayFieldEdit(at, "size", JsonSerializer.SerializeToElement(held, BridgeCalls.Options))),
+            OverlayEdits.SetSize),
         TypedField.Background => new(
-            0,
-            1,
-            100,
-            "%",
+            new(0, 1, 100, 1, "%"),
             texts => texts.Of(UiText.BackgroundField),
             overlay => overlay.Style.Opacity.Background,
-            (at, overlay, held) =>
-                new StyleFieldEdit(at, "opacity", JsonSerializer.SerializeToElement(overlay.Style.Opacity with { Background = held }, BridgeCalls.Options))),
+            (config, at, held) => StyleEdits.SetOpacity(config, at, config.Overlays[at].Style.Opacity with { Background = held })),
         TypedField.Gap => new(
-            0,
-            StyleConfig.MaxGap,
-            1,
-            "px",
+            new(0, StyleConfig.MaxGap, 1, 1, "px"),
             texts => texts.Of(OverlayPageText.GapField),
             overlay => overlay.Style.Gap,
-            (at, _, held) => new StyleFieldEdit(at, "gap", JsonSerializer.SerializeToElement((int)held, BridgeCalls.Options))),
-        _ => throw new ArgumentOutOfRangeException(nameof(field), field, "No slider takes it."),
+            (config, at, held) => StyleEdits.Restyle(config, at, style => style with { Gap = (int)held })),
+        TypedField.LabelSize => TextRule(TextPart.Label, UiText.LabelsField),
+        TypedField.ValueSize => TextRule(TextPart.Value, UiText.ValuesField),
+        _ => throw new ArgumentOutOfRangeException(nameof(field), field, "No box takes it."),
     };
 
-    private static string Shown(Rule rule, double value, ValueFormat format) =>
-        string.Format(format.Numbers, "{0} {1}", Math.Round(value * rule.PerShown, MidpointRounding.AwayFromZero), rule.Unit);
+    private static Rule TextRule(TextPart part, UiText name) => new(
+        new(TextStyle.MinSize, TextStyle.MaxSize, 1, 0.5, "px"),
+        texts => texts.Of(name),
+        overlay => TextOf(overlay.Style, part).Size,
+        (config, at, held) => StyleEdits.SetText(config, at, part, TextOf(config.Overlays[at].Style, part) with { Size = held }));
 
-    // PerShown is how many of what the box shows make one of what the file keeps: 100 percent make a size of 1.
-    private sealed record Rule(
-        double Min,
-        double Max,
-        double PerShown,
-        string Unit,
-        Func<Texts, string> Label,
-        Func<OverlayConfig, double> Held,
-        Func<int, OverlayConfig, double, PageEdit> Edit);
+    private static TextStyle TextOf(StyleConfig style, TextPart part) =>
+        StylePresets.Text(style) is var (label, value) && part == TextPart.Label ? label : value;
+
+    private static double Stepped(Rule rule, double shown) => Math.Round(shown / rule.Range.Step, MidpointRounding.AwayFromZero) * rule.Range.Step;
+
+    private static string Shown(Rule rule, double value, ValueFormat format) =>
+        string.Format(format.Numbers, "{0} {1}", Stepped(rule, value * rule.Range.PerShown), rule.Range.Unit);
+
+    // PerShown is how many of what the box shows make one of what the file keeps, as 100 percent make a size of 1, and
+    // Step is the least the box takes between two numbers.
+    private sealed record Range(double Min, double Max, double PerShown, double Step, string Unit);
+
+    private sealed record Rule(Range Range, Func<Texts, string> Label, Func<OverlayConfig, double> Held, Func<ThermiConfig, int, double, EditResult> Edit);
 }

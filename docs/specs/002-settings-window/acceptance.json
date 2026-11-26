@@ -1790,7 +1790,7 @@
       "covers": [
         "R204"
       ],
-      "description": "Given the Appearance page, when a number off the slider's steps is typed in Size's box and kept with Enter, one past the end in Background opacity's kept as the focus leaves, text that is no number in the gap's, and Esc after typing, then the settings hold the number typed, the nearest end, or what they held, each box shows what the settings hold, and Narrator hears why for the end and for the text.",
+      "description": "Given the Appearance page, when a number off the slider's steps is typed in Size's box and kept with Enter, one past the end in Background opacity's kept as the focus leaves, text that is no number in the gap's, Esc after typing, and in a text size's box a size off its list and one past its end, then the settings hold the number typed, the nearest end, or what they held, each box shows what the settings hold, and Narrator hears why for the end and for the text.",
       "check": "TheAppearancePageChangesTheLook",
       "passes": true
     },
@@ -1799,7 +1799,7 @@
       "covers": [
         "R204"
       ],
-      "description": "Given a table of what is typed in a slider's box: a number off its steps with its unit in Spanish's number format, one between whole pixels, one past the low end, and one that is not finite, when C# reads it, then it keeps the number rounded as its field keeps it, or the nearest end and says so, or keeps nothing and says the value stays.",
+      "description": "Given a table of what is typed in a slider's box: a number off its steps with its unit in Spanish's number format, one between whole pixels, one past the low end, one that is not finite, and a text size between halves, when C# reads it, then it keeps the number rounded as its field keeps it, or the nearest end and says so, or keeps nothing and says the value stays.",
       "check": "ASliderBoxKeepsWhatIsTypedAsItsFieldKeepsIt",
       "passes": true
     }

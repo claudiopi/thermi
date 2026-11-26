@@ -2,7 +2,7 @@ import type { Style, TextStyle, Value } from '../bridge/bridge.g';
 import { editsAsOneStep, useEdit } from '../bridge/useWindow';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
-import { CardRow, Dropdown, Segmented, Slider } from '../kit';
+import { CardRow, Dropdown, Segmented, SizeBox, Slider } from '../kit';
 import { useText } from '../texts/Texts';
 import { enumChoices as choices, shownStyle } from './lookModel';
 import { useTyped } from './useTyped';
@@ -29,22 +29,25 @@ function TextRow({
   sizes,
   text,
   onChange,
+  onTyped,
 }: {
   label: string;
   weightLabel: string;
   sizes: readonly number[];
   text: TextStyle;
   onChange: (text: TextStyle) => void;
+  onTyped: (typed: string) => Promise<string | null>;
 }) {
   const t = useText();
   return (
     <CardRow label={label} wraps>
-      <Dropdown
+      <SizeBox
         className="t-size-box"
         label={label}
         choices={sizeChoices(sizes, text.size)}
         value={String(text.size)}
-        onChange={(size) => onChange({ ...text, size: Number(size) })}
+        onPick={(size) => onChange({ ...text, size: Number(size) })}
+        onTyped={onTyped}
       />
       <Dropdown
         className="t-weight-box"
@@ -81,6 +84,7 @@ export function TextAndShape({ overlay, style, open, onOpen }: TextAndShapeProps
         sizes={labelSizes}
         text={shown.label}
         onChange={(text) => setText('label', text)}
+        onTyped={typed('label-size')}
       />
       <TextRow
         label={t('UiText.ValuesField')}
@@ -88,6 +92,7 @@ export function TextAndShape({ overlay, style, open, onOpen }: TextAndShapeProps
         sizes={valueSizes}
         text={shown.value}
         onChange={(text) => setText('value', text)}
+        onTyped={typed('value-size')}
       />
       <CardRow label={t('OverlayPageText.FontField')}>
         <Dropdown

@@ -129,6 +129,17 @@ test('TheAppearancePageChangesTheLook', async ({ page }) => {
       await pressOn(control('button', 'OverlayPageText.TextAndShape'), 'Enter');
       await chooseByKeys(page, control('combobox', 'UiText.LabelsField'), '14 px');
     }, read: (state) => [overlayOf(state.settings, 0).style?.preset, overlayOf(state.settings, 0).style?.label?.size], expected: ['custom', 14] },
+    { name: 'a text size typed off the list', act: async () => {
+      await control('combobox', 'UiText.ValuesField').fill('23');
+      await control('combobox', 'UiText.ValuesField').press('Enter');
+    }, read: (state) => overlayOf(state.settings, 0).style?.value?.size, expected: 23 },
+    { name: 'a text size typed past its end', act: async () => {
+      await control('combobox', 'UiText.ValuesField').fill('40');
+      await control('combobox', 'UiText.ValuesField').press('Tab');
+    }, read: async (state) => [
+      overlayOf(state.settings, 0).style?.value?.size,
+      await heard('OverlayPageText.TypedOutOfRange', 'UiText.ValuesField', '9 px', '36 px', '36 px'),
+    ], expected: [36, 1] },
     {
       name: 'Font',
       act: () => chooseByKeys(page, control('combobox', 'OverlayPageText.FontField'), text('StyleFont.Bahnschrift')),

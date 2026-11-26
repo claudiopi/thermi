@@ -297,11 +297,12 @@ public sealed class OverlayEditTests
         Assert.Equal(runs.Select(run => run.Label), drawn.Select(item => item.Label).OfType<string>());
     }
 
-    [Theory] // Rows: what the page's own test leaves: the other number format with a unit, rounding, the low end and no finite number
+    [Theory] // Rows: what the page's own test leaves: the other number format with a unit, rounding, the low end, no finite number, a half
     [InlineData("size 137,5 %", "es", "size 1.38", "")]
     [InlineData("background -5", "en", "opacity 0 0.5", "range|0 %|100 %|0 %")]
     [InlineData("gap 7.5 px", "en", "gap 8", "")]
     [InlineData("background NaN", "en", "opacity 1 0.5", "kept|100 %")]
+    [InlineData("valuesize 23.3 px", "en", "value 23.5 Custom", "")]
     public void ASliderBoxKeepsWhatIsTypedAsItsFieldKeepsIt(string typed, string language, string expected, string said)
     {
         var words = typed.Split(' ', 2);
@@ -310,7 +311,7 @@ public sealed class OverlayEditTests
         var format = new ValueFormat(Texts.Of(language), CultureInfo.GetCultureInfo(language == "es" ? "es-ES" : "en-US"));
 
         var answer = TypedNumbers.Read(before, new TypedEdit(0, field, words[1]), format);
-        var after = answer.Edit is { } edit ? Done(PageEdits.Of(edit, new Snapshot([]), format.Texts, () => new HashSet<int>())(before)) : before;
+        var after = answer.Edit is { } edit ? Done(edit(before)) : before;
 
         var (overlay, texts) = (after.Overlays[0], format.Texts);
         var (kept, label) = field switch
@@ -320,6 +321,9 @@ public sealed class OverlayEditTests
                 string.Create(CultureInfo.InvariantCulture, $"opacity {overlay.Style.Opacity.Background} {overlay.Style.Opacity.Overlay}"),
                 texts.Of(UiText.BackgroundField)),
             TypedField.Gap => (string.Create(CultureInfo.InvariantCulture, $"gap {overlay.Style.Gap}"), texts.Of(OverlayPageText.GapField)),
+            TypedField.LabelSize or TypedField.ValueSize => (
+                string.Create(CultureInfo.InvariantCulture, $"value {StylePresets.Text(overlay.Style).Value.Size} {overlay.Style.Preset}"),
+                texts.Of(UiText.ValuesField)),
             _ => throw new ArgumentOutOfRangeException(nameof(typed)),
         };
         object?[] blanks = [label, .. said.Split('|').Skip(1)];

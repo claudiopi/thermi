@@ -9,6 +9,7 @@ export { HighlightedText, type HighlightedTextProps, type Marked } from './contr
 export { Icon, type IconName } from './controls/Icon';
 export { Progress, type ProgressProps } from './controls/Progress';
 export { Chips, Segmented, ToggleChip, type SegmentedProps, type ToggleChipProps } from './controls/Segmented';
+export { SizeBox, type SizeBoxProps } from './controls/SizeBox';
 export { Slider, type SliderProps } from './controls/Slider';
 export { Switch, type SwitchProps } from './controls/Switch';
 export { SearchField, TextField, type SearchFieldProps, type TextFieldProps } from './controls/TextField';

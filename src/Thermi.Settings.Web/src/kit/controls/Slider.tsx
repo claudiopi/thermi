@@ -1,8 +1,9 @@
 import { steady } from '../steady';
 import { Slider as FluentSlider, Input, makeStyles, tokens } from '@fluentui/react-components';
 import { fluentRef } from '../fluentRef';
-import { useRef, useState, type KeyboardEvent, type Ref } from 'react';
+import { type KeyboardEvent, type Ref } from 'react';
 import { space } from '../theme/look';
+import { useTypedBox } from './typedBox';
 
 export interface SliderProps {
   label: string;
@@ -38,28 +39,12 @@ const useStyles = makeStyles({
 /** A slider with its value beside it in a box, which takes a typed number too. */
 function SliderDrawn({ label, min, max, step, value, shown, unit, onChange, onTyped, disabled = false, className, ref }: SliderProps) {
   const styles = useStyles();
-  const [typed, setTyped] = useState<string | null>(null);
-  const [said, setSaid] = useState('');
-  // Enter and the focus leaving may both come for one number; the second keeps nothing.
-  const sent = useRef(false);
-  const keep = (): void => {
-    if (typed === null || sent.current) {
-      return;
-    }
-    sent.current = true;
-    void onTyped(typed).then((answer) => {
-      sent.current = false;
-      setTyped(null);
-      setSaid(answer ?? '');
-    });
-  };
+  const box = useTypedBox(onTyped);
   const keyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === 'Enter') {
-      keep();
-    } else if (event.key === 'Escape' && typed !== null) {
-      event.preventDefault();
-      event.stopPropagation();
-      setTyped(null);
+      box.keep();
+    } else if (event.key === 'Escape') {
+      box.escape(event);
     }
   };
   return (
@@ -84,18 +69,15 @@ function SliderDrawn({ label, min, max, step, value, shown, unit, onChange, onTy
         aria-label={label}
         inputMode="decimal"
         spellCheck={false}
-        value={typed ?? shown}
+        value={box.typed ?? shown}
         disabled={disabled}
         contentAfter={<span className={styles.unit}>{unit}</span>}
-        onChange={(_, data) => {
-          setSaid('');
-          setTyped(data.value);
-        }}
+        onChange={(_, data) => box.type(data.value)}
         onKeyDown={keyDown}
-        onBlur={keep}
+        onBlur={box.keep}
       />
       <span className={styles.said} aria-live="polite">
-        {said}
+        {box.said}
       </span>
     </span>
   );
