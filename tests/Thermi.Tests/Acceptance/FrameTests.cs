@@ -226,7 +226,7 @@ public sealed class FrameTests
 
     // FPS follows the game, second by second: with no game, a game that fills its monitor in front is one at once; a terminal
     // that fills its own and repaints at 35 FPS in front never takes it from a game that presents faster, even at 65 while
-    // in the background; another game takes over once it presents faster, and the old one, in front again but slower, never
+    // in the background, nor at its monitor's 180 while the game presents at 75 on the other; another game takes over once it presents faster, and the old one, in front again but slower, never
     // takes it back; once the game stops presenting, the one in front is the game at once. With no game, as when thermi
     // starts with a game running behind, the fastest app that fills its monitor and presents at 30 or more is the game, in
     // front or not, and a video in a window that does not fill its monitor never is.
@@ -245,11 +245,13 @@ public sealed class FrameTests
 
         (int Process, double Fps)[] zwiftInFront = [(Zwift, 160), (Wave, 20)];
         (int Process, double Fps)[] waveBusy = [(Zwift, 65), (Wave, 35)];
+        (int Process, double Fps)[] waveStreaming = [(Zwift, 75), (Wave, 180)];
         (int Process, double Fps)[] twoGames = [(Zwift, 65), (Other, 90)];
         ((int Process, double Fps)[] Rates, int? Front)[] seconds =
         [
             (zwiftInFront, Zwift), (zwiftInFront, Zwift), (zwiftInFront, Zwift),
             (waveBusy, Wave), (waveBusy, Wave), (waveBusy, Wave), (waveBusy, Wave),
+            (waveStreaming, Wave), (waveStreaming, Wave), (waveStreaming, Wave), (waveStreaming, Wave),
             (twoGames, Other), (twoGames, Other), (twoGames, Other),
             (twoGames, Zwift), (twoGames, Zwift), (twoGames, Zwift),
             ([(Zwift, 65)], Zwift), ([(Zwift, 65)], Zwift), ([(Zwift, 65)], Zwift),
@@ -258,7 +260,12 @@ public sealed class FrameTests
 
         var shown = seconds.Select(second => game.Next(Rates(second.Rates), second.Front, true, _ => true));
 
-        Assert.Equal<int?>([Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Other, Other, Other, Other, Zwift, Zwift, Zwift], shown);
+        Assert.Equal<int?>(
+            [
+                Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift, Zwift,
+                Zwift, Zwift, Other, Other, Other, Other, Zwift, Zwift, Zwift,
+            ],
+            shown);
 
         static FrameRate[] Rates((int Process, double Fps)[] rates)
         {
