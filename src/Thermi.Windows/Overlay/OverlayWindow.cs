@@ -56,6 +56,9 @@ internal sealed class OverlayWindow : IDisposable
     /// <summary>What the overlay last put on screen, what a drag marks on it included; its painter owns it.</summary>
     internal Bitmap? OnScreenPicture { get; private set; }
 
+    /// <summary>Whether a value's tooltip may show now.</summary>
+    internal bool TipsShow => _tips.Speaks;
+
     // The item the pointer is on, which the open window marks on its row.
     private string? _pointed;
 
@@ -160,7 +163,7 @@ internal sealed class OverlayWindow : IDisposable
                 _gestures.Hold();
                 return true;
             case PInvoke.WM_TIMER when wParam == ValueTips.QuietTimer:
-                _tips.Woke(_actions.Time);
+                _tips.Woke();
                 return true;
             case PInvoke.WM_HOTKEY when wParam == OverlayGestures.EscapeKey:
                 Cancel();
@@ -214,6 +217,8 @@ internal sealed class OverlayWindow : IDisposable
             PInvoke.SetWindowPos(Hwnd, HWND.HWND_TOPMOST, 0, 0, 0, 0, Shown);
             OnScreen = true;
         }
+
+        _tips.After(_actions.Quiet);
     }
 
     private TrayInput InputOf(OverlayScene scene, Texts texts) =>
@@ -269,7 +274,7 @@ internal sealed class OverlayWindow : IDisposable
                 return true;
             case MouseAction.Release:
                 PInvoke.ReleaseCapture();
-                var dropped = !Clicked(step.Press!, overlay.Locked);
+                var dropped = step.Moved || !Clicked(step.Press!, overlay.Locked);
                 _gestures.Release(step.Press!, DragDistance());
                 Dropped(dropped);
                 return true;
@@ -302,12 +307,13 @@ internal sealed class OverlayWindow : IDisposable
         }
     }
 
-    // A drop leaves the pointer on a value, whose tooltip waits until the pointer leaves or a while passes.
+    // A drop leaves the pointer on a value of this overlay or another, whose tooltip waits until the pointer leaves or a
+    // while passes, as each overlay hears at its next paint.
     private void Dropped(bool dragged)
     {
         if (dragged)
         {
-            _tips.Dropped(_actions.Time);
+            _actions.Quiet.Dropped();
         }
         else
         {

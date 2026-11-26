@@ -1,4 +1,5 @@
 using System.Drawing;
+using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -215,6 +216,46 @@ public sealed class OverlayDragTests : IDisposable
         var accent = Desktop.Accent();
         Assert.Equal(Color.FromArgb(accent.R, accent.G, accent.B).ToArgb(), ring?.ToArgb());
     }
+
+    // After a drop the overlay left under the pointer shows no tooltip until 1.5 s pass, whether the drop moved it, joined
+    // another or made a new one: the GPU's pill lifted and dropped back where it was pressed, which is no click, or thrown
+    // onto the desktop, and the overlay of one pill dropped on the other.
+    [Theory]
+    [InlineData("back")]
+    [InlineData("off")]
+    [InlineData("merge")]
+    public async Task AfterADropTheOverlayUnderThePointerShowsNoTooltipForAWhile(string drag)
+    {
+        var solo = new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight), Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] };
+        var settings = await _folder.LoadedAsync(drag == "merge" ? new ThermiConfig { Overlays = [new OverlayConfig(), solo] } : new ThermiConfig());
+        var (quiet, after) = ((bool?)null, (bool?)null);
+
+        Run(settings, host =>
+        {
+            var held = host.Overlays[drag == "merge" ? 1 : 0];
+            var pressed = drag == "merge" ? Middle(held.Hwnd) : PillOf(held, Metrics.GpuLoad.Id);
+            MoveTo(host, held, pressed, PInvoke.WM_LBUTTONDOWN);
+            Hold(host, held);
+            var dropped = drag == "merge" ? DroppedAt(host, drag, pressed) : new Position(pressed.X + By.X, pressed.Y + By.Y);
+            MoveTo(host, held, dropped);
+            dropped = drag == "back" ? pressed : dropped;
+            MoveTo(host, held, dropped);
+            End(host, held.Hwnd, "drop");
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == (drag == "off" ? 2 : 1) && Under(host, dropped) is not null);
+            var under = Under(host, dropped)!;
+            quiet = !under.TipsShow;
+            _folder.Clock.Advance(DropQuiet.Lasts);
+            PInvoke.PostMessage(under.Hwnd, PInvoke.WM_TIMER, ValueTips.QuietTimer, 0);
+            HostRun.Pump(host);
+            after = under.TipsShow;
+        });
+
+        Assert.Equal((true, true), (quiet, after));
+    }
+
+    private static OverlayWindow? Under(OverlayHost host, Position at) =>
+        host.Overlays.FirstOrDefault(overlay => overlay.OnScreen && PInvoke.GetWindowRect(overlay.Hwnd, out var rect)
+            && at.X >= rect.left && at.X < rect.right && at.Y >= rect.top && at.Y < rect.bottom);
 
     // An overlay in its middle, a value or the label in the CPU pill, or the GPU's pill.
     private static Position PressedAt(OverlayHost host, string drag) => drag switch

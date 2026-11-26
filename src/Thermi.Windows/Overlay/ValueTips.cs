@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using Thermi.App.Gestures;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -22,9 +23,6 @@ internal sealed class ValueTips : IDisposable
     /// <summary>The timer that wakes the overlay when the quiet after a drop may end.</summary>
     internal const nuint QuietTimer = 4;
 
-    /// <summary>How long after a drop no tooltip shows while the pointer stays on the overlay.</summary>
-    public static readonly TimeSpan AfterDrop = TimeSpan.FromSeconds(1.5);
-
     // Wide enough for a name and its value on one line, so only the tooltip's own lines break it.
     private const int MaxWidth = 480;
 
@@ -46,8 +44,9 @@ internal sealed class ValueTips : IDisposable
     private readonly SUBCLASSPROC _placed;
     private bool? _dark;
 
-    // When the last drop let go, on the injected clock, while its quiet lasts.
-    private long? _dropped;
+    // The drop whose quiet holds the tooltips, while it does, and the last one heard of, which holds them only once.
+    private DropQuiet? _quiet;
+    private long? _heard;
 
     public unsafe ValueTips(HWND owner)
     {
@@ -142,6 +141,9 @@ internal sealed class ValueTips : IDisposable
         _dark = dark;
     }
 
+    /// <summary>Whether a tooltip may show now.</summary>
+    public bool Speaks { get; private set; } = true;
+
     /// <summary>Hides the tooltip and shows none while the overlay is dragged or its menu shows, which it would cover.</summary>
     public void Quiet(bool quiet)
     {
@@ -149,27 +151,35 @@ internal sealed class ValueTips : IDisposable
         {
             PInvoke.SendMessage(_tips, PInvoke.TTM_ACTIVATE, quiet ? 0u : 1u, 0);
         }
+
+        Speaks = !quiet;
     }
 
     /// <summary>
-    /// A drop leaves the pointer on a value, whose tooltip would show at once: none shows until the pointer leaves the
-    /// overlay, or for <see cref="AfterDrop"/>.
+    /// The overlay shows on screen after <paramref name="drop"/>: while its quiet lasts, a drop it has not yet heard of
+    /// holds the tooltips until the pointer leaves the overlay, which Windows says at once of one the pointer is not on.
     /// </summary>
-    public unsafe void Dropped(TimeProvider time)
+    public unsafe void After(DropQuiet drop)
     {
-        _dropped = time.GetTimestamp();
+        if (drop.At == _heard || drop.Left <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        (_heard, _quiet) = (drop.At, drop);
+        Quiet(true);
         var track = new TRACKMOUSEEVENT { cbSize = (uint)sizeof(TRACKMOUSEEVENT), dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE, hwndTrack = _owner };
         PInvoke.TrackMouseEvent(ref track);
-        Wake(AfterDrop);
+        Wake(drop.Left);
     }
 
     /// <summary>The quiet's timer woke the overlay: the tooltips show again once the clock says it has lasted, or it waits on.</summary>
-    public void Woke(TimeProvider time)
+    public void Woke()
     {
         PInvoke.KillTimer(_owner, QuietTimer);
-        if (_dropped is { } at && time.GetElapsedTime(at) < AfterDrop)
+        if (_quiet is { Left: var left } && left > TimeSpan.Zero)
         {
-            Wake(AfterDrop - time.GetElapsedTime(at));
+            Wake(left);
             return;
         }
 
@@ -178,7 +188,7 @@ internal sealed class ValueTips : IDisposable
 
     public void Left()
     {
-        if (_dropped is not null)
+        if (_quiet is not null)
         {
             PInvoke.KillTimer(_owner, QuietTimer);
             Speak();
@@ -187,7 +197,7 @@ internal sealed class ValueTips : IDisposable
 
     private void Speak()
     {
-        _dropped = null;
+        _quiet = null;
         Quiet(false);
     }
 

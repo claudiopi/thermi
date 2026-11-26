@@ -40,6 +40,9 @@ internal sealed record OverlayActions(
     /// <summary>The overlay a drag is over now, and where a drop would join it, which that overlay marks.</summary>
     public DropPreview Preview { get; } = new();
 
+    /// <summary>When the last drop let go, after which the overlay left under the pointer shows no tooltip for a while.</summary>
+    public DropQuiet Quiet { get; } = new(Time);
+
     /// <summary>The last desktop gesture, which the overlays' menus offer to undo.</summary>
     public GestureUndo? Gestures { get; init; }
 
