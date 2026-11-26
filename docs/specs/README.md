@@ -11,10 +11,11 @@ Bug fixes, dependency updates and docs need no spec: a bug fix starts with a tes
 - **`spec.md`**
   - **Status**: one of `draft`, `approved`, `done`, `dropped`, on the line `**Status**: ...`.
   - **Budget**: the most test cases the tests its acceptance steps name may hold, on the line `**Budget**: <n> .NET and <n> page cases` under the status, set as the person approves the spec. A row counts as a case. Going past it means merging rows and cutting what another case proves, or asking that person to raise it.
-  - **Why**: the problem, in two or three lines.
-  - **Requirements**: `- R1. ...`, one thing each, testable, no "should".
-  - **Design**: which projects and files change, and one alternative that was rejected, with why.
-- **`tasks.md`**: the work in blocks (`B1`, `B2`, ...). Each task `T1`, `T2`, ... cites the requirements it covers and is ticked when it is closed. The header keeps the progress and the current block.
+  - **Intro**: under the budget, three to five lines on what the feature does and why.
+  - **Requirements**: `- R1. ...`, one thing each, testable, no "should", grouped under a heading per topic. An id is never reused or renumbered, since acceptance steps cite it.
+  - **Design**: which projects and files hold it, and one alternative that was rejected, with why.
+  - All of it says what the feature does today, in the present tense; how it got there is in git's history.
+- **`tasks.md`**: while the spec is built, the work in blocks (`B1`, `B2`, ...), each task `T1`, `T2`, ... citing the requirements it covers and ticked when it is closed, with the progress and the current block in the header. Once it is built, only its status and what stays open, one line each that could be an issue, citing the acceptance steps it would make pass.
 - **`acceptance.json`**: the steps that prove the spec. Each step has an `id` (`A1`, ...), the requirements it `covers`, a `description` (given, when, then) that names the kinds of case its test proves, not the test's rows, so that a row another proves goes without changing what the person approved: a "table of" lists at most five kinds, a `check` (the .NET test method or the Playwright test title that proves it, one PascalCase word either way, or `by hand`) and `passes`. A `draft` or `dropped` spec may name tests that do not exist.
 
 ## The flow
