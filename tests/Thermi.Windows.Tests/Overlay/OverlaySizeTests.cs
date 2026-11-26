@@ -38,7 +38,8 @@ public sealed class OverlaySizeTests : IDisposable
             var input = new TrayInput(HostRun.Recorded, ServiceState.Running, HostRun.English, Texts.English, LightTaskbar: false, ExePath: "");
             var map = Ui.Views.OverlayPlaces.Of(settings.Config, input, Desktop.Screens())[0]!;
             placed = new PixelRect(map.X, map.Y, map.X + map.Width, map.Y + map.Height);
-            fitted = Ui.Views.OverlayPlaces.Fitted(settings.Config, input, Desktop.Screens);
+            using var painter = new Painting.Painter();
+            fitted = Ui.Views.OverlayPlaces.Fitted(settings.Config, input, Desktop.Screens, _ => painter);
         });
 
         Assert.True(shown is { } box && screen.Work.Contains(box), $"{shown} leaves {screen.Work}.");
