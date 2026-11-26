@@ -43,6 +43,7 @@ const useStyles = makeStyles({
 export function Icon({ name, className }: { name: IconName; className?: string }) {
   const styles = useStyles();
   return (
+    // eslint-disable-next-line no-restricted-syntax -- its style sets the icon font upright, so no italic face is loaded.
     <i className={mergeClasses(styles.icon, className)} aria-hidden="true">
       {glyphs[name]}
     </i>

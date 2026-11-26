@@ -74,7 +74,7 @@ function Swatch({ name, color, fallback, filledDefault, choices, onColor }: Swat
   const shown = color ?? fallback;
   const trigger = (
     <button type="button" className="t-color-swatch" aria-label={name} aria-description={shown}>
-      <i style={{ background: shown }} />
+      <span className="t-chip" style={{ background: shown }} />
     </button>
   );
   const at = Math.max(0, choices.findIndex((choice) => (choice.color ?? '').toUpperCase() === (color ?? '').toUpperCase()));
@@ -104,7 +104,7 @@ function Swatch({ name, color, fallback, filledDefault, choices, onColor }: Swat
               className="t-color-choice"
               onClick={() => choose(choice.color)}
             >
-              <i className={swatch === null ? 't-neutral' : undefined} style={swatch === null ? undefined : { background: swatch }} />
+              <span className={swatch === null ? 't-chip t-neutral' : 't-chip'} style={swatch === null ? undefined : { background: swatch }} />
               {t(choice.text)}
             </button>
           );
@@ -161,7 +161,7 @@ export function ColorsCard({ overlay, style, drawn, open, onOpen }: ColorsCardPr
   const levels = (
     <span className="t-color-row" aria-hidden="true">
       {levelKeys.map((key) => {
-        return <i key={key} style={{ background: colors[key] ?? drawn?.[key] }} />;
+        return <span key={key} className="t-chip" style={{ background: colors[key] ?? drawn?.[key] }} />;
       })}
     </span>
   );
