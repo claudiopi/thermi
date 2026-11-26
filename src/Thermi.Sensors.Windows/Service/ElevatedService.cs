@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -56,7 +55,9 @@ internal sealed class ElevatedService : ServiceBase
         {
             ExitCode = await _run(["elevated", .. args], _time);
         }
-        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException)
+#pragma warning disable CA1031 // Whatever fails, as a kill past the wait that Windows refuses, the service must stop: with CanStop false, nothing else stops it.
+        catch (Exception ex)
+#pragma warning restore CA1031
         {
             ExitCode = Failed;
             _report(ex);

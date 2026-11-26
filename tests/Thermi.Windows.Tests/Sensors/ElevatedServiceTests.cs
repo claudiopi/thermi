@@ -37,11 +37,13 @@ public sealed class ElevatedServiceTests
         Assert.Equal((false, Environment.SystemDirectory), (environment.ContainsKey(name), environment["PATH"]));
     }
 
-    // Whatever the fix answers, or a thermi that could not start, the service stops with it, so the window reads it.
+    // Whatever the fix answers, a thermi that could not start, or one past its wait that Windows could not end with all its
+    // children, the service stops with it, so the window reads it.
     [Theory]
-    [InlineData(8, 8)]
-    [InlineData(null, 1)]
-    public async Task TheServiceStopsWithItsFixsExitCode(int? answer, int exitCode)
+    [InlineData("8", 8)]
+    [InlineData("not started", 1)]
+    [InlineData("not ended", 1)]
+    public async Task TheServiceStopsWithItsFixsExitCode(string answer, int exitCode)
     {
         var stopped = new TaskCompletionSource();
         string[]? ran = null;
@@ -50,7 +52,12 @@ public sealed class ElevatedServiceTests
             (arguments, _) =>
             {
                 ran = [.. arguments];
-                return answer is { } code ? Task.FromResult(code) : throw new Win32Exception(2);
+                return answer switch
+                {
+                    "not started" => throw new Win32Exception(2),
+                    "not ended" => throw new AggregateException(new Win32Exception(5)),
+                    _ => Task.FromResult(int.Parse(answer, System.Globalization.CultureInfo.InvariantCulture)),
+                };
             },
             new FakeTimeProvider(),
             reported.Add,
@@ -61,6 +68,6 @@ public sealed class ElevatedServiceTests
         await stopped.Task.WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System, TestContext.Current.CancellationToken);
         Assert.Equal((exitCode, ElevatedService.Name), (service.ExitCode, service.ServiceName));
         Assert.Equal(["elevated", "install-driver"], ran!);
-        Assert.Equal(answer is null ? 1 : 0, reported.Count);
+        Assert.Equal(exitCode == 8 ? 0 : 1, reported.Count);
     }
 }
