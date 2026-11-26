@@ -12,7 +12,7 @@ In Claude Desktop, the same under `mcpServers` in its config: `"thermi": { "comm
 
 ## What the person lets agents do
 
-Settings, AI agents, has a switch, "Let agents change settings", on by default and kept in the settings file as `"agents": "read"` when off. Off, every command and tool that writes, `edit`, `look` but `export`, `start-with-windows on` or `off`, `find-cpu-fan`, `undo` and `redo`, exits 1 with the refusal `Refusal.AgentsReadOnly` and writes nothing; everything that reads answers as before. An agent may turn agents' changes off with `{"kind": "thermi", "field": "agents", "value": "read"}`, never on: only the person does, in the window.
+Settings, AI agents, has a switch, "Let agents change settings", on by default and kept in the settings file as `"agents": "read"` when off. Off, every command and tool that writes, `edit`, `look` but `export`, `start-with-windows on` or `off`, `find-cpu-fan`, `undo` and `redo`, exits 1 with the refusal `Refusal.AgentsReadOnly` and writes nothing; everything that reads answers as before. An agent may turn agents' changes off with `{"kind": "thermi", "field": "agents", "value": "read"}`, never on: only the person does, in the window. The switch governs what agents ask `thermi-cli` and its MCP server for, not an agent with a shell or file tools of its own, which can write the settings file as the person can: it is no sandbox.
 
 The tools are the commands below, with `find_cpu_fan` and `start_with_windows` spelled with underscores, no `watch`, and `undo` and `redo` of the session's own edits.
 
