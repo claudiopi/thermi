@@ -251,14 +251,17 @@ public sealed class SensorProgramTests : IAsyncDisposable
         return text.ReadToEnd().Contains(what, StringComparison.Ordinal);
     }
 
-    // Moves the clock a second at a time, each once the host's watch has handled the last, and, given its pipe, once the
-    // host holds no client that left: moved sooner, a host the PC holds back would count its linger, or its wait for a
-    // first client, from a later second. Whether the run had ended by the last.
+    // Moves the clock a second at a time, each once the host's watch has handled the last and no write of its pipe is on
+    // its way, and, given its pipe, once the host holds no client that left: moved sooner, a host the PC holds back would
+    // count its linger, or its wait for a first client, from a later second, and a write still on its way as the client
+    // leaves has the host skip that client at the next second, so the drop would wait for a second the clock never reaches.
+    // Whether the run had ended by the last.
     private async Task<bool> PassAsync(TimeSpan time, Task run, string? pipe = null)
     {
         await _host.HandledAsync(() => run.IsCompleted);
         for (var passed = TimeSpan.Zero; passed < time; passed += TimeSpan.FromSeconds(1))
         {
+            await _host.WrittenAsync(() => run.IsCompleted);
             _clock.Advance(TimeSpan.FromSeconds(1));
             await DroppedAsync(pipe, () => run.IsCompleted);
             await _host.HandledAsync(() => run.IsCompleted);

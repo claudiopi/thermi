@@ -43,11 +43,14 @@ public sealed class RealPageTests
         Assert.True(ended == 0, said);
     }
 
-    // The test assembly again, on the desktop, told where to write how its walk went.
+    // The test assembly again, on the desktop, told where to write how its walk went. Unelevated, as thermi runs: WebView2
+    // in an elevated process starts its browser through explorer.exe, on the user's desktop, which no window of another
+    // desktop can host, so the controller fails with "Invalid window handle".
     private static uint RunOn(string desktop, string told)
     {
         var exe = Path.Combine(AppContext.BaseDirectory, "Thermi.Windows.Tests.exe");
-        using var walk = DesktopProcess.Start(exe, [], new Dictionary<string, string>(StringComparer.Ordinal) { [WalkVariable] = told }, desktop);
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal) { [WalkVariable] = told };
+        using var walk = DesktopProcess.Start(exe, [], variables, desktop, unelevated: true);
         walk.Input.Close();
 
         // The real clock only bounds a walk that hangs, which is then ended.

@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Thermi.Core;
 using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
@@ -10,6 +12,7 @@ using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Security;
 using Windows.Win32.System.Com;
 using Windows.Win32.System.Threading;
 using Windows.Win32.UI.Accessibility;
@@ -41,11 +44,7 @@ internal static class TestWindows
     public static void OnOwnDesktop(Action<string> body)
     {
         var name = "thermi-test-" + Guid.NewGuid().ToString("N");
-        using var desktop = TestPInvoke.CreateDesktop(name, default, AllAccess, null);
-        if (desktop.IsInvalid)
-        {
-            throw new Win32Exception();
-        }
+        using var desktop = NewDesktop(name);
 
         ExceptionDispatchInfo? failed = null;
         var thread = new Thread(() =>
@@ -83,6 +82,31 @@ internal static class TestWindows
         thread.Start();
         thread.Join();
         failed?.Throw();
+    }
+
+    /// <summary>
+    /// Makes a desktop of the tests' own that the test's user may join, elevated or not: an elevated process's desktop is
+    /// otherwise open to administrators and SYSTEM alone, and a process the tests start unelevated is neither.
+    /// </summary>
+    public static unsafe SafeHandle NewDesktop(string name)
+    {
+        using var user = WindowsIdentity.GetCurrent();
+        var security = new RawSecurityDescriptor($"D:(A;;GA;;;{user.User!.Value})(A;;GA;;;BA)(A;;GA;;;SY)");
+        var binary = new byte[security.BinaryLength];
+        security.GetBinaryForm(binary, 0);
+        fixed (byte* descriptor = binary)
+        {
+            var attributes = new SECURITY_ATTRIBUTES { nLength = (uint)sizeof(SECURITY_ATTRIBUTES), lpSecurityDescriptor = descriptor };
+            var desktop = TestPInvoke.CreateDesktop(name, default, AllAccess, attributes);
+            if (!desktop.IsInvalid)
+            {
+                return desktop;
+            }
+
+            var failed = new Win32Exception();
+            desktop.Dispose();
+            throw failed;
+        }
     }
 
     /// <summary>Windows' own window procedure, which answers every message as a window that does nothing would.</summary>

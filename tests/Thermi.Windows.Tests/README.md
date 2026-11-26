@@ -15,7 +15,7 @@ They never touch the user's PC. Windows go on a desktop of the test's own (`Test
 | `Updates/Catalog` | A release's files and its `thermi.cat`, byte for byte, for the catalog's check. |
 | `Driver` | Installing the driver from the window. |
 | `Logging` | The overlay's and the window's logs, and a child process that ends on a failure, which they log. |
-| `Processes` | `DesktopProcess`, which starts a process on the test's desktop. |
+| `Processes` | `DesktopProcess`, which starts a process on the test's desktop, unelevated when asked: WebView2 in an elevated process, as on a GitHub runner, starts its browser on the user's desktop instead. |
 | `Scripts` | The repo's own scripts' rules, as the ratchet's on a raise of its baseline, on a git repository of the test's own. |
 | `Acceptance` | The tests a spec's acceptance steps name. |
 

@@ -39,6 +39,14 @@ WaitForSingleObject
 TerminateProcess
 GetExitCodeProcess
 CloseHandle
+// A process started as a basic user while the tests run elevated
+SaferCreateLevel
+SaferComputeTokenFromLevel
+SaferCloseLevel
+CreateProcessAsUser
+SAFER_SCOPEID_USER
+SAFER_LEVELID_NORMALUSER
+SAFER_LEVEL_OPEN
 KillTimer
 // A message box answered
 WM_COMMAND

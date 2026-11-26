@@ -3,8 +3,10 @@ using System.ComponentModel;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Security;
 using Windows.Win32.System.Threading;
 
 namespace Thermi.Windows.Tests.Processes;
@@ -28,7 +30,8 @@ internal sealed class DesktopProcess : IDisposable
     private readonly HANDLE _process;
     private readonly StreamReader _errors;
 
-    private DesktopProcess(string exe, IReadOnlyList<string> args, IReadOnlyDictionary<string, string>? environment, string? desktop, bool talks)
+    private DesktopProcess(
+        string exe, IReadOnlyList<string> args, IReadOnlyDictionary<string, string>? environment, string? desktop, bool talks, bool unelevated)
     {
         if (desktop is null)
         {
@@ -41,7 +44,7 @@ internal sealed class DesktopProcess : IDisposable
             _input = new(PipeDirection.Out, HandleInheritability.Inheritable);
             _output = new(PipeDirection.In, HandleInheritability.Inheritable);
             _error = new(PipeDirection.In, HandleInheritability.Inheritable);
-            _process = Create(CommandLine(exe, args), EnvironmentBlock(environment), desktop, out var id);
+            _process = Create(CommandLine(exe, args), EnvironmentBlock(environment), desktop, unelevated, out var id);
             Id = id;
             _input.DisposeLocalCopyOfClientHandle();
             _output.DisposeLocalCopyOfClientHandle();
@@ -72,14 +75,17 @@ internal sealed class DesktopProcess : IDisposable
 
     /// <summary>
     /// Starts <paramref name="exe"/> on <paramref name="desktop"/>, a test's own, or on a desktop made for it alone when
-    /// null; one that <paramref name="talks"/> has its standard output read by the test, line by line.
+    /// null; one that <paramref name="talks"/> has its standard output read by the test, line by line. One started
+    /// <paramref name="unelevated"/> runs as a basic user, its administrators' rights only to deny, even when the tests run
+    /// elevated, as on a GitHub runner, whose account is the built-in Administrator and so is always.
     /// </summary>
     public static DesktopProcess Start(
         string exe,
         IReadOnlyList<string> args,
         IReadOnlyDictionary<string, string>? environment = null,
         string? desktop = null,
-        bool talks = false) => new(exe, args, environment, desktop, talks);
+        bool talks = false,
+        bool unelevated = false) => new(exe, args, environment, desktop, talks, unelevated);
 
     /// <summary>
     /// Runs <paramref name="exe"/> to its end, on a desktop of its own, and gives its exit code and what it wrote to its
@@ -136,8 +142,12 @@ internal sealed class DesktopProcess : IDisposable
         _desktop?.Dispose();
     }
 
-    private unsafe HANDLE Create(string commandLine, string environment, string desktop, out int id)
+    private unsafe HANDLE Create(string commandLine, string environment, string desktop, bool unelevated, out int id)
     {
+        using var token = unelevated ? BasicUser() : null;
+#pragma warning disable S3869 // CreateProcessAsUser takes a raw token; the safe handle holds it until the process is made.
+        var user = token is null ? HANDLE.Null : (HANDLE)token.DangerousGetHandle();
+#pragma warning restore S3869
         var line = (commandLine + "\0").ToCharArray();
         fixed (char* place = desktop)
         fixed (char* command = line)
@@ -156,7 +166,10 @@ internal sealed class DesktopProcess : IDisposable
             };
             PROCESS_INFORMATION process;
             var flags = PROCESS_CREATION_FLAGS.CREATE_UNICODE_ENVIRONMENT | PROCESS_CREATION_FLAGS.CREATE_NO_WINDOW;
-            if (!TestPInvoke.CreateProcess(null, command, null, null, true, flags, variables, null, &startup, &process))
+            var created = token is null
+                ? TestPInvoke.CreateProcess(null, command, null, null, true, flags, variables, null, &startup, &process)
+                : TestPInvoke.CreateProcessAsUser(user, null, command, null, null, true, flags, variables, null, &startup, &process);
+            if (!created)
             {
                 throw new Win32Exception();
             }
@@ -164,6 +177,32 @@ internal sealed class DesktopProcess : IDisposable
             TestPInvoke.CloseHandle(process.hThread);
             id = (int)process.dwProcessId;
             return process.hProcess;
+        }
+    }
+
+    // The token Windows' basic user level makes of the test's own, as runas /trustlevel:0x20000 does: one made from the
+    // caller's own needs no right to start a process with.
+    private static unsafe SafeFileHandle BasicUser()
+    {
+        SAFER_LEVEL_HANDLE level;
+        if (!TestPInvoke.SaferCreateLevel(TestPInvoke.SAFER_SCOPEID_USER, TestPInvoke.SAFER_LEVELID_NORMALUSER, TestPInvoke.SAFER_LEVEL_OPEN, &level, null))
+        {
+            throw new Win32Exception();
+        }
+
+        try
+        {
+            HANDLE token;
+            if (!TestPInvoke.SaferComputeTokenFromLevel(level, HANDLE.Null, &token, default, null))
+            {
+                throw new Win32Exception();
+            }
+
+            return new SafeFileHandle(token, ownsHandle: true);
+        }
+        finally
+        {
+            TestPInvoke.SaferCloseLevel(level);
         }
     }
 
@@ -226,11 +265,7 @@ internal sealed class DesktopProcess : IDisposable
 
         public OwnDesktop()
         {
-            _handle = TestPInvoke.CreateDesktop(Name, default, TestWindows.AllAccess, null);
-            if (_handle.IsInvalid)
-            {
-                throw new Win32Exception();
-            }
+            _handle = TestWindows.NewDesktop(Name);
         }
 
         public string Name { get; } = "thermi-test-" + Guid.NewGuid().ToString("N");
