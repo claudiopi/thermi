@@ -46,7 +46,6 @@ internal static class PainterFit
             return fitted.Scale;
         }
 
-        var asked = scale;
         for (var round = 0; round < 4; round++)
         {
             Size size = painter.Measure(items, look, scale);
@@ -58,7 +57,7 @@ internal static class PainterFit
             scale *= Math.Min((float)width / size.Width, (float)height / size.Height);
         }
 
-        painter.Fitted = (measured with { Scale = asked }, scale);
+        painter.Fitted = (measured, scale);
         return scale;
     }
 }
