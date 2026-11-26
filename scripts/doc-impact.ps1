@@ -19,21 +19,28 @@ Set-Location $root
 
 $from = git merge-base HEAD $Base
 if ($LASTEXITCODE -ne 0) { throw "No common commit with $Base." }
-$changed = @(git diff --name-only --find-renames $from) + @(git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique
+$changed = @(@(git diff --name-only --find-renames $from) + @(git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique)
 # A deleted or renamed file's old path, which a doc may still name.
 $removed = @(git diff --diff-filter=DR --find-renames --name-status $from | ForEach-Object { ($_ -split "`t")[1] })
 
-# What a doc would call each changed file: its path, its name, and the types declared in it now or before the change.
+# What a doc would call each changed file: its path; its name, when no other file has it, as Program.cs or
+# NativeMethods.txt are in every project; and the types declared in it now or before the change, when their name is a
+# compound one, as ProcessTable is and Trace is not, so a word of prose never reads as one.
+$everyFile = @(git ls-files) + @(git ls-files --others --exclude-standard)
+$leaves = @($everyFile | Group-Object { Split-Path $_ -Leaf } -CaseSensitive | Where-Object Count -EQ 1 | ForEach-Object Name)
+$unique = [Collections.Generic.HashSet[string]]::new([string[]]$leaves, [StringComparer]::Ordinal)
+$declaration = '\b(?:class|record|struct|interface|enum|function|type)\s+([A-Z]\w*)'
 $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-foreach ($path in $changed + $removed | Where-Object { $_ -notlike '*.md' -and $_ -notlike '*.json' }) {
+foreach ($path in @($changed + $removed | Where-Object { $_ -notlike '*.md' -and $_ -notlike '*.json' })) {
     [void]$names.Add($path)
-    [void]$names.Add((Split-Path $path -Leaf))
+    $leaf = Split-Path $path -Leaf
+    if ($unique.Contains($leaf)) { [void]$names.Add($leaf) }
     if ($path -match '\.(cs|ts|tsx)$') {
-        [void]$names.Add([IO.Path]::GetFileNameWithoutExtension($path))
         $now = if (Test-Path $path) { Get-Content $path -Raw } else { '' }
         $before = git show "$($from):$path" 2>$null | Out-String
-        foreach ($m in [regex]::Matches("$now`n$before", '\b(?:class|record|struct|interface|enum|function|type)\s+([A-Z]\w*)')) {
-            [void]$names.Add($m.Groups[1].Value)
+        $declared = [regex]::Matches("$now`n$before", $declaration) | ForEach-Object { $_.Groups[1].Value }
+        foreach ($name in @([IO.Path]::GetFileNameWithoutExtension($path)) + @($declared)) {
+            if ($name -cmatch '^I?[A-Z][a-z0-9]+[A-Z]') { [void]$names.Add($name) }
         }
     }
 }
@@ -41,7 +48,7 @@ foreach ($path in $changed + $removed | Where-Object { $_ -notlike '*.md' -and $
 $docs = git ls-files '*.md' | Where-Object { $_ -ne 'THIRD-PARTY-NOTICES.md' }
 $found = foreach ($doc in $docs) {
     $text = Get-Content $doc -Raw
-    $hits = @($names | Where-Object { $text -match "(?<![\w/.])$([regex]::Escape($_))(?![\w])" } | Sort-Object)
+    $hits = @($names | Where-Object { $text -cmatch "(?<![\w/.])$([regex]::Escape($_))(?![\w])" } | Sort-Object)
     if ($hits.Count) { [pscustomobject]@{ Doc = $doc; Changed = $doc -in $changed; Names = $hits -join ', ' } }
 }
 
