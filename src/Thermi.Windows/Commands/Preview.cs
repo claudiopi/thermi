@@ -8,6 +8,7 @@ using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Windows.Painting;
+using Thermi.Windows.Updates;
 using Thermi.Windows.Win32;
 using Windows.Win32.System.Console;
 
@@ -24,7 +25,7 @@ internal static class Preview
     public static async Task<int> RunAsync(PreviewRequest request, TimeProvider time)
     {
         ThermiConfig config;
-        using (var store = new ConfigStore(request.SettingsPath ?? ConfigStore.DefaultPath, time))
+        using (var store = new ConfigStore(request.SettingsPath ?? ConfigStore.DefaultPath, time, ThermiPaths.RunsInstalled))
         {
             config = (await store.ReadOnlyAsync()).Config;
         }

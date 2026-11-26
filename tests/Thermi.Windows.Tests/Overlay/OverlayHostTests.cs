@@ -337,7 +337,7 @@ public sealed class OverlayHostTests : IDisposable
     public async Task AFolderThatCannotBeWatchedIsLoggedInTheHostsLog()
     {
         _folder.Write("{}");
-        using var store = new ConfigStore(Path.Combine(_folder.File, "config.json"), _folder.Clock);
+        using var store = new ConfigStore(Path.Combine(_folder.File, "config.json"), _folder.Clock, installed: () => true);
         await using var settings = new Settings(store, _folder.Clock, _folder.Log);
         var log = new ListLogger();
 

@@ -41,7 +41,7 @@ internal sealed class SettingsFolder : IDisposable
 
     public ConfigStore Store()
     {
-        var store = new ConfigStore(File, Clock);
+        var store = new ConfigStore(File, Clock, installed: () => true);
         _stores.Add(store);
         return store;
     }

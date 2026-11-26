@@ -53,12 +53,12 @@ internal sealed class ConfigStore : IDisposable
     // another is one.
     private volatile string? _known;
 
-    // Whether this process runs the installed version, so a newer file is a rollback to it: always, unless its host says.
-    public ConfigStore(string path, TimeProvider time, Func<bool>? installed = null)
+    // Whether this process runs the installed version, so a newer file is a rollback to it, which only its host knows.
+    public ConfigStore(string path, TimeProvider time, Func<bool> installed)
     {
         FilePath = Path.GetFullPath(path);
         _time = time;
-        _installed = installed ?? (() => true);
+        _installed = installed;
         _mutex = new Mutex(initiallyOwned: false, MutexNameOf(FilePath));
     }
 
