@@ -24,6 +24,8 @@ declare module 'node:child_process' {
 
 declare module 'node:os' {
   export function availableParallelism(): number;
+  export function setPriority(priority: number): void;
+  export const constants: { priority: { PRIORITY_BELOW_NORMAL: number } };
 }
 
 declare const process: {

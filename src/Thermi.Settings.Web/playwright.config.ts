@@ -1,9 +1,16 @@
-import { availableParallelism } from 'node:os';
+import { availableParallelism, constants, setPriority } from 'node:os';
 import { defineConfig } from '@playwright/test';
 import { edge } from './tests/edge';
 
 // Another run waits for this one, but something else may hold the default port: THERMI_WEB_PORT picks another.
 const port = Number(process.env['THERMI_WEB_PORT'] ?? 4173);
+
+// A check runs at idle, all it starts with it, and a browser there waits behind the .NET half's builds and test hosts
+// until the page's waits run out. Each worker, and the Edge it starts, goes to below normal: ahead of the check's idle
+// work, and still behind every app the user runs.
+if (process.env['TEST_WORKER_INDEX'] !== undefined) {
+  setPriority(constants.priority.PRIORITY_BELOW_NORMAL);
+}
 
 // The tests run against the built page, as the window serves it, in the Edge that Windows ships,
 // so no browser is downloaded.

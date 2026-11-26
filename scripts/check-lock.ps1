@@ -2,9 +2,9 @@
 # Several checks at once, each in a worktree of its own, make the PC slow to type on. So a check or a test run goes to
 # idle priority, and so does all it starts, since Windows gives a child its parent's idle class: below normal would still
 # outrank the apps that drop to idle while they wait in the background, as a terminal's renderer, which then answers
-# the keyboard a second late once it comes back to the front. And one .NET half and one page's half run at a time on the
-# machine, each under a name that is the same in every worktree, so a check of both runs its halves side by side. The
-# CI's machine runs nothing else.
+# the keyboard a second late once it comes back to the front. The page tests' browsers alone go to below normal, which
+# playwright.config.ts explains. And one .NET half and one page's half run at a time on the machine, each under a name
+# that is the same in every worktree, so a check of both runs its halves side by side. The CI's machine runs nothing else.
 function Enter-Check([ValidateSet('dotnet', 'web')][string]$Half) {
     $self = [Diagnostics.Process]::GetCurrentProcess()
     $script:priority = $self.PriorityClass
