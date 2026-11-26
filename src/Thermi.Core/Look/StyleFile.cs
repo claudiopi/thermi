@@ -86,7 +86,7 @@ public static class StyleFile
                 string.Create(CultureInfo.InvariantCulture, $"{VersionField} is {number}, newer than {CurrentVersion}"));
         }
 
-        var style = Bare(Complete(root.Deserialize(Context.StyleFileShape)?.Style));
+        var style = UnknownFields.Kept(Bare(Complete(root.Deserialize(Context.StyleFileShape)?.Style)), had: null);
         return ConfigRules.Problem(style, "style") is { } problem ? Broken(problem) : new StyleRead(style);
     }
 

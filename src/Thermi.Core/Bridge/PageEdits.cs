@@ -74,7 +74,7 @@ public static class PageEdits
         "hidden" => OverlayEdits.SetHidden(config, overlay, Flag(value)),
         "visibility" => OverlayEdits.SetVisibility(config, overlay, Read<Visibility>(value)),
         "graph" => OverlayEdits.SetGraph(config, overlay, Read<GraphStyle>(value)),
-        "snap" => OverlayEdits.Snap(config, overlay, value.Deserialize<SnapConfig>(BridgeCalls.Options) ?? throw NoField(field)),
+        "snap" => OverlayEdits.Snap(config, overlay, Snap(config, overlay, value)),
         _ => throw NoField(field),
     };
 
@@ -94,11 +94,7 @@ public static class PageEdits
             "name" => ItemEdits.Rename(config, id, Text(value) ?? ""),
             "label" => ItemEdits.RenamePill(config, id, Text(value) ?? ""),
             "sensor" => Text(value) is { } sensor ? ItemEdits.ChangeSensor(config, id, snapshot, sensor) : ItemEdits.BackToAuto(config, id),
-            "warnBy" => ItemEdits.SetWarnBy(
-                config,
-                id,
-                snapshot,
-                value.ValueKind == JsonValueKind.Null ? null : value.Deserialize<WarnByConfig>(BridgeCalls.Options)),
+            "warnBy" => ItemEdits.SetWarnBy(config, id, snapshot, WarnBy(config, id, value)),
             "own" => ItemEdits.SetOwn(config, id, Flag(value)),
             "tray" => ItemEdits.SetTray(config, id, Flag(value)),
             "color" => ItemEdits.SetColor(config, id, Text(value)),
@@ -137,8 +133,16 @@ public static class PageEdits
             fields[field] = set;
         }
 
-        return fields.Deserialize<StyleConfig>(BridgeCalls.Options) ?? style;
+        return UnknownFields.Kept(fields.Deserialize<StyleConfig>(BridgeCalls.Options) ?? style, style);
     }
+
+    private static SnapConfig Snap(ThermiConfig config, int overlay, JsonElement value) =>
+        UnknownFields.Kept(value.Deserialize<SnapConfig>(BridgeCalls.Options) ?? throw NoField("snap"), config.Overlays.ElementAtOrDefault(overlay)?.Snap);
+
+    private static WarnByConfig? WarnBy(ThermiConfig config, string id, JsonElement value) =>
+        UnknownFields.Kept(
+            value.ValueKind == JsonValueKind.Null ? null : value.Deserialize<WarnByConfig>(BridgeCalls.Options),
+            ConfigEdits.Item(config, id)?.WarnBy);
 
     // The page says a move once it shows, so one that moves nothing says so, or the page would wait for it and say it
     // at the next change of anything else.
