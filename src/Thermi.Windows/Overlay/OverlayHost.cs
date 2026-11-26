@@ -356,12 +356,11 @@ internal sealed class OverlayHost : IDisposable
         var fullScreen = OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState());
         _fullScreen = fullScreen.Any(full => full);
         var shown = _visibility.Decide(config, fullScreen);
-        var accent = scene.HighContrast?.Highlight ?? _desktop.Accent();
         for (var at = 0; at < _overlays.Count; at++)
         {
             if (shown[at] == OverlayShown.Shown)
             {
-                _overlays[at].Marks = _link.Marks(at, editing, config.Overlays[at], scene.LightTaskbar, accent);
+                _overlays[at].Marks = _link.Marks(at, editing, config.Overlays[at], scene.LightTaskbar, scene.Accent);
                 _overlays[at].Repaint(scene);
             }
             else
@@ -391,6 +390,7 @@ internal sealed class OverlayHost : IDisposable
     private OverlayScene Scene(Core.Settings.ThermiConfig config, IReadOnlyList<Screen> screens) =>
         new(config, _settings.Problem, _latest(), screens, _desktop.LightTaskbar(), Desktop.HighContrast(), _link.WindowOpen)
         {
+            WindowsAccent = _desktop.Accent(),
             Service = Service(),
             Animate = Desktop.Animations(),
             LightApps = _desktop.LightApps(),

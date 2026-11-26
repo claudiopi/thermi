@@ -67,6 +67,12 @@ internal sealed record OverlayScene(
     /// <summary>Whether apps are in light mode, which the values' tooltips follow as thermi's menus do.</summary>
     public bool LightApps { get; init; } = true;
 
+    /// <summary>Windows' accent color, which high contrast's highlight stands in for.</summary>
+    public Rgb WindowsAccent { get; init; }
+
+    /// <summary>What a drag and the open window mark the overlays in.</summary>
+    public Rgb Accent => HighContrast?.Highlight ?? WindowsAccent;
+
     /// <summary>Whether Windows' animation effects are on, without which no pill glows.</summary>
     public bool Animate { get; init; }
 

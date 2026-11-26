@@ -1,3 +1,4 @@
+using System.Drawing;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -191,6 +192,28 @@ public sealed class OverlayDragTests : IDisposable
         var firsts = string.Join(',', file.Overlays.Select(overlay => overlay.Items[0].Id));
         Assert.Equal(expected, $"{file.Overlays.Count} {firsts} {(file.Overlays[0].Snapped is null ? "free" : "snapped")}");
         Assert.Equal(255, during);
+    }
+
+    // With the window closed, the overlay a drag of another is over shows ringed in Windows' accent color.
+    [Fact]
+    public async Task TheOverlayADropWouldJoinIsRingedInTheAccentColor()
+    {
+        var solo = new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight), Items = [new ItemConfig { Id = "solo", Metric = Metrics.GpuTemperature.Id }] };
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Overlays = [new OverlayConfig(), solo] });
+        Color? ring = null;
+
+        Run(settings, host =>
+        {
+            var held = host.Overlays[1];
+            MoveTo(host, held, Middle(held.Hwnd), PInvoke.WM_LBUTTONDOWN);
+            MoveTo(host, held, DroppedAt(host, "merge", Nowhere));
+            var shown = host.Overlays[0].OnScreenPicture!;
+            ring = shown.GetPixel(shown.Width / 2, 1);
+            End(host, held.Hwnd, "esc");
+        });
+
+        var accent = Desktop.Accent();
+        Assert.Equal(Color.FromArgb(accent.R, accent.G, accent.B).ToArgb(), ring?.ToArgb());
     }
 
     // An overlay in its middle, a value or the label in the CPU pill, or the GPU's pill.

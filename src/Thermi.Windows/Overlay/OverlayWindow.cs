@@ -53,6 +53,9 @@ internal sealed class OverlayWindow : IDisposable
     private OverlayScene? _scene;
     private PaintedOverlay? _painted;
 
+    /// <summary>What the overlay last put on screen, what a drag marks on it included; its painter owns it.</summary>
+    internal Bitmap? OnScreenPicture { get; private set; }
+
     // The item the pointer is on, which the open window marks on its row.
     private string? _pointed;
 
@@ -194,10 +197,11 @@ internal sealed class OverlayWindow : IDisposable
             : _painter.Paint(items, look, scale, _glow.Glowing ? _glow.Of : null);
 #pragma warning restore CA2000
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
-        _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, marks.Accent);
+        _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, scene.Accent);
         OverlayGestures.HoldCorner(bitmap, overlay, scale);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
+        OnScreenPicture = bitmap;
         var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
         var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
