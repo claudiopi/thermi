@@ -9,7 +9,7 @@
         "R136",
         "R196"
       ],
-      "description": "Given a table of states of the overlays (their number up to four, which are hidden, locked or on the desktop), of thermi (its hide flag, its file broken, its service stopped, its hotkeys), of what it keeps (a gesture 10 s ago, saved looks, an update ready), of an item (showing a maximum, with a graph of its own or none judged) and of the pill the menu opened on (one of several or the overlay's only one, one pill or one bar of one run), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's: a locked overlay offers no Separate, at four overlays Separate is grayed with why, one run offers Vertical only while it is on, and nothing offered changes nothing.",
+      "description": "Given the overlays and thermi in each of their states (how many overlays and which are hidden, locked or on the desktop; a broken file, a stopped service, saved looks, an update ready), and the pill the menu opens on, when thermi's menu and the overlay's menu are built, then each holds its entries in their groups and order, with their checks and bold default: a locked overlay offers no Separate, at four overlays Separate is grayed with why, and no entry offered does nothing.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -22,7 +22,7 @@
         "R4",
         "R151"
       ],
-      "description": "Given the overlay, when the author opens the window from its menu, thermi's menu, a double-click on a value and on the edge, `thermi settings` and Start, with the window closed and then behind others, then one window opens on the right item or overlay, or comes to the front focused.",
+      "description": "Given the overlay, when the author opens the window from each way in (the overlay's menu, thermi's menu, a double-click on a value or the edge, `thermi settings`, Start), with the window closed and then behind others, then one window opens on the right item or overlay, or comes to the front focused.",
       "check": "by hand",
       "passes": false
     },
@@ -37,7 +37,7 @@
         "R150",
         "R151"
       ],
-      "description": "Given a real overlay host and window beacon on a test desktop, and a table of messages (the history, a value double-clicked or clicked to select it, edited, a gesture, a second thermi), when each is sent, then the other side acts on it within 500 ms: the window opens on the item, holds the ten minutes with their gaps, selects, marks, adds the gesture to its history, or comes to the front.",
+      "description": "Given a real overlay host and window beacon on a test desktop, when each message between them is sent (the history, a value selected or double-clicked, an edit, a gesture, a second thermi), then the other side acts on it within 500 ms.",
       "check": "EachMessageReachesTheOtherProcess",
       "passes": true
     },
@@ -51,7 +51,7 @@
         "R155",
         "R158"
       ],
-      "description": "Given --trace and the overlay's CPU time and memory, when the window opens cold and warm, stays idle, a knob is dragged for a minute, the window closes, and an hour of use passes, then the first frame is under 2 s and 1 s, every paint lands within 300 ms of its input at most 10 times a second, the budgets hold, no window or WebView2 process is left, and memory stays within 5 MB.",
+      "description": "Given --trace and the overlay's CPU time and memory, when the window opens cold and warm, stays idle, has a knob dragged for a minute, closes, and an hour of use passes, then the first frame is under 2 s cold and 1 s warm, every paint lands within 300 ms of its input at most 10 times a second, the budgets hold, no window or WebView2 process is left, and memory stays within 5 MB.",
       "check": "by hand",
       "passes": false
     },
@@ -63,7 +63,7 @@
         "R45",
         "R145"
       ],
-      "description": "Given the page and a fake bridge in a table of states (the driver refused and installed, no overlay, the service stopped or its data stale, a broken file, a CPU sensor needing the driver), when the page shows each and its action is taken, then the page offers the row's fix, takes no edit while the file is broken, and the state moves on as the fake answers.",
+      "description": "Given the page and a fake bridge in each kind of trouble (the driver missing, no overlay, the service stopped or stale, a broken file), when the page shows it and its action is taken, then the page offers the fix, takes no edit while the file is broken, and moves on as the fake answers.",
       "check": "TheWindowSaysWhatIsWrongAndOffersTheFix",
       "passes": true
     },
@@ -77,7 +77,7 @@
         "R45",
         "R145"
       ],
-      "description": "Given a real PC, when the author opens the window without the overlay, stops and starts the service, installs the driver refusing and then accepting Windows' prompt, edits the file by hand, breaks it and restores it, then the window follows each and recovers on its own.",
+      "description": "Given a real PC, when the author opens the window without the overlay, stops and starts the service, installs the driver refusing and then accepting Windows' prompt, and edits, breaks and restores the file by hand, then the window follows each and recovers on its own.",
       "check": "by hand",
       "passes": false
     },
@@ -87,7 +87,7 @@
         "R8",
         "R106"
       ],
-      "description": "Given a table of edits (a threshold, a switch, a rename, a move, three changes of one box within a second and one after), when they are undone and redone, then each step is named from what it changed and back, and the changes within a second are one step.",
+      "description": "Given edits of each kind, and several changes of one box within a second, when they are undone and redone, then each step is named after what it changed, and the changes within a second are one step.",
       "check": "UndoStepsAreNamedAndGroupedWithinASecond",
       "passes": true
     },
@@ -107,7 +107,7 @@
       "covers": [
         "R9"
       ],
-      "description": "Given an item added, one deleted and one moved by the window, and the added one then edited by hand, when all three are undone, then the deleted item is back in place, the move is reverted, and the hand-edited item stays with a skipped step.",
+      "description": "Given an item added, one deleted and one moved by the window, and the added one then edited by hand, when all three are undone, then the deleted item is back in place, the move is reverted, and the hand-edited item stays, its step skipped.",
       "check": "UndoOfAddDeleteAndMoveRespectsHandEdits",
       "passes": true
     },
@@ -122,7 +122,7 @@
         "R103",
         "R105"
       ],
-      "description": "Given the page with two overlays, when the list is used by keys alone (arrows, Home, End, folding, type-ahead, F2, Alt+arrows, Delete, the row menus, Ctrl+N, Ctrl+F, Ctrl+, and F1), and then an item is dragged out to its own pill, then the selection, the pane and the settings follow, Delete selects the next row, the arrows never leave the list, and the rows keep their names while values refresh.",
+      "description": "Given the page with two overlays, when the list is used by keys alone (moving, folding, type-ahead, renaming, moving and deleting items, the shortcuts) and an item is dragged out to its own pill, then the selection, the pane and the settings follow, Delete selects the next row, the arrows never leave the list, and the rows keep their names while values refresh.",
       "check": "TheListWorksWithTheKeyboard",
       "passes": true
     },
@@ -133,7 +133,7 @@
         "R14",
         "R17"
       ],
-      "description": "Given the page with the fake bridge, when the catalog opens from each overlay, is searched, and adds with Enter and with Ctrl+Enter, and Esc is pressed twice, then the item lands on the overlay picked, the catalog closes or stays as asked, and the new item is selected and in view.",
+      "description": "Given the page with the fake bridge, when the catalog opens from each overlay, is searched, adds with Enter and with Ctrl+Enter, and Esc is pressed twice, then the item lands on the overlay picked, the catalog closes or stays as asked, and the new item is selected and in view.",
       "check": "TheCatalogAddsWithTheKeyboard",
       "passes": true
     },
@@ -142,7 +142,7 @@
       "covers": [
         "R14"
       ],
-      "description": "Given the admin recording and a table of searches (words in any order, a name, a device or a type, each synonym and chips, a word that matches nothing), when the catalog is filtered, then each row lists exactly its sensors, and the last offers one word.",
+      "description": "Given the admin recording, when the catalog is searched by words in any order, by name, device, type, synonym and chip, and by a word that matches nothing, then each search lists exactly its sensors, and the last offers one word instead.",
       "check": "TheCatalogFindsSensorsByNameDeviceOrType",
       "passes": true
     },
@@ -170,7 +170,7 @@
         "R17",
         "R102"
       ],
-      "description": "Given every sensor of the admin recording, when each is added as an item, then each shows in the unit of its type, joins the pill of its device's kind after its last item or goes at the end, and is named like the defaults, with its sensor's name when that name is taken and a number when the same sensor is added again.",
+      "description": "Given every sensor of the admin recording, when each is added as an item, then each shows in its type's unit, joins the pill of its device's kind or goes at the end, and is named like the defaults, by its sensor's name when that name is taken and with a number when the same sensor is added again.",
       "check": "AnyRecordedSensorCanBeAnItemInItsOwnUnit",
       "passes": true
     },
@@ -191,7 +191,7 @@
         "R114",
         "R195"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows and Smoothing, Label and Graph, Notify me, Separate pill and Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, the control looked at staying where it shows through Warn by turned off and its undo, which take the Graph row above it away and back, and through a switch at the pane's foot and its undo, under the news that floats there, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
+      "description": "Given the page with the fake bridge, when each row of the item page is changed by keys (Sensor, Shows, Smoothing, Label, Graph, Notify me, Separate pill, Tray icon and More options), then the settings hold the change; a row that cannot apply is locked with its reason; the page keeps its scroll and the control looked at stays in place through picks, switches, undos and new readings; and Warn by offers only the item's own readings.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },
@@ -200,7 +200,7 @@
       "covers": [
         "R19"
       ],
-      "description": "Given a series derived from the recorded one, with the board's fan answering the load three times as strongly, and one where it answers at once, when the finder replays them, then it starts the load only after 3 s of readings, runs at least 8 s, and stops 3 s after a fan meets the rule or at 8 s if that is later.",
+      "description": "Given series derived from the recorded one, with the board's fan answering the load more strongly or at once, when the finder replays them, then it starts the load only after 3 s of readings, runs at least 8 s, and stops 3 s after a fan meets the rule or at 8 s if that is later.",
       "check": "OnDerivedSeriesTheFinderStopsThreeSecondsAfterAFanMeetsTheRuleOrAtEightSeconds",
       "passes": true
     },
@@ -211,7 +211,7 @@
         "R20",
         "R21"
       ],
-      "description": "Given the CPU fan item and a fake finder, when \"Find it\" is asked and turned down, then runs, is cancelled, runs again and its pick is used, then nothing loads until \"Load the CPU\", the row shows the run and its result in place, Cancel stops it, and using the pick changes the item's sensor.",
+      "description": "Given the CPU fan item and a fake finder, when \"Find it\" is asked and turned down, then run, cancelled, run again and its pick used, then nothing loads until \"Load the CPU\", the row shows the run and its result in place, Cancel stops it, and using the pick changes the item's sensor.",
       "check": "FindItRunsInTheSensorRow",
       "passes": true
     },
@@ -233,7 +233,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (where a fan answers, where none does, two fans alike, what the finder cannot judge), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason. A fan answers in one derived where the board's fan answers, started while the fan still falls after a run; in the recorded one where software drives it and the fan answers after the load; in one rebuilt from a run where the fan rose 36 % but under 200 RPM; and in one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it. None answers in one where no fan answers, one where none answers a load that heats the CPU, one rebuilt from a run where a game already held the CPU hot at its power limit and the fan fell through the load, and one where the board's fan only jitters at idle. Two fans alike fall back alike or apart once the load ends. The finder cannot judge a load under 80 %, no driver or no fan outside the GPUs. Every fan falls back once its recording ends.",
+      "description": "Given recorded and derived series where a fan answers the load, where none does, where two fans answer alike, and where the finder cannot judge (a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing and says why.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -248,7 +248,7 @@
         "R111",
         "R200"
       ],
-      "description": "Given a table of readings (power, clock and memory, temperatures of an AMD and an Intel CPU and of a GPU and a board, a load and a duty, a fan's speed), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not; and each second of the chart's span says its reading as the item words it, or none in a gap, and how long ago it came, to the second, a whole minute as minutes and the last as now, where the axis rounds the first reading's age to minutes.",
+      "description": "Given readings of each type (power, clock, memory, temperatures of CPUs, GPUs and boards, a load, a duty, a fan's speed), when each is what an item warns by, then its accepted lines, default lines, unit, step, chart range and color bands are its type's; an item may warn only by its own readings, a fan also by its duty; the lowest line held for over half of the ten minutes fires; and each second of the chart says its reading and how long ago it came, or none in a gap.",
       "check": "ThresholdsAndTheChartFollowTheMetersType",
       "passes": true
     },
@@ -260,7 +260,7 @@
         "R26",
         "R111"
       ],
-      "description": "Given an item's page, when a knob is dragged, clicked, typed into, moved by every key, pushed past the other, and deleted, and then the readings stop, then the lines follow, the box keeps or goes back, the focus lands on the next control, and the chart's place says why while its lines and knobs stay.",
+      "description": "Given an item's page, when a knob is dragged, clicked, typed into, moved by every key, pushed past the other and deleted, and then the readings stop, then the lines follow, the box keeps or reverts its value, the focus lands on the next control, and the chart says why it stopped while its lines and knobs stay.",
       "check": "TheChartsKnobsWorkByPointerAndKeys",
       "passes": true
     },
@@ -275,7 +275,7 @@
         "R85",
         "R95"
       ],
-      "description": "Given the page with two monitors and a table of Placement's controls (each spot of the map and the taskbar's, a monitor that is gone, vertical and When to show, lock and click-through, OLED care), when each is chosen by keys, then the settings hold the row's change.",
+      "description": "Given the page with two monitors, when each of Placement's controls is chosen by keys (the map's spots and the taskbar's, a monitor that is gone, vertical, When to show, lock, click-through, OLED care), then the settings hold the change.",
       "check": "ThePlacementPageMovesTheOverlay",
       "passes": true
     },
@@ -285,7 +285,7 @@
         "R31",
         "R36"
       ],
-      "description": "Given monitors at 100 % and 150 %, when the overlay snaps to each corner, then it sits inside the work area, the top corners 64 px below its top times the scale; and an overlay larger than the work area keeps its top-left corner inside it in each corner.",
+      "description": "Given monitors at 100 % and 150 %, when the overlay snaps to each corner, then it sits inside the work area, the top corners 64 px below its top times the scale; and an overlay larger than the work area keeps its top-left corner inside it.",
       "check": "ACornerSnapSitsInsideTheWorkArea",
       "passes": true
     },
@@ -294,7 +294,7 @@
       "covers": [
         "R32"
       ],
-      "description": "Given an overlay beside the notification area, one dropped on the taskbar and one in a corner, when its width grows, then the edge each keeps stays where it was, and on a taller taskbar it stays in its middle.",
+      "description": "Given an overlay beside the notification area, one dropped on the taskbar and one in a corner, when its width grows, then the edge each keeps stays put, and on a taller taskbar it stays in its middle.",
       "check": "ASnappedOverlayStaysAlignedWhenItGrows",
       "passes": true
     },
@@ -335,7 +335,7 @@
         "R96",
         "R203"
       ],
-      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size and Theme with Use on all overlays, Layout and direction with Graph and opacity, Text and shape with Show units and Show labels, Colors with the pills' own and colorblind-safe with Save as my look and each look's menu and Export), when each is changed by keys, then the settings hold the row's change; Default takes the whole look back, its tile checked, no tile is checked once the look changed, and a look saved is the one checked, the page not moving.",
+      "description": "Given the page with two overlays, when each of Appearance's controls is changed by keys (the look tiles, size, theme, layout, graph, opacity, text, shape, colors, saving, renaming and exporting a look), then the settings hold the change; Default takes the whole look back with its tile checked, no tile is checked once the look changed, a saved look is the one checked, and the page does not move.",
       "check": "TheAppearancePageChangesTheLook",
       "passes": true
     },
@@ -389,7 +389,7 @@
       "covers": [
         "R43"
       ],
-      "description": "Given the version 1 file of spec 001 with sources, when it is read, then it becomes the current version with each source applied to its items and what they warn by, and shows the same overlay, an item without a meter drawing nothing, a wrong-type source still showing as missing, lines still at 0.1's defaults taking this version's calm ones and lines the user moved kept.",
+      "description": "Given a version 1 file with sources, when it is read, then it becomes the current version with each source applied to its items and what they warn by, and shows the same overlay: an item without a meter draws nothing, a source of the wrong type still shows as missing, lines left at version 1's defaults take the current calm ones, and lines the user moved are kept.",
       "check": "AVersionOneFileMigratesToVersionTwo",
       "passes": true
     },
@@ -398,7 +398,7 @@
       "covers": [
         "R44"
       ],
-      "description": "Given a file with items without ids and one with a repeated id, when it is read twice, then both reads give the same unique ids, the first holder keeps each repeated id, and a write stores them.",
+      "description": "Given a file with items without ids and one with a repeated id, when it is read twice, then both reads give the same unique ids, the first holder keeps a repeated id, and a write stores them.",
       "check": "ItemIdsAreUniqueAndTheSameOnEveryRead",
       "passes": true
     },
@@ -409,7 +409,7 @@
         "R123",
         "R124"
       ],
-      "description": "Given the page with the fake bridge, when the design prototype's steps of keys and clicks in the page run, then after each the focus is on a control in view, never the page, dialogs keep it inside, and menus give it back. Its steps on Windows' own frame, the caption's maximize and the system menu, are A220's.",
+      "description": "Given the page with the fake bridge, when the design prototype's sequences of keys and clicks run, then after each step the focus is on a control in view, never the page, dialogs keep it inside, and menus give it back; the steps on Windows' own frame are A220's.",
       "check": "TheFocusContractHolds",
       "passes": true
     },
@@ -434,7 +434,7 @@
         "R118",
         "R123"
       ],
-      "description": "Given Narrator, light, dark, another accent, high contrast and animation effects off, when the author moves through the window and resizes, maximizes, snaps and activates it over the overlays, and maximizes and restores it from its caption button and from the system menu Alt+Space opens, then everything is read with its name, role and value, looks right in each, nothing animates, it behaves like any window, the focus stays where it was, also once Esc closes the system menu, and the edited overlay stays above it unless it would cover the caption buttons.",
+      "description": "Given Narrator, light, dark, another accent, high contrast and animation effects off, when the author moves through the window, resizes, maximizes, snaps and activates it over the overlays, and maximizes and restores it from its caption button and from the system menu, then everything is read with its name, role and value, looks right, nothing animates, the focus stays where it was, also once Esc closes the system menu, and the edited overlay stays above the window unless it would cover the caption buttons.",
       "check": "by hand",
       "passes": false
     },
@@ -451,7 +451,7 @@
         "R152",
         "R193"
       ],
-      "description": "Given the page with the fake bridge, when the language, the unit, the window's theme and Start with Windows change, a hotkey is recorded, refused, cleared and cancelled, and Reset is asked and cancelled, then the settings hold each change, Start with Windows is outside undo, thermi's hotkeys rest while one records, and Cancel is the destroying dialog's default.",
+      "description": "Given the page with the fake bridge, when the language, the unit, the window's theme and Start with Windows change, a hotkey is recorded, refused, cleared and cancelled, and Reset is asked and cancelled, then the settings hold each change, Start with Windows is outside undo, thermi's hotkeys rest while one records, and Cancel is the destructive dialog's default.",
       "check": "TheSettingsPageChangesThermi",
       "passes": true
     },
@@ -469,7 +469,7 @@
       "covers": [
         "R53"
       ],
-      "description": "Given two overlays with every field changed, when the settings are reset and the reset undone after a hand edit, then one default overlay is left, shown always, the language, hotkeys, unit and window theme stay, and undo brings back every field still at its default while the hand edit stays.",
+      "description": "Given two overlays with every field changed, when the settings are reset, and the reset is undone after a hand edit, then one default overlay is left, always shown, the language, hotkeys, unit and window theme stay, and undo brings back every field still at its default while the hand edit stays.",
       "check": "AResetKeepsLanguageHotkeysAndTheTemperatureUnit",
       "passes": true
     },
@@ -479,7 +479,7 @@
         "R57",
         "R61"
       ],
-      "description": "Given the default settings, when the look is read and one size then changes, then it is Standard text on pills that match the taskbar with green meters at normal and the darker level colors on light pills, each at 3:1 against its pill and a graph's unlit track, and then it becomes the overlay's own, keeping the rest; and a look's tile samples it as three pills, CPU temperature and load, GPU load and RAM used, each lit, in the look's own pills.",
+      "description": "Given the default settings, when the look is read and then one size changes, then it is standard text on pills that match the taskbar, green meters at normal and darker level colors on light pills, each 3:1 against its pill and a graph's unlit track, and the change makes the look the overlay's own, keeping the rest; a look's tile samples it as three lit pills.",
       "check": "TheDefaultLookIsStandardTextOnPillsThatMatchTheTaskbar",
       "passes": true
     },
@@ -494,7 +494,7 @@
         "R139",
         "R140"
       ],
-      "description": "Given light and dark wallpapers and taskbars, when the author looks at the overlay with each theme, font, effect and 0 % background, at each level, the first critical, a stopped service and its tooltips, then every value reads well, the levels read without color, the glow comes once, and the tooltips say what to do.",
+      "description": "Given light and dark wallpapers and taskbars, when the author looks at the overlay in each theme, font, effect and a 0 % background, at each level, at the first critical, with a stopped service and over its tooltips, then every value reads well, the levels read without color, the glow comes once, and the tooltips say what to do.",
       "check": "by hand",
       "passes": false
     },
@@ -503,7 +503,7 @@
       "covers": [
         "R62"
       ],
-      "description": "Given Auto text on dark and light pills, a custom gray label, and a white value on light pills, when the overlay is laid out, then Auto gives today's colors and the dark ones, the gray is kept, and the white is drawn in its Auto color and flagged.",
+      "description": "Given Auto text on dark and light pills, a custom gray label, and a white value on light pills, when the overlay is laid out, then Auto gives each theme's text colors, the gray is kept, and the white is drawn in its Auto color and flagged as unreadable.",
       "check": "TextIsAlwaysReadableOnItsPills",
       "passes": true
     },
@@ -512,7 +512,7 @@
       "covers": [
         "R63"
       ],
-      "description": "Given settings with items, placement, a layout, a direction, language and a look, when the look is read from them, then it holds the theme, the background opacity, the colors, and the text and shape, and no layout, direction, position or size.",
+      "description": "Given settings with items, placement, layout, direction, language and a look, when the look is read from them, then it holds the theme, the background opacity, the colors, the text and the shape, and no layout, direction, position or size.",
       "check": "AStyleIsTheLookAlone",
       "passes": true
     },
@@ -531,7 +531,7 @@
         "R67",
         "R203"
       ],
-      "description": "Given a broken style file, one with thermiStyle 2, one with a size of 40, one with a background opacity of 5, one with an overlay opacity of 0.1, one with the color red and one with the pill color blue, when they are imported, then each is refused with its reason naming the field, and nothing changes.",
+      "description": "Given style files that are broken, of a newer format, or with a field out of range or of the wrong kind, when they are imported, then each is refused with a reason naming the field, and nothing changes.",
       "check": "ABrokenNewerOrOutOfRangeStyleIsRefused",
       "passes": true
     },
@@ -544,7 +544,7 @@
         "R135",
         "R136"
       ],
-      "description": "Given a full-screen video and a borderless game, the four hotkeys and thermi's icon, when the author hides and shows by each way, presses each hotkey, and opens both menus by mouse and keyboard, then the overlays follow, a hotkey another app holds is refused, and the menus are Windows' own and follow the theme.",
+      "description": "Given a full-screen video and a borderless game, the four hotkeys and thermi's icon, when the author hides and shows the overlays each way, presses each hotkey, and opens both menus by mouse and keyboard, then the overlays follow, a hotkey another app holds is refused, and the menus are Windows' own and follow the theme.",
       "check": "by hand",
       "passes": false
     },
@@ -553,7 +553,7 @@
       "covers": [
         "R69"
       ],
-      "description": "Given four hotkeys written within a second and an overlay that has registered only the first, when the window asks for the hotkey status, then it trusts no answer until the hash matches the four it shows; and with no overlay running, it says the hotkeys need it.",
+      "description": "Given four hotkeys written within a second and an overlay that has registered only the first, when the window asks for the hotkey status, then it trusts no answer until its hash matches the four it shows; and with no overlay running, it says the hotkeys need it.",
       "check": "TheHotkeyStatusIsTrustedOnlyForTheHotkeysShown",
       "passes": true
     },
@@ -565,7 +565,7 @@
         "R128",
         "R135"
       ],
-      "description": "Given one overlay hidden on its own, when \"Hide overlays\" is set, the file read again, a click on thermi's icon comes, the window opens on the hidden overlay, and thermi starts again, then the flag is never in the file, the click clears only the flag, a hidden overlay stays off the desktop whatever the window edits, and a new start shows the overlays by their visibility.",
+      "description": "Given one overlay hidden on its own, when \"Hide overlays\" is set, the file is read again, thermi's icon is clicked, the window opens on the hidden overlay and thermi starts again, then the flag is never in the file, the click clears only the flag, the hidden overlay stays off the desktop whatever the window edits, and a new start shows the overlays by their own visibility.",
       "check": "HideOverlaysIsAFlagThatIsNeverSaved",
       "passes": true
     },
@@ -584,7 +584,7 @@
       "covers": [
         "R73"
       ],
-      "description": "Given English as the language on a Windows set to Spanish regional format, when values are formatted, then they read 1.087 RPM and 27,2 GB.",
+      "description": "Given English as the language on a Windows set to Spanish regional format, when values are formatted, then they follow the Spanish number format.",
       "check": "NumbersFollowTheRegionalFormatWhateverTheLanguage",
       "passes": true
     },
@@ -603,7 +603,7 @@
         "R75",
         "R119"
       ],
-      "description": "Given a matrix of window sizes, text at 100 % and 200 %, and English and the long pseudo-language, when every page, dialog and menu shows in each, then nothing is cut, overlaps or scrolls sideways, and the list folds where the matrix says.",
+      "description": "Given window sizes from the smallest up, text at 100 % and 200 %, and English and the long pseudo-language, when every page, dialog and menu shows in each, then nothing is cut, overlaps or scrolls sideways, and the list folds where it should.",
       "check": "EveryPageFitsAtEverySize",
       "passes": true
     },
@@ -615,7 +615,7 @@
         "R139",
         "R140"
       ],
-      "description": "Given a table of states (levels, a missing driver or a sensor reading nothing, the service stopped or stale, overlays hidden or click-through, high contrast and the time before and after the window's first opening), when the overlay, its tooltips, thermi's tooltip and thermi's mark are decided, then each row gives its parts, its mark's state and its one pill while sensors are stopped, and thermi's tooltip stays within 127 characters.",
+      "description": "Given the overlay in each state (each level, a missing driver or a sensor reading nothing, the service stopped or stale, overlays hidden or click-through, high contrast, before and after the window first opens), when the overlay, its tooltips, thermi's tooltip and thermi's mark are decided, then each shows its parts, the mark its state, one pill stands in while the sensors are stopped, and thermi's tooltip stays within 127 characters.",
       "check": "TheOverlayAndThermisIconSayWhatTheyShow",
       "passes": true
     },
@@ -625,7 +625,7 @@
         "R140",
         "R182"
       ],
-      "description": "Given an overlay with a clock among the sensors' items and the service stopped, so the feed holds nothing but what Windows itself says, when the overlay and the tray icons are decided, then the \"Sensors stopped\" pill stands in for the sensors' items only, the clock shows its time beside it and in its tray icon, and thermi's mark still says the sensors stopped.",
+      "description": "Given an overlay with a clock among the sensors' items and the service stopped, when the overlay and the tray icons are decided, then the \"Sensors stopped\" pill stands in for the sensors' items only, the clock shows its time beside it and in its tray icon, and thermi's mark still says the sensors stopped.",
       "check": "TheOverlayAndThermisIconSayWhatTheyShow",
       "passes": true
     },
@@ -646,7 +646,7 @@
       "covers": [
         "R77"
       ],
-      "description": "Given 62 °C, 12.6 %, 1,087 RPM, 12,345 RPM, 27.3 GB, 128.4 GB and a missing value, when each becomes a tray icon's text, then it reads 62, 13, 1087, 12k, 27.3, 128 and –, and 27,3 with Spanish regional format.",
+      "description": "Given temperatures, percentages, fan speeds, memory sizes and a missing value, when each becomes a tray icon's text, then it fits in four characters, rounded or scaled with k, in the regional format.",
       "check": "ATrayIconFitsItsValueInFourCharacters",
       "passes": true
     },
@@ -664,7 +664,7 @@
       "covers": [
         "R81"
       ],
-      "description": "Given 62 °C with thresholds 70 and 85, when the unit is °F, then it reads 144 °F, the thresholds show 158 and 185, the file keeps 70 and 85, and the widest temperature is 212 °F; a threshold set to 150 °F is kept as 65.6.",
+      "description": "Given 62 °C with lines at 70 and 85, when the unit is °F, then it reads 144 °F, the lines show 158 and 185, the file keeps 70 and 85, and a line set to 150 °F is kept as 65.6.",
       "check": "TemperaturesShowInTheChosenUnitAndAreKeptInCelsius",
       "passes": true
     },
@@ -673,7 +673,7 @@
       "covers": [
         "R82"
       ],
-      "description": "Given units hidden, when the default items, thermi's tooltip and an item icon's tooltip are made, then values show without units and labels stay, thermi's tooltip follows the overlay, and the item icon's tooltip keeps its unit; and given labels hidden, the pills keep their items and show no label.",
+      "description": "Given units hidden, when the default items, thermi's tooltip and an item icon's tooltip are made, then values show without units and labels stay, thermi's tooltip follows the overlay, and the item icon's tooltip keeps its unit; given labels hidden, the pills keep their items and show no label.",
       "check": "UnitsAndLabelsCanBeHidden",
       "passes": true
     },
@@ -683,7 +683,7 @@
         "R84",
         "R129"
       ],
-      "description": "Given a table of events (a first start, the window opened, overlays hidden by the flag or one on its own and hiding from the window, click-through on for one and for all, clicks coming back), when the notices are decided, then each shows once in its form, with its buttons, none comes from the window, and each goes when what it is about ends.",
+      "description": "Given each event that brings a notice (a first start, the window opened, overlays hidden, click-through turned on, clicks coming back), when the notices are decided, then each shows once in its form with its buttons, none comes from the window, and each goes when what it is about ends.",
       "check": "NoticesShowOnceAndGoWhenDone",
       "passes": true
     },
@@ -703,7 +703,7 @@
       "covers": [
         "R86"
       ],
-      "description": "Given 100 warm-up rounds, each painting the overlay, refreshing three tray icons, reloading the settings, and seeing the window's mutex appear and vanish with a show, when 10,000 more run, then GDI and USER handles are exactly where they were after the warm-up, and the managed heap after a full collection is within 1 MB.",
+      "description": "Given 100 warm-up rounds, each painting the overlay, refreshing three tray icons, reloading the settings and seeing the window's mutex appear and vanish, when 10,000 more run, then GDI and USER handles are exactly where they were after the warm-up, and the managed heap after a full collection is within 1 MB.",
       "check": "NothingLeaksAfterTenThousandRounds",
       "passes": true
     },
@@ -712,7 +712,7 @@
       "covers": [
         "R87"
       ],
-      "description": "Given the CCD1 and CCD2 temperatures and the 16 core powers of the admin recording, when items combine the temperatures as highest and average with an offset of -5, and the powers as a sum, then they read the highest and the average less 5 in °C, and the total power; a sum of temperatures is refused, an offset of -5 °C shows as -9 °F, offsets past their type's range are refused, and with every sensor missing an item shows as missing.",
+      "description": "Given the CPU's CCD temperatures and core powers from the admin recording, when items combine the temperatures as highest and average with an offset, and the powers as a sum, then they read the highest, the average with its offset, and the total power; a sum of temperatures and an offset past its type's range are refused, an offset converts with the unit, and with every sensor missing the item shows as missing.",
       "check": "AnItemCombinesSensorsOfOneType",
       "passes": true
     },
@@ -733,7 +733,7 @@
         "R138",
         "R141"
       ],
-      "description": "Given a table of values (normal, warning and critical on dark and light pills and under high contrast, percentages under 0 and over 100, bars and a line), when the overlay is laid out, then each value carries its row's mark, a value at warning whose bars or line show it none, percentages are held between 0 and 100, and an item thresholds judge holds its line or else its lit bars, and the power neither.",
+      "description": "Given values at each level on dark and light pills and under high contrast, percentages outside 0 to 100, and bars and lines, when the overlay is laid out, then each value carries its level's mark, percentages are held between 0 and 100, and an item that thresholds judge draws its line or its lit bars, while power draws neither.",
       "check": "ALevelShowsOnTheValueNeverByColorAlone",
       "passes": true
     },
@@ -742,7 +742,7 @@
       "covers": [
         "R92"
       ],
-      "description": "Given the GPU item set to show only on alert, at 40 % and then at 70 %, when the overlay is laid out snapped to the right, then the GPU pill is gone and the right edge stays, and then it is back at its warning level; with the window open it shows at 40 % too, a power item, which thresholds cannot judge, cannot be set to alert-only, and the RAM in use loses alert-only, and its graph, once it warns by nothing.",
+      "description": "Given the GPU item set to show only on alert, when it reads under and then over its warning on an overlay snapped right, then the GPU pill is gone with the right edge kept, and then back at its warning level; with the window open it always shows; an item that thresholds cannot judge cannot be set to alert-only, and one that warns by nothing loses alert-only and its graph.",
       "check": "AnAlertOnlyItemShowsOnlyAtWarning",
       "passes": true
     },
@@ -751,7 +751,7 @@
       "covers": [
         "R94"
       ],
-      "description": "Given two overlays in the file, when it is read, then each has its own items, placement and style, ids are unique across both, and the version 1 file becomes one overlay.",
+      "description": "Given two overlays in the file, when it is read, then each has its own items, placement and style, ids are unique across both, and a version 1 file becomes one overlay.",
       "check": "AFileHoldsUpToFourOverlays",
       "passes": true
     },
@@ -765,7 +765,7 @@
         "R148",
         "R150"
       ],
-      "description": "Given a table of edits (the window's edits of overlays, an item moved to another or a new overlay, a pill held just under and at 500 ms by the injected clock and dragged off or held and refused at four overlays, a drop that merges or lands on the taskbar and a corner's resize, Alt+arrows on a free overlay and on one on the taskbar), when each is applied and undone, then the overlays are the row's: new, duplicated, merged, deleted or hidden by the window, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
+      "description": "Given each edit of overlays (made, duplicated, merged, deleted or hidden in the window; an item or pill moved to another or a new overlay by a hold and a drag; a drop on another overlay, on the taskbar or in a corner; Alt+arrows), when each is applied and undone, then the overlays follow, at most four, unnamed and called by where they sit, an emptied one removed, a hold refused at four overlays, and each edit one undo step.",
       "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
       "passes": true
     },
@@ -778,7 +778,7 @@
         "R127",
         "R130"
       ],
-      "description": "Given the page with three overlays, when one is made, duplicated, merged, hidden, shown and deleted from the list and the overlay page, then the settings follow, the new one takes the focus, and after a delete or merge the focus is on the next or the target row.",
+      "description": "Given the page with three overlays, when one is made, duplicated, merged, hidden, shown and deleted from the list and from the overlay page, then the settings follow, the new one takes the focus, and after a delete or a merge the focus is on the next row or the target.",
       "check": "OverlaysAreManagedFromTheList",
       "passes": true
     },
@@ -793,7 +793,7 @@
         "R148",
         "R150"
       ],
-      "description": "Given four overlays on two monitors and a crowded taskbar, when the author clicks values with the window open, holds pills until they lift and drags them off, onto another overlay and onto the desktop, drags one before the hold, presses Esc during a drag, merges and resizes overlays, opens and closes apps, and undoes a gesture from the overlay's menu, then the window follows, the marks and fades show, a lifted pill joins where it is let go or becomes an overlay that snaps, a drag before the hold moves the whole overlay, Esc puts everything back, a hidden overlay shows only in the window, and no overlay on the taskbar moves as apps open and close.",
+      "description": "Given four overlays on two monitors and a crowded taskbar, when the author clicks values with the window open, holds pills until they lift and drags them off, onto another overlay and onto the desktop, drags before the hold, presses Esc during a drag, merges and resizes overlays, opens and closes apps, and undoes a gesture from the overlay's menu, then the window follows, the marks and fades show, a lifted pill joins where it is let go or becomes an overlay that snaps, a drag before the hold moves the whole overlay, Esc puts everything back, a hidden overlay shows only in the window, and no overlay on the taskbar moves as apps open and close.",
       "check": "by hand",
       "passes": false
     },
@@ -802,7 +802,7 @@
       "covers": [
         "R114"
       ],
-      "description": "Given an item with Notify me on a fake clock and a table of episodes (critical for 9 s, for 10 s, staying, cooling and coming back, and during a full-screen app), when the notices are decided, then one comes per episode after 10 s, and one held through full screen comes on leaving it, with its peak and length.",
+      "description": "Given an item with Notify me on a fake clock, and critical episodes that are too short, long enough, held, ended and back, or during a full-screen app, when the notices are decided, then one comes per episode after 10 s, and one held through full screen comes on leaving it, with its peak and length.",
       "check": "NotifyMeTellsOnceAnEpisode",
       "passes": true
     },
@@ -812,7 +812,7 @@
         "R116",
         "R119"
       ],
-      "description": "Given a table of work areas, monitor setups and free overlays, when the window's first size and place, its minimum, its remembered size, the list's width and fold, and the pane's columns are decided, then each is the row's.",
+      "description": "Given work areas, monitor setups and free overlays of each kind, when the window's first size and place, its minimum, its remembered size, the list's width and fold, and the pane's columns are decided, then each fits its room.",
       "check": "TheWindowsSizeFollowsItsRoom",
       "passes": true
     },
@@ -821,7 +821,7 @@
       "covers": [
         "R133"
       ],
-      "description": "Given a table of combinations (Windows' own with Win or Alt+F4 or Ctrl+Alt+Delete, an app's common one as Alt with a letter or Ctrl with each common letter, the window's shortcuts or another hotkey's, an AltGr character on a Spanish layout or Shift alone, F13 and Ctrl+Alt+T), when each is judged, then it is refused with its row's reason or taken.",
+      "description": "Given hotkey combinations that Windows owns, that apps commonly use, that the window or another hotkey already takes, or that type a character, and free ones, when each is judged, then each taken one is refused with its reason and each free one is taken.",
       "check": "HotkeysThatBelongToWindowsOrOtherAppsAreRefused",
       "passes": true
     },
@@ -849,7 +849,7 @@
         "R160",
         "R161"
       ],
-      "description": "Given new rows of throughputs (0, 999 and 1,000 B/s, 812 KB/s, 12.4 MB/s, 1.05 GB/s), in English and Spanish regional formats, with units shown and hidden, and as a tray icon's text, when each is formatted, then it reads in the row's unit with three significant digits, keeps its scale letter without units, and fits the tray icon's 4 characters.",
+      "description": "Given throughputs from bytes to gigabytes a second, in English and Spanish regional formats, with units shown and hidden, and as a tray icon's text, when each is formatted, then it reads in its unit with three significant digits, keeps its scale letter without units, and fits the tray icon's four characters.",
       "check": "FormatsEachKindAndShowsBrokenReadingsAsMissing",
       "passes": true
     },
@@ -862,7 +862,7 @@
         "R164",
         "R165"
       ],
-      "description": "Given new rows from an admin recording with two adapters and two drives, when the catalog is built and the five network and disk metrics are picked, then adapters sit under Network and drives under Disk, each metric follows the row's adapter or drive, a drive's temperature is a temperature, and an item that names an adapter keeps it.",
+      "description": "Given an admin recording with two adapters and two drives, when the catalog is built and the network and disk metrics are picked, then adapters sit under Network and drives under Disk, each metric follows its adapter or drive, a drive's temperature is a temperature, and an item that names an adapter keeps it.",
       "check": "AutoNamesTheSensorItsMetricReads",
       "passes": true
     },
@@ -871,7 +871,7 @@
       "covers": [
         "R166"
       ],
-      "description": "Given new rows for a throughput and a disk activity meter, when each is chosen, then neither starts with lines, and the throughput's chart runs from 0 to its highest reading plus 15 %, rounded up to a 1-2-5 step.",
+      "description": "Given a throughput and a disk activity as what an item warns by, when each is chosen, then neither starts with lines, and the throughput's chart runs from 0 to its highest reading plus 15 %, rounded up to a 1-2-5 step.",
       "check": "ThresholdsAndTheChartFollowTheMetersType",
       "passes": true
     },
@@ -880,7 +880,7 @@
       "covers": [
         "R167"
       ],
-      "description": "Given new rows for the recording's download, upload, read and write rates, when each is added as an item, then download and upload share one NET pill, each value with its direction arrow, read and write take their own labels, and the default overlay is unchanged.",
+      "description": "Given the recording's download, upload, read and write rates, when each is added as an item, then download and upload share one NET pill, each value with its direction arrow, read and write take their own labels, and the default overlay is unchanged.",
       "check": "AnyRecordedSensorCanBeAnItemInItsOwnUnit",
       "passes": true
     },
@@ -911,7 +911,7 @@
       "covers": [
         "R170"
       ],
-      "description": "Given new rows of a battery's charge, a rate while charging and while discharging, a time remaining, and no time while plugged in, in English and Spanish regional formats, when each is formatted, then the charge is a percentage, the rate carries its sign in watts, the time reads in hours and minutes, and no time is missing.",
+      "description": "Given a battery's charge, its rate while charging and discharging, its time remaining, and no time while plugged in, in English and Spanish regional formats, when each is formatted, then the charge is a percentage, the rate is in watts with its sign, the time reads in hours and minutes, and no time shows as missing.",
       "check": "FormatsEachKindAndShowsBrokenReadingsAsMissing",
       "passes": true
     },
@@ -922,10 +922,9 @@
         "R171",
         "R175"
       ],
-      "description": "Given new rows from a laptop's recording with a battery and virtual adapters, and from the existing desktop recordings, when the catalog is built and the metrics are picked, then the battery sits under Battery on the laptop and no Battery group exists on the desktops, and Auto's adapter is never a loopback, tunnel or non-hardware one while a physical one moves data.",
+      "description": "Given a laptop's recording with a battery and virtual adapters, and the desktop recordings, when the catalog is built and the metrics are picked, then the battery sits under Battery on the laptop and no Battery group exists on the desktops, and Auto's adapter is never a loopback, tunnel or virtual one while a physical one moves data.",
       "check": "AutoNamesTheSensorItsMetricReads",
-      "passes": false,
-      "note": "awaits a laptop's real recording (T108): its laptop rows are made up"
+      "passes": false
     },
     {
       "id": "A236",
@@ -933,7 +932,7 @@
         "R172",
         "R173"
       ],
-      "description": "Given new rows on the injected clock with a gap in the snapshots longer than the stale limit, before and after the first snapshot newer than the wake, when the overlay is decided, then no value from before the gap shows as live, its history leaves the gap out of Min, Avg, Max and the chart, and the first fresh snapshot brings the values back.",
+      "description": "Given snapshots on the injected clock with a gap longer than the stale limit, as across a sleep, when the overlay is decided before and after the first fresh snapshot, then no value from before the gap shows as live, the history leaves the gap out of Min, Avg, Max and the chart, and the first fresh snapshot brings the values back.",
       "check": "TheOverlayAndThermisIconSayWhatTheyShow",
       "passes": true
     },
@@ -965,7 +964,7 @@
         "R173",
         "R174"
       ],
-      "description": "Given a laptop with the service running as installed and an external monitor, when the author adds the battery's items, unplugs it, puts it to sleep, unplugs the monitor and wakes it, then the battery reads its charge, rate and time, no stale value shows as live after waking, readings and speeds come back within 5 s without a click, and the overlays go back to their places.",
+      "description": "Given a laptop with the service running as installed and an external monitor, when the author adds the battery's items, unplugs the laptop, puts it to sleep, unplugs the monitor and wakes it, then the battery reads its charge, rate and time, no stale value shows as live after waking, readings come back within 5 s without a click, and the overlays go back to their places.",
       "check": "by hand",
       "passes": false
     },
@@ -975,7 +974,7 @@
         "R175",
         "R176"
       ],
-      "description": "Given a PC with WSL or Hyper-V and a VPN on, when the author downloads a large file, then Auto follows the physical adapter; and with Task Manager open beside the overlay, at rest and during \"thermi cpu-load 30\", CPU load stays within 3 points of Task Manager's CPU utilization on Windows 11.",
+      "description": "Given a PC with WSL or Hyper-V and a VPN on, when the author downloads a large file, then Auto follows the physical adapter; and with Task Manager beside the overlay, at rest and during `thermi cpu-load 30`, CPU load stays within 3 points of Task Manager's CPU utilization on Windows 11.",
       "check": "by hand",
       "passes": false
     },
@@ -993,7 +992,7 @@
       "covers": [
         "R178"
       ],
-      "description": "Given the recorded desktop, whose Gigabyte board's ITE IT8689E names its inputs by number, and a made-up board with a Nuvoton chip, when the catalog is built, then the ITE's temperatures 1 to 5 and fans and duties 1 to 3 show their probable names, each marked likely with the library's name, its other inputs and the Nuvoton's keep the library's name with the chip and the input, no other sensor gets either, and the search finds the CPU's board sensor by its probable name.",
+      "description": "Given the recorded desktop, whose board chip names its inputs by number, and a made-up board with another chip, when the catalog is built, then the known chip's inputs show their probable names, each marked likely beside the library's name, the other inputs keep the library's name with the chip and the input, no other sensor gets either, and the search finds a sensor by its probable name.",
       "check": "TheCatalogNamesBoardInputsLikelyAndSaysSo",
       "passes": true
     },
@@ -1003,7 +1002,7 @@
         "R16",
         "R179"
       ],
-      "description": "Given the recorded desktop with and without administrator rights, when the catalog is built before and after a stopped fan turns, then it hides the sensors that read nothing, the board's fans at 0 RPM that never turned, the GPUs' D3D loads and each core's effective clock, keeps the CPU sensors that need the driver and the GPU's fan at 0 RPM, at rest while the GPU is cool, counts what each search hides, and shows a fan once it has turned; a drive's fixed limits and wear counters are not listed at all.",
+      "description": "Given the recorded desktop with and without administrator rights, when the catalog is built before and after a stopped fan turns, then it hides what nobody would add (sensors reading nothing, board fans that never turned, per-engine GPU loads, effective clocks) and counts what each search hides, keeps the CPU sensors that need the driver and a resting GPU fan, shows a fan once it has turned, and never lists a drive's fixed limits or wear counters.",
       "check": "TheCatalogHidesWhatNobodyWouldAddAndCountsIt",
       "passes": true
     },
@@ -1012,7 +1011,7 @@
       "covers": [
         "R180"
       ],
-      "description": "Given the recorded desktop and an overlay with two items of one board sensor, one of them renamed by hand, and a metric item that picks it, when the sensor is renamed, renamed too long, renamed empty, undone and redone, a new item of it is added and the overlay is reset, then the settings hold its name by id, the item thermi named takes it while the others keep theirs, the catalog and its search use it, a name over 40 characters is refused, an empty one gives back the library's, each rename is one step, the new item is named by it, and the reset keeps it.",
+      "description": "Given the recorded desktop and an overlay with two items of one board sensor, one renamed by hand, when the sensor is renamed in the catalog, too long, empty, undone and redone, a new item of it is added and the overlay is reset, then the name is kept by sensor id, the item thermi named takes it while the other keeps its own, the catalog and its search use it, a name over 40 characters is refused, an empty one gives back the library's, each rename is one step, a new item is named by it, and a reset keeps it.",
       "check": "ASensorRenamedInTheCatalogIsNamedSoEverywhere",
       "passes": true
     },
@@ -1023,7 +1022,7 @@
         "R179",
         "R180"
       ],
-      "description": "Given the page with the fake bridge over the recorded desktop, when a search lists only what the catalog hides and \"Show all\" is pressed, and a board input found by its probable name is renamed with F2, once left with Esc and once kept with Enter, then added, then Show all lists the hidden sensors, the row shows the probable name, Esc changes nothing and gives the row back the focus, the name typed reaches the settings, and the new item is named by it.",
+      "description": "Given the page with the fake bridge over the recorded desktop, when a search lists only what the catalog hides and \"Show all\" is pressed, and a board input is renamed with F2, left once with Esc and once kept with Enter, then added, then Show all lists the hidden sensors, Esc changes nothing and gives the row back the focus, the name typed reaches the settings, and the new item is named by it.",
       "check": "TheCatalogAddsWithTheKeyboard",
       "passes": true
     },
@@ -1033,7 +1032,7 @@
         "R30",
         "R181"
       ],
-      "description": "Given an overlay on the taskbar at an offset, and one without, when the notification area grows, the taskbar moves to the top, the screen is narrower or at another scale, the taskbar hides or stands on a side, or its notification area is not found, then the first keeps its offset, held whole on the taskbar, and floats just above the work area's bottom at it, clear of a hiding taskbar's band, where it cannot sit on the taskbar; the second follows the notification area, or keeps the reserve from the end.",
+      "description": "Given an overlay on the taskbar at an offset, and one without, when the notification area grows, the taskbar moves to the top, the screen narrows or changes scale, the taskbar hides or stands on a side, or its notification area is not found, then the first keeps its offset, whole on the taskbar, or floats just above the work area's bottom where it cannot sit on the taskbar; the second follows the notification area, or keeps its distance from the end.",
       "check": "OnTheTaskbarAnOverlayKeepsItsPlaceAlongIt",
       "passes": true
     },
@@ -1043,7 +1042,7 @@
         "R181",
         "R189"
       ],
-      "description": "Given the page with a fake bridge whose main monitor's taskbar is on a side, and then hides, when the overlay snapped to its taskbar is selected, then the Position row says why it floats; and \"Fade near the pointer\", switched by keys, lands in the settings.",
+      "description": "Given the page with a fake bridge whose main taskbar is on a side, and then hides, when the overlay snapped to its taskbar is selected, then the Position row says why it floats; and \"Fade near the pointer\", switched by keys, lands in the settings.",
       "check": "ThePlacementPageMovesTheOverlay",
       "passes": true
     },
@@ -1052,7 +1051,7 @@
       "covers": [
         "R181"
       ],
-      "description": "Given Windows 10 with the taskbar at the left, the right, the top and hiding, and Windows 11 with StartAllBack's taskbar at the top and TranslucentTB's clear one, when the author drops the overlay along each taskbar, then it sits on each taskbar that lies across its monitor where it was dropped and floats clear of the others, the window saying why; moving the taskbar to another edge, or setting it to hide, restarting Explorer, or changing the resolution or scale, with the overlay running, moves the overlay with it within a second, at the same offset from the taskbar's start; and an overlay dropped half off the screen shows whole inside the work area.",
+      "description": "Given Windows 10 with the taskbar at each edge and hiding, and Windows 11 with third-party taskbars at the top and clear, when the author drops the overlay along each taskbar, then it sits on each taskbar that lies across its monitor where it was dropped and floats clear of the others, the window saying why; moving or hiding the taskbar, restarting Explorer, or changing the resolution or scale moves the overlay with it within a second at the same offset; and an overlay dropped half off the screen shows whole inside the work area.",
       "check": "by hand",
       "passes": false
     },
@@ -1061,7 +1060,7 @@
       "covers": [
         "R182"
       ],
-      "description": "Given the recorded desktop without administrator rights, with Windows' uptime, address and clock added as the overlay adds them, when the catalog is built and the three are added as items, then the catalog lists them under PC, and the overlay shows UP, IP and TIME with the uptime, the address and the time with its seconds in the regional format, none with a level; and with no address, Local IP shows as missing.",
+      "description": "Given the recorded desktop without administrator rights, with Windows' uptime, address and clock, when the catalog is built and the three are added as items, then the catalog lists them under PC, and the overlay shows UP, IP and TIME with the uptime, the address and the time with its seconds in the regional format, none with a level; and with no address, the local IP shows as missing.",
       "check": "TheWindowsItemsReadWindowsItself",
       "passes": true
     },
@@ -1071,7 +1070,7 @@
         "R182",
         "R183"
       ],
-      "description": "Given a table of readings, when each is formatted, then a time shows with its seconds in the regional format, an address as its four numbers, and a throughput in bits takes bps, Kbps, Mbps or Gbps with three significant digits, its letter without units and in a tray icon.",
+      "description": "Given times, addresses and throughputs in bits, when each is formatted, then a time shows its seconds in the regional format, an address its four numbers, and a throughput in bits takes bps, Kbps, Mbps or Gbps with three significant digits, keeping its letter without units and in a tray icon.",
       "check": "FormatsEachKindAndShowsBrokenReadingsAsMissing",
       "passes": true
     },
@@ -1090,7 +1089,7 @@
         "R184",
         "R188"
       ],
-      "description": "Given a table of states, when thermi's menu and an overlay's menu are built, then \"Open Task Manager\" follows \"Settings…\" in thermi's, and \"Copy as image\" in the overlay's.",
+      "description": "Given thermi's menu and an overlay's menu, when they are built, then \"Open Task Manager\" follows \"Settings…\" in thermi's, and \"Copy as image\" is in the overlay's.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -1105,7 +1104,7 @@
         "R189",
         "R190"
       ],
-      "description": "Given thermi installed, when the author opens Task Manager from both menus, points at the CPU and GPU values, runs `thermi cpu-load 30` with the CPU's lines lowered until it is critical, copies the overlay as an image into Paint, turns on Fade near the pointer and moves the pointer towards the overlay and away, and removes the driver, then Task Manager opens, the tooltips name the models, the busiest process and any throttling, the picture is the overlay, the overlay fades and comes back while it still takes a double-click, and the CPU pill says Driver, whose double-click opens the window with the driver's bar; and the overlay stays within R154's budget with Fade on.",
+      "description": "Given thermi installed, when the author opens Task Manager from both menus, points at the CPU and GPU values, runs `thermi cpu-load 30` with the CPU's lines lowered until it is critical, copies the overlay as an image into Paint, turns on Fade near the pointer and moves the pointer toward the overlay and away, and removes the driver, then Task Manager opens, the tooltips name the models, the busiest process and any throttling, the picture is the overlay, the overlay fades and comes back while still taking a double-click, and the CPU pill says Driver, whose double-click opens the window with the driver's bar; and the overlay stays within R154's budget with Fade on.",
       "check": "by hand",
       "passes": false
     },
@@ -1116,7 +1115,7 @@
         "R187",
         "R190"
       ],
-      "description": "Given the recorded desktop with and without administrator rights, a busiest process and a table of items, when the overlay's scene and its tooltips are made, then a CPU's or GPU's value names its model, a critical one also its busiest process, a value of another device neither, and without the driver the CPU's temperature and power show Driver with the driver's tooltip, while the GPU's load still shows its value.",
+      "description": "Given the recorded desktop with and without administrator rights, a busiest process and items of several devices, when the overlay's scene and its tooltips are made, then a CPU's or GPU's value names its model, a critical one also its busiest process, a value of another device neither, and without the driver the CPU's temperature and power show Driver with the driver's tooltip, while the GPU's load still shows its value.",
       "check": "AValuesTooltipSaysWhatIsBehindIt",
       "passes": true
     },
@@ -1125,7 +1124,7 @@
       "covers": [
         "R186"
       ],
-      "description": "Given the recorded desktop with its CPU clock and temperature set by a table, and a base clock or none, when the overlay's scene is made, then the CPU's temperature and clock values are marked throttling, with the tooltip saying so, only while the clock is under the base clock and the temperature at its warning or above.",
+      "description": "Given the recorded desktop with its CPU clock and temperature set to each case, with a base clock or none, when the overlay's scene is made, then the CPU's temperature and clock are marked throttling, with a tooltip saying so, only while the clock is under the base clock and the temperature at warning or above.",
       "check": "TheCpuThrottlesUnderItsBaseClockWhileHot",
       "passes": true
     },
@@ -1143,7 +1142,7 @@
       "covers": [
         "R189"
       ],
-      "description": "Given a table of overlays, pointers and states, when the overlay's opacity is decided, then it is whole beyond 96 px at its scale, 25 % on the overlay and in between as the pointer nears, and whole while off, while the window is open, while it is dragged and under click-through.",
+      "description": "Given overlays, pointers at each distance and the states that turn fading off, when the overlay's opacity is decided, then it is whole beyond 96 px at its scale, 25 % with the pointer on it and in between as the pointer nears, and whole while fading is off, the window is open, it is dragged or click-through is on.",
       "check": "TheOverlayFadesAsThePointerComesNear",
       "passes": true
     },
@@ -1152,7 +1151,7 @@
       "covers": [
         "R181"
       ],
-      "description": "Given a table of free overlays dropped on the desktop, half off the screen, over the taskbar or across two monitors, when each is placed, then it shows whole inside the work area of the monitor it lies most on.",
+      "description": "Given free overlays dropped on the desktop, half off the screen, over the taskbar or across two monitors, when each is placed, then it shows whole inside the work area of the monitor it lies most on.",
       "check": "AFreeOverlayShowsWholeInsideTheWorkArea",
       "passes": true
     },
@@ -1161,7 +1160,7 @@
       "covers": [
         "R181"
       ],
-      "description": "Given the monitors as Windows listed them before the taskbar moved to another edge or began to hide, when the overlay reads them for a paint, then each comes with the work area Windows gives now.",
+      "description": "Given the monitors as Windows listed them before the taskbar moved to another edge or began to hide, when the overlay reads them for a paint, then each comes with the work area Windows gives at that moment.",
       "check": "EveryMonitorComesWithItsWorkAreaAndScaleAndOneIsPrimary",
       "passes": true
     },
@@ -1170,7 +1169,7 @@
       "covers": [
         "R191"
       ],
-      "description": "Given the installed build and its window open on its first item for 30 s, when scripts/measure.ps1 -Window measures it for 60 s, then thermi.exe's window and its renderer use under 1 % of one core together, and minimized, the renderer nothing.",
+      "description": "Given the installed build and its window open on its first item for 30 s, when `scripts/measure.ps1 -Window` measures it for 60 s, then the window and its renderer use under 1 % of one core together, and minimized, the renderer nothing.",
       "check": "by hand",
       "passes": false
     },
@@ -1188,7 +1187,7 @@
       "covers": [
         "R104"
       ],
-      "description": "Given the default overlay painted, when the open window marks CPU load as selected, then its mark is a bar lying under the value's middle, wider than tall.",
+      "description": "Given the default overlay painted, when the open window marks CPU load as selected, then its mark is a bar under the value's middle, wider than tall.",
       "check": "TheSelectedValuesMarkLiesUnderIt",
       "passes": true
     },
@@ -1200,7 +1199,7 @@
         "R33",
         "R143"
       ],
-      "description": "Given a taskbar with its notification area and an overlay 550 px wide, when it is dropped anywhere along the taskbar, over the app buttons, over the notification area and past its end, 96 and 97 px along it from its marks, with its edge 96 and 97 px from the taskbar, from a corner's mark, or between a top corner's mark and the top, pushed past the monitor's edge toward a corner, and with Alt held on the taskbar, near a corner and off both, then on the taskbar it stays where it was let go along it, centered across it and whole on it, unless a mark is within 96 px, which it goes to; near a corner it goes to the corner's mark; and with Alt held it stays where it was let go, on the taskbar or free.",
+      "description": "Given a taskbar with its notification area and an overlay 550 px wide, when it is dropped along the taskbar, near its marks or a corner's, past the monitor's edge toward a corner, or with Alt held, then on the taskbar it stays where it was let go, centered across it and whole on it, unless a mark is within 96 px, which it goes to; near a corner it goes to the corner's mark; and with Alt held it stays where it was let go.",
       "check": "ADropLandsWhereItIsLetGoOrOnAMarkInReach",
       "passes": true
     },
@@ -1209,7 +1208,7 @@
       "covers": [
         "R18"
       ],
-      "description": "Given the recorded desktop and items reading a GPU's load, the CPU's load, a sensor the dropdown leaves out but the item names, the RAM in use, an adapter's download and a sensor no longer read, when each item's Sensor dropdown is built, then it lists its own device's sensors of its type first and the other devices' only behind \"Show all\", of data only the item's own kind of device's, and an item whose sensor is not read lists every device's at once.",
+      "description": "Given the recorded desktop and items reading sensors of each kind of device, one the dropdown leaves out but the item names, and one whose sensor is not read, when each item's Sensor dropdown is built, then it lists its own device's sensors of its type first and the other devices' only behind \"Show all\", and an item whose sensor is not read lists every device's at once.",
       "check": "TheSensorDropdownListsTheItemsOwnDeviceFirst",
       "passes": true
     },
@@ -1218,7 +1217,7 @@
       "covers": [
         "R17"
       ],
-      "description": "Given the recorded desktop, with a Ryzen's graphics chip and a GeForce card, when the chip's frequency, the card's fan duty and the chip's load are added in turn, then the card's fan duty joins the GPU pill and the chip's two sensors an iGPU pill at the end.",
+      "description": "Given the recorded desktop, with a CPU's graphics chip and a graphics card, when the chip's frequency, the card's fan duty and the chip's load are added in turn, then the card's fan duty joins the GPU pill and the chip's two sensors join an iGPU pill at the end.",
       "check": "ASecondGpusSensorsGoToAPillOfTheirOwn",
       "passes": true
     },
@@ -1227,7 +1226,7 @@
       "covers": [
         "R104"
       ],
-      "description": "Given the window open on an overlay and a value, when it is minimized and restored, then it tells the overlay it edits none, so no value is marked nor overlay faded, and then the overlay and value again.",
+      "description": "Given the window open on an overlay and a value, when it is minimized and restored, then it tells the overlay it edits none, so no value is marked nor overlay faded, and then marks them again.",
       "check": "AMinimizedWindowMarksNoOverlay",
       "passes": true
     },
@@ -1237,7 +1236,7 @@
         "R14",
         "R192"
       ],
-      "description": "Given the recorded desktop's catalog and a table of searches (two words in either order, an accent and capitals, the name of the metric a sensor feeds, a long word with one letter wrong, a short one), when each is typed, then the first rows are the table's, each with what matched marked in its name, its second line or the metric it feeds, and the short typo finds nothing.",
+      "description": "Given the recorded desktop's catalog, when searches of each kind are typed (words in either order, accents and capitals, the metric a sensor feeds, a long word with a typo, a short one), then the best rows come first, each with what matched marked, and a short word with a typo finds nothing.",
       "check": "TheSearchPutsTheBestFirstAndMarksWhy",
       "passes": true
     },
@@ -1256,7 +1255,7 @@
         "R43",
         "R90"
       ],
-      "description": "Given a version 2 file with an item without a meter, a load metered by itself and no lines and a load given a warning, when it is read, then it becomes version 6, the first drawing nothing, the second its line and the third its bars, as they did; and the default overlay's CPU and GPU loads draw their lines.",
+      "description": "Given a version 2 file with an item without a meter, a load metered by itself without lines, and a load with a warning line, when it is read, then it becomes version 6, each item drawing as it did, and the default overlay's CPU and GPU loads draw their lines.",
       "check": "AVersionTwoFileMigratesToVersionSix",
       "passes": true
     },
@@ -1266,7 +1265,7 @@
         "R90",
         "R109"
       ],
-      "description": "Given two overlays, when one is dragged over the other, then it shows whole, the other ringed with a bar where it would join, and no snap mark lights; a pill held still lifts leaving an empty slot where it was; after a drop no tooltip shows until the pointer leaves or 1.5 s pass; the Position map's taskbar spot sits under the overlay's middle; Esc mid-drag with the mouse still reaches no other app; and on a load's item page, Graph is a row after Label, and None keeps the load drawing nothing after a restart.",
+      "description": "Given two overlays, when one is dragged over the other, then it shows whole, the other ringed with a bar where it would join, and no snap mark lights; a pill held still lifts, leaving an empty slot; after a drop no tooltip shows until the pointer leaves or 1.5 s pass; the Position map's taskbar spot sits under the overlay's middle; Esc mid-drag reaches no other app; and on a load's item page, Graph follows Label, and None keeps the load drawing nothing after a restart.",
       "check": "by hand",
       "passes": false
     },
@@ -1276,7 +1275,7 @@
         "R33",
         "R148"
       ],
-      "description": "Given an overlay dragged on the desktop near a corner's mark, with its marks showing, when it is let go, let go with Alt held, cancelled with Esc down as the mouse moves, or loses the mouse to another window, then it snaps to that corner, stays free where it was let go, or goes back to its snap with the file unchanged, and the desktop shows the overlay alone. Esc counts also with the mouse still, as the overlay's hotkey while pressed.",
+      "description": "Given an overlay dragged near a corner's mark, with its marks showing, when it is let go, let go with Alt held, cancelled with Esc, or loses the mouse to another window, then it snaps to the corner, stays free where it was let go, or goes back to its snap with the file unchanged, and nothing of the drag is left on screen; Esc counts also with the mouse still.",
       "check": "ADragEndsWithNothingOfItLeftOnScreen",
       "passes": true
     },
@@ -1295,7 +1294,7 @@
         "R30",
         "R43"
       ],
-      "description": "Given version 4 files with an overlay at the taskbar's right, left and center, and one in a corner, when each is read, then it becomes the current version with the taskbar's one place: beside the notification area for the right and the center, 8 px from the start for the left, and the corner as it was.",
+      "description": "Given version 4 files with an overlay at the taskbar's right, left and center, and one in a corner, when each is read, then the taskbar ones take its one place, beside the notification area for the right and the center and 8 px from the start for the left, and the corner stays.",
       "check": "AVersionFourTaskbarPlaceBecomesTheFreeTaskbarPlace",
       "passes": true
     },
@@ -1304,7 +1303,7 @@
       "covers": [
         "R148"
       ],
-      "description": "Given a pill held until it lifts, and an overlay of one pill moved whole, when the pill is dropped on an overlay of one pill in front of that pill and past it, back on its own overlay in front of its first pill and on its own place, and the overlay is dropped on another in front of one of its pills, then the pill joins that overlay before it and after it, moves to the front of its own and stays where it was on its own place, and the overlay's pill joins the other before the pill it was dropped in front of.",
+      "description": "Given a lifted pill and an overlay of one pill moved whole, when either is dropped on another overlay, before or past a pill, or back on its own overlay or place, then it joins that overlay before or after the pill it was dropped at, moves to the front of its own, or stays where it was.",
       "check": "ADropOnAnOverlayJoinsItWhereItIsLetGo",
       "passes": true
     },
@@ -1313,7 +1312,7 @@
       "covers": [
         "R148"
       ],
-      "description": "Given the overlay on a desktop of its own, when a pill is held still until it lifts and dropped in front of its own overlay's first pill, a press leaves the drag distance and comes back before holding, an overlay of one pill is dragged onto another, also with Alt held, a lifted pill is dropped on the overlay of one pill and another thrown far onto the desktop, and the overlay of many is dragged over the one of one pill with the cursor beside it, then the pill moves to the front of its overlay, the overlay moves whole, the dragged overlay shows whole and joins the other before the pill it is let go on, and with Alt held stays apart, the lifted pill joins the overlay of one pill, the thrown one becomes an overlay of its own, and the overlay of many joins the one of one pill.",
+      "description": "Given the overlay on a desktop of its own, when a pill is held still until it lifts and dropped, a press leaves and comes back before the hold, and overlays and lifted pills are dragged onto others, with and without Alt, or thrown onto the desktop, then a pill lifts only when held still, an overlay moves whole, a drop joins the overlay before the pill it is let go on, with Alt held it stays apart, and one thrown far becomes an overlay of its own.",
       "check": "APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo",
       "passes": true
     },
@@ -1323,7 +1322,7 @@
         "R33",
         "R148"
       ],
-      "description": "Given the owner's taskbar after a pill was dragged off, the CPU overlay beside the notification area, the one-pill CPU power overlay to its left, a hidden third one and a fourth between them, when an overlay or a lifted pill is dragged with the cursor on another, with the cursor just above it, with half or just less of itself over it, beside it touching, the big overlay over the small one with the cursor beside it, a pill over two at once, or with Alt held, then it is on that overlay, the one it covers most of two, joining at the cursor brought onto it, on none while less than half covers either and with Alt held, and the hidden one is never a target.",
+      "description": "Given overlays side by side on a taskbar, one of them hidden, when an overlay or a lifted pill is dragged with the cursor on another, just above it, half or less over it, over two at once, or with Alt held, then it targets the overlay under the cursor or the one it covers most, joining at the cursor, none while less than half covers either or with Alt held, and never the hidden one.",
       "check": "ADragJoinsTheOverlayItIsOver",
       "passes": true
     },
@@ -1332,7 +1331,7 @@
       "covers": [
         "R31"
       ],
-      "description": "Given two overlays, on the taskbar and in a corner, with the window open, when the window works out where each shows, then it is where each overlay's own window is, so the map's taskbar spot sits at the overlay's middle.",
+      "description": "Given two overlays, one on the taskbar and one in a corner, with the window open, when the window works out where each shows, then it is where each overlay's own window is, so the map's taskbar spot sits at the overlay's middle.",
       "check": "TheWindowPlacesEachOverlayWhereItShows",
       "passes": true
     },
@@ -1341,7 +1340,7 @@
       "covers": [
         "R8"
       ],
-      "description": "Given the built page in a real WebView2, when the window opens, then the keyboard's focus is in the page, so Ctrl+Z works without a click in it first.",
+      "description": "Given the built page in a real WebView2, when the window opens, then the keyboard focus is in the page, so Ctrl+Z works without a click first.",
       "check": "TheBuiltPageTakesEachMessageInARealWebView2",
       "passes": true
     },
@@ -1360,7 +1359,7 @@
         "R61",
         "R90"
       ],
-      "description": "Given the recorded CPU load series replayed as `thermi preview` replays it, on dark and on light pills, when the overlay is painted at 100 % and 150 %, then the CPU load's graph is 24 px wide at 100 % and draws each second it read as a line in the normal level's green over a light fill of it, never a block.",
+      "description": "Given the recorded CPU load series replayed as `thermi preview` replays it, on dark and light pills, when the overlay is painted at 100 % and 150 %, then the CPU load's graph is 24 px wide at 100 % and draws each second as a line in the normal level's green over a light fill, never a block.",
       "check": "AGraphDrawsItsSecondsAsALineOverALightFill",
       "passes": true
     },
@@ -1372,7 +1371,7 @@
         "R90",
         "R138"
       ],
-      "description": "Given the admin recording's CPU temperature, 77 °C, warned by itself, when the overlay is painted at 100 % on the pills of a dark taskbar, and at 150 % past a warning line on the pills of a light one, then its bars are five segments 12 px wide at 100 %, the four lowest lit in its level's color and the top one a faint track, and the value at warning has no underline.",
+      "description": "Given the admin recording's CPU temperature warned by itself, when the overlay is painted at 100 % on dark pills and at 150 % past a warning line on light ones, then its bars are five segments 12 px wide at 100 %, the lit ones in its level's color and the rest a faint track, and the value at warning has no underline.",
       "check": "AMeterLightsItsSegmentsFromTheBottomInItsLevelsColor",
       "passes": true
     },
@@ -1381,7 +1380,7 @@
       "covers": [
         "R90"
       ],
-      "description": "Given the RAM's load at 0, 3 and 50 % and reading nothing, when the overlay is laid out, then its meter lights 0, 1 and 3 of its five segments, and none while it reads nothing.",
+      "description": "Given the RAM's load at several values and reading nothing, when the overlay is laid out, then its meter lights the segments its value rounds to, and none while it reads nothing.",
       "check": "AMeterLightsTheSegmentsItsValueRoundsTo",
       "passes": true
     },
@@ -1393,7 +1392,7 @@
         "R109",
         "R138"
       ],
-      "description": "Given a table of overlays' Graph (Auto, None, Bars, Line), items' own (like the overlay, None, Bars, Line) and readings (a load, a temperature, the RAM in use warned by its load, a fan, power), each past its warning, when the overlay is laid out, then each item draws the row's None, Bars or Line, Auto a line for the load and bars for the rest, power nothing whatever is chosen, and only an item that draws nothing underlines its warning.",
+      "description": "Given each overlay Graph (Auto, None, Bars, Line), each item's own choice, and readings of each kind past their warning, when the overlay is laid out, then each item draws its own choice or else the overlay's, Auto drawing a line for a load and bars for the rest, power nothing whatever is chosen, and only an item that draws nothing underlines its warning.",
       "check": "AnItemDrawsItsOverlaysGraphUnlessItChoosesItsOwn",
       "passes": true
     },
@@ -1403,7 +1402,7 @@
         "R43",
         "R90"
       ],
-      "description": "Given the version 5 file with every field, an item metered by its own duty's fan, a graph switched on, a combined item metered by one of its sensors, an item without a meter and the RAM metered by its load, when it is read, then it becomes version 6, the file of version 6 with every field but its first overlay's Graph and the window's theme, which version 6 brought, each item drawing and warning as it did.",
+      "description": "Given a version 5 file with every field and items metered in each way, when it is read, then it is the version 6 file with the same fields, the ones version 6 added at their defaults, each item drawing and warning as it did.",
       "check": "AVersionFiveFileMigratesToVersionSix",
       "passes": true
     },
@@ -1412,7 +1411,7 @@
       "covers": [
         "R193"
       ],
-      "description": "Given Windows' apps light or dark and high contrast on or off, when the window's theme is Windows, Light or Dark, then the window is dark as chosen, as Windows' apps are for Windows, and as Windows' apps are under high contrast whatever was chosen; the file leaves Windows out.",
+      "description": "Given Windows' apps light or dark and high contrast on or off, when the window's theme is Windows, Light or Dark, then the window is light or dark as chosen, as Windows' apps are for Windows, and as Windows' apps are under high contrast whatever was chosen; the file leaves Windows out.",
       "check": "TheWindowTakesTheThemeChosenUnlessHighContrastIsOn",
       "passes": true
     },
@@ -1421,7 +1420,7 @@
       "covers": [
         "R193"
       ],
-      "description": "Given the real window over Windows' dark mode, when Theme is set to Light, Dark and Windows in Settings, and the window is opened again in Light, then each applies at once to the page, the title row, the caption buttons and Mica, and the first frame of the window opened in Light is already light.",
+      "description": "Given the real window over Windows' dark mode, when Theme is set to Light, Dark and Windows, and the window is opened again in Light, then each applies at once to the page, the title row, the caption buttons and Mica, and the first frame of the window opened in Light is already light.",
       "check": "by hand",
       "passes": true
     },
@@ -1433,7 +1432,7 @@
         "R194",
         "R195"
       ],
-      "description": "Given a series of CPU temperatures with a missing one and an overlay laid out as one bar with the GPU's load and the CPU's load before the CPU temperature, which shows its average, its minimum smoothed over 3 s, its value now smoothed over 5 s with an offset of -5, or its maximum reset midway, when the window's history takes the overlay's through the message after five seconds, having read one second already or none, and again after the reset, and both then read the rest, then each second the window's history lays the item out with the very value, label and tag the overlay's does, the tag after its value though the item is not the first of its pill, and no label carrying it.",
+      "description": "Given a series of CPU temperatures with a missing one and an overlay in one bar whose items show averages, smoothed and offset values and a maximum reset midway, when the window takes the overlay's history through the message and both read the rest, then each second the window lays out each item with the very value, label and tag the overlay does.",
       "check": "TheWindowsHistoryShowsWhatTheOverlaysShows",
       "passes": true
     },
@@ -1443,7 +1442,7 @@
         "R194",
         "R195"
       ],
-      "description": "Given the recorded CPU load series and an overlay laid out as one bar with the GPU's load before the CPU's load, which shows its average, when the overlay reads a third of the series before the real bridge opens and takes its history through the message, and both then read the rest, then each second the bridge's item shows the very value and label the overlay draws, never the bar's first label, and the tag the overlay draws after its value, which its label lacks.",
+      "description": "Given the recorded CPU load series and an overlay in one bar showing an average, when the overlay reads part of the series before the real bridge opens and hands over its history, and both read the rest, then each second the bridge's item shows the very value, label and tag the overlay draws.",
       "check": "TheWindowShowsEachItemAsTheOverlayDrawsIt",
       "passes": true
     },
@@ -1453,7 +1452,7 @@
         "R194",
         "R195"
       ],
-      "description": "Given the page with the fake bridge and the default overlay laid out as one bar, when the RAM's Shows is set to Average by keys, then its row in the list says the value the bridge gives followed by its tag, and its Label box offers the label the bridge says the overlay draws for it.",
+      "description": "Given the page with the fake bridge and the default overlay in one bar, when the RAM's Shows is set to Average by keys, then its row in the list says the bridge's value with its tag, and its Label box offers the label the bridge says the overlay draws.",
       "check": "TheListAndTheLabelBoxSayWhatTheOverlayDraws",
       "passes": true
     },
@@ -1462,7 +1461,7 @@
       "covers": [
         "R196"
       ],
-      "description": "Given the default overlay on the taskbar, free on the desktop, at the monitor's left edge, vertical, and vertical near the work area's bottom, when \"Separate\" is chosen on its GPU pill, an overlay of its own as wide as a drag of it carries, wider out of one bar, then the pill becomes an overlay of its own 8 px before it on the taskbar or free, level with its middle, after it, below it, or above it.",
+      "description": "Given the default overlay on the taskbar, free, at the monitor's left edge, vertical, and vertical near the work area's bottom, when \"Separate\" is chosen on its GPU pill, then the pill becomes an overlay of its own, as wide as a drag of it carries, 8 px before the overlay, level with its middle, or after, below or above it where there is no room.",
       "check": "SeparateDropsThePillBesideItsOverlay",
       "passes": true
     },
@@ -1472,7 +1471,7 @@
         "R196",
         "R47"
       ],
-      "description": "Given a table of a menu's entries (words sharing first letters, letters of any case and language, an \"&\" of the text, none to take, a grayed note), when their access keys are marked, then each entry gets a key no entry above it took, from a word's start first, or none, a grayed note none, and an \"&\" of the text stays one.",
+      "description": "Given a menu's entries sharing first letters, in any case and language, with an \"&\" in their text, with no letter left, or grayed, when their access keys are marked, then each entry gets a key no entry above it took, from a word's start first, or none, a grayed note none, and an \"&\" of the text stays one.",
       "check": "EachEntryOfAMenuHasItsOwnAccessKey",
       "passes": true
     },
@@ -1482,7 +1481,7 @@
         "R196",
         "R150"
       ],
-      "description": "Given a real overlay host on a test desktop with the default overlay, when its GPU pill is right-clicked and the access key of \"Separate\" is typed in the menu that opens, then the file holds the pill as an overlay of its own, and the menu's Undo puts it back as it was, in one step.",
+      "description": "Given a real overlay host on a test desktop with the default overlay, when its GPU pill is right-clicked and the access key of \"Separate\" is typed, then the file holds the pill as an overlay of its own, and the menu's Undo puts it back in one step.",
       "check": "TheMenuOnAPillSeparatesItByItsKeyAndUndoTakesItBack",
       "passes": true
     },
@@ -1491,7 +1490,7 @@
       "covers": [
         "R196"
       ],
-      "description": "Given the installed build, the window open, and the overlay on the taskbar and on the desktop, in English and Spanish, light, dark and high contrast, when the author right-clicks a pill and the edge, and from an item's tray icon, and chooses each entry by mouse and by its key, then each changes what it says at once, the window shows it, its Undo in the menu and Ctrl+Z in the window take it back, and no entry offered does nothing.",
+      "description": "Given the installed build, the window open, and the overlay on the taskbar and on the desktop, in English and Spanish, light, dark and high contrast, when the author right-clicks a pill, the edge and an item's tray icon, and chooses each entry by mouse and by its key, then each changes what it says at once, the window shows it, the menu's Undo and Ctrl+Z in the window take it back, and no entry offered does nothing.",
       "check": "by hand",
       "passes": false
     },
@@ -1500,7 +1499,7 @@
       "covers": [
         "R197"
       ],
-      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the picture C# paints of the change, and then its picture before it; and it shows one of the picture's pixels on each of the page's device pixels, as wide as the overlay in a wide window and, at size 2 in a narrow one, as wide as the picture C# paints for the column.",
+      "description": "Given the overlay page, when the theme is set to Light and then undone, then the preview at the top of Appearance shows the picture C# paints of the change, and then the one before; and it shows one picture pixel per device pixel, as wide as the overlay in a wide window and as the column in a narrow one.",
       "check": "ThePreviewShowsEachEditOfTheOverlay",
       "passes": true
     },
@@ -1510,7 +1509,7 @@
         "R188",
         "R197"
       ],
-      "description": "Given a recorded snapshot and an overlay in a light look with soft corners, its background at 60 % and bars, when the window previews it, then its picture is pixel for pixel the one \"Copy as image\" puts on the clipboard.",
+      "description": "Given a recorded snapshot and an overlay in a light look with soft corners, a 60 % background and bars, when the window previews it, then its picture is pixel for pixel the one \"Copy as image\" puts on the clipboard.",
       "check": "ThePreviewIsTheOverlaysOwnPicture",
       "passes": true
     },
@@ -1530,7 +1529,7 @@
       "covers": [
         "R111"
       ],
-      "description": "Given the CPU fan's page, its fan at about 1,100 RPM and no lines, when a warning line is added, moved by the arrows, dragged up while held and a press beside the knobs drags across the chart, then the line comes above the fan's speed and under one and a half times it, moves a step each way, its knob stays under the pointer while the range holds, and no text is selected.",
+      "description": "Given the CPU fan's page with its fan at about 1,100 RPM and no lines, when a warning line is added, moved by the arrows, dragged up while held, and a press beside the knobs drags across the chart, then the line comes above the fan's speed and under one and a half times it, moves a step each way, its knob stays under the pointer while the range holds, and no text is selected.",
       "check": "AFansLineStaysOnItsScale",
       "passes": true
     },
@@ -1540,7 +1539,7 @@
         "R54",
         "R55"
       ],
-      "description": "Given a file joined by hand into one bar of GPU, CPU and RAM items, a CPU item starting its own pill, and the same file in the pills and each layouts, a GPU pill between two of the CPU's dragged off, and an overlay of the RAM merged after the RAM's pill, when the window lists the first overlay, then its pills are the runs the overlay labels in each layout, and the join or split keeps the pills that showed apart.",
+      "description": "Given files whose items are laid out in one bar, in pills and each layout, with pills started, dragged off and merged, when the window lists the first overlay, then its pills are the runs the overlay labels, and a join or split keeps apart the pills that showed apart.",
       "check": "TheWindowListsThePillsTheOverlayLabels",
       "passes": true
     },
@@ -1550,7 +1549,7 @@
         "R55",
         "R56"
       ],
-      "description": "Given the default overlay in one bar with the admin recording's readings, at 100 % on dark pills and at 150 % on light ones, and vertical at 150 %, when it is painted, then the bar holds three pills, CPU, GPU and RAM, in the inner color, 4 px inside its edge and 4 px apart at 100 %, side by side or, vertical, stacked from top to bottom and as wide as the widest, and each item's pill is its run's.",
+      "description": "Given the default overlay in one bar with the admin recording's readings, at 100 % on dark pills, at 150 % on light ones and vertical, when it is painted, then the bar holds the CPU, GPU and RAM pills in the inner color, 4 px inside its edge and 4 px apart at 100 %, side by side or stacked as wide as the widest, and each item's pill is its run's.",
       "check": "OneBarHoldsAPillPerRun",
       "passes": true
     },
@@ -1559,7 +1558,7 @@
       "covers": [
         "R25"
       ],
-      "description": "Given the overlay's ten minutes of the RAM in use metered by its load and the window's seconds of it and of the CPU temperature showing its minimum, when Warn by turns off and the CPU temperature reads a DIMM, and both are undone, then each chart draws only the reading it draws now, what the window read of it before taken in, and the minimum is of that reading alone.",
+      "description": "Given the overlay's ten minutes of the RAM in use metered by its load, and the window's seconds of it and of the CPU temperature showing its minimum, when Warn by turns off and the CPU temperature reads another sensor, and both are undone, then each chart draws only the reading it currently draws, with what the window read of it before, and the minimum is of that reading alone.",
       "check": "AChartDrawsOnlyTheReadingItShows",
       "passes": true
     },
@@ -1568,7 +1567,7 @@
       "covers": [
         "R36"
       ],
-      "description": "Given an overlay at 100 %, 200 % and 400 % on a 48 px taskbar at 100 %, at 200 % on a 72 px taskbar at 150 %, at 400 % with 36 px text on the 48 px one, and at 200 % free or vertical, when the size it shows at is worked out, then on a taskbar it is at most the taskbar's height, its pills grown for the text included, and elsewhere its own.",
+      "description": "Given an overlay at sizes up to 400 % and text up to 36 px on taskbars of each height and scale, and free or vertical, when the size it shows at is worked out, then on a taskbar it is at most the taskbar's height, its pills grown for the text included, and elsewhere its own.",
       "check": "AnOverlayOnTheTaskbarNeverOverflowsIt",
       "passes": true
     },
@@ -1577,7 +1576,7 @@
       "covers": [
         "R103"
       ],
-      "description": "Given a host that painted the recording on its tick, when a warmer snapshot comes and no tick has come since, then the overlay already shows it, as the open window does.",
+      "description": "Given a host that painted the recording on its tick, when a warmer snapshot comes before the next tick, then the overlay already shows it, as the open window does.",
       "check": "ASnapshotShowsOnTheOverlayAsItComes",
       "passes": true
     },
@@ -1586,7 +1585,7 @@
       "covers": [
         "R19"
       ],
-      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's own load, thermi cpu-load, spins every core for 8 s, then the load runs at idle priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
+      "description": "Given a sensor pipe on the real clock and a client reading it, when the fan finder's load spins every core for 8 s, then the load runs at idle priority and keeps the cores busy, and a snapshot still comes each second, never 2 s apart.",
       "check": "UnderALoadOnEveryCoreTheReadingsKeepComing",
       "passes": true
     },
@@ -1595,7 +1594,7 @@
       "covers": [
         "R25"
       ],
-      "description": "Given the CPU temperature item on Auto with a chart of the window's readings, when its Sensor is set to a cooler CCD for a few seconds and undone, then its chart holds only the seconds of the sensor Auto picks, none of the CCD's.",
+      "description": "Given the CPU temperature item on Auto with a chart of the window's readings, when its Sensor is set to another for a few seconds and undone, then its chart holds only the seconds of the sensor Auto picks.",
       "check": "AChartUndoneBackToAutoShowsOnlyTheAutomaticPick",
       "passes": true
     },
@@ -1604,7 +1603,7 @@
       "covers": [
         "R30"
       ],
-      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes it along a margin away, toward the notification area only, and the one beside the notification area, or dropped past it, stays there; two that do not overlap stay where their snaps put them; one grown past the room the other leaves toward that edge shows at that room, never narrower than at 100 %, so neither leaves the taskbar, covers the other or goes back over the app buttons; and on a taskbar nearly full, where the room is less, neither shows smaller and the one before is held back over the app buttons.",
+      "description": "Given two overlays side by side on a taskbar, when one grows into the other, then it pushes the other a margin away, toward the notification area only, while the one beside the notification area stays; two that do not overlap stay at their snaps; one grown past the room left shows at that room, never smaller than at 100 %, so neither leaves the taskbar, covers the other or goes over the app buttons; and on a nearly full taskbar neither shows smaller and the one before is held back over the app buttons.",
       "check": "OverlaysOnOneTaskbarNeverCoverEachOther",
       "passes": true
     },
@@ -1622,7 +1621,7 @@
       "covers": [
         "R19"
       ],
-      "description": "Given the board's fan answering only 5 s after a full 30 s load, and readings that stop for 10 s under the load before the fan answers after it, when the finder replays each, then the first load runs 30 s and the second ends once the readings have been gone 8.5 s, and both pick the fan while watching after the load.",
+      "description": "Given the board's fan answering only after a full 30 s load, and readings that stop under the load before the fan answers, when the finder replays each, then the first load runs 30 s, the second ends once the readings have been gone 8.5 s, and both pick the fan by watching after the load.",
       "check": "AFanThatAnswersOnlyAfterTheLoadIsStillFound",
       "passes": true
     },
@@ -1631,7 +1630,7 @@
       "covers": [
         "R197"
       ],
-      "description": "Given an overlay at size 2 on a 48 px taskbar at 100 %, on a 72 px one at 150 %, and free at 150 %, when the window previews it, then the preview is painted as high as the overlay shows, in the monitor's pixels: 48, 72, no higher than the taskbar, and 114 free; and given a column 400 px wide, it is painted at the smaller scale that fits it, as wide as the column, never wider.",
+      "description": "Given an overlay at size 2 on taskbars of each height and scale, and free, when the window previews it, then the preview is painted as high as the overlay shows, in the monitor's pixels and never higher than the taskbar; and in a narrow column it is painted at the smaller scale that fits it, never wider.",
       "check": "ThePreviewIsAsHighAsTheOverlayShows",
       "passes": true
     },
@@ -1640,7 +1639,7 @@
       "covers": [
         "R31"
       ],
-      "description": "Given two overlays on one taskbar, the second hidden on its own, when the window works out where the first shows, then it is where it shows alone, as the hidden one pushes no other.",
+      "description": "Given two overlays on one taskbar, the second hidden on its own, when the window works out where the first shows, then it is where it shows alone, as a hidden overlay pushes none.",
       "check": "AHiddenOverlayPushesNoneOnTheMap",
       "passes": true
     },
@@ -1649,7 +1648,7 @@
       "covers": [
         "R198"
       ],
-      "description": "Given three devices, the second of which blocks its update for 5 s from its second read on, when the service reads them each second, then the other two are read every second, the blocked one keeps its last values for up to 3 s from when its read came due and then reads as missing, it is never started again while it runs, and once it returns it is said to be slow, once, with how long it took, and read again.",
+      "description": "Given three devices, the second of which blocks its update for 5 s from its second read on, when the service reads them each second, then the other two are read every second, the blocked one keeps its last values for up to 3 s and then reads as missing, it is never started again while it runs, and once it returns it is logged as slow once, with how long it took, and read again.",
       "check": "ADeviceThatBlocksHoldsBackNoneOfTheOthers",
       "passes": true
     },
@@ -1658,7 +1657,7 @@
       "covers": [
         "R198"
       ],
-      "description": "Given a device that stalls 1.5 s and then fails at once, one that fails once, one that never reads, and a drive read every 5 s whose second read stalls and fails and whose third fails, when the service reads them each second, then the first two keep their last values throughout, the drive keeps its values between its reads and for 3 s from when its failed read came due, then reads as missing, each failure is said with how it failed at most once a minute, and the one that never read is left out without a word.",
+      "description": "Given a device that stalls and then fails, one that fails once, one that never reads, and a drive read every 5 s whose reads stall and fail, when the service reads them each second, then the first two keep their last values throughout, the drive keeps its values between reads and for 3 s after a failed read came due, then reads as missing, each failure is logged with how it failed at most once a minute, and the one that never read is left out silently.",
       "check": "ADeviceThatStallsOrFailsKeepsItsLastValuesForThreeSeconds",
       "passes": true
     },
@@ -1668,7 +1667,7 @@
         "R30",
         "R143"
       ],
-      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another beside the notification area grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; and on a taskbar nearly full, a move onto it without room for the overlay at its size is refused as having no room on the taskbar, changing nothing, and one shown again there squeezes none, the one before it held back toward the start only while it shows.",
+      "description": "Given two overlays on a taskbar, when one grows, is dropped or is shown again into the other, and then hides, shrinks or another grows toward it, then the pushed one keeps the place it was pushed to, none goes back toward the taskbar's start, none swaps places, and one undo takes back the edit and the push together; on a nearly full taskbar, a move without room is refused and changes nothing, and one shown again squeezes none.",
       "check": "AnOverlayMovesOnlyWhenThePersonMovesIt",
       "passes": true
     },
@@ -1678,7 +1677,7 @@
         "R150",
         "R199"
       ],
-      "description": "Given the default overlay, an overlay of the CPU pill alone, one that shows no labels, one in one bar and four overlays, when an item's value or a pill's label is held until it lifts and dropped on the desktop or on a taskbar's mark, then the value lifts the item alone and the label its pill, in a pill without labels the pill, in one bar the run or the item, the item held off the CPU pill alone becomes an overlay of its own where the pill's label moves the whole overlay, at four overlays the hold is refused, and each drop is one undo step.",
+      "description": "Given the default overlay, overlays of one pill, without labels and in one bar, and four overlays, when an item's value or a pill's label is held until it lifts and dropped on the desktop or a taskbar's mark, then the value lifts the item alone and the label its pill, without labels the pill, in one bar the run or the item; an item of a one-pill overlay held by its label moves the whole overlay; at four overlays the hold is refused; and each drop is one undo step.",
       "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
       "passes": true
     },
@@ -1687,7 +1686,7 @@
       "covers": [
         "R199"
       ],
-      "description": "Given an item lifted from the CPU pill, when it is dropped on its own pill before another of its items, past the pill's last, or on its own place, before another pill of its overlay, or on another overlay, then it moves within its pill, stays put, or joins as a pill of its own before the pill it was dropped in front of.",
+      "description": "Given an item lifted from the CPU pill, when it is dropped on its own pill before another item or past the last, on its own place, before another pill of its overlay, or on another overlay, then it moves within its pill, stays put, or joins as a pill of its own before the pill it was dropped in front of.",
       "check": "ADropOnAnOverlayJoinsItWhereItIsLetGo",
       "passes": true
     },
@@ -1696,7 +1695,7 @@
       "covers": [
         "R199"
       ],
-      "description": "Given the default overlay, and one whose second CPU pill starts apart from the first, when an item is lifted off its pill and dropped before its own pill, moved within it, or the item starting the second CPU pill is dropped on the desktop, then the pill it leaves keeps its label and stays apart, the item shows as a pill of its own, and every other pill shows as it did.",
+      "description": "Given the default overlay, and one whose second CPU pill starts apart from the first, when an item is lifted off its pill and dropped before its own pill, moved within it, or dropped on the desktop, then the pill it leaves keeps its label and stays apart, the item shows as a pill of its own, and every other pill shows unchanged.",
       "check": "TheWindowListsThePillsTheOverlayLabels",
       "passes": true
     },
@@ -1705,7 +1704,7 @@
       "covers": [
         "R199"
       ],
-      "description": "Given the overlay on a desktop of its own, when an item's value in the CPU pill is held until it lifts and thrown far, the CPU label is held and thrown far, or the CPU temperature's value is held and dropped on the end of the CPU power's value, then the item alone, or the whole CPU pill, becomes an overlay of its own, or the CPU temperature moves to the end of its pill; and a held press on a locked overlay moves and writes nothing.",
+      "description": "Given the overlay on a desktop of its own, when an item's value in the CPU pill is held until it lifts and thrown far, the CPU label is held and thrown far, or the CPU temperature's value is dropped on the end of its pill, then the item alone, or the whole CPU pill, becomes an overlay of its own, or the temperature moves to the end of its pill; and a held press on a locked overlay moves and writes nothing.",
       "check": "APressLiftsOnlyHeldStillAndADropJoinsWhereItIsLetGo",
       "passes": true
     },
@@ -1714,7 +1713,7 @@
       "covers": [
         "R199"
       ],
-      "description": "Given the installed thermi, when an item's value in the CPU pill is held, dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its pill and before the pill elsewhere, and the pill's label held lifts the whole pill as before.",
+      "description": "Given the installed thermi, when an item's value in the CPU pill is held and dragged over its own pill, over another pill and onto the desktop, then the item rises alone as its picture with the CPU label, leaving an empty slot of its size, the bar marks the place between the items over its own pill and before the pill elsewhere, and the pill's label held lifts the whole pill.",
       "check": "by hand",
       "passes": false
     },
@@ -1723,7 +1722,7 @@
       "covers": [
         "R200"
       ],
-      "description": "Given the CPU temperature's page, with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot at a second in the gap and at one 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label shows the bridge's point of that second, above Min · Avg · Max; the chart, a slider, takes each key's point as its value for a screen reader, and keeps it through the pointer's moves; and Esc hides the label.",
+      "description": "Given the CPU temperature's page with its warning and critical lines and a gap in its ten minutes, when the pointer is over the plot in the gap and 40 s ago, and then the chart takes the focus and End, Left, Home and Esc are pressed, then the label shows the bridge's point of that second above Min · Avg · Max; the chart, a slider, gives each key's point to a screen reader as its value and keeps it through the pointer's moves; and Esc hides the label.",
       "check": "AChartsPointSaysItsReadingAndWhen",
       "passes": true
     },
@@ -1732,7 +1731,7 @@
       "covers": [
         "R201"
       ],
-      "description": "Given the window's bridge on the recorded PC, when three snapshots come whose sensors Core throws on wherever it reads them, and then a good one, then the page hears nothing of the bad ones, its view keeps the last snapshot's values, the log says it once, and the good one's values show and reach the page.",
+      "description": "Given the window's bridge on the recorded PC, when three snapshots come that Core cannot read, and then a good one, then the page hears nothing of the bad ones, its view keeps the last snapshot's values, the log says it once, and the good one's values show and reach the page.",
       "check": "ASnapshotTheWindowCannotReadLeavesItsLastViewUntilOneReads",
       "passes": true
     },
@@ -1750,7 +1749,7 @@
       "covers": [
         "R202"
       ],
-      "description": "Given the installed thermi running for over a minute, when its overlay process is made to crash (as by a debugger's injected access violation) and then to hang until Windows offers to close it, then Windows offers to restart it and one overlay comes back, with no settings window; when it crashes within its first minute, or is ended from Task Manager or by \"Exit thermi\", then nothing starts it again; and `scripts/install.ps1` run over it leaves one overlay.",
+      "description": "Given the installed thermi running for over a minute, when its overlay process crashes and then hangs until Windows offers to close it, then Windows offers to restart it and one overlay comes back, with no settings window; when it crashes within its first minute, or is ended from Task Manager or by \"Exit thermi\", nothing starts it again; and `scripts/install.ps1` run over it leaves one overlay.",
       "check": "by hand",
       "passes": false
     },
@@ -1761,7 +1760,7 @@
         "R58",
         "R203"
       ],
-      "description": "Given pills of their own color, black, a mid gray and a yellow, on dark and on light themes, with Auto text, a chosen label too close to the pill, 36 px values, one bar, and high contrast, when the look is read, then the pills take that color, their border, track and a bar's inner pills drawn from it, the inner ones 1.5:1 to 2:1 from it, Auto values and labels stand 4.5:1 from it, each default level 3:1 from it and the track, the chosen label is drawn in its Auto color and flagged, the pill is 1.9 times the 36 px text high, under high contrast Windows' colors win, and Auto gives the theme's pills back.",
+      "description": "Given pills of their own dark, mid and bright colors on dark and light themes, with Auto text, a chosen label too close to the pill, 36 px values, one bar, and high contrast, when the look is read, then the pills, their border, track and a bar's inner pills take that color, the inner ones 1.5:1 to 2:1 from it, Auto text 4.5:1 and each default level 3:1 from it and the track, the chosen label is drawn in its Auto color and flagged, the pill is 1.9 times the text high, high contrast's colors win, and Auto gives the theme's pills back.",
       "check": "APillColorOfItsOwnKeepsEveryTextAndLevelReadable",
       "passes": true
     },

@@ -24,7 +24,7 @@ An audit of the rest found nothing else worth replacing: the settings file, the 
 ## Consequences
 
 - One log, readable across restarts, that never loses its past to a burst.
-- The overlay loads a few more small assemblies: measured, 1.5 MB more idle, about 33 MB, within the overlay's budget, and up to 34 ms more to start, which publishing both executables ReadyToRun for the PC's processor wins back (`docs/specs/002-settings-window/tasks.md`).
+- The overlay loads a few more small assemblies: measured, 1.5 MB more idle, about 33 MB, within the overlay's budget, and up to 34 ms more to start, which publishing both executables ReadyToRun for the PC's processor wins back.
 - A new Win32 call is one line in `NativeMethods.txt`; call sites use the generator's typed handles.
 - A new command or option is declared once, with its help; `--help` answers for free.
 - The full-screen rule stays in Core, which takes Windows' answer as an input, so its tests need no game running.
