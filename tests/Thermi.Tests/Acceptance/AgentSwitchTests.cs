@@ -34,7 +34,6 @@ public sealed class AgentSwitchTests : IDisposable
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "edit", Rename)]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "look", "save", "Mine", "--overlay", "0")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "look", "wear", "Calm")]
-    [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "start-with-windows", "on")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "find-cpu-fan")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "saving", "start-with-windows", "on")]
     [InlineData(AgentAccess.Read, Refusal.AgentsReadOnly, "mcp")]

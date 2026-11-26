@@ -389,16 +389,10 @@ internal sealed class OverlayWindow : IDisposable
 
     internal void Separate(string item) => _gestures.Separate(item, _painted, _scene?.Screens ?? []);
 
-    /// <summary>
-    /// The overlay as its last paint drew it, painted afresh without what only the open window or a broken file adds; the
-    /// "Sensors stopped" pill while they are. Null before the first paint.
-    /// </summary>
+    /// <summary>The overlay as last painted, afresh without what only the window or a broken file adds; "Sensors stopped" while they are.</summary>
     internal Bitmap? Picture() => _painted is { } painted && _scene is not null ? painted.Picture(Translations.Of(OverlayText.SensorsStopped)) : null;
 
-    /// <summary>
-    /// A copy of what the overlay last put on screen, what a drag marks on it included, which the caller disposes: Windows
-    /// hands no layered window's pixels back. Null before the first paint.
-    /// </summary>
+    /// <summary>A copy of what it last showed, a drag's marks included, the caller's to dispose: Windows hands no layered window's pixels back.</summary>
     internal Bitmap? ShownPicture() => _shown?.Clone(new Rectangle(0, 0, _shown.Width, _shown.Height), _shown.PixelFormat);
 
     internal void UndoGesture() => _gestures.Undo();

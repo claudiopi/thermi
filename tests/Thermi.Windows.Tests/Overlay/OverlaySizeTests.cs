@@ -29,10 +29,15 @@ public sealed class OverlaySizeTests : IDisposable
         var screen = Desktop.Screens().First(each => each.Primary);
         var text = new TextStyle(36, TextWeight.Bold);
         var big = where == "free at 100 %"
-            ? new OverlayConfig { Items = [.. Enumerable.Repeat(OverlayConfig.DefaultItems, 10).SelectMany(items => items).Select(item => item with { Id = "" })] }
+            ? new OverlayConfig
+            {
+                Items = [.. Enumerable.Repeat(OverlayConfig.DefaultItems, 10).SelectMany(items => items).Select(item => item with { Id = "" })],
+            }
             : new OverlayConfig(OverlayConfig.MaxSize);
         big = big with { Style = new StyleConfig { Preset = StylePreset.Custom, Label = text, Value = text } };
-        big = where == "corner" ? big with { Snap = new SnapConfig(SnapSpot.TopRight) } : big with { Position = new Position(screen.Work.Left, screen.Work.Top) };
+        big = where == "corner"
+            ? big with { Snap = new SnapConfig(SnapSpot.TopRight) }
+            : big with { Position = new Position(screen.Work.Left, screen.Work.Top) };
         var settings = await _folder.LoadedAsync(ItemIds.Assign(new ThermiConfig { Overlays = [big] }));
         var (shown, placed, fitted) = ((PixelRect?)null, (PixelRect?)null, (IReadOnlyList<bool>)[]);
 

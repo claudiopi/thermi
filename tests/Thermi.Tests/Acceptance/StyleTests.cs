@@ -180,7 +180,8 @@ public sealed class StyleTests
             var faint = Done(StyleEdits.Restyle(new ThermiConfig(), 0, style => style with { Pills = pills, Opacity = new(0.2), Colors = colors }));
             var (look, name) = (Look(faint, light), own ?? pills.ToString());
             var behind = Core.Tray.Taskbar.Of(light).Background;
-            Assert.True(look.LabelColor.Color.ContrastWith(behind) >= PillColors.TextContrast, $"{name} pills' label on a {(light ? "light" : "dark")} taskbar");
+            var on = light ? "light" : "dark";
+            Assert.True(look.LabelColor.Color.ContrastWith(behind) >= PillColors.TextContrast, $"{name} pills' label on a {on} taskbar.");
             Assert.True(look.Pills.Outer.ContrastWith(look.ValueColor.Color) >= PillColors.TextContrast, $"{name} pills' shadow under their values.");
         }
     }
