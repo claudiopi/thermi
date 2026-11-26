@@ -7,6 +7,7 @@ import { fakeState } from './fakes/fakeState';
 import { installFakeViews } from './fakes/fakeViews';
 import { installFakeWindow } from './fakes/fakeWindow';
 import { askOracle } from './oracle';
+import { settled } from './pageChecks';
 
 export { expect } from '@playwright/test';
 export * from './bridgeTypes';
@@ -242,7 +243,7 @@ export async function openWindow(page: Page, state: FakeState = fakeState()): Pr
   await page.goto('/');
   // A person's first key comes once the window shows its settings, not while the page is still starting.
   await page.waitForFunction(() => window.thermiFake?.caughtUp() === true, undefined, { timeout: 10_000 });
-  await page.evaluate(async () => new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn))));
+  await page.evaluate(settled);
 }
 
 /** Lets the answers a late fake holds go, the newest first. */
@@ -263,11 +264,11 @@ export async function windowWith(context: BrowserContext, state: FakeState): Pro
  */
 export async function fakeOf(page: Page): Promise<FakeState> {
   await page.waitForFunction(() => window.thermiFake?.caughtUp() !== false, undefined, { timeout: 5000 });
-  return page.evaluate(async () => {
+  await page.evaluate(settled);
+  return page.evaluate(() => {
     if (window.thermiFake === undefined) {
       throw new Error('The fake bridge is not installed.');
     }
-    await new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)));
     return window.thermiFake.state;
   });
 }

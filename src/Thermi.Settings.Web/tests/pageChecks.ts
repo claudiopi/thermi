@@ -108,11 +108,43 @@ export function toast(page: Page): Locator {
   return page.getByRole('status').filter({ visible: true });
 }
 
+/**
+ * Runs in the page: done once a frame, and then the work the page queued before it, changed nothing, which is what a
+ * person sees. Two frames are not enough: a busy browser draws its next frame before the page's queued work, as React's
+ * render is, so a check two frames on can meet the page halfway through. A message posted after a frame comes after it.
+ */
+export async function settled(): Promise<void> {
+  await new Promise<void>((done) => {
+    let changed = true;
+    const changes = new MutationObserver(() => {
+      changed = true;
+    });
+    changes.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+    const next = (): void => {
+      requestAnimationFrame(() => {
+        const after = new MessageChannel();
+        after.port1.onmessage = () => {
+          after.port1.close();
+          if (changed) {
+            changed = false;
+            next();
+          } else {
+            changes.disconnect();
+            done();
+          }
+        };
+        after.port2.postMessage(null);
+      });
+    };
+    next();
+  });
+}
+
 /** What a person would see as broken: the page scrolling sideways, a text cut, or two controls overlapping. */
 export async function layoutFaults(page: Page): Promise<string[]> {
+  // After a resize, once the page measured its new size and drew again.
+  await page.evaluate(settled);
   return page.evaluate(async () => {
-    // What a person sees after a resize: the frame after the page measured its new size and drew again.
-    await new Promise((settled) => requestAnimationFrame(() => requestAnimationFrame(settled)));
     // And once what was opening has finished sliding in.
     const ending = document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);
     await Promise.all(ending.map((animation) => animation.finished.catch(() => undefined)));

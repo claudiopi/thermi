@@ -12,6 +12,7 @@ import {
   recording,
   selectedRow,
   setFake,
+  settled,
   test,
   text,
   texts,
@@ -200,7 +201,7 @@ test.describe('TheFocusContractHolds', () => {
     await page.setViewportSize(run.size);
     await page.emulateMedia({ colorScheme: run.colorScheme, reducedMotion: run.motion === true ? 'no-preference' : 'reduce' });
     // The first key comes once the page has drawn itself at its size, as a person sees the window before typing.
-    await page.evaluate(async () => new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn))));
+    await page.evaluate(settled);
     for (const step of run.steps.filter((one) => one.waits === undefined)) {
       await test.step(step.name, async () => {
         for (const act of step.acts) {
@@ -248,10 +249,10 @@ test.describe('AxeFindsNothingInAnyState', () => {
         await page.emulateMedia({ colorScheme: mode.colorScheme, forcedColors: mode.forcedColors });
         // As the host marks the page where Windows refuses Mica. The page follows the mode on its next render, so axe
         // waits for it: on a solid background, a frame in between would read as text of the other mode.
-        await page.evaluate(async (solid) => {
+        await page.evaluate((solid) => {
           if (solid) document.documentElement.setAttribute('data-backdrop', 'solid');
-          await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
         }, mode.solid === true);
+        await page.evaluate(settled);
         expect(await axeViolations(page), mode.name).toEqual([]);
         // The scrollbars Edge draws follow the mode, never white on a dark page; forced colors offer both.
         // Found as an element: an open dialog hides the pane from the roles.
