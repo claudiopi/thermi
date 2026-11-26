@@ -1,16 +1,17 @@
 # Dot-sourced by scripts/check.ps1 and scripts/test.ps1.
 # Several checks at once, each in a worktree of its own, make the PC slow to type on. So a check or a test run goes below
-# normal priority, and so does all it starts, since Windows gives a child its parent's below-normal class; and one runs
-# at a time on the machine, under a name that is the same in every worktree. The CI's machine runs nothing else.
-function Enter-Check {
+# normal priority, and so does all it starts, since Windows gives a child its parent's below-normal class; and one .NET
+# half and one page's half run at a time on the machine, each under a name that is the same in every worktree, so a check
+# of both runs its halves side by side. The CI's machine runs nothing else.
+function Enter-Check([ValidateSet('dotnet', 'web')][string]$Half) {
     $self = [Diagnostics.Process]::GetCurrentProcess()
     $script:priority = $self.PriorityClass
     $self.PriorityClass = 'BelowNormal'
-    $script:lock = [Threading.Mutex]::new($false, 'Global\thermi-check')
-    $script:holder = [IO.MemoryMappedFiles.MemoryMappedFile]::CreateOrOpen('Local\thermi-check-holder', 1024)
+    $script:lock = [Threading.Mutex]::new($false, "Global\thermi-check-$Half")
+    $script:holder = [IO.MemoryMappedFiles.MemoryMappedFile]::CreateOrOpen("Local\thermi-check-holder-$Half", 1024)
     if (-not (Wait-Check 0)) {
         $reader = [IO.BinaryReader]::new($holder.CreateViewStream())
-        Write-Host "waiting for another check ($($reader.ReadString()))"
+        Write-Host "waiting for another check's $Half half ($($reader.ReadString()))"
         $reader.Dispose()
         # Short waits, so Ctrl+C still stops it.
         while (-not (Wait-Check 500)) { }

@@ -6,7 +6,7 @@ Thanks for helping. thermi is small on purpose, and so is this guide.
 2. Read [AGENTS.md](AGENTS.md): the map, the commands and the rules. It is written for people too.
 3. For anything bigger than a small fix, open an issue first so we agree on the approach.
 4. One change per PR. The title follows [Conventional Commits](https://www.conventionalcommits.org) (`fix: ...`, `feat: ...`), because it becomes the commit message.
-5. `pwsh scripts/check.ps1` passes before you open the PR. The CI runs the same script.
+5. `pwsh scripts/check.ps1` passes before you open the PR: on your PC it checks what your change can affect. The CI runs every step of the same script, and a PR merges only when its one required check, `CI gate`, passes ([docs/RELEASES.md](docs/RELEASES.md)).
 
 PRs written with AI tools are welcome, as long as you ran the change, understand it, and can explain it.
 

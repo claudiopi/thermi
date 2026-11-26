@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    Some tests while you work, one run at a time on the machine and below normal priority, like scripts/check.ps1:
+    Some tests while you work, below normal priority and one run of each half at a time on the machine, like scripts/check.ps1:
     pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*" passes what follows to dotnet test;
     pwsh scripts/test.ps1 -Web tests/Quality.spec.ts -g "fits" builds the page and passes what follows to Playwright.
 #>
@@ -14,7 +14,7 @@ $passed = if ($web) { $args | Select-Object -Skip 1 } else { $args }
 . (Join-Path $PSScriptRoot 'check-lock.ps1')
 
 try {
-    Enter-Check
+    Enter-Check $(if ($web) { 'web' } else { 'dotnet' })
     if ($web) {
         $page = Join-Path $root 'src' 'Thermi.Settings.Web'
         npm run build --prefix $page
