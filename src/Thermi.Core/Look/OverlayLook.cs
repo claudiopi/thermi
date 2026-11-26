@@ -44,7 +44,6 @@ public sealed record PillColors(Rgb Outer, Rgb Border, Rgb MeterOff, Rgb Label, 
     public const double TextContrast = 4.5;
 
     // The inner pills stand 1.5:1 from the bar, lighter on dark and darker on light, so the runs read apart quietly.
-    // The inner pills stand 1.5:1 from the bar, lighter on dark and darker on light, so the runs read apart quietly.
     private const double InnerContrast = 1.5;
 
     private static readonly Rgb Black = new(0, 0, 0);
