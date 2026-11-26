@@ -55,8 +55,8 @@ internal sealed class ValueTips : IDisposable
     private DropQuiet? _quiet;
     private long? _heard;
 
-    // Who holds the tooltips quiet: a tooltip shows again only once none does, so a drop's quiet ending mid-press, or a
-    // menu closing within it, frees nothing the others hold.
+    // A tooltip shows again only once no hush holds, so a drop's quiet ending mid-press, or a menu closing within it,
+    // frees nothing the others hold.
     private Hush _hush;
 
     public unsafe ValueTips(HWND owner)

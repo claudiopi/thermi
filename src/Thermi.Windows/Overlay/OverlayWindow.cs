@@ -53,7 +53,6 @@ internal sealed class OverlayWindow : IDisposable
     private OverlayScene? _scene;
     private PaintedOverlay? _painted;
 
-    // What the overlay last put on screen, what a drag marks on it included.
 #pragma warning disable CA2213 // The painter owns the bitmap, draws it again while its size holds, and disposes it.
     private Bitmap? _shown;
 #pragma warning restore CA2213
@@ -401,5 +400,6 @@ internal sealed class OverlayWindow : IDisposable
     /// hands no layered window's pixels back. Null before the first paint.
     /// </summary>
     internal Bitmap? ShownPicture() => _shown?.Clone(new Rectangle(0, 0, _shown.Width, _shown.Height), _shown.PixelFormat);
+
     internal void UndoGesture() => _gestures.Undo();
 }

@@ -149,7 +149,6 @@ public static class PageEdits
     private static EditResult Moved(ThermiConfig before, EditResult move) =>
         move.Refused is null && ConfigEdits.Replay(before, move.Config) is null ? ConfigEdits.Refuse(before, Refusal.NotMoved) : move;
 
-
     private static string? Text(JsonElement value) => value.ValueKind == JsonValueKind.Null ? null : value.GetString();
 
     private static bool Flag(JsonElement value) => value.ValueKind == JsonValueKind.True;
