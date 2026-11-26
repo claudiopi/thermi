@@ -232,13 +232,14 @@ public sealed record OverlayLook
         return Math.Max(PillHeight, TextRoom * Math.Max(label.Size, value.Size));
     }
 
-    // Below ShadowBelow what shows behind the text is what is behind the overlay, so Light or Dark pills there take the
-    // taskbar's mode, as System's do, and their text, unlit segments and shadow read on it.
+    // Below ShadowBelow what shows behind the text is what is behind the overlay, so Light, Dark or own-colored pills there
+    // take the taskbar's mode, as System's do, and their text, unlit segments and shadow read on it.
     private static OverlayLook Styled(StyleConfig style, bool lightTaskbar)
     {
-        var light = style.Opacity.Background < ShadowBelow ? lightTaskbar : style.Pills == PillTheme.Light || (style.Pills == PillTheme.System && lightTaskbar);
+        var faint = style.Opacity.Background < ShadowBelow;
+        var light = faint ? lightTaskbar : style.Pills == PillTheme.Light || (style.Pills == PillTheme.System && lightTaskbar);
         var themed = light ? PillColors.Light : PillColors.Dark;
-        var pills = style.Colors?.Background is { } own ? PillColors.Of(Rgb.Parse(own)) : themed;
+        var pills = !faint && style.Colors?.Background is { } own ? PillColors.Of(Rgb.Parse(own)) : themed;
         light = pills.IsLight;
         var (label, value) = StylePresets.Text(style);
         var valueColor = Readable(style.Colors?.Value, pills, pills.Value);
