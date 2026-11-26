@@ -90,7 +90,7 @@ internal static class HiddenWindow
     /// Sends a message to the window of that class and waits up to 500 ms: one that carries nothing as its registered
     /// message, any other as <c>WM_COPYDATA</c> whose <c>dwData</c> is the kind's registered id, from this process's own
     /// hidden window of the other class, which the receiver checks. False when there is no such window, the payload is
-    /// past the cap, or the window does not answer.
+    /// past the cap, or the window does not answer or answers without taking it, as one closing or still starting does.
     /// </summary>
     public static unsafe bool Send(string className, WindowMessage message, Action<HWND>? found = null)
     {
@@ -111,7 +111,7 @@ internal static class HiddenWindow
                 0,
                 SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG,
                 (uint)AnswerTimeout.TotalMilliseconds,
-                out _) != 0;
+                out var asked) != 0 && asked != 0;
         }
 
         var payload = WindowMessages.Encode(message);
@@ -131,7 +131,7 @@ internal static class HiddenWindow
                 (nint)(&copy),
                 SEND_MESSAGE_TIMEOUT_FLAGS.SMTO_ABORTIFHUNG,
                 (uint)AnswerTimeout.TotalMilliseconds,
-                out _) != 0;
+                out var taken) != 0 && taken != 0;
         }
     }
 

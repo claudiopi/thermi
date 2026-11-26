@@ -1,7 +1,9 @@
+using Thermi.Core.Messages;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
+using Thermi.Windows.Ui;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -73,6 +75,40 @@ public sealed class OverlayDragTests : OverlayPresses, IDisposable
         Assert.Equal(before, Folder.Text());
         Assert.Equal([0], opened);
         Assert.True(OverlayWindow.WindowClass(TestWindows.DefaultProcedure, default).style.HasFlag(WNDCLASS_STYLES.CS_DBLCLKS));
+    }
+
+    // A double-click on a value asks an open window to select it, and opens the window, or brings it up, whenever none took
+    // that: none runs, or one of its class answers without taking it, as a window closing or still starting does.
+    [Theory]
+    [InlineData("none", true)]
+    [InlineData("drops", true)]
+    [InlineData("takes", false)]
+    public async Task ADoubleClickOnAValueOpensTheWindowUnlessOneTookIt(string window, bool opens)
+    {
+        var settings = await Folder.LoadedAsync(new ThermiConfig());
+        var (opened, taken) = (new List<int>(), new List<WindowMessage>());
+
+        Run(settings, host =>
+        {
+            using var beacon = window == "takes" ? new SettingsBeacon(_ => { }, Folder.Log) { Received = taken.Add } : null;
+            if (window == "drops")
+            {
+                HiddenWindow.Register(HiddenWindow.WindowClass, name => HiddenWindow.Plain(TestWindows.DefaultProcedure, name));
+            }
+
+            var drops = window == "drops" ? HiddenWindow.Create(HiddenWindow.WindowClass) : HWND.Null;
+            MoveTo(host, host.Overlays[0], EndOf(host.Overlays[0], Metrics.CpuLoad.Id, label: false));
+            Post(host.Overlays[0].Hwnd, PInvoke.WM_LBUTTONDBLCLK);
+            HostRun.Pump(host);
+            if (!drops.IsNull)
+            {
+                PInvoke.DestroyWindow(drops);
+                HiddenWindow.Unregister(HiddenWindow.WindowClass);
+            }
+        }, opened.Add);
+
+        Assert.Equal(opens ? [0] : [], opened);
+        Assert.Equal(!opens, taken.Any(message => message is Select { How: SelectHow.DoubleClick }));
     }
 
     // A drag ends with nothing of it on screen but the overlay, its marks gone: let go near a corner's mark it snaps there,
