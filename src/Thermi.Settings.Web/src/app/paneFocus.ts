@@ -15,7 +15,10 @@ export function useAnchorKept(main: RefObject<HTMLElement | null>, page: string)
   useLayoutEffect(() => {
     const pane = main.current;
     const inner = pane?.firstElementChild;
-    if (pane == null || !(inner instanceof HTMLElement)) {
+    // What is followed is the page in its own block, which the room held under it never resizes: a resize in the
+    // follower's callback of what it follows is a ResizeObserver loop.
+    const page = inner?.firstElementChild;
+    if (pane == null || !(inner instanceof HTMLElement) || page == null) {
       return undefined;
     }
     holdRoom(inner, '');
@@ -39,7 +42,7 @@ export function useAnchorKept(main: RefObject<HTMLElement | null>, page: string)
       keep();
     };
     const resized = new ResizeObserver(follow);
-    resized.observe(inner);
+    resized.observe(page);
     pane.addEventListener('scroll', keep, { passive: true });
     document.addEventListener('focusin', keep);
     keep();
