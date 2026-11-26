@@ -75,6 +75,7 @@ internal sealed class OverlayHost : IDisposable
         _actions = new OverlayActions(culture, time, RequestPaint, _link.OpenWindow, () => PInvoke.DestroyWindow(Hwnd), _environment.Cursor)
         {
             History = history,
+            OpenSize = _link.OpenSize,
             Select = _link.Selected,
             Shown = () => DesktopDrag.Boxes(_overlays),
             Settle = (before, after) => Ui.Views.OverlayPlaces.Settled(before, after, Scene(after, _desktop.Screens()), culture, DesktopDrag.Boxes(_overlays)),

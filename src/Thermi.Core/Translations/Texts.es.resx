@@ -1207,6 +1207,10 @@
   <data name="HostText.Seconds" xml:space="preserve">
     <value>{0} segundos</value>
   </data>
+  <data name="HostText.SizePercent" xml:space="preserve">
+    <value>{0} %</value>
+    <comment>A percentage, written alike.</comment>
+  </data>
   <data name="HotkeyRefusal.NeedsCtrlOrAlt" xml:space="preserve">
     <value>Agrega Ctrl o Alt: una tecla sola, o con Mayús, escribe en todas las aplicaciones. F13 a F24 funcionan solas.</value>
   </data>
@@ -1324,6 +1328,21 @@
   </data>
   <data name="MenuEntry.SeparateFull" xml:space="preserve">
     <value>4 superposiciones como máximo</value>
+  </data>
+  <data name="MenuEntry.Size" xml:space="preserve">
+    <value>Tamaño</value>
+  </data>
+  <data name="MenuEntry.Bigger" xml:space="preserve">
+    <value>Más grande</value>
+  </data>
+  <data name="MenuEntry.Smaller" xml:space="preserve">
+    <value>Más chica</value>
+  </data>
+  <data name="MenuEntry.SizeCustom" xml:space="preserve">
+    <value>Personalizar…</value>
+  </data>
+  <data name="MenuEntry.SizeOnTaskbar" xml:space="preserve">
+    <value>En la barra de tareas nunca queda más alto que la barra.</value>
   </data>
   <data name="MetricLabel.Cpu" xml:space="preserve">
     <value>CPU</value>
@@ -1596,7 +1615,7 @@
     <value>Un nombre no puede estar vacío.</value>
   </data>
   <data name="Refusal.SizeOutOfRange" xml:space="preserve">
-    <value>El tamaño va de 75 % a 200 %.</value>
+    <value>El tamaño va de 75 % a 400 %.</value>
   </data>
   <data name="Refusal.TooManyOverlays" xml:space="preserve">
     <value>Puede haber hasta 4 superposiciones.</value>

@@ -44,6 +44,17 @@ public enum MenuEntry
 
     /// <summary>The note beside a grayed "Separate": no other overlay fits.</summary>
     SeparateFull,
+
+    /// <summary>The overlay's Size submenu, and each of its presets, which <see cref="MenuRow.Size"/> names.</summary>
+    Size,
+    Bigger,
+    Smaller,
+
+    /// <summary>Under the Size presets: the window, on the overlay's Size row.</summary>
+    SizeCustom,
+
+    /// <summary>Closing the Size submenu, grayed, while a taskbar keeps the overlay from showing bigger.</summary>
+    SizeOnTaskbar,
 }
 
 /// <summary>
@@ -61,6 +72,9 @@ public sealed record MenuRow(MenuEntry Entry, bool Checked = false, bool Default
 
     /// <summary>One of the Graph submenu's choices.</summary>
     public GraphStyle? Graph { get; init; }
+
+    /// <summary>The size a choice of the Size submenu sets: a preset's, or one step from what the overlay shows.</summary>
+    public double? Size { get; init; }
 
     /// <summary>
     /// True for a row shown grayed, which nothing chooses: one that only says what the menu acts on, or an entry refused
@@ -82,7 +96,7 @@ public sealed record MenuRow(MenuEntry Entry, bool Checked = false, bool Default
 
 /// <summary>
 /// What the menus show besides the settings: the hide flag, the file's and the service's state, the last desktop gesture's age,
-/// the saved looks and an update.
+/// the saved looks and an update; and the monitors, whose taskbars cap the sizes offered.
 /// </summary>
 public sealed record MenuState(
     bool HideOverlays,
@@ -90,7 +104,10 @@ public sealed record MenuState(
     ServiceState Service,
     TimeSpan? SinceGesture,
     IReadOnlyList<StyleConfig> SavedLooks,
-    bool UpdateReady);
+    bool UpdateReady)
+{
+    public IReadOnlyList<Screen> Screens { get; init; } = [];
+}
 
 /// <summary>
 /// thermi's menu and each overlay's, as data in their order, so both are built in one place. thermi's default entry is the
@@ -113,6 +130,9 @@ public static class Menus
         [MenuEntry.HideThisOverlay] = OverlayText.UndoHide,
         [MenuEntry.ShowOverlay] = OverlayText.UndoShow,
         [MenuEntry.ShowHiddenOverlays] = OverlayText.UndoShow,
+        [MenuEntry.Size] = OverlayText.UndoResize,
+        [MenuEntry.Bigger] = OverlayText.UndoResize,
+        [MenuEntry.Smaller] = OverlayText.UndoResize,
     };
 
     /// <summary>Whether an overlay has an item that shows a minimum or a maximum, which "Reset min and max" starts again.</summary>
@@ -240,6 +260,7 @@ public static class Menus
 
         rows.AddRange(LooksOf(shown, state));
         rows.AddRange(VerticalOf(shown, null));
+        rows.Add(SizeOf(shown, state.Screens));
         if (fromTray)
         {
             rows.Add(new MenuRow(MenuEntry.ClickThrough, shown.ClickThrough) { Overlay = overlay });
@@ -263,6 +284,20 @@ public static class Menus
         {
             Entries = [.. Enum.GetValues<GraphStyle>().Select(style => new MenuRow(MenuEntry.Graph, style == overlay.Graph) { Graph = style }), .. own],
         };
+    }
+
+    // One step either way and the presets, each left out where it would show the overlay no differently.
+    private static MenuRow SizeOf(OverlayConfig overlay, IReadOnlyList<Screen> screens)
+    {
+        var steps = new[] { (MenuEntry.Bigger, OverlaySizes.Bigger(overlay, screens)), (MenuEntry.Smaller, OverlaySizes.Smaller(overlay, screens)) }
+            .Where(step => step.Item2 is not null)
+            .Select(step => new MenuRow(step.Item1) { Size = step.Item2 });
+        var presets = OverlaySizes.Offered(overlay, screens)
+            .Select((size, at) => new MenuRow(MenuEntry.Size, Math.Abs(size - overlay.Size) < OverlaySizes.Step / 2) { Size = size, Starts = at == 0 });
+        MenuRow[] capped = OverlaySizes.Most(overlay, screens) < OverlayConfig.MaxSize
+            ? [new MenuRow(MenuEntry.SizeOnTaskbar) { Heading = true, Starts = true }]
+            : [];
+        return new MenuRow(MenuEntry.Size) { Entries = [.. steps, .. presets, new MenuRow(MenuEntry.SizeCustom) { Starts = true }, .. capped] };
     }
 
     // "Hide overlays" hides nothing while every overlay is hidden on its own.

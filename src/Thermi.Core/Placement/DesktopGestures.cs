@@ -26,9 +26,6 @@ public readonly record struct DropTarget(int? Onto, string? Before, bool InPill 
 /// </summary>
 public static class DesktopGestures
 {
-    /// <summary>The steps a corner's drag changes the size by.</summary>
-    public const double SizeStep = 0.05;
-
     /// <summary>How long a press holds still on a pill before the pill lifts, so a drag takes it off.</summary>
     public static readonly TimeSpan Hold = TimeSpan.FromMilliseconds(500);
 
@@ -93,7 +90,7 @@ public static class DesktopGestures
     {
         var (wide, high) = (Math.Max(1, width + dx), Math.Max(1, height + dy));
         var grown = Math.Max(wide, high) / (double)Math.Max(1, Math.Max(width, height));
-        var stepped = Math.Round(size * grown / SizeStep, MidpointRounding.AwayFromZero) * SizeStep;
+        var stepped = Math.Round(size * grown / OverlaySizes.Step, MidpointRounding.AwayFromZero) * OverlaySizes.Step;
         return (Math.Clamp(stepped, OverlayConfig.MinSize, OverlayConfig.MaxSize), high > wide ? Orientation.Vertical : Orientation.Horizontal);
     }
 

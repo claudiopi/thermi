@@ -196,6 +196,12 @@ export const laterRuns: FocusRun[] = [
         holds: (fake) => fake.editing?.overlay === 0 && fake.editing.selected === null,
       },
       {
+        name: "Custom… in an overlay's Size menu: on its Size slider",
+        acts: [{ pick: { overlay: 1, item: null, how: 'size' } }],
+        focus: role('slider', 'UiText.SizeField'),
+        holds: (fake) => fake.editing?.overlay === 1 && fake.editing.selected === null,
+      },
+      {
         name: "Alt+Right on a floating overlay's row moves it 8 px",
         acts: [{ focus: overlay('Floating') }, 'Alt+ArrowRight'],
         focus: overlay('Floating'),

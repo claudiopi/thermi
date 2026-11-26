@@ -20,6 +20,9 @@ internal sealed record OverlayActions(
     Action Exit,
     Func<Position> Cursor)
 {
+    /// <summary>Opens the window on an overlay's Size row, by its place.</summary>
+    public Action<int> OpenSize { get; init; } = _ => { };
+
     /// <summary>A value or an edge clicked or pointed at, which the open window selects or marks.</summary>
     public Action<Select> Select { get; init; } = _ => { };
 

@@ -7,9 +7,10 @@
         "R1",
         "R56",
         "R136",
-        "R196"
+        "R196",
+        "R204"
       ],
-      "description": "Given the overlays and thermi in each of their states (how many overlays and which are hidden, locked or on the desktop; a broken file, a stopped service, saved looks, an update ready), and the pill the menu opens on, when thermi's menu and the overlay's menu are built, then each holds its entries in their groups and order, with their checks and bold default: a locked overlay offers no Separate, at four overlays Separate is grayed with why, and no entry offered does nothing.",
+      "description": "Given the overlays and thermi in each of their states (how many overlays and which are hidden, locked or on the desktop; a broken file, a stopped service, saved looks, an update ready), and the pill the menu opens on, when thermi's menu and the overlay's menu are built, then each holds its entries in their groups and order, with their checks and bold default: a locked overlay offers no Separate, at four overlays Separate is grayed with why, the Size submenu steps from what the overlay shows, and no entry offered does nothing.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -407,7 +408,8 @@
       "covers": [
         "R47",
         "R123",
-        "R124"
+        "R124",
+        "R204"
       ],
       "description": "Given the page with the fake bridge, when the design prototype's sequences of keys and clicks run, then after each step the focus is on a control in view, never the page, dialogs keep it inside, and menus give it back; the steps on Windows' own frame are A220's.",
       "check": "TheFocusContractHolds",
@@ -1784,6 +1786,37 @@
       "description": "Given the default overlay and a second one, when a pill's row is moved by Alt+Up or Alt+Down, also past either end, and an item's row is dropped before another overlay's item, apart above its pill, on its heading, or on itself, then the pill moves whole, the item lands there, an overlay left empty goes, a move past an end or onto itself changes nothing, and each move is one undo step.",
       "check": "TheListMovesPillsAndItemsAmongOverlays",
       "passes": true
+    },
+    {
+      "id": "A360",
+      "covers": [
+        "R204",
+        "R205"
+      ],
+      "description": "Given an overlay at 75 %, 100 %, between two steps, at 400 %, and on a taskbar that caps it below its size, when the Size menu's steps and presets and the wheel's turns are worked out, then each steps 5 % from the size it shows, within 75 % to 400 % and the taskbar's height, a touchpad's partial turns add up to a notch, and nothing that would change nothing is offered.",
+      "check": "TheSizeStepsFromWhatTheOverlayShowsWithinItsBounds",
+      "passes": true
+    },
+    {
+      "id": "A361",
+      "covers": [
+        "R150",
+        "R204",
+        "R205"
+      ],
+      "description": "Given a real overlay on a test desktop, when a preset is chosen from its menu, Ctrl+wheel turns it two notches within a second, the wheel turns a locked one, and \"Custom…\" is chosen with the window's beacon listening, then each writes its size as one step that the menu's Undo takes back whole, the locked one keeps its size, and the open window is asked for the overlay's Size row and comes to the front.",
+      "check": "TheSizeMenuAndTheWheelResizeTheOverlayAsOneStep",
+      "passes": true
+    },
+    {
+      "id": "A362",
+      "covers": [
+        "R204",
+        "R205"
+      ],
+      "description": "Given the installed thermi, when the author uses the Size menu and Ctrl+wheel with a mouse and a precision touchpad on an overlay free, in a corner and on the taskbar, with the window closed and open, then each step shows at once, on the taskbar nothing grows past its height and the menu says why, Ctrl+Z in the window and the menu's Undo take a spin back whole, and \"Custom…\" opens the window, or brings it, on that overlay's Size slider.",
+      "check": "by hand",
+      "passes": false
     }
   ]
 }

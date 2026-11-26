@@ -60,14 +60,15 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     public bool WindowOpen() => NamedMutex.Exists(WindowMutex);
 
     /// <summary>
-    /// Opens the window on an overlay, by its place, and an item to select, as <c>thermi settings --overlay n --item id</c>:
-    /// a window already open comes to the front on it instead. The click that asked still lets this process give the front
-    /// away, and the new process needs it.
+    /// Opens the window on an overlay, by its place, and an item to select or its Size row, as
+    /// <c>thermi settings --overlay n --item id</c> or <c>--size</c>: a window already open comes to the front on it
+    /// instead. The click that asked still lets this process give the front away, and the new process needs it.
     /// </summary>
-    public void StartWindow(int overlay, string? item, bool trace)
+    public void StartWindow(int overlay, string? item, bool trace, bool sizeRow = false)
     {
         PInvoke.AllowSetForegroundWindow(PInvoke.ASFW_ANY);
         string[] arguments = ["settings", ThermiCommands.OverlayOption, (overlay + 1).ToString(CultureInfo.InvariantCulture)];
-        Program.Start(WindowExe, trace, item is null ? arguments : [.. arguments, ThermiCommands.ItemOption, item]);
+        string[] on = item is not null ? [ThermiCommands.ItemOption, item] : sizeRow ? [ThermiCommands.SizeOption] : [];
+        Program.Start(WindowExe, trace, [.. arguments, .. on]);
     }
 }
