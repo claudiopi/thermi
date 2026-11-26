@@ -2,14 +2,37 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    ":dependencyDashboard",
     ":semanticCommits",
     "helpers:pinGitHubActionDigests"
   ],
+  "timezone": "America/Montevideo",
   "schedule": ["before 6am on monday"],
   "minimumReleaseAge": "7 days",
   "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "description": "A fix for a known vulnerability opens its PR at once, without the 7-day wait or the weekly schedule.",
+    "minimumReleaseAge": null,
+    "schedule": ["at any time"]
+  },
   "labels": ["dependencies"],
   "prConcurrentLimit": 5,
+  "lockFileMaintenance": {
+    "description": "Each month, the lock files' transitive packages move to the newest their ranges allow, in one PR a person merges.",
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "customManagers": [
+    {
+      "description": "The gitleaks release the Security workflow downloads, checked there against that release's checksums.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": ["GITLEAKS_VERSION: '(?<currentValue>[^']+)'"],
+      "depNameTemplate": "gitleaks/gitleaks",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    }
+  ],
   "packageRules": [
     {
       "description": "Runtime packages: one weekly PR for minor and patch updates, merged by a person after testing on real hardware. Sensor libraries reach a kernel driver, which the CI cannot test.",
@@ -18,26 +41,36 @@
       "groupName": "nuget minor and patch"
     },
     {
-      "description": "Build-only packages (analyzers, test tools) never ship to users: their minor and patch updates merge themselves once the CI gate is green.",
+      "description": "Build-only packages (analyzers, test tools) never ship to users: their minor and patch updates merge themselves once the CI gate is green. GitHub's auto-merge squashes the PR as a person would, and `rebaseWhen: conflicted` keeps each push to main from rebasing it and restarting the CI before it ever turns green.",
       "matchManagers": ["nuget"],
       "matchPackageNames": ["/Analyzer/", "xunit*", "coverlet*"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "build tools",
-      "automerge": true
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "rebaseWhen": "conflicted"
     },
     {
-      "description": "The settings window's page: one weekly PR for its npm packages' minor and patch updates, pinned exactly with the lockfile, merged by a person after its Playwright tests.",
+      "description": "The settings window's page pins its npm packages exactly, beside the lockfile. Renovate takes a range strategy only in a rule that names no update type.",
+      "matchManagers": ["npm"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "description": "The page's minor and patch updates: one weekly PR, merged by a person after its Playwright tests.",
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],
-      "rangeStrategy": "pin",
       "groupName": "npm minor and patch"
     },
     {
-      "description": "GitHub Actions in their own PR, merged automatically once the CI gate is green.",
-      "matchManagers": ["github-actions"],
+      "description": "GitHub Actions and the CI's tools in their own PR, merged automatically once the CI gate is green, as the build tools are.",
+      "matchManagers": ["github-actions", "custom.regex"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "groupName": "github actions",
-      "automerge": true
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "rebaseWhen": "conflicted"
     },
     {
       "description": "Major updates: one PR each, outside the weekly schedule once the 7-day wait is over, reviewed by a person.",

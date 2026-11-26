@@ -143,12 +143,16 @@ jobs:
             exit 1
           }
 
+  # Secrets in the history and known vulnerable packages; it also runs each day on its own.
+  security:
+    uses: ./.github/workflows/security.yml
+
   # The only required check on main (docs/RELEASES.md): jobs can change without touching branch protection, and one that
   # failed, was cancelled or was skipped fails it.
   ci-gate:
     name: CI gate
     if: always()
-    needs: [core, windows, windows-alone, web, msi, pr-title]
+    needs: [core, windows, windows-alone, web, msi, pr-title, security]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -162,6 +166,6 @@ jobs:
           @('### CI gate', '', '| | Job | Result |', '| :-: | --- | --- |') + $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
-          needs.web.result != 'success' || needs.msi.result != 'success' ||
+          needs.web.result != 'success' || needs.msi.result != 'success' || needs.security.result != 'success' ||
           (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
         run: exit 1

@@ -1,0 +1,5 @@
+# Default rules, nothing allowed: only a proven false positive joins an allowlist here, with why it is not a secret.
+# A real secret is revoked first, then removed.
+
+[extend]
+useDefault = true
