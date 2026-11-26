@@ -60,14 +60,16 @@ public sealed class StyleWindowsTests
     // The admin recording's CPU temperature, 77 °C, metered by itself: a meter of five segments 12 px wide at 100 %, the
     // four lowest lit, as 77 of 100 rounds to four fifths, in its level's color, and the top one a faint track; at 100 %
     // on the dark pills of a dark taskbar, and at 150 % past a warning line on the light pills of a light one, where the
-    // meter shows the warning, so the value has no underline too.
+    // meter shows the warning, so the value has no underline too. With 36 px values, the meter and the CPU load's graph
+    // keep the shape they have beside Standard's 13.5 px: as tall as the value's text, and as much wider.
     [Theory]
-    [InlineData(1f, false, null)]
-    [InlineData(1.5f, true, 60d)]
-    public void AMeterLightsItsSegmentsFromTheBottomInItsLevelsColor(float scale, bool lightTaskbar, double? warning)
+    [InlineData(1f, false, null, 13.5)]
+    [InlineData(1.5f, true, 60d, 36)]
+    public void AMeterLightsItsSegmentsFromTheBottomInItsLevelsColor(float scale, bool lightTaskbar, double? warning, double text)
     {
         var config = new ThermiConfig();
         config = warning is { } line ? ItemEdits.SetThreshold(config, Metrics.CpuTemperature.Id, line, 95).Config : config;
+        config = StyleEdits.SetText(config, 0, TextPart.Value, new TextStyle(text, TextWeight.Bold)).Config;
         var overlay = config.Overlays[0];
         var look = OverlayLook.Of(overlay.Style, lightTaskbar);
         var readings = SensorMap.Read(TestRecordings.Read(TestRecordings.Admin), overlay);
@@ -75,11 +77,17 @@ public sealed class StyleWindowsTests
 
         using var bitmap = painter.Paint(OverlayLayout.Build(overlay, readings, CultureInfo.GetCultureInfo("en-US")), look, scale);
 
+        var wider = text / 13.5;
         var temperature = painter.Places.Single(place => place.Id == Metrics.CpuTemperature.Id);
-        var meter = Before(bitmap, temperature, 20 * scale);
+        var meter = Before(bitmap, temperature, (float)(20 * wider * scale));
         var lit = meter.Where(pixel => Near(pixel.Color, look.MeterColor(warning is null ? Level.Normal : Level.Warning), 0)).ToList();
         var track = meter.Where(pixel => Near(pixel.Color, look.Pills.MeterOff, 0)).ToList();
-        Assert.Equal((int)Math.Round(12 * scale), lit.Max(pixel => pixel.X) - lit.Min(pixel => pixel.X) + 1);
+        var load = Before(bitmap, painter.Places.Single(place => place.Id == Metrics.CpuLoad.Id), (float)(30 * wider * scale))
+            .Where(pixel => Near(pixel.Color, look.Pills.MeterOff, 0))
+            .ToList();
+        Assert.Equal((int)Math.Round(12 * wider * scale), lit.Max(pixel => pixel.X) - lit.Min(pixel => pixel.X) + 1);
+        Assert.Equal((int)Math.Round(24 * wider * scale), load.Max(pixel => pixel.X) - load.Min(pixel => pixel.X) + 1);
+        Assert.InRange(lit.Max(pixel => pixel.Y) - track.Min(pixel => pixel.Y) + 1 - (text * scale), -5, 5);
         Assert.Equal(4, Bands(lit));
         Assert.Equal(1, Bands(track));
         Assert.True(track.Max(pixel => pixel.Y) < lit.Min(pixel => pixel.Y), "The lit segments are the lowest.");
