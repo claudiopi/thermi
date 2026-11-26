@@ -804,6 +804,9 @@
   <data name="UiText.ItemMoved" xml:space="preserve">
     <value>{0} movido, {1} de {2}, en la píldora {3}</value>
   </data>
+  <data name="UiText.PillMoved" xml:space="preserve">
+    <value>Píldora {0} movida, {1} de {2}</value>
+  </data>
   <data name="UiText.FilterSensors" xml:space="preserve">
     <value>Filtrar {0} sensores</value>
   </data>

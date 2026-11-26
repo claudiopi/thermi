@@ -160,6 +160,26 @@ test('TheListWorksWithTheKeyboard', async ({ page }) => {
     await power.dragTo(nextPill, { targetPosition: { x: 8, y: 1 } });
     await expect.poll(async () => itemOf(await settingsOf(page), 'cpu.power').own).toBe(true);
   });
+
+  const pill = (label: string) => list(page).getByRole('treeitem', { name: startingWith(text('UiText.PillName', text(label))) });
+  await test.step('a pill dragged onto another moves before it', async () => {
+    await pill('MetricLabel.Ram').dragTo(pill('MetricLabel.Cpu').first(), { targetPosition: { x: 8, y: 4 } });
+    await expect.poll(async () => ids(await settingsOf(page), 0)[0]).toBe('ram.used');
+  });
+
+  await test.step('Move to takes a pill to another overlay by keys', async () => {
+    await pill('MetricLabel.Ram').focus();
+    await page.keyboard.press('Shift+F10');
+    await page.getByRole('menuitem', { name: text('UiText.MoveToOverlay', 'Top right') }).press('Enter');
+    await expect.poll(async () => ids(await settingsOf(page), 1)).toEqual(['gpu.temperature', 'ram.used']);
+  });
+
+  await test.step("an item dragged onto another overlay's pill moves there", async () => {
+    const theirs = pill('MetricLabel.Gpu').last();
+    const high = (await theirs.boundingBox())?.height ?? 0;
+    await list(page).getByRole('treeitem', { name: text('MetricName.GpuLoad') }).dragTo(theirs, { targetPosition: { x: 8, y: high - 2 } });
+    await expect.poll(async () => ids(await settingsOf(page), 1)).toEqual(['gpu.load', 'gpu.temperature', 'ram.used']);
+  });
 });
 
 // A204: the catalog opened from each overlay adds there, or where its picker says, with Enter or Ctrl+Enter.

@@ -268,6 +268,9 @@ public enum UiText
     /// <summary>What Narrator hears once an item moved: its name, its place and count in its pill, and the pill's label.</summary>
     ItemMoved,
 
+    /// <summary>What Narrator hears once a pill moved: its label, and its place and count among its overlay's pills.</summary>
+    PillMoved,
+
     /// <summary>The Sensor dropdown's filter: how many sensors it lists.</summary>
     FilterSensors,
 

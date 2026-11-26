@@ -24,6 +24,9 @@ namespace Thermi.Core.Bridge;
 [JsonDerivedType(typeof(AddItemEdit), "addItem")]
 [JsonDerivedType(typeof(RemoveItemEdit), "removeItem")]
 [JsonDerivedType(typeof(MoveItemEdit), "moveItem")]
+[JsonDerivedType(typeof(DropItemEdit), "dropItem")]
+[JsonDerivedType(typeof(MovePillEdit), "movePill")]
+[JsonDerivedType(typeof(DropPillEdit), "dropPill")]
 [JsonDerivedType(typeof(NewOverlayEdit), "newOverlay")]
 [JsonDerivedType(typeof(DuplicateOverlayEdit), "duplicateOverlay")]
 [JsonDerivedType(typeof(MergeOverlayEdit), "mergeOverlay")]
@@ -56,6 +59,13 @@ public sealed record RemoveItemEdit(string Item) : PageEdit;
 
 /// <summary>An item moved to a place in an overlay, or to a new overlay of its own when none is named.</summary>
 public sealed record MoveItemEdit(string Item, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? Overlay, int Index) : PageEdit;
+
+public sealed record DropItemEdit(string Item, int Overlay, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Before, bool Apart)
+    : PageEdit;
+
+public sealed record MovePillEdit(string Item, int By) : PageEdit;
+
+public sealed record DropPillEdit(string Item, int Overlay, [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Before) : PageEdit;
 
 public sealed record NewOverlayEdit : PageEdit;
 

@@ -109,6 +109,9 @@ export type Edit =
   | { kind: 'addItem'; overlay: number; sensor: string }
   | { kind: 'removeItem'; item: string }
   | { kind: 'moveItem'; item: string; overlay: number | null; index: number }
+  | { kind: 'dropItem'; item: string; overlay: number; before: string | null; apart: boolean }
+  | { kind: 'movePill'; item: string; by: number }
+  | { kind: 'dropPill'; item: string; overlay: number; before: string | null }
   | { kind: 'newOverlay' }
   | { kind: 'duplicateOverlay'; overlay: number }
   | { kind: 'mergeOverlay'; overlay: number; into: number }

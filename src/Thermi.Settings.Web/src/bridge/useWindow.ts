@@ -160,7 +160,7 @@ export function useEdit(): (edit: Edit) => Promise<string | null> {
   return useCallback(async (edit: Edit) => (await bridge()?.edit(edit)) ?? null, []);
 }
 
-/** Several edits as one undo step, like a drag or a move that also gives an item its own pill. */
+/** Several edits as one undo step, like a drag. */
 export async function asOneStep(edits: () => Promise<unknown>): Promise<void> {
   const from = bridge();
   await from?.gesture(true);

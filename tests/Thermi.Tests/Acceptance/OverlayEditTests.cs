@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
@@ -210,6 +211,53 @@ public sealed class OverlayEditTests
         var after = Done(Edit(before, ["desk", .. words]));
 
         Assert.Equal(items, string.Join(' ', after.Overlays[int.Parse(words[4], CultureInfo.InvariantCulture)].Items.Select(item => item.Id)));
+    }
+
+    // The list's moves: a pill's row by Alt+arrows among its overlay's pills, stopping at either end, and an
+    // item's row dropped on an overlay's, before the pill or item it lands on or, on its heading, past its last, an item
+    // apart above a pill starting one of its own; an overlay left empty goes, and each move is one undo step. Where it
+    // starts, the move, then each overlay's items in order, an item that starts a pill of its own marked *, or the refusal.
+    [Theory]
+    [InlineData("one", "pill gpu.load -1", "gpu.load cpu.temperature fan.cpu cpu.load cpu.power ram.used")]
+    [InlineData("one", "pill cpu.load 5", "gpu.load ram.used cpu.temperature fan.cpu cpu.load cpu.power")]
+    [InlineData("one", "pill ram.used 1", "cpu.temperature fan.cpu cpu.load cpu.power gpu.load ram.used")]
+    [InlineData("two", "itemto cpu.power 1 gpu.load-2", "cpu.temperature fan.cpu cpu.load gpu.load ram.used | "
+        + "cpu.temperature-2 fan.cpu-2 cpu.load-2 cpu.power-2 cpu.power gpu.load-2 ram.used-2")]
+    [InlineData("two", "itemto cpu.power 1 gpu.load-2 apart", "cpu.temperature fan.cpu cpu.load gpu.load ram.used | "
+        + "cpu.temperature-2 fan.cpu-2 cpu.load-2 cpu.power-2 cpu.power* gpu.load-2 ram.used-2")]
+    [InlineData("solo", "itemto solo 0 -", "cpu.temperature fan.cpu cpu.load cpu.power gpu.load ram.used solo")]
+    [InlineData("one", "itemto cpu.load 0 cpu.load", "cpu.temperature fan.cpu cpu.load cpu.power gpu.load ram.used")]
+    [InlineData("one", "itemto cpu.load 0 nobody", nameof(Refusal.NotFound))]
+    [InlineData("one", "pill nobody -1", nameof(Refusal.NotFound))]
+    public void TheListMovesPillsAndItemsAmongOverlays(string start, string move, string expected)
+    {
+        var before = start switch
+        {
+            "two" => Two,
+            "solo" => Solo,
+            _ => One,
+        };
+        var words = move.Split(' ');
+        PageEdit edit = words[0] switch
+        {
+            "pill" => new MovePillEdit(words[1], int.Parse(words[2], CultureInfo.InvariantCulture)),
+            _ => new DropItemEdit(words[1], int.Parse(words[2], CultureInfo.InvariantCulture), words[3] == "-" ? null : words[3], words.Length > 4),
+        };
+        var history = new UndoHistory();
+
+        var result = PageEdits.Of(edit, TestRecordings.Read(TestRecordings.Admin), Texts.English, () => new HashSet<int>())(before);
+        if (result.Refused is { } refused)
+        {
+            Assert.Equal((expected, File(before)), (refused.ToString(), File(result.Config)));
+            return;
+        }
+
+        var after = Done(history, before, _ => result);
+        var moved = File(after) != File(before);
+        var shown = after.Overlays.Select(overlay => string.Join(' ', overlay.Items.Select(item => item.Own ? $"{item.Id}*" : item.Id)));
+        Assert.Equal(expected, string.Join(" | ", shown));
+        Assert.Equal(moved, history.CanUndo);
+        Assert.Equal(File(before), moved ? File(history.Undo(after)!.Config) : File(after));
     }
 
     // The window lists the pills the overlay labels, in every layout, and a join or a split leaves every pill a start of

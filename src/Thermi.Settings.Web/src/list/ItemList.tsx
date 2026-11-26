@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import type { Edit } from '../bridge/bridge.g';
-import { asOneStep, useEdit, type WindowData } from '../bridge/useWindow';
+import { useEdit, type WindowData } from '../bridge/useWindow';
 import { Button, Icon, Menu } from '../kit';
 import { displays } from '../overlay/placeModel';
 import { useMonitors } from '../overlay/useOverlayReads';
@@ -61,20 +61,57 @@ function useRowFocus(version: number): (key: string, waitForData?: boolean) => v
   };
 }
 
-/** Where a dragged item lands on a row: before an item, or as a pill of its own at the top of a pill. */
-function dropOf(data: WindowData, dragged: string, row: Row, event: DragEvent<HTMLDivElement>): Edit[] {
-  const overlay = data.settings.overlays[row.overlay];
-  const target = row.kind === 'overlay' ? undefined : row.items[0];
-  if (overlay === undefined || target === dragged) {
-    return [];
+interface Dragged {
+  item: string;
+  pill: boolean;
+}
+
+function dropOf(dragged: Dragged, row: Row, event: DragEvent<HTMLDivElement>): Edit {
+  const before = row.kind === 'overlay' ? null : (row.items[0] ?? null);
+  if (dragged.pill) {
+    return { kind: 'dropPill', item: dragged.item, overlay: row.overlay, before };
   }
-  const from = overlay.items.findIndex((item) => item.id === dragged);
-  const at = target === undefined ? overlay.items.length : overlay.items.findIndex((item) => item.id === target);
-  const index = from >= 0 && from < at ? at - 1 : at;
   const box = event.currentTarget.getBoundingClientRect();
   const apart = row.kind === 'pill' && event.clientY < box.top + box.height / 2;
-  const moved: Edit[] = from === index ? [] : [{ kind: 'moveItem', item: dragged, overlay: row.overlay, index }];
-  return apart ? [...moved, { kind: 'item', item: dragged, field: 'own', value: true }] : moved;
+  return { kind: 'dropItem', item: dragged.item, overlay: row.overlay, before, apart };
+}
+
+interface MoveNews {
+  key: string;
+  text: string;
+}
+
+/**
+ * Says a move once its data comes back; the landed row's key differs for a pill that went to another overlay.
+ * A move is expected before its edit and given up with null when refused.
+ */
+function useMoveNews(rows: readonly Row[], changes: number, tell: (news: MoveNews) => void): (landed: Dragged | null) => void {
+  const t = useText();
+  const moved = useRef<(Dragged & { version: number }) | null>(null);
+  useLayoutEffect(() => {
+    const landed = moved.current;
+    const said = landed !== null && changes > landed.version ? movedText(rows, landed, t) : null;
+    if (said !== null) {
+      moved.current = null;
+      tell(said);
+    }
+  });
+  return (landed) => {
+    moved.current = landed === null ? null : { ...landed, version: changes };
+  };
+}
+
+function movedText(rows: readonly Row[], landed: Dragged, say: ReturnType<typeof useText>): MoveNews | null {
+  const item = rows.find((one) => one.key === itemKey(landed.item));
+  const pill = rows.find((one) => one.kind === 'pill' && one.items.includes(landed.item));
+  if (item === undefined || pill === undefined) {
+    return null;
+  }
+  if (!landed.pill) {
+    return { key: item.key, text: say('UiText.ItemMoved', item.name, pill.items.indexOf(landed.item) + 1, pill.items.length, pill.name) };
+  }
+  const pills = rows.filter((one) => one.kind === 'pill' && one.overlay === pill.overlay);
+  return { key: pill.key, text: say('UiText.PillMoved', pill.name, pills.indexOf(pill) + 1, pills.length) };
 }
 
 export function ItemList({
@@ -100,18 +137,24 @@ export function ItemList({
   const shown = shownRows(rows);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ row: Row; at: HTMLElement } | null>(null);
-  const dragged = useRef<string | null>(null);
-  const moved = useRef<string | null>(null);
+  const dragged = useRef<Dragged | null>(null);
   const focusRow = useRowFocus(data.changes);
-
-  useLayoutEffect(() => {
-    const row = rows.find((one) => one.key === moved.current);
-    const pill = rows.find((one) => one.key === row?.parent);
-    if (row !== undefined && pill !== undefined) {
-      moved.current = null;
-      announce(t('UiText.ItemMoved', row.name, pill.items.indexOf(row.items[0] ?? '') + 1, pill.items.length, pill.name));
+  const expectMove = useMoveNews(rows, data.changes, (said) => {
+    announce(said.text);
+    if (said.key !== selected) {
+      onSelect(said.key, 'keys');
+      focusRow(said.key);
     }
   });
+  const move = (one: Edit, landed: Dragged, key: string): void => {
+    expectMove(landed);
+    focusRow(key, true);
+    void edit(one).then((refused) => {
+      if (refused !== null) {
+        expectMove(null);
+      }
+    });
+  };
 
   const go = (row: Row): void => {
     onSelect(row.key, 'keys');
@@ -137,6 +180,10 @@ export function ItemList({
       onOverlayEdit(one);
       return;
     }
+    if (one.kind === 'moveItem' || one.kind === 'dropPill') {
+      move(one, { item: one.item, pill: one.kind === 'dropPill' }, row.key);
+      return;
+    }
     focusRow(row.key, true);
     void edit(one);
   };
@@ -147,11 +194,12 @@ export function ItemList({
     enter: (row) => onEnter(row.key),
     rename: (row) => (row.kind === 'pill' ? onEditLabel(row.items[0] ?? '') : setRenaming(row.key)),
     move: (row, by) => {
-      const to = row.kind === 'item' ? movedIndex(data.settings, row.items[0] ?? '', by) : null;
-      if (to !== null) {
-        moved.current = row.key;
-        focusRow(row.key, true);
-        void edit({ kind: 'moveItem', item: row.items[0] ?? '', overlay: to.overlay, index: to.index });
+      const item = row.items[0] ?? '';
+      const to = row.kind === 'item' ? movedIndex(data.settings, item, by) : null;
+      if (row.kind === 'pill') {
+        move({ kind: 'movePill', item, by }, { item, pill: true }, row.key);
+      } else if (to !== null) {
+        move({ kind: 'moveItem', item, overlay: to.overlay, index: to.index }, { item, pill: false }, row.key);
       }
     },
     remove: (row) => {
@@ -191,14 +239,10 @@ export function ItemList({
   };
   const drop = (row: Row, event: DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
-    const id = dragged.current;
+    const from = dragged.current;
     dragged.current = null;
-    const edits = id === null ? [] : dropOf(data, id, row, event);
-    if (id !== null && edits.length > 0) {
-      // In order: the item moves before it gets its own pill.
-      void asOneStep(() => edits.reduce<Promise<unknown>>((done, one) => done.then(() => edit(one)), Promise.resolve())).then(() =>
-        focusRow(itemKey(id), true),
-      );
+    if (from !== null) {
+      move(dropOf(from, row, event), from, from.pill ? row.key : itemKey(from.item));
     }
   };
 
@@ -231,7 +275,7 @@ export function ItemList({
               onRename={rename}
               onStartRename={(one) => (one.kind === 'pill' ? undefined : setRenaming(one.key))}
               onDragStart={(one, event) => {
-                dragged.current = one.items[0] ?? null;
+                dragged.current = one.items[0] === undefined ? null : { item: one.items[0], pill: one.kind === 'pill' };
                 event.dataTransfer.effectAllowed = 'move';
               }}
               onDrop={drop}

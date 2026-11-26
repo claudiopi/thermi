@@ -112,7 +112,7 @@ function ListRowDrawn({
       aria-label={renaming || row.kind === 'item' ? undefined : row.label}
       aria-description={describe(row, (key) => t(key))}
       tabIndex={tabStop ? 0 : -1}
-      draggable={row.kind === 'item' && !renaming}
+      draggable={row.kind !== 'overlay' && !renaming}
       onClick={() => onClick(row)}
       onContextMenu={(event) => {
         event.preventDefault();

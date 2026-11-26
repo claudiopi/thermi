@@ -93,6 +93,60 @@ public static class ItemEdits
     }
 
     /// <summary>
+    /// An item's row dropped on an overlay's, its own or another: before the item <paramref name="before"/>, or past the
+    /// overlay's last when none is named, and with <paramref name="apart"/> starting a pill of its own there. An overlay it
+    /// leaves empty goes.
+    /// </summary>
+    public static EditResult DropItem(ThermiConfig config, string id, int overlay, string? before, bool apart)
+    {
+        if (before == id)
+        {
+            return new EditResult(config);
+        }
+
+        var moved = OverlayEdits.MoveItem(config, id, overlay);
+        if (moved.Refused is not null || ConfigEdits.Find(moved.Config, id) is not var (into, _))
+        {
+            return moved;
+        }
+
+        List<ItemConfig> others = [.. moved.Config.Overlays[into].Items.Where(item => item.Id != id)];
+        var index = before is null ? others.Count : ConfigEdits.IndexOf(others, before);
+        if (index < 0)
+        {
+            return ConfigEdits.Refuse(config, Refusal.NotFound);
+        }
+
+        var placed = Move(moved.Config, id, index);
+        return apart && placed.Refused is null ? SetOwn(placed.Config, id, own: true) : placed;
+    }
+
+    /// <summary>
+    /// The item's pill moved among its overlay's pills, <paramref name="by"/> places, up when negative, as far as either
+    /// end; at the end it is at, nothing moves.
+    /// </summary>
+    public static EditResult MovePill(ThermiConfig config, string id, int by)
+    {
+        if (ConfigEdits.Find(config, id) is not var (overlay, index))
+        {
+            return ConfigEdits.Refuse(config, Refusal.NotFound);
+        }
+
+        var items = config.Overlays[overlay].Items;
+        List<int> starts = [.. OverlayLayout.Runs(config.Overlays[overlay]).Select(run => run.First)];
+        var at = starts.FindLastIndex(first => first <= index);
+        var to = Math.Clamp(at + by, 0, starts.Count - 1);
+        if (to == at)
+        {
+            return new EditResult(config);
+        }
+
+        // Down, it lands before the pill after the one it passes, or past the last.
+        var before = to < at ? items[starts[to]].Id : to + 1 < starts.Count ? items[starts[to + 1]].Id : null;
+        return OverlayEdits.PillInto(config, id, overlay, before);
+    }
+
+    /// <summary>
     /// Shows another sensor of the same type. An item made from a metric keeps it as auto, an item warned by its own
     /// reading is warned by the new sensor, and a fan item warned by a fan's duty is warned by the new fan's own duty.
     /// </summary>

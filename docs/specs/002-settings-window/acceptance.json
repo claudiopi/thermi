@@ -122,7 +122,7 @@
         "R103",
         "R105"
       ],
-      "description": "Given the page with two overlays, when the list is used by keys alone (moving, folding, type-ahead, renaming, moving and deleting items, the shortcuts) and an item is dragged out to its own pill, then the selection, the pane and the settings follow, Delete selects the next row, the arrows never leave the list, and the rows keep their names while values refresh.",
+      "description": "Given the page with two overlays, when the list is used by keys alone (moving, folding, type-ahead, renaming, moving and deleting items, sending a pill to another overlay from its menu, the shortcuts), an item is dragged out to its own pill, a pill before another and an item onto another overlay's pill, then the selection, the pane and the settings follow, Delete selects the next row, the arrows never leave the list, and the rows keep their names while values refresh.",
       "check": "TheListWorksWithTheKeyboard",
       "passes": true
     },
@@ -1774,6 +1774,16 @@
       "description": "Given the installed thermi on a 1080p monitor at 100 % and a 4K one at 150 %, when the author sets 400 % with 36 px text and picks a pill color, free, in each corner and on the taskbar, then the overlay paints sharp and whole within the monitor, on the taskbar as high as it, the preview and Copy as image match it, and `scripts/measure.ps1` holds the overlay's budget.",
       "check": "by hand",
       "passes": false
+    },
+    {
+      "id": "A359",
+      "covers": [
+        "R11",
+        "R101"
+      ],
+      "description": "Given the default overlay and a second one, when a pill's row is moved by Alt+Up or Alt+Down, also past either end, and an item's row is dropped before another overlay's item, apart above its pill, on its heading, or on itself, then the pill moves whole, the item lands there, an overlay left empty goes, a move past an end or onto itself changes nothing, and each move is one undo step.",
+      "check": "TheListMovesPillsAndItemsAmongOverlays",
+      "passes": true
     }
   ]
 }

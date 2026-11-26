@@ -44,6 +44,7 @@ An edit is a JSON object with its `kind`; its fields are in `src/Thermi.Core/Bri
 | --- | --- |
 | `thermi`, `overlay`, `style`, `item` | Set one field, as the settings window does. |
 | `addItem`, `removeItem`, `moveItem`, `sensorName` | Change an overlay's items. |
+| `movePill`, `dropPill`, `dropItem` | Move a pill among its overlay's pills by `by`, or a pill or an item before another's place, in any overlay, as the window's list does. |
 | `newOverlay`, `duplicateOverlay`, `mergeOverlay`, `deleteOverlay`, `nudgeOverlay` | Change the overlays. |
 | `reset`, `resetLines` | Reset the settings, or an item's lines. |
 | `threshold` | `{"kind": "threshold", "item", "warning", "critical"}` sets an item's lines at once; null takes one out, and one left out stays. |

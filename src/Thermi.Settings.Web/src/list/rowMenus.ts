@@ -20,11 +20,9 @@ export interface RowActions {
 /** An overlay holds at most this many; "Move to a new overlay" goes once there are as many. */
 const mostOverlays = 4;
 
-function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): MenuEntry[] {
+function moveEntries(row: Row, settings: Settings, say: Say, run: RowActions): MenuEntry[] {
   const id = row.items[0] ?? '';
-  const item = settings.overlays[row.overlay]?.items.find((one) => one.id === id);
-  const firstOfPill = row.parent === pillKey(row.overlay, id);
-  const moves: MenuEntry[] = settings.overlays.flatMap((overlay, index) =>
+  return settings.overlays.flatMap((overlay, index) =>
     index === row.overlay
       ? []
       : [
@@ -32,10 +30,22 @@ function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): M
             kind: 'action' as const,
             id: `move-${index}`,
             text: say('UiText.MoveToOverlay', overlayName(overlay, index, say)),
-            onRun: () => run.edit({ kind: 'moveItem', item: id, overlay: index, index: overlay.items.length }),
+            onRun: () =>
+              run.edit(
+                row.kind === 'pill'
+                  ? { kind: 'dropPill', item: id, overlay: index, before: null }
+                  : { kind: 'moveItem', item: id, overlay: index, index: overlay.items.length },
+              ),
           },
         ],
   );
+}
+
+function itemEntries(row: Row, settings: Settings, say: Say, run: RowActions): MenuEntry[] {
+  const id = row.items[0] ?? '';
+  const item = settings.overlays[row.overlay]?.items.find((one) => one.id === id);
+  const firstOfPill = row.parent === pillKey(row.overlay, id);
+  const moves = moveEntries(row, settings, say, run);
   const fresh: MenuEntry[] =
     settings.overlays.length < mostOverlays
       ? [
@@ -80,11 +90,14 @@ export function rowMenu(row: Row, settings: Settings, say: Say, run: RowActions)
   switch (row.kind) {
     case 'item':
       return itemEntries(row, settings, say, run);
-    case 'pill':
+    case 'pill': {
+      const moves = moveEntries(row, settings, say, run);
       return [
         { kind: 'action', id: 'label', text: say('UiText.EditPillLabel'), onRun: () => run.editLabel(row.items[0] ?? '') },
+        ...(moves.length > 0 ? [{ kind: 'divider' as const, id: 'moves' }, ...moves, { kind: 'divider' as const, id: 'end' }] : []),
         { kind: 'action', id: 'fold', text: say(row.expanded ? 'UiText.Collapse' : 'UiText.Expand'), onRun: () => run.fold(row, !row.expanded) },
       ];
+    }
     case 'overlay':
       return overlayEntries(row, settings, say, run);
   }

@@ -795,6 +795,9 @@
   <data name="UiText.ItemMoved" xml:space="preserve">
     <value>{0} moved, {1} of {2}, in the {3} pill</value>
   </data>
+  <data name="UiText.PillMoved" xml:space="preserve">
+    <value>{0} pill moved, {1} of {2}</value>
+  </data>
   <data name="UiText.FilterSensors" xml:space="preserve">
     <value>Filter {0} sensors</value>
   </data>

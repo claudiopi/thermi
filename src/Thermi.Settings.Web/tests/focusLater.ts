@@ -143,10 +143,10 @@ export const laterRuns: FocusRun[] = [
         holds: (fake) => ids(fake, 0) === 'cpu.temperature,fan.cpu,cpu.power,cpu.load,gpu.load,ram.used',
       },
       {
-        name: 'Alt+Down on a pill row moves nothing',
+        name: 'Alt+Down on a pill row moves the pill, which keeps the focus',
         acts: [{ focus: pill() }, 'Alt+ArrowDown'],
-        focus: pill(),
-        holds: (fake) => ids(fake, 0) === 'cpu.temperature,fan.cpu,cpu.power,cpu.load,gpu.load,ram.used',
+        focus: row(() => text('UiText.PillName', text('MetricLabel.Cpu'))),
+        holds: (fake) => ids(fake, 0) === 'gpu.load,cpu.temperature,fan.cpu,cpu.power,cpu.load,ram.used',
       },
       {
         name: 'Down on the last row stays in the tree',
