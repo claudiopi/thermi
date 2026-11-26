@@ -108,7 +108,7 @@ internal sealed class FrontApp
     }
 
     // Asked of the one process: Windows' list of every process costs some 12 ms of CPU on a busy PC.
-    private static unsafe uint? ParentOf(uint process)
+    internal static unsafe uint? ParentOf(uint process)
     {
         using var handle = PInvoke.OpenProcess_SafeHandle(PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION, false, process);
         if (handle.IsInvalid || PInvoke.PssCaptureSnapshot(handle, PSS_CAPTURE_FLAGS.PSS_CAPTURE_NONE, 0, out var snapshot) != (uint)WIN32_ERROR.NO_ERROR)

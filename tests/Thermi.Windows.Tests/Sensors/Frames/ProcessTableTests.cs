@@ -2,6 +2,7 @@ extern alias sensors;
 
 using Microsoft.Extensions.Time.Testing;
 using sensors::Thermi.Sensors.Windows.Frames;
+using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Tests.Sensors.Frames;
 
@@ -48,5 +49,18 @@ public sealed class ProcessTableTests
 
         Assert.Equal((listed, listed), within);
         Assert.Equal(opened.Facts, after);
+    }
+
+    // The real calls, as the service's frames and the app in front make them, on this test's own process: its parent as
+    // Windows' list of every process has it, and not ended, so a call that breaks cannot fall back to the list unseen.
+    [Fact]
+    public void WindowsGivesThisProcesssParentWithoutTheList()
+    {
+        var listed = ProcessList.Take()[Environment.ProcessId];
+        using var held = HeldProcess.Open(Environment.ProcessId);
+
+        Assert.NotNull(held);
+        Assert.Equal((listed.Parent, false), (held.Facts.Parent, held.Exited));
+        Assert.Equal((uint)listed.Parent, FrontApp.ParentOf((uint)Environment.ProcessId));
     }
 }
