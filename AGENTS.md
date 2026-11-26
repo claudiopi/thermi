@@ -69,7 +69,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Each file of a `*.Windows` project uses a Windows-only API, or a type of its project that does, or is listed in the rule with why it stays. | `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
 | The page has no `<i>` but the icon's: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
-| The page scores 100 with react-doctor: a warning fails the check as an error does, so it is fixed, never suppressed. | `--blocking warning --no-respect-inline-disables` in the page's `doctor` script |
+| The page scores 100 with react-doctor: a warning fails the check as an error does. | `--blocking warning` in the page's `doctor` script |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | The README quotes no count or score a run measures, which goes stale: its badges and each CI run's summary show them. | `RepoRulesTests` |
 | Docs are short and scannable: the why before the what, short sentences, tables over walls of bullets, and no list of every file, which the code already is. | the README table rule in `RepoRulesTests`; review for the rest |
