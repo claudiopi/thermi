@@ -27,10 +27,15 @@ function Enter-Check([ValidateSet('dotnet', 'web')][string]$Half) {
 
 # The compiler server and MSBuild's reused nodes serve every build after the one that started them, at that one's
 # priority: one a build at normal priority left running would compile this check's code at normal priority. They are
-# lowered as the check starts; those the check starts are idle already. Lowering keeps them, and builds fast.
+# lowered as the check starts; those the check starts are idle already. Lowering keeps them, and builds fast. Only the
+# servers of the SDK in global.json serve the check, so Visual Studio's and other SDKs' keep the priority of the builds
+# they serve.
 function Limit-BuildServers {
-    Get-CimInstance Win32_Process -Filter "Name = 'VBCSCompiler.exe' OR Name = 'dotnet.exe' OR Name = 'MSBuild.exe'" |
-        Where-Object { $_.Name -eq 'VBCSCompiler.exe' -or $_.CommandLine -match 'VBCSCompiler\.dll|/nodemode' } |
+    Push-Location (Split-Path $PSScriptRoot -Parent)
+    $sdk = [regex]::Escape("\sdk\$(dotnet --version)\")
+    Pop-Location
+    Get-CimInstance Win32_Process -Filter "Name = 'VBCSCompiler.exe' OR Name = 'dotnet.exe'" |
+        Where-Object { $_.CommandLine -match $sdk -and ($_.Name -eq 'VBCSCompiler.exe' -or $_.CommandLine -match 'VBCSCompiler\.dll|/nodemode') } |
         ForEach-Object {
             $server = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
             # Another user's server, or one that just ended, is left as it is.
