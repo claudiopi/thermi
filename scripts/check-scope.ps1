@@ -7,7 +7,7 @@
 $wholeCheck = @(
     'Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props', 'global.json', 'nuget.config', 'thermi.slnx',
     'Thermi.globalconfig', 'SonarLint.xml', 'BannedSymbols.txt', '.editorconfig', '.gitattributes', 'src/*.targets', 'src/*.props',
-    'scripts/check.ps1', 'scripts/check-*.ps1', 'scripts/test-count.ps1'
+    'scripts/check.ps1', 'scripts/check-*.ps1', 'scripts/test-count.ps1', 'scripts/rows.ps1'
 )
 # Read by the Windows tests as files, beside their projects' own.
 $windowsReads = @('scripts/install.ps1')
