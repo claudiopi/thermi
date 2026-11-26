@@ -61,7 +61,7 @@ internal sealed class FrontApp
                     && Shown(window) && !Ours(process) && !IsShell(process) && !Shell.Contains(HiddenWindow.ClassOf(window))
                     && Placed(window) is { } placed)
                 {
-                    windows.Add(placed);
+                    windows.Add(placed with { Own = process == (uint)rate.Process });
                 }
 
                 return true;
@@ -85,7 +85,8 @@ internal sealed class FrontApp
                 PInvoke.IsZoomed(window)
                     || (PInvoke.GetMonitorInfo(monitor, ref info) && PInvoke.GetWindowRect(window, out var rect)
                         && rect.right - rect.left >= info.rcWork.right - info.rcWork.left
-                        && rect.bottom - rect.top >= info.rcWork.bottom - info.rcWork.top));
+                        && rect.bottom - rect.top >= info.rcWork.bottom - info.rcWork.top),
+                Own: false);
     }
 
     // Explorer's own process, whose dialogs, flyouts and folder windows are the shell's too, whatever their class.

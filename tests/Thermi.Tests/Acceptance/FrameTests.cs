@@ -39,7 +39,7 @@ public sealed class FrameTests
             " | ",
             new[]
             {
-                game.Next(each.First, each.Second.Front, each.Second.Fills, rate => rate.Process == Zwift ? [new(1, true)] : []),
+                game.Next(each.First, each.Second.Front, each.Second.Fills, rate => rate.Process == Zwift ? [new(1, true, true)] : []),
                 terminal.Next(each.First, Terminal, null, _ => []),
             }
                 .Select(shown => Shown(overlay, Desktop, each.First, shown))
@@ -68,7 +68,7 @@ public sealed class FrameTests
         var game = new FrontGame();
 
         var shown = Replay(TestFiles.Presents(TestRecordings.ZwiftObsFrames)).Take(5)
-            .Select(rates => Fps(OverlayConfig.First, Desktop, rates, game.Next(rates, Zwift, 1, _ => [new(1, true)])));
+            .Select(rates => Fps(OverlayConfig.First, Desktop, rates, game.Next(rates, Zwift, 1, _ => [new(1, true, true)])));
 
         Assert.Equal([null, null, "67", "162", "111"], shown);
     }
@@ -226,11 +226,12 @@ public sealed class FrameTests
 
     // FPS follows the game, second by second: with no game, a game that fills its monitor in front is one at once; a terminal
     // that fills the other monitor never takes it from a game shown on its own, at 35 FPS while the game presents at 65, nor
-    // at its monitor's 180 while the game presents at 75, until the game is minimized; another game that fills the game's
-    // monitor takes over once it presents faster, and the old one, in front again but slower, never takes it back; once the
-    // game stops presenting, the one in front is the game at once. With no game, as when thermi starts with a game running
-    // behind, the fastest app that fills its monitor and presents at 30 or more is the game, in front or not, and a video in
-    // a window that does not fill its monitor never is.
+    // at its monitor's 180 while the game presents at 75; another game that fills the game's monitor takes over once it
+    // presents faster, and the old one, in front again but slower, never takes it back; once the game stops presenting, or
+    // fills no monitor, as minimized, the one in front is the game at once. With no game, as when thermi starts with a game
+    // running behind, the fastest app that fills its monitor and presents at 30 or more is the game, in front or not, one
+    // that presents from its own window before a browser's or a terminal's, which present from a child, and a video in a
+    // window that does not fill its monitor never is.
     [Fact]
     public void FpsFollowsTheGameNotTheFocus()
     {
@@ -270,7 +271,7 @@ public sealed class FrameTests
 
         var minimized = new FrontGame();
         _ = minimized.Next(Rates(zwiftInFront), Zwift, 1, Windows);
-        Assert.Equal<int?>([Zwift, Zwift, Wave], [.. Enumerable.Repeat(waveStreaming, 3).Select(rates => minimized.Next(Rates(rates), Wave, 2, _ => []))]);
+        Assert.Equal<int?>(Wave, minimized.Next(Rates(waveStreaming), Wave, 2, rate => rate.Process == Wave ? Windows(rate) : []));
 
         // As seen live: Zwift maximized at 98 on the left monitor, at negative X, while thermi starts with Chrome full screen on
         // the right one at 60, then in its left half playing a video at 24 under Wave in its right half; or with Wave in front
@@ -283,12 +284,13 @@ public sealed class FrameTests
         foreach (var history in new[] { netflix, wave })
         {
             var live = new FrontGame();
-            Assert.All(history, second => Assert.Equal<int?>(37756, live.Next(second.Rates, second.Front, second.Full ? 0x1006d : null, rate => Live(rate, second.Full))));
+            Assert.All(history, second =>
+                Assert.Equal<int?>(37756, live.Next(second.Rates, second.Front, second.Full ? 0x1006d : null, rate => Live(rate, second.Full))));
         }
 
         static AppWindow[] Live(FrameRate rate, bool full)
         {
-            return rate.Process == 37756 ? [new(0x20001, true)] : [new(0x1006d, full)];
+            return rate.Process == 37756 ? [new(0x20001, true, true)] : [new(0x1006d, full, false)];
         }
 
         static FrameRate[] Rates((int Process, double Fps)[] rates)
@@ -299,7 +301,7 @@ public sealed class FrameTests
         // The terminal and a video on the second monitor, the rest filling the first.
         static AppWindow[] Windows(FrameRate rate)
         {
-            return rate.Process switch { Wave => [new(2, true)], Video => [new(2, false)], _ => [new(1, true)] };
+            return rate.Process switch { Wave => [new(2, true, false)], Video => [new(2, false, false)], _ => [new(1, true, true)] };
         }
     }
 
