@@ -1,22 +1,19 @@
 name: Mutation
 
-# Stryker.NET's score of Thermi.Core's tests, which measures them better than coverage. Too slow for every run of CI, so
-# it runs weekly, and on a PR only when Core or its tests change. StrykerJS runs in CI's web job, on every PR.
+# The mutation scores of Thermi.Core's tests (Stryker.NET) and of the page's logic (StrykerJS), which measure the tests
+# better than coverage. Too slow to gate a merge, so they run each night and on demand; each run records its score in
+# its summary and keeps its report.
 on:
   schedule:
-    - cron: '0 6 * * 1'
-  pull_request:
-    paths:
-      - 'src/Thermi.Core/**'
-      - 'tests/Thermi.Tests/**'
+    - cron: '0 5 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('mutation-pr-{0}', github.event.pull_request.number) || github.run_id }}
-  cancel-in-progress: true
+  group: mutation
+  cancel-in-progress: false
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -33,4 +30,42 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      - run: pwsh -NoProfile -File scripts/mutation.ps1
+      - shell: pwsh
+        run: |
+          pwsh -NoProfile -File scripts/mutation.ps1 | Tee-Object -Variable printed
+          $code = $LASTEXITCODE
+          "### Thermi.Core`n`n$($printed | Where-Object { $_ -match 'mutation:' })" >> $env:GITHUB_STEP_SUMMARY
+          exit $code
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-core
+          path: TestResults/mutation/reports
+          if-no-files-found: ignore
+
+  web:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Thermi.Settings.Web/package-lock.json
+      - shell: pwsh
+        working-directory: src/Thermi.Settings.Web
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run mutation | Tee-Object -Variable printed
+          $code = $LASTEXITCODE
+          "### The page's logic`n`n$($printed | Where-Object { $_ -match 'Final mutation score|All files' })" >> $env:GITHUB_STEP_SUMMARY
+          exit $code
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-web
+          path: TestResults/mutation-web
+          if-no-files-found: ignore

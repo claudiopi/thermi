@@ -32,9 +32,9 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 
 | Command | What it does, and when |
 | --- | --- |
-| `pwsh scripts/check.ps1` | The one check, the CI's too: restore, format, build, notices, test count, tests and coverage, then the page's type check, lint, unit, dead-code and Playwright tests. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. Set `THERMI_WEB_PORT` to another port than 4173 to check two worktrees at once. |
-| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of Core's tests and the page's logic. Slow: run it when you change Core, the page's logic or their tests. |
-| `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. |
+| `pwsh scripts/check.ps1` | The one check: restore, format, build, notices, test count, tests and coverage, then the page's build, lint, unit, dead-code and Playwright tests. Here it runs only what the change can affect since this worktree's last green check, or since it left `main` (`-Base <branch>` for another), with the .NET half and the page's side by side. `-Full` runs every step, as the CI does. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. |
+| `pwsh scripts/check.ps1 -Mutation` | The same, then the mutation scores of Core's tests and the page's logic. Slow: run it when you change Core, the page's logic or their tests. The CI runs them each night. |
+| `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. Set `THERMI_WEB_PORT` to another port than 4173 if something else holds it. |
 | `dotnet format whitespace thermi.slnx` | Fixes formatting. |
 | `pwsh scripts/smoke-window.ps1 [-Exe <thermi.exe>]` | Clicks through every screen of the real settings window and fails on any error the page shows or logs. Run it before a person gets a build, with no settings window open. |
 | `pwsh scripts/measure.ps1 [-Window] [-Exe <thermi.exe>]` | Measures the overlay, the window and the service for 60 s and fails past their budgets: overlay 48 MB and 0.5 % of a core, idle window 1 %, service 80 MB and 3 %. Run it on the installed build after a change to what runs each second. |
@@ -66,6 +66,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | Docs are short and scannable: the why before the what, short sentences, tables over walls of bullets, and no list of every file, which the code already is. | the README table rule in `RepoRulesTests`; review for the rest |
+| Nothing merges red. A check on a PC runs what the change can affect, which the projects' references and what `Thermi.Settings.Types` writes tell, and everything when a file says nothing; the CI runs every step on every PR and push to main, in jobs side by side, all of them required. Mutation runs each night and on demand, and gates nothing. | `scripts/check-scope.ps1`, `.github/workflows/ci.yml`, the `CI gate` check (`docs/RELEASES.md`) |
 | `Thermi.Core` keeps 90 % line and branch coverage. | `scripts/check.ps1` |
 | A new field of the settings goes into `src/Thermi.Core/Editing/ConfigFields.cs`, or undo cannot take it back. | `UndoRulesTests` |
 | Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
@@ -109,7 +110,7 @@ These need judgment, so review enforces them:
 0. A feature starts with a spec that a person approves before any code: `docs/specs/README.md`.
 1. Implement, with tests. The spec's acceptance tests are written first.
 2. Prune the comments of the change: `.claude/agents/comment-trimmer.md`.
-3. `pwsh scripts/check.ps1` passes.
+3. `pwsh scripts/check.ps1` passes; the CI then checks everything.
 4. A different agent than the author reviews, once per round: `.claude/agents/reviewer.md`. With a tool other than Claude Code, paste that brief into a fresh session, ideally on another model.
 5. A person tests it and merges. Agents commit, push and merge only when a person asks, and never with `--admin`.
 

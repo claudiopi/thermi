@@ -1,35 +1,47 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    The one quality check: restore, format, Release build, the third-party notices, the test-count ratchet, tests, the Thermi.Core coverage gate
-    and the app's coverage; then the settings window's page: type check, lint, react-doctor, unit tests, dead code and
-    the page's tests with axe. The CI runs this same script, so passing here means passing there.
+    The one quality check: restore, format, Release build, the third-party notices, the test-count ratchet, tests, the
+    Thermi.Core coverage gate and the app's coverage; then the settings window's page: lint, react-doctor, unit tests,
+    dead code and the page's tests with axe, its type check in its build.
+    Here it runs only what the change can affect (scripts/check-scope.ps1), with the .NET half and the page's side by side
+    and the steps that need nothing of each other at once; -Full runs every step. The CI runs every step of this same
+    script, each part in a job of its own, so nothing merges red.
     Prints one line per step; on failure, only the errors and how to fix them.
 #>
 param(
-    # CI mode: packages must match the committed lock files exactly.
+    # CI mode: every step, and packages must match the committed lock files exactly.
     [switch]$Ci,
-    # Then the mutation score of the tests of the parts run, too slow for every run here: Stryker.NET on Thermi.Core
+    # Then the mutation score of the tests of the halves run, too slow for every run: Stryker.NET on Thermi.Core
     # (scripts/mutation.ps1) and StrykerJS on the page's logic.
     [switch]$Mutation,
-    # One half alone: the CI runs .NET and the page in jobs of their own, side by side.
-    [ValidateSet('All', 'DotNet', 'Web')]
-    [string]$Part = 'All'
+    # One part alone. DotNet is Core, Windows and WindowsAlone: Core's tests with the build's own checks, the Windows tests
+    # that run in parallel, and those that run alone. The CI runs each part in a job of its own.
+    [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web')]
+    [string]$Part = 'All',
+    # Every step, as the CI runs them, whatever the change.
+    [switch]$Full,
+    # Where the change is measured from while this worktree has no green check of its own.
+    [string]$Base = 'main',
+    # Given by a check of both halves to the page's half it starts: whether the .NET build just built the page.
+    [switch]$FromCheck,
+    [switch]$PageBuilt
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $results = Join-Path $root 'TestResults'
+$web = Join-Path $root 'src' 'Thermi.Settings.Web'
 $minCoverage = 90
 $appResults = Join-Path $results 'app'
-# thermi and thermi-sensors, measured where their tests run them; CsWin32's generated declarations are not thermi's code.
-$appCoverage = '--results-directory', $appResults, '--', '--coverlet', '--coverlet-include', '[thermi]*', '--coverlet-include', '[thermi-sensors]*',
-    '--coverlet-exclude', '[*]Windows.Win32.*', '--coverlet-single-hit', '--coverlet-output-format', 'json'
-# Each test project's report, named for it, and what it must have measured.
 $appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors' }
+$everything = $Ci -or $Full
+$half = if ($Part -eq 'Web') { 'web' } else { 'dotnet' }
 Set-Location $root
 
 . (Join-Path $PSScriptRoot 'check-lock.ps1')
+. (Join-Path $PSScriptRoot 'check-scope.ps1')
+. (Join-Path $PSScriptRoot 'check-steps.ps1')
 
 # A thermi built from this repo and still running locks its own files and breaks the build.
 # An installed thermi (the one you use every day) runs from elsewhere and is left alone.
@@ -42,164 +54,145 @@ function Stop-RepoThermi {
         }
 }
 
-function Invoke-Step([string]$Name, [scriptblock]$Command, [scriptblock]$Explain) {
-    $watch = [Diagnostics.Stopwatch]::StartNew()
-    $output = & $Command 2>&1 | ForEach-Object { "$_" }
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host ('ok   {0} ({1:n0}s)' -f $Name, $watch.Elapsed.TotalSeconds)
-        $output | Where-Object { $_ -like 'note: *' } | ForEach-Object { Write-Host "     $_" }
-        return
-    }
-
-    Write-Host "FAIL $Name"
-    Show-Errors $output
-    if ($Explain) { & $Explain }
-    exit 1
+function Get-HalfScope([string]$Tree) {
+    if ($everything) { return Get-Scope $root $null }
+    Get-Scope $root (Get-ChangedFiles $half $Tree $Base)
 }
 
-# Build errors, and each failed test with its assertion message (no stack traces).
-# The same error repeated on many lines of a file is shown once, with a count.
-function Show-Errors([string[]]$Output) {
-    $inFailure = $false
-    $errors = foreach ($line in $Output) {
-        if ($line -match '^failed ') { $inFailure = $true; $line; continue }
-        if ($line -notmatch '^\s') { $inFailure = $false }
-        if (($inFailure -and $line -match '^\s{2}\S' -and $line -notmatch '^\s+from ') -or $line -match ' error ') { $line }
-    }
-    if (-not $errors) {
-        $Output | Select-Object -Last 40 | ForEach-Object { Write-Host "  $_" }
-        return
-    }
-    $seen = [ordered]@{}
-    foreach ($line in $errors) {
-        $line = $line.Replace("$root\", '') -replace ' \[[^\]]*\.csproj\]$', ''
-        $key = $line -replace '\(\d+,\d+\)', ''
-        if ($seen.Contains($key)) { $seen[$key].Count++ } else { $seen[$key] = @{ First = $line; Count = 1 } }
-    }
-    $seen.Values | Select-Object -First 20 | ForEach-Object {
-        $more = if ($_.Count -gt 1) { " (+$($_.Count - 1) more like it)" } else { '' }
-        Write-Host "  $($_.First)$more"
-    }
-}
-
-function Show-Coverage {
-    $report = Get-ChildItem $results -Filter '*.cobertura.*' -ErrorAction SilentlyContinue | Select-Object -Last 1
-    if (-not $report) { return }
-    $coverage = ([xml](Get-Content $report.FullName)).coverage
-    if ([Math]::Min([double]$coverage.'line-rate', [double]$coverage.'branch-rate') * 100 -ge $minCoverage) { return }
-    Write-Host ('  Thermi.Core coverage: lines {0:p0}, branches {1:p0}. The gate is {2} %: add behavior tests for the new code.' -f
-        [double]$coverage.'line-rate', [double]$coverage.'branch-rate', $minCoverage)
-}
-
-# Shown, not gated: what the tests' windows run depends on the PC's monitors, DPI and theme, and a little on timing.
-# Each test project's report must hold what it runs, so one that measured nothing never hides behind the other's;
-# a line or branch that either test process ran counts once.
-function Show-AppCoverage {
-    $modules = @{}
-    foreach ($tests in $appReports.Keys) {
-        $report = Get-ChildItem $appResults -Filter "$tests.coverage.*.json" -ErrorAction SilentlyContinue | Select-Object -Last 1
-        $measured = if ($report) { Get-Content $report.FullName -Raw | ConvertFrom-Json -AsHashtable } else { @{} }
-        $names = @{}
-        foreach ($module in $measured.GetEnumerator()) { $names[[IO.Path]::GetFileNameWithoutExtension($module.Key)] = $module.Value }
-        foreach ($name in $appReports[$tests]) {
-            if (-not $names[$name]) {
-                Write-Host ("FAIL app coverage: $tests did not measure $name. Coverlet leaves out an assembly the test process loaded " +
-                    'before the tests, as a [ModuleInitializer] that uses its types does.')
-                exit 1
-            }
-        }
-        foreach ($name in $names.Keys) {
-            if (-not $modules[$name]) { $modules[$name] = @{ Lines = @{}; Branches = @{} } }
-            Add-Hits $modules[$name] $names[$name]
+function Invoke-DotNet($Scope) {
+    $core = $Part -in 'All', 'DotNet', 'Core'
+    $windows = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'Windows'
+    $alone = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'WindowsAlone'
+    # Core's job builds all, for the count lists both test projects; the Windows jobs build what their tests run.
+    $built = if (-not $core) { 'tests/Thermi.Windows.Tests' } elseif ($Scope.WindowsTests -or $Scope.TestCount) { 'thermi.slnx' } else { 'tests/Thermi.Tests' }
+    # Thermi.Windows' build writes what the page builds from and builds it, so the page's half waits for it.
+    $script:buildsPage = $built -ne 'tests/Thermi.Tests'
+    if ($Part -eq 'All' -and -not $buildsPage) { Start-WebHalf }
+    $locked = if ($Ci) { '--locked-mode' }
+    $missing = git ls-files '*.csproj' | Where-Object { -not (Test-Path (Join-Path (Split-Path $_ -Parent) 'obj' 'project.assets.json')) }
+    if ($Scope.All -or $Scope.Restore -or $missing) {
+        # The installer too, which thermi.slnx lists but never builds, whose custom actions' package the notices list.
+        Invoke-Step 'restore' {
+            dotnet restore thermi.slnx $locked
+            if ($LASTEXITCODE -eq 0 -and $core) { dotnet restore src/Thermi.Installer $locked }
         }
     }
-
-    $shown = foreach ($name in 'thermi', 'thermi-sensors') {
-        '{0} lines {1:n0} %, branches {2:n0} %' -f $name, (Get-Rate $modules[$name].Lines), (Get-Rate $modules[$name].Branches)
+    if ($core) {
+        # A file's whitespace depends on it and .editorconfig alone, so every C# file is checked as a folder's: the same
+        # errors as through the solution, without loading it, in a second instead of a minute.
+        Invoke-Step 'format' {
+            dotnet format whitespace --folder --verify-no-changes --exclude '**/bin/**' '**/obj/**' '**/node_modules/**' '.claude/**' artifacts TestResults
+        } -Explain { Write-Host '  Fix it with: dotnet format whitespace thermi.slnx' }
     }
-    Write-Host "info app coverage: $($shown -join '; ')"
-}
+    Invoke-Step 'build Release' { dotnet build $built -c Release --no-restore }
+    if ($Part -eq 'All' -and $buildsPage) { Start-WebHalf }
 
-# A report holds file, class, method, then each method's lines and branches.
-function Add-Hits($Into, $Files) {
-    foreach ($file in $Files.GetEnumerator()) {
-        foreach ($method in $file.Value.Values.ForEach({ $_.GetEnumerator() })) {
-            foreach ($line in $method.Value.Lines.GetEnumerator()) {
-                $key = "$($file.Key)|$($line.Key)"
-                $Into.Lines[$key] = $Into.Lines[$key] -or $line.Value -gt 0
-            }
-            foreach ($branch in $method.Value.Branches) {
-                $key = "$($method.Key)|$($branch.Line)|$($branch.Offset)|$($branch.EndOffset)|$($branch.Path)|$($branch.Ordinal)"
-                $Into.Branches[$key] = $Into.Branches[$key] -or $branch.Hits -gt 0
-            }
+    # Beside the page's half, the tests take half the PC's threads, which leaves its browsers the other half: past that,
+    # the page's tests wait past their timeouts.
+    $share = @(if ($Part -eq 'All') { '--max-threads', '0.5x' })
+    $together = @()
+    if ($core) {
+        # From the lock files, the packages the restore just downloaded and the page's, which the build installs.
+        if ($Scope.Notices) {
+            $together += New-Step 'third-party notices' 'pwsh', '-NoProfile', '-File', 'scripts/notices.ps1', '-Check'
         }
+        # The .NET SDK's package, as a release publishes it, so one that no longer packs fails here and not then.
+        if ($Scope.Pack) {
+            $together += New-Step 'pack the SDK' 'dotnet', 'pack', 'src/Thermi.Client', '-c', 'Release', '--no-build', '-o', 'artifacts/packages', '--nologo'
+        }
+        if ($Scope.TestCount) {
+            $together += New-Step 'test count' 'pwsh', '-NoProfile', '-File', 'scripts/test-count.ps1', '-Part', 'DotNet'
+        }
+        # Coverage counts only Core's own tests: the Windows tests would inflate Core's numbers by counting code they run
+        # only in passing.
+        $together += New-Step 'tests and coverage' (@('dotnet', 'test', '--project', 'tests/Thermi.Tests', '-c', 'Release', '--no-build',
+                '--results-directory', $results, '--', '--coverlet', '--coverlet-include', '[Thermi.Core]*', '--coverlet-output-format', 'cobertura',
+                '--coverlet-threshold', $minCoverage, '--coverlet-threshold-type', 'line,branch') + $share) -Explain { Show-Coverage }
     }
-}
-
-function Get-Rate([hashtable]$Hits) {
-    if ($Hits.Count -eq 0) { return 100 }
-    100 * @($Hits.Values | Where-Object { $_ }).Count / $Hits.Count
-}
-
-function Invoke-DotNet {
-    # The installer too, which thermi.slnx lists but never builds, whose custom actions' package the notices list.
-    Invoke-Step 'restore' {
-        dotnet restore thermi.slnx $(if ($Ci) { '--locked-mode' })
-        if ($LASTEXITCODE -eq 0) { dotnet restore src/Thermi.Installer $(if ($Ci) { '--locked-mode' }) }
-    }
-    Invoke-Step 'format' { dotnet format whitespace thermi.slnx --verify-no-changes } -Explain {
-        Write-Host '  Fix it with: dotnet format whitespace thermi.slnx'
-    }
-    Invoke-Step 'build Release' { dotnet build thermi.slnx -c Release --no-restore }
-    # From the lock files, the packages the restore just downloaded and the page's, which the build installs.
-    Invoke-Step 'third-party notices' { pwsh -NoProfile -File scripts/notices.ps1 -Check }
-    # The .NET SDK's package, as a release publishes it, so one that no longer packs fails here and not then.
-    Invoke-Step 'pack the SDK' { dotnet pack src/Thermi.Client -c Release --no-build -o artifacts/packages --nologo }
-    Invoke-Step 'test count' { pwsh -NoProfile -File scripts/test-count.ps1 -Part DotNet }
-    # Coverage counts only Core's own tests: the Windows tests would inflate Core's numbers by counting code they run only in passing.
-    Invoke-Step 'tests and coverage' {
-        dotnet test --project tests/Thermi.Tests -c Release --no-build --results-directory $results -- `
-            --coverlet --coverlet-include '[Thermi.Core]*' --coverlet-output-format cobertura `
-            --coverlet-threshold $minCoverage --coverlet-threshold-type line,branch
-    } -Explain { Show-Coverage }
-    Invoke-Step 'Windows tests' {
-        dotnet test --project tests/Thermi.Windows.Tests -c Release --no-build @appCoverage --coverlet-file-prefix Thermi.Windows.Tests
-    }
-    Show-AppCoverage
+    $split = Get-AloneClasses
+    if ($windows) { $together += New-WindowsStep 'Windows tests' $Scope.WindowsFilter $split 'rest' $share }
+    Invoke-Together $together
+    # The tests that run alone paint ten thousand rounds of overlays, and the page's tests beside them time out: those
+    # wait for the page's half.
+    if ($alone -and $webHalf) { $webHalf.WaitForExit() }
+    Invoke-Together @(if ($alone) { New-WindowsStep 'Windows tests alone' $Scope.WindowsFilter $split 'alone' })
+    Invoke-Together @(if ($alone) { New-WindowsStep 'Windows tests under load' $Scope.WindowsFilter $split 'load' })
+    if ($windows -and $alone -and -not $Scope.WindowsFilter) { Show-AppCoverage }
     if ($Mutation) {
         pwsh -NoProfile -File scripts/mutation.ps1
         if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 }
 
-# The page's checks, each an npm script of src/Thermi.Settings.Web. The .NET build installs and builds the page when it
-# changed, so only the page's half alone does both itself; installs never run a package's scripts.
+# The page's half, of the same check, in a process of its own beside this one, once the .NET build wrote what the page
+# builds from; its lines print as they come.
+function Start-WebHalf {
+    $start = [Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
+    $arguments = '-NoProfile', '-File', $PSCommandPath, '-Part', 'Web', '-Base', $Base, '-FromCheck'
+    $arguments += @(if ($Full) { '-Full' }) + @(if ($Mutation) { '-Mutation' }) + @(if ($buildsPage) { '-PageBuilt' })
+    foreach ($each in $arguments) { $start.ArgumentList.Add($each) }
+    $start.UseShellExecute = $false
+    $script:webHalf = [Diagnostics.Process]::Start($start)
+}
+
+# The page's checks, each an npm script of src/Thermi.Settings.Web: all at once, then its tests, which take the most
+# cores and time out when others take them.
+# Its build type-checks it, so nothing else does; installs never run a package's scripts.
 function Invoke-Web {
-    $web = Join-Path $root 'src' 'Thermi.Settings.Web'
-    if ($Part -eq 'Web') {
+    if ($Ci -or -not (Test-Path (Join-Path $web 'node_modules' '.package-lock.json')) -or
+        (Get-Item (Join-Path $web 'package-lock.json')).LastWriteTimeUtc -gt (Get-Item (Join-Path $web 'node_modules' '.package-lock.json')).LastWriteTimeUtc) {
         Invoke-Step 'web install' { npm ci --prefix $web --ignore-scripts --no-audit --no-fund }
-        Invoke-Step 'web build' { npm run build --prefix $web }
     }
-    Invoke-Step 'web typecheck' { npm run typecheck --prefix $web }
-    Invoke-Step 'web test count' { pwsh -NoProfile -File scripts/test-count.ps1 -Part Web }
-    Invoke-Step 'web lint' { npm run lint --prefix $web }
-    Invoke-Step 'web doctor' { npm run doctor --prefix $web }
-    Invoke-Step 'web unit tests' { npm run test:unit --prefix $web }
-    Invoke-Step 'web dead code' { npm run deadcode --prefix $web } -Explain { Write-Host '  Delete what nothing uses, or say in knip.jsonc why it stays.' }
+    if (-not $PageBuilt -and ($Ci -or -not (Test-PageBuilt))) { Invoke-Step 'web typecheck and build' { npm run build --prefix $web } }
+    $npm = 'npm', 'run', '--prefix', $web
+    $steps = @(
+        New-Step 'web test count' 'pwsh', '-NoProfile', '-File', 'scripts/test-count.ps1', '-Part', 'Web'
+        New-Step 'web lint' ($npm + 'lint')
+        New-Step 'web doctor' ($npm + 'doctor')
+        New-Step 'web unit tests' ($npm + 'test:unit')
+        New-Step 'web dead code' ($npm + 'deadcode') -Explain { Write-Host '  Delete what nothing uses, or say in knip.jsonc why it stays.' }
+    )
+    Invoke-Together $steps
     # Playwright with axe, against the built page in the Edge that Windows ships.
     Invoke-Step 'web page tests' { npm run test:e2e --prefix $web }
-    if ($Mutation) {
-        Invoke-Step 'web mutation' { npm run mutation --prefix $web }
-    }
+    if ($Mutation) { Invoke-Step 'web mutation' { npm run mutation --prefix $web } }
+}
+
+# Whether the page's dist is newer than everything it builds from, as thermi's .NET build tells.
+function Test-PageBuilt {
+    $index = Join-Path $web 'dist' 'index.html'
+    if (-not (Test-Path $index)) { return $false }
+    $inputs = @(Get-ChildItem (Join-Path $web 'src'), (Join-Path $web 'tests') -Recurse -File) + @(Get-ChildItem $web -File) +
+        @(Get-Item (Join-Path $web 'node_modules' '.package-lock.json') -ErrorAction SilentlyContinue)
+    -not ($inputs | Where-Object { $_.LastWriteTimeUtc -gt (Get-Item $index).LastWriteTimeUtc })
 }
 
 try {
-    if (-not $Ci) { Enter-Check }
-    Stop-RepoThermi
-    Remove-Item $results -Recurse -Force -ErrorAction SilentlyContinue
-    if ($Part -ne 'Web') { Invoke-DotNet }
-    if ($Part -ne 'DotNet') { Invoke-Web }
+    if (-not $Ci) { Enter-Check $half }
+    if (-not $FromCheck) {
+        Stop-RepoThermi
+        Remove-Item $results -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    $tree = if (-not $Ci) { Get-WorkTree }
+    $scope = Get-HalfScope $tree
+    if (-not $everything) { Write-Host (Format-Scope $scope $half) }
+    if ($half -eq 'web') {
+        if ($scope.Web) { Invoke-Web }
+    }
+    elseif ($scope.CoreTests) {
+        Invoke-DotNet $scope
+    }
+    elseif ($Part -eq 'All') {
+        $script:buildsPage = $false
+        Start-WebHalf
+    }
+    if (-not $Ci -and $Part -in 'All', 'DotNet', 'Web') { Save-Green $half (Get-CheckedTree $tree (Get-WorkTree)) }
+    if ($webHalf) {
+        $webHalf.WaitForExit()
+        if ($webHalf.ExitCode -ne 0) { exit 1 }
+    }
 }
 finally {
+    if ($webHalf -and -not $webHalf.HasExited) { $webHalf.WaitForExit() }
     if (-not $Ci) { Exit-Check }
 }

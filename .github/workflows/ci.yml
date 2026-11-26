@@ -1,5 +1,7 @@
 name: CI
 
+# Every step of scripts/check.ps1 on every PR and push to main, split in jobs that run side by side; the one required
+# check, CI gate, needs them all, so nothing merges red. A check on a PC runs only what a change can affect; this never.
 on:
   pull_request:
     # "edited" re-checks the title after it changes.
@@ -21,7 +23,9 @@ env:
   TESTINGPLATFORM_TELEMETRY_OPTOUT: 1
 
 jobs:
-  check:
+  # Restore, format, build, the notices, the SDK's package, the test count, and Thermi.Tests with Core's coverage gate.
+  # Each .NET job builds for itself: the build of thermi builds the settings window's page, which needs Node 22.12 or later.
+  core:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -31,14 +35,46 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      # The .NET build of thermi builds the settings window's page (src/Thermi.Settings.Web), which needs Node 22.12 or later.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part DotNet
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Core
 
-  # The settings window's page, beside the .NET half: type check, lint, react-doctor, unit tests, dead code, the page's
-  # tests with axe in the Edge that Windows ships (so no browser is downloaded), and StrykerJS on the page's logic.
+  # The Windows tests that run in parallel.
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Windows
+
+  # The slow Windows tests, which run one at a time: those that count the whole process's handles and windows, as
+  # LeakTests' ten thousand rounds, then FullLoadTests, which spins every core.
+  windows-alone:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part WindowsAlone
+
+  # The settings window's page: its build with its type check, the test count, lint, react-doctor, unit tests, dead code
+  # and the page's tests with axe in the Edge that Windows ships, so no browser is downloaded.
   web:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -51,7 +87,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: src/Thermi.Settings.Web/package-lock.json
-      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Web -Mutation
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Web
 
   # The MSIs of this build for both processors, unsigned and with updates off, so a change that breaks one fails here and
   # not at a release: each carries the custom actions' DLL of its own processor.
@@ -94,13 +130,17 @@ jobs:
             exit 1
           }
 
-  # The only required check on main. Jobs can change without touching branch protection.
+  # The only required check on main (docs/RELEASES.md): jobs can change without touching branch protection, and one that
+  # failed, was cancelled or was skipped fails it.
   ci-gate:
     name: CI gate
     if: always()
-    needs: [check, web, msi, pr-title]
+    needs: [core, windows, windows-alone, web, msi, pr-title]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - if: needs.check.result != 'success' || needs.web.result != 'success' || needs.msi.result != 'success' || (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
+      - if: >-
+          needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
+          needs.web.result != 'success' || needs.msi.result != 'success' ||
+          (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
         run: exit 1
