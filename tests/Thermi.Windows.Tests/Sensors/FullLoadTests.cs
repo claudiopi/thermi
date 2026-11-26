@@ -22,9 +22,25 @@ public sealed class FullLoadTests
 
     // Night QA: "Find it" said the readings stopped as its load started. With every core spun by the finder's own load,
     // `thermi cpu-load`, the sensor pipe still gives a snapshot each second, and the load runs at idle priority. The pipe
-    // here runs in the test process, idle under scripts/check.ps1, whose threads at normal are still above the load's.
+    // here runs in the test process, which goes to the service's and the overlay's own above normal while it runs: at the
+    // idle of scripts/check.ps1 anything busy on the PC above idle, another worktree's check included, would starve it.
     [Fact]
     public async Task UnderALoadOnEveryCoreTheReadingsKeepComing()
+    {
+        using var self = Process.GetCurrentProcess();
+        var before = self.PriorityClass;
+        self.PriorityClass = ProcessPriorityClass.AboveNormal;
+        try
+        {
+            await ReadUnderLoadAsync();
+        }
+        finally
+        {
+            self.PriorityClass = before;
+        }
+    }
+
+    private static async Task ReadUnderLoadAsync()
     {
         var clock = TimeProvider.System;
         var pipe = $"thermi-test-{Guid.NewGuid():N}";
