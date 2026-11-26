@@ -1,7 +1,7 @@
 # Architecture
 
 thermi shows your PC's temperatures, loads and fans in a small overlay that stays on top of everything, the taskbar included.
-A Windows service with admin rights reads the sensors; the overlay, the settings window and `thermi-cli` run as you, without them.
+`thermi-sensors` reads the sensors: a Windows service with admin rights in a machine install, a process of yours in a per-user one. The overlay, the settings window and `thermi-cli` run as you, without admin rights.
 Every decision that needs no Windows (which sensor is which, how a value reads, what the overlay shows) lives in Core and is tested from recordings of real PCs.
 
 New here? Read [QUICKSTART.md](QUICKSTART.md) first. The reasons behind each choice are in `docs/adr`.
@@ -32,10 +32,10 @@ sequenceDiagram
     Painter-->>Window: bitmap, shown with UpdateLayeredWindow
 ```
 
-1. **The chip.** The CPU keeps its temperature in a register that only kernel code may read. LibreHardwareMonitor reads it through PawnIO, a small signed driver. That is why the reader runs in `thermi-sensors`, a Windows service running as SYSTEM.
+1. **The chip.** The CPU keeps its temperature in a register that only kernel code may read. LibreHardwareMonitor reads it through PawnIO, a small signed driver. That is why the reader runs in `thermi-sensors`, a Windows service running as SYSTEM. A per-user install has no service: `thermi-sensors --user` runs as you, and reads what your rights allow, which leaves out this register.
 2. **The 1 s read.** `LhmSensorSource` updates each device once a second and turns what LibreHardwareMonitor says into a `Snapshot`: every sensor with its id, kind, name and value. A device that stalls holds back none of the others.
-3. **The pipe.** `SensorPipeServer` writes the snapshot as one line of JSON to every client of the named pipe `thermi-sensors`, the names once and then the values alone. The pipe is read-only: nobody can send the service a command.
-4. **The client.** In `thermi.exe`, which runs as you, `SensorClient` reads the pipe. It trusts it only when SYSTEM or Administrators own it. A snapshot older than 3 s counts as gone, and the overlay says "Sensors stopped" instead of showing old numbers. Once a second `OverlayHost` asks each `OverlayWindow` to repaint, and the window asks Core's `ThermiMark` what its overlay shows.
+3. **The pipe.** `SensorPipeServer` writes the snapshot as one line of JSON to every client of the named pipe `thermi-sensors`, the names once and then the values alone. A per-user install serves the pipe `thermi-sensors-<your SID>` instead. The pipe is read-only: nobody can send the sensors a command.
+4. **The client.** In `thermi.exe`, which runs as you, `SensorClient` reads the pipe. It trusts the service's pipe only when SYSTEM or Administrators own it; the per-user pipe only when you, SYSTEM or Administrators own it and `SensorPipes` finds its server running from your install folder, at an integrity level no lower than the overlay's. A snapshot older than 3 s counts as gone, and the overlay says "Sensors stopped" instead of showing old numbers. Once a second `OverlayHost` asks each `OverlayWindow` to repaint, and the window asks Core's `ThermiMark` what its overlay shows.
 5. **Which sensor is "CPU temperature".** Sensor names differ between PCs. Core's `SensorMap` picks the first CPU temperature named `Core (Tctl/Tdie)`, `Core (Tctl)`, `CPU Package` or `Core Average`, and treats 0 °C as missing, since no running chip is at 0 °C.
 6. **Units and colors.** `OverlayLayout` formats the value (°C or °F, the item's decimals, the width of its widest number so it never jitters) and asks the item's `Threshold` for its `Level`: by default a CPU warns 10 °C under its limit and is critical 5 °C under it.
 7. **The pill.** `OverlayWindow` hands the items and the style's `OverlayLook` to `Painter`, which draws the pill with GDI+: a warning underlines the value, a critical value is drawn reversed on red. The bitmap goes on screen with `UpdateLayeredWindow`, above the taskbar.
@@ -150,7 +150,7 @@ sequenceDiagram
 | Project | Runs as | Job |
 | --- | --- | --- |
 | `src/Thermi.Core` | a library, any OS | Snapshots, sensor mapping, formatting, thresholds, config and its edits and undo, layout and looks, the tray's texts, translations, the agents' answers, update decisions. Depends on nothing. |
-| `src/Thermi.Sensors.Windows` | `thermi-sensors.exe`, a service as SYSTEM | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down for the MSI and `scripts/install.ps1`. |
+| `src/Thermi.Sensors.Windows` | `thermi-sensors.exe`, a service as SYSTEM, or a process of the user's in a per-user install | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down for the MSI and `scripts/install.ps1`. |
 | `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and the agents' commands and MCP server. |
 | `src/Thermi.Settings.Web` | the page in WebView2 | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
 | `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core. |
@@ -187,13 +187,13 @@ Which projects are shared and which are Windows-only, and how another OS would p
 
 | Topic | Rule | Why |
 | --- | --- | --- |
-| Trust | The service never reads from its pipe. The overlay trusts the pipe only when SYSTEM or Administrators own it. Nothing of thermi's is raised by UAC. | `docs/adr/0003-sensor-service.md`, `docs/adr/0016-admin-on-demand.md` |
+| Trust | The sensors never read from their pipe. The overlay trusts the service's pipe only when SYSTEM or Administrators own it, and the per-user pipe only when its owner, its server's folder and their integrity levels hold. Nothing of thermi's is raised by UAC. | `docs/adr/0003-sensor-service.md`, `docs/adr/0016-admin-on-demand.md` |
 | Failure | A stuck read ends the service and Windows restarts it. A stalled device holds back none of the others. Nothing the overlay reads can crash it. | `docs/adr/0015-a-stalled-device-holds-back-none.md`, `docs/adr/0017-windows-restarts-the-overlay.md` |
 | Time | Code gets time from an injected `TimeProvider`, so tests run on a fake clock. | `AGENTS.md` |
 | Settings | A broken or newer file is never written over. Every writer holds the file's mutex. | `docs/adr/0005-settings-window-process.md` |
 | Budget | The overlay, the idle window and the service each stay under a CPU and memory budget. | `docs/adr/0001-architecture.md`, `scripts/measure.ps1` |
 | Updates | Each version has its own folder behind launchers that never move; a version runs only when its signatures hold. | `docs/adr/0008-updates.md` |
-| Logs | The overlay, the window and the agents each log to `%LOCALAPPDATA%\thermi`; the service to the Application event log. | `AGENTS.md` |
+| Logs | The overlay, the window and the agents each log to `%LOCALAPPDATA%\thermi`; the service to the Application event log, and the per-user sensors to `%LOCALAPPDATA%\thermi\thermi-sensors.log`. | `AGENTS.md` |
 
 ## Where to change what
 

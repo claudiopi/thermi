@@ -8,9 +8,9 @@ People who care about their PC want to see its temperatures, loads and fans whil
 
 ## The journey of a reading
 
-1. **A service reads the sensors.** Reading CPU and motherboard sensors needs admin rights. A small Windows service, `thermi-sensors`, has them, so you are never asked. It reads only while someone listens, and a device that hangs never holds back the others.
-2. **It sends a snapshot every second.** A snapshot is every sensor thermi can show, with its value, sent as one line of text down a named pipe. The pipe only goes one way, so nothing can send the service a command.
-3. **The overlay listens.** The overlay runs as you, without admin rights. It trusts the pipe only when SYSTEM or an administrator made it, so a program without admin rights cannot feed it fake numbers.
+1. **A small program reads the sensors.** Reading the CPU's temperature and the motherboard's sensors needs admin rights. Installed for everyone, `thermi-sensors` is a Windows service that has them, so you are never asked. Installed for you alone, it runs as you, and reads what your rights allow. Either way it reads only while someone listens, and a device that hangs never holds back the others.
+2. **It sends a snapshot every second.** A snapshot is every sensor thermi can show, with its value, sent as one line of text down a named pipe. The pipe only goes one way, so nothing can send the sensors a command.
+3. **The overlay listens.** The overlay runs as you, without admin rights. It trusts the service's pipe only when SYSTEM or an administrator made it. It trusts a per-user pipe only when its server runs from your install folder, at an integrity level no lower than the overlay's. So another program cannot feed it fake numbers.
 4. **It picks what to show.** The settings say which metrics to show: the CPU temperature, the GPU load, the RAM used. Rules find the sensor behind each one, because sensor names differ between PCs.
 5. **It paints.** Values are grouped into pills by their label: CPU, GPU, RAM. A value at its warning threshold is underlined in the warning color; at the critical one it is drawn reversed. Each value keeps the room of its widest number, so the overlay never jitters.
 6. **It stays on top.** Windows lifts the taskbar over everything when it is clicked. The overlay notices at once and goes back on top.
@@ -28,7 +28,7 @@ The settings window edits the same file, in a process of its own that closes wit
 
 | Idea | Why |
 | --- | --- |
-| **Separate processes.** The service reads hardware with admin rights; the overlay draws; the window edits; `thermi-cli` answers AI agents. | Each does one job, nothing an agent talks to is elevated, and a crash in one never takes another down. |
+| **Separate processes.** `thermi-sensors` reads hardware, with admin rights when it is a service; the overlay draws; the window edits; `thermi-cli` answers AI agents. | Each does one job, nothing an agent talks to is elevated, and a crash in one never takes another down. |
 | **Core knows no Windows.** Which metric is which sensor, how a value reads, what the overlay shows: all in Core. | It is tested without hardware, and it would move to another OS unchanged. |
 | **Recordings, not mocks.** Tests replay snapshots recorded on real PCs, with and without admin rights. | Fakes kinder than real hardware hide the bugs users hit. |
 | **Missing is not zero.** Without its driver, a CPU reports 0 °C. thermi treats that as missing. | No running chip is at 0 °C. |

@@ -1,6 +1,6 @@
 # Thermi.Sensors.Windows
 
-`thermi-sensors.exe`, the sensor service. Reading CPU and board sensors needs admin rights, so this is the only process that has them and the only one that loads LibreHardwareMonitor (`docs/adr/0003-sensor-service.md`). It runs as SYSTEM, reads once a second while someone listens, and sends snapshots down a read-only pipe. It also keeps thermi up to date.
+`thermi-sensors.exe`, the sensor service. Reading CPU and board sensors needs admin rights, so this is the only process that has them and the only one that loads LibreHardwareMonitor (`docs/adr/0003-sensor-service.md`). In a machine install it runs as SYSTEM; in a per-user one, `thermi-sensors --user` runs as the user, reads what the user's rights allow, and logs to `%LOCALAPPDATA%\thermi\thermi-sensors.log` (`docs/adr/0016-admin-on-demand.md`). Either way it reads once a second while someone listens, and sends snapshots down a read-only pipe. It also keeps thermi up to date.
 
 Fewer dependencies in a SYSTEM process is a security property, so it takes no logging library: it writes to the Application event log, or in a per-user install to its own file (`docs/adr/0006-proven-libraries-for-logging-and-win32.md`).
 
