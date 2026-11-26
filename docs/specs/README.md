@@ -10,11 +10,12 @@ Bug fixes, dependency updates and docs need no spec: a bug fix starts with a tes
 
 - **`spec.md`**
   - **Status**: one of `draft`, `approved`, `done`, `dropped`, on the line `**Status**: ...`.
+  - **Budget**: the most test cases the tests its acceptance steps name may hold, on the line `**Budget**: <n> .NET and <n> page cases` under the status, set as the person approves the spec. A row counts as a case. Going past it means merging rows and cutting what another case proves, or asking that person to raise it.
   - **Why**: the problem, in two or three lines.
   - **Requirements**: `- R1. ...`, one thing each, testable, no "should".
   - **Design**: which projects and files change, and one alternative that was rejected, with why.
 - **`tasks.md`**: the work in blocks (`B1`, `B2`, ...). Each task `T1`, `T2`, ... cites the requirements it covers and is ticked when it is closed. The header keeps the progress and the current block.
-- **`acceptance.json`**: the steps that prove the spec. Each step has an `id` (`A1`, ...), the requirements it `covers`, a `description` (given, when, then), a `check` (the .NET test method or the Playwright test title that proves it, one PascalCase word either way, or `by hand`) and `passes`. A `draft` or `dropped` spec may name tests that do not exist.
+- **`acceptance.json`**: the steps that prove the spec. Each step has an `id` (`A1`, ...), the requirements it `covers`, a `description` (given, when, then) that names the kinds of case its test proves, not the test's rows, so that a row another proves goes without changing what the person approved: a "table of" lists at most five kinds, a `check` (the .NET test method or the Playwright test title that proves it, one PascalCase word either way, or `by hand`) and `passes`. A `draft` or `dropped` spec may name tests that do not exist.
 
 ## The flow
 
@@ -24,4 +25,4 @@ Bug fixes, dependency updates and docs need no spec: a bug fix starts with a tes
 
 `dropped` keeps the record of a spec that was abandoned, with a line saying why.
 
-`RepoRulesTests` checks that every spec has a known status, that every requirement is covered by some acceptance step, that every check of an approved spec names a test that exists, a .NET test under `tests` or a Playwright test in a `*.spec.ts` file of `src/Thermi.Settings.Web`, and that a `done` spec has every step passing.
+`RepoRulesTests` checks that every spec has a known status, that every requirement is covered by some acceptance step, that every check of an approved spec names a test that exists, a .NET test under `tests` or a Playwright test in a `*.spec.ts` file of `src/Thermi.Settings.Web`, that a `done` spec has every step passing, and that no step of a test lists more than five cases of its table. `scripts/test-count.ps1` holds each spec to its budget.

@@ -136,7 +136,7 @@ public sealed class PowerItemTests
     }
 
     // NaN for a value the sensor did not give; what shows when nothing is left to average is the missing value.
-    [Theory]
+    [Theory] // Rows: nothing left to average shows the missing value.
     [InlineData("60 90 60 30", "60 °C|75 °C|70 °C|60 °C")]
     [InlineData("60 NaN NaN NaN", "60 °C|60 °C|60 °C|" + ReadingFormatter.Missing)]
     public void SmoothingAveragesTheLastSeconds(string values, string expected)
@@ -293,7 +293,7 @@ public sealed class PowerItemTests
 
     // Snapped to a corner, the square goes away from the corner's edges; on the taskbar, or dropped anywhere, it goes up
     // and left.
-    [Theory]
+    [Theory] // Rows: each an operand of the spot's pattern.
     [InlineData(SnapSpot.BottomRight)]
     [InlineData(SnapSpot.Taskbar)]
     [InlineData(null)]

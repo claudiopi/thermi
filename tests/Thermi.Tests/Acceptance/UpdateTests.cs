@@ -23,8 +23,7 @@ public sealed class UpdateTests
     // manifest as "channel sequence version rollout expiry", its withdrawn versions and whether it is off; the expiry is in
     // 30 days unless it says expired a minute ago, now, or 46 days on, a manifest's 45 and a day, and a minute past. The
     // answer: kind and version.
-    [Theory]
-    [InlineData("1.2.0 - - - 10 1", "stable 2 1.3.0 100", "", false, "Download 1.3.0")]
+    [Theory] // Rows: each is one operand of the offer's and the rollback's conditions, or a bucket, rollout, sequence or expiry at its edge
     [InlineData("1.3.0 1.2.0 - - 10 1", "stable 2 1.3.0 100", "", false, "Nothing")]
     [InlineData("1.3.0 1.2.0 - - 10 1", "stable 2 1.2.0 100", "", false, "Nothing")]
     [InlineData("1.2.0 - - 1.3.0 10 1", "stable 2 1.3.0 100", "", false, "Nothing")]
@@ -89,12 +88,11 @@ public sealed class UpdateTests
     }
 
     // The window open, a drag, the minutes since the last input, the lock, every overlay hidden, and urgency.
-    [Theory]
+    [Theory] // Rows: each is one operand of Quiet's condition, and 1 and 3 minutes sit either side of the idle time
     [InlineData(false, false, 1, false, false, false, false)]
     [InlineData(false, false, 3, false, false, false, true)]
     [InlineData(false, false, 0, true, false, false, true)]
     [InlineData(false, false, 0, false, true, false, true)]
-    [InlineData(true, false, 60, false, false, false, false)]
     [InlineData(false, true, 60, false, false, true, false)]
     [InlineData(false, false, 0, false, false, true, true)]
     [InlineData(true, false, 0, false, false, true, false)]
@@ -339,7 +337,7 @@ public sealed class UpdateTests
     }
 
     // A build's address and signers (a release one without them never updates), the policy, a ready version, the last checks, beta.
-    [Theory]
+    [Theory] // Rows: each is one operand of a build that updates, or a line A13 states; 13 and 14 days sit either side of stale
     [InlineData(null, false, null, 1, null, false, UpdateLineKind.NotUpdating)]
     [InlineData("https://u/v1/", false, null, 1, null, false, UpdateLineKind.NotUpdating)]
     [InlineData("http://127.0.0.1:8765/v1/", false, null, 1, null, false, UpdateLineKind.UpToDate)]

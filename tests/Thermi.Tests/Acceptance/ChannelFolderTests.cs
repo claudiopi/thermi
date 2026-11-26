@@ -26,7 +26,7 @@ public sealed class ChannelFolderTests : IDisposable
     }
 
     // keys writes both pairs or none: never over a key, nor half a pair beside the other's half.
-    [Theory]
+    [Theory] // Rows: an empty folder and one key there are the two outcomes of the refusal
     [InlineData(null)]
     [InlineData("backup.pub.pem")]
     public void KeysNeverWriteOverAKey(string? there)
@@ -45,7 +45,7 @@ public sealed class ChannelFolderTests : IDisposable
     }
 
     // A history neither key signed, a signed manifest in its place, or none while its channel serves stops every lever; a new channel starts empty.
-    [Theory]
+    [Theory] // Rows: each is a history a lever must refuse or start from, which no other row reaches
     [InlineData("planted")]
     [InlineData("a manifest")]
     [InlineData("gone")]

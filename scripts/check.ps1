@@ -10,7 +10,8 @@ param(
     # CI mode: packages must match the committed lock files exactly.
     [switch]$Ci,
     # Then the mutation score of the tests of the parts run, too slow for every run here: Stryker.NET on Thermi.Core
-    # (scripts/mutation.ps1) and StrykerJS on the page's logic.
+    # (scripts/mutation.ps1) and StrykerJS on the page's logic, each with the cases that hold nothing of their own
+    # (scripts/redundant.ps1).
     [switch]$Mutation,
     # One half alone: the CI runs .NET and the page in jobs of their own, side by side.
     [ValidateSet('All', 'DotNet', 'Web')]
@@ -190,6 +191,8 @@ function Invoke-Web {
     Invoke-Step 'web page tests' { npm run test:e2e --prefix $web }
     if ($Mutation) {
         Invoke-Step 'web mutation' { npm run mutation --prefix $web }
+        & (Join-Path $PSScriptRoot 'redundant.ps1') -Report (Join-Path $results 'mutation-web' 'mutation-report.json') -Root $web
+        if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 }
 

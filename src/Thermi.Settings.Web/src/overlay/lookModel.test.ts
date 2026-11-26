@@ -21,6 +21,7 @@ const defaults = {
 const own = { label: { size: 20, weight: 'regular' }, value: { size: 22, weight: 'regular' } } as const;
 
 describe('a look', () => {
+  // Rows: each preset's sizes are numbers Stryker leaves as they are, and each field a look sets is read on its own.
   test.each([
     { style: undefined, shown: defaults },
     { style: { preset: 'compact' }, shown: { ...defaults, label: { size: 11, weight: 'semibold' }, value: { size: 12, weight: 'bold' } } },

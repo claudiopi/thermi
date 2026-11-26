@@ -14,8 +14,7 @@ public sealed class AdminOnDemandTests
 
     // The service's pipe whenever it is installed; else the user's, trusted by its owner, its server's folder and integrity,
     // and the pipe's own label, read by an overlay at medium, high, or one whose own could not be read.
-    [Theory]
-    [InlineData(User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, true)]
+    [Theory] // Rows: each is one operand of Trusts, an owner of its pattern or an integrity at its edge; a security check holds each
     [InlineData("S-1-5-18", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, true)]
     [InlineData("S-1-5-32-544", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, true)]
     [InlineData("S-1-5-21-1-2-3-1002", Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0x2000, false)]
@@ -36,7 +35,7 @@ public sealed class AdminOnDemandTests
     // Only an install under the user's own local app data is a per-user one, which updates itself and offers to install for
     // everyone while it reads the user's own host; a machine install whose service is missing serves the user's pipe and
     // does neither, and once the service is read the fix is the machine's again.
-    [Theory]
+    [Theory] // Rows: each is one operand of InstallsForEveryone, or a folder outside local app data, a climb out of it among them
     [InlineData(@"users\ana\AppData\Local\Programs\thermi", false, true, true)]
     [InlineData(@"users\ana\AppData\Local\Programs\thermi", true, true, false)]
     [InlineData(@"Program Files\thermi", false, false, false)]
@@ -50,7 +49,7 @@ public sealed class AdminOnDemandTests
     }
 
     // The wait before the next host: 2 s, doubling to a minute after hosts that ended within 10 s, and none under the lock.
-    [Theory]
+    [Theory] // Rows: each is one operand of NextTry; 11 s sits past the 10 s a quick end takes, and 40 doubles past the minute
     [InlineData(300, null, false, 2)]
     [InlineData(3, 2, false, 4)]
     [InlineData(3, 40, false, 60)]
@@ -63,7 +62,7 @@ public sealed class AdminOnDemandTests
 
     // The MSI of the version the channel offers, the running one or later, listed for this processor; a channel off or the
     // running version withdrawn leaves none, and the fix opens the download page.
-    [Theory]
+    [Theory] // Rows: each is one operand of Msi's condition; the running version is the edge of the >= that a later one passes
     [InlineData("1.3.0", false, false, "x64", true)]
     [InlineData("1.2.0", false, false, "x64", true)]
     [InlineData("1.1.0", false, false, "x64", false)]
@@ -90,7 +89,7 @@ public sealed class AdminOnDemandTests
 
     // Before any MSI runs: the download page with checks turned off by the policy or no MSI offered, and a failure when no
     // manifest could be taken; the offered MSI, running, when there is one.
-    [Theory]
+    [Theory] // Rows: each is one operand of MsiToRun, an outcome A38 states
     [InlineData(false, "1.3.0", MachineInstallOutcome.DownloadPage)]
     [InlineData(true, null, MachineInstallOutcome.Failed)]
     [InlineData(true, "1.1.0", MachineInstallOutcome.DownloadPage)]
@@ -107,7 +106,7 @@ public sealed class AdminOnDemandTests
 
     // The pinned driver or a later one is never installed over; an older one, or one whose version cannot be read, is. A
     // version of two parts reads as older than the same of three, and is installed over, which does no harm.
-    [Theory]
+    [Theory] // Rows: each is one side of the >= on the pinned version, or a version read in two parts or not at all
     [InlineData("2.2.0", true)]
     [InlineData("2.3", true)]
     [InlineData("2.1.9", false)]
@@ -148,7 +147,7 @@ public sealed class AdminOnDemandTests
 
     // What msiexec's exit says of "install for everyone": installed, with or without a restart for the driver; refused at
     // the prompt or in Windows Installer's own window; or failed.
-    [Theory]
+    [Theory] // Rows: each exit is a constant of the switch, which Stryker does not mutate
     [InlineData(0, MachineInstallOutcome.Installed)]
     [InlineData(3010, MachineInstallOutcome.Installed)]
     [InlineData(1223, MachineInstallOutcome.Refused)]

@@ -218,7 +218,7 @@ public sealed class SettingsFileTests
     // The owner, 2026-11-24: the taskbar's three places of versions 2 to 4 become its one free place, a migrated file
     // written as version 5. Its right place stays beside the notification area, its left one the margin in from the start,
     // and its center, which the app buttons decided, goes beside the notification area; a corner stays as it was.
-    [Theory]
+    [Theory] // Rows: each a place A307 states.
     [InlineData(4, """{ "spot": "taskbar-right" }""", """{"spot":"taskbar"}""")]
     [InlineData(3, """{ "spot": "taskbar-left", "monitor": "DEL-41A8" }""", """{"spot":"taskbar","monitor":"DEL-41A8","offset":8}""")]
     [InlineData(4, """{ "spot": "taskbar-center" }""", """{"spot":"taskbar"}""")]

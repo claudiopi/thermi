@@ -42,7 +42,6 @@ public sealed class VisibilityTests
         ["work area"] = App(Left.Work),
         ["in front, right"] = InFront,
         ["in front, unknown monitor"] = InFront with { Monitor = null },
-        ["in front, no such monitor"] = InFront with { Monitor = new PixelRect(0, 0, 10, 10) },
     };
 
     private static ThermiConfig Saved(string? name) => new() { Overlays = [new OverlayConfig { Style = new StyleConfig { Name = name } }] };
@@ -50,21 +49,16 @@ public sealed class VisibilityTests
     // Which overlays a full-screen app covers, 1 each: one that covers its monitor hides only that monitor's overlays; the
     // desktop, the shell, maximized and minimized windows are none. Windows' answer of exclusive full screen or presentation
     // mode names no monitor, so it counts on the monitor of the window in front, or on all of them when that is unknown.
-    [Theory]
+    [Theory] // Rows: each a shell class of a static set, an operand of the cover's condition, or a bound of the monitor's rect.
     [InlineData("right", NotificationState.Normal, "0110")]
     [InlineData("left with borders", NotificationState.Normal, "1001")]
-    [InlineData("right", NotificationState.Normal, "0000", false)]
-    [InlineData("none", NotificationState.Normal, "0000")]
     [InlineData("desktop", NotificationState.Normal, "0000")]
     [InlineData("start menu", NotificationState.Normal, "0000")]
     [InlineData("maximized", NotificationState.Normal, "0000")]
     [InlineData("minimized", NotificationState.Normal, "0000")]
     [InlineData("work area", NotificationState.Normal, "0000")]
-    [InlineData("in front, right", NotificationState.Normal, "0000")]
-    [InlineData("in front, right", NotificationState.Direct3DFullScreen, "0110")]
     [InlineData("in front, right", NotificationState.Presentation, "0110")]
     [InlineData("in front, unknown monitor", NotificationState.Direct3DFullScreen, "1111")]
-    [InlineData("in front, no such monitor", NotificationState.Presentation, "1111")]
     [InlineData("none", NotificationState.Direct3DFullScreen, "1111")]
     [InlineData("in front, right", NotificationState.Direct3DFullScreen, "0000", false)]
     public void AFullScreenAppCoversTheOverlaysOfItsMonitor(string app, NotificationState state, string covered, bool monitors = true)
@@ -75,7 +69,7 @@ public sealed class VisibilityTests
     }
 
     // The current style's name, the saved styles' names, and the names each press gives; none saved leaves all as it is.
-    [Theory]
+    [Theory] // Rows: each a start: a current style, none, none saved.
     [InlineData("B", "A,C,B", "C,A,B")]
     [InlineData(null, "B,A", "A")]
     [InlineData(null, "", "")]
@@ -101,8 +95,7 @@ public sealed class VisibilityTests
     // menu), K (the hide hotkey), C (a click on thermi's icon), R (the file read again) or N (thermi started again), each
     // then a for an app in full screen, then = and how each overlay shows: 1 or 0. The flag lives in memory, so the file
     // never holds it.
-    [Theory]
-    [InlineData("Always,HideInFullscreen,OnlyInFullscreen", "D=110 Da=101 D=110")]
+    [Theory] // Rows: each a way the flag is set or cleared, a second click among them.
     [InlineData("Always,Always+hidden", "D=10 H=00 R=00 C=10 N=10")]
     [InlineData("HideInFullscreen", "Da=0 K=0 Da=0 D=0 K=1")]
     [InlineData("Always", "K=0 D=0 C=1 C=1")]

@@ -9,8 +9,7 @@ public sealed class InstallLayoutTests
     private const string Top = @"users\ana\Programs\thermi";
 
     // From the MSI's folder, the script's copy or a version's, in the install folder; anything else is refused whole.
-    [Theory]
-    [InlineData(Top + @"\setup", true)]
+    [Theory] // Rows: each is one operand of InstallsFrom: the MSI's folder in any case, a copy, a version, another name or another parent
     [InlineData(Top + @"\SETUP\", true)]
     [InlineData(Top + @"\install-ab12", true)]
     [InlineData(Top + @"\0.8.0", true)]
@@ -21,7 +20,7 @@ public sealed class InstallLayoutTests
 
     // A removal takes update\, the script's copies, the versions and the launchers, and leaves the MSI's folder to the MSI,
     // and anything else at the top to its owner.
-    [Theory]
+    [Theory] // Rows: each is one operand of Removes, or an entry of its static list of launchers
     [InlineData("update", true, true)]
     [InlineData("install-ab12", true, true)]
     [InlineData("0.9.5", true, true)]
@@ -34,7 +33,7 @@ public sealed class InstallLayoutTests
 
     // The service's image path, TOP for the install folder, and the version an install lays down: the version the service
     // runs, and the later one the install leaves running; none for a service run from elsewhere or a build before versions.
-    [Theory]
+    [Theory] // Rows: each is one operand of Running's or Later's condition: quotes, null, a climb out, no version folder, older or equal
     [InlineData(@"""TOP\0.9.5\thermi-sensors.exe""", "0.9.0", "0.9.5", "0.9.5")]
     [InlineData(@"""TOP\0.9.0\thermi-sensors.exe"" --elevated", "0.9.0", "0.9.0", null)]
     [InlineData(@"TOP\0.9.0\thermi-sensors.exe", "0.9.5", "0.9.0", null)]

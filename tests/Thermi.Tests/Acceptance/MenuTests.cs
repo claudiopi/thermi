@@ -13,28 +13,12 @@ public sealed class MenuTests
     // Overlays as JSON objects between '|', with ' for ", and words for the rest of the state, "on:" naming the item whose
     // pill the overlay's menu opens on. An entry is written as its name, a graph's choice as its graph, then * for the bold
     // default, - for a heading, + for checked and @ for a hotkey beside it; | starts a group and a submenu's entries go in [].
-    [Theory]
-    [InlineData(
-        "{}",
-        "",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideOverlays | Exit")]
-    [InlineData(
-        "{}|{}",
-        "",
-        "Settings* TaskManager ClickThrough Lock HideOverlays | Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] "
-            + "Overlay[CopyImage Vertical ClickThrough Lock HideThisOverlay] | Exit",
-        $"Settings* | {Graph} Vertical Lock | CopyImage TaskManager | HideThisOverlay HideOverlays | Exit")]
+    [Theory] // Rows: each state its step names changes the entries, and a gesture's undo has its 30 s boundary and a fix's worn look
     [InlineData(
         "{}",
         "flag",
         "ShowOverlays* | Settings TaskManager CopyImage Vertical ClickThrough Lock | Exit",
         $"Settings* | {Graph} Vertical Lock | TaskManager | ShowOverlays | Exit")]
-    [InlineData(
-        "{'hidden':true}",
-        "",
-        "ShowOverlay* | Settings TaskManager CopyImage Vertical ClickThrough Lock | Exit",
-        $"Settings* | {Graph} Vertical Lock | TaskManager | ShowOverlay | Exit")]
     [InlineData(
         "{}|{'hidden':true}",
         "",
@@ -181,7 +165,7 @@ public sealed class MenuTests
     // Each entry of one menu gets its own key, from the start of a word first, whatever its case or language, and an
     // entry without a letter or a digit left gets none, nor a grayed one, written after "-", which nothing chooses; an
     // "&" of the text stays one.
-    [Theory]
+    [Theory] // Rows: each rule of the keys its step states: a word's start, any case or language, none left, a grayed note, an "&"
     [InlineData("Alpha one|Alpha two|beta|Ölfarbe|öl", "&Alpha one|Alpha &two|&beta|&Ölfarbe|ö&l")]
     [InlineData("R&D|Rd|…", "&R&&D|R&d|…")]
     [InlineData("ab|ba|ab", "&ab|&ba|ab")]

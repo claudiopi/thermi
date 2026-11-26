@@ -229,19 +229,15 @@ public sealed class TrayTextTests
     // a fresh snapshot, and a clock among the items, which Windows reads with no service at all, and while the service runs
     // but has sent nothing yet, which the game's sensors every reader adds do not stand in for. The hint is the first
     // value tooltip's that has one.
-    [Theory]
+    [Theory] // Rows: each a state its steps name: levels, no driver, reading nothing, stopped, stale, asleep and woken, contrast, first run
     [InlineData("", MarkState.Calm, false, ValueHint.None)]
     [InlineData("warning", MarkState.Warm, false, ValueHint.None)]
     [InlineData("critical", MarkState.Hot, false, ValueHint.None)]
-    [InlineData("critical light", MarkState.Hot, false, ValueHint.None)]
     [InlineData("no-driver", MarkState.Calm, false, ValueHint.NeedsDriver)]
     [InlineData("reads-nothing", MarkState.Calm, false, ValueHint.ReadsNothing)]
-    [InlineData("critical stopped", MarkState.Stopped, true, ValueHint.SensorsStopped)]
     [InlineData("critical stopped clock", MarkState.Stopped, true, ValueHint.SensorsStopped)]
     [InlineData("critical awaited clock", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("critical stale", MarkState.Stopped, false, ValueHint.SensorsStopped)]
-    [InlineData("hidden", MarkState.Calm, false, ValueHint.None)]
-    [InlineData("click-through", MarkState.Calm, false, ValueHint.None)]
     [InlineData("critical high-contrast", MarkState.HighContrast, false, ValueHint.None)]
     [InlineData("empty", MarkState.Calm, false, ValueHint.None)]
     [InlineData("four critical hidden click-through", MarkState.Hot, false, ValueHint.None)]
@@ -284,7 +280,7 @@ public sealed class TrayTextTests
     private static (ThermiConfig Config, TrayInput Input) SceneOf(string[] words)
     {
         var service = words.Contains("stopped") ? ServiceState.Stopped : words.Contains("stale") ? ServiceState.Stale : ServiceState.Running;
-        var input = Input(service, light: words.Contains("light"), snapshot: SnapshotOf(words));
+        var input = Input(service, snapshot: SnapshotOf(words));
         if (words.Contains("asleep"))
         {
             // The last snapshot came before the PC slept; on waking, the clock has run far past the stale limit.

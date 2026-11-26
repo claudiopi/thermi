@@ -217,7 +217,7 @@ public sealed class StyleTests
     }
 
     // The pills' theme, none for the default, the taskbar's mode, which alone reaches the pills, and whether they are light.
-    [Theory]
+    [Theory] // Rows: the default follows the taskbar each way, and each theme ignores it each way
     [InlineData(null, false, false)]
     [InlineData(null, true, true)]
     [InlineData(PillTheme.Dark, true, false)]
@@ -308,7 +308,7 @@ public sealed class StyleTests
 
     // The RAM's meter, its load: of five segments, those its value rounds to, at least one for any value above zero, a
     // half rounding up; none at zero or while it reads nothing.
-    [Theory]
+    [Theory] // Rows: the rounding's boundaries at 0, 3 and 50 % and a value that reads nothing, as its step names them
     [InlineData(0, 0)]
     [InlineData(3, 1)]
     [InlineData(50, 3)]

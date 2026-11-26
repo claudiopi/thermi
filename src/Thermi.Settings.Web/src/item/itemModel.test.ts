@@ -49,6 +49,7 @@ describe('the item page', () => {
   });
 
   const each = (text: string, value: string, aside: string, detail = 'Ryzen') => ({ value, text, aside, shown: `${value} name`, detail });
+  // Rows: Auto names a sensor, a device or nothing, each an operand of its condition.
   test.each([
     {
       item: { id: 'cpu', metric: 'cpu.temperature' },
@@ -97,6 +98,7 @@ describe('the item page', () => {
   // kept. An item offered nothing else, as a power or a clock, has no Warn by row at all, since Off would be its only choice.
   const fan = { warnBy: [{ name: 'own' }, { warnBy: { sensor: 'duty', auto: 'fan.cpu.duty' }, name: 'duty' }], warnByName: 'hand' };
   const none = { warnBy: [{ name: 'off' }], warnByName: 'hand' };
+  // Rows: an item offered only Off, with and without a reading written by hand, is a requirement's only proof.
   test.each([
     { item: { id: 'cpu', sensor: 'fan', warnBy: { sensor: 'duty' } }, shows: fan, warnBy: '1', offered: 2, row: true },
     { item: { id: 'cpu', sensor: 'fan', warnBy: { metric: 'fan.cpu.duty' } }, shows: fan, warnBy: 'kept', offered: 3, row: true },
@@ -112,6 +114,7 @@ describe('the item page', () => {
     },
   );
 
+  // Rows: each type's range is a number Stryker leaves as it is, and the types that read no number a static list.
   test.each([
     ['Fan', 2000],
     ['Power', 500],

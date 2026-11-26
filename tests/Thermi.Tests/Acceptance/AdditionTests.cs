@@ -19,8 +19,7 @@ public sealed class AdditionTests
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
     // Windows' facts as uptime in minutes, the address or "none", and the local time; what the three items show then.
-    [Theory]
-    [InlineData(134, "192.168.1.23", "14:05:09", "en-US", "2 h 14 min|192.168.1.23|2:05:09 PM")]
+    [Theory] // Rows: a culture's format each, and the case with no address
     [InlineData(14, "10.0.0.7", "09:30:00", "es-UY", "14 min|10.0.0.7|09:30:00")]
     [InlineData(134, "none", "23:59:59", "en-US", "2 h 14 min|–|11:59:59 PM")]
     public void TheWindowsItemsReadWindowsItself(int minutes, string address, string time, string culture, string shown)
@@ -59,10 +58,7 @@ public sealed class AdditionTests
 
     // An item, the recording, its level and what is busiest; then the lines its tooltip adds: the model it is read from, and
     // at critical what keeps its device busy, by name and share.
-    [Theory]
-    [InlineData("cpu.temperature", "admin", "", "AMD Ryzen 9 9950X")]
-    [InlineData("gpu.load", "admin", "", "NVIDIA GeForce RTX 5060 Ti")]
-    [InlineData("ram.load", "admin", "", "")]
+    [Theory] // Rows: each a device kind, a way an item names its sensor, a level's boundary or an operand of the driver's kinds
     [InlineData("ram.used", "admin", "", "=27.2|61.6 GB")]
     [InlineData("cpu.load", "admin critical", "chrome 23", "AMD Ryzen 9 9950X|chrome 23 %")]
     [InlineData("gpu.load", "admin critical", "chrome 23", "NVIDIA GeForce RTX 5060 Ti|game 61 %")]
@@ -117,8 +113,7 @@ public sealed class AdditionTests
     // The CPU's clock, its temperature and its base clock, or "unknown"; whether its clock and temperature are marked as
     // throttling, by metric, by auto or by a CPU sensor of theirs, never the GPU's, the board's or another CPU sensor's.
     // Its warning by default is 90 °C, 10 under AMD's limit.
-    [Theory]
-    [InlineData(3100, 92, "4300", true)]
+    [Theory] // Rows: each side of the clock's and the warning's boundaries, and a base clock or reading missing
     [InlineData(3100, 90, "4300", true)]
     [InlineData(3100, 89.9, "4300", false)]
     [InlineData(4428, 92, "4300", false)]
@@ -165,10 +160,8 @@ public sealed class AdditionTests
 
     // The pointer's distance from a 200 × 40 overlay, right of it and below it, at a scale; the switch, the window, a drag and
     // click-through; the opacity it shows at.
-    [Theory]
-    [InlineData(0, 0, 1.0, "fade", 0.25)]
+    [Theory] // Rows: the reach's boundary, the scale, the clamp inside, and each operand of the states that keep it whole
     [InlineData(-50, -10, 1.0, "fade", 0.25)]
-    [InlineData(48, 0, 1.0, "fade", 0.625)]
     [InlineData(96, 0, 1.0, "fade", 1.0)]
     [InlineData(96, 0, 1.5, "fade", 0.75)]
     [InlineData(30, 40, 1.0, "fade", 0.640625)]

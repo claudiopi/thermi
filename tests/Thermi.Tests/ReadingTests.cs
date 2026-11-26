@@ -9,9 +9,8 @@ namespace Thermi.Tests;
 /// <summary>What the overlay shows for a reading, including the ways real sensors fail.</summary>
 public sealed class ReadingTests
 {
-    [Theory]
+    [Theory] // Rows: each kind's unit and decimals, a static scale's entry, a boundary (999/1000, 999.94/999.95), NaN apart from null, a culture
     [InlineData(SensorKind.Temperature, 61.6, "62 °C")]
-    [InlineData(SensorKind.Load, 7.2, "7 %")]
     [InlineData(SensorKind.Clock, 4845.0, "4.8 GHz")]
     [InlineData(SensorKind.Power, 88.4, "88 W")]
     [InlineData(SensorKind.Fan, 1450.0, "1,450 RPM")]
@@ -63,7 +62,7 @@ public sealed class ReadingTests
         Assert.Equal(expected, text);
     }
 
-    [Theory]
+    [Theory] // Rows: 79.4 and 79.5 straddle the rounding to the warning, 95 is the only critical, NaN is missing and never alarms
     [InlineData(79.4, Level.Normal)]
     [InlineData(79.5, Level.Warning)]
     [InlineData(95.0, Level.Critical)]
@@ -75,7 +74,7 @@ public sealed class ReadingTests
         Assert.Equal(expected, threshold.LevelOf(new Reading(SensorKind.Temperature, value)));
     }
 
-    [Theory]
+    [Theory] // Rows: NaN and infinity are each one operand of the check that refuses them
     [InlineData(double.NaN, 90)]
     [InlineData(80, double.PositiveInfinity)]
     public void RejectsThresholdsThatCannotWork(double warning, double critical)

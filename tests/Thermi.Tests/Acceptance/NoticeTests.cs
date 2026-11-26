@@ -18,7 +18,7 @@ public sealed class NoticeTests
     // cleared from outside the window; hide1 and show1: overlay 1 hidden on its own and shown; win: the next change comes
     // from the window; ct0, ctall and clicks: click-through on for overlay 0, for all, and off for all. first? is the first
     // start before the sensors are read, and first! one where the CPU reads zero, the driver missing (cold review 4, G7).
-    [Theory]
+    [Theory] // Rows: each notice kind, the driver's first start, and a change from the window, which shows none
     [InlineData(2, "first=FirstRun:None open=~ flag=OverlaysHidden:ShowThem+GotIt show=~ flag=~ show=~")]
     [InlineData(1, "first?=~ first!=FirstRunDriver:None first!=. open=~")]
     [InlineData(1, "flag=OverlaysHidden:ShowIt+GotIt show=~")]
@@ -61,7 +61,7 @@ public sealed class NoticeTests
     // Seconds of an item with Notify me: c critical at 95 °C, p critical at its peak of 98 °C, n normal at 60 °C, and the
     // capitals while a full-screen app is in front. A notice is the second it came, then w, its peak and its length in
     // seconds when it waited out the full-screen app.
-    [Theory]
+    [Theory] // Rows: 9 and 10 s straddle the wait, then staying, coming back, and full screen with and without a peak, each A192 states
     [InlineData("cccccccccc", "")]
     [InlineData("ccccccccccc", "11")]
     [InlineData("cccccccccccccccccccccccccccccccccccccccc", "11")]

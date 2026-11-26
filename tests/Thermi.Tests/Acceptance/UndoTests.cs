@@ -51,7 +51,7 @@ public sealed class UndoTests
 
     public static TheoryData<string> EditKinds => new(Edits.Keys);
 
-    [Theory]
+    [Theory] // Rows: one case per edit, the promise that every edit undoes (cold review 2, D4).
     [MemberData(nameof(EditKinds))]
     public void EveryEditCanBeUndoneAndRedone(string kind)
     {

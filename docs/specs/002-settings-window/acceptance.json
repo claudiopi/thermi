@@ -9,7 +9,7 @@
         "R136",
         "R196"
       ],
-      "description": "Given a table of states (one or several overlays, up to four, hidden ones, the hide flag, a broken file, the service stopped, hotkeys, an item showing a maximum, a gesture 10 s ago, saved looks, an update ready, the menu opened on a pill of several or on the overlay's only pill, an overlay on the desktop, locked, which then offers no Separate, four overlays, where Separate is grayed with why, items with a graph of their own or none judged, one pill or one bar of one run, which offers Vertical only while it is on), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's, and nothing offered changes nothing.",
+      "description": "Given a table of states of the overlays (their number up to four, which are hidden, locked or on the desktop), of thermi (its hide flag, its file broken, its service stopped, its hotkeys), of what it keeps (a gesture 10 s ago, saved looks, an update ready), of an item (showing a maximum, with a graph of its own or none judged) and of the pill the menu opened on (one of several or the overlay's only one, one pill or one bar of one run), when thermi's menu and the overlay's menu are built, then each row's entries, their groups, their order, their checks and their bold default are the table's: a locked overlay offers no Separate, at four overlays Separate is grayed with why, one run offers Vertical only while it is on, and nothing offered changes nothing.",
       "check": "MenusHaveTheirEntriesInOrder",
       "passes": true
     },
@@ -37,7 +37,7 @@
         "R150",
         "R151"
       ],
-      "description": "Given a real overlay host and window beacon on a test desktop, and a table of messages (the history, a double-click on a value, a click to select, edited, a gesture, a second thermi), when each is sent, then the other side acts on it within 500 ms: the window opens on the item, holds the ten minutes with their gaps, selects, marks, adds the gesture to its history, or comes to the front.",
+      "description": "Given a real overlay host and window beacon on a test desktop, and a table of messages (the history, a value double-clicked or clicked to select it, edited, a gesture, a second thermi), when each is sent, then the other side acts on it within 500 ms: the window opens on the item, holds the ten minutes with their gaps, selects, marks, adds the gesture to its history, or comes to the front.",
       "check": "EachMessageReachesTheOtherProcess",
       "passes": true
     },
@@ -63,7 +63,7 @@
         "R45",
         "R145"
       ],
-      "description": "Given the page and a fake bridge in a table of states (no overlay, the service stopped, stale data, a broken file, a CPU sensor needing the driver, the driver refused and installed), when the page shows each and its action is taken, then the page offers the row's fix, takes no edit while the file is broken, and the state moves on as the fake answers.",
+      "description": "Given the page and a fake bridge in a table of states (the driver refused and installed, no overlay, the service stopped or its data stale, a broken file, a CPU sensor needing the driver), when the page shows each and its action is taken, then the page offers the row's fix, takes no edit while the file is broken, and the state moves on as the fake answers.",
       "check": "TheWindowSaysWhatIsWrongAndOffersTheFix",
       "passes": true
     },
@@ -142,7 +142,7 @@
       "covers": [
         "R14"
       ],
-      "description": "Given the admin recording and a table of searches (words in any order, a name, a device, a type, each synonym, chips, and a word that matches nothing), when the catalog is filtered, then each row lists exactly its sensors, and the last offers one word.",
+      "description": "Given the admin recording and a table of searches (words in any order, a name, a device or a type, each synonym and chips, a word that matches nothing), when the catalog is filtered, then each row lists exactly its sensors, and the last offers one word.",
       "check": "TheCatalogFindsSensorsByNameDeviceOrType",
       "passes": true
     },
@@ -191,7 +191,7 @@
         "R114",
         "R195"
       ],
-      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows, Smoothing, Label, Graph, Notify me, Separate pill, Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, the control looked at staying where it shows through Warn by turned off and its undo, which take the Graph row above it away and back, and through a switch at the pane's foot and its undo, under the news that floats there, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
+      "description": "Given the page with the fake bridge and a table of the item page's rows (Sensor, Shows and Smoothing, Label and Graph, Notify me, Separate pill and Tray icon and each of More options), when each row is changed by keys, Shows and Smoothing without opening More options, then the settings hold the row's change, a row that cannot apply is locked with its reason, as only on alert for the RAM in use warned by nothing, a pill's first item offers no Separate pill, the next item's page opens at its top with More options closed, a page scrolled to its More options stays where it was through dropdown picks by pointer and keys (what it shows back to the value now among them), a switch, an undo, a redo and new readings, the control looked at staying where it shows through Warn by turned off and its undo, which take the Graph row above it away and back, and through a switch at the pane's foot and its undo, under the news that floats there, and Warn by offers the item's own readings alone: a temperature only itself, so no row, the CPU fan its speed and its duty, power nothing, which then offers no Graph and no only on alert.",
       "check": "TheItemPageEditsTheItem",
       "passes": true
     },
@@ -233,7 +233,7 @@
         "R21",
         "R22"
       ],
-      "description": "Given a table of series (derived ones where the board's fan answers, one of them started while the fan still falls after a run, the recorded one where software drives it and the fan answers after the load, every fan falling back once its recording ends, one rebuilt from a run where the fan rose 36 % but under 200 RPM, one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it, one where no fan answers, one where no fan answers a load that heats the CPU, one rebuilt from a run where a game already held the CPU hot at its power limit and the fan fell through the load, one where the board's fan only jitters at idle, two fans alike that fall back alike or apart once the load ends, a load under 80 %, no driver, no fan outside the GPUs), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason.",
+      "description": "Given a table of series (where a fan answers, where none does, two fans alike, what the finder cannot judge), when the finder replays each, then it picks the answering fan, keeping what the item warns by as one undo step, or picks nothing with the row's reason. A fan answers in one derived where the board's fan answers, started while the fan still falls after a run; in the recorded one where software drives it and the fan answers after the load; in one rebuilt from a run where the fan rose 36 % but under 200 RPM; and in one rebuilt from a run where the fan, already up from an earlier load, held through this one and fell 200 RPM 25 s after it. None answers in one where no fan answers, one where none answers a load that heats the CPU, one rebuilt from a run where a game already held the CPU hot at its power limit and the fan fell through the load, and one where the board's fan only jitters at idle. Two fans alike fall back alike or apart once the load ends. The finder cannot judge a load under 80 %, no driver or no fan outside the GPUs. Every fan falls back once its recording ends.",
       "check": "TheFinderPicksTheFanThatAnswersOrSaysWhyNot",
       "passes": true
     },
@@ -248,7 +248,7 @@
         "R111",
         "R200"
       ],
-      "description": "Given a table of readings (an AMD and an Intel CPU temperature, a GPU and a board temperature, a load, a duty, a fan speed, power, clock and memory), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not; and each second of the chart's span says its reading as the item words it, or none in a gap, and how long ago it came, to the second, a whole minute as minutes and the last as now, where the axis rounds the first reading's age to minutes.",
+      "description": "Given a table of readings (power, clock and memory, temperatures of an AMD and an Intel CPU and of a GPU and a board, a load and a duty, a fan's speed), when each is what an item warns by, then the row's acceptance, default lines, unit, step, push between lines, chart range and color bands are the table's, and an item of that sensor may warn only by the table's readings of itself: its own where thresholds judge its type, a fan also its own duty and a duty its own fan, the CPU fan's metric its duty's, and a combined item only its own; the lowest line held for more than half of the ten minutes fires most of the time, and for half of them does not; and each second of the chart's span says its reading as the item words it, or none in a gap, and how long ago it came, to the second, a whole minute as minutes and the last as now, where the axis rounds the first reading's age to minutes.",
       "check": "ThresholdsAndTheChartFollowTheMetersType",
       "passes": true
     },
@@ -275,7 +275,7 @@
         "R85",
         "R95"
       ],
-      "description": "Given the page with two monitors and a table of Placement's controls (each spot of the map, the taskbar's one included, a monitor that is gone, vertical, When to show, lock, click-through and OLED care), when each is chosen by keys, then the settings hold the row's change.",
+      "description": "Given the page with two monitors and a table of Placement's controls (each spot of the map and the taskbar's, a monitor that is gone, vertical and When to show, lock and click-through, OLED care), when each is chosen by keys, then the settings hold the row's change.",
       "check": "ThePlacementPageMovesTheOverlay",
       "passes": true
     },
@@ -333,7 +333,7 @@
         "R93",
         "R96"
       ],
-      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size, Theme and Use on all overlays, Layout and direction, Graph, opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe, Save as my look and each look's menu, Export), when each is changed by keys, then the settings hold the row's change; Default takes the whole look back, its tile checked, no tile is checked once the look changed, and a look saved is the one checked, the page not moving.",
+      "description": "Given the page with two overlays and a table of Appearance's controls (Look tiles, Size and Theme with Use on all overlays, Layout and direction with Graph and opacity, Text and shape with Show units and Show labels, Colors and colorblind-safe with Save as my look and each look's menu and Export), when each is changed by keys, then the settings hold the row's change; Default takes the whole look back, its tile checked, no tile is checked once the look changed, and a look saved is the one checked, the page not moving.",
       "check": "TheAppearancePageChangesTheLook",
       "passes": true
     },
@@ -612,7 +612,7 @@
         "R139",
         "R140"
       ],
-      "description": "Given a table of states (levels, a missing driver, a sensor reading nothing, the service stopped or stale, overlays hidden, click-through, high contrast, before and after the window's first opening), when the overlay, its tooltips, thermi's tooltip and thermi's mark are decided, then each row gives its parts, its mark's state and its one pill while sensors are stopped, and thermi's tooltip stays within 127 characters.",
+      "description": "Given a table of states (levels, a missing driver or a sensor reading nothing, the service stopped or stale, overlays hidden or click-through, high contrast and the time before and after the window's first opening), when the overlay, its tooltips, thermi's tooltip and thermi's mark are decided, then each row gives its parts, its mark's state and its one pill while sensors are stopped, and thermi's tooltip stays within 127 characters.",
       "check": "TheOverlayAndThermisIconSayWhatTheyShow",
       "passes": true
     },
@@ -680,7 +680,7 @@
         "R84",
         "R129"
       ],
-      "description": "Given a table of events (a first start, the window opened, overlays hidden by the flag, one overlay hidden on its own, hiding from the window, click-through on for one and for all, clicks coming back), when the notices are decided, then each shows once in its form, with its buttons, none comes from the window, and each goes when what it is about ends.",
+      "description": "Given a table of events (a first start, the window opened, overlays hidden by the flag or one on its own and hiding from the window, click-through on for one and for all, clicks coming back), when the notices are decided, then each shows once in its form, with its buttons, none comes from the window, and each goes when what it is about ends.",
       "check": "NoticesShowOnceAndGoWhenDone",
       "passes": true
     },
@@ -762,7 +762,7 @@
         "R148",
         "R150"
       ],
-      "description": "Given a table of edits (new, duplicate, merge, delete, hide, move an item to another or a new overlay, a pill held 499 and 500 ms by the injected clock and dragged off, and at four overlays held and refused, a drop that merges, a drop on the taskbar, a corner resize, Alt+arrows on a free overlay and one on the taskbar), when each is applied and undone, then the overlays are the row's, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
+      "description": "Given a table of edits (the window's edits of overlays, an item moved to another or a new overlay, a pill held just under and at 500 ms by the injected clock and dragged off or held and refused at four overlays, a drop that merges or lands on the taskbar and a corner's resize, Alt+arrows on a free overlay and on one on the taskbar), when each is applied and undone, then the overlays are the row's: new, duplicated, merged, deleted or hidden by the window, with no name stored and read by where they sit, so a move renames them, at most 4, an emptied one removed, and each is one undo step.",
       "check": "OverlaysAreMadeMovedMergedAndHiddenAsOneStepEach",
       "passes": true
     },
@@ -818,7 +818,7 @@
       "covers": [
         "R133"
       ],
-      "description": "Given a table of combinations (with Win, Alt with a letter, Ctrl with each common letter, Alt+F4, Ctrl+Alt+Delete, the window's shortcuts, an AltGr character on a Spanish layout, another hotkey's, Shift alone, F13, Ctrl+Alt+T), when each is judged, then it is refused with its row's reason or taken.",
+      "description": "Given a table of combinations (Windows' own with Win or Alt+F4 or Ctrl+Alt+Delete, an app's common one as Alt with a letter or Ctrl with each common letter, the window's shortcuts or another hotkey's, an AltGr character on a Spanish layout or Shift alone, F13 and Ctrl+Alt+T), when each is judged, then it is refused with its row's reason or taken.",
       "check": "HotkeysThatBelongToWindowsOrOtherAppsAreRefused",
       "passes": true
     },

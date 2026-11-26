@@ -16,7 +16,7 @@ public sealed class HotkeyRefusalTests
 
     // A combination for a hotkey, the hide one unless the row says, and why the edit refuses it, or null when it is set as
     // written; turning off the only hotkey left leaves the file with none.
-    [Theory]
+    [Theory] // Rows: each proves an entry of a static key table or rule, or the rules' order, which Stryker leaves out
     [InlineData("Win+T", HotkeyRefusal.WithWin)]
     [InlineData("Ctrl+Win+T", HotkeyRefusal.WithWin)]
     [InlineData("Alt+K", HotkeyRefusal.AltWithCharacter)]

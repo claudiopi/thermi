@@ -6,6 +6,7 @@ import { overlayOutcome, type OverlayOutcome } from './overlayEdits';
 const named = (...names: string[]): Overlay[] => names.map((name) => ({ name, items: [] }));
 const three = named('A', 'B', 'C');
 
+// Rows: each edit's selection and words; deleting the last but one overlay keeps it selected, a requirement's only proof.
 test.each([
   { edit: { kind: 'newOverlay' }, overlays: three, outcome: { select: 3, say: 'OverlayPageText.OverlayAdded' } },
   { edit: { kind: 'duplicateOverlay', overlay: 1 }, overlays: three, outcome: { select: 2, say: 'OverlayPageText.OverlayAdded' } },

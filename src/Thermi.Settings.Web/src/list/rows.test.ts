@@ -184,6 +184,7 @@ describe('the list', () => {
     expect(movedIndex(three, id, by)).toEqual(to);
   });
 
+  // Rows: the next item, the one before, the overlay, and settings once nothing is left, each a line of its own.
   test.each([
     { id: 'a', selected: 'i:b' },
     { id: 'e', selected: 'i:d' },

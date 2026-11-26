@@ -168,10 +168,8 @@ public sealed partial class FanFinderTests
     // the item the finder ran from, keeps the item's meter and adds no item, as one undo step.
     // On the Intel desktop's recorded series the board drives its CPU fan, and the Nuvoton's second input answers the load,
     // the one the CPU fan item reads already. On the Ryzen's, software drives it and it answers after the load.
-    [Theory]
+    [Theory] // Rows: each a series A35 states, a bug a fix reproduced, or the only one of an outcome.
     [InlineData("board-answers", "Found")]
-    [InlineData("three-times-faster", "Found")]
-    [InlineData("answering-at-once", "Found")]
     [InlineData("software", "Found")]
     [InlineData("falling-after-a-run", "Found")]
     [InlineData("rising-a-third", "Found")]
@@ -227,8 +225,6 @@ public sealed partial class FanFinderTests
 
     private static List<Snapshot> SeriesOf(string name) => name switch
     {
-        "three-times-faster" => ThreeTimesFaster(Software),
-        "answering-at-once" => AnsweringAt(Software, LoadStart),
         "rising-a-third" => RisingAThird,
         "held-from-a-load" => HeldFromALoad,
 

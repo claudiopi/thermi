@@ -53,7 +53,7 @@ public sealed class MoreControlTests
 
     // The window is light or dark as chosen in Settings, or as Windows' apps are for "Windows", the default the file leaves
     // out; under high contrast Windows' colors win over any choice.
-    [Theory]
+    [Theory] // Rows: each a case A319 states.
     [InlineData(WindowTheme.System, false, false, true)]
     [InlineData(WindowTheme.Light, false, false, false)]
     [InlineData(WindowTheme.Dark, true, false, true)]

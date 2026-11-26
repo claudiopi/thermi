@@ -88,7 +88,6 @@ public sealed class CommandLineTests : IDisposable
     [InlineData(false, "elevated", StartSensors.Verb, "--trace")]
     [InlineData(false, "--trace", "elevated", StartSensors.Verb)]
     [InlineData(false, "elevated", "--pseudo", StartSensors.Verb)]
-    [InlineData(false, "elevated", "--trace", InstallDriver.Verb)]
     [InlineData(true, "elevated", StartSensors.Verb)]
     [InlineData(true, "elevated", InstallDriver.Verb)]
     public void AWordItDoesNotKnowExitsWithTwo(bool known, params string[] words)
@@ -150,7 +149,6 @@ public sealed class CommandLineTests : IDisposable
     [InlineData("R", true, StartSensors.Started)]
     [InlineData("SSSR", true, StartSensors.Started)]
     [InlineData("SR", false, StartSensors.Started)]
-    [InlineData("S", false, StartSensors.Failed)]
     [InlineData("S", true, StartSensors.Failed)]
     public async Task StartSensorsWaitsForTheServiceToRun(string states, bool starts, int exit)
     {
@@ -182,7 +180,6 @@ public sealed class CommandLineTests : IDisposable
 
     // A comma is no decimal point, and a scale past 8 or under a quarter is a typo, never a picture worth painting.
     [Theory]
-    [InlineData("o.png", "big")]
     [InlineData("o.png", "1,5")]
     [InlineData("o.png", "NaN")]
     [InlineData("o.png", "0.2")]
@@ -237,7 +234,6 @@ public sealed class CommandLineTests : IDisposable
 
     // The fans' answer is recorded under a load of whole seconds, up to ten minutes, so a typo never loads the PC for hours.
     [Theory]
-    [InlineData("30", 30)]
     [InlineData("600", 600)]
     [InlineData("601", null)]
     [InlineData("0", null)]
@@ -254,7 +250,7 @@ public sealed class CommandLineTests : IDisposable
         Assert.IsType<SensorBuiltIn>(SensorCommands.Parse(["--help"], out _));
     }
 
-    [Theory]
+    [Theory] // Rows: each option, verb and refusal is a branch of its own in the parse, and each refusal says a different why
     [InlineData(new string[0], "serve")]
     [InlineData(new[] { "--console" }, "console")]
     [InlineData(new[] { "--dump", "now.json" }, "dump now.json once")]

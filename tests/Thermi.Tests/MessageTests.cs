@@ -14,7 +14,7 @@ public sealed class MessageTests
 {
     // Each kind decodes as it was encoded; a payload cut short, of another version, with bytes left over, a length or an
     // enum that cannot be, broken UTF-8 or past the cap decodes to null.
-    [Theory]
+    [Theory] // Rows: each a kind's fields in their places, or a check of its own: version, kind, length, UTF-8, the cap.
     [InlineData("history", true)]
     [InlineData("select", true)]
     [InlineData("edited", true)]

@@ -42,4 +42,4 @@ Every version in `package.json` is exact, `package-lock.json` is committed, and 
 | `test:unit` | Vitest, the `*.test.ts` files beside the logic. |
 | `test:e2e` | Playwright, against the last build, on port 4173 or `THERMI_WEB_PORT`. |
 | `deadcode` | knip: files, exports and packages nothing uses. |
-| `mutation` | StrykerJS on the page's pure logic; fails under 78 %. |
+| `mutation` | StrykerJS on the page's pure logic; fails under 78 %. `scripts/check.ps1 -Mutation` then lists the rows that kill and run nothing of their own. |

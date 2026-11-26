@@ -8,7 +8,7 @@ public sealed class PlacementTests
     // R35: the monitors, each as its EDID's serial number and the serial's own text, "blank" for a text of spaces, "none"
     // for no EDID and "zeros" for one of zeros, then @ and its connection; and their ids: maker, product and the serial's
     // own text, else the serial number, else the connection, two that report the same serial told apart by the connection.
-    [Theory]
+    [Theory] // Rows: each a fallback R35 states, in its order.
     [InlineData("12345 7XQ9K13@5&2f5d3e1a&0&UID4357", "DEL-A1B2-7XQ9K13")]
     [InlineData("12345@UID1", "DEL-A1B2-12345")]
     [InlineData("0 blank@UID1", "DEL-A1B2@UID1")]

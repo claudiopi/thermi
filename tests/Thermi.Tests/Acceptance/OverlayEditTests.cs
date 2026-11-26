@@ -46,21 +46,16 @@ public sealed class OverlayEditTests
     // Where the edit starts, the edit, the overlays after it as their place, their items' count, h when hidden, v when
     // vertical and their size when not 100 %, or the refusal; then the name an overlay without a typed one shows, as its
     // place and that name's text, or "same" when no edit wrote a name.
-    [Theory]
-    [InlineData("one", "new", "Taskbar:6 TopRight:6", "1=TopRight")]
+    [Theory] // Rows: each edit's own path and refusal, the hold's 500 ms boundary, the cap checked at each site, and the nudge's clamp and guards
     [InlineData("reordered", "new", "Taskbar:6 TopRight:6", "1=TopRight")]
     [InlineData("two", "duplicate 0", "Taskbar:6 BottomRight:6 TopRight:6", "1=BottomRight")]
     [InlineData("two", "merge 1 0", "Taskbar:12", "same")]
-    [InlineData("two", "merge 0 1", "TopRight:12", "same")]
     [InlineData("two", "delete 1", "Taskbar:6", "same")]
     [InlineData("two", "hide 1", "Taskbar:6 TopRight:6h", "same")]
-    [InlineData("two", "move cpu.load 1", "Taskbar:5 TopRight:7", "same")]
     [InlineData("one", "move cpu.load new", "Taskbar:5 TopRight:1", "1=TopRight")]
     [InlineData("solo", "move solo 0", "Taskbar:7", "same")]
-    [InlineData("one", "drag gpu.load 400 300", "Taskbar:5 400,300:1", "")]
     [InlineData("one", "drag cpu.load 400 300", "Taskbar:2 400,300:4", "")]
     [InlineData("solo", "drag solo 400 300", "Taskbar:6 400,300:1", "same")]
-    [InlineData("free", "resize 0 1.5 vertical", "400,300:6v1.5", "same")]
     [InlineData("free", "nudge 0 8 0", "408,300:6", "same")]
     [InlineData("free", "nudge 0 0 -1", "400,299:6", "same")]
     [InlineData("four", "new", nameof(Refusal.TooManyOverlays), "same")]
@@ -81,18 +76,12 @@ public sealed class OverlayEditTests
     [InlineData("bar", "nudge 0 0 -1", nameof(Refusal.Snapped), "same")]
     [InlineData("solo", "desk 1 solo 400 300 0", "Taskbar:7", "same")]
     [InlineData("solo", "desk 1 solo 20 1306", "Taskbar:6 BottomLeft:1", "same")]
-    [InlineData("solo", "desk 1 solo 400 300", "Taskbar:6 400,300:1", "same")]
     [InlineData("one", "desk 0 hold500+gpu.load 400 300", "Taskbar:5 400,300:1", "")]
     [InlineData("one", "desk 0 hold499+gpu.load 400 300", "400,300:6", "same")]
-    [InlineData("two", "desk 0 hold500+gpu.load 400 300 1", "Taskbar:5 TopRight:7", "same")]
-    [InlineData("one", "desk 0 cpu.load 400 300", "400,300:6", "same")]
     [InlineData("one", "desk 0 edge 400 300 0", "400,300:6", "same")]
-    [InlineData("one", "desk 0 edge 1300 1375", "Taskbar@1300:6", "same")]
     [InlineData("free", "desk 0 edge 1500 1380", "Taskbar:6", "same")]
-    [InlineData("four", "desk 0 hold500+cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
     [InlineData("free", "corner 400 38 -300 200", "400,300:6v0.75", "same")]
     [InlineData("free", "corner 400 38 199 5", "400,300:61.5", "same")]
-    [InlineData("one", "desk 0 hold500+value:cpu.load 400 300", "Taskbar:5 400,300:1", "")]
     [InlineData("one", "desk 0 hold500+cpu.load 400 300", "Taskbar:2 400,300:4", "")]
     [InlineData("one", "desk 0 hold500+value:cpu.load 1300 1375", "Taskbar:5 Taskbar@1300:1", "")]
     [InlineData("four", "desk 0 hold500+value:cpu.load 400 300", nameof(Refusal.TooManyOverlays), "same")]
@@ -201,7 +190,7 @@ public sealed class OverlayEditTests
     // dropped in front of, or at its end; a pill dropped back on its own overlay moves there, and stays put on its own place.
     // An item lifted alone moves within its own pill dropped on it, and elsewhere joins as a pill does.
     // Where the drop starts, its words as the desk edit's, and the items of the overlay it lands on, in their order.
-    [Theory]
+    [Theory] // Rows: each place its steps state for a pill, an item and a whole overlay, two of them a QA bug's drops
     [InlineData("solo", "0 hold500+gpu.load 400 300 1 solo", "gpu.load solo")]
     [InlineData("solo", "0 hold500+gpu.load 400 300 1", "solo gpu.load")]
     [InlineData("solo", "1 solo 400 300 0 gpu.load", "cpu.temperature fan.cpu cpu.load cpu.power solo gpu.load ram.used")]
@@ -227,14 +216,13 @@ public sealed class OverlayEditTests
     // dragged off; an overlay of the RAM merged after the RAM's pill; an item lifted off its pill, before it or within it,
     // or off the second of two CPU pills, which stays apart. Where it starts, the edit, then the first overlay's pills after
     // it as each one's label and its items' count.
-    [Theory]
+    [Theory] // Rows: each layout of the joined file and each join or split its steps state, one of them a fix's bug
     [InlineData("joined", "", "GPU:2 CPU:4 RAM:1")]
     [InlineData("joined pills", "", "GPU:2 CPU:3 CPU:1 RAM:1")]
     [InlineData("joined each", "", "GPU:1 GPU:1 CPU:1 CPU:1 CPU:1 CPU:1 RAM:1")]
     [InlineData("between", "drag gpu.load 400 300", "CPU:2 CPU:2 RAM:1")]
     [InlineData("ram", "merge 1 0", "CPU:4 GPU:1 RAM:1 RAM:1")]
     [InlineData("one", "desk 0 hold500+value:cpu.load 400 300 0 cpu.temperature", "CPU:1 CPU:3 GPU:1 RAM:1")]
-    [InlineData("one", "desk 0 hold500+value:cpu.temperature 400 300 0 - in", "CPU:4 GPU:1 RAM:1")]
     [InlineData("split", "desk 0 hold500+value:cpu.load 400 300", "CPU:2 CPU:1 RAM:1")]
     [InlineData("split", "desk 0 hold500+value:cpu.load 400 300 0 - in", "CPU:2 CPU:2 RAM:1")]
     public void TheWindowListsThePillsTheOverlayLabels(string start, string edit, string expected)

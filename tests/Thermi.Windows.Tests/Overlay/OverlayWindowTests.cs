@@ -20,7 +20,6 @@ public sealed class OverlayWindowTests
     // The window's own scale until it knows the monitors; then the scale of the monitor it is about to show on, so a snap
     // to a monitor of another scale paints its first frame there at that scale.
     [Theory]
-    [InlineData(96, 1, null, 1)]
     [InlineData(144, 1, null, 1.5)]
     [InlineData(144, 1.5, null, 2.25)]
     [InlineData(96, 0.75, null, 0.75)]
