@@ -14,56 +14,37 @@ sequenceDiagram
     participant Lhm as LhmSensorSource
     participant Server as SensorPipeServer
     participant Client as SensorClient
+    participant Host as OverlayHost
     participant Window as OverlayWindow
     participant Mark as ThermiMark
     participant Map as SensorMap
     participant Layout as OverlayLayout
     participant Painter as Painter
-    Chip->>Lhm: 1. a register read through PawnIO
-    Lhm->>Server: 2. Snapshot, once a second
+    Lhm->>Chip: 1. read the register, through PawnIO
+    Server->>Lhm: 2. ReadAsync, through FramedSource, once a second while a client listens
+    Lhm-->>Server: Snapshot
     Server->>Client: 3. one JSON line on the pipe "thermi-sensors"
-    Client->>Window: 4. LatestSnapshot, checked fresh, at the next tick
-    Window->>Mark: Overlay(config, overlay, input)
+    Host->>Client: 4. Latest, at the tick: a snapshot under 3 s old, or none
+    Host->>Window: Repaint(scene)
+    Window->>Mark: Overlay(config, overlay, input, openedOnce)
     Mark->>Map: 5. Read(snapshot, overlay)
     Map-->>Mark: cpu.temperature = 64 °C
-    Mark->>Layout: 6. Build(overlay, readings): text and Level
-    Layout-->>Window: OverlayItem "CPU 64°"
-    Window->>Painter: 7. Paint(items, look, scale)
+    Mark->>Layout: 6. Build(overlay, readings, ...): text and Level
+    Layout-->>Mark: OverlayItem "CPU 64°"
+    Mark-->>Window: OverlayScene, with the items
+    Window->>Painter: 7. Paint(items, look, scale, glow)
     Painter-->>Window: bitmap, shown with UpdateLayeredWindow
 ```
 
 1. **The chip.** The CPU keeps its temperature in a register that only kernel code may read. LibreHardwareMonitor reads it through PawnIO, a small signed driver. That is why the reader runs in `thermi-sensors`, a Windows service running as SYSTEM. A per-user install has no service: `thermi-sensors --user` runs as you, and reads what your rights allow, which leaves out this register.
 2. **The 1 s read.** `LhmSensorSource` updates each device once a second and turns what LibreHardwareMonitor says into a `Snapshot`: every sensor with its id, kind, name and value. A device that stalls holds back none of the others.
-3. **The pipe.** `SensorPipeServer` writes the snapshot as one line of JSON to every client of the named pipe `thermi-sensors`, the names once and then the values alone. A per-user install serves the pipe `thermi-sensors-<your SID>` instead. The pipe is read-only: nobody can send the sensors a command.
+3. **The pipe.** `SensorPipeServer` writes the snapshot as one line of JSON to every client of the named pipe `thermi-sensors`: Core's `SnapshotWriter` sends a new client the names once, then the values alone, and the client's `SnapshotLines` turns the lines back into snapshots. In a per-user install, the overlay starts `thermi-sensors --user`, a hidden process of yours, which serves the pipe `thermi-sensors-<your SID>`, owned by you, and ends 10 s after its last client leaves. The pipe is read-only: nobody can send the sensors a command.
 4. **The client.** In `thermi.exe`, which runs as you, `SensorClient` reads the pipe. It trusts the service's pipe only when SYSTEM or Administrators own it; the per-user pipe only when you, SYSTEM or Administrators own it and `SensorPipes` finds its server running from your install folder, at an integrity level no lower than the overlay's. A snapshot older than 3 s counts as gone, and the overlay says "Sensors stopped" instead of showing old numbers. Once a second `OverlayHost` asks each `OverlayWindow` to repaint, and the window asks Core's `ThermiMark` what its overlay shows.
 5. **Which sensor is "CPU temperature".** Sensor names differ between PCs. Core's `SensorMap` picks the first CPU temperature named `Core (Tctl/Tdie)`, `Core (Tctl)`, `CPU Package` or `Core Average`, and treats 0 °C as missing, since no running chip is at 0 °C.
 6. **Units and colors.** `OverlayLayout` formats the value (°C or °F, the item's decimals, the width of its widest number so it never jitters) and asks the item's `Threshold` for its `Level`: by default a CPU warns 10 °C under its limit and is critical 5 °C under it.
-7. **The pill.** `OverlayWindow` hands the items and the style's `OverlayLook` to `Painter`, which draws the pill with GDI+: a warning underlines the value, a critical value is drawn reversed on red. The bitmap goes on screen with `UpdateLayeredWindow`, above the taskbar.
+7. **The pill.** `OverlayWindow` hands the items and the style's `OverlayLook` to `Painter`, which draws the pill with GDI+: a warning underlines the value, a critical value is drawn reversed on red. `LayeredPicture` puts the bitmap on screen with `UpdateLayeredWindow`, above the taskbar.
 
 ## The other flows
-
-**A reading, from the sensor to a pixel.** The same path as above, for every item of every overlay, and what each step leaves to Core.
-
-```mermaid
-sequenceDiagram
-    participant Server as SensorPipeServer
-    participant Writer as SnapshotWriter
-    participant Client as SensorClient
-    participant Lines as SnapshotLines
-    participant Host as OverlayHost
-    participant Mark as ThermiMark
-    participant Window as OverlayWindow
-    participant Painter as Painter
-    Server->>Writer: Snapshot
-    Writer-->>Client: catalog line on connect, values line each second
-    Client->>Lines: bytes from the pipe
-    Lines-->>Client: Snapshot into LatestSnapshot
-    Host->>Host: Tick, once a second
-    Host->>Mark: Overlay(config, overlay, input)
-    Mark-->>Window: items, via SensorMap and OverlayLayout
-    Window->>Painter: Paint(items, look, scale)
-    Painter-->>Window: bitmap for LayeredPicture
-```
 
 **An edit in the settings window, and its undo.** The page decides nothing: C# checks every edit with Core's rules, keeps it for undo, and writes the file the overlay watches.
 
@@ -73,24 +54,22 @@ sequenceDiagram
     participant Bridge as WindowBridge
     participant Edits as PageEdits
     participant Editor as WindowEditor
-    participant Gate as ConfigEdits
     participant Undo as UndoHistory
     participant Settings as Settings
     participant Store as ConfigStore
     participant Overlay as OverlayHost
     Page->>Bridge: window.thermi.Edit(PageEdit)
-    Bridge->>Edits: Of(edit, snapshot, texts)
+    Bridge->>Edits: Of(edit, snapshot, texts, altGrKeys)
+    Edits-->>Bridge: the change, by Core's rules, as ItemEdits or OverlayEdits
     Bridge->>Editor: Edit(name, change)
-    Editor->>Gate: Apply(config, change)
-    Gate-->>Editor: EditResult, or a Refusal
-    Editor->>Undo: the step it changed
+    Editor->>Editor: change(Config): an EditResult, or a Refusal
+    Editor->>Undo: Record(before, after)
     Editor->>Settings: Edit(ConfigEdits.Replay of the change)
     Settings->>Store: WriteAsync, under the file's mutex
-    Store->>Overlay: config.json changed (SettingsWatcher)
-    Overlay->>Overlay: Repaint
+    Overlay->>Overlay: SettingsWatcher sees config.json change, then Repaint
     Page->>Bridge: Undo()
     Bridge->>Editor: Undo()
-    Editor->>Undo: take back only what is still as it wrote
+    Editor->>Undo: Undo(Config): take back only what is still as it wrote
     Editor->>Settings: Edit(the step taken back)
 ```
 
@@ -101,6 +80,7 @@ sequenceDiagram
     participant Agent as AI agent
     participant Mcp as McpTools
     participant Commands as AgentCommands
+    participant Samples as AgentSamples
     participant Feed as SystemFeed
     participant Reads as AgentReads
     participant AgentEdit as AgentEdits
@@ -108,15 +88,20 @@ sequenceDiagram
     participant Overlay as OverlayHost
     Agent->>Mcp: read cpu.temperature
     Mcp->>Commands: RunAsync(read)
-    Commands->>Feed: connect to the pipe, take a sample, hang up
-    Commands->>Reads: what the item reads, as JSON
-    Reads-->>Agent: 64, level normal
+    Commands->>Samples: TakeAsync(feed, seconds)
+    Samples->>Feed: RunAsync, Latest, then hang up
+    Commands->>Reads: Read(samples, config, ids)
+    Reads-->>Commands: 64, level normal, as JSON
+    Commands-->>Mcp: the reply
+    Mcp-->>Agent: 64, level normal
     Agent->>Mcp: edit, the threshold of cpu.temperature to 70 and 90
     Mcp->>Commands: RunAsync(edit)
-    Commands->>AgentEdit: Of(json): ItemEdits.SetThreshold
-    Commands->>Store: WriteAsync, by the window's rules
-    Store->>Overlay: config.json changed
-    Commands-->>Agent: done
+    Commands->>AgentEdit: Of(json, snapshot, texts, altGrKeys)
+    AgentEdit-->>Commands: the change, ItemEdits.SetThreshold
+    Commands->>Store: WriteAsync(the change), by the window's rules
+    Overlay->>Overlay: SettingsWatcher sees config.json change, then Repaint
+    Commands-->>Mcp: done
+    Mcp-->>Agent: done
 ```
 
 **A silent update, and its rollback.** The service downloads and checks a version, then a watchdog switches to it and goes back if it does not serve.
@@ -126,21 +111,23 @@ sequenceDiagram
     participant Updater as Updater
     participant Manifest as ManifestClient
     participant Unpacker as Unpacker
-    participant Trust as FileCatalog
+    participant Catalog as FileCatalog
     participant Switcher as Switcher
     participant Health as SwitchHealth
     participant Overlay as OverlayUpdates
-    Updater->>Manifest: the channel's signed manifest
-    Manifest-->>Updater: a newer version, its zip and hash
-    Updater->>Unpacker: the zip, its hash checked, into a folder of its own
-    Updater->>Trust: Lists(folder): every file in thermi.cat, signed by thermi
-    Updater->>Switcher: Begin(state, to): start a watchdog, thermi-sensors --switch
-    Switcher->>Switcher: WatchAsync: stop, point at the new version, start
-    Switcher->>Health: does the new service serve its pipe?
+    Updater->>Manifest: EnvelopeAsync: the channel's signed manifest
+    Manifest-->>Updater: a newer version, its zip's size and hash
+    Updater->>Manifest: DownloadAsync(package, folder): the zip, its hash checked
+    Updater->>Unpacker: Unpack(zip, folder, version, catalog): into a folder of its own
+    Unpacker->>Catalog: Lists(folder): every file in thermi.cat, signed by thermi
+    Updater->>Switcher: Begin(state, to, self): start a watchdog, thermi-sensors --switch
+    Switcher->>Switcher: WatchAsync: stop, start the new version, poll its pipe
     alt it serves
+        Switcher->>Health: Done(state, now)
         Switcher->>Switcher: point the services at it for good
         Overlay->>Overlay: at a quiet moment, hand over to the new thermi.exe
     else it does not
+        Switcher->>Health: Failed(state)
         Switcher->>Switcher: point back at the version that worked
     end
 ```
