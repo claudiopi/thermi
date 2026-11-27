@@ -54,7 +54,6 @@ internal sealed class ShellMarks
         (_lit, _shown) = (snap, true);
     }
 
-    /// <summary>Takes every mark off the screen, as the drag ends.</summary>
     public void Hide()
     {
         for (var at = 0; at < _marks.Count; at++)
