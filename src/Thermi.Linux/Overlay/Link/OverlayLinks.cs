@@ -93,7 +93,6 @@ internal sealed partial class OverlayLinks : IDisposable
         _watchdog.Dispose();
     }
 
-    // High contrast's colors draw the accent in its highlight, else the desktop's own accent, else GNOME's blue.
     private void Looked()
     {
         var portal = _portal;

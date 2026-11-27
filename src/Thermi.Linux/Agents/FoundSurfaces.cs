@@ -24,7 +24,7 @@ internal static class FoundSurfaces
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Only thermi-cli's answer where no overlay runs reads it, which then says what it says without.
+            // Without it, thermi-cli answers as it did before any overlay ran here.
         }
     }
 

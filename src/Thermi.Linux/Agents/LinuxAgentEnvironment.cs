@@ -32,7 +32,7 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     // GNOME Shell's state of an extension that is on and running.
     private const int Active = 1;
 
-    // How long the overlay's last answer serves, as the MCP server's commands come one after another for as long as it runs.
+    // One answer serves a command's screens, why there are none and whether the overlay can show, and the MCP server's next.
     private static readonly TimeSpan Asked = TimeSpan.FromSeconds(1);
 
     private readonly UserUnit _unit = new();
@@ -97,7 +97,6 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public AboutFacts About() => LinuxAbout.Read();
 
-    // A command asks the screens, then why there are none, or whether the overlay can show: one answer serves them all.
     private OverlayState? State()
     {
         if (_asked is not { } asked || time.GetElapsedTime(asked.At) > Asked)

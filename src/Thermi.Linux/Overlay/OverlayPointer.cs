@@ -264,7 +264,6 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
         _parts.Menu(_index, cursor, ItemAt(cursor));
     }
 
-    // The pointer resting on the overlay: the value under it shows its tooltip in time, and the open window marks it.
     private void Rests(Position cursor)
     {
         if (_overlay.OnPicture(cursor) is var (x, y))
