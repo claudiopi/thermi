@@ -87,7 +87,7 @@ internal static class McpTools
             Reading("looks", "The saved looks' names."));
     }
 
-    // The picture is an image the model sees, the command's own PNG; anything else it answers is as the other tools'.
+    // The model sees the picture as an image, the command's own PNG; an error is text, as the other tools'.
     private static McpServerTool Preview(AgentCommands commands) => McpServerTool.Create(
         async ([Description("The overlay, counted from 0 as config counts it; the first when none.")] int? overlay = null,
             [Description("Its size times this, 0.25 to 8.")] double? scale = null,

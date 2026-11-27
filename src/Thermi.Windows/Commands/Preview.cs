@@ -50,7 +50,7 @@ internal static class Preview
         return new OverlayPng(png.ToArray(), bitmap.Width, bitmap.Height);
     }
 
-    // At its size times the scale, in the taskbar's light or dark and the high contrast the desktop has now, as the overlay paints it.
+    // In the light or dark and the high contrast the desktop has now, as the overlay paints itself.
     private static Bitmap Painted(ThermiConfig config, int overlay, IReadOnlyList<Snapshot> series, float scale)
     {
         var one = config.Overlays[overlay];

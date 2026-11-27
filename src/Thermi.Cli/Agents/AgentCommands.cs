@@ -170,8 +170,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
         return new AgentReply(read.Problem is null ? AgentExit.Done : AgentExit.SettingsBroken, AgentJson.Write(answer), answer.Detail);
     }
 
-    // What is painted is the settings, so ones that cannot be read are no overlay of the person's; the settings and the
-    // overlay asked are looked at before the service is asked for anything.
+    // Settings that cannot be read paint no overlay of the person's; they and the overlay are checked before the service is asked.
     private async Task<AgentReply> PreviewAsync(AgentRequest request, CancellationToken stop)
     {
         var settings = await SettingsAsync();

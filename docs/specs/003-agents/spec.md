@@ -1,6 +1,6 @@
 # 003. AI agents and other programs read the sensors and configure thermi
 
-**Status**: approved
+**Status**: done
 
 **Budget**: 58 .NET and 1 page cases
 

@@ -253,7 +253,7 @@
       ],
       "description": "Given a recording and settings with two overlays of different sizes, whose agents only read, when preview runs for the second at a scale, then it exits 0 with the picture the host painted of that overlay, from those settings and the snapshot read, at that scale, with its width and height, and the answer validates against its JSON Schema.",
       "check": "AgentsSeeTheOverlay",
-      "passes": false
+      "passes": true
     }
   ]
 }
