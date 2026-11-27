@@ -67,7 +67,7 @@ internal sealed class OverlayHost : IDisposable
             Dropped = Dropped,
             Traced = trace.On,
         };
-        _menu = new OverlayMenu(_parts, _loop.Quit);
+        _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
         _notices = new DesktopNotices(bus);
         _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
         _told = new OverlayNotices(_parts, _notices, () => TextsOf(settings.Config));
@@ -77,7 +77,10 @@ internal sealed class OverlayHost : IDisposable
 
     private ILogger Log => _parts.Log;
 
-    /// <summary>Runs until "Exit thermi": 0, or 0 at once when another overlay of the session runs.</summary>
+    /// <summary>
+    /// Runs until "Exit thermi", from the menu or from the settings window's <c>quit</c>, which only the person's own session
+    /// bus reaches: 0, or 0 at once when another overlay of the session runs.
+    /// </summary>
     public int Run()
     {
         if (!_link.Own())
@@ -87,6 +90,7 @@ internal sealed class OverlayHost : IDisposable
         }
 
         _link.Ready += protocol => Safe(() => Arrived(protocol), Log.ArrivalFailed);
+        _link.Gone += _arrival.Left;
         _link.MonitorsChanged += monitors => Safe(() => Monitors(monitors), Log.MonitorsFailed);
         _link.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
         _link.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
@@ -102,7 +106,13 @@ internal sealed class OverlayHost : IDisposable
         }
 
         using var ticks = _parts.Time.CreateTimer(_ => Post(Tick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        using var quit = Gio.SimpleAction.New("quit", null);
+        quit.OnActivate += (_, _) => Safe(_loop.Quit, Log.ChoiceFailed);
+        using var actions = Gio.SimpleActionGroup.New();
+        actions.AddAction(quit);
+        var exported = _bus.ExportActionGroup(ShellLink.ObjectPath, actions);
         _loop.Run();
+        _bus.UnexportActionGroup(exported);
         _overlays.ForEach(overlay => _ = overlay.Hide());
         return 0;
     }
@@ -143,6 +153,8 @@ internal sealed class OverlayHost : IDisposable
         {
             return;
         }
+
+        _overlays.ForEach(overlay => overlay.Forget());
 
         _ = Task.Run(async () =>
         {
@@ -260,7 +272,7 @@ internal sealed class OverlayHost : IDisposable
         }
     }
 
-    private OverlayScene SceneOf(ThermiConfig config)
+    private ShellPaint SceneOf(ThermiConfig config)
     {
         var input = new TrayInput(_feed.Latest, _feed.State, _parts.Culture, TextsOf(config), DesktopLooks.LightPanels, "")
         {
@@ -269,7 +281,7 @@ internal sealed class OverlayHost : IDisposable
             HighContrast = _highContrast is not null,
             BaseClock = _baseClock,
         };
-        return new OverlayScene(config, Settings.Problem, _screens, input, _highContrast);
+        return new ShellPaint(config, Settings.Problem, _screens, input, _highContrast);
     }
 
     private List<PixelRect?> Boxes() => [.. _overlays.Select(overlay => overlay.Box)];

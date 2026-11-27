@@ -29,6 +29,9 @@ public readonly record struct StoppedDrawn(double MarkX, double TextX, double Mi
 /// </summary>
 public static class PaintLayout
 {
+    // Enough that a round pill's click reaches all but a sliver of what it draws, few enough to stay a handful of actors.
+    private const int Bands = 6;
+
     /// <summary>
     /// The pills <paramref name="items"/> draw in. Each value keeps the room of its widest form, so the overlay keeps its
     /// size however its numbers change. The runs a single bar holds are read before the labels go, as no label then says
@@ -101,6 +104,27 @@ public static class PaintLayout
         var mark = box.Left + ((PaintSizes.OuterPadding + PaintSizes.InnerPadding) * scale);
         var text = mark + ((PaintSizes.MarkWidth + PaintSizes.LabelGap) * scale);
         return new StoppedDrawn(mark, text, box.Top + (box.Height / 2), new PaintedItem("", box, box) { Pill = box });
+    }
+
+    /// <summary>
+    /// Boxes that together cover <paramref name="pill"/> with corners of <paramref name="radius"/> and nothing outside it,
+    /// in a few bands, each as wide as the curve lets it at its edge: a host that takes clicks only in boxes passes a click
+    /// where the pill draws nothing, its corners included.
+    /// </summary>
+    public static IEnumerable<PillBox> Taking(PillBox pill, double radius)
+    {
+        var bands = radius > 0 ? Bands : 1;
+        var tall = pill.Height / bands;
+        for (var band = 0; band < bands; band++)
+        {
+            var top = pill.Top + (band * tall);
+            var edge = Math.Min(top - pill.Top, pill.Bottom - top - tall);
+            var inset = edge >= radius ? 0 : radius - Math.Sqrt((radius * radius) - ((radius - edge) * (radius - edge)));
+            if (pill.Width > 2 * inset)
+            {
+                yield return new PillBox(pill.Left + inset, top, pill.Width - (2 * inset), tall);
+            }
+        }
     }
 
     // In unscaled pixels.

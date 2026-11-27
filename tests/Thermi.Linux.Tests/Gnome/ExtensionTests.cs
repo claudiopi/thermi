@@ -50,7 +50,7 @@ public sealed class ExtensionTests
                 'short-pixels': ([], show(1, length=10), bus),
                 'no-scale': ([], show(1, scale=0.0), bus),
                 'nan-scale': ([], show(1, scale=math.nan), bus),
-                'seventeenth-overlay': ([show(overlay) for overlay in range(16)], show(16), bus),
+                'past-the-most-overlays': ([show(overlay) for overlay in range(64)], show(64), bus),
                 'orphan-menu-row': ([show(1)], menu(1, 5), bus),
                 'another-caller': ([], show(1), another()),
             }
@@ -79,7 +79,7 @@ public sealed class ExtensionTests
     [InlineData("short-pixels")]
     [InlineData("no-scale")]
     [InlineData("nan-scale")]
-    [InlineData("seventeenth-overlay")]
+    [InlineData("past-the-most-overlays")]
     [InlineData("orphan-menu-row")]
     [InlineData("another-caller")]
     public async Task ACallOutsideTheProtocolIsRefusedAndAddsNothing(string row)

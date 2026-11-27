@@ -5,15 +5,18 @@ using Thermi.Core.Settings;
 namespace Thermi.Linux.Painting;
 
 /// <summary>
-/// Draws what Core's <see cref="OverlayLook"/> describes with Cairo and Pango, as Windows' painter does with GDI+, from
-/// Core's sizes and shapes, and nothing it does not. The same code serves the screen and <c>thermi preview</c>. Sizes are
-/// in pixels at 100 %, times the monitor's scale. Its fonts are kept until the style or the scale changes.
+/// Draws what Core's <see cref="OverlayLook"/> describes with Cairo and Pango, as Windows' painter does with GDI+, where
+/// Core's <see cref="PaintLayout"/> places it, and nothing it does not. The same code serves the screen and <c>thermi preview</c>.
+/// Sizes are in pixels at 100 %, times the monitor's scale. Its fonts are kept until the style or the scale changes.
 /// </summary>
 internal sealed class Painter : IDisposable
 {
-    private const double LabelGap = PaintSizes.LabelGap;
-
     private readonly List<PaintedItem> _places = [];
+
+    // Whether each paint draws on the last one's surface while its size holds, as the overlay's paints do: the painter
+    // then owns what it returns, which lasts until its next paint.
+    private readonly bool _reuse;
+    private Picture? _canvas;
 
     // Text is measured on a context of its own, whose layout draws it too, so what is measured is what is drawn.
     private readonly Cairo.ImageSurface _measureSurface = new(Cairo.Format.Argb32, 1, 1);
@@ -21,13 +24,17 @@ internal sealed class Painter : IDisposable
     private PainterText? _text;
     private (StyleFont, TextStyle, TextStyle, double)? _textKey;
 
-    public Painter()
+    public Painter(bool reuse = false)
     {
+        _reuse = reuse;
         _measure = new Cairo.Context(_measureSurface);
     }
 
     /// <summary>Where the last paint drew each item, its label and its value, in its pixels, so a host can tell what a press is on.</summary>
     public IReadOnlyList<PaintedItem> Places => _places;
+
+    /// <summary>Where the last paint drew something to click, in its pixels: its pills, in the shape it drew them.</summary>
+    public IReadOnlyList<PillBox> Clickable { get; private set; } = [];
 
     /// <summary>
     /// Paints the items in their pills. <paramref name="glow"/> gives how strongly an item's pill glows now, 0 to 1, as
@@ -36,7 +43,7 @@ internal sealed class Painter : IDisposable
     public Picture Paint(IReadOnlyList<OverlayItem> items, OverlayLook look, double scale, Func<string, double>? glow = null)
     {
         var text = TextFor(look, scale);
-        return Painted(PillsOf(items, look, scale, text), look, scale, glow, mark: false);
+        return Painted(PaintLayout.PillsOf(items, look, scale, text.Width), look, scale, glow, mark: false);
     }
 
     /// <summary>
@@ -46,10 +53,7 @@ internal sealed class Painter : IDisposable
     public Picture PaintStopped(string said, OverlayLook look, double scale, IReadOnlyList<OverlayItem>? beside = null)
     {
         var text = TextFor(look, scale);
-        var width = (text.Measure(said, text.Label).Width / scale) + PaintSizes.MarkWidth + LabelGap;
-        var item = new OverlayItem(null, said, Level.Normal, said);
-        List<PaintedPill> pills = [new PaintedPill([item], [width * scale], scale), .. PillsOf(beside ?? [], look, scale, text)];
-        return Painted(pills, look, scale, glow: null, mark: true);
+        return Painted(PaintLayout.StoppedPills(said, look, scale, text.Width, beside ?? []), look, scale, glow: null, mark: true);
     }
 
     /// <summary>
@@ -58,7 +62,7 @@ internal sealed class Painter : IDisposable
     /// </summary>
     public (int Width, int Height) Measure(IReadOnlyList<OverlayItem> items, OverlayLook look, double scale)
     {
-        var (width, height, _) = SizeOf(PillsOf(items, look, scale, TextFor(look, scale)), look, scale);
+        var (width, height, _) = PaintLayout.SizeOf(PaintLayout.PillsOf(items, look, scale, TextFor(look, scale).Width), look, scale);
         return (width, height);
     }
 
@@ -67,39 +71,22 @@ internal sealed class Painter : IDisposable
         _text?.Dispose();
         _measure.Dispose();
         _measureSurface.Dispose();
-    }
-
-    // The runs a single bar holds are read before the labels go, as no label then says where each starts.
-    private static List<PaintedPill> PillsOf(IReadOnlyList<OverlayItem> items, OverlayLook look, double scale, PainterText text)
-    {
-        var runs = OverlayLayout.InnerPills(items, look.Layout);
-        var up = runs is not null && look.Orientation == Orientation.Vertical;
-        return [.. OverlayLayout.Groups(items, look.Layout, look.Labels)
-            .Select(pill => new PaintedPill(pill, [.. pill.Select(item => ItemWidth(text, item, look, scale) * scale)], scale)
-            {
-                Runs = runs,
-                Stacked = up,
-            })];
-    }
-
-    private static (int Width, int Height, Arrangement Arranged) SizeOf(List<PaintedPill> pills, OverlayLook look, double scale)
-    {
-        var height = Math.Ceiling(look.Height * scale);
-        var arranged = look.Arrange([.. pills.Select(pill => pill.Width)], height, scale, [.. pills.Select(pill => pill.HeightOf(height))]);
-        return (Math.Max((int)height, (int)Math.Ceiling(arranged.Width)), Math.Max((int)height, (int)Math.Ceiling(arranged.Height)), arranged);
+        _canvas?.Dispose();
     }
 
     // The pills fade before anything is drawn on them, so the text and meters stay whole over a faded pill; the glow is
     // drawn over the faded pill, so it shows whole at any background opacity; and the whole fades last.
     private Picture Painted(List<PaintedPill> pills, OverlayLook look, double scale, Func<string, double>? glow, bool mark)
     {
-        var (width, height, arranged) = SizeOf(pills, look, scale);
-        var picture = new Picture(width, height);
+        var (width, height, arranged) = PaintLayout.SizeOf(pills, look, scale);
+        var picture = Canvas(width, height);
         try
         {
             using (var cr = new Cairo.Context(picture.Surface))
             {
                 var boxes = arranged.Pills.ToList();
+                var row = Math.Ceiling(look.Height * scale);
+                Clickable = [.. boxes.SelectMany(box => PaintLayout.Taking(PainterShapes.Outline(box), look.Radius(Math.Min(box.Height, row) - 1)))];
                 cr.PushGroup();
                 cr.PushGroup();
                 DrawPills(cr, pills, boxes, look, scale);
@@ -122,9 +109,30 @@ internal sealed class Painter : IDisposable
         }
         catch
         {
+            _canvas = picture == _canvas ? null : _canvas;
             picture.Dispose();
             throw;
         }
+    }
+
+    // A reused surface is cleared to what a new one holds, every pixel zero, so each paint draws as on a new one.
+    private Picture Canvas(int width, int height)
+    {
+        if (!_reuse)
+        {
+            return new Picture(width, height);
+        }
+
+        if (_canvas is { } canvas && canvas.Width == width && canvas.Height == height)
+        {
+            canvas.Clear();
+            return canvas;
+        }
+
+        _canvas?.Dispose();
+        _canvas = null;
+        _canvas = new Picture(width, height);
+        return _canvas;
     }
 
     private static void DrawPills(Cairo.Context cr, List<PaintedPill> pills, List<PillBox> boxes, OverlayLook look, double scale)
@@ -152,30 +160,12 @@ internal sealed class Painter : IDisposable
                     PainterShapes.Glow(cr, look, part.Box, scale, strength);
                 }
 
-                DrawPart(cr, pills[p], part, boxes[p], look, scale);
+                foreach (var drawn in PaintLayout.ItemsIn(pills[p], part, boxes[p], look, scale, _text!.Width))
+                {
+                    DrawItem(cr, drawn, look, scale);
+                    _places.Add(drawn.Place);
+                }
             }
-        }
-    }
-
-    // Each item's place is as tall as its pill, or its row of a standing bar, so a drag of a run carries it off.
-    private void DrawPart(Cairo.Context cr, PaintedPill pill, PillPart part, PillBox outer, OverlayLook look, double scale)
-    {
-        var gap = PaintSizes.ItemGap * scale;
-        var box = pill.Stacked ? part.Box : outer;
-        var x = part.Start;
-        for (var i = part.First; i < part.First + part.Count; i++)
-        {
-            var (item, width) = (pill.Items[i], pill.ItemWidths[i]);
-            var value = DrawItem(cr, item, look, x, box.Top + (box.Height / 2), scale);
-            var place = new PillBox(x - (gap / 2), box.Top, width + gap, box.Height);
-            var alone = item.Label is null ? place.Left : value - (PaintSizes.MeterRoom(item, look) * scale) - (LabelGap * scale / 2);
-            _places.Add(new PaintedItem(item.Id, place, new PillBox(value, box.Top, x + width - value, box.Height))
-            {
-                Pill = part.Box,
-                Label = item.Label is null ? default : new PillBox(place.Left, box.Top, alone - place.Left, box.Height),
-                Alone = PillBox.FromEdges(alone, place.Top, place.Right, place.Bottom),
-            });
-            x += width + gap;
         }
     }
 
@@ -195,46 +185,28 @@ internal sealed class Painter : IDisposable
         return _text;
     }
 
-    // In unscaled pixels.
-    private static double ItemWidth(PainterText text, OverlayItem item, OverlayLook look, double scale) =>
-        LabelWidth(text, item, scale) + ValueWidth(text, item, scale) + PaintSizes.MeterRoom(item, look);
-
-    private static double LabelWidth(PainterText text, OverlayItem item, double scale) =>
-        item.Label is null ? 0 : (text.Measure(item.Label, text.Label).Width / scale) + LabelGap;
-
-    private static double ValueWidth(PainterText text, OverlayItem item, double scale)
+    private void DrawItem(Cairo.Context cr, ItemDrawn drawn, OverlayLook look, double scale)
     {
-        var width = Math.Max(text.Measure(item.Value, text.Value).Width, text.Measure(item.Room, text.Value).Width) / scale;
-        var tag = item.Tag is null ? 0 : PaintSizes.TagGap + PaintSizes.ReversedPadding + (text.Measure(item.Tag, text.Tag).Width / scale);
-        return width + tag;
-    }
-
-    // Gives where the value starts.
-    private double DrawItem(Cairo.Context cr, OverlayItem item, OverlayLook look, double x, double y, double scale)
-    {
-        var text = _text!;
+        var (text, item, y) = (_text!, drawn.Item, drawn.Middle);
         if (item.Label is not null)
         {
-            x = text.Draw(cr, item.Label, text.Label, look.LabelColor.Color, x, y) + (LabelGap * scale);
+            text.Draw(cr, item.Label, text.Label, look.LabelColor.Color, drawn.LabelX, y);
         }
 
         if (item.Graph is { } graph)
         {
-            PainterShapes.Graph(cr, graph, look, x, y, scale);
+            PainterShapes.Graph(cr, graph, look, drawn.MeterX, y, scale);
         }
         else if (item.Lit is { } lit)
         {
-            PainterShapes.Meter(cr, lit, look.MeterColor(item.Level), look, x, y, scale);
+            PainterShapes.Meter(cr, lit, look.MeterColor(item.Level), look, drawn.MeterX, y, scale);
         }
 
-        x += PaintSizes.MeterRoom(item, look) * scale;
-        var end = DrawValue(cr, item, look, x, y, scale);
+        DrawValue(cr, item, look, drawn.ValueX, y, scale);
         if (item.Tag is { } tag)
         {
-            DrawTag(cr, tag, look, end + (PaintSizes.TagGap * scale), y);
+            DrawTag(cr, tag, look, drawn.TagX, y);
         }
-
-        return x;
     }
 
     // On the value's baseline, so the two read as one line however small the tag is.
@@ -248,8 +220,8 @@ internal sealed class Painter : IDisposable
     }
 
     // A warning underlines the value, unless its meter or graph shows it, and a critical value is drawn reversed, on a box
-    // of its color, where the text effect has nothing to set apart. Gives where the value ends.
-    private double DrawValue(Cairo.Context cr, OverlayItem item, OverlayLook look, double x, double y, double scale)
+    // of its color, where the text effect has nothing to set apart.
+    private void DrawValue(Cairo.Context cr, OverlayItem item, OverlayLook look, double x, double y, double scale)
     {
         var text = _text!;
         var mark = LevelMarks.Of(look, item);
@@ -271,27 +243,18 @@ internal sealed class Painter : IDisposable
             PainterShapes.Overline(cr, mark.Kind == MarkKind.Reversed ? mark.Text : LevelMarks.Of(look, Level.Critical).Color, box, scale);
         }
 
-        if (mark.Kind == MarkKind.Reversed)
-        {
-            return box.Right + (PaintSizes.ReversedPadding * scale);
-        }
-
         if (mark.Kind == MarkKind.Underline)
         {
             var line = new PillBox(box.Left, box.Top + size.Baseline + (PaintSizes.UnderlineGap * scale), box.Width, PaintSizes.UnderlineHeight * scale);
             PainterShapes.Underline(cr, mark.Color, line);
         }
-
-        return box.Right;
     }
 
     private void DrawStopped(Cairo.Context cr, string said, PillBox box, OverlayLook look, double scale)
     {
-        var x = box.Left + ((PaintSizes.OuterPadding + PaintSizes.InnerPadding) * scale);
-        var middle = box.Top + (box.Height / 2);
-        PainterShapes.Mark(cr, look.LabelColor.Color, x, middle, scale);
-        x += (PaintSizes.MarkWidth + LabelGap) * scale;
-        _text!.Draw(cr, said, _text.Label, look.LabelColor.Color, x, middle);
-        _places.Insert(0, new PaintedItem("", box, box) { Pill = box });
+        var drawn = PaintLayout.StoppedIn(box, scale);
+        PainterShapes.Mark(cr, look.LabelColor.Color, drawn.MarkX, drawn.Middle, scale);
+        _text!.Draw(cr, said, _text.Label, look.LabelColor.Color, drawn.TextX, drawn.Middle);
+        _places.Insert(0, drawn.Place);
     }
 }

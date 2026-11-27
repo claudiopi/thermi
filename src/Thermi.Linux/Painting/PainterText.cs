@@ -40,6 +40,14 @@ internal sealed class PainterText : IDisposable
 
     public Pango.FontDescription Tag { get; }
 
+    /// <summary>How wide <paramref name="text"/> draws in the font of <paramref name="role"/>, for Core's <see cref="PaintLayout"/>.</summary>
+    public double Width(string text, TextRole role) => Measure(text, role switch
+    {
+        TextRole.Label => Label,
+        TextRole.Tag => Tag,
+        TextRole.Value or _ => Value,
+    }).Width;
+
     public TextSize Measure(string text, Pango.FontDescription font)
     {
         Set(text, font);

@@ -6,6 +6,7 @@ using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
+using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Logging;
 
@@ -23,6 +24,9 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, TimeProvi
     public GestureUndo Gestures { get; } = new(Time, _ => { });
 
     public OverlayVisibility Visibility { get; } = new();
+
+    /// <summary>The person's drag threshold and double-click time, which a press on an overlay keeps to.</summary>
+    public PointerSettings Pointer { get; } = new();
 
     /// <summary>Whether thermi runs under <c>--trace</c>, which the settings window it starts then runs under too.</summary>
     public bool Traced { get; init; }

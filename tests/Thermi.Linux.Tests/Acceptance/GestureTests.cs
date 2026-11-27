@@ -69,14 +69,15 @@ public sealed class GestureTests
     {
         var cancel = TestContext.Current.CancellationToken;
         await using var desktop = await TestDesktop.StartAsync(KindOf(row), [TwoMonitors[0]], cancel);
-        var first = Scene.Overlay with { Position = Scene.OnPanel };
+        var first = Scene.PanelOverlay;
         var second = Scene.Overlay with { Position = Scene.OnWindow };
         var fading = Scene.Overlay with { Position = Fading, Fade = true };
         await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [first, second, fading] }, cancel);
         var feed = await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
         var thermi = await desktop.ShowThermiAsync([], cancel);
         var (_, height) = await Pictures.SizeAsync(desktop.Session, await desktop.PreviewAsync(feed.Snapshot, 1, cancel), cancel);
-        var value = (Scene.OnPanel.X + 8, Scene.OnPanel.Y + (height / 2));
+        var top = row == Desktop.Gnome ? await Scene.PanelTopAsync(desktop, height, cancel) : Scene.OnPanel.Y;
+        var value = (Scene.OnPanel.X + 8, top + (height / 2));
 
         // A value lifted and dropped on the other overlay; the last pill lifted and dropped on the desktop.
         await HoldAndDropAsync(desktop, thermi, value, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), cancel);

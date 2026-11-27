@@ -1,3 +1,4 @@
+import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
 import Gio from 'gi://Gio';
@@ -36,10 +37,10 @@ const FORMAT = Cogl.PixelFormat.BGRA_8888_PRE;
 
 // What a call may ask, far past what thermi asks, so no call can fill the Shell: overlays, a picture's side in pixels and
 // its scale, the boxes that take the pointer, and a menu's rows.
-const MOST_OVERLAYS = 16;
+const MOST_OVERLAYS = 64;
 const MOST_SIDE = 16384;
 const MOST_SCALE = 16;
-const MOST_BOXES = 64;
+const MOST_BOXES = 512;
 const MOST_ROWS = 256;
 
 const finite = (...numbers) => numbers.every(Number.isFinite);
@@ -91,8 +92,12 @@ export default class ThermiExtension extends Extension {
         this._answer(invocation, () => this._show(...args));
     }
 
+    // Only a drag moves an overlay, so it rises above the snap marks shown after it.
     MoveAsync(args, invocation) {
-        this._answer(invocation, () => this._move(...args));
+        this._answer(invocation, () => {
+            this._move(...args);
+            this._raise(args[0]);
+        });
     }
 
     HideAsync(args, invocation) {
@@ -175,6 +180,12 @@ export default class ThermiExtension extends Extension {
         shown.clicks.forEach(click => click.set_position(x + click.thermiAt[0], y + click.thermiAt[1]));
     }
 
+    _raise(overlay) {
+        const shown = this._overlays.get(overlay);
+        [shown?.picture, ...shown?.clicks ?? []].filter(actor => actor)
+            .forEach(actor => actor.get_parent()?.set_child_above_sibling(actor, null));
+    }
+
     _hide(overlay) {
         const shown = this._overlays.get(overlay);
         if (!shown)
@@ -201,6 +212,8 @@ export default class ThermiExtension extends Extension {
         shown.anchor ??= this._anchor();
         shown.anchor.set_position(x, y);
         const menu = new PopupMenu.PopupMenu(shown.anchor, 0, St.Side.TOP);
+        // A screen reader reads it as the menu it is, which the Shell's own box no longer says.
+        menu.box.accessible_role = Atk.Role.MENU;
         const manager = new PopupMenu.PopupMenuManager(shown.anchor);
         manager.addMenu(menu);
         Main.uiGroup.add_child(menu.actor);
@@ -217,6 +230,7 @@ export default class ThermiExtension extends Extension {
             item.setSensitive(!grayed);
             if (opens)
                 parents.set(index, item.menu);
+                item.menu.box.accessible_role = Atk.Role.MENU;
             else
                 item.connect('activate', () => this._emit('Chosen', '(ui)', [overlay, index]));
             into.addMenuItem(item);

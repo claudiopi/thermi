@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
-using Thermi.Core.Messages;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -15,9 +15,10 @@ namespace Thermi.Linux.Overlay;
 
 /// <summary>
 /// An overlay's menu as the Shell's own popup menu: Core's rows, each with the text every OS's menu gives it, flattened
-/// with the row each sits under, and the row chosen done as Windows' menu does it.
+/// with the row each sits under, and the row chosen done by <see cref="MenuChoices"/>, as on every OS. The overlay reaches
+/// no clipboard, so its menu offers no copy of it.
 /// </summary>
-internal sealed class OverlayMenu(OverlayParts parts, Action exit)
+internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList<ShellOverlay> overlays, Func<ShellScreens> screens) : IMenuHost
 {
     // The system monitors GNOME, KDE and the newer GNOME apps ship, the first found opening.
     private static readonly string[] TaskManagers = ["gnome-system-monitor", "plasma-systemmonitor", "resources"];
@@ -25,14 +26,24 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit)
     private IReadOnlyList<MenuRow> _shown = [];
     private int _overlay;
 
-    private Settings Settings => parts.Settings;
+    public Settings Settings => parts.Settings;
+
+    public GestureUndo? Gestures => parts.Gestures;
+
+    public ItemHistory History => parts.History;
+
+    public int Overlays => overlays.Count;
 
     /// <summary>Shows overlay <paramref name="overlay"/>'s menu at a point of the stage, on <paramref name="item"/> or its edge.</summary>
     public void Show(int overlay, double x, double y, string? item, ServiceState service, Snapshot? known)
     {
         var config = Settings.Config;
         var undo = parts.Gestures.Offered(config);
-        var state = new MenuState(parts.Visibility.HideOverlays, Settings.Problem is not null, service, undo is null ? null : TimeSpan.Zero, Looks(), false);
+        var looks = MenuChoices.Looks(Settings);
+        var state = new MenuState(parts.Visibility.HideOverlays, Settings.Problem is not null, service, undo is null ? null : TimeSpan.Zero, looks, false)
+        {
+            CanCopy = false,
+        };
         var texts = Texts.For(config.Language, System.Globalization.CultureInfo.CurrentUICulture);
         var place = new MenuPlace(config, texts, parts.Culture, overlay) { UndoText = undo is { } offered ? texts.Of(offered) : null, Known = known };
         var all = new List<MenuRow>();
@@ -47,8 +58,53 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit)
     {
         if (index >= 0 && index < _shown.Count)
         {
-            Choose(_shown[index], _overlay);
+            MenuChoices.Choose(this, _shown[index], _overlay);
         }
+    }
+
+    public EditResult Settle(ThermiConfig before, ThermiConfig after) => parts.Settle(before, after);
+
+    /// <summary>Opens the settings window, a process of its own, on an overlay and an item of it.</summary>
+    public void OpenSettings(int overlay, string? item) => Open(overlay, item is null ? [] : [ThermiCommandLine.ItemOption, item]);
+
+    public void OpenSize(int overlay) => Open(overlay, [ThermiCommandLine.SizeOption]);
+
+    // The sensors' service is the system's, which its package starts; copying the picture is never offered.
+    public void Reach(MenuEntry entry, int overlay)
+    {
+        if (entry == MenuEntry.TaskManager)
+        {
+            Start(TaskManagers.FirstOrDefault(Installed) ?? TaskManagers[0], []);
+        }
+    }
+
+    public void UndoGesture(int overlay)
+    {
+        if (parts.Gestures.Take() is { } back)
+        {
+            Settings.Edit(back);
+        }
+    }
+
+    public void Separate(int overlay, string item) => overlays[overlay].Separate(item, screens());
+
+    public void HideOverlays(bool hidden) => parts.Visibility.HideOverlays = hidden;
+
+    public void Exit() => exit();
+
+    public void RequestPaint() => parts.RequestPaint();
+
+    private void Open(int overlay, string[] on)
+    {
+        List<string> args = ["settings", ThermiCommandLine.OverlayOption, $"{overlay + 1}", .. on];
+
+        // The window writes its events on the standard error it inherits, thermi's, so one reader hears both.
+        if (parts.Traced)
+        {
+            args.Add(ThermiCommandLine.TraceOption);
+        }
+
+        Start(Environment.ProcessPath ?? "thermi", args);
     }
 
     private static void Flatten(IReadOnlyList<MenuRow> rows, int parent, MenuPlace place, List<MenuRow> all, List<ShellRow> shown)
@@ -62,81 +118,6 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit)
             {
                 Flatten(row.Entries, all.Count - 1, place with { Overlay = row.Overlay ?? place.Overlay }, all, shown);
             }
-        }
-    }
-
-    private IReadOnlyList<StyleConfig> Looks() => new SavedStyles(ConfigStore.StylesFolder(Settings.FilePath)).List();
-
-    private void Choose(MenuRow row, int menuOverlay)
-    {
-        var target = row.Overlay ?? menuOverlay;
-        switch (row.Entry)
-        {
-            case MenuEntry.SettingsBroken or MenuEntry.Settings or MenuEntry.EditItem or MenuEntry.SizeCustom:
-                OpenSettings(target, row.Item);
-                break;
-            case MenuEntry.TaskManager:
-                Start(TaskManagers.FirstOrDefault(Installed) ?? TaskManagers[0], []);
-                break;
-            case MenuEntry.ShowOverlays or MenuEntry.HideOverlays:
-                parts.Visibility.HideOverlays = row.Entry == MenuEntry.HideOverlays;
-                break;
-            case MenuEntry.UndoGesture when parts.Gestures.Take() is { } back:
-                Settings.Edit(back);
-                break;
-            case MenuEntry.ResetMinMax:
-                parts.History.Reset([Settings.Config.Overlays[target]]);
-                break;
-            case MenuEntry.Exit:
-                exit();
-                break;
-            case MenuEntry.ShowHiddenOverlays or MenuEntry.ShowOverlay or MenuEntry.HideThisOverlay or MenuEntry.ClickThrough or MenuEntry.Lock
-                or MenuEntry.Graph or MenuEntry.Vertical or MenuEntry.Look or MenuEntry.Size or MenuEntry.Bigger or MenuEntry.Smaller:
-                Write(row, MenuEdits.EditOf(row, [target], target, Looks()));
-                break;
-
-            // Copying the picture, the sensors' start and updates belong to the desktop's own tools on Linux.
-            case MenuEntry.UndoGesture or MenuEntry.StartSensors or MenuEntry.CopyImage or MenuEntry.Separate or MenuEntry.GraphOwn
-                or MenuEntry.SeparateFull or MenuEntry.Overlay or MenuEntry.Update or MenuEntry.SizeOnTaskbar:
-            default:
-                break;
-        }
-
-        parts.RequestPaint();
-    }
-
-    /// <summary>Opens the settings window, a process of its own, on an overlay and an item of it.</summary>
-    public void OpenSettings(int overlay, string? item)
-    {
-        List<string> args = ["settings", ThermiCommandLine.OverlayOption, $"{overlay + 1}"];
-        if (item is not null)
-        {
-            args.AddRange([ThermiCommandLine.ItemOption, item]);
-        }
-
-        // The window writes its events on the standard error it inherits, thermi's, so one reader hears both.
-        if (parts.Traced)
-        {
-            args.Add(ThermiCommandLine.TraceOption);
-        }
-
-        Start(Environment.ProcessPath ?? "thermi", args);
-    }
-
-    // Writes only the difference, so what another process wrote meanwhile stays.
-    private void Write(MenuRow row, Func<ThermiConfig, ThermiConfig>? edit)
-    {
-        var before = Settings.Config;
-        var after = edit is null ? before : parts.Settle(before, edit(before)).Config;
-        if (ConfigEdits.Replay(before, after) is not { } change)
-        {
-            return;
-        }
-
-        Settings.Edit(change);
-        if (Menus.UndoOf(row) is { } undo)
-        {
-            parts.Gestures.Add(GestureKind.Menu, before, after, undo);
         }
     }
 

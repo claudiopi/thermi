@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
+using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
 
 namespace Thermi.Linux.Tests.Acceptance;
@@ -148,10 +149,10 @@ public sealed class OverlayTests
             // Another protocol's signals may have other shapes: this one sends Ready and Pointer with nothing in them once
             // thermi takes its name.
             var code = await File.ReadAllTextAsync(Path.Combine(other, "extension.js"), cancel);
-            const string Appeared = "Gio.BusNameWatcherFlags.NONE, null,";
+            const string Appeared = "this._owner = owner;";
             Assert.Contains(Appeared, code, StringComparison.Ordinal);
-            var sends = "() => ['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', [])),";
-            code = code.Replace(Appeared, $"Gio.BusNameWatcherFlags.NONE, {sends}", StringComparison.Ordinal);
+            var sends = "['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', []));";
+            code = code.Replace(Appeared, $"{Appeared} {sends}", StringComparison.Ordinal);
             await File.WriteAllTextAsync(Path.Combine(other, "extension.js"), code, cancel);
 
             await AnotherVersionShowsNothingAsync(other, cancel);
@@ -185,7 +186,7 @@ public sealed class OverlayTests
         }
         var shownFirst = await desktop.ScreenshotAsync(cancel);
         var pill = config.Overlays[0].Items[0].Id;
-        var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false), pill);
+        var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false }, pill);
 
         Assert.Equal((gnome ? "gnome-shell" : "thermi", rows.Count), await OpenMenuAsync(desktop, cancel));
         // Hidden from the menu, the overlays are taken back with the button of the notice that says so.
@@ -222,6 +223,15 @@ public sealed class OverlayTests
         await units.SystemctlAsync(["kill", "--signal=KILL", "thermi.service"], cancel);
         await restarted;
         Assert.Single(await units.ProcessesAsync(cancel));
+
+        // The settings window's "Exit thermi" ends it as the menu's does, through the overlay's quit on the session's bus.
+        var quitting = await units.StartWaitingAsync(cancel);
+        string[] quit =
+            ["call", "--session", "--dest", ShellLink.Name, "--object-path", ShellLink.ObjectPath, "--method", "org.gtk.Actions.Activate", "quit", "[]", "{}"];
+        Assert.Equal(0, (await desktop.Session.RunAsync("gdbus", quit, cancel: cancel)).Exit);
+        await quitting.WaitForExitAsync(cancel);
+        Assert.Equal(0, quitting.ExitCode);
+        Assert.Equal("dead", await units.SystemctlAsync(["show", "-p", "SubState", "--value", "thermi.service"], cancel));
     }
 
     // Weston offers neither the extension nor layer surfaces: thermi shows nothing, says why in one notice, and not again

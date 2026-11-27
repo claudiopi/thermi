@@ -11,14 +11,16 @@ internal static class PainterShapes
 {
     public static void Source(Cairo.Context cr, Rgb color, double alpha = 1) => cr.SetSourceRgba(color.R / 255.0, color.G / 255.0, color.B / 255.0, alpha);
 
+    /// <summary>The line a pill at <paramref name="box"/> is drawn along: half a pixel in, so its border falls on whole pixels.</summary>
+    public static PillBox Outline(PillBox box) => new(box.Left + 0.5, box.Top + 0.5, box.Width - 1, box.Height - 1);
+
     /// <summary>
     /// A pill drawn opaque and flat: its color inside its border, with the look's corners, those of a pill
     /// <paramref name="row"/> tall at most, so a standing bar curves as the pills it holds.
     /// </summary>
     public static void Pill(Cairo.Context cr, OverlayLook look, PillBox box, double scale, double row)
     {
-        var outer = new PillBox(box.Left + 0.5, box.Top + 0.5, box.Width - 1, box.Height - 1);
-        Rounded(cr, outer, look.Radius(Math.Min(box.Height, row) - 1));
+        Rounded(cr, Outline(box), look.Radius(Math.Min(box.Height, row) - 1));
         Source(cr, look.Pills.Outer);
         cr.FillPreserve();
         Source(cr, look.Pills.Border);
