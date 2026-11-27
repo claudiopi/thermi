@@ -94,7 +94,7 @@ public sealed class MessageTests
                 inWindow.Take(Sent(onOverlay, config));
             }
 
-            onOverlay.Add(overlay, readings);
+            onOverlay.Add(overlay, readings, null);
             if (second == 5)
             {
                 inWindow.Take(Sent(onOverlay, config));
@@ -102,7 +102,7 @@ public sealed class MessageTests
 
             if (second >= 5 || (readFirst && second == 4))
             {
-                inWindow.Add(overlay, readings);
+                inWindow.Add(overlay, readings, null);
             }
 
             if (second >= 5)

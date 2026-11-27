@@ -113,7 +113,8 @@ public sealed class TrayTextTests
         };
         foreach (var value in values)
         {
-            history.Add(overlay, new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, value) });
+            var reading = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, value) };
+            history.Add(overlay, reading, null);
             time.Advance(TimeSpan.FromSeconds(1));
         }
 

@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.App.Ping;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Commands;
@@ -162,15 +163,16 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             : Unread(state, taken, null);
     }
 
-    // A read pings as the overlay would, while the settings it reads hold a ping item, and says what the first echo did.
-    private ISensorFeed Sensors(Func<ThermiConfig> settings)
+    // A read pings as the overlay would, while the settings it reads hold a ping item, and says what the first echo did; what
+    // the echoes get back is not logged, as the agents' log is what agents changed.
+    private ISensorFeed Sensors(Func<ThermiConfig?> settings)
     {
         if (environment.Echo is not { } echo)
         {
             return environment.Sensors();
         }
 
-        var feed = new PingFeed(environment.Sensors(), new PingReader(echo, time, environment.Log));
+        var feed = new PingFeed(environment.Sensors(), new PingReader(echo, time, NullLogger.Instance));
         feed.Follow(settings);
         return feed;
     }

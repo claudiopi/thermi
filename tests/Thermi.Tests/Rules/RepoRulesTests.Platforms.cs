@@ -64,9 +64,14 @@ public sealed partial class RepoRulesTests
                 .Select(name => $"src/{name} is listed as reaching the network, but it is gone or opens none: drop it from the list")));
     }
 
+    private const string NetworkType =
+        @"(System\.Net\.(\w+\.)*)?(Ping|Socket|TcpClient|UdpClient|TcpListener|HttpClient|HttpListener|SocketsHttpHandler|ClientWebSocket|WebClient)";
+
+    // Each made after new, or by a target-typed new where a field, property, local or method of that type is declared.
     [GeneratedRegex(
-        @"\bnew\s+(System\.Net\.(\w+\.)*)?(Ping|Socket|TcpClient|UdpClient|TcpListener|HttpClient|HttpListener|SocketsHttpHandler"
-            + @"|ClientWebSocket|WebClient)\s*[({]|\bDns\.\w+|\bWebRequest\.Create",
+        @"\bnew\s+" + NetworkType + @"\s*[({]"
+            + @"|\b" + NetworkType + @"\??\s+\w+(\s*\{[^}]*\}|\([^)]*\)\s*=>)?\s*=?\s*new\s*\("
+            + @"|\bDns\.\w+|\bWebRequest\.Create",
         RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex NetworkApi();

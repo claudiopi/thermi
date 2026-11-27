@@ -31,7 +31,7 @@ public sealed class PowerItemTests
         foreach (var value in values)
         {
             var readings = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, value) };
-            history.Add(overlay, readings);
+            history.Add(overlay, readings, null);
             shown.Add(OverlayLayout.Build(overlay, readings, English, history: history).Single().Value);
             time.Advance(TimeSpan.FromSeconds(1));
         }
@@ -120,7 +120,7 @@ public sealed class PowerItemTests
         {
             [Metrics.CpuTemperature.Id] = new(SensorKind.Temperature, 65),
         };
-        history.Add([(other, TrayTextTests.Quiet), (overlay, cooler)]);
+        history.Add([(other, TrayTextTests.Quiet), (overlay, cooler)], null);
         history.Reset([other]);
         var moved = OverlayLayout.Build(overlay, cooler, English, history: history).Single().Value;
         time.Advance(TimeSpan.FromSeconds(1));
@@ -171,7 +171,7 @@ public sealed class PowerItemTests
                 [Metrics.GpuLoad.Id] = new(SensorKind.Load, second % 7 == 0 ? double.NaN : second % 10 * 10),
                 [Metrics.CpuFan.Id] = new(SensorKind.Fan, 1000),
             };
-            history.Add(overlay, readings);
+            history.Add(overlay, readings, null);
             shown = OverlayLayout.Build(overlay, readings, English, history: history);
             time.Advance(TimeSpan.FromSeconds(1));
         }
@@ -192,7 +192,7 @@ public sealed class PowerItemTests
         var ramBars = Done(PowerEdits.SetGraph(config, Metrics.RamUsed.Id, GraphStyle.Bars));
         Assert.Null(Item(Done(ItemEdits.SetWarnBy(ramBars, Metrics.RamUsed.Id, Desktop, null)), Metrics.RamUsed.Id).Graph);
 
-        history.Add(overlay with { Items = [.. overlay.Items.Where(item => item.Id != Metrics.GpuLoad.Id)] }, TrayTextTests.Quiet);
+        history.Add(overlay with { Items = [.. overlay.Items.Where(item => item.Id != Metrics.GpuLoad.Id)] }, TrayTextTests.Quiet, null);
         Assert.Equal(Enumerable.Repeat<GraphPoint?>(null, 60), history.Graph(overlay.Items.Single(item => item.Id == Metrics.GpuLoad.Id)));
     }
 

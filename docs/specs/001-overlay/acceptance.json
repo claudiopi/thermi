@@ -142,8 +142,44 @@
       "covers": [
         "R13"
       ],
-      "description": "Given settings with a ping item and a host that never answers, when an agent reads the ping once, then it says the echo timed out, not that it waits or is off.",
+      "description": "Given settings with a ping item and a host that never answers, when an agent reads the ping once, then it says the echo timed out, not that it waits or is off, and the agents' log holds nothing of it.",
       "check": "AReadSaysWhatThePingsFirstEchoDid",
+      "passes": true
+    },
+    {
+      "id": "A28",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a settings window that read a snapshot with the ping on it, when Core fails to read the next, then the window goes on showing the one it read, the ping on it.",
+      "check": "AWindowThatCannotReadASnapshotShowsTheLastOneItRead",
+      "passes": true
+    },
+    {
+      "id": "A29",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a ping item and no fresh snapshot of the service's, when echoes end, then each is news the overlay records, with the ping's value.",
+      "check": "WithTheServiceSilentEachEchoIsNews",
+      "passes": true
+    },
+    {
+      "id": "A30",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given no ping item, when an agent lists the sensors and adds an item of the ping's, then the list holds it and the edit adds it, which pings 1.1.1.1.",
+      "check": "AnAgentAddsAPingItemAsItsSensorsListIt",
+      "passes": true
+    },
+    {
+      "id": "A31",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given a watch of the ping with no ping item, when the settings gain one with a host of its own, then no echo went out before, and the watch's later lines read the round trip of echoes to that host.",
+      "check": "AWatchPingsAsTheSettingsItReadsSay",
       "passes": true
     }
   ]

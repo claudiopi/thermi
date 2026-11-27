@@ -92,7 +92,7 @@ public sealed class BridgeTests
         for (var second = 1; second <= own; second++)
         {
             To(second);
-            chart.Items.Add(overlay, new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuLoad.Id] = new(SensorKind.Load, 50) });
+            chart.Items.Add(overlay, new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.CpuLoad.Id] = new(SensorKind.Load, 50) }, null);
         }
 
         To(drawnAt);
@@ -127,7 +127,7 @@ public sealed class BridgeTests
             for (var second = 0; second < 3; second++)
             {
                 chart.Follow(new ThermiConfig { Overlays = [overlay] }, item => [readings[item.WarnBy?.Metric ?? item.Sensor ?? item.Metric!].Value]);
-                chart.Items.Add(overlay, readings);
+                chart.Items.Add(overlay, readings, null);
                 time.Advance(TimeSpan.FromSeconds(1));
             }
 

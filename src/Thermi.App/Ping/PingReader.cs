@@ -51,10 +51,15 @@ internal sealed class PingReader(IEcho echo, TimeProvider time, ILogger log)
         while (true)
         {
             var started = time.GetTimestamp();
-            if (PingSensors.HostOf(_settings()) is { } host)
+            try
             {
-                _heard = new Heard(host, await EchoAsync(host, stop), time.GetTimestamp());
-                Answered?.Invoke(this, EventArgs.Empty);
+                await EchoOnceAsync(stop);
+            }
+#pragma warning disable CA1031 // What the settings or a listener throw ends no ping: it is logged once, and the next second tries again.
+            catch (Exception error) when (!stop.IsCancellationRequested)
+#pragma warning restore CA1031
+            {
+                Say("-", "failed", error);
             }
 
             var left = Period - time.GetElapsedTime(started);
@@ -70,51 +75,69 @@ internal sealed class PingReader(IEcho echo, TimeProvider time, ILogger log)
         }
     }
 
-    // A name's lookup may outlast the echo's own timeout by far, with a resolver that answers nothing, so the second bounds both.
-    private async Task<EchoReply> EchoAsync(string host, CancellationToken stop)
+    // An echo its stop cut off says nothing of the host, so it is neither kept nor told.
+    private async Task EchoOnceAsync(CancellationToken stop)
     {
-        if (!echo.NetworkUp())
+        if (PingSensors.HostOf(_settings()) is not { } host)
         {
-            return Said(host, EchoReply.Failed(PingFailure.NoNetwork));
+            return;
         }
 
+        var (reply, error) = await EchoAsync(host, stop);
+        if (stop.IsCancellationRequested)
+        {
+            return;
+        }
+
+        Say(host, reply.Failure?.ToString() ?? "replies", error);
+        _heard = new Heard(host, reply, time.GetTimestamp());
+        Answered?.Invoke(this, EventArgs.Empty);
+    }
+
+    // A name's lookup may outlast the echo's own timeout by far, with a resolver that answers nothing, so the second bounds both.
+    private async Task<(EchoReply Reply, Exception? Error)> EchoAsync(string host, CancellationToken stop)
+    {
         using var timeout = new CancellationTokenSource(Period, time);
         using var either = CancellationTokenSource.CreateLinkedTokenSource(stop, timeout.Token);
-        EchoReply reply;
         try
         {
+            if (!echo.NetworkUp())
+            {
+                return (EchoReply.Failed(PingFailure.NoNetwork), null);
+            }
+
             var (status, roundTrip) = await echo.SendAsync(host, Period, either.Token).WaitAsync(either.Token);
-            reply = status == IPStatus.Success ? EchoReply.Of(roundTrip) : EchoReply.Failed(FailureOf(status));
+            return (status == IPStatus.Success ? EchoReply.Of(roundTrip) : EchoReply.Failed(FailureOf(status)), null);
         }
         catch (PingException error) when (!either.IsCancellationRequested)
         {
-            reply = EchoReply.Failed(FailureOf(error));
+            return (EchoReply.Failed(FailureOf(error)), null);
         }
-#pragma warning disable CA1031 // The ping outlives whatever one echo throws: the second ran out, it stopped, or it is logged and reads as missing.
+#pragma warning disable CA1031 // The ping outlives whatever one echo throws: the second ran out, it stopped, or it reads as missing and is logged.
         catch (Exception error)
 #pragma warning restore CA1031
         {
-            reply = EchoReply.Failed(timeout.IsCancellationRequested ? PingFailure.TimedOut : PingFailure.Unreachable);
-            if (!either.IsCancellationRequested)
-            {
-                log.PingFailed(host, error);
-            }
+            return timeout.IsCancellationRequested ? (EchoReply.Failed(PingFailure.TimedOut), null) : (EchoReply.Failed(PingFailure.Unreachable), error);
         }
-
-        return Said(host, reply);
     }
 
-    // Once a second for hours, so only a change of what it gets back is worth a line.
-    private EchoReply Said(string host, EchoReply reply)
+    // Once a second for hours, so only a change of what it gets back is worth a line, an error's stack included.
+    private void Say(string host, string outcome, Exception? error)
     {
-        var outcome = reply.Failure?.ToString() ?? "replies";
-        if (_said != (host, outcome))
+        if (_said == (host, outcome))
         {
-            _said = (host, outcome);
-            log.PingChanged(host, outcome);
+            return;
         }
 
-        return reply;
+        _said = (host, outcome);
+        if (error is null)
+        {
+            log.PingChanged(host, outcome);
+        }
+        else
+        {
+            log.PingFailed(host, error);
+        }
     }
 
     private static PingFailure FailureOf(IPStatus status) =>

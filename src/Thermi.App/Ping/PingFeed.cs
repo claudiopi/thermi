@@ -16,6 +16,7 @@ internal sealed class PingFeed(ISensorFeed inner, PingReader reader) : ISensorFe
     private readonly Lock _gate = new();
     private bool _answered;
     private bool _held;
+    private volatile Made? _made;
 
     public event EventHandler? Received;
 
@@ -71,11 +72,27 @@ internal sealed class PingFeed(ISensorFeed inner, PingReader reader) : ISensorFe
             (_answered, held, _held) = (true, _held, false);
         }
 
-        if (held)
+        // With no fresh snapshot of the service's, the ping is the one live reading, which the overlay records each second.
+        if (held || inner.Latest is null)
         {
             Received?.Invoke(this, EventArgs.Empty);
         }
     }
 
-    private Snapshot With(Snapshot read) => PingSensors.With(read, reader.Latest);
+    // The same snapshot for the same reading and reply, as a reader that keeps what it made of a snapshot tells them by
+    // reference, and making one copies every sensor.
+    private Snapshot With(Snapshot read)
+    {
+        var reply = reader.Latest;
+        if (_made is { } made && ReferenceEquals(made.Read, read) && Equals(made.Reply, reply))
+        {
+            return made.With;
+        }
+
+        var with = PingSensors.With(read, reply);
+        _made = new Made(read, reply, with);
+        return with;
+    }
+
+    private sealed record Made(Snapshot Read, EchoReply? Reply, Snapshot With);
 }

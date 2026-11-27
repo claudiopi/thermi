@@ -165,7 +165,7 @@ internal static class Program
         // No settings file yet is thermi's first start, which its first notice and the values' tooltips speak to.
         var firstStart = !File.Exists(ConfigStore.DefaultPath);
         OverlayHost? running = null;
-        sensors.Received += (_, _) => running?.Arrived();
+        feed.Received += (_, _) => running?.Arrived();
         var updates = new OverlayUpdates(() => Facts(running), () => Close(running), time, logs.CreateLogger<OverlayUpdates>());
         using var ticks = time.CreateTimer(_ => updates.Tick(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         var mutex = single;

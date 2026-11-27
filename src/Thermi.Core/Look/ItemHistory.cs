@@ -32,7 +32,7 @@ public sealed class ItemHistory(TimeProvider time)
     /// snapshot, never for stale data. An item is kept by its id, whichever overlay holds it; items in none are forgotten. A
     /// ping item reads the settings' <paramref name="pingHost"/>.
     /// </summary>
-    public void Add(IReadOnlyList<(OverlayConfig Overlay, IReadOnlyDictionary<string, Reading> Readings)> overlays, string? pingHost = null)
+    public void Add(IReadOnlyList<(OverlayConfig Overlay, IReadOnlyDictionary<string, Reading> Readings)> overlays, string? pingHost)
     {
         Follow(overlays.SelectMany(overlay => overlay.Overlay.Items), pingHost);
         var values = new Dictionary<string, Reading>(StringComparer.Ordinal);
@@ -71,7 +71,7 @@ public sealed class ItemHistory(TimeProvider time)
     }
 
     /// <summary>As <see cref="Add(IReadOnlyList{ValueTuple{OverlayConfig, IReadOnlyDictionary{string, Reading}}}, string)"/>, with one overlay.</summary>
-    public void Add(OverlayConfig overlay, IReadOnlyDictionary<string, Reading> readings, string? pingHost = null) => Add([(overlay, readings)], pingHost);
+    public void Add(OverlayConfig overlay, IReadOnlyDictionary<string, Reading> readings, string? pingHost) => Add([(overlay, readings)], pingHost);
 
     /// <summary>
     /// Follows what each of <paramref name="items"/> reads: one that reads another value, or warns by another reading, than
@@ -79,7 +79,7 @@ public sealed class ItemHistory(TimeProvider time)
     /// no chart, graph or statistic mixes two readings; a ping item, whose host <paramref name="pingHost"/> changed, too.
     /// Gives the items whose reading they warn by changed.
     /// </summary>
-    public IReadOnlyList<ItemConfig> Follow(IEnumerable<ItemConfig> items, string? pingHost = null)
+    public IReadOnlyList<ItemConfig> Follow(IEnumerable<ItemConfig> items, string? pingHost)
     {
         var changed = new List<ItemConfig>();
         foreach (var item in items)
@@ -114,8 +114,9 @@ public sealed class ItemHistory(TimeProvider time)
     private static (string Value, string Meter) SourceOf(ItemConfig item, string? pingHost)
     {
         var sensors = item.Sensors is { } each ? string.Join(',', each) : null;
-        var value = string.Join('|', item.Metric, item.Auto, item.Sensor, sensors, item.Combine, PingSensors.Reads(item) ? pingHost : null);
-        return (value, item.WarnBy is { } other ? string.Join('|', "by", other.Metric, other.Sensor, other.Auto) : value);
+        var host = PingSensors.Reads(item) ? pingHost : null;
+        var value = string.Join('|', item.Metric, item.Auto, item.Sensor, sensors, item.Combine, host);
+        return (value, item.WarnBy is { } other ? string.Join('|', "by", other.Metric, other.Sensor, other.Auto, host) : value);
     }
 
     /// <summary>After a reset, so an open window starts its minimums, maximums and averages again with the overlay's.</summary>

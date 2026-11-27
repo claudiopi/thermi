@@ -172,7 +172,7 @@ public sealed class FrameTests
             var slots = FrameSlots.Of([new FrameRate(Game, 1, fps, frameTime)]);
             var snapshot = GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. slots] }, Game);
             var readings = SensorMap.Read(snapshot, overlay);
-            history.Add(overlay, readings);
+            history.Add(overlay, readings, null);
             shown = OverlayLayout.Build(overlay, readings, English, history: history);
             time.Advance(TimeSpan.FromSeconds(1));
         }
