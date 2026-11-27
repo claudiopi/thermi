@@ -70,6 +70,12 @@ internal sealed class LayerProbe : IDisposable
     {
         foreach (var popup in _popups)
         {
+            // GDK's destroy drops a reference of its own, besides the one GirCore's wrapper gives back as it is disposed: without
+            // one more for it, a copy GirCore keeps of a signal's arguments is left holding a freed popup, which .NET's finalizer
+            // then unrefs, and thermi crashes.
+#pragma warning disable S3869 // GirCore has no call that refs an object but on its pointer.
+            _ = GObject.Internal.Object.Ref(popup.Handle.DangerousGetHandle());
+#pragma warning restore S3869
             popup.Destroy();
             popup.Dispose();
         }
