@@ -107,6 +107,9 @@ public sealed record MenuState(
     bool UpdateReady)
 {
     public IReadOnlyList<Screen> Screens { get; init; } = [];
+
+    /// <summary>Whether the host can put an overlay's picture on the clipboard, which its menu offers only then.</summary>
+    public bool CanCopy { get; init; } = true;
 }
 
 /// <summary>
@@ -152,7 +155,7 @@ public static class Menus
         rows.Add(new MenuRow(MenuEntry.TaskManager));
         if (overlays.Count == 1)
         {
-            rows.AddRange(Shape(overlays[0], 0));
+            rows.AddRange(Shape(overlays[0], 0, state));
         }
 
         // In the overlay's menu's order, so the two read alike.
@@ -170,7 +173,8 @@ public static class Menus
 
         if (overlays.Count > 1)
         {
-            rows.AddRange(overlays.Select((overlay, at) => new MenuRow(MenuEntry.Overlay) { Overlay = at, Starts = at == 0, Entries = Submenu(overlay, at) }));
+            rows.AddRange(overlays.Select((overlay, at) =>
+                new MenuRow(MenuEntry.Overlay) { Overlay = at, Starts = at == 0, Entries = Submenu(overlay, at, state) }));
         }
 
         if (state.UpdateReady)
@@ -195,7 +199,7 @@ public static class Menus
         MenuRow[] edit = on is null ? [] : [new MenuRow(MenuEntry.EditItem, Default: true) { Item = on }];
         MenuRow[] undo = state.SinceGesture < GestureUndo ? [new MenuRow(MenuEntry.UndoGesture)] : [];
         MenuRow[] reset = ShowsMinOrMax(shown) ? [new MenuRow(MenuEntry.ResetMinMax) { Hotkey = config.Hotkeys?.ResetMinMax }] : [];
-        MenuRow[] copy = shows ? [new MenuRow(MenuEntry.CopyImage) { Overlay = overlay }] : [];
+        MenuRow[] copy = shows && state.CanCopy ? [new MenuRow(MenuEntry.CopyImage) { Overlay = overlay }] : [];
         return WithSeparators(
         [
             fromTray ? [new MenuRow(MenuEntry.Overlay) { Overlay = overlay, Heading = true }] : [],
@@ -341,9 +345,9 @@ public static class Menus
     }
 
     // What an overlay's own menu does to its picture and shape, which thermi's menu offers too, for it or in its submenu.
-    private static MenuRow[] Shape(OverlayConfig overlay, int at) =>
+    private static MenuRow[] Shape(OverlayConfig overlay, int at, MenuState state) =>
     [
-        new MenuRow(MenuEntry.CopyImage) { Overlay = at },
+        .. state.CanCopy ? [new MenuRow(MenuEntry.CopyImage) { Overlay = at }] : Array.Empty<MenuRow>(),
         .. VerticalOf(overlay, at),
     ];
 
@@ -380,9 +384,9 @@ public static class Menus
             : null;
     }
 
-    private static List<MenuRow> Submenu(OverlayConfig overlay, int at) =>
+    private static List<MenuRow> Submenu(OverlayConfig overlay, int at, MenuState state) =>
     [
-        .. Shape(overlay, at),
+        .. Shape(overlay, at, state),
         new MenuRow(MenuEntry.ClickThrough, overlay.ClickThrough) { Overlay = at },
         new MenuRow(MenuEntry.Lock, overlay.Locked) { Overlay = at },
         overlay.Hidden ? new MenuRow(MenuEntry.ShowOverlay) { Overlay = at } : new MenuRow(MenuEntry.HideThisOverlay) { Overlay = at },

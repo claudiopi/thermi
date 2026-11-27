@@ -91,6 +91,12 @@ public sealed class MenuTests
         "looks",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
         $"Settings* | {Graph} Look Look Look+ Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // A desktop whose overlay cannot reach the clipboard offers no copy of it.
+    [InlineData(
+        "{}",
+        "nocopy",
+        "Settings* TaskManager Vertical ClickThrough Lock HideOverlays | Exit",
+        $"Settings* | {Graph} Vertical {Size} Lock | TaskManager | HideOverlays | Exit")]
     [InlineData(
         "{}",
         "update",
@@ -172,6 +178,7 @@ public sealed class MenuTests
             UpdateReady: words.Contains("update"))
         {
             Screens = words.Contains("taskbar") ? [Pc] : [],
+            CanCopy = !words.Contains("nocopy"),
         };
 
         Assert.Null(problem);
