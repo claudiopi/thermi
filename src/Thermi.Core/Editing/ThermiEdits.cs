@@ -1,3 +1,4 @@
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -80,4 +81,13 @@ public static class ThermiEdits
 
     public static EditResult SetWindowTheme(ThermiConfig config, WindowTheme theme) =>
         ConfigEdits.Apply(config, current => current with { WindowTheme = theme });
+
+    /// <summary>The host every ping item pings, trimmed, or with none or a blank one back to 1.1.1.1; one that is no host is refused.</summary>
+    public static EditResult SetPingHost(ThermiConfig config, string? host)
+    {
+        var trimmed = host?.Trim() is { Length: > 0 } some ? some : null;
+        return trimmed is null || PingSensors.IsHost(trimmed)
+            ? ConfigEdits.Apply(config, current => current with { PingHost = trimmed })
+            : ConfigEdits.Refuse(config, Refusal.PingHost);
+    }
 }

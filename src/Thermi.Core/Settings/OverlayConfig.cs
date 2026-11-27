@@ -40,6 +40,9 @@ public sealed record ThermiConfig
     /// <summary>The names the user gave sensors, by the id an item names each by; null while none has one.</summary>
     public IReadOnlyDictionary<string, string>? SensorNames { get; init; }
 
+    /// <summary>The host every ping item pings, a name or an address, or null for 1.1.1.1 (<c>docs/adr/0020-ping.md</c>).</summary>
+    public string? PingHost { get; init; }
+
     /// <summary>The settings thermi starts with where it finds no file: one overlay, <see cref="OverlayConfig.First"/>.</summary>
     public static ThermiConfig New { get; } = new() { Overlays = [OverlayConfig.First] };
 

@@ -2,7 +2,7 @@
 
 **Status**: done
 
-**Budget**: 489 .NET and 80 page cases
+**Budget**: 495 .NET and 80 page cases
 
 The settings window sets thermi up visually: which sensors each overlay shows, their thresholds over the values they guard, where the overlays sit and how they look. Nobody has to know sensor ids or edit JSON. It follows four rules. **The overlay is the preview**: every change shows on the real overlay at once, and there is no Save button, since undo replaces confirmation. **Real data everywhere**: every choice shows its live value. **Nothing can break it**: the window writes only valid settings, and hand edits keep working. **Free when closed**: the window is a process of its own, and the overlay pays nothing for it.
 
@@ -262,6 +262,7 @@ With the window come what it edits: up to four overlays, looks, gestures on the 
 - R166. A throughput and a disk activity start with no lines, and thresholds judge a throughput, as they do a fan's speed. A throughput's chart runs from 0 to the highest of its readings and lines plus 15 %, rounded up to a 1-2-5 step of its unit (1, 2, 5, 10, 20, 50 …), with Min · Avg · Max as any chart.
 - R167. Download and upload added from the catalog share the label NET, so together they make one pill, as "NET ↓ 12.4 MB/s ↑ 1.2 MB/s": the arrows are symbols drawn before each value, the same in every language, and no part of the label. A drive's read and write rates take its drive's label, so they join that drive's pill. The default overlay does not change.
 - R183. A network throughput item, and no other, can show its value in bits per second, in its "More options", off by default: in the largest of bps, Kbps, Mbps and Gbps that keeps three significant digits, with 1 Kbps = 1000 bps, as 99.2 Mbps, in the regional format and with its units translated, and with units hidden or in a tray icon with its scale letter, as R161 says. Its lines, its chart and the file stay in bytes per second.
+- R207. A ping item's "More options" has a box for the host every ping item pings, empty for `1.1.1.1`, which it says. Enter or the focus leaving keeps what was typed, trimmed: a name or an IPv4 or IPv6 address of up to 253 characters, or empty, which goes back to `1.1.1.1`. Anything else is refused with why and changes nothing, and Esc puts the host back. A change is one undo step, and `thermi-cli edit` sets it the same way.
 - R168. With network adapters and drives read, the sensor service stays within ADR 0011's budget for it at rest, under 80 MB of private memory, on a PC with two drives and two adapters.
   Release check: Costs at rest.
 
@@ -355,7 +356,7 @@ Fields are named, never inferred from a string's shape; a choice at its default 
 
 | Level | Fields |
 | --- | --- |
-| thermi | `version`, `overlays` (1 to 4), `hotkeys` (`toggle`, `nextStyle`, `clickThrough`, `resetMinMax`, each like `Ctrl+Alt+T`), `language` (left out to follow Windows), `temperature` (`c` or `f`), `windowTheme` (`system`, `light`, `dark`), `sensorNames` (the user's names, by sensor id), `agents` (spec 003) |
+| thermi | `version`, `overlays` (1 to 4), `hotkeys` (`toggle`, `nextStyle`, `clickThrough`, `resetMinMax`, each like `Ctrl+Alt+T`), `language` (left out to follow Windows), `temperature` (`c` or `f`), `windowTheme` (`system`, `light`, `dark`), `sensorNames` (the user's names, by sensor id), `agents` (spec 003), `pingHost` (spec 001's R10, left out for `1.1.1.1`) |
 | overlay | `name` (only one the user typed), `items`, `snap` (`monitor`, `spot`, and on the taskbar `offset` from its start, in physical pixels) or `position`, `size` (0.75 to 4), `graph` (`auto`, `none`, `bars`, `line`), `style`, `visibility` (`always`, `hide-in-fullscreen`, `only-in-fullscreen`), `hidden`, `clickThrough`, `locked`, `oled`, `fade` |
 | item | `id`, `name`; `metric`, `sensor`, or `sensors` with `combine` (`max`, `average`, `sum`); `auto` (the metric it came from); `label`, `own`, `tray`, `color`; `warnBy` (`metric`, or `sensor` with `auto`) and `threshold`, in the unit of what it warns by; `offset`, `stat`, `smooth`, `decimals`, `bits`, `graph`, `alertOnly`, `notify` |
 | style (the look) | `name` (the saved look it came from); `layout` (`pills`, `each`, `one`), `orientation` and `noLabels`, which stay with the overlay when a look is worn; `preset` (`standard` or `custom`; `compact` and `large` read from hand-written files), `label` and `value` (`size`, `weight`); `opacity` (`background`, and `overlay` from 0.2, which only hand edits and look files set); `pills` (`dark`, `light`, `system`); `colors` (`normal`, `warning`, `critical`, `label`, `value`, `background`); `units`, `font`, `corners`, `gap`, `effect` |

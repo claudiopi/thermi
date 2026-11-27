@@ -176,6 +176,10 @@ public enum UiText
     /// <summary>A network or a drive speed's switch to show it in bits per second, and what it keeps.</summary>
     Bits,
     BitsHint,
+
+    /// <summary>A ping item's box for the host every ping item pings, and what an empty one pings.</summary>
+    PingHost,
+    PingHostHint,
     CombineField,
 
     /// <summary>The Combine dialog's button, which makes the item read the sensors checked in place of its own.</summary>

@@ -50,7 +50,9 @@ Not tested yet, and the reports we would love most: Windows 10 22H2, an Arm64 PC
 
 ## Privacy
 
-thermi sends nothing about you or your PC. Its only connection is the update check, a minute after the service starts and every 4 hours: one HTTPS request for the channel's manifest, with no query, no cookie, no identifier and `thermi` as its whole User-Agent, and then the zip of a new version, whose signature Windows checks against the certificate authority's revocation servers, as it does for any signed program. The server sees the address a request comes from, as any server does. An administrator turns updates off with the `Updates` policy value in `HKLM\SOFTWARE\Policies\thermi`, and a build from source never checks unless it is told where.
+thermi sends nothing about you or your PC. Its one regular connection is the update check, a minute after the service starts and every 4 hours: one HTTPS request for the channel's manifest, with no query, no cookie, no identifier and `thermi` as its whole User-Agent, and then the zip of a new version, whose signature Windows checks against the certificate authority's revocation servers, as it does for any signed program. The server sees the address a request comes from, as any server does. An administrator turns updates off with the `Updates` policy value in `HKLM\SOFTWARE\Policies\thermi`, and a build from source never checks unless it is told where.
+
+The ping is the one other thing that leaves the PC, and only while an item of an overlay shows it: one small ICMP echo a second, to the host you pick in its More options, or to `1.1.1.1` by default, from your own processes, never the SYSTEM service (`docs/adr/0020-ping.md`).
 
 ## Install from source
 

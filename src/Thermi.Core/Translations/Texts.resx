@@ -201,6 +201,21 @@
   <data name="CatalogText.RowFramesNeedInstallForEveryone" xml:space="preserve">
     <value>Install for everyone to read FPS</value>
   </data>
+  <data name="CatalogText.RowPingOff" xml:space="preserve">
+    <value>Pings only while an overlay shows it</value>
+  </data>
+  <data name="CatalogText.RowPingTimedOut" xml:space="preserve">
+    <value>No reply within a second</value>
+  </data>
+  <data name="CatalogText.RowPingUnreachable" xml:space="preserve">
+    <value>Its host can't be reached</value>
+  </data>
+  <data name="CatalogText.RowPingUnknownHost" xml:space="preserve">
+    <value>Its host's name isn't found</value>
+  </data>
+  <data name="CatalogText.RowPingNoNetwork" xml:space="preserve">
+    <value>No network</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Shown: {0}</value>
   </data>
@@ -996,6 +1011,9 @@
   <data name="ChangedField.Changes" xml:space="preserve">
     <value>Changes</value>
   </data>
+  <data name="ChangedField.PingHost" xml:space="preserve">
+    <value>Ping host</value>
+  </data>
   <data name="ChartText.OutOfRange" xml:space="preserve">
     <value>Between {0} and {1}</value>
   </data>
@@ -1452,6 +1470,21 @@
   <data name="NoValue.FramesNeedInstallForEveryone" xml:space="preserve">
     <value>reads frames only once thermi is installed for everyone, with administrator rights</value>
   </data>
+  <data name="NoValue.PingOff" xml:space="preserve">
+    <value>pings only while an item of an overlay shows it</value>
+  </data>
+  <data name="NoValue.PingTimedOut" xml:space="preserve">
+    <value>got no reply within a second</value>
+  </data>
+  <data name="NoValue.PingUnreachable" xml:space="preserve">
+    <value>can't reach its host</value>
+  </data>
+  <data name="NoValue.PingUnknownHost" xml:space="preserve">
+    <value>can't find its host's name</value>
+  </data>
+  <data name="NoValue.PingNoNetwork" xml:space="preserve">
+    <value>finds no network</value>
+  </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
   </data>
@@ -1484,6 +1517,9 @@
   </data>
   <data name="OverlayText.ReadsNothing" xml:space="preserve">
     <value>{0} reads nothing. Double-click to change its sensor.</value>
+  </data>
+  <data name="OverlayText.ReadsWhy" xml:space="preserve">
+    <value>{0} {1}.</value>
   </data>
   <data name="OverlayText.SetUp" xml:space="preserve">
     <value>Double-click to set up · drag to move</value>
@@ -2142,6 +2178,9 @@
   <data name="MetricLabel.Fps" xml:space="preserve">
     <value>FPS</value>
   </data>
+  <data name="MetricLabel.Ping" xml:space="preserve">
+    <value>PING</value>
+  </data>
   <data name="DeviceKind.System" xml:space="preserve">
     <value>PC</value>
   </data>
@@ -2162,6 +2201,9 @@
   </data>
   <data name="MetricName.FrameTime" xml:space="preserve">
     <value>Frame time</value>
+  </data>
+  <data name="MetricName.Ping" xml:space="preserve">
+    <value>Ping</value>
   </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Time</value>
@@ -2190,8 +2232,14 @@
   <data name="SensorKind.Voltage" xml:space="preserve">
     <value>Voltage</value>
   </data>
+  <data name="SensorKind.Latency" xml:space="preserve">
+    <value>Latency</value>
+  </data>
   <data name="Synonyms.Voltage" xml:space="preserve">
     <value>volts volt voltage rail</value>
+  </data>
+  <data name="Synonyms.Latency" xml:space="preserve">
+    <value>ping latency lag rtt delay ms</value>
   </data>
   <data name="Synonyms.FrameTime" xml:space="preserve">
     <value>frame time frametime ms stutter</value>
@@ -2273,6 +2321,12 @@
   </data>
   <data name="UiText.BitsHint" xml:space="preserve">
     <value>As 99.2 Mbps; its lines stay in bytes</value>
+  </data>
+  <data name="UiText.PingHost" xml:space="preserve">
+    <value>Host to ping</value>
+  </data>
+  <data name="UiText.PingHostHint" xml:space="preserve">
+    <value>A name or an IP address, for every ping item; empty pings 1.1.1.1</value>
   </data>
   <data name="AgentText.ServiceMissingCause" xml:space="preserve">
     <value>thermi's sensor service is not installed on this PC, so nothing reads the sensors.</value>
@@ -2444,5 +2498,8 @@
   </data>
   <data name="Refusal.AgentsOnlyByPerson" xml:space="preserve">
     <value>Only a person lets agents change settings, in thermi&apos;s Settings, under AI agents.</value>
+  </data>
+  <data name="Refusal.PingHost" xml:space="preserve">
+    <value>A ping's host is a name like example.com or an IP address, of up to 253 characters.</value>
   </data>
 </root>

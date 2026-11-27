@@ -26,6 +26,11 @@ const reasons: Record<NoValue, TextKey> = {
   'no-frames': 'CatalogText.RowNoFrames',
   'frames-unread': 'CatalogText.RowFramesUnread',
   'frames-need-install-for-everyone': 'CatalogText.RowFramesNeedInstallForEveryone',
+  'ping-off': 'CatalogText.RowPingOff',
+  'ping-timed-out': 'CatalogText.RowPingTimedOut',
+  'ping-unreachable': 'CatalogText.RowPingUnreachable',
+  'ping-unknown-host': 'CatalogText.RowPingUnknownHost',
+  'ping-no-network': 'CatalogText.RowPingNoNetwork',
 };
 
 // A drive, an adapter or a battery is named under its group, as "Network · Intel I226-V".

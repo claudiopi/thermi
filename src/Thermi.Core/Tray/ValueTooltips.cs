@@ -1,5 +1,6 @@
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -30,7 +31,7 @@ public static class ValueTooltips
         var name = NameOf(config, item, input.Snapshot, texts);
         if (tooltip.Hint is ValueHint.NeedsDriver or ValueHint.ReadsNothing)
         {
-            return texts.Format(input.Numbers, tooltip.Hint == ValueHint.NeedsDriver ? OverlayText.NeedsDriver : OverlayText.ReadsNothing, name);
+            return Unread(item, tooltip.Hint, input, name);
         }
 
         var snapshot = ThermiMark.Live(input);
@@ -139,6 +140,13 @@ public static class ValueTooltips
 
         return why;
     }
+
+    // A ping says why it has no round trip, as a timeout or a host not found, which no other sensor can.
+    private static string Unread(ItemConfig item, ValueHint hint, TrayInput input, string name) =>
+        PingSensors.Reads(item) && input.Snapshot is { } snapshot && SensorMap.Find(snapshot, PingSensors.Id) is { } sensor
+        && SensorMap.ReadingOf(sensor)?.Usable is null
+            ? input.Texts.Format(input.Numbers, OverlayText.ReadsWhy, name, input.Texts.Of(PingSensors.WhyOf(sensor)))
+            : input.Texts.Format(input.Numbers, hint == ValueHint.NeedsDriver ? OverlayText.NeedsDriver : OverlayText.ReadsNothing, name);
 
     // A metric's item under its default name is named in the language shown; any other by its own name, or as the window
     // names it when it has none.

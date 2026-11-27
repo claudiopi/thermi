@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import type { Edit, Item, Value } from '../bridge/bridge.g';
 import type { WindowData } from '../bridge/useWindow';
 import { Expander } from '../app/Expander';
 import { SwitchLine } from '../app/SwitchLine';
-import { CardRow, Dropdown, NumberField } from '../kit';
+import { CardRow, Dropdown, NumberField, TextField } from '../kit';
 import { useText } from '../texts/Texts';
 import { offsetRange, warnByChoices, type Placed } from './itemModel';
 import { CombineButton, ValueColor } from './ValueTools';
@@ -35,6 +36,38 @@ function DecimalsRow({ item, set }: { item: Item; set: SetField }) {
   );
 }
 
+/** The host every ping item pings, which the settings hold once for all of them; the C# side says what is no host. */
+function PingHostRow({ host, edit }: { host: string | undefined; edit: MoreOptionsProps['edit'] }) {
+  const t = useText();
+  const [typed, setTyped] = useState<string | null>(null);
+  const [refused, setRefused] = useState<string | null>(null);
+  const commit = async (value: string): Promise<void> => {
+    const next = value.trim();
+    const refusal = next === (host ?? '') ? null : await edit({ kind: 'thermi', field: 'pingHost', value: next === '' ? null : next });
+    setRefused(refusal);
+    if (refusal === null) {
+      setTyped(null);
+    }
+  };
+  return (
+    <CardRow label={t('UiText.PingHost')} description={t('UiText.PingHostHint')}>
+      <TextField
+        className="t-ping-box"
+        label={t('UiText.PingHost')}
+        labelShown={false}
+        value={typed ?? host ?? ''}
+        onChange={setTyped}
+        onCommit={(value) => void commit(value)}
+        onCancel={() => {
+          setTyped(null);
+          setRefused(null);
+        }}
+        {...(refused === null ? {} : { error: refused })}
+      />
+    </CardRow>
+  );
+}
+
 function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen'>) {
   const t = useText();
   const { item } = placed;
@@ -61,6 +94,7 @@ function Options({ data, placed, edit }: Omit<MoreOptionsProps, 'open' | 'onOpen
           onChange={(on) => void set('bits', on ? true : null)}
         />
       )}
+      {type === 'Latency' && <PingHostRow host={data.settings.pingHost} edit={edit} />}
       {warnBy.row && (
         <CardRow label={t('UiText.WarnByField')}>
           <Dropdown className="t-warn-box" label={t('UiText.WarnByField')} choices={warnBy.choices} value={warnBy.value} onChange={warnByChosen} />

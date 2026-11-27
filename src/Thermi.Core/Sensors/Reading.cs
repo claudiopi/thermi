@@ -50,6 +50,9 @@ public enum SensorKind
 
     /// <summary>Volts, as a CPU's core or a board's +12 V.</summary>
     Voltage,
+
+    /// <summary>Milliseconds a reply took to come back, as a ping's round trip.</summary>
+    Latency,
 }
 
 /// <summary>Which way a network speed goes, drawn as an arrow before its value in every language.</summary>

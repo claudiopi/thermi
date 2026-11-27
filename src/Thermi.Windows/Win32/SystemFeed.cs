@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using Thermi.App.Ping;
 using Thermi.Core.Frames;
 using Thermi.Core.Pipe;
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
 
@@ -10,12 +12,12 @@ namespace Thermi.Windows.Win32;
 
 /// <summary>
 /// The sensor feed with what Windows itself says added to each snapshot: how long it has run, the local address of the
-/// adapter its default route takes, and the time, as Core's <see cref="SystemSensors"/>, and the frames of the app in
-/// front, as <see cref="GameSensors"/>. The address is found again only when the network changes, which it listens to
-/// while it runs, so an agent's call, which runs one of its own, lets go of them as it ends; the rest is read at most
-/// once a second.
+/// adapter its default route takes, and the time, as Core's <see cref="SystemSensors"/>, the frames of the app in front,
+/// as <see cref="GameSensors"/>, and the ping, as <see cref="PingSensors"/>, which its reader sends while it runs. The
+/// address is found again only when the network changes, which it listens to while it runs, so an agent's call, which runs
+/// one of its own, lets go of them as it ends; the rest is read at most once a second.
 /// </summary>
-internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISensorFeed
+internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time, PingReader? ping = null) : ISensorFeed
 {
     // Any address beyond the local network: connecting a datagram socket only picks the route, and sends nothing.
     private static readonly IPEndPoint Beyond = new(IPAddress.Parse("192.0.2.1"), 9);
@@ -52,6 +54,8 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
     public async Task RunAsync(CancellationToken stop)
     {
         NetworkChange.NetworkAddressChanged += AddressChanged;
+        using var pinging = CancellationTokenSource.CreateLinkedTokenSource(stop);
+        var echoes = ping?.RunAsync(pinging.Token) ?? Task.CompletedTask;
         try
         {
             await _sensors.RunAsync(stop);
@@ -59,6 +63,8 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
         finally
         {
             NetworkChange.NetworkAddressChanged -= AddressChanged;
+            await pinging.CancelAsync();
+            await echoes;
         }
     }
 
@@ -74,9 +80,10 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
             }
 
             var (front, fills) = _front.Front();
-            var with = GameSensors.With(
+            var game = GameSensors.With(
                 SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now)),
                 _game.Next(FrameSlots.Read(read), front, fills, _front.Windows));
+            var with = ping is null ? game : PingSensors.With(game, ping.Latest);
             _last = (read, second, with);
             return with;
         }

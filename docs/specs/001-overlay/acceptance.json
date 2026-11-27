@@ -118,6 +118,24 @@
       "description": "Given an overlay of several pills, when it is pressed on one and dragged past the drag distance and let go, then it follows the cursor whole, stays where it was let go, and the settings file holds that spot.",
       "check": "ADragMovesTheOverlayAndWritesWhereItWasDropped",
       "passes": true
+    },
+    {
+      "id": "A23",
+      "covers": [
+        "R10"
+      ],
+      "description": "Given an echo that replies in 23 ms, gets no reply, finds its host unreachable or its name unknown, or finds no network, and no item that reads the ping, when the overlay, the catalog and an agent read it, then the item shows 23 ms or missing, never 0, and each says why it has no value.",
+      "check": "APingShowsItsRoundTripOrWhyItHasNone",
+      "passes": true
+    },
+    {
+      "id": "A24",
+      "covers": [
+        "R11"
+      ],
+      "description": "Given settings with no ping item, then one, then one with a host of its own, when seconds pass, then no echo goes out, then one a second to 1.1.1.1 and then to that host, each waited for a second at most, and none once the process stops following the settings.",
+      "check": "EchoesGoOutOnlyWhileAnItemReadsThePing",
+      "passes": true
     }
   ]
 }

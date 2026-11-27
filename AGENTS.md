@@ -9,7 +9,7 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | Path | What lives there |
 | --- | --- |
 | `src/Thermi.Core` | Everything that does not need Windows: readings, sensor mapping, config and layout. No dependencies. |
-| `src/Thermi.App` | What the overlay and the window share across OSes beyond Core, needing a package or the file system: the settings file and the settings a host holds, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, and the logs. `net10.0`. |
+| `src/Thermi.App` | What the overlay and the window share across OSes beyond Core, needing a package or the file system: the settings file and the settings a host holds, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, the ping, and the logs. `net10.0`. |
 | `src/Thermi.Cli` | `thermi-cli`'s commands and its MCP server, the same commands over stdio, for any OS: what an OS answers comes in through `IAgentEnvironment`. `net10.0`. |
 | `src/Thermi.Windows` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
@@ -97,6 +97,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | No secret anywhere in the history: a finding is revoked, then removed, and only a proven false positive is allowed, in `.gitleaks.toml`, with its reason. | gitleaks in `.github/workflows/security.yml` |
 | Recordings and snapshots name no PC, person or network: no machine or user names, user folders, addresses, serial numbers or Wi-Fi names, and a network adapter's id is a made-up GUID. | `RepoRulesTests` |
 | `thermi-cli` never elevates, starts a service or installs anything. | `RepoRulesTests` |
+| Only the files listed open a connection or look a name up, each with why: the update check, the downloads of the driver and the machine MSI, the ping an item asks for. A new one is said in the README's Privacy. | `RepoRulesTests` |
 | Every answer of the agents' contract validates against its schema, and a schema only grows. | `ContractTests` |
 | `THIRD-PARTY-NOTICES.md` lists every package that ships, NuGet and npm, with its license, and each license's text with every copyright line. | `scripts/notices.ps1 -Check` in `scripts/check.ps1` |
 | thermi's version lives only in `Directory.Build.props`, and About shows it. | `BridgeContractTests` |

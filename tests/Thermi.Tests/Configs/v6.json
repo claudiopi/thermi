@@ -13,6 +13,7 @@
   "sensorNames": {
     "/lpc/it8689e/0/temperature/1": "Chipset"
   },
+  "pingHost": "eu.game-server.example",
   "overlays": [
     {
       "size": 1.25,

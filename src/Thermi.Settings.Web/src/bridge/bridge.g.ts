@@ -248,7 +248,7 @@ export interface Monitor {
 
 export type NameFrom = 'library' | 'likely' | 'own';
 
-export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread' | 'frames-need-install-for-everyone';
+export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread' | 'frames-need-install-for-everyone' | 'ping-off' | 'ping-timed-out' | 'ping-unreachable' | 'ping-unknown-host' | 'ping-no-network';
 
 export interface Opacity {
   background?: number;
@@ -316,7 +316,7 @@ export interface Sensor {
   value: number | null;
 }
 
-export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address' | 'frame-rate' | 'frame-time' | 'voltage';
+export type SensorKind = 'temperature' | 'load' | 'clock' | 'power' | 'fan' | 'control' | 'data' | 'throughput' | 'duration' | 'time' | 'address' | 'frame-rate' | 'frame-time' | 'voltage' | 'latency';
 
 export interface SensorOffer {
   first: string[];
@@ -339,6 +339,7 @@ export interface Settings {
   windowTheme?: WindowTheme;
   agents?: AgentAccess;
   sensorNames?: Record<string, string>;
+  pingHost?: string;
   overlays: Overlay[];
 }
 

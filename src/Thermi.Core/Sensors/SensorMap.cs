@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Frames;
+using Thermi.Core.Ping;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Sensors;
@@ -80,6 +81,7 @@ public static class SensorMap
         [Metrics.Clock.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Time), [SystemSensors.Clock], OnlyPreferred: true),
         [Metrics.Fps.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.Fps], OnlyPreferred: true),
         [Metrics.FrameTime.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameTime), [GameSensors.FrameTime], OnlyPreferred: true),
+        [Metrics.Ping.Id] = new([PingSensors.HardwareType], nameof(SensorKind.Latency), [PingSensors.Name], OnlyPreferred: true),
     };
 
     /// <summary>
@@ -145,7 +147,7 @@ public static class SensorMap
 
     /// <summary>
     /// What the sensor reads, with the zero rule applied, or null for a type thermi does not show. A network's speed knows
-    /// which way it goes, and a battery's rate is below zero while it discharges.
+    /// which way it goes, a battery's rate is below zero while it discharges, and a ping that failed reads nothing.
     /// </summary>
     public static Reading? ReadingOf(RawSensor sensor) =>
         KindOf(sensor) is { } kind ? new Reading(kind, ZeroIsMissing(sensor) ? null : Signed(sensor)) { Direction = DirectionOf(sensor) } : null;
@@ -168,10 +170,7 @@ public static class SensorMap
 
     public static bool IsGpu(RawSensor sensor) => Gpus.Contains(sensor.HardwareType, StringComparer.Ordinal);
 
-    /// <summary>
-    /// Whether <paramref name="gpu"/> comes after <paramref name="than"/> in the GPU metrics' order of preference, as a graphics
-    /// chip in a CPU after a card.
-    /// </summary>
+    /// <summary>Whether <paramref name="gpu"/> comes after <paramref name="than"/> in the GPU metrics' order, as a CPU's graphics after a card.</summary>
     public static bool GpuAfter(RawSensor gpu, RawSensor than) =>
         Array.IndexOf(Gpus, gpu.HardwareType) > Array.IndexOf(Gpus, than.HardwareType);
 
@@ -194,7 +193,7 @@ public static class SensorMap
         "Cpu" => DeviceKind.Cpu,
         "Memory" => DeviceKind.Ram,
         Storage => DeviceKind.Ssd,
-        Network => DeviceKind.Network,
+        Network or PingSensors.HardwareType => DeviceKind.Network,
         "Battery" => DeviceKind.Battery,
         SystemSensors.HardwareType => DeviceKind.System,
         GameSensors.HardwareType => DeviceKind.Game,
@@ -288,7 +287,7 @@ public static class SensorMap
 
     // The library names a battery's rate by which way the charge goes; thermi shows one rate, below zero while it discharges.
     private static double? Signed(RawSensor sensor) =>
-        sensor is { HardwareType: "Battery", Name: "Discharge Rate", Value: { } value } ? -Math.Abs(value) : sensor.Value;
+        sensor is { HardwareType: "Battery", Name: "Discharge Rate", Value: { } value } ? -Math.Abs(value) : PingSensors.Failed(sensor) ? null : sensor.Value;
 
     private static Dictionary<string, RawSensor?> Chosen(Snapshot snapshot, IReadOnlyDictionary<string, string> sources, string? drive)
     {

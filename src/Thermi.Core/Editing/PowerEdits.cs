@@ -26,8 +26,8 @@ public static class PowerEdits
         // A speed or a time remaining is counted, not measured, so there is no sensor's error to correct.
         SensorKind.Throughput or SensorKind.Duration => (0, 0),
 
-        // What Windows says is no measure at all, and frames are counted.
-        SensorKind.Time or SensorKind.Address or SensorKind.FrameRate or SensorKind.FrameTime => (0, 0),
+        // What Windows says is no measure at all, frames are counted, and a round trip is timed by Windows itself.
+        SensorKind.Time or SensorKind.Address or SensorKind.FrameRate or SensorKind.FrameTime or SensorKind.Latency => (0, 0),
 
         // A board's divider errs by a factor, not by a sum, so an offset corrects no voltage.
         SensorKind.Voltage => (0, 0),

@@ -1527,6 +1527,15 @@
       "description": "Given monitors whose EDIDs carry a serial's text, only a serial number, a blank one, none or zeros, and two with the same serial, when each is known, then it is known by its maker, model and serial, and without a serial by its connection, the two alike told apart by theirs.",
       "check": "AMonitorIsKnownByItsEdidAndWithoutASerialByItsConnection",
       "passes": true
+    },
+    {
+      "id": "A367",
+      "covers": [
+        "R207"
+      ],
+      "description": "Given a ping host typed as an IPv4 address, a name with spaces around it, an IPv6 address, empty, or text that is no host or is too long, when the window or an agent sets it, then a host is kept trimmed and empty pings 1.1.1.1, the rest is refused and changes nothing, and undo puts the host back.",
+      "check": "ThePingsHostIsANameOrAnAddress",
+      "passes": true
     }
   ]
 }

@@ -205,6 +205,21 @@
   <data name="CatalogText.RowFramesNeedInstallForEveryone" xml:space="preserve">
     <value>Instalá para todos para leer los FPS</value>
   </data>
+  <data name="CatalogText.RowPingOff" xml:space="preserve">
+    <value>Hace ping solo mientras una superposición lo muestra</value>
+  </data>
+  <data name="CatalogText.RowPingTimedOut" xml:space="preserve">
+    <value>Sin respuesta en un segundo</value>
+  </data>
+  <data name="CatalogText.RowPingUnreachable" xml:space="preserve">
+    <value>No se llega a su host</value>
+  </data>
+  <data name="CatalogText.RowPingUnknownHost" xml:space="preserve">
+    <value>No se encuentra el nombre de su host</value>
+  </data>
+  <data name="CatalogText.RowPingNoNetwork" xml:space="preserve">
+    <value>Sin red</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Se muestra: {0}</value>
   </data>
@@ -1007,6 +1022,9 @@
   <data name="ChangedField.Changes" xml:space="preserve">
     <value>Cambios</value>
   </data>
+  <data name="ChangedField.PingHost" xml:space="preserve">
+    <value>Host del ping</value>
+  </data>
   <data name="ChartText.OutOfRange" xml:space="preserve">
     <value>Entre {0} y {1}</value>
   </data>
@@ -1476,6 +1494,21 @@
   <data name="NoValue.FramesNeedInstallForEveryone" xml:space="preserve">
     <value>lee cuadros solo con thermi instalado para todos, con permisos de administrador</value>
   </data>
+  <data name="NoValue.PingOff" xml:space="preserve">
+    <value>hace ping solo mientras un elemento de una superposición lo muestra</value>
+  </data>
+  <data name="NoValue.PingTimedOut" xml:space="preserve">
+    <value>no tuvo respuesta en un segundo</value>
+  </data>
+  <data name="NoValue.PingUnreachable" xml:space="preserve">
+    <value>no llega a su host</value>
+  </data>
+  <data name="NoValue.PingUnknownHost" xml:space="preserve">
+    <value>no encuentra el nombre de su host</value>
+  </data>
+  <data name="NoValue.PingNoNetwork" xml:space="preserve">
+    <value>no encuentra ninguna red</value>
+  </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
     <comment>The same word in Spanish.</comment>
@@ -1510,6 +1543,10 @@
   </data>
   <data name="OverlayText.ReadsNothing" xml:space="preserve">
     <value>{0} no lee nada. Doble clic para cambiar su sensor.</value>
+  </data>
+  <data name="OverlayText.ReadsWhy" xml:space="preserve">
+    <value>{0} {1}.</value>
+    <comment>A name and its reason, in the order Spanish shares.</comment>
   </data>
   <data name="OverlayText.SetUp" xml:space="preserve">
     <value>Doble clic para configurar · arrastra para mover</value>
@@ -2181,6 +2218,10 @@
     <value>FPS</value>
     <comment>An abbreviation Spanish uses as is.</comment>
   </data>
+  <data name="MetricLabel.Ping" xml:space="preserve">
+    <value>PING</value>
+    <comment>What Spanish-speaking players call it too.</comment>
+  </data>
   <data name="DeviceKind.System" xml:space="preserve">
     <value>PC</value>
     <comment>An abbreviation Spanish uses as is.</comment>
@@ -2203,6 +2244,10 @@
   </data>
   <data name="MetricName.FrameTime" xml:space="preserve">
     <value>Tiempo por cuadro</value>
+  </data>
+  <data name="MetricName.Ping" xml:space="preserve">
+    <value>Ping</value>
+    <comment>What Spanish-speaking players call it too.</comment>
   </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Hora</value>
@@ -2231,8 +2276,14 @@
   <data name="SensorKind.Voltage" xml:space="preserve">
     <value>Voltaje</value>
   </data>
+  <data name="SensorKind.Latency" xml:space="preserve">
+    <value>Latencia</value>
+  </data>
   <data name="Synonyms.Voltage" xml:space="preserve">
     <value>voltios volts voltaje tensión</value>
+  </data>
+  <data name="Synonyms.Latency" xml:space="preserve">
+    <value>ping latencia lag retardo demora ms</value>
   </data>
   <data name="Synonyms.FrameTime" xml:space="preserve">
     <value>tiempo cuadro frametime ms tirones</value>
@@ -2319,6 +2370,12 @@
   </data>
   <data name="UiText.BitsHint" xml:space="preserve">
     <value>Como 99,2 Mbps; sus líneas siguen en bytes</value>
+  </data>
+  <data name="UiText.PingHost" xml:space="preserve">
+    <value>Host al que hacer ping</value>
+  </data>
+  <data name="UiText.PingHostHint" xml:space="preserve">
+    <value>Un nombre o una dirección IP, para todos los elementos de ping; vacío hace ping a 1.1.1.1</value>
   </data>
   <data name="AgentText.ServiceMissingCause" xml:space="preserve">
     <value>El servicio de sensores de thermi no está instalado en esta PC, así que nada lee los sensores.</value>
@@ -2491,5 +2548,8 @@
   </data>
   <data name="Refusal.AgentsOnlyByPerson" xml:space="preserve">
     <value>Solo una persona permite que los agentes cambien la configuración, en Configuración de thermi, en Agentes de IA.</value>
+  </data>
+  <data name="Refusal.PingHost" xml:space="preserve">
+    <value>El host de un ping es un nombre como example.com o una dirección IP, de hasta 253 caracteres.</value>
   </data>
 </root>

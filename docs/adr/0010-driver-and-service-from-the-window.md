@@ -1,6 +1,6 @@
 # 0010. The window installs the driver and starts the sensor service
 
-**Status**: Accepted, amended by `docs/adr/0016-admin-on-demand.md`
+**Status**: Accepted, amended by `docs/adr/0016-admin-on-demand.md` and `docs/adr/0020-ping.md`
 
 ## Context
 

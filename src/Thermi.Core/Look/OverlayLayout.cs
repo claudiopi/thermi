@@ -203,14 +203,14 @@ public static class OverlayLayout
             : Level.Normal;
 
     /// <summary>
-    /// What an item draws beside its value: its own choice, else its overlay's, whose Auto draws a line for a load or a
-    /// game's frames judged by its own reading, whose last minute says more than the value alone, as a stutter's spike,
-    /// and bars for the rest; nothing for an item lines cannot judge, which has no level or scale to draw.
+    /// What an item draws beside its value: its own choice, else its overlay's, whose Auto draws a line for a load, a
+    /// game's frames or a ping judged by its own reading, whose last minute says more than the value alone, as a stutter's
+    /// or a lag's spike, and bars for the rest; nothing for an item lines cannot judge, which has no level or scale to draw.
     /// </summary>
     public static GraphStyle DrawnOf(OverlayConfig overlay, ItemConfig item) =>
         Threshold.JudgedKind(item) is not { } kind ? GraphStyle.None
         : (item.Graph ?? overlay.Graph) is var chosen and not GraphStyle.Auto ? chosen
-        : kind is SensorKind.Load or SensorKind.FrameRate or SensorKind.FrameTime && item.WarnBy is null ? GraphStyle.Line
+        : kind is SensorKind.Load or SensorKind.FrameRate or SensorKind.FrameTime or SensorKind.Latency && item.WarnBy is null ? GraphStyle.Line
         : GraphStyle.Bars;
 
     /// <summary>The pills a single bar holds, each as its item count, one per run; null in the other layouts.</summary>
@@ -240,10 +240,13 @@ public static class OverlayLayout
 
     /// <summary>
     /// Loads, duties and temperatures all read on a 0 to 100 scale, a fan's speed on the range of its lines; a frame rate
-    /// on 0 to 240, the fastest common screen, and a frame time on 0 to 100 ms, where it turns critical by default.
+    /// on 0 to 240, the fastest common screen, a frame time on 0 to 100 ms and a ping on 0 to 150 ms, where a line added
+    /// turns critical.
     /// </summary>
-    internal static double FillOf(double value, SensorKind kind = SensorKind.Load) =>
-        Math.Clamp(value / (kind == SensorKind.FrameRate ? 240 : kind == SensorKind.FrameTime ? 100 : Threshold.MaxOf(kind)), 0, 1);
+    internal static double FillOf(double value, SensorKind kind = SensorKind.Load) => Math.Clamp(
+        value / (kind == SensorKind.FrameRate ? 240 : kind == SensorKind.FrameTime ? 100 : kind == SensorKind.Latency ? 150 : Threshold.MaxOf(kind)),
+        0,
+        1);
 
     // A sensor or combined item is read from its sensors even when it keeps a metric as auto: two items that keep the
     // same one show their own.

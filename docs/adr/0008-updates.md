@@ -1,6 +1,6 @@
 # 0008. Updates install beside the running version, from a signed manifest
 
-**Status**: Accepted, amended by `docs/adr/0016-admin-on-demand.md`
+**Status**: Accepted, amended by `docs/adr/0016-admin-on-demand.md` and `docs/adr/0020-ping.md`
 
 ## Context
 
@@ -50,7 +50,7 @@ Mi Basket's live update showed what an owner needs on top of a safe download: ch
 | Theft through the release pipeline | Every publish waits for the owner's approval; Authenticode keys never leave SignPath's HSM. A build missing a public value fails rather than ship one that never updates or takes any catalog. The levers open each channel's history only when one of thermi's keys signed it, so whoever can write the bucket cannot have a lever sign what they planted, and a run that would sign over another's upload is refused. |
 | Code or UI from the network at run time | None: the update is the only download beside the driver's pinned installer, and the window shows no text from the manifest. |
 
-**Privacy.** A check is one anonymous HTTPS GET of the channel's manifest, no query, no cookie, no identifier, `thermi` as the whole User-Agent. Cloudflare sees the PC's IP address, as any download does. Nothing else ever leaves the PC: thermi learns nothing about who updated, and a failure stays in the PC's event log.
+**Privacy.** A check is one anonymous HTTPS GET of the channel's manifest, no query, no cookie, no identifier, `thermi` as the whole User-Agent. Cloudflare sees the PC's IP address, as any download does. Nothing else ever leaves the PC but the ping an item asks for (`docs/adr/0020-ping.md`): thermi learns nothing about who updated, and a failure stays in the PC's event log.
 
 **The installer** is a WiX MSI per processor, per machine: the Windows Installer service runs it as SYSTEM, so no .NET of thermi's runs elevated from a user's environment (`docs/adr/0010-driver-and-service-from-the-window.md`), and it is the format winget, Intune and administrators expect. It owns only a bootstrap, the version it ships, and has that version's own `thermi-sensors.exe` adopt it into the layout an update keeps, so a repair never fights the updater; the updater keeps the version Installed apps shows. Starting at sign-in is per person: Active Setup turns it on once in each profile, as the overlay's first start used to, so a machine-wide install through Intune or winget reaches every user. Uninstalling removes the whole of `C:\Program Files\thermi`. `scripts/install.ps1` builds the same layout unsigned, with updates compiled off, or on for a test against a manifest address and key it is given.
 
