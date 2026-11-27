@@ -11,7 +11,8 @@ and 3 % of one core (docs/adr/0011-sensor-service-memory-budget.md). It measures
 opens the window of -Exe first, waits for it to settle and closes it after, if it opened it. Nothing is edited, and the
 window reads the real settings as smoke-window.ps1's does. The service runs as LocalSystem, so its CPU is read from the
 performance counters, which need no administrator; the others from their processes. Exits 1 when a budget is broken,
-or when nobody could see the overlay as the run started or ended.
+or when the session was locked, behind its screen saver or switched away as the run started or ended, since the overlay
+then draws nothing. Start it in front of a display that is on: one already off is not caught.
 #>
 param(
     # The thermi.exe whose overlay and window are measured; by default the one installed.
@@ -31,7 +32,8 @@ $serviceMegabytes = 80
 $serviceCpu = 3.0
 
 # The overlay draws nothing while nobody sees it, so a run behind a lock or a screen saver, or with the display off,
-# would measure less than it costs: the display is kept on while it runs, and a session away at either end fails it.
+# would measure less than it costs: the display is kept from going off while it runs, and a session away as it starts
+# or ends fails it. A display already off as it starts, or a lock that comes and goes within the run, is not caught.
 Add-Type -Namespace ThermiMeasure -Name Session -MemberDefinition (
     '[DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int state);' +
     '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint flags);')
