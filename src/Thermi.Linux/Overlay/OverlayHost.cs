@@ -33,7 +33,7 @@ internal sealed class OverlayHost : IDisposable
     private readonly OverlayParts _parts;
     private readonly DesktopNotices _notices;
     private readonly ExtensionArrival _arrival;
-    private readonly OverlayNotices _told;
+    private readonly GnomeDesk _desk;
     private readonly OverlayMenu _menu;
     private readonly List<ShellOverlay> _overlays = [];
     private readonly HighContrastColors? _highContrast = DesktopLooks.HighContrast();
@@ -51,7 +51,7 @@ internal sealed class OverlayHost : IDisposable
     private bool _droppedOwed;
     private bool _droppedOnSave;
 
-    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TraceEvents trace, ILogger log)
+    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TraceEvents trace, ILogger log, bool firstStart)
     {
         _bus = bus;
         _feed = feed;
@@ -66,11 +66,12 @@ internal sealed class OverlayHost : IDisposable
             Settle = Settle,
             Dropped = Dropped,
             Traced = trace.On,
+            WindowOpening = () => _desk!.Notices.WindowOpened(),
         };
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
         _notices = new DesktopNotices(bus);
         _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
-        _told = new OverlayNotices(_parts, _notices, () => TextsOf(settings.Config));
+        _desk = new GnomeDesk(bus, _parts, _menu, _notices, trace, feed, firstStart);
     }
 
     private Settings Settings => _parts.Settings;
@@ -120,6 +121,7 @@ internal sealed class OverlayHost : IDisposable
     public void Dispose()
     {
         _overlays.ForEach(overlay => overlay.Dispose());
+        _desk.Dispose();
         _link.Dispose();
         _notices.Dispose();
         _loop.Dispose();
@@ -155,6 +157,7 @@ internal sealed class OverlayHost : IDisposable
         }
 
         _overlays.ForEach(overlay => overlay.Forget());
+        _desk.Arrived();
 
         _ = Task.Run(async () =>
         {
@@ -192,7 +195,9 @@ internal sealed class OverlayHost : IDisposable
             return;
         }
 
-        _parts.History.Add([.. Settings.Config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
+        var config = Settings.Config;
+        _parts.History.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
+        _desk.Notices.Readings(config, snapshot, _screens.Monitors.Any(monitor => monitor.FullScreen));
         _readAt = _parts.Time.GetTimestamp();
         Repaint(second: true);
     }
@@ -224,12 +229,24 @@ internal sealed class OverlayHost : IDisposable
     // A second is one of the service's taken, or one late without any, which --trace counts.
     private void Repaint(bool second)
     {
-        if (!Settings.Loaded || !_arrival.Ready || _screens.Monitors.Count == 0)
+        if (!Settings.Loaded)
         {
             return;
         }
 
         var config = Settings.Config;
+        _desk.Notices.Update(config);
+        if (!_arrival.Ready || _screens.Monitors.Count == 0)
+        {
+            // Nothing shows, but the second is thermi's all the same.
+            if (second)
+            {
+                _trace.Write(TraceEvents.Paint);
+            }
+
+            return;
+        }
+
         while (_overlays.Count < config.Overlays.Count)
         {
             _overlays.Add(new ShellOverlay(_overlays.Count, _parts));
@@ -246,8 +263,10 @@ internal sealed class OverlayHost : IDisposable
         var fullScreen = config.Overlays.Select(overlay => _screens.FullScreen(Snaps.ScreenOf(overlay, scene.Screens.Screens))).ToList();
         var shown = _parts.Visibility.Decide(config, fullScreen);
         var sent = _overlays.Select((overlay, at) => shown[at] == OverlayShown.Shown ? overlay.Show(scene, Boxes()) : overlay.Hide()).ToList();
+        var primary = _screens.Monitors.FirstOrDefault(monitor => monitor.Primary) ?? _screens.Monitors[0];
+        sent.Add(_desk.Tray.Refresh(config, scene.Input, primary.Scale));
+        sent.Add(_desk.Hotkeys.Update(config));
         Announce(sent, second);
-        _told.Update(config);
     }
 
     // Each event --trace owes, once the Shell shows what the paint sent.

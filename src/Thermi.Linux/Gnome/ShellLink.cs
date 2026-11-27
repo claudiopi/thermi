@@ -62,7 +62,7 @@ internal sealed class ShellLink : IDisposable
     public const string Uuid = "thermi@claudiopi.github.io";
 
     /// <summary>The protocol's version, which the extension's metadata.json says as <c>thermi-protocol</c>.</summary>
-    public const uint Protocol = 1;
+    public const uint Protocol = 2;
 
     private const string Shell = "org.gnome.Shell";
     private const string Interface = "io.github.claudiopi.thermi.Shell";
@@ -203,11 +203,11 @@ internal sealed class ShellLink : IDisposable
     public Task Hide(uint overlay) => Own("Hide", GLib.Variant.NewUint32(overlay));
 
     /// <summary>Shows a menu of <paramref name="rows"/> at a point of the stage, as the Shell's own popup menu.</summary>
-    public Task Menu(uint overlay, double x, double y, IReadOnlyList<ShellRow> rows) => Own(
-        "Menu",
-        GLib.Variant.NewUint32(overlay),
-        GLib.Variant.NewDouble(x),
-        GLib.Variant.NewDouble(y),
+    public Task Menu(uint overlay, double x, double y, IReadOnlyList<ShellRow> rows) =>
+        Own("Menu", GLib.Variant.NewUint32(overlay), GLib.Variant.NewDouble(x), GLib.Variant.NewDouble(y), RowsOf(rows));
+
+    /// <summary>A menu's rows as the protocol carries them.</summary>
+    public static GLib.Variant RowsOf(IReadOnlyList<ShellRow> rows) =>
         GLib.Variant.NewArray(GLib.VariantType.New("(issbbb)"), [.. rows.Select(row => GLib.Variant.NewTuple(
         [
             GLib.Variant.NewInt32(row.Parent),
@@ -216,7 +216,7 @@ internal sealed class ShellLink : IDisposable
             GLib.Variant.NewBoolean(row.Checked),
             GLib.Variant.NewBoolean(row.Grayed),
             GLib.Variant.NewBoolean(row.Starts),
-        ]))]));
+        ]))]);
 
     public async Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => MonitorsOf((await Own("Monitors")).GetChildValue(0));
 

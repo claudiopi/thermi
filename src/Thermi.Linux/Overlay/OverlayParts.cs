@@ -45,6 +45,9 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, TimeProvi
     /// <summary>A drag or a hold ended, true when it wrote the settings, whose save then says it is done.</summary>
     public Action<bool> Dropped { get; init; } = _ => { };
 
+    /// <summary>thermi is opening the settings window, which ends its first start.</summary>
+    public Action WindowOpening { get; init; } = () => { };
+
     /// <summary>
     /// A call to the Shell, done once the Shell answered; its failure is logged, never thrown, as the next paint sends
     /// everything again.

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Thermi.App.SettingsFile;
+using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
@@ -18,8 +20,9 @@ public sealed class DesktopTests
     private static readonly (int X, int Y, int Width, int Height) OnWindow = (Scene.OnWindow.X, Scene.OnWindow.Y, 200, 40);
 
     // A temperature past every line the recorded CPU reads, and one below it, so an edit changes the item's level.
-    private const string Calm = """{"kind":"threshold","item":"cpu.temperature","warning":110,"critical":120}""";
+    private const string Calm = """{"kind":"threshold","item":"cpu.temperature","warning":98,"critical":99}""";
     private const string Hot = """{"kind":"threshold","item":"cpu.temperature","warning":1,"critical":2}""";
+    private const string Notify = """{"kind":"item","item":"cpu.temperature","field":"notify","value":true}""";
 
     // Holds a combination as another program does, through the Shell's own grab, which its unsafe mode lets in, for as long
     // as it runs; it says so once the Shell took it.
@@ -96,7 +99,7 @@ public sealed class DesktopTests
     }
 
     [Theory]
-    [InlineData(Tray.Gnome, Skip = "Waiting for its code")]
+    [InlineData(Tray.Gnome)]
     [InlineData(Tray.StatusNotifier, Skip = "Waiting for its code")]
     public async Task TrayIconsShowOnEveryDesktop(Tray row)
     {
@@ -105,16 +108,17 @@ public sealed class DesktopTests
         var session = desktop.Session;
         var tray = row == Tray.StatusNotifier ? await TrayWatcher.ServeAsync(session, cancel) : null;
         var items = Scene.Overlay.Items.Select((item, index) => index < 2 ? item with { Tray = true } : item).ToList();
-        var config = ThermiConfig.New with { Overlays = [Scene.Overlay with { Items = items }] };
+        // The overlay on a window, so only the icons change the top bar.
+        var config = ThermiConfig.New with { Overlays = [Scene.Overlay with { Position = Scene.OnWindow, Items = items }] };
         await desktop.WriteSettingsAsync(config, cancel);
         var feed = await SensorFeed.ServeSteadyAsync(session, SensorFeed.Desktop, cancel);
-        Assert.Equal(0, (await session.RunAsync("thermi-cli", ["edit", Calm], cancel: cancel)).Exit);
+        await EditAsync(session, Calm, cancel);
         var before = await TopBarAsync(desktop, cancel);
         var thermi = await desktop.ShowThermiAsync([], cancel);
 
         var calm = await IconsAsync(desktop, thermi, tray, null, cancel);
         var hot = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
-        Assert.Equal(0, (await session.RunAsync("thermi-cli", ["edit", Hot], cancel: cancel)).Exit);
+        await EditAsync(session, Hot, cancel);
         await hot;
         var heated = await IconsAsync(desktop, thermi, tray, [.. calm.Icons.Select(icon => icon.At)], cancel);
         thermi.Kill();
@@ -140,8 +144,9 @@ public sealed class DesktopTests
             Assert.Equal(0, await PaintedAsync(desktop, feed.Snapshot, icon, cancel));
         }
 
-        // thermi's icon has thermi's menu, and each item's icon its overlay's, opened from the tray on that item.
-        var state = new MenuState(false, false, ServiceState.Running, null, [], false);
+        // thermi's icon has thermi's menu, and each item's icon its overlay's, opened from the tray on that item; no menu of
+        // Linux's offers a copy of the overlay, which reaches no clipboard.
+        var state = new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false };
         var settled = await Settings.ReadAsync(session, cancel);
         var ofItems = items.Where(item => item.Tray).Select(item => Menus.OfOverlay(settled, 0, state, item.Id, fromTray: true).Count);
         int[] expected = [Menus.Thermis(settled, state).Count, .. ofItems];
@@ -150,10 +155,10 @@ public sealed class DesktopTests
     }
 
     [Theory]
-    [InlineData(Hotkeys.Extension, Skip = "Waiting for its code")]
+    [InlineData(Hotkeys.Extension)]
     [InlineData(Hotkeys.Portal, Skip = "Waiting for its code")]
     [InlineData(Hotkeys.X11, Skip = "Waiting for its code")]
-    [InlineData(Hotkeys.Held, Skip = "Waiting for its code")]
+    [InlineData(Hotkeys.Held)]
     public async Task HotkeysWorkOnEveryDesktop(Hotkeys row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -165,17 +170,21 @@ public sealed class DesktopTests
             _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown case."),
         };
         await using var desktop = await TestDesktop.StartAsync(kind, [Monitor], cancel);
+        // Ctrl+Alt with an F key switches to another console, which every desktop holds for itself.
         var hotkeys = new HotkeysConfig
         {
-            Toggle = row == Hotkeys.Held ? "Ctrl+Alt+T" : "Ctrl+Alt+F9",
-            NextStyle = "Ctrl+Alt+F10",
-            ClickThrough = "Ctrl+Alt+F11",
-            ResetMinMax = "Ctrl+Alt+F12",
+            Toggle = row == Hotkeys.Held ? "Ctrl+Alt+T" : "Ctrl+Shift+F9",
+            NextStyle = "Ctrl+Shift+F10",
+            ClickThrough = "Ctrl+Shift+F11",
+            ResetMinMax = "Ctrl+Shift+F12",
         };
         // The CPU's temperature shows its highest, which only Reset min/max takes back to now.
         var items = Scene.Overlay.Items.Select(item => item.Metric == Metrics.CpuTemperature.Id ? item with { Stat = ItemStat.Max } : item).ToList();
         var overlay = Scene.Overlay with { Position = Scene.OnWindow, Items = items };
         await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [overlay], Hotkeys = hotkeys }, cancel);
+        // A look saved beside the settings, which Next look wears.
+        var looks = new SavedStyles(ConfigStore.StylesFolder(Settings.PathOf(desktop.Session)));
+        Assert.Null(looks.Save(overlay.Style with { Font = StyleFont.Consolas }, "Mono"));
         var feed = await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
         if (row == Hotkeys.Held)
         {
@@ -194,14 +203,14 @@ public sealed class DesktopTests
 
         var before = await Settings.ReadAsync(desktop.Session, cancel);
         var styled = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel, count: 2);
-        await desktop.Input.PressAsync("Control_L+Alt_L+F10", cancel);
-        await desktop.Input.PressAsync("Control_L+Alt_L+F11", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+F10", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+F11", cancel);
         await styled;
         var after = await Settings.ReadAsync(desktop.Session, cancel);
         var reset = await ResetsAsync(desktop, thermi, feed, cancel);
         var shown = await desktop.ScreenshotAsync(cancel);
         var hiding = Traced.NextAsync(thermi.Error, Traced.Hidden, cancel);
-        await desktop.Input.PressAsync("Control_L+Alt_L+F9", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+F9", cancel);
         await hiding;
         var hidden = await desktop.ScreenshotAsync(cancel);
 
@@ -211,25 +220,26 @@ public sealed class DesktopTests
         Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, shown, hidden, OnWindow, cancel));
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact(Skip = "Waiting for the settings window, which the first start's notice opens")]
     public async Task NoticesAreTheDesktopsNotifications()
     {
         var cancel = TestContext.Current.CancellationToken;
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], extension: null, cancel);
         var session = desktop.Session;
         var notices = await NoticeWatch.StartAsync(desktop, cancel);
-        var items = Scene.Overlay.Items.Select(item => item.Metric == Metrics.CpuTemperature.Id ? item with { Notify = true } : item).ToList();
-        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [Scene.Overlay with { Items = items }] }, cancel);
         await SensorFeed.ServeSteadyAsync(session, SensorFeed.Desktop, cancel);
-        Assert.Equal(0, (await session.RunAsync("thermi-cli", ["edit", Hot], cancel: cancel)).Exit);
         var firstRun = notices.NextAsync("first-run", cancel);
         var missing = notices.NextAsync("install-extension", cancel);
         var critical = notices.NextAsync("critical", cancel);
         await OffTheNetworkAsync(session, cancel);
+        // No settings yet: thermi's first start, which writes them.
         var thermi = await desktop.StartThermiAsync(["--trace"], cancel);
 
-        // The item is critical from thermi's first second on, and its notice comes once it stayed so for 10 s.
+        // The CPU's temperature is critical with Notify me from thermi's first second on, and its notice comes once it stayed
+        // so for 10 s.
         var first = await Traced.FirstAsync(thermi.Error, Traced.Paint, cancel);
+        await EditAsync(session, Notify, cancel);
+        await EditAsync(session, Hot, cancel);
         var hot = await critical;
         // The first start's notice opens the window, as its click does on Windows; the extension's asks the Shell again.
         var opened = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
@@ -245,6 +255,13 @@ public sealed class DesktopTests
         Assert.All(["first-run", "install-extension", "critical"], action => Assert.Equal(1, notices.Count(action)));
         Assert.Equal("thermi", hot.App);
         Assert.True(hot.At - first.At > NotifyMe.After.TotalSeconds - 1, $"The critical notice came {hot.At - first.At} s after the first second.");
+    }
+
+    // An edit as an agent makes it, which thermi-cli says it wrote.
+    private static async Task EditAsync(OwnSession session, string edit, CancellationToken cancel)
+    {
+        var edited = await session.RunAsync("thermi-cli", ["edit", edit], cancel: cancel);
+        Assert.True(edited.Exit == 0, $"thermi-cli edit {edit}: {edited.Out}{edited.Error}");
     }
 
     // The Shell asks extensions.gnome.org for the extension thermi asks it to install: the session's proxy, which every
@@ -282,7 +299,7 @@ public sealed class DesktopTests
         await cooled;
         var highest = await desktop.ScreenshotAsync(cancel);
         var reset = Traced.NextAsync(thermi.Error, Traced.Paint, cancel, count: 2);
-        await desktop.Input.PressAsync("Control_L+Alt_L+F12", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+F12", cancel);
         await reset;
         return await Pictures.ChangedAsync(desktop.Session, highest, await desktop.ScreenshotAsync(cancel), OnWindow, cancel);
     }
@@ -312,7 +329,7 @@ public sealed class DesktopTests
         var styled = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
         var hidden = thermi.Error.NextAsync(line => Traced.Of(line)?.Event == Traced.Hidden, cancel);
         await desktop.Input.PressAsync("Control_L+Alt_L+t", cancel);
-        await desktop.Input.PressAsync("Control_L+Alt_L+F10", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+F10", cancel);
         await styled;
 
         Assert.Equal("toggle", refused.About);

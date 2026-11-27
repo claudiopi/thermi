@@ -65,7 +65,7 @@ internal sealed class ExtensionArrival
     /// <summary>The extension stopped, as while the screen is locked: nothing shows, and no notice says so, until it is back.</summary>
     public void Left() => Ready = false;
 
-    private void Clicked(string action)
+    private void Clicked(uint notice, string action)
     {
         if (action == InstallAction)
         {

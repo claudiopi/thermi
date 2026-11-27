@@ -9,7 +9,6 @@ public sealed partial class RepoRulesTests
     private static readonly Dictionary<string, string> NeedNoWindowsApi = new(StringComparer.Ordinal)
     {
         ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's own command beside every OS's: the mode UAC raises, a Windows program",
-        ["Thermi.Windows/Gestures/HotkeyPresses.cs"] = "what thermi's hotkeys do, which Windows' RegisterHotKey delivers anywhere in Windows",
         ["Thermi.Windows/Logging/LogEvents.cs"] = "the events of the Windows code's classes, which log nothing else",
         ["Thermi.Windows/Tray/TrayChoices.cs"] = "what a row of the tray's and an overlay's Win32 menus does",
         ["Thermi.Windows/Ui/Views/OverlayPlaces.cs"] = "where each overlay's window sits, measured as its Windows painter keeps its room",
@@ -38,10 +37,14 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
         ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
+        ["Thermi.Linux/Gnome/ShellIcons.cs"] = "thermi's icons in GNOME's top bar, which only its Shell extension shows",
+        ["Thermi.Linux/Hotkeys/KeyNames.cs"] = "a hotkey by the names GTK, the GlobalShortcuts portal and X11's keysyms give its keys",
+        ["Thermi.Linux/Tray/DesktopTray.cs"] = "Core's tray icons on a Linux desktop, through the Shell's extension or StatusNotifierItem",
+        ["Thermi.Linux/Tray/ThermiNotices.cs"] = "Core's notices as the desktop's own notifications, by the action ids of their buttons",
+        ["Thermi.Linux/Tray/TrayIcons.cs"] = "what a Linux desktop's tray shows of thermi's icons, which each desktop serves its own way",
         ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
         ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
         ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
-        ["Thermi.Linux/Overlay/OverlayNotices.cs"] = "Core's notices of the overlays as the desktop's own, by the action ids of their buttons",
         ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on GNOME share on the host's GLib main loop, the Shell's link among it",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",

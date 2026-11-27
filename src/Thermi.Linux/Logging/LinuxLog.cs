@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Thermi.Core;
 using Thermi.Linux.Gnome;
 
 namespace Thermi.Linux.Logging;
@@ -38,4 +39,19 @@ internal static partial class LinuxLog
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The GNOME Shell extension's {Signal} could not be read")]
     public static partial void ShellSignalFailed(this ILogger logger, string signal, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The {Role} hotkey, {Combination}, is held by another program or the desktop: thermi could not take it")]
+    public static partial void HotkeyRefused(this ILogger logger, HotkeyRole role, string combination);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The desktop took none of the hotkeys")]
+    public static partial void HotkeysNotTaken(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "A call to thermi's tray icon {Path} could not be answered")]
+    public static partial void TrayCallFailed(this ILogger logger, string path, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No tray takes StatusNotifierItems in this session: thermi's icons show once one does")]
+    public static partial void NoTray(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The notice could not be shown or done")]
+    public static partial void NoticeFailed(this ILogger logger, Exception error);
 }

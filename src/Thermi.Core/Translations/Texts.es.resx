@@ -51,6 +51,12 @@
   <data name="HostText.NoticeGotIt" xml:space="preserve">
     <value>Entendido</value>
   </data>
+  <data name="HostText.NoticeOpenSettings" xml:space="preserve">
+    <value>Abrir la configuración</value>
+  </data>
+  <data name="HostText.NoOverlay" xml:space="preserve">
+    <value>Este escritorio no ofrece GNOME Shell ni superficies de capa, que las superposiciones de thermi necesitan. Sus iconos, atajos globales y agentes de IA siguen funcionando.</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Bloquear la posición</value>
   </data>

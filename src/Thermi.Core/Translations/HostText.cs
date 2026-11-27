@@ -104,4 +104,10 @@ public enum HostText
 
     /// <summary>The button that closes a notice and does nothing else.</summary>
     NoticeGotIt,
+
+    /// <summary>The first-run notice's button where a desktop's notices have buttons: it opens the window.</summary>
+    NoticeOpenSettings,
+
+    /// <summary>The notice of a desktop where no overlay can show, under <see cref="GnomeExtensionTitle"/>: what still works.</summary>
+    NoOverlay,
 }

@@ -116,7 +116,8 @@ internal sealed class TrayWatcher
         var layout = await _session.RunAsync(
             "gdbus", ["call", "--session", "--dest", item.Name, "--object-path", menu, "--method", "com.canonical.dbusmenu.GetLayout", "0", "1", "[]"],
             cancel: cancel).ConfigureAwait(false);
-        // Each entry at the top is a child of the root's layout, a variant of its own.
-        return layout.Out.Split("<(", StringSplitOptions.None).Length - 1;
+        // Each entry at the top is a child of the root's layout, a variant of its own; a separator between groups is none.
+        var children = layout.Out.Split("<(", StringSplitOptions.None).Length - 1;
+        return children - (layout.Out.Split("'type': <'separator'>", StringSplitOptions.None).Length - 1);
     }
 }

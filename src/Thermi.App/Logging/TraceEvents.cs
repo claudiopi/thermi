@@ -27,6 +27,9 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
     /// <summary>A drag or a hold ended, let go or taken back, and what it left is saved and on screen.</summary>
     public const string Dropped = "dropped";
 
+    /// <summary>A hotkey thermi could not take, as another program holds it, about its role as the settings name it.</summary>
+    public const string HotkeyRefused = "hotkey-refused";
+
     private readonly Lock _lock = new();
 
     public TimeProvider Time => time;

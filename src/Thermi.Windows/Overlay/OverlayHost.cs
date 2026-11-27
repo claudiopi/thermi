@@ -301,7 +301,11 @@ internal sealed class OverlayHost : IDisposable
 
     private void Pressed(int id)
     {
-        HotkeyPresses.Pressed(id, _settings, _visibility, _actions.History);
+        if (HotkeyRegistry.RoleOf(id) is { } role)
+        {
+            App.Gestures.HotkeyPresses.Pressed(role, _settings, _visibility, _actions.History);
+        }
+
         RequestPaint();
     }
 

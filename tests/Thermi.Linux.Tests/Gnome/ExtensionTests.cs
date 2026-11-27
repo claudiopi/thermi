@@ -11,12 +11,13 @@ public sealed class ExtensionTests
 {
     // Owns thermi's name and shows an overlay of 40 by 20 at (100, 100), all of it a box that takes the pointer. "refuse"
     // makes a case's calls, then its last, and says whether the first were taken, what the last got, and how many actors
-    // it added to the Shell. "hold" prints each signal of the extension's, a line each, and answers a right press with a
+    // it added to the Shell or its top bar. "hold" prints each signal of the extension's, a line each, and answers a right press with a
     // menu, as thermi does, saying once the Shell took it.
     private const string Caller = """
         import math, sys, gi
         from gi.repository import Gio, GLib
         OVERLAY, PATH, SHELL = 'io.github.claudiopi.thermi.Overlay', '/io/github/claudiopi/thermi', 'io.github.claudiopi.thermi.Shell'
+        DESKTOP = 'io.github.claudiopi.thermi.Desktop'
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
         def show(overlay, length=None, scale=1.0):
@@ -26,16 +27,26 @@ public sealed class ExtensionTests
         def menu(overlay, parent):
             return 'Menu', GLib.Variant('(udda(issbbb))', (overlay, 110.0, 110.0, [(parent, 'Row', '', False, False, False)]))
 
+        def icons(count, length=None):
+            pixels = bytes(16 * 4 * 16 if length is None else length)
+            shown = [(f'icon{at}', '', pixels, 16, 16, 64, 1.0) for at in range(count)]
+            return 'Icons', GLib.Variant('(a(ssayiiid))', (shown,))
+
+        def hotkeys(count):
+            return 'Hotkeys', GLib.Variant('(as)', (['<Control><Shift>F9'] * count,))
+
         def call(method, args, on=bus):
             try:
-                on.call_sync('org.gnome.Shell', PATH, SHELL, method, args, None, Gio.DBusCallFlags.NONE, 5000, None)
+                interface = DESKTOP if method in ('Icons', 'Hotkeys') else SHELL
+                on.call_sync('org.gnome.Shell', PATH, interface, method, args, None, Gio.DBusCallFlags.NONE, 5000, None)
                 return 'taken'
             except GLib.Error:
                 return 'refused'
 
         def actors():
+            counted = 'Main.uiGroup.get_n_children() + Main.panel._rightBox.get_n_children()'
             said = bus.call_sync('org.gnome.Shell', '/org/gnome/Shell', 'org.gnome.Shell', 'Eval',
-                                 GLib.Variant('(s)', ('Main.uiGroup.get_n_children()',)), None, Gio.DBusCallFlags.NONE, 5000, None)
+                                 GLib.Variant('(s)', (counted,)), None, Gio.DBusCallFlags.NONE, 5000, None)
             return int(said.unpack()[1])
 
         def another():
@@ -53,6 +64,9 @@ public sealed class ExtensionTests
                 'past-the-most-overlays': ([show(overlay) for overlay in range(64)], show(64), bus),
                 'orphan-menu-row': ([show(1)], menu(1, 5), bus),
                 'another-caller': ([], show(1), another()),
+                'past-the-most-icons': ([], icons(65), bus),
+                'short-icon-pixels': ([], icons(1, length=10), bus),
+                'past-the-most-hotkeys': ([], hotkeys(9), bus),
             }
             first, last, on = cases[sys.argv[2]]
             taken = all(call(*each) == 'taken' for each in first)
@@ -82,6 +96,9 @@ public sealed class ExtensionTests
     [InlineData("past-the-most-overlays")]
     [InlineData("orphan-menu-row")]
     [InlineData("another-caller")]
+    [InlineData("past-the-most-icons")]
+    [InlineData("short-icon-pixels")]
+    [InlineData("past-the-most-hotkeys")]
     public async Task ACallOutsideTheProtocolIsRefusedAndAddsNothing(string row)
     {
         var cancel = TestContext.Current.CancellationToken;

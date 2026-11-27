@@ -51,6 +51,12 @@
   <data name="HostText.NoticeGotIt" xml:space="preserve">
     <value>Got it</value>
   </data>
+  <data name="HostText.NoticeOpenSettings" xml:space="preserve">
+    <value>Open settings</value>
+  </data>
+  <data name="HostText.NoOverlay" xml:space="preserve">
+    <value>This desktop offers neither GNOME Shell nor layer surfaces, which thermi&apos;s overlays need. Its icons, hotkeys and AI agents still work.</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Lock position</value>
   </data>
