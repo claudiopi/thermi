@@ -39,7 +39,6 @@ internal static class Program
         root.Subcommands.Add(Lever("unrevoke", "Clears the channel's revocation, once PCs run a build with the new release key.", Levers.Unrevoke));
         root.Subcommands.Add(Status());
         root.Subcommands.Add(Serve());
-        root.Subcommands.Add(Linux.IndexCommand.Create());
         return root;
     }
 

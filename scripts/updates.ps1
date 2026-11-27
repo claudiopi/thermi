@@ -34,6 +34,12 @@ $Command = [string]$args[0]
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 
+if ($Rest -contains '--repository') {
+    . (Join-Path $PSScriptRoot 'repository.ps1')
+    Invoke-RepositoryLever $Command $Rest
+    exit 0
+}
+
 if ($Command -ne 'pack') {
     # Run from a copy, so a server left running never holds the build's files.
     $tool = Join-Path $root 'artifacts/releases'
@@ -42,11 +48,6 @@ if ($Command -ne 'pack') {
     if ($Command -eq 'serve') { $tool = Join-Path $root "artifacts/releases-serve-$PID" }
     New-Item $tool -ItemType Directory -Force | Out-Null
     Copy-Item (Join-Path $root 'artifacts/releases-build/*') $tool -Recurse -Force
-    if ($Rest -contains '--repository') {
-        . (Join-Path $PSScriptRoot 'repository.ps1')
-        Invoke-RepositoryLever $Command $Rest @('dotnet', (Join-Path $tool 'thermi-releases.dll'))
-        exit 0
-    }
     dotnet (Join-Path $tool 'thermi-releases.dll') $Command @Rest
     exit $LASTEXITCODE
 }
