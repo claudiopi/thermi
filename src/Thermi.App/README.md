@@ -7,7 +7,8 @@ What the overlay and the settings window decide beyond Core that needs a package
 | `SettingsFile` | `config.json` read and written under its mutex, the settings a host holds over it, the edits that wait to be written, and watching the file. |
 | `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
 | `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, and the last gesture's undo. |
-| `Window` | The settings window's logic over the settings: its edits and undo, the sensors' readings and charts it keeps, and how it reads each snapshot. |
+| `Window` | The settings window's bridge, which answers the page alike on every OS and asks its host, `IWindowHost`, for the rest: its edits and undo, the sensors' readings and charts it keeps, the views, previews, places and looks. |
+| `Painting` | What every OS's overlay painter answers the window, `IOverlayPainter`, and how an overlay is fitted to a room or its monitor. |
 | `Logging` | The user's logs in their local folder, the agents' log read back for the window, the events of what lives here, each a `[LoggerMessage]`, and the user's folders. |
 
 Its tests run where its hosts are: `tests/Thermi.Windows.Tests` drives it with real files, other writers and the clock.

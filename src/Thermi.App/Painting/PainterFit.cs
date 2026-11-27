@@ -1,11 +1,11 @@
 using System.Drawing;
 using Thermi.Core.Look;
 
-namespace Thermi.Windows.Painting;
+namespace Thermi.App.Painting;
 
 /// <summary>
 /// The scale an overlay shows at where it would not fit at its own, beside others on a taskbar or on its monitor, as its
-/// painter measures it with GDI+.
+/// painter measures it.
 /// </summary>
 internal static class PainterFit
 {
@@ -14,7 +14,8 @@ internal static class PainterFit
     /// their size at it, as an overlay grown past the room the others beside it on its taskbar leave; without a room, as
     /// for one alone, <paramref name="scale"/> unmeasured.
     /// </summary>
-    public static float Within(this Painter painter, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, Func<(int Width, int Height), int?>? room)
+    public static float Within(
+        this IOverlayPainter painter, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, Func<(int Width, int Height), int?>? room)
     {
         if (room is null)
         {
@@ -31,7 +32,7 @@ internal static class PainterFit
     /// not shrink quite in step with the scale, so it measures again until they fit. The painter keeps the last answer for
     /// what it measured, so an overlay that paints the same items each second measures them once.
     /// </summary>
-    public static float Fitting(this Painter painter, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, (int Width, int Height)? most)
+    public static float Fitting(this IOverlayPainter painter, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, (int Width, int Height)? most)
     {
         if (most is not var (width, height))
         {

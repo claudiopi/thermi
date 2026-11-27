@@ -224,7 +224,7 @@ public sealed class OverlayHostTests : IDisposable
             var input = new TrayInput(HostRun.Recorded, ServiceState.Running, English, Texts.English, LightTaskbar: false, ExePath: "") { WindowOpen = true };
             using var window = MutexHolder.Holding(_windowMutex);
             OverlayHost.AskToShow();
-            placed.AddRange(Ui.Views.OverlayPlaces.Of(settings.Config, input, Desktop.Screens()));
+            placed.AddRange(App.Window.OverlayPlaces.Of(settings.Config, input, Desktop.Screens(), () => new Painting.Painter()));
             HostRun.Until(host, _folder.Clock, () => Shown().SequenceEqual(placed));
             shown.AddRange(Shown());
         });
@@ -245,8 +245,8 @@ public sealed class OverlayHostTests : IDisposable
         two = OverlayEdits.SetHidden(OverlayEdits.Snap(two, 1, new SnapConfig(SnapSpot.Taskbar)).Config, 1, hidden: true).Config;
         var input = new TrayInput(HostRun.Recorded, ServiceState.Running, English, Texts.English, LightTaskbar: false, ExePath: "") { WindowOpen = true };
 
-        var alone = Ui.Views.OverlayPlaces.Of(two with { Overlays = [two.Overlays[0]] }, input, [screen]);
-        var beside = Ui.Views.OverlayPlaces.Of(two, input, [screen]);
+        var alone = App.Window.OverlayPlaces.Of(two with { Overlays = [two.Overlays[0]] }, input, [screen], () => new Painting.Painter());
+        var beside = App.Window.OverlayPlaces.Of(two, input, [screen], () => new Painting.Painter());
 
         Assert.Equal(alone[0], beside[0]);
     }

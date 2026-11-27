@@ -1,5 +1,6 @@
 using System.Drawing;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Logging;
 using Microsoft.Web.WebView2.Core;
 using Thermi.Core.Bridge;
 using Thermi.Windows.Logging;

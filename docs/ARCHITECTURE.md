@@ -51,7 +51,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Page as Page (React)
-    participant Bridge as WindowBridge
+    participant Bridge as PageBridge
     participant Edits as PageEdits
     participant Editor as WindowEditor
     participant Undo as UndoHistory
@@ -198,7 +198,7 @@ Which projects are shared and which are Windows-only, and how another OS would p
 | Where the overlay snaps | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi.Windows/Win32/Desktop.cs` |
 | What a tray icon shows | `src/Thermi.Core/Tray`, drawn by `src/Thermi.Windows/Tray` |
 | What the page shows and does | `src/Thermi.Settings.Web/src`, tested in `src/Thermi.Settings.Web/tests` |
-| What the page may ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered in `src/Thermi.Windows/Ui` |
+| What the page may ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered in `src/Thermi.App/Window` on every OS |
 | What an agent's command answers | `src/Thermi.Core/Agents`, served by `src/Thermi.Cli`, which reaches Windows through `src/Thermi.Windows/Agents` |
 | What the service reads | `src/Thermi.Sensors.Windows/Reading` |
 | How updates switch and roll back | `src/Thermi.Core/Updates`, `src/Thermi.Sensors.Windows/Updates` |

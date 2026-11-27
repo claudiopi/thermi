@@ -22,4 +22,10 @@ internal static partial class AppLog
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "The process ended on an error")]
     public static partial void Ended(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The window's page asked for {Method}, which failed")]
+    public static partial void PageCallFailed(this ILogger logger, string method, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The window's page threw: {Error}")]
+    public static partial void PageThrew(this ILogger logger, string error);
 }

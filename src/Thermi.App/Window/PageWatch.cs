@@ -1,8 +1,8 @@
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
-using Thermi.Windows.Overlay;
 
-namespace Thermi.Windows.Ui.Views;
+namespace Thermi.App.Window;
 
 /// <summary>
 /// What the bridge keeps between the page's reads, so a second's readings cost only what they change. Whether the first
@@ -24,7 +24,8 @@ internal sealed class PageWatch : IDisposable
     // A second's snapshot late by half a second: the service stopped, or its pipe went quiet, and no snapshot says so.
     private static readonly TimeSpan QuietAfter = TimeSpan.FromMilliseconds(1500);
 
-    private readonly WindowEnvironment _environment;
+    private readonly ISensorFeed _sensorFeed;
+    private readonly IWindowHost _host;
     private readonly TimeProvider _time;
     private readonly Action<Action> _onTurn;
     private readonly Action _changed;
@@ -40,20 +41,22 @@ internal sealed class PageWatch : IDisposable
     private bool _overlay;
     private bool _answered;
 
-    /// <param name="environment">The sensors, and how the overlay is asked for its hotkeys.</param>
+    /// <param name="sensors">The sensors.</param>
+    /// <param name="host">The OS, which asks the overlay for its hotkeys.</param>
     /// <param name="time">The clock of the first readings' wait and of asking after a change.</param>
     /// <param name="onTurn">Runs an action on the window's thread.</param>
     /// <param name="changed">Tells the page, on the window's thread, that the hotkey status changed.</param>
     /// <param name="quiet">Runs on the window's thread each second no snapshot came, as one coming would.</param>
-    public PageWatch(WindowEnvironment environment, TimeProvider time, Action<Action> onTurn, Action changed, Action quiet)
+    public PageWatch(ISensorFeed sensors, IWindowHost host, TimeProvider time, Action<Action> onTurn, Action changed, Action quiet)
     {
-        _environment = environment;
+        _sensorFeed = sensors;
+        _host = host;
         _time = time;
         _onTurn = onTurn;
         _changed = changed;
         _quiet = quiet;
         _opened = _arrived = time.GetTimestamp();
-        _sensors = Signature(environment.Sensors.Latest, environment.Sensors.State);
+        _sensors = Signature(sensors.Latest, sensors.State);
         _waiting = time.CreateTimer(_ => onTurn(Waited), null, TimeSpan.Zero, FirstPoll);
         _quietCheck = time.CreateTimer(_ => onTurn(Quieted), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 
@@ -100,14 +103,14 @@ internal sealed class PageWatch : IDisposable
     {
         _arrived = _time.GetTimestamp();
         Waited();
-        var running = OverlayHost.Running();
+        var running = _host.OverlayRunning();
         if (running != _overlay || (_hotkeysDue is { } due && _time.GetTimestamp() >= due))
         {
             _overlay = running;
             AskHotkeys();
         }
 
-        var sensors = Signature(snapshot, _environment.Sensors.State);
+        var sensors = Signature(snapshot, _sensorFeed.State);
         var changed = sensors != _sensors;
         _sensors = sensors;
         return changed;
@@ -122,7 +125,7 @@ internal sealed class PageWatch : IDisposable
         _hotkeysDue = null;
         _ = Task.Run(() =>
         {
-            var answer = _environment.HotkeyStatus();
+            var answer = _host.HotkeyStatus();
             _onTurn(() => Answered(answer));
         });
     }
@@ -175,7 +178,7 @@ internal sealed class PageWatch : IDisposable
 
     private void Waited()
     {
-        var sensors = _environment.Sensors;
+        var sensors = _sensorFeed;
         if (_first || (sensors.Latest is null && sensors.State == ServiceState.Running && _time.GetElapsedTime(_opened) < LatestSnapshot.MaxAge))
         {
             return;

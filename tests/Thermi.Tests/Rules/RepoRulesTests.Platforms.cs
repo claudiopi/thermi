@@ -12,8 +12,6 @@ public sealed partial class RepoRulesTests
         ["Thermi.Windows/Gestures/HotkeyPresses.cs"] = "what thermi's hotkeys do, which Windows' RegisterHotKey delivers anywhere in Windows",
         ["Thermi.Windows/Logging/LogEvents.cs"] = "the events of the Windows code's classes, which log nothing else",
         ["Thermi.Windows/Tray/TrayChoices.cs"] = "what a row of the tray's and an overlay's Win32 menus does",
-        ["Thermi.Windows/Ui/Views/OverlayPlaces.cs"] = "where each overlay's window sits, measured as its Windows painter keeps its room",
-        ["Thermi.Windows/Ui/Views/PageWatch.cs"] = "what the window's bridge keeps between reads, asking the overlay's window for its hotkeys",
         ["Thermi.Windows/Ui/Views/WindowAgents.cs"] = "the AI agents section's answers from Windows: the machine's and user's PATH, the launcher's folder",
         ["Thermi.Windows/Ui/Web/WindowLinks.cs"] = "opens a file or a link through Windows' Explorer, by its full path",
         ["Thermi.Windows/Ui/Web/WindowSession.cs"] = "the settings window's thread: its WebView2 window, editor, bridge and beacon",

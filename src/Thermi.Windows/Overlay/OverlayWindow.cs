@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Globalization;
+using Thermi.App.Painting;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
@@ -97,7 +98,7 @@ internal sealed class OverlayWindow : IDisposable
     /// <paramref name="dpi"/>, while it knows none.
     /// </summary>
     internal static float ScaleOf(uint dpi, OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
-        (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * Snaps.SizeShown(overlay, screens));
+        App.Window.OverlayPlaces.ScaleOf(dpi, overlay, screens);
 
     public void Dispose()
     {
