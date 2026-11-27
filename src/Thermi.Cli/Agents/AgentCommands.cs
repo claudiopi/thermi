@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -168,34 +167,6 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             Detail = read.Problem is { } problem ? problem.OneLine(Core.Translations.Texts.English, System.Globalization.CultureInfo.InvariantCulture) : null,
         };
         return new AgentReply(read.Problem is null ? AgentExit.Done : AgentExit.SettingsBroken, AgentJson.Write(answer), answer.Detail);
-    }
-
-    // Settings that cannot be read paint no overlay of the person's; they and the overlay are checked before the service is asked.
-    private async Task<AgentReply> PreviewAsync(AgentRequest request, CancellationToken stop)
-    {
-        var settings = await SettingsAsync();
-        var overlay = request.Overlay ?? 0;
-        if (settings.Problem is { } problem)
-        {
-            return Broken(problem);
-        }
-
-        if (overlay < 0 || overlay >= settings.Config.Overlays.Count)
-        {
-            var last = settings.Config.Overlays.Count - 1;
-            var said = string.Create(CultureInfo.InvariantCulture, $"The settings have overlays 0 to {last}; config lists them.");
-            return new AgentReply(AgentExit.BadArguments, Error: said);
-        }
-
-        var feed = environment.Sensors();
-        var (samples, state, taken) = await AgentSamples.TakeAsync(feed, 1, time, stop);
-        if (samples is not [var snapshot])
-        {
-            return Unread(state, taken, null);
-        }
-
-        var painted = environment.Paint(settings.Config, overlay, snapshot, request.Scale);
-        return new AgentReply(AgentExit.Done, AgentJson.Write(new PreviewAnswer(overlay, painted.Width, painted.Height, Convert.ToBase64String(painted.Png))));
     }
 
     private AgentFacts Facts(Core.Tray.ServiceState state, bool taken, Snapshot? latest, ConfigProblem? settings) =>

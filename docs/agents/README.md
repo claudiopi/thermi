@@ -31,7 +31,7 @@ The tools are the commands below, with `find_cpu_fan` and `start_with_windows` s
 | `sensors [--search text] [--type t]` | Every sensor the service reads, by device, found as the settings window's search finds; an address's text only with `--type address`. |
 | `config` | The settings as thermi reads them. |
 | `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. |
-| `preview [--overlay n] [--scale s]` | An overlay, the first when none, painted as it draws the readings of now, at its size times s, 0.25 to 8: the PNG in base64 as `png`, with its `width` and `height` in pixels. |
+| `preview [--overlay n] [--scale s]` | An overlay, the first when none, painted as it draws the readings of now on the taskbar's color, at its size times s, 0.25 to 8, or the largest that keeps it within 2000 px a side: the PNG in base64 as `png`, with its `width` and `height` in pixels and the `scale` used. It is one reading: a graph shows one second, a minimum, maximum, average or smoothed value the value of now, an item naming the busiest process none, and an item shown only on alert only if it alerts now. |
 | `looks`, `look wear/save/rename/delete/export/import` | The saved looks, with the settings window's rules; a look file goes in and out as text. |
 | `edit <json>` | One change of the settings, by the settings window's rules. |
 | `find-cpu-fan [--use]` | Loads every core for up to 30 s, at idle priority, and says which fan answered; it runs one at a time with the other changes, and a run starts at most once in 2 minutes, from any process, a run sooner or at once refused with `runsAgainIn` seconds; with `--use`, it becomes the first overlay's CPU fan, or the answer says which fan it found and the refusal's key. |
@@ -60,7 +60,7 @@ A command that ends with 0 or 1 prints one JSON document on stdout, with `"schem
 | Exit | Means |
 | --- | --- |
 | 0 | Done. |
-| 1 | Refused by thermi's rules, or by the person, who lets agents only read: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. A command that writes, run from an elevated terminal, is refused with nothing on stdout. |
+| 1 | Refused by thermi's rules, or by the person, who lets agents only read: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. A command that writes, run from an elevated terminal, is refused with nothing on stdout, as a `preview` the OS could not paint is. |
 | 2 | Bad arguments. |
 | 3 | The sensor service is not installed, stopped, stale or held by another program, or a per-user install's thermi is not running. |
 | 4 | The settings file is broken, newer than this thermi or locked, or Windows refused to write it or a saved look's file; nothing was written, and stderr says why. |

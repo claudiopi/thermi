@@ -16,7 +16,7 @@
         "R2",
         "R33"
       ],
-      "description": "Given each command and each way it can end (done, refused, bad arguments as an overlay the settings lack, no service, broken file), when it runs, then stdout holds one JSON document with schema 1 or nothing, stderr says why it did not finish, and the exit code is 0, 1, 2, 3 or 4 as spec.md lists.",
+      "description": "Given each command and each way it can end (done, refused, a picture the host could not paint, bad arguments as an overlay the settings lack, no service, broken file), when it runs, then stdout holds one JSON document with schema 1 or nothing, stderr says why it did not finish, and the exit code is 0, 1, 2, 3 or 4 as spec.md lists.",
       "check": "EveryCommandEndsWithItsCode",
       "passes": true
     },
@@ -251,8 +251,17 @@
         "R20",
         "R33"
       ],
-      "description": "Given a recording and settings with two overlays of different sizes, whose agents only read, when preview runs for the second at a scale, then it exits 0 with the picture the host painted of that overlay, from those settings and the snapshot read, at that scale, with its width and height, and the answer validates against its JSON Schema.",
+      "description": "Given a recording and settings with two overlays of different sizes, whose agents only read, when preview runs for the second at a scale, then it exits 0 with the picture the host painted of that overlay, from those settings and the snapshot read, at that scale, or at the largest that keeps it within 2000 px for the largest overlay at the largest scale, with its width, height and the scale used, and the answer validates against its JSON Schema.",
       "check": "AgentsSeeTheOverlay",
+      "passes": true
+    },
+    {
+      "id": "A32",
+      "covers": [
+        "R33"
+      ],
+      "description": "Given a recording and settings with two overlays of different sizes, when Windows paints an agent's picture of the second at a scale, then it is a PNG that decodes to the size the overlay's painter measures for that overlay at its size times the scale, laid on the taskbar's color.",
+      "check": "AnAgentsPictureIsTheOverlayOnTheTaskbar",
       "passes": true
     }
   ]

@@ -64,6 +64,8 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
 
     public Func<ThermiConfig, int, Snapshot, float, OverlayPng> Paint { get; init; } = Preview.Png;
 
+    public Func<ThermiConfig, int, Snapshot, float, (int Width, int Height)> Measure { get; init; } = Preview.Measure;
+
     public string FinderRan { get; init; } = Path.Combine(UserFolders.Local, "thermi", "fan-finder-ran.txt");
 
     IStartAtSignIn IAgentEnvironment.Startup => Startup;
@@ -99,6 +101,9 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     void IAgentEnvironment.Load(CancellationToken stop) => Load(stop);
 
     OverlayPng IAgentEnvironment.Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) => Paint(settings, overlay, snapshot, scale);
+
+    (int Width, int Height) IAgentEnvironment.Measure(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) =>
+        Measure(settings, overlay, snapshot, scale);
 
     // Only a share or a lock another process holds: any other failure is no run under way elsewhere.
     bool IAgentEnvironment.HeldElsewhere(IOException error) =>

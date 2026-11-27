@@ -140,14 +140,15 @@ internal static class AgentCommandLine
         root.Subcommands.Add(look);
         foreach (var (command, request) in Reads().Concat(Pictures()).Concat(Changes()).Concat(looks))
         {
-            // A host's own command of the name is the one parsed, as Windows' preview, which paints a saved snapshot too.
-            if (root.Subcommands.Any(own => own.Name == command.Name))
+            // A host's own top-level command of the name is the one parsed, as Windows' preview, which paints a saved snapshot too.
+            var top = !look.Subcommands.Contains(command);
+            if (top && root.Subcommands.Any(own => own.Name == command.Name))
             {
                 continue;
             }
 
             requests[command] = request;
-            if (command != look && !look.Subcommands.Contains(command))
+            if (top)
             {
                 root.Subcommands.Add(command);
             }

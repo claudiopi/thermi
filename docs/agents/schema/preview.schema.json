@@ -6,6 +6,9 @@
     "overlay": {
       "type": "integer"
     },
+    "scale": {
+      "type": "number"
+    },
     "width": {
       "type": "integer"
     },
@@ -21,6 +24,7 @@
   },
   "required": [
     "overlay",
+    "scale",
     "width",
     "height",
     "png"

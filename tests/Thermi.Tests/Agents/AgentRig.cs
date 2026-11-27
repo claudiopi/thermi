@@ -224,6 +224,12 @@ internal sealed class AgentRig : IDisposable
         public OverlayPng Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) =>
             rig.Unpaintable ? throw new InvalidOperationException("Out of memory.") : Painted(settings, overlay, snapshot, scale);
 
+        public (int Width, int Height) Measure(ThermiConfig settings, int overlay, Snapshot snapshot, float scale)
+        {
+            var painted = Painted(settings, overlay, snapshot, scale);
+            return (painted.Width, painted.Height);
+        }
+
         // A test holds the file the finder claims, and nothing else fails to open it here.
         public bool HeldElsewhere(IOException error) => true;
     }

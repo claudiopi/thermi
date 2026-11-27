@@ -52,9 +52,13 @@ internal interface IAgentEnvironment
 
     /// <summary>
     /// Overlay <paramref name="overlay"/> of <paramref name="settings"/>, counted from 0, painted as it draws
-    /// <paramref name="snapshot"/>, at its size times <paramref name="scale"/>, with the OS's own painter.
+    /// <paramref name="snapshot"/>, at its size times <paramref name="scale"/>, with the OS's own painter, laid on the
+    /// taskbar's color of the theme now; an <see cref="InvalidOperationException"/> says why the OS could not paint it.
     /// </summary>
     OverlayPng Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale);
+
+    /// <summary>The size <see cref="Paint"/> would paint at, in pixels, without painting.</summary>
+    (int Width, int Height) Measure(ThermiConfig settings, int overlay, Snapshot snapshot, float scale);
 }
 
 /// <summary>A picture as a PNG file holds it, <see cref="Width"/> by <see cref="Height"/> pixels.</summary>

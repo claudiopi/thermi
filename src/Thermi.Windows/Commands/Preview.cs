@@ -41,25 +41,58 @@ internal static class Preview
         return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
     }
 
-    /// <summary>An agent's picture: <paramref name="overlay"/> painted for one snapshot, as a PNG file holds it.</summary>
-    public static OverlayPng Png(ThermiConfig config, int overlay, Snapshot snapshot, float scale)
+    /// <summary>
+    /// An agent's picture: <paramref name="overlay"/> painted for one snapshot, as a PNG file holds it, laid on the
+    /// taskbar's color, as a person sees it there: a client shows it on a backdrop of its own, where a clear background
+    /// would leave light text on white.
+    /// </summary>
+    public static OverlayPng Png(ThermiConfig config, int overlay, Snapshot snapshot, float scale) => Said(() =>
     {
-        using var bitmap = Painted(config, overlay, [snapshot], scale);
+        using var painted = Painted(config, overlay, [snapshot], scale);
+        using var laid = new Bitmap(painted.Width, painted.Height, PixelFormat.Format32bppArgb);
+        using (var graphics = Graphics.FromImage(laid))
+        {
+            graphics.Clear(PainterShapes.Drawn(Taskbar.Of(Desktop.LightTaskbar()).Background));
+            graphics.DrawImage(painted, new Rectangle(0, 0, painted.Width, painted.Height));
+        }
+
         using var png = new MemoryStream();
-        bitmap.Save(png, ImageFormat.Png);
-        return new OverlayPng(png.ToArray(), bitmap.Width, bitmap.Height);
+        laid.Save(png, ImageFormat.Png);
+        return new OverlayPng(png.ToArray(), laid.Width, laid.Height);
+    });
+
+    /// <summary>The size <see cref="Png"/> paints at, measured without painting.</summary>
+    public static (int Width, int Height) Measure(ThermiConfig config, int overlay, Snapshot snapshot, float scale) => Said(() =>
+    {
+        var one = config.Overlays[overlay];
+        using var painter = new Painter();
+        var size = painter.Measure(Shown(config, [snapshot], CpuWatch.ReadBaseClock(), overlay), Look(one), scale * (float)one.Size);
+        return (size.Width, size.Height);
+    });
+
+    // GDI+ says a picture it has no memory for as an argument it does not take, or as memory it ran out of; an agent's
+    // command says why instead of ending with it.
+    private static T Said<T>(Func<T> paint)
+    {
+        try
+        {
+            return paint();
+        }
+        catch (Exception ex) when (ex is ExternalException or ArgumentException or OutOfMemoryException)
+        {
+            throw new InvalidOperationException($"Windows could not paint it: {ex.Message}", ex);
+        }
     }
 
-    // In the light or dark and the high contrast the desktop has now, as the overlay paints itself.
     private static Bitmap Painted(ThermiConfig config, int overlay, IReadOnlyList<Snapshot> series, float scale)
     {
         var one = config.Overlays[overlay];
         using var painter = new Painter();
-        return painter.Paint(
-            Shown(config, series, CpuWatch.ReadBaseClock(), overlay),
-            OverlayLook.Of(one.Style, Desktop.LightTaskbar(), Desktop.HighContrast()),
-            scale * (float)one.Size);
+        return painter.Paint(Shown(config, series, CpuWatch.ReadBaseClock(), overlay), Look(one), scale * (float)one.Size);
     }
+
+    // In the light or dark and the high contrast the desktop has now, as the overlay paints itself.
+    private static OverlayLook Look(OverlayConfig overlay) => OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast());
 
     /// <summary>
     /// An overlay's items, the first's when none is named, for the last snapshot of a series, a second each, as the overlay
@@ -72,7 +105,7 @@ internal static class Preview
         for (var second = 0; second < series.Count; second++)
         {
             clock.Second = second;
-            history.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(series[second], overlay)))]);
+            history.Add([.. config.Overlays.Select(each => (each, SensorMap.Read(series[second], each)))]);
         }
 
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);

@@ -14,7 +14,8 @@ namespace Thermi.Tests.Acceptance;
 
 /// <summary>
 /// <c>thermi-cli mcp</c> as an agent's client sees it (<c>docs/specs/003-agents/spec.md</c>): the commands as tools, each
-/// answering the command's JSON, refusals as tool errors, and an undo that takes back only the session's own edits.
+/// answering the command's JSON, or preview its picture as an image, refusals as tool errors, and an undo that takes back
+/// only the session's own edits.
 /// </summary>
 public sealed class AgentMcpTests : IDisposable
 {
