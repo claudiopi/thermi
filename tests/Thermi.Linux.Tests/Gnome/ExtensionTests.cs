@@ -279,6 +279,7 @@ public sealed class ExtensionTests
         await input.ClickAsync(500, 500, cancel);
         await input.ClickAsync(OnOverlay.X, OnOverlay.Y, cancel);
         await last;
+        var pressed = caller.Out.NextAsync(line => line.StartsWith("focus", StringComparison.Ordinal), cancel);
         var cancelled = caller.Out.NextAsync(line => line.StartsWith("cancel", StringComparison.Ordinal), cancel);
         await input.HoldAsync(OnOverlay, OnOverlay, Lose, there => input.ShellAsync("Main.popModal(global.thermiModal)", there), cancel);
 
@@ -301,8 +302,11 @@ public sealed class ExtensionTests
             return caller.Out.FirstAsync(line => line == "menu taken", held);
         }
 
+        // The Shell takes a press of the virtual pointer after the Eval that sent it returns: the modal waits until the press
+        // took the overlay, which the caller says once it read the key focus, or the modal's grab would be under thermi's.
         async Task Lose(CancellationToken held)
         {
+            await pressed.WaitAsync(held);
             await input.ShellAsync("global.thermiModal = Main.pushModal(global.stage); 0", held);
             await cancelled.WaitAsync(held);
         }
