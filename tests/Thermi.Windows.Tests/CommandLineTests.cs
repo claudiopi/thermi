@@ -179,30 +179,24 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(new PreviewRequest(Snapshot, "o.png", scale, settings), ThermiCommands.Parse(["preview", Snapshot, .. args], out _));
     }
 
-    // A comma is no decimal point, and a scale past 8 or under a quarter is a typo, never a picture worth painting.
+    // A saved snapshot's picture needs its png and takes no more than its scale and settings after it, nor the options of
+    // the picture of now; a bad scale is the parser's, tested where it lives (AgentCommandTests).
     [Theory]
-    [InlineData("o.png", "1,5")]
-    [InlineData("o.png", "NaN")]
-    [InlineData("o.png", "0.2")]
-    [InlineData("o.png", "8.5")]
     [InlineData("o.png", "1", "c.json", "more")]
+    [InlineData("o.png", "--scale", "2")]
     [InlineData]
-    public void APreviewWithoutItsFilesOrWithABadScaleExitsWithTwo(params string[] args)
+    public void APreviewWithoutItsFilesOrWithTheOptionsOfNowExitsWithTwo(params string[] args)
     {
         Assert.Null(ThermiCommands.Parse(["preview", Snapshot, .. args], out var errors));
         Assert.NotEmpty(errors);
     }
 
-    // thermi and thermi-cli have one preview: with no snapshot, it is the agents' picture of the readings now, whose options
-    // a saved snapshot's picture refuses.
+    // thermi and thermi-cli have one preview: with no snapshot, it is the agents' picture of the readings now.
     [Fact]
     public void ThermiAndThermiCliHaveOnePreview()
     {
         var now = Assert.IsType<AgentRequest>(ThermiCommands.Parse(["preview", "--overlay", "1", "--scale", "2"], out _));
         Assert.Equal((AgentVerb.Preview, 1, 2f), (now.Verb, now.Overlay, now.Scale));
-
-        Assert.Null(ThermiCommands.Parse(["preview", Snapshot, "o.png", "--scale", "2"], out var errors));
-        Assert.NotEmpty(errors);
     }
 
     // thermi.exe is a windowed program, so what it says goes to stderr only when someone reads it: here, a pipe. Arguments

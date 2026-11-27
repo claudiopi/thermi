@@ -4,8 +4,10 @@ using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Core.Tray;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Painting;
+using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Tests.Acceptance;
 
@@ -55,6 +57,27 @@ public sealed class StyleWindowsTests
         Assert.Equal(width, track.Max(pixel => pixel.X) - track.Min(pixel => pixel.X) + 1);
         Assert.InRange(line.Select(pixel => pixel.X).Distinct().Count(), seconds - 2, seconds + 2);
         Assert.True(fill.Count > line.Count, "More of the graph is its light fill than its line.");
+    }
+
+    // An agent's picture (thermi-cli preview) is the overlay asked, at its size times the scale, as a PNG of that size; laid
+    // on the taskbar's color, as a person sees it there, since a client shows it on a backdrop of its own.
+    [Fact]
+    public void AnAgentsPictureIsTheOverlayOnTheTaskbar()
+    {
+        var two = OverlayEdits.Add(new ThermiConfig()).Config;
+        var config = two with { Overlays = [two.Overlays[0], two.Overlays[1] with { Size = 2 }] };
+        var snapshot = TestRecordings.Read(TestRecordings.Admin);
+
+        var picture = Preview.Png(config, 1, snapshot, 1.5f);
+
+        using var png = new MemoryStream(picture.Png);
+        using var decoded = new Bitmap(png);
+        using var painter = new Painter();
+        var light = Desktop.LightTaskbar();
+        var look = OverlayLook.Of(config.Overlays[1].Style, light, Desktop.HighContrast());
+        var size = painter.Measure(Preview.Shown(config, [snapshot], CpuWatch.ReadBaseClock(), overlay: 1), look, 3);
+        Assert.Equal((size.Width, size.Height, size.Width, size.Height), (picture.Width, picture.Height, decoded.Width, decoded.Height));
+        Assert.Equal(PainterShapes.Drawn(Taskbar.Of(light).Background).ToArgb(), decoded.GetPixel(0, 0).ToArgb());
     }
 
     // The admin recording's CPU temperature, 77 °C, metered by itself: a meter of five segments 12 px wide at 100 %, the

@@ -120,6 +120,9 @@ internal sealed class AgentRig : IDisposable
 
     public bool Raised { get; set; }
 
+    /// <summary>Whether the host fails to paint a picture.</summary>
+    public bool Unpaintable { get; set; }
+
     /// <summary>Where the commands log, the folder's own list when null.</summary>
     public ILogger? Log { get; set; }
 
@@ -217,7 +220,9 @@ internal sealed class AgentRig : IDisposable
 
         public void Load(CancellationToken stop) => rig.Loaded(stop);
 
-        public OverlayPng Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) => Painted(settings, overlay, snapshot, scale);
+        // As GDI+ fails when it runs out of memory for a picture.
+        public OverlayPng Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) =>
+            rig.Unpaintable ? throw new InvalidOperationException("Out of memory.") : Painted(settings, overlay, snapshot, scale);
 
         // A test holds the file the finder claims, and nothing else fails to open it here.
         public bool HeldElsewhere(IOException error) => true;

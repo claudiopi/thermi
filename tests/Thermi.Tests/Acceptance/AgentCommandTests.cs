@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Thermi.App.SettingsFile;
@@ -30,11 +31,12 @@ public sealed class AgentCommandTests : IDisposable
         Done,
         Stopped,
         Broken,
+        Unpainted,
     }
 
     // The ways each command ends that no test of its own already holds: an edit's 0, 1 and 4, a look's, a read's past
     // 60 seconds, the start at sign-in's, monitors' and looks' 0, status's with the service stopped and a write's on a
-    // broken file are theirs.
+    // broken file are theirs. A picture the host could not paint is said on stderr alone, as an elevated write's refusal.
     [Theory]
     [InlineData(Ending.Done, 0, "status", "--schema", "1")]
     [InlineData(Ending.Done, 2, "read", "no.such.metric")]
@@ -42,6 +44,10 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Done, 2, "edit", "not json")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
     [InlineData(Ending.Done, 2, "preview", "--overlay", "1")]
+    [InlineData(Ending.Done, 2, "preview", "--scale", "1,5")]
+    [InlineData(Ending.Done, 2, "preview", "--scale", "0.2")]
+    [InlineData(Ending.Done, 2, "preview", "--scale", "8.5")]
+    [InlineData(Ending.Unpainted, 1, "preview")]
     [InlineData(Ending.Stopped, 3, "read")]
     [InlineData(Ending.Stopped, 3, "sensors")]
     [InlineData(Ending.Stopped, 3, "preview")]
@@ -59,6 +65,7 @@ public sealed class AgentCommandTests : IDisposable
             _rig.Folder.Write("{ \"version\": ");
         }
 
+        _rig.Unpaintable = ending == Ending.Unpainted;
         var end = await _rig.RunAsync(args);
 
         Assert.Equal(exit, end.Exit);
@@ -69,7 +76,7 @@ public sealed class AgentCommandTests : IDisposable
             Assert.Equal(AgentSchema.Current, (int)end.Json["schema"]!);
         }
 
-        Assert.Equal(exit is 0 or 1 || args[0] == "config", end.Out.Length > 0);
+        Assert.Equal((exit is 0 or 1 && ending != Ending.Unpainted) || args[0] == "config", end.Out.Length > 0);
     }
 
     // From an elevated terminal, a command that may write the settings, a look, the finder's mark or the start at sign-in
@@ -141,28 +148,26 @@ public sealed class AgentCommandTests : IDisposable
     }
 
     // The host paints; the command chooses what: the overlay asked, of the settings as read, for the snapshot of now, at the
-    // scale asked. It only reads, so agents that only read see it too.
-    [Fact]
-    public async Task AgentsSeeTheOverlay()
+    // scale asked, or at the largest that keeps it within the longest side an agent gets, which an overlay of the largest
+    // size at the largest scale is past. It only reads, so agents that only read see it too.
+    [Theory]
+    [InlineData(2, 1.5f, 1.5f)]
+    [InlineData(4, 8f, 5f)]
+    public async Task AgentsSeeTheOverlay(double size, float asked, float used)
     {
         var two = OverlayEdits.Add(new ThermiConfig()).Config;
-        var config = two with { Overlays = [two.Overlays[0], two.Overlays[1] with { Size = 2 }], Agents = AgentAccess.Read };
+        var config = two with { Overlays = [two.Overlays[0], two.Overlays[1] with { Size = size }], Agents = AgentAccess.Read };
         _rig.Folder.Write(ThermiConfigJson.Write(config));
 
-        var end = await _rig.RunAsync("preview", "--overlay", "1", "--scale", "1.5");
+        var end = await _rig.RunAsync("preview", "--overlay", "1", "--scale", asked.ToString(CultureInfo.InvariantCulture));
 
-        var painted = AgentRig.Painted(config, 1, TestRecordings.Read(TestRecordings.Admin), 1.5f);
+        var painted = AgentRig.Painted(config, 1, TestRecordings.Read(TestRecordings.Admin), used);
+        Assert.InRange(Math.Max(painted.Width, painted.Height), 1, 2000);
         Assert.Equal(
-            (0, 1, painted.Width, painted.Height, Convert.ToBase64String(painted.Png)),
-            (end.Exit, (int)end.Json["overlay"]!, (int)end.Json["width"]!, (int)end.Json["height"]!, (string?)end.Json["png"]));
+            (0, 1, used, painted.Width, painted.Height, Convert.ToBase64String(painted.Png)),
+            (end.Exit, (int?)end.Json["overlay"], (float?)end.Json["scale"], (int?)end.Json["width"], (int?)end.Json["height"], (string?)end.Json["png"]));
         var schema = Path.Combine(TestFiles.Root, "docs", "agents", "schema", "preview.schema.json");
         Assert.Empty(SchemaCheck.Findings(JsonNode.Parse(await File.ReadAllTextAsync(schema, TestContext.Current.CancellationToken))!, end.Json, "preview"));
-
-        // A comma is no decimal point, and a scale under a quarter or past 8 paints nothing worth reading.
-        Assert.Equal(
-            (2, 2, 2),
-            ((await _rig.RunAsync("preview", "--scale", "1,5")).Exit, (await _rig.RunAsync("preview", "--scale", "0.2")).Exit,
-                (await _rig.RunAsync("preview", "--scale", "8.5")).Exit));
     }
 
     [Fact]
