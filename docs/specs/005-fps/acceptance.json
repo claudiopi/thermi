@@ -3,22 +3,22 @@
   "steps": [
     {
       "id": "A1",
-      "covers": ["R1", "R2", "R4", "R5", "R6", "R9"],
-      "description": "Given Zwift's recorded presents beside a terminal that presents through its child and an agent through Direct3D 9, replayed into snapshots second by second, when Zwift is maximized in front, then a terminal on another monitor takes the focus, then the desktop, then FPS and frame time read Zwift's through all of it from its third second on, and a terminal alone that does not fill its monitor never shows FPS.",
+      "covers": ["R1", "R2", "R4", "R5", "R6", "R9", "R14"],
+      "description": "Given Zwift's recorded presents beside a terminal that presents through its child and an agent through Direct3D 9, replayed into snapshots second by second, when Zwift is maximized in front, then a terminal on another monitor takes the focus, then the desktop, then FPS, frame time and the 1 % and 0.1 % lows read Zwift's through all of it from its third second on, and a terminal alone that does not fill its monitor never shows FPS.",
       "check": "TheOverlayShowsTheFramesOfTheAppInFront",
       "passes": true
     },
     {
       "id": "A2",
-      "covers": ["R6"],
-      "description": "Given snapshots whose frame slots have no values, as from a service that could not start its session, and snapshots with no slots, as from a service of an earlier version, when the default overlay and the window's items are laid out with a game in front, then the overlay shows no FPS item and the window shows FPS as missing.",
+      "covers": ["R6", "R14"],
+      "description": "Given snapshots whose frame slots have no values, as from a service that could not start its session, snapshots with no slots, as from a service of an earlier version, and slots with FPS but no lows, as from a service of a version before the lows, when the default overlay and the window's items are laid out with a game in front, then the overlay shows no item it cannot read and the window shows it as missing, never 0, while FPS read shows.",
       "check": "FramesThatCannotBeReadShowAsMissing",
       "passes": true
     },
     {
       "id": "A3",
-      "covers": ["R8"],
-      "description": "Given FPS and frame time items with no lines, and with lines added in the chart, when their values cross each line, then with no lines they stay normal; with lines, FPS warns at or under its warning line and is critical at or under its critical, frame time warns and is critical at or over its lines, and an FPS item whose critical is above its warning is refused.",
+      "covers": ["R8", "R15"],
+      "description": "Given FPS, 1 % low and frame time items with no lines, as from a new file or the Game device of the catalog, and with lines added in the chart, when their values cross each line, then with no lines they stay normal; with lines, FPS and its low warn at or under the warning line and are critical at or under the critical, frame time warns and is critical at or over its lines, and an FPS item whose critical is above its warning is refused. No default overlay holds a low.",
       "check": "FrameRateWarnsLowAndFrameTimeHigh",
       "passes": true
     },
@@ -77,6 +77,13 @@
       "description": "Given a frames trace that cannot start, one stopped from outside, and reads that stop, when the service reads frames, then it says so once and tries again a minute later, starts it again at the next read, and stops it 5 s after the last read, as when the last client leaves.",
       "check": "TheTraceRunsWhileReadsComeAndIsTriedAgainAMinuteLater",
       "passes": true
+    },
+    {
+      "id": "A14",
+      "covers": ["R14"],
+      "description": "Given a game made up frame by frame, steady but for a share of slow frames in its first 30 s, presenting at 100 FPS and at 1000, when each second is tallied, then its 1 % and 0.1 % lows read its slowest frames of the last minute, the 0.1 % low the rarer and slower ones, both read its steady rate again once its slow frames are a minute old, and at 1000 FPS once 30 000 frames came after them.",
+      "check": "TheLowsReadTheSlowestFramesOfTheLastMinute",
+      "passes": false
     }
   ]
 }
