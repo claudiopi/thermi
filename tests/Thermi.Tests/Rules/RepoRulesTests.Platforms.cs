@@ -36,6 +36,7 @@ public sealed partial class RepoRulesTests
     private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
     {
         ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
+        ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",
         ["Thermi.Sensors.Linux/Serving/SensorCommands.cs"] = "the Linux service's own command line, whose trees and roots are the kernel's files",

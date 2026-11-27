@@ -19,8 +19,8 @@ internal sealed class UserUnit : IStartAtSignIn
     public UserUnit(string config, string data)
     {
         _own = Path.Combine(config, "systemd", "user");
-        // The user's own folders first, then the system's, in the order systemd looks.
-        Folders = [_own, Path.Combine(data, "systemd", "user"), "/etc/systemd/user", "/usr/local/lib/systemd/user", "/usr/lib/systemd/user"];
+        // In the order systemd looks: the user's settings, the system's, the user's own units, then the packages'.
+        Folders = [_own, "/etc/systemd/user", Path.Combine(data, "systemd", "user"), "/usr/local/lib/systemd/user", "/usr/lib/systemd/user"];
     }
 
     public IReadOnlyList<string> Folders { get; }
