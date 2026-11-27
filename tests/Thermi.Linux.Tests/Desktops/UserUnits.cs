@@ -59,8 +59,8 @@ internal sealed partial class UserUnits
             $"--unit={Scope}{Environment.ProcessId}-{Guid.NewGuid():N}",
         ];
         var started = await session.StartAsync("systemd-run", [.. scope, "env", .. manager], person, cancel).ConfigureAwait(false);
-        // The scope runs the manager in systemd-run's own process: one that ended first never says it is ready.
-        if (await Task.WhenAny(ready, started.WaitForExitAsync(cancel)).ConfigureAwait(false) != ready)
+        // The scope runs the manager in systemd-run's own process.
+        if (!await Readiness.BeforeEndAsync(ready, started.WaitForExitAsync(cancel)).ConfigureAwait(false))
         {
             var said = await started.Error.ToEndAsync(cancel).ConfigureAwait(false);
             throw new InvalidOperationException($"The tests' user manager ended before it was ready: {said}");

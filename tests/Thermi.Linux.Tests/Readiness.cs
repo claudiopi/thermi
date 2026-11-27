@@ -30,4 +30,13 @@ internal static class Readiness
         await listener.ReadyAsync(cancel).ConfigureAwait(false);
         return listener.Out.NextAsync(line => line == "ready", cancel);
     }
+
+    /// <summary>
+    /// Whether <paramref name="ready"/>, from <see cref="ListenAsync"/>, came before <paramref name="ended"/>, the end of what
+    /// was to say it: one that ended never says it, and a test waits for it no longer.
+    /// </summary>
+    public static async Task<bool> BeforeEndAsync(Task ready, Task ended) =>
+#pragma warning disable VSTHRD003 // Both run on their own, on no thread of a UI's: this only sees which ends first.
+        await Task.WhenAny(ready, ended).ConfigureAwait(false) == ready;
+#pragma warning restore VSTHRD003
 }
