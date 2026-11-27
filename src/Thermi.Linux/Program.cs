@@ -47,7 +47,7 @@ internal static class Program
             CpuLoadRequest cpu => await CpuLoad.RunAsync(cpu.Seconds, time),
             _ when door => await HelpAsync(),
             PreviewRequest preview => await Preview.RunAsync(Painted(preview), time),
-            OverlayRequest overlay => await OverlayStart.RunAsync(Painted(overlay), time),
+            OverlayRequest overlay => await OverlayStart.RunAsync(overlay, time),
             SettingsRequest settings => await Window.WindowProcess.RunAsync(Painted(settings), args, time),
             _ => await NotHereAsync(),
         };
