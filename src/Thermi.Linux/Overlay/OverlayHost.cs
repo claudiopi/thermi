@@ -86,11 +86,11 @@ internal sealed class OverlayHost : IDisposable
             return 0;
         }
 
-        _link.Ready += protocol => Safe(() => Arrived(protocol));
-        _link.MonitorsChanged += monitors => Safe(() => Monitors(monitors));
-        _link.Pointer += pointer => Safe(() => Pointer(pointer));
-        _link.Key += (overlay, key) => Safe(() => Key(overlay, key));
-        _link.Chosen += (_, row) => Safe(() => _menu.Chosen(row));
+        _link.Ready += protocol => Safe(() => Arrived(protocol), Log.ArrivalFailed);
+        _link.MonitorsChanged += monitors => Safe(() => Monitors(monitors), Log.MonitorsFailed);
+        _link.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
+        _link.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
+        _link.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
         _feed.Received += (_, _) => Post(Record);
         Settings.Changed += (_, _) => Post(SettingsChanged);
         using var watcher = Settings.Watch(Log);
@@ -118,12 +118,12 @@ internal sealed class OverlayHost : IDisposable
     // GLib runs it on the main loop's thread once it is free, and only once.
     private void Post(Action action) => GLib.Functions.IdleAdd(0, () =>
     {
-        Safe(action);
+        Safe(action, Log.PaintFailed);
         return false;
     });
 
-    // GLib calls these from native code, where an exception that escapes ends the process.
-    private void Safe(Action action)
+    // GLib calls these from native code, where an exception that escapes ends the process; each kind is logged as its own.
+    private static void Safe(Action action, Action<Exception> failed)
     {
         try
         {
@@ -133,7 +133,7 @@ internal sealed class OverlayHost : IDisposable
         catch (Exception ex)
 #pragma warning restore CA1031
         {
-            Log.PaintFailed(ex);
+            failed(ex);
         }
     }
 
@@ -146,8 +146,16 @@ internal sealed class OverlayHost : IDisposable
 
         _ = Task.Run(async () =>
         {
-            var monitors = await _link.MonitorsAsync();
-            Post(() => Monitors(monitors));
+            try
+            {
+                var monitors = await _link.MonitorsAsync();
+                Post(() => Monitors(monitors));
+            }
+            catch (GLib.GException ex)
+            {
+                // The extension's next MonitorsChanged, or its next arrival, brings them.
+                Log.MonitorsFailed(ex);
+            }
         });
     }
 

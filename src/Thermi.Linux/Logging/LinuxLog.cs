@@ -6,6 +6,17 @@ namespace Thermi.Linux.Logging;
 /// <summary>The events of thermi's overlay on Linux, declared once with their level and text.</summary>
 internal static partial class LinuxLog
 {
+    [LoggerMessage(Level = LogLevel.Error, Message = "The extension's arrival could not be taken")]
+    public static partial void ArrivalFailed(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The monitors could not be read from the GNOME Shell extension")]
+    public static partial void MonitorsFailed(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The pointer or a key on an overlay could not be handled")]
+    public static partial void PointerFailed(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The menu's choice could not be done")]
+    public static partial void ChoiceFailed(this ILogger logger, Exception error);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Another overlay runs in this session: this one ends")]
     public static partial void AlreadyRunning(this ILogger logger);
@@ -22,7 +33,7 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Error, Message = "The overlay could not be painted")]
     public static partial void PaintFailed(this ILogger logger, Exception error);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension sent {Signal} as {Shape}, which thermi's protocol does not have: it is left unread")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension sent {Signal} as {Shape}, outside thermi's protocol: it is left unread")]
     public static partial void ShellSignalRefused(this ILogger logger, string signal, string shape);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The GNOME Shell extension's {Signal} could not be read")]
