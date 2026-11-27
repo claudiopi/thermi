@@ -34,6 +34,16 @@ public sealed class PackageTests
         signal.pause()
         """;
 
+    // A system user with a graphical session of its own, as GDM's login screen runs one as gdm: its user manager, kept
+    // running, has graphical-session.target active, which a unit of its own pulls in. Its lines end as the shell reads them.
+    private static readonly string Greeter = """
+        useradd -r -m -d /var/lib/greeter greeter && mkdir -p /var/lib/greeter/.config/systemd/user
+        printf '[Unit]\nWants=graphical-session.target\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/bin/true\n' \
+            > /var/lib/greeter/.config/systemd/user/greeter-session.service
+        chown -R greeter /var/lib/greeter && loginctl enable-linger greeter && systemctl start "user@$(id -u greeter).service"
+        systemctl --user --machine=greeter@ start greeter-session.service
+        systemctl --user --machine=greeter@ is-active graphical-session.target
+        """.ReplaceLineEndings("\n");
 
     public enum Distribution
     {
@@ -61,7 +71,10 @@ public sealed class PackageTests
         // thermi-cli reads the service, which its socket starts: what the package started, which its removal stops.
         await pc.MustAsync(tool.Install("thermi-sensors"), cancel);
         var cli = await pc.RunAsync("useradd -m person && su person -c 'thermi-cli status --schema 1'", cancel);
+        await pc.MustAsync($"{tool.Sessions()} && {Greeter}", cancel);
         await pc.MustAsync(tool.Install("thermi"), cancel);
+        // The overlay starts in a person's graphical session alone: a system user's never ran it.
+        var greeter = await pc.RunAsync("systemctl --user --machine=greeter@ show -p ExecMainStartTimestampMonotonic --value thermi.service", cancel);
         var files = (await pc.MustAsync($"{tool.Files("thermi-sensors")} && {tool.Files("thermi")}", cancel)).Split('\n');
         var signed = await pc.RunAsync(tool.SignedRepository(), cancel);
         var arm64 = await pc.RunAsync(tool.Arm64(), cancel);
@@ -73,10 +86,12 @@ public sealed class PackageTests
         // Installed again after a removal, which left apt its files' record, the socket listens as on a first install.
         var listens = await pc.RunAsync("systemctl is-active thermi-sensors.socket", cancel);
         await pc.MustAsync("mkdir -p /home/person/.config/thermi && echo '{}' > /home/person/.config/thermi/config.json", cancel);
-        await pc.MustAsync(tool.Remove(), cancel);
+        await pc.MustAsync(tool.Purge(), cancel);
         var kept = await pc.RunAsync("cat /home/person/.config/thermi/config.json", cancel);
+        var linked = await pc.RunAsync("ls /etc/systemd/system/sockets.target.wants/thermi-sensors.socket", cancel);
 
         Assert.Equal(0, cli.Exit);
+        Assert.Equal("0", greeter.Out.Trim());
         // Each file spec.md lists is among the package's; the rest, the libraries it holds and the docs a distribution
         // asks of every package, may be there too.
         Assert.Empty(SensorsFiles.Concat(ThermiFiles).Except(files, StringComparer.Ordinal));
@@ -85,7 +100,9 @@ public sealed class PackageTests
         Assert.Equal("active", listens.Out.Trim());
         Assert.True(signed.Exit == 0, $"No signed repository of thermi's: {signed.Error}");
         Assert.True(arm64.Exit == 0, $"No arm64 package of the same version: {arm64.Error}");
+        // A purge, or a removal where the package manager has none, leaves each person's settings and no socket to listen.
         Assert.Equal("{}", kept.Out.Trim());
+        Assert.NotEqual(0, linked.Exit);
     }
 
     [Theory(Timeout = Bound.Test)]
@@ -103,6 +120,7 @@ public sealed class PackageTests
         // The build and a newer one, each published as the release workflow publishes a version from the packages it packed.
         var (first, next) = (Built.PackedVersion(Built.Packages), Built.PackedVersion(Built.Newer));
         await levers.RunAsync(["publish", first, "--channel", "stable"], cancel);
+        levers.Snapshot();
         // The first version from the channel's own files, which adds the repository, then pointed at the channel the test serves.
         await pc.MustAsync($"{tool.Prepare()} && {tool.InstallFromChannel("thermi-sensors", first)} && {tool.Served()}", cancel);
         const string Serving = "systemctl show -p MainPID --value thermi-sensors.service";
@@ -115,9 +133,9 @@ public sealed class PackageTests
 
         await levers.RunAsync(["publish", next, "--channel", "stable"], cancel, Built.Newer);
         var newer = await UpdatedAsync(pc, tool, cancel);
-        // The old service is gone, though a client held it, and the one that serves now runs the new files.
-        var restarted = await pc.MustAsync(
-            $"[ ! -e /proc/{before} ] && systemctl start thermi-sensors.service && readlink /proc/$({Serving})/exe", cancel);
+        // The old service is gone, though a client held it, and the process that serves now is the new version's.
+        var serving = (await pc.MustAsync($"[ ! -e /proc/{before} ] && systemctl start thermi-sensors.service && {Serving}", cancel)).Trim();
+        var serves = await pc.MustAsync($"/proc/{serving}/exe --version", cancel);
         await levers.RunAsync(["rollback", "--channel", "stable"], cancel);
         var rolledBack = await UpdatedAsync(pc, tool, cancel);
         // The version before, published under a higher number, so every PC takes it.
@@ -129,19 +147,30 @@ public sealed class PackageTests
         await levers.ServeForeignAsync(cancel);
         var foreign = await pc.RunAsync(tool.Update(), cancel);
         var keptFromForeign = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
-        await levers.ServeOlderAsync(cancel);
-        var older = await pc.RunAsync(tool.Update(), cancel);
+        // The offer before the last, offered again: apt holds it as its newest Release, which it would not be if signed then.
+        await levers.RunAsync(["restore", "--before-last", "--channel", "stable"], cancel);
+        var restored = await UpdatedAsync(pc, tool, cancel);
+        var heldRestored = tool.HeldRelease is { } read ? (await pc.MustAsync(read, cancel)).Trim() : null;
+        // A mirror's copy of the channel as it first was, of a version older than the PC's: it never takes the PC back.
+        var restoredDate = levers.ServedDate();
+        levers.ServeSnapshot();
+        await pc.RunAsync(tool.Update(), cancel);
         var keptFromOlder = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
+        var heldOlder = tool.HeldRelease is { } again ? (await pc.MustAsync(again, cancel)).Trim() : null;
 
         Assert.StartsWith(next, newer, StringComparison.Ordinal);
-        Assert.Equal("/usr/lib/thermi/thermi-sensors", restarted.Trim());
+        Assert.NotEqual(before, serving);
+        Assert.StartsWith(next, serves.Trim(), StringComparison.Ordinal);
         Assert.NotEqual(newer, rolledBack);
         Assert.StartsWith(first, runs.Trim(), StringComparison.Ordinal);
         Assert.Equal(rolledBack, disabled);
         Assert.Equal(rolledBack, keptFromForeign);
         Assert.Matches(tool.Unsigned, foreign.Out + foreign.Error);
+        Assert.Equal(rolledBack, restored);
         Assert.Equal(rolledBack, keptFromOlder);
-        Assert.Matches(tool.NothingNewer, older.Out + older.Error);
+        // apt keeps the newest Release it read; dnf, which has no such check, reads the older index but installs nothing older.
+        Assert.Equal(tool.HeldRelease is null ? null : restoredDate, heldRestored);
+        Assert.Equal(heldRestored, heldOlder);
     }
 
     [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
@@ -214,6 +243,12 @@ public sealed class PackageTests
         /// </summary>
         public string Package(string name) => Format == "pkg.tar.zst" ? $"{name}-bin" : name;
 
+        /// <summary>
+        /// What a desktop PC has for each user's own systemd, which Debian's and Ubuntu's images lack: logind's PAM module,
+        /// which starts it, and the user's bus it answers on.
+        /// </summary>
+        public string Sessions() => Format == "deb" ? Container.Installs(Image, "libpam-systemd dbus-user-session") : "true";
+
         /// <summary>The distribution's package of Python, which a test's own client runs on.</summary>
         public string Python => Format == "deb" ? "python3-minimal" : "python3";
 
@@ -252,6 +287,9 @@ public sealed class PackageTests
             _ => $"pacman -R --noconfirm {Package("thermi")} {Package("thermi-sensors")}",
         };
 
+        // A removal of everything the packages wrote outside each person's home, which only apt tells from a removal.
+        public string Purge() => Format == "deb" ? "apt-get purge -y thermi thermi-sensors" : Remove();
+
         // The files a package installed, its folders aside, which the tools list too.
         public string Files(string package) => Format switch
         {
@@ -286,8 +324,8 @@ public sealed class PackageTests
         /// <summary>What the system's updater says of a repository whose signature it refused.</summary>
         public string Unsigned => Format == "deb" ? "NO_PUBKEY|is not signed" : "(?i)signature";
 
-        /// <summary>What the system's updater says when it finds nothing newer than what the PC holds.</summary>
-        public string NothingNewer => Format == "deb" ? @"\b0 upgraded\b" : "Nothing to do";
+        /// <summary>The Date of the channel's Release apt holds, read last; dnf keeps no such thing to compare.</summary>
+        public string? HeldRelease => Format == "deb" ? "sed -n 's/^Date: //p' /var/lib/apt/lists/*_dists_stable_InRelease" : null;
 
         // The repository the package added, pointed at the levers' channel the test serves.
         public string Served() => Format == "deb"
@@ -329,7 +367,30 @@ public sealed class PackageTests
             await RunAsync(["sign", "--key", foreign, "--channel", "stable"], cancel);
         }
 
-        /// <summary>The channel as it was before the last lever, older than the one the PC holds.</summary>
-        public Task ServeOlderAsync(CancellationToken cancel) => RunAsync(["restore", "--before-last", "--channel", "stable"], cancel);
+        // A copy of the channel's indexes as served now, as a mirror that stops following it keeps.
+        private string Copy => Path.Combine(session.Home, "snapshot");
+
+        private static readonly string[] Indexes = [Path.Combine("apt", "dists"), Path.Combine("rpm", "stable", "repodata")];
+
+        public void Snapshot()
+        {
+            foreach (var index in Indexes)
+            {
+                Built.Copy(Path.Combine(channel, index), Path.Combine(Copy, index));
+            }
+        }
+
+        /// <summary>The indexes <see cref="Snapshot"/> copied, served over the channel's own, with the packages they name.</summary>
+        public void ServeSnapshot()
+        {
+            foreach (var index in Indexes)
+            {
+                Built.Copy(Path.Combine(Copy, index), Path.Combine(channel, index), replace: true);
+            }
+        }
+
+        /// <summary>The Date of the Release the channel serves.</summary>
+        public string ServedDate() => File.ReadLines(Path.Combine(channel, "apt", "dists", "stable", "InRelease"))
+            .First(line => line.StartsWith("Date: ", StringComparison.Ordinal))["Date: ".Length..];
     }
 }

@@ -6,5 +6,5 @@ namespace Thermi.Core.Install;
 public static class BuildVersion
 {
     // The SDK stamps every assembly the build makes.
-    public static string Of(Type type) => type.Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
+    public static string Of(Assembly assembly) => assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 }

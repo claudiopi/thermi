@@ -34,7 +34,7 @@ namespace Thermi.Windows.Ui.Web;
 internal sealed class WindowBridge : IWindowBridge, IDisposable
 {
     // The version the build stamps, from Directory.Build.props.
-    private static readonly string Version = Core.Install.BuildVersion.Of(typeof(WindowBridge));
+    private static readonly string Version = Core.Install.BuildVersion.Of(typeof(WindowBridge).Assembly);
 
     private readonly WindowStart _start;
     private readonly ReadSensors _sensors;

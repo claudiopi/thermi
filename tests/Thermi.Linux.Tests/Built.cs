@@ -12,7 +12,7 @@ internal static class Built
     /// <summary>Where the build puts the packages it packed, the AUR's PKGBUILD with them, and a newer build in <c>newer</c>.</summary>
     public static string Packages { get; } = Path.Combine(Root, "artifacts", "linux");
 
-    /// <summary>The build of <see cref="Packages"/> packed again at a newer version with the same key, as the next release.</summary>
+    /// <summary>A build of a newer version than <see cref="Packages"/>', packed with the same key, as the next release.</summary>
     public static string Newer { get; } = Path.Combine(Packages, "newer");
 
     /// <summary>The version of the packages in <paramref name="folder"/>, as the sensors' .deb's name says it.</summary>
