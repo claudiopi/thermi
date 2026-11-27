@@ -1,6 +1,6 @@
 {
+  "color": "lightgrey",
   "message": "– caught",
   "label": "Bug hunt",
-  "schemaVersion": 1,
-  "color": "lightgrey"
+  "schemaVersion": 1
 }

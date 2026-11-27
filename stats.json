@@ -27,6 +27,20 @@
       "ciSeconds": 462.0,
       "msiX64": 46.74609375,
       "passed": true
+    },
+    {
+      "commit": "9fc6c71",
+      "date": "2026-11-27T15:38:09.7265006Z",
+      "dotnet": 1389,
+      "web": 264,
+      "tests": 1653,
+      "coreLines": 95.81,
+      "coreBranches": 90.35,
+      "bugsCaught": null,
+      "doctor": 100,
+      "ciSeconds": 336.0,
+      "msiX64": 46.7421875,
+      "passed": true
     }
   ]
 }
