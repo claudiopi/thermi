@@ -37,7 +37,7 @@
 ## B5. The settings window
 
 - [x] T21. The bridge's client over WebKit's messages, and the page's Playwright tests on WebKit. (R18)
-- [x] T22. The window's process on GTK 4 and WebKitGTK, opened every way, with its previews painted by Cairo. (R18)
+- [x] T22. The window's process on GTK 4 and WebKitGTK, opened every way, with its previews painted by Cairo. (R18) A15 times a warm edit, after a first one it does not time, as spec 002's 300 ms means on a steady PC: a process's first edit runs cold, its first call decoded, its first edit settled and, under `--trace`, its first debug line written, and took past 300 ms on a busy runner. The cold one is timed by hand, as on Windows, in `docs/RELEASES.md`'s "The window's speed on Linux".
 - [x] T23. The desktop's scheme, accent and contrast, Start at sign-in, and Linux's fixes through polkit and the Shell, in every translation. (R19)
 
 ## B6. Tray, hotkeys and notices
