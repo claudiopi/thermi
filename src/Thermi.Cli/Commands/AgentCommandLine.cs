@@ -217,10 +217,10 @@ internal static class AgentCommandLine
     /// <summary>The whole number <paramref name="result"/> holds, as Core's <see cref="WholeNumber"/> reads one, or null, saying why.</summary>
     public static int? Whole(ArgumentResult result, string name, int min, int max)
     {
-        var value = WholeNumber.Parse([.. result.Tokens.Select(token => token.Value)], min, max);
+        var value = WholeNumber.Parse(result.Tokens.SingleOrDefault()?.Value, min, max);
         if (value is null)
         {
-            result.AddError(WholeNumber.Expected(name, min, max));
+            result.AddError(max == int.MaxValue ? WholeNumber.Expected(name, min) : WholeNumber.Expected(name, min, max));
         }
 
         return value;

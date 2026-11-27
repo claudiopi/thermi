@@ -186,7 +186,10 @@ public sealed class AgentCommandTests : IDisposable
             Assert.Equal(each.Average(), (double)value["average"]!, 6);
         }
 
-        Assert.Equal((2, 2), ((await _rig.RunAsync("read", "--seconds", "0")).Exit, (await _rig.RunAsync("read", "--seconds", "61")).Exit));
+        Assert.Equal(
+            (2, 2, 2),
+            ((await _rig.RunAsync("read", "--seconds", "0")).Exit, (await _rig.RunAsync("read", "--seconds", "61")).Exit,
+                (await _rig.RunAsync("read", "--seconds", "many")).Exit));
     }
 
     // A watch of the same series, with stdin kept open: a line each second, the sensor that dropped out of one read as

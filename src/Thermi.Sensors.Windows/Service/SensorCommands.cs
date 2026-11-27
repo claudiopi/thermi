@@ -178,10 +178,10 @@ internal static class SensorCommands
 
         private static int? SecondsOf(ArgumentResult result)
         {
-            var seconds = WholeNumber.Parse([.. result.Tokens.Select(token => token.Value)], 1, int.MaxValue);
+            var seconds = WholeNumber.Parse(result.Tokens.SingleOrDefault()?.Value, 1, int.MaxValue);
             if (seconds is null)
             {
-                result.AddError(WholeNumber.Expected("--seconds", 1, int.MaxValue));
+                result.AddError(WholeNumber.Expected("--seconds", 1));
             }
 
             return seconds;
