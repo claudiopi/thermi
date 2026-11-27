@@ -87,6 +87,7 @@
                     "no-frames",
                     "frames-unread",
                     "frames-need-install-for-everyone",
+                    "no-lows",
                     null
                   ]
                 }

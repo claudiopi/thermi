@@ -84,4 +84,10 @@ public enum OverlayText
 
     /// <summary>As <see cref="MinTag"/>, for its value now smoothed over its last seconds, with how many.</summary>
     SmoothTag,
+
+    /// <summary>What the overlay and the window say small after the game's 1 % low, which its pill labels FPS as it does FPS.</summary>
+    OnePercentLowTag,
+
+    /// <summary>As <see cref="OnePercentLowTag"/>, for the 0.1 % low.</summary>
+    PointOnePercentLowTag,
 }

@@ -80,6 +80,8 @@ public static class SensorMap
         [Metrics.Clock.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Time), [SystemSensors.Clock], OnlyPreferred: true),
         [Metrics.Fps.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.Fps], OnlyPreferred: true),
         [Metrics.FrameTime.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameTime), [GameSensors.FrameTime], OnlyPreferred: true),
+        [Metrics.OnePercentLow.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.OnePercentLow], OnlyPreferred: true),
+        [Metrics.PointOnePercentLow.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.PointOnePercentLow], OnlyPreferred: true),
     };
 
     /// <summary>
@@ -168,10 +170,7 @@ public static class SensorMap
 
     public static bool IsGpu(RawSensor sensor) => Gpus.Contains(sensor.HardwareType, StringComparer.Ordinal);
 
-    /// <summary>
-    /// Whether <paramref name="gpu"/> comes after <paramref name="than"/> in the GPU metrics' order of preference, as a graphics
-    /// chip in a CPU after a card.
-    /// </summary>
+    /// <summary>Whether <paramref name="gpu"/> comes after <paramref name="than"/> in the GPU metrics' order, as a CPU's graphics chip after a card.</summary>
     public static bool GpuAfter(RawSensor gpu, RawSensor than) =>
         Array.IndexOf(Gpus, gpu.HardwareType) > Array.IndexOf(Gpus, than.HardwareType);
 

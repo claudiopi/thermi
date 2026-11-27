@@ -201,6 +201,9 @@
   <data name="CatalogText.RowFramesNeedInstallForEveryone" xml:space="preserve">
     <value>Install for everyone to read FPS</value>
   </data>
+  <data name="CatalogText.RowNoLows" xml:space="preserve">
+    <value>Update thermi to read the lows</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Shown: {0}</value>
   </data>
@@ -1452,6 +1455,9 @@
   <data name="NoValue.FramesNeedInstallForEveryone" xml:space="preserve">
     <value>reads frames only once thermi is installed for everyone, with administrator rights</value>
   </data>
+  <data name="NoValue.NoLows" xml:space="preserve">
+    <value>can't read the lows: the sensor service is from before them, so update thermi</value>
+  </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
   </data>
@@ -2163,6 +2169,12 @@
   <data name="MetricName.FrameTime" xml:space="preserve">
     <value>Frame time</value>
   </data>
+  <data name="MetricName.OnePercentLow" xml:space="preserve">
+    <value>1% low</value>
+  </data>
+  <data name="MetricName.PointOnePercentLow" xml:space="preserve">
+    <value>0.1% low</value>
+  </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Time</value>
   </data>
@@ -2246,6 +2258,12 @@
   </data>
   <data name="OverlayText.SmoothTag" xml:space="preserve">
     <value>{0}s avg</value>
+  </data>
+  <data name="OverlayText.OnePercentLowTag" xml:space="preserve">
+    <value>1%</value>
+  </data>
+  <data name="OverlayText.PointOnePercentLowTag" xml:space="preserve">
+    <value>0.1%</value>
   </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Your taskbar is on a side, so the overlay floats beside it.</value>

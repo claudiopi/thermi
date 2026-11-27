@@ -9,7 +9,7 @@ using Thermi.Core.Settings;
 namespace Thermi.Tests.Acceptance;
 
 /// <summary>From the presents the service traces to the FPS and frame time the overlay shows for the app in front.</summary>
-public sealed class FrameTests
+public sealed partial class FrameTests
 {
     private const int Game = 4242;
 
@@ -22,15 +22,15 @@ public sealed class FrameTests
     // Zwift, an OpenGL game whose frames only the kernel's detailed history tells of, each repeated by a blit that is never
     // counted, beside a terminal that presents from a child of its own and an agent that presents through Direct3D 9. FPS
     // follows the game, not the focus: Zwift, maximized in front, counts as presenting from the third second and, with no
-    // game before it, is the game from then; it stays it while the terminal, on another monitor, takes the focus,
-    // maximized or not, at 18 FPS, and while the desktop is in front. The terminal alone, not filling its monitor, never
-    // shows FPS.
+    // game before it, is the game from then, each low tagged with which and read from its frames so far; it stays it while the terminal, on
+    // another monitor, takes the focus, maximized or not, at 18 FPS, and while the desktop is in front. The terminal alone,
+    // not filling its monitor, never shows FPS.
     [Fact]
     public void TheOverlayShowsTheFramesOfTheAppInFront()
     {
         const int Zwift = 63632;
         const int Terminal = 27540;
-        var overlay = OverlayConfig.First with { Items = [.. OverlayConfig.First.Items, FrameTimeItem] };
+        var overlay = OverlayConfig.First with { Items = [.. OverlayConfig.First.Items, FrameTimeItem, .. LowItems] };
         (int? Front, nint? Fills)[] fronts =
             [(Zwift, 1), (Zwift, 1), (Zwift, 1), (Zwift, 1), (Zwift, 1), (Terminal, null), (Terminal, 2), (null, null)];
         var (game, terminal) = (new FrontGame(), new FrontGame());
@@ -43,18 +43,18 @@ public sealed class FrameTests
                 terminal.Next(each.First, Terminal, null, _ => []),
             }
                 .Select(shown => Shown(overlay, Desktop, each.First, shown))
-                .Select(shown => string.Join(" ", new[] { Metrics.Fps.Id, Metrics.FrameTime.Id }.Select(shown.GetValueOrDefault).OfType<string>()))));
+                .Select(shown => string.Join(" ", FramesAndLows.Select(shown.GetValueOrDefault).OfType<string>()))));
 
         Assert.Equal(
             [
                 " | ",
                 " | ",
-                "161 7.9 ms | ",
-                "151 22.5 ms | ",
-                "156 22.3 ms | ",
-                "154 17.7 ms | ",
-                "153 23.5 ms | ",
-                "156 13.1 ms | ",
+                "161 7.9 ms 72 1% 40 0.1% | ",
+                "151 22.5 ms 65 1% 40 0.1% | ",
+                "156 22.3 ms 64 1% 40 0.1% | ",
+                "154 17.7 ms 65 1% 40 0.1% | ",
+                "153 23.5 ms 65 1% 43 0.1% | ",
+                "156 13.1 ms 69 1% 43 0.1% | ",
             ],
             seconds);
     }
@@ -92,7 +92,8 @@ public sealed class FrameTests
     // A service that could not start its trace, one from before, which sends no slots, and the user's own host of a
     // per-user install, which has no rights to trace: the overlay keeps no room for FPS, while the window, open, shows it
     // as missing so it can be selected, and its catalog says why, frames that cannot be read or the install for everyone
-    // they need, unlike while frames are read and nothing in front presents.
+    // they need, unlike while frames are read and nothing in front presents. A service from before the lows sends FPS
+    // alone: FPS shows, and its lows are missing, never 0, with the update they need.
     [Fact]
     public void FramesThatCannotBeReadShowAsMissing()
     {
@@ -107,10 +108,22 @@ public sealed class FrameTests
         {
             Assert.Null(Fps(OverlayConfig.First, snapshot, null, Game));
             Assert.Equal(ReadingFormatter.Missing, Fps(OverlayConfig.First, snapshot, null, Game, windowOpen: true));
-            Assert.Equal(why, WhyFps(GameSensors.With(snapshot, Game)));
+            Assert.All([FpsSensor, .. LowSensors], sensor => Assert.Equal(why, Why(GameSensors.With(snapshot, Game), sensor)));
         }
 
-        Assert.Equal(NoValue.NoFrames, WhyFps(GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of([])] }, Game)));
+        var nothing = GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of([])] }, Game);
+        Assert.All([FpsSensor, .. LowSensors], sensor => Assert.Equal(NoValue.NoFrames, Why(nothing, sensor)));
+
+        var slots = FrameSlots.Of([new FrameRate(Game, 1, 60, 16.7, 50, 40)]).Where(sensor => !sensor.Type.StartsWith("low", StringComparison.Ordinal));
+        var older = Desktop with { Sensors = [.. Desktop.Sensors, .. slots] };
+        var withLows = OverlayConfig.First with { Items = [.. OverlayConfig.First.Items, .. LowItems] };
+        string[][] shown =
+        [
+            .. new[] { false, true }.Select(open => Shown(withLows, older, null, Game, open))
+                .Select(items => FramesAndLows.Select(items.GetValueOrDefault).OfType<string>().ToArray()),
+        ];
+        Assert.Equal([["60"], ["60", $"{ReadingFormatter.Missing} 1%", $"{ReadingFormatter.Missing} 0.1%"]], shown);
+        Assert.All(LowSensors, low => Assert.Equal(NoValue.NoLows, Why(GameSensors.With(older, Game), low)));
     }
 
     // A browser presents from a process it started, so the app in front counts the frames of a child, unless it presents
@@ -134,16 +147,20 @@ public sealed class FrameTests
     // FPS and frame time start with no lines, whether from a new file or the catalog, and a line added comes at 60 FPS or
     // 30 critical, at 50 ms or 100 critical, or a push beyond the other line. With lines, frames per second are in trouble
     // when low, a frame time when high, in the value and in each second of its line, a value at a line reaching it: 144 FPS
-    // is fine, 60 a warning and 30 critical; 7 ms fine, 50 ms a warning and 100 ms critical; each on its own scale. A frame
-    // rate's critical above its warning is refused.
+    // is fine, 60 a warning and 30 critical; 7 ms fine, 50 ms a warning and 100 ms critical; each on its own scale. Each
+    // low, which the catalog lists under Game, starts with no lines either, says which it is, before what else its tag
+    // says, and warns as FPS does, and no default overlay holds one. A frame rate's critical above its warning is refused.
     [Fact]
     public void FrameRateWarnsLowAndFrameTimeHigh()
     {
         var game = GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of([])] }, null);
         var added = Edited.Done(ItemEdits.AddSensor(ThermiConfig.New, 0, game, FpsSensor));
-        Assert.All(
-            [Edited.Item(ThermiConfig.New, Metrics.Fps.Id), Edited.Item(added, FpsSensor)],
-            item => Assert.Null(item.Threshold));
+        ItemConfig[] lows = [.. LowSensors.Select(low => Edited.Item(Edited.Done(ItemEdits.AddSensor(ThermiConfig.New, 0, game, low)), low))];
+        Assert.Equal(["1%", "0.1% max"], [OverlayLayout.TagOf(lows[0], English), OverlayLayout.TagOf(lows[1] with { Stat = ItemStat.Max }, English)]);
+        Assert.All([Edited.Item(ThermiConfig.New, Metrics.Fps.Id), Edited.Item(added, FpsSensor), .. lows], item => Assert.Null(item.Threshold));
+        var listed = SensorCatalog.Build(game).Single(device => device.Kind == DeviceKind.Game).Sensors.Select(row => row.Id);
+        Assert.All(LowSensors, low => Assert.Contains(low, listed));
+        Assert.DoesNotContain(OverlayConfig.First.Items, item => LowIds.Contains(item.Metric));
         var (rate, wait) = (MeterChart.Of(Metrics.Fps.Id, game)!, MeterChart.Of(Metrics.FrameTime.Id, game)!);
         Assert.Equal(
             [60.0, 30, 55, 50, 100, 105],
@@ -164,12 +181,13 @@ public sealed class FrameTests
             [
                 .. OverlayConfig.First.Items.Select(item => item.Id == Metrics.Fps.Id ? item with { Threshold = new Threshold(60, 30) } : item),
                 FrameTimeItem,
+                .. LowItems.Select(low => low with { Threshold = new Threshold(60, 30) }),
             ],
         };
         IReadOnlyList<OverlayItem> shown = [];
         foreach (var (fps, frameTime) in new[] { (144.0, 7.0), (61, 40), (60, 50), (45, 99), (30, 100), (12, 200) })
         {
-            var slots = FrameSlots.Of([new FrameRate(Game, 1, fps, frameTime)]);
+            var slots = FrameSlots.Of([new FrameRate(Game, 1, fps, frameTime, fps, fps)]);
             var snapshot = GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. slots] }, Game);
             var readings = SensorMap.Read(snapshot, overlay);
             history.Add(overlay, readings);
@@ -192,6 +210,7 @@ public sealed class FrameTests
                 new(0.05, Level.Critical),
             ],
             Line(Metrics.Fps.Id));
+        Assert.All(LowIds, low => Assert.Equal(Line(Metrics.Fps.Id), Line(low)));
         Assert.Equal(
             [
                 new GraphPoint(0.07, Level.Normal),
@@ -357,25 +376,6 @@ public sealed class FrameTests
         Assert.Equal(expected, string.Join("|", seconds));
     }
 
-    // The presents a second at a time, through the tally the service runs, as the slots each second's snapshot carries.
-    private static IEnumerable<IReadOnlyList<FrameRate>> Replay(IReadOnlyList<Present> presents)
-    {
-        var tally = new FrameTally();
-        var end = presents.Max(present => present.At);
-        for (var close = 1000.0; close <= end + FrameTally.KeptFor; close += 1000)
-        {
-            foreach (var present in presents.Where(present => present.At > close - 1000 && present.At <= close))
-            {
-                tally.Add(present);
-            }
-
-            yield return tally.Close(close);
-        }
-    }
-
-    private static NoValue? WhyFps(Snapshot snapshot) =>
-        SensorCatalog.Build(snapshot).SelectMany(device => device.Sensors).Single(row => row.Sensor.Type == nameof(SensorKind.FrameRate)).Why;
-
     private static ItemConfig FrameTimeItem =>
         new() { Id = Metrics.FrameTime.Id, Metric = Metrics.FrameTime.Id, Threshold = new Threshold(50, 100) };
 
@@ -383,7 +383,7 @@ public sealed class FrameTests
     private static string? Fps(OverlayConfig overlay, Snapshot snapshot, IReadOnlyList<FrameRate>? rates, int? front, bool windowOpen = false) =>
         Shown(overlay, snapshot, rates, front, windowOpen).GetValueOrDefault(Metrics.Fps.Id);
 
-    // Each item the overlay keeps room for, with what it shows.
+    // Each item the overlay keeps room for, with what it shows, its tag after.
     private static Dictionary<string, string> Shown(
         OverlayConfig overlay,
         Snapshot snapshot,
@@ -394,6 +394,6 @@ public sealed class FrameTests
         var withSlots = rates is null ? snapshot : snapshot with { Sensors = [.. snapshot.Sensors, .. FrameSlots.Of(rates)] };
         var read = GameSensors.With(withSlots, front);
         return OverlayLayout.Build(overlay, SensorMap.Read(read, overlay), English, windowOpen: windowOpen)
-            .ToDictionary(item => item.Id, item => item.Value);
+            .ToDictionary(item => item.Id, item => item.Tag is null ? item.Value : $"{item.Value} {item.Tag}");
     }
 }

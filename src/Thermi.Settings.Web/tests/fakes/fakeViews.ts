@@ -161,11 +161,20 @@ export function installFakeViews(): void {
       more: ofType.filter((one) => !own(one) && (type !== 'Data' || one.hardwareType === read?.hardwareType)).map((one) => one.id),
     };
   };
-  // As Core's OverlayLayout.TagOf: what the value is when not the value now, said after it.
+  // As Core's OverlayLayout.TagOf: what the value is when not the value now, said after it, a low of the game's saying
+  // which first, by its metric or its sensor.
+  const lows: Record<string, string> = {
+    'game.low1': 'OverlayText.OnePercentLowTag',
+    '/game/0/framerate/1': 'OverlayText.OnePercentLowTag',
+    'game.low01': 'OverlayText.PointOnePercentLowTag',
+    '/game/0/framerate/2': 'OverlayText.PointOnePercentLowTag',
+  };
   const tagOf = (item: Item): string | undefined => {
     const stats: Record<string, string> = { min: 'OverlayText.MinTag', max: 'OverlayText.MaxTag', average: 'OverlayText.AverageTag' };
     const stat = stats[item.stat ?? ''];
-    return stat !== undefined ? say(stat) : (item.smooth ?? 0) > 0 ? say('OverlayText.SmoothTag', String(item.smooth)) : undefined;
+    const said = stat !== undefined ? say(stat) : (item.smooth ?? 0) > 0 ? say('OverlayText.SmoothTag', String(item.smooth)) : undefined;
+    const low = lows[item.sensor ?? item.metric ?? item.auto ?? ''];
+    return low === undefined ? said : said === undefined ? say(low) : `${say(low)} ${said}`;
   };
   const itemView = (item: Item): ItemView => {
     const read = sensorOf(item);

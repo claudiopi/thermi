@@ -26,6 +26,7 @@ const reasons: Record<NoValue, TextKey> = {
   'no-frames': 'CatalogText.RowNoFrames',
   'frames-unread': 'CatalogText.RowFramesUnread',
   'frames-need-install-for-everyone': 'CatalogText.RowFramesNeedInstallForEveryone',
+  'no-lows': 'CatalogText.RowNoLows',
 };
 
 // A drive, an adapter or a battery is named under its group, as "Network · Intel I226-V".

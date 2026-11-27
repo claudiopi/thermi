@@ -205,6 +205,9 @@
   <data name="CatalogText.RowFramesNeedInstallForEveryone" xml:space="preserve">
     <value>Instalá para todos para leer los FPS</value>
   </data>
+  <data name="CatalogText.RowNoLows" xml:space="preserve">
+    <value>Actualizá thermi para leer los mínimos</value>
+  </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Se muestra: {0}</value>
   </data>
@@ -1476,6 +1479,9 @@
   <data name="NoValue.FramesNeedInstallForEveryone" xml:space="preserve">
     <value>lee cuadros solo con thermi instalado para todos, con permisos de administrador</value>
   </data>
+  <data name="NoValue.NoLows" xml:space="preserve">
+    <value>no puede leer los mínimos: el servicio de sensores es anterior a ellos, así que actualizá thermi</value>
+  </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>
     <comment>The same word in Spanish.</comment>
@@ -2204,6 +2210,12 @@
   <data name="MetricName.FrameTime" xml:space="preserve">
     <value>Tiempo por cuadro</value>
   </data>
+  <data name="MetricName.OnePercentLow" xml:space="preserve">
+    <value>Mínimo del 1 %</value>
+  </data>
+  <data name="MetricName.PointOnePercentLow" xml:space="preserve">
+    <value>Mínimo del 0,1 %</value>
+  </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Hora</value>
   </data>
@@ -2292,6 +2304,12 @@
   </data>
   <data name="OverlayText.SmoothTag" xml:space="preserve">
     <value>prom {0}s</value>
+  </data>
+  <data name="OverlayText.OnePercentLowTag" xml:space="preserve">
+    <value>1 %</value>
+  </data>
+  <data name="OverlayText.PointOnePercentLowTag" xml:space="preserve">
+    <value>0,1 %</value>
   </data>
   <data name="OverlayPageText.TaskbarOnSide" xml:space="preserve">
     <value>Tu barra de tareas está a un lado, así que la superposición flota junto a ella.</value>

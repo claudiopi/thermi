@@ -248,7 +248,7 @@ export interface Monitor {
 
 export type NameFrom = 'library' | 'likely' | 'own';
 
-export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread' | 'frames-need-install-for-everyone';
+export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread' | 'frames-need-install-for-everyone' | 'no-lows';
 
 export interface Opacity {
   background?: number;
