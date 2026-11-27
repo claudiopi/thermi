@@ -67,7 +67,7 @@ internal sealed class OverlayHost : IDisposable
         var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
         _surfaces = kind switch
         {
-            SurfaceKind.Layer => new LayerSurfaces(),
+            SurfaceKind.Layer => new LayerSurfaces(log),
             SurfaceKind.X11 => new X11Surfaces(),
             SurfaceKind.Shell or SurfaceKind.None => new ShellSurfaces(_link, arrival),
             _ => new ShellSurfaces(_link, arrival),

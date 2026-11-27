@@ -10,7 +10,7 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `Commands` | `thermi`'s commands on Linux beside the shared ones, as `thermi preview`. |
 | `Desktop` | What the overlay and the agents' commands read from the desktop and the machine: which surfaces the session has, the session's D-Bus, the monitors as GNOME and GDK lay them out, high contrast, the panels, the pointer's drag distance and double-click time, the CPU's base clock; the overlay's notices, and the GTK window a picture shows in off GNOME. |
 | `Gnome` | thermi's side of the D-Bus protocol with its GNOME Shell extension, the Shell's monitors as Core's screens, the extension's arrival, and the extension as the overlay's surfaces. |
-| `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, and the surface that measures each monitor's work area. |
+| `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, and the surfaces and popups that measure each monitor's work area. |
 | `Logging` | The overlay's log events. |
 | `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, and the `quit` it exports. |
 | `Packaging` | The systemd user unit that runs the overlay in the person's graphical session. |

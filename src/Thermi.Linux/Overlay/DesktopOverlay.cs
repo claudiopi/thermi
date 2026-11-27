@@ -210,8 +210,11 @@ internal sealed class DesktopOverlay : IDisposable
         _ = _parts.Call(_parts.Surfaces.Move((uint)_index, x, y));
     }
 
-    /// <summary>The pill or item a hold carries off, as it shows alone over the others, in the picture's pixels.</summary>
-    public Picture Carried(string item, bool alone)
+    /// <summary>
+    /// The pill or item a hold carries off, as it shows alone over the others, drawn for a monitor at
+    /// <paramref name="monitor"/>, in its pixels.
+    /// </summary>
+    public Picture Carried(string item, bool alone, double monitor)
     {
         var painted = Painted!;
         var ids = DesktopGestures.PillItems(_parts.Settings.Config, item);
@@ -221,7 +224,7 @@ internal sealed class DesktopOverlay : IDisposable
             : [.. painted.Items.Where(each => ids.Contains(each.Id))];
         // Carried over other pills, it keeps a background of its own whatever the look's opacity.
         using var painter = new Painter();
-        return painter.Paint(items, painted.Look with { Orientation = Orientation.Horizontal, Background = 1, Opacity = 1 }, painted.Scale);
+        return painter.Paint(items, painted.Look with { Orientation = Orientation.Horizontal, Background = 1, Opacity = 1 }, painted.Scale / Monitor * monitor);
     }
 
     public void Dispose()

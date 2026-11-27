@@ -35,6 +35,8 @@ public sealed class OverlayTests
         SwayAt150,
         FullScreen,
         Neither,
+        KWinBottomPanel,
+        SwayLeftPanel,
     }
 
     public enum X11Case
@@ -73,26 +75,32 @@ public sealed class OverlayTests
     [InlineData(LayerCase.SwayAt150)]
     [InlineData(LayerCase.FullScreen)]
     [InlineData(LayerCase.Neither)]
+    [InlineData(LayerCase.KWinBottomPanel)]
+    [InlineData(LayerCase.SwayLeftPanel)]
     public async Task TheOverlayShowsAboveEveryWindowOnLayerShell(LayerCase row)
     {
         var cancel = TestContext.Current.CancellationToken;
         var scale = row == LayerCase.SwayAt150 ? 1.5 : 1;
-        var kind = row switch
+        var (kind, edge) = row switch
         {
-            LayerCase.SwayAt150 => DesktopKind.Sway,
-            LayerCase.Neither => DesktopKind.BareWayland,
-            LayerCase.KWin or LayerCase.FullScreen => DesktopKind.KWin,
+            LayerCase.SwayAt150 => (DesktopKind.Sway, PanelEdge.Top),
+            LayerCase.SwayLeftPanel => (DesktopKind.Sway, PanelEdge.Left),
+            LayerCase.Neither => (DesktopKind.BareWayland, PanelEdge.Top),
+            LayerCase.KWin or LayerCase.FullScreen => (DesktopKind.KWin, PanelEdge.Top),
+            LayerCase.KWinBottomPanel => (DesktopKind.KWin, PanelEdge.Bottom),
             _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown case."),
         };
-        await using var desktop = await TestDesktop.StartAsync(kind, [Monitor with { Scale = scale }], cancel);
+        await using var desktop = await TestDesktop.StartAsync(kind, [Monitor with { Scale = scale }], cancel, edge);
         if (row == LayerCase.Neither)
         {
             await NeitherSurfaceShowsAsync(desktop, cancel);
             return;
         }
 
-        var scene = await Scene.ShowAsync(desktop, scale, fullScreen: false, stopped: false, cancel);
-        Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnPanel, cancel));
+        var scene = await Scene.ShowAsync(desktop, scale, fullScreen: false, stopped: false, cancel, first: BesideSide(edge));
+        var (_, height) = await Pictures.SizeAsync(desktop.Session, scene.Picture, cancel);
+        var onPanel = edge == PanelEdge.Top ? Scene.OnPanel : OnPanelOf(edge, scale, height, TestPanel.Height);
+        Assert.Equal(0, await scene.DifferingAtAsync(onPanel, cancel));
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnWindow, cancel));
         Assert.Equal("click 1", await scene.ClickThroughAsync(cancel));
         if (row == LayerCase.FullScreen)
@@ -116,13 +124,10 @@ public sealed class OverlayTests
             _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown case."),
         };
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.X11, [Monitor with { Scale = scale }], cancel, edge);
-        // Snapped to the taskbar from the monitor's left edge, as far as it goes beside a side panel.
-        var first = edge == PanelEdge.Left ? Scene.PanelOverlay with { Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = 0 } } : null;
-
-        var scene = await Scene.ShowAsync(desktop, scale, fullScreen: false, stopped: false, cancel, clickThrough: true, first);
+        var scene = await Scene.ShowAsync(desktop, scale, fullScreen: false, stopped: false, cancel, clickThrough: true, BesideSide(edge));
 
         var (width, height) = await Pictures.SizeAsync(desktop.Session, scene.Picture, cancel);
-        var onPanel = OnPanelOf(edge, scale, height);
+        var onPanel = OnPanelOf(edge, scale, height, XfceDesktop.PanelRoom);
         Assert.Equal(0, await scene.DifferingAtAsync(onPanel, cancel));
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnWindow, cancel));
         // Off the taskbar and the window switcher: every window of thermi's process says so to the window manager.
@@ -149,12 +154,17 @@ public sealed class OverlayTests
         Assert.Equal(0, await CoveredAsync(moved, Free, cancel));
     }
 
-    // Where Core's snaps put the first overlay: across the middle of a panel along the bottom; beside a side panel, at the
-    // bottom of the work area, a margin up. A panel at the top is GestureTests' X11 rows'.
-    private static Position OnPanelOf(PanelEdge edge, double scale, int height) => edge switch
+    // The first overlay snapped to the taskbar from the monitor's left edge, as far as it goes beside a side panel.
+    private static OverlayConfig? BesideSide(PanelEdge edge) =>
+        edge == PanelEdge.Left ? Scene.PanelOverlay with { Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = 0 } } : null;
+
+    // Where Core's snaps put the first overlay, by a panel that keeps its room's pixels off the work area: across its middle
+    // along the bottom; beside it on a side, at the bottom of the work area, a margin up. A panel at the top is the
+    // layer rows' and GestureTests' X11 rows'.
+    private static Position OnPanelOf(PanelEdge edge, double scale, int height, int room) => edge switch
     {
-        PanelEdge.Bottom => new(Scene.OnPanel.X, Monitor.Height - XfceDesktop.PanelRoom + ((XfceDesktop.PanelRoom - height) / 2)),
-        PanelEdge.Left => new(XfceDesktop.PanelRoom, Monitor.Height - (int)Math.Round(Snaps.Margin * scale) - height),
+        PanelEdge.Bottom => new(Scene.OnPanel.X, Monitor.Height - room + ((room - height) / 2)),
+        PanelEdge.Left => new(room, Monitor.Height - (int)Math.Round(Snaps.Margin * scale) - height),
         PanelEdge.Top or _ => throw new ArgumentOutOfRangeException(nameof(edge), edge, "No row has this edge."),
     };
 

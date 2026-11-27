@@ -53,7 +53,7 @@
       "covers": [
         "R17"
       ],
-      "description": "Given a headless KWin and Sway of the test's own, a window under the overlay and a recorded feed, when thermi runs (a table of KWin, Sway, a monitor at 150 %, a window full screen on the overlay's monitor, a Wayland session with neither GNOME Shell nor layer surfaces), then the screen shows, at the overlay's place and above the window and the panel, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; the full-screen window covers it; and with neither surface thermi shows nothing and says why once.",
+      "description": "Given a headless KWin and Sway of the test's own, a window under the overlay and a recorded feed, when thermi runs (a table of KWin and Sway with a panel along the top, the bottom or the left side, a monitor at 150 %, a window full screen on the overlay's monitor, a Wayland session with neither GNOME Shell nor layer surfaces), then the screen shows, at the overlay's place and above the window and the panel, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; the full-screen window covers it; and with neither surface thermi shows nothing and says why once.",
       "check": "TheOverlayShowsAboveEveryWindowOnLayerShell",
       "passes": true
     },

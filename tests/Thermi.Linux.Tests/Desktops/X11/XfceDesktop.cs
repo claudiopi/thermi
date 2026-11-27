@@ -2,14 +2,6 @@ using System.Globalization;
 
 namespace Thermi.Linux.Tests.Desktops.X11;
 
-/// <summary>The edge of the primary monitor Xfce's panel keeps its room along.</summary>
-internal enum PanelEdge
-{
-    Top,
-    Bottom,
-    Left,
-}
-
 /// <summary>
 /// An X11 desktop as Xfce's: Xorg on its dummy driver, Xfce's window manager, and its panel along an edge of the primary
 /// monitor, which takes its room off the work area.

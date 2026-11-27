@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
+using Thermi.Linux.Logging;
 using Thermi.Linux.Overlay;
 
 namespace Thermi.Linux.LayerShell;
@@ -11,18 +13,22 @@ namespace Thermi.Linux.LayerShell;
 /// window gone full screen covers the top layer, as compositors stack it, so nothing here hides it then. The compositor
 /// tells the pointer only on a surface, so a fade sees the pointer only on its overlay. A surface goes to another monitor
 /// only mapped again, which ends the press on it, so a drag onto another monitor shows the picture on a surface of its
-/// own there, while the one pressed stays, drawing nothing, until the press ends on it.
+/// own there, while the one pressed stays, drawing nothing, until the press ends on it. Surfaces of one layer stack as
+/// they were mapped, so what a press moves, the overlay or the pill it lifted, goes up to the overlay layer until the press
+/// ends, above the snap marks mapped after it, as GNOME's extension raises it.
 /// </summary>
-internal sealed class LayerSurfaces : IOverlaySurfaces
+internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
 {
     private readonly Dictionary<uint, (PictureWindow Window, Gdk.Monitor Monitor)> _shown = [];
     private readonly Dictionary<uint, ShellPicture> _pictures = [];
     private readonly HashSet<uint> _held = [];
     private readonly Dictionary<uint, PictureWindow> _pressed = [];
-    private readonly Dictionary<Gdk.Monitor, double> _bars = [];
+    private readonly HashSet<PictureWindow> _raised = [];
+    private readonly Dictionary<Gdk.Monitor, PanelRoom> _rooms = [];
     private readonly List<LayerProbe> _probes = [];
     private readonly HashSet<Gdk.Monitor> _watched = [];
     private IReadOnlyList<Gdk.Monitor> _monitors = [];
+    private bool _untoldSaid;
 
     public bool Ready { get; private set; }
 
@@ -50,7 +56,7 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
 
     public Task Show(uint id, ShellPicture picture, double x, double y)
     {
-        if (!Ready)
+        if (!Ready || _monitors.Count == 0)
         {
             return Task.CompletedTask;
         }
@@ -70,6 +76,11 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
         {
             var (placed, shows) = Placed(id, shown, x, y, shown.Monitor.GetScale(), picture: null);
             _shown[id] = placed;
+            if (_held.Count > 0 && _raised.Add(placed.Window))
+            {
+                LayerShellLibrary.SetLayer(placed.Window.Window, Layer.Overlay);
+            }
+
             return shows;
         }
 
@@ -80,6 +91,7 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
     {
         if (_shown.Remove(id, out var shown))
         {
+            _raised.Remove(shown.Window);
             shown.Window.Dispose();
         }
 
@@ -132,17 +144,29 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
     private PictureWindow New(uint id) => new(id, Made) { Pointer = each => Pointer(each), Key = (on, key) => Key(on, key) };
 
     // The press ended: the surface it began on, if the picture left it, goes once the release that ended it is handled.
+    // What the press raised goes back to the top layer, under a window gone full screen.
     private void Let(uint id)
     {
         _held.Remove(id);
         if (_pressed.TryGetValue(id, out var pressed))
         {
             _pressed.Remove(id);
+            _raised.Remove(pressed);
             GLib.Functions.IdleAdd(0, () =>
             {
                 pressed.Dispose();
                 return false;
             });
+        }
+
+        if (_held.Count == 0)
+        {
+            foreach (var raised in _raised)
+            {
+                LayerShellLibrary.SetLayer(raised.Window, Layer.Top);
+            }
+
+            _raised.Clear();
         }
     }
 
@@ -159,7 +183,7 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
 
     // On the monitor the corner is on, a whole logical pixel in, and the rest as the picture's own pixels inside the
     // surface: the compositor puts the surface's corner on the pixel its logical one rounds to.
-    private ((PictureWindow, Gdk.Monitor) Placed, Task Shows) Placed(
+    private ((PictureWindow Window, Gdk.Monitor Monitor) Placed, Task Shows) Placed(
         uint id, (PictureWindow Window, Gdk.Monitor Monitor) shown, double x, double y, double scale, ShellPicture? picture)
     {
         var monitor = _monitors.FirstOrDefault(each => each.Geometry.ContainsPoint((int)Math.Floor(x), (int)Math.Floor(y))) ?? shown.Monitor;
@@ -194,13 +218,15 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
         return ((shown.Window, monitor), shows);
     }
 
-    // Each monitor measured again, as one came or went: the overlays show once every monitor is.
+    // Each monitor measured again, as one came or went: the overlays show once every monitor is, and none shows while
+    // there is no monitor.
     private void Probe()
     {
         _probes.ForEach(probe => probe.Dispose());
         _probes.Clear();
-        _bars.Clear();
+        _rooms.Clear();
         _monitors = GdkMonitors.All();
+        Ready = Ready && _monitors.Count > 0;
         foreach (var monitor in _monitors)
         {
             if (_watched.Add(monitor))
@@ -212,9 +238,16 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
         }
     }
 
-    private void Measured(LayerProbe probe, int height)
+    private void Measured(LayerProbe probe)
     {
-        _bars[probe.Monitor] = Math.Max(0, probe.Monitor.Geometry.Height - height);
+        var (room, told) = probe.Found;
+        _rooms[probe.Monitor] = room;
+        if (!told && !_untoldSaid)
+        {
+            log.PanelEdgesUntold();
+            _untoldSaid = true;
+        }
+
         _probes.Remove(probe);
         probe.Dispose();
         if (_probes.Count > 0)
@@ -235,5 +268,5 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
     }
 
     public IReadOnlyList<ShellMonitor> Monitors() =>
-        [.. GdkMonitors.Read(_monitors, monitor => new PanelRoom(0, _bars.GetValueOrDefault(monitor), 0, 0), primary: null)];
+        [.. GdkMonitors.Read(_monitors, monitor => _rooms.GetValueOrDefault(monitor), primary: null)];
 }

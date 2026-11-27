@@ -41,4 +41,7 @@ internal static partial class LinuxLog
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The GNOME Shell extension's {Signal} could not be read")]
     public static partial void ShellSignalFailed(this ILogger logger, string signal, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The compositor tells no edge its panels keep room along: the snaps take it to be the left and the top")]
+    public static partial void PanelEdgesUntold(this ILogger logger);
 }

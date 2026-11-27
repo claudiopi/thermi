@@ -3,11 +3,15 @@ using GObject.Internal;
 
 namespace Thermi.Linux.LayerShell;
 
-/// <summary>A layer of the compositor's: the top one shows above every window, and under one gone full screen.</summary>
+/// <summary>
+/// A layer of the compositor's: the top one shows above every window, and under one gone full screen; the overlay one
+/// above that too.
+/// </summary>
 internal enum Layer
 {
     Background = 0,
     Top = 2,
+    Overlay = 3,
 }
 
 /// <summary>An edge of a monitor a layer surface is anchored to and kept a margin from.</summary>

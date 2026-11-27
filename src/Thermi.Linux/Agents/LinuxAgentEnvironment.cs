@@ -97,11 +97,11 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     public AboutFacts About() => LinuxAbout.Read();
 
     // The surfaces measure the monitors as the overlay's do, GTK's main loop run until they did.
-    private static List<Screen> SurfacesScreens()
+    private List<Screen> SurfacesScreens()
     {
         using IOverlaySurfaces? surfaces = DesktopSession.Start() switch
         {
-            SurfaceKind.Layer => new LayerSurfaces(),
+            SurfaceKind.Layer => new LayerSurfaces(log),
             SurfaceKind.X11 => new X11Surfaces(),
             SurfaceKind.Shell or SurfaceKind.None => null,
             _ => null,

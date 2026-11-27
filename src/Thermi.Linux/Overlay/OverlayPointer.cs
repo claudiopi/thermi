@@ -178,7 +178,7 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
         _press.Press(overlay, size, Scale, screens.Screens, _overlay.Places.Pressed(x, y), corner, carried => new DragShow(_parts, screens, carried switch
         {
             null => null,
-            var each => () => _overlay.Carried(each.Item, each.Alone),
+            var each => monitor => _overlay.Carried(each.Item, each.Alone, monitor),
         }));
     }
 

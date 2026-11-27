@@ -1,14 +1,22 @@
 namespace Thermi.Linux.Tests.Desktops;
 
+/// <summary>The edge of the primary monitor a panel keeps its room along: Xfce's, or the tests' own.</summary>
+internal enum PanelEdge
+{
+    Top,
+    Bottom,
+    Left,
+}
+
 /// <summary>
-/// A panel along the top of the first monitor, as KDE Plasma's: a layer surface that keeps its height off the work area,
-/// for the compositors that start bare, where an overlay shows above a panel and snaps along it. With it, or alone where
-/// the compositor has a bar of its own, a pixel that tells when the compositor drew what its clients sent before
-/// (<see cref="FramedAsync"/>).
+/// A panel along an edge of the first monitor, the bottom as KDE Plasma 6 starts, the top or the left: a layer surface that
+/// keeps its depth off the work area, for the compositors that start bare, where an overlay shows above a panel and snaps
+/// along or beside it. With it, or alone where the compositor has a bar of its own, a pixel that tells when the compositor
+/// drew what its clients sent before (<see cref="FramedAsync"/>).
 /// </summary>
 internal static class TestPanel
 {
-    /// <summary>The panel's height, in logical pixels.</summary>
+    /// <summary>The panel's depth from its edge, in logical pixels.</summary>
     public const int Height = 40;
 
     // GTK 4 from Python, with gtk4-layer-shell, which must load before the Wayland library does.
@@ -46,16 +54,18 @@ internal static class TestPanel
 
         def activate(app):
             framer(app)
-            if sys.argv[1] != 'panel':
+            edge = sys.argv[1]
+            if edge == 'pixel':
                 print('ready', flush=True)
                 return
             panel = Gtk.ApplicationWindow(application=app)
             Layer.init_for_window(panel)
             Layer.set_layer(panel, Layer.Layer.TOP)
             Layer.set_monitor(panel, Gdk.Display.get_default().get_monitors().get_item(0))
-            for edge in (Layer.Edge.TOP, Layer.Edge.LEFT, Layer.Edge.RIGHT):
-                Layer.set_anchor(panel, edge, True)
-            panel.set_default_size(-1, 40)
+            along = {'top': ('TOP', 'LEFT', 'RIGHT'), 'bottom': ('BOTTOM', 'LEFT', 'RIGHT'), 'left': ('LEFT', 'TOP', 'BOTTOM')}[edge]
+            for side in along:
+                Layer.set_anchor(panel, getattr(Layer.Edge, side), True)
+            panel.set_default_size(*((40, -1) if edge == 'left' else (-1, 40)))
             Layer.auto_exclusive_zone_enable(panel)
             panel.connect('map', lambda *_: print('ready', flush=True))
             panel.present()
@@ -65,13 +75,20 @@ internal static class TestPanel
         app.run([])
         """;
 
-    /// <summary>Shows the panel, or only its pixel, and returns once the compositor mapped it.</summary>
-    public static async Task<SessionProcess> ShowAsync(OwnSession session, CancellationToken cancel, bool panel = true)
+    /// <summary>Shows the panel along <paramref name="panel"/>, or only its pixel for none, and returns once the compositor mapped it.</summary>
+    public static async Task<SessionProcess> ShowAsync(OwnSession session, PanelEdge? panel, CancellationToken cancel)
     {
         var script = Path.Combine(session.Home, "panel.py");
         await File.WriteAllTextAsync(script, Code, cancel).ConfigureAwait(false);
         var preload = new Dictionary<string, string> { ["LD_PRELOAD"] = "libgtk4-layer-shell.so.0", ["GDK_BACKEND"] = "wayland" };
-        var shown = await session.StartAsync("python3", [script, panel ? "panel" : "pixel"], preload, cancel).ConfigureAwait(false);
+        var edge = panel switch
+        {
+            PanelEdge.Top => "top",
+            PanelEdge.Bottom => "bottom",
+            PanelEdge.Left => "left",
+            _ => "pixel",
+        };
+        var shown = await session.StartAsync("python3", [script, edge], preload, cancel).ConfigureAwait(false);
         return await shown.ReadyAsync(cancel).ConfigureAwait(false) == "ready"
             ? shown
             : throw new InvalidOperationException($"The panel never showed: {shown.Error.Text}");
