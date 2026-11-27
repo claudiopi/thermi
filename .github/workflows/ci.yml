@@ -153,6 +153,8 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+      # The shells thermi-cli is run from in the tests, beside bash.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Linux
       # What the job measured, for the 📊 Stats dashboard.
       - if: always()

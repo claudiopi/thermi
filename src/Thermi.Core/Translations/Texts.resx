@@ -2325,6 +2325,36 @@
   <data name="AgentText.NotRunningFix" xml:space="preserve">
     <value>Ask the person to start thermi from the Start menu. Do not start it yourself.</value>
   </data>
+  <data name="AgentText.FramesNotReadCause" xml:space="preserve">
+    <value>FPS and frame time are not read on Linux: their items read as missing and take no room in the overlay.</value>
+  </data>
+  <data name="AgentText.FramesNotReadFix" xml:space="preserve">
+    <value>Nothing to fix: every other metric reads as usual.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowCause" xml:space="preserve">
+    <value>The overlay cannot show on this desktop: it needs GNOME with thermi&apos;s extension, a desktop with layer-shell, or X11.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFix" xml:space="preserve">
+    <value>Ask the person to turn on thermi&apos;s GNOME extension, or to sign in to a desktop that can show it. The sensors still read.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedFixLinux" xml:space="preserve">
+    <value>Ask the person to run sudo systemctl enable --now thermi-sensors.socket, or to install thermi&apos;s package again. Do not start it yourself.</value>
+  </data>
+  <data name="AgentText.ServiceStaleFixLinux" xml:space="preserve">
+    <value>Wait a few seconds and read again; systemd restarts the service if it stays stuck.</value>
+  </data>
+  <data name="AgentText.PipeTakenCauseLinux" xml:space="preserve">
+    <value>Another program serves the socket where thermi&apos;s sensors should be, so its readings cannot be trusted.</value>
+  </data>
+  <data name="AgentText.PipeTakenFixLinux" xml:space="preserve">
+    <value>Ask the person to stop the program that serves /run/thermi/sensors.sock, or to restart the PC.</value>
+  </data>
+  <data name="AgentText.DriverMissingFixLinux" xml:space="preserve">
+    <value>Ask the person to check that the kernel module for the CPU&apos;s sensors is loaded: k10temp on AMD, coretemp on Intel.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenFixLinuxSensorsOnly" xml:space="preserve">
+    <value>Ask the person to fix or delete thermi&apos;s settings file, ~/.config/thermi/config.json.</value>
+  </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>This build does not update itself</value>
   </data>

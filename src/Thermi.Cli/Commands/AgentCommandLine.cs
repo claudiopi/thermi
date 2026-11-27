@@ -210,6 +210,24 @@ internal static class AgentCommandLine
             }));
     }
 
+    /// <summary>A parser of a whole number from <paramref name="min"/> to <paramref name="max"/>, saying the range when it is not one.</summary>
+    public static Func<ArgumentResult, int> Whole(int min, int max) => result =>
+    {
+        if (result.Tokens is [var token]
+            && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
+            && value >= min
+            && value <= max)
+        {
+            return value;
+        }
+
+        var range = max == int.MaxValue
+            ? string.Create(CultureInfo.InvariantCulture, $"{min} up")
+            : string.Create(CultureInfo.InvariantCulture, $"{min} to {max}");
+        result.AddError(string.Create(CultureInfo.InvariantCulture, $"{result.Argument.Name} takes a whole number from {range}."));
+        return 0;
+    };
+
     private static int SchemaOf(ArgumentResult result)
     {
         if (result.Tokens is [{ Value: var value }] && value == AgentSchema.Current.ToString(CultureInfo.InvariantCulture))

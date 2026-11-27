@@ -89,7 +89,8 @@ internal sealed record WindowStart(int Overlay, Settings Settings, Texts Texts, 
     /// <summary>True with <c>--size</c>: the window opens on the overlay's Size row.</summary>
     public bool SizeRow { get; init; }
 
-    private void StartLoad(CancellationToken stop) => CpuLoad.Start(Environment.ExePath, (int)Core.Sensors.FanFinder.MaxRun.TotalSeconds, stop);
+    private void StartLoad(CancellationToken stop) =>
+        CpuLoad.Start(Environment.ExePath, CpuLoad.Arguments((int)Core.Sensors.FanFinder.MaxRun.TotalSeconds), stop);
 }
 
 /// <summary>

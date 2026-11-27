@@ -18,6 +18,9 @@ public sealed class ThermiClient
 
     internal static readonly string Cli = OperatingSystem.IsWindows() ? "thermi-cli.exe" : "thermi-cli";
 
+    // Where Linux's packages put thermi-cli.
+    private const string LinuxInstall = "/usr/bin";
+
     private readonly Func<string?> _find;
     private readonly ICli _cli;
 
@@ -98,23 +101,27 @@ public sealed class ThermiClient
     private static ThermiException Failed(CliEnd end) =>
         new(end.Error.Trim() is { Length: > 0 } said ? said : $"thermi-cli ended with {end.Exit}.", end.Exit);
 
-    private static string? Locate() => Locate(
-        Environment.GetEnvironmentVariable("PATH"),
-        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    // Linux's packages put it in /usr/bin, which a login shell's PATH holds and a service's or an editor's may not.
+    private static string? Locate() => OperatingSystem.IsWindows()
+        ? Locate(
+            Environment.GetEnvironmentVariable("PATH"),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))
+        : OnPathOr(Environment.GetEnvironmentVariable("PATH"), LinuxInstall);
 
     /// <summary>
     /// thermi-cli on <paramref name="path"/>, else where an install for everyone puts it, under <paramref name="programFiles"/>,
     /// else where an install for one person alone does, under <paramref name="localAppData"/>.
     /// </summary>
-    internal static string? Locate(string? path, string programFiles, string localAppData)
-    {
-        var folders = (path ?? "")
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Append(Path.Combine(programFiles, "thermi"))
-            .Append(Path.Combine(localAppData, "Programs", "thermi"));
-        return folders.Select(folder => Path.Combine(folder, Cli)).FirstOrDefault(File.Exists);
-    }
+    internal static string? Locate(string? path, string programFiles, string localAppData) =>
+        OnPathOr(path, Path.Combine(programFiles, "thermi"), Path.Combine(localAppData, "Programs", "thermi"));
+
+    /// <summary>thermi-cli on <paramref name="path"/>, else in the first of <paramref name="installs"/> that holds it.</summary>
+    internal static string? OnPathOr(string? path, params string[] installs) =>
+        (path ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Concat(installs)
+            .Select(folder => Path.Combine(folder, Cli))
+            .FirstOrDefault(File.Exists);
 }
 
 /// <summary>

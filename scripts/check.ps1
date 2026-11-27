@@ -146,6 +146,8 @@ function Invoke-Linux($Scope) {
     $locked = @(if ($Ci) { '--locked-mode' })
     Invoke-Step 'restore' { foreach ($project in $projects) { dotnet restore $project @locked; if ($LASTEXITCODE -ne 0) { break } } }
     Invoke-Step 'build Release' { foreach ($project in $projects) { dotnet build $project -c Release --no-restore; if ($LASTEXITCODE -ne 0) { break } } }
+    # The Linux tests install the packages, as a person does, in containers of each distribution.
+    if ($projects -contains 'tests/Thermi.Linux.Tests') { Invoke-Step 'Linux packages' { pwsh -NoProfile -File (Join-Path $PSScriptRoot 'linux-packages.ps1') } }
     Invoke-Together @(foreach ($project in $projects) {
             $name = if ($project -eq 'tests/Thermi.Tests') { 'tests on Linux' } else { 'Linux tests' }
             New-Step $name 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results

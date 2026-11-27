@@ -53,6 +53,19 @@
           "xunit.v3.mtp-v2": "[4.0.3]"
         }
       },
+      "GirCore.GLib-2.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "WKEIITNPAYuqIic4zXUm021bJFnWCPqt5IW7mqGTlvJBZ+C6VJZukRt0hDSplQifbpEYzlCgxeinyqyyMtVbEA=="
+      },
+      "GirCore.GObject-2.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "fu6jkSGTzV8v+kRRLfDnTnfzJ1K+/EoMc55u0OSsfV5tleZY3VJAjyf5MnMmY5SBn1Mj0DE712YMPoQDR3G7RA==",
+        "dependencies": {
+          "GirCore.GLib-2.0": "0.8.1"
+        }
+      },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
         "resolved": "2.23.0",
@@ -284,6 +297,7 @@
       "thermi": {
         "type": "Project",
         "dependencies": {
+          "GirCore.Gio-2.0": "[0.8.1, )",
           "Thermi.App": "[0.9.0, )",
           "Thermi.Cli": "[0.9.0, )",
           "Thermi.Core": "[0.9.0, )"
@@ -292,6 +306,7 @@
       "thermi-sensors": {
         "type": "Project",
         "dependencies": {
+          "System.CommandLine": "[3.0.0, )",
           "Thermi.Core": "[0.9.0, )"
         }
       },
@@ -319,6 +334,15 @@
       },
       "thermi.core": {
         "type": "Project"
+      },
+      "GirCore.Gio-2.0": {
+        "type": "CentralTransitive",
+        "requested": "[0.8.1, )",
+        "resolved": "0.8.1",
+        "contentHash": "/Ddc3QqosowxKBdNx2bYGjfkwpCvn0bJg2v1XPfR/IE6fDEsAw7zPEhLMJKeFPehl6Dlm2no/SKh/QXoJCYkTQ==",
+        "dependencies": {
+          "GirCore.GObject-2.0": "0.8.1"
+        }
       },
       "Microsoft.Extensions.Logging.Abstractions": {
         "type": "CentralTransitive",

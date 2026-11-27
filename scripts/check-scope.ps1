@@ -11,8 +11,9 @@ $wholeCheck = @(
 )
 # Read by the Windows tests as files, beside their projects' own.
 $windowsReads = @('scripts/install.ps1')
-# Read by the Linux tests as files: the GNOME Shell extension, which their Shell loads as it is.
-$linuxReads = @('src/Thermi.Gnome/*')
+# Read by the Linux tests as files: the GNOME Shell extension, which their Shell loads as it is, and the script that packs
+# what they install.
+$linuxReads = @('src/Thermi.Gnome/*', 'scripts/linux-packages.ps1')
 # What only the repo rules of Thermi.Tests read: docs, agent briefs, workflows, tools and the scripts no step runs.
 $rulesOnly = @('*.md', 'docs/*', '.claude/*', '.github/*', '.config/*', 'scripts/*', 'LICENSE', '.gitignore', 'renovate.json')
 $notices = @('THIRD-PARTY-NOTICES.md', 'scripts/notices.ps1', 'scripts/licenses/*', '*packages.lock.json', 'src/Thermi.Settings.Web/package*.json')
