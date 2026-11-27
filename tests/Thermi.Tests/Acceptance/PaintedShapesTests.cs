@@ -69,26 +69,32 @@ public sealed class PaintedShapesTests
             $"{pressed.Item ?? "-"}{(pressed.OnLabel ? " l" : "")} > {drop.Before ?? "-"}{(drop.InPill ? " in" : "")}");
     }
 
-    // Three items 30, 20 and 40 wide at 100 %: one pill, or a single bar of a pill of one and a pill of two, side by side or
-    // standing; as its width x its height for rows 30 high, then each pill inside it, from a box of that size.
+    // CPU 1, GPU 2 and an unlabeled 3, each character 10 wide at 100 %: a pill for each label, or a single bar of a pill of
+    // one and a pill of two, side by side or standing; as the picture's size, then each pill in it and where each value draws.
     [Theory] // Rows: no bar, a bar lying, a bar standing
-    [InlineData(null, false, "146x30: 0,0,146,30")]
-    [InlineData(new[] { 1, 2 }, false, "156x30: 4,4,50,22 58,4,94,22")]
-    [InlineData(new[] { 1, 2 }, true, "102x56: 4,4,94,22 4,30,94,22")]
-    public void ASingleBarHoldsItsPillsSideBySideOrStanding(int[]? runs, bool stacked, string expected)
+    [InlineData(PillLayout.Pills, Orientation.Horizontal, "198x38: 0,0,88,38 [54] 96,0,102,38 [150 174]")]
+    [InlineData(PillLayout.One, Orientation.Horizontal, "186x38: 4,4,80,30 [54] 88,4,94,30 [138 162]")]
+    [InlineData(PillLayout.One, Orientation.Vertical, "102x72: 4,4,94,30 [54] 4,38,94,30 [54 78]")]
+    public void ASingleBarHoldsItsPillsSideBySideOrStanding(PillLayout layout, Orientation orientation, string expected)
     {
-        var item = new OverlayItem(null, "1", Level.Normal, "1");
-        var pill = new PaintedPill([item, item, item], [30, 20, 40], 1) { Runs = runs, Stacked = stacked };
+        var look = OverlayLook.Of(new StyleConfig { Layout = layout, Orientation = orientation }, lightTaskbar: false);
+        OverlayItem[] items = [new("CPU", "1", Level.Normal, "10"), new("GPU", "2", Level.Normal, "2"), new(null, "3", Level.Warning, "3")];
 
-        var (width, height) = (pill.Width, pill.HeightOf(30));
-        var parts = pill.PartsIn(new PillBox(0, 0, width, height));
+        var pills = PaintLayout.PillsOf(items, look, 1, TenEach);
+        var (wide, high, arranged) = PaintLayout.SizeOf(pills, look, 1);
+        var parts = pills.SelectMany((pill, p) => pill.PartsIn(arranged.Pills[p]).Select(part => (Pill: p, Part: part)));
 
-        Assert.Equal(
-            expected,
-            string.Create(CultureInfo.InvariantCulture, $"{width}x{height}: ")
-                + string.Join(' ', parts.Select(part => part.Box).Select(box => string.Create(
-                    CultureInfo.InvariantCulture, $"{box.Left},{box.Top},{box.Width},{box.Height}"))));
+        Assert.Equal(expected, string.Create(CultureInfo.InvariantCulture, $"{wide}x{high}:") + string.Concat(parts.Select(each =>
+            string.Create(CultureInfo.InvariantCulture, $" {Shown(each.Part.Box)} [")
+                + string.Join(' ', PaintLayout.ItemsIn(pills[each.Pill], each.Part, arranged.Pills[each.Pill], look, 1, TenEach)
+                    .Select(drawn => string.Create(CultureInfo.InvariantCulture, $"{drawn.ValueX:0.#}")))
+                + "]")));
     }
+
+    private static double TenEach(string text, TextRole role) => text.Length * 10;
+
+    private static string Shown(PillBox box) =>
+        string.Create(CultureInfo.InvariantCulture, $"{box.Left:0.#},{box.Top:0.#},{box.Width:0.#},{box.Height:0.#}");
 
     // A click passes through a rounded pill's corners, where nothing is drawn: it takes clicks in bands inside its curve.
     [Theory] // Rows: square, round, and too narrow for its round ends' bands
