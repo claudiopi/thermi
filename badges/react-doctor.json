@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "message": "100",
   "color": "brightgreen",
-  "label": "React Doctor"
+  "label": "React Doctor",
+  "message": "100"
 }

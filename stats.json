@@ -72,6 +72,23 @@
       "codeTests": 23670.0,
       "code": 61671.0,
       "passed": true
+    },
+    {
+      "commit": "287d5c3",
+      "date": "2026-11-27T18:50:12.9762120Z",
+      "dotnet": 1391,
+      "web": 264,
+      "tests": 1655,
+      "coreLines": 95.81,
+      "coreBranches": 90.35,
+      "bugsCaught": null,
+      "doctor": 100,
+      "ciSeconds": 451.0,
+      "msiX64": 46.7421875,
+      "codeProduct": 38054.0,
+      "codeTests": 23683.0,
+      "code": 61737.0,
+      "passed": false
     }
   ]
 }
