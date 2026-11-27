@@ -72,7 +72,7 @@ internal sealed class ShellLink : IDisposable
     public const string Uuid = "thermi@claudiopi.github.io";
 
     /// <summary>The protocol's version, which the extension's metadata.json says as <c>thermi-protocol</c>.</summary>
-    public const uint Protocol = 2;
+    public const uint Protocol = 3;
 
     public const string Shell = "org.gnome.Shell";
     public const string Interface = "io.github.claudiopi.thermi.Shell";

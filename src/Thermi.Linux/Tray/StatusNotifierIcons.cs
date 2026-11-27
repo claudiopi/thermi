@@ -21,22 +21,18 @@ internal sealed class StatusNotifierIcons : ITrayIcons
     private readonly Gio.DBusConnection _bus;
     private readonly BusObjects _objects;
     private readonly ILogger _log;
-    private readonly TrayClicks _clicks;
-    private readonly Func<uint> _now;
     private readonly Dictionary<string, (string BusName, StatusNotifierItem Item)> _items = new(StringComparer.Ordinal);
     private readonly Gio.DBusProxy _daemon;
     private int _named;
 
-    public StatusNotifierIcons(Gio.DBusConnection bus, BusObjects objects, PointerSettings pointer, TimeProvider time, ILogger log)
+    public StatusNotifierIcons(Gio.DBusConnection bus, BusObjects objects, ILogger log)
     {
         (_bus, _objects, _log) = (bus, objects, log);
-        _clicks = new TrayClicks(pointer);
-        var started = time.GetTimestamp();
-        _now = () => (uint)time.GetElapsedTime(started).TotalMilliseconds;
         // A proxy hears the bus' signals, as GirCore cannot call back a subscription of the connection's own.
         const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
         _daemon = Gio.DBusProxy.NewSync(bus, Flags, null, Bus, "/org/freedesktop/DBus", Bus, null);
-        _daemon.OnGSignal += (_, heard) => WatcherChanged(heard.SignalName, heard.Parameters);
+        _daemon.OnGSignal += (_, heard) =>
+            Callbacks.Safely(() => WatcherChanged(heard.SignalName, heard.Parameters), ex => _log.SignalFailed(heard.SignalName, ex));
     }
 
     public Action<string, TrayPress> Pressed { get; set; } = (_, _) => { };
@@ -47,7 +43,7 @@ internal sealed class StatusNotifierIcons : ITrayIcons
 
     public Task Show(IReadOnlyList<TrayPicture> icons)
     {
-        foreach (var gone in _items.Keys.Except(icons.Select(icon => icon.Name), StringComparer.Ordinal).ToList())
+        foreach (var gone in _items.Keys.Except(icons.Select(icon => icon.Key), StringComparer.Ordinal).ToList())
         {
             var released = _items[gone].BusName;
             _objects.Drop(released);
@@ -58,28 +54,28 @@ internal sealed class StatusNotifierIcons : ITrayIcons
         List<Task> registered = [];
         foreach (var icon in icons)
         {
-            if (_items.TryGetValue(icon.Name, out var shown))
+            if (_items.TryGetValue(icon.Key, out var shown))
             {
                 shown.Item.Shows = icon;
-                _objects.Emit(StatusNotifierItem.Path, StatusNotifierItem.NewIcon, shown.Item);
-                _objects.Emit(StatusNotifierItem.Path, StatusNotifierItem.NewToolTip, shown.Item);
+                Announce(icon.Redrawn, StatusNotifierItem.NewIcon, shown.Item);
+                Announce(icon.Retipped, StatusNotifierItem.NewToolTip, shown.Item);
                 continue;
             }
 
             var name = string.Create(CultureInfo.InvariantCulture, $"org.kde.StatusNotifierItem-{Environment.ProcessId}-{++_named}");
-            var item = new StatusNotifierItem(icon, press => Pressed(icon.Name, press), _now, _clicks);
+            var item = new StatusNotifierItem(icon, press => Pressed(icon.Key, press));
             _objects.Serve(name, StatusNotifierItem.Path, item);
-            _objects.Serve(name, TrayMenu.Path, new TrayMenu(() => MenuOf(icon.Name), row => Chosen(icon.Name, row)));
-            _items[icon.Name] = (name, item);
+            _objects.Serve(name, TrayMenu.Path, new TrayMenu(() => MenuOf(icon.Key), row => Chosen(icon.Key, row)));
+            _items[icon.Key] = (name, item);
             registered.Add(Safely(() => OwnAndRegisterAsync(name)));
         }
 
         return Task.WhenAll(registered);
     }
 
-    public void OpenMenu(string name)
+    public void OpenMenu(string key)
     {
-        // The tray opens the menu itself, from the item's Menu.
+        // The tray opens the menu itself, from the item's Menu, as ItemIsMenu asks of it.
     }
 
     public void Dispose()
@@ -106,6 +102,15 @@ internal sealed class StatusNotifierIcons : ITrayIcons
         catch (GLib.GException ex)
         {
             _log.NoTray(ex);
+        }
+    }
+
+    // Every icon is at the same path of thermi's one connection, so a tray reads each of them again on any one's signal.
+    private void Announce(bool changed, string signal, StatusNotifierItem item)
+    {
+        if (changed)
+        {
+            _objects.Emit(StatusNotifierItem.Path, signal, item);
         }
     }
 

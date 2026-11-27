@@ -193,7 +193,8 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
 
     private void Clicked(Notice notice)
     {
-        _ = NoticeChoices.Choose(notice, NoticeChoices.Clicked(notice), Settings, parts.Visibility, Actions.Settle, () => Actions.OpenSettings(0, null));
+        _ = NoticeChoices.Choose(
+            notice, NoticeChoices.Clicked(notice), notice, Settings, parts.Visibility, Actions.Settle, () => Actions.OpenSettings(0, null));
         Actions.RequestPaint();
     }
 }

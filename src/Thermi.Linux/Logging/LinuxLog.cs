@@ -58,6 +58,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Warning, Message = "No tray takes StatusNotifierItems in this session: thermi's icons show once one does")]
     public static partial void NoTray(this ILogger logger, Exception error);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "thermi could not do what {What} asked")]
+    public static partial void SignalFailed(this ILogger logger, string what, Exception error);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The notice could not be shown or done")]
     public static partial void NoticeFailed(this ILogger logger, Exception error);
 }

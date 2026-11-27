@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Thermi.Linux.Logging;
+
 namespace Thermi.Linux.Desktop;
 
 /// <summary>
@@ -15,12 +18,13 @@ internal sealed class DesktopNotices : IDisposable
     private readonly Gio.DBusProxy _signals;
     private readonly HashSet<uint> _ours = [];
 
-    public DesktopNotices(Gio.DBusConnection bus)
+    public DesktopNotices(Gio.DBusConnection bus, ILogger log)
     {
         _bus = bus;
         const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
         _signals = Gio.DBusProxy.NewSync(bus, Flags, null, Name, ObjectPath, Name, null);
-        _signals.OnGSignal += (_, heard) => Heard(heard.SignalName, heard.Parameters);
+        _signals.OnGSignal += (_, heard) =>
+            Callbacks.Safely(() => Heard(heard.SignalName, heard.Parameters), ex => log.SignalFailed(heard.SignalName, ex));
     }
 
     /// <summary>A button of one of thermi's notices was clicked: the notice, by the id <see cref="Say"/> gave it, and the button's action id.</summary>

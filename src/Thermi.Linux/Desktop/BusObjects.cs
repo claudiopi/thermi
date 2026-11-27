@@ -84,7 +84,7 @@ internal interface IBusObject
 
 /// <summary>
 /// The objects thermi serves at names of its own on the session's bus, as a tray asks its icons: GirCore cannot hand GDBus a
-/// table of callbacks, so each call to one of those names is taken off the bus as it comes, answered on the GLib main loop,
+/// table of callbacks, so each call to one of those objects is taken off the bus as it comes, answered on the GLib main loop,
 /// and the calls of D-Bus' own interfaces, a property's or the introspection's, answered for every object alike. A call of
 /// another shape, or to no object, is refused with D-Bus' error, never thrown.
 /// </summary>
@@ -124,11 +124,12 @@ internal sealed class BusObjects : IDisposable
 
     public void Dispose() => _bus.RemoveFilter(_filter);
 
-    // GDBus calls it on its own thread with every message in and out; it holds only what the main loop answers.
+    // GDBus calls it on its own thread with every message in and out; it holds only what the main loop answers. A call to
+    // another path of a name of thermi's goes on to GDBus, which answers the objects it exports itself, as the overlay's actions.
     private Gio.DBusMessage? Filter(Gio.DBusConnection connection, Gio.DBusMessage message, bool incoming)
     {
         if (!incoming || message.GetMessageType() != Gio.DBusMessageType.MethodCall || message.GetDestination() is not { } name
-            || !_objects.Keys.Any(key => key.Name == name))
+            || !_objects.ContainsKey((name, message.GetPath() ?? "")))
         {
             return message;
         }
@@ -205,4 +206,25 @@ internal sealed class BusObjects : IDisposable
         GLib.VariantType.New("{sv}"),
         [.. served.Interface.Properties.Select(property =>
             GLib.Variant.NewDictEntry(GLib.Variant.NewString(property.Name), GLib.Variant.NewVariant(served.Property(property.Name))))]);
+}
+
+/// <summary>
+/// What GLib calls from native code, a bus signal's handler or a source's: an exception that escaped it would end the
+/// process, so each failure is logged as its caller's kind, and thermi goes on.
+/// </summary>
+internal static class Callbacks
+{
+    public static void Safely(Action action, Action<Exception> failed)
+    {
+        try
+        {
+            action();
+        }
+#pragma warning disable CA1031 // The next signal, press or paint finds thermi as it was.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            failed(ex);
+        }
+    }
 }

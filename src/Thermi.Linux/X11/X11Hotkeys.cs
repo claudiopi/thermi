@@ -1,6 +1,9 @@
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Thermi.Core;
+using Thermi.Linux.Desktop;
 using Thermi.Linux.Hotkeys;
+using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.X11;
 
@@ -30,11 +33,13 @@ internal sealed partial class X11Hotkeys : IHotkeyGrab
     private readonly uint _root;
     private readonly GLib.IOChannel _channel;
     private readonly uint _watch;
+    private readonly ILogger _log;
     private List<(byte Code, ushort Modifiers)?> _taken = [];
     private (byte Code, uint Time)? _released;
 
-    public X11Hotkeys()
+    public X11Hotkeys(ILogger log)
     {
+        _log = log;
         _connection = Connect(null, out var screen);
         if (HasError(_connection) != 0)
         {
@@ -145,7 +150,8 @@ internal sealed partial class X11Hotkeys : IHotkeyGrab
             }
             else if (kind == KeyPress && _released != (code, time) && _taken.IndexOf((code, modifiers)) is >= 0 and var index)
             {
-                Pressed(index);
+                // GLib calls the watch from native code, which one failed press would end.
+                Callbacks.Safely(() => Pressed(index), ex => _log.SignalFailed("an X11 key press", ex));
             }
         }
     }

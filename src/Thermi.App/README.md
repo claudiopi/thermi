@@ -7,7 +7,7 @@ What the overlay and the settings window decide beyond Core that needs a package
 | `SettingsFile` | `config.json` read and written under its mutex, the settings a host holds over it, the edits that wait to be written, and watching the file. |
 | `Sensors` | The client of the sensor service every OS's overlay, window and `thermi-cli` share: it connects, trusts or refuses who serves, reads the lines, and connects again when they stop. Each OS says how it connects. |
 | `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
-| `Gestures` | A desktop gesture on any overlay, which a surface only feeds the pointer and draws: a press that lifts, drags and resizes, the drag's drop or its snaps, a menu row's choice, and the last gesture's undo. |
+| `Gestures` | A desktop gesture on any overlay, which a surface only feeds the pointer and draws: a press that lifts, drags and resizes, the drag's drop or its snaps, a menu row's choice, and the last gesture's undo; and what a hotkey, a tray icon's press and a notice's button do on every OS. |
 | `Window` | The settings window's bridge, which answers the page alike on every OS and asks its host, `IWindowHost`, for the rest: its edits and undo, the sensors' readings and charts it keeps, the views, previews, places and looks. |
 | `Painting` | What every OS's overlay painter answers the window, `IOverlayPainter`, and how an overlay is fitted to a room or its monitor. |
 | `Sensors` | Reading the sensor host's snapshots, from Windows' pipe or Linux's socket, and trying again while it is gone. |

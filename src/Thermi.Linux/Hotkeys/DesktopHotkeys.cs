@@ -49,8 +49,8 @@ internal sealed class DesktopHotkeys : IDisposable
         grab.Pressed = Pressed;
     }
 
-    /// <summary>Which of the hotkeys last tried could not be taken, as the window shows it.</summary>
-    public HotkeyFailures Failures { get; private set; }
+    /// <summary>The hotkeys last taken and which of them could not be, as the window asks them (<see cref="Core.Hotkeys.Status"/>).</summary>
+    public long Status { get; private set; } = Core.Hotkeys.Status(null, HotkeyFailures.None);
 
     /// <summary>
     /// Takes the hotkeys of <paramref name="config"/> when they are not the ones taken: done once the desktop took them, or
@@ -75,7 +75,10 @@ internal sealed class DesktopHotkeys : IDisposable
 
     private async Task TakeAsync(HotkeysConfig? hotkeys)
     {
-        var parsed = Core.Hotkeys.Roles.Select(role => Core.Hotkeys.Parse(Core.Hotkeys.Of(hotkeys, role))).ToList();
+        // A key Linux has no name for is refused as one the desktop would not take.
+        var parsed = Core.Hotkeys.Roles.Select(role => Core.Hotkeys.Parse(Core.Hotkeys.Of(hotkeys, role)))
+            .Select(hotkey => hotkey is { } taken && KeyNames.Knows(taken.Key) ? hotkey : null)
+            .ToList();
         IReadOnlyList<bool> taken;
         try
         {
@@ -106,7 +109,7 @@ internal sealed class DesktopHotkeys : IDisposable
             }
         }
 
-        Failures = failures;
+        Status = Core.Hotkeys.Status(hotkeys, failures);
     }
 
     private void Pressed(int index)

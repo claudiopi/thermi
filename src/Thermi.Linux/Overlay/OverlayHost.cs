@@ -64,7 +64,7 @@ internal sealed class OverlayHost : IDisposable
         _kind = kind;
         var time = trace.Time;
         _link = new ShellLink(bus, log);
-        _notices = new DesktopNotices(bus);
+        _notices = new DesktopNotices(bus, log);
         var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
         _surfaces = kind switch
         {
@@ -149,20 +149,7 @@ internal sealed class OverlayHost : IDisposable
         return false;
     });
 
-    // GLib calls these from native code, where an exception that escapes ends the process; each kind is logged as its own.
-    private static void Safe(Action action, Action<Exception> failed)
-    {
-        try
-        {
-            action();
-        }
-#pragma warning disable CA1031 // The next paint sends everything again, so the overlay goes on.
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            failed(ex);
-        }
-    }
+    private static void Safe(Action action, Action<Exception> failed) => Callbacks.Safely(action, failed);
 
     private void Arrived()
     {

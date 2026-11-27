@@ -25,7 +25,7 @@ internal sealed record TrayHost(Settings Settings, OverlayVisibility Visibility,
 /// <summary>
 /// thermi's icon and the items' tray icons on Linux, as Windows' tray shows them: Core's <see cref="TrayScene"/> painted
 /// by the <see cref="TrayPainter"/>, each painted again only when <see cref="TrayRefresh"/> says it changed, and a press
-/// on one doing what <see cref="TrayPresses"/> says, as on Windows. Each icon is known by its name.
+/// on one doing what <see cref="TrayPresses"/> says, as on Windows. Each icon is known by its key (<see cref="TrayKeys"/>).
 /// </summary>
 internal sealed class DesktopTray : IDisposable
 {
@@ -60,15 +60,21 @@ internal sealed class DesktopTray : IDisposable
         }
 
         _scale = scale;
-        foreach (var icon in rescaled ? icons : update.Redrawn)
+        var redrawn = rescaled ? icons : update.Redrawn;
+        foreach (var icon in redrawn)
         {
             Drop(icon.Id);
             _pictures[icon.Id] = TrayPainter.Paint(icon, TrayPainter.PixelsAt(scale));
         }
 
         update.Removed.ToList().ForEach(Drop);
+        var tips = _shown.ToDictionary(icon => icon.Id, icon => icon.Tooltip);
         _shown = icons;
-        return _icons.Show([.. icons.Select(icon => new TrayPicture(icon.Name, icon.Tooltip, _pictures[icon.Id], scale))]);
+        return _icons.Show([.. icons.Select(icon => new TrayPicture(TrayKeys.Of(icon), icon.Tooltip, _pictures[icon.Id], scale)
+        {
+            Redrawn = redrawn.Contains(icon),
+            Retipped = !tips.TryGetValue(icon.Id, out var tip) || tip != icon.Tooltip,
+        })]);
     }
 
     /// <summary>The desktop forgot the icons, as the Shell's extension does as it starts again: the next refresh shows them all.</summary>
@@ -92,9 +98,11 @@ internal sealed class DesktopTray : IDisposable
         }
     }
 
-    private void Pressed(string name, TrayPress press)
+    private TrayIcon? Shown(string key) => _shown.FirstOrDefault(icon => TrayKeys.Of(icon) == key);
+
+    private void Pressed(string key, TrayPress press)
     {
-        if (_shown.FirstOrDefault(icon => icon.Name == name) is not { } icon)
+        if (Shown(key) is not { } icon)
         {
             return;
         }
@@ -105,7 +113,7 @@ internal sealed class DesktopTray : IDisposable
                 _host.RequestPaint();
                 break;
             case TrayAnswer.Menu:
-                _icons.OpenMenu(name);
+                _icons.OpenMenu(key);
                 break;
             case TrayAnswer.Settings:
                 _host.OpenSettings(TrayScene.OverlayOf(_host.Settings.Config, icon.ItemId), icon.ItemId);
@@ -116,17 +124,17 @@ internal sealed class DesktopTray : IDisposable
         }
     }
 
-    private IReadOnlyList<ShellRow> MenuOf(string name)
+    private IReadOnlyList<ShellRow> MenuOf(string key)
     {
-        var item = _shown.FirstOrDefault(icon => icon.Name == name)?.ItemId;
+        var item = Shown(key)?.ItemId;
         var menu = _host.Menu(item is null ? null : TrayScene.OverlayOf(_host.Settings.Config, item), item);
-        _menus[name] = menu;
+        _menus[key] = menu;
         return menu.Rows;
     }
 
-    private void Chosen(string name, int index)
+    private void Chosen(string key, int index)
     {
-        if (_menus.TryGetValue(name, out var menu))
+        if (_menus.TryGetValue(key, out var menu))
         {
             _host.Choose(menu, index);
         }

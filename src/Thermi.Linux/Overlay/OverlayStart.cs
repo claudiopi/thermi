@@ -32,7 +32,7 @@ internal static class OverlayStart
             if (kind == SurfaceKind.None)
             {
                 log.NoSurfaces();
-                await TellNoOverlayAsync(bus);
+                await TellNoOverlayAsync(bus, log);
                 return 1;
             }
 
@@ -57,7 +57,7 @@ internal static class OverlayStart
     }
 
     // Once ever: each start after would tell it again at every sign-in, where nothing changed.
-    private static async Task TellNoOverlayAsync(Gio.DBusConnection bus)
+    private static async Task TellNoOverlayAsync(Gio.DBusConnection bus, ILogger log)
     {
         var told = Path.Combine(UserFolders.State, "thermi", "no-overlay-told");
         if (File.Exists(told))
@@ -66,7 +66,7 @@ internal static class OverlayStart
         }
 
         var texts = Texts.For(null, CultureInfo.CurrentUICulture);
-        using var notices = new DesktopNotices(bus);
+        using var notices = new DesktopNotices(bus, log);
         await notices.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(HostText.NoOverlaySurfaces), (NoOverlayAction, texts.Of(HostText.NoticeGotIt)));
         Directory.CreateDirectory(Path.GetDirectoryName(told)!);
         await File.WriteAllTextAsync(told, "");

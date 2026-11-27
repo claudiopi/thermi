@@ -7,9 +7,11 @@ using System.Runtime.Versioning;
 namespace Thermi.Linux.Tests;
 
 /// <summary>
-/// The tests' program, xunit's own entry point but for one more use: started in a test's session, it is a program of the
-/// person's that reads thermi through the SDK (<see cref="OwnSession.SdkStatusAsync"/>), or the settings window's watch on the
-/// desktop's look (<see cref="Window.PortalTests.WatchAsync"/>).
+/// The tests' program, xunit's own entry point but for a few more uses: started in a test's session, it is a program of the
+/// person's that reads thermi through the SDK (<see cref="OwnSession.SdkStatusAsync"/>), the settings window's watch on the
+/// desktop's look (<see cref="Window.PortalTests.WatchAsync"/>), thermi's notices with a choice that fails
+/// (<see cref="Tray.NoticeClickTests.ClickTwice"/>), or the window asking the overlay for its hotkeys
+/// (<see cref="Acceptance.DesktopTests.AskHotkeyStatus"/>).
 /// </summary>
 [ExcludeFromCodeCoverage(Justification = "The entry point, which xunit would generate")]
 internal static class Program
@@ -24,6 +26,16 @@ internal static class Program
         if (args is [Window.PortalTests.Watch])
         {
             return Window.PortalTests.WatchAsync();
+        }
+
+        if (args is [Tray.NoticeClickTests.Clicks])
+        {
+            return Tray.NoticeClickTests.ClickTwice();
+        }
+
+        if (args is [Acceptance.DesktopTests.HotkeyStatus])
+        {
+            return Acceptance.DesktopTests.AskHotkeyStatus();
         }
 
         return args.Any(arg => arg is "--server" or "--internal-msbuild-node")

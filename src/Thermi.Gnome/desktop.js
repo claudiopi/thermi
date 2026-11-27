@@ -7,7 +7,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import {PATH, answer, fillMenu, refusePicture, refuseRows, refuseUnless, setPicture, under} from './protocol.js';
+import {PATH, Refused, answer, fillMenu, refusePicture, refuseRows, refuseUnless, setPicture, under} from './protocol.js';
 
 // thermi's icons in the top bar and its hotkeys: each icon shows the picture thermi paints for it and passes its presses
 // back, its menu is the rows thermi sends, and each hotkey is grabbed through the Shell as its own are, a press of one
@@ -22,12 +22,13 @@ const XML = `<node><interface name="${DESKTOP}">
   <signal name="Hotkey"><arg type="u"/></signal>
 </interface></node>`;
 
-// What a call may ask, far past what thermi asks: icons, an icon's side in pixels, hotkeys and an accelerator's length.
+// What a call may ask, far past what thermi asks: icons, an icon's side in pixels, an icon's key, which is an item's id
+// after a prefix, a sensor's path among them, hotkeys and an accelerator's length.
 const MOST_ICONS = 64;
 const MOST_ICON_SIDE = 512;
+const MOST_KEY = 1024;
 const MOST_HOTKEYS = 8;
 const MOST_ACCELERATOR = 64;
-const ID = /^[A-Za-z0-9_.-]{1,128}$/;
 
 export class ThermiDesktop {
     constructor(owner) {
@@ -68,28 +69,54 @@ export class ThermiDesktop {
     }
 
     // The icons, in thermi's order, replace those shown: each keeps its button while its place stays, so its menu stays
-    // open over a new picture.
+    // open over a new picture, and its picture while thermi sends none, as it does for one it did not redraw. One out of
+    // the protocol is left out, and the others show.
     _show(icons) {
         refuseUnless(icons.length <= MOST_ICONS, 'No more icons show.');
-        icons.forEach(([id, , pixels, width, height, stride, scale]) => {
-            refuseUnless(ID.test(id), 'No icon is that.');
-            refuseUnless(width <= MOST_ICON_SIDE && height <= MOST_ICON_SIDE, 'No icon is that size.');
-            refusePicture(pixels, width, height, stride, scale);
-        });
-        refuseUnless(new Set(icons.map(([id]) => id)).size === icons.length, 'An icon shows once.');
+        const seen = new Set();
+        const shown = icons.filter(icon => this._takes(icon, seen));
 
-        const order = icons.map(([id]) => id).join('\n');
+        const order = shown.map(([id]) => id).join('\n');
         if (order !== this._order) {
-            this.clear();
+            const before = this._icons;
+            this._icons = new Map();
+            before.forEach(icon => icon.button.destroy());
             this._order = order;
+            shown.forEach(([id], index) => {
+                const was = before.get(id);
+                Object.assign(this._add(id, index), was ? {image: was.image, size: was.size, sides: was.sides} : {});
+            });
         }
 
-        icons.forEach(([id, name, pixels, width, height, stride, scale], index) => {
-            const icon = this._icons.get(id) ?? this._add(id, index);
+        shown.forEach(([id, name, pixels, width, height, stride, scale]) => {
+            const icon = this._icons.get(id);
             icon.button.accessible_name = name;
-            setPicture(icon, pixels, width, height, stride);
-            icon.picture.set({content: icon.image, width: width / scale, height: height / scale});
+            if (pixels.length > 0) {
+                setPicture(icon, pixels, width, height, stride);
+                icon.sides = {width: width / scale, height: height / scale};
+            }
+            icon.picture.set({content: icon.image, ...icon.sides});
         });
+    }
+
+    // An icon has a key of its own, and a picture in the protocol's bounds, or none and size 0 to keep the one it shows.
+    _takes([id, , pixels, width, height, stride, scale], seen) {
+        try {
+            refuseUnless(typeof id === 'string' && id.length > 0 && id.length <= MOST_KEY && !seen.has(id), 'No icon is that, or it shows twice.');
+            if (pixels.length === 0 && width === 0 && height === 0) {
+                refuseUnless(this._icons.get(id)?.image !== undefined, 'An icon shows a picture first.');
+            } else {
+                refuseUnless(width <= MOST_ICON_SIDE && height <= MOST_ICON_SIDE, 'No icon is that size.');
+                refusePicture(pixels, width, height, stride, scale);
+            }
+            seen.add(id);
+            return true;
+        } catch (error) {
+            if (!(error instanceof Refused))
+                throw error;
+            console.warn(`thermi: an icon was left out: ${error.message}`);
+            return false;
+        }
     }
 
     // thermi's icons sit at the right of the top bar, left of the Shell's own menu, in thermi's order.
@@ -115,7 +142,7 @@ export class ThermiDesktop {
     }
 
     _menu(id, rows) {
-        refuseUnless(ID.test(id), 'No icon is that.');
+        refuseUnless(id.length > 0 && id.length <= MOST_KEY, 'No icon is that.');
         refuseRows(rows);
         const icon = this._icons.get(id);
         if (!icon)

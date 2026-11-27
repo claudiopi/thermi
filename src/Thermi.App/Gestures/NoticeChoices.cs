@@ -17,18 +17,25 @@ internal static class NoticeChoices
 
     /// <summary>
     /// Does what <paramref name="button"/> of <paramref name="notice"/> says: the hidden overlays show, the overlay hidden on
-    /// its own shows where it was, click-through goes off, or the first run opens the window; "Got it" does nothing. True
-    /// when it changed anything.
+    /// its own shows where it was, click-through goes off, or the first run opens the window; "Got it" does nothing. A
+    /// notice that is no longer the one <paramref name="showing"/> does nothing either, as on Windows, where it is gone;
+    /// the first run's opens the window all the same. True when it changed anything.
     /// </summary>
     public static bool Choose(
         Notice notice,
         NoticeButtons button,
+        Notice? showing,
         Settings settings,
         OverlayVisibility visibility,
         Func<ThermiConfig, ThermiConfig, EditResult> settle,
         Action openSettings)
     {
         var kind = notice.Kind;
+        if (notice != showing && kind is not NoticeKind.FirstRun and not NoticeKind.FirstRunDriver)
+        {
+            return false;
+        }
+
         if (kind is NoticeKind.FirstRun or NoticeKind.FirstRunDriver)
         {
             openSettings();

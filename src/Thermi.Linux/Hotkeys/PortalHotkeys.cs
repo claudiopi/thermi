@@ -1,5 +1,8 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Core;
 using Thermi.Core.Translations;
+using Thermi.Linux.Desktop;
+using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Hotkeys;
 
@@ -24,14 +27,15 @@ internal sealed class PortalHotkeys : IHotkeyGrab
 
     private readonly Gio.DBusConnection _bus;
     private readonly Func<Texts> _texts;
+    private readonly ILogger _log;
     private Gio.DBusProxy? _shortcuts;
     private string? _session;
     private int _tokens;
     private bool _registered;
 
-    public PortalHotkeys(Func<Texts> texts)
+    public PortalHotkeys(Func<Texts> texts, ILogger log)
     {
-        _texts = texts;
+        (_texts, _log) = (texts, log);
         var address = Gio.Functions.DbusAddressGetForBusSync(Gio.BusType.Session, null);
         _bus = Gio.DBusConnection.NewForAddressSync(
             address, Gio.DBusConnectionFlags.AuthenticationClient | Gio.DBusConnectionFlags.MessageBusConnection, null, null);
@@ -129,7 +133,8 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         }
 
         _shortcuts = Listen(Desktop, Shortcuts);
-        _shortcuts.OnGSignal += (_, heard) => Activated(heard.SignalName, heard.Parameters);
+        _shortcuts.OnGSignal += (_, heard) =>
+            Callbacks.Safely(() => Activated(heard.SignalName, heard.Parameters), ex => _log.SignalFailed(heard.SignalName, ex));
     }
 
     // A portal's call answers with a request, whose Response comes later at a path thermi's token names: listened to before

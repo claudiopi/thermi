@@ -28,7 +28,7 @@ export function under(event) {
 }
 
 // A call thermi's protocol does not have: refused before it changes anything.
-class Refused extends Error {}
+export class Refused extends Error {}
 
 export function refuseUnless(holds, why) {
     if (!holds)

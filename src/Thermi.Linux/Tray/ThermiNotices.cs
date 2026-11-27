@@ -111,7 +111,6 @@ internal sealed class ThermiNotices
         }
     }
 
-    // A button of a notice whose matter already ended does nothing, as the notice no longer shows on Windows.
     private void Clicked(uint id, string action)
     {
         if (action == OpenAgain)
@@ -120,13 +119,13 @@ internal sealed class ThermiNotices
             return;
         }
 
-        if (!_told.Remove(id, out var notice) || (notice != _notices.Showing && notice.Kind is not NoticeKind.FirstRun and not NoticeKind.FirstRunDriver))
+        if (!_told.Remove(id, out var notice))
         {
             return;
         }
 
         var button = Buttons.FirstOrDefault(each => each.Action == action).Button;
-        if (NoticeChoices.Choose(notice, button, _host.Settings, _host.Visibility, _host.Settle, Open))
+        if (NoticeChoices.Choose(notice, button, _notices.Showing, _host.Settings, _host.Visibility, _host.Settle, Open))
         {
             _host.RequestPaint();
         }

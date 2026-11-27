@@ -1,14 +1,18 @@
 using Thermi.Linux.Gnome;
+using Thermi.Linux.Overlay;
 
 namespace Thermi.Linux.Window;
 
 /// <summary>
 /// The window's view of the overlay's process: running while it owns its name on the session's bus, which GDBus watches
 /// and keeps, so asking costs no call, and tells when it starts or ends; ended through the <c>quit</c> it exports there.
-/// Used on GTK's loop alone.
+/// Used on GTK's loop alone, <see cref="HotkeyStatus"/> aside.
 /// </summary>
 internal sealed class OverlayLink : IDisposable
 {
+    // The overlay answers on its main loop, which a paint holds for a few milliseconds at most.
+    private const int AnswerWithin = 2000;
+
     private readonly Gio.DBusConnection? _bus;
     private readonly Gio.DBusProxy? _owner;
 
@@ -33,6 +37,30 @@ internal sealed class OverlayLink : IDisposable
     }
 
     public bool Running => _owner?.GetNameOwner() is not null;
+
+    /// <summary>
+    /// Asks the running overlay which of its hotkeys the desktop refused, as <see cref="Core.Hotkeys.Status"/> says it; null
+    /// when none runs or it does not answer. GDBus takes the call from any thread, the window's own aside.
+    /// </summary>
+    public long? HotkeyStatus()
+    {
+        if (_bus is null || !Running)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var answer = _bus.CallSync(
+                ShellLink.Name, OverlayObject.Path, OverlayObject.Name, OverlayObject.HotkeyStatus, null, GLib.VariantType.New("(x)"),
+                Gio.DBusCallFlags.NoAutoStart, AnswerWithin, null);
+            return answer.GetChildValue(0).GetInt64();
+        }
+        catch (GLib.GException)
+        {
+            return null;
+        }
+    }
 
     public void Quit()
     {

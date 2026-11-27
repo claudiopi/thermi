@@ -32,7 +32,7 @@ internal sealed class ShellIcons : ITrayIcons
 
     public Task Show(IReadOnlyList<TrayPicture> icons) => _call(_desktop.Icons(icons));
 
-    public void OpenMenu(string name) => _ = _call(_desktop.IconMenu(name, MenuOf(name)));
+    public void OpenMenu(string key) => _ = _call(_desktop.IconMenu(key, MenuOf(key)));
 
     public void Dispose()
     {

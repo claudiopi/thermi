@@ -97,7 +97,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     public bool HotkeyHeld(string combination, HotkeysConfig? own) => false;
 
     // The overlay registers its hotkeys with the desktop, which tells it, not the window, of one it refused.
-    public long? HotkeyStatus() => OverlayRunning() ? 0 : null;
+    public long? HotkeyStatus() => _overlay.HotkeyStatus();
 
     public bool OverlayRunning() => _overlay.Running;
 

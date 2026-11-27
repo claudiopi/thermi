@@ -11,7 +11,7 @@ thermi's GNOME Shell extension, in JavaScript, for GNOME Shell 46 to 51 (`docs/a
 | The pointer on an overlay, the keys pressed while it holds one, the row chosen | the extension (`Pointer`, `Key`, `Chosen`) |
 | The monitors, their scales and top bar with its clock and system menu, which no overlay covers, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |
 | That it came up, with its protocol's version | the extension (`Ready`) |
-| thermi's icons, each a picture with its tooltip, an icon's menu, and the hotkeys to take as GTK accelerators | `thermi` (`Icons`, `IconMenu`, `Hotkeys`) |
+| thermi's icons, each by its key with its tooltip and a picture, or none to keep the one shown, an icon's menu, and the hotkeys to take as GTK accelerators; an icon out of the protocol is left out alone | `thermi` (`Icons`, `IconMenu`, `Hotkeys`) |
 | A press on an icon, the row chosen of its menu, a hotkey pressed; a hotkey another program holds is refused in `Hotkeys`' answer | the extension (`IconPressed`, `IconChosen`, `Hotkey`) |
 
 The overlay holds `ShellLink.Name` on the session's bus, apart from thermi's own id, which the settings window holds; when that name goes, the overlay is gone, and the extension takes down all it showed.

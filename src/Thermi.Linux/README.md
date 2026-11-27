@@ -10,10 +10,10 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `Commands` | `thermi`'s commands on Linux beside the shared ones, as `thermi preview`. |
 | `Desktop` | What the overlay and the agents' commands read from the desktop and the machine: which surfaces the session has, the session's D-Bus and the objects thermi serves on it, the monitors as GNOME and GDK lay them out, high contrast, the panels, the pointer's drag distance and double-click time, the CPU's base clock; the desktop's notifications, and the GTK window a picture shows in off GNOME. |
 | `Gnome` | thermi's side of the D-Bus protocol with its GNOME Shell extension, the Shell's monitors as Core's screens, the extension's arrival, and the extension as the overlay's surfaces, its icons in the top bar and its hotkeys. |
-| `Hotkeys` | thermi's four hotkeys, through GNOME's extension, the GlobalShortcuts portal or X11's grab; one another program holds is refused. |
+| `Hotkeys` | thermi's four hotkeys, through GNOME's extension, the GlobalShortcuts portal or X11's grab; one another program holds is refused, which the settings window asks the overlay about. |
 | `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, and the surface that measures each monitor's work area. |
 | `Logging` | The overlay's log events. |
-| `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, and the `quit` it exports. |
+| `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, the `quit` it exports, and what it answers its own programs on the session's bus, as the hotkeys the desktop refused. |
 | `Packaging` | What the packages install beside thermi for the desktop: the systemd user unit that runs the overlay in the person's graphical session, and the app launcher's entry. |
 | `Painting` | The overlay and the tray's icons painted with Cairo and Pango, from Core's look, layout and shapes, as Windows' GDI+ painter does. |
 | `Tray` | thermi's icons as Core's tray decides them, in GNOME's top bar or as StatusNotifierItems with their dbusmenu menus, and its notices as the desktop's notifications, each button doing what it does on Windows. |
@@ -45,7 +45,7 @@ Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the She
 | Notice | Action ids |
 | --- | --- |
 | First start | `first-run`, which opens the settings |
-| An item critical, with Notify me | `critical` and `got-it` |
+| An item critical, with Notify me | `critical`, its "Got it" |
 | Overlays hidden | `show-it` or `show-them`, and `got-it` |
 | Click-through on | `undo` and `got-it` |
 | GNOME's extension missing | `install-extension`, which asks the Shell to install it again |

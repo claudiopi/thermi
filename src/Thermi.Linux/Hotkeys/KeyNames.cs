@@ -30,6 +30,9 @@ internal static class KeyNames
         [0x2E] = ("Delete", 0xFFFF),
     };
 
+    /// <summary>Whether the desktops have a name for the key: a hotkey of any other is never asked of them.</summary>
+    public static bool Knows(int key) => key is (>= 'A' and <= 'Z') or (>= '0' and <= '9') or (>= F1 and <= F24) || Named.ContainsKey(key);
+
     /// <summary>The combination as GTK writes it, as "&lt;Control&gt;&lt;Alt&gt;F10".</summary>
     public static string Accelerator(Hotkey hotkey) =>
         string.Concat(Modifiers(hotkey.Modifiers, "<Control>", "<Alt>", "<Shift>", "<Super>")) + Name(hotkey.Key);

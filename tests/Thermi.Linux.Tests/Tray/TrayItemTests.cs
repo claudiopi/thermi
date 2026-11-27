@@ -60,4 +60,26 @@ public sealed class TrayItemTests
 
         Assert.Equal("refused thermi", called.Out.Trim());
     }
+
+    // A left click opens thermi's menu, as on Windows: the icon says it is a menu, which a tray then opens itself on that
+    // click; one that calls Activate or ContextMenu instead gets the same menu's rows.
+    [Fact(Timeout = Bound.Test)]
+    public async Task ALeftClickOpensThermisMenu()
+    {
+        var cancel = TestContext.Current.CancellationToken;
+        await using var desktop = await TestDesktop.StartAsync(DesktopKind.X11, [new TestMonitor(1280, 720)], cancel);
+        var session = desktop.Session;
+        var tray = await TrayWatcher.ServeAsync(session, cancel);
+        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [Scene.Overlay with { Position = Scene.OnWindow }] }, cancel);
+        await desktop.ShowThermiAsync([], cancel);
+        var icon = await tray.NextAsync(cancel);
+
+        var activated = await session.RunAsync(
+            "gdbus", ["call", "--session", "--dest", icon.Name, "--object-path", icon.Path, "--method", "org.kde.StatusNotifierItem.Activate", "0", "0"],
+            cancel: cancel);
+
+        Assert.Equal(0, activated.Exit);
+        Assert.Equal("(<true>,)", await tray.PropertyAsync(icon, "ItemIsMenu", cancel));
+        Assert.True(await tray.MenuEntriesAsync(icon, cancel) > 0);
+    }
 }
