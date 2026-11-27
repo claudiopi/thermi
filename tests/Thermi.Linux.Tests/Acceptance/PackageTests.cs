@@ -34,9 +34,6 @@ public sealed class PackageTests
         signal.pause()
         """;
 
-    // A21's last two steps as written: refusing a foreign key, apt keeps what the PC holds and ends with 0, as apt and dnf
-    // both do refusing an older repository; dnf alone fails on a foreign key.
-    private const string Undecided = "Waiting for a decision: refused, a foreign or an older repository ends with 0";
 
     public enum Distribution
     {
@@ -89,8 +86,8 @@ public sealed class PackageTests
     }
 
     [Theory]
-    [InlineData(Distribution.Ubuntu2604, Skip = Undecided)]
-    [InlineData(Distribution.Fedora, Skip = Undecided)]
+    [InlineData(Distribution.Ubuntu2604)]
+    [InlineData(Distribution.Fedora)]
     public async Task UpdatesComeFromThermisRepository(Distribution row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -124,18 +121,24 @@ public sealed class PackageTests
         var runs = await pc.MustAsync("/usr/lib/thermi/thermi-sensors --version", cancel);
         await levers.RunAsync(["disable", "--channel", "stable"], cancel);
         var disabled = await UpdatedAsync(pc, tool, cancel);
+        // Refused, a repository leaves the version the PC holds, and the system's updater says why; whether it ends with 0
+        // differs by tool.
         await levers.ServeForeignAsync(cancel);
         var foreign = await pc.RunAsync(tool.Update(), cancel);
+        var keptFromForeign = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
         await levers.ServeOlderAsync(cancel);
         var older = await pc.RunAsync(tool.Update(), cancel);
+        var keptFromOlder = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
 
         Assert.StartsWith(next, newer, StringComparison.Ordinal);
         Assert.Equal("/usr/lib/thermi/thermi-sensors", restarted.Trim());
         Assert.NotEqual(newer, rolledBack);
         Assert.StartsWith(first, runs.Trim(), StringComparison.Ordinal);
         Assert.Equal(rolledBack, disabled);
-        Assert.NotEqual(0, foreign.Exit);
-        Assert.NotEqual(0, older.Exit);
+        Assert.Equal(rolledBack, keptFromForeign);
+        Assert.Matches(tool.Unsigned, foreign.Out + foreign.Error);
+        Assert.Equal(rolledBack, keptFromOlder);
+        Assert.Matches(tool.NothingNewer, older.Out + older.Error);
     }
 
     [Fact(Skip = "Waiting for its code")]
@@ -276,6 +279,12 @@ public sealed class PackageTests
         public string Version(string package) => Format == "deb" ? $"dpkg-query -W -f '${{Version}}' {package}" : $"rpm -q --qf '%{{VERSION}}' {package}";
 
         public string Update() => Format == "deb" ? "apt-get update && apt-get upgrade -y" : "dnf upgrade -y --refresh";
+
+        /// <summary>What the system's updater says of a repository whose signature it refused.</summary>
+        public string Unsigned => Format == "deb" ? "NO_PUBKEY|is not signed" : "(?i)signature";
+
+        /// <summary>What the system's updater says when it finds nothing newer than what the PC holds.</summary>
+        public string NothingNewer => Format == "deb" ? @"\b0 upgraded\b" : "Nothing to do";
 
         // The repository the package added, pointed at the levers' channel the test serves.
         public string Served() => Format == "deb"

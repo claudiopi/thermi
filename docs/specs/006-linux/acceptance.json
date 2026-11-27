@@ -191,9 +191,9 @@
         "R25",
         "R26"
       ],
-      "description": "Given clean Ubuntu and Fedora containers with thermi installed from a repository the levers wrote, when a newer version is published to its channel, rolled back, disabled, and a repository signed by another key or older than the one held is served, then the system's update takes the newer version, then the one before, then nothing new, and refuses the repository not signed by thermi or older; and the service runs the new version once the package changed it.",
+      "description": "Given clean Ubuntu and Fedora containers with thermi installed from a repository the levers wrote, when a newer version is published to its channel, rolled back, disabled, and a repository signed by another key or older than the one held is served, then the system's update takes the newer version, then the one before, then nothing new, and refuses the repository not signed by thermi or older, keeping the version it holds and saying why: the signature it refused, or that nothing is newer; and the service runs the new version once the package changed it.",
       "check": "UpdatesComeFromThermisRepository",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A22",
