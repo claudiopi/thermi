@@ -1,14 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
-using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.System.Power;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Tests.Acceptance;
@@ -104,7 +102,7 @@ public sealed class OverlayPaceTests : IDisposable
         var hot = OverlayConfig.DefaultItems[0] with { Threshold = new Threshold(critical: 1), Notify = true };
         var overlay = new OverlayConfig { Items = [hot, .. OverlayConfig.DefaultItems.Skip(1)] };
         var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [overlay] });
-        var sight = new Sight();
+        var sight = new Sight(_folder.Clock);
         var log = new ListLogger(LogLevel.Debug);
         var now = HostRun.Recorded;
         var (draws, notices, shown, history) = (-1, -1, new List<string>(), new List<IReadOnlyList<double?>>());
@@ -137,18 +135,21 @@ public sealed class OverlayPaceTests : IDisposable
         Assert.NotEqual(history[0], history[1]);
     }
 
-    // Windows tells of no screen saver, and a word of the display coming back may be missed: the tick finds both within a
-    // second, and a lock holds till its unlock whatever the tick reads. Nothing draws while nobody sees, and one draw shows
-    // the overlay again, even with nothing new, since the compositor may have dropped its picture meanwhile.
+    // Windows tells of no screen saver, and a word of the display coming back or of an unlock may be missed: the tick finds
+    // them within a second, by a key or the mouse past a moment after the display went off or the lock came, and a lock
+    // holds while Windows says nobody is there. Nothing draws while nobody sees, and one draw shows the overlay again, even
+    // with nothing new, since the compositor may have dropped its picture meanwhile.
     [Theory] // Rows: each a way the overlay learns it is seen again, read apart
     [InlineData("screen saver", true)]
-    [InlineData("input after the display went off", true)]
+    [InlineData("a key let go just after the display went off, and one later", true)]
     [InlineData("unlocked", false)]
     [InlineData("unlocked, from a lock the tick reads no sign of", true)]
+    [InlineData("unlocked, after a key while Windows says nobody is there", true)]
+    [InlineData("a key once Windows no longer says nobody is there, with no unlock", true)]
     public async Task TheTickFindsWhetherAnybodySeesTheOverlayAndOneDrawShowsItAgain(string how, bool warmer)
     {
         var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [new OverlayConfig { Graph = GraphStyle.None }] });
-        var sight = new Sight();
+        var sight = new Sight(_folder.Clock);
         var log = new ListLogger(LogLevel.Debug);
         var now = HostRun.Recorded;
         var (unseen, again, shown) = (-1, -1, new List<string>());
@@ -164,7 +165,11 @@ public sealed class OverlayPaceTests : IDisposable
             Seconds(host, 1, host.Arrived);
             var before = Draws(log);
             now = warmer ? HostRun.Warmer : now;
-            Seconds(host, 3, host.Arrived);
+            Seconds(host, 3, () =>
+            {
+                sight.Meanwhile(how);
+                host.Arrived();
+            });
             unseen = Draws(log) - before;
             sight.Return(host, how);
             Seconds(host, 1, host.Arrived);
@@ -181,7 +186,7 @@ public sealed class OverlayPaceTests : IDisposable
     {
         var overlay = new OverlayConfig { Visibility = Visibility.HideInFullscreen };
         var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [overlay] });
-        var sight = new Sight();
+        var sight = new Sight(_folder.Clock);
         var environment = sight.Of(_tray.Environment(_windowMutex));
         var shown = new List<string>();
 
@@ -203,38 +208,32 @@ public sealed class OverlayPaceTests : IDisposable
         Assert.Equal((true, shown[0]), (shown[0].Length > 0, shown[1]));
     }
 
-    // A second that shows what the last one showed draws nothing; a new value draws, and so does a window something else
-    // moved, which the draw puts back where it belongs.
+    // A window something else moved, as Windows does with a monitor that goes, draws though it shows nothing new, and the
+    // draw puts it back where it belongs.
     [Fact]
-    public async Task AnOverlayDrawsOnlyWhatChangedAndPutsBackAWindowMovedFromOutside()
+    public async Task AWindowSomethingElseMovedIsDrawnBackWhereItBelongs()
     {
         var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [new OverlayConfig { Graph = GraphStyle.None }] });
         var log = new ListLogger(LogLevel.Debug);
-        var now = HostRun.Recorded;
-        var (same, warmer, moved, back) = (-1, -1, -1, false);
+        var (moved, back) = (-1, false);
 
         TestWindows.OnOwnDesktop(() =>
         {
-            using var host = new OverlayHost(settings, () => now, HostRun.English, _folder.Clock, log, _tray.Environment(_windowMutex));
+            using var host = new OverlayHost(settings, () => HostRun.Recorded, HostRun.English, _folder.Clock, log, _tray.Environment(_windowMutex));
             host.Start();
             HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
             Seconds(host, 2, host.Arrived);
             var before = Draws(log);
-            Seconds(host, 3, host.Arrived);
-            same = Draws(log) - before;
-            now = HostRun.Warmer;
-            Seconds(host, 1, host.Arrived);
-            warmer = Draws(log) - before - same;
             var window = host.Overlays[0].Hwnd;
             PInvoke.GetWindowRect(window, out var placed);
             const SET_WINDOW_POS_FLAGS Moved = SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE;
             PInvoke.SetWindowPos(window, HWND.Null, placed.left + 50, placed.top - 50, 0, 0, Moved);
             Seconds(host, 1, host.Arrived);
-            moved = Draws(log) - before - same - warmer;
+            moved = Draws(log) - before;
             back = PInvoke.GetWindowRect(window, out var after) && (after.left, after.top) == (placed.left, placed.top);
         });
 
-        Assert.Equal((0, 1, 1, true), (same, warmer, moved, back));
+        Assert.Equal((1, true), (moved, back));
     }
 
     // High contrast and the animation effects are kept as Windows first answered, whatever paints between, until it says a
@@ -309,75 +308,4 @@ public sealed class OverlayPaceTests : IDisposable
         using var png = new MemoryStream();
         picture?.Save(png, System.Drawing.Imaging.ImageFormat.Png);
         return Convert.ToBase64String(png.ToArray());
-    }
-
-    /// <summary>The session as a test has it: away or not, its last input, and the window in front.</summary>
-    private sealed class Sight
-    {
-        private bool _away;
-        private TimeSpan _sinceInput = TimeSpan.MaxValue;
-
-        public ForegroundWindow? Front { get; set; }
-
-        public HostEnvironment Of(HostEnvironment environment) =>
-            environment with { Foreground = () => Front, Sight = FakeTray.Watched with { State = State, SinceInput = () => _sinceInput } };
-
-        private NotificationState State() => _away ? NotificationState.Away : NotificationState.Normal;
-
-        // Nobody sees the session: its screen saver starts, of which Windows says nothing, its display goes off, or it locks,
-        // which Windows' notification state may not show.
-        public void Leave(OverlayHost host, string how)
-        {
-            if (how == "screen saver")
-            {
-                _away = true;
-                return;
-            }
-
-            Tell(host, how.StartsWith("unlocked", StringComparison.Ordinal) ? "locked" : "display off", seen: false);
-            _away = how == "unlocked";
-        }
-
-        // Somebody sees it again: the screen saver ends, a key or the mouse wakes the display with no word, or it unlocks.
-        public void Return(OverlayHost host, string how)
-        {
-            if (how == "screen saver")
-            {
-                _away = false;
-            }
-            else if (how.StartsWith("unlocked", StringComparison.Ordinal))
-            {
-                Tell(host, "locked", seen: true);
-            }
-            else
-            {
-                _sinceInput = TimeSpan.Zero;
-            }
-        }
-
-        // A window over the whole of the monitor the overlay snaps to, as a game's.
-        public static ForegroundWindow FullScreen()
-        {
-            var screen = Desktop.Screens().First(each => each.Primary).Bounds;
-            return new ForegroundWindow("Game", screen, Maximized: false, Minimized: false) { Monitor = screen };
-        }
-
-        // As Windows says it: a lock or unlock of the session, or the session's display off, dimmed or on.
-        public unsafe void Tell(OverlayHost host, string unseen, bool seen)
-        {
-            if (unseen == "locked")
-            {
-                _away = !seen;
-                PInvoke.SendMessage(host.Hwnd, PInvoke.WM_WTSSESSION_CHANGE, seen ? PInvoke.WTS_SESSION_UNLOCK : PInvoke.WTS_SESSION_LOCK, 0);
-                return;
-            }
-
-            var buffer = stackalloc byte[sizeof(POWERBROADCAST_SETTING) + sizeof(uint)];
-            var setting = (POWERBROADCAST_SETTING*)buffer;
-            setting->PowerSetting = PInvoke.GUID_SESSION_DISPLAY_STATUS;
-            setting->DataLength = sizeof(uint);
-            *(uint*)&setting->Data = seen ? 1u : unseen == "display dimmed" ? 2u : 0u;
-            PInvoke.SendMessage(host.Hwnd, PInvoke.WM_POWERBROADCAST, PInvoke.PBT_POWERSETTINGCHANGE, (nint)setting);
-        }
-    }
 }
