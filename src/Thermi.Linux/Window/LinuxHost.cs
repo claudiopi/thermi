@@ -33,7 +33,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     {
         _log = log;
         _bus = Connect();
-        _portal = new DesktopPortal(Changed);
+        _portal = new DesktopPortal(_bus, Changed);
         _link = _bus is null ? null : new Gnome.ShellLink(_bus, log) { StateChanged = () => Turn.Post(Changed) };
         _extension = ExtensionOf();
         _screens = new WindowScreens(_bus, _link, Turn.Post, () => DesktopChanged?.Invoke());

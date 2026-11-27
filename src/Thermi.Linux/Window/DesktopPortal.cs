@@ -16,12 +16,13 @@ internal sealed class DesktopPortal : IDisposable
     private const int TimeoutMilliseconds = 1000;
 
     private readonly Gio.DBusConnection? _bus;
-    private readonly uint _watch;
+    private readonly Gio.DBusProxy? _signals;
 
+    /// <param name="bus">The session's bus, or null where there is none, which says nothing.</param>
     /// <param name="changed">Runs on GTK's loop each time the desktop changes its scheme, accent or contrast.</param>
-    public DesktopPortal(Action changed)
+    public DesktopPortal(Gio.DBusConnection? bus, Action changed)
     {
-        _bus = Connect();
+        _bus = bus;
         if (_bus is null)
         {
             return;
@@ -30,11 +31,18 @@ internal sealed class DesktopPortal : IDisposable
         Scheme = Read("color-scheme") is { } scheme ? SchemeOf(scheme) : null;
         Accent = Read("accent-color") is { } accent ? AccentOf(accent) : null;
         HighContrast = Read("contrast") is { } contrast && contrast.GetUint32() == 1;
-        _watch = _bus.SignalSubscribe(Portal, Face, "SettingChanged", Path, Appearance, Gio.DBusSignalFlags.None, (_, _, _, _, _, parameters) =>
+        // A proxy's signal comes through GObject's own, which GirCore calls back on the loop; a bare subscription's callback
+        // it does not marshal, and the process dies at the first change.
+        const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
+        _signals = Gio.DBusProxy.NewSync(_bus, Flags, null, Portal, Path, Face, null);
+        _signals.OnGSignal += (proxy, heard) =>
         {
-            Changed(parameters);
-            changed();
-        });
+            if (heard.SignalName == "SettingChanged" && heard.Parameters.GetChildValue(0).GetString(out _) == Appearance)
+            {
+                Changed(heard.Parameters);
+                changed();
+            }
+        };
     }
 
     /// <summary>True for dark, false for light, null where the desktop prefers neither.</summary>
@@ -47,12 +55,7 @@ internal sealed class DesktopPortal : IDisposable
 
     public void Dispose()
     {
-        if (_bus is not null && _watch != 0)
-        {
-            _bus.SignalUnsubscribe(_watch);
-        }
-
-        _bus?.Dispose();
+        _signals?.Dispose();
     }
 
     // 1 is dark and 2 light, 0 no preference.
@@ -70,18 +73,6 @@ internal sealed class DesktopPortal : IDisposable
         return parts.All(part => part is >= 0 and <= 1)
             ? "#" + string.Concat(parts.Select(part => ((int)Math.Round(part * 255)).ToString("x2", CultureInfo.InvariantCulture)))
             : null;
-    }
-
-    private static Gio.DBusConnection? Connect()
-    {
-        try
-        {
-            return Gio.Functions.BusGetSync(Gio.BusType.Session, null);
-        }
-        catch (GLib.GException)
-        {
-            return null;
-        }
     }
 
     private void Changed(GLib.Variant parameters)
