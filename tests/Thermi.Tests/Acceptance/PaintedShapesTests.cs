@@ -91,6 +91,27 @@ public sealed class PaintedShapesTests
                 + "]")));
     }
 
+    // A pill from 0 to 100 holding a and b, b from 50, and c in a pill from 110 to 160, on a picture 170 by 20 at 100 %: where
+    // a drop's bar stands, its ring 2 and its bar 4 thick.
+    [Theory] // Rows: before a pill, past the last, between two items of a pill, along a standing overlay
+    [InlineData("c", null, false, "106,2,4,16")]
+    [InlineData(null, null, false, "160,2,4,16")]
+    [InlineData("b", "b", false, "48,0,4,20")]
+    [InlineData(null, null, true, "2,14,166,4")]
+    public void ADropsBarStandsWhereTheDropGoes(string? before, string? within, bool vertical, string expected)
+    {
+        var first = new PillBox(0, 0, 100, 20);
+        PaintedItem[] places =
+        [
+            new("a", new PillBox(0, 0, 50, 20), default) { Pill = first },
+            new("b", new PillBox(50, 0, 50, 20), default) { Pill = first },
+            new("c", new PillBox(110, 0, 50, 20), default) { Pill = new PillBox(110, 0, 50, 20) },
+            new("", new PillBox(100, 0, 10, 20), default),
+        ];
+
+        Assert.Equal(expected, Shown(DropMarkShapes.Bar(places, (before, within), vertical, (170, 20), 1)));
+    }
+
     private static double TenEach(string text, TextRole role) => text.Length * 10;
 
     private static string Shown(PillBox box) =>
