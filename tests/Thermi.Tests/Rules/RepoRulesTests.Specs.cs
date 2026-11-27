@@ -22,7 +22,7 @@ public sealed partial class RepoRulesTests
         var specs = Directory.EnumerateDirectories(Path.Combine(Root, "docs", "specs")).ToList();
 
         Assert.NotEmpty(specs);
-        AssertNone(specs.SelectMany(spec => SpecFindings(spec, tests)));
+        AssertNone(specs.SelectMany(spec => SpecFindings(spec, tests)), "docs/specs/README.md gives each file's shape");
     }
 
     private static IEnumerable<string> SpecFindings(string folder, HashSet<string> tests)

@@ -25,7 +25,9 @@ public sealed partial class RepoRulesTests
         AssertNone(members.Except(english.Keys, StringComparer.Ordinal).Select(key => $"Texts.resx has no text for {key}")
             .Concat(english.Keys.Except(members, StringComparer.Ordinal).Select(key => $"Texts.resx has {key}, which no translated enum has"))
             .Concat(TextFindings("Texts.resx", english))
-            .Concat(translations.SelectMany(file => TranslationFindings(Relative(file), english, ResxTexts(file), ResxExplained(file)))));
+            .Concat(translations.SelectMany(file => TranslationFindings(Relative(file), english, ResxTexts(file), ResxExplained(file)))),
+            "give each member of a [Translated] enum its text in src/Thermi.Core/Translations/Texts.resx and every Texts.*.resx, "
+            + "named Enum.Member, with the same {0} blanks");
     }
 
     // A text left as English reads as one the translation forgot, as the broken file's pill did, so the translation says
