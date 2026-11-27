@@ -196,7 +196,7 @@ Which projects are shared and which are Windows-only, and how another OS would p
 | A field of the settings file | `src/Thermi.Core/Settings`, its undo in `src/Thermi.Core/Editing/ConfigFields.cs` |
 | What the window may change, and why it refuses | `src/Thermi.Core/Editing` |
 | A text a user reads, or a language | `src/Thermi.Core/Translations` |
-| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what, `src/Thermi.Windows/Painting/Painter.cs` for how; check with `thermi preview` |
+| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what, `src/Thermi.Core/Painting/PaintLayout.cs` for where, each OS's `Painter.cs` (`src/Thermi.Windows/Painting`, `src/Thermi.Linux/Painting`) for how; check with `thermi preview` |
 | Where the overlay snaps | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi.Windows/Win32/Desktop.cs` |
 | What a tray icon shows | `src/Thermi.Core/Tray`, drawn by `src/Thermi.Windows/Tray` |
 | What the page shows and does | `src/Thermi.Settings.Web/src`, tested in `src/Thermi.Settings.Web/tests` |

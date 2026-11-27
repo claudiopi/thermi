@@ -1,7 +1,7 @@
 {
   "uuid": "thermi@claudiopi.github.io",
   "name": "thermi",
-  "description": "Shows thermi's overlays above every window and the top bar, with its icons in the top bar and its hotkeys. thermi paints them; the extension decides nothing.",
+  "description": "Shows thermi's overlays above every window and the top bar, takes the pointer only on their pills, and shows their menus as the Shell's own. thermi paints them; the extension decides nothing.",
   "shell-version": ["46", "47", "48", "49", "50", "51"],
   "url": "https://github.com/claudiopi/thermi",
   "thermi-protocol": 1

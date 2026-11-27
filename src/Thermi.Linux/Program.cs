@@ -8,7 +8,7 @@ using Thermi.Linux.Overlay;
 
 namespace Thermi.Linux;
 
-/// <summary><c>thermi</c> on Linux: the overlay, <c>thermi settings</c> and <c>thermi preview</c>.</summary>
+/// <summary><c>thermi</c> on Linux: the overlay and <c>thermi preview</c>; a command it does not run yet says so and exits 1.</summary>
 internal static class Program
 {
     private static async Task<int> Main(string[] args)
