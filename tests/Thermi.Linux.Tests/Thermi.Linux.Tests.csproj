@@ -18,7 +18,13 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <!-- The one check of the contract's schemas, which Thermi.Tests holds. -->
   <ItemGroup>
+    <Compile Include="..\Thermi.Tests\Contract\SchemaCheck.cs" Link="Contract\SchemaCheck.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Thermi.Client\Thermi.Client.csproj" />
     <ProjectReference Include="..\..\src\Thermi.Core\Thermi.Core.csproj" />
     <ProjectReference Include="..\..\src\Thermi.Linux\Thermi.Linux.csproj" />
     <ProjectReference Include="..\..\src\Thermi.Sensors.Linux\Thermi.Sensors.Linux.csproj" />

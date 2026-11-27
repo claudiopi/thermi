@@ -10,12 +10,12 @@ namespace Thermi.Linux.Tests;
 /// </summary>
 internal sealed class OwnSession : IAsyncDisposable
 {
-    // X11 displays the person's server never takes: theirs are the first few. Each session takes the next.
     /// <summary>The Wayland display's name, a socket in <see cref="RuntimeFolder"/> that the session's compositor makes.</summary>
     public const string WaylandDisplay = "wayland-thermi";
 
     private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
 
+    // X11 displays the person's server never takes: theirs are the first few. Each session takes the next.
     private static int _nextDisplay = 100 + (Environment.ProcessId % 400 * 64);
 
     private readonly DirectoryInfo _folder;
@@ -75,6 +75,18 @@ internal sealed class OwnSession : IAsyncDisposable
         return Launch(program, args, environment);
     }
 
+    /// <summary>Runs <paramref name="program"/> in the session to its end: its exit code, and what it wrote to each stream.</summary>
+    public async Task<Ran> RunAsync(
+        string program, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancel = default)
+    {
+        var process = await StartAsync(program, args, environment, cancel).ConfigureAwait(false);
+        process.StandardInput.Close();
+        var output = process.StandardOutput.ReadToEndAsync(cancel);
+        var error = process.StandardError.ReadToEndAsync(cancel);
+        await process.WaitForExitAsync(cancel).ConfigureAwait(false);
+        return new Ran(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
+    }
+
     public async ValueTask DisposeAsync()
     {
         foreach (var process in Enumerable.Reverse(_started))
@@ -117,3 +129,6 @@ internal sealed class OwnSession : IAsyncDisposable
         return process;
     }
 }
+
+/// <summary>How a program run in a session ended: its exit code, and what it wrote to each stream.</summary>
+internal sealed record Ran(int Exit, string Out, string Error);

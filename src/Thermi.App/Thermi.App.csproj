@@ -10,6 +10,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="thermi" />
     <InternalsVisibleTo Include="Thermi.Cli" />
+    <InternalsVisibleTo Include="Thermi.Linux.Tests" />
     <InternalsVisibleTo Include="Thermi.Tests" />
     <InternalsVisibleTo Include="Thermi.Windows.Tests" />
   </ItemGroup>

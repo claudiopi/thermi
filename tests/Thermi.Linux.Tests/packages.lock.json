@@ -314,6 +314,9 @@
           "Thermi.Core": "[0.9.0, )"
         }
       },
+      "thermi.client": {
+        "type": "Project"
+      },
       "thermi.core": {
         "type": "Project"
       },
