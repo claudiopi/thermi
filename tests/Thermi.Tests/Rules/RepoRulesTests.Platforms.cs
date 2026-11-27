@@ -40,6 +40,7 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Gnome/ShellIcons.cs"] = "thermi's icons in GNOME's top bar, which only its Shell extension shows",
         ["Thermi.Linux/Hotkeys/KeyNames.cs"] = "a hotkey by the names GTK, the GlobalShortcuts portal and X11's keysyms give its keys",
         ["Thermi.Linux/Tray/DesktopTray.cs"] = "Core's tray icons on a Linux desktop, through the Shell's extension or StatusNotifierItem",
+        ["Thermi.Linux/Tray/TrayClicks.cs"] = "a click or a double-click on a tray icon, as Windows tells them and no Linux tray does",
         ["Thermi.Linux/Tray/ThermiNotices.cs"] = "Core's notices as the desktop's own notifications, by the action ids of their buttons",
         ["Thermi.Linux/Tray/TrayIcons.cs"] = "what a Linux desktop's tray shows of thermi's icons, which each desktop serves its own way",
         ["Thermi.Linux/Gnome/ShellSurfaces.cs"] = "GNOME's extension as the overlay's surfaces, over the Shell's link",
@@ -64,6 +65,7 @@ public sealed partial class RepoRulesTests
         ["libc"] = "dlopen alone, to load gtk4-layer-shell before GTK, which .NET's NativeLibrary cannot load for every library after",
         ["libX11.so.6"] = "Xlib's few calls for an overlay's window on X11, which has no introspection data",
         ["libgtk-4.so.1"] = "GDK's X11 calls, gdk_x11_*, which GTK's introspection data leaves out",
+        ["libxcb.so.1"] = "XCB's few calls to grab thermi's hotkeys on X11, on a connection of their own, which has no introspection data",
     };
 
     // CsWin32 generates every Win32 declaration from a NativeMethods.txt, and GirCore every GObject library's; one written by

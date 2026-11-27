@@ -5,9 +5,8 @@ using Thermi.Linux.Tray;
 namespace Thermi.Linux.Gnome;
 
 /// <summary>
-/// thermi's icons in GNOME's top bar, through its extension: the first button's press is a click, or with the one before
-/// on the same icon within the person's double-click time a double-click, and the third button's opens the menu, whose
-/// rows thermi sends. <c>call</c> logs a call the Shell did not take.
+/// thermi's icons in GNOME's top bar, through its extension: the first button's press is a click or a double-click, and
+/// the third button's opens the menu, whose rows thermi sends. <c>call</c> logs a call the Shell did not take.
 /// </summary>
 internal sealed class ShellIcons : ITrayIcons
 {
@@ -15,13 +14,12 @@ internal sealed class ShellIcons : ITrayIcons
     private const uint Third = 3;
 
     private readonly ShellDesktop _desktop;
-    private readonly PointerSettings _pointer;
+    private readonly TrayClicks _clicks;
     private readonly Func<Task, Task> _call;
-    private (string Name, uint Time)? _last;
 
     public ShellIcons(ShellDesktop desktop, PointerSettings pointer, Func<Task, Task> call)
     {
-        (_desktop, _pointer, _call) = (desktop, pointer, call);
+        (_desktop, _clicks, _call) = (desktop, new TrayClicks(pointer), call);
         desktop.IconPressed = Press;
         desktop.IconChosen = (name, row) => Chosen(name, row);
     }
@@ -54,8 +52,6 @@ internal sealed class ShellIcons : ITrayIcons
             return;
         }
 
-        var twice = _last is var (last, at) && last == name && time - at <= _pointer.DoubleClick;
-        _last = twice ? null : (name, time);
-        Pressed(name, twice ? TrayPress.Twice : TrayPress.Activate);
+        Pressed(name, _clicks.Click(name, time));
     }
 }

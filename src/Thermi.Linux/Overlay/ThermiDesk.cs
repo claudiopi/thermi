@@ -1,9 +1,12 @@
+using System.Globalization;
 using Thermi.App.Logging;
 using Thermi.Core.Pipe;
+using Thermi.Core.Translations;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Hotkeys;
 using Thermi.Linux.Tray;
+using Thermi.Linux.X11;
 
 namespace Thermi.Linux.Overlay;
 
@@ -11,17 +14,18 @@ namespace Thermi.Linux.Overlay;
 internal sealed record ThermiStart(SurfaceKind Kind, bool FirstStart);
 
 /// <summary>
-/// What GNOME's host shows beside its overlays: thermi's icons in the top bar and its hotkeys, both through the extension,
-/// and its notices, the Shell's own notifications.
+/// What thermi shows beside its overlays, each the way its desktop offers: its icons in GNOME's top bar through the
+/// extension, else in the tray as StatusNotifierItems; its hotkeys through the extension, X11's grab, or else the
+/// GlobalShortcuts portal; and its notices, the desktop's own notifications.
 /// </summary>
 internal sealed class ThermiDesk : IDisposable
 {
-    private readonly ShellDesktop _desktop;
+    private readonly ShellDesktop? _desktop;
+    private readonly BusObjects? _objects;
 
     public ThermiDesk(
         Gio.DBusConnection bus, OverlayParts parts, OverlayMenu menu, DesktopNotices notices, TraceEvents trace, ISensorFeed sensors, ThermiStart start)
     {
-        _desktop = new ShellDesktop(bus, parts.Log);
         var tray = new TrayHost(parts.Settings, parts.Visibility, parts.RequestPaint)
         {
             Menu = (overlay, item) => menu.Rows(overlay, item, fromTray: true, sensors.State, sensors.Latest),
@@ -30,8 +34,21 @@ internal sealed class ThermiDesk : IDisposable
         };
         var keys = new HotkeyHost(parts.Settings, parts.Visibility, parts.History, trace, parts.Log) { RequestPaint = parts.RequestPaint };
 #pragma warning disable CA2000 // The tray and the hotkeys own what they show through, and dispose it with themselves.
-        Tray = new DesktopTray(new ShellIcons(_desktop, parts.Pointer, parts.Call), tray);
-        Hotkeys = new DesktopHotkeys(new ShellHotkeys(_desktop), keys);
+        if (start.Kind == SurfaceKind.Shell)
+        {
+            _desktop = new ShellDesktop(bus, parts.Log);
+            Tray = new DesktopTray(new ShellIcons(_desktop, parts.Pointer, parts.Call), tray);
+            Hotkeys = new DesktopHotkeys(new ShellHotkeys(_desktop), keys);
+        }
+        else
+        {
+            _objects = new BusObjects(bus, parts.Post, parts.Log);
+            Tray = new DesktopTray(new StatusNotifierIcons(bus, _objects, parts.Pointer, parts.Time, parts.Log), tray);
+            IHotkeyGrab grab = start.Kind == SurfaceKind.X11
+                ? new X11Hotkeys()
+                : new PortalHotkeys(() => Texts.For(parts.Settings.Config.Language, CultureInfo.CurrentUICulture));
+            Hotkeys = new DesktopHotkeys(grab, keys);
+        }
 #pragma warning restore CA2000
         var told = new NoticeHost(parts.Settings, parts.Visibility, parts.Culture, parts.RequestPaint)
         {
@@ -47,17 +64,24 @@ internal sealed class ThermiDesk : IDisposable
 
     public ThermiNotices Notices { get; }
 
-    /// <summary>The extension came up, with none of thermi's icons or hotkeys: the next paint sends each again.</summary>
+    /// <summary>
+    /// The surfaces came up, GNOME's extension again with none of thermi's icons or hotkeys: the next paint sends each again.
+    /// A tray and the other grabs keep theirs.
+    /// </summary>
     public void Arrived()
     {
-        Tray.Forget();
-        Hotkeys.Forget();
+        if (_desktop is not null)
+        {
+            Tray.Forget();
+            Hotkeys.Forget();
+        }
     }
 
     public void Dispose()
     {
         Tray.Dispose();
         Hotkeys.Dispose();
-        _desktop.Dispose();
+        _desktop?.Dispose();
+        _objects?.Dispose();
     }
 }

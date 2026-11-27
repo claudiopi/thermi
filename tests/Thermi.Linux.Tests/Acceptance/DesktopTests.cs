@@ -100,7 +100,7 @@ public sealed class DesktopTests
 
     [Theory]
     [InlineData(Tray.Gnome)]
-    [InlineData(Tray.StatusNotifier, Skip = "Waiting for its code")]
+    [InlineData(Tray.StatusNotifier)]
     public async Task TrayIconsShowOnEveryDesktop(Tray row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -156,8 +156,8 @@ public sealed class DesktopTests
 
     [Theory]
     [InlineData(Hotkeys.Extension)]
-    [InlineData(Hotkeys.Portal, Skip = "Waiting for its code")]
-    [InlineData(Hotkeys.X11, Skip = "Waiting for its code")]
+    [InlineData(Hotkeys.Portal)]
+    [InlineData(Hotkeys.X11)]
     [InlineData(Hotkeys.Held)]
     public async Task HotkeysWorkOnEveryDesktop(Hotkeys row)
     {
@@ -170,13 +170,14 @@ public sealed class DesktopTests
             _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown case."),
         };
         await using var desktop = await TestDesktop.StartAsync(kind, [Monitor], cancel);
-        // Ctrl+Alt with an F key switches to another console, which every desktop holds for itself.
+        // Letters, as xdotool reaches an F key through a level of X11's keymap that holds Alt too, and Ctrl+Alt with an F
+        // key switches to another console, which every desktop holds for itself.
         var hotkeys = new HotkeysConfig
         {
-            Toggle = row == Hotkeys.Held ? "Ctrl+Alt+T" : "Ctrl+Shift+F9",
-            NextStyle = "Ctrl+Shift+F10",
-            ClickThrough = "Ctrl+Shift+F11",
-            ResetMinMax = "Ctrl+Shift+F12",
+            Toggle = row == Hotkeys.Held ? "Ctrl+Alt+T" : "Ctrl+Shift+J",
+            NextStyle = "Ctrl+Shift+K",
+            ClickThrough = "Ctrl+Shift+L",
+            ResetMinMax = "Ctrl+Shift+U",
         };
         // The CPU's temperature shows its highest, which only Reset min/max takes back to now.
         var items = Scene.Overlay.Items.Select(item => item.Metric == Metrics.CpuTemperature.Id ? item with { Stat = ItemStat.Max } : item).ToList();
@@ -203,14 +204,14 @@ public sealed class DesktopTests
 
         var before = await Settings.ReadAsync(desktop.Session, cancel);
         var styled = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel, count: 2);
-        await desktop.Input.PressAsync("Control_L+Shift_L+F10", cancel);
-        await desktop.Input.PressAsync("Control_L+Shift_L+F11", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+k", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+l", cancel);
         await styled;
         var after = await Settings.ReadAsync(desktop.Session, cancel);
         var reset = await ResetsAsync(desktop, thermi, feed, cancel);
         var shown = await desktop.ScreenshotAsync(cancel);
         var hiding = Traced.NextAsync(thermi.Error, Traced.Hidden, cancel);
-        await desktop.Input.PressAsync("Control_L+Shift_L+F9", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+j", cancel);
         await hiding;
         var hidden = await desktop.ScreenshotAsync(cancel);
 
@@ -299,7 +300,7 @@ public sealed class DesktopTests
         await cooled;
         var highest = await desktop.ScreenshotAsync(cancel);
         var reset = Traced.NextAsync(thermi.Error, Traced.Paint, cancel, count: 2);
-        await desktop.Input.PressAsync("Control_L+Shift_L+F12", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+u", cancel);
         await reset;
         return await Pictures.ChangedAsync(desktop.Session, highest, await desktop.ScreenshotAsync(cancel), OnWindow, cancel);
     }
@@ -329,7 +330,7 @@ public sealed class DesktopTests
         var styled = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
         var hidden = thermi.Error.NextAsync(line => Traced.Of(line)?.Event == Traced.Hidden, cancel);
         await desktop.Input.PressAsync("Control_L+Alt_L+t", cancel);
-        await desktop.Input.PressAsync("Control_L+Shift_L+F10", cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+k", cancel);
         await styled;
 
         Assert.Equal("toggle", refused.About);

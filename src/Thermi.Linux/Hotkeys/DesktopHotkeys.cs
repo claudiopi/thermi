@@ -18,6 +18,9 @@ internal interface IHotkeyGrab : IDisposable
 {
     Action<int> Pressed { get; set; }
 
+    /// <summary>Whether taking them asks the person, as a portal's dialog does, so nothing on screen waits for it.</summary>
+    bool AsksThePerson => false;
+
     /// <summary>Lets the hotkeys taken before go and takes these, a null for none: which of them are thermi's now.</summary>
     Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys);
 }
@@ -49,7 +52,10 @@ internal sealed class DesktopHotkeys : IDisposable
     /// <summary>Which of the hotkeys last tried could not be taken, as the window shows it.</summary>
     public HotkeyFailures Failures { get; private set; }
 
-    /// <summary>Takes the hotkeys of <paramref name="config"/> when they are not the ones taken.</summary>
+    /// <summary>
+    /// Takes the hotkeys of <paramref name="config"/> when they are not the ones taken: done once the desktop took them, or
+    /// at once where it asks the person.
+    /// </summary>
     public Task Update(ThermiConfig config)
     {
         if (_taken && config.Hotkeys == _tried)
@@ -58,7 +64,8 @@ internal sealed class DesktopHotkeys : IDisposable
         }
 
         (_tried, _taken) = (config.Hotkeys, true);
-        return TakeAsync(config.Hotkeys);
+        var taking = TakeAsync(config.Hotkeys);
+        return _grab.AsksThePerson ? Task.CompletedTask : taking;
     }
 
     /// <summary>The desktop let every hotkey go, as the Shell's extension does as it stops: the next update takes them again.</summary>

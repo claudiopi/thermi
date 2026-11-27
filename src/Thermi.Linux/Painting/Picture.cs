@@ -52,5 +52,41 @@ internal sealed class Picture(int width, int height) : IDisposable
         return png.GetRegionSpan<byte>(0, png.GetSize()).ToArray();
     }
 
+    /// <summary>
+    /// The pixels as StatusNotifierItem's trays take an icon: alpha, red, green and blue, a byte each in that order, not
+    /// premultiplied, row after row with no gap.
+    /// </summary>
+    public byte[] Argb()
+    {
+        var pixels = Pixels;
+        var argb = new byte[Width * Height * 4];
+        for (var y = 0; y < Height; y++)
+        {
+            for (var x = 0; x < Width; x++)
+            {
+                var pixel = BitConverter.ToUInt32(pixels[((y * Stride) + (x * 4))..]);
+                var at = ((y * Width) + x) * 4;
+                var alpha = (int)(pixel >> 24);
+                argb[at] = (byte)alpha;
+                for (var channel = 1; channel < 4; channel++)
+                {
+                    var premultiplied = (int)((pixel >> (24 - (channel * 8))) & 0xFF);
+                    argb[at + channel] = alpha == 0 ? (byte)0 : (byte)Math.Min(255, ((premultiplied * 255) + (alpha / 2)) / alpha);
+                }
+            }
+        }
+
+        return argb;
+    }
+
+    /// <summary>The picture as a PNG of <see cref="Argb"/>'s pixels, so it holds exactly what a tray shows of it.</summary>
+    public byte[] ArgbPng()
+    {
+        using var pixels = GLib.Bytes.New(Argb());
+        using var texture = Gdk.MemoryTexture.New(Width, Height, Gdk.MemoryFormat.A8r8g8b8, pixels, (nuint)(Width * 4));
+        using var png = texture.SaveToPngBytes();
+        return png.GetRegionSpan<byte>(0, png.GetSize()).ToArray();
+    }
+
     public void Dispose() => Surface.Dispose();
 }

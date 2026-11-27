@@ -30,7 +30,8 @@ internal static class Preview
             }
 
             using var painted = TrayPainter.Paint(icon, TrayPainter.PixelsAt(request.Scale));
-            var png = painted.Png();
+            // As a tray shows it, so a test compares it with the tray's own pixels.
+            var png = painted.ArgbPng();
             return await SnapshotPreview.WriteAsync(request.Png, file => file.Write(png), Console.Error);
         }
 

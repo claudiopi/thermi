@@ -41,7 +41,8 @@ internal sealed class PictureWindow : IDisposable
         _area.SetDrawFunc(Draw);
         Window.SetChild(_area);
         var events = Gtk.EventControllerLegacy.New();
-        events.OnEvent += (_, args) => Heard(args.Event);
+        // GirCore cannot read GdkEvent, a fundamental type, out of the signal's values; the controller hands it out as it is.
+        events.OnEvent += (controller, _) => controller.GetCurrentEvent() is { } heard && Heard(heard);
         Window.AddController(events);
         Window.OnRealize += (_, _) => Region();
         made(Window);

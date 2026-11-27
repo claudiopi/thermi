@@ -162,11 +162,12 @@ jobs:
           fonts-dejavu-core
       # KWin, with kscreen-doctor and Qt on Wayland, which moves its monitors; Sway, with grim and wtype for its screenshots
       # and keys; Weston, which offers neither the extension nor layer surfaces; Xfwm4 and its panel for X11, with xrandr;
-      # gtk4-layer-shell, and GTK and Cairo from Python for the tests' own windows and panel.
+      # gtk4-layer-shell, and GTK and Cairo from Python for the tests' own windows and panel; KDE's portal, which takes
+      # hotkeys on KWin.
       - run: >-
           sudo apt-get update && sudo apt-get install -y --no-install-recommends kwin-wayland kscreen qt6-wayland sway grim wtype
           weston xfwm4 xfce4-panel xfconf x11-xserver-utils libgtk4-layer-shell0 gir1.2-gtk4layershell-1.0 gir1.2-gtk-4.0
-          python3-gi-cairo mesa-vulkan-drivers
+          python3-gi-cairo mesa-vulkan-drivers xdg-desktop-portal xdg-desktop-portal-kde
       # The shells thermi-cli is run from in the tests, beside bash, and the tools the repositories' indexes are written with.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish apt-utils createrepo-c rpm-common
       # The tests' own user manager runs in a scope the runner's own delegates, which only a lingering user has.

@@ -165,7 +165,7 @@
       ],
       "description": "Given thermi's icon and two items' tray icons, on the headless GNOME Shell and with a StatusNotifierWatcher as KDE Plasma's tray, when the values change level and thermi restarts, then each icon shows the value and color thermi paints for it, its menu is Core's, and each comes back with its identity after the restart.",
       "check": "TrayIconsShowOnEveryDesktop",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A19",
