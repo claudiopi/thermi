@@ -70,6 +70,8 @@ public sealed class PackageTests
         var left = await pc.RunAsync("systemctl is-active thermi-sensors.socket thermi-sensors.service || true; pgrep -x thermi-sensors || true", cancel);
         await pc.OfflineAsync(cancel);
         await pc.MustAsync($"{tool.Install("thermi-sensors", offline: true)} && {tool.Install("thermi", offline: true)}", cancel);
+        // Installed again after a removal, which left apt its files' record, the socket listens as on a first install.
+        var listens = await pc.RunAsync("systemctl is-active thermi-sensors.socket", cancel);
         await pc.MustAsync("mkdir -p /home/person/.config/thermi && echo '{}' > /home/person/.config/thermi/config.json", cancel);
         await pc.MustAsync(tool.Remove(), cancel);
         var kept = await pc.RunAsync("cat /home/person/.config/thermi/config.json", cancel);
@@ -80,6 +82,7 @@ public sealed class PackageTests
         Assert.Empty(SensorsFiles.Concat(ThermiFiles).Except(files, StringComparer.Ordinal));
         // Nothing the packages started runs after their removal: neither unit, nor any process of the service's.
         Assert.Equal(["inactive", "inactive"], left.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.Equal("active", listens.Out.Trim());
         Assert.True(signed.Exit == 0, $"No signed repository of thermi's: {signed.Error}");
         Assert.True(arm64.Exit == 0, $"No arm64 package of the same version: {arm64.Error}");
         Assert.Equal("{}", kept.Out.Trim());
