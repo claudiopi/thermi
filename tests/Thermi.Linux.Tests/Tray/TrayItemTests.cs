@@ -21,7 +21,7 @@ public sealed class TrayItemTests
             'no-such-method': ('/StatusNotifierItem', ITEM, 'Explode', None),
             'no-such-interface': ('/StatusNotifierItem', 'org.example.Nothing', 'Activate', GLib.Variant('(ii)', (0, 0))),
             'no-such-property': ('/StatusNotifierItem', PROPERTIES, 'Get', GLib.Variant('(ss)', (ITEM, 'Nothing'))),
-            'no-such-object': ('/Nowhere', 'org.freedesktop.DBus.Introspectable', 'Introspect', None),
+            'no-such-object': ('/Nowhere', ITEM, 'Activate', GLib.Variant('(ii)', (0, 0))),
             'no-such-menu-row': ('/MenuBar', MENU, 'GetLayout', GLib.Variant('(iias)', (999, -1, []))),
             'event-on-no-row': ('/MenuBar', MENU, 'Event', GLib.Variant('(isvu)', (999, 'clicked', GLib.Variant('i', 0), 0))),
         }
