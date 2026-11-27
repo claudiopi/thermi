@@ -185,8 +185,15 @@ function Assert-Redundant([string]$Report, [hashtable]$Arguments) {
     $printed = & (Join-Path $PSScriptRoot 'redundant.ps1') -Report $Report @Arguments 6>&1 | ForEach-Object { "$_" }
     $code = $LASTEXITCODE
     $printed | ForEach-Object { Write-Host $_ }
+    # A red run says why on its page: the share against its cap, then each table's rows listed, or the script's last word.
     $line = $printed | Where-Object { $_ -match '^(ok  |FAIL) redundant cases: ' } | Select-Object -First 1
-    $shown = ($line -replace '^(ok  |FAIL) redundant cases: ', '') -replace ', at most.*$', ''
+    $shown = @(if ($line) { ($line -replace '^(ok  |FAIL) redundant cases: ', '') -replace '; \d+ more are .*$', '' } else { $printed | Select-Object -Last 1 })
+    if ($code -ne 0) {
+        $listed = @(foreach ($group in $printed) {
+                if ($group -match '^\s+(\d+) of (\d+) (?:Thermi\.Tests\.)?(.+)$') { "$($Matches[3]): $($Matches[1]) of its $($Matches[2]) rows" }
+            })
+        $shown += @($listed | Select-Object -First 10) + @(if ($listed.Count -gt 10) { "and $($listed.Count - 10) tables more, in the log" })
+    }
     Add-SummaryRow 'cases that hold nothing of their own' $(if ($code -eq 0) { 'ok' } else { 'fail' }) 0 $shown
     if ($code -ne 0) { exit $code }
 }
