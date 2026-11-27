@@ -7,6 +7,9 @@ public enum SheetText
     /// <summary>The section of the hotkeys, which work in any app.</summary>
     AnywhereInWindows,
 
+    /// <summary>Linux's words for <see cref="AnywhereInWindows"/>.</summary>
+    AnywhereOnTheDesktop,
+
     /// <summary>The section of the window's own keys.</summary>
     InThisWindow,
 

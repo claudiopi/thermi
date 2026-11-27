@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ExtensionState } from '../bridge/bridge.g';
 import { bridge, type WindowData } from '../bridge/useWindow';
 import { Button, Dialog, Icon, InfoBar, LinkButton, Progress } from '../kit';
 import { useText } from '../texts/Texts';
@@ -169,6 +170,35 @@ function ServiceBar({ data }: { data: WindowData }) {
   );
 }
 
+/**
+ * The GNOME Shell extension's bar, while C# offers its fix: missing, to install behind GNOME's own prompt, or off, to
+ * turn on; refused, it says so and offers it again. Once the Shell has it on, C# offers no fix and the bar goes.
+ */
+function ExtensionBar({ fix }: { fix: ExtensionState | null }) {
+  const t = useText();
+  const [refused, setRefused] = useState(false);
+  if (fix === null || fix === 'enabled') {
+    return null;
+  }
+  const install = async (): Promise<void> => {
+    setRefused(false);
+    setRefused(!((await bridge()?.installExtension().catch(() => false)) ?? false));
+  };
+  const missing = fix === 'missing';
+  return (
+    <InfoBar
+      intent={refused ? 'error' : 'warning'}
+      title={t(refused ? 'WindowText.ExtensionRefused' : missing ? 'WindowText.ExtensionMissing' : 'WindowText.ExtensionDisabled')}
+      message={t(missing ? 'WindowText.ExtensionMissingMore' : 'WindowText.ExtensionDisabledMore')}
+      actions={
+        <Button ref={refused ? focusOnMount : null} onClick={() => void install()}>
+          {t(refused ? 'WindowText.TryAgain' : missing ? 'WindowText.InstallExtension' : 'WindowText.EnableExtension')}
+        </Button>
+      }
+    />
+  );
+}
+
 export interface BarsProps {
   data: WindowData;
   /** The driver installed: the focus goes back to the list's selected row. */
@@ -177,7 +207,7 @@ export interface BarsProps {
 
 /**
  * The bars under the title row, for what keeps the window from working fully, each with its fix: the overlay not
- * running, the sensor service stopped or late, and the CPU's driver.
+ * running, the sensor service stopped or late, the GNOME Shell extension missing or off, and the CPU's driver.
  */
 export function Bars({ data, onDriverInstalled }: BarsProps) {
   const t = useText();
@@ -191,6 +221,7 @@ export function Bars({ data, onDriverInstalled }: BarsProps) {
         />
       )}
       <ServiceBar data={data} />
+      <ExtensionBar fix={data.status.extension} />
       <DriverBar needed={data.status.driver} forEveryone={data.status.forEveryone} onInstalled={onDriverInstalled} />
     </div>
   );

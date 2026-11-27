@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using Thermi.Core.Bridge;
 using Thermi.Core.Translations;
 
 namespace Thermi.Settings.Types;
@@ -22,6 +23,20 @@ internal static class TextKeys
             text.Append("  | ").AppendJoin(" | ", Enum.GetNames(type).Select(name => $"'{type.Name}.{name}'")).Append('\n');
         }
 
-        return text.Append(";\n").ToString().Replace("\n;\n", ";\n", StringComparison.Ordinal);
+        text.Append(";\n");
+        // Each OS's own words, by the OS as the bridge names it, which the page reads every text through.
+        text.Append("\nexport const ownTexts: Readonly<Record<string, Readonly<Partial<Record<TextKey, TextKey>>>>> = {\n");
+        foreach (var (os, own) in HostDesktop.OwnTexts.OrderBy(each => each.Key))
+        {
+            text.Append("  ").Append(BridgeCalls.NameOf(os.ToString())).Append(": {\n");
+            foreach (var (windows, words) in own.OrderBy(each => each.Key, StringComparer.Ordinal))
+            {
+                text.Append("    '").Append(windows).Append("': '").Append(words).Append("',\n");
+            }
+
+            text.Append("  },\n");
+        }
+
+        return text.Append("};\n").ToString().Replace("\n;\n", ";\n", StringComparison.Ordinal);
     }
 }

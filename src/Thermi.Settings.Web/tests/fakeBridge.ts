@@ -186,6 +186,14 @@ function installFake(initial: FakeState): void {
       changed(true);
       return true;
     },
+    installExtension: async () => {
+      if (state.extensionAnswer === 'refused') {
+        return false;
+      }
+      state.extension = 'enabled';
+      changed();
+      return true;
+    },
     startOverlay: async () => {
       state.overlayRunning = true;
       changed();

@@ -13,6 +13,10 @@ public enum WindowText
     HotkeysSet,
     HotkeysOff,
 
+    /// <summary>Linux's words for <see cref="HotkeysSet"/> and <see cref="HotkeysOff"/>.</summary>
+    HotkeysSetOnLinux,
+    HotkeysOffOnLinux,
+
     /// <summary>The four hotkeys' rows, each named by what it does.</summary>
     HotkeyToggle,
     HotkeyNextLook,
@@ -60,6 +64,15 @@ public enum WindowText
     ServiceStopped,
     ServiceStoppedMore,
     StartIt,
+
+    /// <summary>The GNOME Shell extension's bar, while it is missing or off, and when GNOME did not install or turn it on.</summary>
+    ExtensionMissing,
+    ExtensionMissingMore,
+    InstallExtension,
+    ExtensionDisabled,
+    ExtensionDisabledMore,
+    EnableExtension,
+    ExtensionRefused,
 
     /// <summary>The rest of its sentence instead, while another program holds the pipe the service would serve.</summary>
     PipeTaken,

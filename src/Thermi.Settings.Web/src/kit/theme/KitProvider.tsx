@@ -1,6 +1,6 @@
 import { FluentProvider, RendererProvider, createDOMRenderer, makeStyles } from '@fluentui/react-components';
 import { MotionBehaviourProvider } from '@fluentui/react-motion';
-import { useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { surface, surfacesOf, themeOf } from './look';
 import './page.css';
 
@@ -31,28 +31,38 @@ const useDark = mediaQuery('(prefers-color-scheme: dark)');
 const useReducedMotion = mediaQuery('(prefers-reduced-motion: reduce)');
 
 export interface KitProviderProps {
-  /** Windows' accent for the current mode, as #RRGGBB; Windows' default blue without it. */
-  accent?: string;
   children: ReactNode;
 }
 
-function KitRoot({ accent, children }: KitProviderProps) {
+/** Sets the accent the kit's theme takes, which its provider holds. */
+const AccentContext = createContext<(accent: string | null) => void>(() => {});
+
+function KitRoot({ children }: KitProviderProps) {
   const mode = useDark() ? 'dark' : 'light';
   const motion = useReducedMotion() ? 'skip' : 'default';
-  const theme = useMemo(() => themeOf(mode, accent), [mode, accent]);
+  const [accent, setAccent] = useState<string | null>(null);
+  const theme = useMemo(() => themeOf(mode, accent ?? undefined), [mode, accent]);
   const styles = useStyles();
   return (
-    <FluentProvider theme={theme} className={styles.root} style={surfacesOf(mode)}>
-      <MotionBehaviourProvider value={motion}>{children}</MotionBehaviourProvider>
-    </FluentProvider>
+    <AccentContext value={setAccent}>
+      <FluentProvider theme={theme} className={styles.root} style={surfacesOf(mode)}>
+        <MotionBehaviourProvider value={motion}>{children}</MotionBehaviourProvider>
+      </FluentProvider>
+    </AccentContext>
   );
 }
 
-/** The kit's root: Fluent with thermi's look, following Windows' light or dark mode and its animation effects. */
-export function KitProvider({ accent, children }: KitProviderProps) {
+/** The kit's root: Fluent with thermi's look, following the OS's light or dark mode and its animation effects. */
+export function KitProvider({ children }: KitProviderProps) {
   return (
     <RendererProvider renderer={renderer}>
-      <KitRoot {...(accent === undefined ? {} : { accent })}>{children}</KitRoot>
+      <KitRoot>{children}</KitRoot>
     </RendererProvider>
   );
+}
+
+/** Has the kit's theme take the desktop's accent, as #RRGGBB, or Windows' default blue for null. */
+export function useAccent(accent: string | null): void {
+  const setAccent = useContext(AccentContext);
+  useEffect(() => setAccent(accent), [setAccent, accent]);
 }

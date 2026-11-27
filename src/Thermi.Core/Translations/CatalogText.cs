@@ -87,6 +87,9 @@ public enum CatalogText
 
     CatalogEmptyHint,
 
+    /// <summary>Linux's words for <see cref="CatalogEmptyHint"/>, whose service systemd starts.</summary>
+    CatalogEmptyHintOnLinux,
+
     /// <summary>The CPU fan's Sensor row: the button that runs the finder.</summary>
     FindIt,
 

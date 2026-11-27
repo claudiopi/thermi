@@ -78,6 +78,10 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     start: null,
     editing: null,
     lateReplies: false,
+    os: 'windows',
+    accent: null,
+    extension: null,
+    extensionAnswer: 'accepted',
     ...change,
   };
 }

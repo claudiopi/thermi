@@ -22,7 +22,11 @@ export function installFakeWindow(): void {
     );
   const status = (): WindowStatus => ({
     overlay: state.overlayRunning,
-    driver: state.service !== 'stopped' && cpuReadsZero(),
+    // Only Windows keeps the CPU's sensors behind a driver; on Linux only GNOME's extension has a fix.
+    driver: state.os === 'windows' && state.service !== 'stopped' && cpuReadsZero(),
+    os: state.os === 'linux' ? 'linux' : 'windows',
+    accent: state.accent,
+    extension: state.os === 'linux' && (state.extension === 'missing' || state.extension === 'disabled') ? state.extension : null,
     hotkeys: roles.filter(
       (role) =>
         state.settings.hotkeys?.[role] !== undefined ||

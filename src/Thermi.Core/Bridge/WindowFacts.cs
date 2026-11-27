@@ -32,6 +32,17 @@ public sealed record WindowStatus(
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public bool ForEveryone { get; init; }
+
+    /// <summary>The OS the window shows on, whose words its start at sign-in takes.</summary>
+    public HostOs Os { get; init; }
+
+    /// <summary>The desktop's accent as <c>#rrggbb</c>, which the page's accent takes, or null for the page's own.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public string? Accent { get; init; }
+
+    /// <summary>The GNOME Shell extension's fix offered, as <see cref="HostDesktop.ExtensionFix"/> decides it, or null for none.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public ExtensionState? Extension { get; init; }
 }
 
 /// <summary>The steps Undo and Redo would take, worded as "Critical 84 → 85 °C", or null when there is none.</summary>

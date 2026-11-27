@@ -225,6 +225,9 @@
   <data name="CatalogText.CatalogEmptyHint" xml:space="preserve">
     <value>It may still be starting. If this stays, restart thermi-sensors in Windows Services.</value>
   </data>
+  <data name="CatalogText.CatalogEmptyHintOnLinux" xml:space="preserve">
+    <value>It may still be starting. If this stays, start it with systemctl start thermi-sensors.socket.</value>
+  </data>
   <data name="CatalogText.FindIt" xml:space="preserve">
     <value>Find it</value>
   </data>
@@ -333,6 +336,9 @@
   <data name="UiText.StartWithWindows" xml:space="preserve">
     <value>Start with Windows</value>
   </data>
+  <data name="UiText.StartAtSignIn" xml:space="preserve">
+    <value>Start at sign-in</value>
+  </data>
   <data name="UiText.ResetToDefaults" xml:space="preserve">
     <value>Reset to defaults</value>
   </data>
@@ -401,6 +407,9 @@
   </data>
   <data name="UiText.LanguageFromWindows" xml:space="preserve">
     <value>Windows' language · {0}</value>
+  </data>
+  <data name="UiText.LanguageFromSystem" xml:space="preserve">
+    <value>The system's language · {0}</value>
   </data>
   <data name="UiText.TemperatureField" xml:space="preserve">
     <value>Temperature</value>
@@ -1920,6 +1929,12 @@
   <data name="WindowText.HotkeysOff" xml:space="preserve">
     <value>All off · they work anywhere in Windows</value>
   </data>
+  <data name="WindowText.HotkeysSetOnLinux" xml:space="preserve">
+    <value>{0} set · they work anywhere on the desktop</value>
+  </data>
+  <data name="WindowText.HotkeysOffOnLinux" xml:space="preserve">
+    <value>All off · they work anywhere on the desktop</value>
+  </data>
   <data name="WindowText.HotkeyToggle" xml:space="preserve">
     <value>Hide or show the overlays</value>
   </data>
@@ -1991,6 +2006,27 @@
   </data>
   <data name="WindowText.StartIt" xml:space="preserve">
     <value>Start it</value>
+  </data>
+  <data name="WindowText.ExtensionMissing" xml:space="preserve">
+    <value>The overlay needs thermi's GNOME Shell extension.</value>
+  </data>
+  <data name="WindowText.ExtensionMissingMore" xml:space="preserve">
+    <value>GNOME asks before it installs it, and the overlay shows at once.</value>
+  </data>
+  <data name="WindowText.InstallExtension" xml:space="preserve">
+    <value>Install extension</value>
+  </data>
+  <data name="WindowText.ExtensionDisabled" xml:space="preserve">
+    <value>thermi's GNOME Shell extension is off.</value>
+  </data>
+  <data name="WindowText.ExtensionDisabledMore" xml:space="preserve">
+    <value>The overlay shows as soon as it is on.</value>
+  </data>
+  <data name="WindowText.EnableExtension" xml:space="preserve">
+    <value>Turn it on</value>
+  </data>
+  <data name="WindowText.ExtensionRefused" xml:space="preserve">
+    <value>GNOME did not install it or turn it on, so nothing changed.</value>
   </data>
   <data name="WindowText.PipeTaken" xml:space="preserve">
     <value>Another program holds the connection thermi reads its sensors through. Close it, or restart the PC.</value>
@@ -2099,6 +2135,9 @@
   </data>
   <data name="SheetText.AnywhereInWindows" xml:space="preserve">
     <value>Anywhere in Windows · set them in Settings</value>
+  </data>
+  <data name="SheetText.AnywhereOnTheDesktop" xml:space="preserve">
+    <value>Anywhere on the desktop · set them in Settings</value>
   </data>
   <data name="SheetText.InThisWindow" xml:space="preserve">
     <value>In this window</value>
