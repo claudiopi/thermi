@@ -142,7 +142,8 @@ sequenceDiagram
 | `src/Thermi.Cli` | a library, any OS | `thermi-cli`'s commands and its MCP server, over what each OS answers in `IAgentEnvironment`. |
 | `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and what an agent's command reaches on Windows. |
 | `src/Thermi.Sensors.Linux` | `thermi-sensors`, a systemd service as the user `thermi`, started by its socket | Reads the kernel's sensors and NVML, serves snapshots on `/run/thermi/sensors.sock`, and records or replays a tree of the kernel's files. |
-| `src/Thermi.Linux` | `thermi` and `thermi-cli`, as you | What an agent's command reaches on Linux. |
+| `src/Thermi.Linux` | `thermi` and `thermi-cli`, as you, the overlay in the graphical session's user unit | The overlay on Linux: Core's overlays painted with Cairo and Pango on one GLib main loop, shown on GNOME through the Shell's extension over D-Bus; `thermi preview`; and what an agent's command reaches on Linux. |
+| `src/Thermi.Gnome` | an extension inside GNOME Shell | Shows the pictures `thermi` paints above every window and the top bar, the Shell's own menus, and sends back the pointer and the monitors. It decides nothing. |
 | `src/Thermi.Settings.Web` | the page in WebView2 | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
 | `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core. |
 | `src/Thermi.Client` | a library other programs ship | The .NET SDK of the agents' contract. |
@@ -196,7 +197,7 @@ Which projects are shared and which are Windows-only, and how another OS would p
 | A field of the settings file | `src/Thermi.Core/Settings`, its undo in `src/Thermi.Core/Editing/ConfigFields.cs` |
 | What the window may change, and why it refuses | `src/Thermi.Core/Editing` |
 | A text a user reads, or a language | `src/Thermi.Core/Translations` |
-| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what, `src/Thermi.Windows/Painting/Painter.cs` for how; check with `thermi preview` |
+| How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what, `src/Thermi.Core/Painting/PaintLayout.cs` for where, each OS's `Painter.cs` (`src/Thermi.Windows/Painting`, `src/Thermi.Linux/Painting`) for how; check with `thermi preview` |
 | Where the overlay snaps | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi.Windows/Win32/Desktop.cs` |
 | What a tray icon shows | `src/Thermi.Core/Tray`, drawn by `src/Thermi.Windows/Tray` |
 | What the page shows and does | `src/Thermi.Settings.Web/src`, tested in `src/Thermi.Settings.Web/tests` |

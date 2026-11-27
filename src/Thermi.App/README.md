@@ -7,8 +7,10 @@ What the overlay and the settings window decide beyond Core that needs a package
 | `SettingsFile` | `config.json` read and written under its mutex, the settings a host holds over it, the edits that wait to be written, and watching the file. |
 | `Sensors` | The client of the sensor service every OS's overlay, window and `thermi-cli` share: it connects, trusts or refuses who serves, reads the lines, and connects again when they stop. Each OS says how it connects. |
 | `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
-| `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, and the last gesture's undo. |
+| `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, a drop's write, a menu row's choice, and the last gesture's undo. |
 | `Window` | The settings window's logic over the settings: its edits and undo, the sensors' readings and charts it keeps, and how it reads each snapshot. |
-| `Logging` | The user's logs in their local folder, the agents' log read back for the window, the events of what lives here, each a `[LoggerMessage]`, and the user's folders. |
+| `Sensors` | Reading the sensor host's snapshots, from Windows' pipe or Linux's socket, and trying again while it is gone. |
+| `Preview` | What `thermi preview` does around each OS's painter: the settings and snapshots it reads, the items it paints, the PNG written whole or not at all. |
+| `Logging` | The user's logs in their local folder, the agents' log read back for the window, the events of what lives here, each a `[LoggerMessage]`, the user's folders, and the events `--trace` writes for a test to wait on. |
 
 Its tests run where its hosts are: `tests/Thermi.Windows.Tests` drives it with real files, other writers and the clock.

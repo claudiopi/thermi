@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;

@@ -140,10 +140,25 @@ internal sealed class OwnSession : IAsyncDisposable
             process.Dispose();
         }
 
+        // A FUSE file system the session's bus started, the document portal's or gvfs's, outlives its killed daemon as a
+        // folder no one may open, which only its unmount lets go.
+        foreach (var mount in FuseMounts())
+        {
+            using var unmount = Launch("fusermount3", ["-u", "-z", mount], null);
+            await unmount.WaitForExitAsync().ConfigureAwait(false);
+        }
+
         // A user manager leaves folders no one may enter in its runtime folder, which only their owner may open again.
         Openable(_folder);
         _folder.Delete(recursive: true);
     }
+
+    // Each line of mountinfo is its mount's fields, its mount point the fifth, then "-" and its file system's type.
+    private List<string> FuseMounts() => [.. File.ReadLines("/proc/self/mountinfo")
+        .Select(line => line.Split(' '))
+        .Where(fields => fields[Array.IndexOf(fields, "-") + 1].StartsWith("fuse", StringComparison.Ordinal))
+        .Select(fields => fields[4])
+        .Where(mount => mount.StartsWith(_folder.FullName + "/", StringComparison.Ordinal))];
 
     private static void Openable(DirectoryInfo folder)
     {

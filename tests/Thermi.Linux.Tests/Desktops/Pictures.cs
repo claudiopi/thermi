@@ -10,15 +10,21 @@ namespace Thermi.Linux.Tests.Desktops;
 internal static partial class Pictures
 {
     /// <summary>
-    /// The pixels of <paramref name="picture"/> that the screen shows otherwise at (<paramref name="x"/>, <paramref name="y"/>),
-    /// each channel within 1 of its value, as painting rounds: 0 when the screen shows it there.
+    /// The pixels of <paramref name="picture"/>, laid over <paramref name="under"/> as a compositor blends it, that the
+    /// screen shows otherwise at (<paramref name="x"/>, <paramref name="y"/>), each channel within 1 of its value, as
+    /// painting rounds: 0 when the screen shows it there.
     /// </summary>
-    public static async Task<long> DifferingAsync(OwnSession session, string screenshot, string picture, int x, int y, CancellationToken cancel)
+    public static async Task<long> DifferingAsync(
+        OwnSession session, string under, string screenshot, string picture, int x, int y, CancellationToken cancel)
     {
         var (width, height) = await SizeAsync(session, picture, cancel).ConfigureAwait(false);
-        var crop = string.Create(CultureInfo.InvariantCulture, $"{screenshot}[{width}x{height}+{x}+{y}]");
+        var region = string.Create(CultureInfo.InvariantCulture, $"[{width}x{height}+{x}+{y}]");
+        var blended = Path.Combine(session.Home, $"blended-{Guid.NewGuid():N}.png");
+        var laid = await session.RunAsync("convert", [under + region, "+repage", picture, "-composite", blended], cancel: cancel).ConfigureAwait(false);
+        _ = laid.Exit == 0 ? 0 : throw new InvalidOperationException($"convert laid no picture: {laid.Error}");
         // compare writes the count on stderr, and exits 1 when the pictures differ at all.
-        var compared = await session.RunAsync("compare", ["-metric", "AE", "-fuzz", "0.4%", crop, picture, "null:"], cancel: cancel).ConfigureAwait(false);
+        var compared = await session.RunAsync(
+            "compare", ["-metric", "AE", "-fuzz", "0.4%", screenshot + region, blended, "null:"], cancel: cancel).ConfigureAwait(false);
         return compared.Exit is 0 or 1
             ? long.Parse(Count().Match(compared.Error).Value, CultureInfo.InvariantCulture)
             : throw new InvalidOperationException($"compare failed: {compared.Error}");
@@ -54,6 +60,6 @@ internal static partial class Pictures
     [GeneratedRegex(@"^\d+", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Count();
 
-    [GeneratedRegex(@"^(?<x>\d+),(?<y>\d+): \(0\)", RegexOptions.Multiline | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex(@"^(?<x>\d+),(?<y>\d+): \(0(?:,0)*\)", RegexOptions.Multiline | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Clear();
 }

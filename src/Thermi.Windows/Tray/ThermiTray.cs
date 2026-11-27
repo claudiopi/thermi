@@ -186,22 +186,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     // closing it is "Got it".
     private void Tell(Notice notice, ThermiConfig config)
     {
-        var texts = Translations;
-        var numbers = Actions.Culture;
-        var hotkey = config.Hotkeys?.Toggle;
-        var one = notice.Overlays.Count == 1 ? ThermiMenus.NameOf(config, notice.Overlays[0], texts) : "";
-        var (title, text) = notice.Kind switch
-        {
-            NoticeKind.FirstRun => (texts.Of(HostText.FirstRunTitle), texts.Of(HostText.FirstRun)),
-            NoticeKind.FirstRunDriver => (texts.Of(HostText.FirstRunTitle), texts.Of(HostText.FirstRunDriver)),
-            NoticeKind.OverlaysHidden when config.Overlays.Count == 1 => (texts.Format(numbers, HostText.OverlayHiddenTitle, one),
-                hotkey is null ? texts.Of(HostText.OverlayHiddenByFlag) : texts.Format(numbers, HostText.OverlayHiddenByFlagHotkey, hotkey)),
-            NoticeKind.OverlaysHidden => (texts.Of(HostText.OverlaysHiddenTitle),
-                hotkey is null ? texts.Of(HostText.OverlaysHidden) : texts.Format(numbers, HostText.OverlaysHiddenHotkey, hotkey)),
-            NoticeKind.OverlayHidden => (texts.Format(numbers, HostText.OverlayHiddenTitle, one), texts.Of(HostText.OverlayHidden)),
-            NoticeKind.ClickThrough or NoticeKind.ClickThroughAll => (texts.Of(HostText.ClickThroughOnTitle), texts.Of(HostText.ClickThroughOnText)),
-            _ => throw new ArgumentOutOfRangeException(nameof(notice), notice.Kind, null),
-        };
+        var (title, text) = NoticeTexts.Of(notice, config, Translations, Actions.Culture);
         _icons.Notify(ThermiId, title, text);
     }
 

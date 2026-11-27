@@ -6,7 +6,7 @@ It targets plain `net10.0` and references no Windows-only project (`RepoRulesTes
 
 | Folder | What lives there |
 | --- | --- |
-| `Commands` | The agents' command line: each command and its arguments, and the parse a host adds its own commands to. |
+| `Commands` | The command lines: the agents' (`AgentCommandLine`), each command and its arguments, and the parse a host adds its own commands to; and thermi's own (`ThermiCommandLine`), which every OS's thermi parses. |
 | `Agents` | Running a command or the MCP server: reads, edits and their undo, looks, the fan finder, the start at sign-in, over `IAgentEnvironment`. |
 
 Its tests are in `tests/Thermi.Tests`, where `tests/Thermi.Tests/Agents/AgentRig.cs` runs a command as a host does; what only the built `thermi-cli.exe` or the real pipe shows is in `tests/Thermi.Windows.Tests`.

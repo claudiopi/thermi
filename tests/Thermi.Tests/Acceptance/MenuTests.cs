@@ -91,11 +91,12 @@ public sealed class MenuTests
         "looks",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
         $"Settings* | {Graph} Look Look Look+ Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
+    // An update ready; and a desktop whose overlay cannot reach the clipboard offers no copy of it.
     [InlineData(
         "{}",
-        "update",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update | Exit",
-        $"Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
+        "update nocopy",
+        "Settings* TaskManager Vertical ClickThrough Lock HideOverlays Update | Exit",
+        $"Settings* | {Graph} Vertical {Size} Lock | TaskManager | HideOverlays | Exit")]
     // On a pill: of several, on the taskbar or the desktop, it can be separated; not the overlay's only pill, nor while the
     // overlay is hidden or locked, which a hold to lift the pill is not either; once no other overlay fits, grayed with why.
     [InlineData(
@@ -172,6 +173,7 @@ public sealed class MenuTests
             UpdateReady: words.Contains("update"))
         {
             Screens = words.Contains("taskbar") ? [Pc] : [],
+            CanCopy = !words.Contains("nocopy"),
         };
 
         Assert.Null(problem);
@@ -183,6 +185,29 @@ public sealed class MenuTests
         Assert.Equal(
             "Overlay- | " + overlaysMenu.Replace(" Lock", $" {clickThrough} Lock", StringComparison.Ordinal),
             Describe(Menus.OfOverlay(config, 0, menu, item, fromTray: true)));
+        ReadAndChosen(config, menu, item);
+    }
+
+    // Every OS's menus read each row with its blanks filled, wherever it shows; and an edit chosen from the overlay's menu
+    // changes the settings, but a choice already checked.
+    private static void ReadAndChosen(ThermiConfig config, MenuState menu, string? item)
+    {
+        var numbers = System.Globalization.CultureInfo.InvariantCulture;
+        foreach (var (rows, overlay) in new[] { (Menus.Thermis(config, menu), (int?)null), (Menus.OfOverlay(config, 0, menu, item), 0) })
+        {
+            var place = new MenuPlace(config, Texts.English, numbers, overlay) { UndoText = Texts.English.Of(OverlayText.UndoLock) };
+            foreach (var (row, submenu) in rows.SelectMany(row => row.Entries.Select(entry => (entry, true)).Prepend((row, false))))
+            {
+                var said = MenuTexts.TextOf(row, place, submenu) + MenuTexts.Beside(row, Texts.English);
+                Assert.False(string.IsNullOrWhiteSpace(said) || said.Contains('{', StringComparison.Ordinal), $"{row.Entry} reads '{said}'");
+                var choice = row.Entry is MenuEntry.Graph or MenuEntry.Look or MenuEntry.Size;
+                var on = MenuEdits.On(submenu && overlay is null ? row.Overlay : overlay, config.Overlays.Count);
+                if (overlay is not null && MenuEdits.EditOf(row, on, 0, menu.SavedLooks) is { } edit && !(choice && row.Checked))
+                {
+                    Assert.NotEqual(ThermiConfigJson.Write(config), ThermiConfigJson.Write(edit(config)));
+                }
+            }
+        }
     }
 
     // The menu offers to take back a lock chosen from it only while the settings still hold it: after the window's Ctrl+Z

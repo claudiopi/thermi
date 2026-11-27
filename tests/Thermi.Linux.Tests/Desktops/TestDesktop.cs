@@ -61,21 +61,25 @@ internal sealed class TestDesktop : IAsyncDisposable
         </channel>
         """;
 
-    private TestDesktop(DesktopKind kind, OwnSession session)
+    private TestDesktop(DesktopKind kind, OwnSession session, double scale)
     {
         Kind = kind;
         Session = session;
+        Scale = scale;
     }
 
-    /// <summary>The name thermi's overlay takes on the session's bus, as one GTK application per session does.</summary>
-    public const string ThermiName = "io.github.claudiopi.thermi";
+    /// <summary>The name thermi's overlay takes on the session's bus, one per session.</summary>
+    public const string ThermiName = "io.github.claudiopi.thermi.Overlay";
 
     public DesktopKind Kind { get; }
 
     public OwnSession Session { get; }
 
+    /// <summary>The largest scale of the desktop's monitors, the screenshots' pixels to a logical one.</summary>
+    public double Scale { get; }
+
     /// <summary>The pointer and the keyboard, through the desktop's own input for tests.</summary>
-    public DesktopInput Input => new(Kind, Session);
+    public DesktopInput Input => new(Kind, Session, Scale);
 
     public static Task<TestDesktop> StartAsync(DesktopKind kind, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel) =>
         StartAsync(kind, monitors, TestShell.Thermi, cancel);
@@ -84,7 +88,7 @@ internal sealed class TestDesktop : IAsyncDisposable
     public static async Task<TestDesktop> StartAsync(DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel)
     {
 #pragma warning disable CA2000 // The desktop owns the session, and ends it with itself, as when its start fails below.
-        var desktop = new TestDesktop(kind, new OwnSession());
+        var desktop = new TestDesktop(kind, new OwnSession(), monitors.Max(monitor => monitor.Scale));
 #pragma warning restore CA2000
         try
         {
@@ -217,6 +221,9 @@ internal sealed class TestDesktop : IAsyncDisposable
 
         await Session.StartAsync("gnome-shell", shell, cancel: cancel).ConfigureAwait(false);
         await WaitForNameAsync(TestShell.ReadyName, cancel).ConfigureAwait(false);
+        // A headless Shell's seat has no pointer or keyboard until the tests' own: made now, before any program starts, so
+        // each finds them there, and the first click is not lost while a window takes up a pointer just added.
+        await Input.ShellAsync("", cancel).ConfigureAwait(false);
         if (monitors.Count > 1 || monitors.Any(monitor => Math.Abs(monitor.Scale - 1) > 0.01))
         {
             await ConfigureGnomeAsync(monitors, swapped: false, cancel).ConfigureAwait(false);

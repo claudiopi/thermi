@@ -5,15 +5,17 @@ using Thermi.App.Logging;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
 using Thermi.Linux.Agents;
+using Thermi.Linux.Commands;
+using Thermi.Linux.Overlay;
 
 [assembly: SupportedOSPlatform("linux")]
 
 namespace Thermi.Linux;
 
 /// <summary>
-/// <c>thermi</c> on Linux: the overlay, <c>thermi settings</c>, <c>thermi preview</c>, <c>thermi cpu-load</c> and the
-/// agents' commands; and <c>thermi-cli</c>, the same program under another name, which runs the agents' commands alone.
-/// Arguments that make no sense say why on stderr and exit with 2, before anything else runs.
+/// <c>thermi</c> on Linux: the overlay, <c>thermi preview</c>, <c>thermi cpu-load</c> and the agents' commands; and
+/// <c>thermi-cli</c>, the same program under another name, which runs the agents' commands alone. Arguments that make no
+/// sense say why on stderr and exit with 2, before anything else runs; a command it does not run yet says so and exits 1.
 /// </summary>
 internal static class Program
 {
@@ -22,11 +24,8 @@ internal static class Program
 
     private static async Task<int> Main(string[] args)
     {
-        var time = TimeProvider.System;
-        var (cpuLoad, load) = CpuLoadCommand.Create();
-        var root = new RootCommand("thermi: a light, always-on-top hardware monitor.") { cpuLoad };
-        var request = AgentCommandLine.Parse(root, new() { [cpuLoad] = load }, args, _ => [], _ => null, out var errors);
-        if (errors.Count > 0)
+        var request = Parse(args, out var errors);
+        if (request is null)
         {
             foreach (var error in errors)
             {
@@ -36,6 +35,7 @@ internal static class Program
             return 2;
         }
 
+        var time = TimeProvider.System;
         var door = Path.GetFileName(Environment.ProcessPath) == ConsoleDoor;
         return request switch
         {
@@ -44,9 +44,24 @@ internal static class Program
             BuiltInRequest builtIn => await builtIn.Parsed.InvokeAsync(new InvocationConfiguration { Output = door ? Console.Error : Console.Out }),
             // The fan finder's load, which the sensors' package alone runs through thermi-cli, as it has no thermi.
             CpuLoadRequest cpu => await CpuLoad.RunAsync(cpu.Seconds, time),
-            _ when door => await HelpAsync(root),
-            _ => await NoOverlayAsync(),
+            _ when door => await HelpAsync(),
+            PreviewRequest preview => await Preview.RunAsync(Painted(preview), time),
+            OverlayRequest overlay => await OverlayStart.RunAsync(Painted(overlay), time),
+            _ => await NotHereAsync(),
         };
+    }
+
+    private static IThermiRequest? Parse(IReadOnlyList<string> args, out IReadOnlyList<string> errors) =>
+        ThermiCommandLine.Parse(args, new Dictionary<Command, Func<ParseResult, IThermiRequest>>(), _ => [], out errors);
+
+    // GirCore binds each library when its module starts, and nothing of theirs runs before; only what paints loads them,
+    // so the agents' commands run on a server with none.
+    private static T Painted<T>(T request)
+    {
+        Gio.Module.Initialize();
+        PangoCairo.Module.Initialize();
+        Gdk.Module.Initialize();
+        return request;
     }
 
     private static async Task<int> RunAgentAsync(AgentRequest request, TimeProvider time)
@@ -61,15 +76,19 @@ internal static class Program
     }
 
     // The console door runs no overlay: with no command, it says what it does, as a mistyped command does, and exits with 2.
-    private static async Task<int> HelpAsync(RootCommand root)
+    private static async Task<int> HelpAsync()
     {
-        await root.Parse(["--help"]).InvokeAsync(new InvocationConfiguration { Output = Console.Error });
+        if (Parse(["--help"], out _) is BuiltInRequest help)
+        {
+            await help.Parsed.InvokeAsync(new InvocationConfiguration { Output = Console.Error });
+        }
+
         return 2;
     }
 
-    private static async Task<int> NoOverlayAsync()
+    private static async Task<int> NotHereAsync()
     {
-        await Console.Error.WriteLineAsync("thermi: this build shows no overlay.");
+        await Console.Error.WriteLineAsync("thermi: this build does not run that command on Linux yet.");
         return 1;
     }
 }

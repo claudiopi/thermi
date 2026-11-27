@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using Thermi.Core.Look;
+using Thermi.Core.Painting;
 
 namespace Thermi.Windows.Painting;
 
@@ -62,7 +63,7 @@ internal static class DragMarks
         var pills = places.Where(place => place.Id.Length > 0).ToList();
         var thick = Bar * scale;
         var bar = pills.FirstOrDefault(place => place.Id == at.Within)?.Pill is { } within
-            ? Between([.. pills.Where(place => place.Pill == within)], at.Before, within, thick)
+            ? Between([.. pills.Where(place => place.Pill == within)], at.Before, within.Rect(), thick)
             : Before(pills, at.Before, new SizeF(bitmap.Width, bitmap.Height), vertical, thick, ring);
         using var shape = PainterShapes.Rounded(bar, thick / 2);
         using var brush = new SolidBrush(color);
@@ -71,8 +72,8 @@ internal static class DragMarks
 
     private static RectangleF Before(List<PaintedItem> pills, string? before, SizeF size, bool vertical, float thick, float ring)
     {
-        var at = pills.FirstOrDefault(place => place.Id == before)?.Pill;
-        var last = pills.Count == 0 ? RectangleF.Empty : pills[^1].Pill;
+        var at = pills.FirstOrDefault(place => place.Id == before)?.Pill.Rect();
+        var last = pills.Count == 0 ? RectangleF.Empty : pills[^1].Pill.Rect();
         var edge = at is { } pill ? (vertical ? pill.Top : pill.Left) - thick : vertical ? last.Bottom : last.Right;
         return vertical
             ? new RectangleF(ring, Edge(edge, (int)size.Height, thick, ring), size.Width - (2 * ring), thick)
@@ -81,7 +82,7 @@ internal static class DragMarks
 
     private static RectangleF Between(List<PaintedItem> items, string? before, RectangleF pill, float thick)
     {
-        var x = items.FirstOrDefault(place => place.Id == before)?.Item.Left ?? items[^1].Item.Right;
+        var x = (float)(items.FirstOrDefault(place => place.Id == before)?.Item.Left ?? items[^1].Item.Right);
         return new RectangleF(Math.Clamp(x - (thick / 2), pill.Left, pill.Right - thick), pill.Top, thick, pill.Height);
     }
 

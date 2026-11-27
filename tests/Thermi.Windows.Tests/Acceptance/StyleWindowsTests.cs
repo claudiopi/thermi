@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Globalization;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Painting;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Windows.Commands;
