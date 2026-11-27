@@ -37,7 +37,8 @@ public sealed partial class RepoRulesTests
 
     // No test shows anything on the user's desktop, nor starts a process there: every process starts through
     // DesktopProcess, on a desktop of the tests' own, or on Linux, a compositor among them, through OwnSession, in a session
-    // of the test's own; and every test file that makes a window makes it on one too.
+    // of the test's own; and every test file that makes a window makes it on one too. The SDK's public constructors start
+    // thermi-cli as the process that calls them, so a test reads through them only from a process of the session's.
     [Fact]
     public void TestsMakeWindowsAndProcessesOnlyOnADesktopOfTheirOwn()
     {
@@ -51,7 +52,7 @@ public sealed partial class RepoRulesTests
             .Where(file => !StartsProcesses.Contains(file.Path, StringComparer.Ordinal)
                 && Regex.IsMatch(
                     file.Text,
-                    @"(?<!\w)(Process\.Start\(|ProcessStartInfo|CreateProcess\()",
+                    @"(?<!\w)(Process\.Start\(|ProcessStartInfo|CreateProcess\(|new Process\b|new ThermiClient\([^,()]*\))",
                     RegexOptions.ExplicitCapture,
                     TimeSpan.FromSeconds(1)))
             .Select(file => $"{file.Path} starts a process: start it through DesktopProcess on Windows, or OwnSession on Linux");

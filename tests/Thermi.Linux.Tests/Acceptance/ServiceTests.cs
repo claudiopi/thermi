@@ -15,9 +15,36 @@ public sealed partial class ServiceTests
     private const string Clients = """
         import socket, sys
         held = [socket.socket(socket.AF_UNIX) for _ in range(int(sys.argv[1]))]
-        for client in held: client.connect('/run/thermi/sensors')
+        for client in held: client.connect('/run/thermi/sensors.sock')
         print(sum(1 for client in held if client.makefile().readline()), flush=True)
         sys.stdin.read()
+        """;
+
+    // Writes to the socket, reads three lines, and says how much of what it wrote the service still left unread: a stream
+    // socket's bytes count against their writer until the reader takes them.
+    private const string Writer = """
+        import fcntl, socket, struct, termios
+        client = socket.socket(socket.AF_UNIX)
+        client.connect('/run/thermi/sensors.sock')
+        client.sendall(b'thermi\n' * 1024)
+        lines = client.makefile()
+        for _ in range(3): print(lines.readline(), end='', flush=True)
+        print('unread', struct.unpack('i', fcntl.ioctl(client, termios.TIOCOUTQ, b'\0' * 4))[0], flush=True)
+        """;
+
+    // A server of another user's on the socket's path, which serves the recorded lines to whoever connects; it says it
+    // listens on its first line.
+    private const string Impostor = """
+        import socket, sys
+        server = socket.socket(socket.AF_UNIX)
+        server.bind('/run/thermi/sensors.sock')
+        server.listen()
+        print('listening', flush=True)
+        lines = open(sys.argv[1], 'rb').read()
+        while True:
+            client, _ = server.accept()
+            client.sendall(lines)
+            client.close()
         """;
 
     public enum Tree
@@ -48,23 +75,36 @@ public sealed partial class ServiceTests
         var cancel = TestContext.Current.CancellationToken;
         await using var session = new OwnSession();
         var root = TreeOf(session, tree);
+        var seconds = Directory.GetDirectories(root).Length;
         var dump = Path.Combine(session.Home, "dump.jsonl");
 
-        var ran = await session.RunAsync(Built.Program("thermi-sensors"), ["--dump", dump, "--seconds", "3", "--root", root], cancel: cancel);
+        var ran = await session.RunAsync(
+            Built.Program("thermi-sensors"), ["--dump", dump, "--seconds", $"{seconds}", "--root", root], cancel: cancel);
 
         Assert.Equal(0, ran.Exit);
         var recorded = Snapshots(Built.Tree(Source(tree)) + ".json");
         var read = Snapshots(dump);
-        Assert.Equal(recorded.Count, read.Count);
-        foreach (var (was, now) in recorded.Zip(read))
+        Assert.Equal(seconds, read.Count);
+        foreach (var (second, (was, now)) in recorded.Zip(read).Index())
         {
             var expected = SensorMap.Read(was, OverlayConfig.First);
             var readings = SensorMap.Read(now, OverlayConfig.First);
-            Assert.All(Metrics.All.Where(metric => metric.Label != MetricLabel.Fps), metric => Assert.Equal(
-                Missing(tree, metric) ? null : Timeless(metric) ? expected[metric.Id].Usable : readings[metric.Id].Usable ?? double.NaN,
-                readings[metric.Id].Usable));
+            foreach (var metric in Metrics.All.Where(metric => metric.Label is not (MetricLabel.Fps or MetricLabel.Bat)))
+            {
+                var missing = Missing(tree, metric, second);
+                // Rates read as a change since the second before, so the first second has none yet.
+                Assert.True(
+                    missing || second == 0 || readings[metric.Id].Usable is not null,
+                    $"{metric.Id} read nothing in second {second} of {tree}.");
+                Assert.Equal(missing ? null : Timeless(metric) ? expected[metric.Id].Usable : readings[metric.Id].Usable, readings[metric.Id].Usable);
+            }
+
+            // The chips as Windows' recordings of the same PC map them: the CPU's own sensor, the board's CPU fan input.
+            Assert.Equal(
+                Missing(tree, Metrics.CpuTemperature, second) ? null : Kernel(root, second, "k10temp", "Tctl"), readings[Metrics.CpuTemperature.Id].Usable);
+            Assert.Equal(Missing(tree, Metrics.CpuFan, second) ? null : Kernel(root, second, "nct6798", "fan2"), readings[Metrics.CpuFan.Id].Usable);
             Assert.DoesNotContain(now.Sensors, sensor => sensor.Type == "Temperature" && sensor.Value <= -40);
-            Assert.Equal(was.VirtualAdapters ?? [], now.VirtualAdapters ?? []);
+            VirtualAdaptersAreApart(was, now);
         }
     }
 
@@ -102,25 +142,34 @@ public sealed partial class ServiceTests
         var cancel = TestContext.Current.CancellationToken;
         await using var session = new OwnSession();
         await File.WriteAllTextAsync(Path.Combine(session.Home, "clients.py"), Clients, cancel);
+        await File.WriteAllTextAsync(Path.Combine(session.Home, "writer.py"), Writer, cancel);
+        await File.WriteAllTextAsync(Path.Combine(session.Home, "impostor.py"), Impostor, cancel);
         File.Copy(Built.Tree(SensorFeed.Desktop) + ".json", Path.Combine(session.Home, "lines"));
         await using var pc = await Container.BootAsync(session, Container.Ubuntu2604, session.Home, cancel);
-        var install = Container.Installs(Container.Ubuntu2604, $"python3-minimal socat {Container.Work}/thermi-sensors_*_amd64.deb");
+        var install = Container.Installs(Container.Ubuntu2604, $"python3-minimal $(ls {Container.Packages}/thermi-sensors_*_amd64.deb)");
         await pc.MustAsync($"{install} && useradd -m person && useradd -m other", cancel);
 
-        var (exit, said, _) = await pc.RunAsync(ClientScript(client), cancel);
-        var left = await pc.MustAsync(
-            "cut -d' ' -f1 /proc/uptime; pid=$(systemctl show -p MainPID --value thermi-sensors.service); [ \"$pid\" = 0 ] || tail --pid=$pid -f /dev/null; "
+        // The last client leaves as its script ends, on the clock systemd stamps a unit's state with.
+        var (exit, said, error) = await pc.RunAsync(
+            $"set +e; {ClientScript(client)}; ended=$?; python3 -c 'import time; print(time.monotonic())' >&2; exit $ended", cancel);
+        var stopped = await pc.MustAsync(
+            "pid=$(systemctl show -p MainPID --value thermi-sensors.service); [ \"$pid\" = 0 ] || tail --pid=$pid -f /dev/null; "
                 + "systemctl show -p InactiveEnterTimestampMonotonic --value thermi-sensors.service",
             cancel);
 
         var lines = said.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(client == Client.Impostor ? 3 : 0, exit);
-        Assert.All(client is Client.Writer ? lines : [], line => Assert.NotNull(SnapshotJson.Read(line)));
         Assert.Equal(client == Client.Person, said.Contains($"\"{Metrics.CpuTemperature.Id}\"", StringComparison.Ordinal));
+        if (client == Client.Writer)
+        {
+            Assert.All(lines[..3], line => Assert.NotNull(SnapshotJson.Read(line)));
+            Assert.True(int.Parse(lines[3].Split(' ')[1], CultureInfo.InvariantCulture) >= 7 * 1024, $"The service read what the client wrote: {lines[3]}");
+        }
+
         Assert.Equal(client == Client.Crowd ? ["1", "8"] : lines, lines);
-        var times = left.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(time => double.Parse(time, CultureInfo.InvariantCulture)).ToArray();
-        var after = (times[1] / 1e6) - times[0];
-        Assert.True(client == Client.Impostor || after >= 10, $"The service ended {after} s after the last client left.");
+        var left = double.Parse(error.Trim().Split('\n')[^1], CultureInfo.InvariantCulture);
+        var after = (double.Parse(stopped, CultureInfo.InvariantCulture) / 1e6) - left;
+        Assert.True(client == Client.Impostor || after is >= 9.5 and < 11, $"The service ended {after} s after the last client left.");
     }
 
     [Fact(Skip = "Waiting for its code")]
@@ -130,10 +179,11 @@ public sealed partial class ServiceTests
         await using var session = new OwnSession();
         var device = Path.Combine(session.Home, "intel-rapl:0");
         Directory.CreateDirectory(device);
-        var recorded = Path.Combine(Built.Tree(SensorFeed.Desktop), "0", "sys", "class", "powercap", "intel-rapl:0", "energy_uj");
+        // A recorded tree escapes a colon in a name, which Windows forbids, as %3A.
+        var recorded = Path.Combine(Built.Tree(SensorFeed.Desktop), "0", "sys", "class", "powercap", "intel-rapl%3A0", "energy_uj");
         File.Copy(recorded, Path.Combine(device, "energy_uj"));
         await using var pc = await Container.BootAsync(session, Container.Ubuntu2604, session.Home, cancel);
-        await pc.MustAsync(Container.Installs(Container.Ubuntu2604, $"{Container.Work}/thermi-sensors_*_amd64.deb"), cancel);
+        await pc.MustAsync(Container.Installs(Container.Ubuntu2604, $"$(ls {Container.Packages}/thermi-sensors_*_amd64.deb)"), cancel);
 
         var security = await pc.MustAsync("systemd-analyze security --offline=true --no-pager thermi-sensors.service", cancel);
         var unit = await pc.MustAsync("systemctl show -p User -p CapabilityBoundingSet -p AmbientCapabilities thermi-sensors.service", cancel);
@@ -146,23 +196,25 @@ public sealed partial class ServiceTests
 
         Assert.Matches(@"Overall exposure level for thermi-sensors\.service: \d+\.\d+ (OK|SAFE)", security);
         Assert.Equal(
-            ["AmbientCapabilities=", "CapabilityBoundingSet=", "User=thermi-sensors"],
+            ["AmbientCapabilities=", "CapabilityBoundingSet=", "User=thermi"],
             unit.Split('\n', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal));
-        Assert.Equal("root thermi-sensors 440", rights.Trim());
+        Assert.Equal("root thermi 440", rights.Trim());
     }
 
     [GeneratedRegex("""RUN\+="(?<command>[^"]+)""", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Run();
 
-    // Each row connects to the socket as it says: a person's read; a server of another user's on the socket's path, which
-    // the read refuses; a client that writes as it reads; and nine connections of one user, then one of another's.
+    // Each row connects to the socket as it says: a person's read; a server another user listens with on the socket's path,
+    // which the person's read refuses; a client that writes as it reads; and nine connections of one user, then one of
+    // another's. The person runs the thermi-cli the package put on every PATH.
     private static string ClientScript(Client client) => client switch
     {
-        Client.Person => $"su person -c '{Container.Output}/thermi-cli read --schema 1'",
-        Client.Impostor => "systemctl stop thermi-sensors.socket thermi-sensors.service && install -d -o other /run/thermi && "
-            + $"systemd-run --uid=other --socket-property=ListenStream=/run/thermi/sensors --socket-property=Accept=yes cat {Container.Work}/lines && "
-            + $"su person -c '{Container.Output}/thermi-cli read --schema 1'",
-        Client.Writer => "su person -c 'yes thermi | socat - UNIX-CONNECT:/run/thermi/sensors | head -n 3'",
+        Client.Person => "su person -c 'thermi-cli read --schema 1'",
+        Client.Impostor => "systemctl stop thermi-sensors.socket thermi-sensors.service && rm -rf /run/thermi && install -d -o other /run/thermi && "
+            + $"mkfifo /tmp/listens && su other -s /bin/sh -c 'exec python3 {Container.Work}/impostor.py {Container.Work}/lines'"
+            + " > /tmp/listens 2>/dev/null < /dev/null & "
+            + "read -r _ < /tmp/listens && su person -c 'thermi-cli read --schema 1'",
+        Client.Writer => $"su person -c 'python3 {Container.Work}/writer.py'",
         Client.Crowd => $"mkfifo /tmp/go /tmp/said; su person -c 'python3 {Container.Work}/clients.py 9' < /tmp/go > /tmp/said & exec 3>/tmp/go; "
             + $"read -r person < /tmp/said; su other -c 'python3 {Container.Work}/clients.py 1' < /dev/null; echo $person; exec 3>&-; wait",
         _ => throw new ArgumentOutOfRangeException(nameof(client), client, "Unknown client."),
@@ -182,22 +234,51 @@ public sealed partial class ServiceTests
     };
 
     // What the kernel does not give reads missing, never 0: the energy counters to a plain user, the GPU with no driver, a
-    // file that fails to read or is gone, and every sensor of a virtual machine.
-    private static bool Missing(Tree tree, Metric metric) => tree switch
+    // file gone or that fails to read from the second it did, and every sensor of a virtual machine but the system's own.
+    private static bool Missing(Tree tree, Metric metric, int second) => tree switch
     {
         Tree.PlainUser => metric == Metrics.CpuPower,
         Tree.NoNvidiaDriver => metric.Label == MetricLabel.Gpu,
-        Tree.Failing => metric == Metrics.CpuTemperature || metric == Metrics.CpuFan,
-        Tree.VirtualMachine => metric.Kind is not (SensorKind.Duration or SensorKind.Address or SensorKind.Time) && metric.Label != MetricLabel.Ram,
+        Tree.Failing => second > 0 && (metric == Metrics.CpuTemperature || metric == Metrics.CpuFan),
+        Tree.VirtualMachine => metric.Label is MetricLabel.Gpu || metric == Metrics.CpuTemperature || metric == Metrics.CpuPower
+            || metric == Metrics.CpuFan || metric == Metrics.CpuFanDuty,
         Tree.Service => false,
         _ => throw new ArgumentOutOfRangeException(nameof(tree), tree, "Unknown tree."),
     };
 
-    // A copy of the row's recorded tree, broken as the row says.
+    // The virtual adapters, as loopback and a bridge, are named apart from the real ones, as the recording named them.
+    private static void VirtualAdaptersAreApart(Snapshot was, Snapshot now)
+    {
+        var adapters = now.Sensors.Where(sensor => sensor.HardwareType == "Network").Select(SensorMap.DeviceIdOf).Distinct(StringComparer.Ordinal).ToList();
+        Assert.Equal(was.VirtualAdapters ?? [], now.VirtualAdapters ?? []);
+        Assert.NotEmpty(now.VirtualAdapters ?? []);
+        Assert.All(now.VirtualAdapters ?? [], adapter => Assert.Contains(adapter, adapters));
+        Assert.True(adapters.Except(now.VirtualAdapters ?? [], StringComparer.Ordinal).Any(), "No adapter was real.");
+    }
+
+    // A chip's sensor as its hwmon files hold it in a second of the tree, by the label of its input, or by the input's own
+    // name where the chip labels none: degrees from millidegrees, a fan in RPM.
+    private static double Kernel(string root, int second, string chip, string sensor)
+    {
+        var folder = Chip(root, second, chip);
+        var input = File.Exists(Path.Combine(folder, $"{sensor}_input"))
+            ? $"{sensor}_input"
+            : Path.GetFileName(Directory.EnumerateFiles(folder, "*_label").Single(label => File.ReadAllText(label).Trim() == sensor))
+                .Replace("_label", "_input", StringComparison.Ordinal);
+        var value = double.Parse(File.ReadAllText(Path.Combine(folder, input)).Trim(), CultureInfo.InvariantCulture);
+        return input.StartsWith("temp", StringComparison.Ordinal) ? value / 1000 : value;
+    }
+
+    private static string Chip(string root, int second, string name) =>
+        Directory.EnumerateFiles(Path.Combine(root, $"{second}"), "name", SearchOption.AllDirectories)
+            .Where(file => File.ReadAllText(file).Trim() == name).Select(file => Path.GetDirectoryName(file)!).First();
+
+    // A copy of the row's recorded tree, broken as the row says: from its second second on, the CPU's temperature is gone,
+    // as when its module unloads, and the board's fan fails to read; and the board reads -40 °C, as an unwired input does.
     private static string TreeOf(OwnSession session, Tree tree)
     {
         var copy = Path.Combine(session.Home, "root");
-        Copy(Built.Tree(Source(tree)), copy);
+        Built.Copy(Built.Tree(Source(tree)), copy);
         var files = Directory.EnumerateFiles(copy, "*", SearchOption.AllDirectories).ToList();
         if (tree == Tree.NoNvidiaDriver)
         {
@@ -205,38 +286,35 @@ public sealed partial class ServiceTests
         }
         else if (tree == Tree.Failing)
         {
-            // The CPU's temperature is gone, as when its module unloads, and the board's fan fails to read.
-            Chip(files, "k10temp").ForEach(folder => File.Delete(Path.Combine(folder, "temp1_input")));
-            Chip(files, "nct6798").ForEach(folder => File.SetUnixFileMode(Path.Combine(folder, "fan2_input"), UnixFileMode.None));
+            foreach (var second in Directory.GetDirectories(copy).Select(folder => int.Parse(Path.GetFileName(folder), CultureInfo.InvariantCulture)))
+            {
+                var board = Chip(copy, second, "nct6798");
+                var unwired = Directory.EnumerateFiles(board, "temp*_input").Order(StringComparer.Ordinal).First();
+                File.WriteAllText(unwired, "-40000\n");
+                if (second > 0)
+                {
+                    File.Delete(Path.Combine(Chip(copy, second, "k10temp"), "temp1_input"));
+                    File.Delete(Path.Combine(board, "fan2_input"));
+                    Directory.CreateDirectory(Path.Combine(board, "fan2_input"));
+                }
+            }
         }
 
         return copy;
     }
-
-    private static List<string> Chip(List<string> files, string name) =>
-        [.. files.Where(file => Path.GetFileName(file) == "name" && File.ReadAllText(file).Trim() == name).Select(file => Path.GetDirectoryName(file)!)];
 
     // Every place a PC's tree may name it: its host, a person's folder, its adapters' addresses and its drives' serials.
     private static void Named(string tree, string[] names)
     {
         foreach (var second in Directory.EnumerateDirectories(tree))
         {
+            Directory.CreateDirectory(Path.Combine(second, "proc", "sys", "kernel"));
             File.WriteAllText(Path.Combine(second, "proc", "sys", "kernel", "hostname"), names[0]);
             File.WriteAllText(Path.Combine(second, "proc", "mounts"), $"/dev/nvme0n1p2 /home/{names[1]} ext4 rw 0 0\n");
             Directory.EnumerateFiles(Path.Combine(second, "sys", "class", "net"), "address", SearchOption.AllDirectories).ToList()
                 .ForEach(address => File.WriteAllText(address, names[2]));
             Directory.EnumerateFiles(Path.Combine(second, "sys", "block"), "serial", SearchOption.AllDirectories).ToList()
                 .ForEach(serial => File.WriteAllText(serial, names[3]));
-        }
-    }
-
-    private static void Copy(string from, string to)
-    {
-        foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
-        {
-            var target = Path.Combine(to, Path.GetRelativePath(from, file));
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(file, target);
         }
     }
 }

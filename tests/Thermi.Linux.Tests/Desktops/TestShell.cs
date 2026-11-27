@@ -57,7 +57,13 @@ internal static class TestShell
         // The tests' extension loads on the Shell that runs, whichever thermi's lists.
         var running = await session.RunAsync("gnome-shell", ["--version"], cancel: cancel).ConfigureAwait(false);
         var major = running.Out.Trim().Split(' ')[^1].Split('.')[0];
-        var metadata = new JsonObject { ["uuid"] = Uuid, ["name"] = "thermi's tests", ["description"] = "thermi's tests", ["shell-version"] = new JsonArray(major) };
+        var metadata = new JsonObject
+        {
+            ["uuid"] = Uuid,
+            ["name"] = "thermi's tests",
+            ["description"] = "thermi's tests",
+            ["shell-version"] = new JsonArray(major),
+        };
         await File.WriteAllTextAsync(Path.Combine(tests, "metadata.json"), metadata.ToJsonString(), cancel).ConfigureAwait(false);
         List<string> enabled = [Uuid];
         if (extension is not null)

@@ -11,7 +11,7 @@ internal static class Accessible
     // AT-SPI from Python: each open menu's program and the number of its entries, one menu a line, or the entry at an index
     // of the open menu chosen.
     private const string Code = """
-        import sys, gi
+        import sys, time, gi
         gi.require_version('Atspi', '2.0')
         from gi.repository import Atspi
 
@@ -40,7 +40,9 @@ internal static class Accessible
                 if frames: print(app.get_process_id(), frames, app.get_name())
         elif sys.argv[1] == 'slide':
             value = next(slider for app in apps if app.get_name() == 'thermi' for slider in sliders(app)).get_value_iface()
-            value.set_current_value(value.get_current_value() + float(sys.argv[2]))
+            moved = value.get_current_value() + float(sys.argv[2])
+            print(time.monotonic(), flush=True)
+            value.set_current_value(moved)
         else:
             entry = found[0][1].get_child_at_index(int(sys.argv[2]))
             entry.get_action_iface().do_action(0)
@@ -66,9 +68,12 @@ internal static class Accessible
             .Select(words => (int.Parse(words[0], CultureInfo.InvariantCulture), int.Parse(words[1], CultureInfo.InvariantCulture), words[2]))];
     }
 
-    /// <summary>Moves the first slider of thermi's window by <paramref name="by"/>, as a person drags it.</summary>
-    public static Task SlideAsync(OwnSession session, double by, CancellationToken cancel) =>
-        RunAsync(session, ["slide", by.ToString(CultureInfo.InvariantCulture)], cancel);
+    /// <summary>
+    /// Moves the first slider of thermi's window by <paramref name="by"/>, as a person drags it, and returns when it did, in
+    /// seconds of the system's monotonic clock, as thermi's trace says its times.
+    /// </summary>
+    public static async Task<double> SlideAsync(OwnSession session, double by, CancellationToken cancel) =>
+        double.Parse(await RunAsync(session, ["slide", by.ToString(CultureInfo.InvariantCulture)], cancel).ConfigureAwait(false), CultureInfo.InvariantCulture);
 
     private static async Task<string> RunAsync(OwnSession session, string[] args, CancellationToken cancel)
     {
