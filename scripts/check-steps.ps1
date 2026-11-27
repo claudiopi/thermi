@@ -12,7 +12,8 @@ $underLoad = 'FullLoadTests'
 
 $oneTest = 'Run one test while you fix it: pwsh scripts/test.ps1 --project tests/{0} --filter-method "*<name>*"'
 $stepFixes = @{
-    'restore' = 'Fix it with: dotnet restore thermi.slnx --force-evaluate, which writes the lock files again; commit them.'
+    'restore' = ('A lock file out of date: dotnet restore thermi.slnx --force-evaluate, and src/Thermi.Installer alike, then commit them. ' +
+        'A vulnerable package: update it in Directory.Packages.props.')
     'build Release' = 'Fix what each error names; a rule is turned off only in Thermi.globalconfig, with the reason above it.'
     'tests and coverage' = $oneTest -f 'Thermi.Tests'
     'Windows tests' = $oneTest -f 'Thermi.Windows.Tests'

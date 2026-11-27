@@ -53,7 +53,7 @@ public sealed partial class RepoRulesTests
             .Where(file => file.lines > MaxLinesPerFile)
             .Select(file => $"{Relative(file.path)} has {file.lines} lines");
 
-        AssertNone(tooLong, $"split each into files by topic, each under {MaxLinesPerFile} lines, as a partial class or a type of its own");
+        AssertNone(tooLong, $"split each into files by topic, each at most {MaxLinesPerFile} lines, as a partial class or a type of its own");
     }
 
     // A folder of loose files hides its topics: past a dozen, a reader scans the list instead of finding the folder.

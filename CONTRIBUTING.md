@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. thermi has many rules, but you do not need to learn them first: each one has a check, and when a check fails it says how to fix it. Your first PR can be small, and a maintainer helps with the rest.
+Thanks for helping. thermi has many rules, but you do not need to learn them first: most have a check, and a failing check mostly says how to fix it. Your first PR can be small, and a maintainer helps with the rest.
 
 The full rulebook is [AGENTS.md](AGENTS.md), written for people and AI agents alike. This page is the short way in.
 
@@ -38,7 +38,7 @@ Without Windows you can still open the PR: the CI runs what needs Windows, and i
 
 | Rule | When it fails | How to fix it |
 | --- | --- | --- |
-| The test count only goes up in a commit of its own, which a person approves. | `test count` | Commit your work, then run `pwsh scripts/test-count.ps1 -Raise` on Windows after a Release build: it commits the new count alone. Without Windows, write the count the CI's failure names into `tests/test-count.json`, in a commit of its own. |
+| The test count only goes up in a commit of its own, which a person approves. | `test count` | Commit your work, then run `pwsh scripts/test-count.ps1 -Raise -Part DotNet` on Windows after a Release build: it commits the new count alone. For the page's tests, `-Part Web`. Without Windows, write the count the CI's failure names into `tests/test-count.json`, in a commit of its own. |
 | Formatting follows `.editorconfig`. | `format` | `dotnet format whitespace thermi.slnx` |
 | `THIRD-PARTY-NOTICES.md` lists every package that ships. | `third-party notices` | After you add, remove or update a package, run `pwsh scripts/notices.ps1`. |
 | Comments say why, never what, and hold no history such as issue numbers. | `RepoRulesTests`, review | Delete what the code already says. `.claude/agents/comment-trimmer.md` says what to keep. |

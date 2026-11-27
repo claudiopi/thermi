@@ -172,7 +172,7 @@ foreach ($half in $cases.Keys) {
 if ($failed) {
     $failed += 'Merge near-identical cases into one table, and delete tests an edge test already covers.'
     $failed += ("To add tests beyond it, raise it in $baselineFile in a change of its own, which a person approves: commit your work, " +
-        'then pwsh scripts/test-count.ps1 -Raise makes that change.')
+        'then pwsh scripts/test-count.ps1 -Raise makes that change; an agent runs it only when a person asks.')
 }
 
 $notes = @()
@@ -232,7 +232,8 @@ function Get-RaiseFaults([string]$Root, $Baseline, [string[]]$Halves, [string]$F
         $others = @(git -C $Root diff --name-only $from) + @(git -C $Root ls-files --others --exclude-standard) | Where-Object { $_ -ne $File }
         if ($others) {
             return ("This change raises the baseline of $($raised -join ' and ') in $File along with other files: " +
-                'raise it in a change of its own, which a person approves, and which pwsh scripts/test-count.ps1 -Raise makes.')
+                ('raise it in a change of its own, which a person approves, and which pwsh scripts/test-count.ps1 -Raise makes; ' +
+                'an agent runs it only when a person asks.')
         }
         return
     }
