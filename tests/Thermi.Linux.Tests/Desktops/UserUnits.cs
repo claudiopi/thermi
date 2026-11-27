@@ -63,7 +63,7 @@ internal sealed partial class UserUnits
         if (!await Readiness.BeforeEndAsync(ready, started.WaitForExitAsync(cancel)).ConfigureAwait(false))
         {
             var said = await started.Error.ToEndAsync(cancel).ConfigureAwait(false);
-            throw new InvalidOperationException($"The tests' user manager ended before it was ready: {said}");
+            throw new InvalidOperationException($"The tests' user manager ended with {started.ExitCode} before it was ready: {said}");
         }
 
         // A manager sets its units' PATH itself; a desktop's session hands it its own, as here, the tests' programs first,
@@ -76,6 +76,8 @@ internal sealed partial class UserUnits
         await userUnits.SystemctlAsync(["start", "dbus.socket", "dbus.service"], cancel).ConfigureAwait(false);
         var joined = await session.RunAsync("gdbus", ["wait", "--session", "org.freedesktop.systemd1"], cancel: cancel).ConfigureAwait(false);
         _ = joined.Exit == 0 ? 0 : throw new InvalidOperationException($"The tests' user manager never joined the bus: {joined.Error}");
+        // A desktop's session starts its graphical session's target at sign-in, and the overlay's unit runs only within it.
+        await userUnits.SystemctlAsync(["start", "graphical-session.target"], cancel).ConfigureAwait(false);
         return userUnits;
     }
 
