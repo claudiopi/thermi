@@ -12,12 +12,12 @@ internal static class Built
     /// <summary>Where the build puts the packages it packed, the AUR's PKGBUILD with them, and a newer build in <c>newer</c>.</summary>
     public static string Packages { get; } = Path.Combine(Root, "artifacts", "linux");
 
-    /// <summary>The packages of a newer build than <see cref="Packages"/>', packed with the same key, as the next release.</summary>
+    /// <summary>The build of <see cref="Packages"/> packed again at a newer version with the same key, as the next release.</summary>
     public static string Newer { get; } = Path.Combine(Packages, "newer");
 
-    /// <summary>The version of the build packed in <paramref name="folder"/>, as its tarball's name says it.</summary>
+    /// <summary>The version of the packages in <paramref name="folder"/>, as the sensors' .deb's name says it.</summary>
     public static string PackedVersion(string folder) =>
-        Path.GetFileName(Directory.GetFiles(folder, "thermi-*-linux-x64.tar.gz").Single())["thermi-".Length..^"-linux-x64.tar.gz".Length];
+        Path.GetFileName(Directory.GetFiles(folder, "thermi-sensors_*_amd64.deb").Single())["thermi-sensors_".Length..^"_amd64.deb".Length];
 
     /// <summary>
     /// A tree of the files under <c>/sys</c> and <c>/proc</c> that <c>thermi-sensors --tree</c> read on a Linux PC; its
