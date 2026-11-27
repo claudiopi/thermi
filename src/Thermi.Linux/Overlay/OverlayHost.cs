@@ -57,7 +57,7 @@ internal sealed class OverlayHost : IDisposable
         _feed = feed;
         _trace = trace;
         var time = trace.Time;
-        _link = new ShellLink(bus);
+        _link = new ShellLink(bus, log);
         _parts = new OverlayParts(settings, _link, time, CultureInfo.CurrentCulture, log)
         {
             RequestPaint = () => Post(Repaint),

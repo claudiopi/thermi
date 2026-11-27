@@ -145,6 +145,14 @@ public sealed class OverlayTests
             var metadata = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(other, "metadata.json"), cancel))!;
             metadata["thermi-protocol"] = (int)metadata["thermi-protocol"]! - 1;
             await File.WriteAllTextAsync(Path.Combine(other, "metadata.json"), metadata.ToJsonString(), cancel);
+            // Another protocol's signals may have other shapes: this one sends Ready and Pointer with nothing in them once
+            // thermi takes its name.
+            var code = await File.ReadAllTextAsync(Path.Combine(other, "extension.js"), cancel);
+            const string Appeared = "Gio.BusNameWatcherFlags.NONE, null,";
+            Assert.Contains(Appeared, code, StringComparison.Ordinal);
+            var sends = "() => ['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', [])),";
+            code = code.Replace(Appeared, $"Gio.BusNameWatcherFlags.NONE, {sends}", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(other, "extension.js"), code, cancel);
 
             await AnotherVersionShowsNothingAsync(other, cancel);
             await NoneIsInstalledFromTheStoreAsync(cancel);
@@ -241,11 +249,16 @@ public sealed class OverlayTests
         await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
         var before = await desktop.ScreenshotAsync(cancel);
         var update = notices.NextAsync("update-extension", cancel);
-        await desktop.StartThermiAsync([], cancel);
+        var thermi = await desktop.StartThermiAsync([], cancel);
 
-        await update;
+        var told = await update;
         var after = await desktop.ScreenshotAsync(cancel);
+        // Its button is heard after the extension's Ready: thermi that read it still runs and asks GNOME for the update.
+        var checking = notices.NextUpdateCheckAsync(cancel);
+        await notices.ClickAsync(told, "update-extension", cancel);
+        var asked = await Task.WhenAny(checking, thermi.WaitForExitAsync(cancel)) == checking;
         Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, before, after, UnderTheBar, cancel));
+        Assert.True(asked, thermi.Error.Text);
     }
 
     // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself.

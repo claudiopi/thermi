@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Core.Look;
+using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Gnome;
 
@@ -61,12 +63,24 @@ internal sealed class ShellLink : IDisposable
     private const string Interface = "io.github.claudiopi.thermi.Shell";
     private const int Timeout = 5000;
 
+    // Each signal's shape in this protocol, as extension.js declares it.
+    private static readonly Dictionary<string, string> Shapes = new(StringComparer.Ordinal)
+    {
+        ["Ready"] = "(u)",
+        ["Pointer"] = "(usdduuudd)",
+        ["Key"] = "(us)",
+        ["MonitorsChanged"] = "(a(ddddddbb))",
+        ["Chosen"] = "(ui)",
+    };
+
     private readonly Gio.DBusConnection _bus;
     private readonly Gio.DBusProxy _signals;
+    private readonly ILogger _log;
 
-    public ShellLink(Gio.DBusConnection bus)
+    public ShellLink(Gio.DBusConnection bus, ILogger log)
     {
         _bus = bus;
+        _log = log;
         // A proxy's signals come through GObject's own, which GirCore marshals, where a subscription's callback it does not.
         const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
         _signals = Gio.DBusProxy.NewSync(bus, Flags, null, Shell, ObjectPath, Interface, null);
@@ -214,7 +228,34 @@ internal sealed class ShellLink : IDisposable
     private Task<GLib.Variant> Call(string destination, string path, string face, string method, params GLib.Variant[] args) =>
         _bus.CallAsync(destination, path, face, method, GLib.Variant.NewTuple(args));
 
+    // An extension of another protocol may send any shape: a signal is read only in the shape this protocol gives it, and a
+    // Ready of another shape is another protocol's, whose number this one cannot read.
     private void Heard(string signal, GLib.Variant args)
+    {
+        try
+        {
+            if (Shapes.TryGetValue(signal, out var shape) && args.GetTypeString() == shape)
+            {
+                Read(signal, args);
+            }
+            else if (signal == "Ready")
+            {
+                Ready(0);
+            }
+            else
+            {
+                _log.ShellSignalRefused(signal, args.GetTypeString());
+            }
+        }
+#pragma warning disable CA1031 // GLib calls it from native code, where an exception that escapes ends the process.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            _log.ShellSignalFailed(signal, ex);
+        }
+    }
+
+    private void Read(string signal, GLib.Variant args)
     {
         string Text(int at)
         {

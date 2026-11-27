@@ -21,4 +21,10 @@ internal static partial class LinuxLog
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The overlay could not be painted")]
     public static partial void PaintFailed(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension sent {Signal} as {Shape}, which thermi's protocol does not have: it is left unread")]
+    public static partial void ShellSignalRefused(this ILogger logger, string signal, string shape);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The GNOME Shell extension's {Signal} could not be read")]
+    public static partial void ShellSignalFailed(this ILogger logger, string signal, Exception error);
 }
