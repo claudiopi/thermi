@@ -19,11 +19,6 @@ namespace Thermi.Windows.Painting;
 /// </param>
 internal sealed class Painter(bool reuse = false) : IDisposable
 {
-    private const float InnerPadding = PaintSizes.InnerPadding;
-    private const float LabelGap = PaintSizes.LabelGap;
-    private const float ItemGap = PaintSizes.ItemGap;
-    private const float TagGap = PaintSizes.TagGap;
-
     private readonly List<PaintedItem> _places = [];
     private readonly OutlinedTexts _outlines = new();
     private PainterFonts? _fonts;
@@ -46,7 +41,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
-        return Painted(PillsOf(items, look, scale, fonts, measure), look, scale, glow, mark: false);
+        return Painted(PaintLayout.PillsOf(items, look, scale, WidthOn(measure, fonts)), look, scale, glow, mark: false);
     }
 
     /// <summary>
@@ -58,10 +53,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
-        var width = (measure.MeasureString(text, fonts.Label, 0, PainterFonts.Typographic).Width / scale) + PaintSizes.MarkWidth + LabelGap;
-        var item = new OverlayItem(null, text, Level.Normal, text);
-        List<PaintedPill> pills = [new PaintedPill([item], [(double)width * scale], scale), .. PillsOf(beside ?? [], look, scale, fonts, measure)];
-        return Painted(pills, look, scale, glow: null, mark: true);
+        return Painted(PaintLayout.StoppedPills(text, look, scale, WidthOn(measure, fonts), beside ?? []), look, scale, glow: null, mark: true);
     }
 
     public void Dispose()
@@ -69,19 +61,6 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         _fonts?.Dispose();
         _canvas?.Dispose();
         _outlines.Dispose();
-    }
-
-    // The runs a single bar holds are read before the labels go, as no label then says where each starts.
-    private static List<PaintedPill> PillsOf(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, PainterFonts fonts, Graphics measure)
-    {
-        var runs = OverlayLayout.InnerPills(items, look.Layout);
-        var up = runs is not null && look.Orientation == Orientation.Vertical;
-        return [.. OverlayLayout.Groups(items, look.Layout, look.Labels)
-            .Select(pill => new PaintedPill(pill, [.. pill.Select(item => (double)ItemWidth(measure, fonts, item, look, scale) * scale)], scale)
-            {
-                Runs = runs,
-                Stacked = up,
-            })];
     }
 
     /// <summary>
@@ -92,20 +71,24 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     {
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
-        var (width, height, _) = SizeOf(PillsOf(items, look, scale, fonts, measure), look, scale);
+        var (width, height, _) = PaintLayout.SizeOf(PaintLayout.PillsOf(items, look, scale, WidthOn(measure, fonts)), look, scale);
         return new Size(width, height);
     }
 
-    private static (int Width, int Height, Arrangement Arranged) SizeOf(List<PaintedPill> pills, OverlayLook look, float scale)
+    private static TextWidth WidthOn(Graphics g, PainterFonts fonts) => (text, role) =>
     {
-        var height = Math.Ceiling(look.Height * scale);
-        var arranged = look.Arrange([.. pills.Select(pill => pill.Width)], height, scale, [.. pills.Select(pill => pill.HeightOf(height))]);
-        return (Math.Max((int)height, (int)Math.Ceiling(arranged.Width)), Math.Max((int)height, (int)Math.Ceiling(arranged.Height)), arranged);
-    }
+        var font = role switch
+        {
+            TextRole.Label => fonts.Label,
+            TextRole.Tag => fonts.Tag,
+            TextRole.Value or _ => fonts.Value,
+        };
+        return g.MeasureString(text, font, 0, PainterFonts.Typographic).Width;
+    };
 
     private Bitmap Painted(List<PaintedPill> pills, OverlayLook look, float scale, Func<string, double>? glow, bool mark)
     {
-        var (width, height, arranged) = SizeOf(pills, look, scale);
+        var (width, height, arranged) = PaintLayout.SizeOf(pills, look, scale);
         var bitmap = Canvas(width, height);
         try
         {
@@ -189,30 +172,12 @@ internal sealed class Painter(bool reuse = false) : IDisposable
                     PainterShapes.Glow(g, look, part.Box.Rect(), scale, strength);
                 }
 
-                DrawPart(g, pills[p], part, boxes[p], look, scale);
+                foreach (var drawn in PaintLayout.ItemsIn(pills[p], part, boxes[p].Box(), look, scale, WidthOn(g, _fonts!)))
+                {
+                    DrawItem(g, drawn, look, scale);
+                    _places.Add(drawn.Place);
+                }
             }
-        }
-    }
-
-    // Each item's place is as tall as its pill, or its row of a standing bar, so a drag of a run carries it off.
-    private void DrawPart(Graphics g, PaintedPill pill, PillPart part, RectangleF outer, OverlayLook look, float scale)
-    {
-        var gap = ItemGap * scale;
-        var box = pill.Stacked ? part.Box.Rect() : outer;
-        var x = (float)part.Start;
-        for (var i = part.First; i < part.First + part.Count; i++)
-        {
-            var (item, width) = (pill.Items[i], (float)pill.ItemWidths[i]);
-            var value = DrawItem(g, item, look, new PointF(x, box.Top + (box.Height / 2)), scale);
-            var place = new RectangleF(x - (gap / 2), box.Top, width + gap, box.Height);
-            var alone = item.Label is null ? place.Left : value - (MeterRoom(item, look) * scale) - (LabelGap * scale / 2);
-            _places.Add(new PaintedItem(item.Id, place.Box(), new PillBox(value, box.Top, x + width - value, box.Height))
-            {
-                Pill = part.Box,
-                Label = item.Label is null ? default : new PillBox(place.Left, box.Top, alone - place.Left, box.Height),
-                Alone = PillBox.FromEdges(alone, place.Top, place.Right, place.Bottom),
-            });
-            x += width + gap;
         }
     }
 
@@ -229,52 +194,28 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         return _fonts;
     }
 
-    // In unscaled pixels.
-    private static float ItemWidth(Graphics g, PainterFonts fonts, OverlayItem item, OverlayLook look, float scale) =>
-        LabelWidth(g, fonts, item, scale) + ValueWidth(g, fonts, item, scale) + MeterRoom(item, look);
-
-    private static float LabelWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale) =>
-        item.Label is null ? 0 : (g.MeasureString(item.Label, fonts.Label, 0, PainterFonts.Typographic).Width / scale) + LabelGap;
-
-    private static float ValueWidth(Graphics g, PainterFonts fonts, OverlayItem item, float scale)
+    private void DrawItem(Graphics g, ItemDrawn drawn, OverlayLook look, float scale)
     {
-        var width = Math.Max(
-            g.MeasureString(item.Value, fonts.Value, 0, PainterFonts.Typographic).Width,
-            g.MeasureString(item.Room, fonts.Value, 0, PainterFonts.Typographic).Width) / scale;
-        var tag = item.Tag is null ? 0
-            : TagGap + PaintSizes.ReversedPadding + (g.MeasureString(item.Tag, fonts.Tag, 0, PainterFonts.Typographic).Width / scale);
-        return width + tag;
-    }
-
-    private static float MeterRoom(OverlayItem item, OverlayLook look) => PaintSizes.MeterRoom(item, look);
-
-    // Gives where the value starts.
-    private float DrawItem(Graphics g, OverlayItem item, OverlayLook look, PointF at, float scale)
-    {
-        var fonts = _fonts!;
-        var x = at.X;
+        var (fonts, item, y) = (_fonts!, drawn.Item, (float)drawn.Middle);
         if (item.Label is not null)
         {
-            x = DrawText(g, item.Label, fonts.Label, look.LabelColor.Color, new PointF(x, at.Y), look, scale) + (LabelGap * scale);
+            DrawText(g, item.Label, fonts.Label, look.LabelColor.Color, new PointF((float)drawn.LabelX, y), look, scale);
         }
 
         if (item.Graph is { } graph)
         {
-            PainterShapes.Graph(g, graph, look, new PointF(x, at.Y), scale);
+            PainterShapes.Graph(g, graph, look, new PointF((float)drawn.MeterX, y), scale);
         }
         else if (item.Lit is { } lit)
         {
-            PainterShapes.Meter(g, lit, look.MeterColor(item.Level), look, new PointF(x, at.Y), scale);
+            PainterShapes.Meter(g, lit, look.MeterColor(item.Level), look, new PointF((float)drawn.MeterX, y), scale);
         }
 
-        x += MeterRoom(item, look) * scale;
-        var end = DrawValue(g, item, fonts.Value, look, new PointF(x, at.Y), scale);
+        DrawValue(g, item, fonts.Value, look, new PointF((float)drawn.ValueX, y), scale);
         if (item.Tag is { } tag)
         {
-            DrawTag(g, tag, fonts, look, new PointF(end + (TagGap * scale), at.Y), scale);
+            DrawTag(g, tag, fonts, look, new PointF((float)drawn.TagX, y), scale);
         }
-
-        return x;
     }
 
     // On the value's baseline, so the two read as one line however small the tag is.
@@ -289,8 +230,8 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     private static float Ascent(Font font) => font.Size * font.FontFamily.GetCellAscent(font.Style) / font.FontFamily.GetEmHeight(font.Style);
 
     // A warning underlines the value, unless its meter or graph shows it, and a critical value is drawn reversed, on a box
-    // of its color, where the text effect has nothing to set apart. Gives where the value ends.
-    private float DrawValue(Graphics g, OverlayItem item, Font font, OverlayLook look, PointF at, float scale)
+    // of its color, where the text effect has nothing to set apart.
+    private void DrawValue(Graphics g, OverlayItem item, Font font, OverlayLook look, PointF at, float scale)
     {
         var mark = LevelMarks.Of(look, item);
         var size = g.MeasureString(item.Value, font, 0, PainterFonts.Typographic);
@@ -311,18 +252,11 @@ internal sealed class Painter(bool reuse = false) : IDisposable
             PainterShapes.Overline(g, mark.Kind == MarkKind.Reversed ? mark.Text : LevelMarks.Of(look, Level.Critical).Color, text, scale);
         }
 
-        if (mark.Kind == MarkKind.Reversed)
-        {
-            return text.Right + (PaintSizes.ReversedPadding * scale);
-        }
-
         if (mark.Kind == MarkKind.Underline)
         {
             var line = new RectangleF(text.Left, text.Top + Ascent(font) + (PaintSizes.UnderlineGap * scale), text.Width, PaintSizes.UnderlineHeight * scale);
             PainterShapes.Underline(g, mark.Color, line);
         }
-
-        return text.Right;
     }
 
     private void DrawStopped(Bitmap bitmap, string text, RectangleF box, OverlayLook look, float scale)
@@ -330,22 +264,21 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         using var g = Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-        var x = box.Left + ((PaintSizes.OuterPadding + InnerPadding) * scale);
-        var middle = box.Top + (box.Height / 2);
-        PainterShapes.Mark(g, look.LabelColor.Color, new PointF(x, middle), scale);
-        x += (PaintSizes.MarkWidth + LabelGap) * scale;
-        DrawText(g, text, _fonts!.Label, look.LabelColor.Color, new PointF(x, middle), look, scale);
-        _places.Insert(0, new PaintedItem("", box.Box(), box.Box()) { Pill = box.Box() });
+        var drawn = PaintLayout.StoppedIn(box.Box(), scale);
+        var middle = (float)drawn.Middle;
+        PainterShapes.Mark(g, look.LabelColor.Color, new PointF((float)drawn.MarkX, middle), scale);
+        DrawText(g, text, _fonts!.Label, look.LabelColor.Color, new PointF((float)drawn.TextX, middle), look, scale);
+        _places.Insert(0, drawn.Place);
     }
 
-    private float DrawText(Graphics g, string text, Font font, Rgb color, PointF at, OverlayLook look, float scale)
+    private void DrawText(Graphics g, string text, Font font, Rgb color, PointF at, OverlayLook look, float scale)
     {
         var size = g.MeasureString(text, font, 0, PainterFonts.Typographic);
         var origin = new PointF(at.X, at.Y - (size.Height / 2));
         if (look.Effect == TextEffect.Outline)
         {
             _outlines.Draw(g, text, font, color, look.OutlineColor, 2 * (float)OverlayLook.OutlineWidth * scale, origin);
-            return at.X + size.Width;
+            return;
         }
 
         using var brush = new SolidBrush(PainterShapes.Drawn(color));
@@ -357,6 +290,5 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         }
 
         g.DrawString(text, font, brush, origin.X, origin.Y, PainterFonts.Typographic);
-        return at.X + size.Width;
     }
 }
