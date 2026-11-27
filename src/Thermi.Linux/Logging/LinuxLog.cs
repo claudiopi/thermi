@@ -37,6 +37,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Error, Message = "GNOME Shell did not take a call of the extension's")]
     public static partial void ShellCallFailed(this ILogger logger, Exception error);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "thermi's first start could not turn start at sign-in on: the next start tries again")]
+    public static partial void SignInNotEnabled(this ILogger logger, Exception error);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "{Program} could not be started")]
     public static partial void StartFailed(this ILogger logger, string program, Exception error);
 
@@ -71,4 +74,7 @@ internal static partial class LinuxLog
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The notice could not be shown or done")]
     public static partial void NoticeFailed(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The settings portal's {Signal} could not be read")]
+    public static partial void PortalSignalFailed(this ILogger logger, string signal, Exception error);
 }

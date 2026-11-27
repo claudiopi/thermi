@@ -63,7 +63,8 @@ function Write-Step([string]$Name, [int]$Code, [string[]]$Output, [double]$Secon
 # The same error repeated on many lines of a file is shown once, with a count.
 function Show-Errors([string[]]$Output) {
     $inFailure = $false
-    $errors = foreach ($line in $Output) {
+    # The test platform colors its lines, on the CI too: matched without the colors, or a failure hides among the skipped.
+    $errors = foreach ($line in $Output -replace '\x1b\[[0-9;]*m', '') {
         if ($line -match '^failed ') { $inFailure = $true; $line; continue }
         if ($line -notmatch '^\s') { $inFailure = $false }
         if (($inFailure -and $line -match '^\s{2}\S' -and $line -notmatch '^\s+from ') -or $line -match ' error ') { $line }

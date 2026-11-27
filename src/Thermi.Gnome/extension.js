@@ -26,6 +26,7 @@ const XML = `<node><interface name="${SHELL}">
     <arg type="a(issbbb)" direction="in"/></method>
   <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
   <method name="Watch"><arg type="b" direction="in"/></method>
+  <method name="Activation"><arg type="u" direction="in"/><arg type="s" direction="out"/></method>
   <signal name="Ready"><arg type="u"/></signal>
   <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
     <arg type="u"/><arg type="d"/><arg type="d"/></signal>
@@ -127,6 +128,17 @@ export default class ThermiExtension extends Extension {
                 monitor.index === Main.layoutManager.primaryIndex, global.display.get_monitor_in_fullscreen(monitor.index),
                 ...bar ? kept : [0, 0, 0, 0],
             ];
+        });
+    }
+
+    // A token for a program thermi starts on a person's click at a time of the Shell's, as the dash's own launches take
+    // one: the window it shows comes in front, past GNOME's guard against windows that take the keys unasked. 0 is now, as
+    // for a menu's choice, whose click came before the menu gave the keys back to the window under it.
+    ActivationAsync([time], invocation) {
+        this._answer(invocation, () => {
+            const thermi = Gio.AppInfo.create_from_commandline('thermi', 'thermi', Gio.AppInfoCreateFlags.NONE);
+            const context = global.create_app_launch_context(time || global.display.get_current_time_roundtrip(), -1);
+            return new GLib.Variant('(s)', [context.get_startup_notify_id(thermi, []) ?? '']);
         });
     }
 

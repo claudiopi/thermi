@@ -31,7 +31,7 @@ internal sealed class ThermiDesk : IDisposable
         {
             Menu = (overlay, item) => menu.Rows(overlay, item, fromTray: true, sensors.State, sensors.Latest),
             Choose = menu.Choose,
-            OpenSettings = parts.OpenSettings,
+            OpenSettings = (overlay, item) => parts.OpenSettings(overlay, item, OverlayMenu.Now),
         };
         var keys = new HotkeyHost(parts.Settings, parts.Visibility, parts.History, trace, parts.Log) { RequestPaint = parts.RequestPaint };
         _objects = new BusObjects(bus, parts.Post, parts.Log);
@@ -56,7 +56,7 @@ internal sealed class ThermiDesk : IDisposable
         var told = new NoticeHost(parts.Settings, parts.Visibility, parts.Culture, parts.RequestPaint)
         {
             Settle = parts.Settle,
-            OpenSettings = () => parts.OpenSettings(0, null),
+            OpenSettings = () => parts.OpenSettings(0, null, OverlayMenu.Now),
         };
         Notices = new ThermiNotices(notices, told, parts.Time, start.FirstStart);
     }

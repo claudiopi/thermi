@@ -14,7 +14,7 @@ internal sealed class TestWindow
         from gi.repository import Gio, Gtk
 
         def activate(app):
-            window = Gtk.ApplicationWindow(application=app, title='underneath')
+            window = Gtk.ApplicationWindow(application=app, title=sys.argv[2])
             area = Gtk.DrawingArea()
             click = Gtk.GestureClick(button=0)
             click.connect('pressed', lambda gesture, n, x, y: print(f'click {gesture.get_current_button()}', flush=True))
@@ -49,6 +49,9 @@ internal sealed class TestWindow
         app.run(None)
         """;
 
+    /// <summary>The window's title, as the desktop shows it.</summary>
+    public const string Title = "underneath";
+
     private readonly SessionProcess _process;
 
     private TestWindow(SessionProcess process)
@@ -61,7 +64,7 @@ internal sealed class TestWindow
     {
         var script = Path.Combine(session.Home, "window.py");
         await File.WriteAllTextAsync(script, Code, cancel).ConfigureAwait(false);
-        var process = await session.StartAsync("python3", [script, fullScreen ? "full" : "maximized"], cancel: cancel).ConfigureAwait(false);
+        var process = await session.StartAsync("python3", [script, fullScreen ? "full" : "maximized", Title], cancel: cancel).ConfigureAwait(false);
         return await process.ReadyAsync(cancel).ConfigureAwait(false) == "ready"
             ? new TestWindow(process)
             : throw new InvalidOperationException($"The window never showed: {process.Error.Text}");

@@ -69,7 +69,7 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
                 _clicked = null;
                 if (!_press.DoubleClickedCorner(overlay, new Size(_overlay.Size.Width, _overlay.Size.Height), Scale, corner))
                 {
-                    _parts.OpenSettings(_index, ItemAt(cursor));
+                    _parts.OpenSettings(_index, ItemAt(cursor), pointer.Time);
                 }
 
                 break;

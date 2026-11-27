@@ -2,6 +2,7 @@ using System.Globalization;
 using Thermi.App.Painting;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
+using Thermi.Core.Painting;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
@@ -92,13 +93,10 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
             BaseClock = _baseClock.Value,
         };
 
-    // Without what only the open window or a broken file adds; the "Sensors stopped" pill while they are, as "Copy as image".
     private static PaintedPicture Painted(IOverlayPainter painter, IReadOnlyList<OverlayItem> items, bool stopped, OverlayLook look, float scale, Texts texts)
     {
-        IReadOnlyList<OverlayItem> shown = [.. items.Where(item => item.Id.Length > 0)];
-        return stopped || shown.Count == 0
-            ? painter.Stopped(texts.Of(OverlayText.SensorsStopped), look, scale, shown)
-            : painter.Picture(shown, look, scale);
+        var (shown, sensorsStopped) = PicturedItems.Of(items, stopped);
+        return sensorsStopped ? painter.Stopped(texts.Of(OverlayText.SensorsStopped), look, scale, shown) : painter.Picture(shown, look, scale);
     }
 
     // By its middle, as a horizontal overlay snapped to a taskbar sits on it.

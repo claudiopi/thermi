@@ -35,7 +35,7 @@ export function refuseUnless(holds, why) {
         throw new Refused(why);
 }
 
-// Only thermi, the overlay's name's owner, changes what shows; any other caller, or a call out of the protocol's bounds,
+// Only thermi, the overlay's name's owner, changes what shows or takes a token; any other caller, or a call out of the protocol's bounds,
 // is refused whole. What the call answers is act's variant, if it gives one.
 export function answer(owner, invocation, act) {
     if (owner === null || invocation.get_sender() !== owner) {

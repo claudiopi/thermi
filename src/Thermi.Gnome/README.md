@@ -10,6 +10,7 @@ thermi's GNOME Shell extension, in JavaScript, for GNOME Shell 46 to 51 (`docs/a
 | A menu's rows, each under the row it opens from; whether to tell the pointer anywhere, while an overlay fades | `thermi` (`Menu`, `Watch`) |
 | The pointer on an overlay, or anywhere while watched, the keys pressed while it holds one, the row chosen | the extension (`Pointer`, `Key`, `Chosen`) |
 | The monitors, their scales and top bar with its clock and system menu, which no overlay covers, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |
+| The Shell's token for a program `thermi` starts on a click, whose window then comes in front | the extension, asked by `thermi` (`Activation`) |
 | That it came up, with its protocol's version | the extension (`Ready`) |
 | thermi's icons, each by its key with its tooltip and a picture, or none to keep the one shown, an icon's menu, and the hotkeys to take as GTK accelerators; an icon out of the protocol is left out alone | `thermi` (`Icons`, `IconMenu`, `Hotkeys`) |
 | A press on an icon, the row chosen of its menu, a hotkey pressed; a hotkey another program holds is refused in `Hotkeys`' answer | the extension (`IconPressed`, `IconChosen`, `Hotkey`) |

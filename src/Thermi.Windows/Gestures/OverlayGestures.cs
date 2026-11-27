@@ -23,15 +23,12 @@ internal sealed record PaintedOverlay(IReadOnlyList<OverlayItem> Items, OverlayL
     /// <summary>Whether the "Sensors stopped" pill led the items.</summary>
     public bool Stopped { get; init; }
 
-    /// <summary>
-    /// The overlay painted afresh without what only the open window or a broken file adds; the "Sensors stopped" pill,
-    /// with <paramref name="stopped"/> in it, while they are.
-    /// </summary>
+    /// <summary>The overlay painted afresh as the window's preview shows it, with <paramref name="stopped"/> in its "Sensors stopped" pill.</summary>
     public Bitmap Picture(string stopped)
     {
         using var painter = new Painter();
-        IReadOnlyList<OverlayItem> items = [.. Items.Where(item => item.Id.Length > 0)];
-        return Stopped || items.Count == 0 ? painter.PaintStopped(stopped, Look, Scale, items) : painter.Paint(items, Look, Scale);
+        var (items, sensorsStopped) = PicturedItems.Of(Items, Stopped);
+        return sensorsStopped ? painter.PaintStopped(stopped, Look, Scale, items) : painter.Paint(items, Look, Scale);
     }
 }
 

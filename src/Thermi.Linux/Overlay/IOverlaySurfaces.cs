@@ -58,4 +58,10 @@ internal interface IOverlaySurfaces : IDisposable
 
     /// <summary>Tells the pointer anywhere while <paramref name="on"/>, as an overlay that fades near it shows.</summary>
     void Watch(bool on);
+
+    /// <summary>
+    /// The desktop's token for a program thermi starts on a click at <paramref name="time"/>, the click's, or now for 0, or
+    /// empty: the window that program shows with it comes in front.
+    /// </summary>
+    Task<string> ActivationAsync(uint time);
 }

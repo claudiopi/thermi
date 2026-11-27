@@ -39,7 +39,8 @@ internal static class DragMarks
         g.DrawPath(pen, shape);
     }
 
-    public static void RingAndBar(Bitmap bitmap, IReadOnlyList<PaintedItem> places, (string? Before, string? Within) at, bool vertical, Rgb accent, float scale)
+    public static void RingAndBar(
+        Bitmap bitmap, IReadOnlyList<PaintedItem> places, (string? Before, string? Within) at, bool vertical, Rgb accent, float scale)
     {
         using var g = Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;

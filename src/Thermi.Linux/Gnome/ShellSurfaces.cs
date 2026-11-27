@@ -76,6 +76,8 @@ internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : 
 
     public void Watch(bool on) => _ = link.Watch(on);
 
+    public Task<string> ActivationAsync(uint time) => link.ActivationAsync(time);
+
     public void Dispose()
     {
         // The link is the host's, which owns its name on the bus beyond GNOME's surfaces.

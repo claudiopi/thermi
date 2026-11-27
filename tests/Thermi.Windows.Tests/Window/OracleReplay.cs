@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 using Thermi.App.SettingsFile;
 using Thermi.App.Window;
 using Thermi.Core.Bridge;
@@ -23,6 +24,13 @@ namespace Thermi.Windows.Tests.Window;
 internal sealed class OracleReplay : IAsyncDisposable
 {
     private static readonly JsonSerializerOptions Sensors = new(JsonSerializerDefaults.Web);
+
+    // The bridge's own names and enums, for the desktop and the answer of its own the fake reads, which the bridge's
+    // generated JSON has no metadata for.
+    private static readonly JsonSerializerOptions Bridged = new(BridgeCalls.Options)
+    {
+        TypeInfoResolver = JsonTypeInfoResolver.Combine(BridgeCalls.Options.TypeInfoResolver, new DefaultJsonTypeInfoResolver()),
+    };
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
     // A person's pace: two calls of different controls are further apart than the second in which repeats are one step.
@@ -145,6 +153,37 @@ internal sealed class OracleReplay : IAsyncDisposable
     /// <summary>The fake catalog's own call for what its search finds, which <see cref="CatalogSearch"/> answers.</summary>
     public const string CatalogSearchMethod = "catalogSearch";
 
+    /// <summary>The fake window's own call for what Core decides of a desktop, which <see cref="Desktop"/> answers.</summary>
+    public const string DesktopMethod = "desktop";
+
+    /// <summary>Whether Core answers <paramref name="call"/> itself, with no bridge: the fake's own calls.</summary>
+    public static bool AnsweredByCore(JsonObject call) => call["method"]?.GetValue<string>() is CatalogSearchMethod or DesktopMethod;
+
+    public static JsonNode? CoreAnswer(JsonObject call)
+    {
+        var args = call["args"]?.AsArray() ?? [];
+        return call["method"]?.GetValue<string>() == DesktopMethod ? Desktop(args) : CatalogSearch(args);
+    }
+
+    /// <summary>
+    /// What Core decides of a desktop as its host says it, its OS, accent, extension, contrast, bar and whether the window
+    /// is maximized, in the window's language: the fields of the status it sets, with whether it offers the driver, and
+    /// the texts it says in that desktop's own words. The fake window's status and texts are these.
+    /// </summary>
+    public static JsonNode? Desktop(JsonArray args)
+    {
+        var desktop = args[0].Deserialize<HostDesktop>(Bridged) ?? HostDesktop.Windows;
+        var texts = TextsOf(args[1]);
+        var status = desktop.Of(new WindowStatus(Overlay: false, Driver: true, [], [], null));
+        var words = desktop.Words(texts).All
+            .Where(each => texts.All.GetValueOrDefault(each.Key) != each.Value)
+            .OrderBy(each => each.Key, StringComparer.Ordinal)
+            .ToDictionary(StringComparer.Ordinal);
+        return JsonSerializer.SerializeToNode(
+            new { OffersDriver = status.Driver, status.Os, status.Accent, status.Extension, status.Contrast, status.Bar, status.Caption, Words = words },
+            Bridged);
+    }
+
     /// <summary>
     /// What the catalog's search finds for a search, the types chosen, the sensors (a recording's name or the sensors
     /// themselves), the window's language and the user's names, as Core decides it for the window: each device found with
@@ -153,12 +192,7 @@ internal sealed class OracleReplay : IAsyncDisposable
     /// </summary>
     public static JsonNode? CatalogSearch(JsonArray args)
     {
-        var texts = args[3]?.GetValue<string>() switch
-        {
-            "pseudo" => Texts.Pseudo(),
-            { } language => Texts.Of(language),
-            null => Texts.English,
-        };
+        var texts = TextsOf(args[3]);
         var devices = SensorCatalog.Build(SnapshotOf(args[2]), args[4].Deserialize<IReadOnlyDictionary<string, string>>(BridgeCalls.Options), texts);
         var kinds = args[1].Deserialize<IReadOnlyList<SensorKind>>(BridgeCalls.Options) ?? [];
         var found = SensorCatalog.Filter(devices, args[0]?.GetValue<string>() ?? "", kinds, texts);
@@ -178,6 +212,13 @@ internal sealed class OracleReplay : IAsyncDisposable
             }),
             Sensors);
     }
+
+    private static Texts TextsOf(JsonNode? language) => language?.GetValue<string>() switch
+    {
+        "pseudo" => Texts.Pseudo(),
+        { } code => Texts.Of(code),
+        null => Texts.English,
+    };
 
     private static Snapshot SnapshotOf(JsonNode? sensors) => sensors is JsonValue name
         ? TestRecordings.Read($"ryzen-9950x-rtx-5060-ti-{name.GetValue<string>()}.json")

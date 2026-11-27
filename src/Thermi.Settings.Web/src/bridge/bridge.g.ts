@@ -132,7 +132,7 @@ export type Edit =
   | { kind: 'resetLines'; item: string }
   | { kind: 'sensorName'; sensor: string; name: string };
 
-export type ExtensionState = 'missing' | 'disabled' | 'other-version' | 'enabled';
+export type ExtensionState = 'missing' | 'disabled' | 'other-version' | 'next-sign-in' | 'enabled';
 
 export type FanFinderRefusal = 'no-board-fans' | 'driver-may-be-missing';
 
@@ -524,7 +524,7 @@ export interface Bridge {
   installDriver(): Promise<DriverInstall>;
   startService(): Promise<boolean>;
   installExtension(): Promise<boolean>;
-  startOverlay(): Promise<void>;
+  startOverlay(): Promise<boolean>;
   caption(action: CaptionAction): Promise<void>;
   restore(): Promise<void>;
   startWithWindows(): Promise<boolean>;

@@ -59,8 +59,8 @@ internal interface IWindowHost
     /// <summary>Asks the overlay to close, and then closes the window.</summary>
     void ExitThermi();
 
-    /// <summary>Starts the overlay, which the window's process never is.</summary>
-    void StartOverlay();
+    /// <summary>Starts the overlay, which the window's process never is: false when it did not start.</summary>
+    Task<bool> StartOverlay();
 
     /// <summary>Does what the page's own caption asks of the window, where the OS draws none.</summary>
     void Caption(CaptionAction action);

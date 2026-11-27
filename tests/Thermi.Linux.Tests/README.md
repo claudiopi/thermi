@@ -13,7 +13,7 @@ They never touch the person's desktop: each compositor and process a test starts
 | `Hotkeys` | That every key a hotkey takes has its name on the Linux desktops. |
 | `Readers` | The service's readers over trees made for hardware the recorded PCs lack. |
 | `Tray` | What thermi's tray icons take from the session's bus, with a tray of the test's own. |
-| `Window` | What the settings window asks of the person's session on its own: starting at sign-in. |
+| `Window` | What the settings window asks of the person's session on its own: starting at sign-in, the desktop's look from its portal, and starting and ending the overlay. |
 
 Entry points worth knowing:
 

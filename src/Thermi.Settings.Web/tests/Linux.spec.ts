@@ -1,4 +1,5 @@
 import { client, dispatched } from '../src/bridge/client.g';
+import type { TextKey } from '../src/bridge/texts.g';
 import { expect, fakeOf, fakeState, openWindow, test, text } from './fakeBridge';
 
 // Spec 006, A16: the bridge's script over WebKitGTK's messages, as Linux's window hosts the page. The host takes each call
@@ -39,19 +40,26 @@ test('TheBridgeAnswersOverWebKit', async ({ page }) => {
 });
 
 // Spec 006, A17: the page as Linux's host serves it, in each scheme the desktop may have, with a stopped service and a
-// GNOME session that lacks thermi's extension.
+// GNOME session whose thermi extension is missing, off or of another version, each with its own fix.
 test.describe('TheWindowFollowsTheLinuxDesktop', () => {
   // WebKitGTK never forces the system's colors on a page: the host says the desktop's contrast through the bridge.
-  const schemes: { name: string; colorScheme: 'light' | 'dark'; contrast: boolean; accent?: string }[] = [
-    { name: 'dark, with the desktop\'s accent', colorScheme: 'dark', contrast: false, accent: '#3584e4' },
-    { name: 'light', colorScheme: 'light', contrast: false },
-    { name: 'high contrast', colorScheme: 'dark', contrast: true },
+  const schemes: { name: string; colorScheme: 'light' | 'dark'; contrast: boolean; accent?: string; extension: string; fix: TextKey }[] = [
+    {
+      name: 'dark, with the desktop\'s accent',
+      colorScheme: 'dark',
+      contrast: false,
+      accent: '#3584e4',
+      extension: 'missing',
+      fix: 'WindowText.InstallExtension',
+    },
+    { name: 'light', colorScheme: 'light', contrast: false, extension: 'disabled', fix: 'WindowText.EnableExtension' },
+    { name: 'high contrast', colorScheme: 'dark', contrast: true, extension: 'other-version', fix: 'HostText.GnomeExtensionUpdate' },
   ];
   for (const scheme of schemes) {
     test(scheme.name, async ({ page }) => {
-      // What Linux's host says of the desktop, beside what Windows' says: the OS, its accent and contrast, and the GNOME
-      // extension missing.
-      const desktop = { os: 'linux', accent: scheme.accent ?? null, contrast: scheme.contrast, extension: 'missing' };
+      // What Linux's host says of the desktop, beside what Windows' says: the OS, its accent and contrast, and where the
+      // GNOME extension is.
+      const desktop = { os: 'linux', accent: scheme.accent ?? null, contrast: scheme.contrast, extension: scheme.extension };
       await page.emulateMedia({ colorScheme: scheme.colorScheme, forcedColors: 'none' });
       await openWindow(page, fakeState({ service: 'stopped', ...desktop }));
 
@@ -93,7 +101,7 @@ test.describe('TheWindowFollowsTheLinuxDesktop', () => {
       await page.keyboard.press('Control+Comma');
       await expect(page.getByRole('switch', { name: text('UiText.StartAtSignIn') })).toBeVisible();
       await expect(page.getByRole('button', { name: text('WindowText.InstallDriver') })).toHaveCount(0);
-      await page.getByRole('button', { name: text('WindowText.InstallExtension') }).click();
+      await page.getByRole('button', { name: text(scheme.fix) }).click();
       await page.getByRole('button', { name: text('WindowText.StartIt') }).click();
       await expect.poll(async () => (await fakeOf(page)).service).toBe('running');
     });

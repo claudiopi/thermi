@@ -221,6 +221,12 @@ public sealed class AgentSettingsTests : IDisposable
             Assert.Equal((0, on, on), (end.Exit, (bool)end.Json["on"]!, _rig.Startup.On));
         }
 
+        // The OS refusing the switch, as systemctl with no user manager to reach: a refusal with its reason, the switch as it is.
+        _rig.Startup.Refuses = true;
+        var unchanged = await _rig.RunAsync("start-with-windows", "off");
+        Assert.Equal((1, true, true), (unchanged.Exit, (bool)unchanged.Json["on"]!, unchanged.Error.Contains("ended with 1", StringComparison.Ordinal)));
+        _rig.Startup.Refuses = false;
+
         _rig.SensorsOnly = true;
         var refused = await _rig.RunAsync("start-with-windows", "off");
         Assert.Equal((1, false, true), (refused.Exit, (bool)refused.Json["overlay"]!, _rig.Startup.On));

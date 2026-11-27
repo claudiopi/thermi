@@ -8,6 +8,7 @@ using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Updates;
+using Thermi.Linux.Agents;
 using Thermi.Linux.Desktop;
 
 namespace Thermi.Linux.Window;
@@ -19,25 +20,27 @@ namespace Thermi.Linux.Window;
 internal sealed partial class LinuxHost : IWindowHost, IDisposable
 {
     private readonly ILogger _log;
-    private readonly Gio.DBusConnection? _bus;
     private readonly DesktopPortal _portal;
-    private readonly SignInUnit _signInUnit = new();
+    private readonly UserUnit _signInUnit = new();
     private readonly Gnome.ShellLink? _link;
     private readonly WindowScreens _screens;
     private readonly OverlayLink _overlay;
     private WindowTheme _theme;
     private ExtensionState? _extension;
+
+    // The Shell did not install the extension whose files are in place: only the next sign-in shows the overlay.
+    private bool _installRefused;
     private bool? _signIn;
 
     public LinuxHost(ILogger log)
     {
         _log = log;
-        _bus = Connect();
-        _portal = new DesktopPortal(_bus, Changed);
-        _link = _bus is null ? null : new Gnome.ShellLink(_bus, log) { StateChanged = () => Turn.Post(Changed) };
+        var bus = Connect();
+        _portal = new DesktopPortal(bus, Changed, log);
+        _link = bus is null ? null : new Gnome.ShellLink(bus, log) { StateChanged = () => Turn.Post(Changed) };
         _extension = ExtensionOf();
-        _screens = new WindowScreens(_bus, _link, Turn.Post, () => DesktopChanged?.Invoke());
-        _overlay = new OverlayLink(_bus, () => DesktopChanged?.Invoke());
+        _screens = new WindowScreens(bus, _link, Turn.Post, () => DesktopChanged?.Invoke());
+        _overlay = new OverlayLink(bus, () => DesktopChanged?.Invoke());
     }
 
     public Gtk.Window? Window { get; set; }
@@ -71,13 +74,16 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    /// <summary>The theme Settings chose, or the desktop's scheme while it chose none, which WebKit's page follows.</summary>
+    /// <summary>
+    /// The theme Settings chose, or the desktop's scheme while it chose none or the desktop asks for high contrast, which
+    /// WebKit's page follows; a desktop that prefers no scheme is light, as GNOME's default.
+    /// </summary>
     public void Theme(WindowTheme theme)
     {
         _theme = theme;
         if (Gtk.Settings.GetDefault() is { } settings)
         {
-            settings.GtkApplicationPreferDarkTheme = theme == WindowTheme.Dark || (theme == WindowTheme.System && _portal.Scheme == true);
+            settings.GtkApplicationPreferDarkTheme = WindowThemes.Dark(theme, lightApps: _portal.Scheme != true, _portal.HighContrast);
         }
     }
 
@@ -119,9 +125,16 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public void Caption(CaptionAction action) => Captioned?.Invoke(action);
 
-    public void StartOverlay()
+    // As a systemd user unit, which ends it with the session; thermi.service also restarts it if it fails.
+    public async Task<bool> StartOverlay()
     {
-        _ = StartAsync();
+        var started = await LinuxFixes.StartOverlay(Environment.ProcessPath ?? "/usr/bin/thermi");
+        if (!started)
+        {
+            OverlayNotStarted(_log);
+        }
+
+        return started;
     }
 
     public void Open(string target, ILogger log)
@@ -191,7 +204,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     /// </summary>
     public async Task<bool> InstallExtension()
     {
-        if (_link is null || _extension is not { } fix)
+        // Read by the Shell only at the next sign-in, the extension is the person's to apply.
+        if (_link is null || _extension is not { } fix || fix == ExtensionState.NextSignIn)
         {
             return false;
         }
@@ -202,20 +216,21 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
             {
                 ExtensionState.Missing => _link.InstallAsync(),
                 ExtensionState.Disabled => _link.EnableAsync(),
-                ExtensionState.OtherVersion or ExtensionState.Enabled => _link.CheckForUpdatesAsync(),
+                ExtensionState.OtherVersion or ExtensionState.Enabled or ExtensionState.NextSignIn => _link.CheckForUpdatesAsync(),
                 _ => _link.CheckForUpdatesAsync(),
             });
         }
         catch (GLib.GException)
         {
-            // Declined, offline, or the prompt outlasted the call: what the Shell has now says which.
+            // Declined or offline: what the Shell has now says which.
         }
 
+        _installRefused = fix == ExtensionState.Missing && _link.State() == Gnome.ExtensionState.Unread;
         _extension = ExtensionOf();
         return fix == ExtensionState.OtherVersion || _extension == ExtensionState.Enabled;
     }
 
-    public UpdateLine Updates() => new(UpdateLineKind.NotUpdating, Beta: false);
+    public UpdateLine Updates() => LinuxAbout.Updates();
 
     public void CheckUpdates()
     {
@@ -239,7 +254,6 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _portal.Dispose();
         _link?.Dispose();
         _overlay.Dispose();
-        _bus?.Dispose();
     }
 
     private static Gtk.FileDialog Dialog(string kind, string extension)
@@ -255,6 +269,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         return dialog;
     }
 
+    // The session's one connection, which GirCore hands out as one object to every part of the process: it stays open.
     private static Gio.DBusConnection? Connect()
     {
         try
@@ -264,15 +279,6 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         catch (GLib.GException)
         {
             return null;
-        }
-    }
-
-    // The overlay runs as the person's systemd user unit, which restarts it if it fails and ends it with the session.
-    private async Task StartAsync()
-    {
-        if (!await LinuxFixes.StartOverlay())
-        {
-            OverlayNotStarted(_log);
         }
     }
 
@@ -288,7 +294,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "systemctl did not start the overlay's user unit")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "Neither the overlay's user unit nor a unit of its own started")]
     private static partial void OverlayNotStarted(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The desktop did not open {Target}")]
@@ -299,6 +305,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         : _link.State() switch
         {
             Gnome.ExtensionState.Missing => ExtensionState.Missing,
+            Gnome.ExtensionState.Unread => _installRefused ? ExtensionState.NextSignIn : ExtensionState.Missing,
             Gnome.ExtensionState.Off => ExtensionState.Disabled,
             Gnome.ExtensionState.OtherVersion => ExtensionState.OtherVersion,
             Gnome.ExtensionState.Ours or Gnome.ExtensionState.Starting => ExtensionState.Enabled,

@@ -16,7 +16,7 @@ export type TextKey =
   | 'FanFinderOutcome.Found' | 'FanFinderOutcome.NoFanRose' | 'FanFinderOutcome.TwoRoseAlike' | 'FanFinderOutcome.LoadDidNotReachTheCpu' | 'FanFinderOutcome.LoadDidNotHeatTheCpu' | 'FanFinderOutcome.ReadingsStopped' | 'FanFinderOutcome.Cancelled'
   | 'FanFinderRefusal.NoBoardFans' | 'FanFinderRefusal.DriverMayBeMissing'
   | 'GraphStyle.Auto' | 'GraphStyle.None' | 'GraphStyle.Bars' | 'GraphStyle.Line'
-  | 'HostText.ShowTheOverlay' | 'HostText.Show' | 'HostText.Hide' | 'HostText.ClickThroughAll' | 'HostText.LockAll' | 'HostText.FirstRunTitle' | 'HostText.FirstRun' | 'HostText.FirstRunDriver' | 'HostText.OverlaysHiddenTitle' | 'HostText.OverlaysHidden' | 'HostText.OverlaysHiddenHotkey' | 'HostText.OverlayHiddenTitle' | 'HostText.OverlayHiddenByFlag' | 'HostText.OverlayHiddenByFlagHotkey' | 'HostText.OverlayHidden' | 'HostText.CriticalTitle' | 'HostText.Critical' | 'HostText.CriticalWhilePlayingTitle' | 'HostText.CriticalWhilePlaying' | 'HostText.Seconds' | 'HostText.SizePercent' | 'HostText.ClickThroughOnTitle' | 'HostText.ClickThroughOnText' | 'HostText.GnomeExtensionTitle' | 'HostText.GnomeExtensionMissing' | 'HostText.GnomeExtensionOtherVersion' | 'HostText.GnomeExtensionOff' | 'HostText.GnomeExtensionInstall' | 'HostText.GnomeExtensionUpdate' | 'HostText.NoOverlaySurfaces' | 'HostText.NoticeShowIt' | 'HostText.NoticeShowThem' | 'HostText.NoticeUndo' | 'HostText.NoticeGotIt' | 'HostText.NoticeOpenSettings' | 'HostText.WindowFailedTitle' | 'HostText.WindowFailed'
+  | 'HostText.ShowTheOverlay' | 'HostText.Show' | 'HostText.Hide' | 'HostText.ClickThroughAll' | 'HostText.LockAll' | 'HostText.FirstRunTitle' | 'HostText.FirstRun' | 'HostText.FirstRunDriver' | 'HostText.OverlaysHiddenTitle' | 'HostText.OverlaysHidden' | 'HostText.OverlaysHiddenHotkey' | 'HostText.OverlayHiddenTitle' | 'HostText.OverlayHiddenByFlag' | 'HostText.OverlayHiddenByFlagHotkey' | 'HostText.OverlayHidden' | 'HostText.CriticalTitle' | 'HostText.Critical' | 'HostText.CriticalWhilePlayingTitle' | 'HostText.CriticalWhilePlaying' | 'HostText.Seconds' | 'HostText.SizePercent' | 'HostText.ClickThroughOnTitle' | 'HostText.ClickThroughOnText' | 'HostText.GnomeExtensionTitle' | 'HostText.GnomeExtensionMissing' | 'HostText.GnomeExtensionOtherVersion' | 'HostText.GnomeExtensionOff' | 'HostText.GnomeExtensionNextSignIn' | 'HostText.GnomeExtensionInstall' | 'HostText.GnomeExtensionUpdate' | 'HostText.NoOverlaySurfaces' | 'HostText.NoticeShowIt' | 'HostText.NoticeShowThem' | 'HostText.NoticeUndo' | 'HostText.NoticeGotIt' | 'HostText.NoticeOpenSettings' | 'HostText.WindowFailedTitle' | 'HostText.WindowFailed'
   | 'HotkeyRefusal.NeedsCtrlOrAlt' | 'HotkeyRefusal.WithWin' | 'HotkeyRefusal.AltWithCharacter' | 'HotkeyRefusal.CommonShortcut' | 'HotkeyRefusal.SystemKeys' | 'HotkeyRefusal.WindowShortcut' | 'HotkeyRefusal.AltGrCharacter' | 'HotkeyRefusal.OtherHotkey' | 'HotkeyRefusal.Unreadable'
   | 'HotkeyText.HotkeyOff' | 'HotkeyText.HotkeyListening' | 'HotkeyText.HotkeyHeld' | 'HotkeyText.HotkeysNeedOverlay'
   | 'ItemStat.Now' | 'ItemStat.Min' | 'ItemStat.Max' | 'ItemStat.Average'
@@ -49,47 +49,5 @@ export type TextKey =
   | 'UndoText.Undo' | 'UndoText.Redo' | 'UndoText.Change' | 'UndoText.BackTo' | 'UndoText.Again' | 'UndoText.Undone' | 'UndoText.RedoneTo' | 'UndoText.RedoneAgain' | 'UndoText.Redone' | 'UndoText.On' | 'UndoText.Named' | 'UndoText.Off'
   | 'UnitText.BytesPerSecond' | 'UnitText.KilobytesPerSecond' | 'UnitText.MegabytesPerSecond' | 'UnitText.GigabytesPerSecond' | 'UnitText.BitsPerSecond' | 'UnitText.KilobitsPerSecond' | 'UnitText.MegabitsPerSecond' | 'UnitText.GigabitsPerSecond' | 'UnitText.Hours' | 'UnitText.HoursMinutes' | 'UnitText.Minutes'
   | 'Visibility.Always' | 'Visibility.HideInFullscreen' | 'Visibility.OnlyInFullscreen'
-  | 'WindowText.AboutSection' | 'WindowText.HotkeysField' | 'WindowText.HotkeysSet' | 'WindowText.HotkeysOff' | 'WindowText.HotkeysSetOnLinux' | 'WindowText.HotkeysOffOnLinux' | 'WindowText.HotkeyToggle' | 'WindowText.HotkeyNextLook' | 'WindowText.HotkeyClickThrough' | 'WindowText.HotkeyResetMinMax' | 'WindowText.HotkeyCapturing' | 'WindowText.ClickThroughHotkeyHint' | 'WindowText.ClearHotkey' | 'WindowText.FileAndReset' | 'WindowText.SettingsFile' | 'WindowText.OpenInEditor' | 'WindowText.ResetKeeps' | 'WindowText.ResetAsk' | 'WindowText.ResetTitle' | 'WindowText.ResetBody' | 'WindowText.Reset' | 'WindowText.AboutThermi' | 'WindowText.AboutVersion' | 'WindowText.UpdatesNotUpdating' | 'WindowText.UpdatesTurnedOff' | 'WindowText.UpdatesReady' | 'WindowText.UpdatesUnreached' | 'WindowText.UpdatesUpToDate' | 'WindowText.UpdatesNotChecked' | 'WindowText.UpdatesChecking' | 'WindowText.UpdatesCheckedNow' | 'WindowText.UpdatesBeta' | 'WindowText.RestartToUpdate' | 'WindowText.SourceCode' | 'WindowText.ReportProblem' | 'WindowText.ThirdPartyNotices' | 'WindowText.License' | 'WindowText.ServiceStopped' | 'WindowText.ServiceStoppedMore' | 'WindowText.StartIt' | 'WindowText.ExtensionMissing' | 'WindowText.ExtensionMissingMore' | 'WindowText.InstallExtension' | 'WindowText.ExtensionDisabled' | 'WindowText.ExtensionDisabledMore' | 'WindowText.EnableExtension' | 'WindowText.ExtensionOtherVersion' | 'WindowText.ExtensionOtherVersionMore' | 'WindowText.ExtensionRefused' | 'WindowText.PipeTaken' | 'WindowText.ReadingsStale' | 'WindowText.ReadingsStaleMore' | 'WindowText.DriverNeeded' | 'WindowText.DriverAsks' | 'WindowText.InstallDriver' | 'WindowText.InstallForEveryone' | 'WindowText.WhatIsThis' | 'WindowText.DriverInstalling' | 'WindowText.DriverInstalled' | 'WindowText.DriverReading' | 'WindowText.DriverRestart' | 'WindowText.DriverRestartMore' | 'WindowText.DriverRefused' | 'WindowText.DriverRefusedMore' | 'WindowText.TryAgain' | 'WindowText.DriverTitle' | 'WindowText.DriverReads' | 'WindowText.DriverInstallLead' | 'WindowText.DriverInstallText' | 'WindowText.DriverAntiCheatLead' | 'WindowText.DriverAntiCheat' | 'WindowText.BrokenKeeps' | 'WindowText.Removed' | 'WindowText.UndoLink' | 'WindowText.LookApplied' | 'WindowText.UndoStep' | 'WindowText.RedoStep' | 'WindowText.ShortcutPaste' | 'WindowText.CopyLookToAll' | 'WindowText.SaveLook' | 'WindowText.WebViewMissingTitle' | 'WindowText.WebViewMissing' | 'WindowText.PageEndedTitle' | 'WindowText.PageEnded' | 'WindowText.Minimize' | 'WindowText.Maximize' | 'WindowText.RestoreDown' | 'WindowText.ThemeFromSystem' | 'WindowText.PasteFailedOnLinux' | 'WindowText.HotkeyWithSuper' | 'WindowText.HotkeyKeptByDesktop'
+  | 'WindowText.AboutSection' | 'WindowText.HotkeysField' | 'WindowText.HotkeysSet' | 'WindowText.HotkeysOff' | 'WindowText.HotkeysSetOnLinux' | 'WindowText.HotkeysOffOnLinux' | 'WindowText.HotkeyToggle' | 'WindowText.HotkeyNextLook' | 'WindowText.HotkeyClickThrough' | 'WindowText.HotkeyResetMinMax' | 'WindowText.HotkeyCapturing' | 'WindowText.ClickThroughHotkeyHint' | 'WindowText.ClearHotkey' | 'WindowText.FileAndReset' | 'WindowText.SettingsFile' | 'WindowText.OpenInEditor' | 'WindowText.ResetKeeps' | 'WindowText.ResetAsk' | 'WindowText.ResetTitle' | 'WindowText.ResetBody' | 'WindowText.Reset' | 'WindowText.AboutThermi' | 'WindowText.AboutVersion' | 'WindowText.UpdatesNotUpdating' | 'WindowText.UpdatesFromSystem' | 'WindowText.UpdatesTurnedOff' | 'WindowText.UpdatesReady' | 'WindowText.UpdatesUnreached' | 'WindowText.UpdatesUpToDate' | 'WindowText.UpdatesNotChecked' | 'WindowText.UpdatesChecking' | 'WindowText.UpdatesCheckedNow' | 'WindowText.UpdatesBeta' | 'WindowText.RestartToUpdate' | 'WindowText.SourceCode' | 'WindowText.ReportProblem' | 'WindowText.ThirdPartyNotices' | 'WindowText.License' | 'WindowText.ServiceStopped' | 'WindowText.ServiceStoppedMore' | 'WindowText.StartIt' | 'WindowText.ExtensionMissing' | 'WindowText.ExtensionMissingMore' | 'WindowText.InstallExtension' | 'WindowText.ExtensionDisabled' | 'WindowText.ExtensionDisabledMore' | 'WindowText.EnableExtension' | 'WindowText.ExtensionOtherVersion' | 'WindowText.ExtensionOtherVersionMore' | 'WindowText.ExtensionNextSignIn' | 'WindowText.ExtensionNextSignInMore' | 'WindowText.ExtensionRefused' | 'WindowText.OverlayNotStarted' | 'WindowText.PipeTaken' | 'WindowText.ReadingsStale' | 'WindowText.ReadingsStaleMore' | 'WindowText.DriverNeeded' | 'WindowText.DriverAsks' | 'WindowText.InstallDriver' | 'WindowText.InstallForEveryone' | 'WindowText.WhatIsThis' | 'WindowText.DriverInstalling' | 'WindowText.DriverInstalled' | 'WindowText.DriverReading' | 'WindowText.DriverRestart' | 'WindowText.DriverRestartMore' | 'WindowText.DriverRefused' | 'WindowText.DriverRefusedMore' | 'WindowText.TryAgain' | 'WindowText.DriverTitle' | 'WindowText.DriverReads' | 'WindowText.DriverInstallLead' | 'WindowText.DriverInstallText' | 'WindowText.DriverAntiCheatLead' | 'WindowText.DriverAntiCheat' | 'WindowText.BrokenKeeps' | 'WindowText.Removed' | 'WindowText.UndoLink' | 'WindowText.LookApplied' | 'WindowText.UndoStep' | 'WindowText.RedoStep' | 'WindowText.ShortcutPaste' | 'WindowText.CopyLookToAll' | 'WindowText.SaveLook' | 'WindowText.WebViewMissingTitle' | 'WindowText.WebViewMissing' | 'WindowText.PageEndedTitle' | 'WindowText.PageEnded' | 'WindowText.Minimize' | 'WindowText.Maximize' | 'WindowText.RestoreDown' | 'WindowText.ThemeFromSystem' | 'WindowText.PasteFailedOnLinux' | 'WindowText.HotkeyWithSuper' | 'WindowText.HotkeyKeptByDesktop'
   | 'WindowTheme.System' | 'WindowTheme.Light' | 'WindowTheme.Dark';
-
-export const ownTexts: Readonly<Record<string, Readonly<Partial<Record<TextKey, TextKey>>>>> = {
-  'linux': {
-    'CatalogText.CatalogEmptyHint': 'CatalogText.CatalogEmptyHintOnLinux',
-    'HotkeyRefusal.SystemKeys': 'WindowText.HotkeyKeptByDesktop',
-    'HotkeyRefusal.WithWin': 'WindowText.HotkeyWithSuper',
-    'Refusal.PasteFailed': 'WindowText.PasteFailedOnLinux',
-    'SheetText.AnywhereInWindows': 'SheetText.AnywhereOnTheDesktop',
-    'UiText.LanguageFromWindows': 'UiText.LanguageFromSystem',
-    'UiText.StartWithWindows': 'UiText.StartAtSignIn',
-    'WindowText.HotkeysOff': 'WindowText.HotkeysOffOnLinux',
-    'WindowText.HotkeysSet': 'WindowText.HotkeysSetOnLinux',
-    'WindowTheme.System': 'WindowText.ThemeFromSystem',
-  },
-  'none': {
-    'NameText.Taskbar': 'NameText.BottomEdge',
-    'OverlayPageText.AboveTaskbar': 'OverlayPageText.VerticalAtBottomEdge',
-    'OverlayPageText.TaskbarHint': 'OverlayPageText.BottomEdgeHint',
-    'PillTheme.System': 'OverlayPageText.MatchDesktop',
-    'Refusal.NoRoomOnTaskbar': 'OverlayPageText.NoRoomAtBottomEdge',
-    'SnapSpot.Taskbar': 'PlaceText.AtBottomEdge',
-    'UiText.SizeOnTaskbar': 'OverlayPageText.SizeAtBottomEdge',
-  },
-  'panel': {
-    'NameText.Taskbar': 'NameText.Panel',
-    'OverlayPageText.AboveTaskbar': 'OverlayPageText.BesidePanel',
-    'OverlayPageText.TaskbarHint': 'OverlayPageText.PanelHint',
-    'PillTheme.System': 'OverlayPageText.MatchPanel',
-    'Refusal.NoRoomOnTaskbar': 'OverlayPageText.NoRoomOnPanel',
-    'SnapSpot.Taskbar': 'PlaceText.OnPanel',
-    'UiText.SizeOnTaskbar': 'OverlayPageText.SizeOnPanel',
-  },
-  'top-bar': {
-    'NameText.Taskbar': 'NameText.TopBar',
-    'OverlayPageText.AboveTaskbar': 'OverlayPageText.BelowTopBar',
-    'OverlayPageText.TaskbarHint': 'OverlayPageText.TopBarHint',
-    'PillTheme.System': 'OverlayPageText.MatchTopBar',
-    'Refusal.NoRoomOnTaskbar': 'OverlayPageText.NoRoomOnTopBar',
-    'SnapSpot.Taskbar': 'PlaceText.OnTopBar',
-    'UiText.SizeOnTaskbar': 'OverlayPageText.SizeOnTopBar',
-  },
-};

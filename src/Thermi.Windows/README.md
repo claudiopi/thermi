@@ -18,14 +18,14 @@ One `thermi.dll` serves three processes. `thermi` is the overlay, one per user. 
 | `Commands` | The command line, `thermi preview` and the elevated mode's two fixes. |
 | `Agents` | What `thermi-cli`'s commands, `src/Thermi.Cli`'s, reach on Windows: the pipe, the service's registration, the overlay's mutex, the Run key, the monitors. |
 | `Ui` | The settings window's process, its beacon, "Start with Windows" and the elevation check. |
-| `Ui/Web` | The Win32 window that hosts the page in WebView2, and the C# side of the bridge. |
-| `Ui/Views` | What the bridge reads beyond plain edits on Windows: previews, looks, monitors. |
+| `Ui/Web` | The Win32 window that hosts the page in WebView2, and what the bridge every OS shares asks of Windows. |
+| `Ui/Views` | What the window answers only on Windows: the AI agents section and the two fixes behind UAC. |
 
 Entry points worth knowing:
 
 - `Program.cs` reads the command line and starts the overlay, the window or an agent's command, which `src/Thermi.Cli` runs.
 - `Overlay/OverlayHost.cs` runs the overlay's message loop, its once-a-second tick and every paint.
 - `Overlay/SensorClient.cs` reads snapshots from the pipe it trusts, for the overlay and the window.
-- `Ui/Web/WindowBridge.cs` answers the page's calls.
+- `Ui/Web/WindowsHost.cs` answers what the bridge, `src/Thermi.App`'s `PageBridge`, asks of Windows.
 
 Its tests are in `tests/Thermi.Windows.Tests`; the page's own are in `src/Thermi.Settings.Web/tests`.

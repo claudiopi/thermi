@@ -45,8 +45,14 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, IOverlayS
     /// <summary>Runs on the main loop's thread once it is free, from any thread.</summary>
     public Action<Action> Post { get; init; } = action => action();
 
-    /// <summary>Opens the settings window on an overlay, by its place, and an item of it, or none.</summary>
-    public Action<int, string?> OpenSettings { get; init; } = (_, _) => { };
+    /// <summary>Opens the settings window on an overlay, by its place, and an item of it, or none, on a click at a time of the desktop's.</summary>
+    public Action<int, string?, uint> OpenSettings { get; init; } = (_, _, _) => { };
+
+    /// <summary>
+    /// The desktop's token for a program the overlay starts on a click at a time of the desktop's, or now for 0, or empty: the
+    /// window it shows with it comes in front, as the desktop lets one its own launcher started.
+    /// </summary>
+    public Func<uint, Task<string>> Activation { get; init; } = _ => Task.FromResult("");
 
     /// <summary>Shows an overlay's menu at a point of the stage, on an item or, null, its edge.</summary>
     public Action<int, double, double, string?> Menu { get; init; } = (_, _, _, _) => { };

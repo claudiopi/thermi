@@ -156,9 +156,20 @@ internal sealed partial class AgentCommands
                 "This install is thermi's sensors alone: there is no overlay to start.");
         }
 
-        if (on is { } set)
+        // systemctl --user has no manager to reach from cron or a container: refuse with why, not crash.
+        try
         {
-            environment.Startup.Set(set);
+            if (on is { } set)
+            {
+                environment.Startup.Set(set);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new AgentReply(
+                AgentExit.Refused,
+                AgentJson.Write(new StartAnswer(environment.Startup.On, Overlay: true)),
+                $"Start at sign-in could not be changed: {ex.Message}");
         }
 
         return new AgentReply(AgentExit.Done, AgentJson.Write(new StartAnswer(environment.Startup.On, Overlay: true)));

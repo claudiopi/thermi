@@ -33,6 +33,9 @@
   <data name="HostText.GnomeExtensionOff" xml:space="preserve">
     <value>Turn on the thermi extension in GNOME&apos;s Extensions app.</value>
   </data>
+  <data name="HostText.GnomeExtensionNextSignIn" xml:space="preserve">
+    <value>GNOME shows them through thermi&apos;s extension, which is installed: sign out and back in, and GNOME turns it on.</value>
+  </data>
   <data name="HostText.GnomeExtensionInstall" xml:space="preserve">
     <value>Install</value>
   </data>
@@ -2082,11 +2085,20 @@
   <data name="WindowText.ExtensionOtherVersionMore" xml:space="preserve">
     <value>GNOME applies its update at your next sign-in.</value>
   </data>
+  <data name="WindowText.ExtensionNextSignIn" xml:space="preserve">
+    <value>GNOME reads thermi&apos;s GNOME Shell extension at your next sign-in.</value>
+  </data>
+  <data name="WindowText.ExtensionNextSignInMore" xml:space="preserve">
+    <value>It is installed: sign out and back in, and the overlay shows.</value>
+  </data>
   <data name="WindowText.EnableExtension" xml:space="preserve">
     <value>Turn it on</value>
   </data>
   <data name="WindowText.ExtensionRefused" xml:space="preserve">
     <value>GNOME did not install it or turn it on, so nothing changed.</value>
+  </data>
+  <data name="WindowText.OverlayNotStarted" xml:space="preserve">
+    <value>The overlay did not start, so changes show only here.</value>
   </data>
   <data name="WindowText.PipeTaken" xml:space="preserve">
     <value>Another program holds the connection thermi reads its sensors through. Close it, or restart the PC.</value>
@@ -2489,6 +2501,9 @@
   </data>
   <data name="WindowText.RestartToUpdate" xml:space="preserve">
     <value>Restart to update</value>
+  </data>
+  <data name="WindowText.UpdatesFromSystem" xml:space="preserve">
+    <value>Updates come with the system's updates</value>
   </data>
   <data name="WindowText.UpdatesBeta" xml:space="preserve">
     <value>{0} · Beta channel</value>

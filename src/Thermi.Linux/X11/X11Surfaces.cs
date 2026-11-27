@@ -139,6 +139,8 @@ internal sealed class X11Surfaces : IOverlaySurfaces
         }
     }
 
+    public Task<string> ActivationAsync(uint time) => LaunchTokens.Of(time);
+
     public void Dispose()
     {
         Watch(false);

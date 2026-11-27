@@ -68,16 +68,22 @@ public sealed partial class DesktopTests
         var item = config.Overlays[0].Items[0].Id;
 
         // Every way a person opens it, each with the window already open: one window still shows, on the item double-clicked.
+        // Behind another program's window, the overlay's menu and a double-click bring it in front, as GNOME lets a program
+        // started on a person's click do.
         var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false), item);
-        await OpenedAsync(
-            thermi,
-            async () =>
-            {
-                await desktop.Input.ClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel, button: 3);
-                await Accessible.ChooseAsync(desktop, rows.ToList().FindIndex(row => row.Entry == MenuEntry.Settings), cancel);
-            },
-            cancel);
+        async Task Menu()
+        {
+            await desktop.Input.ClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel, button: 3);
+            await Accessible.ChooseAsync(desktop, rows.ToList().FindIndex(row => row.Entry == MenuEntry.Settings), cancel);
+        }
+
+        await OpenedAsync(thermi, Menu, cancel);
+        await InFrontAsync(desktop, cancel);
         var onItem = await OpenedAsync(thermi, () => desktop.Input.DoubleClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel), cancel);
+        await Accessible.ActiveAsync(session, "thermi", cancel);
+        await InFrontAsync(desktop, cancel);
+        await OpenedAsync(thermi, Menu, cancel);
+        await Accessible.ActiveAsync(session, "thermi", cancel);
         await OpenedAsync(thermi, () => session.RunAsync(Built.Program("thermi"), ["settings"], cancel: cancel), cancel);
         var launcher = Path.Combine(Built.Root, "src", "Thermi.Linux", "Packaging", "io.github.claudiopi.thermi.desktop");
         await OpenedAsync(thermi, () => session.RunAsync("gio", ["launch", launcher], cancel: cancel), cancel);
@@ -183,6 +189,13 @@ public sealed partial class DesktopTests
     {
         var edited = await session.RunAsync("thermi-cli", ["edit", edit], cancel: cancel);
         Assert.True(edited.Exit == 0, $"thermi-cli edit {edit}: {edited.Out}{edited.Error}");
+    }
+
+    // Another program's window opens over thermi's and takes the keys, as a person's next window does.
+    private static async Task InFrontAsync(TestDesktop desktop, CancellationToken cancel)
+    {
+        _ = await TestWindow.OpenAsync(desktop.Session, fullScreen: false, cancel);
+        await Accessible.ActiveAsync(desktop.Session, TestWindow.Title, cancel);
     }
 
     // Opens the settings window as <paramref name="open"/> does, once the window says it showed.

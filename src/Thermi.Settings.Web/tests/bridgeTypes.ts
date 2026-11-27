@@ -2,7 +2,10 @@
 
 import type {
   AgentsView,
+  DesktopBar,
   DesktopPick,
+  ExtensionState,
+  HostOs,
   FinderView,
   Language,
   Mark,
@@ -15,6 +18,7 @@ import type {
   Settings,
   Style,
   UndoSteps,
+  WindowCaption,
   WornLook,
 } from '../src/bridge/bridge.g';
 
@@ -31,6 +35,8 @@ export interface FakeState {
   /** Failed is the call itself failing, as an exception on the C# side rejects it; restart, a driver that loads only once Windows restarts. */
   driverAnswer: 'accepted' | 'refused' | 'failed' | 'restart';
   serviceAnswer: 'accepted' | 'refused';
+  /** Refused is a Start that started no overlay, as C# answers where neither the unit nor a run of its own started. */
+  overlayAnswer: 'accepted' | 'refused';
   monitors: Monitor[];
   /** Where each overlay shows, as C# works it out; with none, as before C# answers, the map's taskbar spot sits at the offset. */
   places: (Rect | null)[];
@@ -52,8 +58,6 @@ export interface FakeState {
   finder: FinderView;
   finderPick: string | null;
   texts: Record<string, string>;
-  /** The texts the desktop says in its own words, which C# gives the page in place of the language's. */
-  words: Record<string, string>;
   /** Every translation, each named in its own language. */
   languages: Language[];
   /** What the window was opened on, as a double-click on a value asks, or null. */
@@ -87,12 +91,28 @@ export interface OracleCall {
 }
 
 /**
- * A call whose answer holds whatever came before it, which the oracle keeps apart from any start: the bridge's search,
- * or the fake catalog's, which Core answers from the sensors, the language and the names it gives.
+ * A call whose answer holds whatever came before it, which the oracle keeps apart from any start: the bridge's search;
+ * the fake catalog's, which Core answers from the sensors, the language and the names it gives; and the fake window's
+ * desktop, which Core answers from what the host says of it and the language.
  */
 export interface PureCall {
-  method: 'search' | 'catalogSearch';
+  method: 'search' | 'catalogSearch' | 'desktop';
   args: unknown[];
+}
+
+/**
+ * What Core decides of a desktop: the fields of the window's status it sets, whether it offers the driver, and the texts
+ * it says in the desktop's own words, by the key of each. The bridge leaves out a field that is null.
+ */
+export interface DesktopAnswer {
+  offersDriver: boolean;
+  os: HostOs;
+  accent?: string;
+  extension?: ExtensionState;
+  contrast: boolean;
+  bar: DesktopBar;
+  caption?: WindowCaption;
+  words: Record<string, string>;
 }
 
 /** What Core's catalog search finds: each device, with what matched of its name, and its sensors in order with theirs. */
@@ -135,8 +155,11 @@ interface FakeControl {
   release?(): void;
   /** The oracle's answer to a call, counted as on its way until it comes. */
   answered<T>(answer: Promise<T> | undefined): Promise<T | undefined>;
-  /** Whether the page has every answer it asked for, and has read the settings since they last changed. */
-  caughtUp(): boolean;
+  /**
+   * Once the page has every answer it asked for, and has read the settings since they last changed: as the fake gets
+   * there, never by polling, whose checks a busy browser runs only as it draws a frame.
+   */
+  caughtUp(): Promise<void>;
 }
 
 interface AxeResults {

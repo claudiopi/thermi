@@ -4,6 +4,7 @@ using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Commands;
 using Thermi.Core.Translations;
+using Thermi.Linux.Agents;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Logging;
 using Thermi.Linux.Sensors;
@@ -31,6 +32,7 @@ internal static class OverlayStart
         return await ThermiLog.RunLoggedAsync(log, async () =>
         {
             var kind = DesktopSession.Start();
+            new UserUnit().EnableOnce(UserUnit.Marker, log);
             // GirCore hands the session's one connection out as one object, which lives as long as the process.
             var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
             if (kind == SurfaceKind.NoDisplay)

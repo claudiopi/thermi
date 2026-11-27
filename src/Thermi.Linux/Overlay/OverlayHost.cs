@@ -65,7 +65,7 @@ internal sealed class OverlayHost : IDisposable
         var time = trace.Time;
         _link = new ShellLink(bus, log);
         _notices = new DesktopNotices(bus, log);
-        var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
+        var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log, Post);
         _surfaces = kind switch
         {
             SurfaceKind.Layer => new LayerSurfaces(log),
@@ -77,7 +77,8 @@ internal sealed class OverlayHost : IDisposable
         {
             RequestPaint = () => Post(Repaint),
             Post = Post,
-            OpenSettings = (overlay, item) => _menu!.OpenSettings(overlay, item),
+            OpenSettings = (overlay, item, at) => _menu!.OpenSettings(overlay, item, at),
+            Activation = _surfaces.ActivationAsync,
             Menu = (overlay, x, y, item) => _menu!.Show(overlay, x, y, item, feed.State, feed.Latest),
             Settle = Settle,
             Dropped = Dropped,

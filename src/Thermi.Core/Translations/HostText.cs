@@ -91,6 +91,9 @@ public enum HostText
     /// <summary>That notice when the extension is installed but off or broken.</summary>
     GnomeExtensionOff,
 
+    /// <summary>That notice when the extension is installed but the running Shell has not read it, which it does at the next sign-in.</summary>
+    GnomeExtensionNextSignIn,
+
     /// <summary>The missing extension's notice's button, which asks GNOME to install it again.</summary>
     GnomeExtensionInstall,
 

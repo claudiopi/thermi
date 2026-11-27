@@ -166,7 +166,8 @@ public interface IWindowBridge
     /// </summary>
     Task<bool> InstallExtension();
 
-    Task StartOverlay();
+    /// <summary>Starts the overlay: false when it did not start, which the page then says.</summary>
+    Task<bool> StartOverlay();
 
     /// <summary>Moves, maximizes, minimizes or closes the window from the page's own caption, where the OS draws none.</summary>
     Task Caption(CaptionAction action);

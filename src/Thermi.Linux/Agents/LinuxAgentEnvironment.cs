@@ -26,16 +26,13 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     /// <summary>The GNOME Shell extension that shows the overlay on GNOME.</summary>
     public const string Extension = "thermi@claudiopi.github.io";
 
-    // Where the packages install thermi; a build run from anywhere else is no installed one.
-    private const string InstallFolder = "/usr/lib/thermi/";
-
     // flock's EWOULDBLOCK, which .NET gives as the error's code when another process holds the file.
     private const int WouldBlock = 11;
 
     // GNOME Shell's state of an extension that is on and running.
     private const int Active = 1;
 
-    private readonly UserUnit _unit = UserUnit.Of();
+    private readonly UserUnit _unit = new();
 
     public string SettingsPath => ConfigStore.DefaultPath;
 
@@ -54,12 +51,12 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     public bool Overlay() => SessionBus.HasOwner(ShellLink.Name);
 
     /// <summary>The sensors' package alone has no overlay's unit for the session to start.</summary>
-    public bool SensorsOnly() => _unit.File is null;
+    public bool SensorsOnly() => UserUnit.File is null;
 
     // Root writes into the user's folders would leave files the user cannot change, so as root it only reads.
     public bool Raised() => SocketFeed.OwnUserId() == 0;
 
-    public bool RunsInstalled() => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
+    public bool RunsInstalled() => LinuxAbout.Installed;
 
     // The monitors as the overlay places the overlays on them, so an agent's place is the overlay's pixel on every desktop.
     public IReadOnlyList<Screen> Screens() => OverlayState.Ask()?.Screens ?? [];

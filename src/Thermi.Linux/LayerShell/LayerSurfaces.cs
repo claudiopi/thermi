@@ -140,6 +140,8 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
         // The compositor tells no client where the pointer is off its surfaces.
     }
 
+    public Task<string> ActivationAsync(uint time) => LaunchTokens.Of(time);
+
     public void Dispose()
     {
         _probes.ForEach(probe => probe.Dispose());

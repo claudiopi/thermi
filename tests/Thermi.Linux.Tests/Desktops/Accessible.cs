@@ -12,7 +12,8 @@ namespace Thermi.Linux.Tests.Desktops;
 internal static class Accessible
 {
     // AT-SPI from Python: each open menu's program and the number of its entries, one menu a line, the entry at an index of
-    // the open menu chosen, each program's windows, or where the first knob of thermi's window is in it.
+    // the open menu chosen, each program's windows, where the first knob of thermi's window is in it, or a line once the
+    // window of a title is the active one.
     private const string Code = """
         import sys, gi
         gi.require_version('Atspi', '2.0')
@@ -81,6 +82,20 @@ internal static class Accessible
             for app in apps:
                 frames = sum(1 for index in range(app.get_child_count()) if app.get_child_at_index(index).get_role() == Atspi.Role.FRAME)
                 if frames: print(app.get_process_id(), frames, app.get_name())
+        elif sys.argv[1] == 'active':
+            def frames():
+                for app in (desktop.get_child_at_index(index) for index in range(desktop.get_child_count())):
+                    if app is None: continue
+                    yield from (frame for frame in (app.get_child_at_index(index) for index in range(app.get_child_count()))
+                                if frame is not None and frame.get_role() == Atspi.Role.FRAME)
+            def active():
+                return any(frame.get_name() == sys.argv[2] and frame.get_state_set().contains(Atspi.StateType.ACTIVE) for frame in frames())
+            if not active():
+                listener = Atspi.EventListener.new(lambda event: active() and Atspi.event_quit())
+                for kind in ('window:activate', 'object:state-changed:active'):
+                    listener.register(kind)
+                if not active(): Atspi.event_main()
+            print('active', flush=True)
         elif sys.argv[1] == 'slider':
             box = next(slider for app in apps if app.get_name() == 'thermi' for slider in sliders(app)).get_extents(Atspi.CoordType.WINDOW)
             print(box.x + box.width // 2, box.y + box.height // 2)
@@ -132,6 +147,18 @@ internal static class Accessible
         var said = await RunAsync(session, ["windows"], cancel).ConfigureAwait(false);
         return [.. said.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Split(' ', 3))
             .Select(words => (int.Parse(words[0], CultureInfo.InvariantCulture), int.Parse(words[1], CultureInfo.InvariantCulture), words[2]))];
+    }
+
+    /// <summary>
+    /// Returns once the window titled <paramref name="title"/> is the active one, the one the keys go to, as the program
+    /// itself hears it from the desktop.
+    /// </summary>
+    public static async Task ActiveAsync(OwnSession session, string title, CancellationToken cancel)
+    {
+        var script = Path.Combine(session.Home, "accessible.py");
+        await File.WriteAllTextAsync(script, Code, cancel).ConfigureAwait(false);
+        var waiting = await session.StartAsync("python3", [script, "active", title], cancel: cancel).ConfigureAwait(false);
+        _ = await waiting.ReadyAsync(cancel).ConfigureAwait(false);
     }
 
     /// <summary>

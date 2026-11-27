@@ -39,7 +39,8 @@ internal static class DropMarks
         cr.Stroke();
     }
 
-    public static void RingAndBar(Picture picture, IReadOnlyList<PaintedItem> places, (string? Before, string? Within) at, bool vertical, Rgb accent, double scale)
+    public static void RingAndBar(
+        Picture picture, IReadOnlyList<PaintedItem> places, (string? Before, string? Within) at, bool vertical, Rgb accent, double scale)
     {
         using var cr = new Cairo.Context(picture.Surface);
         var box = DropMarkShapes.RingBox((picture.Width, picture.Height), scale);
