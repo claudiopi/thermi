@@ -12,7 +12,7 @@ namespace Thermi.Linux.Tests.Desktops;
 internal static class Accessible
 {
     // AT-SPI from Python: each open menu's program and the number of its entries, one menu a line, the entry at an index of
-    // the open menu chosen, each program's windows, or where the first slider of thermi's window is in it.
+    // the open menu chosen, each program's windows, or where the first knob of thermi's window is in it.
     private const string Code = """
         import sys, gi
         gi.require_version('Atspi', '2.0')
@@ -60,9 +60,10 @@ internal static class Accessible
             if not found:
                 Atspi.event_main()
                 found = open_menus()
+        # A line's knob: the chart's plot is a slider too, an svg's, whose drag reads a point and changes nothing.
         def sliders(node):
             if node is None: return
-            if node.get_role() == Atspi.Role.SLIDER: yield node
+            if node.get_role() == Atspi.Role.SLIDER and node.get_attributes().get('tag') != 'svg': yield node
             for index in range(node.get_child_count()):
                 yield from sliders(node.get_child_at_index(index))
 
@@ -124,7 +125,7 @@ internal static class Accessible
     }
 
     /// <summary>
-    /// Drags the first slider of thermi's window on GNOME <paramref name="by"/> pixels down, as a person does, and returns
+    /// Drags the first knob of a line of thermi's window on GNOME <paramref name="by"/> pixels down, as a person does, and returns
     /// when it started to move, in seconds of the system's monotonic clock, as thermi's trace says its times. WebKit takes no
     /// value set through AT-SPI on the page's sliders, and gives their place in its window, as Wayland tells no program where
     /// its window is: the Shell's frame of the window says where.

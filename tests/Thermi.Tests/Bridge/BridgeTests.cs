@@ -17,10 +17,13 @@ public sealed class BridgeTests
     // "event:none" raise one with a value and without; "failed:" and a call give the answer that rejects that call. An
     // error of "*" is one whose words are the bridge's, which only a log reads: that it fails is the behavior, and an
     // exception's own message crosses as it is.
-    [Theory] // Rows: each a field a call may lack, an exception the catch's filter names, or a type the static options write.
+    [Theory] // Rows: each a field a call may lack, an exception the catch's filter names, a type the options write, or a kind sent last, as WebKit does.
     [InlineData(
         """{"id":2,"method":"edit","args":[{"kind":"dropItem","item":"cpu.load","overlay":null,"before":null,"apart":true}]}""",
         """{"id":2,"result":"DropItemEdit { Item = cpu.load, Overlay = , Before = , Apart = True }"}""")]
+    [InlineData(
+        """{"id":3,"method":"edit","args":[{"item":"cpu.load","overlay":null,"before":null,"apart":true,"kind":"dropItem"}]}""",
+        """{"id":3,"result":"DropItemEdit { Item = cpu.load, Overlay = , Before = , Apart = True }"}""")]
     [InlineData("""{"id":4,"method":"history","args":["cpu.load"]}""", """{"id":4,"result":[1.5,null]}""")]
     [InlineData("""{"id":5,"method":"editing","args":[null,"cpu.load",null]}""", """{"id":5,"result":null}""")]
     [InlineData("""{"id":7,"method":"format","args":[]}""", """{"id":7,"error":"*"}""")]

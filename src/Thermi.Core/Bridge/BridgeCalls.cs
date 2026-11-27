@@ -189,9 +189,12 @@ internal sealed class BridgeEnums : JsonConverterFactory
             false)!).CreateConverter(typeToConvert, options);
 }
 
+// An edit's kind may come anywhere in its object: WebKit hands C# the page's message as it cloned it, whose order of
+// fields is not the order the page wrote.
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    AllowOutOfOrderMetadataProperties = true,
     Converters = [typeof(BridgeEnums)])]
 [JsonSerializable(typeof(ThermiConfig))]
 [JsonSerializable(typeof(ConfigProblemKind?))]
