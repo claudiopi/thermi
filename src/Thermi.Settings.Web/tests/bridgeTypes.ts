@@ -64,6 +64,8 @@ export interface FakeState {
   os: string;
   /** The desktop's accent, as Linux's settings portal gives it, or null. */
   accent: string | null;
+  /** Whether the desktop is in high contrast, as Linux's settings portal says. */
+  contrast: boolean;
   /** Where thermi's GNOME Shell extension is in a GNOME session, as C# names it, or null for none. */
   extension: string | null;
   /** What GNOME's prompt for the extension answers. */

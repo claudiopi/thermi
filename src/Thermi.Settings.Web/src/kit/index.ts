@@ -22,5 +22,5 @@ export { Popover, type PopoverProps } from './surfaces/Popover';
 export { Sheet, type SheetProps } from './surfaces/Sheet';
 export { Toast, type ToastProps } from './surfaces/Toast';
 export { Tooltip, type TooltipProps } from './surfaces/Tooltip';
-export { KitProvider, useAccent, type KitProviderProps } from './theme/KitProvider';
+export { KitProvider, useAccent, useContrast, type KitProviderProps } from './theme/KitProvider';
 export { steady } from './steady';

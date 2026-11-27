@@ -44,7 +44,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     /// <summary>Runs when the desktop changed its scheme, accent or contrast, or the extension came or went.</summary>
     public Action? DesktopChanged { get; set; }
 
-    public HostDesktop Desktop => new(HostOs.Linux, _portal.Accent, _extension);
+    public HostDesktop Desktop => new(HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast);
 
     // Linux's packages install the sensors for everyone, and starting them asks through polkit's own prompt.
     public bool ForEveryone => true;

@@ -44,16 +44,18 @@ test('TheBridgeAnswersOverWebKit', async ({ page }) => {
 // Spec 006, A17: the page as Linux's host serves it, in each scheme the desktop may have, with a stopped service and a
 // GNOME session that lacks thermi's extension.
 test.describe('TheWindowFollowsTheLinuxDesktop', () => {
-  const schemes: { name: string; colorScheme: 'light' | 'dark'; forcedColors: 'active' | 'none'; accent?: string }[] = [
-    { name: 'dark, with the desktop\'s accent', colorScheme: 'dark', forcedColors: 'none', accent: '#3584e4' },
-    { name: 'light', colorScheme: 'light', forcedColors: 'none' },
-    { name: 'high contrast', colorScheme: 'dark', forcedColors: 'active' },
+  // WebKitGTK never forces the system's colors on a page: the host says the desktop's contrast through the bridge.
+  const schemes: { name: string; colorScheme: 'light' | 'dark'; contrast: boolean; accent?: string }[] = [
+    { name: 'dark, with the desktop\'s accent', colorScheme: 'dark', contrast: false, accent: '#3584e4' },
+    { name: 'light', colorScheme: 'light', contrast: false },
+    { name: 'high contrast', colorScheme: 'dark', contrast: true },
   ];
   for (const scheme of schemes) {
     test(scheme.name, async ({ page }) => {
-      // What Linux's host says of the desktop, beside what Windows' says: the OS, its accent, and the GNOME extension missing.
-      const desktop = { os: 'linux', accent: scheme.accent ?? null, extension: 'missing' };
-      await page.emulateMedia({ colorScheme: scheme.colorScheme, forcedColors: scheme.forcedColors });
+      // What Linux's host says of the desktop, beside what Windows' says: the OS, its accent and contrast, and the GNOME
+      // extension missing.
+      const desktop = { os: 'linux', accent: scheme.accent ?? null, contrast: scheme.contrast, extension: 'missing' };
+      await page.emulateMedia({ colorScheme: scheme.colorScheme, forcedColors: 'none' });
       await openWindow(page, fakeState({ service: 'stopped', ...desktop }));
 
       const main = page.getByRole('main');
@@ -75,7 +77,7 @@ test.describe('TheWindowFollowsTheLinuxDesktop', () => {
         probe.remove();
         return same;
       });
-      expect(system).toBe(scheme.forcedColors === 'active');
+      expect(system).toBe(scheme.contrast);
       await page.keyboard.press('Control+Comma');
       await expect(page.getByRole('switch', { name: text('UiText.StartAtSignIn') })).toBeVisible();
       await expect(page.getByRole('button', { name: text('WindowText.InstallDriver') })).toHaveCount(0);

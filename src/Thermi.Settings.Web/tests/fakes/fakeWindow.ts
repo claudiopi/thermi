@@ -26,6 +26,7 @@ export function installFakeWindow(): void {
     driver: state.os === 'windows' && state.service !== 'stopped' && cpuReadsZero(),
     os: state.os === 'linux' ? 'linux' : 'windows',
     accent: state.accent,
+    contrast: state.contrast,
     extension: state.os === 'linux' && (state.extension === 'missing' || state.extension === 'disabled') ? state.extension : null,
     hotkeys: roles.filter(
       (role) =>

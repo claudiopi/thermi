@@ -113,9 +113,20 @@ const surfaces = {
 
 export type Mode = keyof typeof surfaces;
 
-/** The custom properties of a mode's surfaces, for the provider's root. */
-export function surfacesOf(mode: Mode): Record<string, string> {
-  return surfaces[mode];
+// In high contrast every surface is the system's canvas and every stroke and text its text, as Windows' forced colors
+// paint them; the levels keep their colors, which a chart's line and the badges say beside their words.
+const kept = /^--thermi-(normal|warning|critical|on-level|on-badge|badge-|ok$)/;
+
+function contrasted(value: string, name: string): string {
+  if (kept.test(name)) {
+    return value;
+  }
+  return /stroke|divider|text/.test(name) ? 'CanvasText' : name === '--thermi-smoke' ? value : 'Canvas';
+}
+
+/** The custom properties of a mode's surfaces, for the provider's root, in the system's colors in high contrast. */
+export function surfacesOf(mode: Mode, contrast = false): Record<string, string> {
+  return contrast ? Object.fromEntries(Object.entries(surfaces[mode]).map(([name, value]) => [name, contrasted(value, name)])) : surfaces[mode];
 }
 
 /** Spacing and sizes, in the prototype's steps. */
@@ -182,5 +193,35 @@ export function themeOf(mode: Mode, accent?: string): Theme {
     colorNeutralForeground3BrandPressed: base.colorNeutralForeground3Pressed,
     colorNeutralForeground3BrandSelected: base.colorNeutralForeground3Selected,
     fontFamilyBase: font,
+  };
+}
+
+// Each of Fluent's colors in the system's own, by its role: disabled in GrayText, the accent in Highlight and what is on it
+// in HighlightText, a link in LinkText, other text and strokes in CanvasText, backgrounds in Canvas; and no shadow.
+function systemColorOf(name: string): string {
+  if (/Disabled/.test(name)) {
+    return 'GrayText';
+  }
+  if (/OnBrand|Inverted/.test(name)) {
+    return 'HighlightText';
+  }
+  if (/Link/.test(name)) {
+    return 'LinkText';
+  }
+  if (/Brand/.test(name)) {
+    return 'Highlight';
+  }
+  return /Foreground|Stroke/.test(name) ? 'CanvasText' : /Shadow/.test(name) ? 'transparent' : 'Canvas';
+}
+
+/** Fluent's theme in the system's colors, which a desktop in high contrast gives, as Windows' forced colors paint the page. */
+export function contrastThemeOf(mode: Mode): Theme {
+  const base = themeOf(mode);
+  const colors = Object.keys(base).filter((name) => name.startsWith('color'));
+  const shadows = Object.keys(base).filter((name) => name.startsWith('shadow'));
+  return {
+    ...base,
+    ...Object.fromEntries(colors.map((name) => [name, systemColorOf(name)])),
+    ...Object.fromEntries(shadows.map((name) => [name, 'none'])),
   };
 }

@@ -31,7 +31,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground1,
     fontSize: tokens.fontSizeBase300,
     lineHeight: tokens.lineHeightBase300,
-    '@media (forced-colors: active)': { background: 'Canvas', border: '1px solid CanvasText' },
+    ':global(.t-contrast) &': { background: 'Canvas', border: '1px solid CanvasText' },
   },
   message: { paddingBlock: '6px', minWidth: '0' },
   actions: { display: 'flex', alignItems: 'center', gap: '8px', paddingInlineStart: '8px' },

@@ -128,10 +128,8 @@
   box-shadow: 0 0 0 2px var(--colorStrokeFocus2);
 }
 
-@media (forced-colors: active) {
-  .t-knob {
-    border: 1px solid CanvasText;
-  }
+.t-contrast .t-knob {
+  border: 1px solid CanvasText;
 }
 
 .t-box-wrap {
@@ -284,12 +282,10 @@
   transform: translateX(-100%);
 }
 
-@media (forced-colors: active) {
-  .t-scrub-line {
-    stroke: CanvasText;
-  }
+.t-contrast .t-scrub-line {
+  stroke: CanvasText;
+}
 
-  .t-scrub-label {
-    border: 1px solid CanvasText;
-  }
+.t-contrast .t-scrub-label {
+  border: 1px solid CanvasText;
 }

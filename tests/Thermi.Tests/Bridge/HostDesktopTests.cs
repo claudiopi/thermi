@@ -15,11 +15,11 @@ public sealed class HostDesktopTests
     [InlineData(HostOs.Linux, ExtensionState.Enabled, false, null)]
     public void EachDesktopOffersItsOwnFixes(HostOs os, ExtensionState? extension, bool driver, ExtensionState? fix)
     {
-        var desktop = new HostDesktop(os, "#e95420", extension);
+        var desktop = new HostDesktop(os, "#e95420", extension, Contrast: true);
 
         var status = desktop.Of(new WindowStatus(Overlay: true, Driver: true, [], [], null));
 
-        Assert.Equal((os, "#e95420", driver, fix), (status.Os, status.Accent, status.Driver, status.Extension));
+        Assert.Equal((os, "#e95420", true, driver, fix), (status.Os, status.Accent, status.Contrast, status.Driver, status.Extension));
         Assert.Equal(driver ? NoValue.DriverMayBeMissing : NoValue.ReadsNothing, desktop.Why(NoValue.DriverMayBeMissing));
         Assert.Equal(NoValue.Stopped, desktop.Why(NoValue.Stopped));
     }

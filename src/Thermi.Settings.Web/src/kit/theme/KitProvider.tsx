@@ -1,7 +1,7 @@
 import { FluentProvider, RendererProvider, createDOMRenderer, makeStyles } from '@fluentui/react-components';
 import { MotionBehaviourProvider } from '@fluentui/react-motion';
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { surface, surfacesOf, themeOf } from './look';
+import { contrastThemeOf, surface, surfacesOf, themeOf } from './look';
 import './page.css';
 
 const useStyles = makeStyles({
@@ -9,7 +9,7 @@ const useStyles = makeStyles({
     background: surface.mica,
     // On the window, not the page's box, which grows as content loads and would stretch the gradient under every row.
     backgroundAttachment: 'fixed',
-    '@media (forced-colors: active)': { background: 'Canvas' },
+    ':global(.t-contrast) &': { background: 'Canvas' },
   },
 });
 
@@ -29,25 +29,35 @@ const renderer = createDOMRenderer(document, { unstable_filterCSSRule: (rule) =>
 
 const useDark = mediaQuery('(prefers-color-scheme: dark)');
 const useReducedMotion = mediaQuery('(prefers-reduced-motion: reduce)');
+const useForcedColors = mediaQuery('(forced-colors: active)');
 
 export interface KitProviderProps {
   children: ReactNode;
 }
 
-/** Sets the accent the kit's theme takes, which its provider holds. */
+/** Sets what the host says of the desktop that the kit's theme takes, which its provider holds: its accent and contrast. */
 const AccentContext = createContext<(accent: string | null) => void>(() => {});
+const ContrastContext = createContext<(contrast: boolean) => void>(() => {});
 
 function KitRoot({ children }: KitProviderProps) {
   const mode = useDark() ? 'dark' : 'light';
   const motion = useReducedMotion() ? 'skip' : 'default';
   const [accent, setAccent] = useState<string | null>(null);
-  const theme = useMemo(() => themeOf(mode, accent ?? undefined), [mode, accent]);
+  // Windows forces its contrast colors on the page itself; a host whose web view cannot, as WebKitGTK, says it.
+  const [told, setContrast] = useState(false);
+  const contrast = useForcedColors() || told;
+  const theme = useMemo(() => (contrast ? contrastThemeOf(mode) : themeOf(mode, accent ?? undefined)), [mode, accent, contrast]);
   const styles = useStyles();
+  useEffect(() => {
+    document.documentElement.classList.toggle('t-contrast', contrast);
+  }, [contrast]);
   return (
     <AccentContext value={setAccent}>
-      <FluentProvider theme={theme} className={styles.root} style={surfacesOf(mode)}>
-        <MotionBehaviourProvider value={motion}>{children}</MotionBehaviourProvider>
-      </FluentProvider>
+      <ContrastContext value={setContrast}>
+        <FluentProvider theme={theme} className={styles.root} style={surfacesOf(mode, contrast)}>
+          <MotionBehaviourProvider value={motion}>{children}</MotionBehaviourProvider>
+        </FluentProvider>
+      </ContrastContext>
     </AccentContext>
   );
 }
@@ -65,4 +75,10 @@ export function KitProvider({ children }: KitProviderProps) {
 export function useAccent(accent: string | null): void {
   const setAccent = useContext(AccentContext);
   useEffect(() => setAccent(accent), [setAccent, accent]);
+}
+
+/** Has the kit take its high-contrast look while the host says the desktop is in high contrast. */
+export function useContrast(contrast: boolean): void {
+  const setContrast = useContext(ContrastContext);
+  useEffect(() => setContrast(contrast), [setContrast, contrast]);
 }

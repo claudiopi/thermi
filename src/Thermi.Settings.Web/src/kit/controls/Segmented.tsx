@@ -50,7 +50,7 @@ const useStyles = makeStyles({
       borderRadius: '1px',
       backgroundColor: tokens.colorCompoundBrandStroke,
     },
-    '@media (forced-colors: active)': { outline: '1px solid Highlight', boxShadow: 'none', '::after': { display: 'none' } },
+    ':global(.t-contrast) &': { outline: '1px solid Highlight', boxShadow: 'none', '::after': { display: 'none' } },
   },
   indicator: { display: 'none' },
   text: { padding: `0 ${tokens.spacingHorizontalM}`, color: tokens.colorNeutralForeground1 },
@@ -77,7 +77,7 @@ const useChipStyles = makeStyles({
     ':hover': { backgroundColor: tokens.colorBrandBackgroundHover },
     // Fluent colors a checked radio's label from the input beside it, so the chip's text answers the same way.
     '& input:enabled:checked ~ .fui-Radio__label': { color: tokens.colorNeutralForegroundOnBrand },
-    '@media (forced-colors: active)': {
+    ':global(.t-contrast) &': {
       forcedColorAdjust: 'none',
       backgroundColor: 'Highlight',
       '& input:enabled:checked ~ .fui-Radio__label': { color: 'HighlightText' },

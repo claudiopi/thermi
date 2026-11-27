@@ -19,9 +19,10 @@ public enum ExtensionState
 
 /// <summary>
 /// What the window's host says of its desktop: its OS; its accent as <c>#rrggbb</c>, or null where the page keeps its own;
-/// and in a GNOME session, where thermi's extension is, else null. Core decides from it which fixes the window offers.
+/// in a GNOME session, where thermi's extension is, else null; and whether it is in high contrast. Core decides from it
+/// which fixes the window offers.
 /// </summary>
-public sealed record HostDesktop(HostOs Os, string? Accent = null, ExtensionState? Extension = null)
+public sealed record HostDesktop(HostOs Os, string? Accent = null, ExtensionState? Extension = null, bool Contrast = false)
 {
     public static HostDesktop Windows { get; } = new(HostOs.Windows);
 
@@ -57,5 +58,5 @@ public sealed record HostDesktop(HostOs Os, string? Accent = null, ExtensionStat
     public NoValue? Why(NoValue? why) => why == NoValue.DriverMayBeMissing && !OffersDriver ? NoValue.ReadsNothing : why;
 
     public WindowStatus Of(WindowStatus status) =>
-        status with { Driver = status.Driver && OffersDriver, Os = Os, Accent = Accent, Extension = ExtensionFix };
+        status with { Driver = status.Driver && OffersDriver, Os = Os, Accent = Accent, Extension = ExtensionFix, Contrast = Contrast };
 }

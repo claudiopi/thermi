@@ -449,6 +449,7 @@ export interface WindowStatus {
   os: HostOs;
   accent: string | null;
   extension: ExtensionState | null;
+  contrast: boolean;
 }
 
 export type WindowTheme = 'system' | 'light' | 'dark';

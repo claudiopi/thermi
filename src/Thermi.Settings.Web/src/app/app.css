@@ -83,11 +83,9 @@ body:has([data-modal]) .t-title::after {
   pointer-events: none;
 }
 
-/* Forced colors draw no smoke: it would take the canvas's color and hide the row. */
-@media (forced-colors: active) {
-  body:has([data-modal]) .t-title::after {
-    display: none;
-  }
+/* High contrast draws no smoke: it would take the canvas's color and hide the row. */
+.t-contrast body:has([data-modal]) .t-title::after {
+  display: none;
 }
 
 .t-app {
@@ -176,11 +174,9 @@ body:has([data-modal]) .t-title::after {
   background: rgba(0, 0, 0, 0.18);
 }
 
-@media (forced-colors: active) {
-  .t-narrow .t-side {
-    background: Canvas;
-    border-inline-end: 1px solid CanvasText;
-  }
+.t-contrast .t-narrow .t-side {
+  background: Canvas;
+  border-inline-end: 1px solid CanvasText;
 }
 
 .t-pane {

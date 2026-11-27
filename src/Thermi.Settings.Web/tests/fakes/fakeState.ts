@@ -80,6 +80,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     lateReplies: false,
     os: 'windows',
     accent: null,
+    contrast: false,
     extension: null,
     extensionAnswer: 'accepted',
     ...change,
