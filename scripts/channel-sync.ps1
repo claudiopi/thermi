@@ -11,8 +11,9 @@ and MSIs first, which never change once written, then each history and manifest 
 holds what was fetched, so two runs never sign over each other's sequence. The bucket's credentials come from
 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and R2_ACCOUNT_ID.
 With -Linux it copies the Linux repositories instead, <Folder>/linux and v1/linux (scripts/repository.ps1): down
-fetches the histories, the indexes and the files a lever reads; up sends the packages and tarballs first, then each
-history on the same condition, then the indexes, each named by its hash before those that name them.
+fetches the histories, the indexes and the files a lever reads, and with -Version refuses a version the bucket has; up
+sends the packages and tarballs first, then each history on the same condition, then the indexes, those the signed ones
+name before them.
 #>
 param(
     [Parameter(Mandatory)][ValidateSet('down', 'up')][string]$Direction,
@@ -54,6 +55,15 @@ if ($Linux) {
 
 if ($Linux -and $Direction -eq 'down') {
     . (Join-Path $PSScriptRoot 'repository.ps1')
+    # A version's packages are built anew by each run, so a run again of one whose upload stopped midway would put other
+    # bytes under names the bucket has: it is refused here, before it builds on them.
+    if ($Version) {
+        $listed = aws s3 ls "$remote/tarballs/$Version/" --endpoint-url $endpoint --region auto 2>$null
+        if ($listed) {
+            throw ("v1/linux/tarballs/$Version/ is in the bucket already: thermi $Version's Linux packages were published, or some " +
+                'of them. Publish the next version instead.')
+        }
+    }
     New-Item $Folder -ItemType Directory -Force | Out-Null
     $tags = @{}
     foreach ($name in $signed) {

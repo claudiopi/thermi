@@ -154,8 +154,8 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      # The shells thermi-cli is run from in the tests, beside bash.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish
+      # The shells thermi-cli is run from in the tests, beside bash, and the tools the repositories' indexes are written with.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish apt-utils createrepo-c
       # The tests' own user manager runs in a scope the runner's own delegates, which only a lingering user has.
       - run: sudo loginctl enable-linger "$(id -un)"
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Linux

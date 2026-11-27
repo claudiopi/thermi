@@ -360,6 +360,9 @@ jobs:
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+      # The tools the repositories' indexes are written with (scripts/linux-index.sh).
+      - if: steps.ready.outputs.repository == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c
       - if: steps.ready.outputs.repository == 'true'
         shell: pwsh
         env:
@@ -380,8 +383,9 @@ jobs:
             out/*.tar.gz
       - if: steps.ready.outputs.repository == 'true'
         shell: pwsh
-        run: ./scripts/channel-sync.ps1 down -Linux
+        run: ./scripts/channel-sync.ps1 down -Linux -Version $env:VERSION
         env:
+          VERSION: ${{ needs.build.outputs.version }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -416,8 +420,13 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
           git clone ssh://aur@aur.archlinux.org/thermi-bin.git aur
           cp out/aur/PKGBUILD out/aur/*.install aur/
-          docker run --rm --name "thermi-aur-$GITHUB_RUN_ID" -v "$PWD/aur:/aur" archlinux:latest \
+          # Arch's image, pinned, which reads only a copy: what goes to the AUR is the build's own PKGBUILD and scripts.
+          cp -r aur srcinfo
+          docker run --rm --name "thermi-aur-$GITHUB_RUN_ID" -v "$PWD/srcinfo:/aur" \
+            archlinux@sha256:375a401bb3c6376b37f40b6dfa25067db37ec78d0b7af67ae6315f43a0184a9d \
             bash -c 'useradd -m builder && chown -R builder /aur && su builder -c "cd /aur && makepkg --printsrcinfo > .SRCINFO" && chown -R '"$(id -u):$(id -g)"' /aur'
+          for file in PKGBUILD thermi-bin.install thermi-sensors-bin.install; do cmp "out/aur/$file" "aur/$file"; done
+          cp srcinfo/.SRCINFO aur/.SRCINFO
           git -C aur add PKGBUILD .SRCINFO ./*.install
           git -C aur -c user.name='thermi releases' -c user.email='17047466+claudiopi@users.noreply.github.com' commit -m "thermi $VERSION"
           git -C aur push origin HEAD:master
@@ -501,6 +510,9 @@ jobs:
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+      # The tools the repositories' indexes are written with (scripts/linux-index.sh).
+      - if: steps.ready.outputs.repository == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c
       - if: steps.ready.outputs.repository == 'true'
         shell: pwsh
         run: ./scripts/channel-sync.ps1 down -Linux
