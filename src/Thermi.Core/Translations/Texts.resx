@@ -2559,4 +2559,22 @@
   <data name="WindowText.HotkeyKeptByDesktop" xml:space="preserve">
     <value>The desktop keeps this combination for itself.</value>
   </data>
+  <data name="OverlayPageText.SizeOnTopBar" xml:space="preserve">
+    <value>On the top bar it never grows taller than the top bar.</value>
+  </data>
+  <data name="OverlayPageText.SizeOnPanel" xml:space="preserve">
+    <value>On a panel it never grows taller than the panel.</value>
+  </data>
+  <data name="OverlayPageText.SizeAtBottomEdge" xml:space="preserve">
+    <value>At the bottom edge it never grows taller than a bar.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnTopBar" xml:space="preserve">
+    <value>That top bar has no room for this overlay at its size.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnPanel" xml:space="preserve">
+    <value>That panel has no room for this overlay at its size.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomAtBottomEdge" xml:space="preserve">
+    <value>That edge has no room for this overlay at its size.</value>
+  </data>
 </root>

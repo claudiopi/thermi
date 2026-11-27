@@ -2607,4 +2607,22 @@
   <data name="WindowText.HotkeyKeptByDesktop" xml:space="preserve">
     <value>El escritorio se reserva esta combinación.</value>
   </data>
+  <data name="OverlayPageText.SizeOnTopBar" xml:space="preserve">
+    <value>En la barra superior nunca queda más alto que la barra.</value>
+  </data>
+  <data name="OverlayPageText.SizeOnPanel" xml:space="preserve">
+    <value>En un panel nunca queda más alto que el panel.</value>
+  </data>
+  <data name="OverlayPageText.SizeAtBottomEdge" xml:space="preserve">
+    <value>En el borde inferior nunca queda más alto que una barra.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnTopBar" xml:space="preserve">
+    <value>En esa barra superior no hay espacio para esta superposición a su tamaño.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnPanel" xml:space="preserve">
+    <value>En ese panel no hay espacio para esta superposición a su tamaño.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomAtBottomEdge" xml:space="preserve">
+    <value>En ese borde no hay espacio para esta superposición a su tamaño.</value>
+  </data>
 </root>

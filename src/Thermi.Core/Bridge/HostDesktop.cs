@@ -87,9 +87,15 @@ public sealed record HostDesktop(
     public static IReadOnlyDictionary<DesktopBar, IReadOnlyDictionary<string, string>> BarTexts { get; } =
         new Dictionary<DesktopBar, IReadOnlyDictionary<string, string>>
         {
-            [DesktopBar.TopBar] = BarWords(NameText.TopBar, PlaceText.OnTopBar, OverlayPageText.TopBarHint, OverlayPageText.MatchTopBar),
-            [DesktopBar.Panel] = BarWords(NameText.Panel, PlaceText.OnPanel, OverlayPageText.PanelHint, OverlayPageText.MatchPanel),
-            [DesktopBar.None] = BarWords(NameText.BottomEdge, PlaceText.AtBottomEdge, OverlayPageText.BottomEdgeHint, OverlayPageText.MatchDesktop),
+            [DesktopBar.TopBar] = BarWords(
+                NameText.TopBar, PlaceText.OnTopBar, OverlayPageText.TopBarHint, OverlayPageText.MatchTopBar, OverlayPageText.SizeOnTopBar,
+                OverlayPageText.NoRoomOnTopBar),
+            [DesktopBar.Panel] = BarWords(
+                NameText.Panel, PlaceText.OnPanel, OverlayPageText.PanelHint, OverlayPageText.MatchPanel, OverlayPageText.SizeOnPanel,
+                OverlayPageText.NoRoomOnPanel),
+            [DesktopBar.None] = BarWords(
+                NameText.BottomEdge, PlaceText.AtBottomEdge, OverlayPageText.BottomEdgeHint, OverlayPageText.MatchDesktop,
+                OverlayPageText.SizeAtBottomEdge, OverlayPageText.NoRoomAtBottomEdge),
         };
 
     /// <summary>
@@ -134,12 +140,15 @@ public sealed record HostDesktop(
 
     private static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
 
-    private static Dictionary<string, string> BarWords(NameText name, PlaceText spot, OverlayPageText hint, OverlayPageText match) =>
+    private static Dictionary<string, string> BarWords(
+        NameText name, PlaceText spot, OverlayPageText hint, OverlayPageText match, OverlayPageText size, OverlayPageText noRoom) =>
         new(StringComparer.Ordinal)
         {
             [Texts.Key(NameText.Taskbar)] = Texts.Key(name),
             [Texts.Key(SnapSpot.Taskbar)] = Texts.Key(spot),
             [Texts.Key(OverlayPageText.TaskbarHint)] = Texts.Key(hint),
             [Texts.Key(PillTheme.System)] = Texts.Key(match),
+            [Texts.Key(UiText.SizeOnTaskbar)] = Texts.Key(size),
+            [Texts.Key(Refusal.NoRoomOnTaskbar)] = Texts.Key(noRoom),
         };
 }
