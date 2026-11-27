@@ -17,7 +17,8 @@ internal sealed class SettingsWindow : IDisposable
 {
     private const string Scheme = "thermi";
 
-    private const string Origin = Scheme + "://app/";
+    /// <summary>Where the page is served from: a navigation anywhere else is refused.</summary>
+    internal const string Origin = Scheme + "://app/";
 
     // GNOME maximizes a new window that covers more than 80 % of its work area, which GTK does not know: of the whole
     // monitor, 75 % leaves room for a top bar.
@@ -137,16 +138,28 @@ internal sealed class SettingsWindow : IDisposable
         };
     }
 
+    /// <summary>
+    /// Whether the page may go where it asks: a navigation within thermi's origin, and the answer to one; never a window of
+    /// its own, nor anywhere else.
+    /// </summary>
+    internal static bool Allowed(WebKit.PolicyDecisionType type, string? uri) =>
+        type == WebKit.PolicyDecisionType.Response
+        || (type == WebKit.PolicyDecisionType.NavigationAction && uri?.StartsWith(Origin, StringComparison.Ordinal) == true);
+
+    /// <summary>
+    /// The file of <paramref name="files"/> a request's path asks for, the page itself for none: null for one outside it, as
+    /// a path of <c>..</c> asks, or one it does not hold.
+    /// </summary>
+    internal static string? FileOf(string files, string path)
+    {
+        var asked = path.TrimStart('/');
+        var file = Path.GetFullPath(Path.Combine(files, asked.Length == 0 ? PageFiles.Index : asked));
+        return file.StartsWith(files + Path.DirectorySeparatorChar, StringComparison.Ordinal) && File.Exists(file) ? file : null;
+    }
+
     private static bool Refused(WebKit.PolicyDecision decision, WebKit.PolicyDecisionType type)
     {
-        if (type == WebKit.PolicyDecisionType.Response)
-        {
-            return false;
-        }
-
-        if (type == WebKit.PolicyDecisionType.NavigationAction
-            && decision is WebKit.NavigationPolicyDecision navigation
-            && navigation.GetNavigationAction().GetRequest().GetUri().StartsWith(Origin, StringComparison.Ordinal))
+        if (Allowed(type, (decision as WebKit.NavigationPolicyDecision)?.GetNavigationAction().GetRequest().GetUri()))
         {
             return false;
         }
@@ -157,12 +170,9 @@ internal sealed class SettingsWindow : IDisposable
 
     private static void Served(WebKit.URISchemeRequest request)
     {
-        var path = request.GetPath().TrimStart('/');
-        path = path.Length == 0 ? PageFiles.Index : path;
-        var file = Path.GetFullPath(Path.Combine(Files, path));
-
-        var type = file.StartsWith(Files + Path.DirectorySeparatorChar, StringComparison.Ordinal) && File.Exists(file) ? PageFiles.TypeOf(path) : null;
-        byte[] content = type is null ? [] : File.ReadAllBytes(file);
+        var file = FileOf(Files, request.GetPath());
+        var type = file is null ? null : PageFiles.TypeOf(file);
+        byte[] content = file is not null && type is not null ? File.ReadAllBytes(file) : [];
         using var bytes = GLib.Bytes.New(content);
         using var stream = Gio.MemoryInputStream.NewFromBytes(bytes);
         using var response = WebKit.URISchemeResponse.New(stream, content.Length);
