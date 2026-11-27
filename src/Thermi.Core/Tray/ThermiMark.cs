@@ -34,7 +34,20 @@ public enum ValueHint
 public sealed record ValueTooltip(string? ItemId, Level Level, ValueHint Hint);
 
 /// <summary>What an overlay shows: its items, or one "Sensors stopped" pill with thermi's mark, and each value's tooltip.</summary>
-public sealed record OverlayScene(IReadOnlyList<OverlayItem> Items, bool SensorsStopped, IReadOnlyList<ValueTooltip> Tooltips);
+public sealed record OverlayScene(IReadOnlyList<OverlayItem> Items, bool SensorsStopped, IReadOnlyList<ValueTooltip> Tooltips)
+{
+    /// <summary>The items it shows, and after them the settings' error while the file is broken.</summary>
+    public IReadOnlyList<OverlayItem> WithProblem(ConfigProblem? problem, Texts texts)
+    {
+        if (problem is null)
+        {
+            return Items;
+        }
+
+        var error = texts.Of(OverlayText.ConfigError);
+        return [.. Items, new OverlayItem(texts.Of(OverlayText.ConfigLabel), error, Level.Critical, error)];
+    }
+}
 
 /// <summary>
 /// thermi's mark and its tooltip, and each overlay's scene, from the settings and the tray's input. The mark and the

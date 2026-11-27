@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using Thermi.Core.Look;
+using Thermi.Core.Painting;
 using Thermi.Core.Settings;
 
 namespace Thermi.Windows.Painting;
@@ -75,9 +76,10 @@ internal sealed record EditMarks(Fade Fade, string? Selected, string? Pointed, R
 
         var leveled = items.FirstOrDefault(item => item.Id == id)?.Level is { } level && level != Level.Normal;
         var (width, height) = (BarWidth * scale, BarHeight * scale);
-        var bottom = place.Pill.Bottom - ((BarRise - (leveled ? LevelRoom : 0)) * scale);
+        var (pill, value) = (place.Pill.Rect(), place.Value.Rect());
+        var bottom = pill.Bottom - ((BarRise - (leveled ? LevelRoom : 0)) * scale);
         using var brush = new SolidBrush(Color.FromArgb(alpha, PainterShapes.Drawn(Accent)));
-        using var bar = PainterShapes.Rounded(new RectangleF(place.Value.Left + ((place.Value.Width - width) / 2), bottom - height, width, height), height / 2);
+        using var bar = PainterShapes.Rounded(new RectangleF(value.Left + ((value.Width - width) / 2), bottom - height, width, height), height / 2);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.FillPath(brush, bar);
     }

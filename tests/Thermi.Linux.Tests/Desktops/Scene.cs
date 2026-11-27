@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
@@ -7,9 +9,12 @@ namespace Thermi.Linux.Tests.Desktops;
 /// The overlay shown on a test's desktop as a person sees it: two overlays alike, one on the panel or the top bar and one
 /// on a window of another program, fed by the real service one steady second, with the screen before and after.
 /// </summary>
-internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWindow Window, string Before, string Screen, string Picture)
+internal sealed partial record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWindow Window, string Before, string Screen, string Picture)
 {
-    /// <summary>Where the first overlay sits: on the top bar or a top panel, at the screen's top edge.</summary>
+    /// <summary>
+    /// Where the first overlay sits: on the top bar or a top panel, 200 pixels from the screen's left edge, snapped to it, as
+    /// only a snap puts an overlay on a panel; the panel centers it, so its top is found within its own height.
+    /// </summary>
     public static readonly Position OnPanel = new(200, 0);
 
     /// <summary>Where the second sits: on the window, below every panel.</summary>
@@ -17,13 +22,30 @@ internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWin
 
     /// <summary>
     /// The first overlay with only what one second shows alike every second, so what it paints never changes as it runs:
-    /// no graph, which grows with each second, and none of the values read as a change since the second before.
+    /// no graph, which grows with each second, and none of the values read as a change since the second before; and small
+    /// enough to show at its size on GNOME's top bar, which shrinks a larger one to fit.
     /// </summary>
     public static readonly OverlayConfig Overlay = OverlayConfig.First with
     {
+        Size = 0.75,
         Graph = GraphStyle.None,
         Items = [.. OverlayConfig.First.Items.Where(item => item.Metric != Metrics.CpuLoad.Id && item.Metric != Metrics.CpuPower.Id)],
     };
+
+    /// <summary>The first overlay snapped to the top bar or a top panel, <see cref="OnPanel"/>'s pixels from the screen's left edge.</summary>
+    public static readonly OverlayConfig PanelOverlay = Overlay with { Position = null, Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = OnPanel.X } };
+
+    /// <summary>
+    /// Where an overlay <paramref name="height"/> pixels tall sits on GNOME's top bar: in its middle, as Core's snaps center
+    /// it, the bar as tall as the Shell says.
+    /// </summary>
+    public static async Task<int> PanelTopAsync(TestDesktop desktop, int height, CancellationToken cancel)
+    {
+        var eval = TestDesktop.Call("org.gnome.Shell", "/org/gnome/Shell", "Eval", "Main.panel.height");
+        var said = await desktop.Session.RunAsync("gdbus", eval, cancel: cancel);
+        var bar = (int)Math.Round(double.Parse(Number().Match(said.Out).Value, CultureInfo.InvariantCulture) * desktop.Scale);
+        return OnPanel.Y + ((bar - height) / 2);
+    }
 
     /// <summary>
     /// Shows thermi on <paramref name="desktop"/> over a window, full screen or not, with the sensors serving or stopped, and
@@ -33,7 +55,7 @@ internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWin
         TestDesktop desktop, double scale, bool fullScreen, bool stopped, CancellationToken cancel, bool clickThrough = false)
     {
         await desktop.WriteSettingsAsync(
-            ThermiConfig.New with { Overlays = [Overlay with { Position = OnPanel }, Overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
+            ThermiConfig.New with { Overlays = [PanelOverlay, Overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
             cancel);
         var snapshot = stopped ? null : (await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel)).Snapshot;
         var window = await desktop.OpenWindowAsync(fullScreen, cancel);
@@ -44,9 +66,27 @@ internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWin
         return new Scene(desktop, thermi, window, before, screen, picture);
     }
 
-    /// <summary>The pixels of the picture the screen shows otherwise at <paramref name="at"/>: 0 when the overlay shows there as painted.</summary>
-    public Task<long> DifferingAtAsync(Position at, CancellationToken cancel) =>
-        Pictures.DifferingAsync(Desktop.Session, Screen, Picture, at.X, at.Y, cancel);
+    /// <summary>
+    /// The pixels of the picture the screen shows otherwise at <paramref name="at"/>: 0 when the overlay shows there as
+    /// painted. On GNOME's top bar, where Core's snaps put it; on another panel, the fewest at any height the picture's own
+    /// from its top.
+    /// </summary>
+    public async Task<long> DifferingAtAsync(Position at, CancellationToken cancel)
+    {
+        var (_, height) = at == OnPanel ? await Pictures.SizeAsync(Desktop.Session, Picture, cancel) : (0, 0);
+        if (at == OnPanel && Desktop.Kind is DesktopKind.Gnome or DesktopKind.GnomeX11)
+        {
+            return await Pictures.DifferingAsync(Desktop.Session, Before, Screen, Picture, at.X, await PanelTopAsync(Desktop, height, cancel), cancel);
+        }
+
+        var fewest = long.MaxValue;
+        for (var y = at.Y; y <= at.Y + height && fewest > 0; y++)
+        {
+            fewest = Math.Min(fewest, await Pictures.DifferingAsync(Desktop.Session, Before, Screen, Picture, at.X, y, cancel));
+        }
+
+        return fewest;
+    }
 
     /// <summary>The pixels of the whole screen that thermi changed: 0 when it shows nothing.</summary>
     public async Task<long> ChangedAsync(CancellationToken cancel)
@@ -73,4 +113,7 @@ internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWin
         await Desktop.Input.ClickAsync(OnWindow.X / 2, OnWindow.Y + 300, cancel, button: 2);
         return await Window.NextAsync(cancel);
     }
+
+    [GeneratedRegex(@"\d+(\.\d+)?", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex Number();
 }

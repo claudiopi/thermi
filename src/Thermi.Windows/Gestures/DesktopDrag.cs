@@ -192,28 +192,7 @@ internal sealed class DesktopDrag(
         var drop = start.Held == Held.Corner
             ? new DesktopDrop(GestureKind.Resize, OverlayEdits.Resize(before, overlay, Preview!.Value.Size, Preview.Value.Orientation))
             : Drop(before, at, target, Near(at));
-        var after = drop.Result.Refused is null ? settle(before, drop.Result.Config).Config : before;
-        if (ConfigEdits.Replay(before, after) is not { } change)
-        {
-            return;
-        }
-
-        // Undo takes back the very drop written, which a plain move takes from the cursor as the overlay does.
-        if (Moves && drop.Kind == GestureKind.Move && after.Overlays[overlay].Snap is null)
-        {
-            if (settings.Release(press, Kept(cursor, at), distance, overlay) is not { } released)
-            {
-                return;
-            }
-
-            after = released;
-        }
-        else
-        {
-            settings.Edit(change);
-        }
-
-        undo?.Add(drop.Kind, before, after);
+        _ = DropWrite.Write(settings, overlay, drop, settle, Moves ? new PlainMove(press, Kept(cursor, at), distance) : null, undo);
     }
 
     /// <summary>Where the overlay's corner was last dragged to, which its release drops at; null while still a click.</summary>

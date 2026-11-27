@@ -90,8 +90,17 @@ public readonly record struct TextColor(Rgb Color, bool Unreadable = false);
 /// </summary>
 public sealed record HighContrastColors(Rgb Window, Rgb WindowText, Rgb Highlight, Rgb HotTrack);
 
-/// <summary>Where one pill goes, in the overlay's pixels.</summary>
-public readonly record struct PillBox(double Left, double Top, double Width, double Height);
+/// <summary>Where one pill goes, or what a painter drew, in the overlay's pixels; one of no width holds no point.</summary>
+public readonly record struct PillBox(double Left, double Top, double Width, double Height)
+{
+    public double Right => Left + Width;
+
+    public double Bottom => Top + Height;
+
+    public bool Contains(double x, double y) => x >= Left && x < Right && y >= Top && y < Bottom;
+
+    public static PillBox FromEdges(double left, double top, double right, double bottom) => new(left, top, right - left, bottom - top);
+}
 
 /// <summary>Every pill's place, and the size of the whole overlay.</summary>
 public sealed record Arrangement(IReadOnlyList<PillBox> Pills, double Width, double Height);

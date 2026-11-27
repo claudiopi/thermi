@@ -314,7 +314,8 @@ public static class Snaps
         };
     }
 
-    // Where it cannot sit on a taskbar (vertical overlay, side, hidden or no taskbar), the offset is from the monitor's left edge.
+    // Where it cannot sit on a taskbar (vertical overlay, side, hidden or no taskbar), the offset is from the monitor's left edge,
+    // and it sits beside the bar: below one at the top, as GNOME's top bar, else at the work area's bottom.
     private static Position OnTaskbar(Screen screen, int? offset, Orientation orientation, int width, int height)
     {
         if (orientation == Orientation.Horizontal && TaskbarOf(screen) is { } bar)
@@ -326,7 +327,10 @@ public static class Snaps
         var margin = Scaled(Margin, screen);
         var work = Clear(screen);
         var left = offset is { } kept ? screen.Bounds.Left + kept : work.Right - margin - width;
-        return new Position(Math.Clamp(left, work.Left, Math.Max(work.Left, work.Right - width)), Math.Max(work.Top, work.Bottom - margin - height));
+        var top = screen.Taskbar is { } above && above.Bottom <= work.Top && above.Height > 0
+            ? work.Top + margin
+            : Math.Max(work.Top, work.Bottom - margin - height);
+        return new Position(Math.Clamp(left, work.Left, Math.Max(work.Left, work.Right - width)), top);
     }
 
     /// <summary>

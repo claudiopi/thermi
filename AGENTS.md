@@ -57,7 +57,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | `thermi-sensors --tree <folder> [--seconds <n>]` | On Linux, copies the files under `/sys` and `/proc` the sensors read, and NVML's answers, a folder a second, for tests to replay. Run it with `sudo` for the service's view, or as yourself for a plain user's. |
 | `thermi-sensors --root <tree> [--dump <file>]` | On Linux, reads a saved tree in place of the kernel's files: with `--dump`, to see what the service makes of it; with `--console`, to serve it. |
 | `thermi-sensors --console` | On Linux, serves the readings on a socket of your own, `$XDG_RUNTIME_DIR/thermi/sensors.sock`, which thermi reads where the service's is missing or stopped. |
-| `thermi preview <snapshot> <png> [scale] [settings]` | Paints the first overlay for a saved snapshot, at a scale from 0.25 to 8, without showing it. In PowerShell, wrap it in `Start-Process -Wait`. |
+| `thermi preview <snapshot> <png> [scale] [settings]` | Paints the first overlay for a saved snapshot, at a scale from 0.25 to 8, without showing it; an empty file paints the sensors stopped, and a file that is no snapshot says why and exits with 2. In PowerShell, wrap it in `Start-Process -Wait`. |
 | `thermi settings [--overlay <n>]` | Opens the settings window on overlay n, from 1. `--pseudo` makes its texts 40 % longer; `--trace` logs each paint and input to `%LOCALAPPDATA%\thermi`. |
 
 To record how the fans answer a CPU load: as administrator run `thermi-sensors --dump <file> --seconds 45`, wait 5 s, run `Start-Process -Wait thermi -ArgumentList cpu-load,30`, and let the recording finish.

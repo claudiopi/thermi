@@ -76,7 +76,7 @@ internal static class Program
     internal static void Start(string exePath, bool trace, params string[] arguments)
     {
         var start = new ProcessStartInfo(exePath);
-        foreach (var argument in trace ? arguments.Append(ThermiCommands.TraceOption) : arguments)
+        foreach (var argument in trace ? arguments.Append(ThermiCommandLine.TraceOption) : arguments)
         {
             start.ArgumentList.Add(argument);
         }

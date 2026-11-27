@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 
 namespace Thermi.Tests.Acceptance;
@@ -41,15 +42,19 @@ public sealed class NoticeTests
 
             var (what, expected) = (step[..step.IndexOf('=', StringComparison.Ordinal)], step[(step.IndexOf('=', StringComparison.Ordinal) + 1)..]);
             desktop.Apply(what);
+            var config = Config(desktop.Hidden, desktop.Through);
             var shown = notices.Update(
-                new NoticeInput(
-                    Config(desktop.Hidden, desktop.Through),
-                    desktop.Flag,
-                    desktop.FromWindow,
-                    FirstStart: what.StartsWith("first", StringComparison.Ordinal))
+                new NoticeInput(config, desktop.Flag, desktop.FromWindow, FirstStart: what.StartsWith("first", StringComparison.Ordinal))
                 {
                     DriverMissing = what == "first?" ? null : what == "first!",
                 });
+            // Every OS's notice says it with each blank filled, the toggle hotkey's too.
+            foreach (var hotkeys in shown is null ? [] : new HotkeysConfig?[] { null, new() { Toggle = "Ctrl+Alt+H" } })
+            {
+                var (title, text) = NoticeTexts.Of(shown!, config with { Hotkeys = hotkeys }, Texts.English, CultureInfo.InvariantCulture);
+                Assert.DoesNotContain("{", title + text, StringComparison.Ordinal);
+            }
+
             var now = shown is not null
                 ? $"{shown.Kind}:{shown.Buttons.ToString().Replace(", ", "+", StringComparison.Ordinal)}"
                 : notices.Showing is null ? "~" : ".";

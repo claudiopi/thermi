@@ -21,6 +21,36 @@
   <data name="HostText.ClickThroughOnText" xml:space="preserve">
     <value>Para cambiarlo, haz clic derecho en el ícono de thermi aquí o abre la Configuración. Haz clic en este aviso para deshacerlo.</value>
   </data>
+  <data name="HostText.GnomeExtensionTitle" xml:space="preserve">
+    <value>thermi no puede mostrar sus superposiciones</value>
+  </data>
+  <data name="HostText.GnomeExtensionMissing" xml:space="preserve">
+    <value>GNOME los muestra con la extensión de thermi: instálala en la ventana que abrió GNOME, o desde extensions.gnome.org.</value>
+  </data>
+  <data name="HostText.GnomeExtensionOtherVersion" xml:space="preserve">
+    <value>La extensión de thermi instalada es de otra versión de thermi: actualízala desde extensions.gnome.org.</value>
+  </data>
+  <data name="HostText.GnomeExtensionOff" xml:space="preserve">
+    <value>Activa la extensión de thermi en la app Extensiones de GNOME.</value>
+  </data>
+  <data name="HostText.GnomeExtensionInstall" xml:space="preserve">
+    <value>Instalar</value>
+  </data>
+  <data name="HostText.GnomeExtensionUpdate" xml:space="preserve">
+    <value>Actualizar</value>
+  </data>
+  <data name="HostText.NoticeShowIt" xml:space="preserve">
+    <value>Mostrarla</value>
+  </data>
+  <data name="HostText.NoticeShowThem" xml:space="preserve">
+    <value>Mostrarlas</value>
+  </data>
+  <data name="HostText.NoticeUndo" xml:space="preserve">
+    <value>Deshacer</value>
+  </data>
+  <data name="HostText.NoticeGotIt" xml:space="preserve">
+    <value>Entendido</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Bloquear la posición</value>
   </data>

@@ -8,7 +8,7 @@ public sealed partial class RepoRulesTests
     // The files of the Windows projects that call no Windows-only API, and why each stays there all the same.
     private static readonly Dictionary<string, string> NeedNoWindowsApi = new(StringComparer.Ordinal)
     {
-        ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's command line: the overlay, the window and preview, each a Windows program",
+        ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's own command beside every OS's: the mode UAC raises, a Windows program",
         ["Thermi.Windows/Gestures/HotkeyPresses.cs"] = "what thermi's hotkeys do, which Windows' RegisterHotKey delivers anywhere in Windows",
         ["Thermi.Windows/Logging/LogEvents.cs"] = "the events of the Windows code's classes, which log nothing else",
         ["Thermi.Windows/Tray/TrayChoices.cs"] = "what a row of the tray's and an overlay's Win32 menus does",
@@ -38,6 +38,12 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Agents/LinuxAbout.cs"] = "the channel as the files of apt's and dnf's repositories name it, which only Linux's packages write",
         ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
         ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
+        ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
+        ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
+        ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
+        ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
+        ["Thermi.Linux/Overlay/OverlayNotices.cs"] = "Core's notices of the overlays as the desktop's own, by the action ids of their buttons",
+        ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on GNOME share on the host's GLib main loop, the Shell's link among it",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",
         ["Thermi.Sensors.Linux/Serving/SensorCommands.cs"] = "the Linux service's own command line, whose trees and roots are the kernel's files",

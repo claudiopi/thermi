@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
+using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
 
 namespace Thermi.Linux.Tests.Acceptance;
@@ -32,10 +33,10 @@ public sealed class OverlayTests
     }
 
     [Theory]
-    [InlineData(GnomeCase.WaylandAt150, Skip = "Waiting for its code")]
-    [InlineData(GnomeCase.X11, Skip = "Waiting for its code")]
-    [InlineData(GnomeCase.FullScreen, Skip = "Waiting for its code")]
-    [InlineData(GnomeCase.SensorsStopped, Skip = "Waiting for its code")]
+    [InlineData(GnomeCase.WaylandAt150)]
+    [InlineData(GnomeCase.X11)]
+    [InlineData(GnomeCase.FullScreen)]
+    [InlineData(GnomeCase.SensorsStopped)]
     public async Task TheOverlayShowsAboveEveryWindowOnGnome(GnomeCase row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -87,8 +88,7 @@ public sealed class OverlayTests
         {
             // A window that goes full screen in front of the overlay covers it, as every window of a layer below the top one.
             await desktop.OpenWindowAsync(fullScreen: true, cancel);
-            var covered = scene with { Screen = await desktop.ScreenshotAsync(cancel) };
-            Assert.NotEqual(0, await covered.DifferingAtAsync(Scene.OnWindow, cancel));
+            Assert.Equal(0, await CoveredAsync(scene, Scene.OnWindow, cancel));
         }
     }
 
@@ -103,7 +103,7 @@ public sealed class OverlayTests
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnPanel, cancel));
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnWindow, cancel));
         // Off the taskbar and the window switcher: every window of thermi's process says so to the window manager.
-        var windows = await desktop.Session.RunAsync("xdotool", ["search", "--pid", $"{scene.Thermi.Id}"], cancel: cancel);
+        var windows = await desktop.Session.RunAsync("xdotool", ["search", "--onlyvisible", "--pid", $"{scene.Thermi.Id}"], cancel: cancel);
         var ids = windows.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.NotEmpty(ids);
         foreach (var id in ids)
@@ -117,11 +117,21 @@ public sealed class OverlayTests
         var (width, height) = await Pictures.SizeAsync(desktop.Session, scene.Picture, cancel);
         Assert.Equal("click 1", await scene.ClickAsync(Scene.OnWindow.X + (width / 2), Scene.OnWindow.Y + (height / 2), cancel));
         await desktop.OpenWindowAsync(fullScreen: true, cancel);
-        var covered = scene with { Screen = await desktop.ScreenshotAsync(cancel) };
-        Assert.NotEqual(0, await covered.DifferingAtAsync(Scene.OnPanel, cancel));
+        Assert.Equal(0, await CoveredAsync(scene, Scene.OnPanel, cancel));
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    // A full-screen window in front covers the overlay: where it was, the screen shows what it shows once thermi is gone.
+    private static async Task<long> CoveredAsync(Scene scene, Position at, CancellationToken cancel)
+    {
+        var covered = await scene.Desktop.ScreenshotAsync(cancel);
+        scene.Thermi.Kill();
+        await scene.Thermi.WaitForExitAsync(cancel);
+        var alone = await scene.Desktop.ScreenshotAsync(cancel);
+        var (width, height) = await Pictures.SizeAsync(scene.Desktop.Session, scene.Picture, cancel);
+        return await Pictures.ChangedAsync(scene.Desktop.Session, covered, alone, (at.X, at.Y, width, height), cancel);
+    }
+
+    [Fact]
     public async Task AnExtensionOfAnotherVersionShowsNothing()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -136,6 +146,14 @@ public sealed class OverlayTests
             var metadata = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(other, "metadata.json"), cancel))!;
             metadata["thermi-protocol"] = (int)metadata["thermi-protocol"]! - 1;
             await File.WriteAllTextAsync(Path.Combine(other, "metadata.json"), metadata.ToJsonString(), cancel);
+            // Another protocol's signals may have other shapes: this one sends Ready and Pointer with nothing in them once
+            // thermi takes its name.
+            var code = await File.ReadAllTextAsync(Path.Combine(other, "extension.js"), cancel);
+            const string Appeared = "this._owner = owner;";
+            Assert.Contains(Appeared, code, StringComparison.Ordinal);
+            var sends = "['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', []));";
+            code = code.Replace(Appeared, $"{Appeared} {sends}", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(other, "extension.js"), code, cancel);
 
             await AnotherVersionShowsNothingAsync(other, cancel);
             await NoneIsInstalledFromTheStoreAsync(cancel);
@@ -147,7 +165,7 @@ public sealed class OverlayTests
     }
 
     [Theory]
-    [InlineData(true, Skip = "Waiting for its code")]
+    [InlineData(true)]
     [InlineData(false, Skip = "Waiting for its code")]
     public async Task TheOverlaysMenuIsTheShellsOwn(bool gnome)
     {
@@ -161,25 +179,31 @@ public sealed class OverlayTests
         var before = await desktop.ScreenshotAsync(cancel);
         var started = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
         var running = await units.StartWaitingAsync(cancel);
-        await started;
+        if (await Task.WhenAny(started, running.WaitForExitAsync(cancel)) != started)
+        {
+            Assert.Fail($"thermi's unit ended before it showed: {await running.Error.ToEndAsync(cancel)}"
+                + await units.SystemctlAsync(["status", "--no-pager", "thermi.service"], cancel));
+        }
         var shownFirst = await desktop.ScreenshotAsync(cancel);
         var pill = config.Overlays[0].Items[0].Id;
-        var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false), pill);
+        var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false }, pill);
 
         Assert.Equal((gnome ? "gnome-shell" : "thermi", rows.Count), await OpenMenuAsync(desktop, cancel));
         // Hidden from the menu, the overlays are taken back with the button of the notice that says so.
         var hiding = Traced.NextAsync(units.Trace, Traced.Hidden, cancel);
         var told = notices.NextAsync("show-it", cancel);
-        await ChooseAsync(desktop, rows, MenuEntry.HideOverlays, cancel);
+        // From the menu open already: a second right-click while it is open is a click outside it, which closes it.
+        await Accessible.ChooseAsync(desktop, IndexOf(rows, MenuEntry.HideOverlays), cancel);
         await hiding;
         var hidden = await desktop.ScreenshotAsync(cancel);
         var showing = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
         await notices.ClickAsync(await told, "show-it", cancel);
         await showing;
         var shown = await desktop.ScreenshotAsync(cancel);
+        var monitorName = gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor";
+        await units.AddProgramAsync(gnome ? "gnome-system-monitor" : "plasma-systemmonitor", monitorName, cancel);
         await ChooseAsync(desktop, rows, MenuEntry.TaskManager, cancel);
-        var monitor = await desktop.Session.RunAsync(
-            "gdbus", ["wait", "--session", gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor"], cancel: cancel);
+        var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", monitorName], cancel: cancel);
         await ChooseAsync(desktop, rows, MenuEntry.Exit, cancel);
         // systemctl --wait returns once the unit went inactive; not "auto-restart": a clean exit starts nothing again.
         await running.WaitForExitAsync(cancel);
@@ -200,6 +224,15 @@ public sealed class OverlayTests
         await units.SystemctlAsync(["kill", "--signal=KILL", "thermi.service"], cancel);
         await restarted;
         Assert.Single(await units.ProcessesAsync(cancel));
+
+        // The settings window's "Exit thermi" ends it as the menu's does, through the overlay's quit on the session's bus.
+        var quitting = await units.StartWaitingAsync(cancel);
+        string[] quit =
+            ["call", "--session", "--dest", ShellLink.Name, "--object-path", ShellLink.ObjectPath, "--method", "org.gtk.Actions.Activate", "quit", "[]", "{}"];
+        Assert.Equal(0, (await desktop.Session.RunAsync("gdbus", quit, cancel: cancel)).Exit);
+        await quitting.WaitForExitAsync(cancel);
+        Assert.Equal(0, quitting.ExitCode);
+        Assert.Equal("dead", await units.SystemctlAsync(["show", "-p", "SubState", "--value", "thermi.service"], cancel));
     }
 
     // Weston offers neither the extension nor layer surfaces: thermi shows nothing, says why in one notice, and not again
@@ -227,11 +260,16 @@ public sealed class OverlayTests
         await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
         var before = await desktop.ScreenshotAsync(cancel);
         var update = notices.NextAsync("update-extension", cancel);
-        await desktop.StartThermiAsync([], cancel);
+        var thermi = await desktop.StartThermiAsync([], cancel);
 
-        await update;
+        var told = await update;
         var after = await desktop.ScreenshotAsync(cancel);
+        // Its button is heard after the extension's Ready: thermi that read it still runs and asks GNOME for the update.
+        var checking = notices.NextUpdateCheckAsync(cancel);
+        await notices.ClickAsync(told, "update-extension", cancel);
+        var asked = await Task.WhenAny(checking, thermi.WaitForExitAsync(cancel)) == checking;
         Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, before, after, UnderTheBar, cancel));
+        Assert.True(asked, thermi.Error.Text);
     }
 
     // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself.
@@ -247,7 +285,7 @@ public sealed class OverlayTests
         Assert.Equal(uuid, await asked);
     }
 
-    // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts.
+    // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.
     private static async Task<(string Program, int Entries)> OpenMenuAsync(TestDesktop desktop, CancellationToken cancel)
     {
         await desktop.Input.ClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel, button: 3);
@@ -257,6 +295,8 @@ public sealed class OverlayTests
     private static async Task ChooseAsync(TestDesktop desktop, IReadOnlyList<MenuRow> rows, MenuEntry entry, CancellationToken cancel)
     {
         await OpenMenuAsync(desktop, cancel);
-        await Accessible.ChooseAsync(desktop.Session, rows.ToList().FindIndex(row => row.Entry == entry), cancel);
+        await Accessible.ChooseAsync(desktop, IndexOf(rows, entry), cancel);
     }
+
+    private static int IndexOf(IReadOnlyList<MenuRow> rows, MenuEntry entry) => rows.ToList().FindIndex(row => row.Entry == entry);
 }
