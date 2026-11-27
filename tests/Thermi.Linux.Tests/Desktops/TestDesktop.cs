@@ -12,7 +12,10 @@ internal enum DesktopKind
     /// <summary>GNOME Shell on X11, on Xvfb, as GNOME 46 to 48 still sign in.</summary>
     GnomeX11,
 
-    /// <summary>KDE Plasma's KWin on Wayland, with layer surfaces, and a panel of the tests' (<see cref="TestPanel"/>).</summary>
+    /// <summary>
+    /// KDE Plasma's KWin on Wayland, with layer surfaces, and a panel of the tests' (<see cref="TestPanel"/>), nested in an
+    /// X server of the test's own.
+    /// </summary>
     KWin,
 
     /// <summary>Sway, wlroots' compositor, with layer surfaces, and its own bar at the top.</summary>
@@ -141,8 +144,9 @@ internal sealed class TestDesktop : IAsyncDisposable
                 break;
             case DesktopKind.KWin:
                 var moved = await Session.RunAsync(
-                    "kscreen-doctor", [$"output.1.position.{monitors[1].Width},0", "output.2.position.0,0"], cancel: cancel).ConfigureAwait(false);
+                    "kscreen-doctor", [$"output.1.position.{monitors[1].Width},0", "output.2.position.0,0"], QtOnWayland, cancel).ConfigureAwait(false);
                 _ = moved.Exit == 0 ? 0 : throw new InvalidOperationException($"KWin moved no monitor: {moved.Error}");
+                await PlaceKWinMonitorsAsync(monitors, swapped: true, cancel).ConfigureAwait(false);
                 break;
             case DesktopKind.Sway or DesktopKind.BareWayland:
             default:
@@ -181,9 +185,8 @@ internal sealed class TestDesktop : IAsyncDisposable
         {
             DesktopKind.Gnome or DesktopKind.GnomeX11 =>
                 ("gdbus", Call("org.gnome.Shell.Screenshot", "/org/gnome/Shell/Screenshot", "Screenshot", "false", "false", $"'{file}'")),
-            DesktopKind.KWin => ("spectacle", ["--background", "--nonotify", "--fullscreen", "--output", file]),
             DesktopKind.Sway => ("grim", [file]),
-            DesktopKind.X11 => ("import", ["-window", "root", file]),
+            DesktopKind.X11 or DesktopKind.KWin => ("import", ["-window", "root", file]),
             DesktopKind.BareWayland => throw new NotSupportedException("Weston's kiosk shell takes no screenshot for tests."),
             _ => throw new InvalidOperationException($"Unknown desktop {Kind}."),
         };
@@ -253,24 +256,51 @@ internal sealed class TestDesktop : IAsyncDisposable
         await WaitForNameAsync(applied, cancel).ConfigureAwait(false);
     }
 
-    // KWin starts the program it is given once Wayland and Xwayland serve, with the X11 display it took; the tests' input
-    // reaches KWin through that Xwayland's XTEST, and its screenshots through Spectacle, which KWin lets in without asking
-    // the person once it checks no permission, as its own tests run it. A bare KWin has no panel: the tests show their own.
+    // KWin runs nested in an X server of the test's own, each monitor a window of that server's where the monitor is: the
+    // tests' input reaches KWin through that server's XTEST, as a person's pointer reaches it, and its screenshots are that
+    // server's screen. KWin's virtual monitors take no input a tool can send, and its own Xwayland's XTEST reaches only
+    // X11 windows. KWin starts the one program it is given, a whole command line, once Wayland serves; it lets in
+    // kscreen-doctor without asking once it checks no permission, as its own tests run it. A bare KWin has no panel: the
+    // tests show their own.
     private async Task StartKWinAsync(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
     {
+        await StartXvfbAsync(monitors, cancel).ConfigureAwait(false);
         var first = monitors[0];
         var kwin = await Session.StartAsync(
             "kwin_wayland",
-            ["--virtual", "--xwayland", "--socket", OwnSession.WaylandDisplay, "--width", $"{first.Width}", "--height", $"{first.Height}",
-                "--scale", first.Scale.ToString(CultureInfo.InvariantCulture), "--output-count", $"{monitors.Count}", "printenv", "DISPLAY"],
+            ["--x11-display", Session.X11Display, "--socket", OwnSession.WaylandDisplay, "--width", $"{first.Width}", "--height", $"{first.Height}",
+                "--scale", first.Scale.ToString(CultureInfo.InvariantCulture), "--output-count", $"{monitors.Count}", "echo ready"],
             new Dictionary<string, string> { ["KWIN_WAYLAND_NO_PERMISSION_CHECKS"] = "1" },
             cancel).ConfigureAwait(false);
-        Session.X11Display = await kwin.ReadyAsync(cancel).ConfigureAwait(false);
+        _ = await kwin.ReadyAsync(cancel).ConfigureAwait(false) == "ready" ? 0 : throw new InvalidOperationException($"KWin never started: {kwin.Error.Text}");
+        await PlaceKWinMonitorsAsync(monitors, swapped: false, cancel).ConfigureAwait(false);
         await TestPanel.ShowAsync(Session, cancel).ConfigureAwait(false);
     }
 
+    // Qt's programs of KDE's reach KWin only on Wayland, where the session's X server is the one KWin runs in.
+    private static readonly Dictionary<string, string> QtOnWayland = new() { ["QT_QPA_PLATFORM"] = "wayland" };
+
+    // KWin's monitors' windows, in the order KWin made them, each moved to where its monitor is, from the left. KWin names
+    // them only by _NET_WM_NAME, which xwininfo reads and xdotool's search does not.
+    private async Task PlaceKWinMonitorsAsync(IReadOnlyList<TestMonitor> monitors, bool swapped, CancellationToken cancel)
+    {
+        var found = await Session.RunAsync("xwininfo", ["-root", "-children"], cancel: cancel).ConfigureAwait(false);
+        var windows = found.Out.Split('\n')
+            .Where(line => line.Contains("\"KDE Wayland Compositor", StringComparison.Ordinal))
+            .Select(line => Convert.ToInt64(line.Trim().Split(' ')[0], 16))
+            .Order()
+            .ToList();
+        var order = swapped ? Enumerable.Range(0, monitors.Count).Reverse().ToList() : [.. Enumerable.Range(0, monitors.Count)];
+        var left = 0;
+        foreach (var index in order)
+        {
+            var place = await Session.RunAsync("xdotool", ["windowmove", $"{windows[index]}", $"{left}", "0"], cancel: cancel).ConfigureAwait(false);
+            left += place.Exit == 0 ? monitors[index].Width : throw new InvalidOperationException($"No window of KWin's moved: {place.Error}");
+        }
+    }
+
     // Sway headless, one output per monitor at its scale, side by side, and its bar at the top of the first; its config's
-    // last line says it is ready.
+    // last line says it is ready, once the session's Wayland display names Sway's socket, which Sway names itself.
     private async Task StartSwayAsync(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
     {
         var config = Path.Combine(Session.Home, "sway.config");
@@ -284,7 +314,8 @@ internal sealed class TestDesktop : IAsyncDisposable
             return line;
         });
         string[] bar = ["bar {", "  position top", "  output HEADLESS-1", "}"];
-        await File.WriteAllLinesAsync(config, [.. outputs, .. bar, "exec echo ready"], cancel).ConfigureAwait(false);
+        string ready = $"exec sh -c 'ln -s \"$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY\" \"$XDG_RUNTIME_DIR/{OwnSession.WaylandDisplay}\" && echo ready'";
+        await File.WriteAllLinesAsync(config, [.. outputs, .. bar, ready], cancel).ConfigureAwait(false);
         // wlroots draws to no screen and reads no device of the PC's.
         var headless = new Dictionary<string, string> { ["WLR_BACKENDS"] = "headless", ["WLR_LIBINPUT_NO_DEVICES"] = "1" };
         await (await Session.StartAsync("sway", ["--config", config], headless, cancel).ConfigureAwait(false)).ReadyAsync(cancel).ConfigureAwait(false);
@@ -328,10 +359,12 @@ internal sealed class TestDesktop : IAsyncDisposable
         await SetX11MonitorsAsync(monitors, swapped: false, cancel).ConfigureAwait(false);
     }
 
-    // Weston's kiosk shell offers neither the Shell's extension nor layer surfaces; the client it starts says it is up.
+    // Weston's kiosk shell offers neither the Shell's extension nor layer surfaces; the client it starts says it is up, and
+    // stays, as Weston ends with it.
     private async Task StartWestonAsync(TestMonitor monitor, CancellationToken cancel)
     {
-        string[] args = ["--backend=headless", "--shell=kiosk", $"--socket={OwnSession.WaylandDisplay}", $"--width={monitor.Width}", "--", "echo", "ready"];
+        string[] args = ["--backend=headless", "--shell=kiosk", $"--socket={OwnSession.WaylandDisplay}", $"--width={monitor.Width}", "--",
+            "sh", "-c", "echo ready; exec sleep infinity"];
         await (await Session.StartAsync("weston", args, cancel: cancel).ConfigureAwait(false)).ReadyAsync(cancel).ConfigureAwait(false);
     }
 }

@@ -6,9 +6,13 @@ namespace Thermi.Linux.Gnome;
 
 /// <summary>
 /// A monitor as the extension tells it, in the Shell's logical pixels: its top bar's height, 0 for none, and whether it
-/// shows a full-screen window.
+/// shows a full-screen window. Another desktop's surfaces tell it the same way, with its name.
 /// </summary>
-internal sealed record ShellMonitor(double X, double Y, double Width, double Height, double Scale, double Bar, bool Primary, bool FullScreen);
+internal sealed record ShellMonitor(double X, double Y, double Width, double Height, double Scale, double Bar, bool Primary, bool FullScreen)
+{
+    /// <summary>The monitor's name, which the extension does not tell: Mutter's display config does on GNOME.</summary>
+    public string? Id { get; init; }
+}
 
 /// <summary>
 /// The pointer on an overlay's boxes, as the extension sends it: what it did, where on the stage, its button and keys
@@ -217,6 +221,9 @@ internal sealed class ShellLink : IDisposable
             GLib.Variant.NewBoolean(row.Grayed),
             GLib.Variant.NewBoolean(row.Starts),
         ]))]);
+
+    /// <summary>Has the extension tell the pointer anywhere while <paramref name="on"/>, as a Pointer of kind <c>near</c>.</summary>
+    public Task Watch(bool on) => Own("Watch", GLib.Variant.NewBoolean(on));
 
     public async Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => MonitorsOf((await Own("Monitors")).GetChildValue(0));
 

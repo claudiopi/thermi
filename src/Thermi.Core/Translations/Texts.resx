@@ -39,6 +39,9 @@
   <data name="HostText.GnomeExtensionUpdate" xml:space="preserve">
     <value>Update</value>
   </data>
+  <data name="HostText.NoOverlaySurfaces" xml:space="preserve">
+    <value>This desktop offers neither GNOME Shell nor layer surfaces, where thermi shows its overlays. thermi-cli still reads the sensors.</value>
+  </data>
   <data name="HostText.NoticeShowIt" xml:space="preserve">
     <value>Show it</value>
   </data>
@@ -53,9 +56,6 @@
   </data>
   <data name="HostText.NoticeOpenSettings" xml:space="preserve">
     <value>Open settings</value>
-  </data>
-  <data name="HostText.NoOverlay" xml:space="preserve">
-    <value>This desktop offers neither GNOME Shell nor layer surfaces, which thermi&apos;s overlays need. Its icons, hotkeys and AI agents still work.</value>
   </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Lock position</value>

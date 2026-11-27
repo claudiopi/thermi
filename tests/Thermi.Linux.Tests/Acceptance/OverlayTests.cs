@@ -58,10 +58,10 @@ public sealed class OverlayTests
     }
 
     [Theory]
-    [InlineData(LayerCase.KWin, Skip = "Waiting for its code")]
-    [InlineData(LayerCase.SwayAt150, Skip = "Waiting for its code")]
-    [InlineData(LayerCase.FullScreen, Skip = "Waiting for its code")]
-    [InlineData(LayerCase.Neither, Skip = "Waiting for its code")]
+    [InlineData(LayerCase.KWin)]
+    [InlineData(LayerCase.SwayAt150)]
+    [InlineData(LayerCase.FullScreen)]
+    [InlineData(LayerCase.Neither)]
     public async Task TheOverlayShowsAboveEveryWindowOnLayerShell(LayerCase row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -92,7 +92,7 @@ public sealed class OverlayTests
         }
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact]
     public async Task TheOverlayShowsAboveEveryWindowOnX11()
     {
         var cancel = TestContext.Current.CancellationToken;

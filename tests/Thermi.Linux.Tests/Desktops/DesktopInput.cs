@@ -6,8 +6,8 @@ namespace Thermi.Linux.Tests.Desktops;
 /// <summary>
 /// A person's pointer and keyboard on a test's desktop, through each desktop's own input for tests: GNOME Shell's virtual
 /// devices, run in the Shell over its session bus; Sway's seat commands and a virtual keyboard; and XTEST on an X11 desktop
-/// and in KWin's Xwayland. Points are the screenshots' pixels, which Mutter and Sway take as logical ones divided by
-/// <paramref name="scale"/>.
+/// and on the X server KWin runs nested in. Points are the screenshots' pixels, which Mutter and Sway take as logical ones
+/// divided by <paramref name="scale"/>.
 /// </summary>
 internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session, double scale = 1)
 {

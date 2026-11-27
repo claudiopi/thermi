@@ -9,6 +9,7 @@ using Thermi.Core.Tray;
 using Thermi.Windows.Gestures;
 using Thermi.Windows.Logging;
 using Thermi.Windows.Tray;
+using Thermi.Windows.Ui.Views;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -77,8 +78,8 @@ internal sealed class OverlayHost : IDisposable
             History = history,
             OpenSize = _link.OpenSize,
             Select = _link.Selected,
-            Shown = () => DesktopDrag.Boxes(_overlays),
-            Settle = (before, after) => Ui.Views.OverlayPlaces.Settled(before, after, Scene(after, _desktop.Screens()), culture, DesktopDrag.Boxes(_overlays)),
+            Shown = () => WindowDragShow.Boxes(_overlays),
+            Settle = (before, after) => OverlayPlaces.Settled(before, after, Scene(after, _desktop.Screens()), culture, WindowDragShow.Boxes(_overlays)),
             JoinAt = (overlay, cursor, alone) => overlay < _overlays.Count ? _overlays[overlay].JoinAt(cursor, alone) : new DropTarget(overlay, null),
             Gestures = new App.Gestures.GestureUndo(time, gesture => _ = _link.WindowOpen && HiddenWindow.Send(HiddenWindow.WindowClass, gesture)),
             Menu = (overlay, item) => Tray?.Menu(overlay, item: item),
@@ -100,8 +101,8 @@ internal sealed class OverlayHost : IDisposable
     internal ThermiTray? Tray { get; private set; }
 
     /// <summary>
-    /// Whether this is thermi's first start, which lasts until the window first opens: its notice shows, and the values'
-    /// tooltips offer to set thermi up.
+    /// Whether this is thermi's first start, which lasts until the window first opens: its notice shows, and the values' tooltips
+    /// offer to set thermi up.
     /// </summary>
     internal bool FirstStart { get; init; }
 
@@ -117,9 +118,8 @@ internal sealed class OverlayHost : IDisposable
     /// <summary>Whether an overlay process runs, without asking it anything.</summary>
     public static bool Running() => !PInvoke.FindWindowEx(HWND.Null, HWND.Null, ClassName, null).IsNull;
 
-    /// <summary>
-    /// Asks the running overlay which hotkeys it could not register, as the window does: <see cref="Hotkeys.Trusted"/>'s answer, or null for none.
-    /// </summary>
+    /// <summary>Asks the running overlay which hotkeys it could not register, as the window does: <see cref="Hotkeys.Trusted"/>'s answer.</summary>
+    /// <returns>The hotkeys refused, or null for none.</returns>
     public static long? AskHotkeyStatus() => HiddenWindow.Ask(ClassName, HotkeyStatusMessage);
 
     /// <summary>A fresh snapshot came, on any thread: each overlay adds it to its history on the window's thread.</summary>

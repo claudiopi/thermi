@@ -1,0 +1,196 @@
+using Thermi.Linux.Desktop;
+using Thermi.Linux.Gnome;
+using Thermi.Linux.Overlay;
+
+namespace Thermi.Linux.LayerShell;
+
+/// <summary>
+/// The surfaces of a Wayland compositor with layer surfaces (docs/adr/0019-linux.md): each picture a layer surface of its
+/// own on the top layer, above every window and panel, anchored to its monitor's top-left corner over the panels' zones and
+/// kept as far in as it goes, as big as its picture. It never takes the keyboard but for Esc while a press holds it. A
+/// window gone full screen covers the top layer, as compositors stack it, so nothing here hides it then. The compositor
+/// tells the pointer only on a surface, so a fade sees the pointer only on its overlay.
+/// </summary>
+internal sealed class LayerSurfaces : IOverlaySurfaces
+{
+    private readonly Dictionary<uint, (PictureWindow Window, Gdk.Monitor Monitor)> _shown = [];
+    private readonly Dictionary<Gdk.Monitor, double> _bars = [];
+    private readonly List<LayerProbe> _probes = [];
+    private readonly HashSet<Gdk.Monitor> _watched = [];
+    private IReadOnlyList<Gdk.Monitor> _monitors = [];
+
+    public bool Ready { get; private set; }
+
+    public bool PointerAnywhere => false;
+
+    public Action Arrived { get; set; } = () => { };
+
+    public Action<IReadOnlyList<ShellMonitor>> MonitorsChanged { get; set; } = _ => { };
+
+    public Action<ShellPointer> Pointer { get; set; } = _ => { };
+
+    public Action<uint, string> Key { get; set; } = (_, _) => { };
+
+    public void Start()
+    {
+        if (Gdk.Display.GetDefault()?.GetMonitors() is { } list)
+        {
+            list.OnItemsChanged += (_, _) => Probe();
+        }
+
+        Probe();
+    }
+
+    public Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => Task.FromResult<IReadOnlyList<ShellMonitor>>(Monitors());
+
+    public Task Show(uint id, ShellPicture picture, double x, double y)
+    {
+        if (!Ready)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!_shown.TryGetValue(id, out var shown))
+        {
+#pragma warning disable CA2000 // Kept in _shown, and disposed as it hides.
+            var window = new PictureWindow(id, Made) { Pointer = each => Pointer(each), Key = (on, key) => Key(on, key) };
+#pragma warning restore CA2000
+            shown = (window, _monitors[0]);
+        }
+
+        _shown[id] = Placed(shown, x, y, picture.Scale, picture);
+        return Task.CompletedTask;
+    }
+
+    public Task Move(uint id, double x, double y)
+    {
+        if (_shown.TryGetValue(id, out var shown))
+        {
+            _shown[id] = Placed(shown, x, y, shown.Monitor.GetScale(), picture: null);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task Hide(uint id)
+    {
+        if (_shown.Remove(id, out var shown))
+        {
+            shown.Window.Dispose();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public void HoldKeys(uint id, bool held)
+    {
+        if (_shown.TryGetValue(id, out var shown))
+        {
+            LayerShellLibrary.SetKeyboard(shown.Window.Window, held);
+        }
+    }
+
+    public void Watch(bool on)
+    {
+        // The compositor tells no client where the pointer is off its surfaces.
+    }
+
+    public void Dispose()
+    {
+        _probes.ForEach(probe => probe.Dispose());
+        foreach (var (window, _) in _shown.Values)
+        {
+            window.Dispose();
+        }
+
+        _shown.Clear();
+    }
+
+    private static void Made(Gtk.Window window)
+    {
+        LayerShellLibrary.Init(window);
+        LayerShellLibrary.SetNamespace(window, "thermi");
+        LayerShellLibrary.SetLayer(window, Layer.Top);
+        LayerShellLibrary.SetAnchor(window, Edge.Top, anchored: true);
+        LayerShellLibrary.SetAnchor(window, Edge.Left, anchored: true);
+        LayerShellLibrary.SetExclusiveZone(window, -1);
+        LayerShellLibrary.SetKeyboard(window, exclusive: false);
+    }
+
+    // On the monitor the corner is on, a whole logical pixel in, and the rest as the picture's own pixels inside the
+    // surface: the compositor puts the surface's corner on the pixel its logical one rounds to.
+    private (PictureWindow, Gdk.Monitor) Placed((PictureWindow Window, Gdk.Monitor Monitor) shown, double x, double y, double scale, ShellPicture? picture)
+    {
+        var monitor = _monitors.FirstOrDefault(each => each.Geometry.ContainsPoint((int)Math.Floor(x), (int)Math.Floor(y))) ?? shown.Monitor;
+        var place = monitor.Geometry;
+        var (left, top) = ((int)Math.Floor(x - place.X), (int)Math.Floor(y - place.Y));
+        int Rest(double at, int whole)
+        {
+            return Math.Max(0, (int)Math.Round(at * scale) - (int)Math.Round(whole * scale, MidpointRounding.AwayFromZero));
+        }
+
+        var offset = (Rest(x - place.X, left), Rest(y - place.Y, top));
+        var window = shown.Window.Window;
+        if (monitor != shown.Monitor || !window.GetVisible())
+        {
+            LayerShellLibrary.SetMonitor(window, monitor);
+        }
+
+        LayerShellLibrary.SetMargin(window, Edge.Left, left);
+        LayerShellLibrary.SetMargin(window, Edge.Top, top);
+        shown.Window.Origin = (place.X + left, place.Y + top);
+        if (picture is not null)
+        {
+            shown.Window.Show(picture, offset);
+        }
+        else
+        {
+            shown.Window.Place(offset);
+        }
+
+        return (shown.Window, monitor);
+    }
+
+    // Each monitor measured again, as one came or went: the overlays show once every monitor is.
+    private void Probe()
+    {
+        _probes.ForEach(probe => probe.Dispose());
+        _probes.Clear();
+        _bars.Clear();
+        _monitors = GdkMonitors.All();
+        foreach (var monitor in _monitors)
+        {
+            if (_watched.Add(monitor))
+            {
+                monitor.OnNotify += (_, _) => Probe();
+            }
+
+            _probes.Add(new LayerProbe(monitor, Measured));
+        }
+    }
+
+    private void Measured(LayerProbe probe, int height)
+    {
+        _bars[probe.Monitor] = Math.Max(0, probe.Monitor.Geometry.Height - height);
+        _probes.Remove(probe);
+        probe.Dispose();
+        if (_probes.Count > 0)
+        {
+            return;
+        }
+
+        var first = !Ready;
+        Ready = _monitors.Count > 0;
+        if (first && Ready)
+        {
+            Arrived();
+        }
+        else
+        {
+            MonitorsChanged(Monitors());
+        }
+    }
+
+    public IReadOnlyList<ShellMonitor> Monitors() =>
+        [.. GdkMonitors.Read(_monitors, monitor => _bars.GetValueOrDefault(monitor), primary: null)];
+}

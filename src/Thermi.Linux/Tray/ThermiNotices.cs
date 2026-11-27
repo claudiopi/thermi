@@ -34,7 +34,6 @@ internal sealed class ThermiNotices
     public const string Undo = "undo";
     public const string GotIt = "got-it";
     public const string Critical = "critical";
-    public const string NoOverlay = "no-overlay";
 
     private static readonly (NoticeButtons Button, string Action, HostText Label)[] Buttons =
     [
@@ -50,7 +49,6 @@ internal sealed class ThermiNotices
     private readonly NotifyMe _notifyMe;
     private readonly Dictionary<uint, Notice> _told = [];
     private bool _firstStart;
-    private bool _cannotShowTold;
 
     /// <summary>Notices on <paramref name="desktop"/>; <paramref name="firstStart"/> when thermi found no settings as it started.</summary>
     public ThermiNotices(DesktopNotices desktop, NoticeHost host, TimeProvider time, bool firstStart)
@@ -90,19 +88,6 @@ internal sealed class ThermiNotices
             var (title, text) = NoticeTexts.Of(told, config, snapshot, texts, _host.Culture);
             _ = _desktop.Say(title, text, (Critical, texts.Of(HostText.NoticeGotIt)));
         }
-    }
-
-    /// <summary>This desktop shows no overlay: said once a run.</summary>
-    public void CannotShow()
-    {
-        if (_cannotShowTold)
-        {
-            return;
-        }
-
-        _cannotShowTold = true;
-        var texts = Texts;
-        _ = _desktop.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(HostText.NoOverlay), (NoOverlay, texts.Of(HostText.NoticeGotIt)));
     }
 
     private async Task Tell(Notice notice, string title, string text, (string, string)[] buttons)

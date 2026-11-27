@@ -30,6 +30,12 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
     /// <summary>A hotkey thermi could not take, as another program holds it, about its role as the settings name it.</summary>
     public const string HotkeyRefused = "hotkey-refused";
 
+    /// <summary>A hold lifted a pill or an item, which shows where the pointer carries it.</summary>
+    public const string Lifted = "lifted";
+
+    /// <summary>An overlay with Fade near the pointer shows at its faded look.</summary>
+    public const string Faded = "faded";
+
     private readonly Lock _lock = new();
 
     public TimeProvider Time => time;

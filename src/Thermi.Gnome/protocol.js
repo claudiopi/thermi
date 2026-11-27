@@ -38,7 +38,7 @@ export function refuseUnless(holds, why) {
 }
 
 // Only thermi, the overlay's name's owner, changes what shows; any other caller, or a call out of the protocol's bounds,
-// is refused whole. What the call answers is act's, if anything.
+// is refused whole. What the call answers is act's variant, if it gives one.
 export function answer(owner, invocation, act) {
     if (owner === null || invocation.get_sender() !== owner) {
         invocation.return_dbus_error('org.freedesktop.DBus.Error.AccessDenied', `Only ${OVERLAY} shows thermi's overlays.`);
@@ -55,7 +55,7 @@ export function answer(owner, invocation, act) {
         return;
     }
 
-    invocation.return_value(answered ?? null);
+    invocation.return_value(answered instanceof GLib.Variant ? answered : null);
 }
 
 // The picture's pixels are what its sizes say, at a scale a monitor has.

@@ -12,15 +12,17 @@ using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
+using Thermi.Linux.LayerShell;
 using Thermi.Linux.Logging;
+using Thermi.Linux.X11;
 
 namespace Thermi.Linux.Overlay;
 
 /// <summary>
-/// thermi's overlay process on GNOME: one GLib main loop runs the Shell's link, the paints and the menu, and what comes
-/// from other threads, the readings, the settings file and the once-a-second tick, is posted to it. Each overlay of the
-/// settings shows through the Shell's extension as Core's <see cref="OverlayVisibility"/> says, and nothing shows until
-/// the extension runs thermi's protocol.
+/// thermi's overlay process on Linux: one GLib main loop runs the desktop's surfaces, the paints and the menu, and what
+/// comes from other threads, the readings, the settings file and the once-a-second tick, is posted to it. Each overlay of
+/// the settings shows through the surfaces as Core's <see cref="OverlayVisibility"/> says, and nothing shows until they
+/// are ready, as GNOME's once its extension runs thermi's protocol.
 /// </summary>
 internal sealed class OverlayHost : IDisposable
 {
@@ -29,13 +31,14 @@ internal sealed class OverlayHost : IDisposable
 
     private readonly Gio.DBusConnection _bus;
     private readonly ShellLink _link;
+    private readonly SurfaceKind _kind;
+    private readonly IOverlaySurfaces _surfaces;
     private readonly ISensorFeed _feed;
     private readonly OverlayParts _parts;
     private readonly DesktopNotices _notices;
-    private readonly ExtensionArrival _arrival;
-    private readonly GnomeDesk _desk;
+    private readonly ThermiDesk _desk;
     private readonly OverlayMenu _menu;
-    private readonly List<ShellOverlay> _overlays = [];
+    private readonly List<DesktopOverlay> _overlays = [];
     private readonly HighContrastColors? _highContrast = DesktopLooks.HighContrast();
     private readonly double? _baseClock = DesktopLooks.BaseClock();
     private readonly GLib.MainLoop _loop = GLib.MainLoop.New(null, false);
@@ -50,28 +53,43 @@ internal sealed class OverlayHost : IDisposable
     private bool _editOwed;
     private bool _droppedOwed;
     private bool _droppedOnSave;
+    private bool _watching;
 
-    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TraceEvents trace, ILogger log, bool firstStart)
+    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TraceEvents trace, ILogger log, ThermiStart start)
     {
         _bus = bus;
         _feed = feed;
         _trace = trace;
+        var kind = start.Kind;
+        _kind = kind;
         var time = trace.Time;
         _link = new ShellLink(bus, log);
-        _parts = new OverlayParts(settings, _link, time, CultureInfo.CurrentCulture, log)
+        _notices = new DesktopNotices(bus);
+        var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
+        _surfaces = kind switch
+        {
+            SurfaceKind.Layer => new LayerSurfaces(),
+            SurfaceKind.X11 => new X11Surfaces(),
+            SurfaceKind.Shell or SurfaceKind.None => new ShellSurfaces(_link, arrival),
+            _ => new ShellSurfaces(_link, arrival),
+        };
+        _parts = new OverlayParts(settings, _link, _surfaces, time, CultureInfo.CurrentCulture, log)
         {
             RequestPaint = () => Post(Repaint),
+            Post = Post,
             OpenSettings = (overlay, item) => _menu!.OpenSettings(overlay, item),
             Menu = (overlay, x, y, item) => _menu!.Show(overlay, x, y, item, feed.State, feed.Latest),
             Settle = Settle,
             Dropped = Dropped,
+            Shown = Boxes,
+            JoinAt = (onto, cursor, alone) => onto < _overlays.Count ? _overlays[onto].JoinAt(cursor, alone) : default,
+            Trace = Traced,
+            Accent = DesktopLooks.Accent(_highContrast),
             Traced = trace.On,
             WindowOpening = () => _desk!.Notices.WindowOpened(),
         };
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
-        _notices = new DesktopNotices(bus);
-        _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
-        _desk = new GnomeDesk(bus, _parts, _menu, _notices, trace, feed, firstStart);
+        _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start);
     }
 
     private Settings Settings => _parts.Settings;
@@ -90,21 +108,16 @@ internal sealed class OverlayHost : IDisposable
             return 0;
         }
 
-        _link.Ready += protocol => Safe(() => Arrived(protocol), Log.ArrivalFailed);
-        _link.Gone += _arrival.Left;
-        _link.MonitorsChanged += monitors => Safe(() => Monitors(monitors), Log.MonitorsFailed);
-        _link.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
-        _link.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
+        _surfaces.Arrived += () => Safe(Arrived, Log.ArrivalFailed);
+        _surfaces.MonitorsChanged += monitors => Safe(() => Monitors(monitors), Log.MonitorsFailed);
+        _surfaces.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
+        _surfaces.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
         _link.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
         _feed.Received += (_, _) => Post(Record);
         Settings.Changed += (_, _) => Post(SettingsChanged);
         using var watcher = Settings.Watch(Log);
         Settings.FileChanged();
-        _arrival.Start();
-        if (_arrival.Ready)
-        {
-            Arrived(ShellLink.Protocol);
-        }
+        _surfaces.Start();
 
         using var ticks = _parts.Time.CreateTimer(_ => Post(Tick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         using var quit = Gio.SimpleAction.New("quit", null);
@@ -122,6 +135,7 @@ internal sealed class OverlayHost : IDisposable
     {
         _overlays.ForEach(overlay => overlay.Dispose());
         _desk.Dispose();
+        _surfaces.Dispose();
         _link.Dispose();
         _notices.Dispose();
         _loop.Dispose();
@@ -149,26 +163,21 @@ internal sealed class OverlayHost : IDisposable
         }
     }
 
-    private void Arrived(uint protocol)
+    private void Arrived()
     {
-        if (!_arrival.Arrived(protocol))
-        {
-            return;
-        }
-
         _overlays.ForEach(overlay => overlay.Forget());
         _desk.Arrived();
-
+        _watching = false;
         _ = Task.Run(async () =>
         {
             try
             {
-                var monitors = await _link.MonitorsAsync();
+                var monitors = await _surfaces.MonitorsAsync();
                 Post(() => Monitors(monitors));
             }
             catch (GLib.GException ex)
             {
-                // The extension's next MonitorsChanged, or its next arrival, brings them.
+                // The surfaces' next MonitorsChanged, or their next arrival, brings them.
                 Log.MonitorsFailed(ex);
             }
         });
@@ -176,7 +185,7 @@ internal sealed class OverlayHost : IDisposable
 
     private void Monitors(IReadOnlyList<ShellMonitor> monitors)
     {
-        _screens = new ShellScreens(monitors, ShellScreens.Names(_bus));
+        _screens = new ShellScreens(monitors, _kind == SurfaceKind.Shell ? ShellScreens.Names(_bus) : new Dictionary<(int X, int Y), string>());
         Repaint();
     }
 
@@ -236,7 +245,7 @@ internal sealed class OverlayHost : IDisposable
 
         var config = Settings.Config;
         _desk.Notices.Update(config);
-        if (!_arrival.Ready || _screens.Monitors.Count == 0)
+        if (!_surfaces.Ready || _screens.Monitors.Count == 0)
         {
             // Nothing shows, but the second is thermi's all the same.
             if (second)
@@ -249,7 +258,7 @@ internal sealed class OverlayHost : IDisposable
 
         while (_overlays.Count < config.Overlays.Count)
         {
-            _overlays.Add(new ShellOverlay(_overlays.Count, _parts));
+            _overlays.Add(new DesktopOverlay(_overlays.Count, _parts));
         }
 
         while (_overlays.Count > config.Overlays.Count)
@@ -267,7 +276,23 @@ internal sealed class OverlayHost : IDisposable
         sent.Add(_desk.Tray.Refresh(config, scene.Input, primary.Scale));
         sent.Add(_desk.Hotkeys.Update(config));
         Announce(sent, second);
+        Watch(config, shown);
     }
+
+    // The pointer anywhere is told only while an overlay that fades near it shows, so one without costs nothing.
+    private void Watch(ThermiConfig config, IReadOnlyList<OverlayShown> shown)
+    {
+        var fades = config.Overlays.Where((overlay, at) => shown[at] == OverlayShown.Shown && overlay.Fade && !overlay.ClickThrough).Any();
+        if (fades != _watching && _surfaces.PointerAnywhere)
+        {
+            _surfaces.Watch(fades);
+            _watching = fades;
+        }
+    }
+
+    // An event of --trace's, once the surfaces show what made it.
+    private void Traced(string name, Task shown) => _ = shown.ContinueWith(
+        _ => _trace.Write(name), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
 
     // Each event --trace owes, once the Shell shows what the paint sent.
     private void Announce(List<Task> sent, bool second)
@@ -291,7 +316,7 @@ internal sealed class OverlayHost : IDisposable
         }
     }
 
-    private ShellPaint SceneOf(ThermiConfig config)
+    private OverlayPaint SceneOf(ThermiConfig config)
     {
         var input = new TrayInput(_feed.Latest, _feed.State, _parts.Culture, TextsOf(config), DesktopLooks.LightPanels, "")
         {
@@ -300,16 +325,25 @@ internal sealed class OverlayHost : IDisposable
             HighContrast = _highContrast is not null,
             BaseClock = _baseClock,
         };
-        return new ShellPaint(config, Settings.Problem, _screens, input, _highContrast);
+        return new OverlayPaint(config, Settings.Problem, _screens, input, _highContrast);
     }
 
     private List<PixelRect?> Boxes() => [.. _overlays.Select(overlay => overlay.Box)];
 
+    // Each pointer the surfaces tell moves the fade of the overlays that fade near it; one off every overlay, as a leave,
+    // is out of their reach.
     private void Pointer(ShellPointer pointer)
     {
+        var fades = Settings.Config.Overlays.Any(overlay => overlay.Fade);
+        _parts.Cursor = pointer.Kind == "leave" && !_surfaces.PointerAnywhere ? null : (_screens.Thermi(pointer.X, pointer.Y), pointer.Modifiers);
         if (pointer.Overlay < _overlays.Count)
         {
-            _overlays[(int)pointer.Overlay].Pointer(pointer, _screens);
+            _overlays[(int)pointer.Overlay].Pointer.On(pointer, _screens);
+        }
+
+        if (fades)
+        {
+            Repaint();
         }
     }
 
@@ -317,7 +351,7 @@ internal sealed class OverlayHost : IDisposable
     {
         if (key == "Escape" && overlay < _overlays.Count)
         {
-            _overlays[(int)overlay].Cancel(_screens);
+            _overlays[(int)overlay].Pointer.Cancel();
         }
     }
 

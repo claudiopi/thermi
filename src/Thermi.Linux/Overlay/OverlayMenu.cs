@@ -21,7 +21,7 @@ internal sealed record ShownMenu(IReadOnlyList<MenuRow> All, IReadOnlyList<Shell
 /// with the row each sits under, and the row chosen done by <see cref="MenuChoices"/>, as on every OS. The overlay reaches
 /// no clipboard, so its menu offers no copy of it.
 /// </summary>
-internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList<ShellOverlay> overlays, Func<ShellScreens> screens) : IMenuHost
+internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList<DesktopOverlay> overlays, Func<ShellScreens> screens) : IMenuHost
 {
     // The system monitors GNOME, KDE and the newer GNOME apps ship, the first found opening.
     private static readonly string[] TaskManagers = ["gnome-system-monitor", "plasma-systemmonitor", "resources"];

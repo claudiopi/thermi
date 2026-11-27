@@ -34,7 +34,6 @@ public sealed partial class RepoRulesTests
     // The files of the Linux projects that call no Linux-only API, and why each stays there all the same.
     private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
     {
-        ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
         ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
         ["Thermi.Linux/Gnome/ShellIcons.cs"] = "thermi's icons in GNOME's top bar, which only its Shell extension shows",
@@ -42,10 +41,14 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Tray/DesktopTray.cs"] = "Core's tray icons on a Linux desktop, through the Shell's extension or StatusNotifierItem",
         ["Thermi.Linux/Tray/ThermiNotices.cs"] = "Core's notices as the desktop's own notifications, by the action ids of their buttons",
         ["Thermi.Linux/Tray/TrayIcons.cs"] = "what a Linux desktop's tray shows of thermi's icons, which each desktop serves its own way",
+        ["Thermi.Linux/Gnome/ShellSurfaces.cs"] = "GNOME's extension as the overlay's surfaces, over the Shell's link",
+        ["Thermi.Linux/Overlay/DragShow.cs"] = "what a drag shows on a Linux desktop's surfaces: the ghost and the snap marks",
+        ["Thermi.Linux/Overlay/IOverlaySurfaces.cs"] = "where each Linux desktop shows the overlays: the Shell's extension, layer surfaces or X11",
+        ["Thermi.Linux/Overlay/OverlayPointer.cs"] = "the pointer a Linux desktop's surfaces tell, handed to the shared press",
         ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
         ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
         ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
-        ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on GNOME share on the host's GLib main loop, the Shell's link among it",
+        ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on Linux share on the host's GLib main loop, the desktop's surfaces among it",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",
         ["Thermi.Sensors.Linux/Serving/SensorCommands.cs"] = "the Linux service's own command line, whose trees and roots are the kernel's files",
@@ -57,6 +60,9 @@ public sealed partial class RepoRulesTests
     {
         ["libnvidia-ml.so.1"] = "NVML, NVIDIA's driver library, has no introspection data, and loads only where the driver is installed",
         ["libgtk4-layer-shell.so.0"] = "gtk4-layer-shell's few calls, which GirCore does not ship",
+        ["libc"] = "dlopen alone, to load gtk4-layer-shell before GTK, which .NET's NativeLibrary cannot load for every library after",
+        ["libX11.so.6"] = "Xlib's few calls for an overlay's window on X11, which has no introspection data",
+        ["libgtk-4.so.1"] = "GDK's X11 calls, gdk_x11_*, which GTK's introspection data leaves out",
     };
 
     // CsWin32 generates every Win32 declaration from a NativeMethods.txt, and GirCore every GObject library's; one written by

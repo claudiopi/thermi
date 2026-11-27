@@ -66,7 +66,8 @@ internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOn
 
         var bounds = new PixelRect(At(monitor.X), At(monitor.Y), At(monitor.X + monitor.Width), At(monitor.Y + monitor.Height));
         var bar = monitor.Bar > 0 ? bounds with { Bottom = At(monitor.Y + monitor.Bar) } : (PixelRect?)null;
-        var id = names.TryGetValue(((int)Math.Round(monitor.X), (int)Math.Round(monitor.Y)), out var named) ? named : $"monitor-{index}";
+        var id = monitor.Id
+            ?? (names.TryGetValue(((int)Math.Round(monitor.X), (int)Math.Round(monitor.Y)), out var named) ? named : $"monitor-{index}");
         return new Screen(id, monitor.Primary, bounds, bar is { } top ? bounds with { Top = top.Bottom } : bounds, monitor.Scale) { Taskbar = bar };
     }
 }

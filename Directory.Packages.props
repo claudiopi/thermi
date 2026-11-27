@@ -15,6 +15,7 @@
   <ItemGroup Label="App">
     <!-- GObject's libraries for .NET, generated from their introspection data: Linux's Cairo, Pango and Gio (docs/adr/0019-linux.md). -->
     <PackageVersion Include="GirCore.Gdk-4.0" Version="0.8.1" />
+    <PackageVersion Include="GirCore.Gtk-4.0" Version="0.8.1" />
     <PackageVersion Include="GirCore.PangoCairo-1.0" Version="0.8.1" />
     <PackageVersion Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />

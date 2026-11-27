@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using Thermi.App.Gestures;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
@@ -17,7 +18,7 @@ namespace Thermi.Windows.Gestures;
 /// taskbars beside the notification area and at their start, and in the corners of every monitor, the one it would drop
 /// onto filled. They let every click through, and sit under what is dragged.
 /// </summary>
-internal sealed class SnapMarks : IDisposable
+internal sealed class SnapMarks : IDragMarks
 {
     private const int Fill = 40;
     private const int LitFill = 120;

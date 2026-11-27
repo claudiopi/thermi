@@ -1,22 +1,25 @@
 using Thermi.App.Logging;
 using Thermi.Core.Pipe;
 using Thermi.Linux.Desktop;
+using Thermi.Linux.Gnome;
 using Thermi.Linux.Hotkeys;
-using Thermi.Linux.Overlay;
 using Thermi.Linux.Tray;
 
-namespace Thermi.Linux.Gnome;
+namespace Thermi.Linux.Overlay;
+
+/// <summary>How thermi started: the surfaces its desktop has, and whether it found no settings, which it then writes.</summary>
+internal sealed record ThermiStart(SurfaceKind Kind, bool FirstStart);
 
 /// <summary>
 /// What GNOME's host shows beside its overlays: thermi's icons in the top bar and its hotkeys, both through the extension,
 /// and its notices, the Shell's own notifications.
 /// </summary>
-internal sealed class GnomeDesk : IDisposable
+internal sealed class ThermiDesk : IDisposable
 {
     private readonly ShellDesktop _desktop;
 
-    public GnomeDesk(
-        Gio.DBusConnection bus, OverlayParts parts, OverlayMenu menu, DesktopNotices notices, TraceEvents trace, ISensorFeed sensors, bool firstStart)
+    public ThermiDesk(
+        Gio.DBusConnection bus, OverlayParts parts, OverlayMenu menu, DesktopNotices notices, TraceEvents trace, ISensorFeed sensors, ThermiStart start)
     {
         _desktop = new ShellDesktop(bus, parts.Log);
         var tray = new TrayHost(parts.Settings, parts.Visibility, parts.RequestPaint)
@@ -35,7 +38,7 @@ internal sealed class GnomeDesk : IDisposable
             Settle = parts.Settle,
             OpenSettings = () => parts.OpenSettings(0, null),
         };
-        Notices = new ThermiNotices(notices, told, parts.Time, firstStart);
+        Notices = new ThermiNotices(notices, told, parts.Time, start.FirstStart);
     }
 
     public DesktopTray Tray { get; }

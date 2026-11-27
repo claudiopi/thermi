@@ -24,6 +24,16 @@
           "GirCore.GObject-2.0": "0.8.1"
         }
       },
+      "GirCore.Gtk-4.0": {
+        "type": "Direct",
+        "requested": "[0.8.1, )",
+        "resolved": "0.8.1",
+        "contentHash": "voCdlOtmgciZAthyL4Q/5HHJbzAhQfRVO0XzXApOkEs9iSire0umhuHHf7/PIpTCpde1CARzTTtTcZXu/5oRbA==",
+        "dependencies": {
+          "GirCore.Gdk-4.0": "0.8.1",
+          "GirCore.Gsk-4.0": "0.8.1"
+        }
+      },
       "GirCore.PangoCairo-1.0": {
         "type": "Direct",
         "requested": "[0.8.1, )",
@@ -95,6 +105,23 @@
         "contentHash": "fu6jkSGTzV8v+kRRLfDnTnfzJ1K+/EoMc55u0OSsfV5tleZY3VJAjyf5MnMmY5SBn1Mj0DE712YMPoQDR3G7RA==",
         "dependencies": {
           "GirCore.GLib-2.0": "0.8.1"
+        }
+      },
+      "GirCore.Graphene-1.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "g947SPM7uTI0+a+ev6pT22Jyh08V1U8IAjbNO8aOOrvWYCzyg6nJBw8iHt2DrW9VTsqi7M1zmoMmkuSYGLQiDQ==",
+        "dependencies": {
+          "GirCore.GObject-2.0": "0.8.1"
+        }
+      },
+      "GirCore.Gsk-4.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "QLNB/ozKTsrGuhXPsTBBOjmR08DqZ+objRf4M3WCcjh21aUaGl5aLXcN9NaHa/wgpyJo29eGCpVW26O3CphecQ==",
+        "dependencies": {
+          "GirCore.Gdk-4.0": "0.8.1",
+          "GirCore.Graphene-1.0": "0.8.1"
         }
       },
       "GirCore.HarfBuzz-0.0": {
