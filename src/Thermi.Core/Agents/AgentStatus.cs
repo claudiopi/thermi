@@ -111,6 +111,18 @@ public sealed record AgentFacts(ServiceState Service, bool Installed, bool Taken
     public AgentOs Os { get; init; }
 
     public bool OverlayCanShow { get; init; } = true;
+
+    /// <summary>What About says of the version, the channel and where updates come from, which status says too.</summary>
+    public AboutFacts About { get; init; } = AboutFacts.None;
+}
+
+/// <summary>
+/// thermi's version, the update channel it follows, and where its updates come from, <c>thermi</c> or <c>system</c>; each
+/// null where the host does not say it.
+/// </summary>
+public sealed record AboutFacts(string? Version, string? Channel, string? Updates)
+{
+    public static AboutFacts None { get; } = new(null, null, null);
 }
 
 public static class AgentStatus
@@ -151,6 +163,9 @@ public static class AgentStatus
         return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. problems.Select(problem => Said(problem, facts.SensorsOnly, facts.Os))])
         {
             Settings = facts.Settings is { Kind: not ConfigProblemKind.Missing } problem ? problem.Kind : null,
+            Version = facts.About.Version,
+            Channel = facts.About.Channel,
+            Updates = facts.About.Updates,
         };
     }
 

@@ -35,6 +35,7 @@ public sealed partial class RepoRulesTests
     // The files of the Linux projects that call no Linux-only API, and why each stays there all the same.
     private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
     {
+        ["Thermi.Linux/Agents/LinuxAbout.cs"] = "the channel as the files of apt's and dnf's repositories name it, which only Linux's packages write",
         ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
         ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
