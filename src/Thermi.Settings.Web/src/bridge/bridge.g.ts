@@ -456,6 +456,7 @@ export interface WindowStatus {
   hotkeys: HotkeyRole[];
   failed: HotkeyRole[];
   problem: string | null;
+  hotkeysRefused: boolean;
   lightTaskbar: boolean;
   forEveryone: boolean;
   os: HostOs;
