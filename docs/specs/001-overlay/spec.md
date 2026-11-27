@@ -30,7 +30,7 @@ A service reads the PC's sensors with administrator rights from boot, and an ove
 - R7. Settings live in a JSON file the user can edit; changes apply at once, and a broken file is reported and never overwritten.
 - R9. At rest the overlay uses under 0.5 % of one core and 48 MB of private memory (`docs/adr/0001-architecture.md`).
   Release check: Costs at rest.
-- R10. While the session is locked, behind its screen saver, or its display is off (dimmed still shows), the overlay paints nothing and still reads the sensors, so its history, "Notify me" and the agents stay right; as soon as it is unlocked or the display comes back, it shows the last reading, without waiting for the next.
+- R10. While the session is locked, behind its screen saver, or its display is off (dimmed still shows), the overlay paints nothing and still reads the sensors, so its history, "Notify me" and the agents stay right; as soon as it is unlocked or the display comes back, or within a second once a screen saver ends, it draws once, the last reading, without waiting for the next.
   Release check: On top, hidden and shown.
 - R11. The overlay paints only when what it shows changes: a value, a level, a line's point, its look, scale, place, opacity or the window's marks. A glow and a drag paint every frame they need, and a value that changes shows within the second it comes.
 
