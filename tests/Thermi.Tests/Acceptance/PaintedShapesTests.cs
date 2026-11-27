@@ -89,4 +89,15 @@ public sealed class PaintedShapesTests
                 + string.Join(' ', parts.Select(part => part.Box).Select(box => string.Create(
                     CultureInfo.InvariantCulture, $"{box.Left},{box.Top},{box.Width},{box.Height}"))));
     }
+
+    // A click passes through a rounded pill's corners, where nothing is drawn: it takes clicks in bands inside its curve.
+    [Theory] // Rows: square, round, and too narrow for its round ends' bands
+    [InlineData(100, 0, "0,0,100,24")]
+    [InlineData(100, 12, "12,0,76,4 3.1,4,93.9,4 0.7,8,98.6,4 0.7,12,98.6,4 3.1,16,93.9,4 12,20,76,4")]
+    [InlineData(20, 12, "3.1,4,13.9,4 0.7,8,18.6,4 0.7,12,18.6,4 3.1,16,13.9,4")]
+    public void APillTakesClicksOnlyWhereItIsDrawn(double width, double radius, string expected) =>
+        Assert.Equal(
+            expected,
+            string.Join(' ', PaintLayout.Taking(new PillBox(0, 0, width, 24), radius).Select(box => string.Create(
+                CultureInfo.InvariantCulture, $"{box.Left:0.#},{box.Top:0.#},{box.Width:0.#},{box.Height:0.#}"))));
 }
