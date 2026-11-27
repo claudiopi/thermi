@@ -197,10 +197,22 @@ internal sealed class TestDesktop : IAsyncDisposable
     internal static string[] Call(string destination, string path, string method, params string[] args) =>
         ["call", "--session", "--dest", destination, "--object-path", path, "--method", $"{destination}.{method}", .. args];
 
-    // gdbus returns once the name has an owner on the session's bus, as a program that is up takes it.
-    private async Task WaitForNameAsync(string name, CancellationToken cancel)
+    // gdbus returns once the name has an owner on the session's bus, as a program that is up takes it; and when the program
+    // that would take it ends first, the wait fails with what it said.
+    private async Task WaitForNameAsync(string name, CancellationToken cancel, SessionProcess? owner = null)
     {
-        var waited = await Session.RunAsync("gdbus", ["wait", "--session", "--timeout", Bound.LineSeconds, name], cancel: cancel).ConfigureAwait(false);
+        using var done = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        var waiting = Session.RunAsync("gdbus", ["wait", "--session", "--timeout", Bound.LineSeconds, name], cancel: done.Token);
+        var ended = owner?.WaitForExitAsync(done.Token) ?? waiting;
+        var first = await Task.WhenAny(waiting, ended).ConfigureAwait(false);
+        await done.CancelAsync().ConfigureAwait(false);
+        if (first != waiting)
+        {
+            var said = await owner!.Error.ToEndAsync(cancel).ConfigureAwait(false);
+            throw new InvalidOperationException($"{name} never came on the session's bus: its program ended, {said}");
+        }
+
+        var waited = await waiting.ConfigureAwait(false);
         if (waited.Exit != 0)
         {
             throw new InvalidOperationException($"{name} never came on the session's bus: {waited.Error}");
@@ -217,12 +229,14 @@ internal sealed class TestDesktop : IAsyncDisposable
             .. monitors.SelectMany(monitor => new[] { "--virtual-monitor", $"{monitor.Width}x{monitor.Height}" })];
         if (Kind == DesktopKind.GnomeX11)
         {
+            var options = await Session.RunAsync("gnome-shell", ["--help-all"], cancel: cancel).ConfigureAwait(false);
+            Assert.SkipUnless(options.Out.Contains(" --x11 ", StringComparison.Ordinal), "This GNOME Shell runs on no X11: GNOME 50 removed it.");
             await StartXvfbAsync(monitors, cancel).ConfigureAwait(false);
             shell = ["--x11"];
         }
 
-        await Session.StartAsync("gnome-shell", shell, cancel: cancel).ConfigureAwait(false);
-        await WaitForNameAsync(TestShell.ReadyName, cancel).ConfigureAwait(false);
+        var started = await Session.StartAsync("gnome-shell", shell, cancel: cancel).ConfigureAwait(false);
+        await WaitForNameAsync(TestShell.ReadyName, cancel, started).ConfigureAwait(false);
         // A headless Shell's seat has no pointer or keyboard until the tests' own: made now, before any program starts, so
         // each finds them there, and the first click is not lost while a window takes up a pointer just added.
         await Input.ShellAsync("", cancel).ConfigureAwait(false);

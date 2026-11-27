@@ -23,11 +23,13 @@ public sealed class TaskbarDropTests
         Tray = new PixelRect(2210, 1392, 2560, 1440),
     };
 
-    // A second monitor at its right, its taskbar at the top, its notification area starting at 4200.
+    // A second monitor at its right, its taskbar at the top as GNOME's top bar, its notification area starting at 4200 and
+    // a clock from 3420 to 3620 that no overlay covers.
     private static readonly Screen Side = new("side", false, new PixelRect(2560, 0, 4480, 1080), new PixelRect(2560, 40, 4480, 1080), 1)
     {
         Taskbar = new PixelRect(2560, 0, 4480, 40),
         Tray = new PixelRect(4200, 0, 4480, 40),
+        Centre = new PixelRect(3420, 0, 3620, 40),
     };
 
     // The QA PC with a 96 px taskbar, on which an overlay shows at its size up to 250 %, so a row's widths are what its size asks for.
@@ -62,8 +64,9 @@ public sealed class TaskbarDropTests
     [InlineData("alt 1600,1397", "Taskbar 1600,1397")]
     [InlineData("alt 18,1336", "free 18,1336")]
     [InlineData("alt 1200,1300", "free 1200,1300")]
-    // A taskbar at the top of another monitor pulls from its edge 96 px below it; a vertical overlay never goes on one.
-    [InlineData("3000,136", "Taskbar 3000,1")]
+    // A taskbar at the top of another monitor pulls from its edge 96 px below it, beside its clock on the nearer side; a
+    // vertical overlay never goes on one.
+    [InlineData("3300,136", "Taskbar 3628,1")]
     [InlineData("vertical 1200,1397", "free 1200,1354")]
     public void ADropLandsWhereItIsLetGoOrOnAMarkInReach(string drop, string lands)
     {

@@ -24,15 +24,19 @@ public readonly record struct PixelRect(int Left, int Top, int Right, int Bottom
 }
 
 /// <summary>
-/// A monitor as Windows reports it, <see cref="Scale"/> being its DPI over 96. <see cref="Taskbar"/> is null on a
-/// monitor without one, and <see cref="Tray"/> is the notification area on the main taskbar or the clock on another,
-/// null when it cannot be found from its window.
+/// A monitor as Windows reports it, <see cref="Scale"/> being its DPI over 96. <see cref="Taskbar"/> is null on a monitor without one,
+/// and <see cref="Tray"/> is the notification area on the main taskbar or the clock on another, null when it cannot be found from its
+/// window. <see cref="Centre"/> and <see cref="End"/> are parts of a taskbar no overlay covers, GNOME's clock and system menu.
 /// </summary>
 public sealed record Screen(string Id, bool Primary, PixelRect Bounds, PixelRect Work, double Scale)
 {
     public PixelRect? Taskbar { get; init; }
 
     public PixelRect? Tray { get; init; }
+
+    public PixelRect? Centre { get; init; }
+
+    public PixelRect? End { get; init; }
 }
 
 /// <summary>Why a monitor's taskbar place floats in its work area: its taskbar is on a side, or it hides itself.</summary>
@@ -256,7 +260,23 @@ public static class Snaps
                 .Select(each => each.Snap)
                 .FirstOrDefault()
             : null;
-        return mark ?? new SnapConfig(SnapSpot.Taskbar, screen.Primary ? null : screen.Id) { Offset = Along(bar, at.X - bar.Left, width) };
+        var offset = Beside(screen, bar, bar.Left + Along(bar, at.X - bar.Left, width), width) - bar.Left;
+        return mark ?? new SnapConfig(SnapSpot.Taskbar, screen.Primary ? null : screen.Id) { Offset = offset };
+    }
+
+    // Over a part of the taskbar no overlay covers, it goes beside that part, on the side nearer its middle where it fits.
+    private static int Beside(Screen screen, PixelRect bar, int left, int width)
+    {
+        foreach (var kept in new[] { screen.Centre, screen.End }.OfType<PixelRect>().ToList())
+        {
+            if (left < kept.Right && left + width > kept.Left)
+            {
+                var (before, after) = (kept.Left - Scaled(Margin, screen) - width, kept.Right + Scaled(Margin, screen));
+                left = ((left * 2) + width < kept.Left + kept.Right && before >= bar.Left) || after + width > bar.Right ? before : after;
+            }
+        }
+
+        return left;
     }
 
     private static int Along(PixelRect bar, int offset, int width) => Math.Clamp(offset, 0, Math.Max(0, bar.Width - width));
@@ -321,7 +341,7 @@ public static class Snaps
         if (orientation == Orientation.Horizontal && TaskbarOf(screen) is { } bar)
         {
             var along = Along(bar, offset ?? (RightEnd(screen, bar) - width - bar.Left), width);
-            return new Position(bar.Left + along, bar.Top + ((bar.Height - height) / 2));
+            return new Position(Beside(screen, bar, bar.Left + along, width), bar.Top + ((bar.Height - height) / 2));
         }
 
         var margin = Scaled(Margin, screen);

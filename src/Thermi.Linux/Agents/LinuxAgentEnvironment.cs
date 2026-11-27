@@ -8,6 +8,7 @@ using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Linux.Desktop;
+using Thermi.Linux.Gnome;
 using Thermi.Linux.Sensors;
 
 namespace Thermi.Linux.Agents;
@@ -61,9 +62,12 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool RunsInstalled() => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
 
-    // GNOME's monitors, as Mutter lays them out. Another desktop's are what the overlay's own surfaces find, layer-shell's
-    // or X11's; until they answer here, none.
-    public IReadOnlyList<Screen> Screens() => GnomeMonitors.Read();
+    // GNOME's monitors as the overlay reads them, from thermi's extension, so an agent's place is the overlay's pixel. Another
+    // desktop's are what the overlay's own surfaces find, layer-shell's or X11's; until they answer here, none.
+    public IReadOnlyList<Screen> Screens() =>
+        SessionBus.Call(ShellLink.Shell, ShellLink.ObjectPath, ShellLink.Interface, "Monitors") is { } answer && SessionBus.Bus is { } bus
+            ? new ShellScreens(ShellLink.MonitorsOf(answer.GetChildValue(0)), ShellScreens.Names(bus)).Screens
+            : [];
 
     public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 

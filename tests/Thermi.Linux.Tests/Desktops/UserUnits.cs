@@ -63,7 +63,7 @@ internal sealed partial class UserUnits
         if (!await Readiness.BeforeEndAsync(ready, started.WaitForExitAsync(cancel)).ConfigureAwait(false))
         {
             var said = await started.Error.ToEndAsync(cancel).ConfigureAwait(false);
-            throw new InvalidOperationException($"The tests' user manager ended before it was ready: {said}");
+            throw new InvalidOperationException($"The tests' user manager ended with {started.ExitCode} before it was ready: {said}");
         }
 
         // A manager sets its units' PATH itself; a desktop's session hands it its own, as here, the tests' programs first,
