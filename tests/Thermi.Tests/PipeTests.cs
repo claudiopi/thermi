@@ -346,6 +346,10 @@ public sealed class PipeTests
         {
         }
 
+        // A line is sent whole once written, so the next tick finds every client ready: Stream's own flush would end on the
+        // thread pool after the test went on, and that tick would pass over a client still sending.
+        public override Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

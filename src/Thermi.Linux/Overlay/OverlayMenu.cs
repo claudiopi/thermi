@@ -27,7 +27,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
     // read both.
     private static readonly string[] Tokens = ["XDG_ACTIVATION_TOKEN", "DESKTOP_STARTUP_ID"];
 
-    // The Shell's time for now: a menu's choice tells none.
+    // The time the Shell reads as the present: a menu's choice tells none.
     private const uint Now = 0;
 
     private IReadOnlyList<MenuRow> _shown = [];
