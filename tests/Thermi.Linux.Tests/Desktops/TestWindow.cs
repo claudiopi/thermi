@@ -34,6 +34,11 @@ internal sealed class TestWindow
                     return False
                 window.add_tick_callback(tick)
             window.connect('notify::fullscreened', ready)
+            # The Shell on X11 may take a maximize back while it starts up: the window asks again each time.
+            def again(*_):
+                if not full and window.get_mapped() and not window.is_maximized(): window.maximize()
+            window.connect('notify::maximized', again)
+            window.connect('map', again)
             window.connect('notify::maximized', ready)
             window.connect('map', ready)
             window.fullscreen() if full else window.maximize()

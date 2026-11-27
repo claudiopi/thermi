@@ -221,6 +221,9 @@ internal sealed class TestDesktop : IAsyncDisposable
 
         await Session.StartAsync("gnome-shell", shell, cancel: cancel).ConfigureAwait(false);
         await WaitForNameAsync(TestShell.ReadyName, cancel).ConfigureAwait(false);
+        // A headless Shell's seat has no pointer or keyboard until the tests' own: made now, before any program starts, so
+        // each finds them there, and the first click is not lost while a window takes up a pointer just added.
+        await Input.ShellAsync("", cancel).ConfigureAwait(false);
         if (monitors.Count > 1 || monitors.Any(monitor => Math.Abs(monitor.Scale - 1) > 0.01))
         {
             await ConfigureGnomeAsync(monitors, swapped: false, cancel).ConfigureAwait(false);
