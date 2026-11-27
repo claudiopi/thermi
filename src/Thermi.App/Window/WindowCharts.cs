@@ -30,7 +30,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
         if (sensors.Latest is { } snapshot)
         {
             chart.Follow(editor.Config, ReadBefore);
-            chart.Items.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))]);
+            chart.Items.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))], editor.Config.PingHost);
         }
     }
 

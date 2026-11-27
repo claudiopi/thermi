@@ -3,6 +3,7 @@ using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Editing;
 using Thermi.Core.Frames;
 using Thermi.Core.Look;
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -19,6 +20,9 @@ public sealed class TrayTextTests
     private const string Installed = @"C:\Program Files\thermi\thermi.exe";
 
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
+
+    // What Windows itself says while the service is stopped: two hours up, no address, noon.
+    private static readonly WindowsFacts WindowsSays = new(TimeSpan.FromHours(2), null, DateTimeOffset.UnixEpoch.AddHours(12));
 
     private static Snapshot Desktop => TestRecordings.Read(TestRecordings.Admin);
 
@@ -227,8 +231,8 @@ public sealed class TrayTextTests
     // nothing, the service stopped or stale, an overlay hidden, click-through, high contrast, an overlay with nothing to
     // show, four overlays all critical, the window never opened yet, and the PC asleep past the stale limit, then woken by
     // a fresh snapshot, and a clock among the items, which Windows reads with no service at all, and while the service runs
-    // but has sent nothing yet, which the game's sensors every reader adds do not stand in for. The hint is the first
-    // value tooltip's that has one.
+    // but has sent nothing yet, which the game's sensors every reader adds do not stand in for, nor the ping the overlay
+    // sends itself, which shows on. The hint is the first value tooltip's that has one.
     [Theory] // Rows: each a state its steps name: levels, no driver, reading nothing, stopped, stale, asleep and woken, contrast, first run
     [InlineData("", MarkState.Calm, false, ValueHint.None)]
     [InlineData("warning", MarkState.Warm, false, ValueHint.None)]
@@ -236,6 +240,7 @@ public sealed class TrayTextTests
     [InlineData("no-driver", MarkState.Calm, false, ValueHint.NeedsDriver)]
     [InlineData("reads-nothing", MarkState.Calm, false, ValueHint.ReadsNothing)]
     [InlineData("critical stopped clock", MarkState.Stopped, true, ValueHint.SensorsStopped)]
+    [InlineData("critical stopped clock ping", MarkState.Stopped, true, ValueHint.SensorsStopped)]
     [InlineData("critical awaited clock", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("critical stale", MarkState.Stopped, false, ValueHint.SensorsStopped)]
     [InlineData("critical high-contrast", MarkState.HighContrast, false, ValueHint.None)]
@@ -255,15 +260,17 @@ public sealed class TrayTextTests
         Assert.Equal(mark, ThermiMark.Of(config, input, highContrast: words.Contains("high-contrast")));
         Assert.InRange(thermi.Tooltip.Length, 1, TrayTexts.MaxTooltip);
         Assert.Equal(stoppedPill, scene.SensorsStopped);
-        var clock = scene.Items.Where(item => item.Id == Metrics.Clock.Id).ToList();
+        var clock = scene.Items.Where(item => item.Id == Metrics.Clock.Id || item.Id == Metrics.Ping.Id).ToList();
         Assert.True(!stoppedPill || scene.Items.Count == clock.Count, "While sensors are stopped, the one pill stands in for every sensor's item.");
         Assert.True(
             hint != ValueHint.SensorsStopped || scene.Items.Except(clock).All(item => item.Value == ReadingFormatter.Missing),
             "No value from before the gap shows as live.");
         Assert.True(
             !words.Contains("clock")
-                || (clock is [{ Value: not ReadingFormatter.Missing }] && Icon(TrayScene.Of(config, input), Metrics.Clock.Id).Text != ReadingFormatter.Missing),
+                || (clock is [{ Value: not ReadingFormatter.Missing }, ..]
+                    && Icon(TrayScene.Of(config, input), Metrics.Clock.Id).Text != ReadingFormatter.Missing),
             "The clock never waits on the sensor service.");
+        Assert.True(!words.Contains("ping") || clock is [_, { Value: "23 ms" }], "Nor does the ping, which the overlay sends itself.");
         Assert.Equal(hint, scene.Tooltips.Select(tooltip => tooltip.Hint).FirstOrDefault(each => each != ValueHint.None));
         Assert.All(scene.Tooltips, tooltip => Assert.Equal(TooltipLines(tooltip), ValueTooltips.Text(config, 0, input, tooltip).Split('\n').Length));
     }
@@ -311,6 +318,7 @@ public sealed class TrayTextTests
         var threshold = words.Contains("critical") ? new Threshold(60, 75) : words.Contains("warning") ? new Threshold(70, 90) : null;
         var empty = words.Contains("empty");
         ItemConfig[] clock = words.Contains("clock") ? [new ItemConfig { Id = Metrics.Clock.Id, Metric = Metrics.Clock.Id, Tray = true }] : [];
+        ItemConfig[] ping = words.Contains("ping") ? [new ItemConfig { Id = Metrics.Ping.Id, Metric = Metrics.Ping.Id }] : [];
         IReadOnlyList<ItemConfig> Items(OverlayConfig overlay)
         {
             return empty
@@ -318,6 +326,7 @@ public sealed class TrayTextTests
                 : [
                     .. overlay.Items.Select(item => item.Id != Metrics.CpuTemperature.Id || threshold is null ? item : item with { Threshold = threshold }),
                     .. clock,
+                    .. ping,
                 ];
         }
 
@@ -334,6 +343,6 @@ public sealed class TrayTextTests
                 Sensors = [.. Desktop.Sensors.Select(sensor => sensor.Id == "/lpc/it8689e/0/fan/0" ? sensor with { Value = null } : sensor)],
             }
         : words.Contains("clock")
-            ? GameSensors.With(SystemSensors.With(new Snapshot([]), new WindowsFacts(TimeSpan.FromHours(2), null, DateTimeOffset.UnixEpoch.AddHours(12))), null)
+            ? PingSensors.With(GameSensors.With(SystemSensors.With(new Snapshot([]), WindowsSays), null), EchoReply.Of(23))
         : Desktop;
 }

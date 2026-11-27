@@ -79,6 +79,9 @@ public enum NoValue
 
     /// <summary>The ping found no network up.</summary>
     PingNoNetwork,
+
+    /// <summary>The ping waits for an echo, as before its first ends.</summary>
+    PingWaiting,
 }
 
 /// <summary>

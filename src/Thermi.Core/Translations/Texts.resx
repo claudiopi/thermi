@@ -202,7 +202,7 @@
     <value>Install for everyone to read FPS</value>
   </data>
   <data name="CatalogText.RowPingOff" xml:space="preserve">
-    <value>Pings only while an overlay shows it</value>
+    <value>Pings only while an item of any overlay, shown or hidden, reads it</value>
   </data>
   <data name="CatalogText.RowPingTimedOut" xml:space="preserve">
     <value>No reply within a second</value>
@@ -215,6 +215,9 @@
   </data>
   <data name="CatalogText.RowPingNoNetwork" xml:space="preserve">
     <value>No network</value>
+  </data>
+  <data name="CatalogText.RowPingWaiting" xml:space="preserve">
+    <value>Waiting for its echo</value>
   </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Shown: {0}</value>
@@ -1471,7 +1474,7 @@
     <value>reads frames only once thermi is installed for everyone, with administrator rights</value>
   </data>
   <data name="NoValue.PingOff" xml:space="preserve">
-    <value>pings only while an item of an overlay shows it</value>
+    <value>pings only while an item of any overlay, shown or hidden, reads it</value>
   </data>
   <data name="NoValue.PingTimedOut" xml:space="preserve">
     <value>got no reply within a second</value>
@@ -1484,6 +1487,9 @@
   </data>
   <data name="NoValue.PingNoNetwork" xml:space="preserve">
     <value>finds no network</value>
+  </data>
+  <data name="NoValue.PingWaiting" xml:space="preserve">
+    <value>waits for its echo</value>
   </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>

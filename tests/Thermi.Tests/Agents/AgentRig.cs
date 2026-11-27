@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Thermi.App.Ping;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
 using Thermi.Core.Pipe;
@@ -118,6 +119,9 @@ internal sealed class AgentRig : IDisposable
 
     public bool Raised { get; set; }
 
+    /// <summary>The system's ping as a read sees it; none, as on a host that sends no echo, when null.</summary>
+    public IEcho? Echo { get; set; }
+
     /// <summary>Where the commands log, the folder's own list when null.</summary>
     public ILogger? Log { get; set; }
 
@@ -185,6 +189,8 @@ internal sealed class AgentRig : IDisposable
         public string FinderRan => Path.Combine(Path.GetDirectoryName(rig.Folder.File)!, "fan-finder-ran.txt");
 
         public ISensorFeed Sensors() => rig.Sensors();
+
+        public IEcho? Echo => rig.Echo;
 
         public bool Installed() => rig.Installed;
 

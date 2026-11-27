@@ -41,9 +41,9 @@ function PingHostRow({ host, edit }: { host: string | undefined; edit: MoreOptio
   const t = useText();
   const [typed, setTyped] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  // Enter and the focus leaving may both commit the same text, which needs no second edit.
   const commit = async (value: string): Promise<void> => {
-    const next = value.trim();
-    const refusal = next === (host ?? '') ? null : await edit({ kind: 'thermi', field: 'pingHost', value: next === '' ? null : next });
+    const refusal = value === (host ?? '') ? null : await edit({ kind: 'thermi', field: 'pingHost', value });
     setRefused(refusal);
     if (refusal === null) {
       setTyped(null);

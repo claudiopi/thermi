@@ -40,7 +40,7 @@ internal sealed record WindowEnvironment(
     public string? BrowserFolder { get; init; }
 
     /// <summary>The ping <see cref="Sensors"/> adds, which follows the window's settings while it is open; null for none.</summary>
-    public PingReader? Ping { get; init; }
+    public PingFeed? Ping { get; init; }
 
     /// <summary>Asks the overlay which hotkeys it could not register, null when none answers.</summary>
     public Func<long?> HotkeyStatus { get; init; } = OverlayHost.AskHotkeyStatus;
@@ -60,20 +60,20 @@ internal sealed record WindowEnvironment(
     {
         using var process = Process.GetCurrentProcess();
         var exe = ThermiPaths.Launcher;
-        var ping = new PingReader(new IcmpEcho(), time, logs.CreateLogger<PingReader>());
+        var sensors = new PingFeed(
+            new SystemFeed(
+                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
+            new PingReader(new IcmpEcho(), time, logs.CreateLogger<PingReader>()));
         return new(
             HostEnvironment.WindowMutexName,
             ConfigStore.DefaultPath,
             exe,
             logs.CreateLogger("Thermi.Ui"),
             new DateTimeOffset(process.StartTime),
-            new SystemFeed(
-                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)),
-                time,
-                ping),
+            sensors,
             StartWithWindows.Of(exe))
         {
-            Ping = ping,
+            Ping = sensors,
         };
     }
 }

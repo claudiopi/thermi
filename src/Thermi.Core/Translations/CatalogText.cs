@@ -70,6 +70,7 @@ public enum CatalogText
     RowPingUnreachable,
     RowPingUnknownHost,
     RowPingNoNetwork,
+    RowPingWaiting,
 
     /// <summary>Under a catalog row: the items that already show it.</summary>
     ShownAs,

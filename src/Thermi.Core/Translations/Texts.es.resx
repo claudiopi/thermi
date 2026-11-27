@@ -206,7 +206,7 @@
     <value>Instalá para todos para leer los FPS</value>
   </data>
   <data name="CatalogText.RowPingOff" xml:space="preserve">
-    <value>Hace ping solo mientras una superposición lo muestra</value>
+    <value>Hace ping solo mientras un elemento de alguna superposición, visible u oculta, lo lee</value>
   </data>
   <data name="CatalogText.RowPingTimedOut" xml:space="preserve">
     <value>Sin respuesta en un segundo</value>
@@ -219,6 +219,9 @@
   </data>
   <data name="CatalogText.RowPingNoNetwork" xml:space="preserve">
     <value>Sin red</value>
+  </data>
+  <data name="CatalogText.RowPingWaiting" xml:space="preserve">
+    <value>Esperando su eco</value>
   </data>
   <data name="CatalogText.ShownAs" xml:space="preserve">
     <value>Se muestra: {0}</value>
@@ -1495,7 +1498,7 @@
     <value>lee cuadros solo con thermi instalado para todos, con permisos de administrador</value>
   </data>
   <data name="NoValue.PingOff" xml:space="preserve">
-    <value>hace ping solo mientras un elemento de una superposición lo muestra</value>
+    <value>hace ping solo mientras un elemento de alguna superposición, visible u oculta, lo lee</value>
   </data>
   <data name="NoValue.PingTimedOut" xml:space="preserve">
     <value>no tuvo respuesta en un segundo</value>
@@ -1508,6 +1511,9 @@
   </data>
   <data name="NoValue.PingNoNetwork" xml:space="preserve">
     <value>no encuentra ninguna red</value>
+  </data>
+  <data name="NoValue.PingWaiting" xml:space="preserve">
+    <value>espera su eco</value>
   </data>
   <data name="Orientation.Horizontal" xml:space="preserve">
     <value>Horizontal</value>

@@ -248,7 +248,7 @@ export interface Monitor {
 
 export type NameFrom = 'library' | 'likely' | 'own';
 
-export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread' | 'frames-need-install-for-everyone' | 'ping-off' | 'ping-timed-out' | 'ping-unreachable' | 'ping-unknown-host' | 'ping-no-network';
+export type NoValue = 'reads-nothing' | 'driver-may-be-missing' | 'stopped' | 'resting' | 'no-frames' | 'frames-unread' | 'frames-need-install-for-everyone' | 'ping-off' | 'ping-timed-out' | 'ping-unreachable' | 'ping-unknown-host' | 'ping-no-network' | 'ping-waiting';
 
 export interface Opacity {
   background?: number;

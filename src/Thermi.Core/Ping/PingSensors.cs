@@ -17,6 +17,9 @@ public enum PingFailure
 
     /// <summary>The PC has no network up, so no echo was sent.</summary>
     NoNetwork,
+
+    /// <summary>An item reads the ping, and no echo to its host has ended in the last two seconds, as before the first.</summary>
+    Waiting,
 }
 
 /// <summary>What one echo brought back: its round trip in milliseconds, or why there is none.</summary>
@@ -69,6 +72,7 @@ public static class PingSensors
         PingFailure.Unreachable => NoValue.PingUnreachable,
         PingFailure.UnknownHost => NoValue.PingUnknownHost,
         PingFailure.NoNetwork => NoValue.PingNoNetwork,
+        PingFailure.Waiting => NoValue.PingWaiting,
         _ => NoValue.PingOff,
     };
 

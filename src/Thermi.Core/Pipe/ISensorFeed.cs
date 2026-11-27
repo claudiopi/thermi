@@ -12,6 +12,9 @@ public interface ISensorFeed
     /// <summary>Null while the sensor host is unreachable or has gone quiet.</summary>
     Snapshot? Latest { get; }
 
+    /// <summary>What the overlay shows: <see cref="Latest"/>, or while the service sends none, what the host adds itself.</summary>
+    Snapshot Shown => Latest ?? new Snapshot([]);
+
     /// <summary>Whether the readings are fresh or awaited, the service is not running, or its data went stale.</summary>
     ServiceState State { get; }
 

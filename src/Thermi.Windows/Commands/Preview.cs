@@ -55,7 +55,7 @@ internal static class Preview
         for (var second = 0; second < series.Count; second++)
         {
             clock.Second = second;
-            history.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(series[second], overlay)))]);
+            history.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(series[second], overlay)))], config.PingHost);
         }
 
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);

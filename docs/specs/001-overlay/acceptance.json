@@ -120,21 +120,30 @@
       "passes": true
     },
     {
-      "id": "A23",
+      "id": "A25",
       "covers": [
-        "R10"
+        "R12"
       ],
-      "description": "Given an echo that replies in 23 ms, gets no reply, finds its host unreachable or its name unknown, or finds no network, and no item that reads the ping, when the overlay, the catalog and an agent read it, then the item shows 23 ms or missing, never 0, and each says why it has no value.",
+      "description": "Given an echo that replies in 23 ms, gets no reply, finds its host unreachable or its name unknown, finds no network, outlasts its second in the name's lookup or throws what no ping names, before it ends, and no item that reads the ping, when the overlay, the catalog and an agent read it, then the item shows 23 ms or missing, never 0, and each says why it has no value.",
       "check": "APingShowsItsRoundTripOrWhyItHasNone",
       "passes": true
     },
     {
-      "id": "A24",
+      "id": "A26",
       "covers": [
-        "R11"
+        "R13"
       ],
-      "description": "Given settings with no ping item, then one, then one with a host of its own, when seconds pass, then no echo goes out, then one a second to 1.1.1.1 and then to that host, each waited for a second at most, and none once the process stops following the settings.",
+      "description": "Given settings with no ping item, then one, then one with a host of its own, then an echo that hangs, when seconds pass and its process stops, then no echo goes out, then one a second to 1.1.1.1 and then to that host, each waited for a second at most, the stop throws nothing, and two seconds on the last reply reads as waiting.",
       "check": "EchoesGoOutOnlyWhileAnItemReadsThePing",
+      "passes": true
+    },
+    {
+      "id": "A27",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given settings with a ping item and a host that never answers, when an agent reads the ping once, then it says the echo timed out, not that it waits or is off.",
+      "check": "AReadSaysWhatThePingsFirstEchoDid",
       "passes": true
     }
   ]

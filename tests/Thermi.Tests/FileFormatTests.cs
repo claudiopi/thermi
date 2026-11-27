@@ -60,6 +60,7 @@ public sealed class FileFormatTests
     [InlineData("{\"version\":2,\"overlays\":[{\"snap\":{\"monitor\":\"DEL-41A8\"}}]}", "spot")]
     [InlineData("{\"version\":2,\"temperature\":\"k\"}", "temperature")]
     [InlineData("{\"version\":2,\"sensorNames\":{\"/a\":\" \"}}", "sensorNames")]
+    [InlineData("{\"version\":6,\"pingHost\":\"not a host!\"}", "pingHost")]
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"sensor\":\"/a\"}]}]}", "items[0] must name one")]
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"metric\":\"cpu.load\",\"auto\":\"cpu.load\"}]}]}", "items[0].auto")]
     [InlineData("{\"version\":2,\"overlays\":[{\"items\":[{\"sensors\":[\"/a\",\"/b\"]}]}]}", "items[0].combine")]

@@ -81,6 +81,7 @@
               "ping-unreachable",
               "ping-unknown-host",
               "ping-no-network",
+              "ping-waiting",
               null
             ]
           },

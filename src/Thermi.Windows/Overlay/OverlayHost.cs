@@ -326,7 +326,7 @@ internal sealed class OverlayHost : IDisposable
         }
 
         var config = _settings.Config;
-        _actions.History.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
+        _actions.History.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))], config.PingHost);
         _cpu.Sample(ValueTooltips.WantsBusiest(config, snapshot));
 
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint

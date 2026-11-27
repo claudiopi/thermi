@@ -8,7 +8,6 @@ using Thermi.Cli.Agents;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
-using Thermi.Core.Settings;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Install;
 using Thermi.Windows.Overlay;
@@ -33,6 +32,9 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     private const string InstallKey = @"SOFTWARE\thermi";
 
     public const string SensorsOnlyValue = "SensorsOnly";
+
+    /// <summary>The system's ping, which a read sends while the settings it reads hold a ping item.</summary>
+    public IEcho? Echo { get; init; } = new IcmpEcho();
 
     public Func<bool> Installed { get; init; } = () => Exists(Services + StartSensors.Service);
 
@@ -70,32 +72,10 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     {
         return new(
             ConfigStore.DefaultPath,
-            () =>
-            {
-                // A call pings only while the settings, read as it starts, hold a ping item, as the overlay would.
-                var ping = new PingReader(new IcmpEcho(), time, logs.CreateLogger<PingReader>());
-                var settings = SettingsNow(ConfigStore.DefaultPath);
-                ping.Follow(() => settings);
-                return new SystemFeed(
-                    new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)),
-                    time,
-                    ping);
-            },
+            () => new SystemFeed(
+                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
             StartWithWindows.Of(ThermiPaths.Launcher),
             logs.CreateLogger("Thermi.Agents"));
-    }
-
-    // A file being written, or kept from this user, reads as none, which pings nothing.
-    private static ThermiConfig? SettingsNow(string path)
-    {
-        try
-        {
-            return File.Exists(path) ? ThermiConfigJson.Read(File.ReadAllText(path)).Config : null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
     }
 
     ISensorFeed IAgentEnvironment.Sensors() => Sensors();

@@ -2,7 +2,7 @@
 
 **Status**: done
 
-**Budget**: 50 .NET and 0 page cases
+**Budget**: 59 .NET and 0 page cases
 
 A service reads the PC's sensors with administrator rights from boot, and an overlay, running as the user, shows them in a strip above the taskbar or anywhere on screen, refreshed every second. thermi began as the one program to replace two monitoring tools and the scheduled tasks that kept them above the taskbar, so it has to be trusted all day: a value it cannot read shows as missing, nothing it reads can crash it, and it costs next to nothing at rest.
 
@@ -18,9 +18,9 @@ A service reads the PC's sensors with administrator rights from boot, and an ove
 - R2. An overlay, running as the user, shows by default the CPU's temperature, fan speed, load and power, the GPU's load and the RAM used, refreshed every second.
 - R3. Each meter turns yellow and red at configurable thresholds.
 - R6. A value that cannot be read shows as missing (`–`): never as zero, and never as an old number that looks live.
-- R10. A ping item, under Network, shows the round trip in milliseconds of the last ICMP echo to the settings' host, or `1.1.1.1` with none. No reply within a second, a host that cannot be reached, a name that is not found, or no network shows as missing, and its tooltip, the catalog and an agent say which. It has no lines until the person adds them, since a good ping depends on how far the host is; an added line warns at 100 ms and turns critical at 150 ms.
+- R12. A ping item, under Network, shows the round trip in milliseconds of the last ICMP echo to the settings' host, or `1.1.1.1` with none. No reply within a second, a host that cannot be reached, a name that is not found, or no network shows as missing, and its tooltip, the catalog and an agent say which. It has no lines until the person adds them, since a good ping depends on how far the host is; an added line warns at 100 ms and turns critical at 150 ms.
   Release check: Ping against Windows' ping.
-- R11. thermi sends no echo unless an item of an overlay reads the ping. Then each of the user's processes that shows readings sends one a second, and the sensor service never does (`docs/adr/0020-ping.md`).
+- R13. thermi sends no echo unless an item of an overlay reads the ping. Then each of the user's processes that shows readings sends one a second, and the sensor service never does (`docs/adr/0020-ping.md`). Until an echo ends, and once none has for two seconds, the ping waits, and a call that reads once says what its first echo did.
 
 ### Where it stays
 

@@ -31,6 +31,7 @@ const reasons: Record<NoValue, TextKey> = {
   'ping-unreachable': 'CatalogText.RowPingUnreachable',
   'ping-unknown-host': 'CatalogText.RowPingUnknownHost',
   'ping-no-network': 'CatalogText.RowPingNoNetwork',
+  'ping-waiting': 'CatalogText.RowPingWaiting',
 };
 
 // A drive, an adapter or a battery is named under its group, as "Network · Intel I226-V".

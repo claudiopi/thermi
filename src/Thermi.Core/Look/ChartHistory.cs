@@ -27,7 +27,7 @@ public sealed class ChartHistory(TimeProvider time)
     /// </summary>
     public void Follow(ThermiConfig config, Func<ItemConfig, IReadOnlyList<double?>?> read)
     {
-        foreach (var item in Items.Follow(config.Overlays.SelectMany(overlay => overlay.Items)))
+        foreach (var item in Items.Follow(config.Overlays.SelectMany(overlay => overlay.Items), config.PingHost))
         {
             if (read(item) is { } values)
             {

@@ -20,6 +20,9 @@ internal static partial class AppLog
     [LoggerMessage(Level = LogLevel.Information, Message = "Ping {Host}: {Outcome}")]
     public static partial void PingChanged(this ILogger logger, string host, string outcome);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Ping {Host} failed")]
+    public static partial void PingFailed(this ILogger logger, string host, Exception exception);
+
     [LoggerMessage(Level = LogLevel.Debug, Message = "input {Input}")]
     public static partial void Input(this ILogger logger, string input);
 

@@ -2,7 +2,7 @@
 
 **Status**: done
 
-**Budget**: 495 .NET and 80 page cases
+**Budget**: 497 .NET and 80 page cases
 
 The settings window sets thermi up visually: which sensors each overlay shows, their thresholds over the values they guard, where the overlays sit and how they look. Nobody has to know sensor ids or edit JSON. It follows four rules. **The overlay is the preview**: every change shows on the real overlay at once, and there is no Save button, since undo replaces confirmation. **Real data everywhere**: every choice shows its live value. **Nothing can break it**: the window writes only valid settings, and hand edits keep working. **Free when closed**: the window is a process of its own, and the overlay pays nothing for it.
 
