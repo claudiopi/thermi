@@ -16,9 +16,14 @@ if (args is not [var folder, var schemas])
 Directory.CreateDirectory(folder);
 await WriteAsync(Path.Combine(folder, "bridge.g.ts"), new TypeScriptWriter().Bridge(typeof(IWindowBridge)));
 await WriteAsync(Path.Combine(folder, "texts.g.ts"), TextKeys.Write());
-// The script the host runs before the page, so the page's tests hold the wire the real window uses.
+// The script the host runs before the page, and the one a WebKit host hands the page each message with, so the page's
+// tests hold the wire the real window uses.
+const string Hole = "\u0000";
 var client = System.Text.Json.JsonSerializer.Serialize(BridgeCalls.Client);
-await WriteAsync(Path.Combine(folder, "client.g.ts"), $"{TypeScriptWriter.Header}export const client = {client};\n");
+var around = BridgeCalls.Dispatched(Hole).Split(Hole).Select(part => System.Text.Json.JsonSerializer.Serialize(part)).ToList();
+await WriteAsync(
+    Path.Combine(folder, "client.g.ts"),
+    $"{TypeScriptWriter.Header}export const client = {client};\n\nexport const dispatched = (message: string): string => {around[0]} + message + {around[1]};\n");
 Directory.CreateDirectory(schemas);
 var indented = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
 foreach (var (name, schema) in Thermi.Core.Agents.AgentSchemas.Current)

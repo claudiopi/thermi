@@ -1,44 +1,41 @@
-import { client } from '../src/bridge/client.g';
+import { client, dispatched } from '../src/bridge/client.g';
 import { expect, fakeOf, fakeState, openWindow, test, text } from './fakeBridge';
 
 // Spec 006, A16: the bridge's script over WebKitGTK's messages, as Linux's window hosts the page. The host takes each call
-// through the script message handler it registered, and answers, as it sends every event, by running script in the page.
+// through the script message handler it registered, and answers, as it sends every event, by running in the page the
+// script C# writes for a message.
 test('TheBridgeAnswersOverWebKit', async ({ page }) => {
   await page.goto('about:blank');
+  await page.exposeFunction('host', ({ id, method }: { id: string; method: string }) => {
+    void page.evaluate(dispatched(JSON.stringify({ id, result: method })));
+  });
   await page.evaluate(() => {
-    type Message = { id: string; method: string };
-    const host = window as unknown as {
-      webkit: { messageHandlers: { thermi: { postMessage: (message: Message) => void } } };
-      answered: Record<string, unknown>;
-    };
-    host.answered = {};
-    host.webkit = {
-      messageHandlers: {
-        thermi: {
-          postMessage: ({ id, method }) =>
-            setTimeout(() => window.dispatchEvent(new MessageEvent('thermi', { data: { id, result: method } }))),
-        },
-      },
-    };
+    const host = window as unknown as { host: (message: unknown) => void; webkit: unknown };
+    host.webkit = { messageHandlers: { thermi: { postMessage: (message: unknown) => host.host(message) } } };
   });
   await page.addScriptTag({ content: client });
 
-  const heard = await page.evaluate(async () => {
+  const answers = await page.evaluate(async () => {
     const bridge = (window as unknown as { thermi: Record<string, (...args: unknown[]) => unknown> }).thermi;
-    const events = ['changed', 'picked', 'readings'];
-    const calls = Object.keys(bridge).filter((name) => !events.includes(name));
-    const answers = await Promise.all(calls.map(async (name) => [name, await bridge[name]?.()]));
-    const got: string[] = [];
-    for (const event of events) {
-      bridge[event]?.((value: unknown) => got.push(String(value)));
-      window.dispatchEvent(new MessageEvent('thermi', { data: { event, value: event } }));
-    }
-    return { answers, got, events };
+    const calls = Object.keys(bridge).filter((name) => !['changed', 'picked', 'readings'].includes(name));
+    return Promise.all(calls.map(async (name) => [name, await bridge[name]?.()]));
   });
+  const events = ['changed', 'picked', 'readings'];
+  await page.evaluate((names) => {
+    const bridge = (window as unknown as { thermi: Record<string, (listener: (value: unknown) => void) => void> }).thermi;
+    const got: string[] = [];
+    (window as unknown as { got: string[] }).got = got;
+    for (const name of names) {
+      bridge[name]?.((value) => got.push(String(value)));
+    }
+  }, events);
+  for (const event of events) {
+    await page.evaluate(dispatched(JSON.stringify({ event, value: event })));
+  }
 
-  expect(heard.answers.every(([name, answer]) => name === answer)).toBe(true);
-  expect(heard.answers.length).toBeGreaterThan(0);
-  expect(heard.got).toEqual(heard.events);
+  expect(answers.every(([name, answer]) => name === answer)).toBe(true);
+  expect(answers.length).toBeGreaterThan(0);
+  expect(await page.evaluate(() => (window as unknown as { got: string[] }).got)).toEqual(events);
 });
 
 // Spec 006, A17: the page as Linux's host serves it, in each scheme the desktop may have, with a stopped service and a

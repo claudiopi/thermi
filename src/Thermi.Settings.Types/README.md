@@ -8,7 +8,7 @@ What it writes, each only when its text changed, all committed so the page build
 | --- | --- |
 | `src/Thermi.Settings.Web/src/bridge/bridge.g.ts` | The bridge, `IWindowBridge`, and every type it reaches (`TypeScriptWriter.cs`). |
 | `src/Thermi.Settings.Web/src/bridge/texts.g.ts` | The key of every translated text (`TextKeys.cs`). |
-| `src/Thermi.Settings.Web/src/bridge/client.g.ts` | The script the window runs before the page, `BridgeCalls.Client`. |
+| `src/Thermi.Settings.Web/src/bridge/client.g.ts` | The script the window runs before the page, `BridgeCalls.Client`, and the one Linux's window hands the page each message with, `BridgeCalls.Dispatched`. |
 | `docs/agents/schema` | The JSON Schema of each document of the agents' contract, `AgentSchemas.Current`. |
 
 `Program.cs` is the entry point. Run it by hand with `dotnet run --project src/Thermi.Settings.Types -- src/Thermi.Settings.Web/src/bridge docs/agents/schema`.
