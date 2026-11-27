@@ -669,6 +669,15 @@
   <data name="OverlayPageText.ColorBlack" xml:space="preserve">
     <value>Negro</value>
   </data>
+  <data name="OverlayPageText.BelowTopBar" xml:space="preserve">
+    <value>Bajo la barra superior (en vertical no cabe en ella)</value>
+  </data>
+  <data name="OverlayPageText.BesidePanel" xml:space="preserve">
+    <value>Junto al panel (en vertical no cabe en él)</value>
+  </data>
+  <data name="OverlayPageText.VerticalAtBottomEdge" xml:space="preserve">
+    <value>En el borde inferior</value>
+  </data>
   <data name="OverlayPageText.AboveTaskbar" xml:space="preserve">
     <value>Sobre la barra de tareas (en vertical no cabe en ella)</value>
   </data>

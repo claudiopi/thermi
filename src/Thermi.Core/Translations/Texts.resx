@@ -660,6 +660,15 @@
   <data name="OverlayPageText.ColorBlack" xml:space="preserve">
     <value>Black</value>
   </data>
+  <data name="OverlayPageText.BelowTopBar" xml:space="preserve">
+    <value>Below the top bar (vertical doesn't fit in it)</value>
+  </data>
+  <data name="OverlayPageText.BesidePanel" xml:space="preserve">
+    <value>Beside the panel (vertical doesn't fit in it)</value>
+  </data>
+  <data name="OverlayPageText.VerticalAtBottomEdge" xml:space="preserve">
+    <value>At the bottom edge</value>
+  </data>
   <data name="OverlayPageText.AboveTaskbar" xml:space="preserve">
     <value>Above the taskbar (vertical doesn't fit in it)</value>
   </data>

@@ -127,6 +127,11 @@ public enum OverlayPageText
     NoRoomOnPanel,
     NoRoomAtBottomEdge,
 
+    /// <summary>Each bar's words for <see cref="AboveTaskbar"/>: where a vertical overlay snapped to it sits.</summary>
+    BelowTopBar,
+    BesidePanel,
+    VerticalAtBottomEdge,
+
     /// <summary>A display on the map and in "Move to display", counted from the main one.</summary>
     DisplayName,
     MainDisplay,

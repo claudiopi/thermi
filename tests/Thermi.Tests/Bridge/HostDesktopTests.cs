@@ -28,18 +28,20 @@ public sealed class HostDesktopTests
         Assert.Equal(NoValue.Stopped, desktop.Why(NoValue.Stopped));
     }
 
-    // The overlay made on the taskbar takes the name of the bar it sits on, as each Linux desktop calls its own; one with no
-    // bar sets it on the screen's bottom edge.
+    // The overlay made on the taskbar takes the name of the bar it sits on, as each Linux desktop calls its own, and a
+    // vertical one snapped to it says where it sits by that bar; one with no bar sets it on the screen's bottom edge.
     [Theory] // Rows: GNOME among other names, a desktop with panels, a barless one, and none named.
-    [InlineData("ubuntu:GNOME", "Top bar")]
-    [InlineData("KDE", "Panel")]
-    [InlineData("Hyprland", "Bottom edge")]
-    [InlineData("", "Bottom edge")]
-    public void TheTaskbarsOverlayIsNamedForTheDesktopsBar(string desktops, string name)
+    [InlineData("ubuntu:GNOME", NameText.TopBar, OverlayPageText.BelowTopBar)]
+    [InlineData("KDE", NameText.Panel, OverlayPageText.BesidePanel)]
+    [InlineData("Hyprland", NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
+    [InlineData("", NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
+    public void TheTaskbarsOverlayIsNamedForTheDesktopsBar(string desktops, NameText name, OverlayPageText vertical)
     {
-        var desktop = new HostDesktop(HostOs.Linux, Bar: HostDesktop.BarOf(desktops));
+        var words = new HostDesktop(HostOs.Linux, Bar: HostDesktop.BarOf(desktops)).Words(Texts.English);
 
-        Assert.Equal(name, Names.OfOverlays(new ThermiConfig(), desktop.Words(Texts.English))[0]);
+        Assert.Equal(
+            (Texts.English.Of(name), Texts.English.Of(vertical)),
+            (Names.OfOverlays(new ThermiConfig(), words)[0], words.Of(OverlayPageText.AboveTaskbar)));
     }
 
     // The map draws a monitor's taskbar along the edge it lies on: GNOME's top bar along the top, Windows' along the bottom.

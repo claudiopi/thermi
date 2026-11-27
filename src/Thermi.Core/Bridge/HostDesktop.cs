@@ -89,13 +89,13 @@ public sealed record HostDesktop(
         {
             [DesktopBar.TopBar] = BarWords(
                 NameText.TopBar, PlaceText.OnTopBar, OverlayPageText.TopBarHint, OverlayPageText.MatchTopBar, OverlayPageText.SizeOnTopBar,
-                OverlayPageText.NoRoomOnTopBar),
+                OverlayPageText.NoRoomOnTopBar, OverlayPageText.BelowTopBar),
             [DesktopBar.Panel] = BarWords(
                 NameText.Panel, PlaceText.OnPanel, OverlayPageText.PanelHint, OverlayPageText.MatchPanel, OverlayPageText.SizeOnPanel,
-                OverlayPageText.NoRoomOnPanel),
+                OverlayPageText.NoRoomOnPanel, OverlayPageText.BesidePanel),
             [DesktopBar.None] = BarWords(
                 NameText.BottomEdge, PlaceText.AtBottomEdge, OverlayPageText.BottomEdgeHint, OverlayPageText.MatchDesktop,
-                OverlayPageText.SizeAtBottomEdge, OverlayPageText.NoRoomAtBottomEdge),
+                OverlayPageText.SizeAtBottomEdge, OverlayPageText.NoRoomAtBottomEdge, OverlayPageText.VerticalAtBottomEdge),
         };
 
     /// <summary>
@@ -148,7 +148,7 @@ public sealed record HostDesktop(
     private static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
 
     private static Dictionary<string, string> BarWords(
-        NameText name, PlaceText spot, OverlayPageText hint, OverlayPageText match, OverlayPageText size, OverlayPageText noRoom) =>
+        NameText name, PlaceText spot, OverlayPageText hint, OverlayPageText match, OverlayPageText size, OverlayPageText noRoom, OverlayPageText vertical) =>
         new(StringComparer.Ordinal)
         {
             [Texts.Key(NameText.Taskbar)] = Texts.Key(name),
@@ -157,5 +157,6 @@ public sealed record HostDesktop(
             [Texts.Key(PillTheme.System)] = Texts.Key(match),
             [Texts.Key(UiText.SizeOnTaskbar)] = Texts.Key(size),
             [Texts.Key(Refusal.NoRoomOnTaskbar)] = Texts.Key(noRoom),
+            [Texts.Key(OverlayPageText.AboveTaskbar)] = Texts.Key(vertical),
         };
 }
