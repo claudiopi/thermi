@@ -49,11 +49,11 @@ internal sealed partial record Traced(double At, string Event, string About)
     /// at once, before the call returns.
     /// </summary>
     public static async Task<Traced> NextAsync(Lines stream, string name, CancellationToken cancel, int count = 1) =>
-        Of(await stream.NextAsync(line => Of(line)?.Event == name, cancel, count).ConfigureAwait(false))!;
+        Of(await stream.NextAsync(line => Of(line)?.Event == name, $"\"<at> {name}\"", cancel, count).ConfigureAwait(false))!;
 
     /// <summary>The first <paramref name="name"/> <paramref name="stream"/> ever wrote, or writes next: what a program says as it starts.</summary>
     public static async Task<Traced> FirstAsync(Lines stream, string name, CancellationToken cancel) =>
-        Of(await stream.FirstAsync(line => Of(line)?.Event == name, cancel).ConfigureAwait(false))!;
+        Of(await stream.FirstAsync(line => Of(line)?.Event == name, $"\"<at> {name}\"", cancel).ConfigureAwait(false))!;
 
     public static Traced? Of(string line) => Line().Match(line) is { Success: true } match
         ? new Traced(double.Parse(match.Groups["at"].Value, CultureInfo.InvariantCulture), match.Groups["event"].Value, match.Groups["about"].Value)

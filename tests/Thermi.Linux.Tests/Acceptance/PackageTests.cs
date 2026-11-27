@@ -44,7 +44,7 @@ public sealed class PackageTests
         Arch,
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Distribution.Ubuntu2404)]
     [InlineData(Distribution.Ubuntu2604)]
     [InlineData(Distribution.Debian13)]
@@ -88,7 +88,7 @@ public sealed class PackageTests
         Assert.Equal("{}", kept.Out.Trim());
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Distribution.Ubuntu2604)]
     [InlineData(Distribution.Fedora)]
     public async Task UpdatesComeFromThermisRepository(Distribution row)
@@ -144,7 +144,7 @@ public sealed class PackageTests
         Assert.Matches(tool.NothingNewer, older.Out + older.Error);
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
     public async Task TheOverlayHandsOverAfterAnUpdateOnLinux()
     {
         var cancel = TestContext.Current.CancellationToken;

@@ -8,7 +8,7 @@ namespace Thermi.Linux.Tests;
 /// </summary>
 public sealed class OwnSessionTests
 {
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task ASessionHoldsNothingOfThePersons()
     {
         var cancel = TestContext.Current.CancellationToken;
