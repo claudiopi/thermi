@@ -46,7 +46,7 @@
       ],
       "description": "Given a headless GNOME Shell of the test's own with the extension, a window under the overlay and a recorded feed, when thermi runs (a table of a monitor at 100 % and at 150 %, X11 and Wayland, a window full screen on the overlay's monitor, sensors stopped), then the screen shows, at the overlay's place and above the window and the top bar, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; and with the full-screen window it shows nothing.",
       "check": "TheOverlayShowsAboveEveryWindowOnGnome",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A12",
@@ -83,7 +83,7 @@
       ],
       "description": "Given the headless Shell with an extension of another protocol version, and then with none, when thermi starts, then it shows nothing through the other version and its notice says to update; with none, it asks the Shell to install thermi's from extensions.gnome.org.",
       "check": "AnExtensionOfAnotherVersionShowsNothing",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A9",
