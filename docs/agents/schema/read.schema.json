@@ -36,7 +36,8 @@
               "address",
               "frame-rate",
               "frame-time",
-              "voltage"
+              "voltage",
+              "latency"
             ]
           },
           "unit": {
@@ -75,6 +76,12 @@
               "no-frames",
               "frames-unread",
               "frames-need-install-for-everyone",
+              "ping-off",
+              "ping-timed-out",
+              "ping-unreachable",
+              "ping-unknown-host",
+              "ping-no-network",
+              "ping-waiting",
               null
             ]
           },

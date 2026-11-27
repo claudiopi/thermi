@@ -118,7 +118,7 @@ public static class ReadingFormatter
         new Reading(kind, kind switch
         {
             SensorKind.Fan or SensorKind.Clock => 8888,
-            SensorKind.Power or SensorKind.FrameRate => 888,
+            SensorKind.Power or SensorKind.FrameRate or SensorKind.Latency => 888,
             SensorKind.FrameTime => 888.8,
             SensorKind.Voltage => 88.88,
             SensorKind.Data => 888.8,
@@ -165,6 +165,9 @@ public static class ReadingFormatter
             // Its item's label says FPS, so the number stands alone.
             SensorKind.FrameRate => (value, 0, "", ""),
             SensorKind.FrameTime => (value, 1, "ms", ""),
+
+            // Windows times an echo in whole milliseconds.
+            SensorKind.Latency => (value, 0, "ms", ""),
 
             // A CPU's voltage moves by thousandths, a rail's by hundredths.
             SensorKind.Voltage => (value, Math.Abs(Math.Round(value, 3, MidpointRounding.AwayFromZero)) < 10 ? 3 : 2, "V", ""),

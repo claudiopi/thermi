@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Frames;
+using Thermi.Core.Ping;
 using Thermi.Core.Search;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -27,6 +28,7 @@ public enum Synonyms
     FrameRate,
     FrameTime,
     Voltage,
+    Latency,
     Cpu,
     Gpu,
     Ram,
@@ -62,6 +64,24 @@ public enum NoValue
 
     /// <summary>The game's sensors of a per-user install, whose own host has no rights to trace: frames need thermi installed for everyone.</summary>
     FramesNeedInstallForEveryone,
+
+    /// <summary>The ping while no item reads it, so no echo is sent.</summary>
+    PingOff,
+
+    /// <summary>The ping's echo got no reply within its timeout.</summary>
+    PingTimedOut,
+
+    /// <summary>The ping's host cannot be reached.</summary>
+    PingUnreachable,
+
+    /// <summary>The ping's host name resolves to no address.</summary>
+    PingUnknownHost,
+
+    /// <summary>The ping found no network up.</summary>
+    PingNoNetwork,
+
+    /// <summary>The ping waits for an echo, as before its first ends.</summary>
+    PingWaiting,
 }
 
 /// <summary>
@@ -276,8 +296,10 @@ public static class SensorCatalog
         return (shown, devices.Sum(device => device.Sensors.Count) - shown.Sum(device => device.Sensors.Count));
     }
 
+    // The ping is no adapter: it moves no data of its own, and lists to be added before any item sends an echo.
     private static bool Idle(CatalogDevice device, IReadOnlySet<string> seen) =>
-        device.Kind == DeviceKind.Network && !device.Sensors.Any(row => row.Reading.Kind == SensorKind.Throughput && Seen(row, seen));
+        device.Kind == DeviceKind.Network
+        && !device.Sensors.Any(row => PingSensors.Is(row.Sensor) || (row.Reading.Kind == SensorKind.Throughput && Seen(row, seen)));
 
     private static bool Seen(CatalogSensor row, IReadOnlySet<string> seen) => Lively(row) || seen.Contains(row.Id);
 
@@ -323,7 +345,8 @@ public static class SensorCatalog
             && Array.Exists(ModuleConstants, word => sensor.Name.Contains(word, StringComparison.Ordinal)));
 
     private static NoValue NothingRead(RawSensor sensor) =>
-        !GameSensors.Is(sensor) ? NoValue.ReadsNothing
+        PingSensors.Is(sensor) ? PingSensors.WhyOf(sensor)
+        : !GameSensors.Is(sensor) ? NoValue.ReadsNothing
         : sensor.Value is double.NaN ? NoValue.FramesUnread
         : sensor.Value is GameSensors.NoRights ? NoValue.FramesNeedInstallForEveryone
         : NoValue.NoFrames;

@@ -50,7 +50,9 @@ Not tested yet, and the reports we would love most: Windows 10 22H2, an Arm64 PC
 
 ## Privacy
 
-thermi sends nothing about you or your PC. Its only connection is the update check, a minute after the service starts and every 4 hours: one HTTPS request for the channel's manifest, with no query, no cookie, no identifier and `thermi` as its whole User-Agent, and then the zip of a new version, whose signature Windows checks against the certificate authority's revocation servers, as it does for any signed program. The server sees the address a request comes from, as any server does. An administrator turns updates off with the `Updates` policy value in `HKLM\SOFTWARE\Policies\thermi`, and a build from source never checks unless it is told where.
+thermi sends nothing about you or your PC. Its one regular connection is the update check, a minute after the service starts and every 4 hours: one HTTPS request for the channel's manifest, with no query, no cookie, no identifier and `thermi` as its whole User-Agent, and then the zip of a new version, whose signature Windows checks against the certificate authority's revocation servers, as it does for any signed program. The server sees the address a request comes from, as any server does. An administrator turns updates off with the `Updates` policy value in `HKLM\SOFTWARE\Policies\thermi`, and a build from source never checks unless it is told where.
+
+Beyond it, thermi connects only for what you ask: the driver's installer, from its GitHub release, when you install the driver; the machine MSI of your version, when a per-user install installs for everyone; and the ping. The ping goes out only while an item of any overlay reads it, shown or hidden: one small ICMP echo a second, to the host you pick in its More options, or to `1.1.1.1` by default. Each process that reads it sends its own: the overlay, the settings window while it is open, and `thermi-cli` while it reads; never the SYSTEM service (`docs/adr/0020-ping.md`).
 
 ## Install from source
 

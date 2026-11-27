@@ -2,6 +2,7 @@ using System.Globalization;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Ping;
 using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -23,14 +24,15 @@ namespace Thermi.App.Window;
 internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISensorFeed sensors, Readings readings)
 {
     private readonly Dictionary<string, string> _pushed = new(StringComparer.Ordinal);
+    private string? _pingHost = PingSensors.HostOf(editor.Config);
 
     /// <summary>A fresh snapshot, kept for each item's chart and value, by item, so both go with it when overlays are deleted, merged or moved.</summary>
     public void Arrived()
     {
         if (sensors.Latest is { } snapshot)
         {
-            chart.Follow(editor.Config, ReadBefore);
-            chart.Items.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))]);
+            Follow();
+            chart.Items.Add([.. editor.Config.Overlays.Select(overlay => (overlay, readings.ReadOf(snapshot, overlay)))], _pingHost);
         }
     }
 
@@ -40,8 +42,22 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     // An edit or its undo that changes what an item meters shows at once, never with the seconds of what it metered before.
     public IReadOnlyList<double?> History(string id)
     {
-        chart.Follow(editor.Config, ReadBefore);
+        Follow();
         return chart.Of(id);
+    }
+
+    // A new host is another reading, so what the window read of the ping before is no item's to start again from.
+    private void Follow()
+    {
+        var host = PingSensors.HostOf(editor.Config);
+        if (host != _pingHost)
+        {
+            readings.History.Forget(PingSensors.Id);
+            readings.History.Forget(Metrics.Ping.Id);
+            _pingHost = host;
+        }
+
+        chart.Follow(editor.Config, ReadBefore);
     }
 
     // What the window read of an item's new meter since it opened: a sensor or a metric, which it keeps every second, the

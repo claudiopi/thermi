@@ -114,7 +114,8 @@ public sealed class SensorHistory
         }
     }
 
-    internal void Forget(string id) => _series.Remove(id);
+    /// <summary>Drops what <paramref name="id"/> read, as when it reads another source from now on.</summary>
+    public void Forget(string id) => _series.Remove(id);
 
     /// <summary>The values of the last ten minutes, as <see cref="LastMinute"/> gives them.</summary>
     public IReadOnlyList<double?> TenMinutes(string id) => Values(id, _slots);

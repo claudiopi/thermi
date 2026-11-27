@@ -67,6 +67,7 @@ public enum ChangedField
     Agents,
     SensorName,
     Changes,
+    PingHost,
 }
 
 /// <summary>The texts that tell a step: on the Undo and Redo buttons, and after an undo.</summary>

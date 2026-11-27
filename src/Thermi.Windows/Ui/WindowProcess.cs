@@ -4,6 +4,7 @@ using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
+using Thermi.App.Ping;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
@@ -38,6 +39,9 @@ internal sealed record WindowEnvironment(
     /// <summary>Where WebView2's runtime is looked for: null for the one installed, wherever Windows has it.</summary>
     public string? BrowserFolder { get; init; }
 
+    /// <summary>The ping <see cref="Sensors"/> adds, which follows the window's settings while it is open; null for none.</summary>
+    public PingFeed? Ping { get; init; }
+
     /// <summary>Asks the overlay which hotkeys it could not register, null when none answers.</summary>
     public Func<long?> HotkeyStatus { get; init; } = OverlayHost.AskHotkeyStatus;
 
@@ -56,15 +60,21 @@ internal sealed record WindowEnvironment(
     {
         using var process = Process.GetCurrentProcess();
         var exe = ThermiPaths.Launcher;
+        var sensors = new PingFeed(
+            new SystemFeed(
+                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
+            new PingReader(new IcmpEcho(), time, logs.CreateLogger<PingReader>()));
         return new(
             HostEnvironment.WindowMutexName,
             ConfigStore.DefaultPath,
             exe,
             logs.CreateLogger("Thermi.Ui"),
             new DateTimeOffset(process.StartTime),
-            new SystemFeed(
-                new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)), time),
-            StartWithWindows.Of(exe));
+            sensors,
+            StartWithWindows.Of(exe))
+        {
+            Ping = sensors,
+        };
     }
 }
 
@@ -129,6 +139,7 @@ internal static class WindowProcess
         using var store = new ConfigStore(environment.SettingsPath, time, ThermiPaths.RunsInstalled);
         await using var settings = new Settings(store, time, environment.Log);
         await settings.SyncAsync();
+        environment.Ping?.Follow(() => settings.Config);
         using var watcher = settings.Watch(environment.Log);
         using var stop = new CancellationTokenSource();
         var reading = Task.CompletedTask;
@@ -153,6 +164,7 @@ internal static class WindowProcess
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         thread.Join();
+        environment.Ping?.Follow(null);
         await stop.CancelAsync();
         await reading.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         failed?.Throw();

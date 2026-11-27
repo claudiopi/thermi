@@ -64,6 +64,14 @@ public enum CatalogText
     /// <summary>A catalog row's reason: the game's FPS or frame time in a per-user install, which reads frames once installed for everyone.</summary>
     RowFramesNeedInstallForEveryone,
 
+    /// <summary>The catalog rows' reasons for the ping, one per <see cref="Sensors.NoValue"/> of it.</summary>
+    RowPingOff,
+    RowPingTimedOut,
+    RowPingUnreachable,
+    RowPingUnknownHost,
+    RowPingNoNetwork,
+    RowPingWaiting,
+
     /// <summary>Under a catalog row: the items that already show it.</summary>
     ShownAs,
 

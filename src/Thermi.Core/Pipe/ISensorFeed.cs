@@ -6,11 +6,17 @@ namespace Thermi.Core.Pipe;
 /// <summary>Where a host's snapshots come from: the sensor host's pipe, as the overlay reads it, or a recording in its tests.</summary>
 public interface ISensorFeed
 {
-    /// <summary>Raised on the reader's thread for every snapshot that comes, once it is <see cref="Latest"/>.</summary>
+    /// <summary>
+    /// Raised on the reader's thread for every snapshot that comes, once it is <see cref="Latest"/>; and for what a host adds
+    /// itself that changed while none comes, as an echo's end, when <see cref="Latest"/> is null and <see cref="Shown"/> is news.
+    /// </summary>
     event EventHandler? Received;
 
     /// <summary>Null while the sensor host is unreachable or has gone quiet.</summary>
     Snapshot? Latest { get; }
+
+    /// <summary>What the overlay shows: <see cref="Latest"/>, or while the service sends none, what the host adds itself.</summary>
+    Snapshot Shown => Latest ?? new Snapshot([]);
 
     /// <summary>Whether the readings are fresh or awaited, the service is not running, or its data went stale.</summary>
     ServiceState State { get; }

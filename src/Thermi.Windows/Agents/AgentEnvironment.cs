@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
+using Thermi.App.Ping;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Agents;
 using Thermi.Core.Pipe;
@@ -31,6 +32,9 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     private const string InstallKey = @"SOFTWARE\thermi";
 
     public const string SensorsOnlyValue = "SensorsOnly";
+
+    /// <summary>The system's ping, which a read sends while the settings it reads hold a ping item.</summary>
+    public IEcho? Echo { get; init; } = new IcmpEcho();
 
     public Func<bool> Installed { get; init; } = () => Exists(Services + StartSensors.Service);
 

@@ -24,7 +24,7 @@ public sealed record Threshold
     /// <summary>The highest line a throughput takes, in bytes per second: 100 GB/s, past any drive or network a PC has.</summary>
     public const double MaxThroughput = 100e9;
 
-    /// <summary>The highest line a frame rate or a frame time takes, in frames per second or milliseconds.</summary>
+    /// <summary>The highest line a frame rate, a frame time or a ping takes, in frames per second or milliseconds: a ping's timeout.</summary>
     public const double MaxFrames = 1000;
 
     // A CPU's limit when nothing says otherwise: AMD's, which the defaults also take, having no machine to ask.
@@ -50,10 +50,10 @@ public sealed record Threshold
     [JsonExtensionData, JsonInclude]
     public UnknownFields? Unknown { get; internal set; }
 
-    /// <summary>Whether lines can judge that type: a temperature, a load, a duty, a fan's speed, a throughput or frames.</summary>
+    /// <summary>Whether lines can judge that type: a temperature, a load, a duty, a fan's speed, a throughput, frames or a ping.</summary>
     public static bool CanMeter(SensorKind kind) =>
         kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Fan or SensorKind.Throughput
-            or SensorKind.FrameRate or SensorKind.FrameTime;
+            or SensorKind.FrameRate or SensorKind.FrameTime or SensorKind.Latency;
 
     /// <summary>Whether a reading of that type is in trouble when low, as a frame rate, so its lines warn below a value.</summary>
     public static bool WarnsLow(SensorKind kind) => kind == SensorKind.FrameRate;
@@ -118,7 +118,7 @@ public sealed record Threshold
     public static double MaxOf(SensorKind kind) =>
         kind == SensorKind.Fan ? MaxFanSpeed
         : kind == SensorKind.Throughput ? MaxThroughput
-        : kind is SensorKind.FrameRate or SensorKind.FrameTime ? MaxFrames
+        : kind is SensorKind.FrameRate or SensorKind.FrameTime or SensorKind.Latency ? MaxFrames
         : 100;
 
     /// <summary>The lines a metric starts with on any machine, or null for none; a CPU's limit is taken as AMD's.</summary>
@@ -130,7 +130,8 @@ public sealed record Threshold
     /// <summary>
     /// The lines a reading starts with on the machine the snapshot is from, or null for none: a CPU temperature warns 10 °C
     /// under the CPU's limit and is critical 5 under it, a GPU's at 80 and 88 °C, any other temperature at 70 and 80 °C, and a
-    /// fan's duty warns at 85 %. Loads, fan speeds and frames have none: a game's FPS is fine at 40 in one and poor in another.
+    /// fan's duty warns at 85 %. Loads, fan speeds, frames and ping have none: a game's FPS is fine at 40 in one and poor in
+    /// another, and a ping of 150 ms poor to 1.1.1.1 and fine to a game's server across an ocean.
     /// </summary>
     public static Threshold? Default(WarnByConfig meter, Snapshot snapshot)
     {
@@ -159,7 +160,7 @@ public sealed record Threshold
     // Only the types that show in the unit their lines are kept in, a temperature in °C, round here as they show.
     private static double? Shown(Reading reading, int? decimals) =>
         reading.Usable is { } value && reading.Kind is SensorKind.Temperature or SensorKind.Load or SensorKind.Control or SensorKind.Power or SensorKind.Fan
-            or SensorKind.FrameRate or SensorKind.FrameTime
+            or SensorKind.FrameRate or SensorKind.FrameTime or SensorKind.Latency
             ? Math.Round(value, decimals ?? (reading.Kind == SensorKind.FrameTime ? 1 : 0), MidpointRounding.AwayFromZero)
             : reading.Usable;
 

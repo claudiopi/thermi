@@ -66,7 +66,7 @@ public static class AgentReads
         SensorKind.Duration or SensorKind.Time => "s",
         SensorKind.Address => "ipv4",
         SensorKind.FrameRate => "fps",
-        SensorKind.FrameTime => "ms",
+        SensorKind.FrameTime or SensorKind.Latency => "ms",
         SensorKind.Voltage => "V",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown sensor kind."),
     };

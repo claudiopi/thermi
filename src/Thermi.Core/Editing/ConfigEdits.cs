@@ -119,6 +119,9 @@ public enum Refusal
 
     /// <summary>Only a person lets AI agents change the settings: an agent may stop them, never let them.</summary>
     AgentsOnlyByPerson,
+
+    /// <summary>A ping's host is a name or an IP address of up to 253 characters.</summary>
+    PingHost,
 }
 
 /// <summary>

@@ -27,6 +27,9 @@ public enum OverlayText
     /// <summary>A missing value's tooltip, with the item's name.</summary>
     ReadsNothing,
 
+    /// <summary>A missing value's tooltip that knows why, with the item's name and the reason, as a ping's timeout.</summary>
+    ReadsWhy,
+
     /// <summary>A value's tooltip until the window has opened once.</summary>
     SetUp,
 

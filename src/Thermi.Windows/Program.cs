@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
+using Thermi.App.Ping;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
@@ -158,13 +159,13 @@ internal static class Program
     private static async Task<int> RunHostAsync(ILoggerFactory logs, TimeProvider time, Mutex single)
     {
         var sensors = new SensorClient(time, logs.CreateLogger<SensorClient>(), new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: true));
-        var feed = new SystemFeed(sensors, time);
+        var feed = new PingFeed(new SystemFeed(sensors, time), new PingReader(new IcmpEcho(), time, logs.CreateLogger<PingReader>()));
         using var stop = new CancellationTokenSource();
         var reading = Task.Run(() => feed.RunAsync(stop.Token), stop.Token);
         // No settings file yet is thermi's first start, which its first notice and the values' tooltips speak to.
         var firstStart = !File.Exists(ConfigStore.DefaultPath);
         OverlayHost? running = null;
-        sensors.Received += (_, _) => running?.Arrived();
+        feed.Received += (_, _) => running?.Arrived();
         var updates = new OverlayUpdates(() => Facts(running), () => Close(running), time, logs.CreateLogger<OverlayUpdates>());
         using var ticks = time.CreateTimer(_ => updates.Tick(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         var mutex = single;
@@ -205,8 +206,9 @@ internal static class Program
         return 0;
     }
 
+    // The ping follows the settings this overlay holds, and stops with it.
     private static async Task RunHostOnceAsync(
-        ILoggerFactory logs, TimeProvider time, SensorClient sensors, SystemFeed feed, bool firstStart, Action<OverlayHost?> running)
+        ILoggerFactory logs, TimeProvider time, SensorClient sensors, PingFeed feed, bool firstStart, Action<OverlayHost?> running)
     {
         using var store = new ConfigStore(ConfigStore.DefaultPath, time, ThermiPaths.RunsInstalled);
         await using var settings = new Settings(store, time, logs.CreateLogger<Settings>());
@@ -216,9 +218,17 @@ internal static class Program
             FirstStart = firstStart,
             Resumed = sensors.Resume,
         };
-        running(host);
-        host.Run();
-        running(null);
+        feed.Follow(() => settings.Loaded ? settings.Config : null);
+        try
+        {
+            running(host);
+            host.Run();
+            running(null);
+        }
+        finally
+        {
+            feed.Follow(null);
+        }
     }
 
     // Read on the update's timer: a list the window's thread changes meanwhile counts as overlays shown.

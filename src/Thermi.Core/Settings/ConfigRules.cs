@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Thermi.Core.Editing;
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Core.Settings;
@@ -27,6 +28,9 @@ public static partial class ConfigRules
             ? null
             : Say($"overlays holds {config.Overlays.Count}, not 1 to {ThermiConfig.MaxOverlays}"),
         .. (config.SensorNames ?? new Dictionary<string, string>()).Select(pair => OwnName(pair.Key, pair.Value)),
+        config.PingHost is null || PingSensors.IsHost(config.PingHost)
+            ? null
+            : $"pingHost is \"{config.PingHost}\", not a host name or an IP address of up to {PingSensors.MaxHostLength} characters",
         .. config.Overlays.SelectMany((overlay, index) => Overlay(overlay, Say($"overlays[{index}]"), warnBy)),
     ];
 

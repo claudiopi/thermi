@@ -34,6 +34,48 @@ public sealed partial class RepoRulesTests
         ["Thermi.Sensors.Windows/Updates/UpdateBuild.cs"] = "the Windows updater's build: its Authenticode signers and the MSI it takes",
     };
 
+    // The files that open a connection, and why each may: nothing else leaves the PC (docs/adr/0020-ping.md).
+    private static readonly Dictionary<string, string> ReachTheNetwork = new(StringComparer.Ordinal)
+    {
+        ["Thermi.Sensors.Windows/Updates/ManifestClient.cs"] = "the update check and its zip (docs/adr/0008-updates.md)",
+        ["Thermi.Windows/Commands/HttpDownload.cs"] = "the driver's pinned installer and the machine MSI (docs/adr/0010-driver-and-service-from-the-window.md)",
+        ["Thermi.Windows/Win32/SystemFeed.cs"] = "a datagram socket connected only to learn the default route's address, which sends nothing",
+        ["Thermi.App/Ping/IcmpEcho.cs"] = "the ping an item asks for, one echo a second to the person's host (docs/adr/0020-ping.md)",
+        ["Thermi.Releases/Server.cs"] = "the owner's test channel on their own PC, which no release ships",
+    };
+
+    // Only the files listed open a connection, a name looked up included, so a new one is a decision of its own.
+    [Fact]
+    public void OnlyTheFilesListedReachTheNetwork()
+    {
+        // A type made with a target-typed new reaches the network as one named after new does.
+        string[] made = ["using var ping = new Ping();", "private readonly HttpClient _http = new(handler);", "Socket Open() => new(family);"];
+        Assert.All(made, line => Assert.Matches(NetworkApi(), line));
+        var src = Path.Combine(Root, "src");
+        var reaching = RepoFiles([".cs"])
+            .Where(path => !Path.GetRelativePath(src, path).StartsWith("..", StringComparison.Ordinal))
+            .Where(path => NetworkApi().IsMatch(CodeComment().Replace(File.ReadAllText(path), "")))
+            .Select(path => Path.GetRelativePath(src, path).Replace('\\', '/'))
+            .ToHashSet(StringComparer.Ordinal);
+
+        AssertNone(reaching.Where(name => !ReachTheNetwork.ContainsKey(name))
+            .Select(name => $"src/{name} opens a connection: list it here with why, and say so in README's Privacy")
+            .Concat(ReachTheNetwork.Keys.Where(name => !reaching.Contains(name))
+                .Select(name => $"src/{name} is listed as reaching the network, but it is gone or opens none: drop it from the list")));
+    }
+
+    private const string NetworkType =
+        @"(System\.Net\.(\w+\.)*)?(Ping|Socket|TcpClient|UdpClient|TcpListener|HttpClient|HttpListener|SocketsHttpHandler|ClientWebSocket|WebClient)";
+
+    // Each made after new, or by a target-typed new where a field, property, local or method of that type is declared.
+    [GeneratedRegex(
+        @"\bnew\s+" + NetworkType + @"\s*[({]"
+            + @"|\b" + NetworkType + @"\??\s+\w+(\s*\{[^}]*\}|\([^)]*\)\s*=>)?\s*=?\s*new\s*\("
+            + @"|\bDns\.\w+|\bWebRequest\.Create",
+        RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex NetworkApi();
+
     // What every OS's host shares runs on any OS (docs/adr/0018-shared-and-windows-projects.md): it targets plain net10.0,
     // and no project it builds on, however far down, targets Windows alone.
     [Fact]

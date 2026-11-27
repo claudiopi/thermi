@@ -2,11 +2,14 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Ping;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
+using Thermi.Core.Ping;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
@@ -98,7 +101,8 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
     /// </summary>
     public async Task<AgentReply> WatchAsync(IReadOnlyList<string> ids, Func<string, Task> line, CancellationToken stop)
     {
-        var feed = environment.Sensors();
+        var settings = (await SettingsAsync()).Config;
+        var feed = Sensors(() => settings);
         Snapshot? first = null;
         try
         {
@@ -111,7 +115,8 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
 
                 // A sensor of the first line that drops out of a later one reads as missing, never as a name of nothing.
                 first ??= snapshot;
-                var answer = AgentReads.Read([snapshot], (await SettingsAsync()).Config, ids, first);
+                settings = (await SettingsAsync()).Config;
+                var answer = AgentReads.Read([snapshot], settings, ids, first);
                 if (answer.Unknown.Count > 0)
                 {
                     return UnknownIds(answer);
@@ -138,24 +143,41 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
 
     private async Task<AgentReply> ReadAsync(AgentRequest request, CancellationToken stop)
     {
-        var feed = environment.Sensors();
-        var (samples, state, taken) = await AgentSamples.TakeAsync(feed, request.Seconds, time, stop);
+        var settings = (await SettingsAsync()).Config;
+        var (samples, state, taken) = await AgentSamples.TakeAsync(Sensors(() => settings), request.Seconds, time, stop);
         if (samples.Count == 0)
         {
             return Unread(state, taken, null);
         }
 
-        var answer = AgentReads.Read(samples, (await SettingsAsync()).Config, request.Ids);
+        var answer = AgentReads.Read(samples, settings, request.Ids);
         return answer.Unknown.Count > 0 ? UnknownIds(answer) : new AgentReply(AgentExit.Done, AgentJson.Write(answer with { At = time.GetUtcNow() }));
     }
 
     private async Task<AgentReply> SensorsAsync(AgentRequest request, CancellationToken stop)
     {
-        var feed = environment.Sensors();
-        var (samples, state, taken) = await AgentSamples.TakeAsync(feed, 1, time, stop);
+        var settings = (await SettingsAsync()).Config;
+        var (samples, state, taken) = await AgentSamples.TakeAsync(Sensors(() => settings), 1, time, stop);
         return samples is [var snapshot]
-            ? new AgentReply(AgentExit.Done, AgentJson.Write(AgentViews.Sensors(snapshot, (await SettingsAsync()).Config, request.Search, request.Types)))
+            ? new AgentReply(AgentExit.Done, AgentJson.Write(AgentViews.Sensors(snapshot, settings, request.Search, request.Types)))
             : Unread(state, taken, null);
+    }
+
+    // What an edit reads with the service stopped: no sensor but the ping's, which needs no service, where the host pings.
+    private Snapshot NoService() => environment.Echo is null ? new Snapshot([]) : PingSensors.With(new Snapshot([]), null);
+
+    // A read pings as the overlay would, while the settings it reads hold a ping item, and says what the first echo did; only
+    // an echo's error is logged, as the agents' log is what agents changed, and a line of each call's outcome would push it out.
+    private ISensorFeed Sensors(Func<ThermiConfig?> settings)
+    {
+        if (environment.Echo is not { } echo)
+        {
+            return environment.Sensors();
+        }
+
+        var feed = new PingFeed(environment.Sensors(), new PingReader(echo, time, new Failures(environment.Log)));
+        feed.Follow(settings);
+        return feed;
     }
 
     private async Task<AgentReply> ConfigAsync()
@@ -196,5 +218,22 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
     {
         using var store = new ConfigStore(environment.SettingsPath, time, environment.RunsInstalled);
         return await store.ReadOnlyAsync();
+    }
+
+    // The agents' log as the ping's reader writes it: its errors, never each change of what the echoes get back.
+    private sealed class Failures(ILogger log) : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => log.BeginScope(state);
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning && log.IsEnabled(logLevel);
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(logLevel))
+            {
+                log.Log(logLevel, eventId, state, exception, formatter);
+            }
+        }
     }
 }

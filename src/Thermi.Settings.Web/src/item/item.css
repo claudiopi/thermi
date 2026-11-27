@@ -68,6 +68,12 @@
   width: 120px;
 }
 
+/* A host name runs longer than a label. */
+.t-ping-box.t-ping-box input,
+.t-ping-box.t-ping-box > span {
+  width: 180px;
+}
+
 .t-combine {
   display: flex;
   flex-direction: column;

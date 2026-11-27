@@ -138,7 +138,7 @@ sequenceDiagram
 | --- | --- | --- |
 | `src/Thermi.Core` | a library, any OS | Snapshots, sensor mapping, formatting, thresholds, config and its edits and undo, layout and looks, the tray's texts, translations, the agents' answers, update decisions. Depends on nothing. |
 | `src/Thermi.Sensors.Windows` | `thermi-sensors.exe`, a service as SYSTEM, or a process of the user's in a per-user install | Reads the sensors and the frames games present, serves snapshots, updates thermi, and lays a version down for the MSI and `scripts/install.ps1`. |
-| `src/Thermi.App` | a library, any OS | What the overlay and the window share beyond Core, needing a package or the file system: the settings file under its mutex, the settings a host holds, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, and the logs. |
+| `src/Thermi.App` | a library, any OS | What the overlay and the window share beyond Core, needing a package or the file system: the settings file under its mutex, the settings a host holds, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, the ping, and the logs. |
 | `src/Thermi.Cli` | a library, any OS | `thermi-cli`'s commands and its MCP server, over what each OS answers in `IAgentEnvironment`. |
 | `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and what an agent's command reaches on Windows. |
 | `src/Thermi.Settings.Web` | the page in WebView2 | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |

@@ -22,6 +22,7 @@ public enum MetricLabel
     Ip,
     Time,
     Fps,
+    Ping,
 }
 
 /// <summary>The kind of device a sensor is on, whose pill a sensor added as an item joins, named by its label.</summary>
@@ -71,6 +72,7 @@ public enum MetricName
     Clock,
     Fps,
     FrameTime,
+    Ping,
 }
 
 public static class Metrics
@@ -99,11 +101,13 @@ public static class Metrics
     public static readonly Metric Clock = new("system.clock", MetricLabel.Time, SensorKind.Time, MetricName.Clock);
     public static readonly Metric Fps = new("game.fps", MetricLabel.Fps, SensorKind.FrameRate, MetricName.Fps);
     public static readonly Metric FrameTime = new("game.frametime", MetricLabel.Fps, SensorKind.FrameTime, MetricName.FrameTime);
+    public static readonly Metric Ping = new("net.ping", MetricLabel.Ping, SensorKind.Latency, MetricName.Ping);
 
     public static IReadOnlyList<Metric> All { get; } =
     [
         CpuTemperature, CpuLoad, CpuPower, CpuClock, GpuTemperature, GpuLoad, GpuPower, RamLoad, RamUsed, CpuFan, CpuFanDuty,
         NetDownload, NetUpload, DiskActivity, DiskRead, DiskWrite, BatteryCharge, BatteryRate, BatteryTime, Uptime, LocalIp, Clock, Fps, FrameTime,
+        Ping,
     ];
 
     public static Metric? Find(string? id) => All.FirstOrDefault(metric => metric.Id == id);
@@ -114,7 +118,7 @@ public static class Metrics
         MetricLabel.Cpu => DeviceKind.Cpu,
         MetricLabel.Gpu => DeviceKind.Gpu,
         MetricLabel.Ram => DeviceKind.Ram,
-        MetricLabel.Net => DeviceKind.Network,
+        MetricLabel.Net or MetricLabel.Ping => DeviceKind.Network,
         MetricLabel.Ssd => DeviceKind.Ssd,
         MetricLabel.Bat => DeviceKind.Battery,
         MetricLabel.Up or MetricLabel.Ip or MetricLabel.Time => DeviceKind.System,

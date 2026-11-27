@@ -279,7 +279,7 @@ public sealed class BridgeContractTests
         {
             folder.Clock.Advance(TimeSpan.FromSeconds(1));
             var readings = SensorMap.Read(series[second], overlay);
-            onOverlay.Add(overlay, readings);
+            onOverlay.Add(overlay, readings, null);
             if (second == series.Count / 3)
             {
                 chart.Take((History)WindowMessages.Decode(WindowMessages.Encode(onOverlay.Sent(config)))!);

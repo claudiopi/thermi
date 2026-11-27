@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Look;
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -27,6 +28,7 @@ public sealed class ChartTests
         .. MadeUpHardware.Laptop().Sensors.Where(sensor => sensor.HardwareType == "Battery"),
         new RawSensor(IntelPackage, "Cpu", "Intel Core Ultra 9 285K", "Temperature", "CPU Package", 60),
         new RawSensor("/intelcpu/0/temperature/1", "Cpu", "Intel Core Ultra 9 285K", "Temperature", "CPU Core #1 Distance to TjMax", 45),
+        new RawSensor(PingSensors.Id, PingSensors.HardwareType, PingSensors.Name, nameof(SensorKind.Latency), PingSensors.Name, 23),
     ]);
 
     // A meter's sensor, read once at its value in the recording, and what it gives: its type or null when it cannot be a
@@ -50,6 +52,7 @@ public sealed class ChartTests
     [InlineData($"{MadeUpHardware.Samsung}/load/53", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=#80 90")]
     [InlineData($"{MadeUpHardware.Battery}/level/0", SensorKind.Load, null, null, 1.0, 5.0, "0 100|0|100 %#=#80 90")]
     [InlineData($"{MadeUpHardware.Battery}/timespan/0", null, null, null, 0.0, 0.0, "0 0|##")]
+    [InlineData(PingSensors.Id, SensorKind.Latency, null, null, 1.0, 5.0, "0 50|0|1000 ms#=#100 150")]
     public void ThresholdsAndTheChartFollowTheMetersType(
         string sensor,
         SensorKind? kind,

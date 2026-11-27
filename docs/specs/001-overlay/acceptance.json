@@ -118,6 +118,96 @@
       "description": "Given an overlay of several pills, when it is pressed on one and dragged past the drag distance and let go, then it follows the cursor whole, stays where it was let go, and the settings file holds that spot.",
       "check": "ADragMovesTheOverlayAndWritesWhereItWasDropped",
       "passes": true
+    },
+    {
+      "id": "A25",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given an echo that replies in 23 ms, gets no reply, finds its host unreachable or its name unknown, finds no network, outlasts its second in the name's lookup or throws what no ping names, before it ends, and no item that reads the ping, when the overlay, the catalog and an agent read it, then the item shows 23 ms or missing, never 0, and each says why it has no value.",
+      "check": "APingShowsItsRoundTripOrWhyItHasNone",
+      "passes": true
+    },
+    {
+      "id": "A26",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given settings with no ping item, then one, then one with a host of its own, then an echo that hangs, when seconds pass and its process stops, then no echo goes out, then one a second to 1.1.1.1 and then to that host, each waited for a second at most, the stop throws nothing, and two seconds on the last reply reads as waiting.",
+      "check": "EchoesGoOutOnlyWhileAnItemReadsThePing",
+      "passes": true
+    },
+    {
+      "id": "A27",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given settings with a ping item and a host that never answers, or an echo that throws, when an agent reads the ping once, then it says the echo timed out or the host is unreachable, not that it waits or is off, and the agents' log holds only the error.",
+      "check": "AReadSaysWhatThePingsFirstEchoDid",
+      "passes": true
+    },
+    {
+      "id": "A28",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a settings window that read a snapshot with the ping on it, when Core fails to read the next, then the window goes on showing the one it read, the ping on it.",
+      "check": "AWindowThatCannotReadASnapshotShowsTheLastOneItRead",
+      "passes": true
+    },
+    {
+      "id": "A29",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a ping item and the service silent, or sending, when echoes end, then each is news the overlay records, with the ping's value, or only the service's snapshots are.",
+      "check": "EachEchoIsNewsOnlyWhileTheServiceIsSilent",
+      "passes": true
+    },
+    {
+      "id": "A30",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given no ping item and the service running, or stopped, when an agent lists the sensors, adds an item of the ping's and sets its host, then the list holds it while the service runs, the edits are made, and no edit sends an echo.",
+      "check": "AnAgentAddsAPingItemAsItsSensorsListIt",
+      "passes": true
+    },
+    {
+      "id": "A31",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given a watch of the ping with no ping item, when the settings gain one with a host of its own, then no echo went out before, and the watch's later lines read the round trip of echoes to that host.",
+      "check": "AWatchPingsAsTheSettingsItReadsSay",
+      "passes": true
+    },
+    {
+      "id": "A32",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given an item that warns by the ping, and a ping item that warns by another reading, when the host changes, then each starts again only what reads the ping: its meter's ten minutes, or its minute.",
+      "check": "ANewHostStartsAgainOnlyWhatReadsThePing",
+      "passes": true
+    },
+    {
+      "id": "A33",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a smoothed item and a ping item, when the item reads nothing for seconds while the ping reads on, then its average counts none of those seconds.",
+      "check": "AnItemThatReadNothingCountsNothing",
+      "passes": true
+    },
+    {
+      "id": "A34",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a settings window that read seconds of a ping item pinging 1.1.1.1, when its host is emptied, then the chart keeps them, the same host; when it changes to another, then the chart starts again, with none of the old host's round trips.",
+      "check": "AWindowsChartStartsAgainOnlyForAnotherHost",
+      "passes": true
     }
   ]
 }

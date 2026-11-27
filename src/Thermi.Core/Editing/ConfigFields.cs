@@ -30,6 +30,7 @@ internal static class ConfigFields
         new(ChangedField.TemperatureUnit, config => config.Temperature, (config, value) => config with { Temperature = (TemperatureUnit)value! }),
         new(ChangedField.WindowTheme, config => config.WindowTheme, (config, value) => config with { WindowTheme = (WindowTheme)value! }),
         new(ChangedField.Agents, config => config.Agents, (config, value) => config with { Agents = (AgentAccess)value! }),
+        new(ChangedField.PingHost, config => config.PingHost, (config, value) => config with { PingHost = (string?)value }),
         new(
             ChangedField.SensorName,
             config => config.SensorNames,

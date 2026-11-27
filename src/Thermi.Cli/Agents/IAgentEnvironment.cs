@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.Ping;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 
@@ -21,6 +22,9 @@ internal interface IAgentEnvironment
     string FinderRan { get; }
 
     ISensorFeed Sensors();
+
+    /// <summary>The system's ping, which a read sends while the settings it reads hold a ping item; null where the host sends none.</summary>
+    IEcho? Echo => null;
 
     bool Installed();
 

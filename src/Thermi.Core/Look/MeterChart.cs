@@ -269,13 +269,15 @@ public static class MeterChart
         return Math.Min(steps * scale.Step, scale.Max);
     }
 
-    // Frames have no default lines, and their track runs far past any game's: a line comes where most games are poor.
+    // Frames and ping have no default lines, and their track runs far past any game's: a line comes where most games are
+    // poor, a ping's where an online game starts to lag.
     private static double? FramesLine(SensorKind kind, bool warning) => (kind, warning) switch
     {
         (SensorKind.FrameRate, true) => 60,
         (SensorKind.FrameRate, false) => 30,
         (SensorKind.FrameTime, true) => 50,
-        (SensorKind.FrameTime, false) => 100,
+        (SensorKind.FrameTime, false) or (SensorKind.Latency, true) => 100,
+        (SensorKind.Latency, false) => 150,
         _ => null,
     };
 

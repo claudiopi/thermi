@@ -208,6 +208,7 @@ public sealed class SettingsFileTests
         {
             WindowTheme = WindowTheme.System,
             Agents = AgentAccess.Change,
+            PingHost = null,
             Overlays = [six.Overlays[0] with { Graph = GraphStyle.Auto }, six.Overlays[1]],
         };
 
