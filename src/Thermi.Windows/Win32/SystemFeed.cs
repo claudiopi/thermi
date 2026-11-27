@@ -51,6 +51,9 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time, PingRea
 
     public bool Taken => _sensors.Taken;
 
+    /// <summary>The ping it adds and runs, which follows the settings its process holds; null for none.</summary>
+    public PingReader? Ping => ping;
+
     public async Task RunAsync(CancellationToken stop)
     {
         NetworkChange.NetworkAddressChanged += AddressChanged;
