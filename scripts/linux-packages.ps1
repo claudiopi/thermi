@@ -20,7 +20,8 @@ the release in apt and dnf. pacman has no such sort, and the AUR takes only rele
 The packages' version when it is not the build's, as a rollback's, which offers the build before under a higher number.
 
 .PARAMETER From
-A folder with a build's tarballs, which are packed again at PackageVersion instead of building.
+A folder with a build's tarballs, which are packed again at PackageVersion instead of building: a rollback's, or a
+release's as served, whose PKGBUILD a run again of the release pushes to the AUR.
 
 .PARAMETER Key
 The OpenPGP secret key, armored, that thermi's repository is signed with: it signs the .rpm, and its public half goes in
@@ -214,6 +215,7 @@ foreach ($processor in $processors.GetEnumerator()) {
     if ($From) {
         $tarball = Get-ChildItem $From -Filter "thermi-*-$rid.tar.gz" | Select-Object -First 1
         if (-not $tarball) { throw "$From holds no tarball for $rid." }
+        $tarballs[$processor.Key] = $tarball.FullName
         tar -xzf $tarball.FullName -C $stage
         if ($LASTEXITCODE -ne 0) { throw "$($tarball.Name) did not unpack." }
         $files = (Get-ChildItem $stage -Directory | Select-Object -First 1).FullName
@@ -228,6 +230,7 @@ foreach ($processor in $processors.GetEnumerator()) {
     New-Inputs $stage $files
     Invoke-Nfpm $stage $files $processor.Value
 }
-if (-not $From -and -not $Version.Contains('-')) { Write-Aur $tarballs }
+# A release's own version, not a beta's nor a rollback's higher number, which the AUR never offers.
+if ($PackageVersion -eq $Version -and -not $Version.Contains('-')) { Write-Aur $tarballs }
 Remove-Item -Recurse -Force $stages
 Write-Host "Packed thermi $PackageVersion into $Output"
