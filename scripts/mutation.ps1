@@ -95,10 +95,9 @@ function Get-Share([int]$At, [int]$Of) {
     $shares[$At - 1]
 }
 
-# With bail off a mutant runs every test that covers it, and one that timed out ran half as long again past Stryker's
-# 5 s of grace. A few tests take seconds each, and the slowest share of the first nightly in shares was the one whose
-# mutants ran them most; each mutant also costs Stryker some time of its own, here 2 s. A test with no time costs as the
-# median test; with no times at all, each test costs 1.
+# With bail off a mutant runs every test that covers it, and a few tests take seconds each. Fit to the shares of the first
+# runs on CI, each mutant also costs Stryker as much as 7 s of tests, and one that timed out 30 s more. A test with no
+# time costs as the median test; with no times at all, each test costs 1.
 function Save-Costs([hashtable]$Reports, [hashtable]$Names, [hashtable]$Times) {
     $median = if ($Times.Count) { @($Times.Values | Sort-Object)[[int]($Times.Count / 2)] } else { 1 }
     $byId = @{}
@@ -108,9 +107,8 @@ function Save-Costs([hashtable]$Reports, [hashtable]$Names, [hashtable]$Times) {
         foreach ($file in $Reports[$project] | ForEach-Object { (Read-Report $_).files.GetEnumerator() }) {
             $seconds = 0.0
             foreach ($mutant in $file.Value.mutants | Where-Object { $_.status -in 'Killed', 'Timeout', 'Survived', 'NoCoverage' }) {
-                $ran = 2
-                foreach ($test in $mutant.coveredBy) { $ran += $byId[$test] ?? $median }
-                $seconds += if ($mutant.status -eq 'Timeout') { 1.5 * $ran + 5 } else { $ran }
+                $seconds += if ($mutant.status -eq 'Timeout') { 37 } else { 7 }
+                foreach ($test in $mutant.coveredBy) { $seconds += $byId[$test] ?? $median }
             }
             $costs["$project/$(Get-Named $file.Key $project)"] = [Math]::Round($seconds, 2)
         }
