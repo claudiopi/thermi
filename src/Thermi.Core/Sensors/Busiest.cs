@@ -57,7 +57,7 @@ internal static class BusiestAdapter
         var moved = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var sensor in snapshot.Sensors)
         {
-            if (sensor is { HardwareType: "Network", Type: nameof(SensorKind.Data) })
+            if (sensor is { HardwareType: SensorMap.Network, Type: nameof(SensorKind.Data) })
             {
                 var id = SensorMap.DeviceIdOf(sensor);
                 moved[id] = moved.GetValueOrDefault(id) + (sensor.Value is { } value && double.IsFinite(value) ? value : 0);

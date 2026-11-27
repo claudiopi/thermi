@@ -16,7 +16,7 @@ public static class SensorMap
 
     private const char RepeatMark = '#';
 
-    private const string Network = "Network";
+    internal const string Network = "Network";
 
     private const string Storage = "Storage";
 
@@ -52,7 +52,7 @@ public static class SensorMap
     }
 
     // Each rule's names are LibreHardwareMonitor's on Windows, then the Linux kernel's for the same: k10temp's Tdie and Tctl
-    // on AMD, coretemp's Package id 0 on Intel, RAPL's package-0, and amdgpu's edge and PPT.
+    // on AMD, coretemp's Package id 0 on Intel, RAPL's package-0, amdgpu's edge and PPT, and Intel's xe's pkg.
     private static readonly Dictionary<string, Rule> Rules = new(StringComparer.Ordinal)
     {
         [Metrics.CpuTemperature.Id] = new(
@@ -61,7 +61,7 @@ public static class SensorMap
         [Metrics.CpuPower.Id] = new(["Cpu"], "Power", ["Package", "CPU Package", "package-0"]),
         // An Intel CPU reports its bus's clock first, at about 100 MHz: never a core's.
         [Metrics.CpuClock.Id] = new(["Cpu"], "Clock", ["Cores (Average)", "Core #1", "P-Core #1", "CPU Core #1"], SkipName: "Bus Speed"),
-        [Metrics.GpuTemperature.Id] = new(Gpus, "Temperature", ["GPU Core", "edge"]),
+        [Metrics.GpuTemperature.Id] = new(Gpus, "Temperature", ["GPU Core", "edge", "pkg"]),
         [Metrics.GpuLoad.Id] = new(Gpus, "Load", ["GPU Core"]),
         [Metrics.GpuPower.Id] = new(Gpus, "Power", ["GPU Package", "GPU Power", "PPT"]),
         // Virtual memory reports a load named "Memory" too, and it comes first.
@@ -177,6 +177,9 @@ public static class SensorMap
     /// <summary>Whether thermi's driver seems missing: a CPU temperature reads zero, and so the board's sensors may not be read either.</summary>
     public static bool DriverMayBeMissing(Snapshot snapshot) =>
         snapshot.Sensors.Any(sensor => sensor.Type == nameof(SensorKind.Temperature) && ZeroIsMissing(sensor));
+
+    public static bool HasCpuTemperature(Snapshot snapshot) =>
+        snapshot.Sensors.Any(sensor => sensor is { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) });
 
     public static bool IsGpu(RawSensor sensor) => Gpus.Contains(sensor.HardwareType, StringComparer.Ordinal);
 

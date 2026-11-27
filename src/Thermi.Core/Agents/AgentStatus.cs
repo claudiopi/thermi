@@ -115,7 +115,8 @@ public static class AgentStatus
             { Service: ServiceState.Stale } => [AgentProblem.ServiceStale],
             _ => [],
         });
-        if (facts.Latest is { } latest && SensorMap.DriverMayBeMissing(latest))
+        // On Linux a CPU whose module is not loaded has no temperature at all, where Windows' reads zero without its driver.
+        if (facts.Latest is { } latest && (SensorMap.DriverMayBeMissing(latest) || (facts.Os == AgentOs.Linux && !SensorMap.HasCpuTemperature(latest))))
         {
             problems.Add(AgentProblem.DriverMissing);
         }
@@ -178,7 +179,7 @@ public static class AgentStatus
         AgentProblem.PipeTaken => (AgentText.PipeTakenCauseLinux, AgentText.PipeTakenFixLinux),
         AgentProblem.DriverMissing => (AgentText.DriverMissingCause, AgentText.DriverMissingFixLinux),
         AgentProblem.SettingsBroken when sensorsOnly => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFixLinuxSensorsOnly),
-        // Said as on Windows, which names no menu, service or file of Windows' in them.
+        // Said as on Windows: they name nothing of Windows', or never happen on Linux, as a per-user install's.
         AgentProblem.ServiceMissing or AgentProblem.SettingsBroken or AgentProblem.NotRunning or AgentProblem.FramesNotRead
             or AgentProblem.OverlayCannotShow => null,
         _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, "Unknown problem."),
