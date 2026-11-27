@@ -3,6 +3,7 @@ using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Messages;
+using Thermi.Core.Painting;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -83,9 +84,9 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
         Let();
         var carried = DesktopGestures.Grip(settings.Config, on.Item, on.OnLabel);
         var held = InCorner(overlay, painted, at, actions.Cursor()) ? Held.Corner : carried is null ? Held.Edge : Held.Pill;
-        var (box, gap, picture) = carried is { Alone: true } alone ? (on.Place, on.Alone, () => ItemPicture(alone.Item, painted))
-            : carried is { } pill ? (on.Pill, on.Pill, () => PillPicture(pill.Item, painted))
-            : (on.Pill, on.Pill, (Func<Bitmap>?)null);
+        var (box, gap, picture) = carried is { Alone: true } alone ? (on.Place.Rect(), on.Alone.Rect(), () => ItemPicture(alone.Item, painted))
+            : carried is { } pill ? (on.Pill.Rect(), on.Pill.Rect(), () => PillPicture(pill.Item, painted))
+            : (on.Pill.Rect(), on.Pill.Rect(), (Func<Bitmap>?)null);
         var start = new DragStart(held, carried, box, gap, at, painted.Size, painted.Scale, picture);
         Drag = new DesktopDrag(index, settings, start, screens, hwnd, actions.Settle);
         _pressed = actions.Time.GetTimestamp();

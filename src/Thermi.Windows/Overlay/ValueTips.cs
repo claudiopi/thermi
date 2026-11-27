@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Thermi.App.Gestures;
+using Thermi.Core.Painting;
 using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 using Windows.Win32;
@@ -119,7 +120,7 @@ internal sealed class ValueTips : IDisposable
         count = Math.Min(count, painted.Count);
         for (var at = 0; at < count; at++)
         {
-            var place = painted[at].Item;
+            var place = painted[at].Item.Rect();
             if (at >= _texts.Count)
             {
                 Send(PInvoke.TTM_ADDTOOLW, at, place, "");

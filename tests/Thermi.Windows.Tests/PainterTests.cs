@@ -122,7 +122,7 @@ public sealed class PainterTests
 
         using var bitmap = painter.Paint(items, look, 1);
 
-        var value = Rectangle.Round(painter.Places.Single(each => each.Id == Metrics.CpuLoad.Id).Value);
+        var value = Rectangle.Round(painter.Places.Single(each => each.Id == Metrics.CpuLoad.Id).Value.Rect());
         var lights = Enumerable.Range(value.Left, value.Width)
             .SelectMany(x => Enumerable.Range(value.Top, value.Height).Select(y => Luminance(bitmap.GetPixel(x, y), backdrop)))
             .ToList();
