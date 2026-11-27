@@ -38,15 +38,25 @@ public sealed class AgentTests
         Shells,
         OverSsh,
         FromTheOverlay,
+
+        /// <summary>Where no overlay can show: GNOME without thermi's extension, and Wayland with no surface thermi has.</summary>
+        CannotShow,
     }
 
     [Theory(Timeout = Bound.Test)]
     [InlineData(Cli.Shells, Skip = "Waiting for its code")]
     [InlineData(Cli.OverSsh)]
     [InlineData(Cli.FromTheOverlay)]
+    [InlineData(Cli.CannotShow)]
     public async Task TheCliAnswersOnLinux(Cli row)
     {
         var cancel = TestContext.Current.CancellationToken;
+        if (row == Cli.CannotShow)
+        {
+            await CannotShowAsync(cancel);
+            return;
+        }
+
         if (row != Cli.Shells)
         {
             await (row == Cli.OverSsh ? OverSshAsync(cancel) : FromTheOverlayAsync(cancel));
@@ -78,7 +88,6 @@ public sealed class AgentTests
 
         Assert.Equal(("running", false), await session.SdkStatusAsync(cancel));
         await StartsAtSignInAsync(session, units, cancel);
-        await CannotShowAsync(cancel);
     }
 
     [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
