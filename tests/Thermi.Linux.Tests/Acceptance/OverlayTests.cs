@@ -1,8 +1,10 @@
 using System.Text.Json.Nodes;
+using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
+using Thermi.Linux.Tests.Desktops.X11;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
@@ -15,6 +17,9 @@ public sealed class OverlayTests
     private static readonly TestMonitor Monitor = new(1920, 1080);
 
     private static readonly (int X, int Y, int Width, int Height) UnderTheBar = (Scene.OnWindow.X, Scene.OnWindow.Y, 400, 200);
+
+    // Where an overlay dragged on the window is let go: below the other overlay, and away from every snap's reach.
+    private static readonly Position Free = new(400, 750);
 
     public enum GnomeCase
     {
@@ -30,6 +35,12 @@ public sealed class OverlayTests
         SwayAt150,
         FullScreen,
         Neither,
+    }
+
+    public enum X11Case
+    {
+        BottomPanel,
+        LeftPanelAt200,
     }
 
     [Theory(Timeout = Bound.Test)]
@@ -92,15 +103,27 @@ public sealed class OverlayTests
         }
     }
 
-    [Fact(Timeout = Bound.Test)]
-    public async Task TheOverlayShowsAboveEveryWindowOnX11()
+    [Theory(Timeout = Bound.Test)]
+    [InlineData(X11Case.BottomPanel)]
+    [InlineData(X11Case.LeftPanelAt200)]
+    public async Task TheOverlayShowsAboveEveryWindowOnX11(X11Case row)
     {
         var cancel = TestContext.Current.CancellationToken;
-        await using var desktop = await TestDesktop.StartAsync(DesktopKind.X11, [Monitor], cancel);
+        var (edge, scale) = row switch
+        {
+            X11Case.BottomPanel => (PanelEdge.Bottom, 1),
+            X11Case.LeftPanelAt200 => (PanelEdge.Left, 2),
+            _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown case."),
+        };
+        await using var desktop = await TestDesktop.StartAsync(DesktopKind.X11, [Monitor with { Scale = scale }], cancel, edge);
+        // Snapped to the taskbar from the monitor's left edge, as far as it goes beside a side panel.
+        var first = edge == PanelEdge.Left ? Scene.PanelOverlay with { Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = 0 } } : null;
 
-        var scene = await Scene.ShowAsync(desktop, 1, fullScreen: false, stopped: false, cancel, clickThrough: true);
+        var scene = await Scene.ShowAsync(desktop, scale, fullScreen: false, stopped: false, cancel, clickThrough: true, first);
 
-        Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnPanel, cancel));
+        var (width, height) = await Pictures.SizeAsync(desktop.Session, scene.Picture, cancel);
+        var onPanel = OnPanelOf(edge, scale, height);
+        Assert.Equal(0, await scene.DifferingAtAsync(onPanel, cancel));
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnWindow, cancel));
         // Off the taskbar and the window switcher: every window of thermi's process says so to the window manager.
         var windows = await desktop.Session.RunAsync("xdotool", ["search", "--onlyvisible", "--pid", $"{scene.Thermi.Id}"], cancel: cancel);
@@ -114,11 +137,26 @@ public sealed class OverlayTests
         }
 
         // Click-through, a click where it draws passes too: the middle of the overlay on the window.
-        var (width, height) = await Pictures.SizeAsync(desktop.Session, scene.Picture, cancel);
         Assert.Equal("click 1", await scene.ClickAsync(Scene.OnWindow.X + (width / 2), Scene.OnWindow.Y + (height / 2), cancel));
+        // Dragged off the panel by its first pill, it shows and stays where the pointer let it go.
+        var dropped = Traced.NextAsync(scene.Thermi.Error, Traced.Dropped, cancel);
+        await desktop.Input.DragAsync((onPanel.X + 16, onPanel.Y + (height / 2)), (Free.X + 16, Free.Y + (height / 2)), cancel);
+        await dropped;
+        var moved = scene with { Screen = await desktop.ScreenshotAsync(cancel) };
+        Assert.Equal<Position?>(Free, (await Settings.ReadAsync(desktop.Session, cancel)).Overlays[0].Position);
+        Assert.Equal(0, await moved.DifferingAtAsync(Free, cancel));
         await desktop.OpenWindowAsync(fullScreen: true, cancel);
-        Assert.Equal(0, await CoveredAsync(scene, Scene.OnPanel, cancel));
+        Assert.Equal(0, await CoveredAsync(moved, Free, cancel));
     }
+
+    // Where Core's snaps put the first overlay: across the middle of a panel along the bottom; beside a side panel, at the
+    // bottom of the work area, a margin up. A panel at the top is GestureTests' X11 rows'.
+    private static Position OnPanelOf(PanelEdge edge, double scale, int height) => edge switch
+    {
+        PanelEdge.Bottom => new(Scene.OnPanel.X, Monitor.Height - XfceDesktop.PanelRoom + ((XfceDesktop.PanelRoom - height) / 2)),
+        PanelEdge.Left => new(XfceDesktop.PanelRoom, Monitor.Height - (int)Math.Round(Snaps.Margin * scale) - height),
+        PanelEdge.Top or _ => throw new ArgumentOutOfRangeException(nameof(edge), edge, "No row has this edge."),
+    };
 
     // A full-screen window in front covers the overlay: where it was, the screen shows what it shows once thermi is gone.
     private static async Task<long> CoveredAsync(Scene scene, Position at, CancellationToken cancel)

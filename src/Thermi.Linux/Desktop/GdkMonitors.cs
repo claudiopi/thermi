@@ -21,19 +21,21 @@ internal static class GdkMonitors
     }
 
     /// <summary>
-    /// Each monitor as the overlays place themselves on it, its bar the logical pixels along its top that
-    /// <paramref name="bar"/> says the panels keep, and <paramref name="primary"/> the primary one.
+    /// Each monitor as the overlays place themselves on it, with the logical pixels along each edge that
+    /// <paramref name="room"/> says the panels keep, and <paramref name="primary"/> the primary one.
     /// </summary>
-    public static IReadOnlyList<ShellMonitor> Read(IReadOnlyList<Gdk.Monitor> monitors, Func<Gdk.Monitor, double> bar, Gdk.Monitor? primary)
+    public static IReadOnlyList<ShellMonitor> Read(IReadOnlyList<Gdk.Monitor> monitors, Func<Gdk.Monitor, PanelRoom> room, Gdk.Monitor? primary)
     {
         var ids = MonitorIds.Unique([.. monitors.Select(monitor => (Name(monitor), monitor.GetConnector() ?? ""))]);
         var first = primary ?? (monitors.Count > 0 ? monitors[0] : null);
         return [.. monitors.Select((monitor, at) =>
         {
             var place = monitor.Geometry;
-            return new ShellMonitor(place.X, place.Y, place.Width, place.Height, monitor.GetScale(), bar(monitor), monitor == first, FullScreen: false)
+            var kept = room(monitor);
+            return new ShellMonitor(place.X, place.Y, place.Width, place.Height, monitor.GetScale(), kept.Top, monitor == first, FullScreen: false)
             {
                 Id = ids[at],
+                Room = kept,
             };
         })];
     }

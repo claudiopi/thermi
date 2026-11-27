@@ -21,7 +21,8 @@ internal sealed class X11Surfaces : IOverlaySurfaces
     private IReadOnlyList<ShellMonitor> _known = [];
     private uint _watching;
     private uint _checking;
-    private (int X, int Y)? _pointer;
+    private (double X, double Y)? _pointer;
+    private uint? _held;
 
     public bool Ready => true;
 
@@ -42,8 +43,8 @@ internal sealed class X11Surfaces : IOverlaySurfaces
             list.OnItemsChanged += (_, _) => Changed();
         }
 
-        // A panel that comes, goes or grows changes the root window's work area, which GTK 4 tells no one: it is read again
-        // each second, a property's read.
+        // A panel that comes, goes or grows changes its struts, which GTK 4 tells no one: they are read again each second,
+        // a few properties' read.
         _checking = GLib.Functions.TimeoutAddSeconds(0, 1, () =>
         {
             if (!Monitors().SequenceEqual(_known))
@@ -75,16 +76,17 @@ internal sealed class X11Surfaces : IOverlaySurfaces
 
         shown.At = (x, y);
         var shows = shown.Window.Show(picture, (0, 0));
-        shown.Move();
+        shown.Move(raise: false);
         return shows;
     }
 
+    // A picture moved rises above thermi's others, as one dragged above the snap marks shown before it.
     public Task Move(uint id, double x, double y)
     {
         if (_shown.TryGetValue(id, out var shown))
         {
             shown.At = (x, y);
-            shown.Move();
+            shown.Move(raise: true);
         }
 
         return Task.CompletedTask;
@@ -104,6 +106,7 @@ internal sealed class X11Surfaces : IOverlaySurfaces
 
     public void HoldKeys(uint id, bool held)
     {
+        _held = held ? id : null;
         if (_shown.TryGetValue(id, out var shown))
         {
             shown.Hold(held);
@@ -141,9 +144,12 @@ internal sealed class X11Surfaces : IOverlaySurfaces
 
     public IReadOnlyList<ShellMonitor> Monitors()
     {
-        var monitors = GdkMonitors.All();
-        var primary = Gdk.Display.GetDefault() is { } display ? XWindows.Primary(display) : null;
-        return [.. GdkMonitors.Read(monitors, monitor => Math.Max(0, XWindows.WorkArea(monitor).Y - monitor.Geometry.Y), primary)];
+        if (Gdk.Display.GetDefault() is not { } display)
+        {
+            return [];
+        }
+
+        return [.. GdkMonitors.Read(GdkMonitors.All(), PanelStruts.Of(display), XWindows.Primary(display))];
     }
 
     // The pointer anywhere, told only when it moved, as a Pointer on no overlay.
@@ -176,12 +182,14 @@ internal sealed class X11Surfaces : IOverlaySurfaces
                 window.OnMap += (_, _) =>
                 {
                     _mapped = true;
-                    Move();
+                    Move(raise: false);
                 };
             })
             {
                 Pointer = each => surfaces.Pointer(Rooted(each)),
-                Key = (on, key) => surfaces.Key(on, key),
+                // GTK gives a window it shows the keyboard, as the lifted pill's while a press holds an overlay's: Esc on
+                // any of thermi's windows is the held one's.
+                Key = (on, key) => surfaces.Key(surfaces._held ?? on, key),
             };
             Window.Shaped = Shape;
         }
@@ -198,12 +206,12 @@ internal sealed class X11Surfaces : IOverlaySurfaces
 
         public (double X, double Y) At { get; set; }
 
-        public void Move()
+        public void Move(bool raise)
         {
             Window.Origin = At;
             if (_mapped && Window.Window.GetSurface() is { } surface)
             {
-                XWindows.Move(surface, (int)Math.Round(At.X), (int)Math.Round(At.Y));
+                XWindows.Move(surface, At.X, At.Y, raise);
             }
         }
 

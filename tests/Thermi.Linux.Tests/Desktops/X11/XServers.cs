@@ -20,7 +20,8 @@ internal static class XServers
     /// <summary>
     /// Xorg with its dummy driver, whose outputs, DUMMY0 and on, are monitors to GTK, which Xvfb's RandR monitors are not. It
     /// runs as the user only where the PC's consoles are closed to them, as they are; it reads no file of the PC's
-    /// configuration and no device, and finds no system bus, so it asks logind for nothing.
+    /// configuration and no device, and finds no system bus, so it asks logind for nothing; nor does it take a console or
+    /// its terminal, or switch the PC's consoles.
     /// </summary>
     public static async Task StartXorgAsync(OwnSession session, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
     {
@@ -34,7 +35,7 @@ internal static class XServers
             "  SubSection \"Display\"", "    Depth 24", $"    Virtual {width} {height}", "  EndSubSection", "EndSection"], cancel).ConfigureAwait(false);
         var none = Directory.CreateDirectory(Path.Combine(session.Home, "xorg.conf.d")).FullName;
         string[] args = ["-config", config, "-configdir", none, "-logfile", Path.Combine(session.Home, "xorg.log"), "-nolisten", "tcp", "-noreset",
-            "-s", "0", "-dpms", "-displayfd", "1"];
+            "-s", "0", "-dpms", "-novtswitch", "-keeptty", "-displayfd", "1"];
         var alone = new Dictionary<string, string> { ["DBUS_SYSTEM_BUS_ADDRESS"] = $"unix:path={Path.Combine(session.Home, "no-bus")}" };
         var server = await session.StartAsync("/usr/lib/xorg/Xorg", args, alone, cancel).ConfigureAwait(false);
         session.X11Display = $":{await server.ReadyAsync(cancel).ConfigureAwait(false)}";

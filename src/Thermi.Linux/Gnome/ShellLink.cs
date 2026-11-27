@@ -13,12 +13,18 @@ internal sealed record ShellMonitor(double X, double Y, double Width, double Hei
     /// <summary>The monitor's name as GTK tells it off GNOME; on GNOME, Mutter's display config names it, and this is null.</summary>
     public string? Id { get; init; }
 
+    /// <summary>The room the panels keep along each of the monitor's edges, where a desktop tells them all; null for <see cref="Bar"/> alone.</summary>
+    public PanelRoom? Room { get; init; }
+
     /// <summary>The top bar's centre box, the clock, from its left edge to its right, on the stage; (0, 0) off the top bar.</summary>
     public (double Left, double Right) Centre { get; init; }
 
     /// <summary>The top bar's right box, the system menu, as <see cref="Centre"/>.</summary>
     public (double Left, double Right) End { get; init; }
 }
+
+/// <summary>The logical pixels the panels keep along each edge of a monitor, off its work area.</summary>
+internal readonly record struct PanelRoom(double Left, double Top, double Right, double Bottom);
 
 /// <summary>
 /// The pointer on an overlay's boxes, as the extension sends it: what it did, where on the stage, its button and keys

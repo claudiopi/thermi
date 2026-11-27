@@ -6,7 +6,7 @@ namespace Thermi.Linux.Gnome;
 /// <summary>
 /// The Shell's monitors as Core's <see cref="Screen"/>s. thermi's pixels are the stage's logical ones times the largest
 /// monitor scale, the pixels of the Shell's own screenshot, so a place saved in the settings means the same pixel on a
-/// monitor at 150 % as Windows' does; the top bar is the taskbar at its monitor's top. Each monitor is named by its maker,
+/// monitor at 150 % as Windows' does; the top bar, or another desktop's panel on any edge, is the taskbar. Each monitor is named by its maker,
 /// model and serial, as Mutter's display config tells them, so a snap follows its monitor when the monitors swap places.
 /// </summary>
 internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOnlyDictionary<(int X, int Y), string> names)
@@ -65,21 +65,34 @@ internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOn
         }
 
         var bounds = new PixelRect(At(monitor.X), At(monitor.Y), At(monitor.X + monitor.Width), At(monitor.Y + monitor.Height));
-        var bar = monitor.Bar > 0 ? bounds with { Bottom = At(monitor.Y + monitor.Bar) } : (PixelRect?)null;
+        var room = monitor.Room ?? new PanelRoom(0, monitor.Bar, 0, 0);
+        var work = new PixelRect(
+            At(monitor.X + room.Left), At(monitor.Y + room.Top), At(monitor.X + monitor.Width - room.Right), At(monitor.Y + monitor.Height - room.Bottom));
+        var bar = Taskbar(bounds, work);
         PixelRect? On((double Left, double Right) box)
         {
-            return bar is { } top && box.Right > box.Left ? top with { Left = At(box.Left), Right = At(box.Right) } : null;
+            return bar is { } along && box.Right > box.Left ? along with { Left = At(box.Left), Right = At(box.Right) } : null;
         }
 
         var id = monitor.Id
             ?? (names.TryGetValue(((int)Math.Round(monitor.X), (int)Math.Round(monitor.Y)), out var named) ? named : $"monitor-{index}");
         // The system menu is where the top bar's notification area is, beside which an overlay sits by default.
-        return new Screen(id, monitor.Primary, bounds, bar is { } top ? bounds with { Top = top.Bottom } : bounds, monitor.Scale)
+        return new Screen(id, monitor.Primary, bounds, work, monitor.Scale)
         {
             Taskbar = bar,
             Tray = On(monitor.End),
             Centre = On(monitor.Centre),
             End = On(monitor.End),
         };
+    }
+
+    // The panel an overlay snaps onto, as Windows' taskbar: the deepest band the panels keep along the top or the bottom,
+    // which an overlay can sit on, else along a side, beside which it sits; none where the panels keep no room.
+    private static PixelRect? Taskbar(PixelRect bounds, PixelRect work)
+    {
+        PixelRect?[] across = [bounds with { Bottom = work.Top }, bounds with { Top = work.Bottom }];
+        PixelRect?[] beside = [bounds with { Right = work.Left }, bounds with { Left = work.Right }];
+        return across.Where(band => band!.Value.Height > 0).MaxBy(band => band!.Value.Height)
+            ?? beside.Where(band => band!.Value.Width > 0).MaxBy(band => band!.Value.Width);
     }
 }

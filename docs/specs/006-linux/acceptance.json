@@ -118,7 +118,7 @@
       "covers": [
         "R24"
       ],
-      "description": "Given an X11 desktop of the test's own with a panel, a window under the overlay and a recorded feed, when thermi runs, with a window full screen in front and then with click-through on, then the overlay shows above the window and the panel as thermi preview paints it, lists in no taskbar or window switcher, a full-screen window in front covers it, and every click passes to the window once it is click-through.",
+      "description": "Given an X11 desktop of the test's own with a panel, a window under the overlay and a recorded feed, when thermi runs (a table of a panel at the bottom, and at the left with GTK at 200 %), with an overlay snapped to the taskbar, one click-through on the window, then the snapped one dragged onto the window and a window full screen in front, then the overlay shows above the window and the panel as thermi preview paints it, on the panel's own edge or beside a side one, lists in no taskbar or window switcher, every click passes to the window once it is click-through, the dragged one shows and stays where it was let go, and a full-screen window in front covers it.",
       "check": "TheOverlayShowsAboveEveryWindowOnX11",
       "passes": true
     },
@@ -127,7 +127,7 @@
       "covers": [
         "R23"
       ],
-      "description": "Given two overlays on the headless GNOME Shell and on KWin, when a value is held until it lifts and dropped on the other overlay, a pill is held and dropped on the desktop, a drag is cancelled with Esc, and Ctrl and the wheel turn over an overlay, then the item joins the other overlay, the pill becomes an overlay that snaps, Esc puts everything back, and the overlay grows a step for each notch; with Fade near the pointer, the overlay fades as the pointer nears it on GNOME and as it comes over it on KWin.",
+      "description": "Given two overlays on the headless GNOME Shell, on KWin and on an X11 desktop, when a value is held until it lifts and dropped on the other overlay, a pill is held and dropped on the desktop, a drag is cancelled with Esc, and Ctrl and the wheel turn over an overlay, then the item joins the other overlay, the pill becomes an overlay that snaps, Esc puts everything back, and the overlay grows a step for each notch; with Fade near the pointer, the overlay fades as the pointer nears it on GNOME and X11 and as it comes over it on KWin.",
       "check": "DesktopGesturesWorkOnLinux",
       "passes": true
     },

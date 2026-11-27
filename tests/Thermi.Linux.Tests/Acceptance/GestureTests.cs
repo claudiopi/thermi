@@ -65,6 +65,7 @@ public sealed class GestureTests
     [Theory(Timeout = Bound.Test)]
     [InlineData(Desktop.Gnome)]
     [InlineData(Desktop.KWin)]
+    [InlineData(Desktop.X11)]
     public async Task DesktopGesturesWorkOnLinux(Desktop row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -152,12 +153,12 @@ public sealed class GestureTests
         return (changed, await Settings.ReadAsync(desktop.Session, cancel));
     }
 
-    // Fade near the pointer: GNOME's extension knows where the pointer is anywhere, KWin tells thermi only over its surface.
-    // What fades is the overlay itself: the rest of the screen stays as it was.
+    // Fade near the pointer: GNOME's extension and X11 know where the pointer is anywhere, KWin tells thermi only over its
+    // surface. What fades is the overlay itself: the rest of the screen stays as it was.
     private static async Task FadesAsync(TestDesktop desktop, SessionProcess thermi, Desktop row, CancellationToken cancel)
     {
         var shown = await desktop.ScreenshotAsync(cancel);
-        var near = row == Desktop.Gnome ? (Fading.X - 40, Fading.Y - 40) : (Fading.X + 8, Fading.Y + 8);
+        var near = row != Desktop.KWin ? (Fading.X - 40, Fading.Y - 40) : (Fading.X + 8, Fading.Y + 8);
         var faded = Traced.NextAsync(thermi.Error, Traced.Faded, cancel);
         await desktop.Input.MoveAsync(near.Item1, near.Item2, cancel);
         await faded;

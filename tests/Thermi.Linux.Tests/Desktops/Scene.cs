@@ -49,13 +49,14 @@ internal sealed partial record Scene(TestDesktop Desktop, SessionProcess Thermi,
 
     /// <summary>
     /// Shows thermi on <paramref name="desktop"/> over a window, full screen or not, with the sensors serving or stopped, and
-    /// takes the screen before and after, and the picture <c>thermi preview</c> paints for the same snapshot and scale.
+    /// takes the screen before and after, and the picture <c>thermi preview</c> paints for the same snapshot and scale. The
+    /// first overlay is <see cref="PanelOverlay"/> but where <paramref name="first"/> says another.
     /// </summary>
     public static async Task<Scene> ShowAsync(
-        TestDesktop desktop, double scale, bool fullScreen, bool stopped, CancellationToken cancel, bool clickThrough = false)
+        TestDesktop desktop, double scale, bool fullScreen, bool stopped, CancellationToken cancel, bool clickThrough = false, OverlayConfig? first = null)
     {
         await desktop.WriteSettingsAsync(
-            ThermiConfig.New with { Overlays = [PanelOverlay, Overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
+            ThermiConfig.New with { Overlays = [first ?? PanelOverlay, Overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
             cancel);
         var snapshot = stopped ? null : (await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel)).Snapshot;
         var window = await desktop.OpenWindowAsync(fullScreen, cancel);

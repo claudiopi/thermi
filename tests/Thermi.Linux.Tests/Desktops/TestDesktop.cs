@@ -64,11 +64,14 @@ internal sealed class TestDesktop : IAsyncDisposable
     /// <summary>The pointer and the keyboard, through the desktop's own input for tests.</summary>
     public DesktopInput Input => new(Kind, Session, Scale);
 
-    public static Task<TestDesktop> StartAsync(DesktopKind kind, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel) =>
-        StartAsync(kind, monitors, TestShell.Thermi, cancel);
+    /// <summary>The desktop, an X11 one with its panel along <paramref name="panel"/>.</summary>
+    public static Task<TestDesktop> StartAsync(
+        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel, PanelEdge panel = PanelEdge.Top) =>
+        StartAsync(kind, monitors, TestShell.Thermi, cancel, panel);
 
     /// <summary>A desktop whose GNOME Shell loads <paramref name="extension"/> in place of thermi's, or none when null.</summary>
-    public static async Task<TestDesktop> StartAsync(DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel)
+    public static async Task<TestDesktop> StartAsync(
+        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel, PanelEdge panel = PanelEdge.Top)
     {
 #pragma warning disable CA2000 // The desktop owns the session, and ends it with itself, as when its start fails below.
         var desktop = new TestDesktop(kind, new OwnSession(), monitors.Max(monitor => monitor.Scale));
@@ -80,7 +83,7 @@ internal sealed class TestDesktop : IAsyncDisposable
                 DesktopKind.Gnome or DesktopKind.GnomeX11 => desktop.StartGnomeAsync(monitors, extension, cancel),
                 DesktopKind.KWin => desktop.StartKWinAsync(monitors, cancel),
                 DesktopKind.Sway => desktop.StartSwayAsync(monitors, cancel),
-                DesktopKind.X11 => desktop.StartXfceAsync(monitors, cancel),
+                DesktopKind.X11 => desktop.StartXfceAsync(monitors, panel, cancel),
                 DesktopKind.BareWayland => desktop.StartWestonAsync(monitors[0], cancel),
                 _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown desktop."),
             }).ConfigureAwait(false);
@@ -93,9 +96,16 @@ internal sealed class TestDesktop : IAsyncDisposable
         }
     }
 
-    /// <summary>Starts thermi in the desktop's session, as its user unit does, with <paramref name="args"/>.</summary>
+    /// <summary>
+    /// Starts thermi in the desktop's session, as its user unit does, with <paramref name="args"/>. On X11, a monitor's
+    /// scale is GTK's own, which a person sets with GDK_SCALE: the X server and the panel know none.
+    /// </summary>
     public Task<SessionProcess> StartThermiAsync(IEnumerable<string> args, CancellationToken cancel) =>
-        Session.StartAsync(Built.Program("thermi"), args, cancel: cancel);
+        Session.StartAsync(
+            Built.Program("thermi"),
+            args,
+            Kind == DesktopKind.X11 ? new Dictionary<string, string> { ["GDK_SCALE"] = Scale.ToString(CultureInfo.InvariantCulture) } : null,
+            cancel);
 
     /// <summary>A window of another program under the overlay, maximized or full screen.</summary>
     public Task<TestWindow> OpenWindowAsync(bool fullScreen, CancellationToken cancel) => TestWindow.OpenAsync(Session, fullScreen, cancel);
@@ -319,9 +329,9 @@ internal sealed class TestDesktop : IAsyncDisposable
         _panel = await TestPanel.ShowAsync(Session, cancel, panel: false).ConfigureAwait(false);
     }
 
-    private async Task StartXfceAsync(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
+    private async Task StartXfceAsync(IReadOnlyList<TestMonitor> monitors, PanelEdge panel, CancellationToken cancel)
     {
-        _xfce = await XfceDesktop.StartAsync(Session, monitors, cancel).ConfigureAwait(false);
+        _xfce = await XfceDesktop.StartAsync(Session, monitors, panel, cancel).ConfigureAwait(false);
         await WaitForNameAsync("org.xfce.Panel", cancel).ConfigureAwait(false);
     }
 

@@ -29,6 +29,13 @@ internal static partial class XWindows
     // XSetInputFocus's revert-to RevertToParent, at CurrentTime.
     private const int ToParent = 2;
 
+    // _NET_WM_STRUT_PARTIAL's items: each edge's depth, then each edge's span along it, its first and last pixel.
+    private const int Partial = 12;
+
+    // XGetWindowProperty's AnyPropertyType, and the most items read of a property, past any client list's.
+    private const nuint AnyType = 0;
+    private const nint MostItems = 65536;
+
     /// <summary>
     /// The window as a dock, which the window manager keeps above the others, off the taskbar and the pager, given no
     /// keyboard on a click or as it maps; said once it is realized and before it maps, as the window manager reads it then.
@@ -67,39 +74,110 @@ internal static partial class XWindows
         _ = Flush(display);
     }
 
-    /// <summary>Moves the window's corner to a pixel of the root window.</summary>
-    public static void Move(Gdk.Surface surface, int x, int y)
+    /// <summary>
+    /// Moves the window's corner to a logical pixel of the stage, on the root window's pixel nearest it, and raises it
+    /// above thermi's other windows where <paramref name="raise"/>, as a dragged overlay rises above the snap marks.
+    /// </summary>
+    public static void Move(Gdk.Surface surface, double x, double y, bool raise)
     {
         var (display, window) = Of(surface);
-        _ = MoveWindow(display, window, x, y);
+        var scale = surface.GetScaleFactor();
+        _ = MoveWindow(display, window, (int)Math.Round(x * scale), (int)Math.Round(y * scale));
+        if (raise)
+        {
+            _ = RaiseWindow(display, window);
+        }
+
         _ = Flush(display);
     }
 
-    /// <summary>Takes the keyboard to the window, and the window it came from, to give it back.</summary>
+    /// <summary>
+    /// Takes the keyboard to the window, and the window it came from, to give it back. A window that is gone or not shown
+    /// takes no focus, which the X server answers with an error that GDK would end the process for: GDK ignores it here.
+    /// </summary>
     public static nuint Focus(Gdk.Surface surface)
     {
         var (display, window) = Of(surface);
+        var gdk = surface.GetDisplay();
+        TrapPush(gdk.Handle);
         _ = GetInputFocus(display, out var before, out _);
         _ = SetInputFocus(display, window, ToParent, 0);
         _ = Flush(display);
+        TrapPopIgnored(gdk.Handle);
         return before;
     }
 
-    /// <summary>Gives the keyboard back to <paramref name="window"/>.</summary>
+    /// <summary>Gives the keyboard back to <paramref name="window"/>, which may have gone since, as <see cref="Focus"/> takes it.</summary>
     public static void Unfocus(Gdk.Surface surface, nuint window)
     {
         var display = DisplayOf(surface);
+        var gdk = surface.GetDisplay();
+        TrapPush(gdk.Handle);
         _ = SetInputFocus(display, window, ToParent, 0);
         _ = Flush(display);
+        TrapPopIgnored(gdk.Handle);
     }
 
-    /// <summary>The pointer on the root window, in its pixels, and the keys held.</summary>
-    public static (int X, int Y, uint Keys)? Pointer(Gdk.Display display)
+    /// <summary>The pointer on the root window, in the stage's logical pixels, and the keys held.</summary>
+    public static (double X, double Y, uint Keys)? Pointer(Gdk.Display display)
     {
         var x = DisplayPointer(display);
+        var scale = (double)Scale(display);
         return QueryPointer(x, DefaultRootWindow(x), out _, out _, out var rootX, out var rootY, out _, out _, out var keys) != 0
-            ? (rootX, rootY, keys)
+            ? (rootX / scale, rootY / scale, keys)
             : null;
+    }
+
+    /// <summary>
+    /// The struts the window manager's clients keep, each as _NET_WM_STRUT_PARTIAL's twelve, and the root window's size,
+    /// all in its pixels. A client with only _NET_WM_STRUT keeps the whole length of each edge; one gone while it is read
+    /// keeps nothing.
+    /// </summary>
+    public static (IReadOnlyList<long[]> Struts, long Width, long Height) Struts(Gdk.Display display)
+    {
+        var x = DisplayPointer(display);
+        var screen = DefaultScreen(x);
+        var (width, height) = ((long)DisplayWidth(x, screen), (long)DisplayHeight(x, screen));
+        TrapPush(display.Handle);
+        try
+        {
+            var struts = Longs(x, DefaultRootWindow(x), "_NET_CLIENT_LIST").Select(client =>
+            {
+                var partial = Longs(x, (nuint)client, "_NET_WM_STRUT_PARTIAL");
+                var whole = partial.Length >= Partial ? [] : Longs(x, (nuint)client, "_NET_WM_STRUT");
+                return partial.Length >= Partial ? partial[..Partial]
+                    : whole.Length >= 4 ? [.. whole[..4], 0, height - 1, 0, height - 1, 0, width - 1, 0, width - 1]
+                    : null;
+            });
+            return ([.. struts.OfType<long[]>()], width, height);
+        }
+        finally
+        {
+            TrapPopIgnored(display.Handle);
+        }
+    }
+
+    /// <summary>The scale of GDK's logical pixels on X11, one for every monitor.</summary>
+    public static int Scale(Gdk.Display display) => display.GetMonitors().GetObject(0) is Gdk.Monitor first ? first.GetScaleFactor() : 1;
+
+    // A property of 32-bit items, which Xlib hands as longs; none where the window has none.
+    private static long[] Longs(nint display, nuint window, string name)
+    {
+        var property = InternAtom(display, name, 0);
+        if (GetWindowProperty(display, window, property, 0, MostItems, 0, AnyType, out _, out var format, out var count, out _, out var data) != 0
+            || data == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            return format == 32 ? [.. Enumerable.Range(0, (int)count).Select(at => (long)Marshal.ReadIntPtr(data, at * IntPtr.Size))] : [];
+        }
+        finally
+        {
+            _ = Free(data);
+        }
     }
 
     /// <summary>The primary monitor, as RandR says, GDK's own object for it, or null for none.</summary>
@@ -140,6 +218,29 @@ internal static partial class XWindows
 
     [LibraryImport(Gdk, EntryPoint = "gdk_x11_monitor_get_workarea")]
     private static partial void WorkArea(ObjectHandle monitor, out Rectangle area);
+
+    [LibraryImport(Gdk, EntryPoint = "gdk_x11_display_error_trap_push")]
+    private static partial void TrapPush(ObjectHandle display);
+
+    [LibraryImport(Gdk, EntryPoint = "gdk_x11_display_error_trap_pop_ignored")]
+    private static partial void TrapPopIgnored(ObjectHandle display);
+
+    [LibraryImport(Xlib, EntryPoint = "XDefaultScreen")]
+    private static partial int DefaultScreen(nint display);
+
+    [LibraryImport(Xlib, EntryPoint = "XDisplayWidth")]
+    private static partial int DisplayWidth(nint display, int screen);
+
+    [LibraryImport(Xlib, EntryPoint = "XDisplayHeight")]
+    private static partial int DisplayHeight(nint display, int screen);
+
+    [LibraryImport(Xlib, EntryPoint = "XGetWindowProperty")]
+    private static partial int GetWindowProperty(
+        nint display, nuint window, nuint property, nint offset, nint length, int delete, nuint type,
+        out nuint actualType, out int format, out nuint count, out nuint after, out nint data);
+
+    [LibraryImport(Xlib, EntryPoint = "XRaiseWindow")]
+    private static partial int RaiseWindow(nint display, nuint window);
 
     [LibraryImport(Xlib, EntryPoint = "XInternAtom", StringMarshalling = StringMarshalling.Utf8)]
     private static partial nuint InternAtom(nint display, string name, int onlyIfExists);

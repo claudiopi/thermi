@@ -31,10 +31,12 @@ internal sealed class DesktopOverlay : IDisposable
     private readonly OverlayParts _parts;
     private readonly Painter _painter = new(reuse: true);
 
-    // What the surfaces show of the overlay now, so a paint that changes nothing of it sends nothing.
+    // What the surfaces show of the overlay now, so a paint that changes nothing of it sends nothing, and is done once
+    // what was sent shows, as a drop whose picture its drag sent last is.
     private GLib.Bytes? _pixels;
     private ShownAs? _shownAs;
     private IReadOnlyList<PillBox> _clicks = [];
+    private Task _showing = Task.CompletedTask;
 
     // The fade the surfaces show the overlay at, in 255ths as the Shell's actors keep it, and the scale it fades by.
     private int _alpha = Opaque;
@@ -256,13 +258,14 @@ internal sealed class DesktopOverlay : IDisposable
         if (_pixels is { } last && _shownAs == shownAs && _clicks.SequenceEqual(clicks)
             && last.GetRegionSpan<byte>(0, last.GetSize()).SequenceEqual(picture.Pixels))
         {
-            return Task.CompletedTask;
+            return _showing;
         }
 
         _pixels?.Dispose();
         _pixels = picture.Bytes();
         (_shownAs, _clicks) = (shownAs, clicks);
         var shown = new ShellPicture(_pixels, picture.Width, picture.Height, picture.Stride, Monitor, clicks);
-        return _parts.Call(_parts.Surfaces.Show((uint)_index, shown, stage.X, stage.Y));
+        _showing = _parts.Call(_parts.Surfaces.Show((uint)_index, shown, stage.X, stage.Y));
+        return _showing;
     }
 }

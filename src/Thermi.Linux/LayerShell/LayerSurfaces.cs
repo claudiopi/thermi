@@ -235,5 +235,5 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
     }
 
     public IReadOnlyList<ShellMonitor> Monitors() =>
-        [.. GdkMonitors.Read(_monitors, monitor => _bars.GetValueOrDefault(monitor), primary: null)];
+        [.. GdkMonitors.Read(_monitors, monitor => new PanelRoom(0, _bars.GetValueOrDefault(monitor), 0, 0), primary: null)];
 }
