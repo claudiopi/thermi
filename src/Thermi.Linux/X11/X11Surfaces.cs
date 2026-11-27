@@ -191,8 +191,13 @@ internal sealed class X11Surfaces : IOverlaySurfaces
             {
                 window.OnRealize += (_, _) =>
                 {
-                    XWindows.Realized(window.GetSurface()!);
+                    var surface = window.GetSurface()!;
+                    XWindows.Realized(surface);
                     Shape();
+                    // A window manager's frame takes the pointer where the window's shape left it when it framed or
+                    // resized the window, as xfwm4's does, and looks again only once the shape changes: shaped again at
+                    // each size, the frame lets through what the window does.
+                    surface.OnLayout += (_, _) => Shape();
                 };
                 window.OnMap += (_, _) =>
                 {
