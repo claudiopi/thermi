@@ -9,7 +9,7 @@ public sealed record ForegroundWindow(string ClassName, PixelRect Bounds, bool M
     public PixelRect? Monitor { get; init; }
 }
 
-/// <summary>What Windows says the user is doing, as far as the full-screen rule cares.</summary>
+/// <summary>What Windows says the user is doing, as far as the full-screen rule and the overlay's paints care.</summary>
 public enum NotificationState
 {
     Normal,
@@ -19,6 +19,9 @@ public enum NotificationState
 
     /// <summary>The user turned on presentation mode.</summary>
     Presentation,
+
+    /// <summary>Nobody is there: the session is locked, its screen saver runs, or another session has the screen.</summary>
+    Away,
 }
 
 /// <summary>How an overlay shows: not at all, or as it is.</summary>

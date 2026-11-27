@@ -8,7 +8,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Overlay;
 
-// Nobody sees the overlays while the session is away, as Desktop.Locked says, or its display is off: they draw nothing and
+// Nobody sees the overlays while the session is away, as Desktop.UserState says, or its display is off: they draw nothing and
 // their own frames rest, while the sensors are still read, so the history, the notices and the agents stay right. Windows
 // tells at once; the tick asks again, which sees a screen saver Windows never tells of, and heals a word missed: input
 // since the display went off means it is back.
@@ -18,6 +18,7 @@ internal sealed partial class OverlayHost
     private const uint DisplayOff = 0;
 
     private IDisposable? _sightWatch;
+    private NotificationState _state;
     private bool _away;
     private bool _dark;
     private long _darkAt;
@@ -27,23 +28,27 @@ internal sealed partial class OverlayHost
     private void WatchSight()
     {
         _sightWatch = _environment.Sight.Watch(Hwnd);
-        _away = _environment.Sight.Away();
+        _state = _environment.Sight.State();
+        _away = _state == NotificationState.Away;
     }
 
     private void ForgetSight() => _sightWatch?.Dispose();
 
-    // Asked each second: while nobody sees the overlays no paint reads the window in front, which "Notify me" waits on.
+    // Asked once a second, for whether anybody is there and for the full-screen rule, which every paint till the next tick
+    // reads. Seen, the overlays are kept on top; unseen, no paint reads the window in front, which "Notify me" waits on,
+    // and none needs keeping on top.
     private void LookAgain()
     {
-        var away = _environment.Sight.Away();
+        var seen = Seen;
+        _state = _environment.Sight.State();
         var back = _dark && _environment.Sight.SinceInput() < _actions.Time.GetElapsedTime(_darkAt);
-        if (away != _away || back)
+        (_away, _dark) = (_state == NotificationState.Away, _dark && !back);
+        SightChanged(seen);
+        if (Seen)
         {
-            (_away, _dark) = (away, _dark && !back);
-            SightChanged();
+            Raise();
         }
-
-        if (!Seen)
+        else
         {
             FullScreen(_settings.Config, _desktop.Screens());
         }
@@ -51,7 +56,7 @@ internal sealed partial class OverlayHost
 
     private IReadOnlyList<bool> FullScreen(ThermiConfig config, IReadOnlyList<Screen> screens)
     {
-        var fullScreen = OverlayVisibility.FullScreen(config, screens, _environment.Foreground(), Desktop.UserState());
+        var fullScreen = OverlayVisibility.FullScreen(config, screens, _environment.Foreground(), _state);
         _fullScreen = fullScreen.Any(full => full);
         return fullScreen;
     }
@@ -59,6 +64,7 @@ internal sealed partial class OverlayHost
     // True when the message said the session locked or unlocked, or its display went off, came back or dimmed.
     private bool Heard(uint message, nuint wParam, nint lParam)
     {
+        var seen = Seen;
         if (message == PInvoke.WM_WTSSESSION_CHANGE && (wParam == PInvoke.WTS_SESSION_LOCK || wParam == PInvoke.WTS_SESSION_UNLOCK))
         {
             _away = wParam == PInvoke.WTS_SESSION_LOCK;
@@ -73,14 +79,22 @@ internal sealed partial class OverlayHost
             return false;
         }
 
-        SightChanged();
+        SightChanged(seen);
         return true;
     }
 
-    private void SightChanged()
+    // Seen again, each overlay draws once, even with nothing new: the compositor may have dropped a layered window's
+    // picture meanwhile, as a driver reset or a remote session's handover does.
+    private void SightChanged(bool seen)
     {
+        if (Seen == seen)
+        {
+            return;
+        }
+
         if (Seen)
         {
+            _overlays.ForEach(overlay => overlay.DrawAgain());
             Raise();
             RequestPaint();
         }
@@ -93,12 +107,13 @@ internal sealed partial class OverlayHost
 
 /// <summary>
 /// How the host learns whether anybody can see the session: what Windows tells the window <see cref="Watch"/> registers as
-/// the session locks or unlocks and its display goes off or on, whether the session is away now, and how long since its
-/// last input. The session's display, not the console's, so a remote session that shows the overlays keeps drawing them.
+/// the session locks or unlocks and its display goes off or on, what Windows says the user is doing now, away included,
+/// and how long since the last input. The session's display, not the console's, so a remote session that shows the
+/// overlays keeps drawing them.
 /// </summary>
-internal sealed record SessionSight(Func<HWND, IDisposable> Watch, Func<bool> Away, Func<TimeSpan> SinceInput)
+internal sealed record SessionSight(Func<HWND, IDisposable> Watch, Func<NotificationState> State, Func<TimeSpan> SinceInput)
 {
-    public static SessionSight Real { get; } = new(window => new Registration(window), Desktop.Locked, Desktop.SinceInput);
+    public static SessionSight Real { get; } = new(window => new Registration(window), Desktop.UserState, Desktop.SinceInput);
 
     /// <summary>The session display's state a power setting's message carries, or null for another setting's.</summary>
     public static unsafe uint? DisplayState(nint lParam)

@@ -289,7 +289,9 @@ public sealed class OverlayPaceTests : IDisposable
         public ForegroundWindow? Front { get; set; }
 
         public HostEnvironment Of(HostEnvironment environment) =>
-            environment with { Foreground = () => Front, Sight = FakeTray.Watched with { Away = () => _away, SinceInput = () => _sinceInput } };
+            environment with { Foreground = () => Front, Sight = FakeTray.Watched with { State = State, SinceInput = () => _sinceInput } };
+
+        private NotificationState State() => _away ? NotificationState.Away : NotificationState.Normal;
 
         // Nobody sees the session: its screen saver starts, of which Windows says nothing, its display goes off, or it locks.
         public void Leave(OverlayHost host, string how)

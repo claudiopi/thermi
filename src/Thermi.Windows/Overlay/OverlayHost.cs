@@ -295,7 +295,6 @@ internal sealed partial class OverlayHost : IDisposable
         }
 
         LookAgain();
-        Raise();
         if (_readAt is not { } read || _actions.Time.GetElapsedTime(read) >= Late)
         {
             RequestPaint();

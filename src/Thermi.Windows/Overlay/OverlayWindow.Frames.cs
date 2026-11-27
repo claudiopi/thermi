@@ -27,6 +27,9 @@ internal sealed partial class OverlayWindow
         PInvoke.KillTimer(Hwnd, OverlayFade.TimerId);
     }
 
+    /// <summary>Forgets the last draw, so the next paint draws whatever it shows.</summary>
+    public void DrawAgain() => _frame = null;
+
     private OverlayFrame FrameOf(OverlayConfig overlay, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, string? stopped) =>
         new(items, look, scale, WindowPosition())
         {

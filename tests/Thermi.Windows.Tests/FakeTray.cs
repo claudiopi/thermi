@@ -1,3 +1,4 @@
+using Thermi.Core.Placement;
 using Thermi.Windows.Overlay;
 using Windows.Win32.UI.Shell;
 
@@ -42,7 +43,7 @@ internal sealed class FakeTray(bool record = true)
     public void Leave(Guid id) => _shown[id] = Leftover;
 
     /// <summary>A session somebody always sees, with no input ever, whose own word a host under test never hears.</summary>
-    public static SessionSight Watched { get; } = new(_ => new Unheard(), () => false, () => TimeSpan.MaxValue);
+    public static SessionSight Watched { get; } = new(_ => new Unheard(), () => NotificationState.Normal, () => TimeSpan.MaxValue);
 
     /// <summary>A host's environment of this tray, with no app in front and the session always seen, whatever the PC's own are.</summary>
     public HostEnvironment Environment(string windowMutex, Action<int>? openSettings = null) =>
