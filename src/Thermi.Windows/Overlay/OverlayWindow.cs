@@ -195,8 +195,11 @@ internal sealed partial class OverlayWindow : IDisposable
         scale = _painter.Fitting(items, look, scale, Snaps.Most(overlay, screens));
         _glow.Update(items, scene.Animate);
         var running = _actions.Time.GetElapsedTime(_started);
-        Position Place(Size size) =>
-            heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (size.Width, size.Height), _actions.Shown(), running) ?? WindowPosition();
+        Position Place(Size size)
+        {
+            return heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (size.Width, size.Height), _actions.Shown(), running) ?? WindowPosition();
+        }
+
         Show(FrameOf(overlay, items, look, scale, shown.SensorsStopped ? texts.Of(OverlayText.SensorsStopped) : null), overlay, scene.Accent, Place);
         Glow();
         Tips(scene, input, shown);

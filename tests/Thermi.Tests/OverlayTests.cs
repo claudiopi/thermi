@@ -239,12 +239,19 @@ public sealed class OverlayTests
     {
         var overlay = new OverlayConfig();
         var look = OverlayLook.Of(overlay.Style, lightTaskbar: false);
-        OverlayFrame Frame(Snapshot snapshot) =>
-            new(OverlayLayout.Build(overlay, SensorMap.Read(snapshot, NoSources), English), look, 1, new Position(2200, 1392)) { Overlay = overlay };
+        OverlayFrame Frame(Snapshot snapshot)
+        {
+            return new(OverlayLayout.Build(overlay, SensorMap.Read(snapshot, NoSources), English), look, 1, new Position(2200, 1392)) { Overlay = overlay };
+        }
+
+        static OverlayItem Moved(OverlayItem item)
+        {
+            return item.Graph is { } line ? item with { Graph = [.. line.Skip(1), new GraphPoint(1, Level.Normal)] } : item;
+        }
+
         var last = Frame(Desktop);
         var again = Frame(Desktop);
         var warmer = new Snapshot([.. Desktop.Sensors.Select(sensor => sensor with { Value = sensor.Value + 3 })]);
-        OverlayItem Moved(OverlayItem item) => item.Graph is { } line ? item with { Graph = [.. line.Skip(1), new GraphPoint(1, Level.Normal)] } : item;
 
         var next = change switch
         {
