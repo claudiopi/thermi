@@ -236,7 +236,8 @@ public sealed class OverlayTests
     [InlineData("the first paint", true)]
     public void TheOverlayPaintsOnlyWhenWhatItShowsChanges(string change, bool paints)
     {
-        var overlay = new OverlayConfig();
+        // A value with no line beside it, so only the value tells the frames apart.
+        var overlay = change == "a value" ? new OverlayConfig { Graph = GraphStyle.None } : new OverlayConfig();
         var look = OverlayLook.Of(overlay.Style, lightTaskbar: false);
         OverlayFrame Frame(Snapshot snapshot)
         {

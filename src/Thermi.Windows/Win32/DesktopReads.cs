@@ -9,8 +9,9 @@ namespace Thermi.Windows.Win32;
 /// work areas and the taskbars are read each time, and a monitor gone or a taskbar on one it does not hold lists the
 /// monitors again.
 /// </summary>
-/// <param name="highContrast">How high contrast is read: Windows' own, unless a test counts the reads.</param>
-internal sealed class DesktopReads(Func<HighContrastColors?>? highContrast = null)
+/// <param name="highContrast">High contrast as Windows answers it, unless a test answers for it.</param>
+/// <param name="animations">Whether Windows' animation effects are on, as it answers, unless a test answers for it.</param>
+internal sealed class DesktopReads(Func<HighContrastColors?>? highContrast = null, Func<bool>? animations = null)
 {
     private IReadOnlyList<ListedMonitor>? _monitors;
     private bool? _lightTaskbar;
@@ -49,7 +50,7 @@ internal sealed class DesktopReads(Func<HighContrastColors?>? highContrast = nul
         return _highContrast.Colors;
     }
 
-    public bool Animations() => _animations ??= Desktop.Animations();
+    public bool Animations() => _animations ??= (animations ?? Desktop.Animations)();
 
     /// <summary>The display, a setting, a system color or the accent color changed: each is read again when next asked for.</summary>
     public void Forget()
