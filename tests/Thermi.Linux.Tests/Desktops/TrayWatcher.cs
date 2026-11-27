@@ -36,6 +36,24 @@ internal sealed class TrayWatcher
         GLib.MainLoop().run()
         """;
 
+    // Saves an icon's largest pixmap as a tray draws it: StatusNotifierItem's ARGB32, in network byte order, as an RGBA PNG.
+    private const string Pixmap = """
+        import sys, gi
+        gi.require_version('GdkPixbuf', '2.0')
+        from gi.repository import Gio, GLib, GdkPixbuf
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        pixmaps = bus.call_sync(sys.argv[1], sys.argv[2], 'org.freedesktop.DBus.Properties', 'Get',
+                                GLib.Variant('(ss)', ('org.kde.StatusNotifierItem', 'IconPixmap')),
+                                None, Gio.DBusCallFlags.NONE, -1, None).unpack()[0]
+        width, height, argb = max(pixmaps, key=lambda pixmap: pixmap[0] * pixmap[1])
+        argb = bytes(argb)
+        rgba = bytearray()
+        for at in range(0, len(argb), 4):
+            rgba += bytes((argb[at + 1], argb[at + 2], argb[at + 3], argb[at]))
+        GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(bytes(rgba)), GdkPixbuf.Colorspace.RGB, True, 8, width, height, width * 4) \
+            .savev(sys.argv[3], 'png', [], [])
+        """;
+
     private readonly OwnSession _session;
     private readonly SessionProcess _watcher;
 
@@ -74,6 +92,20 @@ internal sealed class TrayWatcher
             ["call", "--session", "--dest", item.Name, "--object-path", item.Path, "--method", "org.freedesktop.DBus.Properties.Get",
                 "org.kde.StatusNotifierItem", property],
             cancel: cancel).ConfigureAwait(false)).Out.Trim();
+
+    /// <summary>The icon's picture, as a tray shows it, saved as a PNG in the session's home.</summary>
+    public async Task<string> PictureAsync((string Name, string Path) item, CancellationToken cancel)
+    {
+        var script = Path.Combine(_session.Home, "pixmap.py");
+        if (!File.Exists(script))
+        {
+            await File.WriteAllTextAsync(script, Pixmap, cancel).ConfigureAwait(false);
+        }
+
+        var picture = Path.Combine(_session.Home, $"icon-{Guid.NewGuid():N}.png");
+        var saved = await _session.RunAsync("python3", [script, item.Name, item.Path, picture], cancel: cancel).ConfigureAwait(false);
+        return saved.Exit == 0 ? picture : throw new InvalidOperationException($"The icon's pixmap was not read: {saved.Error}");
+    }
 
     /// <summary>How many entries an icon's menu holds at its top, as the tray asks it through its menu's own interface.</summary>
     public async Task<int> MenuEntriesAsync((string Name, string Path) item, CancellationToken cancel)
