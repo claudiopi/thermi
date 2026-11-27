@@ -1,0 +1,37 @@
+name: Small Core task
+description: A small change to what thermi decides, in Thermi.Core, with the test that proves it. Good for a first PR.
+labels: [good first issue]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A task here touches `src/Thermi.Core` and `tests/Thermi.Tests` alone, so it builds and runs on any OS.
+        CONTRIBUTING.md walks through the PR.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What thermi should do
+      description: One behavior, as a person or an agent would see it.
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where it lives
+      description: The file of `src/Thermi.Core` that decides it, and the test class beside which its test goes.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: How a test proves it
+      description: >-
+        Given what, when what, then what. Name the recording of `tests/Thermi.Tests/Recordings` it replays, if any:
+        a test reads real data, never a fake kinder than hardware.
+    validations:
+      required: true
+  - type: textarea
+    id: out
+    attributes:
+      label: Out of scope
+      description: What a later task does, such as showing it in the settings window or the overlay.

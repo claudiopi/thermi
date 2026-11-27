@@ -10,13 +10,17 @@
     It also holds each spec to the budget of cases its spec.md declares, counting the cases of the tests its acceptance
     steps name, and each table to a cap of rows, past which its table says why.
     The .NET half lists the built test projects, so it runs after the build; the page's half lists with its installed runners.
+    -Raise writes what it counted into tests/test-count.json and commits that file alone, the raise's change of its own;
+    -Spec <folder> writes what a spec's tests hold into its budget, for the person who approved the spec to agree to.
 #>
 param(
     [ValidateSet('All', 'DotNet', 'Web')]
     [string]$Part = 'All',
     [string]$Configuration = 'Release',
     # Where the build put its output, when it was given --artifacts-path.
-    [string]$ArtifactsPath
+    [string]$ArtifactsPath,
+    [switch]$Raise,
+    [string]$Spec
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,7 +32,8 @@ $web = Join-Path $root 'src' 'Thermi.Settings.Web'
 . (Join-Path $PSScriptRoot 'summary.ps1')
 # The most rows a table holds without saying why: the 95th percentile of the tables once their redundant rows were cut.
 $rowCap = 17
-$halfNames = @{ dotnet = '.NET'; web = 'page' }
+
+function Get-HalfName([string]$Half) { @{ dotnet = '.NET'; web = 'page' }[$Half] }
 
 # xUnit's own listing, with each theory's rows enumerated as the runner finds them: per case, the test it is a row of.
 function Get-DotNetCases {
@@ -116,10 +121,48 @@ function Get-Specs {
     }
 }
 
-$baseline = Get-Content (Join-Path $root $baselineFile) -Raw | ConvertFrom-Json
+function Get-SpecCount($Spec, $Cases) { @($Cases | Where-Object { $_.Names | Where-Object { $Spec.Tests -contains $_ } }).Count }
+
+# Committed alone so the raise is a change of its own, as Get-RaiseFaults wants; staged work would stay out of the commit
+# while it looked committed, so it refuses.
+function Save-Raise([string]$Root, [hashtable]$Counts, [string]$File = 'tests/test-count.json') {
+    $staged = @(git -C $Root diff --cached --name-only | Where-Object { $_ -ne $File })
+    if ($staged) { return "Other work is staged ($($staged -join ', ')): commit it first, or unstage it with git restore --staged, then raise again." }
+    $path = Join-Path $Root $File
+    $held = [ordered]@{}
+    (Get-Content $path -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $held[$_.Name] = $_.Value }
+    if (-not @($Counts.Keys | Where-Object { $held[$_] -ne $Counts[$_] })) { return }
+    foreach ($half in $Counts.Keys) { $held[$half] = $Counts[$half] }
+    $held | ConvertTo-Json | Set-Content $path
+    $counted = @($held.Keys | ForEach-Object { "$($held[$_]) $(Get-HalfName $_)" }) -join ' and '
+    git -C $Root commit -q -m "test: the ratchet holds $counted cases" -- $File
+    if ($LASTEXITCODE -ne 0) { return "git could not commit $File." }
+}
+
+# Only the halves counted; the other half's budget stays as it was.
+function Set-Budget([string]$Name, $Cases) {
+    $found = Get-Specs | Where-Object Name -eq $Name
+    if (-not $found.Budget) { throw "docs/specs/$Name is no spec with a budget line: name its folder, as 002-settings-window." }
+    foreach ($half in $Cases.Keys) { $found.Budget[$half] = Get-SpecCount $found $Cases[$half] }
+    $file = Join-Path $root 'docs' 'specs' $Name 'spec.md'
+    $line = "**Budget**: $($found.Budget.dotnet) .NET and $($found.Budget.web) page cases"
+    Set-Content $file ((Get-Content $file -Raw) -replace '(?m)^\*\*Budget\*\*: \d+ \.NET and \d+ page cases', $line) -NoNewline
+}
+
 $cases = [ordered]@{}
 if ($Part -ne 'Web') { $cases.dotnet = @(Get-DotNetCases) }
 if ($Part -ne 'DotNet') { $cases.web = @(Get-WebCases) }
+if ($Raise) {
+    $counts = @{}
+    foreach ($half in $cases.Keys) { $counts[$half] = $cases[$half].Count }
+    $refused = Save-Raise $root $counts $baselineFile
+    if ($refused) {
+        Write-Host $refused
+        exit 1
+    }
+}
+if ($Spec) { Set-Budget $Spec $cases }
+$baseline = Get-Content (Join-Path $root $baselineFile) -Raw | ConvertFrom-Json
 $failed = @()
 
 foreach ($half in $cases.Keys) {
@@ -129,28 +172,31 @@ foreach ($half in $cases.Keys) {
 }
 if ($failed) {
     $failed += 'Merge near-identical cases into one table, and delete tests an edge test already covers.'
-    $failed += "To add tests beyond it, raise it in $baselineFile in a change of its own, which a person approves."
+    $failed += ("To add tests beyond it, raise it in $baselineFile in a change of its own, which a person approves: commit your work, " +
+        'then pwsh scripts/test-count.ps1 -Raise makes that change; an agent runs it only when a person asks.')
 }
 
 $notes = @()
 # A line starting "summary: " goes into the CI's summary, as scripts/check-steps.ps1 picks it out.
-$measured = @($cases.Keys | ForEach-Object { "summary: $($cases[$_].Count) $($halfNames[$_]) cases of the ratchet's $($baseline.$_)" })
+$measured = @($cases.Keys | ForEach-Object { "summary: $($cases[$_].Count) $(Get-HalfName $_) cases of the ratchet's $($baseline.$_)" })
 $specCases = @{}
-foreach ($spec in Get-Specs) {
-    if (-not $spec.Budget) {
-        $failed += "$($spec.Name)'s spec.md declares no budget: a line '**Budget**: <n> .NET and <n> page cases' under its status."
+foreach ($budgeted in Get-Specs) {
+    if (-not $budgeted.Budget) {
+        $failed += "$($budgeted.Name)'s spec.md declares no budget: a line '**Budget**: <n> .NET and <n> page cases' under its status."
         continue
     }
     foreach ($half in $cases.Keys) {
-        $count = @($cases[$half] | Where-Object { $_.Names | Where-Object { $spec.Tests -contains $_ } }).Count
-        $budget = $spec.Budget.$half
-        $specCases["$($spec.Name)|$half"] = @{ cases = $count; budget = $budget }
-        if ($budget) { $measured += "summary: ``$($spec.Name)``: $count of its budget of $budget" }
+        $count = Get-SpecCount $budgeted $cases[$half]
+        $budget = $budgeted.Budget.$half
+        $specCases["$($budgeted.Name)|$half"] = @{ cases = $count; budget = $budget }
+        if ($budget) { $measured += "summary: ``$($budgeted.Name)``: $count of its budget of $budget" }
         if ($count -gt $budget) {
-            $failed += ("$($spec.Name)'s tests have $count $($halfNames[$half]) cases, over the budget of $budget its spec.md declares: " +
-                'merge rows and cut what another case proves, or ask the person who approved the spec to raise it.')
+            $failed += ("$($budgeted.Name)'s tests have $count $(Get-HalfName $half) cases, over the budget of $budget its spec.md declares: " +
+                "merge rows and cut what another case proves, or ask the person who approved the spec to raise it: -Spec $($budgeted.Name).")
         }
-        elseif ($count -lt $budget) { $notes += "$($spec.Name)'s tests have $count $($halfNames[$half]) cases, under its budget of ${budget}: lower it." }
+        elseif ($count -lt $budget) {
+            $notes += "$($budgeted.Name)'s tests have $count $(Get-HalfName $half) cases, under its budget of ${budget}: lower it with -Spec $($budgeted.Name)."
+        }
     }
 }
 
@@ -187,7 +233,8 @@ function Get-RaiseFaults([string]$Root, $Baseline, [string[]]$Halves, [string]$F
         $others = @(git -C $Root diff --name-only $from) + @(git -C $Root ls-files --others --exclude-standard) | Where-Object { $_ -ne $File }
         if ($others) {
             return ("This change raises the baseline of $($raised -join ' and ') in $File along with other files: " +
-                'raise it in a change of its own, which a person approves.')
+                'raise it in a change of its own, which a person approves, and which pwsh scripts/test-count.ps1 -Raise makes; ' +
+                'an agent runs it only when a person asks.')
         }
         return
     }
@@ -250,7 +297,7 @@ if ($failed) {
 foreach ($half in $cases.Keys) {
     if ($cases[$half].Count -lt $baseline.$half) {
         $notes += ("$($cases[$half].Count) $half test cases, below the baseline of $($baseline.$half): " +
-            "lower it in $baselineFile so the ratchet holds what was won.")
+            "lower it in $baselineFile so the ratchet holds what was won, as pwsh scripts/test-count.ps1 -Raise does.")
     }
 }
 $notes | ForEach-Object { Write-Host "note: $_" }

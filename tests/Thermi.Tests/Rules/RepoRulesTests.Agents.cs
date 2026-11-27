@@ -35,7 +35,7 @@ public sealed partial class RepoRulesTests
         Assert.Contains(RepoFiles([".cs"]), path => Relative(path).StartsWith(agents[0], StringComparison.Ordinal));
         var environment = File.ReadAllText(Path.Combine(Root, agents[0], "AgentEnvironment.cs"));
         Assert.Contains("new SensorPipes(time, logs.CreateLogger<SensorPipes>(), starts: false)", environment, StringComparison.Ordinal);
-        AssertNone(reached);
+        AssertNone(reached, "an agent asks the person to fix what needs an administrator, as docs/adr/0013-agents-cli-and-mcp.md says");
     }
 
     // The agents' README is how an agent learns the CLI: its Commands table names each command thermi-cli parses and no
