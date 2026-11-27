@@ -26,7 +26,8 @@ public sealed partial class FrameTests
     // old, at 75 s the 1 % low steady again and the 0.1 % low reading the slow ones left. At 1000 FPS a process keeps its
     // last 30 000 frames alone, so by 65 s, though not a minute old, both are steady. At 10 FPS with a 3 s load at 5 s, the
     // lows hold while FPS reads 0, the load counts once it ends, at 8 s, as one frame of 999.9 ms, as frame time caps it,
-    // until 60 s later; and after a 6 s pause from 75 s, which drops it, its minute starts again.
+    // until 60 s later; and after a 6 s pause from 75 s, which drops it, its minute starts again. A trace left unread for
+    // over a minute, its last present told only by BlitRect, has no frame that ended in its minute: FPS shows, its lows none.
     [Fact]
     public void TheLowsReadTheSlowestFramesOfTheLastMinute()
     {
@@ -65,7 +66,22 @@ public sealed partial class FrameTests
         Assert.Equal(
             ["0 10 1% 10 0.1%", "10 1 1% 1 0.1%", "10 10 1% 1 0.1%", "10 10 1% 10 0.1%", "10 10 1% 10 0.1%"],
             Seconds([.. Every(100, 0, 5000), .. Every(100, 7900, 75_000), .. Every(100, 80_950, 100_000)], 7, 9, 67, 68, 84));
+
+        var unread = new FrameTally();
+        foreach (var present in Every(10, 0, 5000).Append(new(Game, 1, 5500)).Append(new(Game, 1, 5600)))
+        {
+            unread.Add(present);
+        }
+
+        _ = Enumerable.Range(1, 5).Select(second => unread.Close(second * 1000.0)).ToList();
+        unread.Add(new Present(Game, 1, 72_000, PresentSource.KernelBlitRect));
+        var overlay = OverlayConfig.First with { Items = [.. OverlayConfig.First.Items, .. LowItems] };
+        Assert.Equal(["0"], FramesAndLows.Select(Shown(overlay, Desktop, unread.Close(72_000), Game).GetValueOrDefault).OfType<string>());
     }
+
+
+    private static NoValue? Why(Snapshot snapshot, string sensor = FpsSensor) =>
+        SensorCatalog.Build(snapshot).SelectMany(device => device.Sensors).Single(row => row.Id == sensor).Why;
 
     // The presents a second at a time, through the tally the service runs, as the slots each second's snapshot carries.
     private static IEnumerable<IReadOnlyList<FrameRate>> Replay(IReadOnlyList<Present> presents)

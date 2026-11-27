@@ -108,10 +108,11 @@ public sealed partial class FrameTests
         {
             Assert.Null(Fps(OverlayConfig.First, snapshot, null, Game));
             Assert.Equal(ReadingFormatter.Missing, Fps(OverlayConfig.First, snapshot, null, Game, windowOpen: true));
-            Assert.Equal(why, Why(GameSensors.With(snapshot, Game)));
+            Assert.All([FpsSensor, .. LowSensors], sensor => Assert.Equal(why, Why(GameSensors.With(snapshot, Game), sensor)));
         }
 
-        Assert.Equal(NoValue.NoFrames, Why(GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of([])] }, Game)));
+        var nothing = GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of([])] }, Game);
+        Assert.All([FpsSensor, .. LowSensors], sensor => Assert.Equal(NoValue.NoFrames, Why(nothing, sensor)));
 
         var slots = FrameSlots.Of([new FrameRate(Game, 1, 60, 16.7, 50, 40)]).Where(sensor => !sensor.Type.StartsWith("low", StringComparison.Ordinal));
         var older = Desktop with { Sensors = [.. Desktop.Sensors, .. slots] };
@@ -147,14 +148,15 @@ public sealed partial class FrameTests
     // 30 critical, at 50 ms or 100 critical, or a push beyond the other line. With lines, frames per second are in trouble
     // when low, a frame time when high, in the value and in each second of its line, a value at a line reaching it: 144 FPS
     // is fine, 60 a warning and 30 critical; 7 ms fine, 50 ms a warning and 100 ms critical; each on its own scale. Each
-    // low, which the catalog lists under Game, starts with no lines either and warns as FPS does, and no default overlay
-    // holds one. A frame rate's critical above its warning is refused.
+    // low, which the catalog lists under Game, starts with no lines either, says which it is, before what else its tag
+    // says, and warns as FPS does, and no default overlay holds one. A frame rate's critical above its warning is refused.
     [Fact]
     public void FrameRateWarnsLowAndFrameTimeHigh()
     {
         var game = GameSensors.With(Desktop with { Sensors = [.. Desktop.Sensors, .. FrameSlots.Of([])] }, null);
         var added = Edited.Done(ItemEdits.AddSensor(ThermiConfig.New, 0, game, FpsSensor));
-        var lows = LowSensors.Select(low => Edited.Item(Edited.Done(ItemEdits.AddSensor(ThermiConfig.New, 0, game, low)), low));
+        ItemConfig[] lows = [.. LowSensors.Select(low => Edited.Item(Edited.Done(ItemEdits.AddSensor(ThermiConfig.New, 0, game, low)), low))];
+        Assert.Equal(["1%", "0.1% max"], [OverlayLayout.TagOf(lows[0], English), OverlayLayout.TagOf(lows[1] with { Stat = ItemStat.Max }, English)]);
         Assert.All([Edited.Item(ThermiConfig.New, Metrics.Fps.Id), Edited.Item(added, FpsSensor), .. lows], item => Assert.Null(item.Threshold));
         var listed = SensorCatalog.Build(game).Single(device => device.Kind == DeviceKind.Game).Sensors.Select(row => row.Id);
         Assert.All(LowSensors, low => Assert.Contains(low, listed));
@@ -373,9 +375,6 @@ public sealed partial class FrameTests
 
         Assert.Equal(expected, string.Join("|", seconds));
     }
-
-    private static NoValue? Why(Snapshot snapshot, string sensor = FpsSensor) =>
-        SensorCatalog.Build(snapshot).SelectMany(device => device.Sensors).Single(row => row.Id == sensor).Why;
 
     private static ItemConfig FrameTimeItem =>
         new() { Id = Metrics.FrameTime.Id, Metric = Metrics.FrameTime.Id, Threshold = new Threshold(50, 100) };
