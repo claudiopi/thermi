@@ -56,11 +56,21 @@ test.describe('TheWindowFollowsTheLinuxDesktop', () => {
       await page.emulateMedia({ colorScheme: scheme.colorScheme, forcedColors: scheme.forcedColors });
       await openWindow(page, fakeState({ service: 'stopped', ...desktop }));
 
-      expect(await page.locator('main').evaluate((main) => getComputedStyle(main).colorScheme)).toContain(scheme.colorScheme);
+      const main = page.getByRole('main');
+      expect(await main.evaluate((shown) => getComputedStyle(shown).colorScheme)).toContain(scheme.colorScheme);
       if (scheme.accent !== undefined) {
-        const accent = await page.locator('main').evaluate((main) => getComputedStyle(main).getPropertyValue('--colorBrandBackground'));
+        const accent = await main.evaluate((shown) => getComputedStyle(shown).getPropertyValue('--colorBrandBackground'));
         expect(accent.trim().toLowerCase()).toBe(scheme.accent);
       }
+      // In high contrast the page paints in the system's own colors, as a probe of Canvas and CanvasText reads them.
+      const system = await main.evaluate((shown) => {
+        const probe = document.body.appendChild(Object.assign(document.createElement('div'), { style: 'background: Canvas; color: CanvasText' }));
+        const [colors, own] = [getComputedStyle(probe), getComputedStyle(shown)];
+        const same = colors.backgroundColor === own.backgroundColor && colors.color === own.color;
+        probe.remove();
+        return same;
+      });
+      expect(system).toBe(scheme.forcedColors === 'active');
       await page.keyboard.press('Control+Comma');
       await expect(page.getByRole('switch', { name: text('UiText.StartAtSignIn') })).toBeVisible();
       await expect(page.getByRole('button', { name: text('WindowText.InstallDriver') })).toHaveCount(0);

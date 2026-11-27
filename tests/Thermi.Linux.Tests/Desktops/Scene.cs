@@ -1,12 +1,13 @@
+using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
 namespace Thermi.Linux.Tests.Desktops;
 
 /// <summary>
 /// The overlay shown on a test's desktop as a person sees it: two overlays alike, one on the panel or the top bar and one
-/// on a window of another program, fed by the real service from a recorded tree, with the screen before and after.
+/// on a window of another program, fed by the real service one steady second, with the screen before and after.
 /// </summary>
-internal sealed record Scene(TestDesktop Desktop, TestWindow Window, string Before, string Screen, string Picture)
+internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWindow Window, string Before, string Screen, string Picture)
 {
     /// <summary>Where the first overlay sits: on the top bar or a top panel, at the screen's top edge.</summary>
     public static readonly Position OnPanel = new(200, 0);
@@ -15,27 +16,32 @@ internal sealed record Scene(TestDesktop Desktop, TestWindow Window, string Befo
     public static readonly Position OnWindow = new(200, 500);
 
     /// <summary>
+    /// The first overlay with only what one second shows alike every second, so what it paints never changes as it runs:
+    /// no graph, which grows with each second, and none of the values read as a change since the second before.
+    /// </summary>
+    public static readonly OverlayConfig Overlay = OverlayConfig.First with
+    {
+        Graph = GraphStyle.None,
+        Items = [.. OverlayConfig.First.Items.Where(item => item.Metric != Metrics.CpuLoad.Id && item.Metric != Metrics.CpuPower.Id)],
+    };
+
+    /// <summary>
     /// Shows thermi on <paramref name="desktop"/> over a window, full screen or not, with the sensors serving or stopped, and
     /// takes the screen before and after, and the picture <c>thermi preview</c> paints for the same snapshot and scale.
     /// </summary>
     public static async Task<Scene> ShowAsync(
         TestDesktop desktop, double scale, bool fullScreen, bool stopped, CancellationToken cancel, bool clickThrough = false)
     {
-        var overlay = OverlayConfig.First;
         await desktop.WriteSettingsAsync(
-            ThermiConfig.New with { Overlays = [overlay with { Position = OnPanel }, overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
+            ThermiConfig.New with { Overlays = [Overlay with { Position = OnPanel }, Overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
             cancel);
-        if (!stopped)
-        {
-            await SensorFeed.ServeAsync(desktop.Session, SensorFeed.Desktop, cancel);
-        }
-
+        var snapshot = stopped ? null : (await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel)).Snapshot;
         var window = await desktop.OpenWindowAsync(fullScreen, cancel);
         var before = await desktop.ScreenshotAsync(cancel);
-        await desktop.ShowThermiAsync([], cancel);
+        var thermi = await desktop.ShowThermiAsync([], cancel);
         var screen = await desktop.ScreenshotAsync(cancel);
-        var picture = await desktop.PreviewAsync(stopped ? null : SensorFeed.Desktop, scale, cancel);
-        return new Scene(desktop, window, before, screen, picture);
+        var picture = await desktop.PreviewAsync(snapshot, scale, cancel);
+        return new Scene(desktop, thermi, window, before, screen, picture);
     }
 
     /// <summary>The pixels of the picture the screen shows otherwise at <paramref name="at"/>: 0 when the overlay shows there as painted.</summary>
@@ -49,11 +55,22 @@ internal sealed record Scene(TestDesktop Desktop, TestWindow Window, string Befo
         return await Pictures.ChangedAsync(Desktop.Session, Before, Screen, (0, 0, width, height), cancel);
     }
 
-    /// <summary>Clicks where the overlay on the window draws nothing, and returns what the window says it got.</summary>
+    /// <summary>Clicks where the overlay on the window draws nothing, and returns what the window says it got first.</summary>
     public async Task<string?> ClickThroughAsync(CancellationToken cancel)
     {
         var (x, y) = await Pictures.NothingAtAsync(Desktop.Session, Picture, cancel);
-        await Desktop.Input.ClickAsync(OnWindow.X + x, OnWindow.Y + y, cancel);
+        return await ClickAsync(OnWindow.X + x, OnWindow.Y + y, cancel);
+    }
+
+    /// <summary>
+    /// Clicks the left button at a point, then the middle one where no overlay is, and returns what the window says it got
+    /// first: <c>click 1</c> when the first click reached it, <c>click 2</c> when the overlay took it, so the test never
+    /// waits for a click that does not come.
+    /// </summary>
+    public async Task<string?> ClickAsync(int x, int y, CancellationToken cancel)
+    {
+        await Desktop.Input.ClickAsync(x, y, cancel);
+        await Desktop.Input.ClickAsync(OnWindow.X / 2, OnWindow.Y + 300, cancel, button: 2);
         return await Window.NextAsync(cancel);
     }
 }

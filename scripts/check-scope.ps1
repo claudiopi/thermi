@@ -11,9 +11,12 @@ $wholeCheck = @(
 )
 # Read by the Windows tests as files, beside their projects' own.
 $windowsReads = @('scripts/install.ps1')
-# Read by the Linux tests as files: the GNOME Shell extension, which their Shell loads as it is, and the script that packs
-# what they install.
-$linuxReads = @('src/Thermi.Gnome/*', 'scripts/linux-packages.ps1')
+# Read by the Linux tests as files, whichever project holds them: the GNOME Shell extension, which their Shell loads as it
+# is, the levers' script, the script that packs what they install, the recorded trees they replay and the settings files
+# they read.
+$linuxReads = @(
+    'src/Thermi.Gnome/*', 'scripts/updates.ps1', 'scripts/linux-packages.ps1', 'tests/Thermi.Tests/Recordings/Trees/*', 'tests/Thermi.Tests/Configs/*'
+)
 # What only the repo rules of Thermi.Tests read: docs, agent briefs, workflows, tools and the scripts no step runs.
 $rulesOnly = @('*.md', 'docs/*', '.claude/*', '.github/*', '.config/*', 'scripts/*', 'LICENSE', '.gitignore', 'renovate.json')
 $notices = @('THIRD-PARTY-NOTICES.md', 'scripts/notices.ps1', 'scripts/licenses/*', '*packages.lock.json', 'src/Thermi.Settings.Web/package*.json')
@@ -117,10 +120,12 @@ function Get-Scope([string]$Root, [string[]]$Changed) {
         $owners = @($projects.Keys | Where-Object {
                 $file.StartsWith($projects[$_].Folder, [StringComparison]::OrdinalIgnoreCase) -or (Test-Like $file $projects[$_].Links)
             })
-        if ($owners) { foreach ($owner in $owners) { [void]$touched.Add($owner) } }
-        elseif ($file.StartsWith($page, [StringComparison]::OrdinalIgnoreCase)) { $scope.Web = $pageChanged = $true }
+        foreach ($owner in $owners) { [void]$touched.Add($owner) }
+        $linuxRead = Test-Like $file $linuxReads
+        if ($linuxRead) { [void]$touched.Add('Thermi.Linux.Tests') }
+        if ($owners -or $linuxRead) { continue }
+        if ($file.StartsWith($page, [StringComparison]::OrdinalIgnoreCase)) { $scope.Web = $pageChanged = $true }
         elseif (Test-Like $file $windowsReads) { [void]$touched.Add('Thermi.Windows.Tests') }
-        elseif (Test-Like $file $linuxReads) { [void]$touched.Add('Thermi.Linux.Tests') }
         elseif ($file -like 'src/Thermi.Installer/*') { $scope.Restore = $scope.Notices = $true }
         elseif ($file -eq 'tests/test-count.json') { $scope.Web = $true }
         elseif (-not (Test-Like $file ($rulesOnly + $notices))) { return Get-Scope $Root $null }
