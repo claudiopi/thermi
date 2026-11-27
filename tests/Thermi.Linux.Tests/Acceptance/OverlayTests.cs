@@ -32,7 +32,7 @@ public sealed class OverlayTests
         Neither,
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(GnomeCase.WaylandAt150)]
     [InlineData(GnomeCase.X11)]
     [InlineData(GnomeCase.FullScreen)]
@@ -57,7 +57,7 @@ public sealed class OverlayTests
         Assert.Equal("click 1", await scene.ClickThroughAsync(cancel));
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(LayerCase.KWin, Skip = "Waiting for its code")]
     [InlineData(LayerCase.SwayAt150, Skip = "Waiting for its code")]
     [InlineData(LayerCase.FullScreen, Skip = "Waiting for its code")]
@@ -92,7 +92,7 @@ public sealed class OverlayTests
         }
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
     public async Task TheOverlayShowsAboveEveryWindowOnX11()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -131,7 +131,7 @@ public sealed class OverlayTests
         return await Pictures.ChangedAsync(scene.Desktop.Session, covered, alone, (at.X, at.Y, width, height), cancel);
     }
 
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task AnExtensionOfAnotherVersionShowsNothing()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -164,7 +164,7 @@ public sealed class OverlayTests
         }
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(true)]
     [InlineData(false, Skip = "Waiting for its code")]
     public async Task TheOverlaysMenuIsTheShellsOwn(bool gnome)
@@ -192,7 +192,8 @@ public sealed class OverlayTests
         // Hidden from the menu, the overlays are taken back with the button of the notice that says so.
         var hiding = Traced.NextAsync(units.Trace, Traced.Hidden, cancel);
         var told = notices.NextAsync("show-it", cancel);
-        await ChooseAsync(desktop, rows, MenuEntry.HideOverlays, cancel);
+        // From the menu open already: a second right-click while it is open is a click outside it, which closes it.
+        await Accessible.ChooseAsync(desktop, IndexOf(rows, MenuEntry.HideOverlays), cancel);
         await hiding;
         var hidden = await desktop.ScreenshotAsync(cancel);
         var showing = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
@@ -202,7 +203,7 @@ public sealed class OverlayTests
         var monitorName = gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor";
         await units.AddProgramAsync(gnome ? "gnome-system-monitor" : "plasma-systemmonitor", monitorName, cancel);
         await ChooseAsync(desktop, rows, MenuEntry.TaskManager, cancel);
-        var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", monitorName], cancel: cancel);
+        var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", "--timeout", Bound.LineSeconds, monitorName], cancel: cancel);
         await ChooseAsync(desktop, rows, MenuEntry.Exit, cancel);
         // systemctl --wait returns once the unit went inactive; not "auto-restart": a clean exit starts nothing again.
         await running.WaitForExitAsync(cancel);
@@ -294,6 +295,8 @@ public sealed class OverlayTests
     private static async Task ChooseAsync(TestDesktop desktop, IReadOnlyList<MenuRow> rows, MenuEntry entry, CancellationToken cancel)
     {
         await OpenMenuAsync(desktop, cancel);
-        await Accessible.ChooseAsync(desktop, rows.ToList().FindIndex(row => row.Entry == entry), cancel);
+        await Accessible.ChooseAsync(desktop, IndexOf(rows, entry), cancel);
     }
+
+    private static int IndexOf(IReadOnlyList<MenuRow> rows, MenuEntry entry) => rows.ToList().FindIndex(row => row.Entry == entry);
 }

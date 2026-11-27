@@ -87,6 +87,8 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
             && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } state
             && (int)state == Active);
 
+    public AboutFacts About() => LinuxAbout.Read();
+
     private static bool IsGnome() =>
         (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':').Contains("GNOME", StringComparer.OrdinalIgnoreCase);
 }

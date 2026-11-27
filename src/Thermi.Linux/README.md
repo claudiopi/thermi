@@ -17,6 +17,8 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `Sensors` | The service's socket: the system's, else where it is missing the user's own, of a `thermi-sensors --console`, each trusted only from who should serve it; `THERMI_SENSORS_SOCKET` names one to read alone. |
 | `Window` | `thermi settings`: one GTK 4 window per session with the page in WebKitGTK, served from the install's `web` folder, and the bridge's host on Linux: the portal's look, the GNOME extension's and the service's fixes behind the desktop's prompts, and the overlay's user unit. |
 
+The `thermi` package's files, beside the code in `Packaging`, are the overlay's user unit, its launcher's entry, the package's `nfpm.yaml` and scripts, and the AUR's `PKGBUILD` for both packages; `scripts/linux-packages.ps1` packs them with the overlay, its icons and the GNOME Shell extension.
+
 ## What the tests rely on
 
 The tests drive thermi as a person's desktop does and wait for what it says it did, never for a time, so these are a contract: a change here changes `tests/Thermi.Linux.Tests` with it.

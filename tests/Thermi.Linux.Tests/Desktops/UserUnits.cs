@@ -74,7 +74,10 @@ internal sealed partial class UserUnits
         // A manager joins the session's bus once its bus units run, as a person's does with the bus's own: the tests' stand
         // for them, the session's bus being the test's. On the bus, it tells systemctl --wait when a unit ends.
         await userUnits.SystemctlAsync(["start", "dbus.socket", "dbus.service"], cancel).ConfigureAwait(false);
-        var joined = await session.RunAsync("gdbus", ["wait", "--session", "org.freedesktop.systemd1"], cancel: cancel).ConfigureAwait(false);
+        // A desktop's sign-in starts its graphical session, which thermi's unit asks to be up before it starts.
+        await userUnits.SystemctlAsync(["start", "graphical-session.target"], cancel).ConfigureAwait(false);
+        string[] wait = ["wait", "--session", "--timeout", Bound.LineSeconds, "org.freedesktop.systemd1"];
+        var joined = await session.RunAsync("gdbus", wait, cancel: cancel).ConfigureAwait(false);
         _ = joined.Exit == 0 ? 0 : throw new InvalidOperationException($"The tests' user manager never joined the bus: {joined.Error}");
         return userUnits;
     }

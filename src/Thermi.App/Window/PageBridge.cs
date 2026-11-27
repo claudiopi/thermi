@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Reflection;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
@@ -26,8 +25,7 @@ internal class PageBridge : IWindowBridge, IDisposable
     /// <summary>thermi's repository, where About's pages and its downloads are.</summary>
     public const string Repository = "https://github.com/claudiopi/thermi";
 
-    private static readonly string Version =
-        typeof(PageBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
+    private static readonly string Version = Core.Install.BuildVersion.Of(typeof(PageBridge));
 
     private readonly IWindowHost _host;
     private readonly PageStart _start;

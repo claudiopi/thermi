@@ -31,7 +31,7 @@
 - [ ] T16. The GTK 4 window kept above on X11, its input shape and the panels' struts. (R24)
 - [ ] T17. Dragging, snaps, the top bar and the panels. (R11)
 - [ ] T18. The desktop gestures moved to `src/Thermi.App`, on every surface, and Fade near the pointer. (R23)
-- [ ] T19. The menu, the user unit and its restart. (R12, R13)
+- [x] T19. The menu, the user unit and its restart. (R12, R13)
 - [x] T20. The extension from extensions.gnome.org, and its version. (R9)
 
 ## B5. The settings window
@@ -48,7 +48,7 @@
 
 ## B7. Packages and updates
 
-- [ ] T27. One build packed by nfpm as `.deb` and `.rpm`, and the AUR's `thermi-bin`, for both architectures, installed in clean containers of each distribution. (R1)
-- [ ] T28. thermi's signed apt and dnf repositories, the levers on them and the release workflow's publishing, with the AUR's. (R25, R26)
+- [x] T27. One build packed by nfpm as `.deb` and `.rpm`, and the AUR's `thermi-bin`, for both architectures, installed in clean containers of each distribution. (R1)
+- [x] T28. thermi's signed apt and dnf repositories, the levers on them and the release workflow's publishing, with the AUR's. (R25, R26)
 - [ ] T29. The hand-over to a new version and About on Linux. (R25)
 - [ ] T30. The Linux release checks run on the test machines and the physical Ubuntu PC. (R1, R9, R11, R13, R14, R18, R19, R25)
