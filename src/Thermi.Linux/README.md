@@ -14,10 +14,11 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, and the surface that measures each monitor's work area. |
 | `Logging` | The overlay's log events. |
 | `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, and the `quit` it exports. |
-| `Packaging` | The systemd user unit that runs the overlay in the person's graphical session. |
+| `Packaging` | What the packages install beside thermi for the desktop: the systemd user unit that runs the overlay in the person's graphical session, and the app launcher's entry. |
 | `Painting` | The overlay and the tray's icons painted with Cairo and Pango, from Core's look, layout and shapes, as Windows' GDI+ painter does. |
 | `Tray` | thermi's icons as Core's tray decides them, in GNOME's top bar or as StatusNotifierItems with their dbusmenu menus, and its notices as the desktop's notifications, each button doing what it does on Windows. |
 | `Sensors` | The service's socket: the system's, else where it is missing the user's own, of a `thermi-sensors --console`, each trusted only from who should serve it; `THERMI_SENSORS_SOCKET` names one to read alone. |
+| `Window` | `thermi settings`: one GTK 4 window per session with the page in WebKitGTK, served from the install's `web` folder, and the bridge's host on Linux: the portal's look, the GNOME extension's and the service's fixes behind the desktop's prompts, and the overlay's user unit. |
 | `X11` | The overlay's surfaces on X11: GTK windows kept above, off the taskbar and the pager, the work area from the panels' struts, the pointer read for Fade, and thermi's hotkeys as X11's own grabs. |
 
 The `thermi` package's files, beside the code in `Packaging`, are the overlay's user unit, its launcher's entry, the package's `nfpm.yaml` and scripts, and the AUR's `PKGBUILD` for both packages; `scripts/linux-packages.ps1` packs them with the overlay, its icons and the GNOME Shell extension.

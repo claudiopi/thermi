@@ -255,11 +255,17 @@
   <data name="CatalogText.Added" xml:space="preserve">
     <value>Added {0} to {1}.</value>
   </data>
+  <data name="CatalogText.CatalogStopped" xml:space="preserve">
+    <value>Sensors stopped: they come back here when they start.</value>
+  </data>
   <data name="CatalogText.CatalogEmpty" xml:space="preserve">
-    <value>The sensor service reads no sensors yet</value>
+    <value>The sensor service reads no sensors yet.</value>
   </data>
   <data name="CatalogText.CatalogEmptyHint" xml:space="preserve">
     <value>It may still be starting. If this stays, restart thermi-sensors in Windows Services.</value>
+  </data>
+  <data name="CatalogText.CatalogEmptyHintOnLinux" xml:space="preserve">
+    <value>It may still be starting. If this stays, start it with systemctl start thermi-sensors.socket.</value>
   </data>
   <data name="CatalogText.FindIt" xml:space="preserve">
     <value>Find it</value>
@@ -369,6 +375,9 @@
   <data name="UiText.StartWithWindows" xml:space="preserve">
     <value>Start with Windows</value>
   </data>
+  <data name="UiText.StartAtSignIn" xml:space="preserve">
+    <value>Start at sign-in</value>
+  </data>
   <data name="UiText.ResetToDefaults" xml:space="preserve">
     <value>Reset to defaults</value>
   </data>
@@ -437,6 +446,9 @@
   </data>
   <data name="UiText.LanguageFromWindows" xml:space="preserve">
     <value>Windows' language · {0}</value>
+  </data>
+  <data name="UiText.LanguageFromSystem" xml:space="preserve">
+    <value>The system's language · {0}</value>
   </data>
   <data name="UiText.TemperatureField" xml:space="preserve">
     <value>Temperature</value>
@@ -665,6 +677,15 @@
   </data>
   <data name="OverlayPageText.ColorBlack" xml:space="preserve">
     <value>Black</value>
+  </data>
+  <data name="OverlayPageText.BelowTopBar" xml:space="preserve">
+    <value>Below the top bar (vertical doesn't fit in it)</value>
+  </data>
+  <data name="OverlayPageText.BesidePanel" xml:space="preserve">
+    <value>Beside the panel (vertical doesn't fit in it)</value>
+  </data>
+  <data name="OverlayPageText.VerticalAtBottomEdge" xml:space="preserve">
+    <value>At the bottom edge</value>
   </data>
   <data name="OverlayPageText.AboveTaskbar" xml:space="preserve">
     <value>Above the taskbar (vertical doesn't fit in it)</value>
@@ -1956,6 +1977,12 @@
   <data name="WindowText.HotkeysOff" xml:space="preserve">
     <value>All off · they work anywhere in Windows</value>
   </data>
+  <data name="WindowText.HotkeysSetOnLinux" xml:space="preserve">
+    <value>{0} set · they work anywhere on the desktop</value>
+  </data>
+  <data name="WindowText.HotkeysOffOnLinux" xml:space="preserve">
+    <value>All off · they work anywhere on the desktop</value>
+  </data>
   <data name="WindowText.HotkeyToggle" xml:space="preserve">
     <value>Hide or show the overlays</value>
   </data>
@@ -2027,6 +2054,33 @@
   </data>
   <data name="WindowText.StartIt" xml:space="preserve">
     <value>Start it</value>
+  </data>
+  <data name="WindowText.ExtensionMissing" xml:space="preserve">
+    <value>The overlay needs thermi's GNOME Shell extension.</value>
+  </data>
+  <data name="WindowText.ExtensionMissingMore" xml:space="preserve">
+    <value>GNOME asks before it installs it, and the overlay shows at once.</value>
+  </data>
+  <data name="WindowText.InstallExtension" xml:space="preserve">
+    <value>Install extension</value>
+  </data>
+  <data name="WindowText.ExtensionDisabled" xml:space="preserve">
+    <value>thermi's GNOME Shell extension is off.</value>
+  </data>
+  <data name="WindowText.ExtensionDisabledMore" xml:space="preserve">
+    <value>The overlay shows as soon as it is on.</value>
+  </data>
+  <data name="WindowText.ExtensionOtherVersion" xml:space="preserve">
+    <value>thermi's GNOME Shell extension is for another version of thermi.</value>
+  </data>
+  <data name="WindowText.ExtensionOtherVersionMore" xml:space="preserve">
+    <value>GNOME applies its update at your next sign-in.</value>
+  </data>
+  <data name="WindowText.EnableExtension" xml:space="preserve">
+    <value>Turn it on</value>
+  </data>
+  <data name="WindowText.ExtensionRefused" xml:space="preserve">
+    <value>GNOME did not install it or turn it on, so nothing changed.</value>
   </data>
   <data name="WindowText.PipeTaken" xml:space="preserve">
     <value>Another program holds the connection thermi reads its sensors through. Close it, or restart the PC.</value>
@@ -2135,6 +2189,9 @@
   </data>
   <data name="SheetText.AnywhereInWindows" xml:space="preserve">
     <value>Anywhere in Windows · set them in Settings</value>
+  </data>
+  <data name="SheetText.AnywhereOnTheDesktop" xml:space="preserve">
+    <value>Anywhere on the desktop · set them in Settings</value>
   </data>
   <data name="SheetText.InThisWindow" xml:space="preserve">
     <value>In this window</value>
@@ -2513,5 +2570,80 @@
   </data>
   <data name="Refusal.AgentsOnlyByPerson" xml:space="preserve">
     <value>Only a person lets agents change settings, in thermi&apos;s Settings, under AI agents.</value>
+  </data>
+  <data name="NameText.TopBar" xml:space="preserve">
+    <value>Top bar</value>
+  </data>
+  <data name="NameText.Panel" xml:space="preserve">
+    <value>Panel</value>
+  </data>
+  <data name="NameText.BottomEdge" xml:space="preserve">
+    <value>Bottom edge</value>
+  </data>
+  <data name="PlaceText.OnTopBar" xml:space="preserve">
+    <value>on the top bar</value>
+  </data>
+  <data name="PlaceText.OnPanel" xml:space="preserve">
+    <value>on the panel</value>
+  </data>
+  <data name="PlaceText.AtBottomEdge" xml:space="preserve">
+    <value>at the bottom edge</value>
+  </data>
+  <data name="OverlayPageText.TopBarHint" xml:space="preserve">
+    <value>Drag it anywhere along the top bar</value>
+  </data>
+  <data name="OverlayPageText.PanelHint" xml:space="preserve">
+    <value>Drag it anywhere along the panel</value>
+  </data>
+  <data name="OverlayPageText.BottomEdgeHint" xml:space="preserve">
+    <value>Drag it anywhere along the bottom edge</value>
+  </data>
+  <data name="OverlayPageText.MatchTopBar" xml:space="preserve">
+    <value>Match top bar</value>
+  </data>
+  <data name="OverlayPageText.MatchPanel" xml:space="preserve">
+    <value>Match panel</value>
+  </data>
+  <data name="OverlayPageText.MatchDesktop" xml:space="preserve">
+    <value>Match desktop</value>
+  </data>
+  <data name="WindowText.Minimize" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="WindowText.Maximize" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+  <data name="WindowText.RestoreDown" xml:space="preserve">
+    <value>Restore down</value>
+  </data>
+  <data name="WindowText.ThemeFromSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="WindowText.PasteFailedOnLinux" xml:space="preserve">
+    <value>The desktop would not hand over what was pasted or dropped, as while another app holds the clipboard. Try again in a moment.</value>
+  </data>
+  <data name="WindowText.HotkeyWithSuper" xml:space="preserve">
+    <value>Combinations with Super belong to the desktop.</value>
+  </data>
+  <data name="WindowText.HotkeyKeptByDesktop" xml:space="preserve">
+    <value>The desktop keeps this combination for itself.</value>
+  </data>
+  <data name="OverlayPageText.SizeOnTopBar" xml:space="preserve">
+    <value>On the top bar it never grows taller than the top bar.</value>
+  </data>
+  <data name="OverlayPageText.SizeOnPanel" xml:space="preserve">
+    <value>On a panel it never grows taller than the panel.</value>
+  </data>
+  <data name="OverlayPageText.SizeAtBottomEdge" xml:space="preserve">
+    <value>At the bottom edge it never grows taller than a bar.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnTopBar" xml:space="preserve">
+    <value>That top bar has no room for this overlay at its size.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnPanel" xml:space="preserve">
+    <value>That panel has no room for this overlay at its size.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomAtBottomEdge" xml:space="preserve">
+    <value>That edge has no room for this overlay at its size.</value>
   </data>
 </root>

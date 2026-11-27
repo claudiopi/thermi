@@ -55,11 +55,9 @@
   color: var(--thermi-text3);
 }
 
-/* Without readings: no line, no tints and no axis, the mark asleep beside why, over the plot. */
+/* Without readings: no line, no tints and no axis, the mark asleep beside why, in the widest band the lines leave. */
 .t-chart-empty {
   position: absolute;
-  top: 0;
-  bottom: 0;
   left: 0;
   display: flex;
   align-items: center;
@@ -130,10 +128,8 @@
   box-shadow: 0 0 0 2px var(--colorStrokeFocus2);
 }
 
-@media (forced-colors: active) {
-  .t-knob {
-    border: 1px solid CanvasText;
-  }
+.t-contrast .t-knob {
+  border: 1px solid CanvasText;
 }
 
 .t-box-wrap {
@@ -286,12 +282,10 @@
   transform: translateX(-100%);
 }
 
-@media (forced-colors: active) {
-  .t-scrub-line {
-    stroke: CanvasText;
-  }
+.t-contrast .t-scrub-line {
+  stroke: CanvasText;
+}
 
-  .t-scrub-label {
-    border: 1px solid CanvasText;
-  }
+.t-contrast .t-scrub-label {
+  border: 1px solid CanvasText;
 }

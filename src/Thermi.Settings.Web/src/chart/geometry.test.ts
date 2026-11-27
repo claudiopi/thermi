@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ChartView, ColorStop } from '../bridge/bridge.g';
-import { chartHeight, knobTops, levelAt, nearestLine, plotPaths, readingAt, stopsOf, tintsOf, valueAt, yOf, type Plot } from './geometry';
+import { chartHeight, emptyBand, knobTops, levelAt, nearestLine, plotPaths, readingAt, stopsOf, tintsOf, valueAt, yOf, type Plot } from './geometry';
 
 // A plot 300 wide and 132 high draws 0 to 100 on the 100 px between its 16 px pads, which hold the scale's numbers clear of the
 // line (night QA: a line over the "0 %"): value v sits at y = 116 - v.
@@ -167,6 +167,14 @@ describe('the chart', () => {
     { warning: 50, critical: null, y: 4, line: 'warning' },
   ])('moves the line nearest a click at $y', ({ warning, critical, y, line }) => {
     expect(nearestLine(plot({ warning, critical }), y)).toBe(line);
+  });
+
+  // Bug: the line ran through the words of a chart without readings, which sat in the plot's middle.
+  test.each([
+    { warning: 50, critical: null, band: { top: 0, height: 66 } },
+    { warning: 30, critical: 90, band: { top: 26, height: 60 } },
+  ])('says why it is empty between the lines at $warning and $critical', ({ warning, critical, band }) => {
+    expect(emptyBand(plot({ warning, critical }))).toEqual(band);
   });
 
   test('points at 150 to the nearest reading', () => {

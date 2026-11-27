@@ -8,7 +8,8 @@ What the overlay and the settings window decide beyond Core that needs a package
 | `Sensors` | The client of the sensor service every OS's overlay, window and `thermi-cli` share: it connects, trusts or refuses who serves, reads the lines, and connects again when they stop. Each OS says how it connects. |
 | `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
 | `Gestures` | A desktop gesture on any overlay, which a surface only feeds the pointer and draws: a press that lifts, drags and resizes, the drag's drop or its snaps, a menu row's choice, and the last gesture's undo. |
-| `Window` | The settings window's logic over the settings: its edits and undo, the sensors' readings and charts it keeps, and how it reads each snapshot. |
+| `Window` | The settings window's bridge, which answers the page alike on every OS and asks its host, `IWindowHost`, for the rest: its edits and undo, the sensors' readings and charts it keeps, the views, previews, places and looks. |
+| `Painting` | What every OS's overlay painter answers the window, `IOverlayPainter`, and how an overlay is fitted to a room or its monitor. |
 | `Sensors` | Reading the sensor host's snapshots, from Windows' pipe or Linux's socket, and trying again while it is gone. |
 | `Preview` | What `thermi preview` does around each OS's painter: the settings and snapshots it reads, the items it paints, the PNG written whole or not at all. |
 | `Logging` | The user's logs in their local folder, the agents' log read back for the window, the events of what lives here, each a `[LoggerMessage]`, the user's folders, and the events `--trace` writes for a test to wait on. |

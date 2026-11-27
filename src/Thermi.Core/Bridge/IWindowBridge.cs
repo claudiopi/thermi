@@ -160,7 +160,16 @@ public interface IWindowBridge
     /// <summary>Starts the sensor service behind Windows' prompt: false when the prompt was refused.</summary>
     Task<bool> StartService();
 
+    /// <summary>
+    /// The GNOME Shell extension's fix the status offers: installed from extensions.gnome.org behind GNOME's own prompt, or
+    /// turned on; false when it was refused or failed, or where no fix is offered.
+    /// </summary>
+    Task<bool> InstallExtension();
+
     Task StartOverlay();
+
+    /// <summary>Moves, maximizes, minimizes or closes the window from the page's own caption, where the OS draws none.</summary>
+    Task Caption(CaptionAction action);
 
     /// <summary>Keeps the broken settings file beside it and writes the last settings read well.</summary>
     Task Restore();

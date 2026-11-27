@@ -45,6 +45,17 @@
           "GirCore.Pango-1.0": "0.8.1"
         }
       },
+      "GirCore.WebKit-6.0": {
+        "type": "Direct",
+        "requested": "[0.8.1, )",
+        "resolved": "0.8.1",
+        "contentHash": "pJ6mFmHcixKr66U1xZxGIOFEwI9SK8XD3uEPPpPYa5zkXMh6QhE3K5vRyvW3JZj4qF2GeN9Sv8hw12iyjcRLjA==",
+        "dependencies": {
+          "GirCore.Gtk-4.0": "0.8.1",
+          "GirCore.JavaScriptCore-6.0": "0.8.1",
+          "GirCore.Soup-3.0": "0.8.1"
+        }
+      },
       "Meziantou.Analyzer": {
         "type": "Direct",
         "requested": "[3.0.341, )",
@@ -133,6 +144,14 @@
           "GirCore.GObject-2.0": "0.8.1"
         }
       },
+      "GirCore.JavaScriptCore-6.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "iOWFjG8FKZCAYefZiezqHN6v4hYqPX6zG/WbQL+uUBWTfzutYO2SZgxwjFgYt7Pu2pBVvPwPwg43G/HivuhKdg==",
+        "dependencies": {
+          "GirCore.GObject-2.0": "0.8.1"
+        }
+      },
       "GirCore.Pango-1.0": {
         "type": "Transitive",
         "resolved": "0.8.1",
@@ -142,6 +161,14 @@
           "GirCore.GObject-2.0": "0.8.1",
           "GirCore.Gio-2.0": "0.8.1",
           "GirCore.HarfBuzz-0.0": "0.8.1"
+        }
+      },
+      "GirCore.Soup-3.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "IodvJWL/UEAcdc+iT29KiBkdK3zTc312mfUqI5OrkB/fjeEFIm6BvcTwcurbDWRm4L+nPr0WVDjsb4QnEuxhZw==",
+        "dependencies": {
+          "GirCore.Gio-2.0": "0.8.1"
         }
       },
       "Microsoft.Extensions.AI.Abstractions": {

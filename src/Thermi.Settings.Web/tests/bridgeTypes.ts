@@ -52,6 +52,8 @@ export interface FakeState {
   finder: FinderView;
   finderPick: string | null;
   texts: Record<string, string>;
+  /** The texts the desktop says in its own words, which C# gives the page in place of the language's. */
+  words: Record<string, string>;
   /** Every translation, each named in its own language. */
   languages: Language[];
   /** What the window was opened on, as a double-click on a value asks, or null. */
@@ -60,6 +62,22 @@ export interface FakeState {
   editing: { overlay: number | null; selected: string | null; pointed: string | null } | null;
   /** While true, every read is answered with what C# held when asked, but only once a test lets the answers go. */
   lateReplies: boolean;
+  /** The OS the host runs on, 'windows' or 'linux' as C# names it, which decides the fixes C# offers. */
+  os: string;
+  /** The desktop's accent, as Linux's settings portal gives it, or null. */
+  accent: string | null;
+  /** The bar an overlay snaps onto as onto the taskbar, as C# names it, whose words name it. */
+  bar: string;
+  /** Whether the window is maximized, which the caption the page draws on Linux says. */
+  maximized: boolean;
+  /** How many times the page asked the window to move from its title row. */
+  moves: number;
+  /** Whether the desktop is in high contrast, as Linux's settings portal says. */
+  contrast: boolean;
+  /** Where thermi's GNOME Shell extension is in a GNOME session, as C# names it, or null for none. */
+  extension: string | null;
+  /** What GNOME's prompt for the extension answers. */
+  extensionAnswer: 'accepted' | 'refused';
 }
 
 /** A call of the page that changes what the C# side holds, as the bridge's wire carries it. */

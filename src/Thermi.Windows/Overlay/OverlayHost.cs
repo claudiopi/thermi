@@ -9,7 +9,6 @@ using Thermi.Core.Tray;
 using Thermi.Windows.Gestures;
 using Thermi.Windows.Logging;
 using Thermi.Windows.Tray;
-using Thermi.Windows.Ui.Views;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -79,7 +78,7 @@ internal sealed class OverlayHost : IDisposable
             OpenSize = _link.OpenSize,
             Select = _link.Selected,
             Shown = () => WindowDragShow.Boxes(_overlays),
-            Settle = (before, after) => OverlayPlaces.Settled(before, after, Scene(after, _desktop.Screens()), culture, WindowDragShow.Boxes(_overlays)),
+            Settle = (before, after) => Scene(after, _desktop.Screens()).Settled(before, after, culture, WindowDragShow.Boxes(_overlays)),
             JoinAt = (overlay, cursor, alone) => overlay < _overlays.Count ? _overlays[overlay].JoinAt(cursor, alone) : new DropTarget(overlay, null),
             Gestures = new App.Gestures.GestureUndo(time, gesture => _ = _link.WindowOpen && HiddenWindow.Send(HiddenWindow.WindowClass, gesture)),
             Menu = (overlay, item) => Tray?.Menu(overlay, item: item),

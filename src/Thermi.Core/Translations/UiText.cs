@@ -97,6 +97,9 @@ public enum UiText
 
     StartWithWindows,
 
+    /// <summary>Linux's words for <see cref="StartWithWindows"/>, which starts with the person's graphical session.</summary>
+    StartAtSignIn,
+
     ResetToDefaults,
 
     LookField,
@@ -148,6 +151,9 @@ public enum UiText
 
     /// <summary>The choice that follows Windows, with the language that gives now.</summary>
     LanguageFromWindows,
+
+    /// <summary>Linux's words for <see cref="LanguageFromWindows"/>.</summary>
+    LanguageFromSystem,
 
     TemperatureField,
 

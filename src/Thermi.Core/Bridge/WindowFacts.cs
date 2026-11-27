@@ -32,6 +32,30 @@ public sealed record WindowStatus(
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public bool ForEveryone { get; init; }
+
+    /// <summary>The OS the window shows on, whose words its start at sign-in takes.</summary>
+    public HostOs Os { get; init; }
+
+    /// <summary>The desktop's accent as <c>#rrggbb</c>, which the page's accent takes, or null for the page's own.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public string? Accent { get; init; }
+
+    /// <summary>The GNOME Shell extension's fix offered, as <see cref="HostDesktop.ExtensionFix"/> decides it, or null for none.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public ExtensionState? Extension { get; init; }
+
+    /// <summary>
+    /// Whether the desktop is in high contrast, where the page takes the system's colors: Windows forces them on the page
+    /// itself, and a host whose web view cannot, as Linux's WebKitGTK, says it here.
+    /// </summary>
+    public bool Contrast { get; init; }
+
+    /// <summary>The bar an overlay snaps onto as onto the taskbar, which the texts that name it say in its words.</summary>
+    public DesktopBar Bar { get; init; }
+
+    /// <summary>The caption buttons the page draws, as <see cref="HostDesktop.Caption"/> says, or null where the OS draws them.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public WindowCaption? Caption { get; init; }
 }
 
 /// <summary>The steps Undo and Redo would take, worded as "Critical 84 → 85 °C", or null when there is none.</summary>

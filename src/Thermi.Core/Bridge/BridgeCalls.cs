@@ -23,10 +23,8 @@ public static class BridgeCalls
         .Where(method => !method.IsSpecialName)
         .ToDictionary(method => NameOf(method.Name), StringComparer.Ordinal);
 
-    /// <summary>Every method the page may call, by its name on the wire.</summary>
     public static IReadOnlyList<string> Methods { get; } = [.. ByName.Keys.Order(StringComparer.Ordinal)];
 
-    /// <summary>Every event the page may listen to, by its name on the wire.</summary>
     public static IReadOnlyList<string> Events { get; } =
         [.. typeof(IWindowBridge).GetEvents().Select(each => NameOf(each.Name)).Order(StringComparer.Ordinal)];
 
@@ -34,17 +32,25 @@ public static class BridgeCalls
     /// The page's side of the wire, run before the page's own code: <c>window.thermi</c> as the page's generated types
     /// describe it, a promise per call answered by its id, with the result exactly as C# sent it, null included, and
     /// listeners per event, each given back a function that takes it away; and every error the page leaves unhandled,
-    /// reported.
+    /// reported. It speaks whichever web view hosts the page: WebView2's messages on Windows, or WebKit's script message
+    /// handler <c>thermi</c>, whose host answers with <see cref="Dispatched"/>.
     /// </summary>
     public static string Client { get; } = $$"""
         (() => {
-          const webview = window.chrome.webview;
+          const webview = window.chrome?.webview;
+          const post = webview === undefined
+            ? (message) => window.webkit.messageHandlers.{{WebKitHandler}}.postMessage(message)
+            : (message) => webview.postMessage(message);
+          const hear = (listener) => webview === undefined
+            ? window.addEventListener('{{WebKitHandler}}', listener)
+            : webview.addEventListener('message', listener);
           const waiting = new Map();
           const listeners = new Map({{Quoted(Events)}}.map((name) => [name, []]));
-          // Each load numbers its calls apart: C# may still owe a page loaded before this one an answer, which answers nothing here.
-          const load = crypto.randomUUID();
+          // Each load numbers its calls apart: C# may still owe a page loaded before this one an answer, which answers nothing
+          // here. Not a UUID, which only a secure context makes.
+          const load = Array.from(crypto.getRandomValues(new Uint32Array(4)), (part) => part.toString(36)).join('-');
           let next = 0;
-          webview.addEventListener('message', ({ data }) => {
+          hear(({ data }) => {
             if (data.event !== undefined) {
               listeners.get(data.event)?.forEach((listener) => listener(data.value));
               return;
@@ -58,7 +64,7 @@ public static class BridgeCalls
             bridge[method] = (...args) => new Promise((resolve, reject) => {
               const id = `${load}:${next++}`;
               waiting.set(id, { resolve, reject });
-              webview.postMessage({ id, method, args: args.map((arg) => arg ?? null) });
+              post({ id, method, args: args.map((arg) => arg ?? null) });
             });
           }
           for (const name of listeners.keys()) {
@@ -74,6 +80,16 @@ public static class BridgeCalls
           window.addEventListener('unhandledrejection', (event) => report(event.reason));
         })();
         """;
+
+    /// <summary>The name of WebKit's script message handler the page posts its calls to, and of the event its answers come as.</summary>
+    public const string WebKitHandler = "thermi";
+
+    /// <summary>
+    /// The script a WebKit host runs in the page to hand it an answer or an event, as WebView2 posts one: the message, which
+    /// is JSON and so a script's value as it is, as the data of a <c>thermi</c> event on the window.
+    /// </summary>
+    public static string Dispatched(string message) =>
+        $"window.dispatchEvent(new MessageEvent('{WebKitHandler}', {{ data: {message} }}));";
 
     /// <summary>
     /// The options every value crosses the bridge with: camel case, nulls left out of objects, choices as kebab-case words.
@@ -106,7 +122,6 @@ public static class BridgeCalls
         }
     }
 
-    /// <summary>The answer that rejects the call a message made, with why.</summary>
     public static string Failed(string message, string error)
     {
         JsonNode? id;
@@ -122,7 +137,6 @@ public static class BridgeCalls
         return new JsonObject { ["id"] = id, ["error"] = error }.ToJsonString();
     }
 
-    /// <summary>The message that raises an event on the page, with its value.</summary>
     public static string EventOf(string name, object? value) =>
         new JsonObject
         {
@@ -175,9 +189,12 @@ internal sealed class BridgeEnums : JsonConverterFactory
             false)!).CreateConverter(typeToConvert, options);
 }
 
+// An edit's kind may come anywhere in its object: WebKit hands C# the page's message as it cloned it, whose order of
+// fields is not the order the page wrote.
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    AllowOutOfOrderMetadataProperties = true,
     Converters = [typeof(BridgeEnums)])]
 [JsonSerializable(typeof(ThermiConfig))]
 [JsonSerializable(typeof(ConfigProblemKind?))]
@@ -208,6 +225,7 @@ internal sealed class BridgeEnums : JsonConverterFactory
 [JsonSerializable(typeof(Undone))]
 [JsonSerializable(typeof(WindowStatus))]
 [JsonSerializable(typeof(UndoSteps))]
+[JsonSerializable(typeof(CaptionAction))]
 [JsonSerializable(typeof(About))]
 [JsonSerializable(typeof(Agents.AgentsView))]
 [JsonSerializable(typeof(Opened))]

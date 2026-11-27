@@ -2,6 +2,7 @@ import { steady } from '../steady';
 import { Radio, RadioGroup, ToggleButton, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import type { Choice } from './Dropdown';
 import { radius } from '../theme/look';
+import type { KeyboardEvent } from 'react';
 
 export interface SegmentedProps {
   label: string;
@@ -35,7 +36,6 @@ const useStyles = makeStyles({
     '& input:enabled:not(:checked) ~ .fui-Radio__label': { color: tokens.colorNeutralForeground2 },
     '& input:disabled ~ .fui-Radio__label': { color: tokens.colorNeutralForegroundDisabled },
   },
-  // The chosen one is raised, with a short accent mark under its text, as the prototype's segments are.
   chosen: {
     backgroundColor: tokens.colorNeutralBackground1Selected,
     boxShadow: `0 0 0 1px ${tokens.colorNeutralStroke2}`,
@@ -50,7 +50,7 @@ const useStyles = makeStyles({
       borderRadius: '1px',
       backgroundColor: tokens.colorCompoundBrandStroke,
     },
-    '@media (forced-colors: active)': { outline: '1px solid Highlight', boxShadow: 'none', '::after': { display: 'none' } },
+    ':global(.t-contrast) &': { outline: '1px solid Highlight', boxShadow: 'none', '::after': { display: 'none' } },
   },
   indicator: { display: 'none' },
   text: { padding: `0 ${tokens.spacingHorizontalM}`, color: tokens.colorNeutralForeground1 },
@@ -77,7 +77,7 @@ const useChipStyles = makeStyles({
     ':hover': { backgroundColor: tokens.colorBrandBackgroundHover },
     // Fluent colors a checked radio's label from the input beside it, so the chip's text answers the same way.
     '& input:enabled:checked ~ .fui-Radio__label': { color: tokens.colorNeutralForegroundOnBrand },
-    '@media (forced-colors: active)': {
+    ':global(.t-contrast) &': {
       forcedColorAdjust: 'none',
       backgroundColor: 'Highlight',
       '& input:enabled:checked ~ .fui-Radio__label': { color: 'HighlightText' },
@@ -87,11 +87,39 @@ const useChipStyles = makeStyles({
   text: { padding: '0 12px', lineHeight: '20px', whiteSpace: 'nowrap', color: tokens.colorNeutralForeground1 },
 });
 
+/**
+ * The arrows move to the next choice or the one before and choose it, as Edge does for radios by itself and WebKit does
+ * not: the page moves them alike in both.
+ */
+function arrowsChoose(choices: readonly Choice[], value: string, onChange: (value: string) => void) {
+  return (event: KeyboardEvent<HTMLDivElement>): void => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+    const from = choices.findIndex((choice) => choice.value === value);
+    if (step === undefined || from < 0 || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+
+    event.preventDefault();
+    const next = choices[(from + step + choices.length) % choices.length];
+    if (next !== undefined) {
+      onChange(next.value);
+      event.currentTarget.querySelector<HTMLInputElement>(`input[value="${CSS.escape(next.value)}"]`)?.focus();
+    }
+  };
+}
+
 /** Filters as a row of chips, one chosen: the arrows move and choose, and the row is one Tab stop. */
 function ChipsDrawn({ label, choices, value, onChange }: Omit<SegmentedProps, 'disabled'>) {
   const styles = useChipStyles();
   return (
-    <RadioGroup className={styles.group} aria-label={label} layout="horizontal" value={value} onChange={(_, data) => onChange(data.value)}>
+    <RadioGroup
+      className={styles.group}
+      aria-label={label}
+      layout="horizontal"
+      value={value}
+      onChange={(_, data) => onChange(data.value)}
+      onKeyDown={arrowsChoose(choices, value, onChange)}
+    >
       {choices.map((choice) => (
         <Radio
           key={choice.value}
@@ -123,7 +151,6 @@ export interface ToggleChipProps {
   onChange: (pressed: boolean) => void;
 }
 
-/** A chip that is on or off by itself, as a filter beside a count: pressed, it takes the chosen chips' accent. */
 function ToggleChipDrawn({ text, pressed, onChange }: ToggleChipProps) {
   const styles = useToggleStyles();
   return (
@@ -144,7 +171,15 @@ function ToggleChipDrawn({ text, pressed, onChange }: ToggleChipProps) {
 function SegmentedDrawn({ label, choices, value, onChange, disabled = false }: SegmentedProps) {
   const styles = useStyles();
   return (
-    <RadioGroup className={styles.group} aria-label={label} layout="horizontal" value={value} disabled={disabled} onChange={(_, data) => onChange(data.value)}>
+    <RadioGroup
+      className={styles.group}
+      aria-label={label}
+      layout="horizontal"
+      value={value}
+      disabled={disabled}
+      onChange={(_, data) => onChange(data.value)}
+      onKeyDown={disabled ? undefined : arrowsChoose(choices, value, onChange)}
+    >
       {choices.map((choice) => (
         <Radio
           key={choice.value}

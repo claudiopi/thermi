@@ -71,9 +71,12 @@ function CatalogTitle({ data, to, onTo }: TitleProps) {
   );
 }
 
-/** In place of the rows: no sensor read yet, or none for the search, with a word to try. */
-function CatalogNone({ typed, suggestion }: { typed: string; suggestion: string | null }) {
+/** In place of the rows: the service stopped, no sensor read yet, or none for the search, with a word to try. */
+function CatalogNone({ typed, suggestion, stopped }: { typed: string; suggestion: string | null; stopped: boolean }) {
   const t = useText();
+  if (stopped) {
+    return <div className="t-cat-empty">{t('CatalogText.CatalogStopped')}</div>;
+  }
   const hint = typed === '' ? t('CatalogText.CatalogEmptyHint') : suggestion === null ? null : t('CatalogText.TryOneWord', suggestion);
   return (
     <div className="t-cat-empty">
@@ -92,7 +95,9 @@ function useSaidCount(typed: string, view: CatalogView | null, announce: (text: 
   const said =
     count > 0
       ? t('CatalogText.CountSaid', counted)
-      : `${t('CatalogText.NoMatchFor', typed)} ${suggestion === null ? '' : t('CatalogText.TryOneWord', suggestion)}`;
+      : view?.stopped === true
+        ? t('CatalogText.CatalogStopped')
+        : `${t('CatalogText.NoMatchFor', typed)} ${suggestion === null ? '' : t('CatalogText.TryOneWord', suggestion)}`;
   useEffect(() => {
     if (typed === '') {
       return;
@@ -212,7 +217,7 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
         {(hidden > 0 || showAll) && <ToggleChip text={t('CatalogText.ShowAll')} pressed={showAll} onChange={setShowAll} />}
       </div>
       {view !== null && view.count === 0 ? (
-        <CatalogNone typed={typed} suggestion={view.suggestion} />
+        <CatalogNone typed={typed} suggestion={view.suggestion} stopped={view.stopped} />
       ) : (
         <CatalogRows
           ref={results}

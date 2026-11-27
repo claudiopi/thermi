@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Reflection;
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 using Thermi.Windows.Install;
 using Thermi.Windows.Logging;
@@ -23,8 +23,7 @@ namespace Thermi.Windows.Updates;
 internal sealed class OverlayUpdates(Func<SessionFacts> facts, Action close, TimeProvider time, ILogger log)
 {
     private readonly string? _updates = ThermiPaths.Updates;
-    private readonly ReleaseVersion? _own = ReleaseVersion.Parse(
-        typeof(OverlayUpdates).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+    private readonly ReleaseVersion? _own = ReleaseVersion.Parse(BuildVersion.Of(typeof(OverlayUpdates).Assembly));
 
     private readonly string _top = Path.GetDirectoryName(ThermiPaths.Launcher)!;
     private readonly HashSet<ReleaseVersion> _left = [];

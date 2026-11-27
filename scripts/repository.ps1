@@ -10,7 +10,7 @@ A repositories' folder holds, served as it is:
   rpm/<channel>/repodata/    each channel's dnf index, its repomd.xml signed beside it
   rpm/<channel>/packages/    the .rpms, signed each, which never change once written
   tarballs/<version>/        each version's build, which the AUR installs and a rollback packs again
-and, for the levers alone, history/<channel>.json, signed, with each offer's indexes as they were signed.
+and, for the levers alone, history/<channel>.json, signed, with each offer the channel made.
 Each lever checks the history's signature, and the hash of each file it may read against it, before it signs anything,
 so whoever can write the folder cannot have a lever sign what they put there. A channel offers one version at a time; a
 PC never takes an older one, so a rollback packs the version before as a higher one, "<highest>.really<version>",
@@ -22,9 +22,6 @@ which apt, dnf and pacman all sort above every version published. The indexes ar
 
 # As long as a manifest of spec 004: the monthly signing keeps both well inside it.
 $Lifetime = [TimeSpan]::FromDays(45)
-
-# How apt-ftparchive writes a Release's dates, in UTC, which restore reads.
-$DateFormat = "ddd, dd MMM yyyy HH:mm:ss '+0000'"
 
 # The index tools' image, pinned, from which a PC without the tools runs them.
 $IndexImage = 'debian@sha256:3cda3ca472ce45507a5109c6a3907093e24d9ae67d55954c9a07a45665dafba2'
@@ -134,16 +131,12 @@ function Add-Packed([hashtable]$Lever, [string]$Folder, [string]$Package) {
     }
 }
 
-# Puts the channel's next offer in place: its indexes written and signed, kept in the history as signed, served, and
-# the history signed last.
+# Puts the channel's next offer in place: its indexes written, signed and served, then the history signed.
 function Write-Offer([hashtable]$Lever, [pscustomobject]$History, [pscustomobject]$State) {
-    $number = @($History.states).Count + 1
-    $kept = Join-Path $Lever.Repository 'history' $Lever.Channel $number
-    Remove-Item -Recurse -Force $kept -ErrorAction SilentlyContinue
-    Write-Index $Lever $State $kept
-    $State | Add-Member -NotePropertyName offer -NotePropertyValue $number -Force
+    $staged = Join-Path $Lever.Private 'offer'
+    Write-Index $Lever $State $staged
     $History.states = @($History.states) + $State
-    Show-Offer $Lever.Repository $kept
+    Show-Offer $Lever.Repository $staged
     Save-History $Lever $History
 }
 
@@ -195,8 +188,8 @@ function Invoke-IndexTools([string]$Stage, [string]$Channel, [int]$Seconds) {
     if ($LASTEXITCODE -ne 0) { throw "The $Channel channel's indexes were not written." }
 }
 
-# An offer's indexes served: those the signed ones name first, which a PC still reading the last offer may want too, and
-# the signed ones last.
+# An offer's indexes served: the files named by their hash first, which a PC that holds the offer before, or an edge
+# cache's copy of it, still finds by that offer's hashes, then the indexes the signed ones name, and the signed ones last.
 function Show-Offer([string]$Repository, [string]$Folder) {
     $signed = 'InRelease', 'Release', 'Release.gpg', 'Packages', 'Packages.gz', 'repomd.xml', 'repomd.xml.asc'
     $files = Get-ChildItem $Folder -Recurse -File | Sort-Object { $_.Name -in $signed }, { $_.Name -in 'InRelease', 'repomd.xml.asc' }
@@ -209,6 +202,7 @@ function Show-Offer([string]$Repository, [string]$Folder) {
 
 function Save-History([hashtable]$Lever, [pscustomobject]$History) {
     $file = Join-Path $Lever.Repository 'history' "$($Lever.Channel).json"
+    New-Item -ItemType Directory -Force (Split-Path $file) | Out-Null
     $History | ConvertTo-Json -Depth 6 | Set-Content $file -NoNewline
     Invoke-Signing $Lever.Key $file "$file.asc"
 }
@@ -246,24 +240,14 @@ function Undo-Version([hashtable]$Lever, [pscustomobject]$History) {
     Write-Offer $Lever $History ([pscustomobject]@{ lever = 'rollback'; version = $target; package = $package; packages = $packages })
 }
 
-# The offer before the current one, served again as it was signed then; signed again instead once its Release is a
-# week from expiring, as apt refuses one past its Valid-Until.
+# The offer before the current one, offered again: the same packages, indexed and signed anew, as apt takes no Release
+# older than the one it holds.
 function Restore-Offer([hashtable]$Lever, [pscustomobject]$History) {
     $states = @($History.states)
     if ($states.Count -lt 2) { throw "$($Lever.Channel) has no offer before its current one." }
-    $before = $states[-2]
-    $kept = Join-Path $Lever.Repository 'history' $Lever.Channel $before.offer
-    $until = (Get-Content (Join-Path $kept 'apt' 'dists' $Lever.Channel 'Release') | Where-Object { $_ -like 'Valid-Until:*' }) -replace '^Valid-Until: *', ''
-    $expires = [DateTimeOffset]::ParseExact($until, $DateFormat, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal)
-    if ($expires -lt [DateTimeOffset]::UtcNow.AddDays(7)) {
-        $kept = Join-Path $Lever.Private 'restore'
-        Write-Index $Lever $before $kept
-    }
-    Show-Offer $Lever.Repository $kept
-    $restored = $before | Select-Object * -ExcludeProperty lever
+    $restored = $states[-2] | Select-Object * -ExcludeProperty lever
     $restored | Add-Member -NotePropertyName lever -NotePropertyValue 'restore'
-    $History.states = $states + $restored
-    Save-History $Lever $History
+    Write-Offer $Lever $History $restored
 }
 
 <#

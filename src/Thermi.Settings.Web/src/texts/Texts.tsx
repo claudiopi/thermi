@@ -10,7 +10,10 @@ export type Texts = Readonly<Record<string, string>>;
 
 const TextsContext = createContext<Texts>({});
 
-/** The texts of the language Windows or the settings chose, as the bridge gives them. */
+/**
+ * The texts of the language the OS or the settings chose, as the bridge gives them: in the words of the desktop the
+ * window shows on, as "Start at sign-in" for "Start with Windows" and "Top bar" for "Taskbar", which Core chose.
+ */
 export function TextsProvider({ texts, children }: { texts: Texts; children: ReactNode }) {
   // The page declares the language its texts are in, so Narrator reads them in its voice.
   const tag = texts['UiText.LanguageTag'];

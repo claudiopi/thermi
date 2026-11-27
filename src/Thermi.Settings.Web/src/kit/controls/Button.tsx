@@ -35,7 +35,7 @@ const useStyles = makeStyles({
   button: { fontWeight: tokens.fontWeightRegular },
   // Beside a text the icon is 16 px, as in Windows' buttons; alone it keeps Fluent's 20 px.
   withText: { '& .fui-Button__icon': { fontSize: '16px', width: '16px', height: '16px' } },
-  shield: { width: '16px', height: '16px', '@media (forced-colors: active)': { forcedColorAdjust: 'none' } },
+  shield: { width: '16px', height: '16px', ':global(.t-contrast) &': { forcedColorAdjust: 'none' } },
 });
 
 /** Windows' administrator shield, in its own colors. */

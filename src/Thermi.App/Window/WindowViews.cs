@@ -1,5 +1,5 @@
 using System.Globalization;
-using Thermi.App.Window;
+using Thermi.App.Painting;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -9,26 +9,20 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
-using Thermi.Windows.Painting;
-using Thermi.Windows.Win32;
 
-namespace Thermi.Windows.Ui.Views;
+namespace Thermi.App.Window;
 
 /// <summary>
 /// What the page reads of the overlays and the sensors, as Core decides it: each overlay's pills, each item's value and
 /// level, every sensor's value, and the catalog with each sensor's last minute since the window opened. Values show with
 /// their units in the regional format, whatever the overlay's style hides. Used on the window's thread alone.
 /// </summary>
-/// <param name="editor">Whose settings are shown.</param>
-/// <param name="sensors">The readings now, null while none are fresh.</param>
-/// <param name="readings">What the window has read since it opened.</param>
-/// <param name="history">The window's history of its items, which takes the overlay's, so each value is the overlay's.</param>
-internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Readings readings, ItemHistory history) : IDisposable
+internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Readings readings, ItemHistory history, IWindowHost host) : IDisposable
 {
     private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);
 
     // One painter for each overlay, kept from one reading to the next, as each overlay's window keeps its own.
-    private readonly List<Painter> _painters = [];
+    private readonly List<IOverlayPainter> _painters = [];
 
     /// <summary>A fresh snapshot, kept for the catalog's last minute.</summary>
     public void Arrived()
@@ -75,7 +69,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             }
         }
 
-        var light = Desktop.LightTaskbar();
+        var light = host.LightTaskbar();
         return new WindowView(pills, items, Values(snapshot, Format(texts)), Mark(config, snapshot, texts))
         {
             Colors = [.. config.Overlays.Select(overlay => LookColors.Of(OverlayLook.Of(overlay.Style, light)))],
@@ -97,26 +91,27 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             .Select(device => new CatalogGroup(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(sensor => Row(sensor, format))], device.Marks))
             .ToList();
         var count = groups.Sum(group => group.Sensors.Count);
-        return new CatalogView(groups, count, hidden, count + hidden == 0 ? SensorCatalog.Suggest(devices, search, texts) : null);
+        var suggestion = count + hidden == 0 ? SensorCatalog.Suggest(devices, search, texts) : null;
+        return new CatalogView(groups, count, hidden, suggestion, sensors.State == ServiceState.Stopped);
     }
 
     /// <summary>Where each overlay shows on <paramref name="screens"/>, as its own window places it while the window is open.</summary>
-    public IReadOnlyList<Rect?> Places(Texts texts, IReadOnlyList<Screen> screens) => OverlayPlaces.Of(editor.Config, Input(texts), screens);
+    public IReadOnlyList<Rect?> Places(Texts texts, IReadOnlyList<Screen> screens) => OverlayPlaces.Of(editor.Config, Input(texts), screens, host.Painter);
 
     /// <summary>
     /// An edit's settings with each overlay it pushed along a taskbar keeping the place it was pushed to, as the overlays show
     /// it, or why they cannot be.
     /// </summary>
     public EditResult Settled(ThermiConfig before, ThermiConfig after, Texts texts, IReadOnlyList<Screen> screens) =>
-        OverlayPlaces.Settled(before, after, Input(texts), screens);
+        OverlayPlaces.Settled(before, after, Input(texts), screens, host.Painter);
 
     public void Dispose() => _painters.ForEach(painter => painter.Dispose());
 
-    private Painter PainterOf(int overlay)
+    private IOverlayPainter PainterOf(int overlay)
     {
         while (_painters.Count <= overlay)
         {
-            _painters.Add(new Painter());
+            _painters.Add(host.Painter());
         }
 
         return _painters[overlay];
@@ -137,7 +132,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         ThermiMark.Of(
             config,
             new TrayInput(snapshot, sensors.State, CultureInfo.CurrentCulture, texts, LightTaskbar: false, ExePath: ""),
-            Desktop.HighContrast() is not null);
+            host.HighContrast() is not null);
 
     private CatalogRow Row(CatalogSensor sensor, ValueFormat format) => new(
         sensor.Id,
@@ -145,7 +140,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         sensor.Name.From,
         sensor.Reading.Kind,
         sensor.Reading.Usable is null ? null : Text(sensor.Reading, format),
-        sensor.Why,
+        host.Desktop.Why(sensor.Why),
         readings.History.LastMinute(sensor.Id),
         SensorNames.NoteOf(sensor.Name, format.Texts, format.Numbers),
         Tip(sensor.Name, format),

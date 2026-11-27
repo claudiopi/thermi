@@ -36,6 +36,9 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
     /// <summary>An overlay with Fade near the pointer shows at its faded look.</summary>
     public const string Faded = "faded";
 
+    /// <summary>The settings window showed or came to the front, about the item it shows, or about nothing.</summary>
+    public const string WindowShown = "window-shown";
+
     private readonly Lock _lock = new();
 
     public TimeProvider Time => time;

@@ -5,7 +5,7 @@ import { alongOf, displayName, displays, moveToDisplay, placeText, placedOf, pos
 
 function monitor(id: string, primary = false): Monitor {
   const rect = { x: 0, y: 0, width: 1920, height: 1080 };
-  return { id, primary, bounds: rect, workArea: rect, scale: 1, taskbar: true };
+  return { id, primary, bounds: rect, workArea: rect, scale: 1, taskbar: true, edge: 'bottom' };
 }
 
 const main = monitor('m1', true);

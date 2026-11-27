@@ -33,15 +33,20 @@ public static class WindowRoom
     /// <summary>
     /// The first size and place: 90 % of the first overlay's monitor's work area, at most 1500 × 900, centered, or its whole
     /// width where 90 % of it is too narrow for the list and the pane and the whole is not. Each free overlay it covers
-    /// shortens it on the side that loses the least, as long as it keeps its minimum. There is at least one monitor.
+    /// shortens it on the side that loses the least, as long as it keeps its minimum. There is at least one monitor. Where
+    /// the desktop maximizes a window that covers most of its work area, as GNOME's does past 80 %, it covers at most
+    /// <paramref name="most"/> of it, smaller on both sides alike.
     /// </summary>
-    public static PixelRect First(ThermiConfig config, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect> freeOverlays)
+    public static PixelRect First(ThermiConfig config, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect> freeOverlays, double most = 1)
     {
         var work = Snaps.ScreenOf(config.Overlays[0], screens)!.Work;
         var minimum = Minimum(work);
         var share = (int)(work.Width * FirstShare);
         var width = Math.Max(minimum.Width, share < WholeWidthUnder && work.Width >= WholeWidthUnder ? work.Width : Math.Min(FirstWidth, share));
         var height = Math.Max(minimum.Height, Math.Min(FirstHeight, (int)(work.Height * FirstShare)));
+        var shrink = Math.Min(1, Math.Sqrt(most * work.Width * work.Height / ((double)width * height)));
+        width = Math.Max(minimum.Width, (int)(width * shrink));
+        height = Math.Max(minimum.Height, (int)(height * shrink));
         var left = work.Left + ((work.Width - width) / 2);
         var top = work.Top + ((work.Height - height) / 2);
         return freeOverlays.Aggregate(new PixelRect(left, top, left + width, top + height), (window, overlay) => Off(window, overlay, minimum));

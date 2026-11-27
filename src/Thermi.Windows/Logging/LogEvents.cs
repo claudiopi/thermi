@@ -59,14 +59,8 @@ internal static partial class LogEvents
             + "8 when it installed and Windows must restart for it to load")]
     public static partial void ElevatedEnded(this ILogger logger, string verb, int code);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "The window's page asked for {Method}, which failed")]
-    public static partial void PageCallFailed(this ILogger logger, string method, Exception error);
-
     [LoggerMessage(Level = LogLevel.Error, Message = "The window's page failed: {Kind}")]
     public static partial void PageFailed(this ILogger logger, string kind);
-
-    [LoggerMessage(Level = LogLevel.Error, Message = "The window's page threw: {Error}")]
-    public static partial void PageThrew(this ILogger logger, string error);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The window's size and place could not be read or kept")]
     public static partial void WindowPlaceFailed(this ILogger logger, Exception error);

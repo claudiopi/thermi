@@ -1,13 +1,15 @@
 # thermi's overlay, as the person, in their graphical session alone (docs/adr/0019-linux.md). The package installs it as
 # a user unit; each person's own link, which thermi's first start makes, starts it at sign-in. "Exit thermi" ends it
 # with 0, as SIGTERM does, which leaves it stopped until the next sign-in; a crash or SIGKILL starts it again, a few
-# times a minute at most, so a session where it cannot show is not kept busy.
+# times a minute at most, so a session where it cannot show is not kept busy. A system user's session, as a login
+# screen's, never runs it.
 [Unit]
 Description=thermi, the hardware monitor's overlay
 Documentation=https://github.com/claudiopi/thermi
 PartOf=graphical-session.target
 After=graphical-session.target
 Requisite=graphical-session.target
+ConditionUser=!@system
 StartLimitIntervalSec=60
 StartLimitBurst=5
 

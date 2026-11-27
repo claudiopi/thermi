@@ -15,7 +15,7 @@ internal static class LinuxAbout
 
     private const string DnfRepo = "/etc/yum.repos.d/thermi.repo";
 
-    public static AboutFacts Read() => new(BuildVersion.Of(typeof(LinuxAbout)), SystemRepository.Channel(Text(AptSources), Text(DnfRepo)), "system");
+    public static AboutFacts Read() => new(BuildVersion.Of(typeof(LinuxAbout).Assembly), SystemRepository.Channel(Text(AptSources), Text(DnfRepo)), "system");
 
     private static string? Text(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
 }

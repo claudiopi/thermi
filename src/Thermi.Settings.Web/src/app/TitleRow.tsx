@@ -1,12 +1,15 @@
 import type { Ref } from 'react';
-import type { MarkState, UndoSteps } from '../bridge/bridge.g';
+import type { MarkState, UndoSteps, WindowCaption } from '../bridge/bridge.g';
 import { Button, Icon, Menu, steady, Tooltip } from '../kit';
 import { useText } from '../texts/Texts';
 import { AppName } from './AppName';
+import { CaptionButtons, useCaptionRow } from './Caption';
 
 export interface TitleRowProps {
   /** thermi's mark as the tray shows it now. */
   mark: MarkState;
+  /** The caption buttons the page draws where the OS draws none, or null where it draws its own. */
+  caption: WindowCaption | null;
   /** Whether the list folds into the Navigation button, under 860 px. */
   narrow: boolean;
   listOpen: boolean;
@@ -25,12 +28,15 @@ export interface TitleRowProps {
 
 /**
  * The title row's content: the mark, the list's button while it folds, Undo, Redo and "…". Windows draws the caption
- * buttons at its end and takes the rest of the row as caption, so it drags and snaps the window.
+ * buttons at its end and takes the rest of the row as caption, so it drags and snaps the window; where the OS draws
+ * none, the page draws them and the row asks the window to move.
  */
-function TitleRowDrawn({ mark, narrow, listOpen, onShowList, steps, onUndo, onRedo, canAddOverlay, onNewOverlay, onShortcuts, onExit, navRef }: TitleRowProps) {
+function TitleRowDrawn(props: TitleRowProps) {
+  const { mark, caption, narrow, listOpen, onShowList, steps, onUndo, onRedo, canAddOverlay, onNewOverlay, onShortcuts, onExit, navRef } = props;
   const t = useText();
+  const row = useCaptionRow(caption);
   return (
-    <header className="t-title">
+    <header className="t-title" {...row}>
       {narrow && (
         <span className="t-tool">
           <Tooltip text={t('UiText.ShowList')} names>
@@ -61,6 +67,7 @@ function TitleRowDrawn({ mark, narrow, listOpen, onShowList, steps, onUndo, onRe
           ]}
         />
       </span>
+      {caption !== null && <CaptionButtons caption={caption} />}
     </header>
   );
 }

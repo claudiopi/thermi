@@ -210,6 +210,29 @@ jobs:
           path: TestResults/stats
           if-no-files-found: ignore
 
+  # The page's tests on Linux, in WebKit and Chromium, as Linux's window runs the page in WebKitGTK: in Playwright's own
+  # image, whose browsers and the libraries they need match the version the page pins.
+  web-linux:
+    name: 🎨 Settings page on Linux · WebKit + Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
+      options: --ipc=host
+    env:
+      CI: 'true'
+      HOME: /root
+    defaults:
+      run:
+        working-directory: src/Thermi.Settings.Web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright test
+
   # The MSIs of this build for both processors, unsigned and with updates off, so a change that breaks one fails here and
   # not at a release: each carries the custom actions' DLL of its own processor.
   msi:
@@ -280,7 +303,7 @@ jobs:
   stats:
     name: 📊 Stats dashboard
     if: ${{ !cancelled() }}
-    needs: [core, windows, windows-alone, linux-core, linux, web, msi, pr-title, security]
+    needs: [core, windows, windows-alone, linux-core, linux, web, web-linux, msi, pr-title, security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -326,7 +349,7 @@ jobs:
   ci-gate:
     name: CI gate
     if: always()
-    needs: [core, windows, windows-alone, linux-core, linux, web, msi, pr-title, security, stats]
+    needs: [core, windows, windows-alone, linux-core, linux, web, web-linux, msi, pr-title, security, stats]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -341,6 +364,7 @@ jobs:
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
           needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.web.result != 'success' ||
+          needs.web-linux.result != 'success' ||
           needs.msi.result != 'success' || needs.security.result != 'success' || needs.stats.result != 'success' ||
           (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
         run: exit 1

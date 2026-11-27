@@ -12,6 +12,8 @@ They never touch the person's desktop: each compositor and process a test starts
 | `Readers` | The service's readers over trees made for hardware the recorded PCs lack. |
 | `Tray` | What thermi's tray icons take from the session's bus, with a tray of the test's own. |
 
+| `Window` | What the settings window asks of the person's session on its own: starting at sign-in. |
+
 Entry points worth knowing:
 
 - `SensorFeed.cs` serves a recorded tree through the real `thermi-sensors`, as the person's own service, or one second of it over and over, so a screen holds still.

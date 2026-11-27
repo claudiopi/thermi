@@ -18,7 +18,7 @@ const useStyles = makeStyles({
     height: '3px',
     borderRadius: '2px',
     background: tokens.colorNeutralStrokeAccessible,
-    '@media (forced-colors: active)': { background: 'CanvasText' },
+    ':global(.t-contrast) &': { background: 'CanvasText' },
   },
   runner: {
     position: 'absolute',
@@ -30,7 +30,7 @@ const useStyles = makeStyles({
     animationDuration: '1.5s',
     animationIterationCount: 'infinite',
     animationTimingFunction: 'ease-in-out',
-    '@media (forced-colors: active)': { background: 'Highlight' },
+    ':global(.t-contrast) &': { background: 'Highlight' },
   },
 });
 

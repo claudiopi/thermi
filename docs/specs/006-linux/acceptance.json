@@ -138,7 +138,7 @@
       ],
       "description": "Given the headless GNOME Shell with the overlay and a recorded feed, when the window opens from the overlay's menu, a double-click on a value, thermi settings and the app launcher's entry, and a slider is dragged and undone, then one window shows, on the item double-clicked; each change shows on the overlay within 300 ms and undo takes it back; and closing the window leaves no process of it.",
       "check": "TheSettingsWindowWorksOnLinux",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A16",
@@ -147,7 +147,7 @@
       ],
       "description": "Given the page in WebKit with the bridge's client over WebKit's messages, when it loads and calls the bridge, then every call is answered and every event arrives, as over WebView2's.",
       "check": "TheBridgeAnswersOverWebKit",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A17",
@@ -156,7 +156,7 @@
       ],
       "description": "Given the page as Linux's host serves it, with the desktop dark, light, with an accent and in high contrast, a stopped service and a GNOME session without the extension, when Settings and the fixes show, then the page follows the desktop's scheme, accent and contrast, the switch reads Start at sign-in, the fixes offered are the extension's and the service's and none is the driver's.",
       "check": "TheWindowFollowsTheLinuxDesktop",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A18",
@@ -191,7 +191,7 @@
         "R25",
         "R26"
       ],
-      "description": "Given clean Ubuntu and Fedora containers with thermi installed from a repository the levers wrote, when a newer version is published to its channel, rolled back, disabled, and a repository signed by another key or older than the one held is served, then the system's update takes the newer version, then the one before, then nothing new, and refuses the repository not signed by thermi or older, keeping the version it holds and saying why: the signature it refused, or that nothing is newer; and the service runs the new version once the package changed it.",
+      "description": "Given clean Ubuntu and Fedora containers with thermi installed from a repository the levers wrote, when a newer version is published to its channel, rolled back, disabled, served signed by another key, restored to the offer before, and served as a copy of its first offer, of an older version than the PC's, then the system's update takes the newer version, which a new process of the service runs, then the one before, then nothing new; refuses the repository not signed by thermi, keeping its version and naming the signature; takes the restored offer, whose index apt holds as its newest; and keeps its version from the older copy, apt keeping the newer index it holds.",
       "check": "UpdatesComeFromThermisRepository",
       "passes": true
     },
