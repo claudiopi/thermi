@@ -13,9 +13,10 @@
     {
       "id": "A2",
       "covers": [
-        "R2"
+        "R2",
+        "R33"
       ],
-      "description": "Given each command and each way it can end (done, refused, bad arguments, no service, broken file), when it runs, then stdout holds one JSON document with schema 1 or nothing, stderr says why it did not finish, and the exit code is 0, 1, 2, 3 or 4 as spec.md lists.",
+      "description": "Given each command and each way it can end (done, refused, bad arguments as an overlay the settings lack, no service, broken file), when it runs, then stdout holds one JSON document with schema 1 or nothing, stderr says why it did not finish, and the exit code is 0, 1, 2, 3 or 4 as spec.md lists.",
       "check": "EveryCommandEndsWithItsCode",
       "passes": true
     },
@@ -98,9 +99,10 @@
     {
       "id": "A11",
       "covers": [
-        "R14"
+        "R14",
+        "R34"
       ],
-      "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, monitors, looks, edit, look, find_cpu_fan, start_with_windows, undo and redo, the first six marked read-only and edit, look and start_with_windows destructive, each answers the command's JSON, and a refused edit or a stopped service is a tool error saying why.",
+      "description": "Given the MCP server over in-memory streams and over stdio to the built thermi-cli, when the SDK's client lists and calls its tools, then it lists exactly status, read, sensors, config, monitors, looks, preview, edit, look, find_cpu_fan, start_with_windows, undo and redo, the first seven marked read-only and edit, look and start_with_windows destructive, each answers the command's JSON, preview as an image of the command's PNG, and a refused edit, a scale out of range or a stopped service is a tool error saying why.",
       "check": "McpToolsAreTheCommands",
       "passes": true
     },
@@ -242,6 +244,16 @@
       "description": "Given the MSI's source, when it installs per machine or per user, then its folder, where thermi-cli is, goes on PATH; and per machine, SENSORSONLY=1 or the choice an upgrade finds leaves out the overlay with its Start menu entry and its start at sign-in, and SENSORSONLY=0 brings it back.",
       "check": "TheMsiPutsThermiCliOnPathAndMayLeaveTheOverlayOut",
       "passes": true
+    },
+    {
+      "id": "A31",
+      "covers": [
+        "R20",
+        "R33"
+      ],
+      "description": "Given a recording and settings with two overlays of different sizes, whose agents only read, when preview runs for the second at a scale, then it exits 0 with the picture the host painted of that overlay, from those settings and the snapshot read, at that scale, with its width and height, and the answer validates against its JSON Schema.",
+      "check": "AgentsSeeTheOverlay",
+      "passes": false
     }
   ]
 }

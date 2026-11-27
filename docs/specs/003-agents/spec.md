@@ -1,8 +1,8 @@
 # 003. AI agents and other programs read the sensors and configure thermi
 
-**Status**: done
+**Status**: approved
 
-**Budget**: 54 .NET and 1 page cases
+**Budget**: 58 .NET and 1 page cases
 
 thermi exists because AI agents running for hours cooked their owner's PC, so an agent can ask how hot the PC is, back off when it runs hot, and set thermi up for the person. `thermi-cli` gives it the sensors and the settings from a command line or as an MCP server, with or without an overlay on screen, and the person decides in Settings whether agents may change anything. Other programs, a terminal's status bar, an orchestrator that throttles its agents, a desktop widget, read the same sensors through a contract that stays stable, also with the sensors installed alone. The decisions are in `docs/adr/0013-agents-cli-and-mcp.md`.
 
@@ -23,6 +23,7 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 - R8. Each item read gives its level as the overlay judges it: normal, warning or critical, with the thresholds that decide it.
 - R9. `sensors` lists every sensor the service reads, by device, with its id, name, type, unit and value, filtered by `--search` as the window's search finds and by `--type`; an address's text comes only with `--type address`.
 - R10. `config` gives the settings as thermi reads them, each overlay and item with its id.
+- R33. `preview [--overlay n] [--scale s]` paints overlay n, counted from 0 as `config` counts it and the first when none, as the overlay draws the readings of now, read once as `read` reads them, at its size times s, from 0.25 to 8 and 1 when none; it answers the PNG in base64 with its width and height in pixels. An overlay the settings lack is a bad argument, and settings that cannot be read exit 4. It only reads, so the person's switch of R31 never refuses it.
 
 ### Changing
 
@@ -42,7 +43,8 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 
 ### MCP
 
-- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `monitors`, `looks`, `edit`, `look`, `find_cpu_fan`, `start_with_windows`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. `status`, `read`, `sensors`, `config`, `monitors` and `looks` are marked read-only, and `edit`, `look` and `start_with_windows` destructive.
+- R14. `thermi-cli mcp` is an MCP server on stdio whose tools are `status`, `read`, `sensors`, `config`, `monitors`, `looks`, `preview`, `edit`, `look`, `find_cpu_fan`, `start_with_windows`, `undo` and `redo`, taking the commands' arguments and answering their JSON; a refusal or an unreachable service is a tool error saying why. `status`, `read`, `sensors`, `config`, `monitors`, `looks` and `preview` are marked read-only, and `edit`, `look` and `start_with_windows` destructive.
+- R34. The `preview` tool answers its picture as an MCP image, a PNG, so the model sees the overlay it set up.
 - R15. `undo` takes back the session's last edit, and `redo` makes it again, each only where what it wrote is still there; a change made since by someone else stays.
 - R16. Added to Claude Code with one command from the README, an agent answers "how hot is my CPU?" with the value the overlay shows, and sets a warning that then shows on the overlay. The same works in Claude Desktop.
   Release check: thermi-cli in Claude Code and Claude Desktop.
@@ -56,7 +58,7 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 
 ### The contract
 
-- R20. The JSON of `status`, `read`, `sensors` and `watch` is a documented contract with a JSON Schema per document, and every answer the tests see validates against it.
+- R20. The JSON of `status`, `read`, `sensors`, `watch` and `preview` is a documented contract with a JSON Schema per document, and every answer the tests see validates against it.
 - R21. Within a schema, fields are only added. A change that removes, renames or changes the meaning of one is a new schema, and `--schema n` answers the one before for two years after the new one ships.
 
 ### The SDK
@@ -77,7 +79,7 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 | --- | --- |
 | `src/Thermi.Windows/Thermi.Windows.csproj` | Runs the SDK's `CreateAppHost` a second time, writing `thermi-cli.exe` for the same `thermi.dll` with the console subsystem. `Program.cs` knows the door it was started from by its process path (`ThermiCommands.IsConsoleDoor`), so `thermi-cli` with no command prints help. |
 | `src/Thermi.Cli` | The commands (`Commands/AgentCommandLine.cs`) and their runs (`Agents/AgentCommands.cs`), the fan finder's run, the samples, undo and the MCP server (`Agents/McpTools.cs`, on `ModelContextProtocol.Core` over stdio, an `UndoHistory` a session). It targets plain `net10.0`: what it needs of the OS comes through `IAgentEnvironment`. |
-| `src/Thermi.Windows/Agents` | `AgentEnvironment`, Windows' answers to `IAgentEnvironment`: the pipe through `SensorClient`, the overlay's mutex, the install's choice under `HKLM\SOFTWARE\thermi`, the monitors and the start at sign-in. |
+| `src/Thermi.Windows/Agents` | `AgentEnvironment`, Windows' answers to `IAgentEnvironment`: the pipe through `SensorClient`, the overlay's mutex, the install's choice under `HKLM\SOFTWARE\thermi`, the monitors, the start at sign-in, and an overlay painted as `thermi preview` paints it (`Preview.Png`). |
 | `src/Thermi.Core/Agents` | What the commands decide: the answers' records and their JSON (source-generated, camel-case names and kebab-case choices, like the bridge's), the reads from snapshots and settings, the parse of an edit, `AgentRules` and `AgentEdits` for the person's switch, `AgentSetup` and `AgentActivity` for the window's section. |
 | `src/Thermi.Client` | The .NET SDK: a `net10.0` library with no package references, which starts `thermi-cli --schema 1` and reads its stdout; `watch` is an `IAsyncEnumerable`. |
 | `docs/agents` | The contract, with a JSON Schema per document. |
@@ -87,9 +89,11 @@ thermi exists because AI agents running for hours cooked their owner's PC, so an
 
 **The person's say.** The switch is `agents` in the settings file, `change` by default and so left out, or `read`, with its undo field in `ConfigFields`. Every write of `AgentCommands` asks `AgentRules`, against the file as that write finds it; so do the writes that touch no settings (a look's file, the start at sign-in, the finder), against the file as read. `AgentEdits` refuses an edit that sets it to `change`. The window's section reads `Agents()` over the bridge: `AgentSetup` writes the command and the JSON from `thermi-cli`'s path and the folders on the `PATH`, and `AgentActivity` reads the changes back from `thermi-agents.log`, whose lines `AgentCommands` writes with Core's template, so the two cannot drift.
 
+**The preview.** `thermi-cli` decides what is painted, the settings as read, the overlay and one snapshot, and the host paints it through `IAgentEnvironment.Paint`, which answers the PNG with its size: Windows with the overlay's own `Painter`, as `thermi preview` does, and each other OS's host with its own. The tool's image is the command's PNG, so the two cannot differ.
+
 **The sensors-only install.** The choice is a value under `HKLM\SOFTWARE\thermi` that the MSI writes and `thermi-cli` reads, since an update of spec 004 is a version folder beside the last, never the MSI; the major upgrade reads it back, and `SENSORSONLY=0` installs the full thermi over it. Without the overlay there is no Start menu entry, no start at sign-in and no overlay started after the install. The setup's driver step starts `thermi-elevated` with `install-driver` as SYSTEM, as `docs/adr/0010-driver-and-service-from-the-window.md` says. `scripts/install.ps1 -SensorsOnly` does the same from a build. A session's share of the pipe is `SensorPipeServer.PerSession`.
 
-**Tests.** The reads, samples, levels and edits are tested in Core from the recordings, the missing-value and no-driver ones included. The commands run in-process on a recorded feed (`tests/Thermi.Tests/Agents/AgentRig.cs`), since only a pipe owned by SYSTEM is trusted. The door runs the built `thermi-cli` from each shell under `DesktopProcess`. The MCP tools are tested through the SDK's client over in-memory streams, and once over stdio to the built `thermi-cli`. Every answer of the command tests validates against the schemas, and the SDK's records round-trip each Core answer of the recordings.
+**Tests.** The reads, samples, levels and edits are tested in Core from the recordings, the missing-value and no-driver ones included. The commands run in-process on a recorded feed (`tests/Thermi.Tests/Agents/AgentRig.cs`), since only a pipe owned by SYSTEM is trusted. The door runs the built `thermi-cli` from each shell under `DesktopProcess`. The MCP tools are tested through the SDK's client over in-memory streams, and once over stdio to the built `thermi-cli`. The rig's host paints, in place of a picture, what it was asked to paint, since the real painter is each OS's and is tested where it runs. Every answer of the command tests validates against the schemas, and the SDK's records round-trip each Core answer of the recordings.
 
 **Rejected:** reading through the overlay, which already holds a minute of history per item. The agent would get nothing while no overlay runs, which R3 rules out, and the overlay would have to answer requests, a second protocol to secure.
 
