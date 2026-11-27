@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests that need Linux: the sensor service on recorded trees, its socket, and thermi against compositors of the
+       tests' own. Core's behavior is tested in Thermi.Tests. Plain net10.0, marked for Linux in LinuxOnly.cs. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.MTP" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Thermi.Core\Thermi.Core.csproj" />
+    <ProjectReference Include="..\..\src\Thermi.Linux\Thermi.Linux.csproj" />
+    <ProjectReference Include="..\..\src\Thermi.Sensors.Linux\Thermi.Sensors.Linux.csproj" />
+  </ItemGroup>
+
+</Project>

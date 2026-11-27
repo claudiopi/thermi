@@ -19,8 +19,12 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi.Trust` | The checks the window's fixes and the updater make with Windows' own means before they trust a file: a folder only administrators change, Authenticode signatures, signed catalogs and a held switch lock. |
 | `src/Thermi.Releases` | `thermi-releases`, the owner's levers on the update channels, which sign each channel's manifest. |
 | `src/Thermi.Installer` | The MSI, built with WiX 5 from a published version. |
+| `src/Thermi.Sensors.Linux` | `thermi-sensors` on Linux: the service that reads `hwmon`, NVML, `/proc` and `/sys` as a user of its own, started by its socket. |
+| `src/Thermi.Linux` | `thermi` and `thermi-cli` on Linux, as the person: the overlay painted by Cairo and Pango on each desktop's surface, the settings window in WebKitGTK, and the agents' environment. |
+| `src/Thermi.Gnome` | The GNOME Shell extension, in JavaScript: shows on GNOME what `thermi` paints, above every window and the top bar. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |
+| `tests/Thermi.Linux.Tests` | Tests that need Linux: the service on recorded trees, its socket, and thermi against compositors of the tests' own. |
 | `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |
 | `docs/QUICKSTART.md`, `docs/ARCHITECTURE.md` | What thermi is, as a story, and how it is built, with the real names. |
 | `docs/agents` | The contract `thermi-cli` answers AI agents and other programs, with its JSON Schemas. |

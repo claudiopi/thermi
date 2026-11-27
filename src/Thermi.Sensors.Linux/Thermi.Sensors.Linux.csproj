@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- thermi-sensors on Linux: a systemd service as its own user, started by its socket (docs/adr/0019-linux.md). Plain
+       net10.0, marked for Linux in Program.cs, as the shared projects are plain net10.0 for any OS. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>thermi-sensors</AssemblyName>
+    <RootNamespace>Thermi.Sensors.Linux</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Thermi.Linux.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+  </ItemGroup>
+
+</Project>
