@@ -26,31 +26,43 @@ internal static class Accessible
 
         ITEMS = (Atspi.Role.MENU_ITEM, Atspi.Role.CHECK_MENU_ITEM, Atspi.Role.RADIO_MENU_ITEM, Atspi.Role.MENU)
 
-        def showing(node):
-            return node.get_state_set().contains(Atspi.StateType.SHOWING)
+        # A node its program let go while the tree is read, as a page's that changed, answers no more: it shows no longer.
+        def alive(read, otherwise):
+            try: return read()
+            except GLib.GError: return otherwise
+
+        def children(node):
+            for index in range(alive(node.get_child_count, 0)):
+                child = alive(lambda: node.get_child_at_index(index), None)
+                if child is not None: yield child
+
+        def role(node):
+            return alive(node.get_role, None)
+
+        def has(node, state):
+            return alive(lambda: node.get_state_set().contains(state), False)
 
         def entries(node):
-            for index in range(node.get_child_count()):
-                child = node.get_child_at_index(index)
-                if child is None or not showing(child): continue
-                if child.get_role() in ITEMS: yield child
+            for child in children(node):
+                if not has(child, Atspi.StateType.SHOWING): continue
+                if role(child) in ITEMS: yield child
                 else: yield from entries(child)
 
         def menus(node, app):
-            if node is None: return
-            if node.get_role() in (Atspi.Role.MENU, Atspi.Role.POPUP_MENU) and showing(node):
+            if role(node) in (Atspi.Role.MENU, Atspi.Role.POPUP_MENU) and has(node, Atspi.StateType.SHOWING):
                 shown = list(entries(node))
                 if shown: yield app, shown
                 return
-            for index in range(node.get_child_count()):
-                yield from menus(node.get_child_at_index(index), app)
+            for child in children(node):
+                yield from menus(child, app)
 
         desktop = Atspi.get_desktop(0)
         def open_menus():
-            programs = [desktop.get_child_at_index(index) for index in range(desktop.get_child_count())]
-            return [menu for program in programs if program is not None for menu in menus(program, program.get_name())]
+            return [menu for program in children(desktop) for menu in menus(program, alive(program.get_name, None))]
 
-        found = open_menus()
+        # Only what asks of menus looks for them: the search reads every node of every program, the thousands of a page's
+        # among them, which a busy PC takes minutes to answer.
+        found = open_menus() if sys.argv[1] in ('closed', 'list', 'choose') else []
         if sys.argv[1] == 'closed' and found:
             def gone(event):
                 if not open_menus(): Atspi.event_quit()
@@ -70,26 +82,24 @@ internal static class Accessible
                 found = open_menus()
         # A line's knob: the chart's plot is a slider too, an svg's, whose drag reads a point and changes nothing.
         def sliders(node):
-            if node is None: return
-            if node.get_role() == Atspi.Role.SLIDER and node.get_attributes().get('tag') != 'svg': yield node
-            for index in range(node.get_child_count()):
-                yield from sliders(node.get_child_at_index(index))
+            if role(node) == Atspi.Role.SLIDER and alive(node.get_attributes, {}).get('tag') != 'svg': yield node
+            for child in children(node):
+                yield from sliders(child)
 
-        apps = [desktop.get_child_at_index(index) for index in range(desktop.get_child_count())]
+        apps = list(children(desktop))
         if sys.argv[1] == 'list':
             for app, shown in found: print(app, len(shown))
         elif sys.argv[1] == 'windows':
             for app in apps:
-                frames = sum(1 for index in range(app.get_child_count()) if app.get_child_at_index(index).get_role() == Atspi.Role.FRAME)
-                if frames: print(app.get_process_id(), frames, app.get_name())
+                frames = sum(1 for child in children(app) if role(child) == Atspi.Role.FRAME)
+                said = alive(lambda: (app.get_process_id(), app.get_name()), None)
+                if frames and said: print(said[0], frames, said[1])
         elif sys.argv[1] == 'active':
             def frames():
-                for app in (desktop.get_child_at_index(index) for index in range(desktop.get_child_count())):
-                    if app is None: continue
-                    yield from (frame for frame in (app.get_child_at_index(index) for index in range(app.get_child_count()))
-                                if frame is not None and frame.get_role() == Atspi.Role.FRAME)
+                for app in children(desktop):
+                    yield from (frame for frame in children(app) if role(frame) == Atspi.Role.FRAME)
             def active():
-                return any(frame.get_name() == sys.argv[2] and frame.get_state_set().contains(Atspi.StateType.ACTIVE) for frame in frames())
+                return any(alive(frame.get_name, None) == sys.argv[2] and has(frame, Atspi.StateType.ACTIVE) for frame in frames())
             if not active():
                 listener = Atspi.EventListener.new(lambda event: active() and Atspi.event_quit())
                 for kind in ('window:activate', 'object:state-changed:active'):
