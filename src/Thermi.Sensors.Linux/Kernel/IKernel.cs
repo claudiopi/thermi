@@ -52,7 +52,7 @@ internal sealed record Moment(double Elapsed, DateTimeOffset LocalNow, string? A
 
 /// <summary>
 /// What NVML answered of one GPU, each value null where it answered an error: degrees, percents, watts, a fan's percent of
-/// its speed, gigabytes and megahertz.
+/// its speed, gigabytes and megahertz; and each fan's speed in RPM, the list itself null where NVML could not count the fans.
 /// </summary>
 internal sealed record GpuAnswer(string Name)
 {
@@ -65,6 +65,8 @@ internal sealed record GpuAnswer(string Name)
     public double? Power { get; init; }
 
     public double? Fan { get; init; }
+
+    public IReadOnlyList<double?>? FanSpeeds { get; init; }
 
     public double? MemoryUsed { get; init; }
 

@@ -71,6 +71,8 @@ internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
 
     private bool Asleep(string device) => kernel.Read($"{device}/power/runtime_status")?.Trim() == "suspended";
 
+    // LibreHardwareMonitor numbers a card's fans and their duty from 1, as NVIDIA's own API numbers its coolers, and
+    // names a fan by its number only past one. A card whose fans NVML cannot count has one, which reads missing.
     private static IEnumerable<RawSensor> Nvidia(GpuAnswer gpu, string id)
     {
         const string HardwareType = "GpuNvidia";
@@ -79,13 +81,20 @@ internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
             return new(string.Create(CultureInfo.InvariantCulture, $"{id}/{type.ToLowerInvariant()}/{index}"), HardwareType, gpu.Name, type, name, value);
         }
 
+        var fans = gpu.FanSpeeds ?? [null];
+        string FanName(int fan)
+        {
+            return fans.Count > 1 ? string.Create(CultureInfo.InvariantCulture, $"GPU Fan {fan}") : "GPU Fan";
+        }
+
         return
         [
             Sensor("Temperature", 0, "GPU Core", gpu.Temperature),
             Sensor("Load", 0, "GPU Core", gpu.Load),
             Sensor("Load", 1, "GPU Memory Controller", gpu.MemoryLoad),
             Sensor("Power", 0, "GPU Package", gpu.Power),
-            Sensor("Control", 0, "GPU Fan", gpu.Fan),
+            Sensor("Control", 1, "GPU Fan", gpu.Fan),
+            .. fans.Select((speed, fan) => Sensor("Fan", fan + 1, FanName(fan + 1), speed)),
             Sensor("Data", 0, "GPU Memory Used", gpu.MemoryUsed),
             Sensor("Data", 1, "GPU Memory Total", gpu.MemoryTotal),
             Sensor("Clock", 0, "GPU Core", gpu.CoreClock),

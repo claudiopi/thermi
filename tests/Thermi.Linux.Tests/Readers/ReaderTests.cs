@@ -26,6 +26,8 @@ public sealed class ReaderTests
         Replugged,
         SleepingNvidia,
         SleepingAmdGpu,
+        NvidiaFans,
+        NvidiaUncounted,
     }
 
     [Theory] // Rows: each a reader, or a rule of one, that the recorded trees never reach.
@@ -37,6 +39,8 @@ public sealed class ReaderTests
     [InlineData(Made.Replugged)]
     [InlineData(Made.SleepingNvidia)]
     [InlineData(Made.SleepingAmdGpu)]
+    [InlineData(Made.NvidiaFans)]
+    [InlineData(Made.NvidiaUncounted)]
     public void AMadeTreeReadsAsItsHardwareWould(Made made)
     {
         var root = Directory.CreateTempSubdirectory("thermi-made-").FullName;
@@ -50,7 +54,13 @@ public sealed class ReaderTests
             var readings = SensorMap.Read(second, OverlayConfig.First);
 
             Assert.Equal(expected, metrics.Select(metric => readings[metric.Id].Usable));
-            Assert.Equal((made == Made.SleepingNvidia ? 1 : 0, false), (kernel.Starts, kernel.Held));
+            // An NVIDIA card's fans have no metric, so they are found by the id and name Windows' recordings give them.
+            Assert.Equal(
+                Fans(made),
+                second.Sensors.Where(sensor => sensor.HardwareType == "GpuNvidia" && sensor.Type is "Fan" or "Control")
+                    .Select(sensor => (sensor.Id, sensor.Name, sensor.Value)));
+            var awake = made is Made.NvidiaFans or Made.NvidiaUncounted;
+            Assert.Equal((awake || made == Made.SleepingNvidia ? 1 : 0, awake), (kernel.Starts, kernel.Held));
             // A mouse's battery is the mouse's, and names it by its address.
             Assert.DoesNotContain(second.Sensors, sensor => sensor.Id.Contains("hid-", StringComparison.Ordinal));
         }
@@ -121,6 +131,14 @@ public sealed class ReaderTests
                     tree.Files(second, "/sys/bus/pci/drivers/nvidia", ("new_id", ""));
                     tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50 });
                     break;
+                case Made.NvidiaFans:
+                    // Two fans, one stopped, as a card stops its fans while it is cool.
+                    tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50, Fan = 30, FanSpeeds = [1500, 0] });
+                    break;
+                case Made.NvidiaUncounted:
+                    // A driver older than the calls that count a card's fans and read their speed.
+                    tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50, Fan = 40 });
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(made), made, "Unknown tree.");
             }
@@ -137,9 +155,17 @@ public sealed class ReaderTests
             Made.AbsurdInput or Made.Replugged => ([Metrics.CpuTemperature], [60]),
             Made.SleepingNvidia => ([Metrics.GpuTemperature], [null]),
             Made.SleepingAmdGpu => ([Metrics.GpuTemperature, Metrics.GpuLoad, Metrics.GpuPower], [null, null, null]),
+            Made.NvidiaFans or Made.NvidiaUncounted => ([Metrics.GpuTemperature], [50]),
             _ => throw new ArgumentOutOfRangeException(nameof(made), made, "Unknown tree."),
         };
     }
+
+    // The NVIDIA card's duty and fans each row must read: a fan whose speed NVML cannot give reads missing, never 0.
+    private static (string Id, string Name, double? Value)[] Fans(Made made) =>
+        made == Made.NvidiaFans
+            ? [("/gpu-nvidia/0/control/1", "GPU Fan", 30), ("/gpu-nvidia/0/fan/1", "GPU Fan 1", 1500), ("/gpu-nvidia/0/fan/2", "GPU Fan 2", 0)]
+        : made == Made.NvidiaUncounted ? [("/gpu-nvidia/0/control/1", "GPU Fan", 40), ("/gpu-nvidia/0/fan/1", "GPU Fan", null)]
+        : [];
 
     // A kernel that holds NVML as the live one does: started by a read the driver answers, held until let go of.
     private sealed class NvmlHeld(IKernel kernel) : IKernel

@@ -4,7 +4,7 @@ using System.Text;
 namespace Thermi.Sensors.Linux.Kernel;
 
 /// <summary>
-/// NVIDIA's driver library, NVML, which answers any user: each GPU's temperature, loads, power, fan, memory and clocks.
+/// NVIDIA's driver library, NVML, which answers any user: each GPU's temperature, loads, power, fans, memory and clocks.
 /// It has no introspection data for GirCore, so its few calls are declared here, and it is opened only where the driver
 /// installed it; a call that answers an error is a missing value.
 /// </summary>
@@ -22,12 +22,21 @@ internal sealed partial class NvmlLibrary : IDisposable
     // NVML_DEVICE_NAME_V2_BUFFER_SIZE.
     private const int NameLength = 96;
 
+    // nvmlFanSpeedInfo_v1, as NVML_STRUCT_VERSION makes it: the struct's size, with its version in the top byte.
+    private const uint FanSpeedVersion = (3 * sizeof(uint)) | (1u << 24);
+
     private const double BytesPerGigabyte = 1024d * 1024 * 1024;
+
+    // A driver older than the calls that count a card's fans or read their RPM lacks them; asked, they would throw each second.
+    private readonly bool _counts;
+    private readonly bool _speeds;
 
     private bool _shut;
 
-    private NvmlLibrary()
+    private NvmlLibrary(bool counts, bool speeds)
     {
+        _counts = counts;
+        _speeds = speeds;
     }
 
     /// <summary>NVML started, or null where NVIDIA's driver is not installed or does not start.</summary>
@@ -38,10 +47,12 @@ internal sealed partial class NvmlLibrary : IDisposable
             return null;
         }
 
+        var counts = NativeLibrary.TryGetExport(handle, "nvmlDeviceGetNumFans", out _);
+        var speeds = NativeLibrary.TryGetExport(handle, "nvmlDeviceGetFanSpeedRPM", out _);
         NativeLibrary.Free(handle);
         try
         {
-            return Init() == Success ? new NvmlLibrary() : null;
+            return Init() == Success ? new NvmlLibrary(counts, speeds) : null;
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
         {
@@ -83,7 +94,7 @@ internal sealed partial class NvmlLibrary : IDisposable
         }
     }
 
-    private static GpuAnswer Read(nint device)
+    private GpuAnswer Read(nint device)
     {
         var name = new byte[NameLength];
         var named = Name(device, name, NameLength) == Success;
@@ -97,11 +108,30 @@ internal sealed partial class NvmlLibrary : IDisposable
             MemoryLoad = used ? load.Memory : null,
             Power = PowerUsage(device, out var milliwatts) == Success ? milliwatts / 1000d : null,
             Fan = FanSpeed(device, out var fan) == Success ? fan : null,
+            FanSpeeds = FanSpeedsOf(device),
             MemoryUsed = memory ? bytes.Used / BytesPerGigabyte : null,
             MemoryTotal = memory ? bytes.Total / BytesPerGigabyte : null,
             CoreClock = ClockOf(device, GraphicsClock, out var core) == Success ? core : null,
             MemoryClock = ClockOf(device, MemoryClockType, out var clock) == Success ? clock : null,
         };
+    }
+
+    // Each fan's RPM, a stopped fan's 0 as NVML answers it, or null where the driver cannot count the card's fans.
+    private double?[]? FanSpeedsOf(nint device)
+    {
+        if (!_counts || NumFans(device, out var count) != Success)
+        {
+            return null;
+        }
+
+        var speeds = new double?[count];
+        for (var fan = 0u; fan < count; fan++)
+        {
+            var info = new FanSpeedInfo { Version = FanSpeedVersion, Fan = fan };
+            speeds[fan] = _speeds && FanSpeedRpm(device, ref info) == Success ? info.Speed : null;
+        }
+
+        return speeds;
     }
 
     [LibraryImport(Library, EntryPoint = "nvmlInit_v2")]
@@ -131,6 +161,12 @@ internal sealed partial class NvmlLibrary : IDisposable
     [LibraryImport(Library, EntryPoint = "nvmlDeviceGetFanSpeed")]
     private static partial int FanSpeed(nint device, out uint percent);
 
+    [LibraryImport(Library, EntryPoint = "nvmlDeviceGetNumFans")]
+    private static partial int NumFans(nint device, out uint count);
+
+    [LibraryImport(Library, EntryPoint = "nvmlDeviceGetFanSpeedRPM")]
+    private static partial int FanSpeedRpm(nint device, ref FanSpeedInfo speed);
+
     [LibraryImport(Library, EntryPoint = "nvmlDeviceGetMemoryInfo")]
     private static partial int MemoryOf(nint device, out MemoryInfo memory);
 
@@ -143,6 +179,15 @@ internal sealed partial class NvmlLibrary : IDisposable
     {
         public uint Gpu { get; init; }
         public uint Memory { get; init; }
+    }
+
+    // nvmlFanSpeedInfo_t: the struct's version and the fan's index in, its speed in RPM out.
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct FanSpeedInfo
+    {
+        public uint Version { get; init; }
+        public uint Fan { get; init; }
+        public uint Speed { get; init; }
     }
 
     // nvmlMemory_t, in bytes.
