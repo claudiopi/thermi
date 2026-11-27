@@ -1,0 +1,52 @@
+# 0019. thermi on Linux: hwmon, a socket-started service, a surface per desktop, WebKitGTK and package repositories
+
+**Status**: Proposed
+
+## Context
+
+ADR 0018 leaves room for another OS as two projects beside the shared ones. Linux is next: many of the developers thermi is for run their agents there, on desktops and on boxes with no screen at all. Everything thermi does on Windows comes to Linux but FPS, which Linux tells only from inside the game, as a Vulkan layer, for games few play there.
+
+Four things differ from Windows, and they decide the shape:
+
+- **Sensors need no driver.** The kernel's `hwmon` drivers (`k10temp`, `coretemp`, `nct6775`, `it87`, `asus-ec`, `amdgpu`, `nvme`) put every temperature, fan and voltage in `/sys/class/hwmon`, readable by any user, and NVIDIA's driver answers through NVML (`libnvidia-ml.so.1`) without root. Load, clocks, memory, disks and network are plain files under `/proc` and `/sys`. One thing is root's alone: the CPU's power, from RAPL's energy counters, which the kernel closed to users in 2020 (PLATYPUS, a side channel). Measured on a Ryzen 9 5900X with an RTX 3060 on Ubuntu 26.04: every value of the default overlay read as a user, but the CPU's power.
+- **Each desktop keeps a window on top its own way.** KDE Plasma, Hyprland and Sway let a program place a surface above windows and panels through the `wlr-layer-shell` protocol. X11 desktops, as Cinnamon, Xfce and MATE, honor `_NET_WM_STATE_ABOVE` and an input shape. GNOME, the default desktop of Ubuntu and Fedora, offers neither on Wayland: only code inside GNOME Shell can stay above the top bar and let clicks through, which is an extension. Wayland also gives no program global hotkeys or the pointer's place outside its own surfaces, but through the desktop's portal or the Shell.
+- **A new GNOME extension loads only at sign-in.** Measured on GNOME 50, Wayland: an extension copied to `~/.local/share/gnome-shell/extensions`, or installed with `gnome-extensions install`, does not exist for the running Shell until the person signs out and in. One installed from extensions.gnome.org through the Shell's own `InstallRemoteExtension`, which shows GNOME's prompt, loads at once.
+- **Updates are the package manager's.** A Linux PC takes its updates from the repositories its packages name, through the system's own updater. A program that replaces its own files, as ADR 0008's updater does on Windows, fights the package manager over them.
+
+## Decision
+
+Two projects, as ADR 0018 lays out, and one GNOME Shell extension:
+
+| Project | Is | What it does |
+| --- | --- | --- |
+| `Thermi.Sensors.Linux` | `thermi-sensors`, a systemd service as the system user `thermi` | Reads `hwmon`, NVML, `/proc` and `/sys` once a second while a client listens, and writes Core's snapshots with `SnapshotWriter` to `/run/thermi/sensors.sock`. |
+| `Thermi.Linux` | `thermi`, `thermi settings` and `thermi-cli`, as the person | The overlay: Core decides, Cairo and Pango paint, a surface shows. The settings window: the page in WebKitGTK. `thermi-cli` answers `IAgentEnvironment` from the socket, the settings file and the desktop. |
+| `Thermi.Gnome` | a GNOME Shell extension, JavaScript | On GNOME, shows the pictures thermi paints, above every window and the top bar, with thermi's icons in the top bar and its hotkeys, and passes the pointer back. It decides nothing. |
+
+- **The service is started by its socket.** systemd owns `/run/thermi/sensors.sock`, which every local user may read, and starts the service with the first client; it ends 10 s after the last. The service never reads from the socket. A client trusts it when the peer's credentials (`SO_PEERCRED`) are root's or the `thermi` user's: only root creates anything under `/run`, so no other user can pose as the service. The user has no capability and a sandboxed unit; a udev rule gives the RAPL counters to its group alone, so the side channel opens to no other process. Nothing of thermi's runs as root; the window's fix for a stopped service asks polkit, the desktop's own prompt, to start it.
+- **The overlay paints in C#, a surface per desktop shows it.** `thermi` asks Core what each overlay shows, as on Windows, and paints it with Cairo and Pango at each monitor's scale, for the screen, `thermi preview`, the window's previews and "Copy as image" alike. Three surfaces take the same pictures and give back the pointer:
+  - **GNOME**: the extension, over the session's D-Bus. It puts each picture in the Shell's top layer, hides it on a monitor that shows a full screen window, lets clicks pass where thermi says, shows Core's menus as the Shell's own popup menu, and sends back the pointer, wherever it is, and the monitors with their top bars.
+  - **KDE Plasma, Hyprland and Sway**: a GTK 4 window made a layer surface with `gtk4-layer-shell`, in the `top` layer, above windows and panels and below a full-screen window. A surface of its own, anchored to every edge and never drawn, learns each monitor's work area, so the panels are where it is not.
+  - **X11 desktops**: a GTK 4 window kept above, off the taskbar and the pager, with an input shape for clicks; the panels are found by their struts.
+- **The settings window is the same page in WebKitGTK**, a GTK 4 window in a process of its own, as ADR 0005 says on Windows. The generated bridge client speaks WebView2's messages or WebKit's, whichever the page finds, so the page and `IWindowBridge` stay as they are. The window follows the desktop's light or dark scheme, accent and contrast through the settings portal.
+- **The tray, hotkeys and notices go through the desktop's own ways.** thermi's icon and the items' tray icons are the extension's on GNOME and StatusNotifierItems with their menus elsewhere. Hotkeys are the extension's on GNOME, the GlobalShortcuts portal's on KDE Plasma and Hyprland, and grabbed keys on X11. Notices are freedesktop notifications.
+- **Generated bindings, as CsWin32 on Windows.** GTK 4, WebKitGTK, Cairo, Pango and D-Bus (Gio) come through GirCore, generated from GObject introspection. Declared by hand, and listed in the rule with why: NVML, which has no introspection data and is loaded only when present, and the few calls of `gtk4-layer-shell`, which GirCore does not ship.
+- **The extension arrives without a sign-out.** It is published on extensions.gnome.org, and the packages also install it for every user. On its first start in a GNOME session without it, `thermi` asks the Shell to install it from there; declined or offline, the package's copy loads at the next sign-in. The two speak a protocol with a version, and `thermi` shows nothing through an extension of another.
+- **One build, three package formats, and thermi's own repositories.** Each release builds `thermi` once per architecture, amd64 and arm64, self-contained, so no distribution must ship .NET. nfpm packs it as `.deb` and `.rpm`, and the AUR's `thermi-bin` takes the same files. Each format holds two packages: `thermi-sensors`, the service and `thermi-cli`, for a box with no screen, and `thermi`, the overlay, the window and the extension, which needs it. The packages add thermi's signed apt or dnf repository, stable or beta, as Chrome's do, so updates come with the system's; the release workflow publishes to the repositories and the AUR, and ADR 0008's levers act on them. The overlay runs as a systemd user service in the graphical session, which restarts it if it fails, hands over to the new version at a quiet moment once the package changed it, and starting at sign-in is that unit's being enabled.
+- **Desktops a person tests on.** A virtual machine per desktop and package on libvirt, each reset to a clean snapshot before a run, with real sensors from a physical Ubuntu PC (`docs/RELEASES.md`). The CI runs the overlay against headless GNOME Shell, KWin, Sway and an X11 desktop of its own.
+
+## Rejected
+
+- **One surface for every desktop**, a window kept above under XWayland: on GNOME it goes under the top bar and every full-screen window, and Wayland gives it no click-through.
+- **The extension paints**, in JavaScript: a second painter to keep in step with the first, for each style, level and scale.
+- **ADR 0008's updater on Linux**: the package manager owns the files, and its updater is the one the person trusts and already runs.
+- **Flatpak**: its sandbox installs neither a system service nor a GNOME Shell extension, and thermi needs both.
+- **The overlay reads `hwmon` itself**, with no service: one reader for the overlay and every agent stops being one, and the CPU's power would need root in the person's own process.
+- **Readable RAPL counters for everyone**, with a udev rule: it reopens the side channel the kernel closed.
+
+## Consequences
+
+- Core learns Linux's sensor names (`Tctl`, `Package id 0`, `edge`), tested from recordings of Linux PCs: a recording holds the files the service read, so the reader itself replays. A virtual machine has no `hwmon` at all, which tests what thermi shows with nothing to read.
+- What Windows' project holds and Linux needs too, as the desktop gestures, moves to `Thermi.App`.
+- The CI gets Ubuntu jobs, required by `CI gate`: Core's tests and the Linux tests, the page's Playwright tests on WebKit too, and the packages built and installed in clean containers of each distribution.
+- What to watch: the extension's review on extensions.gnome.org and each GNOME release, which can break an extension; the extension stays small so a new Shell costs little. `gtk4-layer-shell` must load before `libwayland-client`, which the launcher sees to.

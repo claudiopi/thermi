@@ -136,6 +136,30 @@ Run them on the release's build, installed. A check that fails is a bug: it star
 | --- | --- | --- |
 | **thermi-cli in Claude Code and Claude Desktop** | Add `thermi-cli` with the README's one command. Ask a new session how hot the CPU is, then to set its warning at 70 °C. Then the same in Claude Desktop. | The answer matches the overlay, and the overlay shows the new warning. |
 
+### Linux
+
+Run them with the release's packages on the physical Ubuntu 26.04 PC with GNOME, which has real sensors, and on the test machines it runs on libvirt, each reset first with `virsh -c qemu:///system snapshot-revert <machine> clean`, a snapshot with nothing of thermi's:
+
+| Machine | What it tries |
+| --- | --- |
+| `thermi-fedora` | Fedora with GNOME, Wayland: the `.rpm`, and a second account, `thermi2`, for the prompt declined. |
+| `thermi-ubuntu2404` | Ubuntu 24.04 with GNOME 46, the oldest Shell the extension takes: the `.deb`. |
+| `thermi-debian` | Debian 13 with GNOME: the `.deb`. |
+| `thermi-kubuntu` | Kubuntu with KDE Plasma 6, Wayland: the `.deb` and the layer surface. |
+| `thermi-arch` | Arch with Hyprland: `thermi-bin` from the AUR and the layer surface. |
+| `thermi-server` | Ubuntu Server 24.04 with no screen: `thermi-sensors` alone and `thermi-cli`. |
+
+A virtual machine reads no sensors, so there its values show as missing.
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **Install on Linux** | On each, install `thermi-sensors` alone with the distribution's tool and run `thermi-cli read`; on `thermi-server`, nothing more. Install `thermi` while signed in; on GNOME, accept GNOME's prompt for the extension, and on another account decline it and sign out and in. Remove both. | On the physical PC, `thermi-cli read` gives a CPU temperature and power. The overlay shows at once, on GNOME after the prompt, and after the sign-in where it was declined, with a notice until then. The removal stops the service and the overlay and leaves `~/.config/thermi`. |
+| **Restart and sign-in on Linux** | On each, drag an overlay into a corner, on GNOME another onto the top bar, and on the physical PC snap one to the second monitor. Restart and sign in. Kill `thermi`, then choose Exit thermi. Turn the start at sign-in off with `thermi-cli start-with-windows off`, sign out and in. | Each overlay is where it was, above every window, and covered by a full-screen video. Killed, one overlay comes back; after Exit, none. With the start off, none starts. |
+| **Costs at rest on Linux** | On the physical PC, with the overlay showing for 10 minutes, read the overlay's and the service's memory and CPU, and GNOME Shell's CPU with thermi running and without. Open the window and leave it idle for a minute. | The overlay holds 48 MB and 0.5 % of one core, the service 80 MB and 3 %, the idle window with WebKit's processes 1 %, and GNOME Shell takes at most 0.5 % of one core more with thermi. |
+| **An update on Linux** | On `thermi-fedora` and `thermi-kubuntu`, installed from the previous release, publish the release to a test repository with the levers, run the system's updater and leave the session idle. Roll the channel back and update again. | The system's updater offers thermi beside the system's own updates. After it, the service runs the new version, each overlay hands over at the quiet moment without blinking, and About says the version and that updates come from the system. The rollback brings the version before. |
+| **Open the window every way on Linux** | On each desktop, with the window closed and then behind others, open it from the overlay's menu, thermi's icon, a double-click on a value, `thermi settings` and the app launcher. Close it. | One window opens on the right item or overlay, or comes to the front focused. Once closed, no process of it is left. |
+| **Orca, themes and the window's frame on Linux** | On GNOME and KDE Plasma, with Orca, and in light, dark, another accent and high contrast, move through the window; resize, maximize and restore it. | Everything is read with its name, role and value, the window follows each scheme, accent and contrast, and its frame is the desktop's. |
+
 ## If the release key is stolen
 
 Revoke it on both channels, as above. From then on every manifest takes only the backup key's signature, so the workflow refuses to sign until you clear it; meanwhile run each lever on your PC with the backup key, the monthly `refresh` too, or the manifests expire.
