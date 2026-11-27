@@ -18,7 +18,7 @@ Entry points worth knowing:
 
 - `Program.cs` reads the arguments and runs the service, a console, a dump, a watchdog or an install.
 - `Reading/LhmSensorSource.cs` is the only class that talks to LibreHardwareMonitor.
-- `Pipe/SensorPipeServer.cs` writes each snapshot to every client, and ends the process when a read hangs past 60 s, so Windows restarts it.
+- `Pipe/SensorPipeServer.cs` takes in each client of the pipe and hands it to Core's `SnapshotBroadcast`, which writes each snapshot to every client and ends the process when a read hangs past 60 s, so Windows restarts it.
 - `Updates/Updater.cs` checks the channel and takes a version only when its signatures hold.
 
 Its tests are in `tests/Thermi.Windows.Tests/Sensors`.

@@ -240,18 +240,4 @@ internal sealed class SensorPipeServer(
             AccessControlType.Deny));
         return security;
     }
-
-    private sealed class Client(NamedPipeServerStream pipe, uint session) : IDisposable
-    {
-        public NamedPipeServerStream Pipe { get; } = pipe;
-
-        public uint Session { get; } = session;
-
-        public Task Sending { get; set; } = Task.CompletedTask;
-
-        /// <summary>The catalog of the last whole snapshot it was sent, 0 before the first (<see cref="SnapshotWriter.Catalog"/>).</summary>
-        public int Catalog { get; set; }
-
-        public void Dispose() => Pipe.Dispose();
-    }
 }
