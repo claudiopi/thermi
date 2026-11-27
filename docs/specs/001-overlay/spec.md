@@ -39,9 +39,8 @@ A service reads the PC's sensors with administrator rights from boot, and an ove
 | Where | What |
 | --- | --- |
 | `src/Thermi.Sensors.Windows` | The `thermi-sensors` service, which reads the sensors and serves them on a named pipe (`docs/adr/0003-sensor-service.md`). |
-| `src/Thermi.Core` | Sensor mapping, settings, layout and the pipe's line format, all tested without Windows. |
+| `src/Thermi.Core` | Sensor mapping, settings, layout and the pipe's line format, all tested without Windows; and `OverlayFrame`, what one draw shows, which says whether the next one would show anything else, for every OS's overlay. |
 | `src/Thermi.Windows` | The overlay: a layered Win32 window painted with GDI+, kept above the taskbar as `docs/adr/0004-above-the-taskbar.md` says. |
-| `src/Thermi.App` | `OverlayFrame`, what one paint shows, which says whether the next one would show anything else, for every OS's overlay. |
 | `scripts/install.ps1` | Builds as the user, then installs and registers the service with one UAC prompt. |
 
 Rejected: a WPF window for the overlay. It costs about 60 MB and a slower start for something that only paints a strip of text.

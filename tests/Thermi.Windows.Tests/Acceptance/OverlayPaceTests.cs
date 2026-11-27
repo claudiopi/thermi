@@ -190,7 +190,8 @@ public sealed class OverlayPaceTests : IDisposable
             counted.Painting = reads - first;
             if (message != 0)
             {
-                PInvoke.PostMessage(host.Hwnd, message, 0, 0);
+                // Sent, not posted: Windows refuses to post a setting change, whose lParam may point to a string.
+                PInvoke.SendMessage(host.Hwnd, message, 0, 0);
             }
 
             Seconds(host, 1, () => { });
