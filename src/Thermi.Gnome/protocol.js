@@ -10,6 +10,7 @@ export const XML = `<node><interface name="${SHELL}">
     <arg type="d" direction="in"/><arg type="a(dddd)" direction="in"/></method>
   <method name="Move"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/></method>
   <method name="Hide"><arg type="u" direction="in"/></method>
+  <method name="Fade"><arg type="u" direction="in"/><arg type="d" direction="in"/></method>
   <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
     <arg type="a(issbbb)" direction="in"/></method>
   <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>

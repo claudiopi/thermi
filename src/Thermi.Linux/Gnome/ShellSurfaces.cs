@@ -59,6 +59,8 @@ internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : 
 
     public Task Hide(uint id) => link.Hide(id);
 
+    public Task Fade(uint id, double opacity) => link.Fade(id, opacity);
+
     public void HoldKeys(uint id, bool held)
     {
         // The extension takes Esc with the press's grab, and gives it back as the grab ends.

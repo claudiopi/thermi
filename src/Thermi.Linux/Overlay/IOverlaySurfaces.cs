@@ -40,6 +40,9 @@ internal interface IOverlaySurfaces : IDisposable
 
     Task Hide(uint id);
 
+    /// <summary>Shows the picture at <paramref name="opacity"/>, from 0 to 1, as it is, without a new one: a fade near the pointer.</summary>
+    Task Fade(uint id, double opacity);
+
     /// <summary>Takes Esc to the picture while <paramref name="held"/>, as a press holds it, and gives it back after.</summary>
     void HoldKeys(uint id, bool held);
 

@@ -100,6 +100,8 @@ internal sealed class X11Surfaces : IOverlaySurfaces
         return Task.CompletedTask;
     }
 
+    public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
+
     public void HoldKeys(uint id, bool held)
     {
         if (_shown.TryGetValue(id, out var shown))

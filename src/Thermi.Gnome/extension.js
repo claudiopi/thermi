@@ -96,6 +96,10 @@ export default class ThermiExtension extends Extension {
         this._answer(invocation, () => this._hide(...args));
     }
 
+    FadeAsync(args, invocation) {
+        this._answer(invocation, () => this._fade(...args));
+    }
+
     MenuAsync(args, invocation) {
         this._answer(invocation, () => this._menu(...args));
     }
@@ -174,6 +178,14 @@ export default class ThermiExtension extends Extension {
             shown.boxes = boxes;
         }
         this._move(overlay, x, y);
+    }
+
+    // The actor fades, not the picture: thermi sends no new one as the pointer nears.
+    _fade(overlay, opacity) {
+        refuseUnless(Number.isFinite(opacity) && opacity >= 0 && opacity <= 1, 'No opacity is that.');
+        const shown = this._overlays.get(overlay);
+        if (shown)
+            shown.picture.opacity = Math.round(opacity * 255);
     }
 
     _move(overlay, x, y) {

@@ -88,6 +88,8 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
         return Task.CompletedTask;
     }
 
+    public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
+
     public void HoldKeys(uint id, bool held)
     {
         if (held)
@@ -171,9 +173,11 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
         var offset = (Rest(x - place.X, left), Rest(y - place.Y, top));
         if (monitor != shown.Monitor && _held.Contains(id) && !_pressed.ContainsKey(id) && shown.Window.Window.GetVisible())
         {
+            var opacity = shown.Window.Opacity;
             shown.Window.Blank();
             _pressed[id] = shown.Window;
             shown = (New(id), monitor);
+            _ = shown.Window.Fade(opacity);
             picture ??= _pictures.GetValueOrDefault(id);
         }
 

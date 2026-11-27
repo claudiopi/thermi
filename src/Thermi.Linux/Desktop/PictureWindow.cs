@@ -106,6 +106,19 @@ internal sealed class PictureWindow : IDisposable
         _area.SetContentWidth(Covering(_image.Width + offset.X, _scale));
         _area.SetContentHeight(Covering(_image.Height + offset.Y, _scale));
         Region();
+        return Drawn();
+    }
+
+    /// <summary>The picture at <paramref name="opacity"/>, 1 whole, as GTK draws it without a new one; done once it shows.</summary>
+    public Task Fade(double opacity)
+    {
+        _area.SetOpacity(opacity);
+        return _image is null ? Task.CompletedTask : Drawn();
+    }
+
+    // Done once a frame drawn from now shows: GTK 4 draws a window's own opacity as whole, so the picture's area fades.
+    private Task Drawn()
+    {
         _area.QueueDraw();
         var done = new TaskCompletionSource();
         _waiting.Add(done);
@@ -238,6 +251,9 @@ internal sealed class PictureWindow : IDisposable
             return (left, top, (int)Math.Ceiling(box.Left + box.Width + x) - left, (int)Math.Ceiling(box.Top + box.Height + y) - top);
         })];
     }
+
+    /// <summary>The picture's opacity, 1 whole.</summary>
+    public double Opacity => _area.GetOpacity();
 
     /// <summary>Draws nothing from now on, while it stays to take the rest of a press that began on it.</summary>
     public void Blank() => _area.SetOpacity(0);

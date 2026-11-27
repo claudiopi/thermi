@@ -310,20 +310,20 @@ internal sealed class OverlayHost : IDisposable
 
     private List<PixelRect?> Boxes() => [.. _overlays.Select(overlay => overlay.Box)];
 
-    // Each pointer the surfaces tell moves the fade of the overlays that fade near it; one off every overlay, as a leave,
-    // is out of their reach.
+    // Each pointer the surfaces tell moves the fade of the overlays that fade near it, on their surfaces alone; one off every
+    // overlay, as a leave, is out of their reach.
     private void Pointer(ShellPointer pointer)
     {
-        var fades = Settings.Config.Overlays.Any(overlay => overlay.Fade);
         _parts.Cursor = pointer.Kind == "leave" && !_surfaces.PointerAnywhere ? null : (_screens.Thermi(pointer.X, pointer.Y), pointer.Modifiers);
         if (pointer.Overlay < _overlays.Count)
         {
             _overlays[(int)pointer.Overlay].Pointer.On(pointer, _screens);
         }
 
-        if (fades)
+        var overlays = Settings.Config.Overlays;
+        for (var at = 0; at < _overlays.Count && at < overlays.Count; at++)
         {
-            Repaint();
+            _ = _overlays[at].Fade(overlays[at]);
         }
     }
 

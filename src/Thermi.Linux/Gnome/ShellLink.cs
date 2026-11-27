@@ -212,6 +212,9 @@ internal sealed class ShellLink : IDisposable
 
     public Task Hide(uint overlay) => Own("Hide", GLib.Variant.NewUint32(overlay));
 
+    /// <summary>Shows an overlay's picture at <paramref name="opacity"/>, from 0 to 1, as its fade near the pointer.</summary>
+    public Task Fade(uint overlay, double opacity) => Own("Fade", GLib.Variant.NewUint32(overlay), GLib.Variant.NewDouble(opacity));
+
     /// <summary>Shows a menu of <paramref name="rows"/> at a point of the stage, as the Shell's own popup menu.</summary>
     public Task Menu(uint overlay, double x, double y, IReadOnlyList<ShellRow> rows) => Own(
         "Menu",

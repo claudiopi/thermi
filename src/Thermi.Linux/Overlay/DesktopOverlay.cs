@@ -35,13 +35,18 @@ internal sealed class DesktopOverlay : IDisposable
     private GLib.Bytes? _pixels;
     private ShownAs? _shownAs;
     private IReadOnlyList<PillBox> _clicks = [];
-    private bool _faded;
+
+    // The fade the surfaces show the overlay at, in 255ths as the Shell's actors keep it, and the scale it fades by.
+    private int _alpha = Opaque;
+    private double _fadeScale = 1;
 
     public DesktopOverlay(int index, OverlayParts parts)
     {
         (_index, _parts) = (index, parts);
         Pointer = new OverlayPointer(index, parts, this);
     }
+
+    private const int Opaque = 255;
 
     public OverlayPointer Pointer { get; }
 
@@ -94,10 +99,34 @@ internal sealed class DesktopOverlay : IDisposable
             ?? new Position(0, 0);
         At = at;
         Box = new PixelRect(at.X, at.Y, at.X + Size.Width, at.Y + Size.Height);
-        var opacity = _parts.Cursor is { } cursor ? PointerFade.Opacity(overlay, Box.Value, cursor.At, scale * toThermi, windowOpen: false, Pointer.Holds) : 1;
-        var faded = opacity < 1 ? Faded(picture, opacity) : null;
-        var sent = Send(faded ?? picture, scene.Screens.Stage(at), clicks, faded is not null);
-        faded?.Dispose();
+        _fadeScale = scale * toThermi;
+        var sent = Send(picture, scene.Screens.Stage(at), clicks);
+        _ = Fade(overlay);
+        return sent;
+    }
+
+    /// <summary>
+    /// The overlay's fade near the pointer, set on its surface, never a paint, and only when it changed: done once the
+    /// surfaces show it.
+    /// </summary>
+    public Task Fade(OverlayConfig overlay)
+    {
+        var opacity = Box is { } box && _parts.Cursor is { } cursor
+            ? PointerFade.Opacity(overlay, box, cursor.At, _fadeScale, windowOpen: false, Pointer.Holds)
+            : 1;
+        var alpha = (int)Math.Round(opacity * Opaque);
+        if (alpha == _alpha)
+        {
+            return Task.CompletedTask;
+        }
+
+        var sent = _parts.Call(_parts.Surfaces.Fade((uint)_index, (double)alpha / Opaque));
+        if (_alpha == Opaque)
+        {
+            _parts.Trace(TraceEvents.Faded, sent);
+        }
+
+        _alpha = alpha;
         return sent;
     }
 
@@ -105,7 +134,7 @@ internal sealed class DesktopOverlay : IDisposable
     public void Forget()
     {
         _pixels?.Dispose();
-        (_pixels, _shownAs, _clicks) = (null, null, []);
+        (_pixels, _shownAs, _clicks, _alpha) = (null, null, [], Opaque);
     }
 
     /// <summary>
@@ -221,17 +250,7 @@ internal sealed class DesktopOverlay : IDisposable
         }
     }
 
-    // A copy of the picture at an opacity, which the surfaces show as it is.
-    private static Picture Faded(Picture picture, double opacity)
-    {
-        var faded = new Picture(picture.Width, picture.Height);
-        using var cr = new Cairo.Context(faded.Surface);
-        cr.SetSourceSurface(picture.Surface, 0, 0);
-        cr.PaintWithAlpha(opacity);
-        return faded;
-    }
-
-    private Task Send(Picture picture, (double X, double Y) stage, IReadOnlyList<PillBox> clicks, bool faded)
+    private Task Send(Picture picture, (double X, double Y) stage, IReadOnlyList<PillBox> clicks)
     {
         var shownAs = new ShownAs(picture.Width, picture.Height, picture.Stride, Monitor, stage.X, stage.Y);
         if (_pixels is { } last && _shownAs == shownAs && _clicks.SequenceEqual(clicks)
@@ -244,13 +263,6 @@ internal sealed class DesktopOverlay : IDisposable
         _pixels = picture.Bytes();
         (_shownAs, _clicks) = (shownAs, clicks);
         var shown = new ShellPicture(_pixels, picture.Width, picture.Height, picture.Stride, Monitor, clicks);
-        var sent = _parts.Call(_parts.Surfaces.Show((uint)_index, shown, stage.X, stage.Y));
-        if (faded && !_faded)
-        {
-            _parts.Trace(TraceEvents.Faded, sent);
-        }
-
-        _faded = faded;
-        return sent;
+        return _parts.Call(_parts.Surfaces.Show((uint)_index, shown, stage.X, stage.Y));
     }
 }
