@@ -157,6 +157,12 @@ public sealed class AgentCommandTests : IDisposable
             (end.Exit, (int)end.Json["overlay"]!, (int)end.Json["width"]!, (int)end.Json["height"]!, (string?)end.Json["png"]));
         var schema = Path.Combine(TestFiles.Root, "docs", "agents", "schema", "preview.schema.json");
         Assert.Empty(SchemaCheck.Findings(JsonNode.Parse(await File.ReadAllTextAsync(schema, TestContext.Current.CancellationToken))!, end.Json, "preview"));
+
+        // A comma is no decimal point, and a scale under a quarter or past 8 paints nothing worth reading.
+        Assert.Equal(
+            (2, 2, 2),
+            ((await _rig.RunAsync("preview", "--scale", "1,5")).Exit, (await _rig.RunAsync("preview", "--scale", "0.2")).Exit,
+                (await _rig.RunAsync("preview", "--scale", "8.5")).Exit));
     }
 
     [Fact]

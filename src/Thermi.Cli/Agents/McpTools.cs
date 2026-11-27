@@ -98,9 +98,10 @@ internal static class McpTools
         Reading("preview", "Paints an overlay as it draws the readings now, to see what a change of the settings looks like."));
 
     private static CallToolResult Pictured(AgentReply reply) =>
-        reply is { Exit: AgentExit.Done, Json: { } json } && JsonNode.Parse(json)?["png"]?.GetValue<string>() is { } png
-            ? new CallToolResult { IsError = false, Content = [new ImageContentBlock { Data = Encoding.UTF8.GetBytes(png), MimeType = "image/png" }] }
-            : Result(reply);
+        reply.Exit == AgentExit.Done ? new CallToolResult { IsError = false, Content = [Image(reply.Json!)] } : Result(reply);
+
+    private static ImageContentBlock Image(string json) =>
+        new() { Data = Encoding.UTF8.GetBytes(JsonNode.Parse(json)!["png"]!.GetValue<string>()), MimeType = "image/png" };
 
     private static IEnumerable<McpServerTool> Changes(Func<AgentRequest, CancellationToken, Task<CallToolResult>> run)
     {

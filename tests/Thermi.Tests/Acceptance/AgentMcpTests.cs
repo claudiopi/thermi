@@ -56,9 +56,9 @@ public sealed class AgentMcpTests : IDisposable
 
             // The model sees the overlay: the command's own picture, as an image.
             var picture = await session.Client.CallToolAsync(
-                "preview", new Dictionary<string, object?> { ["scale"] = 2 }, cancellationToken: TestContext.Current.CancellationToken);
+                "preview", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
             var image = Assert.IsType<ImageContentBlock>(Assert.Single(picture.Content));
-            var png = (string?)(await _rig.RunAsync("preview", "--scale", "2")).Json["png"];
+            var png = (string?)(await _rig.RunAsync("preview")).Json["png"];
             Assert.Equal(("image/png", png), (image.MimeType, Encoding.UTF8.GetString(image.Data.Span)));
             Assert.True((await session.CallAsync("preview", new() { ["scale"] = 9 })).Error);
 
@@ -74,7 +74,7 @@ public sealed class AgentMcpTests : IDisposable
             Assert.True(JsonNode.DeepEquals(JsonNode.Parse((await _rig.RunAsync("start-with-windows")).Out), JsonNode.Parse(start)));
 
             _rig.Sensors = () => new RecordedFeed([], ServiceState.Stopped);
-            var (unread, said) = await session.CallAsync("read");
+            var (unread, said) = await session.CallAsync("preview");
             Assert.True(unread);
             Assert.NotEmpty(said);
         });
