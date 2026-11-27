@@ -31,7 +31,6 @@ internal sealed class OverlayWindow : IDisposable
     internal const WINDOW_EX_STYLE ExStyle =
         WINDOW_EX_STYLE.WS_EX_LAYERED | WINDOW_EX_STYLE.WS_EX_TOPMOST | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_NOACTIVATE;
 
-    // A glow's frames come from a timer of the overlay's own, only while it glows.
     private const nuint GlowTimer = 1;
 
     private readonly int _index;

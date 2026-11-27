@@ -145,7 +145,6 @@ export function HotkeysCard({ data, open, onOpen }: HotkeysCardProps) {
     if (failed === undefined) {
       return null;
     }
-    // The desktop took none of them, though no other program holds any.
     return data.status.hotkeysRefused ? t('HotkeyText.HotkeysRefused') : t('HotkeyText.HotkeyHeld', failed);
   };
   const hint = !data.status.overlay ? t('HotkeyText.HotkeysNeedOverlay') : set === 0 ? t('WindowText.HotkeysOff') : t('WindowText.HotkeysSet', set);
