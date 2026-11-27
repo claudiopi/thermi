@@ -59,6 +59,18 @@ public sealed record StatusAnswer(ServiceState Service, bool Overlay, bool Senso
 
     /// <summary>The settings file's problem, or null when it can be used.</summary>
     public ConfigProblemKind? Settings { get; init; }
+
+    /// <summary>thermi's version, as About says it, or null where the answer does not say it.</summary>
+    public string? Version { get; init; }
+
+    /// <summary>The update channel thermi follows, stable or beta, as About says it, or null where the answer does not say it.</summary>
+    public string? Channel { get; init; }
+
+    /// <summary>
+    /// Where updates come from, as About says it: <c>thermi</c>, its own updater, or <c>system</c>, the system's package
+    /// manager; null where the answer does not say it.
+    /// </summary>
+    public string? Updates { get; init; }
 }
 
 /// <summary>What the service, the pipe, the readings and the settings say, as the status decides it.</summary>
