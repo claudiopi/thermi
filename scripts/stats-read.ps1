@@ -54,8 +54,8 @@ function Read-Specs([string]$Root, $Run) {
     }
 }
 
-# The code the repo holds, from git's own list, so nothing built, installed or recorded counts: each file's non-blank
-# lines, its project (its folder under src or tests, or scripts), and whether it is a test, as the tests' projects and the
+# The code the repo holds, from git's own list, so nothing built, installed or recorded counts: each file's lines of code,
+# its project (its folder under src or tests, or scripts), and whether it is a test, as the tests' projects and the
 # page's tests and unit tests are. What a build writes from Core, as the page's .g.ts, is left out.
 function Read-Code([string]$Root) {
     $languages = @{ '.cs' = 'C#'; '.ts' = 'TypeScript'; '.tsx' = 'TypeScript'; '.ps1' = 'PowerShell'; '.js' = 'JS'; '.mjs' = 'JS'; '.cjs' = 'JS' }
@@ -64,7 +64,41 @@ function Read-Code([string]$Root) {
         if (-not $language -or $path -like '*.g.ts') { continue }
         $parts = $path -split '/'
         $test = $parts[0] -eq 'tests' -or $path -match '^src/[^/]+/tests/|\.test\.tsx?$'
-        $lines = @([IO.File]::ReadAllLines((Join-Path $Root $path)) | Where-Object { $_.Trim() }).Count
+        $markers = if ($language -eq 'PowerShell') { '#', '<#', '#>' } else { '//', '/*', '*/' }
+        $lines = Measure-CodeLines ([IO.File]::ReadAllLines((Join-Path $Root $path))) @markers
         [pscustomobject]@{ Project = $(if ($parts[0] -eq 'scripts') { 'scripts' } else { $parts[1] }); Test = $test; Language = $language; Lines = $lines }
     }
+}
+
+# Lines of code as cloc counts them: those that hold something besides blanks and comments, a line's comment from its
+# marker on and a block's from its opening to its closing, unless it opens after code and runs past the line, as a glob's
+# /* does. A marker inside a string literal may still be miscounted.
+function Measure-CodeLines([string[]]$Lines, [string]$Line, [string]$Open, [string]$Close) {
+    $count = 0
+    $inBlock = $false
+    foreach ($text in $Lines) {
+        $code = ''
+        while ($text) {
+            if ($inBlock) {
+                $end = $text.IndexOf($Close, [StringComparison]::Ordinal)
+                if ($end -lt 0) { break }
+                $text = $text.Substring($end + $Close.Length)
+                $inBlock = $false
+                continue
+            }
+            $start = $text.IndexOf($Open, [StringComparison]::Ordinal)
+            $comment = $text.IndexOf($Line, [StringComparison]::Ordinal)
+            if ($comment -ge 0 -and ($start -lt 0 -or $comment -lt $start)) { $code += $text.Substring(0, $comment); break }
+            $after = $start + $Open.Length
+            if ($start -lt 0 -or (($code + $text.Substring(0, $start)).Trim() -and $text.IndexOf($Close, $after, [StringComparison]::Ordinal) -lt 0)) {
+                $code += $text
+                break
+            }
+            $code += $text.Substring(0, $start)
+            $text = $text.Substring($after)
+            $inBlock = $true
+        }
+        if ($code.Trim()) { $count++ }
+    }
+    $count
 }
