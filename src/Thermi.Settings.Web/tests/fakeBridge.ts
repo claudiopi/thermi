@@ -136,7 +136,7 @@ function installFake(initial: FakeState): void {
       const value = state.service === 'running' ? (state.sensors.find((sensor) => sensor.id === id)?.value ?? null) : null;
       return Array.from({ length: 600 }, () => value);
     },
-    texts: async () => state.texts,
+    texts: async () => ({ ...state.texts, ...state.words }),
     monitors: async () => state.monitors,
     places: async () => state.places,
     report: async () => undefined,
@@ -185,6 +185,22 @@ function installFake(initial: FakeState): void {
       state.service = 'running';
       changed(true);
       return true;
+    },
+    installExtension: async () => {
+      if (state.extensionAnswer === 'refused') {
+        return false;
+      }
+      state.extension = 'enabled';
+      changed();
+      return true;
+    },
+    // The window's own state, which only the maximize button changes in a page; a move is only counted.
+    caption: async (action) => {
+      state.moves += action === 'move' ? 1 : 0;
+      if (action === 'maximize') {
+        state.maximized = !state.maximized;
+        changed();
+      }
     },
     startOverlay: async () => {
       state.overlayRunning = true;

@@ -33,17 +33,20 @@ const apart = 25;
 
 /**
  * A display's spots, from its top left: four corners, and one on its taskbar unless the overlay is vertical, at the share
- * of its width `along` gives, its target kept whole inside it. The lower corners keep a target's room above the taskbar's.
+ * of its width `along` gives, its target kept whole inside it. The corners by the taskbar keep a target's room from its
+ * spot, below a top bar's or above a bottom one's.
  */
-function spotsOf(display: number, width: number, height: number, bar: number, along: number | null): Spot[] {
-  const lower = Math.min(height - bar - 12, height - bar / 2 - apart);
+function spotsOf(display: number, width: number, height: number, bar: number, along: number | null, top: boolean): Spot[] {
+  const upper = top ? Math.max(bar + 12, bar / 2 + apart) : 12;
+  const lower = top ? height - 12 : Math.min(height - bar - 12, height - bar / 2 - apart);
   const corners: [number, number][] = [
-    [12, 12],
-    [width - 12, 12],
+    [12, upper],
+    [width - 12, upper],
     [12, lower],
     [width - 12, lower],
   ];
-  const onBar = along === null ? [] : [{ spot: 'taskbar' as const, display, x: Math.min(width - 14, Math.max(14, along * width)), y: height - bar / 2 }];
+  const y = top ? bar / 2 : height - bar / 2;
+  const onBar = along === null ? [] : [{ spot: 'taskbar' as const, display, x: Math.min(width - 14, Math.max(14, along * width)), y }];
   return [...onBar, ...cornerSpots.map((spot, index) => ({ spot, display, x: corners[index]?.[0] ?? 0, y: corners[index]?.[1] ?? 0 }))];
 }
 
@@ -77,7 +80,7 @@ export function MonitorMap({ shown, placed, place, vertical, hidden, onSnap }: M
   const { drawn, wide, tallest } = layoutOf(shown, scale);
   const bar = 14 * scale;
   const along = (box: Box): number | null => (!box.one.taskbar || vertical ? null : alongOf(placed, box.index, box.one, place));
-  const all = drawn.flatMap((box) => spotsOf(box.index, box.w, box.h, box.one.taskbar ? bar : 0, along(box)));
+  const all = drawn.flatMap((box) => spotsOf(box.index, box.w, box.h, box.one.taskbar ? bar : 0, along(box), box.one.edge === 'top'));
   const isOn = (spot: Spot): boolean => placed !== null && placed.spot === spot.spot && placed.display === spot.display;
   const tabStop = all.find(isOn) ?? all[0];
   // The spots are dots: the one pointed at or focused, else the overlay's, names itself in words under the map.
@@ -111,7 +114,7 @@ export function MonitorMap({ shown, placed, place, vertical, hidden, onSnap }: M
           return (
             <div key={box.one.id} className={`t-mon${mine ? ' t-on' : ''}`} style={style}>
               <span className="t-mon-name">{label(box.one, box.index)}</span>
-              {box.one.taskbar && <span className="t-mon-bar" style={{ height: bar }} />}
+              {box.one.taskbar && <span className={`t-mon-bar${box.one.edge === 'top' ? ' t-mon-bar-top' : ''}`} style={{ height: bar }} />}
               {all
                 .filter((spot) => spot.display === box.index)
                 .map((spot) => (

@@ -27,6 +27,9 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
     /// <summary>A drag or a hold ended, let go or taken back, and what it left is saved and on screen.</summary>
     public const string Dropped = "dropped";
 
+    /// <summary>The settings window showed or came to the front, about the item it shows, or about nothing.</summary>
+    public const string WindowShown = "window-shown";
+
     private readonly Lock _lock = new();
 
     public TimeProvider Time => time;

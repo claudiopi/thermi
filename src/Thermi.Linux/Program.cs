@@ -13,7 +13,7 @@ using Thermi.Linux.Overlay;
 namespace Thermi.Linux;
 
 /// <summary>
-/// <c>thermi</c> on Linux: the overlay, <c>thermi preview</c>, <c>thermi cpu-load</c> and the agents' commands; and
+/// <c>thermi</c> on Linux: the overlay, <c>thermi settings</c>, <c>thermi preview</c>, <c>thermi cpu-load</c> and the agents' commands; and
 /// <c>thermi-cli</c>, the same program under another name, which runs the agents' commands alone. Arguments that make no
 /// sense say why on stderr and exit with 2, before anything else runs; a command it does not run yet says so and exits 1.
 /// </summary>
@@ -47,6 +47,7 @@ internal static class Program
             _ when door => await HelpAsync(),
             PreviewRequest preview => await Preview.RunAsync(Painted(preview), time),
             OverlayRequest overlay => await OverlayStart.RunAsync(Painted(overlay), time),
+            SettingsRequest settings => await Window.WindowProcess.RunAsync(Painted(settings), args, time),
             _ => await NotHereAsync(),
         };
     }

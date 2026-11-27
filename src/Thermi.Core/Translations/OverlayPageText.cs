@@ -99,6 +99,39 @@ public enum OverlayPageText
     FreeHint,
     TaskbarHint,
 
+    /// <summary>GNOME's words for <see cref="TaskbarHint"/>.</summary>
+    TopBarHint,
+
+    /// <summary>A desktop with panels' words for <see cref="TaskbarHint"/>.</summary>
+    PanelHint,
+
+    /// <summary>A desktop with no bar's words for <see cref="TaskbarHint"/>.</summary>
+    BottomEdgeHint,
+
+    /// <summary>GNOME's words for the pills' theme that matches the taskbar.</summary>
+    MatchTopBar,
+
+    /// <summary>A desktop with panels' words for the pills' theme that matches the taskbar.</summary>
+    MatchPanel,
+
+    /// <summary>A desktop with no bar's words for the pills' theme that matches the taskbar: the desktop's scheme.</summary>
+    MatchDesktop,
+
+    /// <summary>Each bar's words for the overlay's size on the taskbar.</summary>
+    SizeOnTopBar,
+    SizeOnPanel,
+    SizeAtBottomEdge,
+
+    /// <summary>Each bar's words for a taskbar with no room for the overlay.</summary>
+    NoRoomOnTopBar,
+    NoRoomOnPanel,
+    NoRoomAtBottomEdge,
+
+    /// <summary>Each bar's words for <see cref="AboveTaskbar"/>: where a vertical overlay snapped to it sits.</summary>
+    BelowTopBar,
+    BesidePanel,
+    VerticalAtBottomEdge,
+
     /// <summary>A display on the map and in "Move to display", counted from the main one.</summary>
     DisplayName,
     MainDisplay,

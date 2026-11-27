@@ -47,7 +47,7 @@ public sealed class DesktopTests
         Held,
     }
 
-    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
+    [Fact(Timeout = Bound.Test)]
     public async Task TheSettingsWindowWorksOnLinux()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -66,7 +66,7 @@ public sealed class DesktopTests
             async () =>
             {
                 await desktop.Input.ClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel, button: 3);
-                await Accessible.ChooseAsync(session, rows.ToList().FindIndex(row => row.Entry == MenuEntry.Settings), cancel);
+                await Accessible.ChooseAsync(desktop, rows.ToList().FindIndex(row => row.Entry == MenuEntry.Settings), cancel);
             },
             cancel);
         var onItem = await OpenedAsync(thermi, () => desktop.Input.DoubleClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel), cancel);
@@ -78,15 +78,23 @@ public sealed class DesktopTests
         // A slider's change shows on the overlay within 300 ms of the slider moving, and undo takes it back.
         var shown = await desktop.ScreenshotAsync(cancel);
         var applied = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
-        var slid = await Accessible.SlideAsync(session, 0.25, cancel);
+        var slid = await Accessible.SlideAsync(desktop, 40, cancel);
         var took = (await applied).At - slid;
         var undone = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
         await desktop.Input.PressAsync("Control_L+z", cancel);
         await undone;
         var back = await desktop.ScreenshotAsync(cancel);
-        using var process = Process.GetProcessById(window.Process);
-        await desktop.Input.PressAsync("Escape", cancel);
-        await process.WaitForExitAsync(cancel);
+        // Closed as the desktop closes a window: Esc belongs to the page, which closes its menus and dialogs with it. WebKit's
+        // own processes, the page's and the network's, are the window's too, and go with it.
+        var processes = ProcessTree.Under(window.Process).Prepend(window.Process).Select(Process.GetProcessById).ToList();
+        await desktop.Input.PressAsync("Alt_L+F4", cancel);
+        foreach (var process in processes)
+        {
+            using (process)
+            {
+                await process.WaitForExitAsync(cancel);
+            }
+        }
 
         Assert.Equal(item, onItem.About);
         Assert.Equal(1, window.Windows);

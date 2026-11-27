@@ -50,7 +50,7 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
-  <Import Project="SettingsPage.targets" />
+  <Import Project="..\SettingsPage.targets" />
   <Import Project="..\Launchers.targets" />
 
   <Import Project="..\ThermiCli.targets" />

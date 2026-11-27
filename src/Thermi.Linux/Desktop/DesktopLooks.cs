@@ -32,7 +32,7 @@ internal static class DesktopLooks
 
     // The portal says only that high contrast is asked, not in which colors: these are GNOME's high contrast's, white on
     // black with its blue.
-    private static readonly HighContrastColors Contrasted = new(new Rgb(0, 0, 0), new Rgb(255, 255, 255), new Rgb(0x35, 0x84, 0xE4), new Rgb(0x99, 0xC1, 0xF1));
+    public static readonly HighContrastColors Contrasted = new(new Rgb(0, 0, 0), new Rgb(255, 255, 255), new Rgb(0x35, 0x84, 0xE4), new Rgb(0x99, 0xC1, 0xF1));
 
     /// <summary>
     /// The colors of high contrast when the desktop asks for it, as the settings portal says every desktop's choice; null

@@ -13,6 +13,10 @@ public enum WindowText
     HotkeysSet,
     HotkeysOff,
 
+    /// <summary>Linux's words for <see cref="HotkeysSet"/> and <see cref="HotkeysOff"/>.</summary>
+    HotkeysSetOnLinux,
+    HotkeysOffOnLinux,
+
     /// <summary>The four hotkeys' rows, each named by what it does.</summary>
     HotkeyToggle,
     HotkeyNextLook,
@@ -60,6 +64,17 @@ public enum WindowText
     ServiceStopped,
     ServiceStoppedMore,
     StartIt,
+
+    /// <summary>The GNOME Shell extension's bar, while it is missing, off or of another version, and when GNOME did not fix it.</summary>
+    ExtensionMissing,
+    ExtensionMissingMore,
+    InstallExtension,
+    ExtensionDisabled,
+    ExtensionDisabledMore,
+    EnableExtension,
+    ExtensionOtherVersion,
+    ExtensionOtherVersionMore,
+    ExtensionRefused,
 
     /// <summary>The rest of its sentence instead, while another program holds the pipe the service would serve.</summary>
     PipeTaken,
@@ -119,4 +134,23 @@ public enum WindowText
     WebViewMissing,
     PageEndedTitle,
     PageEnded,
+
+    /// <summary>The caption buttons the page draws where the OS draws none, as Windows names its own.</summary>
+    Minimize,
+    Maximize,
+
+    /// <summary>The maximize button of a maximized window, which brings it back to its size.</summary>
+    RestoreDown,
+
+    /// <summary>Linux's words for the theme that follows Windows.</summary>
+    ThemeFromSystem,
+
+    /// <summary>Linux's words for a paste or drop Windows would not hand over.</summary>
+    PasteFailedOnLinux,
+
+    /// <summary>Linux's words for a hotkey with Win, the key Linux calls Super.</summary>
+    HotkeyWithSuper,
+
+    /// <summary>Linux's words for a combination Windows keeps for itself.</summary>
+    HotkeyKeptByDesktop,
 }

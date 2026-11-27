@@ -33,6 +33,15 @@ public enum NameText
 
     /// <summary>The label of the pill of a second GPU, as the graphics chip in a CPU beside a graphics card.</summary>
     OtherGpu,
+
+    /// <summary>GNOME's words for <see cref="Taskbar"/>: an overlay made on its top bar.</summary>
+    TopBar,
+
+    /// <summary>The words for <see cref="Taskbar"/> of a desktop with panels, as KDE Plasma's.</summary>
+    Panel,
+
+    /// <summary>The words for <see cref="Taskbar"/> of a desktop with no bar, as Sway's, where it sits on the screen's bottom edge.</summary>
+    BottomEdge,
 }
 
 /// <summary>

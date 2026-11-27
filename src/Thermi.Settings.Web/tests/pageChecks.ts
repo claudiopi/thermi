@@ -255,8 +255,8 @@ export async function layoutFaults(page: Page): Promise<string[]> {
         }
       }
     }
-    // A button says something of its own, never its row's name again. Its words only: an icon is a glyph of Windows' font.
-    const wordsOf = (element: Element): string => (element.textContent ?? '').replace(/\p{Co}/gu, '').trim();
+    // A button says something of its own, never its row's name again.
+    const wordsOf = (element: Element): string => (element.textContent ?? '').trim();
     for (const button of controls.filter((one) => one.matches('button'))) {
       const own = wordsOf(button);
       let row = button.parentElement;

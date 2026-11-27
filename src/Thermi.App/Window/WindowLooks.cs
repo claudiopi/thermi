@@ -1,29 +1,20 @@
-using Thermi.App.Window;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
-using Thermi.Windows.Win32;
-using Windows.Win32.Foundation;
 
-namespace Thermi.Windows.Ui.Views;
+namespace Thermi.App.Window;
 
 /// <summary>
 /// The saved looks and the look files: saving, renaming and deleting change the files in the styles folder and
 /// never the overlay, so undo does not touch them; wearing a look and importing one are each one step undo takes back. An
-/// export or an import by file goes through Windows' own dialogs over the window. A file Windows refused to read or
+/// export or an import by file goes through the desktop's own dialogs over the window. A file the OS refused to read or
 /// write changes nothing, and says why. Used on the window's thread alone.
 /// </summary>
-/// <param name="editor">Where a look worn or imported goes, and whose undo steps a rename follows.</param>
-/// <param name="saved">The styles folder's looks.</param>
-/// <param name="changed">Tells the page that the saved looks changed.</param>
-internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action changed)
+internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, IWindowHost host, Action changed)
 {
     private bool? _anySaved;
-
-    /// <summary>The window the dialogs show over.</summary>
-    public HWND Owner { get; set; }
 
     /// <summary>Whether any look is saved, read from the folder again only once this window changed its files.</summary>
     public bool AnySaved => _anySaved ??= Looks().Count > 0;
@@ -65,62 +56,61 @@ internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, Action
     /// Writes the overlay's look as a look file, named as the saved look it wears, else as the file, so an import knows
     /// what to call it.
     /// </summary>
-    public string? Export(int overlay, Texts texts)
+    public async Task<string?> Export(int overlay, Texts texts)
     {
         var style = StyleOf(overlay);
+        if (await host.SaveFile(texts.Of(UiText.StyleFiles), StyleFile.Extension, style.Name ?? "thermi") is not { } path)
+        {
+            return null;
+        }
+
         return Files(() =>
         {
-            if (FileDialogs.Save(Owner, texts.Of(UiText.StyleFiles), StyleFile.Extension, style.Name ?? "thermi") is not { } path)
-            {
-                return null;
-            }
-
             var name = style.Name ?? Path.GetFileNameWithoutExtension(path).Trim();
             File.WriteAllText(path, StyleFile.Write(style with { Name = name.Length is > 0 and <= StyleConfig.MaxNameLength ? name : null }));
             return null;
         });
     }
 
-    public string? ExportSaved(string name, Texts texts) => Files(() =>
+    public async Task<string?> ExportSaved(string name, Texts texts)
     {
         if (saved.Named(name) is not { } style)
         {
-            return Refusal.StyleNotFound;
+            return Texts.Key(Refusal.StyleNotFound);
         }
 
-        if (FileDialogs.Save(Owner, texts.Of(UiText.StyleFiles), StyleFile.Extension, style.Name!) is { } path)
-        {
-            File.WriteAllText(path, StyleFile.Write(style));
-        }
-
-        return null;
-    });
-
-    /// <summary>A look file's text, dropped or pasted, or the file picked, worn by the overlay as one step.</summary>
-    public string? Import(int overlay, string? text, Texts texts)
-    {
-        var read = text;
-        if (read is null)
-        {
-            if (FileDialogs.Open(Owner, texts.Of(UiText.StyleFiles), StyleFile.Extension) is not { } path)
+        return await host.SaveFile(texts.Of(UiText.StyleFiles), StyleFile.Extension, style.Name!) is { } path
+            ? Files(() =>
             {
+                File.WriteAllText(path, StyleFile.Write(style));
                 return null;
-            }
+            })
+            : null;
+    }
 
-            // A large file picked by mistake is never read whole.
-            var failed = Files(() =>
-            {
-                var tooLarge = new FileInfo(path).Length > StyleFile.MaxLength;
-                read = tooLarge ? null : File.ReadAllText(path);
-                return tooLarge ? Refusal.StyleTooLarge : null;
-            });
-            if (failed is not null || read is null)
-            {
-                return failed;
-            }
+    /// <summary>The look file picked, worn by the overlay as one step.</summary>
+    public async Task<string?> ImportFile(int overlay, Texts texts)
+    {
+        if (await host.OpenFile(texts.Of(UiText.StyleFiles), StyleFile.Extension) is not { } path)
+        {
+            return null;
         }
 
-        var result = editor.Edit("import look", config => StyleEdits.Import(config, overlay, read));
+        // A large file picked by mistake is never read whole.
+        string? read = null;
+        var failed = Files(() =>
+        {
+            var tooLarge = new FileInfo(path).Length > StyleFile.MaxLength;
+            read = tooLarge ? null : File.ReadAllText(path);
+            return tooLarge ? Refusal.StyleTooLarge : null;
+        });
+        return failed is not null || read is null ? failed : Import(overlay, read);
+    }
+
+    /// <summary>A look file's text, dropped or pasted, worn by the overlay as one step.</summary>
+    public string? Import(int overlay, string text)
+    {
+        var result = editor.Edit("import look", config => StyleEdits.Import(config, overlay, text));
         return result.Refused is { } refusal ? Texts.Key(refusal) : null;
     }
 

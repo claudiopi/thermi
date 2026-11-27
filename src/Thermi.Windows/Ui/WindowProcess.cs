@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
+using Thermi.App.Window;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Translations;
@@ -88,6 +89,15 @@ internal sealed record WindowStart(int Overlay, Settings Settings, Texts Texts, 
 
     /// <summary>True with <c>--size</c>: the window opens on the overlay's Size row.</summary>
     public bool SizeRow { get; init; }
+
+    /// <summary>What the bridge every OS shares opens with.</summary>
+    public PageStart Page => new(Overlay, Texts, Time, Environment.Sensors, Environment.SettingsPath, Environment.Log)
+    {
+        Load = Load,
+        Pseudo = Pseudo,
+        Item = Item,
+        SizeRow = SizeRow,
+    };
 
     private void StartLoad(CancellationToken stop) =>
         CpuLoad.Start(Environment.ExePath, CpuLoad.Arguments((int)Core.Sensors.FanFinder.MaxRun.TotalSeconds), stop);

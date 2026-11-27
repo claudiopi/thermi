@@ -107,6 +107,9 @@ internal sealed class ShellLink : IDisposable
     /// <summary>The extension stopped running, as GNOME stops every extension while the screen is locked; its Ready says when it is back.</summary>
     public Action Gone { get; set; } = () => { };
 
+    /// <summary>The Shell changed the extension's state: installed, removed, turned on or off.</summary>
+    public Action StateChanged { get; set; } = () => { };
+
     public Action<ShellPointer> Pointer { get; set; } = _ => { };
 
     /// <summary>A key pressed while the pointer held an overlay, by its name, as "Escape".</summary>
@@ -179,10 +182,17 @@ internal sealed class ShellLink : IDisposable
     /// Asks the Shell to install the extension from extensions.gnome.org, which GNOME confirms with the person itself; the
     /// answer is never awaited, as the person may take any time, and the extension's Ready says when it came.
     /// </summary>
-    public void Install() => _ = Extensions("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
+    public void Install() => _ = InstallAsync();
+
+    /// <summary>Asks the Shell to install the extension, as <see cref="Install"/> does, and waits for the person's answer.</summary>
+    public Task<GLib.Variant> InstallAsync() => Extensions("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
+
+    public Task<GLib.Variant> EnableAsync() => Extensions("EnableExtension", GLib.Variant.NewString(Uuid));
 
     /// <summary>Asks the Shell to fetch the updates of its extensions, which it applies at the next sign-in.</summary>
-    public void CheckForUpdates() => _ = Extensions("CheckForUpdates");
+    public void CheckForUpdates() => _ = CheckForUpdatesAsync();
+
+    public Task<GLib.Variant> CheckForUpdatesAsync() => Extensions("CheckForUpdates");
 
     private Task<GLib.Variant> Extensions(string method, params GLib.Variant[] args) =>
         Call("org.gnome.Shell.Extensions", "/org/gnome/Shell", "org.gnome.Shell.Extensions", method, args);
@@ -286,8 +296,13 @@ internal sealed class ShellLink : IDisposable
     {
         try
         {
-            if (signal == "ExtensionStateChanged" && args.GetTypeString() == "(sa{sv})" && args.GetChildValue(0).GetString(out _) == Uuid
-                && args.GetChildValue(1).LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is not 1)
+            if (signal != "ExtensionStateChanged" || args.GetTypeString() != "(sa{sv})" || args.GetChildValue(0).GetString(out _) != Uuid)
+            {
+                return;
+            }
+
+            StateChanged();
+            if (args.GetChildValue(1).LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is not 1)
             {
                 Gone();
             }

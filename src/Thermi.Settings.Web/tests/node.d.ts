@@ -32,6 +32,7 @@ declare const process: {
   pid: number;
   argv: string[];
   execPath: string;
+  platform: string;
   exit(code: number): never;
   env: Record<string, string | undefined>;
   on(event: 'exit', listener: () => void): void;

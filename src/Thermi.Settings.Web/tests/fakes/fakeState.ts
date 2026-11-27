@@ -1,3 +1,4 @@
+import { ownTexts } from '../../src/bridge/texts.g';
 import type { FakeState, Item, Overlay } from '../bridgeTypes';
 import { recording, text, texts } from '../pageChecks';
 
@@ -18,7 +19,18 @@ function defaultItems(): Item[] {
 export const secondMonitor = 'DEL-A1B2-7XQ9K13';
 
 /** Two overlays, the default one on the taskbar and a GPU one at the top right, two monitors and the admin recording. */
+/** The texts C# says in a desktop's own words, its OS's and its bar's, in place of Windows' and the taskbar's. */
+function wordsOf(state: FakeState): Record<string, string> {
+  const own = [ownTexts[state.os], ownTexts[state.bar]].flatMap((words) => Object.entries(words ?? {}));
+  return Object.fromEntries(own.map(([windows, words]) => [windows, state.texts[words] ?? windows]));
+}
+
 export function fakeState(change: Partial<FakeState> = {}): FakeState {
+  const state = startOf(change);
+  return { ...state, words: wordsOf(state) };
+}
+
+function startOf(change: Partial<FakeState>): FakeState {
   const taskbar: Overlay = { name: 'Taskbar', items: defaultItems() };
   const topRight: Overlay = {
     name: 'Top right',
@@ -44,6 +56,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
         workArea: { x: 0, y: 0, width: 2560, height: 1392 },
         scale: 1.5,
         taskbar: true,
+        edge: 'bottom',
       },
       {
         id: secondMonitor,
@@ -52,6 +65,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
         workArea: { x: 2560, y: 0, width: 1920, height: 1032 },
         scale: 1,
         taskbar: true,
+        edge: 'bottom',
       },
     ],
     places: [],
@@ -74,10 +88,19 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     finder: { phase: 'idle', pick: null },
     finderPick: null,
     texts: texts(),
+    words: {},
     languages: (['en', 'es'] as const).map((code) => ({ code, name: texts(code)['UiText.LanguageName'] ?? code })),
     start: null,
     editing: null,
     lateReplies: false,
+    os: 'windows',
+    accent: null,
+    contrast: false,
+    maximized: false,
+    moves: 0,
+    bar: 'taskbar',
+    extension: null,
+    extensionAnswer: 'accepted',
     ...change,
   };
 }

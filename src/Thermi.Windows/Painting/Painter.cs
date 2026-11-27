@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
+using Thermi.App.Painting;
 using Thermi.Core.Look;
 using Thermi.Core.Painting;
 using Thermi.Core.Settings;
@@ -17,7 +18,7 @@ namespace Thermi.Windows.Painting;
 /// Whether each paint draws on the last one's bitmap while its size holds, as the overlay's paints do, a glow's frames
 /// included: the painter then owns what it returns, which lasts until its next paint.
 /// </param>
-internal sealed class Painter(bool reuse = false) : IDisposable
+internal sealed class Painter(bool reuse = false) : IOverlayPainter
 {
     private readonly List<PaintedItem> _places = [];
     private readonly OutlinedTexts _outlines = new();
@@ -31,7 +32,7 @@ internal sealed class Painter(bool reuse = false) : IDisposable
     public IReadOnlyList<PaintedItem> Places => _places;
 
     /// <summary>The last scale <see cref="PainterFit.Fitting"/> found, and what it measured.</summary>
-    internal ((float Scale, (int Width, int Height)? Most, OverlayLook Look, string Items) Measured, float Scale)? Fitted { get; set; }
+    public ((float Scale, (int Width, int Height)? Most, OverlayLook Look, string Items) Measured, float Scale)? Fitted { get; set; }
 
     /// <summary>
     /// Paints the items in their pills. <paramref name="glow"/> gives how strongly an item's pill glows now, 0 to 1, as
@@ -54,6 +55,30 @@ internal sealed class Painter(bool reuse = false) : IDisposable
         var fonts = FontsFor(look, scale);
         using var measure = Graphics.FromHwnd(0);
         return Painted(PaintLayout.StoppedPills(text, look, scale, WidthOn(measure, fonts), beside ?? []), look, scale, glow: null, mark: true);
+    }
+
+    public PaintedPicture Picture(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale) => Png(() => Paint(items, look, scale));
+
+    public PaintedPicture Stopped(string text, OverlayLook look, float scale, IReadOnlyList<OverlayItem> beside) =>
+        Png(() => PaintStopped(text, look, scale, beside));
+
+    // A bitmap this painter reuses is its own, and stays; one it made for the picture goes with it.
+    private PaintedPicture Png(Func<Bitmap> paint)
+    {
+        var bitmap = paint();
+        try
+        {
+            using var png = new MemoryStream();
+            bitmap.Save(png, ImageFormat.Png);
+            return new PaintedPicture(png.ToArray(), bitmap.Width, bitmap.Height);
+        }
+        finally
+        {
+            if (!reuse)
+            {
+                bitmap.Dispose();
+            }
+        }
     }
 
     public void Dispose()

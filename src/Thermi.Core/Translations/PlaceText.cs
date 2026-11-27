@@ -8,4 +8,13 @@ public enum PlaceText
     OnMonitor,
 
     FreePosition,
+
+    /// <summary>GNOME's words for the taskbar's spot, "on the taskbar".</summary>
+    OnTopBar,
+
+    /// <summary>A desktop with panels' words for the taskbar's spot.</summary>
+    OnPanel,
+
+    /// <summary>A desktop with no bar's words for the taskbar's spot.</summary>
+    AtBottomEdge,
 }

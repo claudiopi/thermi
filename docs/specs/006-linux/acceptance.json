@@ -138,7 +138,7 @@
       ],
       "description": "Given the headless GNOME Shell with the overlay and a recorded feed, when the window opens from the overlay's menu, a double-click on a value, thermi settings and the app launcher's entry, and a slider is dragged and undone, then one window shows, on the item double-clicked; each change shows on the overlay within 300 ms and undo takes it back; and closing the window leaves no process of it.",
       "check": "TheSettingsWindowWorksOnLinux",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A16",
@@ -147,7 +147,7 @@
       ],
       "description": "Given the page in WebKit with the bridge's client over WebKit's messages, when it loads and calls the bridge, then every call is answered and every event arrives, as over WebView2's.",
       "check": "TheBridgeAnswersOverWebKit",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A17",
@@ -156,7 +156,7 @@
       ],
       "description": "Given the page as Linux's host serves it, with the desktop dark, light, with an accent and in high contrast, a stopped service and a GNOME session without the extension, when Settings and the fixes show, then the page follows the desktop's scheme, accent and contrast, the switch reads Start at sign-in, the fixes offered are the extension's and the service's and none is the driver's.",
       "check": "TheWindowFollowsTheLinuxDesktop",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A18",
