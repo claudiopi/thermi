@@ -26,29 +26,6 @@
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
   </ItemGroup>
 
-  <!-- thermi-cli: a second apphost of thermi.dll, which runs the agents' commands alone, as Windows' does
-       (docs/adr/0013-agents-cli-and-mcp.md). It goes wherever thermi goes: the build's output, a referencing project's and
-       the publish folder. -->
-  <Target Name="ThermiCliFiles" BeforeTargets="AssignTargetPaths" DependsOnTargets="_GetAppHostPaths" Condition="'$(AppHostSourcePath)' != ''">
-    <PropertyGroup>
-      <ThermiCliPath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)cli/thermi-cli'))</ThermiCliPath>
-    </PropertyGroup>
-    <ItemGroup>
-      <None Include="$(ThermiCliPath)" Link="thermi-cli" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    </ItemGroup>
-  </Target>
-
-  <UsingTask TaskName="CreateAppHost" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
-  <Target Name="ThermiCliAppHost" AfterTargets="_CreateAppHost" BeforeTargets="CopyFilesToOutputDirectory" DependsOnTargets="ThermiCliFiles"
-          Inputs="@(IntermediateAssembly);$(AppHostSourcePath)" Outputs="$(ThermiCliPath)" Condition="'$(AppHostSourcePath)' != ''">
-    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(ThermiCliPath)'))" />
-    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
-                   AppHostDestinationPath="$(ThermiCliPath)"
-                   AppBinaryName="$(AssemblyName)$(TargetExt)"
-                   IntermediateAssembly="@(IntermediateAssembly->'%(FullPath)')"
-                   WindowsGraphicalUserInterface="false"
-                   Retries="$(CopyRetryCount)"
-                   RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)" />
-  </Target>
+  <Import Project="..\ThermiCli.targets" />
 
 </Project>

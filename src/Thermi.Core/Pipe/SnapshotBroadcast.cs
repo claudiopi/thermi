@@ -19,6 +19,12 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
     /// </summary>
     public const int PerOwner = 8;
 
+    /// <summary>
+    /// How long a service that serves while someone listens, Linux's or Windows' of one user, waits after its last client
+    /// left: long enough for the overlay or the window to come back from a restart.
+    /// </summary>
+    public static readonly TimeSpan Linger = TimeSpan.FromSeconds(10);
+
     /// <summary>A client that stops reading is dropped after this long, and never delays the others meanwhile.</summary>
     public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(2);
 

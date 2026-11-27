@@ -13,7 +13,7 @@ namespace Thermi.Sensors.Linux.Serving;
 /// </summary>
 internal sealed class SocketServer(Socket listener, SnapshotBroadcast broadcast, TimeProvider time)
 {
-    public static readonly TimeSpan Idle = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan Idle = SnapshotBroadcast.Linger;
 
     // The first socket systemd hands a service, after standard input, output and error.
     private const int FirstHanded = 3;
@@ -102,17 +102,20 @@ internal sealed class SocketServer(Socket listener, SnapshotBroadcast broadcast,
         }
     }
 
-    // Once a second, as the broadcast sees a client gone only when the next write to it fails.
+    // Looks once a second, as the broadcast sees a client gone only when the next write to it fails; once none is left,
+    // waits out the rest of Idle from the moment the last one went.
     private async Task IdleAsync(CancellationToken stop)
     {
         var started = time.GetTimestamp();
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1), time);
-        while (await timer.WaitForNextTickAsync(stop))
+        while (true)
         {
-            if (broadcast.Clients == 0 && time.GetElapsedTime(broadcast.EmptySince ?? started) >= Idle)
+            var left = broadcast.Clients == 0 ? Idle - time.GetElapsedTime(broadcast.EmptySince ?? started) : TimeSpan.FromSeconds(1);
+            if (left <= TimeSpan.Zero)
             {
                 return;
             }
+
+            await Task.Delay(left, time, stop);
         }
     }
 }
