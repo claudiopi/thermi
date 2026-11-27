@@ -243,6 +243,18 @@ internal sealed class OwnSession : IAsyncDisposable
             process.Dispose();
         }
 
+        // A service the bus started outlives the bus as a child of none of the session's, as xfconfd does, which then
+        // saves its channels into the home being deleted: it is still the session's, as its environment says, and the
+        // folder goes once it ended too.
+        foreach (var left in Left())
+        {
+            using (left)
+            {
+                left.Kill();
+                await left.WaitForExitAsync().WaitAsync(Bound.End, TimeProvider.System).ConfigureAwait(false);
+            }
+        }
+
         // A FUSE file system the session's bus started, the document portal's or gvfs's, outlives its killed daemon as a
         // folder no one may open, which only its unmount lets go.
         foreach (var mount in FuseMounts())
@@ -254,6 +266,42 @@ internal sealed class OwnSession : IAsyncDisposable
         // A user manager leaves folders no one may enter in its runtime folder, which only their owner may open again.
         Openable(_folder);
         _folder.Delete(recursive: true);
+    }
+
+    // The processes that still run with the session's runtime folder, which only the session's own are given; one that
+    // ends as it is read, or is another user's, is none of them.
+    private List<Process> Left()
+    {
+        var marker = $"XDG_RUNTIME_DIR={RuntimeFolder}\0";
+        return [.. Directory.EnumerateDirectories("/proc")
+            .Select(Path.GetFileName)
+            .Where(name => int.TryParse(name, CultureInfo.InvariantCulture, out var pid) && pid != Environment.ProcessId && Holds(name, marker))
+            .Select(name => Running(int.Parse(name!, CultureInfo.InvariantCulture)))
+            .OfType<Process>()];
+    }
+
+    private static bool Holds(string pid, string marker)
+    {
+        try
+        {
+            return File.ReadAllText(Path.Combine("/proc", pid, "environ")).Contains(marker, StringComparison.Ordinal);
+        }
+        catch (Exception gone) when (gone is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static Process? Running(int pid)
+    {
+        try
+        {
+            return Process.GetProcessById(pid);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     // Each line of mountinfo is its mount's fields, its mount point the fifth, then "-" and its file system's type.
