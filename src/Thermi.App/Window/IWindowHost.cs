@@ -24,7 +24,6 @@ internal interface IWindowHost
     /// <summary>Whether the sensors were installed for this user alone, whose fixes install them for everyone.</summary>
     bool ForEveryone { get; }
 
-    /// <summary>The monitors, their taskbars and work areas, as the desktop has them now.</summary>
     IReadOnlyList<Screen> Screens();
 
     /// <summary>Whether the taskbar, or the desktop's panel, is light, which the overlay's default look follows.</summary>
@@ -33,7 +32,6 @@ internal interface IWindowHost
     /// <summary>The desktop's high contrast colors, null while it has none.</summary>
     HighContrastColors? HighContrast();
 
-    /// <summary>A new painter of the overlay, as its own window paints it on this OS.</summary>
     IOverlayPainter Painter();
 
     /// <summary>The CPU's base clock in MHz, which a clock's meter reads against, null where the OS does not say.</summary>
@@ -48,10 +46,8 @@ internal interface IWindowHost
     /// <summary>Asks the overlay which hotkeys it could not take, null when none answers. Called off the window's thread.</summary>
     long? HotkeyStatus();
 
-    /// <summary>Whether the overlay runs now.</summary>
     bool OverlayRunning();
 
-    /// <summary>Asks the overlay to let its hotkeys rest, or take them again.</summary>
     void RestHotkeys(bool rest);
 
     /// <summary>Tells the overlay what the page edits, so it marks it.</summary>
@@ -90,10 +86,8 @@ internal interface IWindowHost
     /// <summary>Installs or turns on the desktop's extension the overlay needs, where it needs one.</summary>
     Task<bool> InstallExtension();
 
-    /// <summary>What About says of thermi's updates.</summary>
     UpdateLine Updates();
 
-    /// <summary>Looks for an update now.</summary>
     void CheckUpdates();
 
     /// <summary>Restarts thermi into the update that waits, and closes the window, when one waits.</summary>
@@ -109,7 +103,6 @@ internal interface IWindowHost
 /// </summary>
 internal sealed record PageStart(int Overlay, Texts Texts, TimeProvider Time, ISensorFeed Sensors, string SettingsPath, ILogger Log)
 {
-    /// <summary>Loads the CPU for the fan finder until cancelled.</summary>
     public required Action<CancellationToken> Load { get; init; }
 
     /// <summary>True with <c>--pseudo</c>, whose texts stay whatever language the settings choose.</summary>

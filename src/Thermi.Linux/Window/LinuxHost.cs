@@ -14,17 +14,14 @@ using Thermi.Linux.Desktop;
 namespace Thermi.Linux.Window;
 
 /// <summary>
-/// What the window's bridge asks of Linux: Cairo's painter, the settings portal's look, GDK's monitors and clipboard,
-/// GTK's dialogs and launcher, the overlay over the session's bus, the GNOME extension and the service behind the
-/// desktop's prompts, and the overlay's user unit for starting at sign-in. Updates are the package manager's. Used on
-/// GTK's loop alone.
+/// What the window's bridge asks of Linux, from GTK, the session's bus and the desktop's prompts. Updates are the package
+/// manager's. Used on GTK's loop alone.
 /// </summary>
 internal sealed partial class LinuxHost : IWindowHost, IDisposable
 {
     /// <summary>The overlay's id on the session's bus, a GTK application's, whose <c>quit</c> action ends it.</summary>
     public const string Overlay = "io.github.claudiopi.thermi.Overlay";
 
-    // Where a GTK application keeps its actions on the bus: its id, a path.
     private const string OverlayPath = "/io/github/claudiopi/thermi/Overlay";
 
     private readonly ILogger _log;
@@ -42,7 +39,6 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _extension = LinuxFixes.ExtensionState(_bus);
     }
 
-    /// <summary>The window the dialogs show over and the launcher opens beside.</summary>
     public Gtk.Window? Window { get; set; }
 
     /// <summary>Runs when the desktop changed its scheme, accent or contrast, or the extension came or went.</summary>

@@ -19,7 +19,6 @@ internal interface IOverlayPainter : IDisposable
     /// </summary>
     Size Measure(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale);
 
-    /// <summary>The items in their pills, as a PNG.</summary>
     PaintedPicture Picture(IReadOnlyList<OverlayItem> items, OverlayLook look, float scale);
 
     /// <summary>
@@ -29,5 +28,4 @@ internal interface IOverlayPainter : IDisposable
     PaintedPicture Stopped(string text, OverlayLook look, float scale, IReadOnlyList<OverlayItem> beside);
 }
 
-/// <summary>A picture an <see cref="IOverlayPainter"/> painted: the PNG's bytes, and its size in pixels.</summary>
 internal sealed record PaintedPicture(byte[] Png, int Width, int Height);

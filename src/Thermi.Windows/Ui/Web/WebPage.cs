@@ -30,7 +30,6 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
     public const int MostReloads = 3;
 
 
-    /// <summary>Raised once the page has loaded, before its first frame shows.</summary>
     public event EventHandler? Loaded;
 
     /// <summary>
@@ -39,7 +38,6 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
     /// </summary>
     public event EventHandler? Ended;
 
-    // When the page loaded again after a renderer failed, in the last minute.
     private readonly List<long> _reloads = [];
     private bool _shown;
     private bool _minimized;
@@ -102,7 +100,6 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
         view.Navigate($"{Origin}/index.html");
     }
 
-    /// <summary>Shows the page, once its window shows.</summary>
     public void Show()
     {
         _shown = true;

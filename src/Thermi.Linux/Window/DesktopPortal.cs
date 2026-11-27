@@ -100,7 +100,6 @@ internal sealed class DesktopPortal : IDisposable
                 HighContrast = value.GetUint32() == 1;
                 break;
             default:
-                // Another of the desktop's looks, which the window does not follow.
                 break;
         }
     }

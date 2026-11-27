@@ -46,7 +46,7 @@ sequenceDiagram
 
 ## The other flows
 
-**An edit in the settings window, and its undo.** The page decides nothing: C# checks every edit with Core's rules, keeps it for undo, and writes the file the overlay watches.
+**An edit in the settings window, and its undo.** The page decides nothing: C# checks every edit with Core's rules, keeps it for undo, and writes the file the overlay watches. `PageBridge` answers the same on every OS, and asks an `IWindowHost` for what only the OS does: `WindowsHost` behind WebView2, `LinuxHost` behind WebKitGTK, which serves the page from the install's `web` folder.
 
 ```mermaid
 sequenceDiagram

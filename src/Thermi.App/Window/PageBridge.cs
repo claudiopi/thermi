@@ -26,7 +26,6 @@ internal class PageBridge : IWindowBridge, IDisposable
     /// <summary>thermi's repository, where About's pages and its downloads are.</summary>
     public const string Repository = "https://github.com/claudiopi/thermi";
 
-    // The version the build stamps, from Directory.Build.props.
     private static readonly string Version =
         typeof(PageBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
 
@@ -326,7 +325,6 @@ internal class PageBridge : IWindowBridge, IDisposable
         }
     }
 
-    // The settings file and the agents' log open in their editor, and About's pages in the browser.
     private static string LinkOf(Opened what, string settingsPath) => what switch
     {
         Opened.SettingsFile => settingsPath,
@@ -336,7 +334,6 @@ internal class PageBridge : IWindowBridge, IDisposable
         Opened.Notices or _ => $"{Repository}/blob/main/THIRD-PARTY-NOTICES.md",
     };
 
-    // What reads the readings waits for the first ones, as PageWatch says.
     private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);
 
     // All a snapshot changes, which Core may fail to read.
@@ -352,7 +349,6 @@ internal class PageBridge : IWindowBridge, IDisposable
         return new WindowReadingsEventArgs(_views.View(_texts, _host.Screens), StatusNow());
     }
 
-    // What the OS's desktop says joins Core's status: which fixes it offers, its accent, its extension.
     private WindowStatus StatusNow()
     {
         var status = WindowFacts.Status(

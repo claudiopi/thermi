@@ -41,12 +41,7 @@ internal sealed class PageWatch : IDisposable
     private bool _overlay;
     private bool _answered;
 
-    /// <param name="sensors">The sensors.</param>
-    /// <param name="host">The OS, which asks the overlay for its hotkeys.</param>
-    /// <param name="time">The clock of the first readings' wait and of asking after a change.</param>
-    /// <param name="onTurn">Runs an action on the window's thread.</param>
-    /// <param name="changed">Tells the page, on the window's thread, that the hotkey status changed.</param>
-    /// <param name="quiet">Runs on the window's thread each second no snapshot came, as one coming would.</param>
+    // quiet runs on the window's thread each second no snapshot came, as one coming would.
     public PageWatch(ISensorFeed sensors, IWindowHost host, TimeProvider time, Action<Action> onTurn, Action changed, Action quiet)
     {
         _sensorFeed = sensors;

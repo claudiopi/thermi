@@ -15,10 +15,6 @@ namespace Thermi.App.Window;
 /// look, and the OS's painter of "Copy as image", so neither can differ from what the overlay draws. A minimum, maximum or
 /// average is the window's history's, which takes the overlay's, as the window's own values are. Used on the window's thread alone.
 /// </summary>
-/// <param name="editor">Whose overlays are painted.</param>
-/// <param name="sensors">The readings now and whether the service runs.</param>
-/// <param name="charts">The window's readings of each item, and the minute each line draws.</param>
-/// <param name="host">The OS: its painter, its monitors, whose scale an overlay paints at and whose taskbar it may sit on, and its mode.</param>
 internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, WindowCharts charts, IWindowHost host)
 {
     private readonly Lazy<double?> _baseClock = new(host.BaseClock);

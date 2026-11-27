@@ -79,8 +79,7 @@ internal static class WindowProcess
         return code;
     }
 
-    // GTK's loop, on the thread that made the window, with the bridge's turns posted to it; the first command line opens
-    // the window, every other raises it. The window that is open takes a second request's arguments.
+    // GTK's loop, on the thread that made the window, with the bridge's turns posted to it.
     private static int Run(Gtk.Application app, PageStart start, Settings settings, (IReadOnlyList<string> Args, bool Trace) asked, Action read)
     {
         read();
@@ -99,7 +98,6 @@ internal static class WindowProcess
             Turn.Post(bridge.Arrived);
         }
 
-        // The first is this process's own, whose window shows once its page loaded; another's raises it.
         // The other process ends once told it is done, which GTK would otherwise leave to a collection of the line.
         app.OnCommandLine += (application, line) =>
         {

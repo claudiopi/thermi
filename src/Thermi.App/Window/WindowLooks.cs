@@ -12,10 +12,6 @@ namespace Thermi.App.Window;
 /// export or an import by file goes through the desktop's own dialogs over the window. A file the OS refused to read or
 /// write changes nothing, and says why. Used on the window's thread alone.
 /// </summary>
-/// <param name="editor">Where a look worn or imported goes, and whose undo steps a rename follows.</param>
-/// <param name="saved">The styles folder's looks.</param>
-/// <param name="host">The OS, whose own dialogs pick the look files.</param>
-/// <param name="changed">Tells the page that the saved looks changed.</param>
 internal sealed class WindowLooks(WindowEditor editor, SavedStyles saved, IWindowHost host, Action changed)
 {
     private bool? _anySaved;

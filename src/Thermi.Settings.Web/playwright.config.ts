@@ -22,7 +22,6 @@ const engines: Project[] =
         { name: 'webkit', use: { browserName: 'webkit' } },
       ];
 
-// The tests run against the built page, as the window serves it.
 export default defineConfig({
   testDir: 'tests',
   forbidOnly: true,

@@ -5,7 +5,6 @@ using Thermi.Linux.Painting;
 
 namespace Thermi.Linux.Window;
 
-/// <summary>Cairo's painter of the overlay, as the window's previews, places and "Copy as image" ask of it.</summary>
 internal sealed class WindowPainter : IOverlayPainter
 {
     private readonly Painter _painter = new();

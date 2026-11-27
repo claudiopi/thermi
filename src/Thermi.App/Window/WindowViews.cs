@@ -17,11 +17,6 @@ namespace Thermi.App.Window;
 /// level, every sensor's value, and the catalog with each sensor's last minute since the window opened. Values show with
 /// their units in the regional format, whatever the overlay's style hides. Used on the window's thread alone.
 /// </summary>
-/// <param name="editor">Whose settings are shown.</param>
-/// <param name="sensors">The readings now, null while none are fresh.</param>
-/// <param name="readings">What the window has read since it opened.</param>
-/// <param name="history">The window's history of its items, which takes the overlay's, so each value is the overlay's.</param>
-/// <param name="host">The OS, whose painter measures each overlay.</param>
 internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Readings readings, ItemHistory history, IWindowHost host) : IDisposable
 {
     private static readonly IReadOnlyDictionary<string, Reading> NoReadings = new Dictionary<string, Reading>(StringComparer.Ordinal);

@@ -52,7 +52,6 @@ const icons = {
 export type IconName = keyof typeof icons;
 
 const useStyles = makeStyles({
-  // Centered on the line of the text beside it.
   icon: { flexShrink: 0, verticalAlign: 'middle' },
 });
 

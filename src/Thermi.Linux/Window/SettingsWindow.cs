@@ -70,7 +70,6 @@ internal sealed class SettingsWindow : IDisposable
     /// <summary>The theme Settings chose, or the desktop's while it chose none, which the page's light or dark mode follows.</summary>
     public void Theme(WindowTheme theme) => _theme(theme);
 
-    /// <summary>Brings the window to the front for another request, on its item when it names one.</summary>
     public void Raise(string? item)
     {
         _window.Present();
@@ -129,7 +128,6 @@ internal sealed class SettingsWindow : IDisposable
         };
     }
 
-    // Only the page's own files load in the window; a link or a new window goes nowhere.
     private static bool Refused(WebKit.PolicyDecision decision, WebKit.PolicyDecisionType type)
     {
         if (type == WebKit.PolicyDecisionType.Response)
@@ -154,7 +152,6 @@ internal sealed class SettingsWindow : IDisposable
         path = path.Length == 0 ? PageFiles.Index : path;
         var file = Path.GetFullPath(Path.Combine(Files, path));
 
-        // Only a file of the page's own folder, of a type the host knows.
         var type = file.StartsWith(Files + Path.DirectorySeparatorChar, StringComparison.Ordinal) && File.Exists(file) ? PageFiles.TypeOf(path) : null;
         byte[] content = type is null ? [] : File.ReadAllBytes(file);
         using var bytes = GLib.Bytes.New(content);

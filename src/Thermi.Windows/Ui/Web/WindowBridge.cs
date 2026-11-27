@@ -26,7 +26,6 @@ internal sealed class WindowBridge : PageBridge
         set => _host.Link = value;
     }
 
-    /// <summary>The window: the dialogs show over it, and "Exit thermi" closes it.</summary>
     public HWND Window
     {
         get => _host.Window;

@@ -23,10 +23,8 @@ public static class BridgeCalls
         .Where(method => !method.IsSpecialName)
         .ToDictionary(method => NameOf(method.Name), StringComparer.Ordinal);
 
-    /// <summary>Every method the page may call, by its name on the wire.</summary>
     public static IReadOnlyList<string> Methods { get; } = [.. ByName.Keys.Order(StringComparer.Ordinal)];
 
-    /// <summary>Every event the page may listen to, by its name on the wire.</summary>
     public static IReadOnlyList<string> Events { get; } =
         [.. typeof(IWindowBridge).GetEvents().Select(each => NameOf(each.Name)).Order(StringComparer.Ordinal)];
 
@@ -124,7 +122,6 @@ public static class BridgeCalls
         }
     }
 
-    /// <summary>The answer that rejects the call a message made, with why.</summary>
     public static string Failed(string message, string error)
     {
         JsonNode? id;
@@ -140,7 +137,6 @@ public static class BridgeCalls
         return new JsonObject { ["id"] = id, ["error"] = error }.ToJsonString();
     }
 
-    /// <summary>The message that raises an event on the page, with its value.</summary>
     public static string EventOf(string name, object? value) =>
         new JsonObject
         {

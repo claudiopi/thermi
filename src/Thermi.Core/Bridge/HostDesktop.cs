@@ -3,7 +3,6 @@ using Thermi.Core.Translations;
 
 namespace Thermi.Core.Bridge;
 
-/// <summary>The OS whose host shows the window, which decides the fixes it offers.</summary>
 public enum HostOs
 {
     Windows,
@@ -57,7 +56,6 @@ public sealed record HostDesktop(HostOs Os, string? Accent = null, ExtensionStat
     /// <summary>Why a sensor reads nothing, as this desktop says it: where no driver is offered, a zero is nothing read.</summary>
     public NoValue? Why(NoValue? why) => why == NoValue.DriverMayBeMissing && !OffersDriver ? NoValue.ReadsNothing : why;
 
-    /// <summary>The window's status on this desktop: its OS, its accent and its fixes.</summary>
     public WindowStatus Of(WindowStatus status) =>
         status with { Driver = status.Driver && OffersDriver, Os = Os, Accent = Accent, Extension = ExtensionFix };
 }

@@ -36,7 +36,6 @@ const useStyles = makeStyles({
     '& input:enabled:not(:checked) ~ .fui-Radio__label': { color: tokens.colorNeutralForeground2 },
     '& input:disabled ~ .fui-Radio__label': { color: tokens.colorNeutralForegroundDisabled },
   },
-  // The chosen one is raised, with a short accent mark under its text, as the prototype's segments are.
   chosen: {
     backgroundColor: tokens.colorNeutralBackground1Selected,
     boxShadow: `0 0 0 1px ${tokens.colorNeutralStroke2}`,
@@ -152,7 +151,6 @@ export interface ToggleChipProps {
   onChange: (pressed: boolean) => void;
 }
 
-/** A chip that is on or off by itself, as a filter beside a count: pressed, it takes the chosen chips' accent. */
 function ToggleChipDrawn({ text, pressed, onChange }: ToggleChipProps) {
   const styles = useToggleStyles();
   return (

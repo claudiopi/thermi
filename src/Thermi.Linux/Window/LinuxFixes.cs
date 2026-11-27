@@ -14,7 +14,6 @@ internal static class LinuxFixes
     /// <summary>The extension's id, as its <c>metadata.json</c> in <c>src/Thermi.Gnome</c> says.</summary>
     public const string Extension = "thermi@claudiopi.github.io";
 
-    /// <summary>The overlay's user unit, which the desktop's session starts at sign-in once enabled.</summary>
     public const string OverlayUnit = "thermi.service";
 
     private const string Shell = "org.gnome.Shell";
@@ -85,7 +84,6 @@ internal static class LinuxFixes
     /// <summary>Starts the sensor service's socket behind polkit's prompt: false when the person declined or it failed.</summary>
     public static Task<bool> StartService() => RunAsync(Pkexec, [Systemctl, "start", "thermi-sensors.socket"]);
 
-    /// <summary>Whether the overlay's user unit starts at sign-in.</summary>
     public static bool StartsAtSignIn() => Run(Systemctl, ["--user", "--quiet", "is-enabled", OverlayUnit]);
 
     public static void StartAtSignIn(bool on) => _ = Run(Systemctl, ["--user", "--quiet", on ? "enable" : "disable", OverlayUnit]);
