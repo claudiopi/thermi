@@ -28,7 +28,8 @@ public sealed class DriverTests
         var start = new PageStart(1, Texts.English, folder.Clock, feed, folder.File, NullLogger.Instance) { Load = _ => { } };
         var turn = new ConcurrentQueue<Action>();
         using var bridge = new PageBridge(
-            new DesktopHost(new HostDesktop(os)), start, new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock), new ChartHistory(folder.Clock), turn.Enqueue);
+            new DesktopHost(new HostDesktop(os)), start, new WindowEditor(settings, turn.Enqueue, folder.Log, folder.Clock),
+            new ChartHistory(folder.Clock), turn.Enqueue);
         bridge.Arrived();
         while (turn.TryDequeue(out var action))
         {
