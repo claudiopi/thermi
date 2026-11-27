@@ -22,6 +22,10 @@ internal sealed class SettingsWindow : IDisposable
     // GTK draws the window's title bar above the page, so the page's title row keeps no room for Windows' caption buttons.
     private const string Caption = ":root { --thermi-caption-width: 0px; }";
 
+    // GNOME maximizes a new window that covers more than 80 % of its work area, which GTK does not know: of the whole
+    // monitor, 75 % leaves room for a top bar.
+    private const double MostOfTheScreen = 0.75;
+
     // Beside thermi in the install's folder, as the build copies it.
     private static readonly string Files = Path.Combine(AppContext.BaseDirectory, "web");
 
@@ -45,7 +49,7 @@ internal sealed class SettingsWindow : IDisposable
         _window = Gtk.ApplicationWindow.New(app);
         _window.SetTitle("thermi");
         var first = FirstScreen(host.Screens());
-        var size = WindowRoom.First(ThermiConfig.New, [first], []);
+        var size = WindowRoom.First(ThermiConfig.New, [first], [], MostOfTheScreen);
         var (least, lowest) = WindowRoom.Minimum(first.Work);
         _window.SetDefaultSize(size.Width, size.Height);
         _window.SetSizeRequest(least, lowest);
