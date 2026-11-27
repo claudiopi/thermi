@@ -49,8 +49,10 @@ scripts:
   preremove: ${THERMI_STAGE}/scripts/thermi-sensors/preremove.sh
   postremove: ${THERMI_STAGE}/scripts/thermi-sensors/postremove.sh
 
-# Self-contained .NET needs the C and C++ runtimes and, for thermi-cli's texts, ICU, which each release of a distribution
-# ships under its own name; thermi-cli reads GNOME's monitors through GLib where it is.
+# Self-contained .NET needs the C and C++ runtimes; for thermi-cli's texts, ICU, which each release of a distribution
+# ships under its own name; and for a hash, OpenSSL 3, which it loads by name as it runs: it takes no OpenSSL 4. The rpm
+# names OpenSSL 3's library, which openssl-libs holds until Fedora's OpenSSL 4 and openssl3-libs after.
+# thermi-cli reads GNOME's monitors through GLib where it is.
 overrides:
   deb:
     depends:
@@ -58,6 +60,7 @@ overrides:
       - libgcc-s1
       - libstdc++6
       - libicu78 | libicu77 | libicu76 | libicu75 | libicu74 | libicu72
+      - libssl3t64 | libssl3
       - systemd
     recommends:
       - libglib2.0-0t64 | libglib2.0-0
@@ -67,6 +70,7 @@ overrides:
       - libgcc
       - libstdc++
       - libicu
+      - libssl.so.3()(64bit)
       - systemd
     recommends:
       - glib2

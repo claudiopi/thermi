@@ -7,7 +7,7 @@ namespace Thermi.Linux.Tests.Acceptance;
 /// thermi's packages and their updates (<c>docs/specs/006-linux/spec.md</c>, R1, R25 and R26), in clean containers of each
 /// distribution, from the packages one build packed, in <see cref="Built.Packages"/>.
 /// </summary>
-public sealed class PackageTests
+public sealed partial class PackageTests
 {
     // What each package puts on the PC, as spec.md lists it: the sensors' service, its units and rule, and thermi-cli on
     // every PATH; then the overlay, its window, its user unit, its launcher's entry and the GNOME extension.
@@ -78,6 +78,10 @@ public sealed class PackageTests
         await pc.MustAsync(tool.Install("thermi"), cancel);
         // The overlay starts in a person's graphical session alone: a system user's never ran it.
         var greeter = await pc.RunAsync("systemctl --user --machine=greeter@ show -p ExecMainStartTimestampMonotonic --value thermi.service", cancel);
+        // What the runtime loads by name, which no file of the packages names, the packages declare all the same.
+        await File.WriteAllTextAsync(Path.Combine(session.Home, "asked.awk"), Tool.Asked, cancel);
+        var loaded = await pc.RunAsync(Tool.Load(), cancel);
+        var unclaimed = await pc.MustAsync(tool.Unclaimed(), cancel);
         var files = (await pc.MustAsync($"{tool.Files("thermi-sensors")} && {tool.Files("thermi")}", cancel)).Split('\n');
         var signed = await pc.RunAsync(tool.SignedRepository(), cancel);
         var arm64 = await pc.RunAsync(tool.Arm64(), cancel);
@@ -95,6 +99,8 @@ public sealed class PackageTests
 
         Assert.Equal(0, cli.Exit);
         Assert.Equal("0", greeter.Out.Trim());
+        Assert.True(loaded.Exit == 0, $"thermi-cli, over a settings file: {loaded.Out}{loaded.Error}");
+        Assert.Empty(unclaimed.Split('\n', StringSplitOptions.RemoveEmptyEntries));
         // Each file spec.md lists is among the package's; the rest, the libraries it holds and the docs a distribution
         // asks of every package, may be there too.
         Assert.Empty(SensorsFiles.Concat(ThermiFiles).Except(files, StringComparer.Ordinal));
@@ -221,119 +227,6 @@ public sealed class PackageTests
     {
         await pc.MustAsync(tool.Update(), cancel);
         return (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
-    }
-
-    /// <summary>A distribution's own package tool, as a person runs it.</summary>
-    private sealed record Tool(string Image, string Format)
-    {
-        // Arch's packages are built from the AUR's PKGBUILD, as a person builds them, by a user of their own: makepkg
-        // never runs as root.
-        private const string Aur = "/home/builder/aur";
-
-        public static Tool Of(Distribution row) => row switch
-        {
-            Distribution.Ubuntu2404 => new(Container.Ubuntu2404, "deb"),
-            Distribution.Ubuntu2604 => new(Container.Ubuntu2604, "deb"),
-            Distribution.Debian13 => new(Container.Debian13, "deb"),
-            Distribution.Fedora => new(Container.Fedora, "rpm"),
-            Distribution.Arch => new(Container.Arch, "pkg.tar.zst"),
-            _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown distribution."),
-        };
-
-        /// <summary>
-        /// A package's name as the distribution knows it: on Arch, the AUR's <c>thermi-bin</c>, which R1 names, packs both,
-        /// <c>thermi-bin</c> and <c>thermi-sensors-bin</c>, as the AUR names a package of a build's own files.
-        /// </summary>
-        public string Package(string name) => Format == "pkg.tar.zst" ? $"{name}-bin" : name;
-
-        /// <summary>
-        /// What a desktop PC has for each user's own systemd, which Debian's and Ubuntu's images lack: logind's PAM module,
-        /// which starts it, and the user's bus it answers on.
-        /// </summary>
-        public string Sessions() => Format == "deb" ? Container.Installs(Image, "libpam-systemd dbus-user-session") : "true";
-
-        /// <summary>The distribution's package of Python, which a test's own client runs on.</summary>
-        public string Python => Format == "deb" ? "python3-minimal" : "python3";
-
-        /// <summary>
-        /// What a PC holds before thermi's packages: apt's lists; su, which Fedora's image lacks and a PC has; or on Arch
-        /// the packages built from the PKGBUILD.
-        /// </summary>
-        public string Prepare() => Format switch
-        {
-            "pkg.tar.zst" => $"{Container.Installs(Image, "base-devel")} && useradd -m builder"
-                + $" && cp -r {Container.Packages}/aur {Aur} && chown -R builder {Aur}"
-                + $" && su builder -c 'cd {Aur} && makepkg --nodeps --noconfirm'",
-            "deb" => "apt-get update",
-            _ => Container.Installs(Image, "util-linux"),
-        };
-
-        // Debian names a package's architecture amd64, Fedora x86_64; a file, with its libraries from the distribution's
-        // repositories, or from what the PC already holds once its network is cut.
-        public string Install(string package, bool offline = false) => Format switch
-        {
-            "deb" => $"DEBIAN_FRONTEND=noninteractive apt-get install -y $(ls {Container.Packages}/{package}_[0-9]*_amd64.deb)",
-            "rpm" => $"dnf install -y {(offline ? "--disablerepo='*' " : "")}$(ls {Container.Packages}/{package}-[0-9]*.x86_64.rpm)",
-            _ => $"pacman -U --noconfirm $(ls {Aur}/{Package(package)}-[0-9]*-x86_64.pkg.tar.zst)",
-        };
-
-        /// <summary>A version of a package from the files the levers put in the channel, as the first install from thermi's site.</summary>
-        public string InstallFromChannel(string package, string version) => Format == "deb"
-            ? $"DEBIAN_FRONTEND=noninteractive apt-get install -y $(find {Container.Work}/channel -name '{package}_{version}*_amd64.deb' | head -n 1)"
-            : $"dnf install -y $(find {Container.Work}/channel -name '{package}-{version}*.x86_64.rpm' | head -n 1)";
-
-        // A removal that leaves the libraries the packages brought, as apt's and pacman's do, so they install again offline.
-        public string Remove() => Format switch
-        {
-            "deb" => "apt-get remove -y thermi thermi-sensors",
-            "rpm" => "dnf remove -y --setopt=clean_requirements_on_remove=False thermi thermi-sensors",
-            _ => $"pacman -R --noconfirm {Package("thermi")} {Package("thermi-sensors")}",
-        };
-
-        // A removal of everything the packages wrote outside each person's home, which only apt tells from a removal.
-        public string Purge() => Format == "deb" ? "apt-get purge -y thermi thermi-sensors" : Remove();
-
-        // The files a package installed, its folders aside, which the tools list too.
-        public string Files(string package) => Format switch
-        {
-            "deb" => $"dpkg -L {package}",
-            "rpm" => $"rpm -ql {package}",
-            _ => $"pacman -Qlq {Package(package)}",
-        } + " | while read -r file; do if [ -f \"$file\" ]; then echo \"$file\"; fi; done";
-
-        // The repository a package added names a key a package installed, which the system checks each update against;
-        // Arch's updates come from the AUR instead, which adds none.
-        public string SignedRepository() => Format switch
-        {
-            "deb" => "key=$(sed -n 's/^Signed-By: *//p' /etc/apt/sources.list.d/thermi.sources) && dpkg -S \"$key\"",
-            "rpm" => "grep -qx 'gpgcheck=1' /etc/yum.repos.d/thermi.repo && rpm -qf \"$(sed -n 's|^gpgkey=file://||p' /etc/yum.repos.d/thermi.repo)\"",
-            _ => "! ls /etc/pacman.d/thermi* 2>/dev/null",
-        };
-
-        // The same build packed for arm64 too, at the same version; Arch's PKGBUILD builds for both.
-        public string Arm64() => Format switch
-        {
-            "deb" => $"for p in thermi thermi-sensors; do [ \"$(dpkg-deb -f {Container.Packages}/${{p}}_*_arm64.deb Architecture Version)\" = "
-                + "\"$(printf 'Architecture: arm64\\nVersion: %s' $(dpkg-query -W -f '${Version}' $p))\" ] || exit 1; done",
-            "rpm" => $"for p in thermi thermi-sensors; do [ \"$(rpm -qp --qf '%{{ARCH}} %{{VERSION}}' {Container.Packages}/$p-[0-9]*.aarch64.rpm)\" = "
-                + "\"aarch64 $(rpm -q --qf '%{VERSION}' $p)\" ] || exit 1; done",
-            _ => $"grep -q aarch64 {Container.Packages}/aur/PKGBUILD",
-        };
-
-        public string Version(string package) => Format == "deb" ? $"dpkg-query -W -f '${{Version}}' {package}" : $"rpm -q --qf '%{{VERSION}}' {package}";
-
-        public string Update() => Format == "deb" ? "apt-get update && apt-get upgrade -y" : "dnf upgrade -y --refresh";
-
-        /// <summary>What the system's updater says of a repository whose signature it refused.</summary>
-        public string Unsigned => Format == "deb" ? "NO_PUBKEY|is not signed" : "(?i)signature";
-
-        /// <summary>The Date of the channel's Release apt holds, read last; dnf keeps no such thing to compare.</summary>
-        public string? HeldRelease => Format == "deb" ? "sed -n 's/^Date: //p' /var/lib/apt/lists/*_dists_stable_InRelease" : null;
-
-        // The repository the package added, pointed at the levers' channel the test serves.
-        public string Served() => Format == "deb"
-            ? $"sed -i 's|^URIs:.*|URIs: file://{Container.Work}/channel/apt|' /etc/apt/sources.list.d/thermi.sources"
-            : $"sed -i 's|^baseurl=.*|baseurl=file://{Container.Work}/channel/rpm/stable|' /etc/yum.repos.d/thermi.repo";
     }
 
     /// <summary>The owner's levers of spec 004 on a channel's repositories, as the release workflow pulls them.</summary>

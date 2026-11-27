@@ -18,7 +18,9 @@ sha256sums_aarch64=(@SHA256_ARM64@)
 
 package_thermi-sensors-bin() {
     pkgdesc="thermi's sensor service and thermi-cli"
-    depends=(glibc gcc-libs icu systemd)
+    # The C++ runtime and OpenSSL 3 by their libraries' names, which whichever package holds them provides: gcc-libs is
+    # now libgcc, libstdc++ and more, and openssl is OpenSSL 4, which .NET does not take, where openssl-3 holds OpenSSL 3.
+    depends=(glibc 'libgcc_s.so=1-64' 'libstdc++.so=6-64' icu 'libssl.so=3-64' systemd)
     optdepends=('glib2: the monitors GNOME lays out, for thermi-cli')
     provides=(thermi-sensors)
     conflicts=(thermi-sensors)
