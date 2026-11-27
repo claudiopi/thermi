@@ -8,10 +8,11 @@ using Thermi.Core.Sensors;
 namespace Thermi.Linux.Sensors;
 
 /// <summary>
-/// Reads <c>thermi-sensors</c>' socket (<see cref="SensorReader"/>): the person's own, in their runtime folder, which
-/// <c>thermi-sensors --console</c> serves, first, and else the service's. Anyone may serve a socket at a path they can
-/// write while the service is stopped, so a socket is read only when the kernel says, by <c>SO_PEERCRED</c>, that root or
-/// the service's user listens on the service's, and this user or root on their own.
+/// Reads <c>thermi-sensors</c>' socket (<see cref="SensorReader"/>): the service's, and only where it is missing or
+/// refuses, the person's own in their runtime folder, which <c>thermi-sensors --console</c> serves; a socket file left by
+/// one that ended refuses, and is passed over. Anyone may serve a socket at a path they can write while the service is
+/// stopped, so the service's is read only when the kernel says, by <c>SO_PEERCRED</c>, that root or the service's user
+/// listens on it; the person's own, in a folder only they and root write, when they or root do.
 /// </summary>
 internal sealed class SocketFeed(TimeProvider time, ILogger log) : SensorReader(time, log)
 {
@@ -26,12 +27,18 @@ internal sealed class SocketFeed(TimeProvider time, ILogger log) : SensorReader(
 
     protected override async Task<(Stream Connection, bool Ours)> ConnectAsync(CancellationToken stop)
     {
-        var own = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") is { Length: > 0 } runtime
-            ? Path.Combine(runtime, SnapshotJson.RuntimeSocket)
-            : null;
-        var (path, trusted) = own is not null && File.Exists(own)
-            ? (own, (IReadOnlyList<uint?>)[OwnUserId(), Root])
-            : (SnapshotJson.SocketPath, [Root, UserId(ServiceUser)]);
+        try
+        {
+            return await ConnectAsync(SnapshotJson.SocketPath, [Root, UserId(ServiceUser)], stop);
+        }
+        catch (IOException) when (Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") is { Length: > 0 } runtime)
+        {
+            return await ConnectAsync(Path.Combine(runtime, SnapshotJson.RuntimeSocket), [OwnUserId(), Root], stop);
+        }
+    }
+
+    private async Task<(Stream Connection, bool Ours)> ConnectAsync(string path, IReadOnlyList<uint?> trusted, CancellationToken stop)
+    {
 #pragma warning disable CA2000 // The stream it answers owns it, and each way out that answers none disposes it.
         var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
 #pragma warning restore CA2000
