@@ -307,20 +307,30 @@ public sealed class OverlayTests
     }
 
     // Weston offers neither the extension nor layer surfaces: thermi shows nothing, says why in one notice, and not again
-    // the next time it starts.
+    // the next time it starts. A start with no notices to say it on says nothing, so the next says it; one whose GTK cannot
+    // start, with no display, is no desktop without surfaces, and says nothing of them.
     private static async Task NeitherSurfaceShowsAsync(TestDesktop desktop, CancellationToken cancel)
     {
-        var notices = await NoticeWatch.StartAsync(desktop, cancel);
         await desktop.WriteSettingsAsync(ThermiConfig.New, cancel);
-        for (var start = 0; start < 2; start++)
+        async Task EndsAsync(Dictionary<string, string>? variables)
         {
-            var thermi = await desktop.StartThermiAsync([], cancel);
+            var thermi = await desktop.Session.StartAsync(Built.Program("thermi"), [], variables, cancel);
             await thermi.WaitForExitAsync(cancel);
             Assert.NotEqual(0, thermi.ExitCode);
         }
 
+        await EndsAsync(null);
+        var notices = await NoticeWatch.StartAsync(desktop, cancel);
+        await EndsAsync(new Dictionary<string, string> { ["WAYLAND_DISPLAY"] = "", ["DISPLAY"] = "" });
         await notices.SyncAsync(cancel);
-        Assert.Equal(1, notices.Count("no-overlay"));
+        var noDisplay = notices.Count("no-overlay");
+        for (var start = 0; start < 2; start++)
+        {
+            await EndsAsync(null);
+        }
+
+        await notices.SyncAsync(cancel);
+        Assert.Equal((0, 1), (noDisplay, notices.Count("no-overlay")));
     }
 
     private static async Task AnotherVersionShowsNothingAsync(string other, CancellationToken cancel)

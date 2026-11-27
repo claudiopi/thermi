@@ -16,6 +16,9 @@ internal enum SurfaceKind
 
     /// <summary>A Wayland compositor with neither: nothing shows, and thermi says why.</summary>
     None,
+
+    /// <summary>GTK would not start, with no display or a broken one: no desktop is there to show anything on.</summary>
+    NoDisplay,
 }
 
 /// <summary>Which desktop the session runs, as thermi's overlay and <c>thermi-cli</c> both tell it.</summary>
@@ -61,7 +64,7 @@ internal static class DesktopSession
         Gtk.Module.Initialize();
         if (!Gtk.Functions.InitCheck() || Gdk.Display.GetDefault() is not { } display)
         {
-            return SurfaceKind.None;
+            return SurfaceKind.NoDisplay;
         }
 
         if (!Wayland(display))

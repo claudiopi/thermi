@@ -25,6 +25,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Warning, Message = "This Wayland desktop offers neither GNOME Shell nor layer surfaces: no overlay shows")]
     public static partial void NoSurfaces(this ILogger logger);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "GTK could not start, with no display or a broken one: no overlay shows")]
+    public static partial void NoDisplay(this ILogger logger);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "The desktop's notices did not take the one that says so within {Bound}: it is told at the next start")]
     public static partial void NoticeUnanswered(this ILogger logger, TimeSpan bound);
 

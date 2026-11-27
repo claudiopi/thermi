@@ -13,7 +13,8 @@ namespace Thermi.Linux.Overlay;
 /// <summary>
 /// <c>thermi</c> with no command, as its user unit starts it in the person's session: the overlay, until "Exit thermi".
 /// Under <c>--trace</c> its events go to the standard error, a line each, so a test waits for what thermi did. A desktop
-/// with nowhere to show the overlays ends it at once, with 1, and says why in one notice, only the first time.
+/// with nowhere to show the overlays ends it at once, with 1, and says why in one notice, only the first time; with no
+/// display for GTK, it ends so too, and only logs it, as no desktop is there to tell.
 /// </summary>
 internal static class OverlayStart
 {
@@ -32,6 +33,12 @@ internal static class OverlayStart
             var kind = DesktopSession.Start();
             // GirCore hands the session's one connection out as one object, which lives as long as the process.
             var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
+            if (kind == SurfaceKind.NoDisplay)
+            {
+                log.NoDisplay();
+                return 1;
+            }
+
             if (kind == SurfaceKind.None)
             {
                 log.NoSurfaces();
@@ -59,8 +66,8 @@ internal static class OverlayStart
         });
     }
 
-    // Once ever: each start after would tell it again at every sign-in, where nothing changed. A notice left unanswered is
-    // told again at the next start.
+    // Once ever: each start after would tell it again at every sign-in, where nothing changed. A notice left unanswered, or
+    // with no notices to show it, is told again at the next start.
     private static async Task TellNoOverlayAsync(Gio.DBusConnection bus, TimeProvider time, ILogger log)
     {
         var told = Path.Combine(UserFolders.State, "thermi", "no-overlay-told");
@@ -87,7 +94,11 @@ internal static class OverlayStart
             return;
         }
 
-        await said;
+        if (await said is null)
+        {
+            return;
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(told)!);
         await File.WriteAllTextAsync(told, "");
     }

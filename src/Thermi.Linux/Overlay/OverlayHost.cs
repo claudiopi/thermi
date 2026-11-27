@@ -70,7 +70,7 @@ internal sealed class OverlayHost : IDisposable
         {
             SurfaceKind.Layer => new LayerSurfaces(log),
             SurfaceKind.X11 => new X11Surfaces(),
-            SurfaceKind.Shell or SurfaceKind.None => new ShellSurfaces(_link, arrival),
+            SurfaceKind.Shell or SurfaceKind.None or SurfaceKind.NoDisplay => new ShellSurfaces(_link, arrival),
             _ => new ShellSurfaces(_link, arrival),
         };
         _parts = new OverlayParts(settings, _link, _surfaces, time, CultureInfo.CurrentCulture, log)
