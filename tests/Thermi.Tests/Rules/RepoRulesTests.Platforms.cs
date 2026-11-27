@@ -42,7 +42,7 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
         ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
         ["Thermi.Linux/Overlay/OverlayNotices.cs"] = "Core's notices of the overlays as the desktop's own, by the action ids of their buttons",
-        ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on GNOME share on the host's GLib main loop, the Shell's link among it",
+        ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on Linux share on the host's GLib main loop, the desktop's surfaces among it",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",
         ["Thermi.Sensors.Linux/Serving/SensorCommands.cs"] = "the Linux service's own command line, whose trees and roots are the kernel's files",
@@ -54,6 +54,9 @@ public sealed partial class RepoRulesTests
     {
         ["libnvidia-ml.so.1"] = "NVML, NVIDIA's driver library, has no introspection data, and loads only where the driver is installed",
         ["libgtk4-layer-shell.so.0"] = "gtk4-layer-shell's few calls, which GirCore does not ship",
+        ["libc"] = "dlopen alone, to load gtk4-layer-shell before GTK, which .NET's NativeLibrary cannot load for every library after",
+        ["libX11.so.6"] = "Xlib's few calls for an overlay's window on X11, which has no introspection data",
+        ["libgtk-4.so.1"] = "GDK's X11 calls, gdk_x11_*, which GTK's introspection data leaves out",
     };
 
     // CsWin32 generates every Win32 declaration from a NativeMethods.txt, and GirCore every GObject library's; one written by

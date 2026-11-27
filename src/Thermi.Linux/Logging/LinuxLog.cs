@@ -21,6 +21,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Information, Message = "Another overlay runs in this session: this one ends")]
     public static partial void AlreadyRunning(this ILogger logger);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "This Wayland desktop offers neither GNOME Shell nor layer surfaces: no overlay shows")]
+    public static partial void NoSurfaces(this ILogger logger);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension is {State}: the overlays show once it runs thermi's protocol {Protocol}")]
     public static partial void ExtensionNotReady(this ILogger logger, ExtensionState state, uint protocol);
 

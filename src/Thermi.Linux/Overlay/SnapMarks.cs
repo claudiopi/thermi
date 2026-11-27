@@ -1,3 +1,4 @@
+using Thermi.App.Gestures;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
@@ -7,11 +8,11 @@ using Thermi.Linux.Painting;
 namespace Thermi.Linux.Overlay;
 
 /// <summary>
-/// While an overlay is dragged, the spots it can snap to, as Windows marks them: each its own outline where it would go,
-/// the one it would drop onto filled. The extension shows each as an overlay of its own, past thermi's, that takes no click;
-/// the dragged overlay rises above them as it moves.
+/// While an overlay or a lifted pill is dragged, the spots it can snap to, as Windows marks them: each its own outline
+/// where it would go, the one it would drop onto filled. Each shows as a picture of its own, past thermi's overlays,
+/// that takes no click; what is dragged rises above them as it moves.
 /// </summary>
-internal sealed class ShellMarks
+internal sealed class SnapMarks : IDragMarks
 {
     /// <summary>The first id of a mark's, past every overlay's.</summary>
     public const uint FirstId = ThermiConfig.MaxOverlays;
@@ -28,7 +29,7 @@ internal sealed class ShellMarks
     private SnapConfig? _lit;
     private bool _shown;
 
-    public ShellMarks(OverlayParts parts, ShellScreens screens, Orientation orientation, (int Width, int Height) size)
+    public SnapMarks(OverlayParts parts, ShellScreens screens, Orientation orientation, (int Width, int Height) size)
     {
         (_parts, _screens, _size) = (parts, screens, size);
         _marks = Snaps.Marks(screens.Screens, orientation, size.Width, size.Height);
@@ -55,11 +56,11 @@ internal sealed class ShellMarks
     }
 
     /// <summary>Takes every mark off the screen, as the drag ends.</summary>
-    public void Hide()
+    public void Dispose()
     {
         for (var at = 0; at < _marks.Count; at++)
         {
-            _ = _parts.Call(_parts.Link.Hide(FirstId + (uint)at));
+            _ = _parts.Call(_parts.Surfaces.Hide(FirstId + (uint)at));
         }
     }
 
@@ -85,6 +86,6 @@ internal sealed class ShellMarks
 
         var (x, y) = _screens.Stage(place);
         using var pixels = picture.Bytes();
-        _ = _parts.Call(_parts.Link.Show(id, new ShellPicture(pixels, picture.Width, picture.Height, picture.Stride, scale, []), x, y));
+        _ = _parts.Call(_parts.Surfaces.Show(id, new ShellPicture(pixels, picture.Width, picture.Height, picture.Stride, scale, []), x, y));
     }
 }

@@ -8,7 +8,11 @@ using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Linux.Desktop;
+using Thermi.Linux.Gnome;
+using Thermi.Linux.LayerShell;
+using Thermi.Linux.Overlay;
 using Thermi.Linux.Sensors;
+using Thermi.Linux.X11;
 
 namespace Thermi.Linux.Agents;
 
@@ -61,9 +65,9 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool RunsInstalled() => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
 
-    // GNOME's monitors, as Mutter lays them out. Another desktop's are what the overlay's own surfaces find, layer-shell's
-    // or X11's; until they answer here, none.
-    public IReadOnlyList<Screen> Screens() => GnomeMonitors.Read();
+    // GNOME's monitors, as Mutter lays them out; another desktop's as the overlay's own surfaces find them, layer-shell's
+    // or X11's.
+    public IReadOnlyList<Screen> Screens() => DesktopSession.IsGnome() ? GnomeMonitors.Read() : SurfacesScreens();
 
     public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 
@@ -78,15 +82,38 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public AgentOs Os => AgentOs.Linux;
 
-    // GNOME shows it only through thermi's extension, on. Whether another desktop can, through layer-shell or X11, is the
-    // overlay's own surfaces' to say, and their answer goes here; until then, it says yes.
-    public bool OverlayCanShow() =>
-        !IsGnome()
-        || (SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
+    // GNOME shows it only through thermi's extension, on; another desktop through layer surfaces or X11, as the overlay finds them.
+    public bool OverlayCanShow() => DesktopSession.IsGnome()
+        ? SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
             is { } info
             && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } state
-            && (int)state == Active);
+            && (int)state == Active
+        : DesktopSession.Start() != SurfaceKind.None;
 
-    private static bool IsGnome() =>
-        (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':').Contains("GNOME", StringComparer.OrdinalIgnoreCase);
+    // The surfaces measure the monitors as the overlay's do, GTK's main loop run until they did.
+    private static List<Screen> SurfacesScreens()
+    {
+        using IOverlaySurfaces? surfaces = DesktopSession.Start() switch
+        {
+            SurfaceKind.Layer => new LayerSurfaces(),
+            SurfaceKind.X11 => new X11Surfaces(),
+            SurfaceKind.Shell or SurfaceKind.None => null,
+            _ => null,
+        };
+        if (surfaces is null || GdkMonitors.All().Count == 0)
+        {
+            return [];
+        }
+
+        var monitors = new List<ShellMonitor>();
+        surfaces.Arrived = () => monitors = [.. surfaces.Monitors()];
+        surfaces.Start();
+        var context = GLib.MainContext.Default();
+        while (monitors.Count == 0)
+        {
+            _ = context.Iteration(true);
+        }
+
+        return [.. new ShellScreens(monitors, new Dictionary<(int X, int Y), string>()).Screens];
+    }
 }

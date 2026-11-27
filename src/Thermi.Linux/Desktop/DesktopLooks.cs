@@ -67,6 +67,12 @@ internal static class DesktopLooks
     }
 
     /// <summary>
+    /// The accent a drop's marks draw in: high contrast's highlight, or GNOME's and KDE's default blue, as no desktop's
+    /// own accent reaches every one of them alike.
+    /// </summary>
+    public static Rgb Accent(HighContrastColors? highContrast) => highContrast?.Highlight ?? new Rgb(0x35, 0x84, 0xe4);
+
+    /// <summary>
     /// Whether a newer settings file is a rollback this process should take back: never on Linux, whose packages are its
     /// only updater, so a newer file stays as it is.
     /// </summary>

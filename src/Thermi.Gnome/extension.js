@@ -24,6 +24,7 @@ const XML = `<node><interface name="${SHELL}">
   <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
     <arg type="a(issbbb)" direction="in"/></method>
   <method name="Monitors"><arg type="a(ddddddbb)" direction="out"/></method>
+  <method name="Watch"><arg type="b" direction="in"/></method>
   <signal name="Ready"><arg type="u"/></signal>
   <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
     <arg type="u"/><arg type="d"/><arg type="d"/></signal>
@@ -42,6 +43,11 @@ const MOST_SIDE = 16384;
 const MOST_SCALE = 16;
 const MOST_BOXES = 512;
 const MOST_ROWS = 256;
+
+// While thermi watches, the pointer anywhere is read as often as thermi reads it on Windows, and sent only when it moved,
+// as a Pointer of kind near on no overlay.
+const WATCH_EVERY = 100;
+const NO_OVERLAY = 0xffffffff;
 
 const finite = (...numbers) => numbers.every(Number.isFinite);
 
@@ -106,6 +112,10 @@ export default class ThermiExtension extends Extension {
 
     MenuAsync(args, invocation) {
         this._answer(invocation, () => this._menu(...args));
+    }
+
+    WatchAsync(args, invocation) {
+        this._answer(invocation, () => this._watchPointer(...args));
     }
 
     Monitors() {
@@ -250,6 +260,30 @@ export default class ThermiExtension extends Extension {
         menu.open();
     }
 
+    _watchPointer(on) {
+        if (!on) {
+            this._unwatchPointer();
+            return;
+        }
+        if (this._watching)
+            return;
+        let last = '';
+        this._watching = GLib.timeout_add(GLib.PRIORITY_DEFAULT, WATCH_EVERY, () => {
+            const [x, y, mods] = global.get_pointer();
+            if (`${x},${y}` !== last) {
+                last = `${x},${y}`;
+                this._emit('Pointer', '(usdduuudd)', [NO_OVERLAY, 'near', x, y, 0, mods, global.get_current_time(), 0, 0]);
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _unwatchPointer() {
+        if (this._watching)
+            GLib.source_remove(this._watching);
+        this._watching = 0;
+    }
+
     _monitorsChanged() {
         this._emit('MonitorsChanged', '(a(ddddddbb))', [this.Monitors()]);
     }
@@ -343,6 +377,7 @@ export default class ThermiExtension extends Extension {
 
     // thermi went: nothing of what it showed stays.
     _clear() {
+        this._unwatchPointer();
         for (const overlay of [...this._overlays.keys()])
             this._hide(overlay);
     }

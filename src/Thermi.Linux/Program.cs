@@ -6,6 +6,7 @@ using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
 using Thermi.Linux.Agents;
 using Thermi.Linux.Commands;
+using Thermi.Linux.Desktop;
 using Thermi.Linux.Overlay;
 
 [assembly: SupportedOSPlatform("linux")]
@@ -46,7 +47,7 @@ internal static class Program
             CpuLoadRequest cpu => await CpuLoad.RunAsync(cpu.Seconds, time),
             _ when door => await HelpAsync(),
             PreviewRequest preview => await Preview.RunAsync(Painted(preview), time),
-            OverlayRequest overlay => await OverlayStart.RunAsync(Painted(overlay), time),
+            OverlayRequest overlay => await OverlayStart.RunAsync(overlay, time),
             _ => await NotHereAsync(),
         };
     }
@@ -58,9 +59,7 @@ internal static class Program
     // so the agents' commands run on a server with none.
     private static T Painted<T>(T request)
     {
-        Gio.Module.Initialize();
-        PangoCairo.Module.Initialize();
-        Gdk.Module.Initialize();
+        DesktopSession.Paints();
         return request;
     }
 

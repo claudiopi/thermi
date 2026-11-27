@@ -25,8 +25,8 @@ public sealed class GestureTests
 
     [Theory]
     [InlineData(Desktop.Gnome)]
-    [InlineData(Desktop.KWin, Skip = "Waiting for its code")]
-    [InlineData(Desktop.X11, Skip = "Waiting for its code")]
+    [InlineData(Desktop.KWin)]
+    [InlineData(Desktop.X11)]
     public async Task TheOverlayIsDraggedAndStaysOnGnome(Desktop row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -63,8 +63,8 @@ public sealed class GestureTests
     }
 
     [Theory]
-    [InlineData(Desktop.Gnome, Skip = "Waiting for its code")]
-    [InlineData(Desktop.KWin, Skip = "Waiting for its code")]
+    [InlineData(Desktop.Gnome)]
+    [InlineData(Desktop.KWin)]
     public async Task DesktopGesturesWorkOnLinux(Desktop row)
     {
         var cancel = TestContext.Current.CancellationToken;
