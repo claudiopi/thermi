@@ -9,7 +9,7 @@
       ],
       "description": "Given the recorded trees of a desktop and a virtual machine (a table of the service's user, a plain user without the energy counters, no NVIDIA driver, files that vanish or fail to read mid-read, a virtual machine with no hwmon), when the service reads each second and the default overlay is laid out, then every metric reads what the tree holds, as Windows' recordings of the same chips map; the CPU's power, a vanished file, a board sensor at -40 °C and every metric of the virtual machine are missing, never 0; the virtual adapters are set apart; and the uptime, local IP and clock read as on Windows.",
       "check": "TheServiceReadsWhatTheKernelGives",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A2",
@@ -18,16 +18,16 @@
       ],
       "description": "Given a tree of a PC whose files name its host, its user, its MAC addresses and its drives' serials, when the service records it with --tree and --dump, then the recording replays to the same snapshots and holds none of those names.",
       "check": "ARecordedTreeReplaysAndNamesNoPc",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A3",
       "covers": [
         "R5"
       ],
-      "description": "Given the service's socket and clients (a table of one as the person, one whose peer is another user posing as the service, one that writes to it, nine of one user), when they connect, then the person's client reads Core's snapshot lines; a server of another user is refused; what a client writes is never read; the ninth connection of one user is hung up at once and another user's still connects; and the service ends 10 s after the last client leaves.",
+      "description": "Given the service's socket and clients (a table of the person while their own console serves too, another user serving the service's path and then the person's own, one that writes to it, nine of one user), when they connect, then the person reads Core's snapshot lines from the service before their own console, and from the console when THERMI_SENSORS_SOCKET names it; a server of another user is refused on either path, and the person's own console is read; what a client writes is never read; the ninth connection of one user is hung up at once and another user's still connects; and the service ends 10 s after the last client leaves.",
       "check": "TheSocketServesOnlyTheServicesLines",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A4",
@@ -36,7 +36,7 @@
       ],
       "description": "Given the packaged service unit and udev rule, when systemd judges the unit offline and the rule is applied to a recorded powercap tree, then the unit runs as its own user with no capability and a sandbox that systemd rates OK or better, and only that user's group may read the energy counters.",
       "check": "TheServiceRunsWithNoRights",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A5",
@@ -46,7 +46,7 @@
       ],
       "description": "Given a headless GNOME Shell of the test's own with the extension, a window under the overlay and a recorded feed, when thermi runs (a table of a monitor at 100 % and at 150 %, X11 and Wayland, a window full screen on the overlay's monitor, sensors stopped), then the screen shows, at the overlay's place and above the window and the top bar, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; and with the full-screen window it shows nothing.",
       "check": "TheOverlayShowsAboveEveryWindowOnGnome",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A12",
@@ -83,7 +83,7 @@
       ],
       "description": "Given the headless Shell with an extension of another protocol version, and then with none, when thermi starts, then it shows nothing through the other version and its notice says to update; with none, it asks the Shell to install thermi's from extensions.gnome.org.",
       "check": "AnExtensionOfAnotherVersionShowsNothing",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A9",

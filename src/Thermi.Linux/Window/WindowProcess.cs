@@ -4,7 +4,6 @@ using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
-using Thermi.App.Sensors;
 using Thermi.App.SettingsFile;
 using Thermi.App.Window;
 using Thermi.Cli.Commands;
@@ -32,13 +31,13 @@ internal static class WindowProcess
     {
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);
         var log = logs.CreateLogger("Thermi.Ui");
-        var sensors = new SensorReader(time, logs.CreateLogger<SensorReader>(), new SensorSocket(time));
+        var sensors = new SocketFeed(time, logs.CreateLogger<SocketFeed>());
         return await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, args, sensors, time, log));
     }
 
     // The settings are read before the window opens, for its language and its overlays, and every write that waits goes
     // out once it has closed. The sensors are read only while it is open. GTK registers, runs and ends on one thread.
-    private static async Task<int> ShowAsync(SettingsRequest request, IReadOnlyList<string> args, SensorReader sensors, TimeProvider time, ILogger log)
+    private static async Task<int> ShowAsync(SettingsRequest request, IReadOnlyList<string> args, SocketFeed sensors, TimeProvider time, ILogger log)
     {
         WebKit.Module.Initialize();
         using var store = new ConfigStore(ConfigStore.DefaultPath, time, DesktopLooks.RunsInstalled);
@@ -50,7 +49,7 @@ internal static class WindowProcess
         var texts = request.Pseudo ? Texts.Pseudo() : Texts.For(settings.Config.Language, CultureInfo.CurrentUICulture);
         var start = new PageStart(request.Overlay, texts, time, sensors, ConfigStore.DefaultPath, log)
         {
-            Load = token => CpuLoad.Start(Environment.ProcessPath ?? "thermi", (int)Core.Sensors.FanFinder.MaxRun.TotalSeconds, token),
+            Load = token => CpuLoad.Start(Environment.ProcessPath ?? "thermi", CpuLoad.Arguments((int)Core.Sensors.FanFinder.MaxRun.TotalSeconds), token),
             Pseudo = request.Pseudo,
             Item = request.Item,
             SizeRow = request.SizeRow,

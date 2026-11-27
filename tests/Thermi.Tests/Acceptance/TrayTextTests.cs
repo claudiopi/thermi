@@ -334,6 +334,6 @@ public sealed class TrayTextTests
                 Sensors = [.. Desktop.Sensors.Select(sensor => sensor.Id == "/lpc/it8689e/0/fan/0" ? sensor with { Value = null } : sensor)],
             }
         : words.Contains("clock")
-            ? GameSensors.With(SystemSensors.With(new Snapshot([]), new WindowsFacts(TimeSpan.FromHours(2), null, DateTimeOffset.UnixEpoch.AddHours(12))), null)
+            ? GameSensors.With(SystemSensors.With(new Snapshot([]), new SystemFacts(TimeSpan.FromHours(2), null, DateTimeOffset.UnixEpoch.AddHours(12))), null)
         : Desktop;
 }

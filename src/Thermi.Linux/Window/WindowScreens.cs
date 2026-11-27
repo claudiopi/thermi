@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Core.Placement;
 using Thermi.Linux.Gnome;
 
@@ -15,7 +16,7 @@ internal sealed class WindowScreens : IDisposable
     private readonly Action<Action> _post;
     private ShellScreens? _shell;
 
-    public WindowScreens(Gio.DBusConnection? bus, Action<Action> post, Action changed)
+    public WindowScreens(Gio.DBusConnection? bus, Action<Action> post, Action changed, ILogger log)
     {
         _bus = bus;
         _post = post;
@@ -29,7 +30,7 @@ internal sealed class WindowScreens : IDisposable
             return;
         }
 
-        _link = new ShellLink(bus) { MonitorsChanged = monitors => Taken(monitors, changed) };
+        _link = new ShellLink(bus, log) { MonitorsChanged = monitors => Taken(monitors, changed) };
         _ = ReadAsync(changed);
     }
 

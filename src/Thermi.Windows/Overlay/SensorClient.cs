@@ -30,50 +30,45 @@ internal sealed class FixedPipe(string name, Func<SecurityIdentifier?, bool> tru
 }
 
 /// <summary>
-/// Reads the sensor host's pipe, as <paramref name="pipes"/> picks and trusts it. Any local user can create a pipe of the
-/// service's name while the service restarts, so only a trusted one is read.
+/// Reads the sensor host's pipe, as <paramref name="pipes"/> picks and trusts it (<see cref="SensorReader"/>): any local
+/// user can create a pipe of the service's name while the service restarts, so only a trusted one is read.
 /// </summary>
-internal sealed class SensorClient(TimeProvider time, ILogger log, ISensorPipe pipes) : SensorReader(time, log, new PipeSource(time, pipes))
+internal sealed class SensorClient(TimeProvider time, ILogger log, ISensorPipe pipes) : SensorReader(time, log)
 {
     /// <summary>Whether the service's pipe is the service's: made by it, as SYSTEM, or by an administrator.</summary>
     public static bool IsTrustedOwner(SecurityIdentifier? owner) =>
         owner is not null && (owner.IsWellKnown(WellKnownSidType.LocalSystemSid) || owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid));
 
-    private sealed class PipeSource(TimeProvider time, ISensorPipe pipes) : ISensorSource
+    // Identification: the host may learn who connects, but never act as this user.
+    protected override async Task<(Stream Connection, bool Ours)> ConnectAsync(CancellationToken stop)
     {
-        public async Task<Stream> OpenAsync(CancellationToken stop)
+        var pipe = new NamedPipeClientStream(".", pipes.Name, PipeDirection.In, PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
+        try
         {
-            // Identification: the host may learn who connects, but never act as this user.
-            var pipe = new NamedPipeClientStream(".", pipes.Name, PipeDirection.In, PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
-            try
-            {
-                await ConnectAsync(pipe, stop);
-                return pipes.Trusts(pipe)
-                    ? pipe
-                    : throw new SensorSourceTakenException("The sensor pipe belongs to another program, not to thermi's sensor host.");
-            }
-            catch
-            {
-                await pipe.DisposeAsync();
-                throw;
-            }
+            await ConnectAsync(pipe, stop);
+            return (pipe, pipes.Trusts(pipe));
         }
-
-        public void Missing() => pipes.Missing();
-
-        // The pipe gets as long as a retry to answer, on the injected clock.
-        private async Task ConnectAsync(NamedPipeClientStream pipe, CancellationToken stop)
+        catch
         {
-            using var timeout = new CancellationTokenSource(Retry, time);
-            using var connecting = CancellationTokenSource.CreateLinkedTokenSource(stop, timeout.Token);
-            try
-            {
-                await pipe.ConnectAsync(Timeout.Infinite, connecting.Token);
-            }
-            catch (OperationCanceledException ex) when (timeout.IsCancellationRequested && !stop.IsCancellationRequested)
-            {
-                throw new TimeoutException("The sensor pipe did not answer in time.", ex);
-            }
+            await pipe.DisposeAsync();
+            throw;
+        }
+    }
+
+    protected override void Missing() => pipes.Missing();
+
+    // The pipe gets as long as a retry to answer, on the injected clock.
+    private async Task ConnectAsync(NamedPipeClientStream pipe, CancellationToken stop)
+    {
+        using var timeout = new CancellationTokenSource(Retry, Time);
+        using var connecting = CancellationTokenSource.CreateLinkedTokenSource(stop, timeout.Token);
+        try
+        {
+            await pipe.ConnectAsync(Timeout.Infinite, connecting.Token);
+        }
+        catch (OperationCanceledException ex) when (timeout.IsCancellationRequested && !stop.IsCancellationRequested)
+        {
+            throw new TimeoutException("The sensor pipe did not answer in time.", ex);
         }
     }
 }

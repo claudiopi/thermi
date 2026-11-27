@@ -174,11 +174,13 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             Overlay = environment.Overlay(),
             SensorsOnly = environment.SensorsOnly(),
             PerUser = environment.PerUser(),
+            Os = environment.Os,
+            OverlayCanShow = environment.OverlayCanShow(),
         };
 
     private AgentReply Unread(Core.Tray.ServiceState state, bool taken, Snapshot? latest)
     {
-        var problem = AgentStatus.Unread(Facts(state, taken, latest, settings: null)) ?? AgentStatus.Said(AgentProblem.ServiceStale);
+        var problem = AgentStatus.Unread(Facts(state, taken, latest, settings: null)) ?? AgentStatus.Said(AgentProblem.ServiceStale, os: environment.Os);
         return new AgentReply(AgentExit.NoSensors, Error: $"{problem.Cause} {problem.Fix}");
     }
 

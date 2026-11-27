@@ -6,30 +6,15 @@ using Thermi.Core.Tray;
 
 namespace Thermi.App.Sensors;
 
-/// <summary>Where the sensor host's readings are opened: Windows' pipe, Linux's socket, or a test's own.</summary>
-internal interface ISensorSource
-{
-    /// <summary>
-    /// The host's stream of snapshot lines. Throws <see cref="TimeoutException"/> when none answers within
-    /// <see cref="SensorReader.Retry"/>, <see cref="SensorSourceTakenException"/> when what answers is not the host's, and
-    /// <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/> when it cannot be reached.
-    /// </summary>
-    Task<Stream> OpenAsync(CancellationToken stop);
-
-    /// <summary>No host answered within a retry.</summary>
-    void Missing();
-}
-
-/// <summary>What answered where the sensor host should is another program's, which is never read.</summary>
-internal sealed class SensorSourceTakenException(string message) : UnauthorizedAccessException(message);
-
 /// <summary>
-/// Reads the sensor host's snapshots from <paramref name="source"/>, and waits 2 s between tries while it is gone. A
-/// connection that ends, a host that is not there and one that is not trusted are each tried again.
+/// Reads the sensor service's lines, on a connection each OS's client opens, a pipe on Windows and a socket on Linux, and
+/// waits <see cref="Retry"/> between tries while it is gone. Anyone may serve a pipe or a socket of the service's name
+/// while the service restarts, so only one the client trusts is read; one it does not marks the feed
+/// <see cref="Taken"/>.
 /// </summary>
-internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source) : ISensorFeed
+internal abstract class SensorReader(TimeProvider time, ILogger log) : ISensorFeed
 {
-    /// <summary>How long a host gets to answer, and the wait before the next try.</summary>
+    /// <summary>How long a connection may take to answer, and the wait before the next try.</summary>
     public static readonly TimeSpan Retry = TimeSpan.FromSeconds(2);
 
     private readonly LatestSnapshot _latest = new(time);
@@ -37,7 +22,7 @@ internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source
     // The reading and the retry wait of now, which a wake from sleep cancels.
     private CancellationTokenSource? _round;
 
-    // The last host reached was not the service's.
+    // The last connection reached was not the service's.
     private bool _taken;
 
     // When the last snapshot came, on the reader's thread alone; null before the first of a connection.
@@ -50,6 +35,8 @@ internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source
     public ServiceState State => _latest.State;
 
     public bool Taken => Volatile.Read(ref _taken) && State == ServiceState.Stopped;
+
+    protected TimeProvider Time => time;
 
     public async Task RunAsync(CancellationToken stop)
     {
@@ -64,18 +51,13 @@ internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source
             }
             catch (TimeoutException ex)
             {
-                // No host answered: the user's own is started when its time comes.
-                source.Missing();
+                // No host answered: a host the client starts is started when its time comes.
+                Missing();
                 Lost(ex.Message);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 // Host gone, restarting, not ours or unusable: retry.
-                if (ex is SensorSourceTakenException)
-                {
-                    Volatile.Write(ref _taken, true);
-                }
-
                 Lost(ex.Message);
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested)
@@ -84,8 +66,8 @@ internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source
             }
             catch (OperationCanceledException)
             {
-                // The PC woke: the host is read again from a new connection at once. It ran all along, so it is not lost,
-                // and the snapshot from before the sleep ages out on its own, as stale; the sleep was no pause of it.
+                // The PC woke: the service is read again from a new connection at once. It ran all along, so it is not
+                // lost, and the snapshot from before the sleep ages out on its own, as stale; the sleep was no pause of it.
                 _heardAt = null;
                 continue;
             }
@@ -105,8 +87,8 @@ internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source
     }
 
     /// <summary>
-    /// The PC woke from sleep, on any thread: the host is reached again now instead of at its next retry. A snapshot from
-    /// before the sleep is already too old to show.
+    /// The PC woke from sleep, on any thread: the service is reached again now instead of at its next retry. A snapshot
+    /// from before the sleep is already too old to show.
     /// </summary>
     public void Resume()
     {
@@ -118,6 +100,18 @@ internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source
         {
             // That round already ended, and the next one connects without waiting for a wake.
         }
+    }
+
+    /// <summary>
+    /// A connection to the service, and whether the client trusts what answered; a <see cref="TimeoutException"/> when
+    /// nothing answered within <see cref="Retry"/>, and an <see cref="IOException"/> when nothing serves there.
+    /// </summary>
+    protected abstract Task<(Stream Connection, bool Ours)> ConnectAsync(CancellationToken stop);
+
+    /// <summary>Nothing answered within a retry.</summary>
+    protected virtual void Missing()
+    {
+        // The service restarts on its own.
     }
 
     // A pause long enough to show as stale is said once it ends, so the log tells a service that paused from one that went.
@@ -134,29 +128,37 @@ internal class SensorReader(TimeProvider time, ILogger log, ISensorSource source
         Received?.Invoke(this, EventArgs.Empty);
     }
 
-    // Said only for a host that was read, so a service that stays stopped is not said again at every retry.
+    // Said only for a connection that was read, so a service that stays stopped is not said again at every retry.
     private void Lost(string reason)
     {
         if (_heardAt is { } heard)
         {
-            log.SensorPipeLost(Math.Round(time.GetElapsedTime(heard).TotalSeconds, 1), reason);
+            log.SensorsLost(Math.Round(time.GetElapsedTime(heard).TotalSeconds, 1), reason);
             _heardAt = null;
         }
     }
 
     private async Task ReadAsync(CancellationToken stop)
     {
-        await using var stream = await source.OpenAsync(stop);
-        Volatile.Write(ref _taken, false);
-        _latest.Connected();
-        var lines = new SnapshotLines();
-        var bytes = new byte[64 * 1024];
-        int read;
-        while ((read = await stream.ReadAsync(bytes, stop)) > 0)
+        var (connection, ours) = await ConnectAsync(stop);
+        await using (connection)
         {
-            foreach (var snapshot in lines.Add(bytes.AsSpan(0, read)))
+            Volatile.Write(ref _taken, !ours);
+            if (!ours)
             {
-                Receive(snapshot);
+                throw new UnauthorizedAccessException("The sensors' connection belongs to another program, not to thermi's sensor host.");
+            }
+
+            _latest.Connected();
+            var lines = new SnapshotLines();
+            var bytes = new byte[64 * 1024];
+            int read;
+            while ((read = await connection.ReadAsync(bytes, stop)) > 0)
+            {
+                foreach (var snapshot in lines.Add(bytes.AsSpan(0, read)))
+                {
+                    Receive(snapshot);
+                }
             }
         }
     }

@@ -114,10 +114,10 @@ internal sealed class Container(OwnSession session, string id, IReadOnlyList<str
         string[] boot = ["/bin/sh", "-c", "mount -o remount,rw /sys/fs/cgroup && exec /lib/systemd/systemd"];
         var booted = await RunAsync(session, booting, work, options, boot, owned, cancel).ConfigureAwait(false);
         var ended = session.RunAsync("docker", ["wait", booted.Id], cancel: cancel);
-        await Task.WhenAny(ready, ended).ConfigureAwait(false);
+        var came = await Readiness.BeforeEndAsync(ready, ended).ConfigureAwait(false);
         // Booted is running, or degraded when a unit a container has no use for failed; any other state, or a container
         // that ended first, is no boot.
-        var state = ended.IsCompleted ? "" : (await booted.RunAsync("systemctl is-system-running || true", cancel).ConfigureAwait(false)).Out.Trim();
+        var state = !came ? "" : (await booted.RunAsync("systemctl is-system-running || true", cancel).ConfigureAwait(false)).Out.Trim();
         if (state is not ("running" or "degraded"))
         {
             var logs = await session.RunAsync("docker", ["logs", booted.Id], cancel: cancel).ConfigureAwait(false);

@@ -8,23 +8,22 @@ using Windows.Win32;
 namespace Thermi.Sensors.Windows.Pipe;
 
 /// <summary>
-/// Writes one snapshot per second to every connected client, whole on connecting and on any change of its sensors and its
-/// values alone between (<see cref="SnapshotWriter"/>), and reads sensors only while someone listens. It never reads from
-/// the pipe: there is no client input to trust. If either loop fails, the whole server fails, so the service stops and
-/// Windows restarts it instead of leaving it alive and silent.
+/// The <c>thermi-sensors</c> pipe: takes in each client, at most <see cref="PerSession"/> of one Windows session, and hands
+/// it to <see cref="SnapshotBroadcast"/>, which writes it a snapshot per second. If either loop fails, the whole server fails,
+/// so the service stops and Windows restarts it instead of leaving it alive and silent.
 /// </summary>
 internal sealed class SensorPipeServer(
     Func<CancellationToken, Task<Snapshot>> read, TimeProvider time, string pipeName = SnapshotJson.PipeName, PipeSecurity? security = null)
     : IDisposable
 {
     /// <summary>Clients connected at once, across sessions; past it, new ones wait for one to leave.</summary>
-    public const int MaxClients = 32;
+    public const int MaxClients = SnapshotBroadcast.MaxClients;
 
     /// <summary>
     /// Clients one Windows session may hold: any interactive user can open the pipe, so one who holds it open from their
     /// own session never takes the slots of another's overlay and window.
     /// </summary>
-    public const int PerSession = 8;
+    public const int PerSession = SnapshotBroadcast.PerOwner;
 
     /// <summary>How long it waits to create the pipe again while someone else holds its name.</summary>
     public static readonly TimeSpan Retry = TimeSpan.FromSeconds(5);
@@ -35,34 +34,29 @@ internal sealed class SensorPipeServer(
     // ERROR_PIPE_BUSY.
     private const int PipeBusy = unchecked((int)0x800700E7);
 
-    // A client that stops reading is dropped after this long, and never delays the others meanwhile.
-    public static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(2);
+    /// <summary>A client that stops reading is dropped after this long, and never delays the others meanwhile.</summary>
+    public static readonly TimeSpan WriteTimeout = SnapshotBroadcast.WriteTimeout;
 
-    /// <summary>How long one read of the sensors may take: a drive's SMART or a rescan of the hardware takes seconds, never this.</summary>
-    public static readonly TimeSpan ReadLimit = TimeSpan.FromSeconds(60);
+    /// <summary>How long one read of the sensors may take.</summary>
+    public static readonly TimeSpan ReadLimit = SnapshotBroadcast.ReadLimit;
 
     private static readonly PipeSecurity Everyone = ForEveryone();
 
     private readonly PipeSecurity _security = security ?? Everyone;
 
-    private readonly List<Client> _clients = [];
     private readonly Lock _lock = new();
 
     // Pipe instances not yet disposed, connected or waiting. Zero means the next one must be the first.
     private int _instances;
 
-    // A slot per client: past the limit, new clients wait for one to leave.
-    private readonly SemaphoreSlim _slots = new(MaxClients);
+    private readonly SnapshotBroadcast _broadcast = new(read, time);
 
-    // Each second's lines, written straight as UTF-8: a snapshot as a string and then as bytes would be two objects
-    // near the large object heap's size every second.
-    private readonly SnapshotWriter _lines = new();
-
-    /// <summary>
-    /// What ends a read past <see cref="ReadLimit"/>: the process, which Windows' recovery restarts, since the stuck thread
-    /// holds the library and a stop could wait on it forever. Tests end it their own way.
-    /// </summary>
-    public Action Hung { get; init; } = End;
+    /// <summary>What ends a read stuck past <see cref="ReadLimit"/>: the process, which Windows' recovery restarts.</summary>
+    public Action Hung
+    {
+        get => _broadcast.Hung;
+        init => _broadcast.Hung = value;
+    }
 
     /// <summary>
     /// What says, once each time, that someone else holds the pipe's name: silent, the service would look running and
@@ -74,21 +68,12 @@ internal sealed class SensorPipeServer(
     private bool _squatSaid;
 
     /// <summary>Clients connected now; one that left counts until the next second's write to it fails.</summary>
-    public int Clients
-    {
-        get
-        {
-            lock (_lock)
-            {
-                return _clients.Count;
-            }
-        }
-    }
+    public int Clients => _broadcast.Clients;
 
     public async Task RunAsync(CancellationToken stop)
     {
         using var failed = CancellationTokenSource.CreateLinkedTokenSource(stop);
-        Task[] loops = [AcceptAsync(failed.Token), BroadcastAsync(failed.Token)];
+        Task[] loops = [AcceptAsync(failed.Token), _broadcast.RunAsync(failed.Token)];
         try
         {
             await Task.WhenAny(loops);
@@ -101,28 +86,17 @@ internal sealed class SensorPipeServer(
         }
         finally
         {
-            lock (_lock)
-            {
-                _clients.ForEach(client => client.Dispose());
-                _instances -= _clients.Count;
-                _clients.Clear();
-            }
+            _broadcast.Close();
         }
     }
 
-    /// <summary>Ends the process for a read stuck past <see cref="ReadLimit"/>, which Windows' recovery then restarts.</summary>
-    public static void End() =>
-#pragma warning disable RS0030 // Only a process that ends frees a thread stuck in a driver, so the service manager restarts it.
-        Environment.FailFast("A sensor read did not return within its limit.");
-#pragma warning restore RS0030
-
-    public void Dispose() => _slots.Dispose();
+    public void Dispose() => _broadcast.Dispose();
 
     private async Task AcceptAsync(CancellationToken stop)
     {
         while (!stop.IsCancellationRequested)
         {
-            await _slots.WaitAsync(stop);
+            await _broadcast.SlotAsync(stop);
             bool accepted;
             try
             {
@@ -130,13 +104,13 @@ internal sealed class SensorPipeServer(
             }
             catch
             {
-                _slots.Release();
+                _broadcast.Release();
                 throw;
             }
 
             if (!accepted)
             {
-                _slots.Release();
+                _broadcast.Release();
             }
         }
     }
@@ -146,7 +120,7 @@ internal sealed class SensorPipeServer(
     // name: failing then would restart the service into the same name, again and again.
     private async Task<bool> AcceptOneAsync(CancellationToken stop)
     {
-#pragma warning disable CA2000 // Disposed on failure here; once connected, _clients owns it and Drop or RunAsync dispose it.
+#pragma warning disable CA2000 // Disposed on failure here; once connected, the broadcast owns it and disposes it.
         if (CreatePipe() is not { } pipe)
 #pragma warning restore CA2000
         {
@@ -179,105 +153,9 @@ internal sealed class SensorPipeServer(
             throw;
         }
 
-        return TakeIn(pipe);
-    }
-
-    // A client past its session's share is hung up at once.
-    private bool TakeIn(NamedPipeServerStream pipe)
-    {
+        // A client past its session's share is hung up at once.
         var session = SensorPInvoke.GetNamedPipeClientSessionId(pipe.SafePipeHandle, out var id) ? id : uint.MaxValue;
-#pragma warning disable CA2000 // Taken in, _clients owns it, and Drop or RunAsync dispose it; refused, it is disposed below.
-        var client = new Client(pipe, session);
-#pragma warning restore CA2000
-        bool taken;
-        lock (_lock)
-        {
-            taken = _clients.Count(each => each.Session == session) < PerSession;
-            if (taken)
-            {
-                _clients.Add(client);
-            }
-        }
-
-        if (!taken)
-        {
-            client.Dispose();
-            Closed();
-        }
-
-        return taken;
-    }
-
-    private async Task BroadcastAsync(CancellationToken stop)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1), time);
-        while (await timer.WaitForNextTickAsync(stop))
-        {
-            Client[] ready;
-            bool anySending;
-            lock (_lock)
-            {
-                ready = [.. _clients.Where(client => client.Sending.IsCompleted)];
-                anySending = ready.Length < _clients.Count;
-            }
-
-            if (ready.Length == 0)
-            {
-                continue;
-            }
-
-            // A client still writing the last line reads it from the buffer, so it is reused only once none does.
-            _lines.Next(await ReadAsync(stop), anySending);
-            foreach (var client in ready)
-            {
-                client.Sending = SendAsync(client, _lines.LineFor(client.Catalog));
-                client.Catalog = _lines.Catalog;
-            }
-        }
-    }
-
-    // On a thread of its own, so a read that never returns is seen.
-    private async Task<Snapshot> ReadAsync(CancellationToken stop)
-    {
-        try
-        {
-            return await Task.Run(() => read(stop), CancellationToken.None).WaitAsync(ReadLimit, time, stop);
-        }
-        catch (TimeoutException)
-        {
-            Hung();
-            throw;
-        }
-    }
-
-    private async Task SendAsync(Client client, ReadOnlyMemory<byte> line)
-    {
-        using var timeout = new CancellationTokenSource(WriteTimeout, time);
-        try
-        {
-            await client.Pipe.WriteAsync(line, timeout.Token);
-            await client.Pipe.FlushAsync(timeout.Token);
-        }
-        catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException)
-        {
-            Drop(client);
-        }
-    }
-
-    private void Drop(Client client)
-    {
-        bool removed;
-        lock (_lock)
-        {
-            removed = _clients.Remove(client);
-        }
-
-        if (removed)
-        {
-            client.Dispose();
-            Closed();
-            _slots.Release();
-        }
+        return _broadcast.TakeIn(pipe, session, Closed);
     }
 
     private void Closed()
@@ -361,19 +239,5 @@ internal sealed class SensorPipeServer(
             PipeAccessRights.FullControl,
             AccessControlType.Deny));
         return security;
-    }
-
-    private sealed class Client(NamedPipeServerStream pipe, uint session) : IDisposable
-    {
-        public NamedPipeServerStream Pipe { get; } = pipe;
-
-        public uint Session { get; } = session;
-
-        public Task Sending { get; set; } = Task.CompletedTask;
-
-        /// <summary>The catalog of the last whole snapshot it was sent, 0 before the first (<see cref="SnapshotWriter.Catalog"/>).</summary>
-        public int Catalog { get; set; }
-
-        public void Dispose() => Pipe.Dispose();
     }
 }

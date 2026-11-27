@@ -93,4 +93,15 @@ public enum HostText
 
     /// <summary>The button of the notice of the extension of another version, which asks GNOME for its update.</summary>
     GnomeExtensionUpdate,
+    /// <summary>A button of the notice of hidden overlays where a desktop's notices have buttons: the one overlay shows again.</summary>
+    NoticeShowIt,
+
+    /// <summary>That button when the notice is about several overlays: they all show again.</summary>
+    NoticeShowThem,
+
+    /// <summary>The button of the click-through notice that turns click-through off again.</summary>
+    NoticeUndo,
+
+    /// <summary>The button that closes a notice and does nothing else.</summary>
+    NoticeGotIt,
 }

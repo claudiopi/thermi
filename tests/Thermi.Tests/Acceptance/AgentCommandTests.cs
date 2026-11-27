@@ -138,6 +138,31 @@ public sealed class AgentCommandTests : IDisposable
         }
     }
 
+    // On Linux no frame is read, a CPU with no temperature lacks the kernel's module for it, as a virtual machine's always
+    // does, and a session the overlay cannot show in says so; the missing module's cause and fix are Linux's own.
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task StatusOnLinuxSaysWhatLinuxLacks(bool cpuTemperature, bool overlayCanShow)
+    {
+        var admin = TestRecordings.Read(TestRecordings.Admin);
+        var snapshot = cpuTemperature
+            ? admin
+            : admin with { Sensors = [.. admin.Sensors.Where(sensor => sensor is not { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) })] };
+        _rig.Sensors = () => new RecordedFeed([snapshot]);
+        _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+        _rig.Os = AgentOs.Linux;
+        _rig.OverlayCanShow = overlayCanShow;
+
+        var problems = (await _rig.RunAsync("status")).Json["problems"]!.AsArray().Select(problem => problem!.AsObject()).ToList();
+
+        string[] expected = cpuTemperature ? ["frames-not-read"] : ["driver-missing", "frames-not-read", "overlay-cannot-show"];
+        Assert.Equal(expected, problems.Select(problem => (string)problem["code"]!));
+        var windows = AgentStatus.Said(AgentProblem.DriverMissing);
+        Assert.All(problems.Where(problem => (string)problem["code"]! == "driver-missing"),
+            problem => Assert.Equal((false, false), ((string)problem["cause"]! == windows.Cause, (string)problem["fix"]! == windows.Fix)));
+    }
+
     [Fact]
     public async Task ReadSamplesGiveMinMaxAverage()
     {
@@ -161,7 +186,10 @@ public sealed class AgentCommandTests : IDisposable
             Assert.Equal(each.Average(), (double)value["average"]!, 6);
         }
 
-        Assert.Equal((2, 2), ((await _rig.RunAsync("read", "--seconds", "0")).Exit, (await _rig.RunAsync("read", "--seconds", "61")).Exit));
+        Assert.Equal(
+            (2, 2, 2),
+            ((await _rig.RunAsync("read", "--seconds", "0")).Exit, (await _rig.RunAsync("read", "--seconds", "61")).Exit,
+                (await _rig.RunAsync("read", "--seconds", "many")).Exit));
     }
 
     // A watch of the same series, with stdin kept open: a line each second, the sensor that dropped out of one read as

@@ -39,7 +39,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _bus = Connect();
         _portal = new DesktopPortal(Changed);
         _extension = LinuxFixes.ExtensionState(_bus);
-        _screens = new WindowScreens(_bus, Turn.Post, () => DesktopChanged?.Invoke());
+        _screens = new WindowScreens(_bus, Turn.Post, () => DesktopChanged?.Invoke(), log);
     }
 
     public Gtk.Window? Window { get; set; }

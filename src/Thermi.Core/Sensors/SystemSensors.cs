@@ -1,13 +1,15 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Sensors;
 
 /// <summary>
-/// What Windows itself says, with no sensor: how long it has run, the IPv4 address its default route goes out from, if any,
-/// and the local time now.
+/// What the OS itself says, with no sensor: how long it has run, the IPv4 address its default route goes out from, if any,
+/// and the local time now; null where it could not be told, as from a recording that holds none.
 /// </summary>
-public sealed record WindowsFacts(TimeSpan Uptime, uint? Address, DateTimeOffset LocalNow);
+public sealed record SystemFacts(TimeSpan? Uptime, uint? Address, DateTimeOffset? LocalNow);
 
 /// <summary>
 /// The sensors of a device of thermi's own, the PC, that both processes add to every snapshot they read: so the catalog,
@@ -29,18 +31,21 @@ public static class SystemSensors
 
     private const int SecondsPerDay = 24 * 60 * 60;
 
+    // An address of the range kept for documentation, beyond any local network.
+    private static readonly IPEndPoint Beyond = new(IPAddress.Parse("192.0.2.1"), 9);
+
     /// <summary>
     /// The snapshot with the PC's sensors added, and while thermi's driver may be missing, each core's VID read as 0, so as
     /// missing: the library then reads the same VID for every core, 1.55 V on a Ryzen 9 9950X, which no core asks for at rest.
     /// </summary>
-    public static Snapshot With(Snapshot snapshot, WindowsFacts facts) => snapshot with
+    public static Snapshot With(Snapshot snapshot, SystemFacts facts) => snapshot with
     {
         Sensors =
         [
             .. SensorMap.DriverMayBeMissing(snapshot) ? snapshot.Sensors.Select(Unread) : snapshot.Sensors,
-            Sensor(SensorKind.Duration, "duration", Uptime, Math.Floor(facts.Uptime.TotalSeconds)),
+            Sensor(SensorKind.Duration, "duration", Uptime, facts.Uptime is { } uptime ? Math.Floor(uptime.TotalSeconds) : null),
             Sensor(SensorKind.Address, "address", LocalIp, facts.Address),
-            Sensor(SensorKind.Time, "time", Clock, Math.Floor(facts.LocalNow.TimeOfDay.TotalSeconds)),
+            Sensor(SensorKind.Time, "time", Clock, facts.LocalNow is { } now ? Math.Floor(now.TimeOfDay.TotalSeconds) : null),
         ],
     };
 
@@ -61,6 +66,24 @@ public static class SystemSensors
         return ids.Count > 0
             ? ids.All(id => id.StartsWith(Device + "/", StringComparison.Ordinal))
             : Metrics.Find(item.Metric ?? item.Auto) is { } metric && Metrics.DeviceOf(metric) == DeviceKind.System;
+    }
+
+    /// <summary>
+    /// The IPv4 address the default route goes out from, as one number, or null with no route out. Connecting a datagram
+    /// socket to an address beyond the local network only picks the route, and sends nothing.
+    /// </summary>
+    public static uint? DefaultRouteAddress()
+    {
+        try
+        {
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket.Connect(Beyond);
+            return socket.LocalEndPoint is IPEndPoint { Address: var local } && !IPAddress.IsLoopback(local) ? AddressOf(local.GetAddressBytes()) : null;
+        }
+        catch (SocketException)
+        {
+            return null;
+        }
     }
 
     /// <summary>An IPv4 address's four bytes as one number, the first highest, as a snapshot carries it.</summary>

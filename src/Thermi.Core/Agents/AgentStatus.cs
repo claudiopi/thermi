@@ -24,6 +24,21 @@ public enum AgentProblem
 
     /// <summary>A per-user install whose own host serves the sensors only while thermi runs, and none runs.</summary>
     NotRunning,
+
+    /// <summary>An OS whose games' frames thermi does not read, as Linux: FPS and frame time read missing.</summary>
+    FramesNotRead,
+
+    /// <summary>A desktop where no overlay can show, as GNOME without thermi's extension.</summary>
+    OverlayCannotShow,
+}
+
+/// <summary>The OS an agent's command runs on, whose fixes a person follows.</summary>
+public enum AgentOs
+{
+    Windows,
+
+    /// <summary>Where thermi reads no game's frames, and systemd keeps the service.</summary>
+    Linux,
 }
 
 /// <summary>Each problem's cause and fix, as an agent reads them; the contract answers them in English.</summary>
@@ -47,6 +62,17 @@ public enum AgentText
     SettingsBrokenFixSensorsOnly,
     NotRunningCause,
     NotRunningFix,
+    FramesNotReadCause,
+    FramesNotReadFix,
+    OverlayCannotShowCause,
+    OverlayCannotShowFix,
+    ServiceStoppedFixLinux,
+    ServiceStaleFixLinux,
+    PipeTakenCauseLinux,
+    PipeTakenFixLinux,
+    DriverMissingFixLinux,
+    SettingsBrokenFixLinuxSensorsOnly,
+    DriverMissingCauseLinux,
 }
 
 /// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
@@ -82,6 +108,10 @@ public sealed record AgentFacts(ServiceState Service, bool Installed, bool Taken
 
     /// <summary>Whether this is a per-user install, which has no service: the user's own host serves while thermi runs.</summary>
     public bool PerUser { get; init; }
+
+    public AgentOs Os { get; init; }
+
+    public bool OverlayCanShow { get; init; } = true;
 }
 
 public static class AgentStatus
@@ -98,7 +128,8 @@ public static class AgentStatus
             { Service: ServiceState.Stale } => [AgentProblem.ServiceStale],
             _ => [],
         });
-        if (facts.Latest is { } latest && SensorMap.DriverMayBeMissing(latest))
+        // On Linux a CPU whose module is not loaded has no temperature at all, where Windows' reads zero without its driver.
+        if (facts.Latest is { } latest && (SensorMap.DriverMayBeMissing(latest) || (facts.Os == AgentOs.Linux && !SensorMap.HasCpuTemperature(latest))))
         {
             problems.Add(AgentProblem.DriverMissing);
         }
@@ -108,7 +139,17 @@ public static class AgentStatus
             problems.Add(AgentProblem.SettingsBroken);
         }
 
-        return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. problems.Select(problem => Said(problem, facts.SensorsOnly))])
+        if (facts.Os == AgentOs.Linux)
+        {
+            problems.Add(AgentProblem.FramesNotRead);
+        }
+
+        if (!facts.OverlayCanShow)
+        {
+            problems.Add(AgentProblem.OverlayCannotShow);
+        }
+
+        return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. problems.Select(problem => Said(problem, facts.SensorsOnly, facts.Os))])
         {
             Settings = facts.Settings is { Kind: not ConfigProblemKind.Missing } problem ? problem.Kind : null,
         };
@@ -116,12 +157,16 @@ public static class AgentStatus
 
     /// <summary>The problem that keeps the service's readings from a read, or null when they are fresh.</summary>
     public static ProblemAnswer? Unread(AgentFacts facts) =>
-        Of(facts).Problems.FirstOrDefault(problem => problem.Code is not (AgentProblem.DriverMissing or AgentProblem.SettingsBroken));
+        Of(facts).Problems.FirstOrDefault(problem => problem.Code is AgentProblem.ServiceMissing or AgentProblem.PipeTaken or AgentProblem.NotRunning
+            or AgentProblem.ServiceStopped or AgentProblem.ServiceStale);
 
-    /// <summary>A problem's cause and fix; with the sensors alone installed, a fix sends the person to no menu or window.</summary>
-    public static ProblemAnswer Said(AgentProblem problem, bool sensorsOnly = false)
+    /// <summary>
+    /// A problem's cause and fix; with the sensors alone installed, a fix sends the person to no menu or window, and on
+    /// Linux to systemd and the package rather than to Windows.
+    /// </summary>
+    public static ProblemAnswer Said(AgentProblem problem, bool sensorsOnly = false, AgentOs os = AgentOs.Windows)
     {
-        var (cause, fix) = problem switch
+        var (cause, fix) = (os == AgentOs.Linux ? OnLinux(problem, sensorsOnly) : null) ?? problem switch
         {
             AgentProblem.ServiceMissing => (AgentText.ServiceMissingCause, AgentText.ServiceMissingFix),
             AgentProblem.ServiceStopped when sensorsOnly => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixSensorsOnly),
@@ -133,8 +178,23 @@ public static class AgentStatus
             AgentProblem.DriverMissing => (AgentText.DriverMissingCause, AgentText.DriverMissingFix),
             AgentProblem.SettingsBroken => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFix),
             AgentProblem.NotRunning => (AgentText.NotRunningCause, AgentText.NotRunningFix),
+            AgentProblem.FramesNotRead => (AgentText.FramesNotReadCause, AgentText.FramesNotReadFix),
+            AgentProblem.OverlayCannotShow => (AgentText.OverlayCannotShowCause, AgentText.OverlayCannotShowFix),
             _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, "Unknown problem."),
         };
         return new ProblemAnswer(problem, Texts.English.Of(cause), Texts.English.Of(fix));
     }
+
+    private static (AgentText Cause, AgentText Fix)? OnLinux(AgentProblem problem, bool sensorsOnly) => problem switch
+    {
+        AgentProblem.ServiceStopped => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixLinux),
+        AgentProblem.ServiceStale => (AgentText.ServiceStaleCause, AgentText.ServiceStaleFixLinux),
+        AgentProblem.PipeTaken => (AgentText.PipeTakenCauseLinux, AgentText.PipeTakenFixLinux),
+        AgentProblem.DriverMissing => (AgentText.DriverMissingCauseLinux, AgentText.DriverMissingFixLinux),
+        AgentProblem.SettingsBroken when sensorsOnly => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFixLinuxSensorsOnly),
+        // Said as on Windows: they name nothing of Windows', or never happen on Linux, as a per-user install's.
+        AgentProblem.ServiceMissing or AgentProblem.SettingsBroken or AgentProblem.NotRunning or AgentProblem.FramesNotRead
+            or AgentProblem.OverlayCannotShow => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, "Unknown problem."),
+    };
 }

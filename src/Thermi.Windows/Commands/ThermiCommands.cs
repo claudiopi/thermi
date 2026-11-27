@@ -3,17 +3,12 @@ using Thermi.Cli.Commands;
 
 namespace Thermi.Windows.Commands;
 
-/// <summary><c>thermi cpu-load &lt;seconds&gt;</c>: every core loaded, to record how the fans answer.</summary>
-internal sealed record CpuLoadRequest(int Seconds) : IThermiRequest;
-
 /// <summary>
-/// <c>thermi</c>'s command line on Windows: every OS's, <see cref="ThermiCommandLine"/>, with Windows' own commands, parsed
+/// <c>thermi</c>'s command line on Windows: every OS's, <see cref="ThermiCommandLine"/>, with Windows' own command, parsed
 /// before anything else runs, the overlay's single-instance mutex included.
 /// </summary>
 internal static class ThermiCommands
 {
-    public const int MaxLoadSeconds = 600;
-
     /// <summary>The console door's name, the apphost every shell waits for, beside the windowed <c>thermi.exe</c>.</summary>
     public const string ConsoleDoor = "thermi-cli";
 
@@ -23,13 +18,10 @@ internal static class ThermiCommands
     /// <summary>The request, or null with <paramref name="errors"/> saying why the arguments make no sense.</summary>
     public static IThermiRequest? Parse(IReadOnlyList<string> args, out IReadOnlyList<string> errors)
     {
-        var seconds = new Argument<int>("seconds") { CustomParser = ThermiCommandLine.Whole(1, MaxLoadSeconds) };
-        var cpuLoad = new Command("cpu-load", "Loads every core at idle priority, to record how the fans answer.") { seconds };
         var verb = new Argument<string>("verb").AcceptOnlyFromAmong([.. Elevated.Verbs]);
         var elevated = ElevatedCommand(verb);
         var own = new Dictionary<Command, Func<ParseResult, IThermiRequest>>
         {
-            [cpuLoad] = it => new CpuLoadRequest(it.GetValue(seconds)),
             [elevated] = it => new ElevatedRequest(it.GetValue(verb)!),
         };
         return ThermiCommandLine.Parse(args, own, parsed => OnlyItsVerb(parsed, elevated, args), out errors);

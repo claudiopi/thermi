@@ -28,7 +28,7 @@ internal sealed class ExtensionArrival
     public ExtensionArrival(ShellLink link, DesktopNotices notices, Func<Texts> texts, ILogger log)
     {
         (_link, _notices, _texts, _log) = (link, notices, texts, log);
-        notices.Invoked = Clicked;
+        notices.Invoked += Clicked;
     }
 
     /// <summary>Whether the extension runs thermi's protocol now.</summary>
@@ -61,6 +61,9 @@ internal sealed class ExtensionArrival
 
         return Ready;
     }
+
+    /// <summary>The extension stopped, as while the screen is locked: nothing shows, and no notice says so, until it is back.</summary>
+    public void Left() => Ready = false;
 
     private void Clicked(string action)
     {

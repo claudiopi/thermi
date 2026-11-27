@@ -2,9 +2,9 @@ namespace Thermi.Linux.Tests;
 
 /// <summary>
 /// The real <c>thermi-sensors</c> in a test's session, reading a recorded tree in place of <c>/sys</c> and <c>/proc</c> and
-/// serving it as the person's own service does, on the socket in the session's runtime folder, where thermi and
-/// <c>thermi-cli</c> look first. A tree holds a folder for each second it recorded, from <c>0</c>, which the service reads
-/// in turn, each second.
+/// serving it as <c>thermi-sensors --console</c> does, on the socket in the session's runtime folder, the one the session
+/// names for thermi and <c>thermi-cli</c> to read alone (<see cref="OwnSession.Variables"/>). A tree holds a folder for
+/// each second it recorded, from <c>0</c>, which the service reads in turn, each second.
 /// </summary>
 internal static class SensorFeed
 {

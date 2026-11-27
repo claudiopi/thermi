@@ -26,7 +26,7 @@ internal sealed record PreviewRequest(string Snapshot, string Png, float Scale, 
 
 /// <summary>
 /// <c>thermi</c>'s command line on every OS, parsed before anything else runs: the overlay, the settings window, the
-/// preview and the agents' commands, and a host's own commands beside them. Numbers are read in the invariant culture,
+/// preview, <c>cpu-load</c> and the agents' commands, and a host's own commands beside them. Numbers are read in the invariant culture,
 /// so a scale of 1.5 means the same in every language.
 /// </summary>
 internal static class ThermiCommandLine
@@ -60,10 +60,12 @@ internal static class ThermiCommandLine
         // The window's texts made longer, to see what a long translation does to it.
         var pseudo = new Option<bool>("--pseudo") { Recursive = true, Hidden = true };
         var root = new RootCommand("thermi: a light, always-on-top hardware monitor.") { trace, pseudo };
+        var (cpuLoad, load) = CpuLoadCommand.Create();
         var requests = new Dictionary<Command, Func<ParseResult, IThermiRequest>>
         {
             [Settings(trace, pseudo, out var settings)] = settings,
             [Preview(out var preview)] = preview,
+            [cpuLoad] = load,
         };
         foreach (var (command, request) in own)
         {
@@ -78,27 +80,13 @@ internal static class ThermiCommandLine
         return AgentCommandLine.Parse(root, requests, args, refused, parsed => new OverlayRequest(parsed.GetValue(trace)), out errors);
     }
 
-    /// <summary>A whole number from <paramref name="min"/> to <paramref name="max"/>, or an error that says so.</summary>
-    public static Func<ArgumentResult, int> Whole(int min, int max) => result =>
-    {
-        if (result.Tokens is [var token]
-            && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
-            && value >= min
-            && value <= max)
-        {
-            return value;
-        }
-
-        var range = max == int.MaxValue
-            ? string.Create(CultureInfo.InvariantCulture, $"{min} up")
-            : string.Create(CultureInfo.InvariantCulture, $"{min} to {max}");
-        result.AddError(string.Create(CultureInfo.InvariantCulture, $"{result.Argument.Name} takes a whole number from {range}."));
-        return 0;
-    };
-
     private static Command Settings(Option<bool> trace, Option<bool> pseudo, out Func<ParseResult, IThermiRequest> request)
     {
-        var overlay = new Option<int>(OverlayOption) { Description = "The overlay to edit, counted from 1.", CustomParser = Whole(1, int.MaxValue) };
+        var overlay = new Option<int>(OverlayOption)
+        {
+            Description = "The overlay to edit, counted from 1.",
+            CustomParser = AgentCommandLine.Whole(1, int.MaxValue),
+        };
         var item = new Option<string?>(ItemOption) { Description = "The id of the item to select." };
         var size = new Option<bool>(SizeOption) { Description = "Goes to the overlay's Size row." };
         request = it => new SettingsRequest(it.GetValue(overlay), it.GetValue(trace), it.GetValue(pseudo))
@@ -113,7 +101,7 @@ internal static class ThermiCommandLine
     {
         var snapshot = new Argument<FileInfo>("snapshot")
         {
-            Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds.",
+            Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds; an empty file paints the sensors stopped.",
         }.AcceptExistingOnly();
         var png = new Argument<string>("png") { Description = "Where the picture goes." };
         var scale = new Argument<float>("scale") { Arity = ArgumentArity.ZeroOrOne, CustomParser = Scale, DefaultValueFactory = _ => 1 };

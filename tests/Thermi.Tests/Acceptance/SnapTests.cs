@@ -182,11 +182,13 @@ public sealed class SnapTests
         Assert.Equal(new Position(left, top), Snaps.Inside(new Position(x, y), [Main, right], 600, 57));
     }
 
-    // A vertical overlay keeps its bottom edge in a corner, and on the taskbar sits above it, at its offset.
+    // A vertical overlay keeps its bottom edge in a corner; on a bar, which it does not fit in, it sits beside the bar at its
+    // offset: above one at the bottom, below one at the top, as GNOME's top bar.
     [Fact]
     public void ASnappedVerticalOverlayKeepsItsBottomEdge()
     {
         var overlay = SnappedTo(SnapSpot.BottomLeft, orientation: Orientation.Vertical);
+        var topBar = Main with { Work = new PixelRect(0, 72, 2560, 1440), Taskbar = new PixelRect(0, 0, 2560, 72), Tray = null };
 
         var shorter = Placed(overlay, [Main], 200, 228);
         var taller = Placed(overlay, [Main], 200, 290);
@@ -195,6 +197,7 @@ public sealed class SnapTests
         Assert.Equal(shorter.Bottom, taller.Bottom);
         Assert.Equal(shorter.Left, taller.Left);
         Assert.Equal(new PixelRect(1000, 1356 - 228, 1200, 1356), Placed(OnTaskbar(1000, orientation: Orientation.Vertical), [Main], 200, 228));
+        Assert.Equal(new PixelRect(1000, 72 + 12, 1200, 72 + 12 + 228), Placed(OnTaskbar(1000, orientation: Orientation.Vertical), [topBar], 200, 228));
     }
 
     [Fact]

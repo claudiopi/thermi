@@ -27,15 +27,22 @@ internal static class CpuLoad
         return 0;
     }
 
+    /// <summary><c>thermi cpu-load</c>'s arguments, for <paramref name="seconds"/> at most.</summary>
+    public static IEnumerable<string> Arguments(int seconds) => ["cpu-load", seconds.ToString(CultureInfo.InvariantCulture)];
+
     /// <summary>
-    /// The window's load: <paramref name="exePath"/> run as <c>thermi cpu-load</c> for <paramref name="seconds"/> at most,
-    /// so a window that dies leaves no load behind for long, ended at once when <paramref name="stop"/> is cancelled.
+    /// The window's load: <paramref name="program"/> run with <paramref name="arguments"/>, a <c>thermi cpu-load</c> of a few
+    /// seconds at most (<see cref="Arguments"/>), so a window that dies leaves no load behind for long, ended at once when
+    /// <paramref name="stop"/> is cancelled.
     /// </summary>
-    public static void Start(string exePath, int seconds, CancellationToken stop)
+    public static void Start(string program, IEnumerable<string> arguments, CancellationToken stop)
     {
-        var start = new ProcessStartInfo(exePath) { UseShellExecute = false, CreateNoWindow = true };
-        start.ArgumentList.Add("cpu-load");
-        start.ArgumentList.Add(seconds.ToString(CultureInfo.InvariantCulture));
+        var start = new ProcessStartInfo(program) { UseShellExecute = false, CreateNoWindow = true };
+        foreach (var argument in arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
         var process = Process.Start(start);
         if (process is null)
         {

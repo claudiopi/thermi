@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Thermi.Linux.Tests.Desktops;
 
@@ -8,7 +9,7 @@ namespace Thermi.Linux.Tests.Desktops;
 /// and in KWin's Xwayland. Points are the screenshots' pixels, which Mutter and Sway take as logical ones divided by
 /// <paramref name="scale"/>.
 /// </summary>
-internal sealed class DesktopInput(DesktopKind kind, OwnSession session, double scale = 1)
+internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session, double scale = 1)
 {
     public async Task ClickAsync(int x, int y, CancellationToken cancel, int button = 1)
     {
@@ -47,15 +48,20 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session, double 
     /// still pressed, as a person presses Esc before letting go.
     /// </summary>
     public async Task HoldAsync(
-        (int X, int Y) from, (int X, int Y) to, Func<CancellationToken, Task> held, Func<CancellationToken, Task> there, CancellationToken cancel)
+        (int X, int Y) from,
+        (int X, int Y) to,
+        Func<CancellationToken, Task> held,
+        Func<CancellationToken, Task> there,
+        CancellationToken cancel,
+        int button = 1)
     {
         await MoveAsync(from.X, from.Y, cancel).ConfigureAwait(false);
-        await ButtonAsync(1, pressed: true, cancel).ConfigureAwait(false);
+        await ButtonAsync(button, pressed: true, cancel).ConfigureAwait(false);
         await held(cancel).ConfigureAwait(false);
         await MoveAsync((from.X + to.X) / 2, (from.Y + to.Y) / 2, cancel).ConfigureAwait(false);
         await MoveAsync(to.X, to.Y, cancel).ConfigureAwait(false);
         await there(cancel).ConfigureAwait(false);
-        await ButtonAsync(1, pressed: false, cancel).ConfigureAwait(false);
+        await ButtonAsync(button, pressed: false, cancel).ConfigureAwait(false);
     }
 
     /// <summary>The wheel turned <paramref name="notches"/> up over a point, with <paramref name="holding"/> held, as Control.</summary>
@@ -85,14 +91,36 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session, double 
         await KeyAsync(key, pressed: false, cancel).ConfigureAwait(false);
     }
 
-    public Task MoveAsync(int x, int y, CancellationToken cancel)
+    public async Task MoveAsync(int x, int y, CancellationToken cancel)
     {
         var (logicalX, logicalY) = (Logical(x), Logical(y));
-        return RunAsync(
-            $"pointer.notify_absolute_motion(global.get_current_time(), {logicalX}, {logicalY})",
-            ("swaymsg", [$"seat - cursor set {logicalX} {logicalY}"]),
-            ["mousemove", $"{x}", $"{y}"],
-            cancel);
+        var motion = $"pointer.notify_absolute_motion(global.get_current_time(), {logicalX}, {logicalY})";
+        await RunAsync(motion, ("swaymsg", [$"seat - cursor set {logicalX} {logicalY}"]), ["mousemove", $"{x}", $"{y}"], cancel).ConfigureAwait(false);
+        if (kind is DesktopKind.Gnome or DesktopKind.GnomeX11)
+        {
+            await ReachedAsync(motion, x / scale, y / scale, cancel).ConfigureAwait(false);
+        }
+    }
+
+    // Mutter 50 moves its virtual pointer after the Eval returns, and can lose a new device's first motion, so a press
+    // waits until the pointer is where it was sent, and the motion is sent again while it is not.
+    private async Task ReachedAsync(string motion, double x, double y, CancellationToken cancel)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            var (program, args) = Shell("JSON.stringify(global.get_pointer().slice(0, 2))");
+            var said = await session.RunAsync(program, args, cancel: cancel).ConfigureAwait(false);
+            var at = Pointer().Match(said.Out);
+            if (at.Success && Math.Abs(double.Parse(at.Groups["x"].Value, CultureInfo.InvariantCulture) - x) <= 1
+                && Math.Abs(double.Parse(at.Groups["y"].Value, CultureInfo.InvariantCulture) - y) <= 1)
+            {
+                return;
+            }
+
+            await RunAsync(Shell(motion), cancel).ConfigureAwait(false);
+        }
+
+        throw new InvalidOperationException($"GNOME's pointer never reached {x}, {y}.");
     }
 
     /// <summary>
@@ -170,4 +198,7 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session, double 
                 string.Create(CultureInfo.InvariantCulture, $"{kind} took no input from {command.Program}: {ran.Error}{ran.Out}"));
         }
     }
+
+    [GeneratedRegex(@"\[(?<x>-?\d+),(?<y>-?\d+)\]", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex Pointer();
 }

@@ -99,7 +99,8 @@ internal sealed record WindowStart(int Overlay, Settings Settings, Texts Texts, 
         SizeRow = SizeRow,
     };
 
-    private void StartLoad(CancellationToken stop) => CpuLoad.Start(Environment.ExePath, (int)Core.Sensors.FanFinder.MaxRun.TotalSeconds, stop);
+    private void StartLoad(CancellationToken stop) =>
+        CpuLoad.Start(Environment.ExePath, CpuLoad.Arguments((int)Core.Sensors.FanFinder.MaxRun.TotalSeconds), stop);
 }
 
 /// <summary>

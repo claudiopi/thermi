@@ -14,27 +14,34 @@ internal sealed record SentNotice(double At, string App, string Summary, IReadOn
 /// </summary>
 internal sealed class NoticeWatch
 {
-    // Prints each Notify call, each request to install an extension, and each of the test's syncs, as a line of JSON.
+    // Prints each Notify call, each request to install an extension or look for their updates, and each of the test's syncs, as a line of JSON.
     private const string Monitor = """
         import json, sys, time, gi
         from gi.repository import Gio, GLib
         RULES = ["type='method_call',interface='org.freedesktop.Notifications',member='Notify'",
                  "type='method_call',interface='org.gnome.Shell.Extensions',member='InstallRemoteExtension'",
+                 "type='method_call',interface='org.gnome.Shell.Extensions',member='CheckForUpdates'",
                  "type='signal',interface='org.thermi.Tests',member='Sync'"]
+        # A filter sees what goes out as well as what comes in, and its None drops the message: the watcher's own call and
+        # the bus's reply go on, and the calls watched stop here, as a monitor that answered one would be cut off by the bus.
         def seen(connection, message, incoming):
+            if not incoming:
+                return message
             interface, member, body = message.get_interface(), message.get_member(), message.get_body()
+            said = None
             if interface == 'org.freedesktop.Notifications' and member == 'Notify':
                 app, _, _, summary, text, actions, _, _ = body.unpack()
                 said = {'app': app, 'summary': summary, 'actions': actions[0::2], 'labels': actions[1::2], 'id': 0}
             elif interface == 'org.gnome.Shell.Extensions' and member == 'InstallRemoteExtension':
                 said = {'install': body.unpack()[0]}
+            elif interface == 'org.gnome.Shell.Extensions' and member == 'CheckForUpdates':
+                said = {'updates': True}
             elif interface == 'org.thermi.Tests' and member == 'Sync':
                 said = {'sync': body.unpack()[0]}
-            else:
-                return None
-            said['at'] = time.monotonic()
-            print(json.dumps(said), flush=True)
-            return None
+            if said is not None:
+                said['at'] = time.monotonic()
+                print(json.dumps(said), flush=True)
+            return None if message.get_message_type() == Gio.DBusMessageType.METHOD_CALL else message
         bus = Gio.DBusConnection.new_for_address_sync(
             sys.argv[1], Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None)
         bus.add_filter(seen)
@@ -122,6 +129,10 @@ internal sealed class NoticeWatch
     public async Task<string> NextInstallAsync(CancellationToken cancel) =>
         (string)JsonNode.Parse(await _watcher.Out.NextAsync(line => JsonNode.Parse(line)?["install"] is not null, cancel).ConfigureAwait(false))!["install"]!;
 
+    /// <summary>The next time the Shell is asked to look for its extensions' updates, from this call on.</summary>
+    public Task NextUpdateCheckAsync(CancellationToken cancel) =>
+        _watcher.Out.NextAsync(line => JsonNode.Parse(line)?["updates"] is not null, cancel);
+
     /// <summary>How many notices with a button of <paramref name="action"/> were sent so far.</summary>
     public int Count(string action) => _watcher.Out.Text.Split('\n').Count(line => Of(line)?.Actions.Contains(action) == true);
 
@@ -150,12 +161,19 @@ internal sealed class NoticeWatch
             return;
         }
 
-        // The Shell's message tray holds each notification with its buttons by label, as it shows them.
+        // The Shell's message tray holds each notification with its buttons by label, as it shows them. It adds one only
+        // after it answered the call the watcher saw, so the button is pressed once the notification is there.
         var label = notice.Labels[notice.Actions.ToList().IndexOf(action)];
         await _desktop.Input.ShellAsync(
-            $"const notice = Main.messageTray.getSources().flatMap(source => source.notifications).findLast(each => each.title === {Quoted(notice.Summary)});"
-                + $" const button = (notice.actions ?? notice._actions).find(each => each.label === {Quoted(label)});"
-                + " (button.activate ?? button.callback).call(button);",
+            $"const title = {Quoted(notice.Summary)}; const label = {Quoted(label)};"
+                + " const press = notice => { const button = (notice.actions ?? notice._actions).find(each => each.label === label);"
+                + " (button.activate ?? button.callback).call(button); };"
+                + " const there = Main.messageTray.getSources().flatMap(source => source.notifications).findLast(each => each.title === title);"
+                + " if (there) { press(there); } else { const held = [];"
+                + " const watch = source => held.push([source, source.connect('notification-added', (_, added) => {"
+                + " if (added.title !== title) return; held.forEach(([object, id]) => object.disconnect(id)); press(added); })]);"
+                + " Main.messageTray.getSources().forEach(watch);"
+                + " held.push([Main.messageTray, Main.messageTray.connect('source-added', (_, source) => watch(source))]); }",
             cancel).ConfigureAwait(false);
     }
 

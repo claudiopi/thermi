@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Core.Look;
+using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Gnome;
 
@@ -19,7 +21,7 @@ internal sealed record ShellPointer(uint Overlay, string Kind, double X, double 
 /// apart, at <see cref="Scale"/> pixels to a logical one, taking the pointer only in <see cref="Clicks"/>, boxes of it in
 /// logical pixels.
 /// </summary>
-internal sealed record ShellPicture(byte[] Pixels, int Width, int Height, int Stride, double Scale, IReadOnlyList<PillBox> Clicks);
+internal sealed record ShellPicture(GLib.Bytes Pixels, int Width, int Height, int Stride, double Scale, IReadOnlyList<PillBox> Clicks);
 
 /// <summary>A row of a menu as the extension shows it: the row it is under, -1 at the top, and what it reads.</summary>
 internal sealed record ShellRow(int Parent, string Text, string? Note, bool Checked, bool Grayed, bool Starts);
@@ -44,8 +46,17 @@ internal enum ExtensionState
 /// </summary>
 internal sealed class ShellLink : IDisposable
 {
-    /// <summary>The name thermi takes on the session's bus, one overlay per session.</summary>
-    public const string Name = "io.github.claudiopi.thermi";
+    /// <summary>
+    /// The name thermi's overlay takes on the session's bus, one per session: thermi's own id is the settings window's, a
+    /// GTK application.
+    /// </summary>
+    public const string Name = "io.github.claudiopi.thermi.Overlay";
+
+    /// <summary>
+    /// The path of thermi's objects: the extension's, on the Shell's connection, and the overlay's actions, on its own under
+    /// <see cref="Name"/>, where the settings window activates <c>quit</c> through <c>org.gtk.Actions</c>.
+    /// </summary>
+    public const string ObjectPath = "/io/github/claudiopi/thermi";
 
     /// <summary>The extension's uuid, as extensions.gnome.org knows it.</summary>
     public const string Uuid = "thermi@claudiopi.github.io";
@@ -54,24 +65,40 @@ internal sealed class ShellLink : IDisposable
     public const uint Protocol = 1;
 
     private const string Shell = "org.gnome.Shell";
-    private const string ObjectPath = "/io/github/claudiopi/thermi";
-    private const string Interface = Name + ".Shell";
+    private const string Interface = "io.github.claudiopi.thermi.Shell";
     private const int Timeout = 5000;
+
+    // Each signal's shape in this protocol, as extension.js declares it.
+    private static readonly Dictionary<string, string> Shapes = new(StringComparer.Ordinal)
+    {
+        ["Ready"] = "(u)",
+        ["Pointer"] = "(usdduuudd)",
+        ["Key"] = "(us)",
+        ["MonitorsChanged"] = "(a(ddddddbb))",
+        ["Chosen"] = "(ui)",
+    };
 
     private readonly Gio.DBusConnection _bus;
     private readonly Gio.DBusProxy _signals;
+    private readonly Gio.DBusProxy _extensions;
+    private readonly ILogger _log;
 
-    public ShellLink(Gio.DBusConnection bus)
+    public ShellLink(Gio.DBusConnection bus, ILogger log)
     {
         _bus = bus;
+        _log = log;
         // A proxy's signals come through GObject's own, which GirCore marshals, where a subscription's callback it does not.
         const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
         _signals = Gio.DBusProxy.NewSync(bus, Flags, null, Shell, ObjectPath, Interface, null);
         _signals.OnGSignal += (_, heard) => Heard(heard.SignalName, heard.Parameters);
+        _extensions = Gio.DBusProxy.NewSync(bus, Flags, null, Shell, "/org/gnome/Shell", "org.gnome.Shell.Extensions", null);
+        _extensions.OnGSignal += (_, heard) => Changed(heard.SignalName, heard.Parameters);
     }
 
-    /// <summary>The extension came up, with its protocol's version.</summary>
     public Action<uint> Ready { get; set; } = _ => { };
+
+    /// <summary>The extension stopped running, as GNOME stops every extension while the screen is locked; its Ready says when it is back.</summary>
+    public Action Gone { get; set; } = () => { };
 
     public Action<ShellPointer> Pointer { get; set; } = _ => { };
 
@@ -156,13 +183,12 @@ internal sealed class ShellLink : IDisposable
     /// <summary>Shows an overlay's picture with its top-left corner at (<paramref name="x"/>, <paramref name="y"/>) of the stage.</summary>
     public async Task Show(uint overlay, ShellPicture picture, double x, double y)
     {
-        using var pixels = GLib.Bytes.New(picture.Pixels);
         var boxes = picture.Clicks.Select(box => GLib.Variant.NewTuple(
             [GLib.Variant.NewDouble(box.Left), GLib.Variant.NewDouble(box.Top), GLib.Variant.NewDouble(box.Width), GLib.Variant.NewDouble(box.Height)]));
         await Own(
             "Show",
             GLib.Variant.NewUint32(overlay),
-            GLib.Variant.NewFromBytes(GLib.VariantType.New("ay"), pixels, true),
+            GLib.Variant.NewFromBytes(GLib.VariantType.New("ay"), picture.Pixels, true),
             GLib.Variant.NewInt32(picture.Width),
             GLib.Variant.NewInt32(picture.Height),
             GLib.Variant.NewInt32(picture.Stride),
@@ -194,7 +220,11 @@ internal sealed class ShellLink : IDisposable
 
     public async Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => MonitorsOf((await Own("Monitors")).GetChildValue(0));
 
-    public void Dispose() => _signals.Dispose();
+    public void Dispose()
+    {
+        _signals.Dispose();
+        _extensions.Dispose();
+    }
 
     private static List<ShellMonitor> MonitorsOf(GLib.Variant monitors) =>
         [.. Enumerable.Range(0, (int)monitors.NChildren()).Select(at => monitors.GetChildValue((nuint)at)).Select(each => new ShellMonitor(
@@ -212,7 +242,53 @@ internal sealed class ShellLink : IDisposable
     private Task<GLib.Variant> Call(string destination, string path, string face, string method, params GLib.Variant[] args) =>
         _bus.CallAsync(destination, path, face, method, GLib.Variant.NewTuple(args));
 
+    // An extension of another protocol may send any shape: a signal is read only in the shape this protocol gives it, and a
+    // Ready of another shape is another protocol's, whose number this one cannot read.
     private void Heard(string signal, GLib.Variant args)
+    {
+        try
+        {
+            if (Shapes.TryGetValue(signal, out var shape) && args.GetTypeString() == shape)
+            {
+                Read(signal, args);
+            }
+            else if (signal == "Ready")
+            {
+                Ready(0);
+            }
+            else
+            {
+                _log.ShellSignalRefused(signal, args.GetTypeString());
+            }
+        }
+#pragma warning disable CA1031 // GLib calls it from native code, where an exception that escapes ends the process.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            _log.ShellSignalFailed(signal, ex);
+        }
+    }
+
+    // The Shell says each extension's state as it changes; thermi's is gone in any but 1, running.
+    private void Changed(string signal, GLib.Variant args)
+    {
+        try
+        {
+            if (signal == "ExtensionStateChanged" && args.GetTypeString() == "(sa{sv})" && args.GetChildValue(0).GetString(out _) == Uuid
+                && args.GetChildValue(1).LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is not 1)
+            {
+                Gone();
+            }
+        }
+#pragma warning disable CA1031 // GLib calls it from native code, where an exception that escapes ends the process.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            _log.ShellSignalFailed(signal, ex);
+        }
+    }
+
+    private void Read(string signal, GLib.Variant args)
     {
         string Text(int at)
         {

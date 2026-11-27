@@ -25,7 +25,7 @@ public sealed class AdditionTests
     public void TheWindowsItemsReadWindowsItself(int minutes, string address, string time, string culture, string shown)
     {
         var at = TimeOnly.Parse(time, CultureInfo.InvariantCulture);
-        var facts = new WindowsFacts(
+        var facts = new SystemFacts(
             TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(29),
             address == "none" ? null : SystemSensors.AddressOf(System.Net.IPAddress.Parse(address).GetAddressBytes()),
             new DateTimeOffset(new DateOnly(2026, 11, 23).ToDateTime(at), TimeSpan.FromHours(-3)));

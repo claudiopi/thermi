@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Globalization;
+using Thermi.Core;
 using Thermi.Core.Agents;
 using Thermi.Core.Sensors;
 
@@ -210,6 +211,21 @@ internal static class AgentCommandLine
             }));
     }
 
+    /// <summary>A parser of a whole number from <paramref name="min"/> to <paramref name="max"/>, saying the range when it is not one.</summary>
+    public static Func<ArgumentResult, int> Whole(int min, int max) => result => Whole(result, result.Argument.Name, min, max) ?? 0;
+
+    /// <summary>The whole number <paramref name="result"/> holds, as Core's <see cref="WholeNumber"/> reads one, or null, saying why.</summary>
+    public static int? Whole(ArgumentResult result, string name, int min, int max)
+    {
+        var value = WholeNumber.Parse(result.Tokens.SingleOrDefault()?.Value, min, max);
+        if (value is null)
+        {
+            result.AddError(max == int.MaxValue ? WholeNumber.Expected(name, min) : WholeNumber.Expected(name, min, max));
+        }
+
+        return value;
+    }
+
     private static int SchemaOf(ArgumentResult result)
     {
         if (result.Tokens is [{ Value: var value }] && value == AgentSchema.Current.ToString(CultureInfo.InvariantCulture))
@@ -221,16 +237,5 @@ internal static class AgentCommandLine
         return AgentSchema.Current;
     }
 
-    private static int Seconds(ArgumentResult result)
-    {
-        if (result.Tokens is [var token]
-            && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
-            && value is >= 1 and <= MaxSeconds)
-        {
-            return value;
-        }
-
-        result.AddError(string.Create(CultureInfo.InvariantCulture, $"--seconds takes a whole number from 1 to {MaxSeconds}."));
-        return 1;
-    }
+    private static int Seconds(ArgumentResult result) => Whole(result, "--seconds", 1, MaxSeconds) ?? 1;
 }

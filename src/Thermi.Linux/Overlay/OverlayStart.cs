@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Thermi.App.Logging;
-using Thermi.App.Sensors;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Commands;
 using Thermi.Linux.Desktop;
@@ -22,7 +21,7 @@ internal static class OverlayStart
         {
             // GirCore hands the session's one connection out as one object, which lives as long as the process.
             var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
-            var sensors = new SensorReader(time, logs.CreateLogger<SensorReader>(), new SensorSocket(time));
+            var sensors = new SocketFeed(time, logs.CreateLogger<SocketFeed>());
             using var stop = new CancellationTokenSource();
             var reading = Task.Run(() => sensors.RunAsync(stop.Token), stop.Token);
             using var store = new ConfigStore(ConfigStore.DefaultPath, time, DesktopLooks.RunsInstalled);

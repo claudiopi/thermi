@@ -29,7 +29,9 @@
               "pipe-taken",
               "driver-missing",
               "settings-broken",
-              "not-running"
+              "not-running",
+              "frames-not-read",
+              "overlay-cannot-show"
             ]
           },
           "cause": {

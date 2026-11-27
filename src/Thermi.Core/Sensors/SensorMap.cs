@@ -16,7 +16,7 @@ public static class SensorMap
 
     private const char RepeatMark = '#';
 
-    private const string Network = "Network";
+    internal const string Network = "Network";
 
     private const string Storage = "Storage";
 
@@ -51,16 +51,19 @@ public static class SensorMap
         Drive,
     }
 
+    // Each rule's names are LibreHardwareMonitor's on Windows, then the Linux kernel's for the same: k10temp's Tdie and Tctl
+    // on AMD, coretemp's Package id 0 on Intel, RAPL's package-0, amdgpu's edge and PPT, and Intel's xe's pkg.
     private static readonly Dictionary<string, Rule> Rules = new(StringComparer.Ordinal)
     {
-        [Metrics.CpuTemperature.Id] = new(["Cpu"], "Temperature", ["Core (Tctl/Tdie)", "Core (Tctl)", "CPU Package", "Core Average"]),
+        [Metrics.CpuTemperature.Id] = new(
+            ["Cpu"], "Temperature", ["Core (Tctl/Tdie)", "Core (Tctl)", "CPU Package", "Core Average", "Tdie", "Tctl", "Package id 0"]),
         [Metrics.CpuLoad.Id] = new(["Cpu"], "Load", ["CPU Total"]),
-        [Metrics.CpuPower.Id] = new(["Cpu"], "Power", ["Package", "CPU Package"]),
+        [Metrics.CpuPower.Id] = new(["Cpu"], "Power", ["Package", "CPU Package", "package-0"]),
         // An Intel CPU reports its bus's clock first, at about 100 MHz: never a core's.
         [Metrics.CpuClock.Id] = new(["Cpu"], "Clock", ["Cores (Average)", "Core #1", "P-Core #1", "CPU Core #1"], SkipName: "Bus Speed"),
-        [Metrics.GpuTemperature.Id] = new(Gpus, "Temperature", ["GPU Core"]),
+        [Metrics.GpuTemperature.Id] = new(Gpus, "Temperature", ["GPU Core", "edge", "pkg"]),
         [Metrics.GpuLoad.Id] = new(Gpus, "Load", ["GPU Core"]),
-        [Metrics.GpuPower.Id] = new(Gpus, "Power", ["GPU Package", "GPU Power"]),
+        [Metrics.GpuPower.Id] = new(Gpus, "Power", ["GPU Package", "GPU Power", "PPT"]),
         // Virtual memory reports a load named "Memory" too, and it comes first.
         [Metrics.RamLoad.Id] = new(["Memory"], "Load", ["Memory"], SkipHardware: "Virtual Memory"),
         [Metrics.RamUsed.Id] = new(["Memory"], "Data", ["Memory Used"], SkipHardware: "Virtual Memory", OnlyPreferred: true),
@@ -148,7 +151,16 @@ public static class SensorMap
     /// which way it goes, and a battery's rate is below zero while it discharges.
     /// </summary>
     public static Reading? ReadingOf(RawSensor sensor) =>
-        KindOf(sensor) is { } kind ? new Reading(kind, ZeroIsMissing(sensor) ? null : Signed(sensor)) { Direction = DirectionOf(sensor) } : null;
+        KindOf(sensor) is { } kind
+            ? new Reading(kind, ZeroIsMissing(sensor) || NotConnected(sensor) ? null : Signed(sensor)) { Direction = DirectionOf(sensor) }
+            : null;
+
+    /// <summary>
+    /// Whether a board's temperature is of a sensor not connected, which chips report at -40 °C or below, as ASUS's embedded
+    /// controller does on Linux: no board runs that cold.
+    /// </summary>
+    public static bool NotConnected(RawSensor sensor) =>
+        sensor is { Type: nameof(SensorKind.Temperature), Value: <= -40, HardwareType: "SuperIO" or "EmbeddedController" or "Motherboard" };
 
     /// <summary>
     /// Whether a zero means "not read": without admin rights or the driver, a CPU's temperature, power, clocks and voltages
@@ -165,6 +177,9 @@ public static class SensorMap
     /// <summary>Whether thermi's driver seems missing: a CPU temperature reads zero, and so the board's sensors may not be read either.</summary>
     public static bool DriverMayBeMissing(Snapshot snapshot) =>
         snapshot.Sensors.Any(sensor => sensor.Type == nameof(SensorKind.Temperature) && ZeroIsMissing(sensor));
+
+    public static bool HasCpuTemperature(Snapshot snapshot) =>
+        snapshot.Sensors.Any(sensor => sensor is { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) });
 
     public static bool IsGpu(RawSensor sensor) => Gpus.Contains(sensor.HardwareType, StringComparer.Ordinal);
 
@@ -295,7 +310,7 @@ public static class SensorMap
         var chosen = new Dictionary<string, RawSensor?>(StringComparer.Ordinal);
         var devices = new Dictionary<Follow, string?>
         {
-            [Follow.Adapter] = BusiestAdapter(snapshot),
+            [Follow.Adapter] = BusiestAdapter.Of(snapshot),
             [Follow.Drive] = drive ?? BusiestDriveNow(snapshot),
         };
         // Grouped once, since every metric looks only at its own kinds of device, and the window and the overlay pick
@@ -364,36 +379,6 @@ public static class SensorMap
     private static int Preference(Rule rule, RawSensor sensor) => Array.IndexOf(
         rule.OnChip is { } chip && sensor.Hardware.StartsWith(chip.Chip, StringComparison.Ordinal) ? chip.Names : rule.PreferredNames,
         sensor.Name);
-
-    // The adapter that has moved the most data, as the library counts it: a physical one while any moves data, so a VPN
-    // or a virtual switch, which carries the same traffic again, never wins; any one when none does.
-    // In one pass, without grouping, since it runs with every pick: of equal ones, the first listed wins.
-    private static string? BusiestAdapter(Snapshot snapshot)
-    {
-        var moved = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var sensor in snapshot.Sensors)
-        {
-            if (sensor is { HardwareType: Network, Type: nameof(SensorKind.Data) })
-            {
-                var id = DeviceIdOf(sensor);
-                moved[id] = moved.GetValueOrDefault(id) + (sensor.Value is { } value && double.IsFinite(value) ? value : 0);
-            }
-        }
-
-        var virtuals = snapshot.VirtualAdapters ?? [];
-        var physicalMoves = moved.Any(adapter => adapter.Value > 0 && !virtuals.Contains(adapter.Key, StringComparer.Ordinal));
-        string? busiest = null;
-        var most = double.NegativeInfinity;
-        foreach (var (id, data) in moved)
-        {
-            if (data > most && !(physicalMoves && virtuals.Contains(id, StringComparer.Ordinal)))
-            {
-                (busiest, most) = (id, data);
-            }
-        }
-
-        return busiest;
-    }
 
     private static string? BusiestDriveNow(Snapshot snapshot) =>
         DriveActivity(snapshot).OrderByDescending(drive => drive.Value).Select(drive => drive.Key).FirstOrDefault();

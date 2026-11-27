@@ -191,7 +191,7 @@ internal sealed class OverlayWindow : IDisposable
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
         IReadOnlyList<Screen> screens = heldAt is null ? scene.Screens : [];
         var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
-        var items = scene.WithProblem(texts, shown.Items);
+        var items = shown.WithProblem(scene.Problem, texts);
         var room = TaskbarRow.RoomOf(overlays, _index, screens, _actions.Shown());
         var scale = _painter.Within(items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), room);
         scale = _painter.Fitting(items, look, scale, Snaps.Most(overlay, screens));

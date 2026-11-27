@@ -33,6 +33,7 @@ internal sealed class OverlayHost : IDisposable
     private readonly OverlayParts _parts;
     private readonly DesktopNotices _notices;
     private readonly ExtensionArrival _arrival;
+    private readonly OverlayNotices _told;
     private readonly OverlayMenu _menu;
     private readonly List<ShellOverlay> _overlays = [];
     private readonly HighContrastColors? _highContrast = DesktopLooks.HighContrast();
@@ -56,7 +57,7 @@ internal sealed class OverlayHost : IDisposable
         _feed = feed;
         _trace = trace;
         var time = trace.Time;
-        _link = new ShellLink(bus);
+        _link = new ShellLink(bus, log);
         _parts = new OverlayParts(settings, _link, time, CultureInfo.CurrentCulture, log)
         {
             RequestPaint = () => Post(Repaint),
@@ -64,17 +65,22 @@ internal sealed class OverlayHost : IDisposable
             Menu = (overlay, x, y, item) => _menu!.Show(overlay, x, y, item, feed.State, feed.Latest),
             Settle = Settle,
             Dropped = Dropped,
+            Traced = trace.On,
         };
-        _menu = new OverlayMenu(_parts, _loop.Quit);
+        _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
         _notices = new DesktopNotices(bus);
         _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
+        _told = new OverlayNotices(_parts, _notices, () => TextsOf(settings.Config));
     }
 
     private Settings Settings => _parts.Settings;
 
     private ILogger Log => _parts.Log;
 
-    /// <summary>Runs until "Exit thermi": 0, or 0 at once when another overlay of the session runs.</summary>
+    /// <summary>
+    /// Runs until "Exit thermi", from the menu or from the settings window's <c>quit</c>, which only the person's own session
+    /// bus reaches: 0, or 0 at once when another overlay of the session runs.
+    /// </summary>
     public int Run()
     {
         if (!_link.Own())
@@ -83,11 +89,12 @@ internal sealed class OverlayHost : IDisposable
             return 0;
         }
 
-        _link.Ready += protocol => Safe(() => Arrived(protocol));
-        _link.MonitorsChanged += monitors => Safe(() => Monitors(monitors));
-        _link.Pointer += pointer => Safe(() => Pointer(pointer));
-        _link.Key += (overlay, key) => Safe(() => Key(overlay, key));
-        _link.Chosen += (_, row) => Safe(() => _menu.Chosen(row));
+        _link.Ready += protocol => Safe(() => Arrived(protocol), Log.ArrivalFailed);
+        _link.Gone += _arrival.Left;
+        _link.MonitorsChanged += monitors => Safe(() => Monitors(monitors), Log.MonitorsFailed);
+        _link.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
+        _link.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
+        _link.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
         _feed.Received += (_, _) => Post(Record);
         Settings.Changed += (_, _) => Post(SettingsChanged);
         using var watcher = Settings.Watch(Log);
@@ -99,7 +106,13 @@ internal sealed class OverlayHost : IDisposable
         }
 
         using var ticks = _parts.Time.CreateTimer(_ => Post(Tick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        using var quit = Gio.SimpleAction.New("quit", null);
+        quit.OnActivate += (_, _) => Safe(_loop.Quit, Log.ChoiceFailed);
+        using var actions = Gio.SimpleActionGroup.New();
+        actions.AddAction(quit);
+        var exported = _bus.ExportActionGroup(ShellLink.ObjectPath, actions);
         _loop.Run();
+        _bus.UnexportActionGroup(exported);
         _overlays.ForEach(overlay => _ = overlay.Hide());
         return 0;
     }
@@ -115,12 +128,12 @@ internal sealed class OverlayHost : IDisposable
     // GLib runs it on the main loop's thread once it is free, and only once.
     private void Post(Action action) => GLib.Functions.IdleAdd(0, () =>
     {
-        Safe(action);
+        Safe(action, Log.PaintFailed);
         return false;
     });
 
-    // GLib calls these from native code, where an exception that escapes ends the process.
-    private void Safe(Action action)
+    // GLib calls these from native code, where an exception that escapes ends the process; each kind is logged as its own.
+    private static void Safe(Action action, Action<Exception> failed)
     {
         try
         {
@@ -130,7 +143,7 @@ internal sealed class OverlayHost : IDisposable
         catch (Exception ex)
 #pragma warning restore CA1031
         {
-            Log.PaintFailed(ex);
+            failed(ex);
         }
     }
 
@@ -141,10 +154,20 @@ internal sealed class OverlayHost : IDisposable
             return;
         }
 
+        _overlays.ForEach(overlay => overlay.Forget());
+
         _ = Task.Run(async () =>
         {
-            var monitors = await _link.MonitorsAsync();
-            Post(() => Monitors(monitors));
+            try
+            {
+                var monitors = await _link.MonitorsAsync();
+                Post(() => Monitors(monitors));
+            }
+            catch (GLib.GException ex)
+            {
+                // The extension's next MonitorsChanged, or its next arrival, brings them.
+                Log.MonitorsFailed(ex);
+            }
         });
     }
 
@@ -174,10 +197,10 @@ internal sealed class OverlayHost : IDisposable
         Repaint(second: true);
     }
 
-    // The first is the file's first read; each after, a change saved, which a drop of this overlay's may wait on.
+    // The first is the file's first read; each after, a change saved: a drop's, when one waits on it, or else an edit.
     private void SettingsChanged()
     {
-        _editOwed |= _loaded;
+        _editOwed |= _loaded && !_droppedOnSave;
         _loaded = true;
         _droppedOwed |= _droppedOnSave;
         _droppedOnSave = false;
@@ -224,21 +247,24 @@ internal sealed class OverlayHost : IDisposable
         var shown = _parts.Visibility.Decide(config, fullScreen);
         var sent = _overlays.Select((overlay, at) => shown[at] == OverlayShown.Shown ? overlay.Show(scene, Boxes()) : overlay.Hide()).ToList();
         Announce(sent, second);
+        _told.Update(config);
     }
 
     // Each event --trace owes, once the Shell shows what the paint sent.
     private void Announce(List<Task> sent, bool second)
     {
         var hiding = _parts.Visibility.HideOverlays;
+        // At start, the overlays are shown once they show what the service says: its first second, or that it is stopped.
+        var shown = !hiding && (_wasHidden || (_shownOwed && (_feed.Latest is not null || _feed.State != ServiceState.Running)));
         List<string> owed =
         [
             .. second ? [TraceEvents.Paint] : Array.Empty<string>(),
             .. _editOwed ? [TraceEvents.EditApplied] : Array.Empty<string>(),
             .. _droppedOwed ? [TraceEvents.Dropped] : Array.Empty<string>(),
             .. hiding && !_wasHidden ? [TraceEvents.Hidden] : Array.Empty<string>(),
-            .. !hiding && (_shownOwed || _wasHidden) ? [TraceEvents.Shown] : Array.Empty<string>(),
+            .. shown ? [TraceEvents.Shown] : Array.Empty<string>(),
         ];
-        (_editOwed, _droppedOwed, _shownOwed, _wasHidden) = (false, false, false, hiding);
+        (_editOwed, _droppedOwed, _shownOwed, _wasHidden) = (false, false, _shownOwed && !shown && !hiding, hiding);
         if (owed.Count > 0)
         {
             _ = Task.WhenAll(sent).ContinueWith(
@@ -246,7 +272,7 @@ internal sealed class OverlayHost : IDisposable
         }
     }
 
-    private OverlayScene SceneOf(ThermiConfig config)
+    private ShellPaint SceneOf(ThermiConfig config)
     {
         var input = new TrayInput(_feed.Latest, _feed.State, _parts.Culture, TextsOf(config), DesktopLooks.LightPanels, "")
         {
@@ -255,7 +281,7 @@ internal sealed class OverlayHost : IDisposable
             HighContrast = _highContrast is not null,
             BaseClock = _baseClock,
         };
-        return new OverlayScene(config, Settings.Problem, _screens, input, _highContrast);
+        return new ShellPaint(config, Settings.Problem, _screens, input, _highContrast);
     }
 
     private List<PixelRect?> Boxes() => [.. _overlays.Select(overlay => overlay.Box)];
