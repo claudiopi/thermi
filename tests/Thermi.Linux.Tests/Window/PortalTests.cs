@@ -47,7 +47,7 @@ public sealed class PortalTests
     // The window takes the desktop's scheme, its accent to the nearest of 255 steps a color, and its contrast, as they are
     // and each time they change, from the portal's own signal on GTK's loop: a desktop that prefers no scheme and has no
     // accent says none.
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task TheWindowFollowsTheDesktopsLookAsItChanges()
     {
         var cancel = TestContext.Current.CancellationToken;

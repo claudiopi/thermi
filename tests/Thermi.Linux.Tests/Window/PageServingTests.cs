@@ -11,7 +11,8 @@ public sealed class PageServingTests : IDisposable
     public PageServingTests()
     {
         // The page's folder, a file beside it, and a folder whose name starts as the page's does.
-        foreach (var file in new[] { Path.Combine("web", PageFiles.Index), Path.Combine("web", "assets", "page.js"), "beside.txt", Path.Combine("web-other", "x.js") })
+        string[] files = [Path.Combine("web", PageFiles.Index), Path.Combine("web", "assets", "page.js"), "beside.txt", Path.Combine("web-other", "x.js")];
+        foreach (var file in files)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(_root, file))!);
             File.WriteAllText(Path.Combine(_root, file), "");

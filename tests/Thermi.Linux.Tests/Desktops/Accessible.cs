@@ -152,7 +152,8 @@ internal static class Accessible
     }
 
     private static double[] Numbers(string said) =>
-        [.. Regex.Matches(said, @"-?\d+(\.\d+)?", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Select(number => double.Parse(number.Value, CultureInfo.InvariantCulture))];
+        [.. Regex.Matches(said, @"-?\d+(\.\d+)?", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1))
+            .Select(number => double.Parse(number.Value, CultureInfo.InvariantCulture))];
 
     private static async Task<string> RunAsync(OwnSession session, string[] args, CancellationToken cancel)
     {

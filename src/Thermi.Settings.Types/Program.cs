@@ -23,7 +23,8 @@ var client = System.Text.Json.JsonSerializer.Serialize(BridgeCalls.Client);
 var around = BridgeCalls.Dispatched(Hole).Split(Hole).Select(part => System.Text.Json.JsonSerializer.Serialize(part)).ToList();
 await WriteAsync(
     Path.Combine(folder, "client.g.ts"),
-    $"{TypeScriptWriter.Header}export const client = {client};\n\nexport const dispatched = (message: string): string => {around[0]} + message + {around[1]};\n");
+    $"{TypeScriptWriter.Header}export const client = {client};\n\n"
+    + $"export const dispatched = (message: string): string => {around[0]} + message + {around[1]};\n");
 Directory.CreateDirectory(schemas);
 var indented = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
 foreach (var (name, schema) in Thermi.Core.Agents.AgentSchemas.Current)
