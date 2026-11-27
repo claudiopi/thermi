@@ -43,7 +43,8 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
-PrivateUsers=yes
+# No PrivateUsers: in a namespace of its own, every client but root reads as nobody, and the share of connections each
+# user holds is only one.
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
 SystemCallFilter=~@privileged
