@@ -60,7 +60,9 @@ public sealed class AgentSettingsTests : IDisposable
         Assert.Null(saved.Save(new StyleConfig(Gap: 12), "Calm"));
         Assert.Null(saved.Save(new StyleConfig(Gap: 10, Units: false), "Loud"));
 
-        Assert.Equal(["Calm", "Loud"], (await _rig.RunAsync("looks")).Json["looks"]!.AsArray().Select(name => (string)name!));
+        var looks = await _rig.RunAsync("looks");
+        Assert.Equal((0, ""), (looks.Exit, looks.Error));
+        Assert.Equal(["Calm", "Loud"], looks.Json["looks"]!.AsArray().Select(name => (string)name!));
         // A name that starts with @ is a name, never a file of arguments to read.
         Assert.Equal(0, (await _rig.RunAsync("look", "save", "@Mine", "--overlay", "1")).Exit);
         Assert.Equal(3, saved.Named("@Mine")!.Gap);
@@ -116,7 +118,9 @@ public sealed class AgentSettingsTests : IDisposable
         var config = OverlayEdits.Add(new ThermiConfig()).Config;
         _rig.Folder.Write(ThermiConfigJson.Write(config));
 
-        var monitors = (await _rig.RunAsync("monitors")).Json["monitors"]!.AsArray();
+        var listed = await _rig.RunAsync("monitors");
+        Assert.Equal((0, ""), (listed.Exit, listed.Error));
+        var monitors = listed.Json["monitors"]!.AsArray();
         Assert.Equal(["DISPLAY1", "DISPLAY2"], monitors.Select(monitor => (string)monitor!["id"]!));
         Assert.Equal((2560, true, false), ((int)monitors[1]!["bounds"]!["width"]!, (bool)monitors[0]!["taskbar"]!, (bool)monitors[1]!["taskbar"]!));
 

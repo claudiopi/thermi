@@ -11,12 +11,11 @@ public static class ZipEntries
     private const uint TypeUnit = 1u << 28;
 
     /// <summary>
-    /// Whether the entry <paramref name="name"/>, with <paramref name="externalAttributes"/>, lands inside
-    /// <paramref name="folder"/>: never a rooted path, one naming a drive or a stream, one that climbs out, or a link.
+    /// The full path the entry <paramref name="name"/>, with <paramref name="externalAttributes"/>, lands at inside
+    /// <paramref name="folder"/>; null for a rooted path, one naming a drive or a stream, one that climbs out, or a link.
     /// </summary>
-    public static bool LandsInside(string folder, string name, int externalAttributes) =>
-        !Path.IsPathRooted(name)
-        && !name.Contains(':', StringComparison.Ordinal)
-        && InstallLayout.Inside(Path.Combine(folder, name), folder)
-        && unchecked((uint)externalAttributes) / TypeUnit != LinkType;
+    public static string? Target(string folder, string name, int externalAttributes) =>
+        Path.IsPathRooted(name) || name.Contains(':', StringComparison.Ordinal) || unchecked((uint)externalAttributes) / TypeUnit == LinkType
+            ? null
+            : InstallLayout.Within(Path.Combine(folder, name), folder);
 }

@@ -67,8 +67,22 @@ public static class InstallLayout
     public static bool Same(string one, string other) => string.Equals(Full(one), Full(other), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Whether <paramref name="path"/> lies inside <paramref name="folder"/>, as Windows compares paths.</summary>
-    public static bool Inside(string path, string folder) =>
-        Path.GetFullPath(path).StartsWith(Full(folder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    public static bool Inside(string path, string folder) => Within(path, folder) is not null;
+
+    /// <summary>
+    /// The full path of <paramref name="path"/> when it lies inside <paramref name="folder"/>, as Windows compares paths;
+    /// else null. A caller opens the very path checked, which is what CodeQL's cs/zipslip looks for.
+    /// </summary>
+    public static string? Within(string path, string folder)
+    {
+        var full = Path.GetFullPath(path);
+        if (!full.StartsWith(Full(folder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return full;
+    }
 
     private static bool VersionOrCopy(string name) =>
         name.StartsWith(InstallPrefix, StringComparison.OrdinalIgnoreCase) || ReleaseVersion.Parse(name) is not null;
