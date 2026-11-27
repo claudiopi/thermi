@@ -64,8 +64,8 @@ function Get-Code {
 # A report's file, which Stryker names by its full path, as a path from its project's folder.
 function Get-Named([string]$Key, [string]$Project) { ($Key -replace '\\', '/') -replace "^.*?/src/$([regex]::Escape($Project))/", '' }
 
-# What each file cost the last run that measured it, as Assert-DotNet saves it: the tests its mutants ran, one each at
-# least. A file it did not measure costs as much per byte as those it did; with no last run, each costs its bytes.
+# What each file cost the last run that measured it, as Save-Costs saves it. A file it did not measure costs as much per
+# byte as those it did; with no last run, each costs its bytes.
 function Get-Costs {
     $last = if (Test-Path $costsFile) { Read-Report $costsFile } else { @{} }
     $code = @(Get-Code)
@@ -77,26 +77,42 @@ function Get-Costs {
     $costs
 }
 
-# A file's size predicts its cost poorly (ConfigRules.cs: 7 KB, 17 % of all test runs), so the costliest file joins the
-# share that costs least so far. Every share reads the same costs, so together they split the files exactly once.
+# A file's size predicts its cost poorly: split by bytes, one share took three times as long as another. So the costliest
+# file joins the share that costs least so far. Every share reads the same costs, so together they split the files once.
+# Each project a share mutates costs it a Stryker run of its own, a build and a first run of the tests, about a tenth of
+# a share's time: a file with no mutants, last, then joins a share that runs its project already.
 function Get-Share([int]$At, [int]$Of) {
     $costs = Get-Costs
+    $start = ($costs.Values | Measure-Object -Sum).Sum / $Of / 10
     $sums = [double[]]::new($Of)
-    $share = @{}
+    $shares = @(foreach ($index in 1..$Of) { @{} })
     foreach ($file in Get-Code | Sort-Object @{ Expression = { $costs["$($_.Project)/$($_.Path)"] }; Descending = $true }, Project, Path) {
-        $least = (0..($Of - 1) | Sort-Object { $sums[$_] }, { $_ })[0]
+        $least = (0..($Of - 1) | Sort-Object { $sums[$_] + $(if ($shares[$_].ContainsKey($file.Project)) { 0 } else { $start }) }, { $_ })[0]
+        if (-not $shares[$least].ContainsKey($file.Project)) { $sums[$least] += $start }
         $sums[$least] += $costs["$($file.Project)/$($file.Path)"]
-        if ($least -eq $At - 1) { $share[$file.Project] += @($file.Path) }
+        $shares[$least][$file.Project] += @($file.Path)
     }
-    $share
+    $shares[$At - 1]
 }
 
-function Save-Costs([hashtable]$Reports) {
+# With bail off a mutant runs every test that covers it, and one that timed out ran half as long again past Stryker's
+# 5 s of grace. A few tests take seconds each, and the slowest share of the first nightly in shares was the one whose
+# mutants ran them most; each mutant also costs Stryker some time of its own, here 2 s. A test with no time costs as the
+# median test; with no times at all, each test costs 1.
+function Save-Costs([hashtable]$Reports, [hashtable]$Names, [hashtable]$Times) {
+    $median = if ($Times.Count) { @($Times.Values | Sort-Object)[[int]($Times.Count / 2)] } else { 1 }
+    $byId = @{}
+    foreach ($id in $Names.Keys) { $byId[$id] = $Times[(Get-TestKey $Names[$id])] ?? $median }
     $costs = [ordered]@{}
     foreach ($project in $Reports.Keys) {
         foreach ($file in $Reports[$project] | ForEach-Object { (Read-Report $_).files.GetEnumerator() }) {
-            $tested = @($file.Value.mutants | Where-Object { $_.status -in 'Killed', 'Timeout', 'Survived', 'NoCoverage' })
-            $costs["$project/$(Get-Named $file.Key $project)"] = ($tested | ForEach-Object { 1 + @($_.coveredBy).Count } | Measure-Object -Sum).Sum
+            $seconds = 0.0
+            foreach ($mutant in $file.Value.mutants | Where-Object { $_.status -in 'Killed', 'Timeout', 'Survived', 'NoCoverage' }) {
+                $ran = 2
+                foreach ($test in $mutant.coveredBy) { $ran += $byId[$test] ?? $median }
+                $seconds += if ($mutant.status -eq 'Timeout') { 1.5 * $ran + 5 } else { $ran }
+            }
+            $costs["$project/$(Get-Named $file.Key $project)"] = [Math]::Round($seconds, 2)
         }
     }
     $costs | ConvertTo-Json | Set-Content $costsFile
@@ -113,7 +129,7 @@ function Invoke-DotNet([hashtable]$Share) {
             $mutate = @(foreach ($path in $Share.$project) { '--mutate', "**/$path" })
             if ($Share -and -not $mutate) { continue }
             Invoke-Stryker "Stryker.NET on $project" (Get-Report $project) (@('dotnet', 'dotnet-stryker', '--project', "$project.csproj",
-                    '--output', (Join-Path $output $project), '--skip-version-check', '--break-at', '0', '--disable-bail') + $mutate + $passed)
+                    '--output', (Join-Path $output $project), '--skip-version-check', '--break-at', '0', '--disable-bail', '--log-to-file') + $mutate + $passed)
             if (-not $Share) { continue }
             $report = Read-Report (Get-Report $project)
             foreach ($key in @($report.files.Keys)) { if ((Get-Named $key $project) -notin $Share.$project) { $report.files.Remove($key) } }
@@ -177,21 +193,44 @@ function Assert-Redundant([string]$Report, [hashtable]$Arguments) {
     if ($code -ne 0) { exit $code }
 }
 
+function Get-TestsExe {
+    Get-ChildItem (Join-Path $tests 'bin') -Recurse -Filter 'Thermi.Tests.exe' -ErrorAction Ignore | Sort-Object LastWriteTime | Select-Object -Last 1
+}
+
 # The report names a table's rows by their method alone; the built tests' own listing names each row.
 function Get-TestNames {
     $names = @{}
-    $exe = Get-ChildItem (Join-Path $tests 'bin') -Recurse -Filter 'Thermi.Tests.exe' -ErrorAction Ignore | Sort-Object LastWriteTime | Select-Object -Last 1
-    if ($exe) {
+    if ($exe = Get-TestsExe) {
         & $exe.FullName -list full/json -preEnumerateTheories | Out-String | ConvertFrom-Json | ForEach-Object { $names[$_.ID] = $_.DisplayName }
     }
     $names
 }
 
-function Assert-DotNet([hashtable]$Reports, [hashtable]$Names) {
+# A test's name as both its listing and its results name it: they escape a row's quotes differently.
+function Get-TestKey([string]$Name) { $Name -replace '[\\"]', '' }
+
+# Each test's seconds, by name, from one run of the built tests.
+function Save-TestTimes([string]$Path) {
+    $xml = Join-Path $output 'test-times.xml'
+    & (Get-TestsExe).FullName -xml $xml -noLogo | Out-Null
+    $times = @{}
+    foreach ($test in ([xml](Get-Content $xml -Raw)).assemblies.assembly.collection.test) { $times[(Get-TestKey $test.name)] = [double]$test.time }
+    $times | ConvertTo-Json | Set-Content $Path
+}
+
+function Read-Table([string]$Folder, [string]$Name) {
+    $table = @{}
+    if ($found = Get-ChildItem $Folder -Recurse -Filter $Name | Select-Object -First 1) {
+        (Read-Report $found.FullName).GetEnumerator() | ForEach-Object { $table[$_.Key] = $_.Value }
+    }
+    $table
+}
+
+function Assert-DotNet([hashtable]$Reports, [hashtable]$Names, [hashtable]$Times = @{}) {
     $json = Join-Reports @($Reports.Values | ForEach-Object { $_ })
     $break = (Get-Content (Join-Path $tests 'stryker-config.json') -Raw | ConvertFrom-Json).'stryker-config'.thresholds.break
     Save-BugHunt 'dotnet' $Reports $break
-    Save-Costs $Reports
+    Save-Costs $Reports $Names $Times
     Assert-Score $json 'Thermi.Core and Thermi.Cli' $break
     Assert-Redundant $json @{ Names = $Names }
 }
@@ -212,6 +251,8 @@ function Measure-Share([string]$Of) {
     $at, $count = [int[]]($Of -split '/')
     Invoke-DotNet (Get-Share $at $count)
     Get-TestNames | ConvertTo-Json -Depth 3 | Set-Content (Join-Path $output 'test-names.json')
+    # The tests' times are the same in every share; the first alone takes them.
+    if ($at -eq 1) { Save-TestTimes (Join-Path $output 'test-times.json') }
 }
 
 function Measure-Shares([string]$Folder) {
@@ -227,10 +268,7 @@ function Measure-Shares([string]$Folder) {
             exit 1
         }
     }
-    $names = @{}
-    $listed = Get-ChildItem $Folder -Recurse -Filter 'test-names.json' | Select-Object -First 1
-    if ($listed) { (Read-Report $listed.FullName).GetEnumerator() | ForEach-Object { $names[$_.Key] = $_.Value } }
-    Assert-DotNet $reports $names
+    Assert-DotNet $reports (Read-Table $Folder 'test-names.json') (Read-Table $Folder 'test-times.json')
 }
 
 function Measure-Page {

@@ -21,11 +21,12 @@ env:
   TESTINGPLATFORM_TELEMETRY_OPTOUT: 1
 
 jobs:
-  # One run on a 4-core CI machine takes past two hours, so each job mutates a share of the files, balanced by cost.
+  # One run on a 4-core CI machine took longer than the 90 minutes a job had, so each job mutates a share of the files,
+  # balanced by what each cost the last night: the six took 10 to 32 minutes when split by size.
   shares:
     name: 🐛 Bug hunt · Thermi.Core and Thermi.Cli, share ${{ matrix.share }}
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
