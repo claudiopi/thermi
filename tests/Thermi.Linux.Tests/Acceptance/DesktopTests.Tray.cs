@@ -37,8 +37,8 @@ public sealed partial class DesktopTests
         await thermi.WaitForExitAsync(cancel);
         var restarted = await desktop.ShowThermiAsync([], cancel);
         var back = await IconsAsync(desktop, restarted, tray, null, cancel);
-        // thermi's icon has thermi's menu, and each item's icon its overlay's, opened from the tray on that item; no menu of
-        // Linux's offers a copy of the overlay, which reaches no clipboard.
+        // thermi's icon has thermi's menu, and each item's icon its overlay's, opened from the tray on that item; only an
+        // overlay's own menu copies its picture, as thermi's names no overlay.
         var state = new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false };
         var settled = await Settings.ReadAsync(session, cancel);
         var thermis = Menus.Thermis(settled, state).Count;
@@ -67,7 +67,7 @@ public sealed partial class DesktopTests
             Assert.Equal(0, await PaintedAsync(desktop, feed.Snapshot, icon, cancel));
         }
 
-        var ofItems = items.Where(item => item.Tray).Select(item => Menus.OfOverlay(settled, 0, state, item.Id, fromTray: true).Count);
+        var ofItems = items.Where(item => item.Tray).Select(item => Menus.OfOverlay(settled, 0, state with { CanCopy = true }, item.Id, fromTray: true).Count);
         int[] expected = [thermis, .. ofItems];
         var entries = await Task.WhenAll(back.Icons.Select(icon => tray.MenuEntriesAsync(icon.At, cancel)));
         Assert.Equal(expected.Order(), entries.Order());
