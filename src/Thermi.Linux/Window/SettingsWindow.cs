@@ -19,12 +19,6 @@ internal sealed class SettingsWindow : IDisposable
 
     private const string Origin = Scheme + "://app/";
 
-    /// <summary>What <c>--trace</c> writes on stderr, a line of its own, once the window first shows its page.</summary>
-    public const string ShownEvent = "window-shown";
-
-    /// <summary>What <c>--trace</c> writes once another request brought the window to the front.</summary>
-    public const string RaisedEvent = "window-raised";
-
     // GTK draws the window's title bar above the page, so the page's title row keeps no room for Windows' caption buttons.
     private const string Caption = ":root { --thermi-caption-width: 0px; }";
 
@@ -36,15 +30,18 @@ internal sealed class SettingsWindow : IDisposable
     private readonly IWindowBridge _bridge;
     private readonly Action<WindowTheme> _theme;
     private readonly ILogger _log;
-    private readonly Action<string>? _trace;
+    private readonly TraceEvents? _trace;
+    private readonly string? _item;
     private bool _shown;
 
-    public SettingsWindow(Gtk.Application app, PageBridge bridge, LinuxHost host, ILogger log, TextWriter? trace)
+    // item: the one the window opens on, which the trace says once it shows.
+    public SettingsWindow(Gtk.Application app, PageBridge bridge, LinuxHost host, ILogger log, TraceEvents? trace, string? item)
     {
         _bridge = bridge;
         _theme = host.Theme;
         _log = log;
-        _trace = trace is null ? null : trace.WriteLine;
+        _trace = trace;
+        _item = item;
         _window = Gtk.ApplicationWindow.New(app);
         _window.SetTitle("thermi");
         var first = FirstScreen(host.Screens());
@@ -73,11 +70,11 @@ internal sealed class SettingsWindow : IDisposable
     /// <summary>The theme Settings chose, or the desktop's while it chose none, which the page's light or dark mode follows.</summary>
     public void Theme(WindowTheme theme) => _theme(theme);
 
-    /// <summary>Brings the window to the front, for another request.</summary>
-    public void Raise()
+    /// <summary>Brings the window to the front for another request, on its item when it names one.</summary>
+    public void Raise(string? item)
     {
         _window.Present();
-        _trace?.Invoke(RaisedEvent);
+        _trace?.Write(TraceEvents.WindowShown, item);
     }
 
     public void Dispose()
@@ -197,7 +194,7 @@ internal sealed class SettingsWindow : IDisposable
 
         _shown = true;
         _window.Present();
-        _trace?.Invoke(ShownEvent);
+        _trace?.Write(TraceEvents.WindowShown, _item);
     }
 
     // The message is let go once read: GirCore warns of one the collector takes while WebKit still holds it.
@@ -225,20 +222,20 @@ internal sealed class SettingsWindow : IDisposable
         await EvaluateAsync(answer);
     }
 
-    private void OnChanged(object? sender, WindowChangeEventArgs change) => Raise(nameof(IWindowBridge.Changed), change);
+    private void OnChanged(object? sender, WindowChangeEventArgs change) => Send(nameof(IWindowBridge.Changed), change);
 
     // A window the desktop hides draws no readings, and reads the latest once it shows.
     private void OnReadings(object? sender, WindowReadingsEventArgs readings)
     {
         if (_window.IsVisible())
         {
-            Raise(nameof(IWindowBridge.Readings), readings);
+            Send(nameof(IWindowBridge.Readings), readings);
         }
     }
 
-    private void OnPicked(object? sender, DesktopPickEventArgs pick) => Raise(nameof(IWindowBridge.Picked), pick);
+    private void OnPicked(object? sender, DesktopPickEventArgs pick) => Send(nameof(IWindowBridge.Picked), pick);
 
-    private void Raise(string name, object? value) => Run(BridgeCalls.EventOf(name, value));
+    private void Send(string name, object? value) => Run(BridgeCalls.EventOf(name, value));
 
     private void Run(string message) => _ = EvaluateAsync(message);
 

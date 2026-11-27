@@ -85,7 +85,8 @@ public sealed class DesktopTests
         await undone;
         var back = await desktop.ScreenshotAsync(cancel);
         using var process = Process.GetProcessById(window.Process);
-        await desktop.Input.PressAsync("Escape", cancel);
+        // Closed as the desktop closes a window: Esc belongs to the page, which closes its menus and dialogs with it.
+        await desktop.Input.PressAsync("Alt_L+F4", cancel);
         await process.WaitForExitAsync(cancel);
 
         Assert.Equal(item, onItem.About);

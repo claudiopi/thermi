@@ -3,7 +3,7 @@ import { expect, fakeOf, fakeState, openWindow, test, text } from './fakeBridge'
 
 // Spec 006, A16: the bridge's script over WebKitGTK's messages, as Linux's window hosts the page. The host takes each call
 // through the script message handler it registered, and answers, as it sends every event, by running script in the page.
-test.fixme('TheBridgeAnswersOverWebKit', async ({ page }) => {
+test('TheBridgeAnswersOverWebKit', async ({ page }) => {
   await page.goto('about:blank');
   await page.evaluate(() => {
     type Message = { id: string; method: string };
@@ -50,7 +50,7 @@ test.describe('TheWindowFollowsTheLinuxDesktop', () => {
     { name: 'high contrast', colorScheme: 'dark', forcedColors: 'active' },
   ];
   for (const scheme of schemes) {
-    test.fixme(scheme.name, async ({ page }) => {
+    test(scheme.name, async ({ page }) => {
       // What Linux's host says of the desktop, beside what Windows' says: the OS, its accent, and the GNOME extension missing.
       const desktop = { os: 'linux', accent: scheme.accent ?? null, extension: 'missing' };
       await page.emulateMedia({ colorScheme: scheme.colorScheme, forcedColors: scheme.forcedColors });
@@ -62,11 +62,16 @@ test.describe('TheWindowFollowsTheLinuxDesktop', () => {
         const accent = await main.evaluate((shown) => getComputedStyle(shown).getPropertyValue('--colorBrandBackground'));
         expect(accent.trim().toLowerCase()).toBe(scheme.accent);
       }
-      // In high contrast the page paints in the system's own colors, as a probe of Canvas and CanvasText reads them.
+      // In high contrast the page paints in the system's own colors, as a probe of Canvas and CanvasText in the pane's own
+      // scheme reads them: its text, and the first background under it that hides what is behind, as the pane's is a tint.
       const system = await main.evaluate((shown) => {
-        const probe = document.body.appendChild(Object.assign(document.createElement('div'), { style: 'background: Canvas; color: CanvasText' }));
-        const [colors, own] = [getComputedStyle(probe), getComputedStyle(shown)];
-        const same = colors.backgroundColor === own.backgroundColor && colors.color === own.color;
+        const probe = shown.appendChild(Object.assign(document.createElement('div'), { style: 'background: Canvas; color: CanvasText' }));
+        let painted: Element = shown;
+        while (getComputedStyle(painted).backgroundColor.startsWith('rgba(') && painted.parentElement !== null) {
+          painted = painted.parentElement;
+        }
+        const colors = getComputedStyle(probe);
+        const same = colors.backgroundColor === getComputedStyle(painted).backgroundColor && colors.color === getComputedStyle(shown).color;
         probe.remove();
         return same;
       });

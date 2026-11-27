@@ -89,7 +89,8 @@ internal static class WindowProcess
         var chart = new ChartHistory(start.Time);
         using var host = new LinuxHost(start.Log);
         using var bridge = new PageBridge(host, start, editor, chart, Turn.Post);
-        using var window = new SettingsWindow(app, bridge, host, start.Log, asked.Trace ? Console.Error : null);
+        var trace = asked.Trace ? new TraceEvents(Console.Error, start.Time) : null;
+        using var window = new SettingsWindow(app, bridge, host, start.Log, trace, start.Item);
         editor.Changed += (_, _) => window.Theme(editor.Config.WindowTheme);
         window.Theme(editor.Config.WindowTheme);
         var first = true;
@@ -126,12 +127,13 @@ internal static class WindowProcess
 
     private static void Again(Gio.ApplicationCommandLine command, PageBridge bridge, SettingsWindow window)
     {
-        if (PickOf(command.GetArguments(out _)) is { } pick)
+        var pick = PickOf(command.GetArguments(out _));
+        if (pick is not null)
         {
             bridge.Pick(pick);
         }
 
-        window.Raise();
+        window.Raise(pick?.Item);
         command.Done();
     }
 
