@@ -26,6 +26,7 @@ public sealed partial class OverlayTests
         X11,
         FullScreen,
         SensorsStopped,
+        HiddenInFullScreen,
     }
 
     public enum LayerCase
@@ -56,24 +57,39 @@ public sealed partial class OverlayTests
     [InlineData(GnomeCase.X11)]
     [InlineData(GnomeCase.FullScreen)]
     [InlineData(GnomeCase.SensorsStopped)]
+    [InlineData(GnomeCase.HiddenInFullScreen)]
     public async Task TheOverlayShowsAboveEveryWindowOnGnome(GnomeCase row)
     {
         var cancel = TestContext.Current.CancellationToken;
         var scale = row == GnomeCase.WaylandAt150 ? 1.5 : 1;
-        await using var desktop = await TestDesktop.StartAsync(
-            row == GnomeCase.X11 ? DesktopKind.GnomeX11 : DesktopKind.Gnome, [Monitor with { Scale = scale }], cancel);
-
-        var scene = await Scene.ShowAsync(desktop, scale, row == GnomeCase.FullScreen, row == GnomeCase.SensorsStopped, cancel);
-
-        if (row == GnomeCase.FullScreen)
+        TestMonitor[] monitors = row == GnomeCase.HiddenInFullScreen ? [Monitor, Monitor] : [Monitor with { Scale = scale }];
+        await using var desktop = await TestDesktop.StartAsync(row == GnomeCase.X11 ? DesktopKind.GnomeX11 : DesktopKind.Gnome, monitors, cancel);
+        if (row == GnomeCase.HiddenInFullScreen)
         {
-            Assert.Equal(0, await scene.ChangedAsync(cancel));
+            await HiddenInFullScreenAsync(desktop, cancel);
             return;
         }
 
-        Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnPanel, cancel));
+        var scene = await Scene.ShowAsync(desktop, scale, row == GnomeCase.FullScreen, row == GnomeCase.SensorsStopped, cancel);
+
+        // Shown always, as it is by default, the overlay shows over a full-screen window too, where the top bar does not.
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnWindow, cancel));
-        Assert.Equal("click 1", await scene.ClickThroughAsync(cancel));
+        if (row != GnomeCase.FullScreen)
+        {
+            Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnPanel, cancel));
+            Assert.Equal("click 1", await scene.ClickThroughAsync(cancel));
+        }
+    }
+
+    // "Hide in full screen" hides an overlay where it shows: the second monitor, where the pointer opens the window full
+    // screen, though its corner lies on the first, as an overlay that grew there keeps it.
+    private static async Task HiddenInFullScreenAsync(TestDesktop desktop, CancellationToken cancel)
+    {
+        await desktop.Input.MoveAsync(Monitor.Width + (Monitor.Width / 2), Monitor.Height / 2, cancel);
+        var across = Scene.Overlay with { Position = new Position(Monitor.Width - 40, Scene.OnWindow.Y), Visibility = Visibility.HideInFullscreen };
+        var scene = await Scene.ShowAsync(desktop, 1, fullScreen: true, stopped: false, cancel, first: across);
+
+        Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, scene.Before, scene.Screen, (Monitor.Width, 0, Monitor.Width, Monitor.Height), cancel));
     }
 
     [Theory(Timeout = Bound.Test)]

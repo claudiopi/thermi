@@ -3,42 +3,6 @@ using Thermi.Core.Settings;
 
 namespace Thermi.Core.Placement;
 
-/// <summary>A rectangle in physical pixels of the whole desktop, as Windows gives it: its right and bottom edges lie just outside.</summary>
-public readonly record struct PixelRect(int Left, int Top, int Right, int Bottom)
-{
-    public int Width => Right - Left;
-
-    public int Height => Bottom - Top;
-
-    public long Area => (long)Width * Height;
-
-    public bool Overlaps(PixelRect other) => Left < other.Right && other.Left < Right && Top < other.Bottom && other.Top < Bottom;
-
-    public bool Contains(PixelRect other) => other.Left >= Left && other.Right <= Right && other.Top >= Top && other.Bottom <= Bottom;
-
-    public bool Contains(Position point) => point.X >= Left && point.X < Right && point.Y >= Top && point.Y < Bottom;
-
-    /// <summary>The pixels this and <paramref name="other"/> both cover.</summary>
-    public long Shared(PixelRect other) =>
-        (long)Math.Max(0, Math.Min(Right, other.Right) - Math.Max(Left, other.Left)) * Math.Max(0, Math.Min(Bottom, other.Bottom) - Math.Max(Top, other.Top));
-}
-
-/// <summary>
-/// A monitor as Windows reports it, <see cref="Scale"/> being its DPI over 96. <see cref="Taskbar"/> is null on a monitor without one,
-/// and <see cref="Tray"/> is the notification area on the main taskbar or the clock on another, null when it cannot be found from its
-/// window. <see cref="Centre"/> and <see cref="End"/> are parts of a taskbar no overlay covers, GNOME's clock and system menu.
-/// </summary>
-public sealed record Screen(string Id, bool Primary, PixelRect Bounds, PixelRect Work, double Scale)
-{
-    public PixelRect? Taskbar { get; init; }
-
-    public PixelRect? Tray { get; init; }
-
-    public PixelRect? Centre { get; init; }
-
-    public PixelRect? End { get; init; }
-}
-
 /// <summary>Why a monitor's taskbar place floats in its work area: its taskbar is on a side, or it hides itself.</summary>
 public enum TaskbarFloat
 {
@@ -132,8 +96,9 @@ public static class Snaps
         ?? (screens.Count > 0 ? screens[0] : null);
 
     /// <summary>
-    /// The monitor an overlay shows on: its snap's, or the one its free position's top-left corner lies on, and else the
-    /// default snap's, as <see cref="Locate"/> places it; null with no monitor.
+    /// The monitor an overlay's settings put it on, before it is measured: its snap's, or the one its free position's
+    /// top-left corner lies on, and else the default snap's; null with no monitor. One that grew across two shows on the
+    /// monitor its box lies most on, as <see cref="Inside"/> places it.
     /// </summary>
     public static Screen? ScreenOf(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
         overlay.Snapped is null
@@ -141,6 +106,9 @@ public static class Snaps
         && screens.FirstOrDefault(screen => screen.Bounds.Contains(new PixelRect(free.X, free.Y, free.X + 1, free.Y + 1))) is { } under
             ? under
             : ScreenOf(overlay.Snapped ?? Default, screens);
+
+    /// <summary>The monitor a box shows on: the one it lies most on; null with no monitor.</summary>
+    public static Screen? ScreenOf(PixelRect box, IReadOnlyList<Screen> screens) => screens.MaxBy(screen => screen.Bounds.Shared(box));
 
     /// <summary>
     /// Where a press leaves the overlay with the cursor at <paramref name="cursor"/>: moved with the cursor once it is past
@@ -360,7 +328,7 @@ public static class Snaps
     public static Position Inside(Position free, IReadOnlyList<Screen> screens, int width, int height)
     {
         var box = new PixelRect(free.X, free.Y, free.X + width, free.Y + height);
-        var work = Clear(screens.MaxBy(screen => screen.Bounds.Shared(box))!);
+        var work = Clear(ScreenOf(box, screens)!);
         var x = Math.Max(work.Left, Math.Min(free.X, work.Right - width));
         var y = Math.Max(work.Top, Math.Min(free.Y, work.Bottom - height));
         return x == free.X && y == free.Y ? free : new Position(x, y);

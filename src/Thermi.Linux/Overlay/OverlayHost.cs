@@ -290,7 +290,9 @@ internal sealed class OverlayHost : IDisposable
         }
 
         var scene = SceneOf(config);
-        var fullScreen = config.Overlays.Select(overlay => _screens.FullScreen(Snaps.ScreenOf(overlay, scene.Screens.Screens))).ToList();
+        // Full screen where each overlay shows, measured only for one shown by it.
+        var fullScreen = config.Overlays.Select((overlay, at) => overlay.Visibility != Visibility.Always
+            && _screens.FullScreen(Snaps.ScreenOf(Placed(scene, at, overlay), _screens.Screens))).ToList();
         var shown = _parts.Visibility.Decide(config, fullScreen);
         var sent = _overlays.Select((overlay, at) => shown[at] == OverlayShown.Shown ? overlay.Show(scene, Boxes()) : overlay.Hide()).ToList();
         var primary = _screens.Monitors.FirstOrDefault(monitor => monitor.Primary) ?? _screens.Monitors[0];
@@ -381,14 +383,15 @@ internal sealed class OverlayHost : IDisposable
     private EditResult Settle(ThermiConfig before, ThermiConfig after)
     {
         var scene = SceneOf(after);
-        var screens = _screens.Screens;
-        return TaskbarRow.Settled(before, after, screens, Boxes(), (at, _) =>
-        {
-            var overlay = after.Overlays[at];
-            var (width, height) = at < _overlays.Count ? _overlays[at].Measure(scene, overlay) : (0, 0);
-            var place = Snaps.Locate(overlay, screens, width, height) ?? new Position(0, 0);
-            return new PixelRect(place.X, place.Y, place.X + width, place.Y + height);
-        });
+        return TaskbarRow.Settled(before, after, _screens.Screens, Boxes(), (at, _) => Placed(scene, at, after.Overlays[at]));
+    }
+
+    // Where an overlay shows, measured as its painter fits it now.
+    private PixelRect Placed(OverlayPaint scene, int at, OverlayConfig overlay)
+    {
+        var (width, height) = at < _overlays.Count ? _overlays[at].Measure(scene, overlay) : (0, 0);
+        var place = Snaps.Locate(overlay, _screens.Screens, width, height) ?? new Position(0, 0);
+        return new PixelRect(place.X, place.Y, place.X + width, place.Y + height);
     }
 
     private static Texts TextsOf(ThermiConfig config) => Texts.For(config.Language, CultureInfo.CurrentUICulture);
