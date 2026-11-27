@@ -60,6 +60,9 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, IOverlayS
     /// <summary>thermi is opening the settings window, which ends its first start.</summary>
     public Action WindowOpening { get; init; } = () => { };
 
+    /// <summary>The settings window could not start, or ended with an error: the person is told.</summary>
+    public Action WindowFailed { get; init; } = () => { };
+
     /// <summary>Each overlay's box on the screen, by its place, null for one not shown.</summary>
     public Func<IReadOnlyList<PixelRect?>> Shown { get; init; } = () => [];
 

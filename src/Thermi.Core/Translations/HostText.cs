@@ -113,4 +113,10 @@ public enum HostText
 
     /// <summary>The first-run notice's button where a desktop's notices have buttons: it opens the window.</summary>
     NoticeOpenSettings,
+
+    /// <summary>The title of the notice that the settings window ended with an error, as it opened or later.</summary>
+    WindowFailedTitle,
+
+    /// <summary>That notice's text: {0} is the window's log, which says why; its button opens the window again.</summary>
+    WindowFailed,
 }

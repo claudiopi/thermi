@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.App.Gestures;
+using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
@@ -24,7 +25,8 @@ internal sealed record NoticeHost(Settings Settings, OverlayVisibility Visibilit
 /// <summary>
 /// thermi's notices as the desktop's own notifications, each once, whose buttons do what they do on Windows, through
 /// <see cref="NoticeChoices"/>: Core's notices of the first start, of hidden overlays and of click-through; "Notify me when
-/// critical"'s, after its 10 s; and that no overlay can show on this desktop. Each button is known by its action id.
+/// critical"'s, after its 10 s; that the settings window ended with an error; and that no overlay can show on this desktop.
+/// Each button is known by its action id.
 /// </summary>
 internal sealed class ThermiNotices
 {
@@ -34,6 +36,7 @@ internal sealed class ThermiNotices
     public const string Undo = "undo";
     public const string GotIt = "got-it";
     public const string Critical = "critical";
+    public const string OpenAgain = "open-again";
 
     private static readonly (NoticeButtons Button, string Action, HostText Label)[] Buttons =
     [
@@ -62,6 +65,16 @@ internal sealed class ThermiNotices
 
     /// <summary>The window opened: thermi's first start is over.</summary>
     public void WindowOpened() => _firstStart = false;
+
+    /// <summary>The settings window could not start, or ended with an error: a notice says where its log is, and opens it again.</summary>
+    public void WindowFailed()
+    {
+        var texts = Texts;
+        _ = _desktop.Say(
+            texts.Of(HostText.WindowFailedTitle),
+            texts.Format(_host.Culture, HostText.WindowFailed, ThermiLog.WindowPath),
+            (OpenAgain, texts.Of(HostText.NoticeOpenSettings)));
+    }
 
     /// <summary>Takes in the settings and the hide flag after each paint, and tells the notice that is new, if one is.</summary>
     public void Update(ThermiConfig config)
@@ -101,6 +114,12 @@ internal sealed class ThermiNotices
     // A button of a notice whose matter already ended does nothing, as the notice no longer shows on Windows.
     private void Clicked(uint id, string action)
     {
+        if (action == OpenAgain)
+        {
+            _host.OpenSettings();
+            return;
+        }
+
         if (!_told.Remove(id, out var notice) || (notice != _notices.Showing && notice.Kind is not NoticeKind.FirstRun and not NoticeKind.FirstRunDriver))
         {
             return;

@@ -89,7 +89,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
     {
         if (entry == MenuEntry.TaskManager)
         {
-            Start(TaskManagers.FirstOrDefault(Installed) ?? TaskManagers[0], []);
+            Start(TaskManagers.FirstOrDefault(Installed) ?? TaskManagers[0], [])?.Dispose();
         }
     }
 
@@ -120,7 +120,30 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
             args.Add(ThermiCommandLine.TraceOption);
         }
 
-        Start(Environment.ProcessPath ?? "thermi", args);
+        var program = Environment.ProcessPath ?? "thermi";
+        if (Start(program, args) is { } window)
+        {
+            _ = EndedAsync(window);
+        }
+        else
+        {
+            parts.WindowFailed();
+        }
+    }
+
+    // A window that dies, as it opens or later, would otherwise leave the person a click that did nothing. A second
+    // request ends at once with 0, once the first window took it.
+    private async Task EndedAsync(Process window)
+    {
+        using (window)
+        {
+            await window.WaitForExitAsync().ConfigureAwait(false);
+            if (window.ExitCode != 0)
+            {
+                parts.Log.WindowEnded(window.ExitCode);
+                parts.Post(parts.WindowFailed);
+            }
+        }
     }
 
     private static void Flatten(IReadOnlyList<MenuRow> rows, int parent, MenuPlace place, List<MenuRow> all, List<ShellRow> shown)
@@ -141,15 +164,16 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         (Environment.GetEnvironmentVariable("PATH") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries)
             .Any(folder => File.Exists(Path.Combine(folder, program)));
 
-    private void Start(string program, IEnumerable<string> args)
+    private Process? Start(string program, IEnumerable<string> args)
     {
         try
         {
-            using var started = Process.Start(new ProcessStartInfo(program, args) { UseShellExecute = false });
+            return Process.Start(new ProcessStartInfo(program, args) { UseShellExecute = false });
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
             parts.Log.StartFailed(program, ex);
+            return null;
         }
     }
 }

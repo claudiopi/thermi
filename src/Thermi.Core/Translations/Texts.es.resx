@@ -57,6 +57,12 @@
   <data name="HostText.NoticeOpenSettings" xml:space="preserve">
     <value>Abrir la configuración</value>
   </data>
+  <data name="HostText.WindowFailedTitle" xml:space="preserve">
+    <value>La ventana de configuración se cerró con un error</value>
+  </data>
+  <data name="HostText.WindowFailed" xml:space="preserve">
+    <value>Su registro, {0}, dice por qué.</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Bloquear la posición</value>
   </data>

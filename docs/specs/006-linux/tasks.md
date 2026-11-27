@@ -44,7 +44,7 @@
 
 - [x] T24. thermi's icon and the items' tray icons: in the extension, and as StatusNotifierItems with their menus. (R20)
 - [x] T25. The hotkeys: the extension, the GlobalShortcuts portal and X11's grab. (R21)
-- [ ] T26. The notices as freedesktop notifications. (R22)
+- [x] T26. The notices as freedesktop notifications. (R22)
 
 ## B7. Packages and updates
 

@@ -18,7 +18,9 @@ internal sealed class NoticeWatch
     private const string Monitor = """
         import json, sys, time, gi
         from gi.repository import Gio, GLib
-        RULES = ["type='method_call',interface='org.freedesktop.Notifications',member='Notify'",
+        # A program's call names the server by its freedesktop name; GNOME's notifications service passes each on to the Shell
+        # by the Shell's own, which is the same notice again.
+        RULES = ["type='method_call',interface='org.freedesktop.Notifications',member='Notify',destination='org.freedesktop.Notifications'",
                  "type='method_call',interface='org.gnome.Shell.Extensions',member='InstallRemoteExtension'",
                  "type='method_call',interface='org.gnome.Shell.Extensions',member='CheckForUpdates'",
                  "type='signal',interface='org.thermi.Tests',member='Sync'"]

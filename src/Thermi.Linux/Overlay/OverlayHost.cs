@@ -87,6 +87,7 @@ internal sealed class OverlayHost : IDisposable
             Accent = DesktopLooks.Accent(_highContrast),
             Traced = trace.On,
             WindowOpening = () => _desk!.Notices.WindowOpened(),
+            WindowFailed = () => _desk!.Notices.WindowFailed(),
         };
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
         _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start);

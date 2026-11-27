@@ -34,6 +34,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Error, Message = "{Program} could not be started")]
     public static partial void StartFailed(this ILogger logger, string program, Exception error);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "The settings window ended with code {Code}: its own log says why")]
+    public static partial void WindowEnded(this ILogger logger, int code);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The overlay could not be painted")]
     public static partial void PaintFailed(this ILogger logger, Exception error);
 

@@ -57,6 +57,12 @@
   <data name="HostText.NoticeOpenSettings" xml:space="preserve">
     <value>Open settings</value>
   </data>
+  <data name="HostText.WindowFailedTitle" xml:space="preserve">
+    <value>The settings window closed with an error</value>
+  </data>
+  <data name="HostText.WindowFailed" xml:space="preserve">
+    <value>Its log, {0}, says why.</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Lock position</value>
   </data>

@@ -12,7 +12,7 @@ namespace Thermi.Linux.Tests.Acceptance;
 /// What thermi does with the rest of the Linux desktop (<c>docs/specs/006-linux/spec.md</c>, R18 and R20 to R22): its
 /// settings window, its tray icons, its hotkeys and its notices.
 /// </summary>
-public sealed class DesktopTests
+public sealed partial class DesktopTests
 {
     private static readonly TestMonitor Monitor = new(1920, 1080);
 
@@ -22,7 +22,6 @@ public sealed class DesktopTests
     // A temperature past every line the recorded CPU reads, and one below it, so an edit changes the item's level.
     private const string Calm = """{"kind":"threshold","item":"cpu.temperature","warning":98,"critical":99}""";
     private const string Hot = """{"kind":"threshold","item":"cpu.temperature","warning":1,"critical":2}""";
-    private const string Notify = """{"kind":"item","item":"cpu.temperature","field":"notify","value":true}""";
 
     // Holds a combination as another program does, through the Shell's own grab, which its unsafe mode lets in, for as long
     // as it runs; it says so once the Shell took it.
@@ -229,64 +228,11 @@ public sealed class DesktopTests
         Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, shown, hidden, OnWindow, cancel));
     }
 
-    [Fact(Skip = "Waiting for the settings window, which the first start's notice opens", Timeout = Bound.Test)]
-    public async Task NoticesAreTheDesktopsNotifications()
-    {
-        var cancel = TestContext.Current.CancellationToken;
-        await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], extension: null, cancel);
-        var session = desktop.Session;
-        var notices = await NoticeWatch.StartAsync(desktop, cancel);
-        await SensorFeed.ServeSteadyAsync(session, SensorFeed.Desktop, cancel);
-        var firstRun = notices.NextAsync("first-run", cancel);
-        var missing = notices.NextAsync("install-extension", cancel);
-        var critical = notices.NextAsync("critical", cancel);
-        await OffTheNetworkAsync(session, cancel);
-        // No settings yet: thermi's first start, which writes them.
-        var thermi = await desktop.StartThermiAsync(["--trace"], cancel);
-
-        // The CPU's temperature is critical with Notify me from thermi's first second on, and its notice comes once it stayed
-        // so for 10 s.
-        var first = await Traced.FirstAsync(thermi.Error, Traced.Paint, cancel);
-        await EditAsync(session, Notify, cancel);
-        await EditAsync(session, Hot, cancel);
-        var hot = await critical;
-        // The first start's notice opens the window, as its click does on Windows; the extension's asks the Shell again.
-        var opened = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
-        await notices.ClickAsync(await firstRun, "first-run", cancel);
-        await opened;
-        var asked = notices.NextInstallAsync(cancel);
-        await notices.ClickAsync(await missing, "install-extension", cancel);
-        await asked;
-        // Once: after as many more of thermi's seconds as the critical notice waited, none of them came again.
-        await Traced.NextAsync(thermi.Error, Traced.Paint, cancel, count: (int)NotifyMe.After.TotalSeconds + 1);
-        await notices.SyncAsync(cancel);
-
-        Assert.All(["first-run", "install-extension", "critical"], action => Assert.Equal(1, notices.Count(action)));
-        Assert.Equal("thermi", hot.App);
-        Assert.True(hot.At - first.At > NotifyMe.After.TotalSeconds - 1, $"The critical notice came {hot.At - first.At} s after the first second.");
-    }
-
     // An edit as an agent makes it, which thermi-cli says it wrote.
     private static async Task EditAsync(OwnSession session, string edit, CancellationToken cancel)
     {
         var edited = await session.RunAsync("thermi-cli", ["edit", edit], cancel: cancel);
         Assert.True(edited.Exit == 0, $"thermi-cli edit {edit}: {edited.Out}{edited.Error}");
-    }
-
-    // The Shell asks extensions.gnome.org for the extension thermi asks it to install: the session's proxy, which every
-    // connection of the Shell's follows, refuses them all, so the test never reaches the network.
-    private static async Task OffTheNetworkAsync(OwnSession session, CancellationToken cancel)
-    {
-        string[][] settings =
-        [
-            ["org.gnome.system.proxy.http", "host", "127.0.0.1"], ["org.gnome.system.proxy.http", "port", "9"],
-            ["org.gnome.system.proxy.https", "host", "127.0.0.1"], ["org.gnome.system.proxy.https", "port", "9"],
-            ["org.gnome.system.proxy", "mode", "manual"],
-        ];
-        foreach (var setting in settings)
-        {
-            Assert.Equal(0, (await session.RunAsync("gsettings", ["set", .. setting], cancel: cancel)).Exit);
-        }
     }
 
     // Opens the settings window as <paramref name="open"/> does, once the window says it showed.
