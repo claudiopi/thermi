@@ -11,7 +11,7 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `Desktop` | What the overlay and the agents' commands read from the desktop and the machine: which surfaces the session has, the session's D-Bus and the objects thermi serves on it, the monitors as GNOME and GDK lay them out, high contrast, the panels, the pointer's drag distance and double-click time, the CPU's base clock; the desktop's notifications, and the GTK window a picture and its menu show in off GNOME. |
 | `Gnome` | thermi's side of the D-Bus protocol with its GNOME Shell extension, the Shell's monitors as Core's screens, the extension's arrival, and the extension as the overlay's surfaces, its icons in the top bar and its hotkeys. |
 | `Hotkeys` | thermi's four hotkeys, through GNOME's extension, the GlobalShortcuts portal or X11's grab; one another program holds is refused, which the settings window asks the overlay about. |
-| `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, and the surfaces and popups that measure each monitor's work area. |
+| `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, each faded by its window's opacity and its menu GTK's own popover, and the surfaces and popups that measure each monitor's work area on every edge. |
 | `Logging` | The overlay's log events. |
 | `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, the `quit` it exports, and what it answers its own programs on the session's bus, as the hotkeys the desktop refused. |
 | `Packaging` | What the packages install beside thermi for the desktop: the systemd user unit that runs the overlay in the person's graphical session, and the app launcher's entry. |
@@ -19,7 +19,7 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `Tray` | thermi's icons as Core's tray decides them, in GNOME's top bar or as StatusNotifierItems with their dbusmenu menus, and its notices as the desktop's notifications, each button doing what it does on Windows. |
 | `Sensors` | The service's socket: the system's, else where it is missing the user's own, of a `thermi-sensors --console`, each trusted only from who should serve it; `THERMI_SENSORS_SOCKET` names one to read alone. |
 | `Window` | `thermi settings`: one GTK 4 window per session with the page in WebKitGTK, served from the install's `web` folder, and the bridge's host on Linux: the portal's look, the GNOME extension's and the service's fixes behind the desktop's prompts, and the overlay's user unit. |
-| `X11` | The overlay's surfaces on X11: GTK windows as docks, above every window but a full-screen one, off the taskbar and the pager, taking the pointer only through their input shape; the work area from the panels' struts, the pointer read for Fade and drags, and thermi's hotkeys as X11's own grabs. |
+| `X11` | The overlay's surfaces on X11: GTK windows as docks, above every window but a full-screen one, off the taskbar and the pager, taking the pointer only through their input shape, faded and with menus as on layer surfaces; the work area from the panels' struts, the pointer read for Fade and drags, and thermi's hotkeys as X11's own grabs. |
 
 The `thermi` package's files, beside the code in `Packaging`, are the overlay's user unit, its launcher's entry, the package's `nfpm.yaml` and scripts, and the AUR's `PKGBUILD` for both packages; `scripts/linux-packages.ps1` packs them with the overlay, its icons and the GNOME Shell extension.
 
@@ -38,7 +38,7 @@ Under `--trace`, each event is one line on the standard error, `<seconds on CLOC
 | `dropped` | A drag ended, let go or taken back with Esc, and what it left is saved and on screen. |
 | `hotkey-refused <role>` | The desktop refused a hotkey, held by another program, by its field's name in the settings, as `nextStyle`. |
 | `lifted` | A hold lifted a value or a pill, and its ghost is on screen under the pointer. |
-| `faded` | An overlay with Fade near the pointer is on screen at its faintest, the pointer over it. |
+| `faded` | An overlay with Fade, opaque until then, is on screen fainter as the pointer nears it: its surface's opacity, never a new picture. |
 
 Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the Shell serves it; a test matches their buttons by action id, never by text.
 
