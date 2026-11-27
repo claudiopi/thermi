@@ -228,11 +228,12 @@ export default class ThermiExtension extends Extension {
                 item.add_child(new St.Label({text: note, x_expand: true, x_align: Clutter.ActorAlign.END}));
             item.setOrnament(checked ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE);
             item.setSensitive(!grayed);
-            if (opens)
+            if (opens) {
                 parents.set(index, item.menu);
                 item.menu.box.accessible_role = Atk.Role.MENU;
-            else
+            } else {
                 item.connect('activate', () => this._emit('Chosen', '(ui)', [overlay, index]));
+            }
             into.addMenuItem(item);
         });
         // A menu closes before its choice is sent, and is destroyed once it is.
