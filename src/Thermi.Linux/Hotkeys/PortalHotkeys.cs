@@ -24,7 +24,7 @@ internal sealed class PortalHotkeys : IHotkeyGrab
 
     private readonly Gio.DBusConnection _bus;
     private readonly Func<Texts> _texts;
-    private readonly Gio.DBusProxy _shortcuts;
+    private Gio.DBusProxy? _shortcuts;
     private string? _session;
     private int _tokens;
     private bool _registered;
@@ -35,8 +35,6 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         var address = Gio.Functions.DbusAddressGetForBusSync(Gio.BusType.Session, null);
         _bus = Gio.DBusConnection.NewForAddressSync(
             address, Gio.DBusConnectionFlags.AuthenticationClient | Gio.DBusConnectionFlags.MessageBusConnection, null, null);
-        _shortcuts = Listen(Desktop, Shortcuts);
-        _shortcuts.OnGSignal += (_, heard) => Activated(heard.SignalName, heard.Parameters);
     }
 
     public Action<int> Pressed { get; set; } = _ => { };
@@ -85,7 +83,7 @@ internal sealed class PortalHotkeys : IHotkeyGrab
     // The portal ends the sessions of a connection that closes.
     public void Dispose()
     {
-        _shortcuts.Dispose();
+        _shortcuts?.Dispose();
         try
         {
             _bus.CloseSync(null);
@@ -110,7 +108,8 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         }
     }
 
-    // A program outside a sandbox says who it is before its first call, which a portal older than the registry ignores.
+    // A program outside a sandbox says who it is before its first call, which a portal older than the registry ignores; the
+    // call starts the portal, whose presses thermi then hears.
     private async Task RegisterAsync()
     {
         if (_registered)
@@ -128,6 +127,9 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         {
             // Older portals know thermi by its process instead.
         }
+
+        _shortcuts = Listen(Desktop, Shortcuts);
+        _shortcuts.OnGSignal += (_, heard) => Activated(heard.SignalName, heard.Parameters);
     }
 
     // A portal's call answers with a request, whose Response comes later at a path thermi's token names: listened to before
@@ -175,10 +177,10 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         }
     }
 
-    // A proxy hears a path's signals, as GirCore cannot call back a subscription of the connection's own. It starts the
-    // portal, so it knows the portal's own name before the portal answers.
-    private Gio.DBusProxy Listen(string path, string face) =>
-        Gio.DBusProxy.NewSync(_bus, Gio.DBusProxyFlags.DoNotLoadProperties, null, Portal, path, face, null);
+    // A proxy hears a path's signals, as GirCore cannot call back a subscription of the connection's own. It starts nothing:
+    // a desktop without the portal has no owner of its name, whose proxy hears nothing.
+    private Gio.DBusProxy Listen(string path, string face) => Gio.DBusProxy.NewSync(
+        _bus, Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart, null, Portal, path, face, null);
 
     private static (string, GLib.Variant) Handle(string token) => ("handle_token", GLib.Variant.NewString(token));
 
