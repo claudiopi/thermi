@@ -13,53 +13,6 @@ namespace Thermi.Linux.Tests.Acceptance;
 /// </summary>
 public sealed partial class ServiceTests
 {
-    // Opens as many connections to the socket as asked, says how many were served a line, and holds them until its input ends.
-    private const string Clients = """
-        import socket, sys
-        held = [socket.socket(socket.AF_UNIX) for _ in range(int(sys.argv[1]))]
-        for client in held: client.connect('/run/thermi/sensors.sock')
-        print(sum(1 for client in held if client.makefile().readline()), flush=True)
-        sys.stdin.read()
-        """;
-
-    // Writes to the socket, reads three lines, and says how much of what it wrote the service still left unread: a stream
-    // socket's bytes count against their writer until the reader takes them.
-    private const string Writer = """
-        import fcntl, socket, struct, termios
-        client = socket.socket(socket.AF_UNIX)
-        client.connect('/run/thermi/sensors.sock')
-        client.sendall(b'thermi\n' * 1024)
-        lines = client.makefile()
-        for _ in range(3): print(lines.readline(), end='', flush=True)
-        print('unread', struct.unpack('i', fcntl.ioctl(client, termios.TIOCOUTQ, b'\0' * 4))[0], flush=True)
-        """;
-
-    // A server of another user's on a socket's path, which serves the recorded lines to whoever connects, as anyone may;
-    // it says it listens on its first line.
-    private const string Impostor = """
-        import os, socket, sys
-        server = socket.socket(socket.AF_UNIX)
-        server.bind(sys.argv[1])
-        os.chmod(sys.argv[1], 0o666)
-        server.listen()
-        print('listening', flush=True)
-        lines = open(sys.argv[2], 'rb').read()
-        while True:
-            client, _ = server.accept()
-            try:
-                client.sendall(lines)
-            except OSError:
-                pass  # A client that refuses hangs up before the lines are all sent.
-            client.close()
-        """;
-
-    // What status says of the service, and its problems' codes, on one line.
-    private const string Codes = """
-        import json, sys
-        status = json.load(sys.stdin)
-        print(status['service'], *sorted(problem['code'] for problem in status['problems']))
-        """;
-
     private static readonly Metric[] Rates =
         [Metrics.CpuLoad, Metrics.CpuPower, Metrics.DiskActivity, Metrics.DiskRead, Metrics.DiskWrite, Metrics.NetDownload, Metrics.NetUpload];
 
@@ -71,12 +24,6 @@ public sealed partial class ServiceTests
         Failing,
         VirtualMachine,
     }
-
-    // Binds a socket at a path and ends without listening, as thermi-sensors --console leaves its socket when it is killed.
-    private const string Stale = """
-        import socket, sys
-        socket.socket(socket.AF_UNIX).bind(sys.argv[1])
-        """;
 
     public enum Client
     {
@@ -170,9 +117,13 @@ public sealed partial class ServiceTests
         await File.WriteAllTextAsync(Path.Combine(session.Home, "clients.py"), Clients, cancel);
         await File.WriteAllTextAsync(Path.Combine(session.Home, "writer.py"), Writer, cancel);
         await File.WriteAllTextAsync(Path.Combine(session.Home, "impostor.py"), Impostor, cancel);
-        await File.WriteAllTextAsync(Path.Combine(session.Home, "stale.py"), Stale, cancel);
         await File.WriteAllTextAsync(Path.Combine(session.Home, "codes.py"), Codes, cancel);
         Built.Copy(Built.Tree(SensorFeed.Desktop), Path.Combine(session.Home, "tree"));
+        foreach (var cpuinfo in Directory.EnumerateFiles(Path.Combine(session.Home, "tree"), "cpuinfo", SearchOption.AllDirectories))
+        {
+            await File.WriteAllTextAsync(cpuinfo, $"model name\t: {ConsoleCpu}\n", cancel);
+        }
+
         File.Copy(Built.Tree(SensorFeed.Desktop) + ".json", Path.Combine(session.Home, "lines"));
         await using var pc = await Container.BootAsync(session, Container.Ubuntu2604, session.Home, cancel);
         var install = Container.Installs(Container.Ubuntu2604, $"python3-minimal $(ls {Container.Packages}/thermi-sensors_*_amd64.deb)");
@@ -196,6 +147,10 @@ public sealed partial class ServiceTests
         }
 
         Assert.Equal(client == Client.Crowd ? ["1", "8"] : lines, lines);
+        // The service's lines come before the person's own console's, which the variable names alone.
+        Assert.Equal(
+            client == Client.Person ? ["service no", "console yes"] : [],
+            lines.Where(line => line.StartsWith("service ", StringComparison.Ordinal) || line.StartsWith("console ", StringComparison.Ordinal)));
         // Refused on the service's path and on the person's own, and read from the person's own console.
         Assert.Equal(
             client == Client.Impostor ? [true, true, false] : lines.Select(_ => false),
@@ -237,45 +192,6 @@ public sealed partial class ServiceTests
 
     [GeneratedRegex("""RUN\+="(?<command>[^"]+)""", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Run();
-
-    // Each row connects to the socket as it says: a person's read, whose own socket is one a console left as it ended;
-    // servers another user listens with on the service's path and the person's own, which the person refuses, and the
-    // person's own console, which they read; a client that writes as it reads; and nine connections of one user, then one
-    // of another's. The person runs the thermi-cli the package put on
-    // every PATH.
-    private static string ClientScript(Client client) => client switch
-    {
-        Client.Person => $"su person -c 'mkdir -p /tmp/run/thermi && python3 {Container.Work}/stale.py /tmp/run/thermi/sensors.sock"
-            + " && XDG_RUNTIME_DIR=/tmp/run thermi-cli read --schema 1'",
-        // Only the impostor runs in the background, with no stream of docker exec's, which would wait for it to end.
-        Client.Impostor => ImpostorScript(),
-        Client.Writer => $"su person -c 'python3 {Container.Work}/writer.py'",
-        Client.Crowd => $"mkfifo /tmp/go /tmp/said; su person -c 'python3 {Container.Work}/clients.py 9' < /tmp/go > /tmp/said & exec 3>/tmp/go; "
-            + $"read -r person < /tmp/said; su other -c 'python3 {Container.Work}/clients.py 1' < /dev/null; echo $person; exec 3>&-; wait",
-        _ => throw new ArgumentOutOfRangeException(nameof(client), client, "Unknown client."),
-    };
-
-    // With the service stopped, another user serves the service's path, which the person's read refuses, then the person's
-    // own, which their status refuses too; then the person's own console, which it reads. Each status says its line.
-    private static string ImpostorScript()
-    {
-        var work = Container.Work;
-        const string Person = "su person -c 'XDG_RUNTIME_DIR=/tmp/run thermi-cli";
-        static string Served(string who, string command, string ready)
-        {
-            return $"su {who} -s /bin/sh -c 'XDG_RUNTIME_DIR=/tmp/run exec {command}' > {ready} 2>/dev/null < /dev/null & read -r _ < {ready}; ";
-        }
-
-        return "systemctl stop thermi-sensors.socket thermi-sensors.service && rm -rf /run/thermi && install -d -o other /run/thermi"
-            + " && install -d -m 0777 /tmp/run /tmp/run/thermi && mkfifo /tmp/system /tmp/own /tmp/console || exit 1; "
-            + Served("other", $"python3 {work}/impostor.py /run/thermi/sensors.sock {work}/lines", "/tmp/system")
-            + $"{Person} read --schema 1'; read=$?; {Person} status --schema 1' | python3 {work}/codes.py; "
-            + "pkill -u other; rm -f /run/thermi/sensors.sock; "
-            + Served("other", $"python3 {work}/impostor.py /tmp/run/thermi/sensors.sock {work}/lines", "/tmp/own")
-            + $"{Person} status --schema 1' | python3 {work}/codes.py; pkill -u other; rm -f /tmp/run/thermi/sensors.sock; "
-            + Served("person", $"/usr/lib/thermi/thermi-sensors --console --root {work}/tree", "/tmp/console")
-            + $"{Person} status --schema 1' | python3 {work}/codes.py; pkill -u person; (exit $read)";
-    }
 
     private static List<Snapshot> Snapshots(string file) => [.. File.ReadLines(file).Select(line => SnapshotJson.Read(line)!)];
 
