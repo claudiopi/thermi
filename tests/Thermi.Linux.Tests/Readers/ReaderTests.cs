@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.Time.Testing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Sensors.Linux.Kernel;
@@ -10,7 +11,8 @@ namespace Thermi.Linux.Tests.Readers;
 /// The readers over trees of hardware the recorded PCs lack, made as the kernel's documentation lays out its files: a
 /// laptop's battery beside a Bluetooth mouse's, AMD's and Intel's GPUs, RAPL's counter as it wraps, a chip with an
 /// input numbered past any real one, a USB pump plugged again, which takes the CPU's chip's number, and a laptop's
-/// NVIDIA card asleep. Each reads as Windows' reads the same hardware, and the sleeping card is asked nothing.
+/// NVIDIA and AMD cards falling asleep. Each reads as Windows' reads the same hardware; a sleeping card is read as
+/// missing, and NVML, whose open handles keep a card awake, is held only while the card is.
 /// </summary>
 public sealed class ReaderTests
 {
@@ -23,6 +25,7 @@ public sealed class ReaderTests
         AbsurdInput,
         Replugged,
         SleepingNvidia,
+        SleepingAmdGpu,
     }
 
     [Theory] // Rows: each a reader, or a rule of one, that the recorded trees never reach.
@@ -33,20 +36,43 @@ public sealed class ReaderTests
     [InlineData(Made.AbsurdInput)]
     [InlineData(Made.Replugged)]
     [InlineData(Made.SleepingNvidia)]
+    [InlineData(Made.SleepingAmdGpu)]
     public void AMadeTreeReadsAsItsHardwareWould(Made made)
     {
         var root = Directory.CreateTempSubdirectory("thermi-made-").FullName;
         try
         {
             var (metrics, expected) = Build(new Tree(root), made);
-            var sensors = new LinuxSensors(new RecordedKernel(root));
+            var kernel = new NvmlHeld(new RecordedKernel(root));
+            var sensors = new LinuxSensors(kernel);
             sensors.Read();
             var second = sensors.Read();
             var readings = SensorMap.Read(second, OverlayConfig.First);
 
             Assert.Equal(expected, metrics.Select(metric => readings[metric.Id].Usable));
+            Assert.Equal((made == Made.SleepingNvidia ? 1 : 0, false), (kernel.Starts, kernel.Held));
             // A mouse's battery is the mouse's, and names it by its address.
             Assert.DoesNotContain(second.Sensors, sensor => sensor.Id.Contains("hid-", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    // A folder of no second is no tree, a person's slip that is said in one line, never a stack trace.
+    [Fact]
+    public async Task AFolderOfNoSecondEndsWithWhy()
+    {
+        var root = Directory.CreateTempSubdirectory("thermi-empty-").FullName;
+        try
+        {
+            using var error = new StringWriter();
+            string[] args = ["--root", root, "--dump", Path.Combine(root, "dump.jsonl")];
+
+            var exit = await Thermi.Sensors.Linux.Program.RunAsync(args, new FakeTimeProvider(), TextWriter.Null, error, TestContext.Current.CancellationToken);
+
+            Assert.Equal((2, 1), (exit, error.ToString().Trim().Split('\n').Length));
         }
         finally
         {
@@ -68,7 +94,8 @@ public sealed class ReaderTests
                     tree.Files(second, "/sys/class/power_supply/hid-a8:a1:59:12:34:56-battery", ("type", "Battery"), ("scope", "Device"),
                         ("status", "Discharging"), ("capacity", "50"));
                     break;
-                case Made.AmdGpu:
+                case Made.AmdGpu or Made.SleepingAmdGpu:
+                    tree.Asleep(second, "/sys/class/drm/card1/device", made == Made.SleepingAmdGpu && second == 1);
                     tree.Gpu(second, "amdgpu", ("temp1_label", "edge"), ("temp1_input", "55000"), ("power1_label", "PPT"),
                         ("power1_average", "120000000"));
                     tree.Files(second, "/sys/class/drm/card1/device", ("gpu_busy_percent", "40"));
@@ -90,7 +117,7 @@ public sealed class ReaderTests
                     tree.Replugged(second);
                     break;
                 case Made.SleepingNvidia:
-                    tree.Files(second, "/sys/bus/pci/drivers/nvidia/0000:01:00.0/power", ("runtime_status", "suspended"));
+                    tree.Asleep(second, "/sys/bus/pci/drivers/nvidia/0000:01:00.0", second == 1);
                     tree.Files(second, "/sys/bus/pci/drivers/nvidia", ("new_id", ""));
                     tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50 });
                     break;
@@ -109,8 +136,41 @@ public sealed class ReaderTests
             Made.RaplWrap => ([Metrics.CpuPower], [4]),
             Made.AbsurdInput or Made.Replugged => ([Metrics.CpuTemperature], [60]),
             Made.SleepingNvidia => ([Metrics.GpuTemperature], [null]),
+            Made.SleepingAmdGpu => ([Metrics.GpuTemperature, Metrics.GpuLoad, Metrics.GpuPower], [null, null, null]),
             _ => throw new ArgumentOutOfRangeException(nameof(made), made, "Unknown tree."),
         };
+    }
+
+    // A kernel that holds NVML as the live one does: started by a read the driver answers, held until let go of.
+    private sealed class NvmlHeld(IKernel kernel) : IKernel
+    {
+        public int Starts { get; private set; }
+
+        public bool Held { get; private set; }
+
+        public string? Read(string path) => kernel.Read(path);
+
+        public IReadOnlyList<string> List(string folder) => kernel.List(folder);
+
+        public string? Resolve(string path) => kernel.Resolve(path);
+
+        public Moment? Now() => kernel.Now();
+
+        public IReadOnlyList<GpuAnswer>? Nvml()
+        {
+            var gpus = kernel.Nvml();
+            if (gpus is not null && !Held)
+            {
+                Starts++;
+                Held = true;
+            }
+
+            return gpus;
+        }
+
+        public void LetGoOfNvml() => Held = false;
+
+        public void Next() => kernel.Next();
     }
 
     // A tree as thermi-sensors --tree records one: each second's files at their escaped paths, its links and its moment.
@@ -159,6 +219,8 @@ public sealed class ReaderTests
             Files(second, $"/sys/class/hwmon/{numbers[1]}", ("name", "nzxt-kraken3"), ("temp1_input", "30000"));
             Link(second, $"/sys/class/hwmon/{numbers[1]}/device", $"/sys/devices/pci0000:00/0000:00:14.0/usb1/1-2/1-2:1.0/0003:1E71:2007.000{second + 1}");
         }
+
+        public void Asleep(int second, string device, bool asleep) => Files(second, $"{device}/power", ("runtime_status", asleep ? "suspended" : "active"));
 
         public void Nvml(int second, GpuAnswer gpu) =>
             File.WriteAllText(Path.Combine(root, $"{second}", KernelJson.NvmlFile), KernelJson.Write([gpu]));
