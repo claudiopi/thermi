@@ -142,14 +142,14 @@ Run them with the release's packages on the physical Ubuntu 26.04 PC with GNOME,
 
 | Machine | What it tries |
 | --- | --- |
-| `thermi-fedora` | Fedora with GNOME, Wayland: the `.rpm`, and a second account, `thermi2`, for the prompt declined. |
+| `thermi-fedora` | Fedora 45 with GNOME 51, the newest Shell, Wayland: the `.rpm`, and a second account, `thermi2`, for the prompt declined. |
 | `thermi-ubuntu2404` | Ubuntu 24.04 with GNOME 46, the oldest Shell the extension takes: the `.deb`. |
-| `thermi-debian` | Debian 13 with GNOME: the `.deb`. |
-| `thermi-kubuntu` | Kubuntu with KDE Plasma 6, Wayland: the `.deb` and the layer surface. |
+| `thermi-debian` | Debian 13 with GNOME 48: the `.deb`. |
+| `thermi-kubuntu` | Kubuntu 26.04 with KDE Plasma 6.6, Wayland: the `.deb` and the layer surface. |
 | `thermi-arch` | Arch with Hyprland: `thermi-bin` from the AUR and the layer surface. |
 | `thermi-server` | Ubuntu Server 24.04 with no screen: `thermi-sensors` alone and `thermi-cli`. |
 
-A virtual machine reads no sensors, so there its values show as missing.
+Each desktop has two monitors. A virtual machine reads no sensors, so there its values show as missing. `virsh -c qemu:///system screenshot <machine> <png> --screen 0` captures a screen.
 
 | Check | Steps | Passes when |
 | --- | --- | --- |

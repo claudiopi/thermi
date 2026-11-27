@@ -28,7 +28,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 
 ### The overlay
 
-- R8. On GNOME Shell 46 to 50, on Wayland and X11, each overlay shows above every window and the top bar, where it was placed, and hides while a window fills its monitor full screen. Clicks pass through it where it draws nothing, and everywhere when it is click-through.
+- R8. On GNOME Shell 46 to 51, on Wayland and X11, each overlay shows above every window and the top bar, where it was placed, and hides while a window fills its monitor full screen. Clicks pass through it where it draws nothing, and everywhere when it is click-through.
 - R17. On KDE Plasma 6, Hyprland and Sway, on Wayland, each overlay shows above every window and the panels, where it was placed, and a full-screen window covers it. Clicks pass through it as on GNOME. On a Wayland desktop with neither GNOME Shell nor layer surfaces, `thermi` shows no overlay and says why once.
 - R24. On X11 desktops, as Cinnamon, Xfce, MATE and KDE Plasma's X11 session, each overlay shows above every window and the panels, off the taskbar and the window switcher, and a full-screen window in front covers it. Clicks pass through it as on GNOME.
 - R9. When `thermi` starts in a GNOME session that lacks its extension, it asks the Shell to install it from extensions.gnome.org, which GNOME confirms with its own prompt, so the overlay shows without signing out; declined or offline, the copy the package installed shows it from the next sign-in, and a notice says so. An extension of another protocol version than `thermi`'s shows nothing, and the notice says to update.
