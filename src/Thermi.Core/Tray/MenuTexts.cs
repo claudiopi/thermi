@@ -52,7 +52,6 @@ public static class MenuTexts
     /// <summary>What shows beside a row, as a shortcut does: its hotkey, or why it is grayed; null for neither.</summary>
     public static string? Beside(MenuRow row, Texts texts) => row.Hotkey ?? (row.Note is { } note ? texts.Of(note) : null);
 
-    /// <summary>An overlay's name, as the window's list says it.</summary>
     public static string NameOf(ThermiConfig config, int overlay, Texts texts) =>
         overlay >= config.Overlays.Count ? "" : OverlayNames.Of(config, overlay, texts);
 

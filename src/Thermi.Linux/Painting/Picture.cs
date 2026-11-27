@@ -8,7 +8,6 @@ namespace Thermi.Linux.Painting;
 /// </summary>
 internal sealed class Picture(int width, int height) : IDisposable
 {
-    /// <summary>The image the painter draws on.</summary>
     public Cairo.ImageSurface Surface { get; } = new(Cairo.Format.Argb32, width, height);
 
     public int Width => width;

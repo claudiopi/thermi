@@ -73,7 +73,6 @@ internal sealed class ShellLink : IDisposable
         _signals.OnGSignal += (_, heard) => Heard(heard.SignalName, heard.Parameters);
     }
 
-    /// <summary>The extension came up, with its protocol's version.</summary>
     public Action<uint> Ready { get; set; } = _ => { };
 
     public Action<ShellPointer> Pointer { get; set; } = _ => { };

@@ -234,15 +234,17 @@ internal sealed class OverlayHost : IDisposable
     private void Announce(List<Task> sent, bool second)
     {
         var hiding = _parts.Visibility.HideOverlays;
+        // At start, the overlays are shown once they show what the service says: its first second, or that it is stopped.
+        var shown = !hiding && (_wasHidden || (_shownOwed && (_feed.Latest is not null || _feed.State != ServiceState.Running)));
         List<string> owed =
         [
             .. second ? [TraceEvents.Paint] : Array.Empty<string>(),
             .. _editOwed ? [TraceEvents.EditApplied] : Array.Empty<string>(),
             .. _droppedOwed ? [TraceEvents.Dropped] : Array.Empty<string>(),
             .. hiding && !_wasHidden ? [TraceEvents.Hidden] : Array.Empty<string>(),
-            .. !hiding && (_shownOwed || _wasHidden) ? [TraceEvents.Shown] : Array.Empty<string>(),
+            .. shown ? [TraceEvents.Shown] : Array.Empty<string>(),
         ];
-        (_editOwed, _droppedOwed, _shownOwed, _wasHidden) = (false, false, false, hiding);
+        (_editOwed, _droppedOwed, _shownOwed, _wasHidden) = (false, false, _shownOwed && !shown && !hiding, hiding);
         if (owed.Count > 0)
         {
             _ = Task.WhenAll(sent).ContinueWith(

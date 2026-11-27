@@ -12,7 +12,10 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
     /// <summary>A second of the service's taken and painted, whether an overlay is on screen or not.</summary>
     public const string Paint = "paint";
 
-    /// <summary>Every overlay not hidden is on screen as painted: at start, and each time they come back after <see cref="Hidden"/>.</summary>
+    /// <summary>
+    /// Every overlay not hidden is on screen as painted: at start, once they show the service's first second or that it is
+    /// stopped, and each time they come back after <see cref="Hidden"/>.
+    /// </summary>
     public const string Shown = "shown";
 
     /// <summary>"Hide overlays" or the hotkey took the overlays off the screen.</summary>

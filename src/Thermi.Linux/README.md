@@ -24,7 +24,7 @@ Under `--trace`, each event is one line on the standard error, `<seconds on CLOC
 | Event | Written when |
 | --- | --- |
 | `paint` | A second of the service's was taken and painted, whether an overlay is on screen or not. |
-| `shown` | Every overlay not hidden is on screen as painted: once at start, even with none, and each time they come back after `hidden`. |
+| `shown` | Every overlay not hidden is on screen as painted: once at start, even with none, as soon as they show the service's first second or that it is stopped; and each time they come back after `hidden`. |
 | `hidden` | Hide overlays, or the hotkey, took them off the screen. |
 | `edit-applied` | One change of the settings is saved and on screen, wherever it came from; a notch of Ctrl and the wheel is one. |
 | `lifted` | A hold lifted a pill or an item. |
