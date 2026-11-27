@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="GirCore.Gdk-4.0" />
+    <PackageReference Include="GirCore.PangoCairo-1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Thermi.App\Thermi.App.csproj" />
     <ProjectReference Include="..\Thermi.Cli\Thermi.Cli.csproj" />
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />

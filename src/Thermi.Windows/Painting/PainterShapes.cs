@@ -90,7 +90,10 @@ internal static class PainterShapes
         g.FillPath(brush, inner);
     }
 
-    /// <summary>A meter at <paramref name="at"/>, its left middle: the lowest <paramref name="lit"/> segments in <paramref name="color"/> and the rest in the faint track's.</summary>
+    /// <summary>
+    /// A meter at <paramref name="at"/>, its left middle: the lowest <paramref name="lit"/> segments in
+    /// <paramref name="color"/> and the rest in the faint track's.
+    /// </summary>
     public static void Meter(Graphics g, int lit, Rgb color, OverlayLook look, PointF at, float scale)
     {
         using var on = new SolidBrush(Drawn(color));

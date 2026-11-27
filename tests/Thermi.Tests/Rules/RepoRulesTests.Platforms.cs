@@ -8,7 +8,7 @@ public sealed partial class RepoRulesTests
     // The files of the Windows projects that call no Windows-only API, and why each stays there all the same.
     private static readonly Dictionary<string, string> NeedNoWindowsApi = new(StringComparer.Ordinal)
     {
-        ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's command line: the overlay, the window, preview and cpu-load, each a Windows program",
+        ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's own commands beside every OS's: cpu-load and the mode UAC raises, each a Windows program",
         ["Thermi.Windows/Gestures/HotkeyPresses.cs"] = "what thermi's hotkeys do, which Windows' RegisterHotKey delivers anywhere in Windows",
         ["Thermi.Windows/Logging/LogEvents.cs"] = "the events of the Windows code's classes, which log nothing else",
         ["Thermi.Windows/Tray/TrayChoices.cs"] = "what a row of the tray's and an overlay's Win32 menus does",
@@ -35,7 +35,10 @@ public sealed partial class RepoRulesTests
     };
 
     // The files of the Linux projects that call no Linux-only API, and why each stays there all the same.
-    private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
+    {
+        ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
+    };
 
     // The libraries a Linux project calls by hand, and why: GirCore generates the rest from GObject's introspection data
     // (docs/adr/0019-linux.md), as CsWin32 does Win32's.
