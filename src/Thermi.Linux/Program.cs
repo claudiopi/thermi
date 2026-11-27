@@ -42,7 +42,8 @@ internal static class Program
             AgentRequest agent => await RunAgentAsync(agent, time),
             // The console door's stdout carries JSON alone, so its help and version go to stderr.
             BuiltInRequest builtIn => await builtIn.Parsed.InvokeAsync(new InvocationConfiguration { Output = door ? Console.Error : Console.Out }),
-            CpuLoadRequest cpu when !door => await CpuLoad.RunAsync(cpu.Seconds, time),
+            // The fan finder's load, which the sensors' package alone runs through thermi-cli, as it has no thermi.
+            CpuLoadRequest cpu => await CpuLoad.RunAsync(cpu.Seconds, time),
             _ when door => await HelpAsync(root),
             _ => await NoOverlayAsync(),
         };

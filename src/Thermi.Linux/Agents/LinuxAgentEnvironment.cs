@@ -61,21 +61,25 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool RunsInstalled() => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
 
+    // GNOME's monitors, as Mutter lays them out. Another desktop's are what the overlay's own surfaces find, layer-shell's
+    // or X11's; until they answer here, none.
     public IReadOnlyList<Screen> Screens() => GnomeMonitors.Read();
 
     public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 
-    // chrt runs thermi in its place, so ending the process it started ends the load.
+    // chrt runs thermi-cli in its place, so ending the process it started ends the load; thermi-cli, which every package
+    // installs, where thermi comes only with the overlay's.
     public void Load(CancellationToken stop) => CpuLoad.Start(
         "chrt",
-        ["--idle", "0", Path.Combine(AppContext.BaseDirectory, "thermi"), .. CpuLoad.Arguments((int)FanFinder.MaxRun.TotalSeconds)],
+        ["--idle", "0", Path.Combine(AppContext.BaseDirectory, Program.ConsoleDoor), .. CpuLoad.Arguments((int)FanFinder.MaxRun.TotalSeconds)],
         stop);
 
     public bool HeldElsewhere(IOException error) => error.HResult == WouldBlock;
 
     public AgentOs Os => AgentOs.Linux;
 
-    // GNOME shows it only through thermi's extension, on; the other desktops through layer-shell or X11, which they have.
+    // GNOME shows it only through thermi's extension, on. Whether another desktop can, through layer-shell or X11, is the
+    // overlay's own surfaces' to say, and their answer goes here; until then, it says yes.
     public bool OverlayCanShow() =>
         !IsGnome()
         || (SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
