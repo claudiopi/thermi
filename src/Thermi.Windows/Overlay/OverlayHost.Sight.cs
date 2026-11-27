@@ -10,8 +10,7 @@ namespace Thermi.Windows.Overlay;
 
 // Nobody sees the overlays while the session is away, as Desktop.UserState says, or its display is off: they draw nothing and
 // their own frames rest, while the sensors are still read, so the history, the notices and the agents stay right. Windows
-// tells at once; the tick asks again, which sees a screen saver Windows never tells of, and heals a word missed: input
-// since the display went off means it is back.
+// tells at once; the tick asks again, which sees a screen saver Windows never tells of, and heals a word missed.
 internal sealed partial class OverlayHost
 {
     // The display's state as Windows gives it: off, on, or dimmed, which still shows.
@@ -19,38 +18,40 @@ internal sealed partial class OverlayHost
 
     private IDisposable? _sightWatch;
     private NotificationState _state;
-    private bool _away;
+    private bool _locked;
+    private long _lockedAt;
     private bool _dark;
     private long _darkAt;
 
-    private bool Seen => !_away && !_dark;
+    private bool Seen => !_locked && _state != NotificationState.Away && !_dark;
 
     private void WatchSight()
     {
         _sightWatch = _environment.Sight.Watch(Hwnd);
         _state = _environment.Sight.State();
-        _away = _state == NotificationState.Away;
     }
 
     private void ForgetSight() => _sightWatch?.Dispose();
 
     // Asked once a second, for whether anybody is there and for the full-screen rule, which every paint till the next tick
-    // reads. Seen, the overlays are kept on top; unseen, no paint reads the window in front, which "Notify me" waits on,
-    // and none needs keeping on top.
+    // reads. A lock holds till its unlock, and a display off till it is back, unless the word was missed: a key or the
+    // mouse since, and for a lock Windows no longer saying nobody is there. Unseen, no paint reads the window in front,
+    // which "Notify me" waits on, and no overlay needs keeping on top; seen just now, they were raised as they were.
     private void LookAgain()
     {
         var seen = Seen;
         _state = _environment.Sight.State();
-        var back = _dark && _environment.Sight.SinceInput() < _actions.Time.GetElapsedTime(_darkAt);
-        (_away, _dark) = (_state == NotificationState.Away, _dark && !back);
+        var input = _environment.Sight.SinceInput();
+        _locked = _locked && (_state == NotificationState.Away || input >= _actions.Time.GetElapsedTime(_lockedAt));
+        _dark = _dark && input >= _actions.Time.GetElapsedTime(_darkAt);
         SightChanged(seen);
-        if (Seen)
-        {
-            Raise();
-        }
-        else
+        if (!Seen)
         {
             FullScreen(_settings.Config, _desktop.Screens());
+        }
+        else if (seen)
+        {
+            Raise();
         }
     }
 
@@ -67,7 +68,9 @@ internal sealed partial class OverlayHost
         var seen = Seen;
         if (message == PInvoke.WM_WTSSESSION_CHANGE && (wParam == PInvoke.WTS_SESSION_LOCK || wParam == PInvoke.WTS_SESSION_UNLOCK))
         {
-            _away = wParam == PInvoke.WTS_SESSION_LOCK;
+            // An unlock says somebody is there now, whatever Windows said at the last tick, which asks again.
+            (_locked, _lockedAt) = (wParam == PInvoke.WTS_SESSION_LOCK, _actions.Time.GetTimestamp());
+            _state = !_locked && _state == NotificationState.Away ? NotificationState.Normal : _state;
         }
         else if (message == PInvoke.WM_POWERBROADCAST && wParam == PInvoke.PBT_POWERSETTINGCHANGE && SessionSight.DisplayState(lParam) is { } state)
         {
@@ -113,7 +116,8 @@ internal sealed partial class OverlayHost
 /// </summary>
 internal sealed record SessionSight(Func<HWND, IDisposable> Watch, Func<NotificationState> State, Func<TimeSpan> SinceInput)
 {
-    public static SessionSight Real { get; } = new(window => new Registration(window), Desktop.UserState, Desktop.SinceInput);
+    // No answer of the last input counts as none, so it ends no display off or lock.
+    public static SessionSight Real { get; } = new(window => new Registration(window), Desktop.UserState, () => Desktop.SinceInput() ?? TimeSpan.MaxValue);
 
     /// <summary>The session display's state a power setting's message carries, or null for another setting's.</summary>
     public static unsafe uint? DisplayState(nint lParam)

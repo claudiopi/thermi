@@ -84,12 +84,12 @@ internal static class Desktop
 
     /// <summary>
     /// How long the session has gone without a key or the mouse. Windows counts it in its tick count, which no
-    /// <see cref="TimeProvider"/> gives, so the two are compared as they come.
+    /// <see cref="TimeProvider"/> gives, so the two are compared as they come. Null when Windows does not answer.
     /// </summary>
-    public static TimeSpan SinceInput()
+    public static TimeSpan? SinceInput()
     {
         var input = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
-        return PInvoke.GetLastInputInfo(ref input) ? TimeSpan.FromMilliseconds(unchecked((uint)Environment.TickCount - input.dwTime)) : TimeSpan.Zero;
+        return PInvoke.GetLastInputInfo(ref input) ? TimeSpan.FromMilliseconds(unchecked((uint)Environment.TickCount - input.dwTime)) : null;
     }
 
     /// <summary>Whether the session is locked, its screen saver on, or switched away from: nobody sees its overlays.</summary>

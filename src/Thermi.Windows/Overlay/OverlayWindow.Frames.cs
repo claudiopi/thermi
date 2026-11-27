@@ -12,9 +12,10 @@ namespace Thermi.Windows.Overlay;
 // nobody can see it.
 internal sealed partial class OverlayWindow
 {
-    // The one record of the last draw, and the size of its picture.
+    // The one record of the last draw, and the size of its picture, which a hidden overlay keeps for the tray to copy.
     private OverlayFrame? _frame;
     private Size _drawn;
+    private bool _drawAgain;
 
     // What the last draw drew, as the gestures and the overlay's picture read it.
     private PaintedOverlay? Painted =>
@@ -27,8 +28,8 @@ internal sealed partial class OverlayWindow
         PInvoke.KillTimer(Hwnd, OverlayFade.TimerId);
     }
 
-    /// <summary>Forgets the last draw, so the next paint draws whatever it shows.</summary>
-    public void DrawAgain() => _frame = null;
+    /// <summary>The next paint draws whatever it shows, though the last draw is kept till then.</summary>
+    public void DrawAgain() => _drawAgain = true;
 
     private OverlayFrame FrameOf(OverlayConfig overlay, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, string? stopped) =>
         new(items, look, scale, WindowPosition())
@@ -46,13 +47,13 @@ internal sealed partial class OverlayWindow
     private void Show(OverlayFrame frame, OverlayConfig overlay, Rgb accent, Func<Size, Position> place)
     {
         frame = _frame is not null ? frame with { At = place(_drawn) } : frame;
-        if (OnScreen && _frame is { } shown && !frame.Differs(shown with { At = WindowPosition() }))
+        if (!_drawAgain && OnScreen && _frame is { } shown && !frame.Differs(shown with { At = WindowPosition() }))
         {
             return;
         }
 
         var bitmap = Draw(frame, overlay, accent);
-        (_frame, _drawn) = (frame, bitmap.Size);
+        (_frame, _drawn, _drawAgain) = (frame, bitmap.Size, false);
         _picture.Show(Hwnd, bitmap, place(bitmap.Size), _fade.Alpha);
         _log.Drew();
     }
