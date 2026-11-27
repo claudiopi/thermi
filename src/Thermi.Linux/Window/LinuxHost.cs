@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Logging;
 using Thermi.App.Painting;
@@ -19,16 +18,12 @@ namespace Thermi.Linux.Window;
 /// </summary>
 internal sealed partial class LinuxHost : IWindowHost, IDisposable
 {
-    /// <summary>The overlay's id on the session's bus, a GTK application's, whose <c>quit</c> action ends it.</summary>
-    public const string Overlay = "io.github.claudiopi.thermi.Overlay";
-
-    private const string OverlayPath = "/io/github/claudiopi/thermi/Overlay";
-
     private readonly ILogger _log;
     private readonly Gio.DBusConnection? _bus;
     private readonly DesktopPortal _portal;
     private readonly SignInUnit _signInUnit = new();
     private readonly WindowScreens _screens;
+    private readonly OverlayLink _overlay;
     private WindowTheme _theme;
     private ExtensionState? _extension;
     private bool? _signIn;
@@ -40,6 +35,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _portal = new DesktopPortal(Changed);
         _extension = LinuxFixes.ExtensionState(_bus);
         _screens = new WindowScreens(_bus, Turn.Post, () => DesktopChanged?.Invoke(), log);
+        _overlay = new OverlayLink(_bus, () => DesktopChanged?.Invoke());
     }
 
     public Gtk.Window? Window { get; set; }
@@ -101,9 +97,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     // The overlay registers its hotkeys with the desktop, which tells it, not the window, of one it refused.
     public long? HotkeyStatus() => OverlayRunning() ? 0 : null;
 
-    public bool OverlayRunning() =>
-        _bus is { } bus && Ask(bus, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner", Overlay) is { } owned
-        && owned.GetChildValue(0).GetBoolean();
+    public bool OverlayRunning() => _overlay.Running;
 
     public void RestHotkeys(bool rest)
     {
@@ -117,12 +111,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public void ExitThermi()
     {
-        if (_bus is { } bus)
-        {
-            var path = OverlayPath;
-            using var _ = Ask(bus, Overlay, path, "org.gtk.Actions", "Activate", "quit");
-        }
-
+        _overlay.Quit();
         Window?.Close();
     }
 
@@ -130,14 +119,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public void StartOverlay()
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo(Environment.ProcessPath ?? "thermi") { UseShellExecute = false })?.Dispose();
-        }
-        catch (System.ComponentModel.Win32Exception ex)
-        {
-            OverlayNotStarted(_log, ex);
-        }
+        _ = StartAsync();
     }
 
     public void Open(string target, ILogger log)
@@ -230,6 +212,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     public void Dispose()
     {
         _portal.Dispose();
+        _overlay.Dispose();
         _screens.Dispose();
         _bus?.Dispose();
     }
@@ -259,22 +242,12 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    private static GLib.Variant? Ask(Gio.DBusConnection bus, string name, string path, string face, string method, string argument)
+    // The overlay runs as the person's systemd user unit, which restarts it if it fails and ends it with the session.
+    private async Task StartAsync()
     {
-        try
+        if (!await LinuxFixes.StartOverlay())
         {
-            // org.gtk.Actions' Activate takes the action, its parameters and the platform's data, both empty.
-            var parameters = method == "Activate"
-                ? GLib.Variant.NewTuple([
-                    GLib.Variant.NewString(argument),
-                    GLib.Variant.NewArray(GLib.VariantType.New("v"), []),
-                    GLib.Variant.NewArray(GLib.VariantType.New("{sv}"), [])])
-                : GLib.Variant.NewTuple([GLib.Variant.NewString(argument)]);
-            return bus.CallSync(name, path, face, method, parameters, null, Gio.DBusCallFlags.None, 1000, null);
-        }
-        catch (GLib.GException)
-        {
-            return null;
+            OverlayNotStarted(_log);
         }
     }
 
@@ -290,8 +263,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "The overlay could not be started")]
-    private static partial void OverlayNotStarted(ILogger logger, Exception error);
+    [LoggerMessage(Level = LogLevel.Error, Message = "systemctl did not start the overlay's user unit")]
+    private static partial void OverlayNotStarted(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The desktop did not open {Target}")]
     private static partial void OpenRefused(ILogger logger, string target, Exception error);

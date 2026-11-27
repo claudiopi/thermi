@@ -81,6 +81,9 @@ internal static class LinuxFixes
     }
 
     /// <summary>Starts the sensor service's socket behind polkit's prompt: false when the person declined or it failed.</summary>
+    /// <summary>Starts the overlay's user unit, as the person: false when systemctl failed.</summary>
+    public static Task<bool> StartOverlay() => RunAsync(Systemctl, ["--user", "start", OverlayUnit]);
+
     public static Task<bool> StartService() => RunAsync(Pkexec, [Systemctl, "start", "thermi-sensors.socket"]);
 
     // By its full path, never a program found on the PATH; one that is not there fails.
