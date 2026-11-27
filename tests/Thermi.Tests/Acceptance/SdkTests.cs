@@ -48,7 +48,8 @@ public sealed class SdkTests
             var programFiles = Path.Combine(root, "Program Files");
             var local = Path.Combine(root, "Local");
             string[] installs = [onPath, Path.Combine(programFiles, "thermi"), Path.Combine(local, "Programs", "thermi")];
-            var name = ThermiClient.Cli;
+            // The name each OS gives the program, as its installs write it.
+            var name = OperatingSystem.IsWindows() ? "thermi-cli.exe" : "thermi-cli";
             var found = new List<string?>();
             for (var first = installs.Length; first >= 0; first--)
             {
