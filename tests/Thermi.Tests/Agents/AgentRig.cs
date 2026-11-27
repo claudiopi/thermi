@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
+using Thermi.Core.Agents;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -118,6 +119,10 @@ internal sealed class AgentRig : IDisposable
 
     public bool Raised { get; set; }
 
+    public AgentOs Os { get; set; }
+
+    public bool OverlayCanShow { get; set; } = true;
+
     /// <summary>Where the commands log, the folder's own list when null.</summary>
     public ILogger? Log { get; set; }
 
@@ -195,6 +200,10 @@ internal sealed class AgentRig : IDisposable
         public bool SensorsOnly() => rig.SensorsOnly;
 
         public bool Raised() => rig.Raised;
+
+        public AgentOs Os => rig.Os;
+
+        public bool OverlayCanShow() => rig.OverlayCanShow;
 
         public bool RunsInstalled() => true;
 

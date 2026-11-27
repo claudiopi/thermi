@@ -2350,7 +2350,10 @@
     <value>Ask the person to stop the program that serves /run/thermi/sensors.sock, or to restart the PC.</value>
   </data>
   <data name="AgentText.DriverMissingFixLinux" xml:space="preserve">
-    <value>Ask the person to check that the kernel module for the CPU&apos;s sensors is loaded: k10temp on AMD, coretemp on Intel.</value>
+    <value>Ask the person to check that the kernel module for the CPU&apos;s sensors is loaded: k10temp on AMD, coretemp on Intel. A virtual machine has none to load.</value>
+  </data>
+  <data name="AgentText.DriverMissingCauseLinux" xml:space="preserve">
+    <value>The CPU has no temperature: the kernel module that reads it is not loaded, or thermi runs in a virtual machine, which has none.</value>
   </data>
   <data name="AgentText.SettingsBrokenFixLinuxSensorsOnly" xml:space="preserve">
     <value>Ask the person to fix or delete thermi&apos;s settings file, ~/.config/thermi/config.json.</value>

@@ -2396,7 +2396,10 @@
     <value>Pedile a la persona que detenga el programa que sirve /run/thermi/sensors.sock, o que reinicie el PC.</value>
   </data>
   <data name="AgentText.DriverMissingFixLinux" xml:space="preserve">
-    <value>Pedile a la persona que revise que esté cargado el módulo del kernel para los sensores del CPU: k10temp en AMD, coretemp en Intel.</value>
+    <value>Pedile a la persona que revise que esté cargado el módulo del kernel para los sensores del CPU: k10temp en AMD, coretemp en Intel. Una máquina virtual no tiene ninguno para cargar.</value>
+  </data>
+  <data name="AgentText.DriverMissingCauseLinux" xml:space="preserve">
+    <value>La CPU no tiene temperatura: no está cargado el módulo del kernel que la lee, o thermi corre en una máquina virtual, que no tiene.</value>
   </data>
   <data name="AgentText.SettingsBrokenFixLinuxSensorsOnly" xml:space="preserve">
     <value>Pedile a la persona que arregle o borre el archivo de configuración de thermi, ~/.config/thermi/config.json.</value>

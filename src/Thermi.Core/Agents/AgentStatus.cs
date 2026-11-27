@@ -72,6 +72,7 @@ public enum AgentText
     PipeTakenFixLinux,
     DriverMissingFixLinux,
     SettingsBrokenFixLinuxSensorsOnly,
+    DriverMissingCauseLinux,
 }
 
 /// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
@@ -189,7 +190,7 @@ public static class AgentStatus
         AgentProblem.ServiceStopped => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixLinux),
         AgentProblem.ServiceStale => (AgentText.ServiceStaleCause, AgentText.ServiceStaleFixLinux),
         AgentProblem.PipeTaken => (AgentText.PipeTakenCauseLinux, AgentText.PipeTakenFixLinux),
-        AgentProblem.DriverMissing => (AgentText.DriverMissingCause, AgentText.DriverMissingFixLinux),
+        AgentProblem.DriverMissing => (AgentText.DriverMissingCauseLinux, AgentText.DriverMissingFixLinux),
         AgentProblem.SettingsBroken when sensorsOnly => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFixLinuxSensorsOnly),
         // Said as on Windows: they name nothing of Windows', or never happen on Linux, as a per-user install's.
         AgentProblem.ServiceMissing or AgentProblem.SettingsBroken or AgentProblem.NotRunning or AgentProblem.FramesNotRead
