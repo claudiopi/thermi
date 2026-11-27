@@ -54,9 +54,10 @@ public sealed class PackageTests
         var cancel = TestContext.Current.CancellationToken;
         await using var session = new OwnSession();
         var tool = Tool.Of(row);
-        await using var pc = await Container.StartAsync(session, tool.Image, session.Home, cancel);
+        await using var pc = await Container.BootAsync(session, tool.Image, session.Home, cancel);
         await pc.MustAsync(tool.Prepare(), cancel);
 
+        // thermi-cli reads the service, which its socket starts: what the package started, which its removal stops.
         await pc.MustAsync(tool.Install("thermi-sensors"), cancel);
         var cli = await pc.RunAsync("useradd -m person && su person -c 'thermi-cli status --schema 1'", cancel);
         await pc.MustAsync(tool.Install("thermi"), cancel);
@@ -65,14 +66,19 @@ public sealed class PackageTests
         var arm64 = await pc.RunAsync(tool.Arm64(), cancel);
         // Installed again with the network cut, once its libraries are on the PC, it downloads nothing.
         await pc.MustAsync(tool.Remove(), cancel);
+        var left = await pc.RunAsync("systemctl is-active thermi-sensors.socket thermi-sensors.service || true; pgrep -x thermi-sensors || true", cancel);
         await pc.OfflineAsync(cancel);
         await pc.MustAsync($"{tool.Install("thermi-sensors", offline: true)} && {tool.Install("thermi", offline: true)}", cancel);
         await pc.MustAsync("mkdir -p /home/person/.config/thermi && echo '{}' > /home/person/.config/thermi/config.json", cancel);
         await pc.MustAsync(tool.Remove(), cancel);
         var kept = await pc.RunAsync("cat /home/person/.config/thermi/config.json", cancel);
 
-        Assert.Equal(3, cli.Exit);
-        Assert.Superset(SensorsFiles.Concat(ThermiFiles).ToHashSet(StringComparer.Ordinal), files.ToHashSet(StringComparer.Ordinal));
+        Assert.Equal(0, cli.Exit);
+        // Each file spec.md lists is among the package's; the rest, the libraries it holds and the docs a distribution
+        // asks of every package, may be there too.
+        Assert.Empty(SensorsFiles.Concat(ThermiFiles).Except(files, StringComparer.Ordinal));
+        // Nothing the packages started runs after their removal: neither unit, nor any process of the service's.
+        Assert.Equal(["inactive", "inactive"], left.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries));
         Assert.True(signed.Exit == 0, $"No signed repository of thermi's: {signed.Error}");
         Assert.True(arm64.Exit == 0, $"No arm64 package of the same version: {arm64.Error}");
         Assert.Equal("{}", kept.Out.Trim());
@@ -94,7 +100,11 @@ public sealed class PackageTests
         // The first version from the channel's own files, which adds the repository, then pointed at the channel the test serves.
         await pc.MustAsync($"{tool.Prepare()} && {tool.InstallFromChannel("thermi-sensors", "1.0.0")} && {tool.Served()}", cancel);
         const string Serving = "systemctl show -p MainPID --value thermi-sensors.service";
-        await pc.MustAsync($"mkfifo /tmp/held && python3 {Container.Work}/hold.py > /tmp/held 2>/dev/null < /dev/null & read -r _ < /tmp/held", cancel);
+        // The holder alone runs in the background, its output to the pipe the shell reads once, so the shell ends.
+        await pc.MustAsync(
+            $"{Container.Installs(tool.Image, tool.Python)} && mkfifo /tmp/held && (python3 {Container.Work}/hold.py > /tmp/held 2>/dev/null < /dev/null &)"
+                + " && read -r _ < /tmp/held",
+            cancel);
         var before = (await pc.MustAsync(Serving, cancel)).Trim();
 
         await levers.RunAsync(["publish", "1.1.0", "--channel", "stable"], cancel);
@@ -142,7 +152,7 @@ public sealed class PackageTests
         // The new window is the old one's successor, and writes where it did.
         var overlay = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
         var successor = Traced.NextAsync(window.Error, Traced.WindowShown, cancel);
-        Built.Copy(Path.Combine(Built.Packages, "newer"), installed, overwrite: true);
+        Built.Copy(Path.Combine(Built.Packages, "newer"), installed, replace: true);
 
         // Quiet, with no input and nothing changing on screen: each hands over to its new version.
         await window.WaitForExitAsync(cancel);
@@ -186,6 +196,15 @@ public sealed class PackageTests
             _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown distribution."),
         };
 
+        /// <summary>
+        /// A package's name as the distribution knows it: on Arch, the AUR's <c>thermi-bin</c>, which R1 names, packs both,
+        /// <c>thermi-bin</c> and <c>thermi-sensors-bin</c>, as the AUR names a package of a build's own files.
+        /// </summary>
+        public string Package(string name) => Format == "pkg.tar.zst" ? $"{name}-bin" : name;
+
+        /// <summary>The distribution's package of Python, which a test's own client runs on.</summary>
+        public string Python => Format == "deb" ? "python3-minimal" : "python3";
+
         /// <summary>What a PC holds before thermi's packages: apt's lists, or on Arch the packages built from the PKGBUILD.</summary>
         public string Prepare() => Format == "pkg.tar.zst"
             ? $"{Container.Installs(Image, "base-devel")} && useradd -m builder && cp -r {Container.Packages}/aur {Aur} && chown -R builder {Aur}"
@@ -198,7 +217,7 @@ public sealed class PackageTests
         {
             "deb" => $"DEBIAN_FRONTEND=noninteractive apt-get install -y $(ls {Container.Packages}/{package}_[0-9]*_amd64.deb)",
             "rpm" => $"dnf install -y {(offline ? "--disablerepo='*' " : "")}$(ls {Container.Packages}/{package}-[0-9]*.x86_64.rpm)",
-            _ => $"pacman -U --noconfirm $(ls {Aur}/{package}-[0-9]*-x86_64.pkg.tar.zst)",
+            _ => $"pacman -U --noconfirm $(ls {Aur}/{Package(package)}-[0-9]*-x86_64.pkg.tar.zst)",
         };
 
         /// <summary>A version of a package from the files the levers put in the channel, as the first install from thermi's site.</summary>
@@ -211,15 +230,16 @@ public sealed class PackageTests
         {
             "deb" => "apt-get remove -y thermi thermi-sensors",
             "rpm" => "dnf remove -y --setopt=clean_requirements_on_remove=False thermi thermi-sensors",
-            _ => "pacman -R --noconfirm thermi thermi-sensors",
+            _ => $"pacman -R --noconfirm {Package("thermi")} {Package("thermi-sensors")}",
         };
 
+        // The files a package installed, its folders aside, which the tools list too.
         public string Files(string package) => Format switch
         {
             "deb" => $"dpkg -L {package}",
             "rpm" => $"rpm -ql {package}",
-            _ => $"pacman -Qlq {package}",
-        };
+            _ => $"pacman -Qlq {Package(package)}",
+        } + " | while read -r file; do if [ -f \"$file\" ]; then echo \"$file\"; fi; done";
 
         // The repository a package added names a key a package installed, which the system checks each update against;
         // Arch's updates come from the AUR instead, which adds none.
@@ -263,9 +283,26 @@ public sealed class PackageTests
             Assert.True(pulled.Exit == 0, pulled.Error);
         }
 
-        /// <summary>The channel signed by a key that is not thermi's.</summary>
-        public Task ServeForeignAsync(CancellationToken cancel) =>
-            RunAsync(["sign", "--key", Path.Combine(session.Home, "foreign.pem"), "--channel", "stable"], cancel);
+        /// <summary>The channel signed by a key that is not thermi's: an OpenPGP key of the test's own, made for it.</summary>
+        public async Task ServeForeignAsync(CancellationToken cancel)
+        {
+            var keys = Directory.CreateDirectory(Path.Combine(session.Home, "foreign-gpg")).FullName;
+            var foreign = Path.Combine(session.Home, "foreign.asc");
+            string[][] steps =
+            [
+                ["--homedir", keys, "--batch", "--passphrase", "", "--quick-generate-key", "not thermi <foreign@example.org>", "default", "default", "never"],
+                ["--homedir", keys, "--batch", "--armor", "--output", foreign, "--export-secret-keys"],
+            ];
+            foreach (var step in steps)
+            {
+                var made = await session.RunAsync("gpg", step, cancel: cancel);
+                Assert.True(made.Exit == 0, made.Error);
+            }
+
+            // gpg starts an agent of its own for the key's folder, which would outlive the test.
+            await session.RunAsync("gpgconf", ["--homedir", keys, "--kill", "all"], cancel: cancel);
+            await RunAsync(["sign", "--key", foreign, "--channel", "stable"], cancel);
+        }
 
         /// <summary>The channel as it was before the last lever, older than the one the PC holds.</summary>
         public Task ServeOlderAsync(CancellationToken cancel) => RunAsync(["restore", "--before-last", "--channel", "stable"], cancel);
