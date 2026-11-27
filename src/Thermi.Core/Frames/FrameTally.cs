@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Thermi.Core.Sensors;
@@ -65,9 +66,16 @@ public static class PresentJson
 
 /// <summary>
 /// A process's last second of frames: how many it presented a second, and the longest wait for one of them, the wait
-/// still going at the second's end included, in milliseconds.
+/// still going at the second's end included, in milliseconds; and its 1 % and 0.1 % lows, the frames a second of its
+/// slowest frames of the last minute, or null where they are not known, as from a service of an earlier version.
 /// </summary>
-public readonly record struct FrameRate(int Process, int Parent, double Fps, double FrameTime);
+public readonly record struct FrameRate(
+    int Process,
+    int Parent,
+    double Fps,
+    double FrameTime,
+    double? OnePercentLow = null,
+    double? PointOnePercentLow = null);
 
 /// <summary>
 /// Turns presents into each second's frame rates, as the sensor service reads them (docs/adr/0014-frames-from-etw.md).
@@ -96,6 +104,15 @@ public sealed class FrameTally
 
     /// <summary>How many seconds in a row a process presents at <see cref="SteadyFps"/> before its rates are told.</summary>
     public const int SteadyFor = 3;
+
+    /// <summary>How far back the lows look, in milliseconds: a minute of play, as gamers' overlays count them.</summary>
+    public const double LowsOver = 60_000;
+
+    /// <summary>
+    /// How many frames a process keeps for its lows at most, a minute at 500 FPS: an app that presents faster has them over
+    /// its last frames, so it never grows the service past its budget (docs/adr/0011-sensor-service-memory-budget.md).
+    /// </summary>
+    public const int LowsKept = 30_000;
 
     private const double Second = 1000;
 
@@ -139,7 +156,7 @@ public sealed class FrameTally
 
             _closed = at;
             var seconds = (at - from) / Second;
-            var rates = new List<(FrameRate Rate, int Frames)>();
+            var rates = new List<(FrameRate Rate, int Frames, Track Track)>();
             foreach (var (process, track) in _tracks.ToList())
             {
                 var (frames, longest, last) = track.Take(at);
@@ -158,11 +175,16 @@ public sealed class FrameTally
                 track.Steady = track.Steady >= SteadyFor ? SteadyFor : fps >= SteadyFps ? track.Steady + 1 : 0;
                 if (track.Steady >= SteadyFor)
                 {
-                    rates.Add((new FrameRate(process, track.Parent, fps, Math.Min(Math.Max(longest, at - last.Value), LongestFrame)), frames));
+                    rates.Add((new FrameRate(process, track.Parent, fps, Math.Min(Math.Max(longest, at - last.Value), LongestFrame)), frames, track));
                 }
             }
 
-            return [.. rates.OrderByDescending(rate => rate.Frames).ThenBy(rate => rate.Rate.Process).Take(Slots).Select(rate => rate.Rate)];
+            // Only the slots' lows are worked out, since each sorts up to a minute of frames.
+            return
+            [
+                .. rates.OrderByDescending(rate => rate.Frames).ThenBy(rate => rate.Rate.Process).Take(Slots)
+                    .Select(rate => rate.Track.WithLows(rate.Rate, at)),
+            ];
         }
     }
 
@@ -176,8 +198,13 @@ public sealed class FrameTally
     {
         private const int Ranks = 4;
 
-        // When the process last presented as each rank of source told, and the rank the last second with frames took.
+        // When the process last presented as each rank of source told.
         private readonly double?[] _lastOf = new double?[Ranks];
+
+        // The waits between its frames as the counted source told them, and when each ended, for its lows.
+        private readonly Queue<(double At, double Wait)> _waits = new();
+
+        // The rank the last second with frames took.
         private int? _told;
 
         public int Parent { get; set; }
@@ -205,13 +232,68 @@ public sealed class FrameTally
             var longest = 0.0;
             foreach (var (time, _) in taken.Where(present => present.Rank == rank))
             {
-                longest = Math.Max(longest, time - (previous ?? time));
+                var wait = time - (previous ?? time);
+                longest = Math.Max(longest, wait);
+                Keep(time, wait);
                 previous = time;
             }
 
             taken.ForEach(present => _lastOf[present.Rank] = present.At);
             _told = taken.Count == 0 ? _told : rank;
             return (counts[rank], longest, _lastOf[rank] ?? previous);
+        }
+
+        /// <summary>
+        /// The rate with its lows: the frames a second of its frame at the 99th and the 99.9th percentile of frame time, by
+        /// nearest rank, among those that ended in the minute up to <paramref name="at"/>; none without such frames.
+        /// </summary>
+        public FrameRate WithLows(FrameRate rate, double at)
+        {
+            while (_waits.TryPeek(out var oldest) && oldest.At <= at - LowsOver)
+            {
+                _waits.Dequeue();
+            }
+
+            if (_waits.Count == 0)
+            {
+                return rate;
+            }
+
+            var sorted = ArrayPool<double>.Shared.Rent(_waits.Count);
+            try
+            {
+                var count = 0;
+                foreach (var (_, wait) in _waits)
+                {
+                    sorted[count++] = wait;
+                }
+
+                Array.Sort(sorted, 0, count);
+                return rate with
+                {
+                    OnePercentLow = Second / sorted[count - (count / 100) - 1],
+                    PointOnePercentLow = Second / sorted[count - (count / 1000) - 1],
+                };
+            }
+            finally
+            {
+                ArrayPool<double>.Shared.Return(sorted);
+            }
+        }
+
+        // A first frame has no wait before it, and two told at the same time no gap between them.
+        private void Keep(double at, double wait)
+        {
+            if (wait <= 0)
+            {
+                return;
+            }
+
+            _waits.Enqueue((at, wait));
+            if (_waits.Count > LowsKept)
+            {
+                _waits.Dequeue();
+            }
         }
     }
 }

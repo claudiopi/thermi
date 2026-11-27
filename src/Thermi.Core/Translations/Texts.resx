@@ -2163,6 +2163,12 @@
   <data name="MetricName.FrameTime" xml:space="preserve">
     <value>Frame time</value>
   </data>
+  <data name="MetricName.OnePercentLow" xml:space="preserve">
+    <value>1% low</value>
+  </data>
+  <data name="MetricName.PointOnePercentLow" xml:space="preserve">
+    <value>0.1% low</value>
+  </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Time</value>
   </data>

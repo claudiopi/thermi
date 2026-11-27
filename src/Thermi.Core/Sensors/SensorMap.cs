@@ -80,6 +80,8 @@ public static class SensorMap
         [Metrics.Clock.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Time), [SystemSensors.Clock], OnlyPreferred: true),
         [Metrics.Fps.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.Fps], OnlyPreferred: true),
         [Metrics.FrameTime.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameTime), [GameSensors.FrameTime], OnlyPreferred: true),
+        [Metrics.OnePercentLow.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.OnePercentLow], OnlyPreferred: true),
+        [Metrics.PointOnePercentLow.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.PointOnePercentLow], OnlyPreferred: true),
     };
 
     /// <summary>

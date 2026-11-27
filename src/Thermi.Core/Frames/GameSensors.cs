@@ -1,13 +1,14 @@
+using System.Globalization;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Core.Frames;
 
 /// <summary>
 /// The sensors of a device of thermi's own, the game, that every reader adds to each snapshot as it adds the PC's
-/// (<see cref="SystemSensors"/>): the FPS and frame time of the app in front, found among the frame slots by its process
-/// or as the parent of the one that presents for it, as a browser's. They read nothing while nothing in front presents,
-/// not a number while the service cannot read frames, and minus infinity while its host has no rights to, so the window can
-/// say which.
+/// (<see cref="SystemSensors"/>): the FPS, frame time and lows of the app in front, found among the frame slots by its
+/// process or as the parent of the one that presents for it, as a browser's. They read nothing while nothing in front
+/// presents, not a number while the service cannot read frames, and minus infinity while its host has no rights to, so the
+/// window can say which; the lows read not a number too from a service of an earlier version, which sends none.
 /// </summary>
 public static class GameSensors
 {
@@ -16,6 +17,10 @@ public static class GameSensors
     public const string Fps = "FPS";
 
     public const string FrameTime = "Frame time";
+
+    public const string OnePercentLow = "1% low";
+
+    public const string PointOnePercentLow = "0.1% low";
 
     /// <summary>What the game's sensors read from a host with no rights to trace presents: no number, and not NaN either.</summary>
     public const double NoRights = double.NegativeInfinity;
@@ -29,13 +34,16 @@ public static class GameSensors
         var rates = FrameSlots.Read(snapshot);
         var rate = front is { } process && rates is not null ? RateOf(rates, process) : null;
         var none = rates is not null ? (double?)null : FrameSlots.NeedRights(snapshot) ? NoRights : double.NaN;
+        var noLows = rate is null ? none : double.NaN;
         return snapshot with
         {
             Sensors =
             [
                 .. snapshot.Sensors.Where(sensor => !FrameSlots.Is(sensor)),
-                Sensor(SensorKind.FrameRate, Fps, rate?.Fps ?? none),
-                Sensor(SensorKind.FrameTime, FrameTime, rate?.FrameTime ?? none),
+                Sensor(SensorKind.FrameRate, 0, Fps, rate?.Fps ?? none),
+                Sensor(SensorKind.FrameTime, 0, FrameTime, rate?.FrameTime ?? none),
+                Sensor(SensorKind.FrameRate, 1, OnePercentLow, rate?.OnePercentLow ?? noLows),
+                Sensor(SensorKind.FrameRate, 2, PointOnePercentLow, rate?.PointOnePercentLow ?? noLows),
             ],
         };
     }
@@ -46,6 +54,11 @@ public static class GameSensors
     public static FrameRate? RateOf(IReadOnlyList<FrameRate> rates, int process) =>
         rates.Where(each => each.Process == process).Concat(rates.Where(each => each.Parent == process)).Cast<FrameRate?>().FirstOrDefault();
 
-    private static RawSensor Sensor(SensorKind kind, string name, double? value) =>
-        new($"{Device}/{kind.ToString().ToLowerInvariant()}/0", HardwareType, HardwareType, kind.ToString(), name, value);
+    private static RawSensor Sensor(SensorKind kind, int index, string name, double? value) => new(
+        string.Create(CultureInfo.InvariantCulture, $"{Device}/{kind.ToString().ToLowerInvariant()}/{index}"),
+        HardwareType,
+        HardwareType,
+        kind.ToString(),
+        name,
+        value);
 }

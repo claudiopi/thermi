@@ -2204,6 +2204,12 @@
   <data name="MetricName.FrameTime" xml:space="preserve">
     <value>Tiempo por cuadro</value>
   </data>
+  <data name="MetricName.OnePercentLow" xml:space="preserve">
+    <value>Mínimo del 1 %</value>
+  </data>
+  <data name="MetricName.PointOnePercentLow" xml:space="preserve">
+    <value>Mínimo del 0,1 %</value>
+  </data>
   <data name="SensorKind.Time" xml:space="preserve">
     <value>Hora</value>
   </data>

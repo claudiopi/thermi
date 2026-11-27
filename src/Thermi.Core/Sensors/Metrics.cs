@@ -71,6 +71,8 @@ public enum MetricName
     Clock,
     Fps,
     FrameTime,
+    OnePercentLow,
+    PointOnePercentLow,
 }
 
 public static class Metrics
@@ -99,11 +101,14 @@ public static class Metrics
     public static readonly Metric Clock = new("system.clock", MetricLabel.Time, SensorKind.Time, MetricName.Clock);
     public static readonly Metric Fps = new("game.fps", MetricLabel.Fps, SensorKind.FrameRate, MetricName.Fps);
     public static readonly Metric FrameTime = new("game.frametime", MetricLabel.Fps, SensorKind.FrameTime, MetricName.FrameTime);
+    public static readonly Metric OnePercentLow = new("game.low1", MetricLabel.Fps, SensorKind.FrameRate, MetricName.OnePercentLow);
+    public static readonly Metric PointOnePercentLow = new("game.low01", MetricLabel.Fps, SensorKind.FrameRate, MetricName.PointOnePercentLow);
 
     public static IReadOnlyList<Metric> All { get; } =
     [
         CpuTemperature, CpuLoad, CpuPower, CpuClock, GpuTemperature, GpuLoad, GpuPower, RamLoad, RamUsed, CpuFan, CpuFanDuty,
         NetDownload, NetUpload, DiskActivity, DiskRead, DiskWrite, BatteryCharge, BatteryRate, BatteryTime, Uptime, LocalIp, Clock, Fps, FrameTime,
+        OnePercentLow, PointOnePercentLow,
     ];
 
     public static Metric? Find(string? id) => All.FirstOrDefault(metric => metric.Id == id);
