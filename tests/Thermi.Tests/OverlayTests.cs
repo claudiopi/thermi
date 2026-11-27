@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.App.Painting;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -215,5 +216,57 @@ public sealed class OverlayTests
         Assert.Equal(
             drawn == GraphStyle.None && kind != SensorKind.Power,
             LevelMarks.Of(OverlayLook.Of(new StyleConfig(), lightTaskbar: false), shown).Kind == MarkKind.Underline);
+    }
+
+    // A layered window keeps its picture, so a second that shows what the last one showed, its line read again included,
+    // paints nothing; anything else a paint shows paints, and so does each frame of a glow or a drag and the one after.
+    [Theory] // Rows: each a part of what a paint shows, an operand of one || that Stryker cannot tell apart
+    [InlineData("nothing", false)]
+    [InlineData("a value", true)]
+    [InlineData("a line's point", true)]
+    [InlineData("one more item", true)]
+    [InlineData("the look", true)]
+    [InlineData("the scale", true)]
+    [InlineData("the place", true)]
+    [InlineData("the opacity", true)]
+    [InlineData("the window's mark", true)]
+    [InlineData("the sensors stopping", true)]
+    [InlineData("the overlay's settings", true)]
+    [InlineData("a glow", true)]
+    [InlineData("the end of a glow", true)]
+    [InlineData("the first paint", true)]
+    public void TheOverlayPaintsOnlyWhenWhatItShowsChanges(string change, bool paints)
+    {
+        var overlay = new OverlayConfig();
+        var look = OverlayLook.Of(overlay.Style, lightTaskbar: false);
+        OverlayFrame Frame(Snapshot snapshot) =>
+            new(OverlayLayout.Build(overlay, SensorMap.Read(snapshot, NoSources), English), look, 1, new Position(2200, 1392)) { Overlay = overlay };
+        var last = Frame(Desktop);
+        var again = Frame(Desktop);
+        var warmer = new Snapshot([.. Desktop.Sensors.Select(sensor => sensor with { Value = sensor.Value + 3 })]);
+        OverlayItem Moved(OverlayItem item) => item.Graph is { } line ? item with { Graph = [.. line.Skip(1), new GraphPoint(1, Level.Normal)] } : item;
+
+        var next = change switch
+        {
+            "a value" => Frame(warmer),
+            "a line's point" => again with { Items = [.. again.Items.Select(Moved)] },
+            "one more item" => again with { Items = [.. again.Items, again.Items[0] with { Id = "more" }] },
+            "the look" => again with { Look = OverlayLook.Of(overlay.Style, lightTaskbar: true) },
+            "the scale" => again with { Scale = 1.5f },
+            "the place" => again with { At = new Position(2201, 1392) },
+            "the opacity" => again with { Alpha = 128 },
+            "the window's mark" => again with { Marks = (Metrics.CpuLoad.Id, null, default) },
+            "the sensors stopping" => again with { Stopped = "Sensors stopped" },
+            "the overlay's settings" => again with { Overlay = overlay with { Locked = true } },
+            "a glow" => again with { Moving = true },
+            _ => again,
+        };
+
+        Assert.Equal(paints, next.Differs(change switch
+        {
+            "the end of a glow" => last with { Moving = true },
+            "the first paint" => null,
+            _ => last,
+        }));
     }
 }

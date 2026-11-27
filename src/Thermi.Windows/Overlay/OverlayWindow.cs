@@ -22,7 +22,7 @@ namespace Thermi.Windows.Overlay;
 /// One overlay of the settings, found by its place in them: a layered window that only draws, with its own painter, its
 /// own items' history, its menu and the mouse, whose presses its gestures decide, and its fade. The host runs its messages.
 /// </summary>
-internal sealed class OverlayWindow : IDisposable
+internal sealed partial class OverlayWindow : IDisposable
 {
     internal const string ClassName = "thermi-overlay";
     internal const WINDOW_EX_STYLE ExStyle =
@@ -194,20 +194,12 @@ internal sealed class OverlayWindow : IDisposable
         var scale = _painter.Within(items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), room);
         scale = _painter.Fitting(items, look, scale, Snaps.Most(overlay, screens));
         _glow.Update(items, scene.Animate);
-#pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
-        var bitmap = shown.SensorsStopped
-            ? _painter.PaintStopped(texts.Of(OverlayText.SensorsStopped), look, scale, items)
-            : _painter.Paint(items, look, scale, _glow.Glowing ? _glow.Of : null);
-#pragma warning restore CA2000
-        marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
-        _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, scene.Accent);
-        OverlayGestures.HoldCorner(bitmap, overlay, scale);
-        Glow();
-        _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
         var running = _actions.Time.GetElapsedTime(_started);
+        Position Place(Size size) =>
+            heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (size.Width, size.Height), _actions.Shown(), running) ?? WindowPosition();
+        Show(FrameOf(overlay, items, look, scale, shown.SensorsStopped ? texts.Of(OverlayText.SensorsStopped) : null), overlay, scene.Accent, Place);
+        Glow();
         Tips(scene, input, shown);
-        var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
-        _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, OnScreen);
         if (!OnScreen)
         {

@@ -1,5 +1,9 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
+using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
+using Windows.Win32;
+using Windows.Win32.System.Power;
 
 namespace Thermi.Windows.Tests.Acceptance;
 
@@ -80,5 +84,78 @@ public sealed class OverlayPaceTests : IDisposable
         });
 
         Assert.Equal((0, 8), (paintsReading, paintsStopped));
+    }
+
+    // Nobody sees the overlay while the session is locked or its display is off: the readings that come meanwhile go into
+    // its history and paint nothing, and as soon as somebody can see it again it shows the last one, before any tick.
+    [Theory] // Rows: each a message of its own that Windows sends, read apart
+    [InlineData("locked")]
+    [InlineData("display off")]
+    public async Task AnOverlayNobodySeesPaintsNothingAndShowsTheLastReadingOnceSeen(string unseen)
+    {
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en" });
+        var log = new ListLogger(LogLevel.Debug);
+        var item = settings.Config.Overlays[0].Items[0].Id;
+        var now = HostRun.Recorded;
+        var (paints, shown, history) = (-1, new List<string>(), new List<IReadOnlyList<double?>>());
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var host = new OverlayHost(settings, () => now, HostRun.English, _folder.Clock, log, _tray.Environment(_windowMutex));
+            host.Start();
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
+            shown.Add(Picture(host));
+            history.Add(host.History.TenMinutes(item));
+            Tell(host, unseen, seen: false);
+            var before = log.Entries.Count(entry => entry.Message == "paint");
+            now = HostRun.Warmer;
+            for (var second = 0; second < 3; second++)
+            {
+                _folder.Clock.Advance(TimeSpan.FromSeconds(1));
+                host.Arrived();
+                HostRun.Tick(host);
+            }
+
+            // The paint the last tick asked for has its turn too, so only being seen again asks for the next.
+            _folder.Clock.Advance(Settings.Interval);
+            HostRun.Pump(host);
+            paints = log.Entries.Count(entry => entry.Message == "paint") - before;
+            shown.Add(Picture(host));
+            history.Add(host.History.TenMinutes(item));
+            Tell(host, unseen, seen: true);
+            _folder.Clock.Advance(Settings.Interval);
+            HostRun.Pump(host);
+            shown.Add(Picture(host));
+        });
+
+        Assert.Equal(0, paints);
+        Assert.Equal(shown[0], shown[1]);
+        Assert.NotEqual(shown[0], shown[2]);
+        Assert.NotEqual(history[0], history[1]);
+    }
+
+    private static string Picture(OverlayHost host)
+    {
+        using var picture = host.Overlays[0].Picture();
+        using var png = new MemoryStream();
+        picture?.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+        return Convert.ToBase64String(png.ToArray());
+    }
+
+    // As Windows sends them: a lock or unlock of the session, or the session's display turned off or on.
+    private static unsafe void Tell(OverlayHost host, string unseen, bool seen)
+    {
+        if (unseen == "locked")
+        {
+            PInvoke.SendMessage(host.Hwnd, PInvoke.WM_WTSSESSION_CHANGE, seen ? PInvoke.WTS_SESSION_UNLOCK : PInvoke.WTS_SESSION_LOCK, 0);
+            return;
+        }
+
+        var buffer = stackalloc byte[sizeof(POWERBROADCAST_SETTING) + sizeof(uint)];
+        var setting = (POWERBROADCAST_SETTING*)buffer;
+        setting->PowerSetting = PInvoke.GUID_SESSION_DISPLAY_STATUS;
+        setting->DataLength = sizeof(uint);
+        *(uint*)&setting->Data = seen ? 1u : 0u;
+        PInvoke.SendMessage(host.Hwnd, PInvoke.WM_POWERBROADCAST, PInvoke.PBT_POWERSETTINGCHANGE, (nint)setting);
     }
 }
