@@ -32,10 +32,10 @@ public sealed class OverlayTests
     }
 
     [Theory]
-    [InlineData(GnomeCase.WaylandAt150, Skip = "Waiting for its code")]
-    [InlineData(GnomeCase.X11, Skip = "Waiting for its code")]
-    [InlineData(GnomeCase.FullScreen, Skip = "Waiting for its code")]
-    [InlineData(GnomeCase.SensorsStopped, Skip = "Waiting for its code")]
+    [InlineData(GnomeCase.WaylandAt150)]
+    [InlineData(GnomeCase.X11)]
+    [InlineData(GnomeCase.FullScreen)]
+    [InlineData(GnomeCase.SensorsStopped)]
     public async Task TheOverlayShowsAboveEveryWindowOnGnome(GnomeCase row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -87,8 +87,7 @@ public sealed class OverlayTests
         {
             // A window that goes full screen in front of the overlay covers it, as every window of a layer below the top one.
             await desktop.OpenWindowAsync(fullScreen: true, cancel);
-            var covered = scene with { Screen = await desktop.ScreenshotAsync(cancel) };
-            Assert.NotEqual(0, await covered.DifferingAtAsync(Scene.OnWindow, cancel));
+            Assert.Equal(0, await CoveredAsync(scene, Scene.OnWindow, cancel));
         }
     }
 
@@ -103,7 +102,7 @@ public sealed class OverlayTests
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnPanel, cancel));
         Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnWindow, cancel));
         // Off the taskbar and the window switcher: every window of thermi's process says so to the window manager.
-        var windows = await desktop.Session.RunAsync("xdotool", ["search", "--pid", $"{scene.Thermi.Id}"], cancel: cancel);
+        var windows = await desktop.Session.RunAsync("xdotool", ["search", "--onlyvisible", "--pid", $"{scene.Thermi.Id}"], cancel: cancel);
         var ids = windows.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.NotEmpty(ids);
         foreach (var id in ids)
@@ -117,11 +116,21 @@ public sealed class OverlayTests
         var (width, height) = await Pictures.SizeAsync(desktop.Session, scene.Picture, cancel);
         Assert.Equal("click 1", await scene.ClickAsync(Scene.OnWindow.X + (width / 2), Scene.OnWindow.Y + (height / 2), cancel));
         await desktop.OpenWindowAsync(fullScreen: true, cancel);
-        var covered = scene with { Screen = await desktop.ScreenshotAsync(cancel) };
-        Assert.NotEqual(0, await covered.DifferingAtAsync(Scene.OnPanel, cancel));
+        Assert.Equal(0, await CoveredAsync(scene, Scene.OnPanel, cancel));
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    // A full-screen window in front covers the overlay: where it was, the screen shows what it shows once thermi is gone.
+    private static async Task<long> CoveredAsync(Scene scene, Position at, CancellationToken cancel)
+    {
+        var covered = await scene.Desktop.ScreenshotAsync(cancel);
+        scene.Thermi.Kill();
+        await scene.Thermi.WaitForExitAsync(cancel);
+        var alone = await scene.Desktop.ScreenshotAsync(cancel);
+        var (width, height) = await Pictures.SizeAsync(scene.Desktop.Session, scene.Picture, cancel);
+        return await Pictures.ChangedAsync(scene.Desktop.Session, covered, alone, (at.X, at.Y, width, height), cancel);
+    }
+
+    [Fact]
     public async Task AnExtensionOfAnotherVersionShowsNothing()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -147,7 +156,7 @@ public sealed class OverlayTests
     }
 
     [Theory]
-    [InlineData(true, Skip = "Waiting for its code")]
+    [InlineData(true)]
     [InlineData(false, Skip = "Waiting for its code")]
     public async Task TheOverlaysMenuIsTheShellsOwn(bool gnome)
     {
@@ -247,7 +256,7 @@ public sealed class OverlayTests
         Assert.Equal(uuid, await asked);
     }
 
-    // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts.
+    // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.
     private static async Task<(string Program, int Entries)> OpenMenuAsync(TestDesktop desktop, CancellationToken cancel)
     {
         await desktop.Input.ClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel, button: 3);
@@ -257,6 +266,6 @@ public sealed class OverlayTests
     private static async Task ChooseAsync(TestDesktop desktop, IReadOnlyList<MenuRow> rows, MenuEntry entry, CancellationToken cancel)
     {
         await OpenMenuAsync(desktop, cancel);
-        await Accessible.ChooseAsync(desktop.Session, rows.ToList().FindIndex(row => row.Entry == entry), cancel);
+        await Accessible.ChooseAsync(desktop, rows.ToList().FindIndex(row => row.Entry == entry), cancel);
     }
 }

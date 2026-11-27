@@ -24,7 +24,7 @@ public sealed class GestureTests
     }
 
     [Theory]
-    [InlineData(Desktop.Gnome, Skip = "Waiting for its code")]
+    [InlineData(Desktop.Gnome)]
     [InlineData(Desktop.KWin, Skip = "Waiting for its code")]
     [InlineData(Desktop.X11, Skip = "Waiting for its code")]
     public async Task TheOverlayIsDraggedAndStaysOnGnome(Desktop row)
@@ -75,13 +75,15 @@ public sealed class GestureTests
         await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [first, second, fading] }, cancel);
         var feed = await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
         var thermi = await desktop.ShowThermiAsync([], cancel);
-        var (width, height) = await Pictures.SizeAsync(desktop.Session, await desktop.PreviewAsync(feed.Snapshot, 1, cancel), cancel);
+        var (_, height) = await Pictures.SizeAsync(desktop.Session, await desktop.PreviewAsync(feed.Snapshot, 1, cancel), cancel);
         var value = (Scene.OnPanel.X + 8, Scene.OnPanel.Y + (height / 2));
 
         // A value lifted and dropped on the other overlay; the last pill lifted and dropped on the desktop.
         await HoldAndDropAsync(desktop, thermi, value, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), cancel);
         var joined = await Settings.ReadAsync(desktop.Session, cancel);
-        await HoldAndDropAsync(desktop, thermi, (Scene.OnPanel.X + width - 16, value.Item2), (900, 800), cancel);
+        // The first overlay is shorter by the value it gave: its last pill ends where its picture ends now.
+        var (shorter, _) = await Pictures.SizeAsync(desktop.Session, await desktop.PreviewAsync(feed.Snapshot, 1, cancel), cancel);
+        await HoldAndDropAsync(desktop, thermi, (Scene.OnPanel.X + shorter - 16, value.Item2), (900, 800), cancel);
         var separated = await Settings.ReadAsync(desktop.Session, cancel);
         var (changed, kept) = await CancelledAsync(desktop, thermi, value, cancel);
         var grew = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel, count: 2);
@@ -116,21 +118,22 @@ public sealed class GestureTests
         await dropped;
     }
 
-    // A drag that Esc cancels while the value is lifted puts everything back: what it changed on screen, and the settings after.
+    // A drag that Esc cancels while the value is lifted and dragged over the other overlay puts everything back: what it
+    // changed on screen, and the settings after.
     private static async Task<(long Changed, ThermiConfig Kept)> CancelledAsync(
         TestDesktop desktop, SessionProcess thermi, (int X, int Y) value, CancellationToken cancel)
     {
         var screen = await desktop.ScreenshotAsync(cancel);
         var lifted = Traced.NextAsync(thermi.Error, Traced.Lifted, cancel);
         var dropped = Traced.NextAsync(thermi.Error, Traced.Dropped, cancel);
-        await desktop.Input.HoldAndDropAsync(
+        await desktop.Input.HoldAsync(
             value,
             (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8),
-            async held =>
+            lifted.WaitAsync,
+            async there =>
             {
-                await lifted.WaitAsync(held);
-                await desktop.Input.PressAsync("Escape", held);
-                await dropped.WaitAsync(held);
+                await desktop.Input.PressAsync("Escape", there);
+                await dropped.WaitAsync(there);
             },
             cancel);
         var cancelled = await desktop.ScreenshotAsync(cancel);

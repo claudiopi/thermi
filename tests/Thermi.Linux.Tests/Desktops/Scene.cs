@@ -9,7 +9,10 @@ namespace Thermi.Linux.Tests.Desktops;
 /// </summary>
 internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWindow Window, string Before, string Screen, string Picture)
 {
-    /// <summary>Where the first overlay sits: on the top bar or a top panel, at the screen's top edge.</summary>
+    /// <summary>
+    /// Where the first overlay sits: on the top bar or a top panel, 200 pixels from the screen's left edge, snapped to it, as
+    /// only a snap puts an overlay on a panel; the panel centers it, so its top is found within its own height.
+    /// </summary>
     public static readonly Position OnPanel = new(200, 0);
 
     /// <summary>Where the second sits: on the window, below every panel.</summary>
@@ -17,10 +20,12 @@ internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWin
 
     /// <summary>
     /// The first overlay with only what one second shows alike every second, so what it paints never changes as it runs:
-    /// no graph, which grows with each second, and none of the values read as a change since the second before.
+    /// no graph, which grows with each second, and none of the values read as a change since the second before; and small
+    /// enough to show at its size on GNOME's top bar, which shrinks a larger one to fit.
     /// </summary>
     public static readonly OverlayConfig Overlay = OverlayConfig.First with
     {
+        Size = 0.75,
         Graph = GraphStyle.None,
         Items = [.. OverlayConfig.First.Items.Where(item => item.Metric != Metrics.CpuLoad.Id && item.Metric != Metrics.CpuPower.Id)],
     };
@@ -32,8 +37,9 @@ internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWin
     public static async Task<Scene> ShowAsync(
         TestDesktop desktop, double scale, bool fullScreen, bool stopped, CancellationToken cancel, bool clickThrough = false)
     {
+        var onPanel = Overlay with { Position = null, Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = OnPanel.X } };
         await desktop.WriteSettingsAsync(
-            ThermiConfig.New with { Overlays = [Overlay with { Position = OnPanel }, Overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
+            ThermiConfig.New with { Overlays = [onPanel, Overlay with { Position = OnWindow, ClickThrough = clickThrough }] },
             cancel);
         var snapshot = stopped ? null : (await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel)).Snapshot;
         var window = await desktop.OpenWindowAsync(fullScreen, cancel);
@@ -44,9 +50,21 @@ internal sealed record Scene(TestDesktop Desktop, SessionProcess Thermi, TestWin
         return new Scene(desktop, thermi, window, before, screen, picture);
     }
 
-    /// <summary>The pixels of the picture the screen shows otherwise at <paramref name="at"/>: 0 when the overlay shows there as painted.</summary>
-    public Task<long> DifferingAtAsync(Position at, CancellationToken cancel) =>
-        Pictures.DifferingAsync(Desktop.Session, Screen, Picture, at.X, at.Y, cancel);
+    /// <summary>
+    /// The pixels of the picture the screen shows otherwise at <paramref name="at"/>: 0 when the overlay shows there as
+    /// painted. On the panel, the fewest at any height the picture's own from its top.
+    /// </summary>
+    public async Task<long> DifferingAtAsync(Position at, CancellationToken cancel)
+    {
+        var (_, height) = at == OnPanel ? await Pictures.SizeAsync(Desktop.Session, Picture, cancel) : (0, 0);
+        var fewest = long.MaxValue;
+        for (var y = at.Y; y <= at.Y + height && fewest > 0; y++)
+        {
+            fewest = Math.Min(fewest, await Pictures.DifferingAsync(Desktop.Session, Before, Screen, Picture, at.X, y, cancel));
+        }
+
+        return fewest;
+    }
 
     /// <summary>The pixels of the whole screen that thermi changed: 0 when it shows nothing.</summary>
     public async Task<long> ChangedAsync(CancellationToken cancel)

@@ -22,11 +22,19 @@ internal sealed class TestWindow
             window.set_child(area)
             full = sys.argv[1] == 'full'
             said = []
+            # Shown once the compositor showed a frame drawn at its size: a frame clock ticks again only after it did.
             def ready(*_):
-                if not said and window.get_mapped() and window.is_fullscreen() == full:
-                    said.append(True)
+                if said or not window.get_mapped() or not (window.is_fullscreen() if full else window.is_maximized()): return
+                said.append(True)
+                ticks = []
+                def tick(widget, clock):
+                    ticks.append(True)
+                    if len(ticks) < 3: return True
                     print('ready', flush=True)
+                    return False
+                window.add_tick_callback(tick)
             window.connect('notify::fullscreened', ready)
+            window.connect('notify::maximized', ready)
             window.connect('map', ready)
             window.fullscreen() if full else window.maximize()
             window.present()

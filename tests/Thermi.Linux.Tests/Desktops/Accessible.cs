@@ -4,7 +4,9 @@ namespace Thermi.Linux.Tests.Desktops;
 
 /// <summary>
 /// The desktop's accessibility tree, as a screen reader reads it: the menus open on screen, by the program that shows
-/// them, and their entries' actions. Both the Shell's own menus and GTK's are in it, so a test reads either the same way.
+/// them, and their entries. Both the Shell's own menus and GTK's are in it, so a test reads either the same way: a menu's
+/// entries are the items it shows, at any depth, as the Shell nests them in a box of its own; an entry with no action,
+/// as the Shell's, is clicked where it shows.
 /// </summary>
 internal static class Accessible
 {
@@ -15,16 +17,43 @@ internal static class Accessible
         gi.require_version('Atspi', '2.0')
         from gi.repository import Atspi
 
+        ITEMS = (Atspi.Role.MENU_ITEM, Atspi.Role.CHECK_MENU_ITEM, Atspi.Role.RADIO_MENU_ITEM, Atspi.Role.MENU)
+
+        def showing(node):
+            return node.get_state_set().contains(Atspi.StateType.SHOWING)
+
+        def entries(node):
+            for index in range(node.get_child_count()):
+                child = node.get_child_at_index(index)
+                if child is None or not showing(child): continue
+                if child.get_role() in ITEMS: yield child
+                else: yield from entries(child)
+
         def menus(node, app):
             if node is None: return
-            if node.get_role() in (Atspi.Role.MENU, Atspi.Role.POPUP_MENU) and node.get_state_set().contains(Atspi.StateType.SHOWING):
-                yield app, node
+            if node.get_role() in (Atspi.Role.MENU, Atspi.Role.POPUP_MENU) and showing(node):
+                shown = list(entries(node))
+                if shown: yield app, shown
+                return
             for index in range(node.get_child_count()):
                 yield from menus(node.get_child_at_index(index), app)
 
         desktop = Atspi.get_desktop(0)
-        programs = [desktop.get_child_at_index(index) for index in range(desktop.get_child_count())]
-        found = [menu for program in programs for menu in menus(program, program.get_name())]
+        def open_menus():
+            programs = [desktop.get_child_at_index(index) for index in range(desktop.get_child_count())]
+            return [menu for program in programs if program is not None for menu in menus(program, program.get_name())]
+
+        found = open_menus()
+        if sys.argv[1] in ('list', 'choose') and not found:
+            def heard(event):
+                if open_menus(): Atspi.event_quit()
+            listener = Atspi.EventListener.new(heard)
+            for kind in ('object:state-changed:showing', 'object:children-changed', 'window:activate'):
+                listener.register(kind)
+            found = open_menus()
+            if not found:
+                Atspi.event_main()
+                found = open_menus()
         def sliders(node):
             if node is None: return
             if node.get_role() == Atspi.Role.SLIDER: yield node
@@ -33,7 +62,7 @@ internal static class Accessible
 
         apps = [desktop.get_child_at_index(index) for index in range(desktop.get_child_count())]
         if sys.argv[1] == 'list':
-            for app, menu in found: print(app, menu.get_child_count())
+            for app, shown in found: print(app, len(shown))
         elif sys.argv[1] == 'windows':
             for app in apps:
                 frames = sum(1 for index in range(app.get_child_count()) if app.get_child_at_index(index).get_role() == Atspi.Role.FRAME)
@@ -44,11 +73,16 @@ internal static class Accessible
             print(time.monotonic(), flush=True)
             value.set_current_value(moved)
         else:
-            entry = found[0][1].get_child_at_index(int(sys.argv[2]))
-            entry.get_action_iface().do_action(0)
+            entry = found[0][1][int(sys.argv[2])]
+            action = entry.get_action_iface()
+            if action is not None and action.get_n_actions() > 0:
+                action.do_action(0)
+            else:
+                box = entry.get_extents(Atspi.CoordType.SCREEN)
+                print('click', box.x + box.width // 2, box.y + box.height // 2)
         """;
 
-    /// <summary>Each menu open on screen: the program that shows it, and how many entries it holds.</summary>
+    /// <summary>Each menu open on screen, once one is: the program that shows it, and how many entries it holds.</summary>
     public static async Task<IReadOnlyList<(string Program, int Entries)>> OpenMenusAsync(OwnSession session, CancellationToken cancel)
     {
         var said = await RunAsync(session, ["list"], cancel).ConfigureAwait(false);
@@ -57,8 +91,25 @@ internal static class Accessible
     }
 
     /// <summary>Chooses the entry at <paramref name="index"/> of the menu open on screen, as a person clicks it.</summary>
-    public static Task ChooseAsync(OwnSession session, int index, CancellationToken cancel) =>
-        RunAsync(session, ["choose", index.ToString(CultureInfo.InvariantCulture)], cancel);
+    public static async Task ChooseAsync(OwnSession session, int index, CancellationToken cancel)
+    {
+        var said = await RunAsync(session, ["choose", index.ToString(CultureInfo.InvariantCulture)], cancel).ConfigureAwait(false);
+        _ = said.Length == 0 ? 0 : throw new InvalidOperationException($"The menu's entry {index} has no action: {said}");
+    }
+
+    /// <summary>
+    /// Chooses the entry at <paramref name="index"/> of the menu open on <paramref name="desktop"/>, by its action, or by a
+    /// click where it shows, in the tree's logical pixels.
+    /// </summary>
+    public static async Task ChooseAsync(TestDesktop desktop, int index, CancellationToken cancel)
+    {
+        var said = await RunAsync(desktop.Session, ["choose", index.ToString(CultureInfo.InvariantCulture)], cancel).ConfigureAwait(false);
+        if (said.Split(' ', StringSplitOptions.TrimEntries) is ["click", var x, var y])
+        {
+            var (atX, atY) = (double.Parse(x, CultureInfo.InvariantCulture), double.Parse(y, CultureInfo.InvariantCulture));
+            await desktop.Input.ClickAsync((int)Math.Round(atX * desktop.Scale), (int)Math.Round(atY * desktop.Scale), cancel).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>Each program that shows windows: its process, and how many windows it shows.</summary>
     public static async Task<IReadOnlyList<(int Process, int Windows, string Program)>> WindowsAsync(OwnSession session, CancellationToken cancel)

@@ -85,5 +85,23 @@ internal static class TestShell
         {
             throw new InvalidOperationException($"The Shell's extensions were not enabled: {set.Error}");
         }
+
+        // Mutter takes a fractional scale, as 150 %, only with its framebuffers scaled, which GNOME's Settings turns on when a
+        // person picks one. Without animations, a window is on screen as drawn once it is mapped. The Shell reaches no
+        // network: installing from extensions.gnome.org fails at once, through a proxy that is not there.
+        foreach (var (schema, key, value) in new[]
+        {
+            ("org.gnome.mutter", "experimental-features", "['scale-monitor-framebuffer']"),
+            ("org.gnome.desktop.interface", "enable-animations", "false"),
+            ("org.gnome.system.proxy", "mode", "'manual'"),
+            ("org.gnome.system.proxy.http", "host", "'127.0.0.1'"),
+            ("org.gnome.system.proxy.http", "port", "9"),
+            ("org.gnome.system.proxy.https", "host", "'127.0.0.1'"),
+            ("org.gnome.system.proxy.https", "port", "9"),
+        })
+        {
+            var setting = await session.RunAsync("gsettings", ["set", schema, key, value], cancel: cancel).ConfigureAwait(false);
+            _ = setting.Exit == 0 ? 0 : throw new InvalidOperationException($"The Shell's {schema} {key} was not set: {setting.Error}");
+        }
     }
 }
