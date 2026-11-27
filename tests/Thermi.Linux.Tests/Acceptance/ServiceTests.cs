@@ -274,7 +274,7 @@ public sealed partial class ServiceTests
             + Served("other", $"python3 {work}/impostor.py /tmp/run/thermi/sensors.sock {work}/lines", "/tmp/own")
             + $"{Person} status --schema 1' | python3 {work}/codes.py; pkill -u other; rm -f /tmp/run/thermi/sensors.sock; "
             + Served("person", $"/usr/lib/thermi/thermi-sensors --console --root {work}/tree", "/tmp/console")
-            + $"{Person} status --schema 1' | python3 {work}/codes.py; pkill -u person; exit $read";
+            + $"{Person} status --schema 1' | python3 {work}/codes.py; pkill -u person; (exit $read)";
     }
 
     private static List<Snapshot> Snapshots(string file) => [.. File.ReadLines(file).Select(line => SnapshotJson.Read(line)!)];
