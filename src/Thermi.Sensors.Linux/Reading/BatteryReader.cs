@@ -27,10 +27,16 @@ internal sealed class BatteryReader(IKernel kernel)
                 return Counters.Number(kernel.Read($"{Supplies}/{battery}/{file}"));
             }
 
+            // Some drivers sign the rate while discharging, as the status already says.
+            double? Size(string file)
+            {
+                return Value(file) is { } value ? Math.Abs(value) : null;
+            }
+
             var discharging = kernel.Read($"{Supplies}/{battery}/status")?.Trim() == "Discharging";
             var volts = Value("voltage_now") / 1e6;
             // Microwatts, or microamperes at the voltage; microwatt-hours, or microampere-hours at it.
-            var watts = (Value("power_now") / 1e6) ?? (Value("current_now") / 1e6 * volts);
+            var watts = (Size("power_now") / 1e6) ?? (Size("current_now") / 1e6 * volts);
             var hours = (Value("energy_now") / 1e6) ?? (Value("charge_now") / 1e6 * volts);
             var id = $"/battery/{battery}";
             yield return new($"{id}/level/0", HardwareType, battery, "Level", "Charge Level", Value("capacity"));

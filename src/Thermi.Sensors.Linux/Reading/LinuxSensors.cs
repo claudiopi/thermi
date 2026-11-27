@@ -8,9 +8,10 @@ namespace Thermi.Sensors.Linux.Reading;
 /// <summary>
 /// Every sensor the kernel gives, read once a second into Core's snapshot: the CPU, the GPUs, the RAM, the board's chips,
 /// the drives, the network adapters and the batteries, with the PC's own uptime, address and clock, which Core's
-/// <see cref="SystemSensors"/> adds. The hardware is found at the first read and again every <see cref="RescanEvery"/>
-/// reads, as Windows' service rescans, for a module that loads or a drive that comes; a chip is known by its device's
-/// path, which a rescan keeps where the kernel renumbers <c>hwmonN</c>. Adapters, which come and go, are listed each
+/// <see cref="SystemSensors"/> adds. The hardware is found at the first read, again whenever <c>hwmon</c>'s chips change,
+/// as a USB pump plugged again may take another chip's <c>hwmonN</c>, and every <see cref="RescanEvery"/> reads, as
+/// Windows' service rescans, for a module that loads or a drive that comes; a chip is known by its device's path, which a
+/// rescan keeps where the kernel renumbers <c>hwmonN</c>. Adapters, which come and go, are listed each
 /// second, and the counters that make rates are kept across rescans. A read never throws: a reader that fails on what the
 /// kernel gave reads nothing that second, and the hardware is found again at the next, as a throw would end the service,
 /// and systemd would start it again into the same failure until it gave up. <paramref name="scrubbed"/> moves the
@@ -25,13 +26,16 @@ internal sealed class LinuxSensors(IKernel kernel, bool scrubbed = false)
     private readonly Counters _drives = new();
     private readonly NetworkReader _network = new();
     private Found? _found;
+    private string? _chips;
     private int _reads;
 
     public Snapshot Read()
     {
         kernel.Next();
-        if (_found is null || ++_reads % RescanEvery == 0)
+        var chips = Hwmon.Listing(kernel);
+        if (_found is null || chips != _chips || ++_reads % RescanEvery == 0)
         {
+            _chips = chips;
             _found = Guarded(Find);
         }
 

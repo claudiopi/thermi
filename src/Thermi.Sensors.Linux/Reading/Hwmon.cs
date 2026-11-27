@@ -40,6 +40,13 @@ internal static partial class Hwmon
         ["pwm"] = ("Control", "Fan Control", 1, 100d / 255),
     };
 
+    /// <summary>
+    /// Each chip's folder and the device it measures, as <c>/sys/class/hwmon</c> holds them now: a USB chip plugged again
+    /// may take the number another chip had, under a device of its own.
+    /// </summary>
+    public static string Listing(IKernel kernel) =>
+        string.Join('\n', kernel.List(Root).Select(folder => $"{folder} {kernel.Resolve($"{Root}/{folder}/device") ?? kernel.Resolve($"{Root}/{folder}")}"));
+
     public static IReadOnlyList<Chip> Find(IKernel kernel) =>
         [.. kernel.List(Root).Select(folder => ChipIn(kernel, $"{Root}/{folder}")).OfType<Chip>().OrderBy(chip => chip.Device, StringComparer.Ordinal)];
 

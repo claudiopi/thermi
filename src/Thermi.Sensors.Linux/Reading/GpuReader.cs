@@ -8,10 +8,13 @@ namespace Thermi.Sensors.Linux.Reading;
 /// The GPUs: NVIDIA's through NVML, as LibreHardwareMonitor names their sensors on Windows, and AMD's and Intel's from
 /// their <c>hwmon</c> chip, whose names the kernel gives (<c>edge</c>, <c>junction</c>, <c>PPT</c>), and their card under
 /// <c>/sys/class/drm</c>, which tells how busy each is and its memory. NVIDIA's own driver leaves its cards out of both.
+/// NVML is asked nothing while every card of that driver sleeps, as a laptop's card does while its graphics chip draws
+/// alone: a query would wake it, and keep it awake, each second.
 /// </summary>
 internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
 {
     private const string Drm = "/sys/class/drm";
+    private const string NvidiaCards = "/sys/bus/pci/drivers/nvidia";
     private const double BytesPerGigabyte = 1024d * 1024 * 1024;
 
     // A card's own folder, card0, and not its outputs, as card0-HDMI-A-1.
@@ -22,7 +25,7 @@ internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
     public IEnumerable<RawSensor> Read()
     {
         var sensors = new List<RawSensor>();
-        foreach (var (gpu, index) in (kernel.Nvml() ?? []).Select((gpu, index) => (gpu, index)))
+        foreach (var (gpu, index) in (NvidiaSleeps() ? [] : kernel.Nvml() ?? []).Select((gpu, index) => (gpu, index)))
         {
             sensors.AddRange(Nvidia(gpu, string.Create(CultureInfo.InvariantCulture, $"/gpu-nvidia/{index}")));
         }
@@ -46,6 +49,15 @@ internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
         }
 
         return sensors;
+    }
+
+    // The driver's folder lists its cards by their PCI address, as 0000:01:00.0, beside its own files.
+    private bool NvidiaSleeps()
+    {
+        var cards = kernel.List(NvidiaCards)
+            .Where(entry => entry.Length > 0 && char.IsAsciiHexDigit(entry[0]) && entry.Contains(':', StringComparison.Ordinal))
+            .ToList();
+        return cards.Count > 0 && cards.All(card => kernel.Read($"{NvidiaCards}/{card}/power/runtime_status")?.Trim() == "suspended");
     }
 
     private static IEnumerable<RawSensor> Nvidia(GpuAnswer gpu, string id)

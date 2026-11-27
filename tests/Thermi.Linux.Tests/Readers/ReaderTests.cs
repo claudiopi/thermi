@@ -8,8 +8,9 @@ namespace Thermi.Linux.Tests.Readers;
 
 /// <summary>
 /// The readers over trees of hardware the recorded PCs lack, made as the kernel's documentation lays out its files: a
-/// laptop's battery beside a Bluetooth mouse's, AMD's and Intel's GPUs, RAPL's counter as it wraps, and a chip with an
-/// input numbered past any real one. Each reads as Windows' reads the same hardware.
+/// laptop's battery beside a Bluetooth mouse's, AMD's and Intel's GPUs, RAPL's counter as it wraps, a chip with an
+/// input numbered past any real one, a USB pump plugged again, which takes the CPU's chip's number, and a laptop's
+/// NVIDIA card asleep. Each reads as Windows' reads the same hardware, and the sleeping card is asked nothing.
 /// </summary>
 public sealed class ReaderTests
 {
@@ -20,6 +21,8 @@ public sealed class ReaderTests
         IntelGpu,
         RaplWrap,
         AbsurdInput,
+        Replugged,
+        SleepingNvidia,
     }
 
     [Theory] // Rows: each a reader, or a rule of one, that the recorded trees never reach.
@@ -28,6 +31,8 @@ public sealed class ReaderTests
     [InlineData(Made.IntelGpu)]
     [InlineData(Made.RaplWrap)]
     [InlineData(Made.AbsurdInput)]
+    [InlineData(Made.Replugged)]
+    [InlineData(Made.SleepingNvidia)]
     public void AMadeTreeReadsAsItsHardwareWould(Made made)
     {
         var root = Directory.CreateTempSubdirectory("thermi-made-").FullName;
@@ -59,7 +64,7 @@ public sealed class ReaderTests
             {
                 case Made.Laptop:
                     tree.Files(second, "/sys/class/power_supply/BAT0", ("type", "Battery"), ("status", "Discharging"), ("capacity", "80"),
-                        ("power_now", "10000000"), ("energy_now", "40000000"), ("voltage_now", "12000000"));
+                        ("power_now", "-10000000"), ("energy_now", "40000000"), ("voltage_now", "12000000"));
                     tree.Files(second, "/sys/class/power_supply/hid-a8:a1:59:12:34:56-battery", ("type", "Battery"), ("scope", "Device"),
                         ("status", "Discharging"), ("capacity", "50"));
                     break;
@@ -81,6 +86,14 @@ public sealed class ReaderTests
                         ("temp99999999999_input", "1000"));
                     tree.Link(second, "/sys/class/hwmon/hwmon0/device", "/sys/devices/pci0000:00/0000:00:18.3");
                     break;
+                case Made.Replugged:
+                    tree.Replugged(second);
+                    break;
+                case Made.SleepingNvidia:
+                    tree.Files(second, "/sys/bus/pci/drivers/nvidia/0000:01:00.0/power", ("runtime_status", "suspended"));
+                    tree.Files(second, "/sys/bus/pci/drivers/nvidia", ("new_id", ""));
+                    tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50 });
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(made), made, "Unknown tree.");
             }
@@ -94,7 +107,8 @@ public sealed class ReaderTests
             Made.AmdGpu => ([Metrics.GpuTemperature, Metrics.GpuLoad, Metrics.GpuPower], [55, 40, 120]),
             Made.IntelGpu => ([Metrics.GpuTemperature], [48]),
             Made.RaplWrap => ([Metrics.CpuPower], [4]),
-            Made.AbsurdInput => ([Metrics.CpuTemperature], [60]),
+            Made.AbsurdInput or Made.Replugged => ([Metrics.CpuTemperature], [60]),
+            Made.SleepingNvidia => ([Metrics.GpuTemperature], [null]),
             _ => throw new ArgumentOutOfRangeException(nameof(made), made, "Unknown tree."),
         };
     }
@@ -134,6 +148,20 @@ public sealed class ReaderTests
             Link(second, "/sys/class/drm/card1/device", Card);
             Link(second, "/sys/class/drm/card1/device/driver", $"/sys/bus/pci/drivers/{driver}");
         }
+
+        // The CPU's chip and a USB pump's, which is plugged again after the first second and takes hwmon0, the CPU's
+        // chip's, whose chip moves to hwmon1: the device the kernel makes for the pump is a new one.
+        public void Replugged(int second)
+        {
+            string[] numbers = second == 0 ? ["hwmon0", "hwmon1"] : ["hwmon1", "hwmon0"];
+            Files(second, $"/sys/class/hwmon/{numbers[0]}", ("name", "k10temp"), ("temp1_label", "Tctl"), ("temp1_input", "60000"));
+            Link(second, $"/sys/class/hwmon/{numbers[0]}/device", "/sys/devices/pci0000:00/0000:00:18.3");
+            Files(second, $"/sys/class/hwmon/{numbers[1]}", ("name", "nzxt-kraken3"), ("temp1_input", "30000"));
+            Link(second, $"/sys/class/hwmon/{numbers[1]}/device", $"/sys/devices/pci0000:00/0000:00:14.0/usb1/1-2/1-2:1.0/0003:1E71:2007.000{second + 1}");
+        }
+
+        public void Nvml(int second, GpuAnswer gpu) =>
+            File.WriteAllText(Path.Combine(root, $"{second}", KernelJson.NvmlFile), KernelJson.Write([gpu]));
 
         public void Flush(int second)
         {
