@@ -27,15 +27,18 @@ internal sealed partial class NvmlLibrary : IDisposable
 
     private const double BytesPerGigabyte = 1024d * 1024 * 1024;
 
-    // A driver older than the calls that count a card's fans or read their RPM lacks them; asked, they would throw each second.
+    // A driver older than the calls that count a card's fans or read each one's duty or RPM lacks them; asked, they would
+    // throw each second.
     private readonly bool _counts;
+    private readonly bool _duties;
     private readonly bool _speeds;
 
     private bool _shut;
 
-    private NvmlLibrary(bool counts, bool speeds)
+    private NvmlLibrary(bool counts, bool duties, bool speeds)
     {
         _counts = counts;
+        _duties = duties;
         _speeds = speeds;
     }
 
@@ -48,11 +51,12 @@ internal sealed partial class NvmlLibrary : IDisposable
         }
 
         var counts = NativeLibrary.TryGetExport(handle, "nvmlDeviceGetNumFans", out _);
+        var duties = NativeLibrary.TryGetExport(handle, "nvmlDeviceGetFanSpeed_v2", out _);
         var speeds = NativeLibrary.TryGetExport(handle, "nvmlDeviceGetFanSpeedRPM", out _);
         NativeLibrary.Free(handle);
         try
         {
-            return Init() == Success ? new NvmlLibrary(counts, speeds) : null;
+            return Init() == Success ? new NvmlLibrary(counts, duties, speeds) : null;
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
         {
@@ -101,37 +105,40 @@ internal sealed partial class NvmlLibrary : IDisposable
         var used = UtilizationRates(device, out var load) == Success;
         var memory = MemoryOf(device, out var bytes) == Success;
         var end = Array.IndexOf(name, (byte)0);
-        return new GpuAnswer(named ? Encoding.UTF8.GetString(name, 0, end < 0 ? NameLength : end) : "NVIDIA GPU")
+        return WithFans(device, new GpuAnswer(named ? Encoding.UTF8.GetString(name, 0, end < 0 ? NameLength : end) : "NVIDIA GPU")
         {
             Temperature = Temperature(device, GpuSensor, out var degrees) == Success ? degrees : null,
             Load = used ? load.Gpu : null,
             MemoryLoad = used ? load.Memory : null,
             Power = PowerUsage(device, out var milliwatts) == Success ? milliwatts / 1000d : null,
             Fan = FanSpeed(device, out var fan) == Success ? fan : null,
-            FanSpeeds = FanSpeedsOf(device),
             MemoryUsed = memory ? bytes.Used / BytesPerGigabyte : null,
             MemoryTotal = memory ? bytes.Total / BytesPerGigabyte : null,
             CoreClock = ClockOf(device, GraphicsClock, out var core) == Success ? core : null,
             MemoryClock = ClockOf(device, MemoryClockType, out var clock) == Success ? clock : null,
+        });
+    }
+
+    private GpuAnswer WithFans(nint device, GpuAnswer gpu)
+    {
+        var fans = _counts && NumFans(device, out var count) == Success ? count : (uint?)null;
+        return gpu with
+        {
+            FanDuties = _duties ? EachFan(fans, fan => Duty(device, fan)) : null,
+            FanSpeeds = EachFan(fans, fan => _speeds ? Rpm(device, fan) : null),
         };
     }
 
-    // Each fan's RPM, a stopped fan's 0 as NVML answers it, or null where the driver cannot count the card's fans.
-    private double?[]? FanSpeedsOf(nint device)
+    // What each of a card's fans reads, a stopped fan's 0 as NVML answers it, or null where the driver cannot count them.
+    private static double?[]? EachFan(uint? count, Func<uint, double?> read) =>
+        count is { } fans ? [.. Enumerable.Range(0, (int)fans).Select(fan => read((uint)fan))] : null;
+
+    private static double? Duty(nint device, uint fan) => FanSpeedOf(device, fan, out var percent) == Success ? percent : null;
+
+    private static double? Rpm(nint device, uint fan)
     {
-        if (!_counts || NumFans(device, out var count) != Success)
-        {
-            return null;
-        }
-
-        var speeds = new double?[count];
-        for (var fan = 0u; fan < count; fan++)
-        {
-            var info = new FanSpeedInfo { Version = FanSpeedVersion, Fan = fan };
-            speeds[fan] = _speeds && FanSpeedRpm(device, ref info) == Success ? info.Speed : null;
-        }
-
-        return speeds;
+        var info = new FanSpeedInfo { Version = FanSpeedVersion, Fan = fan };
+        return FanSpeedRpm(device, ref info) == Success ? info.Speed : null;
     }
 
     [LibraryImport(Library, EntryPoint = "nvmlInit_v2")]
@@ -160,6 +167,9 @@ internal sealed partial class NvmlLibrary : IDisposable
 
     [LibraryImport(Library, EntryPoint = "nvmlDeviceGetFanSpeed")]
     private static partial int FanSpeed(nint device, out uint percent);
+
+    [LibraryImport(Library, EntryPoint = "nvmlDeviceGetFanSpeed_v2")]
+    private static partial int FanSpeedOf(nint device, uint fan, out uint percent);
 
     [LibraryImport(Library, EntryPoint = "nvmlDeviceGetNumFans")]
     private static partial int NumFans(nint device, out uint count);

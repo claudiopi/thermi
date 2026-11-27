@@ -133,10 +133,10 @@ public sealed class ReaderTests
                     break;
                 case Made.NvidiaFans:
                     // Two fans, one stopped, as a card stops its fans while it is cool.
-                    tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50, Fan = 30, FanSpeeds = [1500, 0] });
+                    tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50, Fan = 30, FanDuties = [30, 0], FanSpeeds = [1500, 0] });
                     break;
                 case Made.NvidiaUncounted:
-                    // A driver older than the calls that count a card's fans and read their speed.
+                    // A driver older than the calls that count a card's fans and read each one's duty and speed.
                     tree.Nvml(second, new GpuAnswer("Made GPU") { Temperature = 50, Fan = 40 });
                     break;
                 default:
@@ -160,10 +160,14 @@ public sealed class ReaderTests
         };
     }
 
-    // The NVIDIA card's duty and fans each row must read: a fan whose speed NVML cannot give reads missing, never 0.
+    // The NVIDIA card's duties and fans each row must read: a fan whose speed NVML cannot give reads missing, never 0.
     private static (string Id, string Name, double? Value)[] Fans(Made made) =>
         made == Made.NvidiaFans
-            ? [("/gpu-nvidia/0/control/1", "GPU Fan", 30), ("/gpu-nvidia/0/fan/1", "GPU Fan 1", 1500), ("/gpu-nvidia/0/fan/2", "GPU Fan 2", 0)]
+            ?
+            [
+                ("/gpu-nvidia/0/control/1", "GPU Fan 1", 30), ("/gpu-nvidia/0/control/2", "GPU Fan 2", 0),
+                ("/gpu-nvidia/0/fan/1", "GPU Fan 1", 1500), ("/gpu-nvidia/0/fan/2", "GPU Fan 2", 0),
+            ]
         : made == Made.NvidiaUncounted ? [("/gpu-nvidia/0/control/1", "GPU Fan", 40), ("/gpu-nvidia/0/fan/1", "GPU Fan", null)]
         : [];
 
