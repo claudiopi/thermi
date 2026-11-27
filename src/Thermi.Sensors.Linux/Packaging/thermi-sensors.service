@@ -31,9 +31,11 @@ ProtectHostname=yes
 ProtectProc=invisible
 RemoveIPC=yes
 
-# NVIDIA's devices, nvidiactl among them, are the only ones NVML opens; a PC without them has none to allow.
+# NVIDIA's devices, nvidiactl among them, are the only ones NVML opens; a PC without them has none to allow. The driver
+# names their group nvidia-frontend up to some versions and nvidia after, and systemd allows a group only by its exact name.
 DevicePolicy=closed
 DeviceAllow=char-nvidia-frontend rw
+DeviceAllow=char-nvidia rw
 
 # A datagram socket that sends nothing finds the local address its default route goes out from; nothing is let out.
 RestrictAddressFamilies=AF_UNIX AF_INET
