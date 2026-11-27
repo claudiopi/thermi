@@ -12,8 +12,8 @@ public sealed class PortalTests
     /// <summary>The tests' own program, started in a session with it, watches the portal as the window does (<see cref="WatchAsync"/>).</summary>
     public const string Watch = "--portal";
 
-    // Owns the portal's name and answers ReadOne from its settings, the a{sv} its argument writes in GVariant's text; a line "<key> <type> <value>" on its input changes one,
-    // as GVariant's text writes the value, and says so as the portal does.
+    // Owns the portal's name and answers ReadOne from its settings, the a{sv} its argument writes in GVariant's text; a
+    // line "<key> <type> <value>" on its input changes one, as GVariant's text writes the value, and says so as the portal does.
     private const string Portal = """
         import sys, gi
         from gi.repository import Gio, GLib
@@ -64,7 +64,10 @@ public sealed class PortalTests
     // one into another shape; and one whose every value is of another shape than the portal's documented one.
     [Theory(Timeout = Bound.Test)] // Rows: no portal, a key missing, and values in other shapes.
     [InlineData(null, new string[0], "none none False")]
-    [InlineData("{'color-scheme': <uint32 1>, 'contrast': <uint32 1>}", new[] { "accent-color s 'blue'", "contrast s 'yes'" }, "dark none True|dark none True|dark none False")]
+    [InlineData(
+        "{'color-scheme': <uint32 1>, 'contrast': <uint32 1>}",
+        new[] { "accent-color s 'blue'", "contrast s 'yes'" },
+        "dark none True|dark none True|dark none False")]
     [InlineData("{'color-scheme': <'dark'>, 'accent-color': <uint32 3>, 'contrast': <'yes'>}", new string[0], "none none False")]
     public async Task WhatThePortalDoesNotSayIsNothing(string? settings, string[] changes, string seen) =>
         Assert.Equal(seen.Split('|'), await WatchedAsync(settings, changes, TestContext.Current.CancellationToken));

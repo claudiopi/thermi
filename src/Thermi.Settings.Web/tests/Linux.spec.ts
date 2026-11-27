@@ -44,7 +44,14 @@ test('TheBridgeAnswersOverWebKit', async ({ page }) => {
 test.describe('TheWindowFollowsTheLinuxDesktop', () => {
   // WebKitGTK never forces the system's colors on a page: the host says the desktop's contrast through the bridge.
   const schemes: { name: string; colorScheme: 'light' | 'dark'; contrast: boolean; accent?: string; extension: string; fix: TextKey }[] = [
-    { name: 'dark, with the desktop\'s accent', colorScheme: 'dark', contrast: false, accent: '#3584e4', extension: 'missing', fix: 'WindowText.InstallExtension' },
+    {
+      name: 'dark, with the desktop\'s accent',
+      colorScheme: 'dark',
+      contrast: false,
+      accent: '#3584e4',
+      extension: 'missing',
+      fix: 'WindowText.InstallExtension',
+    },
     { name: 'light', colorScheme: 'light', contrast: false, extension: 'disabled', fix: 'WindowText.EnableExtension' },
     { name: 'high contrast', colorScheme: 'dark', contrast: true, extension: 'other-version', fix: 'HostText.GnomeExtensionUpdate' },
   ];

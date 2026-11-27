@@ -270,7 +270,8 @@ internal sealed class ShellLink : IDisposable
     private Task<GLib.Variant> Unbounded(string method, params GLib.Variant[] args)
     {
         var call = GLib.Variant.NewTuple(args);
-        return Task.Run(() => _bus.CallSync(ExtensionsFace, "/org/gnome/Shell", ExtensionsFace, method, call, null, Gio.DBusCallFlags.None, int.MaxValue, null));
+        return Task.Run(() =>
+            _bus.CallSync(ExtensionsFace, "/org/gnome/Shell", ExtensionsFace, method, call, null, Gio.DBusCallFlags.None, int.MaxValue, null));
     }
 
     // An extension of another protocol may send any shape: a signal is read only in the shape this protocol gives it, and a
