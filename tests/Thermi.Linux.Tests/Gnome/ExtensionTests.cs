@@ -11,12 +11,13 @@ public sealed class ExtensionTests
 {
     // Owns thermi's name and shows an overlay of 40 by 20 at (100, 100), all of it a box that takes the pointer. "refuse"
     // makes a case's calls, then its last, and says whether the first were taken, what the last got, and how many actors
-    // it added to the Shell. "hold" prints each signal of the extension's, a line each, and answers a right press with a
+    // it added to the Shell or its top bar. "hold" prints each signal of the extension's, a line each, and answers a right press with a
     // menu, as thermi does, saying once the Shell took it.
     private const string Caller = """
         import math, sys, gi
         from gi.repository import Gio, GLib
         OVERLAY, PATH, SHELL = 'io.github.claudiopi.thermi.Overlay', '/io/github/claudiopi/thermi', 'io.github.claudiopi.thermi.Shell'
+        DESKTOP = 'io.github.claudiopi.thermi.Desktop'
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
         def show(overlay, length=None, scale=1.0):
@@ -26,16 +27,29 @@ public sealed class ExtensionTests
         def menu(overlay, parent):
             return 'Menu', GLib.Variant('(udda(issbbb))', (overlay, 110.0, 110.0, [(parent, 'Row', '', False, False, False)]))
 
+        def icons_of(keys, length=None, kept=False):
+            pixels = b'' if kept else bytes(16 * 4 * 16 if length is None else length)
+            side, stride = (0, 0) if kept else (16, 64)
+            return 'Icons', GLib.Variant('(a(ssayiiid))', ([(key, '', pixels, side, side, stride, 1.0) for key in keys],))
+
+        def icons(count, length=None):
+            return icons_of([f'icon{at}' for at in range(count)], length)
+
+        def hotkeys(count):
+            return 'Hotkeys', GLib.Variant('(as)', (['<Control><Shift>F9'] * count,))
+
         def call(method, args, on=bus):
             try:
-                on.call_sync('org.gnome.Shell', PATH, SHELL, method, args, None, Gio.DBusCallFlags.NONE, 5000, None)
+                interface = DESKTOP if method in ('Icons', 'Hotkeys') else SHELL
+                on.call_sync('org.gnome.Shell', PATH, interface, method, args, None, Gio.DBusCallFlags.NONE, 5000, None)
                 return 'taken'
             except GLib.Error:
                 return 'refused'
 
         def actors():
+            counted = 'Main.uiGroup.get_n_children() + Main.panel._rightBox.get_n_children()'
             said = bus.call_sync('org.gnome.Shell', '/org/gnome/Shell', 'org.gnome.Shell', 'Eval',
-                                 GLib.Variant('(s)', ('Main.uiGroup.get_n_children()',)), None, Gio.DBusCallFlags.NONE, 5000, None)
+                                 GLib.Variant('(s)', (counted,)), None, Gio.DBusCallFlags.NONE, 5000, None)
             return int(said.unpack()[1])
 
         def another():
@@ -53,6 +67,13 @@ public sealed class ExtensionTests
                 'past-the-most-overlays': ([show(overlay) for overlay in range(64)], show(64), bus),
                 'orphan-menu-row': ([show(1)], menu(1, 5), bus),
                 'another-caller': ([], show(1), another()),
+                'past-the-most-icons': ([], icons(65), bus),
+                'past-the-most-hotkeys': ([], hotkeys(9), bus),
+                'short-icon-pixels': ([], icons(1, length=10), bus),
+                'a-sensors-path': ([], icons_of(['item:/lpc/it8689e/0/fan/0']), bus),
+                'an-empty-key-beside-another': ([], icons_of(['', 'item:/lpc/it8689e/0/fan/0']), bus),
+                'a-new-icon-with-no-picture': ([], icons_of(['icon0'], kept=True), bus),
+                'an-icon-kept-as-another-goes': ([icons_of(['icon0', 'icon1'])], icons_of(['icon1'], kept=True), bus),
             }
             first, last, on = cases[sys.argv[2]]
             taken = all(call(*each) == 'taken' for each in first)
@@ -82,6 +103,8 @@ public sealed class ExtensionTests
     [InlineData("past-the-most-overlays")]
     [InlineData("orphan-menu-row")]
     [InlineData("another-caller")]
+    [InlineData("past-the-most-icons")]
+    [InlineData("past-the-most-hotkeys")]
     public async Task ACallOutsideTheProtocolIsRefusedAndAddsNothing(string row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -90,6 +113,25 @@ public sealed class ExtensionTests
         var said = await (await CallerAsync(desktop, ["refuse", row], cancel)).Out.ToEndAsync(cancel);
 
         Assert.Equal("True refused 0", said.Trim());
+    }
+
+    // An icon's key is any string up to a bound, as an item's id after its prefix, a sensor's path among them; an icon out
+    // of the protocol is left out of the call, which shows the others; one thermi did not redraw keeps its picture, and a
+    // new one has none to keep. Says how many actors the call added to the top bar.
+    [Theory(Timeout = Bound.Test)]
+    [InlineData("short-icon-pixels", 0)]
+    [InlineData("a-sensors-path", 1)]
+    [InlineData("an-empty-key-beside-another", 1)]
+    [InlineData("a-new-icon-with-no-picture", 0)]
+    [InlineData("an-icon-kept-as-another-goes", -1)]
+    public async Task AnIconOutsideTheProtocolIsLeftOutAndTheOthersShow(string row, int added)
+    {
+        var cancel = TestContext.Current.CancellationToken;
+        await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], cancel);
+
+        var said = await (await CallerAsync(desktop, ["refuse", row], cancel)).Out.ToEndAsync(cancel);
+
+        Assert.Equal($"True taken {added}", said.Trim());
     }
 
     // A press of the first button holds the overlay and Esc, thermi's alone while it does; a right press opens thermi's

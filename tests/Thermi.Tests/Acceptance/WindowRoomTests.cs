@@ -16,19 +16,22 @@ public sealed class WindowRoomTests
     {
         var side = At(1000, 800, left: 2560);
         var onSide = new ThermiConfig { Overlays = [new OverlayConfig { Snap = new SnapConfig(SnapSpot.TopRight, side.Id) }] };
-        (ThermiConfig Config, Screen[] Screens, PixelRect[] Free, PixelRect First)[] places =
+        // GNOME maximizes a window past 80 % of its work area, so on Linux the first size covers at most 75 % of the monitor.
+        (ThermiConfig Config, Screen[] Screens, PixelRect[] Free, double Most, PixelRect First)[] places =
         [
-            (new ThermiConfig(), [At(2560, 1392)], [], new PixelRect(530, 246, 2030, 1146)),
-            (new ThermiConfig(), [At(1000, 800)], [], new PixelRect(50, 40, 950, 760)),
-            (new ThermiConfig(), [At(900, 700)], [], new PixelRect(0, 35, 900, 665)),
-            (new ThermiConfig(), [At(1000, 800)], [new PixelRect(900, 100, 1000, 140)], new PixelRect(50, 40, 900, 760)),
-            (onSide, [At(2560, 1392), side], [], new PixelRect(2610, 40, 3510, 760)),
+            (new ThermiConfig(), [At(2560, 1392)], [], 1, new PixelRect(530, 246, 2030, 1146)),
+            (new ThermiConfig(), [At(1000, 800)], [], 1, new PixelRect(50, 40, 950, 760)),
+            (new ThermiConfig(), [At(900, 700)], [], 1, new PixelRect(0, 35, 900, 665)),
+            (new ThermiConfig(), [At(1000, 800)], [new PixelRect(900, 100, 1000, 140)], 1, new PixelRect(50, 40, 900, 760)),
+            (onSide, [At(2560, 1392), side], [], 1, new PixelRect(2610, 40, 3510, 760)),
+            (new ThermiConfig(), [At(1600, 1000)], [], 0.75, new PixelRect(107, 67, 1492, 933)),
+            (new ThermiConfig(), [At(1920, 1080)], [], 0.75, new PixelRect(210, 90, 1710, 990)),
         ];
         (int Window, ListLayout List)[] lists =
             [(1500, new(344, false)), (1200, new(296, false)), (860, new(275, false)), (800, new(320, true)), (360, new(306, true))];
         (int Pane, PaneColumns Columns)[] panes = [(863, new(1, 720)), (864, new(2, 720)), (2001, new(2, 880))];
 
-        Assert.All(places, row => Assert.Equal(row.First, WindowRoom.First(row.Config, row.Screens, row.Free)));
+        Assert.All(places, row => Assert.Equal(row.First, WindowRoom.First(row.Config, row.Screens, row.Free, row.Most)));
         Assert.Equal((760, 560), WindowRoom.Minimum(new PixelRect(0, 0, 1920, 1032)));
         Assert.Equal((700, 500), WindowRoom.Minimum(new PixelRect(0, 0, 700, 500)));
         Assert.All(lists, row => Assert.Equal(row.List, WindowRoom.List(row.Window)));

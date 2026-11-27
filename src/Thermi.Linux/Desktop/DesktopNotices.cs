@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Thermi.Linux.Logging;
+
 namespace Thermi.Linux.Desktop;
 
 /// <summary>
@@ -15,19 +18,23 @@ internal sealed class DesktopNotices : IDisposable
     private readonly Gio.DBusProxy _signals;
     private readonly HashSet<uint> _ours = [];
 
-    public DesktopNotices(Gio.DBusConnection bus)
+    public DesktopNotices(Gio.DBusConnection bus, ILogger log)
     {
         _bus = bus;
         const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
         _signals = Gio.DBusProxy.NewSync(bus, Flags, null, Name, ObjectPath, Name, null);
-        _signals.OnGSignal += (_, heard) => Heard(heard.SignalName, heard.Parameters);
+        _signals.OnGSignal += (_, heard) =>
+            Callbacks.Safely(() => Heard(heard.SignalName, heard.Parameters), ex => log.SignalFailed(heard.SignalName, ex));
     }
 
-    /// <summary>A button of one of thermi's notices was clicked, by its action id.</summary>
-    public Action<string> Invoked { get; set; } = _ => { };
+    /// <summary>A button of one of thermi's notices was clicked: the notice, by the id <see cref="Say"/> gave it, and the button's action id.</summary>
+    public Action<uint, string> Invoked { get; set; } = (_, _) => { };
 
-    /// <summary>Shows a notice with its buttons, each an action id and its text; a desktop without notices shows none, and that is all.</summary>
-    public async Task Say(string title, string text, params (string Id, string Label)[] actions)
+    /// <summary>
+    /// Shows a notice with its buttons, each an action id and its text, and gives its id; a desktop without notices shows
+    /// none, and that is all: null.
+    /// </summary>
+    public async Task<uint?> Say(string title, string text, params (string Id, string Label)[] actions)
     {
         try
         {
@@ -47,11 +54,14 @@ internal sealed class DesktopNotices : IDisposable
                     GLib.Variant.NewArray(GLib.VariantType.New("{sv}"), []),
                     GLib.Variant.NewInt32(-1),
                 ]));
-            _ours.Add(answer.GetChildValue(0).GetUint32());
+            var id = answer.GetChildValue(0).GetUint32();
+            _ours.Add(id);
+            return id;
         }
         catch (GLib.GException)
         {
             // No notification server answers in this session.
+            return null;
         }
     }
 
@@ -59,9 +69,9 @@ internal sealed class DesktopNotices : IDisposable
 
     private void Heard(string signal, GLib.Variant args)
     {
-        if (signal == "ActionInvoked" && _ours.Contains(args.GetChildValue(0).GetUint32()))
+        if (signal == "ActionInvoked" && args.GetTypeString() == "(us)" && _ours.Contains(args.GetChildValue(0).GetUint32()))
         {
-            Invoked(args.GetChildValue(1).GetString(out _));
+            Invoked(args.GetChildValue(0).GetUint32(), args.GetChildValue(1).GetString(out _));
         }
     }
 }

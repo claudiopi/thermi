@@ -46,12 +46,12 @@ sequenceDiagram
 
 ## The other flows
 
-**An edit in the settings window, and its undo.** The page decides nothing: C# checks every edit with Core's rules, keeps it for undo, and writes the file the overlay watches.
+**An edit in the settings window, and its undo.** The page decides nothing: C# checks every edit with Core's rules, keeps it for undo, and writes the file the overlay watches. `PageBridge` answers the same on every OS, and asks an `IWindowHost` for what only the OS does: `WindowsHost` behind WebView2, `LinuxHost` behind WebKitGTK, in whose `SettingsWindow` the page is served from the install's `web` folder.
 
 ```mermaid
 sequenceDiagram
     participant Page as Page (React)
-    participant Bridge as WindowBridge
+    participant Bridge as PageBridge
     participant Edits as PageEdits
     participant Editor as WindowEditor
     participant Undo as UndoHistory
@@ -142,10 +142,10 @@ sequenceDiagram
 | `src/Thermi.Cli` | a library, any OS | `thermi-cli`'s commands and its MCP server, over what each OS answers in `IAgentEnvironment`. |
 | `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and what an agent's command reaches on Windows. |
 | `src/Thermi.Sensors.Linux` | `thermi-sensors`, a systemd service as the user `thermi`, started by its socket | Reads the kernel's sensors and NVML, serves snapshots on `/run/thermi/sensors.sock`, and records or replays a tree of the kernel's files. |
-| `src/Thermi.Linux` | `thermi` and `thermi-cli`, as you, the overlay in the graphical session's user unit | The overlay on Linux: Core's overlays painted with Cairo and Pango on one GLib main loop, shown on GNOME through the Shell's extension over D-Bus, elsewhere as GTK windows made layer surfaces or kept above on X11, each surface only reporting the pointer to Thermi.App's gestures; `thermi preview`; and what an agent's command reaches on Linux. |
-| `src/Thermi.Gnome` | an extension inside GNOME Shell | Shows the pictures `thermi` paints above every window and the top bar, the Shell's own menus, and sends back the pointer and the monitors. It decides nothing. |
-| `src/Thermi.Settings.Web` | the page in WebView2 | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
-| `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core. |
+| `src/Thermi.Linux` | `thermi` and `thermi-cli`, as you, the overlay in the graphical session's user unit | The overlay on Linux: Core's overlays painted with Cairo and Pango on one GLib main loop, shown on GNOME through the Shell's extension over D-Bus, with its tray icons and hotkeys, and elsewhere as GTK windows made layer surfaces or kept above on X11, each surface only reporting the pointer to Thermi.App's gestures, its icons as StatusNotifierItems and its hotkeys through the GlobalShortcuts portal or X11's grab; its notices as the desktop's notifications; `thermi settings`, the settings window that hosts the page in WebKitGTK on GTK 4; `thermi preview`; and what an agent's command reaches on Linux. |
+| `src/Thermi.Gnome` | an extension inside GNOME Shell | Shows the pictures `thermi` paints above every window and the top bar, its icons in the top bar, the Shell's own menus, takes its hotkeys, and sends back the pointer, the presses and the monitors. It decides nothing. |
+| `src/Thermi.Settings.Web` | the page in WebView2 on Windows, in WebKitGTK on Linux | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
+| `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core, then installs and builds the page once for every host, which only takes its `dist`. |
 | `src/Thermi.Client` | a library other programs ship | The .NET SDK of the agents' contract. |
 | `src/Thermi.Trust` | a library | Windows' own trust checks: admin-only folders, Authenticode, signed catalogs. |
 | `src/Thermi.Releases` | `thermi-releases.exe`, the owner | Signs the update channels' manifests. |
@@ -199,9 +199,9 @@ Which projects are shared and which are Windows-only, and how another OS would p
 | A text a user reads, or a language | `src/Thermi.Core/Translations` |
 | How the overlay looks | `src/Thermi.Core/Look/OverlayLook.cs` for what, `src/Thermi.Core/Painting/PaintLayout.cs` for where, each OS's `Painter.cs` (`src/Thermi.Windows/Painting`, `src/Thermi.Linux/Painting`) for how; check with `thermi preview` |
 | Where the overlay snaps | `src/Thermi.Core/Placement/Snaps.cs`, fed by `src/Thermi.Windows/Win32/Desktop.cs` |
-| What a tray icon shows | `src/Thermi.Core/Tray`, drawn by `src/Thermi.Windows/Tray` |
+| What a tray icon shows | `src/Thermi.Core/Tray`, drawn by `src/Thermi.Windows/Tray` and `src/Thermi.Linux/Tray`, its presses done by `src/Thermi.App/Gestures` |
 | What the page shows and does | `src/Thermi.Settings.Web/src`, tested in `src/Thermi.Settings.Web/tests` |
-| What the page may ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered in `src/Thermi.Windows/Ui` |
+| What the page may ask of C# | `src/Thermi.Core/Bridge/IWindowBridge.cs`, answered in `src/Thermi.App/Window` on every OS |
 | What an agent's command answers | `src/Thermi.Core/Agents`, served by `src/Thermi.Cli`, which reaches Windows through `src/Thermi.Windows/Agents` |
 | What the service reads | `src/Thermi.Sensors.Windows/Reading` |
 | How updates switch and roll back | `src/Thermi.Core/Updates`, `src/Thermi.Sensors.Windows/Updates` |

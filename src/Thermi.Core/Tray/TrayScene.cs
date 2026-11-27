@@ -47,6 +47,9 @@ public sealed record TrayIcon(Guid Id, string? ItemId, string? Text, Rgb Color, 
 {
     /// <summary>thermi's mark's state on its own icon; null on an item's.</summary>
     public MarkState? Mark { get; init; }
+
+    /// <summary>The icon's name, the same on every start: its item's id, or <see cref="TrayScene.ThermisId"/> for thermi's own.</summary>
+    public string Name => ItemId ?? TrayScene.ThermisId;
 }
 
 /// <summary>
@@ -86,7 +89,8 @@ public sealed record Busiest(BusyProcess? Cpu, BusyProcess? Gpu);
 /// </summary>
 public static class TrayScene
 {
-    private const string ThermiName = "thermi";
+    /// <summary>The name thermi's own icon goes by where an item's goes by its item's id, as a Linux tray knows each.</summary>
+    public const string ThermisId = "thermi";
 
     public static IReadOnlyList<TrayIcon> Of(ThermiConfig config, TrayInput input)
     {
@@ -121,7 +125,7 @@ public static class TrayScene
     /// </summary>
     public static Guid IdOf(string? itemId, string exePath)
     {
-        var name = string.Concat(exePath.ToUpperInvariant(), "\n", itemId is null ? ThermiName : "item\n" + itemId);
+        var name = string.Concat(exePath.ToUpperInvariant(), "\n", itemId is null ? ThermisId : "item\n" + itemId);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(name));
         hash[6] = (byte)((hash[6] & 0x0F) | 0x80);
         hash[8] = (byte)((hash[8] & 0x3F) | 0x80);

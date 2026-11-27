@@ -15,6 +15,7 @@
   <!-- The GNOME Shell extension is JavaScript the Shell loads as it is, so it is here as its files. -->
   <Folder Name="/src/Thermi.Gnome/">
     <File Path="src/Thermi.Gnome/eslint.config.js" />
+    <File Path="src/Thermi.Gnome/desktop.js" />
     <File Path="src/Thermi.Gnome/extension.js" />
     <File Path="src/Thermi.Gnome/metadata.json" />
     <File Path="src/Thermi.Gnome/pointerWatch.js" />

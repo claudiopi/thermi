@@ -36,7 +36,7 @@ internal sealed class OverlayHost : IDisposable
     private readonly ISensorFeed _feed;
     private readonly OverlayParts _parts;
     private readonly DesktopNotices _notices;
-    private readonly OverlayNotices _told;
+    private readonly ThermiDesk _desk;
     private readonly OverlayMenu _menu;
     private readonly List<DesktopOverlay> _overlays = [];
     private readonly HighContrastColors? _highContrast = DesktopLooks.HighContrast();
@@ -56,15 +56,16 @@ internal sealed class OverlayHost : IDisposable
     private bool _droppedOnSave;
     private bool _watching;
 
-    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TraceEvents trace, ILogger log, SurfaceKind kind)
+    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TraceEvents trace, ILogger log, ThermiStart start)
     {
         _bus = bus;
         _feed = feed;
         _trace = trace;
+        var kind = start.Kind;
         _kind = kind;
         var time = trace.Time;
         _link = new ShellLink(bus, log);
-        _notices = new DesktopNotices(bus);
+        _notices = new DesktopNotices(bus, log);
         var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
         _surfaces = kind switch
         {
@@ -86,9 +87,11 @@ internal sealed class OverlayHost : IDisposable
             Trace = Traced,
             Accent = DesktopLooks.Accent(_highContrast),
             Traced = trace.On,
+            WindowOpening = () => _desk!.Notices.WindowOpened(),
+            WindowFailed = () => _desk!.Notices.WindowFailed(),
         };
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
-        _told = new OverlayNotices(_parts, _notices, () => TextsOf(settings.Config));
+        _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start);
     }
 
     private Settings Settings => _parts.Settings;
@@ -137,6 +140,7 @@ internal sealed class OverlayHost : IDisposable
     public void Dispose()
     {
         _overlays.ForEach(overlay => overlay.Dispose());
+        _desk.Dispose();
         _surfaces.Dispose();
         _link.Dispose();
         _notices.Dispose();
@@ -151,24 +155,12 @@ internal sealed class OverlayHost : IDisposable
         return false;
     });
 
-    // GLib calls these from native code, where an exception that escapes ends the process; each kind is logged as its own.
-    private static void Safe(Action action, Action<Exception> failed)
-    {
-        try
-        {
-            action();
-        }
-#pragma warning disable CA1031 // The next paint sends everything again, so the overlay goes on.
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            failed(ex);
-        }
-    }
+    private static void Safe(Action action, Action<Exception> failed) => Callbacks.Safely(action, failed);
 
     private void Arrived()
     {
         _overlays.ForEach(overlay => overlay.Forget());
+        _desk.Arrived();
         _watching = false;
         _ = Task.Run(async () =>
         {
@@ -210,7 +202,9 @@ internal sealed class OverlayHost : IDisposable
             return;
         }
 
-        _parts.History.Add([.. Settings.Config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
+        var config = Settings.Config;
+        _parts.History.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
+        _desk.Notices.Readings(config, snapshot, _screens.Monitors.Any(monitor => monitor.FullScreen));
         _readAt = _parts.Time.GetTimestamp();
         Repaint(second: true);
     }
@@ -242,12 +236,24 @@ internal sealed class OverlayHost : IDisposable
     // A second is one of the service's taken, or one late without any, which --trace counts.
     private void Repaint(bool second)
     {
-        if (!Settings.Loaded || !_surfaces.Ready || _screens.Monitors.Count == 0)
+        if (!Settings.Loaded)
         {
             return;
         }
 
         var config = Settings.Config;
+        _desk.Notices.Update(config);
+        if (!_surfaces.Ready || _screens.Monitors.Count == 0)
+        {
+            // Nothing shows, but the second is thermi's all the same.
+            if (second)
+            {
+                _trace.Write(TraceEvents.Paint);
+            }
+
+            return;
+        }
+
         while (_overlays.Count < config.Overlays.Count)
         {
             _overlays.Add(new DesktopOverlay(_overlays.Count, _parts));
@@ -264,8 +270,10 @@ internal sealed class OverlayHost : IDisposable
         var fullScreen = config.Overlays.Select(overlay => _screens.FullScreen(Snaps.ScreenOf(overlay, scene.Screens.Screens))).ToList();
         var shown = _parts.Visibility.Decide(config, fullScreen);
         var sent = _overlays.Select((overlay, at) => shown[at] == OverlayShown.Shown ? overlay.Show(scene, Boxes()) : overlay.Hide()).ToList();
+        var primary = _screens.Monitors.FirstOrDefault(monitor => monitor.Primary) ?? _screens.Monitors[0];
+        sent.Add(_desk.Tray.Refresh(config, scene.Input, primary.Scale));
+        sent.Add(_desk.Hotkeys.Update(config));
         Announce(sent, second);
-        _told.Update(config);
         Watch(config, shown);
     }
 

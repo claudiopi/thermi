@@ -1,4 +1,5 @@
 using System.Globalization;
+using Thermi.Core.Translations;
 using Thermi.App.Gestures;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -84,4 +85,15 @@ internal sealed record OverlayScene(
 
     /// <summary>The CPU's base clock, read once, and what is busiest now, read only while a CPU or GPU value is critical.</summary>
     public CpuWatch? Cpu { get; init; }
+
+    /// <summary>
+    /// The settings after an edit or a gesture, from the overlays' own process, this scene showing <paramref name="after"/>:
+    /// the others as their windows, <paramref name="shown"/>, box them now.
+    /// </summary>
+    public EditResult Settled(ThermiConfig before, ThermiConfig after, CultureInfo culture, IReadOnlyList<PixelRect?> shown)
+    {
+        var input = new TrayInput(Snapshot, Service, culture, Texts.For(after.Language, CultureInfo.CurrentUICulture), LightTaskbar, "");
+        using var painter = new Painting.Painter();
+        return App.Window.OverlayPlaces.Settled(before, after, input, Screens, shown, painter);
+    }
 }

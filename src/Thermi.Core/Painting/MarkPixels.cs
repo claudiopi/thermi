@@ -1,15 +1,15 @@
-using System.Drawing;
-using System.Drawing.Drawing2D;
 using Thermi.Core.Look;
-using Thermi.Windows.Painting;
 
-namespace Thermi.Windows.Tray;
+namespace Thermi.Core.Painting;
+
+/// <summary>A pixel of the hand-placed mark: where, from its square's top left, and its color, or null for the ink's.</summary>
+public readonly record struct MarkCell(int X, int Y, Rgb? Color);
 
 /// <summary>
 /// thermi's mark placed by hand, pixel by pixel, at 16 and 24 px, where the vector would blur into a smudge: the body
 /// row by row, the eyes as cells cut out of it, and the line below.
 /// </summary>
-internal sealed class MarkPixels
+public sealed class MarkPixels
 {
     private static readonly MarkPixels Small = new(
         16,
@@ -30,22 +30,26 @@ internal sealed class MarkPixels
         Eyes((10, 10), (16, 10), ".##.", "####", "####", "####", ".##."),
         Eyes((10, 12), (16, 12), "#..#", ".##."));
 
-    private readonly int _size;
     private readonly (int Y, int From, int To)[] _body;
-    private readonly (int Y, int From, int To) _line;
-    private readonly Dictionary<MarkEyes, HashSet<Point>> _eyes;
+    private readonly Dictionary<MarkEyes, HashSet<(int X, int Y)>> _eyes;
 
     private MarkPixels(
         int size,
         (int Y, int From, int To)[] body,
         (int Y, int From, int To) line,
-        HashSet<Point> open,
-        HashSet<Point> wide,
-        HashSet<Point> closed)
+        HashSet<(int X, int Y)> open,
+        HashSet<(int X, int Y)> wide,
+        HashSet<(int X, int Y)> closed)
     {
-        (_size, _body, _line) = (size, body, line);
+        (Size, _body, Line) = (size, body, line);
         _eyes = new() { [MarkEyes.Open] = open, [MarkEyes.Wide] = wide, [MarkEyes.Closed] = closed };
     }
+
+    /// <summary>The side of the square the cells are placed in.</summary>
+    public int Size { get; }
+
+    /// <summary>The line under the body, a row of the ink's.</summary>
+    public (int Y, int From, int To) Line { get; }
 
     /// <summary>
     /// The hand-placed mark for an icon of <paramref name="size"/>: the 16 px one up to 23 px and the 24 px one up to
@@ -58,42 +62,40 @@ internal sealed class MarkPixels
         _ => null,
     };
 
-    /// <summary>Paints the mark at <paramref name="box"/>'s top left corner, centered in its width.</summary>
-    public void Draw(Graphics g, MarkLook look, Rgb ink, RectangleF box)
+    /// <summary>The body's cells in <paramref name="look"/>: its gradient with the eyes in their ink, or, one-color, the ink with the eyes cut out.</summary>
+    public IEnumerable<MarkCell> Body(MarkLook look)
     {
-        var state = g.Save();
-        g.SmoothingMode = SmoothingMode.None;
-        g.PixelOffsetMode = PixelOffsetMode.Half;
-        var offset = new Point((int)box.Left + (((int)box.Width - _size) / 2), (int)box.Top + (((int)box.Height - _size) / 2));
-        using var inked = new SolidBrush(PainterShapes.Drawn(ink));
         var eyes = _eyes[look.Eyes];
         foreach (var (y, from, to) in _body)
         {
             for (var x = from; x <= to; x++)
             {
-                var eye = eyes.Contains(new Point(x, y));
+                var eye = eyes.Contains((x, y));
                 if (look.Stops is null && eye)
                 {
                     continue;
                 }
 
-                using var brush = look.Stops is null
-                    ? null
-                    : new SolidBrush(PainterShapes.Drawn(eye ? MarkLook.EyeInk : look.At((x + 0.5 - 1) / (_size - 1))));
-                g.FillRectangle(brush ?? inked, offset.X + x, offset.Y + y, 1, 1);
+                yield return new MarkCell(x, y, ColorOf(look, eye, x));
             }
         }
-
-        g.FillRectangle(inked, offset.X + _line.From, offset.Y + _line.Y, _line.To - _line.From + 1, 1);
-        g.Restore(state);
     }
 
-    // Each eye's cells, the same pattern placed at each eye's top left corner.
-    private static HashSet<Point> Eyes((int X, int Y) left, (int X, int Y) right, params string[] pattern) =>
+    private Rgb? ColorOf(MarkLook look, bool eye, int x)
+    {
+        if (look.Stops is null)
+        {
+            return null;
+        }
+
+        return eye ? MarkLook.EyeInk : look.At((x + 0.5 - 1) / (Size - 1));
+    }
+
+    private static HashSet<(int X, int Y)> Eyes((int X, int Y) left, (int X, int Y) right, params string[] pattern) =>
     [
         .. new[] { left, right }.SelectMany(corner => pattern.SelectMany((row, dy) => row
             .Select((cell, dx) => (cell, dx))
             .Where(each => each.cell == '#')
-            .Select(each => new Point(corner.X + each.dx, corner.Y + dy)))),
+            .Select(each => (corner.X + each.dx, corner.Y + dy)))),
     ];
 }

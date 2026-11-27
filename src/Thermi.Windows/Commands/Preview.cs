@@ -7,6 +7,7 @@ using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Windows.Painting;
+using Thermi.Windows.Tray;
 using Thermi.Windows.Updates;
 using Thermi.Windows.Win32;
 using Windows.Win32.System.Console;
@@ -15,7 +16,8 @@ namespace Thermi.Windows.Commands;
 
 /// <summary>
 /// <c>thermi preview</c> on Windows: <see cref="SnapshotPreview"/> painted with GDI+, on the desktop's taskbar and contrast;
-/// an empty snapshot file paints "Sensors stopped", as the overlay shows it.
+/// an empty snapshot file paints "Sensors stopped", as the overlay shows it. A tray icon is painted at the notification
+/// area's size.
 /// </summary>
 internal static class Preview
 {
@@ -25,6 +27,17 @@ internal static class Preview
         if (await SnapshotPreview.ReadAsync(request.Snapshot, Said()) is not { } series)
         {
             return 2;
+        }
+
+        if (request.Icon is { } id)
+        {
+            if (SnapshotPreview.Icon(config, series, id, CpuWatch.ReadBaseClock(), Desktop.LightTaskbar(), Said()) is not { } icon)
+            {
+                return 2;
+            }
+
+            using var painted = TrayPainter.Paint(icon, TrayIcons.SizeAt((uint)Math.Round(96 * request.Scale)));
+            return await WriteAsync(request.Png, png => painted.Save(png, ImageFormat.Png));
         }
 
         var overlay = config.Overlays[0];

@@ -41,16 +41,16 @@ public sealed class CommandLineTests
     }
 
     // The scale is read in the invariant culture, so 1.5 is the same in every language. The settings file may be missing:
-    // the preview paints the defaults then, and creates none.
+    // the preview paints the defaults then, and creates none. With --icon it paints one tray icon, by its item's id.
     [Theory]
     [InlineData(new[] { "o.png" }, 1f, null)]
     [InlineData(new[] { "o.png", "1.5" }, 1.5f, null)]
     [InlineData(new[] { "o.png", "0.25" }, 0.25f, null)]
     [InlineData(new[] { "o.png", "8" }, 8f, null)]
-    [InlineData(new[] { "o.png", "2", "c.json" }, 2f, "c.json")]
-    public void APreviewTakesASnapshotAPngAScaleAndSettings(string[] args, float scale, string? settings)
+    [InlineData(new[] { "o.png", "2", "c.json", "--icon", "cpu.temperature" }, 2f, "c.json", "cpu.temperature")]
+    public void APreviewTakesASnapshotAPngAScaleAndSettings(string[] args, float scale, string? settings, string? icon = null)
     {
-        Assert.Equal(new PreviewRequest(Snapshot, "o.png", scale, settings), Parse(["preview", Snapshot, .. args], out _));
+        Assert.Equal(new PreviewRequest(Snapshot, "o.png", scale, settings) { Icon = icon }, Parse(["preview", Snapshot, .. args], out _));
     }
 
     // A comma is no decimal point, and a scale past 8 or under a quarter is a typo, never a picture worth painting.

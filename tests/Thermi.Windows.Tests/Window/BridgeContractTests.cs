@@ -163,7 +163,8 @@ public sealed class BridgeContractTests
     }
 
     // A service that stops sends nothing more, so no snapshot tells the window: within two seconds of the last one
-    // the page hears of it anyway, to show the bar that starts it again instead of numbers that look live.
+    // the page hears of it anyway, to show the bar that starts it again instead of numbers that look live, and a catalog
+    // that says it stopped instead of one still waiting for its first sensors.
     [Fact]
     public async Task AServiceThatGoesSilentReachesThePageWithoutASnapshot()
     {
@@ -188,6 +189,7 @@ public sealed class BridgeContractTests
         }
 
         Assert.Equal([true], told);
+        Assert.True((await bridge.Catalog("", [], all: true)).Stopped);
     }
 
     // A snapshot Core failed to name ended the window. One the window cannot read leaves it on the last it read, said once

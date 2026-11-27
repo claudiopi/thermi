@@ -1,8 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
-using Thermi.Core.Editing;
-using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -92,19 +91,10 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     /// <summary>"Notify me when critical": a fresh snapshot, once a second, and the notice of each item critical long enough.</summary>
     public void Critical(ThermiConfig config, Snapshot snapshot, bool fullScreen)
     {
-        var texts = Translations;
-        var numbers = Actions.Culture;
-        foreach (var (item, reading, notice) in _notifyMe.Add(config, snapshot, fullScreen))
+        foreach (var told in _notifyMe.Add(config, snapshot, fullScreen))
         {
-            var name = Names.Of(config, item, snapshot, texts);
-            var value = ReadingFormatter.Format(reading with { Value = notice.Value }, numbers, units: true, config.Temperature, item.Decimals, texts);
-            var length = LengthOf(notice.Length, texts, numbers);
-            _icons.Notify(
-                ThermiId,
-                texts.Format(numbers, notice.WhilePlaying ? HostText.CriticalWhilePlayingTitle : HostText.CriticalTitle, name),
-                notice.WhilePlaying
-                    ? texts.Format(numbers, HostText.CriticalWhilePlaying, name, value, length)
-                    : texts.Format(numbers, HostText.Critical, value, length));
+            var (title, text) = NoticeTexts.Of(told, config, snapshot, Translations, Actions.Culture);
+            _icons.Notify(ThermiId, title, text);
         }
     }
 
@@ -116,25 +106,16 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
             return;
         }
 
-        var config = Settings.Config;
-        if (icon.ItemId is null && what is PInvoke.NIN_SELECT or KeySelect)
+        TrayPress? press = what switch
         {
-            if (parts.Visibility.ClickIcon())
-            {
-                Actions.RequestPaint();
-            }
-            else
-            {
-                Menu(null);
-            }
-        }
-        else if (what == PInvoke.WM_CONTEXTMENU)
+            PInvoke.NIN_SELECT or KeySelect => TrayPress.Activate,
+            PInvoke.WM_CONTEXTMENU => TrayPress.Menu,
+            PInvoke.WM_LBUTTONDBLCLK => TrayPress.Twice,
+            _ => null,
+        };
+        if (press is { } pressed)
         {
-            Menu(icon.ItemId is null ? null : TrayScene.OverlayOf(config, icon.ItemId), fromTray: true, icon.ItemId);
-        }
-        else if (what == PInvoke.WM_LBUTTONDBLCLK && icon.ItemId is not null)
-        {
-            Actions.OpenSettings(TrayScene.OverlayOf(config, icon.ItemId), icon.ItemId);
+            Answer(icon.ItemId, TrayPresses.Of(icon.ItemId, pressed, parts.Visibility));
         }
         else if (what == PInvoke.NIN_BALLOONUSERCLICK && icon.ItemId is null && _notices.Showing is { } notice)
         {
@@ -190,32 +171,30 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         _icons.Notify(ThermiId, title, text);
     }
 
-    private void Clicked(Notice notice)
+    private void Answer(string? item, TrayAnswer answer)
     {
-        switch (notice.Kind)
+        var overlay = TrayScene.OverlayOf(Settings.Config, item);
+        switch (answer)
         {
-            case NoticeKind.FirstRun or NoticeKind.FirstRunDriver:
-                Actions.OpenSettings(0, null);
+            case TrayAnswer.Paint:
+                Actions.RequestPaint();
                 break;
-            case NoticeKind.OverlaysHidden:
-                parts.Visibility.HideOverlays = false;
+            case TrayAnswer.Menu:
+                Menu(item is null ? null : overlay, fromTray: true, item);
                 break;
-            case NoticeKind.OverlayHidden:
-                Settings.Edit(config =>
-                    Actions.Settle(config, notice.Overlays.Aggregate(config, (current, at) => OverlayEdits.SetHidden(current, at, hidden: false).Config))
-                        .Config);
+            case TrayAnswer.Settings:
+                Actions.OpenSettings(overlay, item);
                 break;
-            case NoticeKind.ClickThrough or NoticeKind.ClickThroughAll:
-                Settings.Edit(config => Notices.Undo(config, notice));
-                break;
+            case TrayAnswer.None:
             default:
                 break;
         }
-
-        Actions.RequestPaint();
     }
 
-    private static string LengthOf(TimeSpan length, Texts texts, IFormatProvider numbers) =>
-        length < TimeSpan.FromMinutes(1) ? texts.Format(numbers, HostText.Seconds, (int)Math.Round(length.TotalSeconds))
-        : texts.Format(numbers, UnitText.Minutes, (int)Math.Round(length.TotalMinutes));
+    private void Clicked(Notice notice)
+    {
+        _ = NoticeChoices.Choose(
+            notice, NoticeChoices.Clicked(notice), notice, Settings, parts.Visibility, Actions.Settle, () => Actions.OpenSettings(0, null));
+        Actions.RequestPaint();
+    }
 }

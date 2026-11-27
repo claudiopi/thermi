@@ -330,58 +330,29 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      # Whether the repositories' key and the AUR's are set up (docs/RELEASES.md): without them this job publishes
-      # nothing, or nothing to the AUR, and says so, and the Windows release goes on as it would.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Whether the repositories' key and the AUR's are set up (docs/RELEASES.md): with none of their variables, this
+      # job publishes nothing and says so, and the Windows release goes on as it would; with only some, it fails.
       - id: ready
         shell: pwsh
+        run: ./scripts/linux-ready.ps1
         env:
           THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
           THERMI_REPOSITORY_PUB: ${{ vars.THERMI_REPOSITORY_PUB }}
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
           AUR_HOST_KEY: ${{ vars.AUR_HOST_KEY }}
-          CHECKS: repository aur
-        run: |
-          # Before the checkout, which a run with nothing to publish skips.
-          $pairs = [ordered]@{ repository = 'THERMI_REPOSITORY_KEY', 'THERMI_REPOSITORY_PUB'; aur = 'AUR_SSH_KEY', 'AUR_HOST_KEY' }
-          foreach ($pair in $pairs.GetEnumerator()) {
-            if ($pair.Key -notin $env:CHECKS.Split(' ')) { continue }
-            $missing = @($pair.Value | Where-Object { -not [Environment]::GetEnvironmentVariable($_) })
-            "$($pair.Key)=$($missing.Count -eq 0)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
-            if (-not $missing) { continue }
-            $why = "$($missing -join ' and ') not set: this run publishes nothing for Linux there; docs/RELEASES.md says how to set it up."
-            "::notice::Skipped. $why"
-            "Skipped. $why" >> $env:GITHUB_STEP_SUMMARY
-          }
-      - if: steps.ready.outputs.repository == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - if: steps.ready.outputs.repository == 'true'
+      - if: steps.ready.outputs.ready == 'true'
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       # The tools the repositories' indexes are written with (scripts/linux-index.sh).
-      - if: steps.ready.outputs.repository == 'true'
+      - if: steps.ready.outputs.ready == 'true'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm-common
-      - if: steps.ready.outputs.repository == 'true'
-        shell: pwsh
-        env:
-          VERSION: ${{ needs.build.outputs.version }}
-          FROM: ${{ vars.THERMI_UPDATES_FROM }}
-          THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
-        run: |
-          $key = Join-Path $env:RUNNER_TEMP 'repository.key.asc'
-          [IO.File]::WriteAllText($key, $env:THERMI_REPOSITORY_KEY)
-          pwsh -NoProfile -File scripts/linux-packages.ps1 -Version $env:VERSION -Key $key -UpdatesFrom $env:FROM -Output out
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - if: steps.ready.outputs.repository == 'true'
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: |
-            out/*.deb
-            out/*.rpm
-            out/*.tar.gz
-      - if: steps.ready.outputs.repository == 'true'
+      # A version the bucket has published already, by a run whose AUR push failed, is only pushed to the AUR now.
+      - id: sync
+        if: steps.ready.outputs.ready == 'true'
         shell: pwsh
         run: ./scripts/channel-sync.ps1 down -Linux -Version $env:VERSION
         env:
@@ -389,7 +360,36 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-      - if: steps.ready.outputs.repository == 'true'
+      # Packed from this build, or once published from the tarballs served, whose PKGBUILD the AUR then takes.
+      - if: steps.ready.outputs.ready == 'true' && (steps.sync.outputs.published != 'true' || inputs.lever == 'release')
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          FROM: ${{ vars.THERMI_UPDATES_FROM }}
+          PUBLISHED: ${{ steps.sync.outputs.published }}
+          THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
+        run: |
+          $key = Join-Path $env:RUNNER_TEMP 'repository.key.asc'
+          [IO.File]::WriteAllText($key, $env:THERMI_REPOSITORY_KEY)
+          $served = @()
+          if ($env:PUBLISHED -eq 'true') {
+            New-Item -ItemType Directory served | Out-Null
+            foreach ($rid in 'x64', 'arm64') {
+              $name = "thermi-$($env:VERSION)-linux-$rid.tar.gz"
+              Invoke-WebRequest "$($env:FROM)linux/tarballs/$($env:VERSION)/$name" -OutFile "served/$name"
+            }
+            $served = '-From', 'served'
+          }
+          pwsh -NoProfile -File scripts/linux-packages.ps1 -Version $env:VERSION -Key $key -UpdatesFrom $env:FROM -Output out @served
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - if: steps.ready.outputs.ready == 'true' && steps.sync.outputs.published != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            out/*.deb
+            out/*.rpm
+            out/*.tar.gz
+      - if: steps.ready.outputs.ready == 'true' && steps.sync.outputs.published != 'true'
         shell: pwsh
         env:
           THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
@@ -399,7 +399,7 @@ jobs:
         run: |
           pwsh scripts/updates.ps1 publish $env:VERSION --channel $env:CHANNEL --packages out --repository channels/linux
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - if: steps.ready.outputs.repository == 'true'
+      - if: steps.ready.outputs.ready == 'true' && steps.sync.outputs.published != 'true'
         shell: pwsh
         run: ./scripts/channel-sync.ps1 up -Linux
         env:
@@ -407,10 +407,11 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       # Once its tarballs are served: the AUR's PKGBUILD, with the .SRCINFO the AUR reads, which only makepkg writes.
-      - if: inputs.lever == 'release' && steps.ready.outputs.repository == 'true' && steps.ready.outputs.aur == 'true'
+      - if: inputs.lever == 'release' && steps.ready.outputs.ready == 'true'
         shell: bash
         env:
           VERSION: ${{ needs.build.outputs.version }}
+          FROM: ${{ vars.THERMI_UPDATES_FROM }}
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
           AUR_HOST_KEY: ${{ vars.AUR_HOST_KEY }}
         run: |
@@ -420,14 +421,21 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
           git clone ssh://aur@aur.archlinux.org/thermi-bin.git aur
           cp out/aur/PKGBUILD out/aur/*.install aur/
-          # Arch's image, pinned, which reads only a copy: what goes to the AUR is the build's own PKGBUILD and scripts.
+          # Arch's image, pinned, which writes the .SRCINFO into a copy; the AUR takes it once it names this version and
+          # the SHA-256 of each tarball as served, which is what a person's makepkg checks.
           cp -r aur srcinfo
           docker run --rm --name "thermi-aur-$GITHUB_RUN_ID" -v "$PWD/srcinfo:/aur" \
             archlinux@sha256:375a401bb3c6376b37f40b6dfa25067db37ec78d0b7af67ae6315f43a0184a9d \
             bash -c 'useradd -m builder && chown -R builder /aur && su builder -c "cd /aur && makepkg --printsrcinfo > .SRCINFO" && chown -R '"$(id -u):$(id -g)"' /aur'
-          for file in PKGBUILD thermi-bin.install thermi-sensors-bin.install; do cmp "out/aur/$file" "aur/$file"; done
+          grep -qxF "$(printf '\tpkgver = %s' "$VERSION")" srcinfo/.SRCINFO
+          for rid in x64:x86_64 arm64:aarch64; do
+            sum=$(curl -fsSL "${FROM}linux/tarballs/$VERSION/thermi-$VERSION-linux-${rid%%:*}.tar.gz" | sha256sum | cut -d ' ' -f 1)
+            grep -qxF "$(printf '\tsha256sums_%s = %s' "${rid#*:}" "$sum")" srcinfo/.SRCINFO
+          done
           cp srcinfo/.SRCINFO aur/.SRCINFO
           git -C aur add PKGBUILD .SRCINFO ./*.install
+          # A run again after the push went through has nothing new to push.
+          if git -C aur diff --cached --quiet; then exit 0; fi
           git -C aur -c user.name='thermi releases' -c user.email='17047466+claudiopi@users.noreply.github.com' commit -m "thermi $VERSION"
           git -C aur push origin HEAD:master
 
@@ -484,43 +492,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Whether the repositories' key and the AUR's are set up (docs/RELEASES.md): with none of their variables, this
+      # job publishes nothing and says so, and the Windows release goes on as it would; with only some, it fails.
       - id: ready
         shell: pwsh
+        run: ./scripts/linux-ready.ps1
         env:
           THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
           THERMI_REPOSITORY_PUB: ${{ vars.THERMI_REPOSITORY_PUB }}
-          CHECKS: repository
-        run: |
-          # Before the checkout, which a run with nothing to publish skips.
-          $pairs = [ordered]@{ repository = 'THERMI_REPOSITORY_KEY', 'THERMI_REPOSITORY_PUB'; aur = 'AUR_SSH_KEY', 'AUR_HOST_KEY' }
-          foreach ($pair in $pairs.GetEnumerator()) {
-            if ($pair.Key -notin $env:CHECKS.Split(' ')) { continue }
-            $missing = @($pair.Value | Where-Object { -not [Environment]::GetEnvironmentVariable($_) })
-            "$($pair.Key)=$($missing.Count -eq 0)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
-            if (-not $missing) { continue }
-            $why = "$($missing -join ' and ') not set: this run publishes nothing for Linux there; docs/RELEASES.md says how to set it up."
-            "::notice::Skipped. $why"
-            "Skipped. $why" >> $env:GITHUB_STEP_SUMMARY
-          }
-      - if: steps.ready.outputs.repository == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - if: steps.ready.outputs.repository == 'true'
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_HOST_KEY: ${{ vars.AUR_HOST_KEY }}
+      - if: steps.ready.outputs.ready == 'true'
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       # The tools the repositories' indexes are written with (scripts/linux-index.sh).
-      - if: steps.ready.outputs.repository == 'true'
+      - if: steps.ready.outputs.ready == 'true'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm-common
-      - if: steps.ready.outputs.repository == 'true'
+      - if: steps.ready.outputs.ready == 'true'
         shell: pwsh
         run: ./scripts/channel-sync.ps1 down -Linux
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-      - if: steps.ready.outputs.repository == 'true'
+      - if: steps.ready.outputs.ready == 'true'
         shell: pwsh
         env:
           THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
@@ -542,7 +541,7 @@ jobs:
             pwsh scripts/updates.ps1 @lever --repository channels/linux
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - if: steps.ready.outputs.repository == 'true'
+      - if: steps.ready.outputs.ready == 'true'
         shell: pwsh
         run: ./scripts/channel-sync.ps1 up -Linux
         env:

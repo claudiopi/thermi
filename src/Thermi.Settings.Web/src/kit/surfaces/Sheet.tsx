@@ -29,7 +29,7 @@ const useStyles = makeStyles({
     border: `1px solid ${surfaces.flyoutStroke}`,
     background: surfaces.flyout,
     boxShadow: '0 8px 16px rgba(0, 0, 0, 0.26)',
-    '@media (forced-colors: active)': { border: '1px solid CanvasText', background: 'Canvas' },
+    ':global(.t-contrast) &': { border: '1px solid CanvasText', background: 'Canvas' },
   },
   backdrop: { zIndex: 30, top: space.titleRow, backgroundColor: surfaces.smoke },
   head: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' },

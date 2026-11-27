@@ -27,7 +27,26 @@ internal static class SnapshotPreview
     /// The first overlay as it shows after it read a series, a second each: its graphs drawing the series, the driver's
     /// marker and throttling included. No snapshot at all is the service stopped.
     /// </summary>
-    public static OverlayScene Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock, bool lightTaskbar)
+    public static OverlayScene Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock, bool lightTaskbar) =>
+        ThermiMark.Overlay(config, 0, InputOf(config, series, baseClock, lightTaskbar), windowOpenedOnce: true);
+
+    /// <summary>
+    /// The tray icon of <paramref name="id"/>, an item's or thermi's own for <see cref="TrayScene.ThermisId"/>, as
+    /// the tray shows it after the series; null, with why on <paramref name="said"/>, when no icon of the tray has it.
+    /// </summary>
+    public static TrayIcon? Icon(ThermiConfig config, IReadOnlyList<Snapshot> series, string id, double? baseClock, bool lightTaskbar, TextWriter said)
+    {
+        var icons = TrayScene.Of(config, InputOf(config, series, baseClock, lightTaskbar));
+        if (icons.FirstOrDefault(icon => icon.Name == id) is { } found)
+        {
+            return found;
+        }
+
+        said.WriteLine($"No tray icon is {id}: an item's shows only with Tray on, and thermi's is {TrayScene.ThermisId}.");
+        return null;
+    }
+
+    private static TrayInput InputOf(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock, bool lightTaskbar)
     {
         var clock = new SecondsClock();
         var history = new ItemHistory(clock);
@@ -38,7 +57,7 @@ internal static class SnapshotPreview
         }
 
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);
-        var input = new TrayInput(
+        return new TrayInput(
             series.Count > 0 ? series[^1] : null,
             series.Count > 0 ? ServiceState.Running : ServiceState.Stopped,
             CultureInfo.CurrentCulture,
@@ -49,7 +68,6 @@ internal static class SnapshotPreview
             BaseClock = baseClock,
             History = history,
         };
-        return ThermiMark.Overlay(config, 0, input, windowOpenedOnce: true);
     }
 
     /// <summary>

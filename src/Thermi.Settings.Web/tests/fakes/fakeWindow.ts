@@ -22,7 +22,15 @@ export function installFakeWindow(): void {
     );
   const status = (): WindowStatus => ({
     overlay: state.overlayRunning,
-    driver: state.service !== 'stopped' && cpuReadsZero(),
+    // Only Windows keeps the CPU's sensors behind a driver; on Linux only GNOME's extension has a fix.
+    driver: state.os === 'windows' && state.service !== 'stopped' && cpuReadsZero(),
+    os: state.os === 'linux' ? 'linux' : 'windows',
+    accent: state.accent,
+    contrast: state.contrast,
+    // Windows draws its own caption buttons over the page; on Linux the page draws them.
+    caption: state.os === 'linux' ? { maximized: state.maximized } : null,
+    bar: state.bar === 'top-bar' || state.bar === 'panel' || state.bar === 'none' ? state.bar : 'taskbar',
+    extension: state.os === 'linux' && (state.extension === 'missing' || state.extension === 'disabled') ? state.extension : null,
     hotkeys: roles.filter(
       (role) =>
         state.settings.hotkeys?.[role] !== undefined ||

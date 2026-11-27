@@ -10,7 +10,7 @@ namespace Thermi.Linux.Commands;
 
 /// <summary>
 /// <c>thermi preview</c> on Linux: <see cref="SnapshotPreview"/> painted with Cairo and Pango, in the desktop's contrast;
-/// an empty snapshot file paints "Sensors stopped", as the overlay shows it.
+/// an empty snapshot file paints "Sensors stopped", as the overlay shows it. A tray icon is painted at the tray's size.
 /// </summary>
 internal static class Preview
 {
@@ -20,6 +20,19 @@ internal static class Preview
         if (await SnapshotPreview.ReadAsync(request.Snapshot, Console.Error) is not { } series)
         {
             return 2;
+        }
+
+        if (request.Icon is { } id)
+        {
+            if (SnapshotPreview.Icon(config, series, id, DesktopLooks.BaseClock(), DesktopLooks.LightPanels, Console.Error) is not { } icon)
+            {
+                return 2;
+            }
+
+            using var painted = TrayPainter.Paint(icon, TrayPainter.PixelsAt(request.Scale));
+            // As a tray shows it, so a test compares it with the tray's own pixels.
+            var png = painted.ArgbPng();
+            return await SnapshotPreview.WriteAsync(request.Png, file => file.Write(png), Console.Error);
         }
 
         var overlay = config.Overlays[0];

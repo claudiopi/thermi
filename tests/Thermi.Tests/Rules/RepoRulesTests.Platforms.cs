@@ -9,11 +9,8 @@ public sealed partial class RepoRulesTests
     private static readonly Dictionary<string, string> NeedNoWindowsApi = new(StringComparer.Ordinal)
     {
         ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's own command beside every OS's: the mode UAC raises, a Windows program",
-        ["Thermi.Windows/Gestures/HotkeyPresses.cs"] = "what thermi's hotkeys do, which Windows' RegisterHotKey delivers anywhere in Windows",
         ["Thermi.Windows/Logging/LogEvents.cs"] = "the events of the Windows code's classes, which log nothing else",
         ["Thermi.Windows/Tray/TrayChoices.cs"] = "what a row of the tray's and an overlay's Win32 menus does",
-        ["Thermi.Windows/Ui/Views/OverlayPlaces.cs"] = "where each overlay's window sits, measured as its Windows painter keeps its room",
-        ["Thermi.Windows/Ui/Views/PageWatch.cs"] = "what the window's bridge keeps between reads, asking the overlay's window for its hotkeys",
         ["Thermi.Windows/Ui/Views/WindowAgents.cs"] = "the AI agents section's answers from Windows: the machine's and user's PATH, the launcher's folder",
         ["Thermi.Windows/Ui/Web/WindowLinks.cs"] = "opens a file or a link through Windows' Explorer, by its full path",
         ["Thermi.Windows/Ui/Web/WindowSession.cs"] = "the settings window's thread: its WebView2 window, editor, bridge and beacon",
@@ -40,14 +37,22 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
         ["Thermi.Linux/Gnome/ShellSurfaces.cs"] = "GNOME's surfaces, thermi's Shell extension, spoken to through the link to it on the session's bus",
+        ["Thermi.Linux/Gnome/ShellIcons.cs"] = "thermi's icons in GNOME's top bar, which only its Shell extension shows",
+        ["Thermi.Linux/Hotkeys/KeyNames.cs"] = "a hotkey by the names GTK, the GlobalShortcuts portal and X11's keysyms give its keys",
+        ["Thermi.Linux/Tray/DesktopTray.cs"] = "Core's tray icons on a Linux desktop, through the Shell's extension or StatusNotifierItem",
+        ["Thermi.Linux/Tray/TrayClicks.cs"] = "a click or a double-click on a tray icon, as Windows tells them and no Linux tray does",
+        ["Thermi.Linux/Tray/ThermiNotices.cs"] = "Core's notices as the desktop's own notifications, by the action ids of their buttons",
+        ["Thermi.Linux/Tray/TrayIcons.cs"] = "what a Linux desktop's tray shows of thermi's icons, which each desktop serves its own way",
         ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
         ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
         ["Thermi.Linux/Overlay/DragShow.cs"] = "a drag as Linux's surfaces show it, its pill and marks each a picture of its own over the windows",
         ["Thermi.Linux/Overlay/IOverlaySurfaces.cs"] = "where a Linux desktop shows thermi's pictures: GNOME's extension, layer surfaces or X11 windows",
         ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
-        ["Thermi.Linux/Overlay/OverlayNotices.cs"] = "Core's notices of the overlays as the desktop's own, by the action ids of their buttons",
         ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on Linux share on the host's GLib main loop, the desktop's surfaces among it",
         ["Thermi.Linux/Overlay/OverlayPointer.cs"] = "the pointer on an overlay as Linux's surfaces tell it, each event by the kind the extension names",
+        ["Thermi.Linux/Window/LinuxFixes.cs"] = "the overlay and the sensor service started through systemd and polkit, which only Linux has",
+        ["Thermi.Linux/Window/SignInUnit.cs"] = "starting at sign-in as the overlay's systemd user unit, which only Linux has",
+        ["Thermi.Linux/Window/WindowPainter.cs"] = "the window's previews painted by Linux's Cairo painter, as Windows' Painter paints them with GDI+",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",
         ["Thermi.Sensors.Linux/Serving/SensorCommands.cs"] = "the Linux service's own command line, whose trees and roots are the kernel's files",
@@ -63,6 +68,7 @@ public sealed partial class RepoRulesTests
         ["libX11.so.6"] = "Xlib's few calls for an overlay's window on X11, which has no introspection data",
         ["libgtk-4.so.1"] = "GDK's X11 calls, gdk_x11_*, which GTK's introspection data leaves out",
         ["libXext.so.6"] = "X11's input shape of an overlay's window, which GDK 4 does not set from its input region",
+        ["libxcb.so.1"] = "XCB's few calls to grab thermi's hotkeys on X11, on a connection of their own, which has no introspection data",
     };
 
     // CsWin32 generates every Win32 declaration from a NativeMethods.txt, and GirCore every GObject library's; one written by

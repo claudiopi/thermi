@@ -27,11 +27,17 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
     /// <summary>A drag or a hold ended, let go or taken back, and what it left is saved and on screen.</summary>
     public const string Dropped = "dropped";
 
+    /// <summary>A hotkey thermi could not take, as another program holds it, about its role as the settings name it.</summary>
+    public const string HotkeyRefused = "hotkey-refused";
+
     /// <summary>A hold lifted a pill or an item, which shows where the pointer carries it.</summary>
     public const string Lifted = "lifted";
 
     /// <summary>An overlay with Fade near the pointer shows at its faded look.</summary>
     public const string Faded = "faded";
+
+    /// <summary>The settings window showed or came to the front, about the item it shows, or about nothing.</summary>
+    public const string WindowShown = "window-shown";
 
     private readonly Lock _lock = new();
 

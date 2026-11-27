@@ -21,7 +21,7 @@ const useStyles = makeStyles({
     color: text.primary,
     backgroundColor: `color-mix(in srgb, ${tokens.colorBrandBackground} 30%, transparent)`,
     borderRadius: '2px',
-    '@media (forced-colors: active)': { forcedColorAdjust: 'none', backgroundColor: 'Mark', color: 'MarkText' },
+    ':global(.t-contrast) &': { forcedColorAdjust: 'none', backgroundColor: 'Mark', color: 'MarkText' },
   },
 });
 

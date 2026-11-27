@@ -15,7 +15,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 - R2. `thermi-cli` is on every user's `PATH` and runs from bash, zsh and fish as spec 003 says it runs from PowerShell: the shell waits for it, it prints to that shell and exits with its code.
 - R25. The `.deb` and the `.rpm` add thermi's repository, stable by default or beta, signed with a key of thermi's that they install, so each update comes through the system's own updater, as the system's do; the release workflow also updates `thermi-bin` on the AUR. Once a package changed thermi, the service restarts at once, and each overlay and its window hand over to the new version at a quiet moment, as spec 004 says on Windows. About says the version, the channel and that updates come from the system.
   Release check: An update on Linux.
-- R26. The owner's levers of spec 004 act on the repositories too: `publish` and `promote` add a version to a channel; `rollback` takes a channel back by publishing the version before under a higher version number, so every PC takes it; `disable` publishes nothing more. A repository that is not signed by thermi's key, or is older than the one a PC holds, is refused by the PC's package manager.
+- R26. The owner's levers of spec 004 act on the repositories too: `publish` and `promote` add a version to a channel; `rollback` takes a channel back by publishing the version before under a higher version number, so every PC takes it; `disable` publishes nothing more. A repository that is not signed by thermi's key is refused by the PC's package manager, and an older one never takes a PC back to an older version: apt keeps the newer index it holds, and dnf, which has no such check, finds nothing newer to install.
 
 ### Sensors
 

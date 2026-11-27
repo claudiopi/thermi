@@ -1,21 +1,51 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Writes the settings window page's TypeScript from Core: the bridge's types and the texts' keys. The .NET build of
-       src/Thermi.Windows runs it before the web build, so a change on either side of the bridge fails that build. -->
+  <!-- Writes the settings window page's TypeScript from Core: the bridge's types and the texts' keys; then installs the page
+       when its lockfile changed and builds it when anything it builds from changed (docs/adr/0007-settings-window-in-webview2-and-react.md).
+       Every host references this project, and MSBuild builds a project once per build, so npm runs once in the page's
+       folder, where two at once fail on each other's files; the hosts only take its dist (src/SettingsPage.targets). The
+       web build type-checks the page against what was just written, so a change on either side of the bridge fails the
+       build. Needs Node 22.12 or later; npm installs with the lockfile, never running a package's scripts. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <RootNamespace>Thermi.Settings.Types</RootNamespace>
     <IsPackable>false</IsPackable>
-    <!-- Run at build time only, so a publish of thermi for a processor builds it for none. -->
+    <!-- Run at build time only, so a publish of thermi for a processor builds it for none, and every host's build shares
+         one build of it. -->
     <IsRidAgnostic>true</IsRidAgnostic>
     <!-- The installer's ReadyToRun restore gives this program a processor too, so the lock file holds both, as
          src/Thermi.Windows's does. -->
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <SettingsWeb>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../Thermi.Settings.Web'))/</SettingsWeb>
+    <AgentSchemas>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../docs/agents/schema'))</AgentSchemas>
+    <DotnetHost Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</DotnetHost>
+    <DotnetHost Condition="'$(DOTNET_HOST_PATH)' == ''">dotnet</DotnetHost>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
   </ItemGroup>
+
+  <Target Name="WriteBridgeTypes" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="&quot;$(DotnetHost)&quot; exec &quot;$(TargetPath)&quot; &quot;$(SettingsWeb)src/bridge&quot; &quot;$(AgentSchemas)&quot;" />
+  </Target>
+
+  <Target Name="InstallSettingsWeb" AfterTargets="WriteBridgeTypes" Condition="'$(DesignTimeBuild)' != 'true'"
+          Inputs="$(SettingsWeb)package-lock.json" Outputs="$(SettingsWeb)node_modules/.package-lock.json">
+    <Exec Command="npm ci --ignore-scripts --no-audit --no-fund" WorkingDirectory="$(SettingsWeb)" />
+  </Target>
+
+  <Target Name="BuildSettingsWeb" AfterTargets="InstallSettingsWeb" Condition="'$(DesignTimeBuild)' != 'true'"
+          Inputs="@(SettingsWebInput)" Outputs="$(SettingsWeb)dist/index.html" DependsOnTargets="FindSettingsWebInputs">
+    <Exec Command="npm run build" WorkingDirectory="$(SettingsWeb)" />
+  </Target>
+
+  <Target Name="FindSettingsWebInputs">
+    <ItemGroup>
+      <SettingsWebInput Include="$(SettingsWeb)src/**/*;$(SettingsWeb)tests/**/*.ts;$(SettingsWeb)index.html" />
+      <SettingsWebInput Include="$(SettingsWeb)*.json;$(SettingsWeb)*.ts;$(SettingsWeb)node_modules/.package-lock.json" />
+    </ItemGroup>
+  </Target>
 
 </Project>

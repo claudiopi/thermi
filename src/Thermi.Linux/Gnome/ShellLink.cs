@@ -79,7 +79,7 @@ internal sealed class ShellLink : IDisposable
     public const string Uuid = "thermi@claudiopi.github.io";
 
     /// <summary>The protocol's version, which the extension's metadata.json says as <c>thermi-protocol</c>.</summary>
-    public const uint Protocol = 2;
+    public const uint Protocol = 3;
 
     public const string Shell = "org.gnome.Shell";
     public const string Interface = "io.github.claudiopi.thermi.Shell";
@@ -116,6 +116,9 @@ internal sealed class ShellLink : IDisposable
 
     /// <summary>The extension stopped running, as GNOME stops every extension while the screen is locked; its Ready says when it is back.</summary>
     public Action Gone { get; set; } = () => { };
+
+    /// <summary>The Shell changed the extension's state: installed, removed, turned on or off.</summary>
+    public Action StateChanged { get; set; } = () => { };
 
     public Action<ShellPointer> Pointer { get; set; } = _ => { };
 
@@ -189,10 +192,17 @@ internal sealed class ShellLink : IDisposable
     /// Asks the Shell to install the extension from extensions.gnome.org, which GNOME confirms with the person itself; the
     /// answer is never awaited, as the person may take any time, and the extension's Ready says when it came.
     /// </summary>
-    public void Install() => _ = Extensions("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
+    public void Install() => _ = InstallAsync();
+
+    /// <summary>Asks the Shell to install the extension, as <see cref="Install"/> does, and waits for the person's answer.</summary>
+    public Task<GLib.Variant> InstallAsync() => Extensions("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
+
+    public Task<GLib.Variant> EnableAsync() => Extensions("EnableExtension", GLib.Variant.NewString(Uuid));
 
     /// <summary>Asks the Shell to fetch the updates of its extensions, which it applies at the next sign-in.</summary>
-    public void CheckForUpdates() => _ = Extensions("CheckForUpdates");
+    public void CheckForUpdates() => _ = CheckForUpdatesAsync();
+
+    public Task<GLib.Variant> CheckForUpdatesAsync() => Extensions("CheckForUpdates");
 
     private Task<GLib.Variant> Extensions(string method, params GLib.Variant[] args) =>
         Call("org.gnome.Shell.Extensions", "/org/gnome/Shell", "org.gnome.Shell.Extensions", method, args);
@@ -223,11 +233,11 @@ internal sealed class ShellLink : IDisposable
     public Task Fade(uint overlay, double opacity) => Own("Fade", GLib.Variant.NewUint32(overlay), GLib.Variant.NewDouble(opacity));
 
     /// <summary>Shows a menu of <paramref name="rows"/> at a point of the stage, as the Shell's own popup menu.</summary>
-    public Task Menu(uint overlay, double x, double y, IReadOnlyList<ShellRow> rows) => Own(
-        "Menu",
-        GLib.Variant.NewUint32(overlay),
-        GLib.Variant.NewDouble(x),
-        GLib.Variant.NewDouble(y),
+    public Task Menu(uint overlay, double x, double y, IReadOnlyList<ShellRow> rows) =>
+        Own("Menu", GLib.Variant.NewUint32(overlay), GLib.Variant.NewDouble(x), GLib.Variant.NewDouble(y), RowsOf(rows));
+
+    /// <summary>A menu's rows as the protocol carries them.</summary>
+    public static GLib.Variant RowsOf(IReadOnlyList<ShellRow> rows) =>
         GLib.Variant.NewArray(GLib.VariantType.New("(issbbb)"), [.. rows.Select(row => GLib.Variant.NewTuple(
         [
             GLib.Variant.NewInt32(row.Parent),
@@ -236,7 +246,7 @@ internal sealed class ShellLink : IDisposable
             GLib.Variant.NewBoolean(row.Checked),
             GLib.Variant.NewBoolean(row.Grayed),
             GLib.Variant.NewBoolean(row.Starts),
-        ]))]));
+        ]))]);
 
     /// <summary>Has the extension tell the pointer anywhere while <paramref name="on"/>, as a Pointer of kind <c>near</c>.</summary>
     public Task Watch(bool on) => Own("Watch", GLib.Variant.NewBoolean(on));
@@ -302,8 +312,13 @@ internal sealed class ShellLink : IDisposable
     {
         try
         {
-            if (signal == "ExtensionStateChanged" && args.GetTypeString() == "(sa{sv})" && args.GetChildValue(0).GetString(out _) == Uuid
-                && args.GetChildValue(1).LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is not 1)
+            if (signal != "ExtensionStateChanged" || args.GetTypeString() != "(sa{sv})" || args.GetChildValue(0).GetString(out _) != Uuid)
+            {
+                return;
+            }
+
+            StateChanged();
+            if (args.GetChildValue(1).LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is not 1)
             {
                 Gone();
             }

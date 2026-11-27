@@ -42,13 +42,14 @@ public sealed record CatalogGroup(
 
 /// <summary>
 /// The catalog for a search: its devices, how many sensors they list, how many more it hides, and when it lists and hides
-/// none, the one word to try instead.
+/// none, the one word to try instead; and whether the service stopped, which the page says instead of waiting for sensors.
 /// </summary>
 public sealed record CatalogView(
     IReadOnlyList<CatalogGroup> Groups,
     int Count,
     int Hidden,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Suggestion);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Suggestion,
+    bool Stopped);
 
 /// <summary>A pill of an overlay: its label and its items' ids, in order.</summary>
 public sealed record PillView(string Label, IReadOnlyList<string> Items);

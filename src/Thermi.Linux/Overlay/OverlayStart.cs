@@ -42,12 +42,14 @@ internal static class OverlayStart
             var sensors = new SocketFeed(time, logs.CreateLogger<SocketFeed>());
             using var stop = new CancellationTokenSource();
             var reading = Task.Run(() => sensors.RunAsync(stop.Token), stop.Token);
+            // A first start is one that found no settings, which thermi then writes.
+            var firstStart = !File.Exists(ConfigStore.DefaultPath);
             using var store = new ConfigStore(ConfigStore.DefaultPath, time, DesktopLooks.RunsInstalled);
             int code;
             await using (var settings = new Settings(store, time, logs.CreateLogger<Settings>()))
             {
                 var trace = new TraceEvents(time, request.Trace ? Console.Error : null);
-                using var host = new OverlayHost(bus, settings, sensors, trace, logs.CreateLogger<OverlayHost>(), kind);
+                using var host = new OverlayHost(bus, settings, sensors, trace, logs.CreateLogger<OverlayHost>(), new ThermiStart(kind, firstStart));
                 code = host.Run();
             }
 
@@ -68,7 +70,7 @@ internal static class OverlayStart
         }
 
         var texts = Texts.For(null, CultureInfo.CurrentUICulture);
-        using var notices = new DesktopNotices(bus);
+        using var notices = new DesktopNotices(bus, log);
         var said = notices.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(HostText.NoOverlaySurfaces), (NoOverlayAction, texts.Of(HostText.NoticeGotIt)));
         // The bus answers on GLib's main loop, which no host runs yet: it runs until the answer, or the bound, wakes it.
         var context = GLib.MainContext.Default();

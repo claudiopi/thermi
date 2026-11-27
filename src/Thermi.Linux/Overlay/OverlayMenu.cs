@@ -13,6 +13,9 @@ using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Overlay;
 
+/// <summary>A menu as shown: Core's rows, submenus' rows after their own, the Shell's rows alike, and the overlay it is of, if any.</summary>
+internal sealed record ShownMenu(IReadOnlyList<MenuRow> All, IReadOnlyList<ShellRow> Rows, int? Overlay);
+
 /// <summary>
 /// An overlay's menu as the desktop's own, the Shell's popup menu on GNOME and GTK's elsewhere: Core's rows, each with the
 /// text every OS's menu gives it, flattened with the row each sits under, and the row chosen done by
@@ -31,8 +34,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         ("", "resources"),
     ];
 
-    private IReadOnlyList<MenuRow> _shown = [];
-    private int _overlay;
+    private ShownMenu _shown = new([], [], null);
 
     public Settings Settings => parts.Settings;
 
@@ -45,7 +47,18 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
     /// <summary>Shows overlay <paramref name="overlay"/>'s menu at a point of the stage, on <paramref name="item"/> or its edge.</summary>
     public void Show(int overlay, double x, double y, string? item, ServiceState service, Snapshot? known)
     {
+        _shown = Rows(overlay, item, fromTray: false, service, known);
+        _ = parts.Call(parts.Surfaces.Menu((uint)overlay, x, y, _shown.Rows));
+    }
+
+    /// <summary>
+    /// The rows of thermi's menu, with no <paramref name="overlay"/>, or of that overlay's, on <paramref name="item"/> or
+    /// its edge, as the Shell's rows; an overlay that does not show has thermi's.
+    /// </summary>
+    public ShownMenu Rows(int? overlay, string? item, bool fromTray, ServiceState service, Snapshot? known)
+    {
         var config = Settings.Config;
+        var shown = overlay < Math.Min(config.Overlays.Count, overlays.Count) ? overlay : null;
         var undo = parts.Gestures.Offered(config);
         var looks = MenuChoices.Looks(Settings);
         var state = new MenuState(parts.Visibility.HideOverlays, Settings.Problem is not null, service, undo is null ? null : TimeSpan.Zero, looks, false)
@@ -53,20 +66,22 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
             CanCopy = false,
         };
         var texts = Texts.For(config.Language, System.Globalization.CultureInfo.CurrentUICulture);
-        var place = new MenuPlace(config, texts, parts.Culture, overlay) { UndoText = undo is { } offered ? texts.Of(offered) : null, Known = known };
+        var place = new MenuPlace(config, texts, parts.Culture, shown) { UndoText = undo is { } offered ? texts.Of(offered) : null, Known = known };
         var all = new List<MenuRow>();
         var rows = new List<ShellRow>();
-        Flatten(Menus.OfOverlay(config, overlay, state, item), -1, place, all, rows);
-        (_shown, _overlay) = (all, overlay);
-        _ = parts.Call(parts.Surfaces.Menu((uint)overlay, x, y, rows));
+        Flatten(shown is { } at ? Menus.OfOverlay(config, at, state, item, fromTray) : Menus.Thermis(config, state), -1, place, all, rows);
+        return new ShownMenu(all, rows, shown);
     }
 
-    /// <summary>The row at <paramref name="index"/> of the menu last shown was chosen.</summary>
-    public void Chosen(int index)
+    /// <summary>The row at <paramref name="index"/> of the overlay's menu last shown was chosen.</summary>
+    public void Chosen(int index) => Choose(_shown, index);
+
+    /// <summary>The row at <paramref name="index"/> of <paramref name="menu"/> was chosen.</summary>
+    public void Choose(ShownMenu menu, int index)
     {
-        if (index >= 0 && index < _shown.Count)
+        if (index >= 0 && index < menu.All.Count)
         {
-            MenuChoices.Choose(this, _shown[index], _overlay);
+            MenuChoices.Choose(this, menu.All[index], menu.Overlay);
         }
     }
 
@@ -84,7 +99,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         {
             var desktops = (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries);
             var own = TaskManagers.Where(each => desktops.Contains(each.Desktop, StringComparer.OrdinalIgnoreCase));
-            Start(own.Concat(TaskManagers).Select(each => each.Program).FirstOrDefault(Installed) ?? TaskManagers[0].Program, []);
+            Start(own.Concat(TaskManagers).Select(each => each.Program).FirstOrDefault(Installed) ?? TaskManagers[0].Program, [])?.Dispose();
         }
     }
 
@@ -106,6 +121,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
 
     private void Open(int overlay, string[] on)
     {
+        parts.WindowOpening();
         List<string> args = ["settings", ThermiCommandLine.OverlayOption, $"{overlay + 1}", .. on];
 
         // The window writes its events on the standard error it inherits, thermi's, so one reader hears both.
@@ -114,7 +130,30 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
             args.Add(ThermiCommandLine.TraceOption);
         }
 
-        Start(Environment.ProcessPath ?? "thermi", args);
+        var program = Environment.ProcessPath ?? "thermi";
+        if (Start(program, args) is { } window)
+        {
+            _ = EndedAsync(window);
+        }
+        else
+        {
+            parts.WindowFailed();
+        }
+    }
+
+    // A window that dies, as it opens or later, would otherwise leave the person a click that did nothing. A second
+    // request ends at once with 0, once the first window took it.
+    private async Task EndedAsync(Process window)
+    {
+        using (window)
+        {
+            await window.WaitForExitAsync().ConfigureAwait(false);
+            if (window.ExitCode != 0)
+            {
+                parts.Log.WindowEnded(window.ExitCode);
+                parts.Post(parts.WindowFailed);
+            }
+        }
     }
 
     private static void Flatten(IReadOnlyList<MenuRow> rows, int parent, MenuPlace place, List<MenuRow> all, List<ShellRow> shown)
@@ -135,15 +174,16 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         (Environment.GetEnvironmentVariable("PATH") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries)
             .Any(folder => File.Exists(Path.Combine(folder, program)));
 
-    private void Start(string program, IEnumerable<string> args)
+    private Process? Start(string program, IEnumerable<string> args)
     {
         try
         {
-            using var started = Process.Start(new ProcessStartInfo(program, args) { UseShellExecute = false });
+            return Process.Start(new ProcessStartInfo(program, args) { UseShellExecute = false });
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
             parts.Log.StartFailed(program, ex);
+            return null;
         }
     }
 }

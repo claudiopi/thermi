@@ -1,44 +1,43 @@
-import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
-import Cogl from 'gi://Cogl';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {ThermiDesktop} from './desktop.js';
 import {PointerWatch} from './pointerWatch.js';
-import {OVERLAY, PATH, XML} from './protocol.js';
+import {OVERLAY, PATH, answer, fillMenu, finite, refusePicture, refuseRows, refuseUnless, setPicture, under} from './protocol.js';
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
-// the pointer, the monitors and the menu's choice back. It decides nothing. The protocol is protocol.js's.
+// the pointer, the monitors and the menu's choice back; its icons in the top bar and its hotkeys are desktop.js'. It
+// decides nothing. The protocol's version is metadata.json's thermi-protocol, which thermi checks before it shows
+// anything through it.
+const SHELL = 'io.github.claudiopi.thermi.Shell';
+const XML = `<node><interface name="${SHELL}">
+  <property name="Protocol" type="u" access="read"/>
+  <method name="Show"><arg type="u" direction="in"/><arg type="ay" direction="in"/><arg type="i" direction="in"/>
+    <arg type="i" direction="in"/><arg type="i" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
+    <arg type="d" direction="in"/><arg type="a(dddd)" direction="in"/></method>
+  <method name="Move"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/></method>
+  <method name="Hide"><arg type="u" direction="in"/></method>
+  <method name="Fade"><arg type="u" direction="in"/><arg type="d" direction="in"/></method>
+  <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
+    <arg type="a(issbbb)" direction="in"/></method>
+  <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
+  <method name="Watch"><arg type="b" direction="in"/></method>
+  <signal name="Ready"><arg type="u"/></signal>
+  <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
+    <arg type="u"/><arg type="d"/><arg type="d"/></signal>
+  <signal name="Key"><arg type="u"/><arg type="s"/></signal>
+  <signal name="MonitorsChanged"><arg type="a(ddddddbbdddd)"/></signal>
+  <signal name="Chosen"><arg type="u"/><arg type="i"/></signal>
+</interface></node>`;
 
-// Cairo's ARGB32, as thermi paints, on a little-endian machine.
-const FORMAT = Cogl.PixelFormat.BGRA_8888_PRE;
-
-// What a call may ask, far past what thermi asks, so no call can fill the Shell: overlays, a picture's side in pixels and
-// its scale, the boxes that take the pointer, and a menu's rows.
+// What a call may ask, far past what thermi asks, so no call can fill the Shell: overlays and the boxes that take the
+// pointer.
 const MOST_OVERLAYS = 64;
-const MOST_SIDE = 16384;
-const MOST_SCALE = 16;
 const MOST_BOXES = 512;
-const MOST_ROWS = 256;
-
-const finite = (...numbers) => numbers.every(Number.isFinite);
-
-// A call thermi's protocol does not have: refused before it changes anything.
-class Refused extends Error {}
-
-function refuseUnless(holds, why) {
-    if (!holds)
-        throw new Refused(why);
-}
-
-// What takes the pointer where an event happened, as the stage sees it now rather than as it last told the pointer.
-function under(event) {
-    const [x, y] = event.get_coords();
-    return global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-}
 
 export default class ThermiExtension extends Extension {
     enable() {
@@ -47,6 +46,7 @@ export default class ThermiExtension extends Extension {
         this._pointer = new PointerWatch(values => this._emit('Pointer', '(usdduuudd)', values));
         this._service = Gio.DBusExportedObject.wrapJSObject(XML, this);
         this._service.export(Gio.DBus.session, PATH);
+        this._desktop = new ThermiDesktop(() => this._owner);
         this._watch = Gio.bus_watch_name(Gio.BusType.SESSION, OVERLAY, Gio.BusNameWatcherFlags.NONE,
             (_, __, owner) => {
                 this._owner = owner;
@@ -54,6 +54,7 @@ export default class ThermiExtension extends Extension {
             () => {
                 this._owner = null;
                 this._clear();
+                this._desktop.clear();
             });
         Main.layoutManager.connectObject('monitors-changed', () => this._monitorsChanged(), this);
         global.display.connectObject('in-fullscreen-changed', () => this._monitorsChanged(), this);
@@ -71,6 +72,8 @@ export default class ThermiExtension extends Extension {
         [Main.panel._centerBox, Main.panel._rightBox].forEach(box => box.disconnectObject(this));
         global.stage.disconnectObject(this);
         Gio.bus_unwatch_name(this._watch);
+        this._desktop.destroy();
+        this._desktop = null;
         this._service.unexport();
         this._service = null;
         this._overlays = null;
@@ -127,47 +130,18 @@ export default class ThermiExtension extends Extension {
         });
     }
 
-    // Only thermi's overlay, the name's owner, changes what shows; any other caller, or a call out of the protocol's
-    // bounds, is refused whole.
     _answer(invocation, act) {
-        if (this._owner === null || invocation.get_sender() !== this._owner) {
-            invocation.return_dbus_error('org.freedesktop.DBus.Error.AccessDenied', `Only ${OVERLAY} shows thermi's overlays.`);
-            return;
-        }
-
-        try {
-            act();
-        } catch (error) {
-            if (!(error instanceof Refused))
-                throw error;
-            invocation.return_dbus_error('org.freedesktop.DBus.Error.InvalidArgs', error.message);
-            return;
-        }
-
-        invocation.return_value(null);
+        answer(this._owner, invocation, act);
     }
 
     _show(overlay, pixels, width, height, stride, x, y, scale, clicks) {
-        refuseUnless([width, height].every(side => Number.isInteger(side) && side >= 1 && side <= MOST_SIDE), 'No picture is that size.');
-        refuseUnless(stride >= width * 4 && pixels.length === stride * height, 'The pixels are not the picture the sizes say.');
-        refuseUnless(finite(x, y) && scale > 0 && scale <= MOST_SCALE, 'No place or scale is that.');
+        refusePicture(pixels, width, height, stride, scale);
+        refuseUnless(finite(x, y), 'No place is that.');
         refuseUnless(clicks.length <= MOST_BOXES && clicks.every(box => finite(...box) && box[2] >= 0 && box[3] >= 0), 'No boxes are those.');
         refuseUnless(this._overlays.has(overlay) || this._overlays.size < MOST_OVERLAYS, 'No more overlays show.');
 
         const shown = this._overlays.get(overlay) ?? this._add(overlay);
-        if (shown.size !== `${width}x${height}`) {
-            shown.image = St.ImageContent.new_with_preferred_size(width, height);
-            shown.size = `${width}x${height}`;
-        }
-
-        const bytes = new GLib.Bytes(pixels);
-        try {
-            shown.image.set_bytes(global.stage.context.get_backend().get_cogl_context(), bytes, FORMAT, width, height, stride);
-        } catch {
-            // GNOME 46 takes no Cogl context.
-            shown.image.set_bytes(bytes, FORMAT, width, height, stride);
-        }
-
+        setPicture(shown, pixels, width, height, stride);
         shown.picture.set({content: shown.image, width: width / scale, height: height / scale});
         // The boxes stay while they are the same, so the pointer on one stays there; a press holds its box until its
         // release, so a drag keeps the boxes it began with.
@@ -218,12 +192,10 @@ export default class ThermiExtension extends Extension {
         this._overlays.delete(overlay);
     }
 
-    // Each row is (its submenu's row, an earlier one, or -1, text, note, checked, grayed, starts a group); a choice sends
-    // the row's index. The menu takes the pointer, so a press that holds the overlay lets it go first.
+    // A choice sends the row's index. The menu takes the pointer, so a press that holds the overlay lets it go first.
     _menu(overlay, x, y, rows) {
         refuseUnless(finite(x, y), 'No place is that.');
-        refuseUnless(rows.length <= MOST_ROWS && rows.every(([parent], index) => parent === -1 || (parent >= 0 && parent < index)),
-            'No menu has those rows.');
+        refuseRows(rows);
         const shown = this._overlays.get(overlay);
         if (!shown)
             return;
@@ -232,30 +204,10 @@ export default class ThermiExtension extends Extension {
         shown.anchor ??= this._anchor();
         shown.anchor.set_position(x, y);
         const menu = new PopupMenu.PopupMenu(shown.anchor, 0, St.Side.TOP);
-        // A screen reader reads it as the menu it is, which the Shell's own box no longer says.
-        menu.box.accessible_role = Atk.Role.MENU;
         const manager = new PopupMenu.PopupMenuManager(shown.anchor);
         manager.addMenu(menu);
         Main.uiGroup.add_child(menu.actor);
-        const parents = new Map([[-1, menu]]);
-        rows.forEach(([parent, text, note, checked, grayed, starts], index) => {
-            const into = parents.get(parent);
-            if (starts && into.numMenuItems > 0)
-                into.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            const opens = rows.some(row => row[0] === index);
-            const item = opens ? new PopupMenu.PopupSubMenuMenuItem(text) : new PopupMenu.PopupMenuItem(text);
-            if (note)
-                item.add_child(new St.Label({text: note, x_expand: true, x_align: Clutter.ActorAlign.END}));
-            item.setOrnament(checked ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE);
-            item.setSensitive(!grayed);
-            if (opens) {
-                parents.set(index, item.menu);
-                item.menu.box.accessible_role = Atk.Role.MENU;
-            } else {
-                item.connect('activate', () => this._emit('Chosen', '(ui)', [overlay, index]));
-            }
-            into.addMenuItem(item);
-        });
+        fillMenu(menu, rows, index => this._emit('Chosen', '(ui)', [overlay, index]));
         // A menu closes before its choice is sent, and is destroyed once it is.
         menu.connect('open-state-changed', (_, open) => {
             if (!open && menu === shown.menu && !shown.closing) {

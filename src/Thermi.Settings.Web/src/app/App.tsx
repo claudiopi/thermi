@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent } fro
 import type { Edit } from '../bridge/bridge.g';
 import { bridge, inOrder, useEdit, useWindowData, type WindowData } from '../bridge/useWindow';
 import { Catalog, type CatalogAsk } from '../catalog/Catalog';
+import { useAccent, useContrast } from '../kit';
 import { ItemList } from '../list/ItemList';
 import { itemKey, overlayKey, overlayName, settingsKey } from '../list/rows';
 import { overlayOutcome } from '../overlay/overlayEdits';
@@ -234,6 +235,7 @@ function Window({ data }: { data: WindowData }) {
     <div className={`t-window t-${width}${listOpen && narrow ? ' t-list-open' : ''}`} onDragOver={dragOver} onDrop={drop}>
       <TitleRow
         mark={data.view.mark}
+        caption={data.status.caption}
         narrow={narrow}
         listOpen={listOpen}
         onShowList={() => (listOpen ? closeList() : openList())}
@@ -294,6 +296,8 @@ function Window({ data }: { data: WindowData }) {
 /** The settings window's page: the title row's content, the list and the pane, once the bridge gave its data. */
 export function App() {
   const data = useWindowData();
+  useAccent(data?.status.accent ?? null);
+  useContrast(data?.status.contrast ?? false);
   let shown = <main />;
   if (data?.problem != null) {
     // A file that cannot be used shows only what is wrong and its fixes: no list, no undo, no shortcuts.

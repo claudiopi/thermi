@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Thermi.Core;
 using Thermi.Linux.Gnome;
 
 namespace Thermi.Linux.Logging;
@@ -36,6 +37,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Error, Message = "{Program} could not be started")]
     public static partial void StartFailed(this ILogger logger, string program, Exception error);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "The settings window ended with code {Code}: its own log says why")]
+    public static partial void WindowEnded(this ILogger logger, int code);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The overlay could not be painted")]
     public static partial void PaintFailed(this ILogger logger, Exception error);
 
@@ -47,4 +51,21 @@ internal static partial class LinuxLog
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The compositor tells no edge its panels keep room along: the snaps take it to be the left and the top")]
     public static partial void PanelEdgesUntold(this ILogger logger);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The {Role} hotkey, {Combination}, is held by another program or the desktop: thermi could not take it")]
+    public static partial void HotkeyRefused(this ILogger logger, HotkeyRole role, string combination);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The desktop took none of the hotkeys")]
+    public static partial void HotkeysNotTaken(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "A call to thermi's tray icon {Path} could not be answered")]
+    public static partial void TrayCallFailed(this ILogger logger, string path, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No tray takes StatusNotifierItems in this session: thermi's icons show once one does")]
+    public static partial void NoTray(this ILogger logger, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "thermi could not do what {What} asked")]
+    public static partial void SignalFailed(this ILogger logger, string what, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The notice could not be shown or done")]
+    public static partial void NoticeFailed(this ILogger logger, Exception error);
 }

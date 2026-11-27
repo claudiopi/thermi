@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using Thermi.Core.Install;
 using Thermi.Core.Updates;
 
 namespace Thermi.Sensors.Windows.Updates;
@@ -23,7 +24,7 @@ internal sealed record UpdateBuild(Uri? From, byte[]? Release, byte[] Backup, IR
             .Where(attribute => attribute.Value is { Length: > 0 })
             .ToDictionary(attribute => attribute.Key, attribute => attribute.Value!, StringComparer.Ordinal);
         // A build of no release version, as 1.0.0-dev, names no folder an update could keep, so it never updates itself.
-        var released = ReleaseVersion.Parse(assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+        var released = ReleaseVersion.Parse(BuildVersion.Of(assembly));
         var version = released ?? new ReleaseVersion(0, 0, 0);
         var processor = RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "arm64" : "x64";
         var from = metadata.TryGetValue("ThermiUpdatesFrom", out var address) && Uri.TryCreate(address, UriKind.Absolute, out var uri) ? uri : null;

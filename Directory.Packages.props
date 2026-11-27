@@ -17,6 +17,7 @@
     <PackageVersion Include="GirCore.Gdk-4.0" Version="0.8.1" />
     <PackageVersion Include="GirCore.Gtk-4.0" Version="0.8.1" />
     <PackageVersion Include="GirCore.PangoCairo-1.0" Version="0.8.1" />
+    <PackageVersion Include="GirCore.WebKit-6.0" Version="0.8.1" />
     <PackageVersion Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
     <!-- Pinned exactly: it has not reached 1.0, and a new version may generate other signatures. Build time only. -->

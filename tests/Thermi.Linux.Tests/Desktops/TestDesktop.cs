@@ -282,6 +282,18 @@ internal sealed class TestDesktop : IAsyncDisposable
         await File.WriteAllLinesAsync(Path.Combine(config, "kscreenlockerrc"), ["[Daemon]", "Autolock=false", "LockOnResume=false"], cancel)
             .ConfigureAwait(false);
         await XServers.StartXvfbAsync(Session, monitors, cancel).ConfigureAwait(false);
+        // What the session's bus starts is KDE's, as in Plasma: its portal picks KDE's backend by the desktop's name and the
+        // choice Plasma's own packages write, and that backend's dialogs reach KWin only on Wayland. KWin itself takes neither.
+        var portals = Directory.CreateDirectory(Path.Combine(config, "xdg-desktop-portal"));
+        await File.WriteAllTextAsync(Path.Combine(portals.FullName, "kde-portals.conf"), "[preferred]\ndefault=kde\n", cancel).ConfigureAwait(false);
+        var plasma = await Session.RunAsync(
+            "dbus-update-activation-environment", ["XDG_CURRENT_DESKTOP=KDE", "QT_QPA_PLATFORM=wayland"], cancel: cancel).ConfigureAwait(false);
+        _ = plasma.Exit == 0 ? 0 : throw new InvalidOperationException($"The session's bus took no desktop: {plasma.Error}");
+        // thermi's launcher, where its package puts it in Plasma: the portal knows a program by its launcher's name, and
+        // refuses one it finds no launcher of.
+        var launchers = Directory.CreateDirectory(Path.Combine(Session.Variables["XDG_DATA_HOME"], "applications"));
+        File.Copy(Path.Combine(Built.Root, "src", "Thermi.Linux", "Packaging", "io.github.claudiopi.thermi.desktop"),
+            Path.Combine(launchers.FullName, "io.github.claudiopi.thermi.desktop"));
         var first = monitors[0];
         var kwin = await Session.StartAsync(
             "kwin_wayland",

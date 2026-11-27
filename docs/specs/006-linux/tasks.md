@@ -36,15 +36,15 @@
 
 ## B5. The settings window
 
-- [ ] T21. The bridge's client over WebKit's messages, and the page's Playwright tests on WebKit. (R18)
-- [ ] T22. The window's process on GTK 4 and WebKitGTK, opened every way, with its previews painted by Cairo. (R18)
-- [ ] T23. The desktop's scheme, accent and contrast, Start at sign-in, and Linux's fixes through polkit and the Shell, in every translation. (R19)
+- [x] T21. The bridge's client over WebKit's messages, and the page's Playwright tests on WebKit. (R18)
+- [x] T22. The window's process on GTK 4 and WebKitGTK, opened every way, with its previews painted by Cairo. (R18)
+- [x] T23. The desktop's scheme, accent and contrast, Start at sign-in, and Linux's fixes through polkit and the Shell, in every translation. (R19)
 
 ## B6. Tray, hotkeys and notices
 
-- [ ] T24. thermi's icon and the items' tray icons: in the extension, and as StatusNotifierItems with their menus. (R20)
-- [ ] T25. The hotkeys: the extension, the GlobalShortcuts portal and X11's grab. (R21)
-- [ ] T26. The notices as freedesktop notifications. (R22)
+- [x] T24. thermi's icon and the items' tray icons: in the extension, and as StatusNotifierItems with their menus. (R20)
+- [x] T25. The hotkeys: the extension, the GlobalShortcuts portal and X11's grab. (R21)
+- [x] T26. The notices as freedesktop notifications. (R22)
 
 ## B7. Packages and updates
 

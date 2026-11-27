@@ -73,16 +73,14 @@
   background: var(--colorCompoundBrandBackground);
 }
 
-@media (forced-colors: active) {
-  .t-row.t-selected {
-    outline: 1px solid Highlight;
-    outline-offset: -1px;
-  }
+.t-contrast .t-row.t-selected {
+  outline: 1px solid Highlight;
+  outline-offset: -1px;
+}
 
-  .t-row.t-selected::before {
-    forced-color-adjust: none;
-    background: Highlight;
-  }
+.t-contrast .t-row.t-selected::before {
+  forced-color-adjust: none;
+  background: Highlight;
 }
 
 /* A name too long for the row, as a long translation's, takes a second line rather than losing its end. */

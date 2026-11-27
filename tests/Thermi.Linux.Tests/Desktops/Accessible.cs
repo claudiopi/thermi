@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Thermi.Linux.Tests.Desktops;
 
@@ -10,10 +11,10 @@ namespace Thermi.Linux.Tests.Desktops;
 /// </summary>
 internal static class Accessible
 {
-    // AT-SPI from Python: each open menu's program and the number of its entries, one menu a line, or the entry at an index
-    // of the open menu chosen.
+    // AT-SPI from Python: each open menu's program and the number of its entries, one menu a line, the entry at an index of
+    // the open menu chosen, each program's windows, or where the first knob of thermi's window is in it.
     private const string Code = """
-        import sys, time, gi
+        import sys, gi
         gi.require_version('Atspi', '2.0')
         from gi.repository import Atspi, Gio, GLib
 
@@ -66,9 +67,10 @@ internal static class Accessible
             if not found:
                 Atspi.event_main()
                 found = open_menus()
+        # A line's knob: the chart's plot is a slider too, an svg's, whose drag reads a point and changes nothing.
         def sliders(node):
             if node is None: return
-            if node.get_role() == Atspi.Role.SLIDER: yield node
+            if node.get_role() == Atspi.Role.SLIDER and node.get_attributes().get('tag') != 'svg': yield node
             for index in range(node.get_child_count()):
                 yield from sliders(node.get_child_at_index(index))
 
@@ -79,11 +81,9 @@ internal static class Accessible
             for app in apps:
                 frames = sum(1 for index in range(app.get_child_count()) if app.get_child_at_index(index).get_role() == Atspi.Role.FRAME)
                 if frames: print(app.get_process_id(), frames, app.get_name())
-        elif sys.argv[1] == 'slide':
-            value = next(slider for app in apps if app.get_name() == 'thermi' for slider in sliders(app)).get_value_iface()
-            moved = value.get_current_value() + float(sys.argv[2])
-            print(time.monotonic(), flush=True)
-            value.set_current_value(moved)
+        elif sys.argv[1] == 'slider':
+            box = next(slider for app in apps if app.get_name() == 'thermi' for slider in sliders(app)).get_extents(Atspi.CoordType.WINDOW)
+            print(box.x + box.width // 2, box.y + box.height // 2)
         elif sys.argv[1] == 'choose':
             entry = found[0][1][int(sys.argv[2])]
             action = entry.get_action_iface()
@@ -135,11 +135,35 @@ internal static class Accessible
     }
 
     /// <summary>
-    /// Moves the first slider of thermi's window by <paramref name="by"/>, as a person drags it, and returns when it did, in
-    /// seconds of the system's monotonic clock, as thermi's trace says its times.
+    /// Drags the first knob of a line of thermi's window on GNOME <paramref name="by"/> pixels down, as a person does, and returns
+    /// when it started to move, in seconds of the system's monotonic clock, as thermi's trace says its times. WebKit takes no
+    /// value set through AT-SPI on the page's sliders, and gives their place in its window, as Wayland tells no program where
+    /// its window is: the Shell's frame of the window says where.
     /// </summary>
-    public static async Task<double> SlideAsync(OwnSession session, double by, CancellationToken cancel) =>
-        double.Parse(await RunAsync(session, ["slide", by.ToString(CultureInfo.InvariantCulture)], cancel).ConfigureAwait(false), CultureInfo.InvariantCulture);
+    public static async Task<double> SlideAsync(TestDesktop desktop, int by, CancellationToken cancel)
+    {
+        var inWindow = Numbers(await RunAsync(desktop.Session, ["slider"], cancel).ConfigureAwait(false));
+        var frame = TestDesktop.Call(
+            "org.gnome.Shell", "/org/gnome/Shell", "Eval",
+            "const f = global.get_window_actors().map(a => a.meta_window).find(w => w.get_title() === 'thermi').get_frame_rect(); [f.x, f.y].join(' ')");
+        var window = Numbers((await desktop.Session.RunAsync("gdbus", frame, cancel: cancel).ConfigureAwait(false)).Out);
+        var (x, y) = ((int)Math.Round((window[0] + inWindow[0]) * desktop.Scale), (int)Math.Round((window[1] + inWindow[1]) * desktop.Scale));
+        var moved = 0.0;
+        await desktop.Input.HoldAndDropAsync(
+            (x, y),
+            (x, y + by),
+            _ =>
+            {
+                moved = TimeProvider.System.GetTimestamp() / (double)TimeProvider.System.TimestampFrequency;
+                return Task.CompletedTask;
+            },
+            cancel).ConfigureAwait(false);
+        return moved;
+    }
+
+    private static double[] Numbers(string said) =>
+        [.. Regex.Matches(said, @"-?\d+(\.\d+)?", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1))
+            .Select(number => double.Parse(number.Value, CultureInfo.InvariantCulture))];
 
     private static async Task<string> RunAsync(OwnSession session, string[] args, CancellationToken cancel)
     {

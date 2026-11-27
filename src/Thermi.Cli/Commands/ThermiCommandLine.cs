@@ -19,10 +19,14 @@ internal sealed record SettingsRequest(int Overlay, bool Trace, bool Pseudo) : I
 }
 
 /// <summary>
-/// <c>thermi preview &lt;snapshot&gt; &lt;png&gt; [scale] [settings]</c>: the overlay painted from a saved snapshot, or the
-/// last of a series with its graphs, never shown.
+/// <c>thermi preview &lt;snapshot&gt; &lt;png&gt; [scale] [settings] [--icon id]</c>: the overlay painted from a saved
+/// snapshot, or the last of a series with its graphs, never shown; or one tray icon, an item's or thermi's own.
 /// </summary>
-internal sealed record PreviewRequest(string Snapshot, string Png, float Scale, string? SettingsPath) : IThermiRequest;
+internal sealed record PreviewRequest(string Snapshot, string Png, float Scale, string? SettingsPath) : IThermiRequest
+{
+    /// <summary>The tray icon painted in place of the overlay: an item's id, or <see cref="Core.Tray.TrayScene.ThermisId"/>.</summary>
+    public string? Icon { get; init; }
+}
 
 /// <summary>
 /// <c>thermi</c>'s command line on every OS, parsed before anything else runs: the overlay, the settings window, the
@@ -107,8 +111,12 @@ internal static class ThermiCommandLine
 
         // A settings file that is not there paints the defaults, and is not created.
         var file = new Argument<string?>("settings") { Arity = ArgumentArity.ZeroOrOne, Description = "A settings file other than the user's." };
-        request = it => new PreviewRequest(it.GetValue(snapshot)!.FullName, it.GetValue(png)!, it.GetValue(scale), it.GetValue(file));
-        return new Command("preview", "Paints the overlay for a saved snapshot, without showing it.") { snapshot, png, scale, file };
+        var icon = new Option<string?>("--icon") { Description = "Paints the tray icon of this item's id, or thermi's own for \"thermi\"." };
+        request = it => new PreviewRequest(it.GetValue(snapshot)!.FullName, it.GetValue(png)!, it.GetValue(scale), it.GetValue(file))
+        {
+            Icon = it.GetValue(icon),
+        };
+        return new Command("preview", "Paints the overlay for a saved snapshot, without showing it.") { snapshot, png, scale, file, icon };
     }
 
     private static float Scale(ArgumentResult result)
