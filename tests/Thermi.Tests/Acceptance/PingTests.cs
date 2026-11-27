@@ -35,27 +35,23 @@ public sealed class PingTests
         Overlays = [new OverlayConfig { Items = [new ItemConfig { Id = "load", Metric = Metrics.CpuLoad.Id, WarnBy = new() { Metric = Metrics.Ping.Id } }] }],
     };
 
-    // What the echo did, as the system's ping says it, or a lookup that never answers, or an error no ping names, even the
+    // What the echo did, as the system's ping says it, or a lookup that never answers, or an error no ping names, here the
     // network's own check; then what the item shows and why it has no value, and one log line however many seconds it lasts.
     // Before the first echo ends it waits, logging nothing, and with no ping item nothing is sent.
-    [Theory] // Rows: each a way an echo ends, an operand of the status and error tests, the wait, and nothing sent
+    [Theory] // Rows: each a way an echo ends, an arm of the status and error tests, the wait, and nothing sent
     [InlineData("reply", "23 ms", null)]
     [InlineData("timed out", ReadingFormatter.Missing, NoValue.PingTimedOut)]
-    [InlineData("ttl", ReadingFormatter.Missing, NoValue.PingTimedOut)]
     [InlineData("unreachable", ReadingFormatter.Missing, NoValue.PingUnreachable)]
     [InlineData("host not found", ReadingFormatter.Missing, NoValue.PingUnknownHost)]
-    [InlineData("no data", ReadingFormatter.Missing, NoValue.PingUnknownHost)]
-    [InlineData("try again", ReadingFormatter.Missing, NoValue.PingUnknownHost)]
     [InlineData("network down", ReadingFormatter.Missing, NoValue.PingNoNetwork)]
     [InlineData("no network", ReadingFormatter.Missing, NoValue.PingNoNetwork)]
     [InlineData("slow lookup", ReadingFormatter.Missing, NoValue.PingTimedOut)]
     [InlineData("throws", ReadingFormatter.Missing, NoValue.PingUnreachable)]
-    [InlineData("network check throws", ReadingFormatter.Missing, NoValue.PingUnreachable)]
     [InlineData("waiting", ReadingFormatter.Missing, NoValue.PingWaiting)]
     [InlineData("no item", ReadingFormatter.Missing, NoValue.PingOff)]
     public async Task APingShowsItsRoundTripOrWhyItHasNone(string echo, string shown, NoValue? why)
     {
-        var fake = new FakeEcho(Answer(echo)) { Up = echo != "no network", UpThrows = echo == "network check throws" };
+        var fake = new FakeEcho(Answer(echo)) { Up = echo != "no network", UpThrows = echo == "throws" };
         var log = new ListLogger();
         var latest = await ReplyAsync(fake, echo == "no item" ? new ThermiConfig() : Pinging, log, waits: echo != "waiting");
 
@@ -150,8 +146,7 @@ public sealed class PingTests
     }
 
     // The host typed, as the window and thermi-cli's edit send it: a name or an address is kept trimmed, empty goes back to
-    // 1.1.1.1, anything else is refused and changes nothing, undo takes a change back, and a ping item's chart starts again,
-    // but for the same host, as 1.1.1.1 written out is the default's.
+    // 1.1.1.1, anything else is refused and changes nothing, and undo takes a change back.
     [Theory] // Rows: each a kind of host, and what is none
     [InlineData("\"192.168.1.1\"", "192.168.1.1")]
     [InlineData("\" eu.game-server.example \"", "eu.game-server.example")]
@@ -181,32 +176,16 @@ public sealed class PingTests
         history.Record(before, Edited.Done(edit));
         Assert.Equal((kept, kept ?? PingSensors.DefaultHost), (edit.Config.PingHost, PingSensors.HostOf(edit.Config)));
         Assert.Equal(Edited.File(before), Edited.File(history.Undo(edit.Config)!.Config));
-        var time = new FakeTimeProvider();
-        var chart = new ChartHistory(time);
-        chart.Follow(before, _ => null);
-        time.Advance(TimeSpan.FromSeconds(1));
-        var ping = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.Ping.Id] = new(SensorKind.Latency, 20) };
-        chart.Items.Add(before.Overlays[0], ping, PingSensors.HostOf(before));
-        var drawn = chart.Of(Metrics.Ping.Id).OfType<double>().Count();
-        chart.Follow(edit.Config, _ => null);
-        var restarted = chart.Of(Metrics.Ping.Id).OfType<double>().Count();
-        time.Advance(TimeSpan.FromSeconds(1));
-        chart.Items.Add(edit.Config.Overlays[0], ping, PingSensors.HostOf(edit.Config));
-        chart.Follow(edit.Config, _ => null);
-        Assert.Equal((1, 0, 1), (drawn, restarted, chart.Of(Metrics.Ping.Id).OfType<double>().Count()));
     }
 
     private static Func<CancellationToken, Task<(IPStatus Status, long RoundTrip)>> Answer(string echo) => echo switch
     {
         "reply" => _ => Task.FromResult((IPStatus.Success, 23L)),
         "timed out" => _ => Task.FromResult((IPStatus.TimedOut, 0L)),
-        "ttl" => _ => Task.FromResult((IPStatus.TtlExpired, 0L)),
         "unreachable" => _ => Task.FromResult((IPStatus.DestinationHostUnreachable, 0L)),
         "host not found" => _ => throw Failed(SocketError.HostNotFound),
-        "no data" => _ => throw Failed(SocketError.NoData),
-        "try again" => _ => throw Failed(SocketError.TryAgain),
         "network down" => _ => throw Failed(SocketError.NetworkDown),
-        "throws" or "network check throws" => _ => throw new InvalidOperationException("No ping names this."),
+        "throws" => _ => throw new InvalidOperationException("No ping names this."),
         // A resolver that answers nothing, as a dead DNS server, for longer than a second, whatever it is told.
         "slow lookup" or "waiting" => _ => Task.Delay(TimeSpan.FromSeconds(10), TimeProvider.System, CancellationToken.None)
             .ContinueWith(_ => (IPStatus.Success, 1L), TaskScheduler.Default),

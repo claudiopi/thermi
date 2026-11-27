@@ -73,12 +73,13 @@ public sealed class PingFeedTests
         Assert.Equal(9d, feed.Shown.Sensors.Single(sensor => sensor.Id == PingSensors.Id).Value);
     }
 
-    // A new host starts the window's chart of a ping item again, with none of the old host's round trips the window read.
+    // A new host starts the window's chart of a ping item again, with none of the old host's round trips the window read;
+    // 1.1.1.1 written out and left empty are the same host, the default.
     [Fact]
-    public async Task AWindowsChartStartsAgainForANewHost()
+    public async Task AWindowsChartStartsAgainOnlyForAnotherHost()
     {
         using var folder = new SettingsFolder();
-        await using var settings = await folder.LoadedAsync(Pinging with { PingHost = "10.0.0.1" });
+        await using var settings = await folder.LoadedAsync(Pinging with { PingHost = PingSensors.DefaultHost });
         var editor = new WindowEditor(settings, turn => turn(), folder.Log, folder.Clock);
         var feed = new HeldFeed { Latest = PingSensors.With(TestRecordings.Read(TestRecordings.Admin), EchoReply.Of(20)) };
         var readings = new Readings(folder.Clock);
@@ -90,10 +91,11 @@ public sealed class PingFeedTests
             charts.Arrived();
         }
 
-        var drawn = charts.History(Metrics.Ping.Id).OfType<double>().Count();
+        editor.Edit("pingHost", config => ThermiEdits.SetPingHost(config, ""));
+        var defaulted = charts.History(Metrics.Ping.Id).OfType<double>().Count();
         editor.Edit("pingHost", config => ThermiEdits.SetPingHost(config, "example.com"));
 
-        Assert.Equal((3, 0), (drawn, charts.History(Metrics.Ping.Id).OfType<double>().Count()));
+        Assert.Equal((3, 0), (defaulted, charts.History(Metrics.Ping.Id).OfType<double>().Count()));
     }
 
     // The ping's sensor, which an agent's sensors list, is one an agent may add an item of, as the window does, with the
