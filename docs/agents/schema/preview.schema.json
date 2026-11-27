@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "thermi-cli preview, schema 1",
+  "type": "object",
+  "properties": {
+    "overlay": {
+      "type": "integer"
+    },
+    "width": {
+      "type": "integer"
+    },
+    "height": {
+      "type": "integer"
+    },
+    "png": {
+      "type": "string"
+    },
+    "schema": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "overlay",
+    "width",
+    "height",
+    "png"
+  ]
+}
