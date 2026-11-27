@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Thermi.Linux.Tests.Desktops;
 
 /// <summary>
@@ -39,9 +37,9 @@ internal sealed class TrayWatcher
         """;
 
     private readonly OwnSession _session;
-    private readonly Process _watcher;
+    private readonly SessionProcess _watcher;
 
-    private TrayWatcher(OwnSession session, Process watcher)
+    private TrayWatcher(OwnSession session, SessionProcess watcher)
     {
         _session = session;
         _watcher = watcher;
@@ -53,15 +51,18 @@ internal sealed class TrayWatcher
         var script = Path.Combine(session.Home, "tray.py");
         await File.WriteAllTextAsync(script, Code, cancel).ConfigureAwait(false);
         var watcher = await session.StartAsync("python3", [script], cancel: cancel).ConfigureAwait(false);
-        return await watcher.StandardOutput.ReadLineAsync(cancel).ConfigureAwait(false) == "ready"
+        return await watcher.ReadyAsync(cancel).ConfigureAwait(false) == "ready"
             ? new TrayWatcher(session, watcher)
             : throw new InvalidOperationException("The tray never took the watcher's name.");
     }
 
-    /// <summary>The next icon a program registered: its bus name and object path.</summary>
+    /// <summary>
+    /// The next icon registered that the test has not read yet, in order, each once: its bus name and object path. An icon
+    /// registers once, as it shows, and again only when its program starts again.
+    /// </summary>
     public async Task<(string Name, string Path)> NextAsync(CancellationToken cancel)
     {
-        var line = await _watcher.StandardOutput.ReadLineAsync(cancel).ConfigureAwait(false) ?? throw new InvalidOperationException("The tray ended.");
+        var line = await _watcher.Out.ReadLineAsync(cancel).ConfigureAwait(false) ?? throw new InvalidOperationException("The tray ended.");
         var parts = line.Split(' ');
         return (parts[0], parts[1]);
     }

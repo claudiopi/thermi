@@ -181,7 +181,7 @@
       "covers": [
         "R22"
       ],
-      "description": "Given a notification server of the test's own as the desktop's, when thermi starts the first time, an item with Notify me when critical stays critical for 10 s and the extension is missing, then each notice is one notification, once, and its buttons do what they do on Windows.",
+      "description": "Given the desktop's own notifications, watched by the test (on GNOME the Shell's, elsewhere a server of the test's own), when thermi starts the first time, an item with Notify me when critical stays critical for 10 s and the extension is missing, then each notice is one notification, once, and its buttons do what they do on Windows.",
       "check": "NoticesAreTheDesktopsNotifications",
       "passes": false
     },

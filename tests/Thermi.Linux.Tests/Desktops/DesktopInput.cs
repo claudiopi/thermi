@@ -16,18 +16,33 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session)
         await ButtonAsync(button, pressed: false, cancel).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Both clicks of a double-click in one go to the desktop, so they come as close together as a person's do, whatever
+    /// the test's machine is busy with between its calls.
+    /// </summary>
+    public async Task DoubleClickAsync(int x, int y, CancellationToken cancel)
+    {
+        await MoveAsync(x, y, cancel).ConfigureAwait(false);
+        string[] gnome = [.. Enumerable.Repeat(new[] { Button(1, pressed: true), Button(1, pressed: false) }, 2).SelectMany(clicks => clicks)];
+        await RunAsync(
+            string.Join("; ", gnome),
+            ("swaymsg", ["seat - cursor press button1; seat - cursor release button1; seat - cursor press button1; seat - cursor release button1"]),
+            ["click", "--repeat", "2", "1"],
+            cancel).ConfigureAwait(false);
+    }
+
     public Task DragAsync((int X, int Y) from, (int X, int Y) to, CancellationToken cancel) =>
         HoldAndDropAsync(from, to, _ => Task.CompletedTask, cancel);
 
     /// <summary>
-    /// Presses the pointer at a point and holds it until <paramref name="lifted"/> sees the pill lifted, as a person waits
-    /// for it, then drops it at another: the test waits for what the overlay shows, never for a time.
+    /// Presses the pointer at a point and holds it until <paramref name="held"/> ends, as a person waits for the pill to
+    /// lift, then drops it at another: the test waits for what thermi says it did, armed before the press, never for a time.
     /// </summary>
-    public async Task HoldAndDropAsync((int X, int Y) from, (int X, int Y) to, Func<CancellationToken, Task> lifted, CancellationToken cancel)
+    public async Task HoldAndDropAsync((int X, int Y) from, (int X, int Y) to, Func<CancellationToken, Task> held, CancellationToken cancel)
     {
         await MoveAsync(from.X, from.Y, cancel).ConfigureAwait(false);
         await ButtonAsync(1, pressed: true, cancel).ConfigureAwait(false);
-        await lifted(cancel).ConfigureAwait(false);
+        await held(cancel).ConfigureAwait(false);
         await MoveAsync((from.X + to.X) / 2, (from.Y + to.Y) / 2, cancel).ConfigureAwait(false);
         await MoveAsync(to.X, to.Y, cancel).ConfigureAwait(false);
         await ButtonAsync(1, pressed: false, cancel).ConfigureAwait(false);
@@ -67,8 +82,11 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session)
     /// </summary>
     public Task ShellAsync(string line, CancellationToken cancel) => RunAsync(Shell(line), cancel);
 
+    private static string Button(int button, bool pressed) =>
+        $"pointer.notify_button(global.get_current_time(), {button}, Clutter.ButtonState.{(pressed ? "PRESSED" : "RELEASED")})";
+
     private Task ButtonAsync(int button, bool pressed, CancellationToken cancel) => RunAsync(
-        $"pointer.notify_button(global.get_current_time(), {button}, Clutter.ButtonState.{(pressed ? "PRESSED" : "RELEASED")})",
+        Button(button, pressed),
         ("swaymsg", [$"seat - cursor {(pressed ? "press" : "release")} button{button}"]),
         [pressed ? "mousedown" : "mouseup", $"{button}"],
         cancel);

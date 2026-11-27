@@ -7,7 +7,10 @@ import tseslint from 'typescript-eslint';
 // literal string as a child, and no literal in the attributes Narrator or a person reads.
 const noText = 'Every text a user reads comes from the translations: take it with useText, by its key.';
 const child = ':matches(JSXElement, JSXFragment) > JSXExpressionContainer';
-const readAttributes = /^(aria-label|aria-description|aria-valuetext|aria-roledescription|title|placeholder|alt|label|description|text|stateText|valueText|main|cancel)$/;
+const readAttributes = new RegExp(`^(${[
+  'aria-label', 'aria-description', 'aria-valuetext', 'aria-roledescription', 'title', 'placeholder', 'alt', 'label',
+  'description', 'text', 'stateText', 'valueText', 'main', 'cancel',
+].join('|')})$`);
 
 export default defineConfig(
   { ignores: ['dist/', 'node_modules/', 'test-results/', 'playwright-report/'] },

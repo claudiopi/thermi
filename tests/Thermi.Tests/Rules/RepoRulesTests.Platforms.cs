@@ -187,11 +187,12 @@ public sealed partial class RepoRulesTests
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex WindowsApi();
 
-    // GirCore's namespaces, the kernel's files, a Unix socket and its peer's credentials, the platform's attribute, and the
-    // system's services and libraries that only Linux has.
+    // GirCore's namespaces, the kernel's files, a Unix socket and its peer's credentials, the platform's attribute, systemd's
+    // command and the variables it hands a service, and the libraries that only Linux has. A word in a plain string is no API.
     [GeneratedRegex(
         @"\b(Gtk|Gdk|Gio|GLib|Cairo|Pango|PangoCairo|WebKit)(\.|\s*;)|""/(sys|proc)/|\bUnixDomainSocketEndPoint\b|\bSO_PEERCRED\b"
-            + @"|\bSupportedOSPlatform\(""linux""|\bsystemd\b|\bsystemctl\b|\bD-?Bus\b|\b(?i:nvml)\w*|\blibnvidia-ml\b|\bgtk4-layer-shell\b|\bgtk_layer_\w+",
+            + @"|\bSupportedOSPlatform\(""linux""|""(systemctl|LISTEN_FDS|LISTEN_PID|NOTIFY_SOCKET)"""
+            + @"|\b(?i:nvml)\w*|\blibnvidia-ml\b|\bgtk4-layer-shell\b|\bgtk_layer_\w+",
         RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex LinuxApi();
