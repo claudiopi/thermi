@@ -155,8 +155,11 @@ interface FakeControl {
   release?(): void;
   /** The oracle's answer to a call, counted as on its way until it comes. */
   answered<T>(answer: Promise<T> | undefined): Promise<T | undefined>;
-  /** Whether the page has every answer it asked for, and has read the settings since they last changed. */
-  caughtUp(): boolean;
+  /**
+   * Once the page has every answer it asked for, and has read the settings since they last changed: as the fake gets
+   * there, never by polling, whose checks a busy browser runs only as it draws a frame.
+   */
+  caughtUp(): Promise<void>;
 }
 
 interface AxeResults {
