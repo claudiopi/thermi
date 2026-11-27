@@ -4,7 +4,8 @@ using Thermi.Sensors.Linux.Kernel;
 namespace Thermi.Sensors.Linux.Reading;
 
 /// <summary>
-/// A laptop's batteries, found once in <c>/sys/class/power_supply</c>: the charge, the rate it charges at, below zero
+/// A laptop's batteries, in <c>/sys/class/power_supply</c>, and never a device's, as a Bluetooth mouse's, which the kernel
+/// lists beside them, of the scope <c>Device</c>, and names by its address: the charge, the rate it charges at, below zero
 /// while it discharges, and the time left, as LibreHardwareMonitor names Windows'. A battery reports its power, or its
 /// current and voltage, and its energy or its charge: either pair gives the rate and the time.
 /// </summary>
@@ -14,7 +15,8 @@ internal sealed class BatteryReader(IKernel kernel)
     private const string Supplies = "/sys/class/power_supply";
 
     private readonly IReadOnlyList<string> _batteries =
-        [.. kernel.List(Supplies).Where(supply => kernel.Read($"{Supplies}/{supply}/type")?.Trim() == "Battery")];
+        [.. kernel.List(Supplies).Where(supply => kernel.Read($"{Supplies}/{supply}/type")?.Trim() == "Battery"
+            && kernel.Read($"{Supplies}/{supply}/scope")?.Trim() != "Device")];
 
     public IEnumerable<RawSensor> Read()
     {

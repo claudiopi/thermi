@@ -18,7 +18,7 @@ internal sealed record Chip(string Name, string Device, IReadOnlyList<ChipInput>
 internal sealed record ChipInput(string File, string Type, int Index, string Name, double Scale);
 
 /// <summary>
-/// Finds the chips of <c>/sys/class/hwmon</c> once, and reads their inputs each second. An input is a chip's file as
+/// Finds the chips of <c>/sys/class/hwmon</c>, and reads their inputs. An input is a chip's file as
 /// <c>temp1_input</c>, named by its <c>temp1_label</c> or, unlabeled, as LibreHardwareMonitor numbers it, <c>fan2</c> as
 /// "Fan" and its number; one whose label is there but whose value is gone still is a sensor, which reads missing.
 /// </summary>
@@ -42,6 +42,25 @@ internal static partial class Hwmon
 
     public static IReadOnlyList<Chip> Find(IKernel kernel) =>
         [.. kernel.List(Root).Select(folder => ChipIn(kernel, $"{Root}/{folder}")).OfType<Chip>().OrderBy(chip => chip.Device, StringComparer.Ordinal)];
+
+    /// <summary>
+    /// The chips of one device, as a CPU of two sockets has a <c>k10temp</c> for each, with each chip's inputs numbered on
+    /// from the chips before it, type by type, so no two share an id.
+    /// </summary>
+    public static IReadOnlyList<Chip> NumberedOn(IReadOnlyList<Chip> chips)
+    {
+        var next = new Dictionary<string, int>(StringComparer.Ordinal);
+        return [.. chips.Select(chip =>
+        {
+            var first = chip.Inputs.GroupBy(input => input.Type).ToDictionary(group => group.Key, group => next.GetValueOrDefault(group.Key));
+            foreach (var group in chip.Inputs.GroupBy(input => input.Type))
+            {
+                next[group.Key] = first[group.Key] + group.Max(input => input.Index) + 1;
+            }
+
+            return chip with { Inputs = [.. chip.Inputs.Select(input => input with { Index = first[input.Type] + input.Index })] };
+        })];
+    }
 
     /// <summary>The path of a device under <c>/sys/devices</c>, as a sensor's id holds it.</summary>
     public static string DevicePath(string resolved) =>
@@ -95,7 +114,7 @@ internal static partial class Hwmon
     }
 
     [GeneratedRegex(
-        @"^(?:(?<kind>temp|fan|in|power|curr|freq)(?<number>\d+)_(?:input|label|average)|(?<kind>pwm)(?<number>\d+))$",
+        @"^(?:(?<kind>temp|fan|in|power|curr|freq)(?<number>\d{1,4})_(?:input|label|average)|(?<kind>pwm)(?<number>\d{1,4}))$",
         RegexOptions.None,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex InputFile();

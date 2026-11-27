@@ -8,11 +8,15 @@ namespace Thermi.Sensors.Linux.Kernel;
 /// under the second's folder of <paramref name="tree"/>, and the second's answers that are no file. What the readers read
 /// names no PC or person; of what it does, the address is moved into the range kept for documentation (<see cref="Moment.Scrubbed"/>),
 /// and a line of <c>/proc/cpuinfo</c> with a board's serial dropped, both before the readers read them, so a replay of the
-/// recording reads as the recording did.
+/// recording reads as the recording did. Each second holds every file and link read in the seconds before it too, read
+/// again as it ends: the readers find the hardware only now and then, and a second of the tree replays alone, as a
+/// rescan in it or a test that breaks one second finds it whole.
 /// </summary>
 internal sealed partial class RecordingKernel(IKernel kernel, string tree) : IKernel, IDisposable
 {
     private readonly Dictionary<string, string> _links = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _known = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _kept = new(StringComparer.Ordinal);
     private int _second = -1;
 
     private string Second => Path.Combine(tree, _second.ToString(CultureInfo.InvariantCulture));
@@ -24,6 +28,8 @@ internal sealed partial class RecordingKernel(IKernel kernel, string tree) : IKe
         if (text is not null)
         {
             Keep(RecordedKernel.Escaped(path), text);
+            _known.Add(path);
+            _kept.Add(path);
         }
 
         return text;
@@ -76,12 +82,25 @@ internal sealed partial class RecordingKernel(IKernel kernel, string tree) : IKe
 
     private void Flush()
     {
-        if (_second >= 0 && _links.Count > 0)
+        if (_second < 0)
+        {
+            return;
+        }
+
+        // A file that is gone stays out of the second, as it reads missing in it.
+        foreach (var path in _known.Except(_kept, StringComparer.Ordinal).ToList())
+        {
+            if (kernel.Read(path) is { } text)
+            {
+                Keep(RecordedKernel.Escaped(path), Serial().Replace(text, ""));
+            }
+        }
+
+        _kept.Clear();
+        if (_links.Count > 0)
         {
             Keep(KernelJson.LinksFile, KernelJson.Write(_links));
         }
-
-        _links.Clear();
     }
 
     private void Keep(string relative, string text)

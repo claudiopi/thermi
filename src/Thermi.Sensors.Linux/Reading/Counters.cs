@@ -15,6 +15,9 @@ internal sealed class Counters
     public static double? Number(string? text) =>
         long.TryParse(text.AsSpan().Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) ? number : null;
 
+    /// <summary>Forgets a counter whose source is gone.</summary>
+    public void Forget(string key) => _last.Remove(key);
+
     /// <summary>How much <paramref name="key"/>'s counter rose since it was last given, or null when that cannot be told.</summary>
     public double? Change(string key, double? value, double wrap = 0) => Rise(key, value, at: null, wrap).Rise;
 

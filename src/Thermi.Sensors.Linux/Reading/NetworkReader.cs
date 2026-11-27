@@ -7,7 +7,8 @@ namespace Thermi.Sensors.Linux.Reading;
 /// <summary>
 /// Each network adapter of <c>/sys/class/net</c>, listed each second as adapters come and go: its speeds and what it moved
 /// since the PC started. One with no device behind it, as loopback, a bridge, a container's or a VPN's, is virtual, as
-/// Windows' are by its own flags; whether it is, is found once for each adapter.
+/// Windows' are by its own flags; whether it is, is found once for each adapter, and one that is gone is forgotten, as a
+/// container's that come and go by the hundred.
 /// </summary>
 internal sealed class NetworkReader
 {
@@ -46,6 +47,13 @@ internal sealed class NetworkReader
             sensors.Add(Sensor("Throughput", 1, "Download Speed", _counters.Rate($"{adapter}/rx", received, at)));
             sensors.Add(Sensor("Data", 0, "Data Uploaded", sent / BytesPerGigabyte));
             sensors.Add(Sensor("Data", 1, "Data Downloaded", received / BytesPerGigabyte));
+        }
+
+        foreach (var gone in _virtual.Keys.Except(adapters, StringComparer.Ordinal).ToList())
+        {
+            _virtual.Remove(gone);
+            _counters.Forget($"{gone}/tx");
+            _counters.Forget($"{gone}/rx");
         }
 
         Virtual = [.. adapters.Where(adapter => _virtual[adapter]).Select(IdOf)];

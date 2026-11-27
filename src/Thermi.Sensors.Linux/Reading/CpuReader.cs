@@ -6,8 +6,9 @@ namespace Thermi.Sensors.Linux.Reading;
 
 /// <summary>
 /// The CPU, as one device: its chips' temperatures, its load from <c>/proc/stat</c>, in total and for each CPU the kernel
-/// counts, its clocks from cpufreq, and its power from RAPL's energy counters, which the kernel lets only root and the
-/// service's group read: to anyone else, the power reads missing.
+/// counts, its clocks from cpufreq, or from <c>/proc/cpuinfo</c> where there is none, as in a virtual machine, and its
+/// power from RAPL's energy counters, which the kernel lets only root and the service's group read: to anyone else, the
+/// power reads missing.
 /// </summary>
 internal sealed class CpuReader
 {
@@ -19,16 +20,21 @@ internal sealed class CpuReader
     private readonly IReadOnlyList<Chip> _chips;
     private readonly IReadOnlyList<string> _cpus;
     private readonly bool _clocks;
+    private readonly IReadOnlyList<double?> _infoClocks;
     private readonly IReadOnlyList<(string Zone, string Name, double Wrap)> _zones;
     private readonly int _chipPowers;
-    private readonly Counters _counters = new();
+    private readonly Counters _counters;
 
-    public CpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
+    /// <summary>The CPU as the kernel shows it this second, with the counters its loads and power keep across seconds.</summary>
+    public CpuReader(IKernel kernel, IReadOnlyList<Chip> chips, Counters counters)
     {
-        _chips = chips;
-        _model = Model(kernel.Read("/proc/cpuinfo"));
+        _chips = Hwmon.NumberedOn(chips);
+        _counters = counters;
+        var cpuinfo = kernel.Read("/proc/cpuinfo");
+        _model = Model(cpuinfo);
         _cpus = [.. Stat(kernel).Keys.Where(cpu => cpu != "cpu")];
         _clocks = _cpus.Count > 0 && kernel.Read(Frequency(_cpus[0])) is not null;
+        _infoClocks = _clocks ? [] : InfoClocks(cpuinfo);
         _zones = [.. kernel.List(Powercap).Where(zone => zone.StartsWith("intel-rapl:", StringComparison.Ordinal))
             .Select(zone => (Zone: $"{Powercap}/{zone}", Name: kernel.Read($"{Powercap}/{zone}/name")?.Trim() ?? zone))
             .Select(zone => (zone.Zone, zone.Name, Wrap: Counters.Number(kernel.Read($"{zone.Zone}/max_energy_range_uj")) ?? 0))];
@@ -46,9 +52,9 @@ internal sealed class CpuReader
         var stat = Stat(kernel);
         sensors.Add(Sensor("load", 0, "CPU Total", Load("cpu", stat)));
         sensors.AddRange(_cpus.Select((cpu, index) => Sensor("load", index + 1, Numbered(index), Load(cpu, stat))));
-        if (_clocks)
+        var clocks = _clocks ? [.. _cpus.Select(cpu => Counters.Number(kernel.Read(Frequency(cpu))) / 1000)] : _infoClocks;
+        if (clocks.Count > 0)
         {
-            var clocks = _cpus.Select(cpu => Counters.Number(kernel.Read(Frequency(cpu))) / 1000).ToList();
             sensors.Add(Sensor("clock", 0, "Cores (Average)", clocks.All(clock => clock is not null) ? clocks.Average() : null));
             sensors.AddRange(clocks.Select((clock, index) => Sensor("clock", index + 1, Numbered(index), clock)));
         }
@@ -69,6 +75,13 @@ internal sealed class CpuReader
             .FirstOrDefault(pair => pair is [var key, _] && key.Trim() == "model name") is [_, var model]
             ? model.Trim()
             : "CPU";
+
+    // Each processor's "cpu MHz", which x86's kernel gives without cpufreq; an Arm CPU's gives none.
+    private static List<double?> InfoClocks(string? cpuinfo) =>
+        [.. (cpuinfo ?? "").Split('\n')
+            .Select(line => line.Split(':', 2))
+            .Where(pair => pair is [var key, _] && key.Trim() == "cpu MHz")
+            .Select(pair => double.TryParse(pair[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var mhz) ? mhz : (double?)null)];
 
     private static string Numbered(int index) => string.Create(CultureInfo.InvariantCulture, $"CPU #{index + 1}");
 

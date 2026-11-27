@@ -4,7 +4,7 @@ using Thermi.Sensors.Linux.Kernel;
 namespace Thermi.Sensors.Linux.Reading;
 
 /// <summary>
-/// Each physical drive, found once in <c>/sys/block</c>, its activity and speeds from <c>/proc/diskstats</c> and its
+/// Each physical drive in <c>/sys/block</c>, its activity and speeds from <c>/proc/diskstats</c> and its
 /// temperatures from its <c>hwmon</c> chip, as NVMe's, all under one device, the drive's own under <c>/sys/devices</c>. A
 /// drive under <c>/sys/devices/virtual</c>, as a loop device or a RAM disk, is none.
 /// </summary>
@@ -18,10 +18,12 @@ internal sealed class DriveReader
 
     private readonly IReadOnlyList<Drive> _drives;
     private readonly IReadOnlyList<(Chip Chip, string Model)> _chips;
-    private readonly Counters _counters = new();
+    private readonly Counters _counters;
 
-    public DriveReader(IKernel kernel, IReadOnlyList<Chip> chips)
+    /// <summary>The drives as the kernel shows them this second, with the counters their speeds keep across seconds.</summary>
+    public DriveReader(IKernel kernel, IReadOnlyList<Chip> chips, Counters counters)
     {
+        _counters = counters;
         _drives = [.. kernel.List(Block).Select(name => DriveOf(kernel, name)).OfType<Drive>()];
         _chips = [.. chips.Select(chip => (chip, _drives.FirstOrDefault(drive => drive.Device == chip.Device)?.Model ?? chip.Name))];
     }

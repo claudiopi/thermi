@@ -30,12 +30,17 @@ internal sealed class RecordedKernel : IKernel
 
     public string? Read(string path) => IKernel.Holds(path) ? Text(InTree(path)) : null;
 
+    // An entry the readers only resolved, as a drive of /sys/block they found virtual, is a link of the second's and no file
+    // of its folder, and is listed as the kernel listed it.
     public IReadOnlyList<string> List(string folder)
     {
         var inTree = InTree(folder);
-        return Directory.Exists(inTree)
-            ? [.. Directory.EnumerateFileSystemEntries(inTree).Select(Path.GetFileName).OfType<string>().Select(Unescaped).Order(StringComparer.Ordinal)]
-            : [];
+        var files = Directory.Exists(inTree) ? Directory.EnumerateFileSystemEntries(inTree).Select(Path.GetFileName).OfType<string>().Select(Unescaped) : [];
+        var within = $"{folder.TrimEnd('/')}/";
+        var linked = _links.Keys.Where(path => path.StartsWith(within, StringComparison.Ordinal))
+            .Select(path => path[within.Length..])
+            .Where(name => !name.Contains('/', StringComparison.Ordinal));
+        return [.. files.Union(linked, StringComparer.Ordinal).Order(StringComparer.Ordinal)];
     }
 
     public string? Resolve(string path) => _links.GetValueOrDefault(path);
