@@ -8,12 +8,10 @@ using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Overlay;
 
-// Whether anybody can see the overlays: nobody while the session is away, as Desktop.Locked says, or its display is off.
-// Nobody seeing them, they draw nothing and their own frames rest, while the sensors are still read, so the history, the
-// notices and the agents stay right; once somebody can, they show what they missed at once. Windows says at once when the
-// session locks or unlocks and when its display goes off or on, the session's display, not the console's, so a remote
-// session that shows the overlays keeps drawing them. The tick asks again, which also sees a screen saver, that Windows
-// never says, and heals a word missed: input since the display went off means it is back.
+// Nobody sees the overlays while the session is away, as Desktop.Locked says, or its display is off: they draw nothing and
+// their own frames rest, while the sensors are still read, so the history, the notices and the agents stay right. Windows
+// tells at once; the tick asks again, which sees a screen saver Windows never tells of, and heals a word missed: input
+// since the display went off means it is back.
 internal sealed partial class OverlayHost
 {
     // The display's state as Windows gives it: off, on, or dimmed, which still shows.
@@ -96,7 +94,7 @@ internal sealed partial class OverlayHost
 /// <summary>
 /// How the host learns whether anybody can see the session: what Windows tells the window <see cref="Watch"/> registers as
 /// the session locks or unlocks and its display goes off or on, whether the session is away now, and how long since its
-/// last input.
+/// last input. The session's display, not the console's, so a remote session that shows the overlays keeps drawing them.
 /// </summary>
 internal sealed record SessionSight(Func<HWND, IDisposable> Watch, Func<bool> Away, Func<TimeSpan> SinceInput)
 {
