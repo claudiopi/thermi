@@ -44,7 +44,6 @@ public static class GameSensors
         var rates = FrameSlots.Read(snapshot);
         var rate = front is { } process && rates is not null ? RateOf(rates, process) : null;
         var none = rates is not null ? (double?)null : FrameSlots.NeedRights(snapshot) ? NoRights : double.NaN;
-        var noLows = rate is null ? none : NoLows;
         return snapshot with
         {
             Sensors =
@@ -52,8 +51,8 @@ public static class GameSensors
                 .. snapshot.Sensors.Where(sensor => !FrameSlots.Is(sensor)),
                 Sensor(FpsId, SensorKind.FrameRate, Fps, rate?.Fps ?? none),
                 Sensor(FrameTimeId, SensorKind.FrameTime, FrameTime, rate?.FrameTime ?? none),
-                Sensor(OnePercentLowId, SensorKind.FrameRate, OnePercentLow, rate?.OnePercentLow ?? noLows),
-                Sensor(PointOnePercentLowId, SensorKind.FrameRate, PointOnePercentLow, rate?.PointOnePercentLow ?? noLows),
+                Sensor(OnePercentLowId, SensorKind.FrameRate, OnePercentLow, rate?.OnePercentLow ?? none),
+                Sensor(PointOnePercentLowId, SensorKind.FrameRate, PointOnePercentLow, rate?.PointOnePercentLow ?? none),
             ],
         };
     }

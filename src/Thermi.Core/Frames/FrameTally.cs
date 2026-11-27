@@ -67,7 +67,8 @@ public static class PresentJson
 /// <summary>
 /// A process's last second of frames: how many it presented a second, and the longest wait for one of them, the wait
 /// still going at the second's end included, in milliseconds; and its 1 % and 0.1 % lows, the frames a second of its
-/// slowest frames of the last minute, or null where they are not known, as from a service of an earlier version.
+/// slowest frames of the last minute: null where no frame ended in it, and <see cref="GameSensors.NoLows"/> from a service
+/// of an earlier version, which sends none.
 /// </summary>
 public readonly record struct FrameRate(
     int Process,
@@ -193,13 +194,19 @@ public sealed class FrameTally
 
     /// <summary>
     /// The rate with its lows: the frames a second of its frame at the 99th and the 99.9th percentile of frame time, by
-    /// nearest rank. A slot presented steadily up to 5 s ago, so its minute holds a wait at least.
+    /// nearest rank; none when no frame ended in the minute, as when the trace went unread that long and the source it
+    /// counts changed.
     /// </summary>
     private static FrameRate WithLows(FrameRate rate, (double[] Pooled, int Count) waits)
     {
         var (sorted, count) = waits;
         try
         {
+            if (count == 0)
+            {
+                return rate;
+            }
+
             Array.Sort(sorted, 0, count);
             return rate with
             {

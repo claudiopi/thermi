@@ -66,7 +66,7 @@ public static class FrameSlots
         {
             if (Value(values, 0, slot) is { } process && Value(values, 2, slot) is { } fps && Value(values, 3, slot) is { } frameTime)
             {
-                rates.Add(new FrameRate((int)process, (int)(Value(values, 1, slot) ?? 0), fps, frameTime, Value(values, 4, slot), Value(values, 5, slot)));
+                rates.Add(new FrameRate((int)process, (int)(Value(values, 1, slot) ?? 0), fps, frameTime, Low(values, 4, slot), Low(values, 5, slot)));
             }
         }
 
@@ -84,6 +84,10 @@ public static class FrameSlots
 
     private static double? Value(Dictionary<string, double?> values, int part, int slot) =>
         values.GetValueOrDefault(Id(Parts[part], slot)) is { } value && double.IsFinite(value) ? value : null;
+
+    // A service of an earlier version sends no such part, unlike one with no frame in the minute, which sends it empty.
+    private static double? Low(Dictionary<string, double?> values, int part, int slot) =>
+        values.ContainsKey(Id(Parts[part], slot)) ? Value(values, part, slot) : GameSensors.NoLows;
 
     private static string Id(string part, int slot) => string.Create(CultureInfo.InvariantCulture, $"{Device}/{part}/{slot}");
 
