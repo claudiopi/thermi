@@ -11,6 +11,7 @@ namespace Thermi.Tests;
 public sealed class PipeTests
 {
     private static readonly Snapshot Fan = new([new RawSensor("/lpc/it8689e/0/fan/0", "SuperIO", "ITE IT8689E", "Fan", "Fan #1", 953)]);
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
     private static readonly Snapshot Accented = new([new RawSensor("/a", "Cpu", "Ryzen ñandú", "Load", "Carga °", 7)]);
 
     // As the service writes it.
@@ -227,5 +228,96 @@ public sealed class PipeTests
         }
 
         Assert.Equal(golden, got);
+    }
+
+    // Anyone may connect to the service, on either OS, so one owner who holds connections open never takes every seat: past
+    // its share a client is closed, and the others keep theirs. A client that stops taking lines is let go, and the service
+    // knows from when no one listens.
+    [Fact]
+#pragma warning disable VSTHRD003 // The listeners' signals and the broadcast's run, each begun here.
+    public async Task TheBroadcastSharesItsSeatsAndLetsGoOfWhoStopsReading()
+    {
+        var time = new FakeTimeProvider();
+        using var broadcast = new SnapshotBroadcast(_ => Task.FromResult(Fan), time);
+        using var stop = new CancellationTokenSource();
+        var owners = new List<Listener>();
+        for (var i = 0; i <= SnapshotBroadcast.PerOwner; i++)
+        {
+            owners.Add(new Listener());
+        }
+
+        using var leaving = new Listener { Fails = true };
+        var taken = owners.Select(listener => broadcast.TakeIn(listener, owner: 1000, listener.Closed)).ToList();
+        broadcast.TakeIn(leaving, owner: 1001, leaving.Closed);
+        var running = broadcast.RunAsync(stop.Token);
+
+        time.Advance(TimeSpan.FromSeconds(1));
+        await Task.WhenAll([.. owners.SkipLast(1).Select(listener => listener.Wrote.Task), leaving.Gone.Task])
+            .WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        var seated = broadcast.Clients;
+        var heard = owners.SkipLast(1).Select(listener => new SnapshotLines().Add(listener.Lines[0]).Single().Sensors).ToList();
+        foreach (var listener in owners)
+        {
+            listener.Fails = true;
+        }
+
+        time.Advance(TimeSpan.FromSeconds(1));
+        await Task.WhenAll(owners.Select(listener => listener.Gone.Task)).WaitAsync(Patience, TimeProvider.System, TestContext.Current.CancellationToken);
+        await stop.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running);
+
+        Assert.Equal(Enumerable.Repeat(true, SnapshotBroadcast.PerOwner).Append(false), taken);
+        Assert.Equal(SnapshotBroadcast.PerOwner, seated);
+        Assert.All(heard, sensors => Assert.Equal(Fan.Sensors, sensors));
+        Assert.Equal((0, true), (broadcast.Clients, broadcast.EmptySince is not null));
+    }
+#pragma warning restore VSTHRD003
+
+    // A client's end of the connection: it keeps each line written to it, or fails each write once it stops reading.
+    private sealed class Listener : Stream
+    {
+        public List<byte[]> Lines { get; } = [];
+
+        public TaskCompletionSource Wrote { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Gone { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool Fails { get; set; }
+
+        public override bool CanRead => false;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => true;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public void Closed() => Gone.TrySetResult();
+
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (Fails)
+            {
+                throw new IOException("The client stopped reading.");
+            }
+
+            Lines.Add(buffer.ToArray());
+            Wrote.TrySetResult();
+            return ValueTask.CompletedTask;
+        }
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
     }
 }
