@@ -55,6 +55,23 @@
       "ciSeconds": 443.0,
       "msiX64": 46.7421875,
       "passed": false
+    },
+    {
+      "commit": "bc862ad",
+      "date": "2026-11-27T16:23:40.7019445Z",
+      "dotnet": 1389,
+      "web": 264,
+      "tests": 1653,
+      "coreLines": 95.81,
+      "coreBranches": 90.35,
+      "bugsCaught": null,
+      "doctor": 100,
+      "ciSeconds": 441.0,
+      "msiX64": 46.7421875,
+      "codeProduct": 38001.0,
+      "codeTests": 23670.0,
+      "code": 61671.0,
+      "passed": true
     }
   ]
 }
