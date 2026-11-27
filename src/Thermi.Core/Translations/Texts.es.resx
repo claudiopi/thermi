@@ -242,7 +242,7 @@
     <value>{0} agregado a {1}.</value>
   </data>
   <data name="CatalogText.CatalogEmpty" xml:space="preserve">
-    <value>El servicio de sensores todavía no lee ningún sensor</value>
+    <value>El servicio de sensores todavía no lee ningún sensor.</value>
   </data>
   <data name="CatalogText.CatalogEmptyHint" xml:space="preserve">
     <value>Puede que aún esté arrancando. Si sigue así, reinicia thermi-sensors en Servicios de Windows.</value>

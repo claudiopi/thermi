@@ -238,7 +238,7 @@
     <value>Added {0} to {1}.</value>
   </data>
   <data name="CatalogText.CatalogEmpty" xml:space="preserve">
-    <value>The sensor service reads no sensors yet</value>
+    <value>The sensor service reads no sensors yet.</value>
   </data>
   <data name="CatalogText.CatalogEmptyHint" xml:space="preserve">
     <value>It may still be starting. If this stays, restart thermi-sensors in Windows Services.</value>
