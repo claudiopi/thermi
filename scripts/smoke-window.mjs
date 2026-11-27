@@ -16,7 +16,7 @@ try {
   const page = browser
     .contexts()
     .flatMap((context) => context.pages())
-    .find((one) => one.url().startsWith(origin));
+    .find((one) => URL.canParse(one.url()) && new URL(one.url()).origin === origin);
   if (page === undefined) {
     throw new Error(`No page of ${origin} behind port ${port}.`);
   }

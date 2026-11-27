@@ -2,7 +2,7 @@
 
 **Status**: done
 
-**Budget**: 58 .NET and 1 page cases
+**Budget**: 54 .NET and 1 page cases
 
 thermi exists because AI agents running for hours cooked their owner's PC, so an agent can ask how hot the PC is, back off when it runs hot, and set thermi up for the person. `thermi-cli` gives it the sensors and the settings from a command line or as an MCP server, with or without an overlay on screen, and the person decides in Settings whether agents may change anything. Other programs, a terminal's status bar, an orchestrator that throttles its agents, a desktop widget, read the same sensors through a contract that stays stable, also with the sensors installed alone. The decisions are in `docs/adr/0013-agents-cli-and-mcp.md`.
 
