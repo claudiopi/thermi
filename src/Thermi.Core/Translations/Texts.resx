@@ -2547,4 +2547,16 @@
   <data name="WindowText.RestoreDown" xml:space="preserve">
     <value>Restore down</value>
   </data>
+  <data name="WindowText.ThemeFromSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="WindowText.PasteFailedOnLinux" xml:space="preserve">
+    <value>The desktop would not hand over what was pasted or dropped, as while another app holds the clipboard. Try again in a moment.</value>
+  </data>
+  <data name="WindowText.HotkeyWithSuper" xml:space="preserve">
+    <value>Combinations with Super belong to the desktop.</value>
+  </data>
+  <data name="WindowText.HotkeyKeptByDesktop" xml:space="preserve">
+    <value>The desktop keeps this combination for itself.</value>
+  </data>
 </root>

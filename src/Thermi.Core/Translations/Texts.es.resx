@@ -2595,4 +2595,16 @@
   <data name="WindowText.RestoreDown" xml:space="preserve">
     <value>Restaurar</value>
   </data>
+  <data name="WindowText.ThemeFromSystem" xml:space="preserve">
+    <value>Sistema</value>
+  </data>
+  <data name="WindowText.PasteFailedOnLinux" xml:space="preserve">
+    <value>El escritorio no entregó lo que se pegó o se soltó, como pasa mientras otra aplicación usa el portapapeles. Vuelve a intentarlo en un momento.</value>
+  </data>
+  <data name="WindowText.HotkeyWithSuper" xml:space="preserve">
+    <value>Las combinaciones con Super son del escritorio.</value>
+  </data>
+  <data name="WindowText.HotkeyKeptByDesktop" xml:space="preserve">
+    <value>El escritorio se reserva esta combinación.</value>
+  </data>
 </root>

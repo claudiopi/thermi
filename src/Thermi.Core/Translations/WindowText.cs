@@ -139,4 +139,16 @@ public enum WindowText
 
     /// <summary>The maximize button of a maximized window, which brings it back to its size.</summary>
     RestoreDown,
+
+    /// <summary>Linux's words for the theme that follows Windows.</summary>
+    ThemeFromSystem,
+
+    /// <summary>Linux's words for a paste or drop Windows would not hand over.</summary>
+    PasteFailedOnLinux,
+
+    /// <summary>Linux's words for a hotkey with Win, the key Linux calls Super.</summary>
+    HotkeyWithSuper,
+
+    /// <summary>Linux's words for a combination Windows keeps for itself.</summary>
+    HotkeyKeptByDesktop,
 }

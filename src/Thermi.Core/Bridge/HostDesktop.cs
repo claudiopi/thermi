@@ -1,3 +1,4 @@
+using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -75,6 +76,10 @@ public sealed record HostDesktop(
                 [Texts.Key(SheetText.AnywhereInWindows)] = Texts.Key(SheetText.AnywhereOnTheDesktop),
                 [Texts.Key(WindowText.HotkeysSet)] = Texts.Key(WindowText.HotkeysSetOnLinux),
                 [Texts.Key(WindowText.HotkeysOff)] = Texts.Key(WindowText.HotkeysOffOnLinux),
+                [Texts.Key(WindowTheme.System)] = Texts.Key(WindowText.ThemeFromSystem),
+                [Texts.Key(Refusal.PasteFailed)] = Texts.Key(WindowText.PasteFailedOnLinux),
+                [Texts.Key(HotkeyRefusal.WithWin)] = Texts.Key(WindowText.HotkeyWithSuper),
+                [Texts.Key(HotkeyRefusal.SystemKeys)] = Texts.Key(WindowText.HotkeyKeptByDesktop),
             },
         };
 
