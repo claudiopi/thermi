@@ -156,7 +156,7 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
         {
             case "press" when pointer.Button == 1 && Twice(pointer.Time, cursor, screens):
                 (_press, _clicked) = (null, null);
-                parts.OpenSettings(index, null);
+                parts.OpenSettings(index, ItemAt(cursor, screens));
                 break;
             case "press" when pointer.Button == 1:
                 (_press, Dragged, _clicked) = (new Press(cursor, corner), null, (pointer.Time, cursor));
