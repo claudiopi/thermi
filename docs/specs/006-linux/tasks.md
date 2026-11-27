@@ -1,6 +1,6 @@
 # 006-linux: Tasks
 
-**Status**: approved; 11 of 30 tasks; current block B4.
+**Status**: approved; 10 of 30 tasks; current block B4.
 
 ## B1. The ground
 
@@ -20,7 +20,7 @@
 ## B3. thermi-cli
 
 - [x] T10. `Thermi.Linux`'s `IAgentEnvironment` and `thermi-cli`. (R2, R15)
-- [x] T11. The SDK finding `thermi-cli` on Linux, and `status` on frames and desktops. (R15, R16)
+- [ ] T11. The SDK finding `thermi-cli` on Linux, and `status` on frames and desktops. (R15, R16) Done but for A9, which waits for B4: it starts the overlay's unit, `thermi.service`, which B4 packages.
 
 ## B4. The overlay
 
