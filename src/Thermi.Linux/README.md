@@ -8,6 +8,6 @@ What spec 006 asks of it (`docs/specs/006-linux/spec.md`): the overlay reads the
 | --- | --- |
 | `Agents` | What `thermi-cli`'s commands reach on Linux: the overlay's user unit for the start at sign-in, and every other answer of `IAgentEnvironment`. |
 | `Desktop` | The session's D-Bus, and the monitors as GNOME lays them out. |
-| `Sensors` | The service's socket: the user's own, of a `thermi-sensors --console`, else the system's, each trusted only from who should serve it. |
+| `Sensors` | The service's socket: the system's, else where it is missing the user's own, of a `thermi-sensors --console`, each trusted only from who should serve it; `THERMI_SENSORS_SOCKET` names one to read alone. |
 
 It targets plain `net10.0`, marked for Linux in `Program.cs`.

@@ -46,7 +46,7 @@ public static class SnapshotJson
 
     /// <summary>
     /// A socket of the person's own, under their runtime folder, as <c>thermi-sensors --console</c> opens: on Linux,
-    /// thermi and <c>thermi-cli</c> look there first.
+    /// thermi and <c>thermi-cli</c> read it where the service's is missing.
     /// </summary>
     public const string RuntimeSocket = "thermi/sensors.sock";
 

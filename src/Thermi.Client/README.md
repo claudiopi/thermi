@@ -1,6 +1,6 @@
 # Thermi.Client
 
-The .NET SDK of thermi's agents' contract (`docs/agents/README.md`), published to NuGet as `Thermi.Client`. It reads a Windows PC's sensors through thermi by starting `thermi-cli` and reading its JSON, so it depends on nothing beyond .NET 10, has no native code, and installs nothing. MIT.
+The .NET SDK of thermi's agents' contract (`docs/agents/README.md`), published to NuGet as `Thermi.Client`. It reads a PC's sensors, on Windows or Linux, through thermi by starting `thermi-cli` and reading its JSON, so it depends on nothing beyond .NET 10, has no native code, and installs nothing. MIT.
 
 ```csharp
 var thermi = new ThermiClient();

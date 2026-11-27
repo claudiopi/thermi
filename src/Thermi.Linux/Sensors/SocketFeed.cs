@@ -12,12 +12,16 @@ namespace Thermi.Linux.Sensors;
 /// refuses, the person's own in their runtime folder, which <c>thermi-sensors --console</c> serves; a socket file left by
 /// one that ended refuses, and is passed over. Anyone may serve a socket at a path they can write while the service is
 /// stopped, so the service's is read only when the kernel says, by <c>SO_PEERCRED</c>, that root or the service's user
-/// listens on it; the person's own, in a folder only they and root write, when they or root do.
+/// listens on it; the person's own, in a folder only they and root write, when they or root do. <see cref="Variable"/>
+/// names the one socket to read in their place, trusted as the person's own: a test's session, or a person's console.
 /// </summary>
 internal sealed class SocketFeed(TimeProvider time, ILogger log) : SensorReader(time, log)
 {
     /// <summary>The service's user, as its package creates it.</summary>
     public const string ServiceUser = "thermi";
+
+    /// <summary>The variable that names the one socket to read, as a test's session sets it to its own.</summary>
+    public const string Variable = "THERMI_SENSORS_SOCKET";
 
     private const uint Root = 0;
 
@@ -27,6 +31,11 @@ internal sealed class SocketFeed(TimeProvider time, ILogger log) : SensorReader(
 
     protected override async Task<(Stream Connection, bool Ours)> ConnectAsync(CancellationToken stop)
     {
+        if (Environment.GetEnvironmentVariable(Variable) is { Length: > 0 } chosen)
+        {
+            return await ConnectAsync(chosen, [OwnUserId(), Root], stop);
+        }
+
         try
         {
             return await ConnectAsync(SnapshotJson.SocketPath, [Root, UserId(ServiceUser)], stop);
