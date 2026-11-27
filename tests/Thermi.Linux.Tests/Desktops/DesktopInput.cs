@@ -47,15 +47,20 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session, double 
     /// still pressed, as a person presses Esc before letting go.
     /// </summary>
     public async Task HoldAsync(
-        (int X, int Y) from, (int X, int Y) to, Func<CancellationToken, Task> held, Func<CancellationToken, Task> there, CancellationToken cancel)
+        (int X, int Y) from,
+        (int X, int Y) to,
+        Func<CancellationToken, Task> held,
+        Func<CancellationToken, Task> there,
+        CancellationToken cancel,
+        int button = 1)
     {
         await MoveAsync(from.X, from.Y, cancel).ConfigureAwait(false);
-        await ButtonAsync(1, pressed: true, cancel).ConfigureAwait(false);
+        await ButtonAsync(button, pressed: true, cancel).ConfigureAwait(false);
         await held(cancel).ConfigureAwait(false);
         await MoveAsync((from.X + to.X) / 2, (from.Y + to.Y) / 2, cancel).ConfigureAwait(false);
         await MoveAsync(to.X, to.Y, cancel).ConfigureAwait(false);
         await there(cancel).ConfigureAwait(false);
-        await ButtonAsync(1, pressed: false, cancel).ConfigureAwait(false);
+        await ButtonAsync(button, pressed: false, cancel).ConfigureAwait(false);
     }
 
     /// <summary>The wheel turned <paramref name="notches"/> up over a point, with <paramref name="holding"/> held, as Control.</summary>

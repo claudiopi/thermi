@@ -34,12 +34,38 @@ const XML = `<node><interface name="${SHELL}">
 // Cairo's ARGB32, as thermi paints, on a little-endian machine.
 const FORMAT = Cogl.PixelFormat.BGRA_8888_PRE;
 
+// What a call may ask, far past what thermi asks, so no call can fill the Shell: overlays, a picture's side in pixels and
+// its scale, the boxes that take the pointer, and a menu's rows.
+const MOST_OVERLAYS = 16;
+const MOST_SIDE = 16384;
+const MOST_SCALE = 16;
+const MOST_BOXES = 64;
+const MOST_ROWS = 256;
+
+const finite = (...numbers) => numbers.every(Number.isFinite);
+
+// A call thermi's protocol does not have: refused before it changes anything.
+class Refused extends Error {}
+
+function refuseUnless(holds, why) {
+    if (!holds)
+        throw new Refused(why);
+}
+
 export default class ThermiExtension extends Extension {
     enable() {
         this._overlays = new Map();
+        this._owner = null;
         this._service = Gio.DBusExportedObject.wrapJSObject(XML, this);
         this._service.export(Gio.DBus.session, PATH);
-        this._watch = Gio.bus_watch_name(Gio.BusType.SESSION, OVERLAY, Gio.BusNameWatcherFlags.NONE, null, () => this._clear());
+        this._watch = Gio.bus_watch_name(Gio.BusType.SESSION, OVERLAY, Gio.BusNameWatcherFlags.NONE,
+            (_, __, owner) => {
+                this._owner = owner;
+            },
+            () => {
+                this._owner = null;
+                this._clear();
+            });
         Main.layoutManager.connectObject('monitors-changed', () => this._monitorsChanged(), this);
         global.display.connectObject('in-fullscreen-changed', () => this._monitorsChanged(), this);
         Main.layoutManager.panelBox.connectObject('notify::visible', () => this._monitorsChanged(), this);
@@ -61,27 +87,87 @@ export default class ThermiExtension extends Extension {
         return this.metadata['thermi-protocol'];
     }
 
-    Show(overlay, pixels, width, height, stride, x, y, scale, clicks) {
-        const shown = this._overlays.get(overlay) ?? this._add(overlay);
-        const image = St.ImageContent.new_with_preferred_size(width, height);
-        const bytes = new GLib.Bytes(pixels);
-        try {
-            image.set_bytes(global.stage.context.get_backend().get_cogl_context(), bytes, FORMAT, width, height, stride);
-        } catch {
-            // GNOME 46 takes no Cogl context.
-            image.set_bytes(bytes, FORMAT, width, height, stride);
-        }
-
-        shown.picture.set({content: image, width: width / scale, height: height / scale});
-        // A press holds its box until its release, so a drag keeps the boxes it began with.
-        if (!shown.grab) {
-            shown.clicks.forEach(click => click.destroy());
-            shown.clicks = clicks.map(box => this._clickable(overlay, box));
-        }
-        this.Move(overlay, x, y);
+    ShowAsync(args, invocation) {
+        this._answer(invocation, () => this._show(...args));
     }
 
-    Move(overlay, x, y) {
+    MoveAsync(args, invocation) {
+        this._answer(invocation, () => this._move(...args));
+    }
+
+    HideAsync(args, invocation) {
+        this._answer(invocation, () => this._hide(...args));
+    }
+
+    MenuAsync(args, invocation) {
+        this._answer(invocation, () => this._menu(...args));
+    }
+
+    Monitors() {
+        const panel = Main.layoutManager.panelBox;
+        return Main.layoutManager.monitors.map(monitor => [
+            monitor.x, monitor.y, monitor.width, monitor.height, monitor.geometry_scale,
+            monitor.index === Main.layoutManager.primaryIndex && panel.visible ? panel.height : 0,
+            monitor.index === Main.layoutManager.primaryIndex,
+            global.display.get_monitor_in_fullscreen(monitor.index),
+        ]);
+    }
+
+    // Only thermi's overlay, the name's owner, changes what shows; any other caller, or a call out of the protocol's
+    // bounds, is refused whole.
+    _answer(invocation, act) {
+        if (this._owner === null || invocation.get_sender() !== this._owner) {
+            invocation.return_dbus_error('org.freedesktop.DBus.Error.AccessDenied', `Only ${OVERLAY} shows thermi's overlays.`);
+            return;
+        }
+
+        try {
+            act();
+        } catch (error) {
+            if (!(error instanceof Refused))
+                throw error;
+            invocation.return_dbus_error('org.freedesktop.DBus.Error.InvalidArgs', error.message);
+            return;
+        }
+
+        invocation.return_value(null);
+    }
+
+    _show(overlay, pixels, width, height, stride, x, y, scale, clicks) {
+        refuseUnless([width, height].every(side => Number.isInteger(side) && side >= 1 && side <= MOST_SIDE), 'No picture is that size.');
+        refuseUnless(stride >= width * 4 && pixels.length === stride * height, 'The pixels are not the picture the sizes say.');
+        refuseUnless(finite(x, y) && scale > 0 && scale <= MOST_SCALE, 'No place or scale is that.');
+        refuseUnless(clicks.length <= MOST_BOXES && clicks.every(box => finite(...box) && box[2] >= 0 && box[3] >= 0), 'No boxes are those.');
+        refuseUnless(this._overlays.has(overlay) || this._overlays.size < MOST_OVERLAYS, 'No more overlays show.');
+
+        const shown = this._overlays.get(overlay) ?? this._add(overlay);
+        if (shown.size !== `${width}x${height}`) {
+            shown.image = St.ImageContent.new_with_preferred_size(width, height);
+            shown.size = `${width}x${height}`;
+        }
+
+        const bytes = new GLib.Bytes(pixels);
+        try {
+            shown.image.set_bytes(global.stage.context.get_backend().get_cogl_context(), bytes, FORMAT, width, height, stride);
+        } catch {
+            // GNOME 46 takes no Cogl context.
+            shown.image.set_bytes(bytes, FORMAT, width, height, stride);
+        }
+
+        shown.picture.set({content: shown.image, width: width / scale, height: height / scale});
+        // The boxes stay while they are the same, so the pointer on one stays there; a press holds its box until its
+        // release, so a drag keeps the boxes it began with.
+        const boxes = JSON.stringify(clicks);
+        if (!shown.grab && boxes !== shown.boxes) {
+            shown.clicks.forEach(click => click.destroy());
+            shown.clicks = clicks.map(box => this._clickable(overlay, box));
+            shown.boxes = boxes;
+        }
+        this._move(overlay, x, y);
+    }
+
+    _move(overlay, x, y) {
+        refuseUnless(finite(x, y), 'No place is that.');
         const shown = this._overlays.get(overlay);
         if (!shown)
             return;
@@ -89,7 +175,7 @@ export default class ThermiExtension extends Extension {
         shown.clicks.forEach(click => click.set_position(x + click.thermiAt[0], y + click.thermiAt[1]));
     }
 
-    Hide(overlay) {
+    _hide(overlay) {
         const shown = this._overlays.get(overlay);
         if (!shown)
             return;
@@ -101,12 +187,17 @@ export default class ThermiExtension extends Extension {
         this._overlays.delete(overlay);
     }
 
-    // Each row is (its submenu's row, or -1, text, note, checked, grayed, starts a group); a choice sends the row's index.
-    Menu(overlay, x, y, rows) {
+    // Each row is (its submenu's row, an earlier one, or -1, text, note, checked, grayed, starts a group); a choice sends
+    // the row's index. The menu takes the pointer, so a press that holds the overlay lets it go first.
+    _menu(overlay, x, y, rows) {
+        refuseUnless(finite(x, y), 'No place is that.');
+        refuseUnless(rows.length <= MOST_ROWS && rows.every(([parent], index) => parent === -1 || (parent >= 0 && parent < index)),
+            'No menu has those rows.');
         const shown = this._overlays.get(overlay);
         if (!shown)
             return;
-        shown.menu?.destroy();
+        this._release(shown);
+        this._closeMenu(shown);
         shown.anchor ??= this._anchor();
         shown.anchor.set_position(x, y);
         const menu = new PopupMenu.PopupMenu(shown.anchor, 0, St.Side.TOP);
@@ -130,23 +221,18 @@ export default class ThermiExtension extends Extension {
                 item.connect('activate', () => this._emit('Chosen', '(ui)', [overlay, index]));
             into.addMenuItem(item);
         });
+        // A menu closes before its choice is sent, and is destroyed once it is.
         menu.connect('open-state-changed', (_, open) => {
-            if (!open)
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => menu === shown.menu ? this._closeMenu(shown) : GLib.SOURCE_REMOVE);
+            if (!open && menu === shown.menu && !shown.closing) {
+                shown.closing = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    shown.closing = 0;
+                    return this._closeMenu(shown);
+                });
+            }
         });
         shown.menu = menu;
         shown.manager = manager;
         menu.open();
-    }
-
-    Monitors() {
-        const panel = Main.layoutManager.panelBox;
-        return Main.layoutManager.monitors.map(monitor => [
-            monitor.x, monitor.y, monitor.width, monitor.height, monitor.geometry_scale,
-            monitor.index === Main.layoutManager.primaryIndex && panel.visible ? panel.height : 0,
-            monitor.index === Main.layoutManager.primaryIndex,
-            global.display.get_monitor_in_fullscreen(monitor.index),
-        ]);
     }
 
     _monitorsChanged() {
@@ -179,12 +265,16 @@ export default class ThermiExtension extends Extension {
     }
 
     _closeMenu(shown) {
-        shown.menu?.destroy();
-        shown.menu = null;
+        if (shown.closing)
+            GLib.source_remove(shown.closing);
+        const menu = shown.menu;
+        Object.assign(shown, {closing: 0, menu: null});
+        menu?.destroy();
         return GLib.SOURCE_REMOVE;
     }
 
-    // A box of the picture where thermi takes the pointer: a press holds it until its release, wherever it goes then.
+    // A box of the picture where thermi takes the pointer. A press of the first button holds it until its release, wherever
+    // the pointer goes then, and Esc while it holds lets thermi take back the drag; no other key is thermi's.
     _clickable(overlay, [x, y, width, height]) {
         const click = new St.Widget({reactive: true, width, height});
         click.thermiAt = [x, y];
@@ -196,14 +286,16 @@ export default class ThermiExtension extends Extension {
         };
         click.connect('button-press-event', (actor, event) => {
             const shown = this._overlays.get(overlay);
-            if (shown && !shown.grab) {
+            if (shown && !shown.grab && event.get_button() === Clutter.BUTTON_PRIMARY) {
+                shown.focus = global.stage.get_key_focus();
                 shown.grab = global.stage.grab(actor);
                 global.stage.set_key_focus(actor);
             }
             return pointer('press', event, event.get_button());
         });
         click.connect('button-release-event', (actor, event) => {
-            this._release(this._overlays.get(overlay));
+            if (event.get_button() === Clutter.BUTTON_PRIMARY)
+                this._release(this._overlays.get(overlay));
             return pointer('release', event, event.get_button());
         });
         click.connect('motion-event', (actor, event) => pointer('motion', event));
@@ -215,21 +307,28 @@ export default class ThermiExtension extends Extension {
             return pointer('scroll', event, 0, delta);
         });
         click.connect('key-press-event', (actor, event) => {
-            this._emit('Key', '(us)', [overlay, Clutter.keyval_name(event.get_key_symbol()) ?? '']);
+            if (!this._overlays.get(overlay)?.grab || event.get_key_symbol() !== Clutter.KEY_Escape)
+                return Clutter.EVENT_PROPAGATE;
+            this._emit('Key', '(us)', [overlay, 'Escape']);
             return Clutter.EVENT_STOP;
         });
         return click;
     }
 
+    // The keys go back where they went before the press.
     _release(shown) {
-        shown?.grab?.dismiss();
-        if (shown)
-            shown.grab = null;
+        if (!shown?.grab)
+            return;
+        shown.grab.dismiss();
+        shown.grab = null;
+        if (shown.clicks.includes(global.stage.get_key_focus()))
+            global.stage.set_key_focus(shown.focus?.get_stage() ? shown.focus : null);
+        shown.focus = null;
     }
 
     // thermi went: nothing of what it showed stays.
     _clear() {
         for (const overlay of [...this._overlays.keys()])
-            this.Hide(overlay);
+            this._hide(overlay);
     }
 }
