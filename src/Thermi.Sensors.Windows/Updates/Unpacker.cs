@@ -66,12 +66,10 @@ internal static class Unpacker
         var left = MaxBytes;
         foreach (var entry in archive.Entries)
         {
-            if (!ZipEntries.LandsInside(fresh, entry.FullName, entry.ExternalAttributes))
+            if (ZipEntries.Target(fresh, entry.FullName, entry.ExternalAttributes) is not { } target)
             {
                 return $"the zip's entry {entry.FullName} would land outside its folder";
             }
-
-            var target = Path.GetFullPath(Path.Combine(fresh, entry.FullName));
 
             if (entry.FullName.EndsWith('/'))
             {
