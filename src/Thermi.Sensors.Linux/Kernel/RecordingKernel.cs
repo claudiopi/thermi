@@ -84,7 +84,6 @@ internal sealed partial class RecordingKernel(IKernel kernel, string tree) : IKe
         _links.Clear();
     }
 
-    // At its path under the second's folder.
     private void Keep(string relative, string text)
     {
         var file = Path.Combine(Second, relative);

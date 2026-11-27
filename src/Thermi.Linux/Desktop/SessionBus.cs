@@ -10,7 +10,6 @@ internal static class SessionBus
 
     private static readonly Lazy<Gio.DBusConnection?> Connection = new(Connect);
 
-    /// <summary>Whether a process owns <paramref name="name"/> on the session bus.</summary>
     public static bool HasOwner(string name) =>
         Call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner", name) is { } answer
         && answer.GetChildValue(0).GetBoolean();

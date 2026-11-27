@@ -13,7 +13,6 @@ namespace Thermi.Sensors.Linux.Serving;
 /// </summary>
 internal sealed class SocketServer(Socket listener, SnapshotBroadcast broadcast, TimeProvider time)
 {
-    /// <summary>How long the service waits for a client after the last one left before it ends.</summary>
     public static readonly TimeSpan Idle = TimeSpan.FromSeconds(10);
 
     // The first socket systemd hands a service, after standard input, output and error.

@@ -13,7 +13,6 @@ internal static class CpuLoadCommand
 {
     public const int MaxSeconds = 600;
 
-    /// <summary>The command, for an OS's root command, and the request it parses into.</summary>
     public static (Command Command, Func<ParseResult, IThermiRequest> Request) Create()
     {
         var seconds = new Argument<int>("seconds") { CustomParser = AgentCommandLine.Whole(1, MaxSeconds) };

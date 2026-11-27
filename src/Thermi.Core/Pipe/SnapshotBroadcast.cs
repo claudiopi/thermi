@@ -28,7 +28,6 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
     private readonly List<Client> _clients = [];
     private readonly Lock _lock = new();
 
-    // A slot per client: past the limit, new clients wait for one to leave.
     private readonly SemaphoreSlim _slots = new(MaxClients);
 
     // Each second's lines, written straight as UTF-8: a snapshot as a string and then as bytes would be two objects
@@ -56,7 +55,6 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
     /// <summary>When the last client left, as the last write to it failed; null while any is connected or before the first.</summary>
     public long? EmptySince { get; private set; }
 
-    /// <summary>Ends the process for a read stuck past <see cref="ReadLimit"/>, which the service manager then restarts.</summary>
     public static void End() =>
 #pragma warning disable RS0030 // Only a process that ends frees a thread stuck in a driver, so the service manager restarts it.
         Environment.FailFast("A sensor read did not return within its limit.");
@@ -126,7 +124,6 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
         }
     }
 
-    /// <summary>Closes every client, as the server stops.</summary>
     public void Close()
     {
         Client[] clients;

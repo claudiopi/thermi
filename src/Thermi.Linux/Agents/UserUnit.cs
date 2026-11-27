@@ -23,7 +23,6 @@ internal sealed class UserUnit : IStartAtSignIn
         Folders = [_own, Path.Combine(data, "systemd", "user"), "/etc/systemd/user", "/usr/local/lib/systemd/user", "/usr/lib/systemd/user"];
     }
 
-    /// <summary>The folders systemd finds user units in, in its order.</summary>
     public IReadOnlyList<string> Folders { get; }
 
     /// <summary>The unit's file, where systemd would find it, or null when no package or test put one.</summary>

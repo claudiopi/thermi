@@ -98,7 +98,6 @@ public sealed record AgentFacts(ServiceState Service, bool Installed, bool Taken
 
     public AgentOs Os { get; init; }
 
-    /// <summary>Whether this desktop can show an overlay at all.</summary>
     public bool OverlayCanShow { get; init; } = true;
 }
 
