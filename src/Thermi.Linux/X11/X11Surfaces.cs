@@ -36,6 +36,8 @@ internal sealed class X11Surfaces : IOverlaySurfaces
 
     public Action<uint, string> Key { get; set; } = (_, _) => { };
 
+    public Action<uint, int> Chosen { get; set; } = (_, _) => { };
+
     public void Start()
     {
         if (Gdk.Display.GetDefault()?.GetMonitors() is { } list)
@@ -103,6 +105,17 @@ internal sealed class X11Surfaces : IOverlaySurfaces
     }
 
     public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
+
+    // GTK grabs the keyboard for its menu itself, as the window takes none on a click.
+    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows)
+    {
+        if (_shown.TryGetValue(id, out var shown))
+        {
+            shown.Window.Menu(rows, x, y, row => Chosen(id, row), () => { });
+        }
+
+        return Task.CompletedTask;
+    }
 
     public void HoldKeys(uint id, bool held)
     {

@@ -49,6 +49,13 @@ internal static class Accessible
             return [menu for program in programs if program is not None for menu in menus(program, program.get_name())]
 
         found = open_menus()
+        if sys.argv[1] == 'closed' and found:
+            def gone(event):
+                if not open_menus(): Atspi.event_quit()
+            listener = Atspi.EventListener.new(gone)
+            for kind in ('object:state-changed:showing', 'object:children-changed', 'window:deactivate'):
+                listener.register(kind)
+            if open_menus(): Atspi.event_main()
         if sys.argv[1] in ('list', 'choose') and not found:
             def heard(event):
                 if open_menus(): Atspi.event_quit()
@@ -77,7 +84,7 @@ internal static class Accessible
             moved = value.get_current_value() + float(sys.argv[2])
             print(time.monotonic(), flush=True)
             value.set_current_value(moved)
-        else:
+        elif sys.argv[1] == 'choose':
             entry = found[0][1][int(sys.argv[2])]
             action = entry.get_action_iface()
             if action is not None and action.get_n_actions() > 0:
@@ -94,6 +101,9 @@ internal static class Accessible
         return [.. said.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Split(' '))
             .Select(words => (string.Join(' ', words[..^1]), int.Parse(words[^1], CultureInfo.InvariantCulture)))];
     }
+
+    /// <summary>Done once no menu is open on screen.</summary>
+    public static Task ClosedAsync(OwnSession session, CancellationToken cancel) => RunAsync(session, ["closed"], cancel);
 
     /// <summary>Chooses the entry at <paramref name="index"/> of the menu open on screen, as a person clicks it.</summary>
     public static async Task ChooseAsync(OwnSession session, int index, CancellationToken cancel)

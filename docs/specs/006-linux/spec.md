@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 52 .NET and 4 page cases
+**Budget**: 53 .NET and 4 page cases
 
 thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel exposes, the overlay stays above every window on GNOME, KDE Plasma, Hyprland, Sway, Cinnamon, Xfce and MATE, the settings window is the same page as on Windows, `thermi-cli` and its MCP server answer agents as they do there, and updates come through the system's own updater. Many of the developers thermi is for run their agents on Linux, often on a box with no screen, so the sensors and `thermi-cli` install alone too. How it is built, and why each desktop gets its own surface, is in `docs/adr/0019-linux.md`.
 

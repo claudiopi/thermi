@@ -56,6 +56,8 @@ internal static class DesktopSession
 
         var layer = LayerShellLibrary.Load();
         Paints();
+        // A screen reader names the program by it, as it reads the overlay's menu.
+        GLib.Functions.SetPrgname("thermi");
         Gtk.Module.Initialize();
         if (!Gtk.Functions.InitCheck() || Gdk.Display.GetDefault() is not { } display)
         {

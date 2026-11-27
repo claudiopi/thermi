@@ -32,6 +32,12 @@ internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : 
         set => link.Key = value;
     }
 
+    public Action<uint, int> Chosen
+    {
+        get => link.Chosen;
+        set => link.Chosen = value;
+    }
+
     public void Start()
     {
         link.Ready += protocol =>
@@ -60,6 +66,8 @@ internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : 
     public Task Hide(uint id) => link.Hide(id);
 
     public Task Fade(uint id, double opacity) => link.Fade(id, opacity);
+
+    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows) => link.Menu(id, x, y, rows);
 
     public void HoldKeys(uint id, bool held)
     {

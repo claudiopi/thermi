@@ -111,7 +111,7 @@ internal sealed class OverlayHost : IDisposable
         _surfaces.MonitorsChanged += monitors => Safe(() => Monitors(monitors), Log.MonitorsFailed);
         _surfaces.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
         _surfaces.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
-        _link.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
+        _surfaces.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
         // The extension's coming and going changes whether the overlays show, once the surfaces heard it.
         _link.Ready += _ => Post(Tell);
         _link.Gone += () => Post(Tell);

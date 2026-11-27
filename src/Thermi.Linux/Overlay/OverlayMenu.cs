@@ -14,14 +14,22 @@ using Thermi.Linux.Logging;
 namespace Thermi.Linux.Overlay;
 
 /// <summary>
-/// An overlay's menu as the Shell's own popup menu: Core's rows, each with the text every OS's menu gives it, flattened
-/// with the row each sits under, and the row chosen done by <see cref="MenuChoices"/>, as on every OS. The overlay reaches
-/// no clipboard, so its menu offers no copy of it.
+/// An overlay's menu as the desktop's own, the Shell's popup menu on GNOME and GTK's elsewhere: Core's rows, each with the
+/// text every OS's menu gives it, flattened with the row each sits under, and the row chosen done by
+/// <see cref="MenuChoices"/>, as on every OS. The overlay reaches no clipboard, so its menu offers no copy of it.
 /// </summary>
 internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList<DesktopOverlay> overlays, Func<ShellScreens> screens) : IMenuHost
 {
-    // The system monitors GNOME, KDE and the newer GNOME apps ship, the first found opening.
-    private static readonly string[] TaskManagers = ["gnome-system-monitor", "plasma-systemmonitor", "resources"];
+    // The system monitor each desktop ships, by the name XDG_CURRENT_DESKTOP gives the desktop; on another, as Cinnamon
+    // or a session started by hand, the first of them found, the newer GNOME apps' last.
+    private static readonly (string Desktop, string Program)[] TaskManagers =
+    [
+        ("GNOME", "gnome-system-monitor"),
+        ("KDE", "plasma-systemmonitor"),
+        ("XFCE", "xfce4-taskmanager"),
+        ("MATE", "mate-system-monitor"),
+        ("", "resources"),
+    ];
 
     private IReadOnlyList<MenuRow> _shown = [];
     private int _overlay;
@@ -50,7 +58,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         var rows = new List<ShellRow>();
         Flatten(Menus.OfOverlay(config, overlay, state, item), -1, place, all, rows);
         (_shown, _overlay) = (all, overlay);
-        _ = parts.Call(parts.Link.Menu((uint)overlay, x, y, rows));
+        _ = parts.Call(parts.Surfaces.Menu((uint)overlay, x, y, rows));
     }
 
     /// <summary>The row at <paramref name="index"/> of the menu last shown was chosen.</summary>
@@ -74,7 +82,9 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
     {
         if (entry == MenuEntry.TaskManager)
         {
-            Start(TaskManagers.FirstOrDefault(Installed) ?? TaskManagers[0], []);
+            var desktops = (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries);
+            var own = TaskManagers.Where(each => desktops.Contains(each.Desktop, StringComparer.OrdinalIgnoreCase));
+            Start(own.Concat(TaskManagers).Select(each => each.Program).FirstOrDefault(Installed) ?? TaskManagers[0].Program, []);
         }
     }
 

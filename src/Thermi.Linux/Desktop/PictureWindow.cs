@@ -36,6 +36,7 @@ internal sealed class PictureWindow : IDisposable
     private (int X, int Y) _offset;
     private double _scale = 1;
     private IReadOnlyList<Core.Look.PillBox> _clicks = [];
+    private Action _unmenu = () => { };
 
     public PictureWindow(uint id, Action<Gtk.Window> made)
     {
@@ -172,8 +173,51 @@ internal sealed class PictureWindow : IDisposable
         window.GetSurface()?.SetInputRegion(region);
     }
 
+    /// <summary>
+    /// Shows a menu of <paramref name="rows"/> at a point of the stage, as GTK's own, in place of one open;
+    /// <paramref name="closed"/> follows once it closes, chosen or not.
+    /// </summary>
+    public void Menu(IReadOnlyList<ShellRow> rows, double x, double y, Action<int> chosen, Action closed)
+    {
+        _unmenu();
+        var menu = PictureMenu.New(rows, chosen);
+        menu.SetParent(_area);
+        using var at = new Gdk.Rectangle { X = (int)Math.Round(x - Origin.X), Y = (int)Math.Round(y - Origin.Y), Width = 1, Height = 1 };
+        menu.SetPointingTo(at);
+        var open = true;
+        void Unmenu()
+        {
+            if (open)
+            {
+                open = false;
+                _unmenu = () => { };
+                menu.Popdown();
+                menu.Unparent();
+                menu.Dispose();
+            }
+        }
+
+        menu.OnClosed += (_, _) =>
+        {
+            // One shown in its place, or the window going, closes it without a word.
+            if (open)
+            {
+                closed();
+                // GTK is still in the menu's own handlers as it closes.
+                GLib.Functions.IdleAdd(0, () =>
+                {
+                    Unmenu();
+                    return false;
+                });
+            }
+        };
+        _unmenu = Unmenu;
+        menu.Popup();
+    }
+
     public void Dispose()
     {
+        _unmenu();
         Shown();
         Window.Destroy();
         Window.Dispose();

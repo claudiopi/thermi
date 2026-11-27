@@ -42,6 +42,8 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
 
     public Action<uint, string> Key { get; set; } = (_, _) => { };
 
+    public Action<uint, int> Chosen { get; set; } = (_, _) => { };
+
     public void Start()
     {
         if (Gdk.Display.GetDefault()?.GetMonitors() is { } list)
@@ -101,6 +103,20 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
     }
 
     public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
+
+    // The compositor gives a popup the keyboard only through a surface that takes it, which an overlay does only while its
+    // menu is open.
+    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows)
+    {
+        if (_shown.TryGetValue(id, out var shown))
+        {
+            var window = shown.Window;
+            LayerShellLibrary.SetKeyboard(window.Window, exclusive: true);
+            window.Menu(rows, x, y, row => Chosen(id, row), () => LayerShellLibrary.SetKeyboard(window.Window, _held.Contains(id)));
+        }
+
+        return Task.CompletedTask;
+    }
 
     public void HoldKeys(uint id, bool held)
     {

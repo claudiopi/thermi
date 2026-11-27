@@ -45,6 +45,13 @@ public sealed class OverlayTests
         LeftPanelAt200,
     }
 
+    public enum MenuCase
+    {
+        Gnome,
+        KWin,
+        Xfce,
+    }
+
     [Theory(Timeout = Bound.Test)]
     [InlineData(GnomeCase.WaylandAt150)]
     [InlineData(GnomeCase.X11)]
@@ -213,13 +220,23 @@ public sealed class OverlayTests
     }
 
     [Theory(Timeout = Bound.Test)]
-    [InlineData(true)]
-    [InlineData(false, Skip = "Waiting for its code")]
-    public async Task TheOverlaysMenuIsTheShellsOwn(bool gnome)
+    [InlineData(MenuCase.Gnome)]
+    [InlineData(MenuCase.KWin)]
+    [InlineData(MenuCase.Xfce)]
+    public async Task TheOverlaysMenuIsTheShellsOwn(MenuCase row)
     {
         var cancel = TestContext.Current.CancellationToken;
-        await using var desktop = await TestDesktop.StartAsync(gnome ? DesktopKind.Gnome : DesktopKind.KWin, [Monitor], cancel);
+        // Each desktop's kind, the program that shows the menu, the name its sign-in gives the desktop, and its system monitor.
+        var (kind, shows, named, monitorProgram, monitorName) = row switch
+        {
+            MenuCase.Gnome => (DesktopKind.Gnome, "gnome-shell", "GNOME", "gnome-system-monitor", "org.gnome.SystemMonitor"),
+            MenuCase.KWin => (DesktopKind.KWin, "thermi", "KDE", "plasma-systemmonitor", "org.kde.plasma-systemmonitor"),
+            MenuCase.Xfce => (DesktopKind.X11, "thermi", "XFCE", "xfce4-taskmanager", "org.xfce.taskmanager"),
+            _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown case."),
+        };
+        await using var desktop = await TestDesktop.StartAsync(kind, [Monitor], cancel);
         var units = await UserUnits.StartAsync(desktop.Session, cancel);
+        await units.SystemctlAsync(["set-environment", $"XDG_CURRENT_DESKTOP={named}"], cancel);
         var notices = await NoticeWatch.StartAsync(desktop, cancel);
         var config = ThermiConfig.New with { Overlays = [Scene.Overlay with { Position = Scene.OnWindow }] };
         await desktop.WriteSettingsAsync(config, cancel);
@@ -236,7 +253,14 @@ public sealed class OverlayTests
         var pill = config.Overlays[0].Items[0].Id;
         var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false }, pill);
 
-        Assert.Equal((gnome ? "gnome-shell" : "thermi", rows.Count), await OpenMenuAsync(desktop, cancel));
+        Assert.Equal((shows, rows.Count), await OpenMenuAsync(desktop, cancel));
+        // Open, the menu takes the keys, and Esc closes it, as a click outside it does.
+        await desktop.Input.PressAsync("Escape", cancel);
+        await Accessible.ClosedAsync(desktop.Session, cancel);
+        await OpenMenuAsync(desktop, cancel);
+        await desktop.Input.ClickAsync(Monitor.Width - 100, Monitor.Height - 100, cancel);
+        await Accessible.ClosedAsync(desktop.Session, cancel);
+        await OpenMenuAsync(desktop, cancel);
         // Hidden from the menu, the overlays are taken back with the button of the notice that says so.
         var hiding = Traced.NextAsync(units.Trace, Traced.Hidden, cancel);
         var told = notices.NextAsync("show-it", cancel);
@@ -248,8 +272,7 @@ public sealed class OverlayTests
         await notices.ClickAsync(await told, "show-it", cancel);
         await showing;
         var shown = await desktop.ScreenshotAsync(cancel);
-        var monitorName = gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor";
-        await units.AddProgramAsync(gnome ? "gnome-system-monitor" : "plasma-systemmonitor", monitorName, cancel);
+        await units.AddProgramAsync(monitorProgram, monitorName, cancel);
         await ChooseAsync(desktop, rows, MenuEntry.TaskManager, cancel);
         var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", "--timeout", Bound.LineSeconds, monitorName], cancel: cancel);
         await ChooseAsync(desktop, rows, MenuEntry.Exit, cancel);
