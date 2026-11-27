@@ -118,6 +118,7 @@ public sealed class OverlayPaceTests : IDisposable
             history.Add(host.History.TenMinutes(hot.Id));
             sight.Front = Sight.FullScreen();
             Seconds(host, 1, () => { });
+            sight.Front = null;
             sight.Tell(host, unseen, seen: false);
             var before = Draws(log);
             now = HostRun.Warmer;
@@ -137,12 +138,13 @@ public sealed class OverlayPaceTests : IDisposable
     }
 
     // Windows tells of no screen saver, and a word of the display coming back may be missed: the tick finds both within a
-    // second. Nothing draws while nobody sees, and one draw shows the overlay again, even with nothing new, since the
-    // compositor may have dropped its picture meanwhile.
+    // second, and a lock holds till its unlock whatever the tick reads. Nothing draws while nobody sees, and one draw shows
+    // the overlay again, even with nothing new, since the compositor may have dropped its picture meanwhile.
     [Theory] // Rows: each a way the overlay learns it is seen again, read apart
     [InlineData("screen saver", true)]
     [InlineData("input after the display went off", true)]
     [InlineData("unlocked", false)]
+    [InlineData("unlocked, from a lock the tick reads no sign of", true)]
     public async Task TheTickFindsWhetherAnybodySeesTheOverlayAndOneDrawShowsItAgain(string how, bool warmer)
     {
         var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [new OverlayConfig { Graph = GraphStyle.None }] });
@@ -171,6 +173,34 @@ public sealed class OverlayPaceTests : IDisposable
         });
 
         Assert.Equal((0, 1, warmer), (unseen, again, shown[0] != shown[1]));
+    }
+
+    // An overlay "When to show" hides keeps what it last drew through a lock, which the tray copies as an image.
+    [Fact]
+    public async Task AnOverlayHiddenByWhenToShowKeepsItsPictureThroughALock()
+    {
+        var overlay = new OverlayConfig { Visibility = Visibility.HideInFullscreen };
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [overlay] });
+        var sight = new Sight();
+        var environment = sight.Of(_tray.Environment(_windowMutex));
+        var shown = new List<string>();
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var host = new OverlayHost(settings, () => HostRun.Recorded, HostRun.English, _folder.Clock, _folder.Log, environment);
+            host.Start();
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
+            sight.Front = Sight.FullScreen();
+            Seconds(host, 1, host.Arrived);
+            shown.Add(Picture(host));
+            sight.Tell(host, "locked", seen: false);
+            Seconds(host, 1, host.Arrived);
+            sight.Tell(host, "locked", seen: true);
+            Seconds(host, 1, host.Arrived);
+            shown.Add(Picture(host));
+        });
+
+        Assert.Equal((true, shown[0]), (shown[0].Length > 0, shown[1]));
     }
 
     // A second that shows what the last one showed draws nothing; a new value draws, and so does a window something else
@@ -213,6 +243,7 @@ public sealed class OverlayPaceTests : IDisposable
     [InlineData("high contrast", 0u, false)]
     [InlineData("high contrast", PInvoke.WM_SETTINGCHANGE, true)]
     [InlineData("high contrast", PInvoke.WM_SYSCOLORCHANGE, true)]
+    [InlineData("animations", 0u, false)]
     [InlineData("animations", PInvoke.WM_SETTINGCHANGE, true)]
     public async Task WhatWindowsSaysOfItsLookIsKeptUntilItSaysItChanged(string read, uint message, bool follows)
     {
@@ -280,7 +311,7 @@ public sealed class OverlayPaceTests : IDisposable
         return Convert.ToBase64String(png.ToArray());
     }
 
-    /// <summary>The session as a test has it: away or not, its last input, and the window in front, which a lock takes away.</summary>
+    /// <summary>The session as a test has it: away or not, its last input, and the window in front.</summary>
     private sealed class Sight
     {
         private bool _away;
@@ -293,7 +324,8 @@ public sealed class OverlayPaceTests : IDisposable
 
         private NotificationState State() => _away ? NotificationState.Away : NotificationState.Normal;
 
-        // Nobody sees the session: its screen saver starts, of which Windows says nothing, its display goes off, or it locks.
+        // Nobody sees the session: its screen saver starts, of which Windows says nothing, its display goes off, or it locks,
+        // which Windows' notification state may not show.
         public void Leave(OverlayHost host, string how)
         {
             if (how == "screen saver")
@@ -302,7 +334,8 @@ public sealed class OverlayPaceTests : IDisposable
                 return;
             }
 
-            Tell(host, how == "unlocked" ? "locked" : "display off", seen: false);
+            Tell(host, how.StartsWith("unlocked", StringComparison.Ordinal) ? "locked" : "display off", seen: false);
+            _away = how == "unlocked";
         }
 
         // Somebody sees it again: the screen saver ends, a key or the mouse wakes the display with no word, or it unlocks.
@@ -312,7 +345,7 @@ public sealed class OverlayPaceTests : IDisposable
             {
                 _away = false;
             }
-            else if (how == "unlocked")
+            else if (how.StartsWith("unlocked", StringComparison.Ordinal))
             {
                 Tell(host, "locked", seen: true);
             }
@@ -329,11 +362,9 @@ public sealed class OverlayPaceTests : IDisposable
             return new ForegroundWindow("Game", screen, Maximized: false, Minimized: false) { Monitor = screen };
         }
 
-        // As Windows says it: a lock or unlock of the session, or the session's display off, dimmed or on; the app in front
-        // goes meanwhile.
+        // As Windows says it: a lock or unlock of the session, or the session's display off, dimmed or on.
         public unsafe void Tell(OverlayHost host, string unseen, bool seen)
         {
-            Front = null;
             if (unseen == "locked")
             {
                 _away = !seen;
