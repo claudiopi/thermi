@@ -1,6 +1,6 @@
 # 006-linux: Tasks
 
-**Status**: approved; 21 of 30 tasks; current block B4.
+**Status**: approved; 27 of 30 tasks; current block B7.
 
 ## B1. The ground
 
