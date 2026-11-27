@@ -159,10 +159,21 @@ function Invoke-Linux($Scope) {
         }
         # The levers given the newer packages sign with the build's own key, as they do given the build's.
         Copy-Item (Join-Path $packages 'key') (Join-Path $packages 'newer') -Recurse -Force
+        $packed = Get-ChildItem $packages -File | Where-Object { $_.Name -match '\.(deb|rpm|tar\.gz)$' }
+        Save-Stats 'packages' @{ files = @($packed | ForEach-Object { @{ name = $_.Name; megabytes = $_.Length / 1MB } }) }
     }
+    # The Linux tests measure what they run of thermi, thermi-sensors and Thermi.App in their own process, as the Windows
+    # tests do on Windows: shown, not gated.
+    $linuxCoverage = '--coverlet', '--coverlet-include', '[thermi]*', '--coverlet-include', '[thermi-sensors]*', '--coverlet-include', '[Thermi.App]*',
+        '--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', 'Thermi.Linux.Tests'
     Invoke-Together @(foreach ($project in $projects) {
-            $name = if ($project -eq 'tests/Thermi.Tests') { 'tests on Linux' } else { 'Linux tests' }
-            New-Step $name 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results
+            if ($project -eq 'tests/Thermi.Tests') {
+                New-Step 'tests on Linux' 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results
+            }
+            else {
+                New-Step 'Linux tests' (@('dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $appResults, '--') +
+                    $linuxCoverage)
+            }
         })
 }
 
