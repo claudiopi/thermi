@@ -12,14 +12,16 @@ internal static partial class XWindows
 {
     private const string Xlib = "libX11.so.6";
     private const string Gdk = "libgtk-4.so.1";
+    private const string Xext = "libXext.so.6";
+
+    // XShapeCombineRectangles' kind, ShapeInput, and its operation, ShapeSet, with rectangles in no order.
+    private const int ShapeInput = 2;
+    private const int ShapeSet = 0;
+    private const int Unsorted = 0;
 
     // The atoms' type, XA_ATOM, and a property written whole.
     private const nuint AtomType = 4;
     private const int Replace = 0;
-
-    // An EWMH client message: its type, ClientMessage, and the masks the window manager listens with on the root window.
-    private const int ClientMessage = 33;
-    private const nint Redirect = (1 << 19) | (1 << 20);
 
     // XWMHints' InputHint, set without input: the window manager gives the window no keyboard on a click.
     private const nint InputHint = 1;
@@ -28,8 +30,8 @@ internal static partial class XWindows
     private const int ToParent = 2;
 
     /// <summary>
-    /// The window as a utility one kept above the others, off the taskbar and the pager, given no keyboard on a click or
-    /// as it maps; said once it is realized and before it maps, as the window manager reads it then.
+    /// The window as a dock, which the window manager keeps above the others, off the taskbar and the pager, given no
+    /// keyboard on a click or as it maps; said once it is realized and before it maps, as the window manager reads it then.
     /// </summary>
     public static void Realized(Gdk.Surface surface)
     {
@@ -37,8 +39,8 @@ internal static partial class XWindows
         SkipTaskbar(surface.Handle, 1);
         SkipPager(surface.Handle, 1);
         UserTime(surface.Handle, 0);
-        var utility = InternAtom(display, "_NET_WM_WINDOW_TYPE_UTILITY", 0);
-        ChangeProperty(display, window, InternAtom(display, "_NET_WM_WINDOW_TYPE", 0), AtomType, 32, Replace, ref utility, 1);
+        var dock = InternAtom(display, "_NET_WM_WINDOW_TYPE_DOCK", 0);
+        ChangeProperty(display, window, InternAtom(display, "_NET_WM_WINDOW_TYPE", 0), AtomType, 32, Replace, ref dock, 1);
         var hints = GetWMHints(display, window);
         if (hints != 0)
         {
@@ -49,22 +51,19 @@ internal static partial class XWindows
         }
     }
 
-    /// <summary>The window above the others, asked of the window manager once it maps, as GTK writes its state then.</summary>
-    public static void Mapped(Gdk.Surface surface)
+    /// <summary>The window takes the pointer only on <paramref name="boxes"/>, in its logical pixels, and nowhere when none.</summary>
+    public static void Shape(Gdk.Surface surface, IReadOnlyList<(int X, int Y, int Width, int Height)> boxes)
     {
         var (display, window) = Of(surface);
-        // XClientMessageEvent on a 64-bit machine: type, serial, send_event, display, window, message_type, format, data.
-        Span<byte> message = stackalloc byte[192];
-        message.Clear();
-        MemoryMarshal.Write(message, ClientMessage);
-        MemoryMarshal.Write(message[16..], 1);
-        MemoryMarshal.Write(message[32..], window);
-        MemoryMarshal.Write(message[40..], InternAtom(display, "_NET_WM_STATE", 0));
-        MemoryMarshal.Write(message[48..], 32);
-        MemoryMarshal.Write(message[56..], (nint)1);
-        MemoryMarshal.Write(message[64..], (nint)InternAtom(display, "_NET_WM_STATE_ABOVE", 0));
-        MemoryMarshal.Write(message[80..], (nint)1);
-        _ = SendEvent(display, DefaultRootWindow(display), 0, Redirect, message);
+        var scale = surface.GetScaleFactor();
+        XRectangle[] rectangles = [.. boxes.Select(box => new XRectangle
+        {
+            X = (short)(box.X * scale),
+            Y = (short)(box.Y * scale),
+            Width = (ushort)(box.Width * scale),
+            Height = (ushort)(box.Height * scale),
+        })];
+        ShapeRectangles(display, window, ShapeInput, 0, 0, rectangles, rectangles.Length, ShapeSet, Unsorted);
         _ = Flush(display);
     }
 
@@ -160,9 +159,6 @@ internal static partial class XWindows
     [LibraryImport(Xlib, EntryPoint = "XDefaultRootWindow")]
     private static partial nuint DefaultRootWindow(nint display);
 
-    [LibraryImport(Xlib, EntryPoint = "XSendEvent")]
-    private static partial int SendEvent(nint display, nuint window, int propagate, nint mask, ReadOnlySpan<byte> message);
-
     [LibraryImport(Xlib, EntryPoint = "XMoveWindow")]
     private static partial int MoveWindow(nint display, nuint window, int x, int y);
 
@@ -176,6 +172,10 @@ internal static partial class XWindows
     private static partial int QueryPointer(
         nint display, nuint window, out nuint root, out nuint child, out int rootX, out int rootY, out int x, out int y, out uint keys);
 
+    [LibraryImport(Xext, EntryPoint = "XShapeCombineRectangles")]
+    private static partial void ShapeRectangles(
+        nint display, nuint window, int kind, int x, int y, ReadOnlySpan<XRectangle> rectangles, int count, int operation, int ordering);
+
     [LibraryImport(Xlib, EntryPoint = "XFlush")]
     private static partial int Flush(nint display);
 
@@ -187,5 +187,13 @@ internal static partial class XWindows
         public int Y;
         public int Width;
         public int Height;
+    }
+
+    private struct XRectangle
+    {
+        public short X;
+        public short Y;
+        public ushort Width;
+        public ushort Height;
     }
 }

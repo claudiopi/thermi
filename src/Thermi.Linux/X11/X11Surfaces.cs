@@ -6,9 +6,11 @@ namespace Thermi.Linux.X11;
 
 /// <summary>
 /// The surfaces of an X11 desktop (docs/adr/0019-linux.md): each picture a frameless GTK window of its own, which the
-/// window manager keeps above the others, off the taskbar and the pager, and gives no keyboard. It is a utility window,
-/// not a dock: a dock would reserve room as a panel does in some window managers, and stay above a window gone full
-/// screen, which covers a utility one. The panels' struts make each monitor's work area, as the window manager says it.
+/// window manager keeps above the others, off the taskbar and the pager, and gives no keyboard. It is a dock, as a panel
+/// is, not a utility window: window managers keep a utility window out of the panels' room, so an overlay could not sit on
+/// a panel, while a dock with no strut of its own reserves nothing. Nor is it kept above, which would hold it above a
+/// window gone full screen too, while a dock stays above every other window and under that one. The panels' struts make
+/// each monitor's work area, as the window manager says it.
 /// </summary>
 internal sealed class X11Surfaces : IOverlaySurfaces
 {
@@ -16,7 +18,9 @@ internal sealed class X11Surfaces : IOverlaySurfaces
     private const uint WatchEvery = 100;
 
     private readonly Dictionary<uint, Shown> _shown = [];
+    private IReadOnlyList<ShellMonitor> _known = [];
     private uint _watching;
+    private uint _checking;
     private (int X, int Y)? _pointer;
 
     public bool Ready => true;
@@ -35,10 +39,28 @@ internal sealed class X11Surfaces : IOverlaySurfaces
     {
         if (Gdk.Display.GetDefault()?.GetMonitors() is { } list)
         {
-            list.OnItemsChanged += (_, _) => MonitorsChanged(Monitors());
+            list.OnItemsChanged += (_, _) => Changed();
         }
 
+        // A panel that comes, goes or grows changes the root window's work area, which GTK 4 tells no one: it is read again
+        // each second, a property's read.
+        _checking = GLib.Functions.TimeoutAddSeconds(0, 1, () =>
+        {
+            if (!Monitors().SequenceEqual(_known))
+            {
+                Changed();
+            }
+
+            return true;
+        });
+        _known = Monitors();
         Arrived();
+    }
+
+    private void Changed()
+    {
+        _known = Monitors();
+        MonitorsChanged(_known);
     }
 
     public Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => Task.FromResult<IReadOnlyList<ShellMonitor>>(Monitors());
@@ -52,9 +74,9 @@ internal sealed class X11Surfaces : IOverlaySurfaces
         }
 
         shown.At = (x, y);
-        shown.Window.Show(picture, (0, 0));
+        var shows = shown.Window.Show(picture, (0, 0));
         shown.Move();
-        return Task.CompletedTask;
+        return shows;
     }
 
     public Task Move(uint id, double x, double y)
@@ -102,6 +124,11 @@ internal sealed class X11Surfaces : IOverlaySurfaces
     public void Dispose()
     {
         Watch(false);
+        if (_checking != 0)
+        {
+            _ = GLib.Functions.SourceRemove(_checking);
+        }
+
         foreach (var shown in _shown.Values)
         {
             shown.Window.Dispose();
@@ -139,21 +166,33 @@ internal sealed class X11Surfaces : IOverlaySurfaces
         {
             Window = new PictureWindow(id, window =>
             {
-                window.OnRealize += (_, _) => XWindows.Realized(window.GetSurface()!);
+                window.OnRealize += (_, _) =>
+                {
+                    XWindows.Realized(window.GetSurface()!);
+                    Shape();
+                };
                 window.OnMap += (_, _) =>
                 {
-                    XWindows.Mapped(window.GetSurface()!);
                     _mapped = true;
                     Move();
                 };
             })
             {
-                Pointer = each => surfaces.Pointer(each),
+                Pointer = each => surfaces.Pointer(Rooted(each)),
                 Key = (on, key) => surfaces.Key(on, key),
             };
+            Window.Shaped = Shape;
         }
 
         public PictureWindow Window { get; }
+
+        // The window moves only once the window manager moves it, after thermi asked, while GDK tells a point from the
+        // window's corner as the X server had it: a drag would count its move twice, so past a press, which no move is
+        // behind, the point is the pointer's on the root window as it is read.
+        private static ShellPointer Rooted(ShellPointer pointer) =>
+            pointer.Kind != "press" && Gdk.Display.GetDefault() is { } display && XWindows.Pointer(display) is var (x, y, _)
+                ? pointer with { X = x, Y = y }
+                : pointer;
 
         public (double X, double Y) At { get; set; }
 
@@ -163,6 +202,15 @@ internal sealed class X11Surfaces : IOverlaySurfaces
             if (_mapped && Window.Window.GetSurface() is { } surface)
             {
                 XWindows.Move(surface, (int)Math.Round(At.X), (int)Math.Round(At.Y));
+            }
+        }
+
+        // GDK 4 sets no input shape of an X11 window from its input region: the shape is set here, from the same boxes.
+        private void Shape()
+        {
+            if (Window.Window.GetSurface() is { } surface)
+            {
+                XWindows.Shape(surface, Window.Clicked());
             }
         }
 

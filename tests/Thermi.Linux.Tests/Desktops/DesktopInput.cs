@@ -5,9 +5,8 @@ namespace Thermi.Linux.Tests.Desktops;
 
 /// <summary>
 /// A person's pointer and keyboard on a test's desktop, through each desktop's own input for tests: GNOME Shell's virtual
-/// devices, run in the Shell over its session bus; Sway's seat commands and a virtual keyboard; and XTEST on an X11 desktop
-/// and on the X server KWin runs nested in. Points are the screenshots' pixels, which Mutter and Sway take as logical ones
-/// divided by <paramref name="scale"/>.
+/// devices, run in the Shell over its session bus; and XTEST on an X11 desktop and on the X server KWin and Sway run nested
+/// in. Points are the screenshots' pixels, which Mutter takes as logical ones divided by <paramref name="scale"/>.
 /// </summary>
 internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session, double scale = 1)
 {
@@ -26,11 +25,7 @@ internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session,
     {
         await MoveAsync(x, y, cancel).ConfigureAwait(false);
         string[] gnome = [.. Enumerable.Repeat(new[] { Button(1, pressed: true), Button(1, pressed: false) }, 2).SelectMany(clicks => clicks)];
-        await RunAsync(
-            string.Join("; ", gnome),
-            ("swaymsg", ["seat - cursor press button1; seat - cursor release button1; seat - cursor press button1; seat - cursor release button1"]),
-            ["click", "--repeat", "2", "1"],
-            cancel).ConfigureAwait(false);
+        await RunAsync(string.Join("; ", gnome), ["click", "--repeat", "2", "1"], cancel).ConfigureAwait(false);
     }
 
     public Task DragAsync((int X, int Y) from, (int X, int Y) to, CancellationToken cancel) =>
@@ -71,12 +66,11 @@ internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session,
         await KeyAsync(holding, pressed: true, cancel).ConfigureAwait(false);
         for (var notch = 0; notch < Math.Abs(notches); notch++)
         {
-            // X11's buttons 4 and 5 are the wheel's turns up and down, as Sway and XTEST read them; Mutter's virtual pointer
-            // takes a wheel's turn as a discrete scroll of its own, and a button 4 as a button.
+            // X11's buttons 4 and 5 are the wheel's turns up and down, as XTEST reads them; Mutter's virtual pointer takes
+            // a wheel's turn as a discrete scroll of its own, and a button 4 as a button.
             var up = notches > 0;
             await RunAsync(
                 $"pointer.notify_discrete_scroll(global.get_current_time(), Clutter.ScrollDirection.{(up ? "UP" : "DOWN")}, Clutter.ScrollSource.WHEEL)",
-                ("swaymsg", [$"seat - cursor press button{(up ? 4 : 5)}; seat - cursor release button{(up ? 4 : 5)}"]),
                 ["click", up ? "4" : "5"],
                 cancel).ConfigureAwait(false);
         }
@@ -95,7 +89,7 @@ internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session,
     {
         var (logicalX, logicalY) = (Logical(x), Logical(y));
         var motion = $"pointer.notify_absolute_motion(global.get_current_time(), {logicalX}, {logicalY})";
-        await RunAsync(motion, ("swaymsg", [$"seat - cursor set {logicalX} {logicalY}"]), ["mousemove", $"{x}", $"{y}"], cancel).ConfigureAwait(false);
+        await RunAsync(motion, ["mousemove", $"{x}", $"{y}"], cancel).ConfigureAwait(false);
         if (kind is DesktopKind.Gnome or DesktopKind.GnomeX11)
         {
             await ReachedAsync(motion, x / scale, y / scale, cancel).ConfigureAwait(false);
@@ -132,13 +126,10 @@ internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session,
     private static string Button(int button, bool pressed) =>
         $"pointer.notify_button(global.get_current_time(), {button}, Clutter.ButtonState.{(pressed ? "PRESSED" : "RELEASED")})";
 
-    private Task ButtonAsync(int button, bool pressed, CancellationToken cancel) => RunAsync(
-        Button(button, pressed),
-        ("swaymsg", [$"seat - cursor {(pressed ? "press" : "release")} button{button}"]),
-        [pressed ? "mousedown" : "mouseup", $"{button}"],
-        cancel);
+    private Task ButtonAsync(int button, bool pressed, CancellationToken cancel) =>
+        RunAsync(Button(button, pressed), [pressed ? "mousedown" : "mouseup", $"{button}"], cancel);
 
-    // xdotool takes keys held together as one; the Shell and wtype a key at a time, pressed in order and let go in reverse.
+    // xdotool takes keys held together as one; the Shell a key at a time, pressed in order and let go in reverse.
     private async Task KeyAsync(string? key, bool pressed, CancellationToken cancel)
     {
         if (key is null)
@@ -151,10 +142,9 @@ internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session,
         {
             await RunAsync(
                 $"keyboard.notify_keyval(global.get_current_time(), Clutter.KEY_{each}, Clutter.KeyState.{(pressed ? "PRESSED" : "RELEASED")})",
-                ("wtype", [pressed ? "-P" : "-p", each]),
                 [pressed ? "keydown" : "keyup", key],
                 cancel).ConfigureAwait(false);
-            if (kind is DesktopKind.KWin or DesktopKind.X11)
+            if (kind is not (DesktopKind.Gnome or DesktopKind.GnomeX11))
             {
                 break;
             }
@@ -162,7 +152,7 @@ internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session,
     }
 
     private string Logical(int pixels) =>
-        kind is DesktopKind.Gnome or DesktopKind.Sway ? (pixels / scale).ToString("0.##", CultureInfo.InvariantCulture) : $"{pixels}";
+        kind is DesktopKind.Gnome ? (pixels / scale).ToString("0.##", CultureInfo.InvariantCulture) : $"{pixels}";
 
     // The Shell's Eval runs in a module that imports no Clutter, so the line takes GJS's own.
     private static (string, string[]) Shell(string line)
@@ -175,13 +165,12 @@ internal sealed partial class DesktopInput(DesktopKind kind, OwnSession session,
         return ("gdbus", TestDesktop.Call("org.gnome.Shell", "/org/gnome/Shell", "Eval", script));
     }
 
-    // The same input as each desktop takes it: a line of the Shell's, Sway's own command, or xdotool's XTEST.
-    private Task RunAsync(string shell, (string, string[]) sway, string[] xtest, CancellationToken cancel) => RunAsync(
+    // The same input as each desktop takes it: a line of the Shell's, or xdotool's XTEST.
+    private Task RunAsync(string shell, string[] xtest, CancellationToken cancel) => RunAsync(
         kind switch
         {
             DesktopKind.Gnome or DesktopKind.GnomeX11 => Shell(shell),
-            DesktopKind.Sway => sway,
-            DesktopKind.KWin or DesktopKind.X11 => ("xdotool", xtest),
+            DesktopKind.KWin or DesktopKind.Sway or DesktopKind.X11 => ("xdotool", xtest),
             DesktopKind.BareWayland => throw new NotSupportedException("Weston's kiosk shell takes no input for tests."),
             _ => throw new InvalidOperationException($"Unknown desktop {kind}."),
         },

@@ -36,14 +36,17 @@ public sealed partial class RepoRulesTests
     private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
     {
         ["Thermi.Linux/Agents/LinuxAbout.cs"] = "the channel as the files of apt's and dnf's repositories name it, which only Linux's packages write",
-        ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
         ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
+        ["Thermi.Linux/Gnome/ShellSurfaces.cs"] = "GNOME's surfaces, thermi's Shell extension, spoken to through the link to it on the session's bus",
         ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
         ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
+        ["Thermi.Linux/Overlay/DragShow.cs"] = "a drag as Linux's surfaces show it, its pill and marks each a picture of its own over the windows",
+        ["Thermi.Linux/Overlay/IOverlaySurfaces.cs"] = "where a Linux desktop shows thermi's pictures: GNOME's extension, layer surfaces or X11 windows",
         ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
         ["Thermi.Linux/Overlay/OverlayNotices.cs"] = "Core's notices of the overlays as the desktop's own, by the action ids of their buttons",
         ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on Linux share on the host's GLib main loop, the desktop's surfaces among it",
+        ["Thermi.Linux/Overlay/OverlayPointer.cs"] = "the pointer on an overlay as Linux's surfaces tell it, each event by the kind the extension names",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",
         ["Thermi.Sensors.Linux/Serving/SensorCommands.cs"] = "the Linux service's own command line, whose trees and roots are the kernel's files",
@@ -58,6 +61,7 @@ public sealed partial class RepoRulesTests
         ["libc"] = "dlopen alone, to load gtk4-layer-shell before GTK, which .NET's NativeLibrary cannot load for every library after",
         ["libX11.so.6"] = "Xlib's few calls for an overlay's window on X11, which has no introspection data",
         ["libgtk-4.so.1"] = "GDK's X11 calls, gdk_x11_*, which GTK's introspection data leaves out",
+        ["libXext.so.6"] = "X11's input shape of an overlay's window, which GDK 4 does not set from its input region",
     };
 
     // CsWin32 generates every Win32 declaration from a NativeMethods.txt, and GirCore every GObject library's; one written by

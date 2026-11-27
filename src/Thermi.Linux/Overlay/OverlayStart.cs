@@ -65,7 +65,15 @@ internal static class OverlayStart
 
         var texts = Texts.For(null, CultureInfo.CurrentUICulture);
         using var notices = new DesktopNotices(bus);
-        await notices.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(HostText.NoOverlaySurfaces), (NoOverlayAction, texts.Of(HostText.NoticeGotIt)));
+        var said = notices.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(HostText.NoOverlaySurfaces), (NoOverlayAction, texts.Of(HostText.NoticeGotIt)));
+        // The bus answers on GLib's main loop, which no host runs yet.
+        var context = GLib.MainContext.Default();
+        while (!said.IsCompleted)
+        {
+            _ = context.Iteration(true);
+        }
+
+        await said;
         Directory.CreateDirectory(Path.GetDirectoryName(told)!);
         await File.WriteAllTextAsync(told, "");
     }

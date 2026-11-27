@@ -17,6 +17,8 @@
     <File Path="src/Thermi.Gnome/eslint.config.js" />
     <File Path="src/Thermi.Gnome/extension.js" />
     <File Path="src/Thermi.Gnome/metadata.json" />
+    <File Path="src/Thermi.Gnome/pointerWatch.js" />
+    <File Path="src/Thermi.Gnome/protocol.js" />
     <File Path="src/Thermi.Gnome/README.md" />
   </Folder>
   <!-- The MSI needs a published version first and WiX's Visual Studio extension to load, so it is here as its files;

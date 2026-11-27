@@ -91,6 +91,23 @@
           "GirCore.GLib-2.0": "0.8.1"
         }
       },
+      "GirCore.Graphene-1.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "g947SPM7uTI0+a+ev6pT22Jyh08V1U8IAjbNO8aOOrvWYCzyg6nJBw8iHt2DrW9VTsqi7M1zmoMmkuSYGLQiDQ==",
+        "dependencies": {
+          "GirCore.GObject-2.0": "0.8.1"
+        }
+      },
+      "GirCore.Gsk-4.0": {
+        "type": "Transitive",
+        "resolved": "0.8.1",
+        "contentHash": "QLNB/ozKTsrGuhXPsTBBOjmR08DqZ+objRf4M3WCcjh21aUaGl5aLXcN9NaHa/wgpyJo29eGCpVW26O3CphecQ==",
+        "dependencies": {
+          "GirCore.Gdk-4.0": "0.8.1",
+          "GirCore.Graphene-1.0": "0.8.1"
+        }
+      },
       "GirCore.HarfBuzz-0.0": {
         "type": "Transitive",
         "resolved": "0.8.1",
@@ -344,6 +361,7 @@
         "dependencies": {
           "GirCore.Gdk-4.0": "[0.8.1, )",
           "GirCore.Gio-2.0": "[0.8.1, )",
+          "GirCore.Gtk-4.0": "[0.8.1, )",
           "GirCore.PangoCairo-1.0": "[0.8.1, )",
           "Thermi.App": "[0.9.0, )",
           "Thermi.Cli": "[0.9.0, )",
@@ -402,6 +420,16 @@
         "contentHash": "/Ddc3QqosowxKBdNx2bYGjfkwpCvn0bJg2v1XPfR/IE6fDEsAw7zPEhLMJKeFPehl6Dlm2no/SKh/QXoJCYkTQ==",
         "dependencies": {
           "GirCore.GObject-2.0": "0.8.1"
+        }
+      },
+      "GirCore.Gtk-4.0": {
+        "type": "CentralTransitive",
+        "requested": "[0.8.1, )",
+        "resolved": "0.8.1",
+        "contentHash": "voCdlOtmgciZAthyL4Q/5HHJbzAhQfRVO0XzXApOkEs9iSire0umhuHHf7/PIpTCpde1CARzTTtTcZXu/5oRbA==",
+        "dependencies": {
+          "GirCore.Gdk-4.0": "0.8.1",
+          "GirCore.Gsk-4.0": "0.8.1"
         }
       },
       "GirCore.PangoCairo-1.0": {

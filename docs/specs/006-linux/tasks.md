@@ -1,6 +1,6 @@
 # 006-linux: Tasks
 
-**Status**: approved; 10 of 30 tasks; current block B4.
+**Status**: approved; 21 of 30 tasks; current block B4.
 
 ## B1. The ground
 
@@ -25,12 +25,12 @@
 ## B4. The overlay
 
 - [x] T12. The painter on Cairo and Pango, and `thermi preview`. (R10)
-- [ ] T13. The headless GNOME Shell, KWin, Sway and X11 desktop for tests, in the CI's jobs. (R8, R17, R24)
+- [x] T13. The headless GNOME Shell, KWin, Sway and X11 desktop for tests, in the CI's jobs. (R8, R17, R24)
 - [x] T14. The extension and its D-Bus protocol: the picture, the pointer, the monitors, full screen. (R8)
-- [ ] T15. The GTK 4 layer surface for KDE Plasma, Hyprland and Sway, its work-area probe, and the Wayland desktops with neither. (R17)
-- [ ] T16. The GTK 4 window kept above on X11, its input shape and the panels' struts. (R24)
-- [ ] T17. Dragging, snaps, the top bar and the panels. (R11)
-- [ ] T18. The desktop gestures moved to `src/Thermi.App`, on every surface, and Fade near the pointer. (R23)
+- [x] T15. The GTK 4 layer surface for KDE Plasma, Hyprland and Sway, its work-area probe, and the Wayland desktops with neither. (R17)
+- [x] T16. The GTK 4 window kept above on X11, its input shape and the panels' struts. (R24)
+- [x] T17. Dragging, snaps, the top bar and the panels. (R11)
+- [x] T18. The desktop gestures moved to `src/Thermi.App`, on every surface, and Fade near the pointer. (R23)
 - [x] T19. The menu, the user unit and its restart. (R12, R13)
 - [x] T20. The extension from extensions.gnome.org, and its version. (R9)
 

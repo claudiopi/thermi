@@ -89,12 +89,14 @@ internal sealed class DesktopOverlay : IDisposable
             : [.. _painter.Clickable.Select(box => new PillBox(box.Left / monitor, box.Top / monitor, box.Width / monitor, box.Height / monitor))];
         Monitor = monitor;
         Size = ((int)Math.Round(picture.Width * toThermi), (int)Math.Round(picture.Height * toThermi));
-        var at = Pointer.HeldAt ?? TaskbarRow.Locate(config.Overlays, _index, screens, Size, shown, _parts.Time.GetElapsedTime(_parts.Started)) ?? new Position(0, 0);
+        var at = Pointer.HeldAt
+            ?? TaskbarRow.Locate(config.Overlays, _index, screens, Size, shown, _parts.Time.GetElapsedTime(_parts.Started))
+            ?? new Position(0, 0);
         At = at;
         Box = new PixelRect(at.X, at.Y, at.X + Size.Width, at.Y + Size.Height);
         var opacity = _parts.Cursor is { } cursor ? PointerFade.Opacity(overlay, Box.Value, cursor.At, scale * toThermi, windowOpen: false, Pointer.Holds) : 1;
         var faded = opacity < 1 ? Faded(picture, opacity) : null;
-        var sent = Send(faded ?? picture, scene.Screens.Stage(at), clicks, opacity <= PointerFade.Least);
+        var sent = Send(faded ?? picture, scene.Screens.Stage(at), clicks, faded is not null);
         faded?.Dispose();
         return sent;
     }
@@ -241,7 +243,8 @@ internal sealed class DesktopOverlay : IDisposable
         _pixels?.Dispose();
         _pixels = picture.Bytes();
         (_shownAs, _clicks) = (shownAs, clicks);
-        var sent = _parts.Call(_parts.Surfaces.Show((uint)_index, new ShellPicture(_pixels, picture.Width, picture.Height, picture.Stride, Monitor, clicks), stage.X, stage.Y));
+        var shown = new ShellPicture(_pixels, picture.Width, picture.Height, picture.Stride, Monitor, clicks);
+        var sent = _parts.Call(_parts.Surfaces.Show((uint)_index, shown, stage.X, stage.Y));
         if (faded && !_faded)
         {
             _parts.Trace(TraceEvents.Faded, sent);

@@ -77,19 +77,28 @@ public sealed class GestureTests
         var thermi = await desktop.ShowThermiAsync([], cancel);
         var (_, height) = await Pictures.SizeAsync(desktop.Session, await desktop.PreviewAsync(feed.Snapshot, 1, cancel), cancel);
         var top = row == Desktop.Gnome ? await Scene.PanelTopAsync(desktop, height, cancel) : Scene.OnPanel.Y;
-        var value = (Scene.OnPanel.X + 8, top + (height / 2));
+        // On the first pill's first value, past its label, where a hold takes the value alone.
+        var value = (Scene.OnPanel.X + 50, top + (height / 2));
 
         // A value lifted and dropped on the other overlay; the last pill lifted and dropped on the desktop.
         await HoldAndDropAsync(desktop, thermi, value, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), cancel);
         var joined = await Settings.ReadAsync(desktop.Session, cancel);
+        // Esc on a lifted value, before the last pill leaves for an overlay of its own: at four overlays, the most, a hold lifts nothing.
+        var (changed, kept) = await CancelledAsync(desktop, thermi, value, cancel);
         // The first overlay is shorter by the value it gave: its last pill ends where its picture ends now.
         var (shorter, _) = await Pictures.SizeAsync(desktop.Session, await desktop.PreviewAsync(feed.Snapshot, 1, cancel), cancel);
-        await HoldAndDropAsync(desktop, thermi, (Scene.OnPanel.X + shorter - 16, value.Item2), (900, 800), cancel);
+        // Into the monitor's bottom right corner, where it snaps.
+        var corner = (TwoMonitors[0].Width - 4, TwoMonitors[0].Height - 4);
+        await HoldAndDropAsync(desktop, thermi, (Scene.OnPanel.X + shorter - 16, value.Item2), corner, cancel);
         var separated = await Settings.ReadAsync(desktop.Session, cancel);
-        var (changed, kept) = await CancelledAsync(desktop, thermi, value, cancel);
-        var grew = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel, count: 2);
-        await desktop.Input.WheelAsync(value.Item1, value.Item2, 2, "Control_L", cancel);
-        await grew;
+        // Control and the wheel, a turn at a time once thermi applied the last, as a person's turns come apart.
+        for (var turn = 0; turn < 2; turn++)
+        {
+            var grew = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
+            await desktop.Input.WheelAsync(value.Item1, value.Item2, 1, "Control_L", cancel);
+            await grew;
+        }
+
         var grown = await Settings.ReadAsync(desktop.Session, cancel);
 
         Assert.Equal(first.Items.Count - 1, joined.Overlays[0].Items.Count);
@@ -97,8 +106,8 @@ public sealed class GestureTests
         Assert.Equal(4, separated.Overlays.Count);
         Assert.NotNull(separated.Overlays[3].Snap);
         Assert.Equal(0, changed);
-        Assert.Equal(ThermiConfigJson.Write(separated), ThermiConfigJson.Write(kept));
-        Assert.Equal(1 + (2 * OverlaySizes.Step), grown.Overlays[0].Size, 6);
+        Assert.Equal(ThermiConfigJson.Write(joined), ThermiConfigJson.Write(kept));
+        Assert.Equal(first.Size + (2 * OverlaySizes.Step), grown.Overlays[0].Size, 6);
         await FadesAsync(desktop, thermi, row, cancel);
     }
 

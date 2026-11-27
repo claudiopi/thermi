@@ -106,8 +106,6 @@ internal sealed class OwnSession : IAsyncDisposable
                 ["WAYLAND_DISPLAY"] = WaylandDisplay,
                 ["DISPLAY"] = X11Display,
                 ["DBUS_SESSION_BUS_ADDRESS"] = BusAddress,
-                // Sway takes the IPC socket named here, which its commands then find.
-                ["SWAYSOCK"] = Path.Combine(RuntimeFolder, "sway-ipc.sock"),
                 ["LANG"] = "C.UTF-8",
                 // thermi reads the service's socket first, which a PC with thermi installed serves: the session's
                 // programs read the session's own, which SensorFeed serves, alone.

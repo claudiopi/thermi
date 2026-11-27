@@ -9,11 +9,16 @@ namespace Thermi.Linux.LayerShell;
 /// own on the top layer, above every window and panel, anchored to its monitor's top-left corner over the panels' zones and
 /// kept as far in as it goes, as big as its picture. It never takes the keyboard but for Esc while a press holds it. A
 /// window gone full screen covers the top layer, as compositors stack it, so nothing here hides it then. The compositor
-/// tells the pointer only on a surface, so a fade sees the pointer only on its overlay.
+/// tells the pointer only on a surface, so a fade sees the pointer only on its overlay. A surface goes to another monitor
+/// only mapped again, which ends the press on it, so a drag onto another monitor shows the picture on a surface of its
+/// own there, while the one pressed stays, drawing nothing, until the press ends on it.
 /// </summary>
 internal sealed class LayerSurfaces : IOverlaySurfaces
 {
     private readonly Dictionary<uint, (PictureWindow Window, Gdk.Monitor Monitor)> _shown = [];
+    private readonly Dictionary<uint, ShellPicture> _pictures = [];
+    private readonly HashSet<uint> _held = [];
+    private readonly Dictionary<uint, PictureWindow> _pressed = [];
     private readonly Dictionary<Gdk.Monitor, double> _bars = [];
     private readonly List<LayerProbe> _probes = [];
     private readonly HashSet<Gdk.Monitor> _watched = [];
@@ -50,23 +55,22 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
             return Task.CompletedTask;
         }
 
-        if (!_shown.TryGetValue(id, out var shown))
-        {
+        _pictures[id] = picture;
 #pragma warning disable CA2000 // Kept in _shown, and disposed as it hides.
-            var window = new PictureWindow(id, Made) { Pointer = each => Pointer(each), Key = (on, key) => Key(on, key) };
+        var shown = _shown.TryGetValue(id, out var known) ? known : (New(id), _monitors[0]);
 #pragma warning restore CA2000
-            shown = (window, _monitors[0]);
-        }
-
-        _shown[id] = Placed(shown, x, y, picture.Scale, picture);
-        return Task.CompletedTask;
+        var (placed, shows) = Placed(id, shown, x, y, picture.Scale, picture);
+        _shown[id] = placed;
+        return shows;
     }
 
     public Task Move(uint id, double x, double y)
     {
         if (_shown.TryGetValue(id, out var shown))
         {
-            _shown[id] = Placed(shown, x, y, shown.Monitor.GetScale(), picture: null);
+            var (placed, shows) = Placed(id, shown, x, y, shown.Monitor.GetScale(), picture: null);
+            _shown[id] = placed;
+            return shows;
         }
 
         return Task.CompletedTask;
@@ -79,11 +83,22 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
             shown.Window.Dispose();
         }
 
+        _pictures.Remove(id);
+        Let(id);
         return Task.CompletedTask;
     }
 
     public void HoldKeys(uint id, bool held)
     {
+        if (held)
+        {
+            _held.Add(id);
+        }
+        else
+        {
+            Let(id);
+        }
+
         if (_shown.TryGetValue(id, out var shown))
         {
             LayerShellLibrary.SetKeyboard(shown.Window.Window, held);
@@ -104,6 +119,29 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
         }
 
         _shown.Clear();
+        foreach (var window in _pressed.Values)
+        {
+            window.Dispose();
+        }
+
+        _pressed.Clear();
+    }
+
+    private PictureWindow New(uint id) => new(id, Made) { Pointer = each => Pointer(each), Key = (on, key) => Key(on, key) };
+
+    // The press ended: the surface it began on, if the picture left it, goes once the release that ended it is handled.
+    private void Let(uint id)
+    {
+        _held.Remove(id);
+        if (_pressed.TryGetValue(id, out var pressed))
+        {
+            _pressed.Remove(id);
+            GLib.Functions.IdleAdd(0, () =>
+            {
+                pressed.Dispose();
+                return false;
+            });
+        }
     }
 
     private static void Made(Gtk.Window window)
@@ -119,17 +157,26 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
 
     // On the monitor the corner is on, a whole logical pixel in, and the rest as the picture's own pixels inside the
     // surface: the compositor puts the surface's corner on the pixel its logical one rounds to.
-    private (PictureWindow, Gdk.Monitor) Placed((PictureWindow Window, Gdk.Monitor Monitor) shown, double x, double y, double scale, ShellPicture? picture)
+    private ((PictureWindow, Gdk.Monitor) Placed, Task Shows) Placed(
+        uint id, (PictureWindow Window, Gdk.Monitor Monitor) shown, double x, double y, double scale, ShellPicture? picture)
     {
         var monitor = _monitors.FirstOrDefault(each => each.Geometry.ContainsPoint((int)Math.Floor(x), (int)Math.Floor(y))) ?? shown.Monitor;
         var place = monitor.Geometry;
-        var (left, top) = ((int)Math.Floor(x - place.X), (int)Math.Floor(y - place.Y));
+        var (left, top) = (PictureWindow.OnPixel(x - place.X, scale), PictureWindow.OnPixel(y - place.Y, scale));
         int Rest(double at, int whole)
         {
             return Math.Max(0, (int)Math.Round(at * scale) - (int)Math.Round(whole * scale, MidpointRounding.AwayFromZero));
         }
 
         var offset = (Rest(x - place.X, left), Rest(y - place.Y, top));
+        if (monitor != shown.Monitor && _held.Contains(id) && !_pressed.ContainsKey(id) && shown.Window.Window.GetVisible())
+        {
+            shown.Window.Blank();
+            _pressed[id] = shown.Window;
+            shown = (New(id), monitor);
+            picture ??= _pictures.GetValueOrDefault(id);
+        }
+
         var window = shown.Window.Window;
         if (monitor != shown.Monitor || !window.GetVisible())
         {
@@ -139,16 +186,8 @@ internal sealed class LayerSurfaces : IOverlaySurfaces
         LayerShellLibrary.SetMargin(window, Edge.Left, left);
         LayerShellLibrary.SetMargin(window, Edge.Top, top);
         shown.Window.Origin = (place.X + left, place.Y + top);
-        if (picture is not null)
-        {
-            shown.Window.Show(picture, offset);
-        }
-        else
-        {
-            shown.Window.Place(offset);
-        }
-
-        return (shown.Window, monitor);
+        var shows = picture is not null ? shown.Window.Show(picture, offset) : shown.Window.Place(offset);
+        return ((shown.Window, monitor), shows);
     }
 
     // Each monitor measured again, as one came or went: the overlays show once every monitor is.

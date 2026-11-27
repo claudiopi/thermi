@@ -2,7 +2,7 @@
 
 thermi's GNOME Shell extension, in JavaScript, for GNOME Shell 46 to 51 (`docs/adr/0019-linux.md`). GNOME gives no program a way above the top bar and every window on Wayland, nor click-through, so on GNOME the overlay shows from inside the Shell: the extension puts each picture `thermi` paints in the Shell's top layer, draws Core's menus as the Shell's own popup menus, and sends back the pointer and the monitors over the session's D-Bus. It decides and paints nothing itself.
 
-`metadata.json` names the Shell versions it runs on and, as `thermi-protocol`, the version of the protocol it speaks, which `thermi` checks before it shows anything through it; `extension.js` is the extension. A change to the protocol raises both that number and `ShellLink.Protocol` in `src/Thermi.Linux/Gnome/ShellLink.cs`.
+`metadata.json` names the Shell versions it runs on and, as `thermi-protocol`, the version of the protocol it speaks, which `thermi` checks before it shows anything through it; `extension.js` is the extension, `protocol.js` the D-Bus interface it serves, and `pointerWatch.js` its read of the pointer anywhere while an overlay fades. A change to the protocol raises both that number and `ShellLink.Protocol` in `src/Thermi.Linux/Gnome/ShellLink.cs`.
 
 | What | Who sends it |
 | --- | --- |

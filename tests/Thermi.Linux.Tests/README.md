@@ -8,6 +8,7 @@ They never touch the person's desktop: each compositor and process a test starts
 | --- | --- |
 | `Acceptance` | The tests spec 006's acceptance steps name. |
 | `Desktops` | A headless desktop of the test's own, and what a person and the desktop do on it. |
+| `Desktops/X11` | The X servers the desktops run on, Xvfb and Xorg on its dummy driver, and Xfce's desktop. |
 | `Gnome` | What thermi's GNOME Shell extension takes from the session's bus and the pointer, with a stand-in for thermi. |
 | `Readers` | The service's readers over trees made for hardware the recorded PCs lack. |
 

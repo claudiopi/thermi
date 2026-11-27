@@ -237,7 +237,10 @@ internal sealed class OverlayPress(int index, Settings settings, IPressHost host
     /// <summary>Whether a floating overlay takes a resize by its corner: a snapped or locked one keeps its size.</summary>
     public static bool Resizable(OverlayConfig overlay) => overlay.Snapped is null && !overlay.Locked;
 
-    /// <summary>Whether <paramref name="cursor"/> is on the resizing corner of a floating overlay at <paramref name="at"/>, drawn <paramref name="size"/> big.</summary>
+    /// <summary>
+    /// Whether <paramref name="cursor"/> is on the resizing corner of a floating overlay at <paramref name="at"/>, drawn
+    /// <paramref name="size"/> big.
+    /// </summary>
     public static bool InCorner(OverlayConfig overlay, Size size, float scale, Position at, Position cursor)
     {
         if (!Resizable(overlay))

@@ -7,31 +7,11 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {PointerWatch} from './pointerWatch.js';
+import {OVERLAY, PATH, XML} from './protocol.js';
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
-// the pointer, the monitors and the menu's choice back. It decides nothing. The protocol's version is metadata.json's
-// thermi-protocol, which thermi checks before it shows anything through it.
-const OVERLAY = 'io.github.claudiopi.thermi.Overlay';
-const PATH = '/io/github/claudiopi/thermi';
-const SHELL = 'io.github.claudiopi.thermi.Shell';
-const XML = `<node><interface name="${SHELL}">
-  <property name="Protocol" type="u" access="read"/>
-  <method name="Show"><arg type="u" direction="in"/><arg type="ay" direction="in"/><arg type="i" direction="in"/>
-    <arg type="i" direction="in"/><arg type="i" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
-    <arg type="d" direction="in"/><arg type="a(dddd)" direction="in"/></method>
-  <method name="Move"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/></method>
-  <method name="Hide"><arg type="u" direction="in"/></method>
-  <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
-    <arg type="a(issbbb)" direction="in"/></method>
-  <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
-  <method name="Watch"><arg type="b" direction="in"/></method>
-  <signal name="Ready"><arg type="u"/></signal>
-  <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
-    <arg type="u"/><arg type="d"/><arg type="d"/></signal>
-  <signal name="Key"><arg type="u"/><arg type="s"/></signal>
-  <signal name="MonitorsChanged"><arg type="a(ddddddbbdddd)"/></signal>
-  <signal name="Chosen"><arg type="u"/><arg type="i"/></signal>
-</interface></node>`;
+// the pointer, the monitors and the menu's choice back. It decides nothing. The protocol is protocol.js's.
 
 // Cairo's ARGB32, as thermi paints, on a little-endian machine.
 const FORMAT = Cogl.PixelFormat.BGRA_8888_PRE;
@@ -43,11 +23,6 @@ const MOST_SIDE = 16384;
 const MOST_SCALE = 16;
 const MOST_BOXES = 512;
 const MOST_ROWS = 256;
-
-// While thermi watches, the pointer anywhere is read as often as thermi reads it on Windows, and sent only when it moved,
-// as a Pointer of kind near on no overlay.
-const WATCH_EVERY = 100;
-const NO_OVERLAY = 0xffffffff;
 
 const finite = (...numbers) => numbers.every(Number.isFinite);
 
@@ -69,6 +44,7 @@ export default class ThermiExtension extends Extension {
     enable() {
         this._overlays = new Map();
         this._owner = null;
+        this._pointer = new PointerWatch(values => this._emit('Pointer', '(usdduuudd)', values));
         this._service = Gio.DBusExportedObject.wrapJSObject(XML, this);
         this._service.export(Gio.DBus.session, PATH);
         this._watch = Gio.bus_watch_name(Gio.BusType.SESSION, OVERLAY, Gio.BusNameWatcherFlags.NONE,
@@ -125,7 +101,7 @@ export default class ThermiExtension extends Extension {
     }
 
     WatchAsync(args, invocation) {
-        this._answer(invocation, () => this._watchPointer(...args));
+        this._answer(invocation, () => this._pointer.set(...args));
     }
 
     // Each monitor, with the top bar's height on the one that shows it, and the left and right edges of the bar's centre box,
@@ -207,6 +183,9 @@ export default class ThermiExtension extends Extension {
             return;
         shown.picture.set_position(x, y);
         shown.clicks.forEach(click => click.set_position(x + click.thermiAt[0], y + click.thermiAt[1]));
+        // Asked for its box, the stage lays the picture out now, not at its next frame: the Shell's screenshot paints the
+        // stage as last laid out, which would draw a new picture in the old one's size and place.
+        shown.picture.get_allocation_box();
     }
 
     _raise(overlay) {
@@ -279,30 +258,6 @@ export default class ThermiExtension extends Extension {
         menu.open();
     }
 
-    _watchPointer(on) {
-        if (!on) {
-            this._unwatchPointer();
-            return;
-        }
-        if (this._watching)
-            return;
-        let last = '';
-        this._watching = GLib.timeout_add(GLib.PRIORITY_DEFAULT, WATCH_EVERY, () => {
-            const [x, y, mods] = global.get_pointer();
-            if (`${x},${y}` !== last) {
-                last = `${x},${y}`;
-                this._emit('Pointer', '(usdduuudd)', [NO_OVERLAY, 'near', x, y, 0, mods, global.get_current_time(), 0, 0]);
-            }
-            return GLib.SOURCE_CONTINUE;
-        });
-    }
-
-    _unwatchPointer() {
-        if (this._watching)
-            GLib.source_remove(this._watching);
-        this._watching = 0;
-    }
-
     _monitorsChanged() {
         this._emit('MonitorsChanged', '(a(ddddddbbdddd))', [this.Monitors()]);
     }
@@ -363,7 +318,10 @@ export default class ThermiExtension extends Extension {
             }
             return pointer('press', event, event.get_button());
         };
+        // Clutter tells each turn of the wheel twice, as itself and as the other kind's emulation of it: thermi takes it once.
         const scroll = event => {
+            if (event.get_flags() & Clutter.EventFlags.FLAG_POINTER_EMULATED)
+                return Clutter.EVENT_STOP;
             const step = {[Clutter.ScrollDirection.UP]: [0, -1], [Clutter.ScrollDirection.DOWN]: [0, 1]};
             const delta = event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH
                 ? event.get_scroll_delta() : step[event.get_scroll_direction()] ?? [0, 0];
@@ -414,7 +372,7 @@ export default class ThermiExtension extends Extension {
 
     // thermi went: nothing of what it showed stays.
     _clear() {
-        this._unwatchPointer();
+        this._pointer.stop();
         for (const overlay of [...this._overlays.keys()])
             this._hide(overlay);
     }

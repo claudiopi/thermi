@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Settings;
+using Thermi.Linux.Tests.Desktops.X11;
 
 namespace Thermi.Linux.Tests.Desktops;
 
@@ -21,7 +22,7 @@ internal enum DesktopKind
     /// <summary>Sway, wlroots' compositor, with layer surfaces, and its own bar at the top.</summary>
     Sway,
 
-    /// <summary>An X11 desktop: Xvfb, Xfce's window manager and its panel at the top.</summary>
+    /// <summary>An X11 desktop as Xfce's (<see cref="XfceDesktop"/>), on two monitors when asked.</summary>
     X11,
 
     /// <summary>A Wayland compositor with neither GNOME Shell nor layer surfaces: Weston's kiosk shell.</summary>
@@ -39,30 +40,9 @@ internal sealed record TestMonitor(int Width, int Height, double Scale = 1);
 /// </summary>
 internal sealed class TestDesktop : IAsyncDisposable
 {
-    // Xfce's panel as a person's first sign-in leaves it, so it asks nothing: one panel at the top of the primary monitor,
-    // with the window buttons alone, and no tray of its own, which would take the tests' StatusNotifierWatcher's name.
-    private const string XfcePanel = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <channel name="xfce4-panel" version="1.0">
-          <property name="configver" type="int" value="2"/>
-          <property name="panels" type="array">
-            <value type="int" value="1"/>
-            <property name="panel-1" type="empty">
-              <property name="position" type="string" value="p=6;x=0;y=0"/>
-              <property name="length" type="uint" value="100"/>
-              <property name="position-locked" type="bool" value="true"/>
-              <property name="size" type="uint" value="40"/>
-              <property name="output-name" type="string" value="Primary"/>
-              <property name="plugin-ids" type="array">
-                <value type="int" value="1"/>
-              </property>
-            </property>
-          </property>
-          <property name="plugins" type="empty">
-            <property name="plugin-1" type="string" value="tasklist"/>
-          </property>
-        </channel>
-        """;
+    // The tests' panel, or its pixel alone, on a compositor nested in X11, which says when the screen shows what was sent before.
+    private SessionProcess? _panel;
+    private XfceDesktop? _xfce;
 
     private TestDesktop(DesktopKind kind, OwnSession session, double scale)
     {
@@ -100,7 +80,7 @@ internal sealed class TestDesktop : IAsyncDisposable
                 DesktopKind.Gnome or DesktopKind.GnomeX11 => desktop.StartGnomeAsync(monitors, extension, cancel),
                 DesktopKind.KWin => desktop.StartKWinAsync(monitors, cancel),
                 DesktopKind.Sway => desktop.StartSwayAsync(monitors, cancel),
-                DesktopKind.X11 => desktop.StartX11Async(monitors, cancel),
+                DesktopKind.X11 => desktop.StartXfceAsync(monitors, cancel),
                 DesktopKind.BareWayland => desktop.StartWestonAsync(monitors[0], cancel),
                 _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown desktop."),
             }).ConfigureAwait(false);
@@ -140,13 +120,14 @@ internal sealed class TestDesktop : IAsyncDisposable
                 await ConfigureGnomeAsync(monitors, swapped: true, cancel).ConfigureAwait(false);
                 break;
             case DesktopKind.X11:
-                await SetX11MonitorsAsync(monitors, swapped: true, cancel).ConfigureAwait(false);
+                await _xfce!.SwapAsync(monitors, cancel).ConfigureAwait(false);
+                await WaitForNameAsync("org.xfce.Panel", cancel).ConfigureAwait(false);
                 break;
             case DesktopKind.KWin:
                 var moved = await Session.RunAsync(
                     "kscreen-doctor", [$"output.1.position.{monitors[1].Width},0", "output.2.position.0,0"], QtOnWayland, cancel).ConfigureAwait(false);
                 _ = moved.Exit == 0 ? 0 : throw new InvalidOperationException($"KWin moved no monitor: {moved.Error}");
-                await PlaceKWinMonitorsAsync(monitors, swapped: true, cancel).ConfigureAwait(false);
+                await XServers.PlaceNestedAsync(Session, monitors, swapped: true, cancel).ConfigureAwait(false);
                 break;
             case DesktopKind.Sway or DesktopKind.BareWayland:
             default:
@@ -181,12 +162,16 @@ internal sealed class TestDesktop : IAsyncDisposable
     public async Task<string> ScreenshotAsync(CancellationToken cancel)
     {
         var file = Path.Combine(Session.Home, $"screen-{Guid.NewGuid():N}.png");
+        if (_panel is not null)
+        {
+            await TestPanel.FramedAsync(_panel, cancel).ConfigureAwait(false);
+        }
+
         (string Program, string[] Args) shot = Kind switch
         {
             DesktopKind.Gnome or DesktopKind.GnomeX11 =>
                 ("gdbus", Call("org.gnome.Shell.Screenshot", "/org/gnome/Shell/Screenshot", "Screenshot", "false", "false", $"'{file}'")),
-            DesktopKind.Sway => ("grim", [file]),
-            DesktopKind.X11 or DesktopKind.KWin => ("import", ["-window", "root", file]),
+            DesktopKind.X11 or DesktopKind.KWin or DesktopKind.Sway => ("import", ["-window", "root", file]),
             DesktopKind.BareWayland => throw new NotSupportedException("Weston's kiosk shell takes no screenshot for tests."),
             _ => throw new InvalidOperationException($"Unknown desktop {Kind}."),
         };
@@ -234,7 +219,7 @@ internal sealed class TestDesktop : IAsyncDisposable
         {
             var options = await Session.RunAsync("gnome-shell", ["--help-all"], cancel: cancel).ConfigureAwait(false);
             Assert.SkipUnless(options.Out.Contains(" --x11 ", StringComparison.Ordinal), "This GNOME Shell runs on no X11: GNOME 50 removed it.");
-            await StartXvfbAsync(monitors, cancel).ConfigureAwait(false);
+            await XServers.StartXvfbAsync(Session, monitors, cancel).ConfigureAwait(false);
             shell = ["--x11"];
         }
 
@@ -280,7 +265,13 @@ internal sealed class TestDesktop : IAsyncDisposable
     // tests show their own.
     private async Task StartKWinAsync(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
     {
-        await StartXvfbAsync(monitors, cancel).ConfigureAwait(false);
+        // No animation: a window that fades in shows half drawn after its first frame. No screen lock: KWin locks after
+        // five minutes without input, and a test may wait that long on a slow machine.
+        var config = Directory.CreateDirectory(Session.Variables["XDG_CONFIG_HOME"]).FullName;
+        await File.WriteAllLinesAsync(Path.Combine(config, "kdeglobals"), ["[KDE]", "AnimationDurationFactor=0"], cancel).ConfigureAwait(false);
+        await File.WriteAllLinesAsync(Path.Combine(config, "kscreenlockerrc"), ["[Daemon]", "Autolock=false", "LockOnResume=false"], cancel)
+            .ConfigureAwait(false);
+        await XServers.StartXvfbAsync(Session, monitors, cancel).ConfigureAwait(false);
         var first = monitors[0];
         var kwin = await Session.StartAsync(
             "kwin_wayland",
@@ -289,92 +280,49 @@ internal sealed class TestDesktop : IAsyncDisposable
             new Dictionary<string, string> { ["KWIN_WAYLAND_NO_PERMISSION_CHECKS"] = "1" },
             cancel).ConfigureAwait(false);
         _ = await kwin.ReadyAsync(cancel).ConfigureAwait(false) == "ready" ? 0 : throw new InvalidOperationException($"KWin never started: {kwin.Error.Text}");
-        await PlaceKWinMonitorsAsync(monitors, swapped: false, cancel).ConfigureAwait(false);
-        await TestPanel.ShowAsync(Session, cancel).ConfigureAwait(false);
+        await XServers.PlaceNestedAsync(Session, monitors, swapped: false, cancel).ConfigureAwait(false);
+        _panel = await TestPanel.ShowAsync(Session, cancel).ConfigureAwait(false);
     }
 
     // Qt's programs of KDE's reach KWin only on Wayland, where the session's X server is the one KWin runs in.
     private static readonly Dictionary<string, string> QtOnWayland = new() { ["QT_QPA_PLATFORM"] = "wayland" };
 
-    // KWin's monitors' windows, in the order KWin made them, each moved to where its monitor is, from the left. KWin names
-    // them only by _NET_WM_NAME, which xwininfo reads and xdotool's search does not.
-    private async Task PlaceKWinMonitorsAsync(IReadOnlyList<TestMonitor> monitors, bool swapped, CancellationToken cancel)
-    {
-        var found = await Session.RunAsync("xwininfo", ["-root", "-children"], cancel: cancel).ConfigureAwait(false);
-        var windows = found.Out.Split('\n')
-            .Where(line => line.Contains("\"KDE Wayland Compositor", StringComparison.Ordinal))
-            .Select(line => Convert.ToInt64(line.Trim().Split(' ')[0], 16))
-            .Order()
-            .ToList();
-        var order = swapped ? Enumerable.Range(0, monitors.Count).Reverse().ToList() : [.. Enumerable.Range(0, monitors.Count)];
-        var left = 0;
-        foreach (var index in order)
-        {
-            var place = await Session.RunAsync("xdotool", ["windowmove", $"{windows[index]}", $"{left}", "0"], cancel: cancel).ConfigureAwait(false);
-            left += place.Exit == 0 ? monitors[index].Width : throw new InvalidOperationException($"No window of KWin's moved: {place.Error}");
-        }
-    }
-
-    // Sway headless, one output per monitor at its scale, side by side, and its bar at the top of the first; its config's
+    // Sway nested in an X server of the test's own, as KWin is, for the input its headless outputs take from no tool: one
+    // output per monitor at its scale, side by side, and its bar at the top of the first, without Xwayland; its config's
     // last line says it is ready, once the session's Wayland display names Sway's socket, which Sway names itself.
     private async Task StartSwayAsync(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
     {
+        await XServers.StartXvfbAsync(Session, monitors, cancel).ConfigureAwait(false);
         var config = Path.Combine(Session.Home, "sway.config");
         var left = 0;
         var outputs = monitors.Select((monitor, index) =>
         {
             var line = string.Create(
                 CultureInfo.InvariantCulture,
-                $"output HEADLESS-{index + 1} mode {monitor.Width}x{monitor.Height} position {left} 0 scale {monitor.Scale}");
+                $"output X11-{index + 1} mode {monitor.Width}x{monitor.Height} position {left} 0 scale {monitor.Scale}");
             left += (int)(monitor.Width / monitor.Scale);
             return line;
         });
-        string[] bar = ["bar {", "  position top", "  output HEADLESS-1", "}"];
+        // The bar as tall as the tests' panel elsewhere, so an overlay shows on it at its size, as on GNOME's top bar.
+        string[] bar = ["xwayland disable", "bar {", "  position top", "  output X11-1", $"  height {TestPanel.Height}", "}"];
         string ready = $"exec sh -c 'ln -s \"$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY\" \"$XDG_RUNTIME_DIR/{OwnSession.WaylandDisplay}\" && echo ready'";
         await File.WriteAllLinesAsync(config, [.. outputs, .. bar, ready], cancel).ConfigureAwait(false);
-        // wlroots draws to no screen and reads no device of the PC's.
-        var headless = new Dictionary<string, string> { ["WLR_BACKENDS"] = "headless", ["WLR_LIBINPUT_NO_DEVICES"] = "1" };
-        await (await Session.StartAsync("sway", ["--config", config], headless, cancel).ConfigureAwait(false)).ReadyAsync(cancel).ConfigureAwait(false);
-    }
-
-    private async Task StartX11Async(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
-    {
-        var channels = Directory.CreateDirectory(Path.Combine(Session.Variables["XDG_CONFIG_HOME"], "xfce4", "xfconf", "xfce-perchannel-xml"));
-        await File.WriteAllTextAsync(Path.Combine(channels.FullName, "xfce4-panel.xml"), XfcePanel, cancel).ConfigureAwait(false);
-        // Xfce's programs keep their settings in xfconfd, which the session's bus starts when they ask.
-        Session.Activates("org.xfce.Xfconf");
-        await StartXvfbAsync(monitors, cancel).ConfigureAwait(false);
-        await Session.StartAsync("xfwm4", [], cancel: cancel).ConfigureAwait(false);
-        await Session.StartAsync("xfce4-panel", [], cancel: cancel).ConfigureAwait(false);
-        await WaitForNameAsync("org.xfce.Panel", cancel).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Lays the monitors out side by side as RandR monitors of the X server's one screen, from the left, or from the right
-    /// when swapped: each keeps its name, the first primary, as a person's monitors do when they move.
-    /// </summary>
-    public async Task SetX11MonitorsAsync(IReadOnlyList<TestMonitor> monitors, bool swapped, CancellationToken cancel)
-    {
-        var order = swapped ? monitors.Select((monitor, index) => index).Reverse().ToList() : [.. Enumerable.Range(0, monitors.Count)];
-        var left = 0;
-        foreach (var index in order)
+        // wlroots draws with no GPU into windows of the session's X server, and reads its input from there alone.
+        var nested = new Dictionary<string, string>
         {
-            var monitor = monitors[index];
-            var geometry = string.Create(CultureInfo.InvariantCulture, $"{monitor.Width}/0x{monitor.Height}/0+{left}+0");
-            var name = index == 0 ? "*thermi-0" : $"thermi-{index}";
-            var set = await Session.RunAsync("xrandr", ["--setmonitor", name, geometry, "none"], cancel: cancel).ConfigureAwait(false);
-            left += set.Exit == 0 ? monitor.Width : throw new InvalidOperationException($"xrandr took no monitor: {set.Error}");
-        }
+            ["WLR_BACKENDS"] = "x11",
+            ["WLR_RENDERER"] = "pixman",
+            ["WLR_X11_OUTPUTS"] = $"{monitors.Count}",
+        };
+        await (await Session.StartAsync("sway", ["--config", config], nested, cancel).ConfigureAwait(false)).ReadyAsync(cancel).ConfigureAwait(false);
+        await XServers.PlaceNestedAsync(Session, monitors, swapped: false, cancel).ConfigureAwait(false);
+        _panel = await TestPanel.ShowAsync(Session, cancel, panel: false).ConfigureAwait(false);
     }
 
-    // Xvfb writes the display it took once it serves it.
-    private async Task StartXvfbAsync(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
+    private async Task StartXfceAsync(IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
     {
-        var size = $"{monitors.Sum(monitor => monitor.Width)}x{monitors.Max(monitor => monitor.Height)}x24";
-        var dpi = (96 * monitors[0].Scale).ToString("0", CultureInfo.InvariantCulture);
-        var server = await Session.StartAsync("Xvfb", ["-displayfd", "1", "-screen", "0", size, "-dpi", dpi], cancel: cancel).ConfigureAwait(false);
-        Session.X11Display = $":{await server.ReadyAsync(cancel).ConfigureAwait(false)}";
-        await SetX11MonitorsAsync(monitors, swapped: false, cancel).ConfigureAwait(false);
+        _xfce = await XfceDesktop.StartAsync(Session, monitors, cancel).ConfigureAwait(false);
+        await WaitForNameAsync("org.xfce.Panel", cancel).ConfigureAwait(false);
     }
 
     // Weston's kiosk shell offers neither the Shell's extension nor layer surfaces; the client it starts says it is up, and
