@@ -57,7 +57,6 @@ internal static class ThermiCommandLine
     {
         var trace = new Option<bool>(TraceOption) { Recursive = true, Description = "Logs each paint, input and the window's first frame too." };
 
-        // The window's texts made longer, to see what a long translation does to it.
         var pseudo = new Option<bool>("--pseudo") { Recursive = true, Hidden = true };
         var root = new RootCommand("thermi: a light, always-on-top hardware monitor.") { trace, pseudo };
         var (cpuLoad, load) = CpuLoadCommand.Create();

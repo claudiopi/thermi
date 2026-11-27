@@ -333,7 +333,19 @@ export default class ThermiExtension extends Extension {
             this._emit('Pointer', '(usdduuudd)', [overlay, kind, px, py, button, event.get_state(), event.get_time(), dx, dy]);
             return Clutter.EVENT_STOP;
         };
+        // While no press of thermi's holds, the box takes only what happens inside it: once a menu that held the pointer
+        // closes, GNOME 50 can hand the next press, wherever it is, to the box the pointer was on before the menu.
+        const ours = event => {
+            if (this._overlays.get(overlay)?.grab)
+                return true;
+            const [px, py] = event.get_coords();
+            const [left, top] = click.get_transformed_position();
+            const [wide, high] = click.get_transformed_size();
+            return px >= left && py >= top && px < left + wide && py < top + high;
+        };
         click.connect('button-press-event', (actor, event) => {
+            if (!ours(event))
+                return Clutter.EVENT_PROPAGATE;
             const shown = this._overlays.get(overlay);
             if (shown && !shown.grab && event.get_button() === Clutter.BUTTON_PRIMARY) {
                 shown.focus = global.stage.get_key_focus();
@@ -343,13 +355,17 @@ export default class ThermiExtension extends Extension {
             return pointer('press', event, event.get_button());
         });
         click.connect('button-release-event', (actor, event) => {
+            if (!ours(event))
+                return Clutter.EVENT_PROPAGATE;
             if (event.get_button() === Clutter.BUTTON_PRIMARY)
                 this._release(this._overlays.get(overlay));
             return pointer('release', event, event.get_button());
         });
-        click.connect('motion-event', (actor, event) => pointer('motion', event));
+        click.connect('motion-event', (actor, event) => ours(event) ? pointer('motion', event) : Clutter.EVENT_PROPAGATE);
         click.connect('leave-event', (actor, event) => pointer('leave', event));
         click.connect('scroll-event', (actor, event) => {
+            if (!ours(event))
+                return Clutter.EVENT_PROPAGATE;
             const step = {[Clutter.ScrollDirection.UP]: [0, -1], [Clutter.ScrollDirection.DOWN]: [0, 1]};
             const delta = event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH
                 ? event.get_scroll_delta() : step[event.get_scroll_direction()] ?? [0, 0];

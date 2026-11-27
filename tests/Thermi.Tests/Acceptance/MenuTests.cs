@@ -91,17 +91,12 @@ public sealed class MenuTests
         "looks",
         "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays | Exit",
         $"Settings* | {Graph} Look Look Look+ Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
-    // A desktop whose overlay cannot reach the clipboard offers no copy of it.
+    // An update ready; and a desktop whose overlay cannot reach the clipboard offers no copy of it.
     [InlineData(
         "{}",
-        "nocopy",
-        "Settings* TaskManager Vertical ClickThrough Lock HideOverlays | Exit",
+        "update nocopy",
+        "Settings* TaskManager Vertical ClickThrough Lock HideOverlays Update | Exit",
         $"Settings* | {Graph} Vertical {Size} Lock | TaskManager | HideOverlays | Exit")]
-    [InlineData(
-        "{}",
-        "update",
-        "Settings* TaskManager CopyImage Vertical ClickThrough Lock HideOverlays Update | Exit",
-        $"Settings* | {Graph} Vertical {Size} Lock | CopyImage TaskManager | HideOverlays | Exit")]
     // On a pill: of several, on the taskbar or the desktop, it can be separated; not the overlay's only pill, nor while the
     // overlay is hidden or locked, which a hold to lift the pill is not either; once no other overlay fits, grayed with why.
     [InlineData(
