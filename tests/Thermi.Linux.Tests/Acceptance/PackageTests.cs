@@ -120,6 +120,7 @@ public sealed class PackageTests
         // The build and a newer one, each published as the release workflow publishes a version from the packages it packed.
         var (first, next) = (Built.PackedVersion(Built.Packages), Built.PackedVersion(Built.Newer));
         await levers.RunAsync(["publish", first, "--channel", "stable"], cancel);
+        levers.Snapshot();
         // The first version from the channel's own files, which adds the repository, then pointed at the channel the test serves.
         await pc.MustAsync($"{tool.Prepare()} && {tool.InstallFromChannel("thermi-sensors", first)} && {tool.Served()}", cancel);
         const string Serving = "systemctl show -p MainPID --value thermi-sensors.service";
@@ -132,9 +133,9 @@ public sealed class PackageTests
 
         await levers.RunAsync(["publish", next, "--channel", "stable"], cancel, Built.Newer);
         var newer = await UpdatedAsync(pc, tool, cancel);
-        // The old service is gone, though a client held it, and the one that serves now runs the new files.
-        var restarted = await pc.MustAsync(
-            $"[ ! -e /proc/{before} ] && systemctl start thermi-sensors.service && readlink /proc/$({Serving})/exe", cancel);
+        // The old service is gone, though a client held it, and the process that serves now is the new version's.
+        var serving = (await pc.MustAsync($"[ ! -e /proc/{before} ] && systemctl start thermi-sensors.service && {Serving}", cancel)).Trim();
+        var serves = await pc.MustAsync($"/proc/{serving}/exe --version", cancel);
         await levers.RunAsync(["rollback", "--channel", "stable"], cancel);
         var rolledBack = await UpdatedAsync(pc, tool, cancel);
         // The version before, published under a higher number, so every PC takes it.
@@ -146,19 +147,30 @@ public sealed class PackageTests
         await levers.ServeForeignAsync(cancel);
         var foreign = await pc.RunAsync(tool.Update(), cancel);
         var keptFromForeign = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
-        await levers.ServeOlderAsync(cancel);
-        var older = await pc.RunAsync(tool.Update(), cancel);
+        // The offer before the last, offered again: apt holds it as its newest Release, which it would not be if signed then.
+        await levers.RunAsync(["restore", "--before-last", "--channel", "stable"], cancel);
+        var restored = await UpdatedAsync(pc, tool, cancel);
+        var heldRestored = tool.HeldRelease is { } read ? (await pc.MustAsync(read, cancel)).Trim() : null;
+        // A mirror's copy of the channel as it first was, of a version older than the PC's: it never takes the PC back.
+        var restoredDate = levers.ServedDate();
+        levers.ServeSnapshot();
+        await pc.RunAsync(tool.Update(), cancel);
         var keptFromOlder = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
+        var heldOlder = tool.HeldRelease is { } again ? (await pc.MustAsync(again, cancel)).Trim() : null;
 
         Assert.StartsWith(next, newer, StringComparison.Ordinal);
-        Assert.Equal("/usr/lib/thermi/thermi-sensors", restarted.Trim());
+        Assert.NotEqual(before, serving);
+        Assert.StartsWith(next, serves.Trim(), StringComparison.Ordinal);
         Assert.NotEqual(newer, rolledBack);
         Assert.StartsWith(first, runs.Trim(), StringComparison.Ordinal);
         Assert.Equal(rolledBack, disabled);
         Assert.Equal(rolledBack, keptFromForeign);
         Assert.Matches(tool.Unsigned, foreign.Out + foreign.Error);
+        Assert.Equal(rolledBack, restored);
         Assert.Equal(rolledBack, keptFromOlder);
-        Assert.Matches(tool.NothingNewer, older.Out + older.Error);
+        // apt keeps the newest Release it read; dnf, which has no such check, reads the older index but installs nothing older.
+        Assert.Equal(tool.HeldRelease is null ? null : restoredDate, heldRestored);
+        Assert.Equal(heldRestored, heldOlder);
     }
 
     [Fact(Skip = "Waiting for its code")]
@@ -312,8 +324,8 @@ public sealed class PackageTests
         /// <summary>What the system's updater says of a repository whose signature it refused.</summary>
         public string Unsigned => Format == "deb" ? "NO_PUBKEY|is not signed" : "(?i)signature";
 
-        /// <summary>What the system's updater says when it finds nothing newer than what the PC holds.</summary>
-        public string NothingNewer => Format == "deb" ? @"\b0 upgraded\b" : "Nothing to do";
+        /// <summary>The Date of the channel's Release apt holds, read last; dnf keeps no such thing to compare.</summary>
+        public string? HeldRelease => Format == "deb" ? "sed -n 's/^Date: //p' /var/lib/apt/lists/*_dists_stable_InRelease" : null;
 
         // The repository the package added, pointed at the levers' channel the test serves.
         public string Served() => Format == "deb"
@@ -355,7 +367,30 @@ public sealed class PackageTests
             await RunAsync(["sign", "--key", foreign, "--channel", "stable"], cancel);
         }
 
-        /// <summary>The channel as it was before the last lever, older than the one the PC holds.</summary>
-        public Task ServeOlderAsync(CancellationToken cancel) => RunAsync(["restore", "--before-last", "--channel", "stable"], cancel);
+        // A copy of the channel's indexes as served now, as a mirror that stops following it keeps.
+        private string Copy => Path.Combine(session.Home, "snapshot");
+
+        private static readonly string[] Indexes = [Path.Combine("apt", "dists"), Path.Combine("rpm", "stable", "repodata")];
+
+        public void Snapshot()
+        {
+            foreach (var index in Indexes)
+            {
+                Built.Copy(Path.Combine(channel, index), Path.Combine(Copy, index));
+            }
+        }
+
+        /// <summary>The indexes <see cref="Snapshot"/> copied, served over the channel's own, with the packages they name.</summary>
+        public void ServeSnapshot()
+        {
+            foreach (var index in Indexes)
+            {
+                Built.Copy(Path.Combine(Copy, index), Path.Combine(channel, index), replace: true);
+            }
+        }
+
+        /// <summary>The Date of the Release the channel serves.</summary>
+        public string ServedDate() => File.ReadLines(Path.Combine(channel, "apt", "dists", "stable", "InRelease"))
+            .First(line => line.StartsWith("Date: ", StringComparison.Ordinal))["Date: ".Length..];
     }
 }
