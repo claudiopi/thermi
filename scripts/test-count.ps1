@@ -232,7 +232,7 @@ function Get-RaiseFaults([string]$Root, $Baseline, [string[]]$Halves, [string]$F
         $others = @(git -C $Root diff --name-only $from) + @(git -C $Root ls-files --others --exclude-standard) | Where-Object { $_ -ne $File }
         if ($others) {
             return ("This change raises the baseline of $($raised -join ' and ') in $File along with other files: " +
-                ('raise it in a change of its own, which a person approves, and which pwsh scripts/test-count.ps1 -Raise makes; ' +
+                'raise it in a change of its own, which a person approves, and which pwsh scripts/test-count.ps1 -Raise makes; ' +
                 'an agent runs it only when a person asks.')
         }
         return
