@@ -15,12 +15,12 @@ import {
   withGame,
   type Item,
 } from './fakeBridge';
-import { edge } from './edge';
+import { scrollbarsShown } from './edge';
 
 const itemIn = async (page: Page, id: string): Promise<Item> => itemOf(await settingsOf(page), id);
 
-// Edge draws its scrollbars here as the window does, where headless Edge would hide them.
-test.use({ launchOptions: { ...edge, ignoreDefaultArgs: ['--hide-scrollbars'] } });
+// The scrollbars show here as the window draws them.
+test.use({ launchOptions: scrollbarsShown });
 
 // A207: the chart's knobs by keys, box and pointer, a push past the other line, a delete, and the chart once readings stop.
 test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {

@@ -34,17 +34,25 @@ public static class BridgeCalls
     /// The page's side of the wire, run before the page's own code: <c>window.thermi</c> as the page's generated types
     /// describe it, a promise per call answered by its id, with the result exactly as C# sent it, null included, and
     /// listeners per event, each given back a function that takes it away; and every error the page leaves unhandled,
-    /// reported.
+    /// reported. It speaks whichever web view hosts the page: WebView2's messages on Windows, or WebKit's script message
+    /// handler <c>thermi</c>, whose host answers with <see cref="Dispatched"/>.
     /// </summary>
     public static string Client { get; } = $$"""
         (() => {
-          const webview = window.chrome.webview;
+          const webview = window.chrome?.webview;
+          const post = webview === undefined
+            ? (message) => window.webkit.messageHandlers.{{WebKitHandler}}.postMessage(message)
+            : (message) => webview.postMessage(message);
+          const hear = (listener) => webview === undefined
+            ? window.addEventListener('{{WebKitHandler}}', listener)
+            : webview.addEventListener('message', listener);
           const waiting = new Map();
           const listeners = new Map({{Quoted(Events)}}.map((name) => [name, []]));
-          // Each load numbers its calls apart: C# may still owe a page loaded before this one an answer, which answers nothing here.
-          const load = crypto.randomUUID();
+          // Each load numbers its calls apart: C# may still owe a page loaded before this one an answer, which answers nothing
+          // here. Not a UUID, which only a secure context makes.
+          const load = Array.from(crypto.getRandomValues(new Uint32Array(4)), (part) => part.toString(36)).join('-');
           let next = 0;
-          webview.addEventListener('message', ({ data }) => {
+          hear(({ data }) => {
             if (data.event !== undefined) {
               listeners.get(data.event)?.forEach((listener) => listener(data.value));
               return;
@@ -58,7 +66,7 @@ public static class BridgeCalls
             bridge[method] = (...args) => new Promise((resolve, reject) => {
               const id = `${load}:${next++}`;
               waiting.set(id, { resolve, reject });
-              webview.postMessage({ id, method, args: args.map((arg) => arg ?? null) });
+              post({ id, method, args: args.map((arg) => arg ?? null) });
             });
           }
           for (const name of listeners.keys()) {
@@ -74,6 +82,16 @@ public static class BridgeCalls
           window.addEventListener('unhandledrejection', (event) => report(event.reason));
         })();
         """;
+
+    /// <summary>The name of WebKit's script message handler the page posts its calls to, and of the event its answers come as.</summary>
+    public const string WebKitHandler = "thermi";
+
+    /// <summary>
+    /// The script a WebKit host runs in the page to hand it an answer or an event, as WebView2 posts one: the message, which
+    /// is JSON and so a script's value as it is, as the data of a <c>thermi</c> event on the window.
+    /// </summary>
+    public static string Dispatched(string message) =>
+        $"window.dispatchEvent(new MessageEvent('{WebKitHandler}', {{ data: {message} }}));";
 
     /// <summary>
     /// The options every value crosses the bridge with: camel case, nulls left out of objects, choices as kebab-case words.
