@@ -21,8 +21,13 @@ internal sealed class NoticeWatch
         RULES = ["type='method_call',interface='org.freedesktop.Notifications',member='Notify'",
                  "type='method_call',interface='org.gnome.Shell.Extensions',member='InstallRemoteExtension'",
                  "type='signal',interface='org.thermi.Tests',member='Sync'"]
+        # A filter sees what goes out as well as what comes in, and its None drops the message: the watcher's own call and
+        # the bus's reply go on, and the calls watched stop here, as a monitor that answered one would be cut off by the bus.
         def seen(connection, message, incoming):
+            if not incoming:
+                return message
             interface, member, body = message.get_interface(), message.get_member(), message.get_body()
+            said = None
             if interface == 'org.freedesktop.Notifications' and member == 'Notify':
                 app, _, _, summary, text, actions, _, _ = body.unpack()
                 said = {'app': app, 'summary': summary, 'actions': actions[0::2], 'labels': actions[1::2], 'id': 0}
@@ -30,11 +35,10 @@ internal sealed class NoticeWatch
                 said = {'install': body.unpack()[0]}
             elif interface == 'org.thermi.Tests' and member == 'Sync':
                 said = {'sync': body.unpack()[0]}
-            else:
-                return None
-            said['at'] = time.monotonic()
-            print(json.dumps(said), flush=True)
-            return None
+            if said is not None:
+                said['at'] = time.monotonic()
+                print(json.dumps(said), flush=True)
+            return None if message.get_message_type() == Gio.DBusMessageType.METHOD_CALL else message
         bus = Gio.DBusConnection.new_for_address_sync(
             sys.argv[1], Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None)
         bus.add_filter(seen)
