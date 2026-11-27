@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Thermi.Client;
 
 namespace Thermi.Linux.Tests;
@@ -59,6 +60,7 @@ internal sealed class OwnSession : IAsyncDisposable
     private readonly DirectoryInfo _folder;
     private readonly string _services;
     private readonly string _standIns;
+    private readonly string _dataDirs;
     private readonly List<Process> _started = [];
     private bool _busListens;
 
@@ -77,6 +79,7 @@ internal sealed class OwnSession : IAsyncDisposable
             File.SetUnixFileMode(Path.Combine(_standIns, program), OwnerOnly);
         }
 
+        _dataDirs = DataWithoutExtensions(_folder.CreateSubdirectory("data").FullName);
         Activates(Always);
     }
 
@@ -107,6 +110,7 @@ internal sealed class OwnSession : IAsyncDisposable
                 ["DISPLAY"] = X11Display,
                 ["DBUS_SESSION_BUS_ADDRESS"] = BusAddress,
                 ["LANG"] = "C.UTF-8",
+                ["XDG_DATA_DIRS"] = _dataDirs,
                 // thermi reads the service's socket first, which a PC with thermi installed serves: the session's
                 // programs read the session's own, which SensorFeed serves, alone.
                 ["THERMI_SENSORS_SOCKET"] = Path.Combine(RuntimeFolder, "thermi", "sensors.sock"),
@@ -150,14 +154,46 @@ internal sealed class OwnSession : IAsyncDisposable
     /// </summary>
     public void Activates(params IEnumerable<string> names)
     {
-        var shared = Environment.GetEnvironmentVariable("XDG_DATA_DIRS") is { Length: > 0 } dirs ? dirs : "/usr/local/share:/usr/share";
         foreach (var name in names)
         {
-            var installed = shared.Split(':').Select(dir => Path.Combine(dir, "dbus-1", "services", $"{name}.service")).FirstOrDefault(File.Exists);
+            var installed = SystemData.Select(dir => Path.Combine(dir, "dbus-1", "services", $"{name}.service")).FirstOrDefault(File.Exists);
             if (installed is not null)
             {
                 File.Copy(installed, Path.Combine(_services, $"{name}.service"), overwrite: true);
             }
+        }
+    }
+
+    // The PC's data folders, as GLib lists them.
+    private static string[] SystemData =>
+        (Environment.GetEnvironmentVariable("XDG_DATA_DIRS") is { Length: > 0 } dirs ? dirs : "/usr/local/share:/usr/share")
+            .Split(':', StringSplitOptions.RemoveEmptyEntries);
+
+    // Each of the PC's data folders as links to all it holds but GNOME Shell's extensions, which the Shell looks for there:
+    // a test's Shell and thermi see only the extensions the test puts in the session's own folder, never the person's.
+    private static string DataWithoutExtensions(string folder)
+    {
+        var mirrors = new List<string>();
+        foreach (var dir in SystemData.Where(Directory.Exists))
+        {
+            var mirror = Directory.CreateDirectory(Path.Combine(folder, mirrors.Count.ToString(CultureInfo.InvariantCulture))).FullName;
+            LinkAllBut(dir, mirror, "gnome-shell");
+            if (Directory.Exists(Path.Combine(dir, "gnome-shell")))
+            {
+                LinkAllBut(Path.Combine(dir, "gnome-shell"), Directory.CreateDirectory(Path.Combine(mirror, "gnome-shell")).FullName, "extensions");
+            }
+
+            mirrors.Add(mirror);
+        }
+
+        return string.Join(':', mirrors);
+    }
+
+    private static void LinkAllBut(string from, string to, string kept)
+    {
+        foreach (var entry in new DirectoryInfo(from).EnumerateFileSystemInfos().Where(entry => entry.Name != kept))
+        {
+            File.CreateSymbolicLink(Path.Combine(to, entry.Name), entry.FullName);
         }
     }
 

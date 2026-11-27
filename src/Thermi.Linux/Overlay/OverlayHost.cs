@@ -69,7 +69,7 @@ internal sealed class OverlayHost : IDisposable
         };
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
         _notices = new DesktopNotices(bus);
-        _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
+        _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log, Post);
         _told = new OverlayNotices(_parts, _notices, () => TextsOf(settings.Config));
     }
 

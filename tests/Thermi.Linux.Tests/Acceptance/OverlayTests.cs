@@ -184,6 +184,8 @@ public sealed class OverlayTests
             Assert.Fail($"thermi's unit ended before it showed: {await running.Error.ToEndAsync(cancel)}"
                 + await units.SystemctlAsync(["status", "--no-pager", "thermi.service"], cancel));
         }
+        // Each shot of the overlay waits for thermi's next second after it showed, so it shows the screen settled.
+        await Traced.NextAsync(units.Trace, Traced.Paint, cancel);
         var shownFirst = await desktop.ScreenshotAsync(cancel);
         var pill = config.Overlays[0].Items[0].Id;
         var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false }, pill);
@@ -199,6 +201,7 @@ public sealed class OverlayTests
         var showing = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
         await notices.ClickAsync(await told, "show-it", cancel);
         await showing;
+        await Traced.NextAsync(units.Trace, Traced.Paint, cancel);
         var shown = await desktop.ScreenshotAsync(cancel);
         var monitorName = gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor";
         await units.AddProgramAsync(gnome ? "gnome-system-monitor" : "plasma-systemmonitor", monitorName, cancel);
@@ -210,8 +213,13 @@ public sealed class OverlayTests
         var exited = await units.SystemctlAsync(["show", "-p", "SubState", "--value", "thermi.service"], cancel);
 
         Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, before, hidden, UnderTheBar, cancel));
-        Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, before, shownFirst, UnderTheBar, cancel));
-        Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, shownFirst, shown, UnderTheBar, cancel));
+        // Shown again, it is as first drawn; against the screen without it, each shot's count says which lacks it, if one does.
+        var drawn = await Pictures.ChangedAsync(desktop.Session, before, shownFirst, UnderTheBar, cancel);
+        Assert.NotEqual(0, drawn);
+        Assert.Equal(
+            (drawn, 0L),
+            (await Pictures.ChangedAsync(desktop.Session, before, shown, UnderTheBar, cancel),
+                await Pictures.ChangedAsync(desktop.Session, shownFirst, shown, UnderTheBar, cancel)));
         Assert.Equal(0, monitor.Exit);
         Assert.Equal(0, running.ExitCode);
         Assert.Equal("dead", exited);
@@ -272,17 +280,35 @@ public sealed class OverlayTests
         Assert.True(asked, thermi.Error.Text);
     }
 
-    // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself.
+    // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself,
+    // and its notice offers to ask again. With its files in place that the running Shell has not read, as right after a
+    // package put them there, it asks the same; the Shell, offline, installs nothing, so its notice says to sign in again,
+    // with no button.
     private static async Task NoneIsInstalledFromTheStoreAsync(CancellationToken cancel)
     {
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], extension: null, cancel);
         var notices = await NoticeWatch.StartAsync(desktop, cancel);
         await desktop.WriteSettingsAsync(ThermiConfig.New, cancel);
         var asked = notices.NextInstallAsync(cancel);
-        await desktop.StartThermiAsync([], cancel);
-
+        var offered = notices.NextAsync(ExtensionArrival.InstallAction, cancel);
+        var missing = await desktop.StartThermiAsync([], cancel);
         var uuid = (string)JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(TestShell.Thermi, "metadata.json"), cancel))!["uuid"]!;
         Assert.Equal(uuid, await asked);
+        await offered;
+        missing.Kill();
+        await missing.WaitForExitAsync(cancel);
+
+        var placed = Directory.CreateDirectory(Path.Combine(desktop.Session.Variables["XDG_DATA_HOME"], "gnome-shell", "extensions", uuid)).FullName;
+        foreach (var file in Directory.EnumerateFiles(TestShell.Thermi))
+        {
+            File.Copy(file, Path.Combine(placed, Path.GetFileName(file)));
+        }
+
+        var again = notices.NextInstallAsync(cancel);
+        var told = notices.NextAsync(notice => notice.Actions.Count == 0, cancel);
+        await desktop.StartThermiAsync([], cancel);
+        Assert.Equal(uuid, await again);
+        await told;
     }
 
     // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.

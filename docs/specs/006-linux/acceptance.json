@@ -81,7 +81,7 @@
       "covers": [
         "R9"
       ],
-      "description": "Given the headless Shell with an extension of another protocol version, and then with none, when thermi starts, then it shows nothing through the other version and its notice says to update; with none, it asks the Shell to install thermi's from extensions.gnome.org.",
+      "description": "Given the headless Shell with an extension of another protocol version, and then with none, when thermi starts, then it shows nothing through the other version and its notice says to update; with none, it asks the Shell to install thermi's from extensions.gnome.org and its notice offers the install; with its files in place that the running Shell has not read, it asks the same, and when the Shell does not install it, its notice says to sign in again, with no button.",
       "check": "AnExtensionOfAnotherVersionShowsNothing",
       "passes": true
     },

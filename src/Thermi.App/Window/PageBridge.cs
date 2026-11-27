@@ -298,7 +298,7 @@ internal class PageBridge : IWindowBridge, IDisposable
 
     public async Task<bool> InstallExtension()
     {
-        var installed = _host.Desktop.ExtensionFix is not null && await _host.InstallExtension();
+        var installed = _host.Desktop.ExtensionFixApplies && await _host.InstallExtension();
         Tell();
         return installed;
     }

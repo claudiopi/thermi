@@ -122,8 +122,11 @@ internal sealed class NoticeWatch
     }
 
     /// <summary>The next notice sent from this call on with a button of <paramref name="action"/>.</summary>
-    public async Task<SentNotice> NextAsync(string action, CancellationToken cancel) =>
-        Of(await _watcher.Out.NextAsync(line => Of(line)?.Actions.Contains(action) == true, cancel).ConfigureAwait(false))!;
+    public Task<SentNotice> NextAsync(string action, CancellationToken cancel) => NextAsync(notice => notice.Actions.Contains(action), cancel);
+
+    /// <summary>The next notice sent from this call on that <paramref name="which"/> takes.</summary>
+    public async Task<SentNotice> NextAsync(Func<SentNotice, bool> which, CancellationToken cancel) =>
+        Of(await _watcher.Out.NextAsync(line => Of(line) is { } notice && which(notice), cancel).ConfigureAwait(false))!;
 
     /// <summary>The next extension the Shell is asked to install from this call on, by its uuid.</summary>
     public async Task<string> NextInstallAsync(CancellationToken cancel) =>

@@ -6,10 +6,11 @@ using Thermi.Linux.Logging;
 namespace Thermi.Linux.Gnome;
 
 /// <summary>
-/// Whether the overlays may show through the Shell's extension, and what thermi does while not: missing, it asks GNOME to
-/// install it, which GNOME asks the person; missing, off or of another protocol, nothing shows, and one notice of the
-/// desktop's says why, once a run, with a button that asks GNOME again. Once the extension runs thermi's protocol, as its
-/// Ready says, the overlays show.
+/// Whether the overlays may show through the Shell's extension, and what thermi does while not: missing, or installed but
+/// not read yet by the Shell, it asks GNOME to install it from extensions.gnome.org, which GNOME asks the person and which
+/// shows the overlays at once; missing, off or of another protocol, nothing shows, and one notice of the desktop's says
+/// why, once a run, with a button that asks GNOME again; not read yet, only when GNOME did not install it does the notice
+/// say to sign in again, with no button. Once the extension runs thermi's protocol, as its Ready says, the overlays show.
 /// </summary>
 internal sealed class ExtensionArrival
 {
@@ -23,11 +24,13 @@ internal sealed class ExtensionArrival
     private readonly DesktopNotices _notices;
     private readonly Func<Texts> _texts;
     private readonly ILogger _log;
+    private readonly Action<Action> _post;
     private bool _told;
 
-    public ExtensionArrival(ShellLink link, DesktopNotices notices, Func<Texts> texts, ILogger log)
+    // The Shell's answer to an install comes on a thread of its own: post runs what follows on the loop that made the arrival.
+    public ExtensionArrival(ShellLink link, DesktopNotices notices, Func<Texts> texts, ILogger log, Action<Action> post)
     {
-        (_link, _notices, _texts, _log) = (link, notices, texts, log);
+        (_link, _notices, _texts, _log, _post) = (link, notices, texts, log, post);
         notices.Invoked += Clicked;
     }
 
@@ -42,8 +45,12 @@ internal sealed class ExtensionArrival
         {
             _link.Install();
         }
+        else if (state == ExtensionState.Unread)
+        {
+            _ = InstallUnreadAsync();
+        }
 
-        if (state is not ExtensionState.Ours and not ExtensionState.Starting)
+        if (state is not ExtensionState.Ours and not ExtensionState.Starting and not ExtensionState.Unread)
         {
             Tell(state);
         }
@@ -63,6 +70,24 @@ internal sealed class ExtensionArrival
 
     /// <summary>The extension stopped, as while the screen is locked: nothing shows, and no notice says so, until it is back.</summary>
     public void Left() => Ready = false;
+
+    // The copy from extensions.gnome.org shows the overlays at once, where the package's waits for the next sign-in.
+    private async Task InstallUnreadAsync()
+    {
+        try
+        {
+            using var answer = await _link.InstallAsync().ConfigureAwait(false);
+        }
+        catch (GLib.GException)
+        {
+            // Declined, offline, or not on the site: what the Shell has now says which.
+        }
+
+        if (_link.State() == ExtensionState.Unread)
+        {
+            _post(() => Tell(ExtensionState.Unread));
+        }
+    }
 
     private void Clicked(string action)
     {
@@ -90,6 +115,7 @@ internal sealed class ExtensionArrival
         {
             ExtensionState.Missing => (HostText.GnomeExtensionMissing, ((string, HostText)?)(InstallAction, HostText.GnomeExtensionInstall)),
             ExtensionState.OtherVersion => (HostText.GnomeExtensionOtherVersion, (UpdateAction, HostText.GnomeExtensionUpdate)),
+            ExtensionState.Unread => (HostText.GnomeExtensionNextSignIn, null),
             ExtensionState.Off or ExtensionState.Ours or ExtensionState.Starting => (HostText.GnomeExtensionOff, null),
             _ => (HostText.GnomeExtensionOff, null),
         };

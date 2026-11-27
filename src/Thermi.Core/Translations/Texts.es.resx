@@ -33,6 +33,9 @@
   <data name="HostText.GnomeExtensionOff" xml:space="preserve">
     <value>Activa la extensión de thermi en la app Extensiones de GNOME.</value>
   </data>
+  <data name="HostText.GnomeExtensionNextSignIn" xml:space="preserve">
+    <value>GNOME los muestra con la extensión de thermi, que ya está instalada: cierra la sesión y vuelve a entrar, y GNOME la activa.</value>
+  </data>
   <data name="HostText.GnomeExtensionInstall" xml:space="preserve">
     <value>Instalar</value>
   </data>
@@ -2106,6 +2109,12 @@
   </data>
   <data name="WindowText.ExtensionOtherVersionMore" xml:space="preserve">
     <value>GNOME aplica su actualización en tu próximo inicio de sesión.</value>
+  </data>
+  <data name="WindowText.ExtensionNextSignIn" xml:space="preserve">
+    <value>GNOME lee la extensión de thermi para GNOME Shell en tu próximo inicio de sesión.</value>
+  </data>
+  <data name="WindowText.ExtensionNextSignInMore" xml:space="preserve">
+    <value>Ya está instalada: cierra la sesión y vuelve a entrar, y el overlay aparece.</value>
   </data>
   <data name="WindowText.EnableExtension" xml:space="preserve">
     <value>Activarla</value>
