@@ -34,6 +34,16 @@ public sealed class PackageTests
         signal.pause()
         """;
 
+    // A system user with a graphical session of its own, as GDM's login screen runs one as gdm: its user manager, kept
+    // running, has graphical-session.target active, which a unit of its own pulls in. Its lines end as the shell reads them.
+    private static readonly string Greeter = """
+        useradd -r -m -d /var/lib/greeter greeter && mkdir -p /var/lib/greeter/.config/systemd/user
+        printf '[Unit]\nWants=graphical-session.target\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/bin/true\n' \
+            > /var/lib/greeter/.config/systemd/user/greeter-session.service
+        chown -R greeter /var/lib/greeter && loginctl enable-linger greeter && systemctl start "user@$(id -u greeter).service"
+        systemctl --user --machine=greeter@ start greeter-session.service
+        systemctl --user --machine=greeter@ is-active graphical-session.target
+        """.ReplaceLineEndings("\n");
 
     public enum Distribution
     {
@@ -61,7 +71,10 @@ public sealed class PackageTests
         // thermi-cli reads the service, which its socket starts: what the package started, which its removal stops.
         await pc.MustAsync(tool.Install("thermi-sensors"), cancel);
         var cli = await pc.RunAsync("useradd -m person && su person -c 'thermi-cli status --schema 1'", cancel);
+        await pc.MustAsync($"{tool.Sessions()} && {Greeter}", cancel);
         await pc.MustAsync(tool.Install("thermi"), cancel);
+        // The overlay starts in a person's graphical session alone: a system user's never ran it.
+        var greeter = await pc.RunAsync("systemctl --user --machine=greeter@ show -p ExecMainStartTimestampMonotonic --value thermi.service", cancel);
         var files = (await pc.MustAsync($"{tool.Files("thermi-sensors")} && {tool.Files("thermi")}", cancel)).Split('\n');
         var signed = await pc.RunAsync(tool.SignedRepository(), cancel);
         var arm64 = await pc.RunAsync(tool.Arm64(), cancel);
@@ -73,10 +86,12 @@ public sealed class PackageTests
         // Installed again after a removal, which left apt its files' record, the socket listens as on a first install.
         var listens = await pc.RunAsync("systemctl is-active thermi-sensors.socket", cancel);
         await pc.MustAsync("mkdir -p /home/person/.config/thermi && echo '{}' > /home/person/.config/thermi/config.json", cancel);
-        await pc.MustAsync(tool.Remove(), cancel);
+        await pc.MustAsync(tool.Purge(), cancel);
         var kept = await pc.RunAsync("cat /home/person/.config/thermi/config.json", cancel);
+        var linked = await pc.RunAsync("ls /etc/systemd/system/sockets.target.wants/thermi-sensors.socket", cancel);
 
         Assert.Equal(0, cli.Exit);
+        Assert.Equal("0", greeter.Out.Trim());
         // Each file spec.md lists is among the package's; the rest, the libraries it holds and the docs a distribution
         // asks of every package, may be there too.
         Assert.Empty(SensorsFiles.Concat(ThermiFiles).Except(files, StringComparer.Ordinal));
@@ -85,7 +100,9 @@ public sealed class PackageTests
         Assert.Equal("active", listens.Out.Trim());
         Assert.True(signed.Exit == 0, $"No signed repository of thermi's: {signed.Error}");
         Assert.True(arm64.Exit == 0, $"No arm64 package of the same version: {arm64.Error}");
+        // A purge, or a removal where the package manager has none, leaves each person's settings and no socket to listen.
         Assert.Equal("{}", kept.Out.Trim());
+        Assert.NotEqual(0, linked.Exit);
     }
 
     [Theory]
@@ -214,6 +231,12 @@ public sealed class PackageTests
         /// </summary>
         public string Package(string name) => Format == "pkg.tar.zst" ? $"{name}-bin" : name;
 
+        /// <summary>
+        /// What a desktop PC has for each user's own systemd, which Debian's and Ubuntu's images lack: logind's PAM module,
+        /// which starts it, and the user's bus it answers on.
+        /// </summary>
+        public string Sessions() => Format == "deb" ? Container.Installs(Image, "libpam-systemd dbus-user-session") : "true";
+
         /// <summary>The distribution's package of Python, which a test's own client runs on.</summary>
         public string Python => Format == "deb" ? "python3-minimal" : "python3";
 
@@ -251,6 +274,9 @@ public sealed class PackageTests
             "rpm" => "dnf remove -y --setopt=clean_requirements_on_remove=False thermi thermi-sensors",
             _ => $"pacman -R --noconfirm {Package("thermi")} {Package("thermi-sensors")}",
         };
+
+        // A removal of everything the packages wrote outside each person's home, which only apt tells from a removal.
+        public string Purge() => Format == "deb" ? "apt-get purge -y thermi thermi-sensors" : Remove();
 
         // The files a package installed, its folders aside, which the tools list too.
         public string Files(string package) => Format switch
