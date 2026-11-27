@@ -16,6 +16,9 @@ internal sealed partial class OverlayHost
     // The display's state as Windows gives it: off, on, or dimmed, which still shows.
     private const uint DisplayOff = 0;
 
+    // Long enough for the key that locked the session or turned its display off to be let go.
+    private static readonly TimeSpan KeyLetGo = TimeSpan.FromSeconds(1);
+
     private IDisposable? _sightWatch;
     private NotificationState _state;
     private bool _locked;
@@ -35,15 +38,15 @@ internal sealed partial class OverlayHost
 
     // Asked once a second, for whether anybody is there and for the full-screen rule, which every paint till the next tick
     // reads. A lock holds till its unlock, and a display off till it is back, unless the word was missed: a key or the
-    // mouse since, and for a lock Windows no longer saying nobody is there. Unseen, no paint reads the window in front,
-    // which "Notify me" waits on, and no overlay needs keeping on top; seen just now, they were raised as they were.
+    // mouse since, past the moment that lets go of the key that locked it or turned it off. Unseen, no paint reads the
+    // window in front, which "Notify me" waits on, and no overlay needs keeping on top; seen just now, they were raised.
     private void LookAgain()
     {
         var seen = Seen;
         _state = _environment.Sight.State();
         var input = _environment.Sight.SinceInput();
-        _locked = _locked && (_state == NotificationState.Away || input >= _actions.Time.GetElapsedTime(_lockedAt));
-        _dark = _dark && input >= _actions.Time.GetElapsedTime(_darkAt);
+        _locked = _locked && !InputSince(_lockedAt, input);
+        _dark = _dark && !InputSince(_darkAt, input);
         SightChanged(seen);
         if (!Seen)
         {
@@ -54,6 +57,8 @@ internal sealed partial class OverlayHost
             Raise();
         }
     }
+
+    private bool InputSince(long at, TimeSpan sinceInput) => _actions.Time.GetElapsedTime(at) - sinceInput > KeyLetGo;
 
     private IReadOnlyList<bool> FullScreen(ThermiConfig config, IReadOnlyList<Screen> screens)
     {
