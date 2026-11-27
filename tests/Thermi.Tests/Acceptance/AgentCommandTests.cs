@@ -32,20 +32,17 @@ public sealed class AgentCommandTests : IDisposable
     }
 
     // The ways each command ends that no test of its own already holds: an edit's 0, 1 and 4, a look's, a read's past
-    // 60 seconds and the start at sign-in's are theirs.
+    // 60 seconds, the start at sign-in's, monitors' and looks' 0, status's with the service stopped and a write's on a
+    // broken file are theirs.
     [Theory]
     [InlineData(Ending.Done, 0, "status", "--schema", "1")]
-    [InlineData(Ending.Done, 0, "monitors")]
-    [InlineData(Ending.Done, 0, "looks")]
     [InlineData(Ending.Done, 2, "read", "no.such.metric")]
     [InlineData(Ending.Done, 2, "watch", "no.such.metric")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
-    [InlineData(Ending.Stopped, 0, "status")]
     [InlineData(Ending.Stopped, 3, "read")]
     [InlineData(Ending.Stopped, 3, "sensors")]
     [InlineData(Ending.Broken, 4, "config")]
-    [InlineData(Ending.Broken, 4, "look", "save", "Night", "--overlay", "0")]
     public async Task EveryCommandEndsWithItsCode(Ending ending, int exit, params string[] args)
     {
         if (ending == Ending.Stopped)
@@ -74,12 +71,11 @@ public sealed class AgentCommandTests : IDisposable
     // From an elevated terminal, a command that may write the settings, a look, the finder's mark or the start at sign-in
     // is refused before it writes anything, as a link in the user's folders could send an elevated write anywhere; one
     // that only reads still answers.
-    [Theory]
+    [Theory] // Rows: each one operand of Writes or its other side, which Stryker makes no mutant of; a security check holds each
     [InlineData(true, "edit", """{"kind":"item","item":"cpu.load","field":"name","value":"Load"}""")]
     [InlineData(true, "look", "save", "Mine", "--overlay", "0")]
     [InlineData(true, "start-with-windows", "on")]
     [InlineData(true, "mcp")]
-    [InlineData(false, "config")]
     [InlineData(false, "start-with-windows")]
     public async Task AnElevatedCliOnlyReads(bool writes, params string[] args)
     {
@@ -94,7 +90,7 @@ public sealed class AgentCommandTests : IDisposable
 
     // The service as status finds it, with no overlay running, or a per-user install's own host, which runs only while thermi
     // does; what the commands answer does not hang on an overlay.
-    [Theory]
+    [Theory] // Rows: each an arm of the status's problems, whose answer Stryker makes no mutant of
     [InlineData(TestRecordings.Admin, ServiceState.Running, false, true, null)]
     [InlineData(TestRecordings.NoAdmin, ServiceState.Running, false, true, AgentProblem.DriverMissing)]
     [InlineData(null, ServiceState.Stopped, false, true, AgentProblem.ServiceStopped)]
@@ -111,7 +107,9 @@ public sealed class AgentCommandTests : IDisposable
         _rig.Installed = installed;
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
 
-        var status = (await _rig.RunAsync("status")).Json;
+        var asked = await _rig.RunAsync("status");
+        Assert.Equal((0, ""), (asked.Exit, asked.Error));
+        var status = asked.Json;
 
         Assert.False((bool)status["overlay"]!);
         Assert.Equal(problem is { } code ? [System.Text.Json.JsonNamingPolicy.KebabCaseLower.ConvertName(code.ToString())] : [],

@@ -79,7 +79,7 @@ public sealed class UpdateStepTests
 
     // A zip's entry lands inside the folder it is unpacked into, or the zip is refused: never a rooted path, even one inside
     // it, a drive's, a stream's, one that climbs out, even into a folder whose name starts as this one's, or a link.
-    [Theory] // Rows: each is one operand of LandsInside, or an escape A37 states; a security check holds each
+    [Theory] // Rows: each is one operand of Target, or an escape A37 states; a security check holds each
     [InlineData("thermi.dll", 0x81A4, true)]
     [InlineData("launchers/../thermi.exe", 0, true)]
     [InlineData("../outside.txt", 0, false)]
@@ -96,6 +96,6 @@ public sealed class UpdateStepTests
         var full = Path.GetFullPath(folder);
         var entry = name.Replace("FOLDER", full[(Path.GetPathRoot(full)!.Length - 1)..], StringComparison.Ordinal);
 
-        Assert.Equal(inside, ZipEntries.LandsInside(folder, entry, mode << 16));
+        Assert.Equal(inside ? Path.GetFullPath(Path.Combine(folder, entry)) : null, ZipEntries.Target(folder, entry, mode << 16));
     }
 }

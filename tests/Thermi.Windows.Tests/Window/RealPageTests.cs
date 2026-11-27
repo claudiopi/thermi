@@ -101,14 +101,24 @@ public sealed class RealPageTests
     /// <summary>
     /// The walk through A200's messages to the window, woken by a Win32 timer that only wakes the loop: once the page has
     /// told the overlay anything, so it runs, each step's message goes to the window, and the next once the page told what
-    /// that one should. The test's clock moves on at each tick, for the window's throttle of what it tells; a page that
-    /// stops answering ends the walk after 30 s of ticks.
+    /// that one should. The test's clock moves on at each tick, for the window's throttle of what it tells; 600 ticks from
+    /// before the page starts, 30 s or more as Windows rounds a timer up, end the walk, the page's start included.
     /// </summary>
     private sealed class PageWalk(List<(WindowMessage Sent, Edited? Then)> steps, FakeTimeProvider clock)
     {
         private const int MostTicks = 600;
 
         private readonly List<Edited> _edits = [];
+
+        // How the walk went, for a failure to tell a page slow to start from one that stopped answering or a window that
+        // closed on its own: the tick the page first told the overlay anything, each step's sends and answer, and whether
+        // the ticks ran out.
+        private readonly int?[] _sentAt = new int?[steps.Count];
+        private readonly int?[] _answeredAt = new int?[steps.Count];
+        private readonly int[] _refused = new int[steps.Count];
+        private int? _firstTold;
+        private int? _gaveUp;
+
         private int _ticks;
         private bool _sent;
 
@@ -168,10 +178,7 @@ public sealed class RealPageTests
             }
 
             var warned = folder.Log.Entries.Where(entry => entry.Level >= LogLevel.Warning).Select(entry => entry.Message).ToList();
-            return walk.Done && walk._focused == true && warned.Count == 0
-                ? ""
-                : $"Answered {walk.Reached} of {walk.Count} steps; the page had the focus: {walk._focused}; "
-                    + $"told the overlay {string.Join(", ", walk.Edits)}; logged {string.Join(" | ", warned)}";
+            return walk.Done && walk._focused == true && warned.Count == 0 ? "" : walk.Said(warned, folder.Log.Entries);
         }
 
         public void Told(WindowMessage message)
@@ -183,6 +190,16 @@ public sealed class RealPageTests
                     _edits.Add(edited);
                 }
             }
+        }
+
+        private string Said(List<string> warned, IReadOnlyList<ListLogger.Entry> log)
+        {
+            var ended = _gaveUp is { } at ? $"the walk gave up at tick {at}" : $"the window closed on its own after {_ticks} ticks";
+            var each = Enumerable.Range(0, Count).Select(step => $"{step}: sent {_sentAt[step]}, refused {_refused[step]}, answered {_answeredAt[step]}");
+            return $"Answered {Reached} of {Count} steps; {(Done ? "every step answered" : ended)}; the page first told the overlay at tick "
+                + $"{_firstTold}; by step, at ticks {string.Join(" | ", each)}; the page had the focus: {_focused}; "
+                + $"told the overlay {string.Join(", ", Edits)}; logged {string.Join(" | ", warned)}; "
+                + $"its log {string.Join(" | ", log.Select(entry => $"{entry.Level} {entry.Message}"))}";
         }
 
         // A200's messages to the window, each with what the page then tells the overlay it edits, or null for one that
@@ -229,21 +246,27 @@ public sealed class RealPageTests
 
         private void Tick()
         {
+            var tick = ++_ticks;
             clock.Advance(TimeSpan.FromMilliseconds(100));
             var edits = Edits;
+            _firstTold ??= edits.Count > 0 ? tick : null;
             if (_sent && (steps[Reached].Then is not { } then || (edits.Count > 0 && edits[^1] == then)))
             {
+                _answeredAt[Reached] = tick;
                 (Reached, _sent) = (Reached + 1, false);
             }
 
-            if (Done || ++_ticks > MostTicks)
+            if (Done || tick > MostTicks)
             {
+                _gaveUp ??= Done ? null : tick;
                 PInvoke.PostMessage(PInvoke.FindWindowEx(HWND.Null, HWND.Null, "thermi-window", null), PInvoke.WM_CLOSE, 0, 0);
             }
             else if (!_sent && edits.Count > 0)
             {
                 _focused ??= FocusInPage();
                 _sent = HiddenWindow.Send(HiddenWindow.WindowClass, steps[Reached].Sent);
+                _sentAt[Reached] ??= _sent ? tick : null;
+                _refused[Reached] += _sent ? 0 : 1;
             }
         }
 
