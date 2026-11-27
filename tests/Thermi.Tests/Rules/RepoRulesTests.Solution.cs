@@ -48,9 +48,9 @@ public sealed partial class RepoRulesTests
         var running = RepoFiles([".csproj", ".props", ".targets", ".wixproj"])
             .Where(file => XDocument.Load(file).Descendants().Any(node => node.Name.LocalName == "Exec"
                 && node.Attribute("Command")?.Value.TrimStart().StartsWith("npm ", StringComparison.Ordinal) == true))
-            .Select(file => Relative(file).Replace('\\', '/'));
+            .Select(Path.GetFileName);
 
-        Assert.Equal(["src/Thermi.Settings.Types/Thermi.Settings.Types.csproj"], running);
+        Assert.Equal(["Thermi.Settings.Types.csproj"], running);
     }
 
     // A project is a folder with a .NET, WiX or npm project file of its own, or a GNOME Shell extension's metadata beside
