@@ -29,7 +29,7 @@ public sealed partial class RepoRulesTests
             return spans.Concat(diagrams).Distinct(StringComparer.Ordinal);
         });
 
-        AssertNone(findings);
+        AssertNone(findings, "write each name as the code has it now, or take the backticks off what is no name of the code");
     }
 
     private static IEnumerable<string> LivingDocs() =>
