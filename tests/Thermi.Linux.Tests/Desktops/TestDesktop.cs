@@ -210,6 +210,8 @@ internal sealed class TestDesktop : IAsyncDisposable
     // On X11 the Shell takes Xvfb's screen, whose monitors are its own; on Wayland, its virtual monitors.
     private async Task StartGnomeAsync(IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel)
     {
+        // The Shell takes the desktop's notifications through a service of its own, which the session's bus starts for it.
+        Session.Activates("org.gnome.Shell.Notifications");
         await TestShell.InstallAsync(Session, extension, cancel).ConfigureAwait(false);
         string[] shell = ["--headless", "--wayland", "--wayland-display", OwnSession.WaylandDisplay,
             .. monitors.SelectMany(monitor => new[] { "--virtual-monitor", $"{monitor.Width}x{monitor.Height}" })];
@@ -294,6 +296,8 @@ internal sealed class TestDesktop : IAsyncDisposable
     {
         var channels = Directory.CreateDirectory(Path.Combine(Session.Variables["XDG_CONFIG_HOME"], "xfce4", "xfconf", "xfce-perchannel-xml"));
         await File.WriteAllTextAsync(Path.Combine(channels.FullName, "xfce4-panel.xml"), XfcePanel, cancel).ConfigureAwait(false);
+        // Xfce's programs keep their settings in xfconfd, which the session's bus starts when they ask.
+        Session.Activates("org.xfce.Xfconf");
         await StartXvfbAsync(monitors, cancel).ConfigureAwait(false);
         await Session.StartAsync("xfwm4", [], cancel: cancel).ConfigureAwait(false);
         await Session.StartAsync("xfce4-panel", [], cancel: cancel).ConfigureAwait(false);
