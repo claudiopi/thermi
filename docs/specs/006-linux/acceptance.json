@@ -174,7 +174,7 @@
       ],
       "description": "Given the four hotkeys set (a table of the GNOME extension, the GlobalShortcuts portal, X11, a combination another program holds), when each is pressed, then each does what it does on Windows, and the held one is refused with its reason.",
       "check": "HotkeysWorkOnEveryDesktop",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A20",

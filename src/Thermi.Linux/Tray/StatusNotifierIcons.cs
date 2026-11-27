@@ -34,7 +34,8 @@ internal sealed class StatusNotifierIcons : ITrayIcons
         var started = time.GetTimestamp();
         _now = () => (uint)time.GetElapsedTime(started).TotalMilliseconds;
         // A proxy hears the bus' signals, as GirCore cannot call back a subscription of the connection's own.
-        _daemon = Gio.DBusProxy.NewSync(bus, Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart, null, Bus, "/org/freedesktop/DBus", Bus, null);
+        const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
+        _daemon = Gio.DBusProxy.NewSync(bus, Flags, null, Bus, "/org/freedesktop/DBus", Bus, null);
         _daemon.OnGSignal += (_, heard) => WatcherChanged(heard.SignalName, heard.Parameters);
     }
 
