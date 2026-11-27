@@ -1,4 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Versioning;
+
+// What these tests start, compositors, sockets and the service's files, is Linux's alone.
+[assembly: SupportedOSPlatform("linux")]
 
 namespace Thermi.Linux.Tests;
 

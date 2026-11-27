@@ -47,7 +47,7 @@ public sealed class DesktopTests
         Held,
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
     public async Task TheSettingsWindowWorksOnLinux()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -95,7 +95,7 @@ public sealed class DesktopTests
         Assert.DoesNotContain(await Accessible.WindowsAsync(session, cancel), program => program.Process == window.Process);
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Tray.Gnome, Skip = "Waiting for its code")]
     [InlineData(Tray.StatusNotifier, Skip = "Waiting for its code")]
     public async Task TrayIconsShowOnEveryDesktop(Tray row)
@@ -149,7 +149,7 @@ public sealed class DesktopTests
         Assert.Equal(expected.Order(), entries.Order());
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Hotkeys.Extension, Skip = "Waiting for its code")]
     [InlineData(Hotkeys.Portal, Skip = "Waiting for its code")]
     [InlineData(Hotkeys.X11, Skip = "Waiting for its code")]
@@ -211,7 +211,7 @@ public sealed class DesktopTests
         Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, shown, hidden, OnWindow, cancel));
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
     public async Task NoticesAreTheDesktopsNotifications()
     {
         var cancel = TestContext.Current.CancellationToken;

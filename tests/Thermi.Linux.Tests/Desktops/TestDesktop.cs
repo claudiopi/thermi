@@ -200,7 +200,7 @@ internal sealed class TestDesktop : IAsyncDisposable
     // gdbus returns once the name has an owner on the session's bus, as a program that is up takes it.
     private async Task WaitForNameAsync(string name, CancellationToken cancel)
     {
-        var waited = await Session.RunAsync("gdbus", ["wait", "--session", name], cancel: cancel).ConfigureAwait(false);
+        var waited = await Session.RunAsync("gdbus", ["wait", "--session", "--timeout", Bound.LineSeconds, name], cancel: cancel).ConfigureAwait(false);
         if (waited.Exit != 0)
         {
             throw new InvalidOperationException($"{name} never came on the session's bus: {waited.Error}");

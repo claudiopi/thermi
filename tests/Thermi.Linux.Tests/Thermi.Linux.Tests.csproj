@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Tests that need Linux: the sensor service on recorded trees, its socket, and thermi against compositors of the
-       tests' own. Core's behavior is tested in Thermi.Tests. Plain net10.0, marked for Linux in LinuxOnly.cs. -->
+       tests' own. Core's behavior is tested in Thermi.Tests. Plain net10.0, marked for Linux in Program.cs. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>

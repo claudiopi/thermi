@@ -33,7 +33,7 @@ public sealed class AgentTests
     // How each shell runs a command and says the code it ended with, after what it printed, and the size its edit sets.
     private static readonly (string Shell, string Code, double Size)[] Shells = [("bash", "$?", 1.25), ("zsh", "$?", 1.5), ("fish", "$status", 1.75)];
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
     public async Task TheCliAnswersOnLinux()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -68,7 +68,7 @@ public sealed class AgentTests
         await CannotShowAsync(cancel);
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
     public async Task AWindowsFileLosesNothingOnLinux()
     {
         var cancel = TestContext.Current.CancellationToken;
