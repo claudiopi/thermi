@@ -14,17 +14,18 @@ public static class PageFiles
     public const string Index = "index.html";
 
     /// <summary>The type a file of the page is served as, or null for one the host does not know, which it does not serve.</summary>
-    public static string? TypeOf(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    public static string? TypeOf(string path) => Types.GetValueOrDefault(Path.GetExtension(path));
+
+    private static readonly Dictionary<string, string> Types = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".html" => "text/html; charset=utf-8",
-        ".js" => "text/javascript",
-        ".css" => "text/css",
-        ".svg" => "image/svg+xml",
-        ".png" => "image/png",
-        ".ico" => "image/x-icon",
-        ".woff" => "font/woff",
-        ".woff2" => "font/woff2",
-        ".json" => "application/json",
-        _ => null,
+        [".html"] = "text/html; charset=utf-8",
+        [".js"] = "text/javascript",
+        [".css"] = "text/css",
+        [".svg"] = "image/svg+xml",
+        [".png"] = "image/png",
+        [".ico"] = "image/x-icon",
+        [".woff"] = "font/woff",
+        [".woff2"] = "font/woff2",
+        [".json"] = "application/json",
     };
 }
