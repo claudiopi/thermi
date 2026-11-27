@@ -24,6 +24,7 @@ const XML = `<node><interface name="${SHELL}">
   <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
     <arg type="a(issbbb)" direction="in"/></method>
   <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
+  <method name="Activation"><arg type="u" direction="in"/><arg type="s" direction="out"/></method>
   <signal name="Ready"><arg type="u"/></signal>
   <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
     <arg type="u"/><arg type="d"/><arg type="d"/></signal>
@@ -137,16 +138,28 @@ export default class ThermiExtension extends Extension {
         });
     }
 
-    // Only thermi's overlay, the name's owner, changes what shows; any other caller, or a call out of the protocol's
-    // bounds, is refused whole.
+    // A token for a program thermi starts on a person's click at a time of the Shell's, as the dash's own launches take
+    // one: the window it shows comes in front, past GNOME's guard against windows that take the keys unasked. 0 is now, as
+    // for a menu's choice, whose click came before the menu gave the keys back to the window under it.
+    ActivationAsync([time], invocation) {
+        this._answer(invocation, () => {
+            const thermi = Gio.AppInfo.create_from_commandline('thermi', 'thermi', Gio.AppInfoCreateFlags.NONE);
+            const context = global.create_app_launch_context(time || global.display.get_current_time_roundtrip(), -1);
+            return new GLib.Variant('(s)', [context.get_startup_notify_id(thermi, []) ?? '']);
+        });
+    }
+
+    // Only thermi's overlay, the name's owner, changes what shows or takes a token; any other caller, or a call out of the
+    // protocol's bounds, is refused whole.
     _answer(invocation, act) {
         if (this._owner === null || invocation.get_sender() !== this._owner) {
             invocation.return_dbus_error('org.freedesktop.DBus.Error.AccessDenied', `Only ${OVERLAY} shows thermi's overlays.`);
             return;
         }
 
+        let answer;
         try {
-            act();
+            answer = act();
         } catch (error) {
             if (!(error instanceof Refused))
                 throw error;
@@ -154,7 +167,7 @@ export default class ThermiExtension extends Extension {
             return;
         }
 
-        invocation.return_value(null);
+        invocation.return_value(answer ?? null);
     }
 
     _show(overlay, pixels, width, height, stride, x, y, scale, clicks) {

@@ -23,6 +23,13 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
     // The system monitors GNOME, KDE and the newer GNOME apps ship, the first found opening.
     private static readonly string[] TaskManagers = ["gnome-system-monitor", "plasma-systemmonitor", "resources"];
 
+    // Where a program reads the token it was started with, as a launcher sets them: Wayland's and X11's. GIO, GTK and Qt
+    // read both.
+    private static readonly string[] Tokens = ["XDG_ACTIVATION_TOKEN", "DESKTOP_STARTUP_ID"];
+
+    // The Shell's time for now: a menu's choice tells none.
+    private const uint Now = 0;
+
     private IReadOnlyList<MenuRow> _shown = [];
     private int _overlay;
 
@@ -65,16 +72,19 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
     public EditResult Settle(ThermiConfig before, ThermiConfig after) => parts.Settle(before, after);
 
     /// <summary>Opens the settings window, a process of its own, on an overlay and an item of it.</summary>
-    public void OpenSettings(int overlay, string? item) => Open(overlay, item is null ? [] : [ThermiCommandLine.ItemOption, item]);
+    public void OpenSettings(int overlay, string? item) => OpenSettings(overlay, item, Now);
 
-    public void OpenSize(int overlay) => Open(overlay, [ThermiCommandLine.SizeOption]);
+    /// <summary>Opens the settings window as the menu's choice does, on a click at a time of the Shell's.</summary>
+    public void OpenSettings(int overlay, string? item, uint time) => Open(overlay, item is null ? [] : [ThermiCommandLine.ItemOption, item], time);
+
+    public void OpenSize(int overlay) => Open(overlay, [ThermiCommandLine.SizeOption], Now);
 
     // The sensors' service is the system's, which its package starts; copying the picture is never offered.
     public void Reach(MenuEntry entry, int overlay)
     {
         if (entry == MenuEntry.TaskManager)
         {
-            Start(TaskManagers.FirstOrDefault(Installed) ?? TaskManagers[0], []);
+            Start(TaskManagers.FirstOrDefault(Installed) ?? TaskManagers[0], [], Now);
         }
     }
 
@@ -94,7 +104,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
 
     public void RequestPaint() => parts.RequestPaint();
 
-    private void Open(int overlay, string[] on)
+    private void Open(int overlay, string[] on, uint time)
     {
         List<string> args = ["settings", ThermiCommandLine.OverlayOption, $"{overlay + 1}", .. on];
 
@@ -104,7 +114,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
             args.Add(ThermiCommandLine.TraceOption);
         }
 
-        Start(Environment.ProcessPath ?? "thermi", args);
+        Start(Environment.ProcessPath ?? "thermi", args, time);
     }
 
     private static void Flatten(IReadOnlyList<MenuRow> rows, int parent, MenuPlace place, List<MenuRow> all, List<ShellRow> shown)
@@ -125,11 +135,38 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         (Environment.GetEnvironmentVariable("PATH") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries)
             .Any(folder => File.Exists(Path.Combine(folder, program)));
 
-    private void Start(string program, IEnumerable<string> args)
+    private void Start(string program, IEnumerable<string> args, uint time) => _ = StartAsync(program, args, time);
+
+    // The program comes in front with the desktop's token for the click, and never with the one thermi was started with,
+    // long spent.
+    private async Task StartAsync(string program, IEnumerable<string> args, uint time)
     {
+        var start = new ProcessStartInfo(program, args) { UseShellExecute = false };
+        var token = "";
         try
         {
-            using var started = Process.Start(new ProcessStartInfo(program, args) { UseShellExecute = false });
+            token = await parts.Activation(time).ConfigureAwait(false);
+        }
+        catch (GLib.GException ex)
+        {
+            parts.Log.ShellCallFailed(ex);
+        }
+
+        foreach (var name in Tokens)
+        {
+            if (token.Length > 0)
+            {
+                start.Environment[name] = token;
+            }
+            else
+            {
+                start.Environment.Remove(name);
+            }
+        }
+
+        try
+        {
+            using var started = Process.Start(start);
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {

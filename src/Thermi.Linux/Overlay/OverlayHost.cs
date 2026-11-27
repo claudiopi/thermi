@@ -61,7 +61,8 @@ internal sealed class OverlayHost : IDisposable
         _parts = new OverlayParts(settings, _link, time, CultureInfo.CurrentCulture, log)
         {
             RequestPaint = () => Post(Repaint),
-            OpenSettings = (overlay, item) => _menu!.OpenSettings(overlay, item),
+            OpenSettings = (overlay, item, at) => _menu!.OpenSettings(overlay, item, at),
+            Activation = _link.ActivationAsync,
             Menu = (overlay, x, y, item) => _menu!.Show(overlay, x, y, item, feed.State, feed.Latest),
             Settle = Settle,
             Dropped = Dropped,
