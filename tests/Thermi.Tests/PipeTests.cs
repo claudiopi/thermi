@@ -301,7 +301,7 @@ public sealed class PipeTests
         Assert.Equal(Enumerable.Repeat(true, SnapshotBroadcast.PerOwner).Append(false), taken);
         Assert.Equal(SnapshotBroadcast.PerOwner, seated);
         Assert.All(heard, sensors => Assert.Equal(Fan.Sensors, sensors));
-        Assert.Equal((0, true), (broadcast.Clients, broadcast.EmptySince is not null));
+        Assert.Equal((0, true), (broadcast.Seats.Clients, broadcast.Seats.EmptySince is not null));
     }
 #pragma warning restore VSTHRD003
 

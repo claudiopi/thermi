@@ -109,7 +109,8 @@ internal sealed class SocketServer(Socket listener, SnapshotBroadcast broadcast,
         var started = time.GetTimestamp();
         while (true)
         {
-            var left = broadcast.Clients == 0 ? Idle - time.GetElapsedTime(broadcast.EmptySince ?? started) : TimeSpan.FromSeconds(1);
+            var (clients, emptySince) = broadcast.Seats;
+            var left = clients == 0 ? Idle - time.GetElapsedTime(emptySince ?? started) : TimeSpan.FromSeconds(1);
             if (left <= TimeSpan.Zero)
             {
                 return;

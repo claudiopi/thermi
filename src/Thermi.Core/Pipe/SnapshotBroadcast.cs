@@ -35,6 +35,7 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
     private readonly Lock _lock = new();
 
     private readonly SemaphoreSlim _slots = new(MaxClients);
+    private long? _emptySince;
 
     // Each second's lines, written straight as UTF-8: a snapshot as a string and then as bytes would be two objects
     // near the large object heap's size every second.
@@ -58,8 +59,20 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
         }
     }
 
-    /// <summary>When the last client left, as the last write to it failed; null while any is connected or before the first.</summary>
-    public long? EmptySince { get; private set; }
+    /// <summary>
+    /// The clients connected now, and when the last one left, as the last write to it failed, null while any is connected
+    /// or before the first; read together, as a client that comes between two reads would be seen as gone.
+    /// </summary>
+    public (int Clients, long? EmptySince) Seats
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return (_clients.Count, _emptySince);
+            }
+        }
+    }
 
     public static void End() =>
 #pragma warning disable RS0030 // Only a process that ends frees a thread stuck in a driver, so the service manager restarts it.
@@ -89,7 +102,7 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
             if (taken)
             {
                 _clients.Add(client);
-                EmptySince = null;
+                _emptySince = null;
             }
         }
 
@@ -183,7 +196,7 @@ public sealed class SnapshotBroadcast(Func<CancellationToken, Task<Snapshot>> re
             removed = _clients.Remove(client);
             if (removed && _clients.Count == 0)
             {
-                EmptySince = time.GetTimestamp();
+                _emptySince = time.GetTimestamp();
             }
         }
 
