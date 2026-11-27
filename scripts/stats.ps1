@@ -93,12 +93,12 @@ function Write-Kpis {
     $second = @(
         ,@('📝 Lines of code', (Format-Count $now.code),
             "$(Format-Thousands $now.codeProduct) product · $(Format-Thousands $now.codeTests) tests · $(Format-Delta $now.code $before.code)")
-        ,@('📋 Specs', "$done / $($specs.Count)", "done · $passing of $(@($specs.Steps).Count) acceptance checks pass")
-        ,@('🐞 Open bugs', "$($github.openBugs ?? '–')", 'issues labeled bug')
+        ,@('📋 Specs', "$done / $($specs.Count)", "done · $passing / $(@($specs.Steps).Count) checks pass")
+        ,@('🐞 Open bugs', "$($github.openBugs ?? '–')", 'open `bug` issues')
         ,@('📦 x64 installer', (Format-Megabytes $now.msiX64),
             "Arm64 $(Format-Megabytes $arm.megabytes) · $(Format-Delta $now.msiX64 $before.msiX64 -Decimals 1 -Unit ' MB')")
-        ,@('🔐 Security', $(switch ($security) { 'success' { '✅ clean' } $null { '–' } default { "❌ $security" } }), 'leaked secrets · vulnerable packages')
-        ,@('🔄 Dependencies', "$($github.updates ?? '–')", 'update PRs open · Renovate opens them')
+        ,@('🔐 Security', $(switch ($security) { 'success' { '✅ clean' } $null { '–' } default { "❌ $security" } }), 'secrets · vulnerable packages')
+        ,@('🔄 Dependencies', "$($github.updates ?? '–')", 'open Renovate PRs')
     )
     foreach ($row in $first, $second) {
         '| ' + (($row | ForEach-Object { $_[0] }) -join ' | ') + ' |'
@@ -186,9 +186,7 @@ function Write-Specs {
 function Write-BugHunt {
     '## 🐛 Bug hunt'
     ''
-    '> A tool plants thousands of small bugs, one at a time, and measures the share the tests catch: a `<` turned into `<=`,'
-    '> a line removed. **Caught** is the share some test notices; **missed** are the ones none did. Coverage says which lines'
-    '> the tests run; this says whether they would notice those lines going wrong. It runs each night.'
+    '> Each night small bugs are planted in the code, one at a time; **caught** is the share some test notices.'
     ''
     if (-not $run.BugHunt) {
         "No Bug hunt has run yet: [run it]($repo/actions/workflows/mutation.yml) by hand, or wait for the night."
@@ -212,7 +210,7 @@ function Write-BugHunt {
 
 function Write-Trend {
     $last = @($entries | Where-Object { $_.commit -ne $commit } | Select-Object -Last ($trend - 1)) + $now
-    "## 📈 Trend · up to the last $trend pushes to ``main``, this run last"
+    "## 📈 Trend · the last $trend pushes to ``main``"
     ''
     '| Metric | Trend | Now |'
     '| --- | --- | --: |'
@@ -263,25 +261,7 @@ function Write-Timed([object[]]$Timed, [string]$What, [hashtable]$Icons) {
     ''
 }
 
-# What only a person can see, which the tests leave to them before each release, with the requirements that name it.
-function Write-ReleaseChecks {
-    '## 🧰 Release checks · by a person, before each release'
-    ''
-    $checks = @(Read-ReleaseChecks $root)
-    if (-not $checks) { "``docs/RELEASES.md`` lists none yet."; return }
-    '| Check | Area | Requirements it covers |'
-    '| --- | --- | --- |'
-    foreach ($check in $checks) {
-        $covers = foreach ($spec in $specs | Where-Object { $_.ReleaseChecks.ContainsKey($check.Name) }) {
-            "$($spec.Id) $(($spec.ReleaseChecks[$check.Name] | Select-Object -Unique) -join ', ')"
-        }
-        "| $($check.Name) | $($check.Area) | $(if ($covers) { $covers -join ' · ' } else { '–' }) |"
-    }
-    ''
-    "_``docs/RELEASES.md`` says how to run each on the release's installed build._"
-}
-
-function Write-Rest {
+function Write-Doctor {
     '## ⚛️ React Doctor'
     ''
     $doctor = Get-DoctorScore $run
@@ -292,18 +272,6 @@ function Write-Rest {
         "| ``Thermi.Settings.Web`` | $(Get-Dot $doctor.Score 100 90) **$($doctor.Score)**/100 | $(Get-Bar $doctor.Score) | $issues |"
     }
     else { "The page's half did not run." }
-    ''
-    Write-ReleaseChecks
-    ''
-    '## 🖥️ Tested on'
-    ''
-    '| PC | Recorded | Recordings the tests replay |'
-    '| --- | --- | --: |'
-    foreach ($pc in Read-RecordedPcs $root) {
-        $rights = @(if ($pc.Admin) { 'as administrator' }) + @(if ($pc.NoAdmin) { 'without admin rights' })
-        "| $($pc.Name) | $($rights -join ' and ') | $($pc.Recordings) |"
-    }
-    "| [Report yours →]($repo/issues/new?template=hardware-report.yml) | a ``thermi-sensors --dump`` and a screenshot | |"
     ''
 }
 
@@ -323,8 +291,8 @@ $markdown = @(
     Write-BugHunt
     Write-Trend
     Write-Time
-    Write-Rest
-    "_🤖 Run it on your PC with ``pwsh scripts/stats.ps1`` after a check · the history lives in the ``stats`` branch, which feeds the README's badges._"
+    Write-Doctor
+    "_What a person checks before each release: [docs/RELEASES.md]($repo/blob/main/docs/RELEASES.md#before-each-release)._"
 ) -join "`n"
 
 if ($Out) { Set-Content $Out $markdown -Encoding utf8 } else { $markdown }
