@@ -184,6 +184,8 @@ public sealed class OverlayTests
             Assert.Fail($"thermi's unit ended before it showed: {await running.Error.ToEndAsync(cancel)}"
                 + await units.SystemctlAsync(["status", "--no-pager", "thermi.service"], cancel));
         }
+        // Each shot of the overlay waits for thermi's next second after it showed, so it shows the screen settled.
+        await Traced.NextAsync(units.Trace, Traced.Paint, cancel);
         var shownFirst = await desktop.ScreenshotAsync(cancel);
         var pill = config.Overlays[0].Items[0].Id;
         var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false }, pill);
@@ -199,6 +201,7 @@ public sealed class OverlayTests
         var showing = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
         await notices.ClickAsync(await told, "show-it", cancel);
         await showing;
+        await Traced.NextAsync(units.Trace, Traced.Paint, cancel);
         var shown = await desktop.ScreenshotAsync(cancel);
         var monitorName = gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor";
         await units.AddProgramAsync(gnome ? "gnome-system-monitor" : "plasma-systemmonitor", monitorName, cancel);
@@ -210,8 +213,13 @@ public sealed class OverlayTests
         var exited = await units.SystemctlAsync(["show", "-p", "SubState", "--value", "thermi.service"], cancel);
 
         Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, before, hidden, UnderTheBar, cancel));
-        Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, before, shownFirst, UnderTheBar, cancel));
-        Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, shownFirst, shown, UnderTheBar, cancel));
+        // Shown again, it is as first drawn; against the screen without it, each shot's count says which lacks it, if one does.
+        var drawn = await Pictures.ChangedAsync(desktop.Session, before, shownFirst, UnderTheBar, cancel);
+        Assert.NotEqual(0, drawn);
+        Assert.Equal(
+            (drawn, 0L),
+            (await Pictures.ChangedAsync(desktop.Session, before, shown, UnderTheBar, cancel),
+                await Pictures.ChangedAsync(desktop.Session, shownFirst, shown, UnderTheBar, cancel)));
         Assert.Equal(0, monitor.Exit);
         Assert.Equal(0, running.ExitCode);
         Assert.Equal("dead", exited);
