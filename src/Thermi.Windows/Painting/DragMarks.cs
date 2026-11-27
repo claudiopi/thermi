@@ -39,8 +39,7 @@ internal static class DragMarks
         g.DrawPath(pen, shape);
     }
 
-    /// <summary>Rings the overlay, and draws the bar where a drop of the item <paramref name="at"/> names goes.</summary>
-    public static void Join(Bitmap bitmap, IReadOnlyList<PaintedItem> places, (string? Before, string? Within) at, bool vertical, Rgb accent, float scale)
+    public static void RingAndBar(Bitmap bitmap, IReadOnlyList<PaintedItem> places, (string? Before, string? Within) at, bool vertical, Rgb accent, float scale)
     {
         using var g = Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;

@@ -55,8 +55,8 @@ public static class MonitorIds
             return null;
         }
 
-        var product = MutterText(Descriptor(edid, NameTag));
-        var serial = MutterText(Descriptor(edid, SerialTag));
+        var product = MutterText(DescriptorText(edid, NameTag));
+        var serial = MutterText(DescriptorText(edid, SerialTag));
         return OfGnome(
             Maker(edid),
             product.Length > 0 ? product : string.Create(CultureInfo.InvariantCulture, $"0x{BinaryPrimitives.ReadUInt16LittleEndian(edid[10..]):x4}"),
@@ -86,7 +86,7 @@ public static class MonitorIds
     // The serial's own descriptor, in text, is what makers fill in; the number in the header is often zero or the same on every unit.
     private static string? Serial(ReadOnlySpan<byte> edid)
     {
-        if (Text(Descriptor(edid, SerialTag)) is { Length: > 0 } text)
+        if (Text(DescriptorText(edid, SerialTag)) is { Length: > 0 } text)
         {
             return text;
         }
@@ -95,8 +95,7 @@ public static class MonitorIds
         return number == 0 ? null : number.ToString(CultureInfo.InvariantCulture);
     }
 
-    // The text field of the first display descriptor with the tag, or none.
-    private static ReadOnlySpan<byte> Descriptor(ReadOnlySpan<byte> edid, byte tag)
+    private static ReadOnlySpan<byte> DescriptorText(ReadOnlySpan<byte> edid, byte tag)
     {
         for (var index = 0; index < Descriptors; index++)
         {

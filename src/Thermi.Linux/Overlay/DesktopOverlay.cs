@@ -251,7 +251,7 @@ internal sealed class DesktopOverlay : IDisposable
         if (preview.Onto == _index)
         {
             var within = preview.InPill ? Pointer.Drag?.Carried?.Item : null;
-            DropMarks.Join(picture, Places, (preview.Before, within), look.Orientation == Orientation.Vertical, _parts.Accent, scale);
+            DropMarks.RingAndBar(picture, Places, (preview.Before, within), look.Orientation == Orientation.Vertical, _parts.Accent, scale);
         }
     }
 

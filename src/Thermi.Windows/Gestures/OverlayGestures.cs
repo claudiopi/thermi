@@ -126,7 +126,7 @@ internal sealed class OverlayGestures : IPressHost, IDisposable
         if (_actions.Preview.Onto == _index)
         {
             var within = _actions.Preview.InPill ? Drag?.Carried?.Item : null;
-            DragMarks.Join(bitmap, places, (_actions.Preview.Before, within), vertical, accent, scale);
+            DragMarks.RingAndBar(bitmap, places, (_actions.Preview.Before, within), vertical, accent, scale);
         }
     }
 
