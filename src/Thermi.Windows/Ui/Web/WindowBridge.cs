@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Globalization;
-using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
 using Thermi.App.SettingsFile;
@@ -35,8 +34,7 @@ namespace Thermi.Windows.Ui.Web;
 internal sealed class WindowBridge : IWindowBridge, IDisposable
 {
     // The version the build stamps, from Directory.Build.props.
-    private static readonly string Version =
-        typeof(WindowBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
+    private static readonly string Version = Core.Install.BuildVersion.Of(typeof(WindowBridge));
 
     private readonly WindowStart _start;
     private readonly ReadSensors _sensors;

@@ -75,7 +75,7 @@ public sealed class ExtensionTests
     private static readonly (int X, int Y) OnOverlay = (110, 110);
 
     // Rows: each a bound of its own, which a call past it shows nothing of.
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData("short-pixels")]
     [InlineData("no-scale")]
     [InlineData("nan-scale")]
@@ -94,7 +94,7 @@ public sealed class ExtensionTests
 
     // A press of the first button holds the overlay and Esc, thermi's alone while it does; a right press opens thermi's
     // menu and holds nothing, so the pointer is the person's again once the menu closes.
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task ThePointerAndTheKeysAreThermisOnlyWhileItsPressHolds()
     {
         var cancel = TestContext.Current.CancellationToken;

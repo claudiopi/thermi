@@ -27,6 +27,8 @@ internal static class PortalDialog
     /// </summary>
     public static async Task<Task> AsksAsync(OwnSession session, CancellationToken cancel)
     {
+        // The portal, its store of what the person allowed, and Plasma's dialogs, which the session's bus starts when thermi asks.
+        session.Activates("org.freedesktop.portal.Desktop", "org.freedesktop.impl.portal.PermissionStore", "org.freedesktop.impl.portal.desktop.kde");
         var script = Path.Combine(session.Home, "portal.py");
         await File.WriteAllTextAsync(script, Watch, cancel).ConfigureAwait(false);
         var watch = await session.StartAsync("python3", [script], cancel: cancel).ConfigureAwait(false);

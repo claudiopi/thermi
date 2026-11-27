@@ -23,7 +23,7 @@ public sealed class GestureTests
         X11,
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Desktop.Gnome)]
     [InlineData(Desktop.KWin)]
     [InlineData(Desktop.X11)]
@@ -62,7 +62,7 @@ public sealed class GestureTests
         Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, swapped, after, (0, 0, TwoMonitors[1].Width, TwoMonitors[1].Height), cancel));
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Desktop.Gnome)]
     [InlineData(Desktop.KWin)]
     public async Task DesktopGesturesWorkOnLinux(Desktop row)

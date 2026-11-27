@@ -22,6 +22,31 @@ The update server is static files: each channel's signed envelope, `stable.json`
 
 A version that fails on a PC is never taken there again: its service served nothing within 120 polls, or its second run ended without stopping within 10 minutes.
 
+### On Linux
+
+On Linux the system's own updater updates thermi, from thermi's apt and dnf repositories, static files under the server's `linux/` (`docs/adr/0019-linux.md`). The `.deb` and the `.rpm` add the stable one with the key it is signed with, and a person who wants beta changes `Suites:` in `/etc/apt/sources.list.d/thermi.sources` or the end of `baseurl=` in `/etc/yum.repos.d/thermi.repo`. `scripts/linux-packages.ps1` packs a version. Given `--repository <folder>`, the levers of `scripts/updates.ps1` act on the repositories instead, through `scripts/repository.ps1`: each writes the channel's indexes with apt-ftparchive and createrepo_c, from a Debian container where the PC has neither, and signs them with the OpenPGP key in `--key` or `THERMI_REPOSITORY_KEY`. The release workflow pulls them between `scripts/channel-sync.ps1 down -Linux` and `up -Linux`:
+
+| Lever | What PCs do |
+| --- | --- |
+| `publish <v> --channel beta --packages <folder>` | Take the version with their next update. A version not above every one the channel published is refused. |
+| `promote [--from beta --to stable]` | Stable takes beta's version, every PC at once: the repositories have no rollout. |
+| `rollback --channel stable` | Take the version before, packed again from its tarball as `<highest>.really<version>`, which sorts above every version published, so the system's updater installs it. The AUR keeps the release it has: there, a rollback is a release of the version before by hand. |
+| `disable --channel stable` | Find nothing to take until the next publish. |
+| `sign --channel stable` | Nothing new: the same offer signed again, as apt refuses a `Release` 45 days after it is signed. The workflow's `refresh` and its monthly signing pull it. |
+| `restore --before-last --channel stable` | The offer before the last, served again as it was signed then, or signed again if that is a week from expiring. Only on your PC: the workflow has no such lever. |
+| `status` | What the channel offers. |
+
+## Trying it on Linux
+
+```sh
+pwsh scripts/linux-packages.ps1                  # artifacts/linux, with a key of the build's own in key/
+pwsh scripts/updates.ps1 publish 0.9.0 --channel stable --packages artifacts/linux --repository <repositories>
+sudo apt install ./artifacts/linux/thermi-sensors_0.9.0_amd64.deb ./artifacts/linux/thermi_0.9.0_amd64.deb
+pwsh scripts/updates.ps1 serve --folder <a folder holding <repositories> as linux>
+```
+
+Given a build's packages, the levers sign with its own key, which those packages trust. Removing the `.rpm` leaves its key in rpm's own database, as every repository's does; `rpm -e gpg-pubkey-<id>` takes it out.
+
 ## Trying it on this PC
 
 ```powershell
@@ -42,19 +67,21 @@ A release needs accounts and keys only the owner can hold. Do each step once, in
 
 | Step | What | Where it ends up |
 | --- | --- | --- |
-| 1. The channel's address | A domain for the update server, such as `updates.<your domain>`. Every release build carries `https://<it>/v1/`, so it never changes once a release is out. | The repository's variable `THERMI_UPDATES_FROM`, in step 6. |
+| 1. The channel's address | A domain for the update server, such as `updates.<your domain>`. Every release build carries `https://<it>/v1/`, so it never changes once a release is out. | The repository's variable `THERMI_UPDATES_FROM`, in step 8. |
 | 2. The update server | A Cloudflare R2 bucket, `thermi-updates`, public for reading under that domain, with a 60 s cache rule for `/v1/*.json`, and an API token that writes only that bucket. | The `release` environment's `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. |
-| 3. The manifest keys | `pwsh scripts/updates.ps1 keys --out <folder>` on your own PC. `release.key.pem` goes online, then off the PC. `backup.key.pem` never goes online: keep two offline copies; it is only for `revoke`. | The secret `THERMI_UPDATES_KEY`; the public keys' text as the variables `THERMI_UPDATES_RELEASE_PUB` and `THERMI_UPDATES_BACKUP_PUB`, in step 6. |
-| 4. Authenticode | SignPath Foundation's free signing for open source: a project `thermi` linked to the repo, three artifact configurations (`binaries`: every `.exe` and `.dll` of a version's zip; `catalog`: `thermi.cat`; `msi`: both MSIs), and a signing policy `release` that signs only for this repo's `release` environment. | The secret `SIGNPATH_API_TOKEN` and the variable `SIGNPATH_ORGANIZATION_ID`; the certificate's SHA-256 thumbprint as the variable `THERMI_UPDATES_SIGNERS`, in step 6. |
-| 5. The GitHub environment | `release`, with you as its required reviewer and only `main` allowed to deploy to it. | Holds the secrets above. Every publish, promotion and monthly signing waits for your approval. |
-| 6. The repository's variables | All four at once: `THERMI_UPDATES_FROM`, `THERMI_UPDATES_RELEASE_PUB`, `THERMI_UPDATES_BACKUP_PUB`, `THERMI_UPDATES_SIGNERS`. | From then on every merge runs the release workflow. |
-| 7. Branch protection | A ruleset on `main`: changes only through a pull request, squash-merged, with the one required status check `CI gate`, and no one may bypass it. `CI gate` passes only when every job of `.github/workflows/ci.yml` passed: Core's tests and the build's checks, the Windows tests, the Windows tests that run alone, Core's tests on Linux, the Linux tests, the page, the MSIs, the PR's title, and `.github/workflows/security.yml`'s: no secret in the history, no package with a known vulnerability, and none added by the PR. Branches need not be up to date before merging, or Renovate's auto-merges wait forever. | The repository's settings, under Rules. Jobs can change without touching it. |
-| 8. Renovate | The free Mend Renovate app, installed on this repository alone, and Allow auto-merge on, with squash merging the only method allowed. | `renovate.json` drives it: it opens the dependency PRs and auto-merges build tools' and actions' once `CI gate` passes. |
-| 9. The GNOME extension | An account on extensions.gnome.org. Upload `src/Thermi.Gnome` zipped, its files at the zip's root, under the uuid `thermi@claudiopi.github.io` that `metadata.json` names, and wait for GNOME's review, which takes days. Upload it again for each release that changes `extension.js` or the Shell versions, before the release goes out. | The site serves it to `thermi`, which asks GNOME to install it on first start. A release whose extension speaks another protocol than the one on the site shows nothing until the site's is updated, with a notice that says so. |
+| 3. The manifest keys | `pwsh scripts/updates.ps1 keys --out <folder>` on your own PC. `release.key.pem` goes online, then off the PC. `backup.key.pem` never goes online: keep two offline copies; it is only for `revoke`. | The secret `THERMI_UPDATES_KEY`; the public keys' text as the variables `THERMI_UPDATES_RELEASE_PUB` and `THERMI_UPDATES_BACKUP_PUB`, in step 8. |
+| 4. Authenticode | SignPath Foundation's free signing for open source: a project `thermi` linked to the repo, three artifact configurations (`binaries`: every `.exe` and `.dll` of a version's zip; `catalog`: `thermi.cat`; `msi`: both MSIs), and a signing policy `release` that signs only for this repo's `release` environment. | The secret `SIGNPATH_API_TOKEN` and the variable `SIGNPATH_ORGANIZATION_ID`; the certificate's SHA-256 thumbprint as the variable `THERMI_UPDATES_SIGNERS`, in step 8. |
+| 5. The Linux repositories' key | On a Linux PC: `gpg --quick-generate-key 'thermi <you@example.org>' rsa3072 sign never`, with no passphrase, then `gpg --armor --export-secret-keys` and `gpg --armor --export`. Every `.deb` and `.rpm` installs the public key and its repository trusts nothing else, so it never changes once a release is out; keep two offline copies. | The secret `THERMI_REPOSITORY_KEY`; the public key's text as the variable `THERMI_REPOSITORY_PUB`, in step 8. |
+| 6. The AUR | An AUR account with an SSH key of its own, and the package `thermi-bin` made by pushing a first `PKGBUILD`, from the `aur` folder `scripts/linux-packages.ps1` writes. The AUR's host key, ssh-ed25519 and its key, from the Arch wiki's page on the AUR, checked against `ssh-keyscan aur.archlinux.org`. | The secret `AUR_SSH_KEY`; the host key as the variable `AUR_HOST_KEY`, in step 8. |
+| 7. The GitHub environment | `release`, with you as its required reviewer and only `main` allowed to deploy to it. | Holds the secrets above. Every publish, promotion and monthly signing waits for your approval. |
+| 8. The repository's variables | All four at once: `THERMI_UPDATES_FROM`, `THERMI_UPDATES_RELEASE_PUB`, `THERMI_UPDATES_BACKUP_PUB`, `THERMI_UPDATES_SIGNERS`. Linux's, `THERMI_REPOSITORY_PUB` and `AUR_HOST_KEY`, whenever steps 5 and 6 are done. | From then on every merge runs the release workflow. |
+| 9. Branch protection | A ruleset on `main`: changes only through a pull request, squash-merged, with the one required status check `CI gate`, and no one may bypass it. `CI gate` passes only when every job of `.github/workflows/ci.yml` passed: Core's tests and the build's checks, the Windows tests, the Windows tests that run alone, Core's tests on Linux, the Linux tests, the page, the MSIs, the PR's title, and `.github/workflows/security.yml`'s: no secret in the history, no package with a known vulnerability, and none added by the PR. Branches need not be up to date before merging, or Renovate's auto-merges wait forever. | The repository's settings, under Rules. Jobs can change without touching it. |
+| 10. Renovate | The free Mend Renovate app, installed on this repository alone, and Allow auto-merge on, with squash merging the only method allowed. | `renovate.json` drives it: it opens the dependency PRs and auto-merges build tools' and actions' once `CI gate` passes. |
+| 11. The GNOME extension | An account on extensions.gnome.org. Upload `src/Thermi.Gnome` zipped, its files at the zip's root, under the uuid `thermi@claudiopi.github.io` that `metadata.json` names, and wait for GNOME's review, which takes days. Upload it again for each release that changes `extension.js` or the Shell versions, before the release goes out. | The site serves it to `thermi`, which asks GNOME to install it on first start. A release whose extension speaks another protocol than the one on the site shows nothing until the site's is updated, with a notice that says so. |
 
 Why some of it is this way:
 
-- Until step 6, a merge skips the release workflow with a notice. With only some variables set, every run fails, rather than build a release that never updates.
+- Until step 8, a merge skips the release workflow with a notice. Without steps 5 and 6 the Windows release goes on, and the Linux jobs publish nothing, or nothing to the AUR, with a notice in the run's summary. With only some variables set, every run fails, rather than build a release that never updates.
 - Every lever opens the channels' signed histories with the public keys, so whoever can write the bucket cannot have a lever sign what they planted. On your PC, the levers take the keys' folder as `--trust <folder>`.
 - The thumbprint is what `(Get-AuthenticodeSignature <signed file>).SignerCertificate.GetCertHashString('SHA256')` shows. It is a thumbprint, not a name, because SignPath Foundation's certificate carries the same name for every project it signs. Ask SignPath whether the certificate is thermi's own: a shared one means the catalog proves only that SignPath signed the files.
 - When the certificate is renewed, list both thumbprints, separated by a semicolon, in a release made before the old one's last day. A PC that skips that release refuses every later one until a later MSI is installed on it.
@@ -68,9 +95,10 @@ Why some of it is this way:
 - Each merge to main goes to beta as `<version>-beta.<run>`.
 - Run by hand with `release`, it puts `Directory.Build.props`' version on stable at the rollout given, with its MSIs on a GitHub release. With `promote`, `rollback`, `disable` or `refresh` it pulls that lever.
 - On the first of each month it signs both channels again, before their manifests expire.
-- Each job that signs waits for your approval: a beta asks twice, a release three times.
+- Each job that signs waits for your approval: a beta asks three times, a release four, a lever by hand and the monthly signing twice, Linux's job among them.
 - `scripts/channel-sync.ps1` moves the channels between the run and the bucket, the zips before the manifests, and writes a manifest only if the bucket still holds what the run fetched. Of two runs at once, the second fails and is run again.
 - Right after a stable release, raise `Directory.Build.props`' version: a beta of the version released is older than it, and the channel refuses it.
+- The Linux packages of the same version go to the same channel of the repositories, and a release's `PKGBUILD` to the AUR once its tarballs are served; each lever by hand acts on the repositories too, `refresh` as `sign`, and the monthly signing signs them again. `scripts/channel-sync.ps1 -Linux` moves them, the packages first and the indexes after the histories.
 - `revoke` never runs there, since it needs the backup key: on your PC run `scripts/channel-sync.ps1 down`, then `revoke`, then `scripts/channel-sync.ps1 up`.
 
 ## Before each release

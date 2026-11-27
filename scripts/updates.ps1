@@ -20,6 +20,11 @@ a channels folder laid out as the server is:
   serve --folder <channels> [--port 8765]
 The levers sign with --key <private PEM>, or the PEM in THERMI_UPDATES_KEY, and open the signed histories with the public
 keys in --trust <folder>, release.pub.pem and backup.pub.pem, or THERMI_UPDATES_RELEASE_PUB and THERMI_UPDATES_BACKUP_PUB.
+With --repository, on Linux, the levers act on the Linux repositories in that folder instead (scripts/repository.ps1):
+  publish <version> --packages <folder of scripts/linux-packages.ps1> | promote [--from beta --to stable] | rollback
+  | disable | sign | restore --before-last | status, each with --repository <folder> --channel stable|beta
+They sign with --key <armored OpenPGP secret key>, or the key in THERMI_REPOSITORY_KEY, and open the signed histories with
+--trust <armored public key>, or THERMI_REPOSITORY_PUB; a build's own key, which its packages trust, from --packages.
 #>
 # No param block: PowerShell would read the tool's --options as its own.
 if ($args.Count -lt 1) { throw 'Give a command: pack, keys, publish, promote, rollback, disable, refresh, revoke, unrevoke, status or serve.' }
@@ -28,6 +33,12 @@ $Command = [string]$args[0]
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
+
+if ($Rest -contains '--repository') {
+    . (Join-Path $PSScriptRoot 'repository.ps1')
+    Invoke-RepositoryLever $Command $Rest
+    exit 0
+}
 
 if ($Command -ne 'pack') {
     # Run from a copy, so a server left running never holds the build's files.

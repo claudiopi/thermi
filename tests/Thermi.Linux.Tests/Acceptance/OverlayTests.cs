@@ -32,7 +32,7 @@ public sealed class OverlayTests
         Neither,
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(GnomeCase.WaylandAt150)]
     [InlineData(GnomeCase.X11)]
     [InlineData(GnomeCase.FullScreen)]
@@ -57,7 +57,7 @@ public sealed class OverlayTests
         Assert.Equal("click 1", await scene.ClickThroughAsync(cancel));
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(LayerCase.KWin)]
     [InlineData(LayerCase.SwayAt150)]
     [InlineData(LayerCase.FullScreen)]
@@ -92,7 +92,7 @@ public sealed class OverlayTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task TheOverlayShowsAboveEveryWindowOnX11()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -131,7 +131,7 @@ public sealed class OverlayTests
         return await Pictures.ChangedAsync(scene.Desktop.Session, covered, alone, (at.X, at.Y, width, height), cancel);
     }
 
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task AnExtensionOfAnotherVersionShowsNothing()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -164,7 +164,7 @@ public sealed class OverlayTests
         }
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(true)]
     [InlineData(false, Skip = "Waiting for its code")]
     public async Task TheOverlaysMenuIsTheShellsOwn(bool gnome)
@@ -203,7 +203,7 @@ public sealed class OverlayTests
         var monitorName = gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor";
         await units.AddProgramAsync(gnome ? "gnome-system-monitor" : "plasma-systemmonitor", monitorName, cancel);
         await ChooseAsync(desktop, rows, MenuEntry.TaskManager, cancel);
-        var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", monitorName], cancel: cancel);
+        var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", "--timeout", Bound.LineSeconds, monitorName], cancel: cancel);
         await ChooseAsync(desktop, rows, MenuEntry.Exit, cancel);
         // systemctl --wait returns once the unit went inactive; not "auto-restart": a clean exit starts nothing again.
         await running.WaitForExitAsync(cancel);

@@ -33,7 +33,7 @@ public sealed partial class ServiceTests
         Crowd,
     }
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Tree.Service)]
     [InlineData(Tree.PlainUser)]
     [InlineData(Tree.NoNvidiaDriver)]
@@ -77,7 +77,7 @@ public sealed partial class ServiceTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task ARecordedTreeReplaysAndNamesNoPc()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -105,7 +105,7 @@ public sealed partial class ServiceTests
     }
 
     // Other users and the service's own one exist only in a container, where systemd starts the service by its socket.
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData(Client.Person)]
     [InlineData(Client.Impostor)]
     [InlineData(Client.Writer)]
@@ -161,7 +161,7 @@ public sealed partial class ServiceTests
         Assert.True(client == Client.Impostor || after is >= 9.5 and < 11.5, $"The service ended {after} s after the last client left.");
     }
 
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task TheServiceRunsWithNoRights()
     {
         var cancel = TestContext.Current.CancellationToken;

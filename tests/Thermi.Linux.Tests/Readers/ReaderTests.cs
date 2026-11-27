@@ -61,7 +61,7 @@ public sealed class ReaderTests
     }
 
     // A folder of no second is no tree, a person's slip that is said in one line, never a stack trace.
-    [Fact]
+    [Fact(Timeout = Bound.Test)]
     public async Task AFolderOfNoSecondEndsWithWhy()
     {
         var root = Directory.CreateTempSubdirectory("thermi-empty-").FullName;

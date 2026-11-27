@@ -65,9 +65,13 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool RunsInstalled() => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
 
-    // GNOME's monitors, as Mutter lays them out; another desktop's as the overlay's own surfaces find them, layer-shell's
-    // or X11's.
-    public IReadOnlyList<Screen> Screens() => DesktopSession.IsGnome() ? GnomeMonitors.Read() : SurfacesScreens();
+    // GNOME's monitors as the overlay reads them, from thermi's extension, so an agent's place is the overlay's pixel, and
+    // none while it does not answer. Another desktop's are what the overlay's own surfaces find, layer-shell's or X11's.
+    public IReadOnlyList<Screen> Screens() =>
+        !DesktopSession.IsGnome() ? SurfacesScreens()
+        : SessionBus.Call(ShellLink.Shell, ShellLink.ObjectPath, ShellLink.Interface, "Monitors") is { } answer && SessionBus.Bus is { } bus
+            ? new ShellScreens(ShellLink.MonitorsOf(answer.GetChildValue(0)), ShellScreens.Names(bus)).Screens
+            : [];
 
     public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 
@@ -89,6 +93,8 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
             && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } state
             && (int)state == Active
         : DesktopSession.Start() != SurfaceKind.None;
+
+    public AboutFacts About() => LinuxAbout.Read();
 
     // The surfaces measure the monitors as the overlay's do, GTK's main loop run until they did.
     private static List<Screen> SurfacesScreens()
