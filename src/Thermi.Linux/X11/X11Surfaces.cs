@@ -15,8 +15,8 @@ namespace Thermi.Linux.X11;
 /// a panel, while a dock with no strut of its own reserves nothing. Nor is it kept above, which would hold it above a
 /// window gone full screen too, while a dock stays above every other window and under that one; a panel that rises above
 /// it, as a dock that maps after it or one the person clicks, is put back under it. The panels' struts make each monitor's
-/// work area, as the window manager says it, and a monitor the active window covers is full screen, read as the root
-/// window tells each changes (<see cref="RootWatch"/>). The window manager's close, as a pager's or a task switcher's, quits
+/// work area, as the window manager says it, and a monitor the active window covers is full screen, one of thermi's own
+/// never counting as active, read as the root window tells each changes (<see cref="RootWatch"/>). The window manager's close, as a pager's or a task switcher's, quits
 /// thermi, as Windows' overlay quits on its close.
 /// </summary>
 internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
@@ -76,12 +76,14 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
 
     private void Restack(Gdk.Display display)
     {
-        var ours = _shown.Values.Select(shown => shown.Id).OfType<uint>().ToList();
+        var ours = Ours();
         if (ours.Count > 0 && XWindows.Covered(display, ours))
         {
             XWindows.Raise(display, ours);
         }
     }
+
+    private List<uint> Ours() => [.. _shown.Values.Select(shown => shown.Id).OfType<uint>()];
 
     public Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => Task.FromResult<IReadOnlyList<ShellMonitor>>(Monitors());
 
@@ -195,7 +197,7 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
             return [];
         }
 
-        var covered = XWindows.FullScreen(display);
+        var covered = XWindows.FullScreen(display, Ours());
         bool FullScreen(Gdk.Monitor monitor)
         {
             return covered is var (x, y, width, height) && monitor.Geometry.ContainsPoint((int)(x + (width / 2)), (int)(y + (height / 2)));

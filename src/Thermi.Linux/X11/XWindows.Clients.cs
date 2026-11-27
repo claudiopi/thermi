@@ -25,18 +25,18 @@ internal static partial class XWindows
 
     /// <summary>
     /// Where the window the person works in covers, in the stage's logical pixels, where it is full screen; null where it is
-    /// not, or none is.
+    /// not, or none is. None of <paramref name="ours"/> is that window, as Windows never lets an overlay take the foreground.
     /// </summary>
-    public static (double X, double Y, double Width, double Height)? FullScreen(Gdk.Display display)
+    public static (double X, double Y, double Width, double Height)? FullScreen(Gdk.Display display, IReadOnlyCollection<uint> ours)
     {
         var x = DisplayPointer(display);
         var full = InternAtom(x, "_NET_WM_STATE_FULLSCREEN", 0);
         return Trapped<(double, double, double, double)?>(display, () =>
         {
-            var active = Longs(x, DefaultRootWindow(x), "_NET_ACTIVE_WINDOW") is [var first, ..] ? (nuint)first : 0;
-            if (active == 0 || !Longs(x, active, "_NET_WM_STATE").Contains((long)full)
-                || GetGeometry(x, active, out var root, out _, out _, out var width, out var height, out _, out _) == 0
-                || TranslateCoordinates(x, active, root, 0, 0, out var left, out var top, out _) == 0)
+            var front = InFront(x, ours);
+            if (front == 0 || !Longs(x, front, "_NET_WM_STATE").Contains((long)full)
+                || GetGeometry(x, front, out var root, out _, out _, out var width, out var height, out _, out _) == 0
+                || TranslateCoordinates(x, front, root, 0, 0, out var left, out var top, out _) == 0)
             {
                 return null;
             }
@@ -44,6 +44,23 @@ internal static partial class XWindows
             double scale = Scale(display);
             return (left / scale, top / scale, width / scale, height / scale);
         });
+    }
+
+    // The active window, or the highest client that is no dock while one of ours is active: xfwm4 activates a dock as it
+    // maps, input hint or not, and a press gives one the keyboard. Were ours the window in front, an overlay shown only in
+    // full screen would hide as it showed, and show again as the full-screen window came back.
+    private static nuint InFront(nint x, IReadOnlyCollection<uint> ours)
+    {
+        var root = DefaultRootWindow(x);
+        var active = Longs(x, root, "_NET_ACTIVE_WINDOW") is [var first, ..] ? first : 0;
+        if (!ours.Contains((uint)active))
+        {
+            return (nuint)active;
+        }
+
+        var dock = (long)InternAtom(x, "_NET_WM_WINDOW_TYPE_DOCK", 0);
+        return (nuint)Longs(x, root, "_NET_CLIENT_LIST_STACKING")
+            .LastOrDefault(window => !ours.Contains((uint)window) && !Longs(x, (nuint)window, "_NET_WM_WINDOW_TYPE").Contains(dock));
     }
 
     /// <summary>Whether a dock of another client's, as a panel, is stacked above any of <paramref name="ours"/>.</summary>
