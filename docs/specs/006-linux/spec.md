@@ -15,6 +15,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 - R2. `thermi-cli` is on every user's `PATH` and runs from bash, zsh and fish as spec 003 says it runs from PowerShell: the shell waits for it, it prints to that shell and exits with its code.
 - R25. The `.deb` and the `.rpm` add thermi's repository, stable by default or beta, signed with a key of thermi's that they install, so each update comes through the system's own updater, as the system's do; the release workflow also updates `thermi-bin` on the AUR. Once a package changed thermi, the service restarts at once, and each overlay and its window hand over to the new version at a quiet moment, as spec 004 says on Windows. About says the version, the channel and that updates come from the system.
   Release check: An update on Linux.
+  Exception: The system's package manager changes thermi whenever it runs, so an update does not wait for a drag to end, as on Windows; the handover to the new version still waits for a quiet moment.
 - R26. The owner's levers of spec 004 act on the repositories too: `publish` and `promote` add a version to a channel; `rollback` takes a channel back by publishing the version before under a higher version number, so every PC takes it; `disable` publishes nothing more. A repository that is not signed by thermi's key is refused by the PC's package manager, and an older one never takes a PC back to an older version: apt keeps the newer index it holds, and dnf, which has no such check, finds nothing newer to install.
 
 ### Sensors
@@ -30,13 +31,17 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 
 - R8. On GNOME Shell 46 to 51, on Wayland and X11, each overlay shows above every window and the top bar, where it was placed, and hides while a window fills its monitor full screen. Clicks pass through it where it draws nothing, and everywhere when it is click-through.
 - R17. On KDE Plasma 6, Hyprland and Sway, on Wayland, each overlay shows above every window and the panels, where it was placed, and a full-screen window covers it. Clicks pass through it as on GNOME. On a Wayland desktop with neither GNOME Shell nor layer surfaces, `thermi` shows no overlay and says why once.
+  Exception: No layer-shell protocol tells a program which monitor shows a window full screen, so covering the overlay is left to the compositor.
 - R24. On X11 desktops, as Cinnamon, Xfce, MATE and KDE Plasma's X11 session, each overlay shows above every window and the panels, off the taskbar and the window switcher, and a full-screen window in front covers it. Clicks pass through it as on GNOME.
 - R9. When `thermi` starts in a GNOME session that lacks its extension, it asks the Shell to install it from extensions.gnome.org, which GNOME confirms with its own prompt, so the overlay shows without signing out; declined or offline, the copy the package installed shows it from the next sign-in, and a notice says so. With the package's copy in place, that notice, and the window, offer no button. An extension of another protocol version than `thermi`'s shows nothing, and the notice says to update.
   Release check: Install on Linux.
 - R10. The overlay shows what it shows on Windows, by Core's layout and looks: every style, level, missing value and "Sensors stopped", sharp at each monitor's scale, fractional ones too. `thermi preview` writes the same picture.
+  Exception: With no driver to install on Linux, a value never reads "Driver" in place of "–".
 - R11. An overlay is dragged to its place, snaps to a corner of its monitor's work area or onto a panel of it as onto a taskbar, GNOME's top bar among them, anywhere along it, and stays there across restarts and monitor changes, as spec 002 says of the taskbar on Windows.
   Release check: Restart and sign-in on Linux.
+  Exception: Off GNOME, a desktop tells a program nothing of where its tray sits, so a panel's overlay keeps the 220 px reserve before the panel's end, with no mark or magnet beside the tray.
 - R12. A right-click opens the overlay's menu of Core's entries, on GNOME as the Shell's own popup menu and elsewhere as GTK's. Each entry does what it does on Windows, and Undo takes it back; "Task Manager" opens the desktop's system monitor.
+  Exception: The Shell's popup menu has no access keys, so on GNOME no entry shows or takes one.
 - R23. The desktop gestures of spec 002 work on every surface: a drag moves an overlay and merges it into another; a hold lifts a pill or an item to join it elsewhere or make it an overlay; Esc puts everything back; Ctrl and the wheel resize. Fade near the pointer fades as on Windows on GNOME and X11, and on KDE Plasma, Hyprland and Sway, which tell a program where the pointer is only over its own surfaces, as the pointer comes over the overlay.
 - R13. The overlay starts at sign-in, one per person's session, comes back on its own if it fails, and not after "Exit thermi"; starting at sign-in is a switch, as on Windows.
   Release check: Restart and sign-in on Linux.
@@ -47,8 +52,10 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 
 - R18. The settings window of spec 002 runs on Linux, in a process of its own, with the same page and every requirement of spec 002 but those it names Windows' and those R19 gives their Linux form. It opens from the overlay's menu, thermi's icon, a double-click on a value, `thermi settings` and the desktop's app launcher; opened from the overlay, it comes in front of the windows over it, as on Windows, but on Sway, whose default `focus_on_window_activation urgent` only marks it urgent, a known limit; one window exists; and closing it leaves no process behind.
   Release check: Open the window every way on Linux.
+  Exception: On GNOME, the Shell keeps every overlay above every window, so the window does not sit above the overlays it is not editing.
 - R19. On Linux, the window follows the desktop's light or dark scheme and its accent unless Settings chose its own theme, and its high contrast even then, as on Windows; "Start with Windows" reads "Start at sign-in"; the fixes it offers are those of Linux: installing or enabling the GNOME extension, and starting a stopped service through the desktop's own prompt for administrator rights, with no driver to install; and the page reads well and reads aloud with Orca as with Narrator. Its texts are in every translation.
   Release check: Orca, themes and the window's frame on Linux.
+  Exception: With no driver, a double-click on a value opens no driver bar.
 
 ### Tray, hotkeys and notices
 
@@ -63,6 +70,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 ### FPS
 
 - R16. A settings file written on Windows works on Linux and loses nothing, and one written on Linux works on Windows. FPS and frame time are not read on Linux: their items take no room in the overlay, the window shows them as missing with why, and `status` says so.
+  Exception: With no FPS, nothing follows the game in front, and no window of thermi's needs keeping out of its count.
 
 ## Design
 

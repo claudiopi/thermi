@@ -1,3 +1,4 @@
+using Thermi.App.Link;
 using Thermi.App.Window;
 using Thermi.Core.Look;
 using Windows.Win32.Foundation;
@@ -20,7 +21,7 @@ internal sealed class WindowBridge : PageBridge
         _host = host;
     }
 
-    public OverlayLink? Link
+    public WindowEnd? Link
     {
         get => _host.Link;
         set => _host.Link = value;

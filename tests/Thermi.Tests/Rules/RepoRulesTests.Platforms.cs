@@ -13,7 +13,6 @@ public sealed partial class RepoRulesTests
         ["Thermi.Windows/Tray/TrayChoices.cs"] = "what a row of the tray's and an overlay's Win32 menus does",
         ["Thermi.Windows/Ui/Views/WindowAgents.cs"] = "the AI agents section's answers from Windows: the machine's and user's PATH, the launcher's folder",
         ["Thermi.Windows/Ui/Web/WindowLinks.cs"] = "opens a file or a link through Windows' Explorer, by its full path",
-        ["Thermi.Windows/Ui/Web/WindowSession.cs"] = "the settings window's thread: its WebView2 window, editor, bridge and beacon",
         ["Thermi.Windows/Updates/ThermiPaths.cs"] = "Windows' install layout: Program Files, the per-user folder, the .exe names",
         ["Thermi.Windows/Updates/WindowUpdates.cs"] = "About's side of the Windows updater: its check and restart through the service",
         ["Thermi.Sensors.Windows/Install/AdoptUndo.cs"] = "what the MSI's rollback puts back: the services' image paths, Installed apps' entry",

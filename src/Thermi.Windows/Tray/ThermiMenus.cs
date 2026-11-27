@@ -1,9 +1,13 @@
+using System.Drawing;
 using System.Runtime.InteropServices;
+using Thermi.Core.Placement;
+using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Tray;
@@ -81,7 +85,8 @@ internal static class ThermiMenus
 
     // The owner comes to the front first, or the menu would not close when the user clicks elsewhere, and gets a message
     // after, or the next menu would close as soon as it opens. While it shows, no overlay rises over it. An overlay's menu
-    // keeps off the overlay, above or below it, so it covers none of its pills.
+    // opens where Core's MenuSpots puts it, beside the overlay; Windows, which measures the menu only as it shows it, moves
+    // it to the other side, off the overlay it excludes, where it does not fit.
     private static unsafe nuint Track(SafeHandle menu, HWND owner, bool offOwner)
     {
         PInvoke.GetCursorPos(out var cursor);
@@ -92,8 +97,9 @@ internal static class ThermiMenus
         {
             var away = new TPMPARAMS { cbSize = (uint)sizeof(TPMPARAMS) };
             var exclude = offOwner && PInvoke.GetWindowRect(owner, out away.rcExclude);
-            var flags = TRACK_POPUP_MENU_FLAGS.TPM_RETURNCMD | (exclude ? TRACK_POPUP_MENU_FLAGS.TPM_VERTICAL : TRACK_POPUP_MENU_FLAGS.TPM_LEFTALIGN);
-            var choice = (nuint)(int)PInvoke.TrackPopupMenuEx(menu, (uint)flags, cursor.X, cursor.Y, owner, exclude ? away : null);
+            var (at, flags) = exclude ? Beside(owner, away.rcExclude, cursor) : (cursor, TRACK_POPUP_MENU_FLAGS.TPM_LEFTALIGN);
+            flags |= TRACK_POPUP_MENU_FLAGS.TPM_RETURNCMD;
+            var choice = (nuint)(int)PInvoke.TrackPopupMenuEx(menu, (uint)flags, at.X, at.Y, owner, exclude ? away : null);
             PInvoke.PostMessage(owner, PInvoke.WM_NULL, 0, 0);
             return choice;
         }
@@ -101,6 +107,20 @@ internal static class ThermiMenus
         {
             Topmost.MenuShowing = false;
         }
+    }
+
+    // The point the menu's top, below the overlay, or its bottom, above it, goes to, on the overlay's monitor.
+    private static unsafe (Point At, TRACK_POPUP_MENU_FLAGS Flags) Beside(HWND owner, RECT overlay, Point cursor)
+    {
+        var info = new MONITORINFO { cbSize = (uint)sizeof(MONITORINFO) };
+        var monitor = PInvoke.MonitorFromWindow(owner, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST);
+        var screen = PInvoke.GetMonitorInfo(monitor, ref info) ? info.rcMonitor : overlay;
+        var spot = MenuSpots.Beside(
+            new PixelRect(overlay.left, overlay.top, overlay.right, overlay.bottom),
+            new Position(cursor.X, cursor.Y),
+            new PixelRect(screen.left, screen.top, screen.right, screen.bottom));
+        var side = spot.Side == MenuSide.Above ? TRACK_POPUP_MENU_FLAGS.TPM_BOTTOMALIGN : 0;
+        return (new Point(spot.At.X, spot.At.Y), TRACK_POPUP_MENU_FLAGS.TPM_VERTICAL | side);
     }
 
     // The menu holds its submenu from here on and destroys it with itself.

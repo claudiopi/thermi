@@ -1,6 +1,9 @@
+using Thermi.App.Link;
 using Thermi.App.Window;
 using Thermi.Core.Look;
+using Thermi.Core.Messages;
 using Thermi.Windows.Overlay;
+using Thermi.Windows.Win32;
 
 namespace Thermi.Windows.Ui.Web;
 
@@ -26,7 +29,7 @@ internal static class WindowSession
             bridge.Window = window.Hwnd;
             window.DesktopChanged = bridge.DesktopChanged;
             editor.Changed += (_, _) => window.Theme(editor.Config.WindowTheme);
-            using var link = new OverlayLink(chart, editor, bridge.Pick, bridge.Tell, start.Time);
+            using var link = new WindowEnd(chart, editor, bridge.Pick, bridge.Tell, start.Time, Tell);
             bridge.Link = link;
             window.Shown = link.Shown;
             using var beacon = new SettingsBeacon(_ => window.Raise(), start.Environment.Log) { Received = link.Received };
@@ -39,7 +42,8 @@ internal static class WindowSession
 
             // The window is already open to the overlay, by its mutex: "show" brings every overlay up while it is.
             OverlayHost.AskToShow();
-            OverlayLink.AskHistory();
+            // With no history in 500 ms the charts start with gaps.
+            HiddenWindow.Send(HiddenWindow.HostClass, new HistoryAsked());
             window.Run();
             start.Environment.Sensors.Received -= Arrived;
             editor.EndGesture();
@@ -50,4 +54,7 @@ internal static class WindowSession
             SynchronizationContext.SetSynchronizationContext(previous);
         }
     }
+
+    // Off the window's thread, so a busy overlay never holds the page.
+    private static void Tell(Edited edited) => _ = Task.Run(() => HiddenWindow.Send(HiddenWindow.HostClass, edited));
 }

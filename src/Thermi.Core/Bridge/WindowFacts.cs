@@ -22,6 +22,10 @@ public sealed record WindowStatus(
     IReadOnlyList<HotkeyRole> Failed,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Problem)
 {
+    /// <summary>Whether the hotkeys of <see cref="Failed"/> failed as the desktop took none, no other program holding them.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public bool HotkeysRefused { get; init; }
+
     /// <summary>Whether Windows' taskbar is light, which a look's "Match taskbar" pills take in the window as on the overlay.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public bool LightTaskbar { get; init; }
@@ -117,12 +121,22 @@ public static class WindowFacts
     {
         var failures = hotkeyStatus is { } status ? Core.Hotkeys.Trusted(status, config.Hotkeys) ?? HotkeyFailures.None : HotkeyFailures.None;
         var driver = service != ServiceState.Stopped && snapshot is not null && SensorMap.DriverMayBeMissing(snapshot);
+        // A desktop that took none fails every hotkey set.
+        var refused = failures.HasFlag(HotkeyFailures.DesktopRefused);
+        bool Failed(HotkeyRole role)
+        {
+            return refused ? Core.Hotkeys.Of(config.Hotkeys, role) is not null : failures.HasFlag((HotkeyFailures)(1 << (int)role));
+        }
+
         return new WindowStatus(
             hotkeyStatus is not null,
             driver,
             Core.Hotkeys.Offered(config, lookSaved),
-            [.. Enum.GetValues<HotkeyRole>().Where(role => failures.HasFlag((HotkeyFailures)(1 << (int)role)))],
-            problem?.Detail(format.Texts, format.Numbers) is { Length: > 0 } detail ? detail : null);
+            [.. Enum.GetValues<HotkeyRole>().Where(Failed)],
+            problem?.Detail(format.Texts, format.Numbers) is { Length: > 0 } detail ? detail : null)
+        {
+            HotkeysRefused = refused,
+        };
     }
 
     public static UndoSteps Steps(StepName? undo, StepName? redo, ValueFormat format) =>

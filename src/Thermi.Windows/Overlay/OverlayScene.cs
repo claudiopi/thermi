@@ -26,6 +26,9 @@ internal sealed record OverlayActions(
     /// <summary>A value or an edge clicked or pointed at, which the open window selects or marks.</summary>
     public Action<Select> Select { get; init; } = _ => { };
 
+    /// <summary>The pointer on a value of an overlay, by their places, or off its values, which the open window marks on its row.</summary>
+    public Action<int, string?> Point { get; init; } = (_, _) => { };
+
     /// <summary>Each overlay's box on the screen, by its place, null for one not shown.</summary>
     public Func<IReadOnlyList<PixelRect?>> Shown { get; init; } = () => [];
 

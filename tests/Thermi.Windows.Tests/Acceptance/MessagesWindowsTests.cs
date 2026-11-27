@@ -1,4 +1,3 @@
-using Thermi.App.Window;
 using Thermi.Core.Messages;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -74,32 +73,6 @@ public sealed class MessagesWindowsTests : IDisposable
         var message = Assert.Single(received, each => each.GetType() == sent.GetType());
         Assert.Equal(WindowMessages.Encode(sent), WindowMessages.Encode(message));
         Assert.Equal(raises, raised.Count == 1);
-    }
-
-    // QA round 5 (R5-07 and the owner): the window's marks guide the person while it shows: minimized, it tells the overlay
-    // it edits none, so no value is marked nor overlay faded, and restored, the overlay and value it edits again.
-    [Fact]
-    public async Task AMinimizedWindowMarksNoOverlay()
-    {
-        _folder.Write(ThermiConfigJson.Write(new ThermiConfig { Overlays = [new OverlayConfig(), new OverlayConfig()] }));
-        var settings = await _folder.LoadedAsync();
-        var sent = new List<Edited>();
-        using var link = new OverlayLink(
-            new Thermi.Core.Look.ChartHistory(_folder.Clock),
-            new WindowEditor(settings, action => action(), _folder.Log, _folder.Clock),
-            _ => { },
-            () => { },
-            _folder.Clock,
-            sent.Add);
-
-        link.Editing(1, Metrics.CpuLoad.Id, null);
-        foreach (var shown in new[] { false, true })
-        {
-            _folder.Pass(TimeSpan.FromMilliseconds(200));
-            link.Shown(shown);
-        }
-
-        Assert.Equal([new Edited(2, Metrics.CpuLoad.Id, null), new Edited(null, null, null), new Edited(2, Metrics.CpuLoad.Id, null)], sent);
     }
 
     // Windows calls the beacon from native code, where an exception would end the window's process: a message its

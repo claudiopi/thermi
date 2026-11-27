@@ -92,14 +92,17 @@ public sealed class PaintedShapesTests
                 + "]")));
     }
 
-    // A pill from 0 to 100 holding a and b, b from 50, and c in a pill from 110 to 160, on a picture 170 by 20 at 100 %: where
-    // a drop's bar stands, its ring 2 and its bar 4 thick.
-    [Theory] // Rows: before a pill, past the last, between two items of a pill, along a standing overlay
-    [InlineData("c", null, false, "106,2,4,16")]
-    [InlineData(null, null, false, "160,2,4,16")]
-    [InlineData("b", "b", false, "48,0,4,20")]
-    [InlineData(null, null, true, "2,14,166,4")]
-    public void ADropsBarStandsWhereTheDropGoes(string? before, string? within, bool vertical, string expected)
+    // A pill from 0 to 100 holding a and b, b from 50, and c in a pill from 110 to 160, on a picture 170 by 20: where a drop's
+    // bar stands, its ring 2 and its bar 4 thick at 100 %; the slot a lifted pill leaves, inside its outline a pixel thick at
+    // 100 %; and the ring's line, its middle on the box.
+    [Theory] // Rows: before a pill, past the last, between two items of a pill, along a standing overlay, a slot and a ring at 200 %
+    [InlineData("bar", "c", null, false, 1, "106,2,4,16")]
+    [InlineData("bar", null, null, false, 1, "160,2,4,16")]
+    [InlineData("bar", "b", "b", false, 1, "48,0,4,20")]
+    [InlineData("bar", null, null, true, 1, "2,14,166,4")]
+    [InlineData("slot", "c", null, false, 2, "112,2,46,16")]
+    [InlineData("ring", null, null, false, 2, "2,2,166,16")]
+    public void ADragsMarksStandWhereTheyGo(string mark, string? before, string? within, bool vertical, double scale, string expected)
     {
         var first = new PillBox(0, 0, 100, 20);
         PaintedItem[] places =
@@ -110,7 +113,14 @@ public sealed class PaintedShapesTests
             new("", new PillBox(100, 0, 10, 20), default),
         ];
 
-        Assert.Equal(expected, Shown(DropMarkShapes.Bar(places, (before, within), vertical, (170, 20), 1)));
+        var box = mark switch
+        {
+            "slot" => DropMarkShapes.Slot(places.Single(place => place.Id == before).Pill, scale),
+            "ring" => DropMarkShapes.RingBox((170, 20), scale),
+            _ => DropMarkShapes.Bar(places, (before, within), vertical, (170, 20), scale),
+        };
+
+        Assert.Equal(expected, Shown(box));
     }
 
     private static double TenEach(string text, TextRole role) => text.Length * 10;

@@ -6,28 +6,13 @@ using Thermi.Core.Settings;
 
 namespace Thermi.Windows.Painting;
 
-/// <summary>How an overlay's frame or whole fades while the window edits another one.</summary>
-internal enum Fade
-{
-    None,
-
-    /// <summary>Only the pills fade, so the values and their levels read as before.</summary>
-    Frame,
-
-    /// <summary>The whole overlay fades, as one whose pills are the opposite of the taskbar's would stand out otherwise.</summary>
-    Whole,
-}
-
 /// <summary>
 /// What the open window marks on an overlay: its fade, and on the overlay being edited the bar beside the value selected
 /// and, fainter, the one pointed at, in the accent color.
 /// </summary>
-internal sealed record EditMarks(Fade Fade, string? Selected, string? Pointed, Rgb Accent)
+internal sealed record EditMarks(EditFade Fade, string? Selected, string? Pointed, Rgb Accent)
 {
-    public static EditMarks None { get; } = new(Fade.None, null, null, default);
-
-    private const double FrameFade = 0.3;
-    private const double WholeFade = 0.5;
+    public static EditMarks None { get; } = new(EditFade.None, null, null, default);
 
     // A short bar lying under the value, as a tab's mark, so it never reads as a text cursor beside the digits.
     private const float BarWidth = 16;
@@ -41,18 +26,8 @@ internal sealed record EditMarks(Fade Fade, string? Selected, string? Pointed, R
 
     private const int PointedAlpha = 128;
 
-    /// <summary>
-    /// The look with its fade, or, <paramref name="held"/> in a drag over other overlays and the window's fades, with a
-    /// background of its own whatever the look's opacity. A faded frame outlines the text in the pill's color, so the
-    /// values keep their contrast over any backdrop the pill no longer hides.
-    /// </summary>
-    public OverlayLook Applied(OverlayLook look, bool held = false) => held ? look with { Background = 1, Opacity = 1 } : Fade switch
-    {
-        Fade.Frame => look with { Background = look.Background * FrameFade, Effect = TextEffect.Outline },
-        Fade.Whole => look with { Opacity = look.Opacity * WholeFade },
-        Fade.None => look,
-        _ => look,
-    };
+    /// <summary>The look with its fade, or, <paramref name="held"/> in a drag, whole, as Core's <see cref="EditLooks.Applied"/> says.</summary>
+    public OverlayLook Applied(OverlayLook look, bool held = false) => EditLooks.Applied(look, Fade, held);
 
     /// <summary>Draws the bars beside the values drawn at <paramref name="places"/>, opaque over the faded overlay.</summary>
     public void Draw(Bitmap bitmap, IReadOnlyList<PaintedItem> places, IReadOnlyList<OverlayItem> items, float scale)

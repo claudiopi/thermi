@@ -74,6 +74,12 @@ internal sealed class DesktopDrag(
     /// <summary>Whether the pill was held long enough to lift but no other overlay fits, so the press does nothing.</summary>
     public bool Refused { get; private set; }
 
+    /// <summary>Whether a drop now does nothing, refused or on a taskbar with no room for what the drag carries, as the pointer says.</summary>
+    public bool Refuses => Refused || _crowded;
+
+    /// <summary>The overlay's corner as the press found it, where a cancelled drag puts it back.</summary>
+    public Position Origin => start.Origin;
+
     /// <summary>Where the pill or item a hold takes leaves a gap in the overlay's pixels once lifted: an item alone, its pill's label kept.</summary>
     public RectangleF Gap => start.Gap;
 

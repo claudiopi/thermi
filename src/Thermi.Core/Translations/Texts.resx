@@ -477,6 +477,9 @@
   <data name="HotkeyText.HotkeysNeedOverlay" xml:space="preserve">
     <value>Hotkeys work only while the overlay runs.</value>
   </data>
+  <data name="HotkeyText.HotkeysRefused" xml:space="preserve">
+    <value>The desktop gave thermi no hotkeys.</value>
+  </data>
   <data name="UiText.DuplicateOverlay" xml:space="preserve">
     <value>Duplicate</value>
   </data>

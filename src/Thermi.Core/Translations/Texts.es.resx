@@ -484,6 +484,9 @@
   <data name="HotkeyText.HotkeysNeedOverlay" xml:space="preserve">
     <value>Los atajos solo funcionan mientras la superposición está en marcha.</value>
   </data>
+  <data name="HotkeyText.HotkeysRefused" xml:space="preserve">
+    <value>El escritorio no le dio atajos a thermi.</value>
+  </data>
   <data name="UiText.DuplicateOverlay" xml:space="preserve">
     <value>Duplicar</value>
   </data>

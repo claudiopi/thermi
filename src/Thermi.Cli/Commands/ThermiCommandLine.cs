@@ -24,7 +24,7 @@ internal sealed record SettingsRequest(int Overlay, bool Trace, bool Pseudo) : I
 /// </summary>
 internal sealed record PreviewRequest(string Snapshot, string Png, float Scale, string? SettingsPath) : IThermiRequest
 {
-    /// <summary>The tray icon painted in place of the overlay: an item's id, or <see cref="Core.Tray.TrayScene.ThermisId"/>.</summary>
+    /// <summary>The tray icon painted in place of the overlay, by its <see cref="Core.Tray.TrayIcon.Name"/> or its item's id.</summary>
     public string? Icon { get; init; }
 }
 
@@ -111,7 +111,10 @@ internal static class ThermiCommandLine
 
         // A settings file that is not there paints the defaults, and is not created.
         var file = new Argument<string?>("settings") { Arity = ArgumentArity.ZeroOrOne, Description = "A settings file other than the user's." };
-        var icon = new Option<string?>("--icon") { Description = "Paints the tray icon of this item's id, or thermi's own for \"thermi\"." };
+        var icon = new Option<string?>("--icon")
+        {
+            Description = "Paints thermi's own tray icon for \"thermi\", or an item's for \"item:\" and its id, or its id alone.",
+        };
         request = it => new PreviewRequest(it.GetValue(snapshot)!.FullName, it.GetValue(png)!, it.GetValue(scale), it.GetValue(file))
         {
             Icon = it.GetValue(icon),

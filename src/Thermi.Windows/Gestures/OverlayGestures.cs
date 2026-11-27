@@ -138,17 +138,24 @@ internal sealed class OverlayGestures : IPressHost, IDisposable
     public bool Wheel(nuint wParam, IReadOnlyList<Screen> screens) =>
         _press.Wheel((wParam & (nuint)MODIFIERKEYS_FLAGS.MK_CONTROL) != 0, (short)(wParam >> 16), screens);
 
-    /// <summary>Shows the resizing cursor on a floating overlay's corner; false elsewhere, where the class's cursor shows.</summary>
-    public bool CornerCursor(OverlayConfig overlay, PaintedOverlay? painted, Position at)
+    /// <summary>
+    /// Shows the cursor <see cref="OverlayPress.Shape"/> gives, as the resizing one on a floating overlay's corner; false
+    /// for the desktop's own, where the class's cursor shows.
+    /// </summary>
+    public bool Cursor(OverlayConfig overlay, PaintedOverlay? painted, Position at)
     {
-        if (!InCorner(overlay, painted, at, _actions.Cursor()))
+        var shape = _press.Shape(overlay, painted?.Size, painted?.Scale ?? 1, at);
+        if (shape == PointerShape.Default)
         {
             return false;
         }
 
-        PInvoke.SetCursor(PInvoke.LoadCursor(HINSTANCE.Null, PInvoke.IDC_SIZENWSE));
+        PInvoke.SetCursor(PInvoke.LoadCursor(HINSTANCE.Null, shape == PointerShape.Resize ? PInvoke.IDC_SIZENWSE : PInvoke.IDC_NO));
         return true;
     }
+
+    /// <summary>Esc, or another window taking the mouse: the drag ends where it began, as <see cref="OverlayPress.Cancel"/> says.</summary>
+    public void Cancel() => _press.Cancel();
 
     /// <summary>
     /// Makes a floating overlay's resizing corner take a press across its whole square: a layered window lets clicks through
@@ -174,10 +181,6 @@ internal sealed class OverlayGestures : IPressHost, IDisposable
             }
         }
     }
-
-    /// <summary>Whether <paramref name="cursor"/> is on the resizing corner of a floating overlay at <paramref name="at"/>.</summary>
-    public static bool InCorner(OverlayConfig overlay, PaintedOverlay? painted, Position at, Position cursor) =>
-        painted is not null && OverlayPress.InCorner(overlay, painted.Size, painted.Scale, at, cursor);
 
     /// <summary>
     /// "Separate" from the overlay's menu, as one gesture: the pill lands as the overlay a drag of it carries, at its size,

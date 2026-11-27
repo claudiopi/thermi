@@ -31,13 +31,13 @@ internal static class SnapshotPreview
         ThermiMark.Overlay(config, 0, InputOf(config, series, baseClock, lightTaskbar), windowOpenedOnce: true);
 
     /// <summary>
-    /// The tray icon of <paramref name="id"/>, an item's or thermi's own for <see cref="TrayScene.ThermisId"/>, as
-    /// the tray shows it after the series; null, with why on <paramref name="said"/>, when no icon of the tray has it.
+    /// The tray icon whose <see cref="TrayIcon.Name"/> is <paramref name="id"/>, or else whose item's id it is, as the tray
+    /// shows it after the series; null, with why on <paramref name="said"/>, when no icon of the tray has it.
     /// </summary>
     public static TrayIcon? Icon(ThermiConfig config, IReadOnlyList<Snapshot> series, string id, double? baseClock, bool lightTaskbar, TextWriter said)
     {
         var icons = TrayScene.Of(config, InputOf(config, series, baseClock, lightTaskbar));
-        if (icons.FirstOrDefault(icon => icon.Name == id) is { } found)
+        if ((icons.FirstOrDefault(icon => icon.Name == id) ?? icons.FirstOrDefault(icon => icon.ItemId == id)) is { } found)
         {
             return found;
         }

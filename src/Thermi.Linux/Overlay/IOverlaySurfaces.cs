@@ -1,3 +1,6 @@
+using Thermi.App.Gestures;
+using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Linux.Gnome;
 
 namespace Thermi.Linux.Overlay;
@@ -53,6 +56,34 @@ internal interface IOverlaySurfaces : IDisposable
     /// </summary>
     Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows);
 
+    /// <summary>
+    /// Shows a menu of <paramref name="rows"/> on picture <paramref name="id"/> against <paramref name="anchor"/>, a box of
+    /// the stage, on the side Core's <see cref="MenuSpots.Beside"/> chose, so it covers none of the overlay's pills; a
+    /// surface that opens menus at a point only opens it at the box's edge on that side.
+    /// </summary>
+    Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side) =>
+        Menu(id, anchor.Left, side == MenuSide.Below ? anchor.Top + anchor.Height : anchor.Top, rows);
+
+    /// <summary>Shows the pointer as <paramref name="shape"/> over picture <paramref name="id"/>, as App's <see cref="OverlayPress.Shape"/> says.</summary>
+    void Cursor(uint id, PointerShape shape)
+    {
+        // A surface that cannot change the pointer leaves it the desktop's own.
+    }
+
+    /// <summary>Puts <paramref name="png"/>, a picture of an overlay, on the desktop's clipboard, as "Copy as image" does.</summary>
+    Task Copy(byte[] png) => Task.CompletedTask;
+
+    /// <summary>
+    /// A press on a picture, by its id, lost the pointer to another grab, as the overview or a modal dialog takes it: the
+    /// press ends as Esc ends it. A surface whose pointer kinds tell it, as GNOME's <c>cancel</c>, never raises it, so it
+    /// keeps no listener.
+    /// </summary>
+    Action<uint> Lost
+    {
+        get => Unheard;
+        set => _ = value;
+    }
+
     /// <summary>Takes Esc to the picture while <paramref name="held"/>, as a press holds it, and gives it back after.</summary>
     void HoldKeys(uint id, bool held);
 
@@ -64,4 +95,6 @@ internal interface IOverlaySurfaces : IDisposable
     /// empty: the window that program shows with it comes in front.
     /// </summary>
     Task<string> ActivationAsync(uint time);
+
+    private static void Unheard(uint id) => _ = id;
 }

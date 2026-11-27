@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Link;
 using Thermi.App.Painting;
 using Thermi.App.Window;
 using Thermi.Core.Agents;
@@ -31,7 +32,7 @@ internal sealed class WindowsHost(WindowStart start) : IWindowHost
     private readonly WindowFixes _fixes = new(start.Environment, start.Time);
     private readonly WindowUpdates _updates = new(start.Time, start.Environment.Log);
 
-    public OverlayLink? Link { get; set; }
+    public WindowEnd? Link { get; set; }
 
     /// <summary>The window: the dialogs show over it, and "Exit thermi" closes it.</summary>
     public HWND Window { get; set; }

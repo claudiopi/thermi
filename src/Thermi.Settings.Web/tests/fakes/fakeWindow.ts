@@ -47,6 +47,7 @@ export function installFakeWindow(): void {
           (role === 'nextStyle' ? Object.keys(state.looks).length > 0 : role !== 'resetMinMax' || showsMinOrMax()),
       ),
       failed: [],
+      hotkeysRefused: false,
       problem: state.problem === null ? null : say('ConfigProblemText.AtLine', '12', 'a comma is missing after "size": 1'),
       lightTaskbar: false,
       forEveryone: false,

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
@@ -48,8 +49,12 @@ public sealed record TrayIcon(Guid Id, string? ItemId, string? Text, Rgb Color, 
     /// <summary>thermi's mark's state on its own icon; null on an item's.</summary>
     public MarkState? Mark { get; init; }
 
-    /// <summary>The icon's name, the same on every start: its item's id, or <see cref="TrayScene.ThermisId"/> for thermi's own.</summary>
-    public string Name => ItemId ?? TrayScene.ThermisId;
+    /// <summary>
+    /// The icon's name, the same on every start and unique among the icons, as a tray and <c>thermi preview</c> know each:
+    /// <see cref="TrayScene.ThermisId"/> for thermi's own, and an item's id after <see cref="AgentReads.ItemPrefix"/>, so no
+    /// item, whatever its id, takes thermi's.
+    /// </summary>
+    public string Name => ItemId is null ? TrayScene.ThermisId : AgentReads.ItemPrefix + ItemId;
 }
 
 /// <summary>
@@ -89,7 +94,7 @@ public sealed record Busiest(BusyProcess? Cpu, BusyProcess? Gpu);
 /// </summary>
 public static class TrayScene
 {
-    /// <summary>The name thermi's own icon goes by where an item's goes by its item's id, as a Linux tray knows each.</summary>
+    /// <summary>The <see cref="TrayIcon.Name"/> of thermi's own icon.</summary>
     public const string ThermisId = "thermi";
 
     public static IReadOnlyList<TrayIcon> Of(ThermiConfig config, TrayInput input)

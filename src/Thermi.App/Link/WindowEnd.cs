@@ -3,43 +3,38 @@ using Thermi.Core;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Messages;
-using Thermi.Windows.Win32;
 
-namespace Thermi.Windows.Ui.Web;
+namespace Thermi.App.Link;
 
 /// <summary>
-/// The window's side of the messages with the overlay (<c>docs/adr/0009-overlay-and-window-messages.md</c>): it asks for
-/// the ten minutes as it opens and takes them for its charts, hands what the desktop selects or points at to the page,
-/// takes each desktop gesture as a step of its own history, and tells the overlay what it edits, selects and points at,
-/// through Core's throttle and off the window's thread, so the overlay marks it.
+/// The window's end of its link with the overlay (docs/adr/0009-overlay-and-window-messages.md) on every OS: it takes the
+/// ten minutes for its charts, hands what the desktop selects or points at to the page, takes each desktop gesture as a
+/// step of its own history, and tells the overlay what it edits, selects and points at, through Core's throttle, so the
+/// overlay marks it.
 /// </summary>
 /// <param name="chart">Where the overlay's ten minutes go.</param>
 /// <param name="editor">Whose history takes each desktop gesture.</param>
 /// <param name="picked">Hands the page what the desktop picked, on the window's thread.</param>
 /// <param name="changed">Tells the page that what it reads changed, as the history coming does.</param>
 /// <param name="time">The throttle's clock.</param>
-/// <param name="send">Where what it edits goes: the overlay's hidden window, off the window's thread, unless a test takes it.</param>
-internal sealed class OverlayLink(
+/// <param name="send">Where what it edits goes, off the window's thread: the overlay, each OS its own way.</param>
+internal sealed class WindowEnd(
     ChartHistory chart,
     WindowEditor editor,
     Action<DesktopPickEventArgs> picked,
     Action changed,
     TimeProvider time,
-    Action<Edited>? send = null) : IDisposable
+    Action<Edited> send) : IDisposable
 {
     private static readonly TimeSpan EditedEvery = TimeSpan.FromMilliseconds(100);
 
-    private readonly Throttle<Edited> _edited =
-        new(EditedEvery, send ?? (edited => _ = Task.Run(() => HiddenWindow.Send(HiddenWindow.HostClass, edited))), time);
+    private readonly Throttle<Edited> _edited = new(EditedEvery, send, time);
 
     // What the page edits, told to the overlay only while the window shows.
     private Edited _editing = new(null, null, null);
     private bool _shown = true;
 
-    /// <summary>Asks the overlay for its ten minutes, which come to the beacon; with none in 500 ms the charts start with gaps.</summary>
-    public static void AskHistory() => HiddenWindow.Send(HiddenWindow.HostClass, new HistoryAsked());
-
-    /// <summary>A message the beacon took from the overlay or a second thermi, on the window's thread.</summary>
+    /// <summary>A message from the overlay or a second thermi, on the window's thread.</summary>
     public void Received(WindowMessage message)
     {
         switch (message)

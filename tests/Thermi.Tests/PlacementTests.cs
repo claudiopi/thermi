@@ -23,10 +23,12 @@ public sealed class PlacementTests
     }
 
     // Off GNOME, a Linux desktop names a monitor from its EDID as Mutter does, which GNOME's snaps saved: the product's
-    // name with its spaces, the serial's text, else its number in hex; no EDID, no name, which the desktop's own then gives.
+    // name with its spaces, else its code, and the serial's text, else its number, each code in hex; no EDID, no name,
+    // which the desktop's own then gives.
     [Theory] // Rows: each a fallback of Mutter's, in its order.
     [InlineData("12345 7XQ9K13", "DEL-DELL U2723QE-7XQ9K13")]
     [InlineData("12345 blank", "DEL-DELL U2723QE-0x00003039")]
+    [InlineData("12345 7XQ9K13 unnamed", "DEL-0xa1b2-7XQ9K13")]
     [InlineData("none", null)]
     public void OffGnomeAMonitorIsNamedAsGnomeNamesIt(string edid, string? id) => Assert.Equal(id, MonitorIds.OfGnome(Edid(edid), "DP-1"));
 
@@ -36,12 +38,13 @@ public sealed class PlacementTests
         ["zeros"] => new byte[128],
         [var number] => Edid(uint.Parse(number, System.Globalization.CultureInfo.InvariantCulture), serial: null),
         [var number, var serial] => Edid(uint.Parse(number, System.Globalization.CultureInfo.InvariantCulture), serial == "blank" ? " \n" : serial),
-        _ => throw new ArgumentException("An EDID is a number and a serial at most.", nameof(written)),
+        [var number, var serial, "unnamed"] => Edid(uint.Parse(number, System.Globalization.CultureInfo.InvariantCulture), serial, named: false),
+        _ => throw new ArgumentException("An EDID is a number, a serial and \"unnamed\" at most.", nameof(written)),
     };
 
     // A base EDID block of 128 bytes: its header, "DEL" as the maker, 0xA1B2 as the product, a serial number, and the
-    // serial's text in the second display descriptor, after a name in the first.
-    private static byte[] Edid(uint number, string? serial)
+    // serial's text in the second display descriptor, after a name in the first unless it is unnamed.
+    private static byte[] Edid(uint number, string? serial, bool named = true)
     {
         var edid = new byte[128];
         byte[] header = [0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00];
@@ -50,7 +53,10 @@ public sealed class PlacementTests
         (edid[8], edid[9]) = ((byte)(maker >> 8), (byte)maker);
         (edid[10], edid[11]) = (0xB2, 0xA1);
         BitConverter.GetBytes(number).CopyTo(edid, 12);
-        Descriptor(edid, 54, 0xFC, "DELL U2723QE");
+        if (named)
+        {
+            Descriptor(edid, 54, 0xFC, "DELL U2723QE");
+        }
         if (serial is not null)
         {
             Descriptor(edid, 72, 0xFF, serial);

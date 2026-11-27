@@ -96,7 +96,7 @@ public sealed class PainterTests
         using var bitmap = painter.Paint(items, Look, 1);
         var accent = new Rgb(255, 0, 255);
 
-        new EditMarks(Fade.None, Metrics.CpuLoad.Id, null, accent).Draw(bitmap, painter.Places, items, 1);
+        new EditMarks(EditFade.None, Metrics.CpuLoad.Id, null, accent).Draw(bitmap, painter.Places, items, 1);
 
         var place = painter.Places.Single(each => each.Id == Metrics.CpuLoad.Id);
         var marked = Enumerable.Range(0, bitmap.Width)
@@ -118,7 +118,7 @@ public sealed class PainterTests
     {
         using var painter = new Painter();
         var items = Layout(9);
-        var look = new EditMarks(Fade.Frame, null, null, default).Applied(OverlayLook.Of(new StyleConfig { Pills = pills }, lightTaskbar: false));
+        var look = EditLooks.Applied(OverlayLook.Of(new StyleConfig { Pills = pills }, lightTaskbar: false), EditFade.Frame);
 
         using var bitmap = painter.Paint(items, look, 1);
 

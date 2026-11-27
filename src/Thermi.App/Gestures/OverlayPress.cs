@@ -50,6 +50,18 @@ internal interface IPressHost
     void MoveTo(Position at);
 }
 
+/// <summary>The pointer's shape over an overlay, which each desktop shows with its own cursor of that name.</summary>
+internal enum PointerShape
+{
+    Default,
+
+    /// <summary>A drop here does nothing: at the cap of overlays, or on a taskbar with no room.</summary>
+    NotAllowed,
+
+    /// <summary>On a floating overlay's corner, or dragging it: the arrows from top-left to bottom-right.</summary>
+    Resize,
+}
+
 /// <summary>
 /// An overlay's desktop gestures on every OS: the overlay moved onto a snap mark or into another overlay, a pill or an item
 /// held still until it lifts and then dragged off, a floating overlay's corner, and Ctrl and the wheel. The host says
@@ -161,6 +173,37 @@ internal sealed class OverlayPress(int index, Settings settings, IPressHost host
         && DesktopGestures.JoinTarget(host.Shown(), Self, drag.Box(at), cursor, drag.AltHeld()) is var (onto, point)
             ? host.JoinAt(onto, point, drag is { Lifted: true, Carried: { Alone: true } alone } && onto == index ? alone.Item : null)
             : default;
+
+    /// <summary>
+    /// Esc, or another grab taking the pointer from the press, as the overview or a dialog does: the drag ends where it
+    /// began, writing nothing, and the overlay goes back. False when no press held it.
+    /// </summary>
+    public bool Cancel()
+    {
+        if (Drag is not { } drag)
+        {
+            return false;
+        }
+
+        var origin = drag.Origin;
+        Let();
+        host.MoveTo(origin);
+        host.RequestPaint();
+        return true;
+    }
+
+    /// <summary>
+    /// The pointer's shape over the overlay at <paramref name="at"/>, drawn <paramref name="size"/> big, as Windows shows
+    /// it: no entry while a drop would do nothing, the resize arrows while the press holds the corner of a floating overlay
+    /// or the pointer rests on it, and else the desktop's own.
+    /// </summary>
+    public PointerShape Shape(OverlayConfig overlay, Size? size, float scale, Position at) => Drag switch
+    {
+        { Refuses: true } => PointerShape.NotAllowed,
+        { Resizes: true } => PointerShape.Resize,
+        null when size is { } drawn && InCorner(overlay, drawn, scale, at, host.Cursor()) => PointerShape.Resize,
+        _ => PointerShape.Default,
+    };
 
     /// <summary>Ends the press's drag, whatever it did.</summary>
     public void Let()

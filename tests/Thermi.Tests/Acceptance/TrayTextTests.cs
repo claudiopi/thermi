@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
+using Thermi.App.Preview;
 using Thermi.Core.Editing;
 using Thermi.Core.Frames;
 using Thermi.Core.Look;
@@ -193,6 +194,13 @@ public sealed class TrayTextTests
         Assert.Equal(Made(Installed), Made(Installed.ToLowerInvariant()));
         Assert.Empty(Made(Installed).Intersect(Made(Elsewhere)));
         Assert.Equal(ids.Count + 1, Made(Installed).Distinct().Count());
+
+        // An icon's name is as unique, even for an item whose id is thermi's, and thermi preview paints the icon it names.
+        var named = new ThermiConfig { Overlays = [new OverlayConfig { Items = [new ItemConfig { Id = TrayScene.ThermisId, Tray = true }] }] };
+        var icons = TrayScene.Of(named, Input());
+        Assert.Equal([TrayScene.ThermisId, "item:thermi"], icons.Select(icon => icon.Name));
+        var painted = icons.Select(icon => SnapshotPreview.Icon(named, [], icon.Name, null, lightTaskbar: false, TextWriter.Null)?.ItemId);
+        Assert.Equal([null, TrayScene.ThermisId], painted);
     }
 
     [Fact]
