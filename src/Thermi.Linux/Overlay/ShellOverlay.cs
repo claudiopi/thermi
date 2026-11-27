@@ -238,7 +238,6 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
         _ = parts.Call(parts.Link.Move((uint)index, x, y));
     }
 
-    // A second press soon after the first, where it was: a double-click, which opens the settings.
     private bool Twice(uint time, Position cursor, ShellScreens screens)
     {
         var near = Distance(screens);

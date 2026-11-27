@@ -31,7 +31,6 @@ internal sealed class ExtensionArrival
         notices.Invoked += Clicked;
     }
 
-    /// <summary>Whether the extension runs thermi's protocol now.</summary>
     public bool Ready { get; private set; }
 
     /// <summary>Asks where the extension stands, as thermi starts.</summary>

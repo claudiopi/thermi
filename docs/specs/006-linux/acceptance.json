@@ -74,7 +74,7 @@
       ],
       "description": "Given the headless GNOME Shell and KWin with the overlay, when the person right-clicks a pill, chooses Hide overlays, undoes it, chooses Task Manager, then Exit thermi, then the menu is the Shell's on GNOME and GTK's on KWin, with Core's entries; the overlay hides and comes back; the desktop's system monitor starts; and thermi ends and its unit stays stopped. Given thermi killed instead, then its unit starts it again, and one overlay shows. Given the settings window's Exit thermi, through the overlay's name on the session's bus, then thermi ends with 0 as the menu's Exit does, and its unit stays stopped.",
       "check": "TheOverlaysMenuIsTheShellsOwn",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A8",

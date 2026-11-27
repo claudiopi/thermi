@@ -15,7 +15,12 @@ internal static class Accessible
     private const string Code = """
         import sys, time, gi
         gi.require_version('Atspi', '2.0')
-        from gi.repository import Atspi
+        from gi.repository import Atspi, Gio, GLib
+
+        # GNOME Shell tells of a menu that shows only once accessibility is on; reading the tree does not turn it on.
+        Gio.bus_get_sync(Gio.BusType.SESSION, None).call_sync(
+            'org.a11y.Bus', '/org/a11y/bus', 'org.freedesktop.DBus.Properties', 'Set',
+            GLib.Variant('(ssv)', ('org.a11y.Status', 'IsEnabled', GLib.Variant('b', True))), None, Gio.DBusCallFlags.NONE, -1, None)
 
         ITEMS = (Atspi.Role.MENU_ITEM, Atspi.Role.CHECK_MENU_ITEM, Atspi.Role.RADIO_MENU_ITEM, Atspi.Role.MENU)
 
