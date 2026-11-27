@@ -25,7 +25,7 @@
       "covers": [
         "R5"
       ],
-      "description": "Given the service's socket and clients (a table of one as the person, one whose peer is another user posing as the service, one that writes to it, nine of one user, one whose own socket a console left as it ended), when they connect, then the person's client reads Core's snapshot lines, past a socket of their own that refuses; a server of another user is refused; what a client writes is never read; the ninth connection of one user is hung up at once and another user's still connects; and the service ends 10 s after the last client leaves.",
+      "description": "Given the service's socket and clients (a table of one as the person, whose own socket a console left as it ended, one whose peer is another user posing as the service, one that writes to it, nine of one user), when they connect, then the person's client reads Core's snapshot lines, past a socket of their own that refuses; a server of another user is refused; what a client writes is never read; the ninth connection of one user is hung up at once and another user's still connects; and the service ends 10 s after the last client leaves.",
       "check": "TheSocketServesOnlyTheServicesLines",
       "passes": true
     },

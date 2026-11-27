@@ -72,7 +72,6 @@ public sealed partial class ServiceTests
         Impostor,
         Writer,
         Crowd,
-        Stale,
     }
 
     [Theory]
@@ -148,7 +147,6 @@ public sealed partial class ServiceTests
     [InlineData(Client.Impostor)]
     [InlineData(Client.Writer)]
     [InlineData(Client.Crowd)]
-    [InlineData(Client.Stale)]
     public async Task TheSocketServesOnlyTheServicesLines(Client client)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -172,7 +170,7 @@ public sealed partial class ServiceTests
 
         var lines = said.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(client == Client.Impostor ? 3 : 0, exit);
-        Assert.Equal(client is Client.Person or Client.Stale, said.Contains($"\"{Metrics.CpuTemperature.Id}\"", StringComparison.Ordinal));
+        Assert.Equal(client == Client.Person, said.Contains($"\"{Metrics.CpuTemperature.Id}\"", StringComparison.Ordinal));
         if (client == Client.Writer)
         {
             Assert.Equal(3, new SnapshotLines().Add(Encoding.UTF8.GetBytes(string.Join('\n', lines[..3]) + '\n')).Count);
@@ -218,13 +216,14 @@ public sealed partial class ServiceTests
     [GeneratedRegex("""RUN\+="(?<command>[^"]+)""", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Run();
 
-    // Each row connects to the socket as it says: a person's read; a server another user listens with on the socket's path,
-    // which the person's read refuses; a client that writes as it reads; nine connections of one user, then one of
-    // another's; and a person's read whose own socket is one a console left as it ended. The person runs the thermi-cli
-    // the package put on every PATH.
+    // Each row connects to the socket as it says: a person's read, whose own socket is one a console left as it ended; a
+    // server another user listens with on the socket's path, which the person's read refuses; a client that writes as it
+    // reads; and nine connections of one user, then one of another's. The person runs the thermi-cli the package put on
+    // every PATH.
     private static string ClientScript(Client client) => client switch
     {
-        Client.Person => "su person -c 'thermi-cli read --schema 1'",
+        Client.Person => $"su person -c 'mkdir -p /tmp/run/thermi && python3 {Container.Work}/stale.py /tmp/run/thermi/sensors.sock"
+            + " && XDG_RUNTIME_DIR=/tmp/run thermi-cli read --schema 1'",
         // Only the impostor runs in the background, with no stream of docker exec's, which would wait for it to end.
         Client.Impostor => "systemctl stop thermi-sensors.socket thermi-sensors.service && rm -rf /run/thermi && install -d -o other /run/thermi"
             + " && mkfifo /tmp/listens || exit 1; "
@@ -233,8 +232,6 @@ public sealed partial class ServiceTests
         Client.Writer => $"su person -c 'python3 {Container.Work}/writer.py'",
         Client.Crowd => $"mkfifo /tmp/go /tmp/said; su person -c 'python3 {Container.Work}/clients.py 9' < /tmp/go > /tmp/said & exec 3>/tmp/go; "
             + $"read -r person < /tmp/said; su other -c 'python3 {Container.Work}/clients.py 1' < /dev/null; echo $person; exec 3>&-; wait",
-        Client.Stale => $"su person -c 'mkdir -p /tmp/run/thermi && python3 {Container.Work}/stale.py /tmp/run/thermi/sensors.sock"
-            + " && XDG_RUNTIME_DIR=/tmp/run thermi-cli read --schema 1'",
         _ => throw new ArgumentOutOfRangeException(nameof(client), client, "Unknown client."),
     };
 
