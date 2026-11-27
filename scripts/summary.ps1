@@ -1,6 +1,7 @@
-# Dot-sourced by the check and the mutation scripts: on GitHub Actions, the job's summary, one table of its steps, each
-# with its result, its time and what it measured. Anywhere, what they measured as data, which `scripts/stats.ps1` and the
-# CI's dashboard read.
+# Dot-sourced by the check and the mutation scripts: what their steps measured, as data, which `scripts/stats.ps1` and
+# the CI's dashboard read; and on GitHub Actions, when a step failed, the job's summary, one table of its steps, each with
+# its result, its time and what it measured, so the cause is one click from the run. A CI run that passes shows the
+# dashboard alone.
 
 $summaryRows = [Collections.Generic.List[object]]::new()
 $summaryWatch = [Diagnostics.Stopwatch]::StartNew()
@@ -23,12 +24,12 @@ function Format-Seconds([double]$Seconds) {
     '{0:n0} min {1:00} s' -f [Math]::Floor($Seconds / 60), [Math]::Floor($Seconds % 60)
 }
 
-# The steps' table, and the steps as data under $Name, whose times the dashboard shows when no CI timed the jobs.
-function Write-Summary([string]$Title, [string]$Name) {
+# The steps as data under $Name, and their table when one failed, or -Always, as a run of its own with no dashboard.
+function Write-Summary([string]$Title, [string]$Name, [switch]$Always) {
     if (-not $summaryRows.Count) { return }
     Save-Stats "steps-$Name" @{ title = $Title; seconds = $summaryWatch.Elapsed.TotalSeconds; steps = @($summaryRows) }
-    if (-not $env:GITHUB_STEP_SUMMARY) { return }
     $failed = $summaryRows | Where-Object Status -eq 'fail'
+    if (-not $env:GITHUB_STEP_SUMMARY -or -not ($failed -or $Always)) { return }
     $lines = @(
         "### $(if ($failed) { $summaryIcons.fail } else { $summaryIcons.ok }) $Title · $(Format-Seconds $summaryWatch.Elapsed.TotalSeconds)"
         ''

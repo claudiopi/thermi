@@ -199,17 +199,32 @@ function Write-Trend {
 }
 
 # The CI's jobs by how long each ran, or here the check's steps.
+# The CI's jobs by how long each ran, with how each ended, then the slowest steps of the check's jobs; here the check's
+# steps alone.
 function Write-Time {
     '## ⏱️ Where the time goes'
     ''
-    $timed = if ($github.jobs) { $github.jobs | ForEach-Object { @{ Name = Get-JobLabel $_.name; Seconds = $_.seconds } } }
-        else { $run.Steps | ForEach-Object { $_.steps } | Where-Object { $_.Seconds -gt 0 } | ForEach-Object { @{ Name = $_.Name; Seconds = $_.Seconds } } }
+    $steps = @($run.Steps | ForEach-Object { $job = $_.title; $_.steps | ForEach-Object { $_ + @{ Job = $job } } } | Where-Object { $_.Seconds -gt 0 })
+    $icons = @{ success = '✅'; failure = '❌'; cancelled = '🚫'; skipped = '⏭️'; ok = '✅'; fail = '❌'; info = '📊' }
+    $timed = if ($github.jobs) { $github.jobs | ForEach-Object { @{ Name = Get-JobLabel $_.name; Seconds = $_.seconds; Result = $_.result } } }
+        else { $steps | ForEach-Object { @{ Name = $_.Name; Seconds = $_.Seconds; Result = $_.Status } } }
     if (-not $timed) { 'Nothing was timed.'; ''; return }
-    $longest = @($timed | ForEach-Object { $_.Seconds } | Sort-Object)[-1]
-    '| Job | | Time |'
+    Write-Timed $timed $(if ($github.jobs) { 'Job' } else { 'Step' }) $icons
+    if (-not $github.jobs -or -not $steps) { return }
+    '| Slowest steps | Job | Time |'
     '| --- | --- | --: |'
-    foreach ($each in $timed | Sort-Object { $_.Seconds } -Descending) {
-        "| $($each.Name) | $(Get-Bar (100 * $each.Seconds / [Math]::Max(1, $longest)) 20) | $(Format-Duration $each.Seconds) |"
+    foreach ($step in $steps | Sort-Object { $_.Seconds } -Descending | Select-Object -First 8) {
+        "| $($icons[$step.Status]) $($step.Name) | $($step.Job) | $(Format-Duration $step.Seconds) |"
+    }
+    ''
+}
+
+function Write-Timed([object[]]$Timed, [string]$What, [hashtable]$Icons) {
+    $longest = @($Timed | ForEach-Object { $_.Seconds } | Sort-Object)[-1]
+    "| | $What | | Time |"
+    '| :-: | --- | --- | --: |'
+    foreach ($each in $Timed | Sort-Object { $_.Seconds } -Descending) {
+        "| $($Icons[$each.Result]) | $($each.Name) | $(Get-Bar (100 * $each.Seconds / [Math]::Max(1, $longest)) 20) | $(Format-Duration $each.Seconds) |"
     }
     ''
 }

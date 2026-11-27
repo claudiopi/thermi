@@ -149,5 +149,6 @@ try {
     if ($web) { Measure-Page } else { Measure-DotNet }
 }
 finally {
-    if ($web) { Write-Summary "🐛 Bug hunt · the page's logic" 'BugHuntWeb' } else { Write-Summary '🐛 Bug hunt · Thermi.Core and Thermi.Cli' 'BugHunt' }
+    if ($web) { Write-Summary "🐛 Bug hunt · the page's logic" 'BugHuntWeb' -Always }
+    else { Write-Summary '🐛 Bug hunt · Thermi.Core and Thermi.Cli' 'BugHunt' -Always }
 }

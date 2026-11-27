@@ -3,7 +3,8 @@
 . (Join-Path $PSScriptRoot 'summary.ps1')
 . (Join-Path $PSScriptRoot 'coverage.ps1')
 
-# What a step's output measured, for the CI's summary: the lines a script of the check marks for it, and react-doctor's score.
+# What a step's output measured, for the dashboard and a failed job's summary: the lines a script of the check marks for it,
+# and react-doctor's score.
 $measuredLine = '^(summary: |Score: \d+ / 100)'
 
 # The Windows tests' collection whose test spins every core: it runs after the rest, which would only measure its load.
