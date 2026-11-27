@@ -177,6 +177,12 @@ internal sealed class TestDesktop : IAsyncDisposable
             await TestPanel.FramedAsync(_panel, cancel).ConfigureAwait(false);
         }
 
+        if (Kind is DesktopKind.Gnome or DesktopKind.GnomeX11)
+        {
+            var framed = await Session.RunAsync("gdbus", Call(TestShell.ReadyName, TestShell.ObjectPath, "Frame"), cancel: cancel).ConfigureAwait(false);
+            _ = framed.Exit == 0 ? 0 : throw new InvalidOperationException($"The Shell painted no frame: {framed.Error}");
+        }
+
         (string Program, string[] Args) shot = Kind switch
         {
             DesktopKind.Gnome or DesktopKind.GnomeX11 =>

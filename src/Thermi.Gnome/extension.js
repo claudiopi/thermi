@@ -169,9 +169,6 @@ export default class ThermiExtension extends Extension {
             return;
         shown.picture.set_position(x, y);
         shown.clicks.forEach(click => click.set_position(x + click.thermiAt[0], y + click.thermiAt[1]));
-        // Asked for its box, the stage lays the picture out now, not at its next frame: the Shell's screenshot paints the
-        // stage as last laid out, which would draw a new picture in the old one's size and place.
-        shown.picture.get_allocation_box();
     }
 
     _raise(overlay) {

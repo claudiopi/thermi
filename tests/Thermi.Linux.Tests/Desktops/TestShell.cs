@@ -11,17 +11,34 @@ internal static class TestShell
     /// <summary>The bus name the tests' extension takes once the Shell is up and out of its overview.</summary>
     public const string ReadyName = "org.thermi.TestShell";
 
+    /// <summary>The path of the tests' extension's object, whose <c>Frame</c> answers once the stage painted a frame.</summary>
+    public const string ObjectPath = "/org/thermi/TestShell";
+
     private const string Uuid = "thermi-tests@thermi";
 
     // Unsafe mode lets the tests screenshot the Shell and run its input for tests through Eval. The headless Shell starts
-    // in its overview, which would cover every window.
-    private const string Code = """
+    // in its overview, which would cover every window. Frame answers once the stage painted a frame, which lays it out
+    // first: the Shell's screenshot paints the stage as last laid out, and would draw a picture just sent in the old one's
+    // size and place.
+    private const string Code = $$"""
         import Gio from 'gi://Gio';
         import * as Main from 'resource:///org/gnome/shell/ui/main.js';
         import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+        const XML = '<node><interface name="org.thermi.TestShell"><method name="Frame"/></interface></node>';
+
         export default class extends Extension {
+            FrameAsync(args, invocation) {
+                const painted = global.stage.connect('after-paint', () => {
+                    global.stage.disconnect(painted);
+                    invocation.return_value(null);
+                });
+                global.stage.queue_redraw();
+            }
+
             enable() {
+                this._service = Gio.DBusExportedObject.wrapJSObject(XML, this);
+                this._service.export(Gio.DBus.session, '{{ObjectPath}}');
                 global.context.unsafe_mode = true;
                 // GNOME 50 may show it again once its start is complete; the tests never use it.
                 this._shown = Main.overview.connect('shown', () => Main.overview.hide());
@@ -40,6 +57,7 @@ internal static class TestShell
 
             disable() {
                 if (this._name) Gio.bus_unown_name(this._name);
+                this._service.unexport();
                 Main.overview.disconnect(this._shown);
             }
         }
