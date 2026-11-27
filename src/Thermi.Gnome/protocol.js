@@ -21,12 +21,10 @@ const MOST_ROWS = 256;
 
 export const finite = (...numbers) => numbers.every(Number.isFinite);
 
-// Whether the event happened inside the actor, wherever the Shell delivered it.
-export function inside(actor, event) {
+// What takes the pointer where an event happened, as the stage sees it now rather than as it last told the pointer.
+export function under(event) {
     const [x, y] = event.get_coords();
-    const [left, top] = actor.get_transformed_position();
-    const [wide, high] = actor.get_transformed_size();
-    return x >= left && y >= top && x < left + wide && y < top + high;
+    return global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
 }
 
 // A call thermi's protocol does not have: refused before it changes anything.

@@ -8,7 +8,9 @@ namespace Thermi.Linux.Tests;
 /// of them the person's, so nothing a test starts shows on their screen or talks to their desktop. Every process a Linux
 /// test starts, a compositor and the SDK's <c>thermi-cli</c> among them, starts here, with the session's environment alone
 /// and nothing of the test process's but its PATH, after the build's programs as a package puts them on it, and where .NET
-/// runs from; a repo rule holds it. Ending the session ends all it started and deletes its folders.
+/// runs from; a repo rule holds it. Its bus starts only the services the session needs (<see cref="Activates"/>), so
+/// several sessions at once fit in the inotify instances their user has. Ending the session ends all it started and deletes
+/// its folders.
 /// </summary>
 internal sealed class OwnSession : IAsyncDisposable
 {
@@ -20,10 +22,43 @@ internal sealed class OwnSession : IAsyncDisposable
 
     private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
 
+    // A session bus as the system's own, but for the services it may start, which are the session's alone; its limits are
+    // a desktop's, past what the tests' monitors and the Shell ask.
+    private const string BusConfig = """
+        <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+         "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+        <busconfig>
+          <type>session</type>
+          <listen>LISTEN</listen>
+          <keep_umask/>
+          <auth>EXTERNAL</auth>
+          <servicedir>SERVICES</servicedir>
+          <policy context="default">
+            <allow send_destination="*" eavesdrop="true"/>
+            <allow eavesdrop="true"/>
+            <allow own="*"/>
+          </policy>
+          <limit name="service_start_timeout">120000</limit>
+          <limit name="max_match_rules_per_connection">50000</limit>
+          <limit name="max_replies_per_connection">50000</limit>
+        </busconfig>
+        """;
+
     // X11 displays the person's server never takes: theirs are the first few. Each session takes the next.
     private static int _nextDisplay = 100 + (Environment.ProcessId % 400 * 64);
 
+    // A desktop's bus starts any service a program asks for, file monitors, calendars, accounts and portals, each holding
+    // inotify instances, of which a user has few: a session's bus starts only the settings' store, which gsettings writes
+    // through, the accessibility bus, which the tests read menus and windows through, and what a test asks for.
+    private static readonly string[] Always = ["ca.desrt.dconf", "org.a11y.Bus"];
+
+    // The Shell starts ibus-daemon for input methods, which starts six programs of its own, and no test types through it:
+    // in its place, a program of the same name that ends at once.
+    private static readonly string[] StandIns = ["ibus-daemon"];
+
     private readonly DirectoryInfo _folder;
+    private readonly string _services;
+    private readonly string _standIns;
     private readonly List<Process> _started = [];
     private bool _busListens;
 
@@ -34,6 +69,15 @@ internal sealed class OwnSession : IAsyncDisposable
         // A runtime folder only its user may enter, as XDG's specification asks and the compositors check.
         RuntimeFolder = Directory.CreateDirectory(Path.Combine(_folder.FullName, "run"), OwnerOnly).FullName;
         X11Display = $":{Interlocked.Increment(ref _nextDisplay)}";
+        _services = _folder.CreateSubdirectory("services").FullName;
+        _standIns = _folder.CreateSubdirectory("stand-ins").FullName;
+        foreach (var program in StandIns)
+        {
+            File.WriteAllText(Path.Combine(_standIns, program), "#!/bin/sh\nexit 0\n");
+            File.SetUnixFileMode(Path.Combine(_standIns, program), OwnerOnly);
+        }
+
+        Activates(Always);
     }
 
     public string Home { get; }
@@ -52,7 +96,7 @@ internal sealed class OwnSession : IAsyncDisposable
         {
             var variables = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["PATH"] = $"{AppContext.BaseDirectory.TrimEnd('/')}:{Environment.GetEnvironmentVariable("PATH") ?? "/usr/bin:/bin"}",
+                ["PATH"] = $"{AppContext.BaseDirectory.TrimEnd('/')}:{_standIns}:{Environment.GetEnvironmentVariable("PATH") ?? "/usr/bin:/bin"}",
                 ["HOME"] = Home,
                 ["XDG_RUNTIME_DIR"] = RuntimeFolder,
                 ["XDG_CONFIG_HOME"] = Path.Combine(Home, ".config"),
@@ -88,13 +132,35 @@ internal sealed class OwnSession : IAsyncDisposable
     {
         if (!_busListens)
         {
-            var bus = new SessionProcess(Launch("dbus-daemon", ["--session", "--nofork", "--nopidfile", "--print-address", $"--address={BusAddress}"], null));
+            var config = Path.Combine(_folder.FullName, "bus.conf");
+            var text = BusConfig.Replace("LISTEN", BusAddress, StringComparison.Ordinal).Replace("SERVICES", _services, StringComparison.Ordinal);
+            await File.WriteAllTextAsync(config, text, cancel).ConfigureAwait(false);
+            string[] daemon = [$"--config-file={config}", "--nofork", "--nopidfile", "--print-address"];
+            var bus = new SessionProcess(Launch("dbus-daemon", daemon, null));
             // It prints its address once it listens.
             await bus.ReadyAsync(cancel).ConfigureAwait(false);
             _busListens = true;
         }
 
         return new SessionProcess(Launch(program, args, environment));
+    }
+
+    /// <summary>
+    /// Lets the session's bus start the D-Bus services <paramref name="names"/> when a program asks for them, as a desktop's
+    /// bus does, from where the PC installed them; one not installed stays unknown. A program that asks for any other goes on
+    /// without it, as on a desktop that lacks it.
+    /// </summary>
+    public void Activates(params IEnumerable<string> names)
+    {
+        var shared = Environment.GetEnvironmentVariable("XDG_DATA_DIRS") is { Length: > 0 } dirs ? dirs : "/usr/local/share:/usr/share";
+        foreach (var name in names)
+        {
+            var installed = shared.Split(':').Select(dir => Path.Combine(dir, "dbus-1", "services", $"{name}.service")).FirstOrDefault(File.Exists);
+            if (installed is not null)
+            {
+                File.Copy(installed, Path.Combine(_services, $"{name}.service"), overwrite: true);
+            }
+        }
     }
 
     /// <summary>Runs <paramref name="program"/> in the session to its end: its exit code, and what it wrote to each stream.</summary>

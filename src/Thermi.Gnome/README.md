@@ -9,7 +9,7 @@ thermi's GNOME Shell extension, in JavaScript, for GNOME Shell 46 to 51 (`docs/a
 | Each overlay's picture, premultiplied ARGB, its size, place and scale, and the boxes that take the pointer, where it draws | `thermi` (`Show`, `Move`, `Hide`) |
 | A menu's rows, each under the row it opens from | `thermi` (`Menu`) |
 | The pointer on an overlay, the keys pressed while it holds one, the row chosen | the extension (`Pointer`, `Key`, `Chosen`) |
-| The monitors, their scales and top bar, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |
+| The monitors, their scales and top bar with its clock and system menu, which no overlay covers, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |
 | That it came up, with its protocol's version | the extension (`Ready`) |
 | thermi's icons, each a picture with its tooltip, an icon's menu, and the hotkeys to take as GTK accelerators | `thermi` (`Icons`, `IconMenu`, `Hotkeys`) |
 | A press on an icon, the row chosen of its menu, a hotkey pressed; a hotkey another program holds is refused in `Hotkeys`' answer | the extension (`IconPressed`, `IconChosen`, `Hotkey`) |

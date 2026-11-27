@@ -36,7 +36,7 @@ public sealed class TrayItemTests
         print(got, said.unpack()[0], flush=True)
         """;
 
-    [Theory]
+    [Theory(Timeout = Bound.Test)]
     [InlineData("wrong-arguments")]
     [InlineData("no-such-method")]
     [InlineData("no-such-interface")]

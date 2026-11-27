@@ -6,7 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {ThermiDesktop} from './desktop.js';
-import {OVERLAY, PATH, answer, fillMenu, finite, inside, refusePicture, refuseRows, refuseUnless, setPicture} from './protocol.js';
+import {OVERLAY, PATH, answer, fillMenu, finite, refusePicture, refuseRows, refuseUnless, setPicture, under} from './protocol.js';
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
 // the pointer, the monitors and the menu's choice back; its icons in the top bar and its hotkeys are desktop.js'. It
@@ -22,13 +22,13 @@ const XML = `<node><interface name="${SHELL}">
   <method name="Hide"><arg type="u" direction="in"/></method>
   <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
     <arg type="a(issbbb)" direction="in"/></method>
-  <method name="Monitors"><arg type="a(ddddddbb)" direction="out"/></method>
+  <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
   <method name="Watch"><arg type="b" direction="in"/></method>
   <signal name="Ready"><arg type="u"/></signal>
   <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
     <arg type="u"/><arg type="d"/><arg type="d"/></signal>
   <signal name="Key"><arg type="u"/><arg type="s"/></signal>
-  <signal name="MonitorsChanged"><arg type="a(ddddddbb)"/></signal>
+  <signal name="MonitorsChanged"><arg type="a(ddddddbbdddd)"/></signal>
   <signal name="Chosen"><arg type="u"/><arg type="i"/></signal>
 </interface></node>`;
 
@@ -61,6 +61,8 @@ export default class ThermiExtension extends Extension {
         Main.layoutManager.connectObject('monitors-changed', () => this._monitorsChanged(), this);
         global.display.connectObject('in-fullscreen-changed', () => this._monitorsChanged(), this);
         Main.layoutManager.panelBox.connectObject('notify::visible', () => this._monitorsChanged(), this);
+        [Main.panel._centerBox, Main.panel._rightBox].forEach(box => box.connectObject('notify::allocation', () => this._monitorsChanged(), this));
+        global.stage.connectObject('captured-event', (stage, event) => this._captured(event), this);
         this._service.emit_signal('Ready', new GLib.Variant('(u)', [this.Protocol]));
     }
 
@@ -69,6 +71,8 @@ export default class ThermiExtension extends Extension {
         Main.layoutManager.disconnectObject(this);
         global.display.disconnectObject(this);
         Main.layoutManager.panelBox.disconnectObject(this);
+        [Main.panel._centerBox, Main.panel._rightBox].forEach(box => box.disconnectObject(this));
+        global.stage.disconnectObject(this);
         Gio.bus_unwatch_name(this._watch);
         this._desktop.destroy();
         this._desktop = null;
@@ -105,14 +109,24 @@ export default class ThermiExtension extends Extension {
         this._answer(invocation, () => this._watchPointer(...args));
     }
 
+
+    // Each monitor, with the top bar's height on the one that shows it, and the left and right edges of the bar's centre box,
+    // the clock, and its right box, the system menu, which no overlay covers.
     Monitors() {
         const panel = Main.layoutManager.panelBox;
-        return Main.layoutManager.monitors.map(monitor => [
-            monitor.x, monitor.y, monitor.width, monitor.height, monitor.geometry_scale,
-            monitor.index === Main.layoutManager.primaryIndex && panel.visible ? panel.height : 0,
-            monitor.index === Main.layoutManager.primaryIndex,
-            global.display.get_monitor_in_fullscreen(monitor.index),
-        ]);
+        const kept = [Main.panel._centerBox, Main.panel._rightBox].flatMap(box => {
+            const [left] = box.get_transformed_position();
+            const [width] = box.get_transformed_size();
+            return [left, left + width];
+        });
+        return Main.layoutManager.monitors.map(monitor => {
+            const bar = monitor.index === Main.layoutManager.primaryIndex && panel.visible;
+            return [
+                monitor.x, monitor.y, monitor.width, monitor.height, monitor.geometry_scale, bar ? panel.height : 0,
+                monitor.index === Main.layoutManager.primaryIndex, global.display.get_monitor_in_fullscreen(monitor.index),
+                ...bar ? kept : [0, 0, 0, 0],
+            ];
+        });
     }
 
     _answer(invocation, act) {
@@ -221,7 +235,7 @@ export default class ThermiExtension extends Extension {
     }
 
     _monitorsChanged() {
-        this._emit('MonitorsChanged', '(a(ddddddbb))', [this.Monitors()]);
+        this._emit('MonitorsChanged', '(a(ddddddbbdddd))', [this.Monitors()]);
     }
 
     _emit(name, type, values) {
@@ -269,24 +283,25 @@ export default class ThermiExtension extends Extension {
             this._emit('Pointer', '(usdduuudd)', [overlay, kind, px, py, button, event.get_state(), event.get_time(), dx, dy]);
             return Clutter.EVENT_STOP;
         };
-        // While no press of thermi's holds, the box takes only what happens inside it: once a menu that held the pointer
-        // closes, GNOME 50 can hand the next press, wherever it is, to the box the pointer was on before the menu.
-        const ours = event => {
-            if (this._overlays.get(overlay)?.grab)
-                return true;
-            return inside(click, event);
-        };
-        click.connect('button-press-event', (actor, event) => {
-            if (!ours(event))
-                return Clutter.EVENT_PROPAGATE;
+        // While no press of thermi's holds, the box takes only what is on it now (see _captured).
+        const ours = event => this._overlays.get(overlay)?.grab || under(event) === click;
+        const press = event => {
             const shown = this._overlays.get(overlay);
             if (shown && !shown.grab && event.get_button() === Clutter.BUTTON_PRIMARY) {
                 shown.focus = global.stage.get_key_focus();
-                shown.grab = global.stage.grab(actor);
-                global.stage.set_key_focus(actor);
+                shown.grab = global.stage.grab(click);
+                global.stage.set_key_focus(click);
             }
             return pointer('press', event, event.get_button());
-        });
+        };
+        const scroll = event => {
+            const step = {[Clutter.ScrollDirection.UP]: [0, -1], [Clutter.ScrollDirection.DOWN]: [0, 1]};
+            const delta = event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH
+                ? event.get_scroll_delta() : step[event.get_scroll_direction()] ?? [0, 0];
+            return pointer('scroll', event, 0, delta);
+        };
+        click.thermiTake = event => event.type() === Clutter.EventType.SCROLL ? scroll(event) : press(event);
+        click.connect('button-press-event', (actor, event) => ours(event) ? press(event) : Clutter.EVENT_PROPAGATE);
         click.connect('button-release-event', (actor, event) => {
             if (!ours(event))
                 return Clutter.EVENT_PROPAGATE;
@@ -296,14 +311,7 @@ export default class ThermiExtension extends Extension {
         });
         click.connect('motion-event', (actor, event) => ours(event) ? pointer('motion', event) : Clutter.EVENT_PROPAGATE);
         click.connect('leave-event', (actor, event) => pointer('leave', event));
-        click.connect('scroll-event', (actor, event) => {
-            if (!ours(event))
-                return Clutter.EVENT_PROPAGATE;
-            const step = {[Clutter.ScrollDirection.UP]: [0, -1], [Clutter.ScrollDirection.DOWN]: [0, 1]};
-            const delta = event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH
-                ? event.get_scroll_delta() : step[event.get_scroll_direction()] ?? [0, 0];
-            return pointer('scroll', event, 0, delta);
-        });
+        click.connect('scroll-event', (actor, event) => ours(event) ? scroll(event) : Clutter.EVENT_PROPAGATE);
         click.connect('key-press-event', (actor, event) => {
             if (!this._overlays.get(overlay)?.grab || event.get_key_symbol() !== Clutter.KEY_Escape)
                 return Clutter.EVENT_PROPAGATE;
@@ -311,6 +319,17 @@ export default class ThermiExtension extends Extension {
             return Clutter.EVENT_STOP;
         });
         return click;
+    }
+
+    // Once a grab ends, a menu's or a drag's, GNOME 50 can send the next press or turn of the wheel to the actor the pointer
+    // was on before it, a window or another box, wherever the pointer is now; so the stage asks what is under it, and a box
+    // of thermi's there takes it. While a grab holds, the stage sees nothing outside it.
+    _captured(event) {
+        const type = event.type();
+        if (type !== Clutter.EventType.BUTTON_PRESS && type !== Clutter.EventType.SCROLL)
+            return Clutter.EVENT_PROPAGATE;
+        const box = under(event);
+        return box?.thermiTake && box !== global.stage.get_event_actor(event) ? box.thermiTake(event) : Clutter.EVENT_PROPAGATE;
     }
 
     // The keys go back where they went before the press.

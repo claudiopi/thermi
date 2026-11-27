@@ -10,8 +10,14 @@ namespace Thermi.Linux.Gnome;
 /// </summary>
 internal sealed record ShellMonitor(double X, double Y, double Width, double Height, double Scale, double Bar, bool Primary, bool FullScreen)
 {
-    /// <summary>The monitor's name, which the extension does not tell: Mutter's display config does on GNOME.</summary>
+    /// <summary>The monitor's name, where GTK finds the monitors; on GNOME, which the extension does not tell, Mutter's display config names it.</summary>
     public string? Id { get; init; }
+
+    /// <summary>The top bar's centre box, the clock, from its left edge to its right, on the stage; (0, 0) off the top bar.</summary>
+    public (double Left, double Right) Centre { get; init; }
+
+    /// <summary>The top bar's right box, the system menu, as <see cref="Centre"/>.</summary>
+    public (double Left, double Right) End { get; init; }
 }
 
 /// <summary>
@@ -68,8 +74,8 @@ internal sealed class ShellLink : IDisposable
     /// <summary>The protocol's version, which the extension's metadata.json says as <c>thermi-protocol</c>.</summary>
     public const uint Protocol = 2;
 
-    private const string Shell = "org.gnome.Shell";
-    private const string Interface = "io.github.claudiopi.thermi.Shell";
+    public const string Shell = "org.gnome.Shell";
+    public const string Interface = "io.github.claudiopi.thermi.Shell";
     private const int Timeout = 5000;
 
     // Each signal's shape in this protocol, as extension.js declares it.
@@ -78,7 +84,7 @@ internal sealed class ShellLink : IDisposable
         ["Ready"] = "(u)",
         ["Pointer"] = "(usdduuudd)",
         ["Key"] = "(us)",
-        ["MonitorsChanged"] = "(a(ddddddbb))",
+        ["MonitorsChanged"] = "(a(ddddddbbdddd))",
         ["Chosen"] = "(ui)",
     };
 
@@ -233,7 +239,8 @@ internal sealed class ShellLink : IDisposable
         _extensions.Dispose();
     }
 
-    private static List<ShellMonitor> MonitorsOf(GLib.Variant monitors) =>
+    /// <summary>The monitors in the extension's <c>a(ddddddbbdddd)</c>, as its <c>Monitors</c> answers and its signal sends them.</summary>
+    public static List<ShellMonitor> MonitorsOf(GLib.Variant monitors) =>
         [.. Enumerable.Range(0, (int)monitors.NChildren()).Select(at => monitors.GetChildValue((nuint)at)).Select(each => new ShellMonitor(
             each.GetChildValue(0).GetDouble(),
             each.GetChildValue(1).GetDouble(),
@@ -242,7 +249,11 @@ internal sealed class ShellLink : IDisposable
             each.GetChildValue(4).GetDouble(),
             each.GetChildValue(5).GetDouble(),
             each.GetChildValue(6).GetBoolean(),
-            each.GetChildValue(7).GetBoolean()))];
+            each.GetChildValue(7).GetBoolean())
+        {
+            Centre = (each.GetChildValue(8).GetDouble(), each.GetChildValue(9).GetDouble()),
+            End = (each.GetChildValue(10).GetDouble(), each.GetChildValue(11).GetDouble()),
+        })];
 
     private Task<GLib.Variant> Own(string method, params GLib.Variant[] args) => Call(Shell, ObjectPath, Interface, method, args);
 

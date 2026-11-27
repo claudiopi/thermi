@@ -37,9 +37,9 @@ public sealed partial class RepoRulesTests
 
     // No test shows anything on the user's desktop, nor starts a process there: every process starts through
     // DesktopProcess, on a desktop of the tests' own, or on Linux, a compositor among them, through OwnSession, in a session
-    // of the test's own; and every test file that makes a window makes it on one too. The SDK's public constructors start
-    // thermi-cli as the process that calls them, so a test reads through them only from a process of the session's; the
-    // internal one, which takes how to find and run it, starts nothing of its own.
+    // of the test's own, and each async Linux test is bounded; and every test file that makes a window makes it on one too.
+    // The SDK's public constructors start thermi-cli as the process that calls them, so a test reads through them only from
+    // a process of the session's; the internal one, which takes how to find and run it, starts nothing of its own.
     [Fact]
     public void TestsMakeWindowsAndProcessesOnlyOnADesktopOfTheirOwn()
     {
@@ -65,7 +65,20 @@ public sealed partial class RepoRulesTests
         var session = tests.Single(file => file.Path == StartsProcesses[1]).Text;
         var shared = SessionOwns.Where(owned => !session.Contains(owned, StringComparison.Ordinal))
             .Select(owned => $"{StartsProcesses[1]} does not set {owned}, so its processes would take the person's");
+        // A program that never writes what a Linux test waits for would hang the run, and the container it holds, forever.
+        var linux = Path.Combine("tests", "Thermi.Linux.Tests") + Path.DirectorySeparatorChar;
+        var unbounded = tests.Where(file => file.Path.StartsWith(linux, StringComparison.Ordinal))
+            .SelectMany(file => AsyncTest().Matches(file.Text)
+                .Where(test => !test.Groups["args"].Value.Contains("Timeout = Bound.Test", StringComparison.Ordinal))
+                .Select(test => $"{file.Path}: {test.Groups["name"].Value} has no Timeout = Bound.Test, so a wait of its could hang the run"));
 
-        AssertNone(starting.Concat(showing).Concat(shared));
+        AssertNone(starting.Concat(showing).Concat(shared).Concat(unbounded));
     }
+
+    // A test's attribute, the rows and comments under it, and its async method's name.
+    [GeneratedRegex(
+        @"\[(Fact|Theory)(?<args>\([^)\r\n]*\))?\][^\r\n]*\r?\n(\s*(\[|//)[^\r\n]*\r?\n)*\s*public async Task (?<name>\w+)",
+        RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex AsyncTest();
 }

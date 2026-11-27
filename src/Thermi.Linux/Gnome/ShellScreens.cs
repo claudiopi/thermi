@@ -66,8 +66,20 @@ internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOn
 
         var bounds = new PixelRect(At(monitor.X), At(monitor.Y), At(monitor.X + monitor.Width), At(monitor.Y + monitor.Height));
         var bar = monitor.Bar > 0 ? bounds with { Bottom = At(monitor.Y + monitor.Bar) } : (PixelRect?)null;
+        PixelRect? On((double Left, double Right) box)
+        {
+            return bar is { } top && box.Right > box.Left ? top with { Left = At(box.Left), Right = At(box.Right) } : null;
+        }
+
         var id = monitor.Id
             ?? (names.TryGetValue(((int)Math.Round(monitor.X), (int)Math.Round(monitor.Y)), out var named) ? named : $"monitor-{index}");
-        return new Screen(id, monitor.Primary, bounds, bar is { } top ? bounds with { Top = top.Bottom } : bounds, monitor.Scale) { Taskbar = bar };
+        // The system menu is where the top bar's notification area is, beside which an overlay sits by default.
+        return new Screen(id, monitor.Primary, bounds, bar is { } top ? bounds with { Top = top.Bottom } : bounds, monitor.Scale)
+        {
+            Taskbar = bar,
+            Tray = On(monitor.End),
+            Centre = On(monitor.Centre),
+            End = On(monitor.End),
+        };
     }
 }
