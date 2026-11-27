@@ -10,6 +10,7 @@ It depends on nothing, Windows included: its target framework is `net10.0`, and 
 | `Settings` | The settings file: its records, JSON, migration from older versions, rules and thresholds. |
 | `Editing` | Every edit, the gate that refuses a bad one with a `Refusal`, and undo. |
 | `Look` | What the overlay draws: layout, look, formatting, saved styles, item history, charts. |
+| `Painting` | What every OS's painter draws alike: the sizes, the pills' parts, the meters' and graphs' shapes, and where each item was drawn. |
 | `Placement` | Where an overlay goes: snaps, the taskbar row, desktop gestures, monitor ids, OLED care, visibility. |
 | `Search` | The window's one search. |
 | `Frames` | Presents counted into frame rates, and the game in front. |

@@ -9,6 +9,8 @@ What the overlay and the settings window decide beyond Core that needs a package
 | `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, and the last gesture's undo. |
 | `Window` | The settings window's bridge, which answers the page alike on every OS and asks its host, `IWindowHost`, for the rest: its edits and undo, the sensors' readings and charts it keeps, the views, previews, places and looks. |
 | `Painting` | What every OS's overlay painter answers the window, `IOverlayPainter`, and how an overlay is fitted to a room or its monitor. |
+| `Sensors` | Reading the sensor host's snapshots, from Windows' pipe or Linux's socket, and trying again while it is gone. |
+| `Preview` | What `thermi preview` does around each OS's painter: the settings and snapshots it reads, the items it paints, the PNG written whole or not at all. |
 | `Logging` | The user's logs in their local folder, the agents' log read back for the window, the events of what lives here, each a `[LoggerMessage]`, and the user's folders. |
 
 Its tests run where its hosts are: `tests/Thermi.Windows.Tests` drives it with real files, other writers and the clock.

@@ -1,13 +1,15 @@
-using System.Drawing;
 using Thermi.Core.Look;
 
-namespace Thermi.Windows.Painting;
+namespace Thermi.Core.Painting;
 
-/// <summary>A part of a pill the painter draws items in: the pill itself, or a pill a single bar holds.</summary>
-internal readonly record struct PillPart(RectangleF Box, float Start, int First, int Count);
+/// <summary>A part of a pill a painter draws items in: the pill itself, or a pill a single bar holds.</summary>
+public readonly record struct PillPart(PillBox Box, double Start, int First, int Count);
 
-/// <summary>A pill as the painter lays it out: its items and their widths, in its pixels.</summary>
-internal sealed record PaintedPill(IReadOnlyList<OverlayItem> Items, List<float> ItemWidths, float Scale)
+/// <summary>
+/// A pill as a painter lays it out: its items and their widths, in its pixels, as the painter measured them. Every painter
+/// places the pills a single bar holds, and the items in them, from here.
+/// </summary>
+public sealed record PaintedPill(IReadOnlyList<OverlayItem> Items, IReadOnlyList<double> ItemWidths, double Scale)
 {
     /// <summary>In a single bar, how many of its items each pill inside it holds; null for a pill that holds none.</summary>
     public IReadOnlyList<int>? Runs { get; init; }
@@ -15,11 +17,11 @@ internal sealed record PaintedPill(IReadOnlyList<OverlayItem> Items, List<float>
     /// <summary>Whether a single bar stands, its pills stacked from top to bottom, all as wide as the widest.</summary>
     public bool Stacked { get; init; }
 
-    private float Padding => PainterShapes.OuterPadding * Scale;
+    private double Padding => PaintSizes.OuterPadding * Scale;
 
-    private float InnerGap => Painter.InnerPillGap * Scale;
+    private double InnerGap => PaintSizes.InnerPillGap * Scale;
 
-    public float Width => Stacked
+    public double Width => Stacked
         ? (Padding * 2) + Spans.Max(span => SpanWidth(span.First, span.Count))
         : (Padding * 2) + Spans.Sum(span => SpanWidth(span.First, span.Count)) + (InnerGap * Math.Max(0, Spans.Count - 1));
 
@@ -30,11 +32,11 @@ internal sealed record PaintedPill(IReadOnlyList<OverlayItem> Items, List<float>
         Runs is null ? [(0, Items.Count)] : [.. Runs.Select((count, at) => (Runs.Take(at).Sum(), count))];
 
     /// <summary>The pill at <paramref name="box"/> itself, or each pill a single bar holds inside its padding.</summary>
-    public List<PillPart> PartsIn(RectangleF box)
+    public IReadOnlyList<PillPart> PartsIn(PillBox box)
     {
         if (Runs is null)
         {
-            return [new PillPart(box, box.Left + Padding + (Painter.InnerPadding * Scale), 0, Items.Count)];
+            return [new PillPart(box, box.Left + Padding + (PaintSizes.InnerPadding * Scale), 0, Items.Count)];
         }
 
         var spans = Spans;
@@ -44,13 +46,13 @@ internal sealed record PaintedPill(IReadOnlyList<OverlayItem> Items, List<float>
         foreach (var (first, count) in spans)
         {
             var width = Stacked ? box.Width - (2 * Padding) : SpanWidth(first, count);
-            parts.Add(new PillPart(new RectangleF(left, top, width, tall), left + (Painter.InnerPadding * Scale), first, count));
+            parts.Add(new PillPart(new PillBox(left, top, width, tall), left + (PaintSizes.InnerPadding * Scale), first, count));
             (left, top) = Stacked ? (left, top + tall + InnerGap) : (left + width + InnerGap, top);
         }
 
         return parts;
     }
 
-    private float SpanWidth(int first, int count) =>
-        (Painter.InnerPadding * 2 * Scale) + ItemWidths.Skip(first).Take(count).Sum() + (Painter.ItemGap * Scale * Math.Max(0, count - 1));
+    private double SpanWidth(int first, int count) =>
+        (PaintSizes.InnerPadding * 2 * Scale) + ItemWidths.Skip(first).Take(count).Sum() + (PaintSizes.ItemGap * Scale * Math.Max(0, count - 1));
 }

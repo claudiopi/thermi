@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using Thermi.Core.Settings;
-using Thermi.Windows.Commands;
+using Thermi.Cli.Commands;
 using Thermi.Windows.Tray;
 using Thermi.Windows.Updates;
 using Thermi.Windows.Win32;
@@ -67,8 +67,8 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     public void StartWindow(int overlay, string? item, bool trace, bool sizeRow = false)
     {
         PInvoke.AllowSetForegroundWindow(PInvoke.ASFW_ANY);
-        string[] arguments = ["settings", ThermiCommands.OverlayOption, (overlay + 1).ToString(CultureInfo.InvariantCulture)];
-        string[] on = item is not null ? [ThermiCommands.ItemOption, item] : sizeRow ? [ThermiCommands.SizeOption] : [];
+        string[] arguments = ["settings", ThermiCommandLine.OverlayOption, (overlay + 1).ToString(CultureInfo.InvariantCulture)];
+        string[] on = item is not null ? [ThermiCommandLine.ItemOption, item] : sizeRow ? [ThermiCommandLine.SizeOption] : [];
         Program.Start(WindowExe, trace, [.. arguments, .. on]);
     }
 }

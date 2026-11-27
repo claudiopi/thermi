@@ -3,6 +3,7 @@ using System.Globalization;
 using Thermi.App.Painting;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
+using Thermi.Core.Painting;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -291,7 +292,8 @@ internal sealed class OverlayWindow : IDisposable
         _gestures.Let();
         if (_painted is { } painted && _scene is { } scene)
         {
-            _gestures.Press(overlay, painted, scene.Screens, _painter.Places.Pressed(OnPicture(_actions.Cursor())), WindowPosition());
+            var (x, y) = OnPicture(_actions.Cursor());
+            _gestures.Press(overlay, painted, scene.Screens, _painter.Places.Pressed(x, y), WindowPosition());
         }
     }
 
@@ -357,17 +359,17 @@ internal sealed class OverlayWindow : IDisposable
 
     /// <summary>Where a drop at a point of the screen joins this overlay, as <see cref="PaintedPlaces.JoinAt"/> says.</summary>
     internal DropTarget JoinAt(Position cursor, string? alone) =>
-        _painter.Places.JoinAt(_index, OnPicture(cursor), alone, _painted?.Look.Orientation == Orientation.Vertical);
+        OnPicture(cursor) is var (x, y) ? _painter.Places.JoinAt(_index, x, y, alone, _painted?.Look.Orientation == Orientation.Vertical) : default;
 
-    internal string? ItemAt(Position cursor) => _painter.Places.At(OnPicture(cursor))?.Id;
+    internal string? ItemAt(Position cursor) => OnPicture(cursor) is var (x, y) ? _painter.Places.At(x, y)?.Id : null;
 
     /// <summary>The opacity the overlay shows at, 255 for whole.</summary>
     internal byte Alpha => _fade.Alpha;
 
-    private PointF OnPicture(Position cursor)
+    private (double X, double Y) OnPicture(Position cursor)
     {
         var corner = WindowPosition();
-        return new PointF(cursor.X - corner.X, cursor.Y - corner.Y);
+        return (cursor.X - corner.X, cursor.Y - corner.Y);
     }
 
     private Position WindowPosition()

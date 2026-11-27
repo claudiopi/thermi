@@ -15,15 +15,6 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Error, Message = "WebView2's runtime is missing: the settings window cannot open")]
     public static partial void WebViewMissing(this ILogger logger, Exception error);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Reading the sensors failed")]
-    public static partial void SensorsFailed(this ILogger logger, Exception error);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The sensor pipe was lost after {Seconds} s without readings: {Reason}")]
-    public static partial void SensorPipeLost(this ILogger logger, double seconds, string reason);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "No readings came for {Seconds} s, then they came again")]
-    public static partial void ReadingsPaused(this ILogger logger, double seconds);
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "Windows did not take the tray icon of {Item}; it is tried again every {Seconds} s")]
     public static partial void TrayIconRefused(this ILogger logger, string item, int seconds);
 

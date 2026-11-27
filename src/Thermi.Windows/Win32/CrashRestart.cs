@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Thermi.Windows.Commands;
+using Thermi.Cli.Commands;
 using Thermi.Windows.Logging;
 using Windows.Win32;
 using Windows.Win32.System.Recovery;
@@ -19,7 +19,7 @@ internal static class CrashRestart
     /// <summary>Registers this process, with <c>--trace</c> when it traces: Windows adds the executable itself.</summary>
     public static void Register(bool trace, ILogger log)
     {
-        var result = PInvoke.RegisterApplicationRestart(trace ? ThermiCommands.TraceOption : null, Flags);
+        var result = PInvoke.RegisterApplicationRestart(trace ? ThermiCommandLine.TraceOption : null, Flags);
         if (result.Failed)
         {
             log.RestartRefused(result.Value);
