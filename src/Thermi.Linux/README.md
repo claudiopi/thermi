@@ -37,7 +37,6 @@ Under `--trace`, each event is one line on the standard error, `<seconds on CLOC
 | `edit-applied` | One change of the settings is saved and on screen, wherever it came from. |
 | `dropped` | A drag ended, let go or taken back with Esc, and what it left is saved and on screen. |
 | `hotkey-refused <role>` | The desktop refused a hotkey, held by another program, by its field's name in the settings, as `nextStyle`. |
-
 | `lifted` | A hold lifted a value or a pill, and its ghost is on screen under the pointer. |
 | `faded` | An overlay with Fade near the pointer is on screen at its faintest, the pointer over it. |
 
@@ -51,6 +50,7 @@ Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the She
 | Click-through on | `undo` and `got-it` |
 | GNOME's extension missing | `install-extension`, which asks the Shell to install it again |
 | GNOME's extension of another protocol | `update-extension`, which asks the Shell for its updates |
+| The settings window ended with an error, which names its log | `open-again`, which opens it again |
 | No surface to show the overlays on, once ever | `no-overlay`, which only closes it |
 
 The extension's `metadata.json` says its protocol's version as `thermi-protocol`, which thermi checks against its own before it shows anything through it. `thermi-sensors --console --root <tree>` serves a recorded tree in the session, on a socket of the test's own, which `THERMI_SENSORS_SOCKET` names for thermi to read alone; a tree of one second, served every second the same, holds a whole screen still.
