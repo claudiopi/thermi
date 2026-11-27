@@ -41,7 +41,7 @@ internal sealed class DragShow(OverlayParts parts, ShellScreens stage, Func<doub
             return;
         }
 
-        if (Math.Abs(ScaleAt(at) - _scale) > 1e-6)
+        if (Math.Abs(stage.ScaleAt(at) - _scale) > 1e-6)
         {
             _ = parts.Call(Show(at).Shown);
             return;
@@ -54,7 +54,7 @@ internal sealed class DragShow(OverlayParts parts, ShellScreens stage, Func<doub
     // The pill drawn for the monitor at its corner, its size in thermi's pixels.
     private (Size Size, Task Shown) Show(Position at)
     {
-        _scale = ScaleAt(at);
+        _scale = stage.ScaleAt(at);
         using var picture = carried!(_scale);
         using var pixels = picture.Bytes();
         var (x, y) = stage.Stage(at);
@@ -62,8 +62,6 @@ internal sealed class DragShow(OverlayParts parts, ShellScreens stage, Func<doub
         var toThermi = stage.Scale / _scale;
         return (new Size((int)Math.Round(picture.Width * toThermi), (int)Math.Round(picture.Height * toThermi)), shown);
     }
-
-    private double ScaleAt(Position at) => stage.Screens.FirstOrDefault(screen => screen.Bounds.Contains(at))?.Scale ?? stage.Scale;
 
     public IDragMarks Marks(IReadOnlyList<Screen> screens, Orientation orientation, Size size, bool lifted) =>
         new SnapMarks(parts, stage, orientation, (size.Width, size.Height));

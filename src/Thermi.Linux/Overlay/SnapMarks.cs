@@ -64,15 +64,17 @@ internal sealed class SnapMarks : IDragMarks
         }
     }
 
-    // White inside a dark line, so a mark shows on any wallpaper and bar; painted in thermi's pixels.
+    // White inside a dark line, so a mark shows on any wallpaper and bar; painted at the scale of the monitor it shows on,
+    // as the overlays are, so it is as sharp beside a monitor of a larger one.
     private void Show(uint id, Position place, bool lit)
     {
-        using var picture = new Picture(_size.Width, _size.Height);
-        var scale = _screens.Scale;
+        var scale = _screens.ScaleAt(place);
+        var toMonitor = scale / _screens.Scale;
+        using var picture = new Picture((int)Math.Round(_size.Width * toMonitor), (int)Math.Round(_size.Height * toMonitor));
         using (var cr = new Cairo.Context(picture.Surface))
         {
             var line = Border * scale;
-            var box = new PillBox(line, line, _size.Width - (2 * line), _size.Height - (2 * line));
+            var box = new PillBox(line, line, picture.Width - (2 * line), picture.Height - (2 * line));
             PainterShapes.Rounded(cr, box, Math.Min(box.Width, box.Height) / 2);
             cr.SetSourceRgba(1, 1, 1, lit ? LitFill : Fill);
             cr.FillPreserve();

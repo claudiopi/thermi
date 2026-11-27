@@ -54,6 +54,9 @@ internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOn
     /// <summary>A point in thermi's pixels on the stage.</summary>
     public (double X, double Y) Stage(Position at) => (at.X / Scale, at.Y / Scale);
 
+    /// <summary>The scale of the monitor a point in thermi's pixels is on, a picture drawn there at which shows sharp; the largest off them all.</summary>
+    public double ScaleAt(Position at) => Screens.FirstOrDefault(screen => screen.Bounds.Contains(at))?.Scale ?? Scale;
+
     /// <summary>Whether the monitor of <paramref name="screen"/> shows a full-screen window.</summary>
     public bool FullScreen(Screen? screen) => monitors.Where((_, at) => Screens[at] == screen).Any(monitor => monitor.FullScreen);
 
