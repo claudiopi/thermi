@@ -8,6 +8,7 @@ They never touch the person's desktop: each compositor and process a test starts
 | --- | --- |
 | `Acceptance` | The tests spec 006's acceptance steps name. |
 | `Desktops` | A headless desktop of the test's own, and what a person and the desktop do on it. |
+| `Readers` | The service's readers over trees made for hardware the recorded PCs lack. |
 
 Entry points worth knowing:
 

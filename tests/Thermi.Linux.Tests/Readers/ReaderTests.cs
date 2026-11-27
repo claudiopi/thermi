@@ -4,7 +4,7 @@ using Thermi.Core.Settings;
 using Thermi.Sensors.Linux.Kernel;
 using Thermi.Sensors.Linux.Reading;
 
-namespace Thermi.Linux.Tests;
+namespace Thermi.Linux.Tests.Readers;
 
 /// <summary>
 /// The readers over trees of hardware the recorded PCs lack, made as the kernel's documentation lays out its files: a
