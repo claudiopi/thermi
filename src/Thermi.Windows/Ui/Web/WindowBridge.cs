@@ -87,7 +87,7 @@ internal sealed class WindowBridge : IWindowBridge, IDisposable
     }
 
     /// <summary>
-    /// A fresh snapshot, on the window's thread: kept for the charts and the catalog, given to the finder, and the page
+    /// A fresh snapshot, or with none an echo's end, on the window's thread: kept for the charts and the catalog, given to the finder, and the page
     /// told of new readings, or of a change when other sensors came, which may name items or crowd an overlay anew, or the
     /// service's state changed. One the window cannot read changes nothing, and the page keeps what it shows.
     /// </summary>

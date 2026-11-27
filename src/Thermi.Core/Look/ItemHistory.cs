@@ -29,8 +29,8 @@ public sealed class ItemHistory(TimeProvider time)
 
     /// <summary>
     /// Keeps what each item of every overlay reads now, each overlay with its own readings, and what it warns by: once per fresh
-    /// snapshot, never for stale data. An item is kept by its id, whichever overlay holds it; items in none are forgotten. A
-    /// ping item reads the settings' <paramref name="pingHost"/>.
+    /// snapshot, or with none once per echo of the ping, never for stale data. An item is kept by its id, whichever overlay
+    /// holds it; items in none are forgotten. A ping item reads the settings' <paramref name="pingHost"/>.
     /// </summary>
     public void Add(IReadOnlyList<(OverlayConfig Overlay, IReadOnlyDictionary<string, Reading> Readings)> overlays, string? pingHost)
     {
@@ -61,10 +61,10 @@ public sealed class ItemHistory(TimeProvider time)
             _sources.Remove(id);
         }
 
-        // An item that read nothing this second, as while only the ping reads with the service stopped, counts nothing.
+        // An item that read nothing this second, as while the service is stopped and the ping reads on, counts nothing.
         foreach (var item in overlays.SelectMany(overlay => overlay.Overlay.Items))
         {
-            if (values[item.Id] != Nothing && Smoothed(item) is { } value)
+            if (values[item.Id].Usable is not null && Smoothed(item) is { } value)
             {
                 Count(item.Id, value);
             }

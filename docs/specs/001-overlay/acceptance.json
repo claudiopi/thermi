@@ -187,7 +187,7 @@
       "covers": [
         "R12"
       ],
-      "description": "Given an item of the ping, one that warns by it, and a ping item that warns by another reading, when the host changes, then each starts again only what reads the ping: its minute, its meter's ten minutes, or both.",
+      "description": "Given an item that warns by the ping, and a ping item that warns by another reading, when the host changes, then each starts again only what reads the ping: its meter's ten minutes, or its minute.",
       "check": "ANewHostStartsAgainOnlyWhatReadsThePing",
       "passes": true
     },
@@ -205,8 +205,8 @@
       "covers": [
         "R12"
       ],
-      "description": "Given a settings window that read seconds of a ping item, when its host changes, then the item's chart starts again, with none of the old host's round trips.",
-      "check": "AWindowsChartStartsAgainForANewHost",
+      "description": "Given a settings window that read seconds of a ping item pinging 1.1.1.1, when its host is emptied, then the chart keeps them, the same host; when it changes to another, then the chart starts again, with none of the old host's round trips.",
+      "check": "AWindowsChartStartsAgainOnlyForAnotherHost",
       "passes": true
     }
   ]

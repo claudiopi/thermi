@@ -143,7 +143,7 @@ public static class ValueTooltips
 
     // A ping says why it has no round trip, as a timeout or a host not found, which no other sensor can.
     private static string Unread(ItemConfig item, ValueHint hint, TrayInput input, string name) =>
-        PingSensors.Reads(item) && input.Snapshot is { } snapshot && SensorMap.Find(snapshot, PingSensors.Id) is { } sensor
+        PingSensors.Shows(item) && input.Snapshot is { } snapshot && SensorMap.Find(snapshot, PingSensors.Id) is { } sensor
         && SensorMap.ReadingOf(sensor)?.Usable is null
             ? input.Texts.Format(input.Numbers, OverlayText.ReadsWhy, name, input.Texts.Of(PingSensors.WhyOf(sensor)))
             : input.Texts.Format(input.Numbers, hint == ValueHint.NeedsDriver ? OverlayText.NeedsDriver : OverlayText.ReadsNothing, name);

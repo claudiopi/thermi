@@ -72,7 +72,7 @@ internal sealed class PingFeed(ISensorFeed inner, PingReader reader) : ISensorFe
             (_answered, held, _held) = (true, _held, false);
         }
 
-        // With no fresh snapshot of the service's, the ping is the one live reading, which the overlay records each second.
+        // With no fresh snapshot of the service's, an echo's end is news, which the overlay records each second.
         if (held || inner.Latest is null)
         {
             Received?.Invoke(this, EventArgs.Empty);
