@@ -31,6 +31,8 @@ export interface FakeState {
   /** Failed is the call itself failing, as an exception on the C# side rejects it; restart, a driver that loads only once Windows restarts. */
   driverAnswer: 'accepted' | 'refused' | 'failed' | 'restart';
   serviceAnswer: 'accepted' | 'refused';
+  /** Refused is a Start that started no overlay, as C# answers where neither the unit nor a run of its own started. */
+  overlayAnswer: 'accepted' | 'refused';
   monitors: Monitor[];
   /** Where each overlay shows, as C# works it out; with none, as before C# answers, the map's taskbar spot sits at the offset. */
   places: (Rect | null)[];

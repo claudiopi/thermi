@@ -47,8 +47,12 @@ class Latest {
     this.props = props;
   }
 
+  // A ref goes as it is: React calls it as it commits, before the props it came with are kept, so a stand-in would call
+  // the ref of the render before, which may be none.
   steady(props: Props): Props {
-    return Object.fromEntries(Object.entries(props).map(([key, value]) => [key, typeof value === 'function' ? this.standIn(key) : value]));
+    return Object.fromEntries(
+      Object.entries(props).map(([key, value]) => [key, key !== 'ref' && typeof value === 'function' ? this.standIn(key) : value]),
+    );
   }
 
   private standIn(key: string): (...args: unknown[]) => unknown {

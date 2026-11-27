@@ -1,4 +1,4 @@
-using Thermi.Linux.Window;
+using Thermi.Linux.Agents;
 
 namespace Thermi.Linux.Tests.Window;
 
@@ -12,7 +12,7 @@ public sealed class SignInTests
     [InlineData("/usr/bin/false", false)]
     public void TheSwitchIsWhatSystemctlAnswers(string systemctl, bool agrees)
     {
-        var unit = new SignInUnit(systemctl);
+        var unit = new UserUnit(systemctl);
 
         var refused = Record.Exception(() => unit.Set(on: true));
 

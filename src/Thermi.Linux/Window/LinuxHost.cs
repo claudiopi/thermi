@@ -21,7 +21,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly ILogger _log;
     private readonly Gio.DBusConnection? _bus;
     private readonly DesktopPortal _portal;
-    private readonly SignInUnit _signInUnit = new();
+    private readonly Agents.UserUnit _signInUnit = new();
     private readonly Gnome.ShellLink? _link;
     private readonly WindowScreens _screens;
     private readonly OverlayLink _overlay;
@@ -119,9 +119,16 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public void Caption(CaptionAction action) => Captioned?.Invoke(action);
 
-    public void StartOverlay()
+    // The overlay runs as the person's systemd user unit, which restarts it if it fails and ends it with the session.
+    public async Task<bool> StartOverlay()
     {
-        _ = StartAsync();
+        var started = await LinuxFixes.StartOverlay();
+        if (!started)
+        {
+            OverlayNotStarted(_log);
+        }
+
+        return started;
     }
 
     public void Open(string target, ILogger log)
@@ -267,15 +274,6 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    // The overlay runs as the person's systemd user unit, which restarts it if it fails and ends it with the session.
-    private async Task StartAsync()
-    {
-        if (!await LinuxFixes.StartOverlay())
-        {
-            OverlayNotStarted(_log);
-        }
-    }
-
     private async Task Launch(Gtk.UriLauncher launcher, string uri, ILogger log)
     {
         try
@@ -288,7 +286,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "systemctl did not start the overlay's user unit")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "Neither the overlay's user unit nor a unit of its own started")]
     private static partial void OverlayNotStarted(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The desktop did not open {Target}")]

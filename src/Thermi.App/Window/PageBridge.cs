@@ -269,11 +269,7 @@ internal class PageBridge : IWindowBridge, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task StartOverlay()
-    {
-        _host.StartOverlay();
-        return Task.CompletedTask;
-    }
+    public Task<bool> StartOverlay() => _host.StartOverlay();
 
     public Task Restore()
     {

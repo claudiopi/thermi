@@ -35,7 +35,7 @@ public sealed partial class RepoRulesTests
     {
         ["Thermi.Linux/Agents/LinuxAbout.cs"] = "the channel as the files of apt's and dnf's repositories name it, which only Linux's packages write",
         ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
-        ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as systemd's user units, by the folders and the link only systemd reads",
+        ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as the overlay's systemd user unit, through systemctl, which only Linux has",
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
         ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
         ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
@@ -43,7 +43,6 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Overlay/OverlayNotices.cs"] = "Core's notices of the overlays as the desktop's own, by the action ids of their buttons",
         ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on GNOME share on the host's GLib main loop, the Shell's link among it",
         ["Thermi.Linux/Window/LinuxFixes.cs"] = "the overlay and the sensor service started through systemd and polkit, which only Linux has",
-        ["Thermi.Linux/Window/SignInUnit.cs"] = "starting at sign-in as the overlay's systemd user unit, which only Linux has",
         ["Thermi.Linux/Window/WindowPainter.cs"] = "the window's previews painted by Linux's Cairo painter, as Windows' Painter paints them with GDI+",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
         ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",

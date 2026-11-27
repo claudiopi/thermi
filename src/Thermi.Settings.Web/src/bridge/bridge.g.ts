@@ -524,7 +524,7 @@ export interface Bridge {
   installDriver(): Promise<DriverInstall>;
   startService(): Promise<boolean>;
   installExtension(): Promise<boolean>;
-  startOverlay(): Promise<void>;
+  startOverlay(): Promise<boolean>;
   caption(action: CaptionAction): Promise<void>;
   restore(): Promise<void>;
   startWithWindows(): Promise<boolean>;

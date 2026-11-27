@@ -76,6 +76,9 @@ public enum WindowText
     ExtensionOtherVersionMore,
     ExtensionRefused,
 
+    /// <summary>The overlay's bar, once its Start started nothing.</summary>
+    OverlayNotStarted,
+
     /// <summary>The rest of its sentence instead, while another program holds the pipe the service would serve.</summary>
     PipeTaken,
 

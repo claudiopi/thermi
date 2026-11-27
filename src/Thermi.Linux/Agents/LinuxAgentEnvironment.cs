@@ -21,9 +21,6 @@ namespace Thermi.Linux.Agents;
 /// </summary>
 internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IAgentEnvironment
 {
-    /// <summary>The name the overlay owns on the session bus while it runs, its application id.</summary>
-    public const string BusName = "io.github.claudiopi.thermi";
-
     /// <summary>The GNOME Shell extension that shows the overlay on GNOME.</summary>
     public const string Extension = "thermi@claudiopi.github.io";
 
@@ -36,7 +33,7 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     // GNOME Shell's state of an extension that is on and running.
     private const int Active = 1;
 
-    private readonly UserUnit _unit = UserUnit.Of();
+    private readonly UserUnit _unit = new();
 
     public string SettingsPath => ConfigStore.DefaultPath;
 
@@ -52,10 +49,11 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool PerUser() => false;
 
-    public bool Overlay() => SessionBus.HasOwner(BusName);
+    // The overlay's own name, never GTK's id, which the settings window owns.
+    public bool Overlay() => SessionBus.HasOwner(ShellLink.Name);
 
     /// <summary>The sensors' package alone has no overlay's unit for the session to start.</summary>
-    public bool SensorsOnly() => _unit.File is null;
+    public bool SensorsOnly() => UserUnit.File is null;
 
     // Root writes into the user's folders would leave files the user cannot change, so as root it only reads.
     public bool Raised() => SocketFeed.OwnUserId() == 0;

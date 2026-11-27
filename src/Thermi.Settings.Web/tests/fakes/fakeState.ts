@@ -48,6 +48,7 @@ function startOf(change: Partial<FakeState>): FakeState {
     problem: null,
     driverAnswer: 'accepted',
     serviceAnswer: 'accepted',
+    overlayAnswer: 'accepted',
     monitors: [
       {
         id: 'SAM-7F0A-H4ZR900123',

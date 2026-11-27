@@ -204,6 +204,27 @@ function ExtensionBar({ fix }: { fix: ExtensionState | null }) {
   );
 }
 
+/** The overlay's bar while it is not running, with Start; a Start that started nothing says so and offers it again. */
+function OverlayBar() {
+  const t = useText();
+  const [failed, setFailed] = useState(false);
+  const start = async (): Promise<void> => {
+    setFailed(false);
+    setFailed(!((await bridge()?.startOverlay().catch(() => false)) ?? false));
+  };
+  return (
+    <InfoBar
+      intent={failed ? 'error' : 'info'}
+      title={t(failed ? 'WindowText.OverlayNotStarted' : 'UiText.OverlayNotRunning')}
+      actions={
+        <Button ref={failed ? focusOnMount : null} onClick={() => void start()}>
+          {t(failed ? 'WindowText.TryAgain' : 'UiText.StartOverlay')}
+        </Button>
+      }
+    />
+  );
+}
+
 export interface BarsProps {
   data: WindowData;
   /** The driver installed: the focus goes back to the list's selected row. */
@@ -215,16 +236,9 @@ export interface BarsProps {
  * running, the sensor service stopped or late, the GNOME Shell extension missing or off, and the CPU's driver.
  */
 export function Bars({ data, onDriverInstalled }: BarsProps) {
-  const t = useText();
   return (
     <div className="t-bars" aria-live="polite">
-      {!data.status.overlay && (
-        <InfoBar
-          intent="info"
-          title={t('UiText.OverlayNotRunning')}
-          actions={<Button onClick={() => void bridge()?.startOverlay()}>{t('UiText.StartOverlay')}</Button>}
-        />
-      )}
+      {!data.status.overlay && <OverlayBar />}
       <ServiceBar data={data} />
       <ExtensionBar fix={data.status.extension} />
       <DriverBar needed={data.status.driver} forEveryone={data.status.forEveryone} onInstalled={onDriverInstalled} />

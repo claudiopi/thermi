@@ -80,15 +80,17 @@ internal sealed class WindowsHost(WindowStart start) : IWindowHost
         PInvoke.PostMessage(Window, PInvoke.WM_CLOSE, 0, 0);
     }
 
-    public void StartOverlay()
+    public Task<bool> StartOverlay()
     {
         try
         {
             Program.Start(start.Environment.ExePath, start.Environment.Log.IsEnabled(LogLevel.Debug));
+            return Task.FromResult(true);
         }
         catch (Win32Exception ex)
         {
             start.Environment.Log.OverlayStartFailed(ex);
+            return Task.FromResult(false);
         }
     }
 

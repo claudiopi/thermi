@@ -2076,6 +2076,9 @@
   <data name="WindowText.ExtensionRefused" xml:space="preserve">
     <value>GNOME did not install it or turn it on, so nothing changed.</value>
   </data>
+  <data name="WindowText.OverlayNotStarted" xml:space="preserve">
+    <value>The overlay did not start, so changes show only here.</value>
+  </data>
   <data name="WindowText.PipeTaken" xml:space="preserve">
     <value>Another program holds the connection thermi reads its sensors through. Close it, or restart the PC.</value>
   </data>

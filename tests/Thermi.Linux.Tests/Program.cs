@@ -9,7 +9,7 @@ namespace Thermi.Linux.Tests;
 /// <summary>
 /// The tests' program, xunit's own entry point but for one more use: started in a test's session, it is a program of the
 /// person's that reads thermi through the SDK (<see cref="OwnSession.SdkStatusAsync"/>), or the settings window's watch on the
-/// desktop's look (<see cref="Window.PortalTests.WatchAsync"/>).
+/// desktop's look (<see cref="Window.PortalTests.WatchAsync"/>), or its link to the overlay (<see cref="Window.OverlayLinkTests.AnswerAsTheWindowAsync"/>).
 /// </summary>
 [ExcludeFromCodeCoverage(Justification = "The entry point, which xunit would generate")]
 internal static class Program
@@ -24,6 +24,11 @@ internal static class Program
         if (args is [Window.PortalTests.Watch])
         {
             return Window.PortalTests.WatchAsync();
+        }
+
+        if (args is [Window.OverlayLinkTests.Linked, var what, .. var thermi] && thermi.Length < 2)
+        {
+            return await Window.OverlayLinkTests.AnswerAsTheWindowAsync(what, thermi.FirstOrDefault()).ConfigureAwait(false);
         }
 
         return args.Any(arg => arg is "--server" or "--internal-msbuild-node")

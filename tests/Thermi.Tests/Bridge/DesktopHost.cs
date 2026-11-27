@@ -53,7 +53,7 @@ internal sealed class DesktopHost(HostDesktop desktop) : IWindowHost
 
     public void ExitThermi() => throw Refused();
 
-    public void StartOverlay() => throw Refused();
+    public Task<bool> StartOverlay() => throw Refused();
 
     public void Caption(CaptionAction action) => throw Refused();
 

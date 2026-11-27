@@ -203,8 +203,12 @@ function installFake(initial: FakeState): void {
       }
     },
     startOverlay: async () => {
+      if (state.overlayAnswer === 'refused') {
+        return false;
+      }
       state.overlayRunning = true;
       changed();
+      return true;
     },
     restore: async () => {
       state.problem = null;
