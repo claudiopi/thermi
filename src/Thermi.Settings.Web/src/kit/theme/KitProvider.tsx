@@ -35,7 +35,6 @@ export interface KitProviderProps {
   children: ReactNode;
 }
 
-/** Sets what the host says of the desktop that the kit's theme takes, which its provider holds: its accent and contrast. */
 const AccentContext = createContext<(accent: string | null) => void>(() => {});
 const ContrastContext = createContext<(contrast: boolean) => void>(() => {});
 
@@ -77,7 +76,7 @@ export function useAccent(accent: string | null): void {
   useEffect(() => setAccent(accent), [setAccent, accent]);
 }
 
-/** Has the kit take its high-contrast look while the host says the desktop is in high contrast. */
+/** Has the kit take its high-contrast look while the host says the desktop is in it. */
 export function useContrast(contrast: boolean): void {
   const setContrast = useContext(ContrastContext);
   useEffect(() => setContrast(contrast), [setContrast, contrast]);

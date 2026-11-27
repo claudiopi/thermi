@@ -45,7 +45,6 @@ public enum CaptionAction
     Close,
 }
 
-/// <summary>The caption buttons the page draws where the OS draws none, and whether the window is maximized, which they say.</summary>
 public sealed record WindowCaption(bool Maximized);
 
 /// <summary>
@@ -116,7 +115,7 @@ public sealed record HostDesktop(
             Caption = Caption,
         };
 
-    /// <summary>The bar of a Linux desktop, by the names its <c>XDG_CURRENT_DESKTOP</c> lists: GNOME's top bar, a barless one's none, else a panel.</summary>
+    /// <summary>Reads the bar from <c>XDG_CURRENT_DESKTOP</c>'s names; with none listed, it is no bar.</summary>
     public static DesktopBar BarOf(string? desktops)
     {
         var names = (desktops ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -125,7 +124,6 @@ public sealed record HostDesktop(
             : DesktopBar.Panel;
     }
 
-    /// <summary>The texts as this desktop says them: its OS's own words and its bar's in place of Windows' and the taskbar's.</summary>
     public Texts Words(Texts texts) =>
         texts.With([.. OwnTexts.GetValueOrDefault(Os) ?? Empty, .. BarTexts.GetValueOrDefault(Bar) ?? Empty]);
 

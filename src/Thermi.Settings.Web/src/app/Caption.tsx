@@ -11,14 +11,9 @@ const ask = (action: CaptionAction): void => {
   void bridge()?.caption(action);
 };
 
-// A press on the row's own space, not on one of its controls.
 const onRow = (target: EventTarget): boolean => target instanceof Element && target.closest('button, a, input, [role="menu"]') === null;
 
-/**
- * What the title row does as a title bar where the OS draws no caption, as on Linux: a drag from its own space moves the
- * window, and a double-click does what the desktop says a title bar's does.
- * Windows makes the row its caption itself, so there it does nothing.
- */
+/** The title row as a title bar where the OS draws no caption, as on Linux; on Windows, whose row is the caption, it does nothing. */
 export function useCaptionRow(caption: WindowCaption | null) {
   const pressed = useRef<{ x: number; y: number } | null>(null);
   // After a move the desktop took the release, so WebKit sends no pointerdown for the next press, only moves held down: a
@@ -63,10 +58,7 @@ export function useCaptionRow(caption: WindowCaption | null) {
   };
 }
 
-/**
- * The caption buttons where the OS draws none, where Windows draws its own: minimize, maximize or restore, and close, at
- * the title row's end. As Windows' they take no focus from the keyboard, which closes the window with Alt+F4.
- */
+/** As Windows' own, they take no focus from the keyboard, which closes the window with Alt+F4. */
 export function CaptionButtons({ caption }: { caption: WindowCaption }) {
   const t = useText();
   return (

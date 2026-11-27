@@ -124,7 +124,6 @@ function contrasted(value: string, name: string): string {
   return /stroke|divider|text/.test(name) ? 'CanvasText' : name === '--thermi-smoke' ? value : 'Canvas';
 }
 
-/** The custom properties of a mode's surfaces, for the provider's root, in the system's colors in high contrast. */
 export function surfacesOf(mode: Mode, contrast = false): Record<string, string> {
   return contrast ? Object.fromEntries(Object.entries(surfaces[mode]).map(([name, value]) => [name, contrasted(value, name)])) : surfaces[mode];
 }
@@ -214,7 +213,7 @@ function systemColorOf(name: string): string {
   return /Foreground|Stroke/.test(name) ? 'CanvasText' : /Shadow/.test(name) ? 'transparent' : 'Canvas';
 }
 
-/** Fluent's theme in the system's colors, which a desktop in high contrast gives, as Windows' forced colors paint the page. */
+/** Fluent's theme in the system's colors, as Windows' forced colors paint the page. */
 export function contrastThemeOf(mode: Mode): Theme {
   const base = themeOf(mode);
   const colors = Object.keys(base).filter((name) => name.startsWith('color'));
