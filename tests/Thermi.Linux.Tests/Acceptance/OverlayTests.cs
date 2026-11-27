@@ -192,7 +192,8 @@ public sealed class OverlayTests
         // Hidden from the menu, the overlays are taken back with the button of the notice that says so.
         var hiding = Traced.NextAsync(units.Trace, Traced.Hidden, cancel);
         var told = notices.NextAsync("show-it", cancel);
-        await ChooseAsync(desktop, rows, MenuEntry.HideOverlays, cancel);
+        // From the menu open already: a second right-click while it is open is a click outside it, which closes it.
+        await Accessible.ChooseAsync(desktop, IndexOf(rows, MenuEntry.HideOverlays), cancel);
         await hiding;
         var hidden = await desktop.ScreenshotAsync(cancel);
         var showing = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
@@ -294,6 +295,8 @@ public sealed class OverlayTests
     private static async Task ChooseAsync(TestDesktop desktop, IReadOnlyList<MenuRow> rows, MenuEntry entry, CancellationToken cancel)
     {
         await OpenMenuAsync(desktop, cancel);
-        await Accessible.ChooseAsync(desktop, rows.ToList().FindIndex(row => row.Entry == entry), cancel);
+        await Accessible.ChooseAsync(desktop, IndexOf(rows, entry), cancel);
     }
+
+    private static int IndexOf(IReadOnlyList<MenuRow> rows, MenuEntry entry) => rows.ToList().FindIndex(row => row.Entry == entry);
 }
