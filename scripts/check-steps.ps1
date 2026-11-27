@@ -74,7 +74,7 @@ function Show-Errors([string[]]$Output) {
     }
     $seen = [ordered]@{}
     foreach ($line in $errors) {
-        $line = $line.Replace("$root\", '') -replace ' \[[^\]]*\.csproj\]$', ''
+        $line = $line.Replace("$root$([IO.Path]::DirectorySeparatorChar)", '') -replace ' \[[^\]]*\.csproj\]$', ''
         $key = $line -replace '\(\d+,\d+\)', ''
         if ($seen.Contains($key)) { $seen[$key].Count++ } else { $seen[$key] = @{ First = $line; Count = 1 } }
     }

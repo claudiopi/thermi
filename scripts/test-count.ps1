@@ -33,9 +33,10 @@ $halfNames = @{ dotnet = '.NET'; web = 'page' }
 # xUnit's own listing, with each theory's rows enumerated as the runner finds them: per case, the test it is a row of.
 function Get-DotNetCases {
     foreach ($project in Get-ChildItem (Join-Path $root 'tests') -Directory | Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") }) {
-        $exe = if ($ArtifactsPath) { Join-Path $ArtifactsPath 'bin' $project.Name $Configuration.ToLowerInvariant() "$($project.Name).exe" }
+        $program = if ($IsWindows) { "$($project.Name).exe" } else { $project.Name }
+        $exe = if ($ArtifactsPath) { Join-Path $ArtifactsPath 'bin' $project.Name $Configuration.ToLowerInvariant() $program }
             else {
-                Join-Path $project.FullName 'bin' $Configuration '*' "$($project.Name).exe" |
+                Join-Path $project.FullName 'bin' $Configuration '*' $program |
                     Resolve-Path -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Path
             }
         if (-not $exe -or -not (Test-Path $exe)) { throw "$($project.Name) is not built: build $Configuration first." }

@@ -104,14 +104,15 @@ public sealed class AgentSwitchTests : IDisposable
             await ActAsync(log, edits);
         }
 
-        var command = AgentSetup.Command(Path.Combine(folder, "thermi-cli.exe"), onPath ? [Path.GetTempPath(), folder + @"\"] : [Path.GetTempPath()]);
+        string[] path = onPath ? [Path.GetTempPath(), folder + Path.DirectorySeparatorChar] : [Path.GetTempPath()];
+        var command = AgentSetup.Command(Path.Combine(folder, "thermi-cli.exe"), path);
         var view = AgentActivity.View(
             command,
             AgentActivity.Changes(AgentsLog.Lines(log)),
             new ValueFormat(Texts.English, CultureInfo.InvariantCulture),
             TimeZoneInfo.Utc);
 
-        var named = onPath ? "thermi-cli" : $"{folder}\\thermi-cli.exe";
+        var named = onPath ? "thermi-cli" : Path.Combine(folder, "thermi-cli.exe");
         Assert.Equal($"claude mcp add thermi -- {(onPath ? named : $"\"{named}\"")} mcp", view.Command);
         Assert.Equal(named, (string?)JsonNode.Parse(view.File)!["mcpServers"]!["thermi"]!["command"]);
         Assert.Equal("mcp", (string?)JsonNode.Parse(view.File)!["mcpServers"]!["thermi"]!["args"]![0]);

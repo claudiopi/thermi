@@ -49,7 +49,7 @@ public sealed class ReadingTests
     public void FormatsEachKindAndShowsBrokenReadingsAsMissing(SensorKind kind, double? value, string expected, string culture = "en-US", string form = "")
     {
         var reading = new Reading(kind, value) { Bits = form.Contains("bits", StringComparison.Ordinal) };
-        var numbers = CultureInfo.GetCultureInfo(culture);
+        var numbers = Culture(culture);
 
         var text = form.Replace(" bits", "", StringComparison.Ordinal) switch
         {
@@ -80,5 +80,21 @@ public sealed class ReadingTests
     public void RejectsThresholdsThatCannotWork(double warning, double critical)
     {
         Assert.Throws<ArgumentException>(() => new Threshold(warning, critical));
+    }
+
+    /// <summary>
+    /// en-US or es-UY with the long time Windows gives it. Linux's .NET reads ICU's data, which changes with its version, as a
+    /// narrow no-break space before PM in en-US and 12-hour time in es-UY: these tests prove thermi's formatting, not the OS's data.
+    /// </summary>
+    internal static CultureInfo Culture(string name)
+    {
+        var culture = (CultureInfo)CultureInfo.GetCultureInfo(name).Clone();
+        culture.DateTimeFormat.LongTimePattern = name switch
+        {
+            "en-US" => "h:mm:ss tt",
+            "es-UY" => "HH:mm:ss",
+            _ => throw new ArgumentException($"{name} has no long time of Windows' here.", nameof(name)),
+        };
+        return culture;
     }
 }

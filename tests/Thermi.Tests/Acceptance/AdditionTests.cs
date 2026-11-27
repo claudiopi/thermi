@@ -43,7 +43,7 @@ public sealed class AdditionTests
         var input = new TrayInput(
             SystemSensors.With(Desktop, facts),
             ServiceState.Running,
-            CultureInfo.GetCultureInfo(culture),
+            ReadingTests.Culture(culture),
             Texts.English,
             LightTaskbar: false,
             "");
