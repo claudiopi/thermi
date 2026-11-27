@@ -39,7 +39,7 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit)
         var rows = new List<ShellRow>();
         Flatten(Menus.OfOverlay(config, overlay, state, item), -1, place, all, rows);
         (_shown, _overlay) = (all, overlay);
-        parts.Call(parts.Link.Menu((uint)overlay, x, y, rows));
+        _ = parts.Call(parts.Link.Menu((uint)overlay, x, y, rows));
     }
 
     /// <summary>The row at <paramref name="index"/> of the menu last shown was chosen.</summary>

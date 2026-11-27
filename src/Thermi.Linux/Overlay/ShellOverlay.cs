@@ -45,7 +45,8 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
     /// <summary>Whether a press holds the overlay now, which only its release or Esc ends.</summary>
     public bool Pressed => _press is not null;
 
-    public void Show(OverlayScene scene, IReadOnlyList<PixelRect?> shown)
+    /// <summary>Paints the overlay and shows it where it goes; done once the Shell shows it.</summary>
+    public Task Show(OverlayScene scene, IReadOnlyList<PixelRect?> shown)
     {
         var config = scene.Config;
         var overlay = config.Overlays[index];
@@ -59,31 +60,37 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
             : [.. drawn.Items, new OverlayItem(texts.Of(OverlayText.ConfigLabel), error, Level.Critical, error)];
         var look = OverlayLook.Of(overlay.Style, Desktop.DesktopLooks.LightPanels, scene.HighContrast);
         var scale = monitor * Snaps.SizeShown(overlay, screens);
-        using var picture = drawn.SensorsStopped
+        ShellPicture sent;
+        using (var picture = drawn.SensorsStopped
             ? _painter.PaintStopped(texts.Of(OverlayText.SensorsStopped), look, scale, items)
-            : _painter.Paint(items, look, scale);
+            : _painter.Paint(items, look, scale))
+        {
+            var clicks = overlay.ClickThrough
+                ? []
+                : picture.Drawn().Select(box => new PillBox(box.Left / monitor, box.Top / monitor, box.Width / monitor, box.Height / monitor)).ToList();
+            sent = new ShellPicture(picture.Pixels.ToArray(), picture.Width, picture.Height, picture.Stride, monitor, clicks);
+        }
+
         var toThermi = scene.Screens.Scale / monitor;
         _monitor = monitor;
-        _size = ((int)Math.Round(picture.Width * toThermi), (int)Math.Round(picture.Height * toThermi));
+        _size = ((int)Math.Round(sent.Width * toThermi), (int)Math.Round(sent.Height * toThermi));
         var at = Dragged ?? TaskbarRow.Locate(config.Overlays, index, screens, _size, shown, parts.Time.GetElapsedTime(parts.Started)) ?? new Position(0, 0);
         _at = at;
         Box = new PixelRect(at.X, at.Y, at.X + _size.Width, at.Y + _size.Height);
-        var clicks = overlay.ClickThrough
-            ? []
-            : picture.Drawn().Select(box => new PillBox(box.Left / monitor, box.Top / monitor, box.Width / monitor, box.Height / monitor)).ToList();
         var (x, y) = scene.Screens.Stage(at);
-        parts.Call(parts.Link.Show((uint)index, picture, x, y, monitor, clicks));
+        return parts.Call(parts.Link.Show((uint)index, sent, x, y));
     }
 
-    public void Hide()
+    /// <summary>Takes the overlay off the screen; done once the Shell did.</summary>
+    public Task Hide()
     {
         if (Box is null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         (Box, _press, Dragged) = (null, null, null);
-        parts.Call(parts.Link.Hide((uint)index));
+        return parts.Call(parts.Link.Hide((uint)index));
     }
 
     /// <summary>The pointer on the overlay: a press holds it, a move past the drag distance drags it, and the release drops it.</summary>
@@ -111,16 +118,12 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
             case "motion" when _press is { } press:
                 Dragged = Snaps.Dragged(press, cursor, Distance(screens), config.Overlays[index].Locked);
                 var (x, y) = screens.Stage(Dragged ?? press.Overlay);
-                parts.Call(parts.Link.Move((uint)index, x, y));
+                _ = parts.Call(parts.Link.Move((uint)index, x, y));
                 break;
             case "release" when _press is { } press && pointer.Button == 1:
                 var dropped = Dragged;
                 (_press, Dragged) = (null, null);
-                if (dropped is { } at)
-                {
-                    Drop(press, cursor, at, screens, free: (pointer.Modifiers & Alt) != 0);
-                }
-
+                parts.Dropped(dropped is { } at && Drop(press, cursor, at, screens, free: (pointer.Modifiers & Alt) != 0));
                 break;
             default:
                 break;
@@ -137,8 +140,8 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
 
         (_press, Dragged) = (null, null);
         var (x, y) = screens.Stage(press.Overlay);
-        parts.Call(parts.Link.Move((uint)index, x, y));
-        parts.RequestPaint();
+        _ = parts.Call(parts.Link.Move((uint)index, x, y));
+        parts.Dropped(false);
     }
 
     /// <summary>The overlay's size in thermi's pixels at a size and look of its settings, as the taskbar row measures it.</summary>
@@ -171,8 +174,8 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
         _at is { } at ? _painter.Places.At((cursor.X - at.X) * _monitor / screens.Scale, (cursor.Y - at.Y) * _monitor / screens.Scale)?.Id : null;
 
     // A drop near a snap mark snaps there, else the overlay goes where it was let go, inside its monitor's work area; the
-    // plain move through the settings' release, so it stays where it was dropped until written.
-    private void Drop(Press press, Position cursor, Position at, ShellScreens screens, bool free)
+    // plain move through the settings' release, so it stays where it was dropped until written. True when it wrote them.
+    private bool Drop(Press press, Position cursor, Position at, ShellScreens screens, bool free)
     {
         var settings = parts.Settings;
         var before = settings.Config;
@@ -183,8 +186,7 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
         var after = drop.Result.Refused is null ? parts.Settle(before, drop.Result.Config).Config : before;
         if (ConfigEdits.Replay(before, after) is not { } change)
         {
-            parts.RequestPaint();
-            return;
+            return false;
         }
 
         if (after.Overlays[index].Snap is null)
@@ -198,6 +200,6 @@ internal sealed class ShellOverlay(int index, OverlayParts parts) : IDisposable
         }
 
         parts.Gestures.Add(drop.Kind, before, after);
-        parts.RequestPaint();
+        return true;
     }
 }

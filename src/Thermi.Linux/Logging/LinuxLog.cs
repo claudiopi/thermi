@@ -3,14 +3,9 @@ using Thermi.Linux.Gnome;
 
 namespace Thermi.Linux.Logging;
 
-/// <summary>
-/// The events of thermi's overlay on Linux, declared once with their level and text. The debug ones are what
-/// <c>--trace</c> writes to the standard error too, a line each, which the tests wait on.
-/// </summary>
+/// <summary>The events of thermi's overlay on Linux, declared once with their level and text.</summary>
 internal static partial class LinuxLog
 {
-    [LoggerMessage(Level = LogLevel.Debug, Message = "paint")]
-    public static partial void Painted(this ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Another overlay runs in this session: this one ends")]
     public static partial void AlreadyRunning(this ILogger logger);

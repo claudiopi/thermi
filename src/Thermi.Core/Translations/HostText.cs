@@ -87,4 +87,10 @@ public enum HostText
 
     /// <summary>That notice when the extension is installed but off or broken.</summary>
     GnomeExtensionOff,
+
+    /// <summary>The missing extension's notice's button, which asks GNOME to install it again.</summary>
+    GnomeExtensionInstall,
+
+    /// <summary>The button of the notice of the extension of another version, which asks GNOME for its update.</summary>
+    GnomeExtensionUpdate,
 }

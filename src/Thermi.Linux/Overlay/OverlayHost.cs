@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -30,6 +31,7 @@ internal sealed class OverlayHost : IDisposable
     private readonly ShellLink _link;
     private readonly ISensorFeed _feed;
     private readonly OverlayParts _parts;
+    private readonly DesktopNotices _notices;
     private readonly ExtensionArrival _arrival;
     private readonly OverlayMenu _menu;
     private readonly List<ShellOverlay> _overlays = [];
@@ -37,12 +39,23 @@ internal sealed class OverlayHost : IDisposable
     private readonly double? _baseClock = DesktopLooks.BaseClock();
     private readonly GLib.MainLoop _loop = GLib.MainLoop.New(null, false);
     private ShellScreens _screens = new([], new Dictionary<(int X, int Y), string>());
+    private readonly TraceEvents _trace;
     private long? _readAt;
 
-    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TimeProvider time, ILogger log)
+    // What --trace still owes: each once the paint after what made it is on screen.
+    private bool _shownOwed = true;
+    private bool _wasHidden;
+    private bool _loaded;
+    private bool _editOwed;
+    private bool _droppedOwed;
+    private bool _droppedOnSave;
+
+    public OverlayHost(Gio.DBusConnection bus, Settings settings, ISensorFeed feed, TraceEvents trace, ILogger log)
     {
         _bus = bus;
         _feed = feed;
+        _trace = trace;
+        var time = trace.Time;
         _link = new ShellLink(bus);
         _parts = new OverlayParts(settings, _link, time, CultureInfo.CurrentCulture, log)
         {
@@ -50,9 +63,11 @@ internal sealed class OverlayHost : IDisposable
             OpenSettings = (overlay, item) => _menu!.OpenSettings(overlay, item),
             Menu = (overlay, x, y, item) => _menu!.Show(overlay, x, y, item, feed.State, feed.Latest),
             Settle = Settle,
+            Dropped = Dropped,
         };
         _menu = new OverlayMenu(_parts, _loop.Quit);
-        _arrival = new ExtensionArrival(_link, bus, () => TextsOf(settings.Config), log);
+        _notices = new DesktopNotices(bus);
+        _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
     }
 
     private Settings Settings => _parts.Settings;
@@ -74,7 +89,7 @@ internal sealed class OverlayHost : IDisposable
         _link.Key += (overlay, key) => Safe(() => Key(overlay, key));
         _link.Chosen += (_, row) => Safe(() => _menu.Chosen(row));
         _feed.Received += (_, _) => Post(Record);
-        Settings.Changed += (_, _) => Post(Repaint);
+        Settings.Changed += (_, _) => Post(SettingsChanged);
         using var watcher = Settings.Watch(Log);
         Settings.FileChanged();
         _arrival.Start();
@@ -85,7 +100,7 @@ internal sealed class OverlayHost : IDisposable
 
         using var ticks = _parts.Time.CreateTimer(_ => Post(Tick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         _loop.Run();
-        _overlays.ForEach(overlay => overlay.Hide());
+        _overlays.ForEach(overlay => _ = overlay.Hide());
         return 0;
     }
 
@@ -93,6 +108,7 @@ internal sealed class OverlayHost : IDisposable
     {
         _overlays.ForEach(overlay => overlay.Dispose());
         _link.Dispose();
+        _notices.Dispose();
         _loop.Dispose();
     }
 
@@ -142,7 +158,7 @@ internal sealed class OverlayHost : IDisposable
     {
         if (_readAt is not { } read || _parts.Time.GetElapsedTime(read) >= Late)
         {
-            Repaint();
+            Repaint(second: true);
         }
     }
 
@@ -155,10 +171,35 @@ internal sealed class OverlayHost : IDisposable
 
         _parts.History.Add([.. Settings.Config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))]);
         _readAt = _parts.Time.GetTimestamp();
+        Repaint(second: true);
+    }
+
+    // The first is the file's first read; each after, a change saved, which a drop of this overlay's may wait on.
+    private void SettingsChanged()
+    {
+        _editOwed |= _loaded;
+        _loaded = true;
+        _droppedOwed |= _droppedOnSave;
+        _droppedOnSave = false;
         Repaint();
     }
 
-    private void Repaint()
+    private void Dropped(bool written)
+    {
+        if (written)
+        {
+            _droppedOnSave = true;
+            return;
+        }
+
+        _droppedOwed = true;
+        Repaint();
+    }
+
+    private void Repaint() => Repaint(second: false);
+
+    // A second is one of the service's taken, or one late without any, which --trace counts.
+    private void Repaint(bool second)
     {
         if (!Settings.Loaded || !_arrival.Ready || _screens.Monitors.Count == 0)
         {
@@ -173,7 +214,7 @@ internal sealed class OverlayHost : IDisposable
 
         while (_overlays.Count > config.Overlays.Count)
         {
-            _overlays[^1].Hide();
+            _ = _overlays[^1].Hide();
             _overlays[^1].Dispose();
             _overlays.RemoveAt(_overlays.Count - 1);
         }
@@ -181,19 +222,28 @@ internal sealed class OverlayHost : IDisposable
         var scene = SceneOf(config);
         var fullScreen = config.Overlays.Select(overlay => _screens.FullScreen(Snaps.ScreenOf(overlay, scene.Screens.Screens))).ToList();
         var shown = _parts.Visibility.Decide(config, fullScreen);
-        for (var at = 0; at < _overlays.Count; at++)
-        {
-            if (shown[at] == OverlayShown.Shown)
-            {
-                _overlays[at].Show(scene, Boxes());
-            }
-            else
-            {
-                _overlays[at].Hide();
-            }
-        }
+        var sent = _overlays.Select((overlay, at) => shown[at] == OverlayShown.Shown ? overlay.Show(scene, Boxes()) : overlay.Hide()).ToList();
+        Announce(sent, second);
+    }
 
-        Log.Painted();
+    // Each event --trace owes, once the Shell shows what the paint sent.
+    private void Announce(List<Task> sent, bool second)
+    {
+        var hiding = _parts.Visibility.HideOverlays;
+        List<string> owed =
+        [
+            .. second ? [TraceEvents.Paint] : Array.Empty<string>(),
+            .. _editOwed ? [TraceEvents.EditApplied] : Array.Empty<string>(),
+            .. _droppedOwed ? [TraceEvents.Dropped] : Array.Empty<string>(),
+            .. hiding && !_wasHidden ? [TraceEvents.Hidden] : Array.Empty<string>(),
+            .. !hiding && (_shownOwed || _wasHidden) ? [TraceEvents.Shown] : Array.Empty<string>(),
+        ];
+        (_editOwed, _droppedOwed, _shownOwed, _wasHidden) = (false, false, false, hiding);
+        if (owed.Count > 0)
+        {
+            _ = Task.WhenAll(sent).ContinueWith(
+                _ => owed.ForEach(name => _trace.Write(name)), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+        }
     }
 
     private OverlayScene SceneOf(ThermiConfig config)

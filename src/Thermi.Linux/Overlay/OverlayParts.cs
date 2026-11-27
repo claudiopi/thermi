@@ -35,10 +35,22 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, TimeProvi
     /// <summary>A gesture's or a menu's settings, with the overlays it pushed along a taskbar keeping their places, or refused.</summary>
     public Func<ThermiConfig, ThermiConfig, EditResult> Settle { get; init; } = (_, after) => new EditResult(after);
 
-    /// <summary>A call to the Shell, whose failure is logged, never thrown: the next paint sends everything again.</summary>
-    public void Call(Task sent) => _ = sent.ContinueWith(
-        failed => Log.ShellCallFailed(failed.Exception!.GetBaseException()),
+    /// <summary>A drag or a hold ended, true when it wrote the settings, whose save then says it is done.</summary>
+    public Action<bool> Dropped { get; init; } = _ => { };
+
+    /// <summary>
+    /// A call to the Shell, done once the Shell answered; its failure is logged, never thrown, as the next paint sends
+    /// everything again.
+    /// </summary>
+    public Task Call(Task sent) => sent.ContinueWith(
+        done =>
+        {
+            if (done.Exception is { } failed)
+            {
+                Log.ShellCallFailed(failed.GetBaseException());
+            }
+        },
         CancellationToken.None,
-        TaskContinuationOptions.OnlyOnFaulted,
+        TaskContinuationOptions.None,
         TaskScheduler.Default);
 }

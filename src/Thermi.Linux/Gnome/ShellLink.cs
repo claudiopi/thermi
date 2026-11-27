@@ -1,5 +1,4 @@
 using Thermi.Core.Look;
-using Thermi.Linux.Painting;
 
 namespace Thermi.Linux.Gnome;
 
@@ -14,6 +13,13 @@ internal sealed record ShellMonitor(double X, double Y, double Width, double Hei
 /// held, and when, in milliseconds.
 /// </summary>
 internal sealed record ShellPointer(uint Overlay, string Kind, double X, double Y, uint Button, uint Modifiers, uint Time, double Dx, double Dy);
+
+/// <summary>
+/// A picture as the extension takes it: premultiplied ARGB in the machine's byte order, rows <see cref="Stride"/> bytes
+/// apart, at <see cref="Scale"/> pixels to a logical one, taking the pointer only in <see cref="Clicks"/>, boxes of it in
+/// logical pixels.
+/// </summary>
+internal sealed record ShellPicture(byte[] Pixels, int Width, int Height, int Stride, double Scale, IReadOnlyList<PillBox> Clicks);
 
 /// <summary>A row of a menu as the extension shows it: the row it is under, -1 at the top, and what it reads.</summary>
 internal sealed record ShellRow(int Parent, string Text, string? Note, bool Checked, bool Grayed, bool Starts);
@@ -114,9 +120,19 @@ internal sealed class ShellLink : IDisposable
             // No object there: the extension is not running.
         }
 
-        var info = _bus.CallSync(
-            Shell, "/org/gnome/Shell", "org.gnome.Shell.Extensions", "GetExtensionInfo",
-            GLib.Variant.NewTuple([GLib.Variant.NewString(Uuid)]), null, Gio.DBusCallFlags.None, Timeout, null).GetChildValue(0);
+        GLib.Variant info;
+        try
+        {
+            info = _bus.CallSync(
+                Shell, "/org/gnome/Shell", "org.gnome.Shell.Extensions", "GetExtensionInfo",
+                GLib.Variant.NewTuple([GLib.Variant.NewString(Uuid)]), null, Gio.DBusCallFlags.None, Timeout, null).GetChildValue(0);
+        }
+        catch (GLib.GException)
+        {
+            // The Shell is not up yet, as at a sign-in that starts thermi first: the extension's Ready says when it is.
+            return ExtensionState.Starting;
+        }
+
         if (info.NChildren() == 0)
         {
             return ExtensionState.Missing;
@@ -129,18 +145,19 @@ internal sealed class ShellLink : IDisposable
     /// Asks the Shell to install the extension from extensions.gnome.org, which GNOME confirms with the person itself; the
     /// answer is never awaited, as the person may take any time, and the extension's Ready says when it came.
     /// </summary>
-    public void Install() =>
-        _ = Call("org.gnome.Shell.Extensions", "/org/gnome/Shell", "org.gnome.Shell.Extensions", "InstallRemoteExtension", GLib.Variant.NewString(Uuid));
+    public void Install() => _ = Extensions("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
 
-    /// <summary>
-    /// Shows an overlay's picture with its top-left corner at (<paramref name="x"/>, <paramref name="y"/>) of the stage, at
-    /// <paramref name="scale"/> pixels to a logical one, taking the pointer only in <paramref name="clicks"/>, boxes of the
-    /// picture in logical pixels.
-    /// </summary>
-    public async Task Show(uint overlay, Picture picture, double x, double y, double scale, IReadOnlyList<PillBox> clicks)
+    /// <summary>Asks the Shell to fetch the updates of its extensions, which it applies at the next sign-in.</summary>
+    public void CheckForUpdates() => _ = Extensions("CheckForUpdates");
+
+    private Task<GLib.Variant> Extensions(string method, params GLib.Variant[] args) =>
+        Call("org.gnome.Shell.Extensions", "/org/gnome/Shell", "org.gnome.Shell.Extensions", method, args);
+
+    /// <summary>Shows an overlay's picture with its top-left corner at (<paramref name="x"/>, <paramref name="y"/>) of the stage.</summary>
+    public async Task Show(uint overlay, ShellPicture picture, double x, double y)
     {
-        using var pixels = GLib.Bytes.New(picture.Pixels.ToArray());
-        var boxes = clicks.Select(box => GLib.Variant.NewTuple(
+        using var pixels = GLib.Bytes.New(picture.Pixels);
+        var boxes = picture.Clicks.Select(box => GLib.Variant.NewTuple(
             [GLib.Variant.NewDouble(box.Left), GLib.Variant.NewDouble(box.Top), GLib.Variant.NewDouble(box.Width), GLib.Variant.NewDouble(box.Height)]));
         await Own(
             "Show",
@@ -151,7 +168,7 @@ internal sealed class ShellLink : IDisposable
             GLib.Variant.NewInt32(picture.Stride),
             GLib.Variant.NewDouble(x),
             GLib.Variant.NewDouble(y),
-            GLib.Variant.NewDouble(scale),
+            GLib.Variant.NewDouble(picture.Scale),
             GLib.Variant.NewArray(GLib.VariantType.New("(dddd)"), [.. boxes]));
     }
 

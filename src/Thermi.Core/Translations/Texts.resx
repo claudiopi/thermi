@@ -33,6 +33,12 @@
   <data name="HostText.GnomeExtensionOff" xml:space="preserve">
     <value>Turn on the thermi extension in GNOME&apos;s Extensions app.</value>
   </data>
+  <data name="HostText.GnomeExtensionInstall" xml:space="preserve">
+    <value>Install</value>
+  </data>
+  <data name="HostText.GnomeExtensionUpdate" xml:space="preserve">
+    <value>Update</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Lock position</value>
   </data>
