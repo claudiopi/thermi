@@ -58,9 +58,25 @@ internal sealed partial class UserUnits
             "--user", "--scope", "--quiet", "--property=Delegate=yes", "--property=KillSignal=SIGKILL",
             $"--unit={Scope}{Environment.ProcessId}-{Guid.NewGuid():N}",
         ];
-        await session.StartAsync("systemd-run", [.. scope, "env", .. manager], person, cancel).ConfigureAwait(false);
-        await ready.ConfigureAwait(false);
-        return new UserUnits(session, trace.Out);
+        var started = await session.StartAsync("systemd-run", [.. scope, "env", .. manager], person, cancel).ConfigureAwait(false);
+        // The scope runs the manager in systemd-run's own process: one that ended first never says it is ready.
+        if (await Task.WhenAny(ready, started.WaitForExitAsync(cancel)).ConfigureAwait(false) != ready)
+        {
+            var said = await started.Error.ToEndAsync(cancel).ConfigureAwait(false);
+            throw new InvalidOperationException($"The tests' user manager ended before it was ready: {said}");
+        }
+
+        // A manager sets its units' PATH itself; a desktop's session hands it its own, as here, the tests' programs first,
+        // and a unit finds a program as a person's does.
+        var programs = Directory.CreateDirectory(ProgramsOf(session)).FullName;
+        var userUnits = new UserUnits(session, trace.Out);
+        await userUnits.SystemctlAsync(["set-environment", $"PATH={programs}:{Environment.GetEnvironmentVariable("PATH")}"], cancel).ConfigureAwait(false);
+        // A manager joins the session's bus once its bus units run, as a person's does with the bus's own: the tests' stand
+        // for them, the session's bus being the test's. On the bus, it tells systemctl --wait when a unit ends.
+        await userUnits.SystemctlAsync(["start", "dbus.socket", "dbus.service"], cancel).ConfigureAwait(false);
+        var joined = await session.RunAsync("gdbus", ["wait", "--session", "org.freedesktop.systemd1"], cancel: cancel).ConfigureAwait(false);
+        _ = joined.Exit == 0 ? 0 : throw new InvalidOperationException($"The tests' user manager never joined the bus: {joined.Error}");
+        return userUnits;
     }
 
     /// <summary>What <c>systemctl --user</c> says, with <paramref name="args"/>.</summary>
@@ -73,6 +89,19 @@ internal sealed partial class UserUnits
     /// </summary>
     public Task<SessionProcess> StartWaitingAsync(CancellationToken cancel) =>
         _session.StartAsync("systemctl", ["--user", "start", "--wait", "thermi.service"], cancel: cancel);
+
+    /// <summary>
+    /// A program of the desktop's, as its system monitor, that the units find first on their PATH: once started, it takes its
+    /// name on the session's bus, as the real one does, and holds it until the session ends. Nothing is installed.
+    /// </summary>
+    public async Task AddProgramAsync(string program, string busName, CancellationToken cancel)
+    {
+        var path = Path.Combine(ProgramsOf(_session), program);
+        var code = "#!/usr/bin/env python3\nfrom gi.repository import Gio, GLib\n"
+            + $"Gio.bus_own_name(Gio.BusType.SESSION, '{busName}', Gio.BusNameOwnerFlags.NONE, None, None, None)\nGLib.MainLoop().run()\n";
+        await File.WriteAllTextAsync(path, code, cancel).ConfigureAwait(false);
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
 
     /// <summary>The processes of the overlay's unit, by their ids.</summary>
     public async Task<IReadOnlyList<string>> ProcessesAsync(CancellationToken cancel)
@@ -92,6 +121,13 @@ internal sealed partial class UserUnits
         {
             await File.WriteAllTextAsync(Path.Combine(units, target), "[Unit]\nDescription=thermi's tests\n", cancel).ConfigureAwait(false);
         }
+
+        // The manager takes the session's bus as up while a dbus.socket listens and a dbus.service runs: these stand for them,
+        // listening where no one calls and running a program that waits for nothing.
+        await File.WriteAllTextAsync(Path.Combine(units, "dbus.socket"), "[Socket]\nListenStream=%t/tests-bus-stand-in\n", cancel)
+            .ConfigureAwait(false);
+        await File.WriteAllTextAsync(Path.Combine(units, "dbus.service"), "[Service]\nExecStart=/usr/bin/tail -f /dev/null\n", cancel)
+            .ConfigureAwait(false);
 
         var fifo = Path.Combine(session.Home, "trace");
         var made = await session.RunAsync("mkfifo", [fifo], cancel: cancel).ConfigureAwait(false);
@@ -119,6 +155,8 @@ internal sealed partial class UserUnits
             await session.RunAsync("systemctl", ["--user", "reset-failed", .. left], person, cancel).ConfigureAwait(false);
         }
     }
+
+    private static string ProgramsOf(OwnSession session) => Path.Combine(session.Home, "programs");
 
     private static async Task<string> PersonsRuntimeFolderAsync(CancellationToken cancel)
     {

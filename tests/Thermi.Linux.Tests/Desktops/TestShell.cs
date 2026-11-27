@@ -23,6 +23,8 @@ internal static class TestShell
         export default class extends Extension {
             enable() {
                 global.context.unsafe_mode = true;
+                // GNOME 50 may show it again once its start is complete; the tests never use it.
+                this._shown = Main.overview.connect('shown', () => Main.overview.hide());
                 const own = () => { this._name = Gio.bus_own_name(Gio.BusType.SESSION, 'org.thermi.TestShell', Gio.BusNameOwnerFlags.NONE, null, null, null); };
                 const out = () => {
                     if (!Main.overview.visible) { own(); return; }
@@ -38,6 +40,7 @@ internal static class TestShell
 
             disable() {
                 if (this._name) Gio.bus_unown_name(this._name);
+                Main.overview.disconnect(this._shown);
             }
         }
         """;
@@ -88,11 +91,13 @@ internal static class TestShell
 
         // Mutter takes a fractional scale, as 150 %, only with its framebuffers scaled, which GNOME's Settings turns on when a
         // person picks one. Without animations, a window is on screen as drawn once it is mapped. The Shell reaches no
-        // network: installing from extensions.gnome.org fails at once, through a proxy that is not there.
+        // network: installing from extensions.gnome.org fails at once, through a proxy that is not there. No banner shows over
+        // the top bar, as the unsafe mode's would where an overlay snaps: the notices are watched as the Shell gets them.
         foreach (var (schema, key, value) in new[]
         {
             ("org.gnome.mutter", "experimental-features", "['scale-monitor-framebuffer']"),
             ("org.gnome.desktop.interface", "enable-animations", "false"),
+            ("org.gnome.desktop.notifications", "show-banners", "false"),
             ("org.gnome.system.proxy", "mode", "'manual'"),
             ("org.gnome.system.proxy.http", "host", "'127.0.0.1'"),
             ("org.gnome.system.proxy.http", "port", "9"),

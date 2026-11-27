@@ -170,7 +170,11 @@ public sealed class OverlayTests
         var before = await desktop.ScreenshotAsync(cancel);
         var started = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
         var running = await units.StartWaitingAsync(cancel);
-        await started;
+        if (await Task.WhenAny(started, running.WaitForExitAsync(cancel)) != started)
+        {
+            Assert.Fail($"thermi's unit ended before it showed: {await running.Error.ToEndAsync(cancel)}"
+                + await units.SystemctlAsync(["status", "--no-pager", "thermi.service"], cancel));
+        }
         var shownFirst = await desktop.ScreenshotAsync(cancel);
         var pill = config.Overlays[0].Items[0].Id;
         var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false), pill);
@@ -186,9 +190,10 @@ public sealed class OverlayTests
         await notices.ClickAsync(await told, "show-it", cancel);
         await showing;
         var shown = await desktop.ScreenshotAsync(cancel);
+        var monitorName = gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor";
+        await units.AddProgramAsync(gnome ? "gnome-system-monitor" : "plasma-systemmonitor", monitorName, cancel);
         await ChooseAsync(desktop, rows, MenuEntry.TaskManager, cancel);
-        var monitor = await desktop.Session.RunAsync(
-            "gdbus", ["wait", "--session", gnome ? "org.gnome.SystemMonitor" : "org.kde.plasma-systemmonitor"], cancel: cancel);
+        var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", monitorName], cancel: cancel);
         await ChooseAsync(desktop, rows, MenuEntry.Exit, cancel);
         // systemctl --wait returns once the unit went inactive; not "auto-restart": a clean exit starts nothing again.
         await running.WaitForExitAsync(cancel);
