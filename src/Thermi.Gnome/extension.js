@@ -47,6 +47,13 @@ const MOST_BOXES = 512;
 const MOST_PNG = 16 * 1024 * 1024;
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
+// The Shell is modal, as under a dialog or the lock screen, or a grab not of this box holds, as an open menu's: what holds it
+// keeps the press, and no box of thermi's takes one, as no system dialog of Windows lets a program take input.
+function modal(box) {
+    const grab = global.stage.get_grab_actor();
+    return Main.modalCount > 0 || (grab !== null && grab !== box);
+}
+
 // GNOME 50 runs on Wayland alone, and no longer has the call that asks.
 const ON_X11 = Meta.is_wayland_compositor ? !Meta.is_wayland_compositor() : false;
 
@@ -269,7 +276,8 @@ export default class ThermiExtension extends Extension {
 
     // A box of the picture where thermi takes the pointer, in the shape thermi last said. A press of the first button holds
     // it until its release, wherever the pointer goes then, and Esc while it holds lets thermi take back the drag; no other
-    // key is thermi's. Another grab that takes the pointer from the press, as a modal dialog's or the lock's, ends it.
+    // key is thermi's. Another grab that takes the pointer from the press, as a modal dialog's or the lock's, ends it, and
+    // one that holds already ends a press as it comes, which then holds nothing.
     _clickable(overlay, [x, y, width, height]) {
         const click = new St.Widget({reactive: true, width, height});
         click.thermiAt = [x, y];
@@ -283,12 +291,18 @@ export default class ThermiExtension extends Extension {
         const ours = event => this._overlays.get(overlay)?.grab || under(event) === click;
         const press = event => {
             const shown = this._overlays.get(overlay);
+            if (shown && !shown.grab && modal(click)) {
+                this._lose(overlay, shown);
+                return Clutter.EVENT_PROPAGATE;
+            }
             if (shown && !shown.grab && event.get_button() === Clutter.BUTTON_PRIMARY)
                 this._hold(overlay, shown, click);
             return pointer('press', event, event.get_button());
         };
         // Clutter tells each turn of the wheel twice, as itself and as the other kind's emulation of it: thermi takes it once.
         const scroll = event => {
+            if (modal(click))
+                return Clutter.EVENT_PROPAGATE;
             if (event.get_flags() & Clutter.EventFlags.FLAG_POINTER_EMULATED)
                 return Clutter.EVENT_STOP;
             const step = {[Clutter.ScrollDirection.UP]: [0, -1], [Clutter.ScrollDirection.DOWN]: [0, 1]};

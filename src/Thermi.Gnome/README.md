@@ -9,7 +9,7 @@ thermi's GNOME Shell extension, in JavaScript, for GNOME Shell 46 to 51 (`docs/a
 | Each overlay's picture, premultiplied ARGB, its size, place and scale, and the boxes that take the pointer, where it draws, and how faded it shows | `thermi` (`Show`, `Move`, `Hide`, `Fade`) |
 | A menu's rows, each under the row it opens from, one of them the default, which reads bold, a radio's choice with a dot and the rest of its group with an empty circle, and the box and the side it opens against; the pointer's shape over an overlay; whether to tell the pointer anywhere, while an overlay fades | `thermi` (`Menu`, `Cursor`, `Watch`) |
 | A picture of an overlay, as a PNG, for the clipboard | `thermi` (`Copy`) |
-| The pointer on an overlay, or anywhere while watched, and a press another grab took, as a modal dialog's or the lock's, of kind `cancel`; the keys pressed while it holds one, the row chosen | the extension (`Pointer`, `Key`, `Chosen`) |
+| The pointer on an overlay, or anywhere while watched, and a press another grab took, as a modal dialog's or the lock's, or one that came while such a grab held, of kind `cancel`; the keys pressed while it holds one, the row chosen | the extension (`Pointer`, `Key`, `Chosen`) |
 | The monitors, their scales and top bar with its clock and system menu, which no overlay covers, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |
 | The Shell's token for a program `thermi` starts on a click, whose window then comes in front | the extension, asked by `thermi` (`Activation`) |
 | That it came up, with its protocol's version | the extension (`Ready`) |

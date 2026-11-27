@@ -258,8 +258,8 @@ public sealed class ExtensionTests
 
     // A press of the first button holds the overlay and Esc, thermi's alone while it does, and leaves the key focus where
     // it was; a right press opens thermi's menu and holds nothing, so the pointer is the person's again once the menu
-    // closes; and another grab that takes the pointer from a press, as a modal dialog's, ends it as Esc does. The overview
-    // does not open while a grab holds, so it never takes one.
+    // closes; and another grab that takes the pointer from a press, as a modal dialog's, ends it as Esc does, as one already
+    // there ends a press at once, which holds nothing. The overview does not open while a grab holds, so it never takes one.
     [Fact(Timeout = Bound.Test)]
     public async Task ThePointerAndTheKeysAreThermisOnlyWhileItsPressHolds()
     {
@@ -282,6 +282,9 @@ public sealed class ExtensionTests
         var pressed = caller.Out.NextAsync(line => line.StartsWith("focus", StringComparison.Ordinal), cancel);
         var cancelled = caller.Out.NextAsync(line => line.StartsWith("cancel", StringComparison.Ordinal), cancel);
         await input.HoldAsync(OnOverlay, OnOverlay, Lose, there => input.ShellAsync("Main.popModal(global.thermiModal)", there), cancel);
+        var refused = caller.Out.NextAsync(line => line.StartsWith("cancel", StringComparison.Ordinal), cancel);
+        await input.ShellAsync("global.thermiModal = Main.pushModal(global.stage); 0", cancel);
+        await input.HoldAsync(OnOverlay, OnOverlay, Refused, there => input.ShellAsync("Main.popModal(global.thermiModal)", there), cancel);
 
         var lines = caller.Out.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         string[] keys = [.. lines.Where(line => line.StartsWith("Key", StringComparison.Ordinal))];
@@ -289,6 +292,7 @@ public sealed class ExtensionTests
         Assert.DoesNotContain(lines, line => line.StartsWith("Pointer press 500", StringComparison.Ordinal));
         Assert.Single(lines.Where(line => line.StartsWith("focus", StringComparison.Ordinal)).Distinct());
         Assert.Contains("cancel after its press", lines);
+        Assert.Equal(4, lines.Count(line => line.StartsWith("Pointer press 110.0 110.0 1", StringComparison.Ordinal)));
 
         async Task Keys(CancellationToken held)
         {
@@ -309,6 +313,11 @@ public sealed class ExtensionTests
             await pressed.WaitAsync(held);
             await input.ShellAsync("global.thermiModal = Main.pushModal(global.stage); 0", held);
             await cancelled.WaitAsync(held);
+        }
+
+        Task Refused(CancellationToken held)
+        {
+            return refused.WaitAsync(held);
         }
     }
 
