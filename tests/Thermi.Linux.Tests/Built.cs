@@ -18,13 +18,23 @@ internal static class Built
     /// </summary>
     public static string Tree(string name) => Path.Combine(Root, "tests", "Thermi.Tests", "Recordings", "Trees", name);
 
-    public static void Copy(string from, string to, bool overwrite = false)
+    /// <summary>
+    /// Every file of the folder <paramref name="from"/> copied to <paramref name="to"/>. Asked to replace what is there,
+    /// each file is copied beside its old one and renamed over it, as a package manager does: a program running from the
+    /// old file keeps it, where writing over it would fail or crash the program.
+    /// </summary>
+    public static void Copy(string from, string to, bool replace = false)
     {
         foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
         {
             var target = Path.Combine(to, Path.GetRelativePath(from, file));
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(file, target, overwrite);
+            var copy = replace ? $"{target}.new-{Guid.NewGuid():N}" : target;
+            File.Copy(file, copy);
+            if (replace)
+            {
+                File.Move(copy, target, overwrite: true);
+            }
         }
     }
 

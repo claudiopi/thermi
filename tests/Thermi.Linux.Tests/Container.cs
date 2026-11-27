@@ -2,14 +2,12 @@ namespace Thermi.Linux.Tests;
 
 /// <summary>
 /// A clean container of a distribution, root inside it and no one on the PC, for what a test cannot do as the person:
-/// other users, systemd, installing a package. The build's output is in it, read only, at <see cref="Output"/>, the packages
-/// it packed at <see cref="Packages"/>, and a folder of the test's at <see cref="Work"/>. Ending it removes it, and the
-/// image it booted from.
+/// other users, systemd, installing a package. The packages the build packed are in it, read only, at <see cref="Packages"/>,
+/// and a folder of the test's at <see cref="Work"/>. Ending it removes it, the image it booted from, and the distribution's
+/// image when the test pulled it.
 /// </summary>
-internal sealed class Container(OwnSession session, string id, string? image = null) : IAsyncDisposable
+internal sealed class Container(OwnSession session, string id, IReadOnlyList<string> images) : IAsyncDisposable
 {
-    public const string Output = "/thermi";
-
     public const string Packages = "/packages";
 
     public const string Work = "/work";
@@ -24,9 +22,16 @@ internal sealed class Container(OwnSession session, string id, string? image = n
 
     public const string Arch = "archlinux:latest";
 
+    private static readonly string[] Idle = ["sleep", "infinity"];
+
+    private string Id { get; } = id;
+
     /// <summary>A container of <paramref name="image"/> as it comes, idle until the test runs something in it.</summary>
-    public static Task<Container> StartAsync(OwnSession session, string image, string work, CancellationToken cancel) =>
-        RunAsync(session, image, work, ["sleep", "infinity"], cancel);
+    public static async Task<Container> StartAsync(OwnSession session, string image, string work, CancellationToken cancel)
+    {
+        var pulled = await PulledAsync(session, image, cancel).ConfigureAwait(false);
+        return await RunAsync(session, image, work, [], Idle, pulled, cancel).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// A container of <paramref name="image"/> with systemd as its first process, as a PC boots, once systemd says the boot
@@ -34,26 +39,25 @@ internal sealed class Container(OwnSession session, string id, string? image = n
     /// </summary>
     public static async Task<Container> BootAsync(OwnSession session, string image, string work, CancellationToken cancel)
     {
-        // An image of the test's own, which no other run shares, and which goes with the container.
+        // An image of the test's own, which no other run shares, and which goes with the container, as does the
+        // distribution's when the test pulled it; they go too when the boot fails.
         var booting = $"thermi-tests/{image.Replace(':', '-')}-systemd:{Guid.NewGuid():N}";
-        await using (var plain = await StartAsync(session, image, work, cancel).ConfigureAwait(false))
+        string[] owned = [booting, .. await PulledAsync(session, image, cancel).ConfigureAwait(false)];
+        try
         {
-            await plain.MustAsync(Installs(image, "systemd"), cancel).ConfigureAwait(false);
-            await plain.CommitAsync(booting, cancel).ConfigureAwait(false);
-        }
+            await using (var plain = await RunAsync(session, image, work, [], Idle, [], cancel).ConfigureAwait(false))
+            {
+                await plain.MustAsync(Installs(image, "systemd"), cancel).ConfigureAwait(false);
+                await plain.CommitAsync(booting, cancel).ConfigureAwait(false);
+            }
 
-        // systemd runs in a container with a cgroup of its own and /run in memory, with no privilege of the PC's.
-        string[] options = ["--cgroupns=private", "--tmpfs", "/run", "--tmpfs", "/run/lock"];
-        var booted = await RunAsync(session, booting, work, options, ["/lib/systemd/systemd"], cancel, owned: true).ConfigureAwait(false);
-        // Booted is running, or degraded when a unit a container has no use for failed; any other state is no boot.
-        var state = (await booted.RunAsync("systemctl is-system-running --wait", cancel).ConfigureAwait(false)).Out.Trim();
-        if (state is not ("running" or "degraded"))
+            return await BootedAsync(session, booting, work, owned, cancel).ConfigureAwait(false);
+        }
+        catch
         {
-            await booted.DisposeAsync().ConfigureAwait(false);
-            throw new InvalidOperationException($"{image} did not boot: systemd says {state}.");
+            await RemoveAsync(session, owned).ConfigureAwait(false);
+            throw;
         }
-
-        return booted;
     }
 
     /// <summary>The distribution's own command that installs <paramref name="packages"/> from its repositories.</summary>
@@ -66,7 +70,7 @@ internal sealed class Container(OwnSession session, string id, string? image = n
 
     /// <summary>Runs <paramref name="script"/> with bash as root in the container: its exit code, and what it wrote.</summary>
     public Task<Ran> RunAsync(string script, CancellationToken cancel) =>
-        session.RunAsync("docker", ["exec", id, "bash", "-euo", "pipefail", "-c", script], cancel: cancel);
+        session.RunAsync("docker", ["exec", Id, "bash", "-euo", "pipefail", "-c", script], cancel: cancel);
 
     /// <summary>
     /// Runs <paramref name="script"/> as <see cref="RunAsync(string, CancellationToken)"/> does, and fails the test with what
@@ -81,7 +85,7 @@ internal sealed class Container(OwnSession session, string id, string? image = n
     /// <summary>Cuts the container off every network, so what it installs next comes from its own files alone.</summary>
     public async Task OfflineAsync(CancellationToken cancel)
     {
-        var cut = await session.RunAsync("docker", ["network", "disconnect", "bridge", id], cancel: cancel).ConfigureAwait(false);
+        var cut = await session.RunAsync("docker", ["network", "disconnect", "bridge", Id], cancel: cancel).ConfigureAwait(false);
         if (cut.Exit != 0)
         {
             throw new InvalidOperationException($"The container stayed on its network: {cut.Error}");
@@ -90,40 +94,83 @@ internal sealed class Container(OwnSession session, string id, string? image = n
 
     public async ValueTask DisposeAsync()
     {
-        await session.RunAsync("docker", ["rm", "--force", id]).ConfigureAwait(false);
-        if (image is not null)
-        {
-            await session.RunAsync("docker", ["rmi", "--force", image]).ConfigureAwait(false);
-        }
+        await session.RunAsync("docker", ["rm", "--force", Id]).ConfigureAwait(false);
+        await RemoveAsync(session, images).ConfigureAwait(false);
     }
 
-    private async Task CommitAsync(string tag, CancellationToken cancel)
+    // systemd runs in a container with a cgroup namespace of its own and /run in memory. Docker mounts that namespace's
+    // cgroups read only, where systemd cannot make its units' groups, so the container mounts them again writable: only
+    // its own groups, never the PC's, with no device or other privilege of the PC's. Booted, systemd says READY=1 on the
+    // socket its environment names, as it tells any container manager.
+    private static async Task<Container> BootedAsync(OwnSession session, string booting, string work, string[] owned, CancellationToken cancel)
     {
-        var committed = await session.RunAsync("docker", ["commit", id, tag], cancel: cancel).ConfigureAwait(false);
-        if (committed.Exit != 0)
+        var socket = $"ready-{Guid.NewGuid():N}";
+        var ready = await Readiness.ListenAsync(session, Path.Combine(work, socket), cancel).ConfigureAwait(false);
+        string[] options =
+        [
+            "--cgroupns=private", "--tmpfs", "/run", "--tmpfs", "/run/lock", "--cap-add", "SYS_ADMIN", "--security-opt", "apparmor=unconfined",
+            "--env", $"NOTIFY_SOCKET={Work}/{socket}",
+        ];
+        string[] boot = ["/bin/sh", "-c", "mount -o remount,rw /sys/fs/cgroup && exec /lib/systemd/systemd"];
+        var booted = await RunAsync(session, booting, work, options, boot, owned, cancel).ConfigureAwait(false);
+        var ended = session.RunAsync("docker", ["wait", booted.Id], cancel: cancel);
+        await Task.WhenAny(ready, ended).ConfigureAwait(false);
+        // Booted is running, or degraded when a unit a container has no use for failed; any other state, or a container
+        // that ended first, is no boot.
+        var state = ended.IsCompleted ? "" : (await booted.RunAsync("systemctl is-system-running || true", cancel).ConfigureAwait(false)).Out.Trim();
+        if (state is not ("running" or "degraded"))
         {
-            throw new InvalidOperationException($"The container was not kept as {tag}: {committed.Error}");
+            var logs = await session.RunAsync("docker", ["logs", booted.Id], cancel: cancel).ConfigureAwait(false);
+            await booted.DisposeAsync().ConfigureAwait(false);
+            throw new InvalidOperationException($"{booting} did not boot: systemd says '{state}'.\n{logs.Out}{logs.Error}");
+        }
+
+        return booted;
+    }
+
+    // The distribution's image, when the PC holds none yet: the test pulls it, and removes it after.
+    private static async Task<string[]> PulledAsync(OwnSession session, string image, CancellationToken cancel)
+    {
+        var held = await session.RunAsync("docker", ["image", "inspect", image], cancel: cancel).ConfigureAwait(false);
+        if (held.Exit == 0)
+        {
+            return [];
+        }
+
+        var pulled = await session.RunAsync("docker", ["pull", "--quiet", image], cancel: cancel).ConfigureAwait(false);
+        return pulled.Exit == 0 ? [image] : throw new InvalidOperationException($"{image} could not be pulled: {pulled.Error}");
+    }
+
+    // An image another run's container still uses stays: docker refuses to remove it, and that run removes it after.
+    private static async Task RemoveAsync(OwnSession session, IReadOnlyList<string> images)
+    {
+        foreach (var image in images)
+        {
+            await session.RunAsync("docker", ["rmi", image]).ConfigureAwait(false);
         }
     }
 
     // Docker's --mount, not -v, which makes a missing folder instead of failing.
     private static string Mount(string from, string to) => $"--mount=type=bind,source={from},target={to},readonly";
 
-    private static Task<Container> RunAsync(OwnSession session, string image, string work, string[] command, CancellationToken cancel) =>
-        RunAsync(session, image, work, [], command, cancel);
-
     private static async Task<Container> RunAsync(
-        OwnSession session, string image, string work, string[] options, string[] command, CancellationToken cancel, bool owned = false)
+        OwnSession session, string image, string work, string[] options, string[] command, IReadOnlyList<string> images, CancellationToken cancel)
     {
         var started = await session.RunAsync(
             "docker",
-            [
-                "run", "--detach", "--rm", .. options, Mount(AppContext.BaseDirectory, Output), Mount(Built.Packages, Packages),
-                "--volume", $"{work}:{Work}", image, .. command,
-            ],
+            ["run", "--detach", "--rm", .. options, Mount(Built.Packages, Packages), "--volume", $"{work}:{Work}", image, .. command],
             cancel: cancel).ConfigureAwait(false);
         return started.Exit == 0
-            ? new Container(session, started.Out.Trim(), owned ? image : null)
+            ? new Container(session, started.Out.Trim(), images)
             : throw new InvalidOperationException($"{image} did not start: {started.Error}");
+    }
+
+    private async Task CommitAsync(string tag, CancellationToken cancel)
+    {
+        var committed = await session.RunAsync("docker", ["commit", Id, tag], cancel: cancel).ConfigureAwait(false);
+        if (committed.Exit != 0)
+        {
+            throw new InvalidOperationException($"The container was not kept as {tag}: {committed.Error}");
+        }
     }
 }

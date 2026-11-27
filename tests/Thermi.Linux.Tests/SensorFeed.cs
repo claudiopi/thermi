@@ -22,13 +22,15 @@ internal static class SensorFeed
 
     /// <summary>
     /// Serves the first second of a recorded tree, every second the same: what thermi shows then never changes, so a test
-    /// compares a whole screen, and a picture <c>thermi preview</c> paints of <see cref="Steady.Snapshot"/>.
+    /// compares a whole screen, and a picture <c>thermi preview</c> paints of <see cref="Steady.Snapshot"/>. A test may change
+    /// what the second holds first, as <paramref name="change"/> does to its folder.
     /// </summary>
-    public static async Task<Steady> ServeSteadyAsync(OwnSession session, string tree, CancellationToken cancel)
+    public static async Task<Steady> ServeSteadyAsync(OwnSession session, string tree, CancellationToken cancel, Action<string>? change = null)
     {
-        var root = Path.Combine(session.Home, $"steady-{tree}");
+        var root = Path.Combine(session.Home, $"steady-{tree}-{Guid.NewGuid():N}");
         Built.Copy(Path.Combine(Built.Tree(tree), "0"), Path.Combine(root, "0"));
-        var snapshot = Path.Combine(session.Home, $"steady-{tree}.json");
+        change?.Invoke(Path.Combine(root, "0"));
+        var snapshot = $"{root}.json";
         var dumped = await session.RunAsync(Built.Program("thermi-sensors"), ["--dump", snapshot, "--root", root], cancel: cancel).ConfigureAwait(false);
         return dumped.Exit == 0
             ? new Steady(await ServeRootAsync(session, root, cancel).ConfigureAwait(false), snapshot)

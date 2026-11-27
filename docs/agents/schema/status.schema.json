@@ -59,6 +59,24 @@
         "missing",
         null
       ]
+    },
+    "version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "channel": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updates": {
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [
