@@ -141,11 +141,12 @@ jobs:
           path: TestResults/stats
           if-no-files-found: ignore
 
-  # The tests that need Linux: the sensor service, its socket, and thermi against compositors of the tests' own.
+  # The tests that need Linux: the sensor service, its socket, thermi against compositors of the tests' own, and the
+  # packages installed and updated in containers of each distribution, which take the most of its time.
   linux:
     name: 🐧 Linux tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -166,8 +167,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y --no-install-recommends kwin-wayland kscreen qt6-wayland sway grim wtype
           weston xfwm4 xfce4-panel xfconf x11-xserver-utils libgtk4-layer-shell0 gir1.2-gtk4layershell-1.0 gir1.2-gtk-4.0
           python3-gi-cairo mesa-vulkan-drivers
-      # The shells thermi-cli is run from in the tests, beside bash.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish
+      # The shells thermi-cli is run from in the tests, beside bash, and the tools the repositories' indexes are written with.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish apt-utils createrepo-c rpm-common
       # The tests' own user manager runs in a scope the runner's own delegates, which only a lingering user has.
       - run: sudo loginctl enable-linger "$(id -un)"
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Linux

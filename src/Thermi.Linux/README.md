@@ -20,6 +20,8 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `Sensors` | The service's socket: the system's, else where it is missing the user's own, of a `thermi-sensors --console`, each trusted only from who should serve it; `THERMI_SENSORS_SOCKET` names one to read alone. |
 | `X11` | The overlay's surfaces on X11: GTK windows kept above, off the taskbar and the pager, the work area from the panels' struts, and the pointer read for Fade. |
 
+The `thermi` package's files, beside the code in `Packaging`, are the overlay's user unit, its launcher's entry, the package's `nfpm.yaml` and scripts, and the AUR's `PKGBUILD` for both packages; `scripts/linux-packages.ps1` packs them with the overlay, its icons and the GNOME Shell extension.
+
 ## What the tests rely on
 
 The tests drive thermi as a person's desktop does and wait for what it says it did, never for a time, so these are a contract: a change here changes `tests/Thermi.Linux.Tests` with it.

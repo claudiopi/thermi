@@ -116,4 +116,6 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
         return [.. new ShellScreens(monitors, new Dictionary<(int X, int Y), string>()).Screens];
     }
+
+    public AboutFacts About() => LinuxAbout.Read();
 }

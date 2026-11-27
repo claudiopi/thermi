@@ -1,0 +1,38 @@
+# thermi-bin and thermi-sensors-bin on the AUR (docs/adr/0019-linux.md): the files of a release's build, from its
+# tarball for each processor, as the .deb and the .rpm install them. scripts/linux-packages.ps1 writes the version, the
+# tarballs' address and their SHA-256 in, and the release workflow pushes the result to the AUR.
+pkgbase=thermi-bin
+pkgname=(thermi-sensors-bin thermi-bin)
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="A light, always-on-top hardware monitor"
+arch=(x86_64 aarch64)
+url="https://github.com/claudiopi/thermi"
+license=(MIT)
+# Self-contained .NET: nothing to strip, and its own debug files are none.
+options=(!strip !debug)
+source_x86_64=("thermi-${pkgver}-linux-x64.tar.gz::@TARBALLS@thermi-${pkgver}-linux-x64.tar.gz")
+source_aarch64=("thermi-${pkgver}-linux-arm64.tar.gz::@TARBALLS@thermi-${pkgver}-linux-arm64.tar.gz")
+sha256sums_x86_64=(@SHA256_X64@)
+sha256sums_aarch64=(@SHA256_ARM64@)
+
+package_thermi-sensors-bin() {
+    pkgdesc="thermi's sensor service and thermi-cli"
+    depends=(glibc gcc-libs icu systemd)
+    optdepends=('glib2: the monitors GNOME lays out, for thermi-cli')
+    provides=(thermi-sensors)
+    conflicts=(thermi-sensors)
+    install=thermi-sensors-bin.install
+    cp -a "thermi-${pkgver}/thermi-sensors/." "${pkgdir}/"
+    install -Dm644 "${pkgdir}/usr/share/doc/thermi-sensors/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
+
+package_thermi-bin() {
+    depends=("thermi-sensors-bin=${pkgver}" gtk4 webkitgtk-6.0 pango cairo glib2)
+    optdepends=('gtk4-layer-shell: the overlay on KDE Plasma, Hyprland and Sway')
+    provides=(thermi)
+    conflicts=(thermi)
+    install=thermi-bin.install
+    cp -a "thermi-${pkgver}/thermi/." "${pkgdir}/"
+    install -Dm644 "${pkgdir}/usr/share/doc/thermi/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

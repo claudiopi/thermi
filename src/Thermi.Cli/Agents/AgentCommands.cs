@@ -176,6 +176,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             PerUser = environment.PerUser(),
             Os = environment.Os,
             OverlayCanShow = environment.OverlayCanShow(),
+            About = environment.About(),
         };
 
     private AgentReply Unread(Core.Tray.ServiceState state, bool taken, Snapshot? latest)
