@@ -63,6 +63,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
-        with:
-          fail-on-severity: low
+      # Any package the pull request adds with a known vulnerability, of any severity, from GitHub's dependency graph, as
+      # dependency-review-action reads it; asked directly, as that action writes a summary of its own even when all is
+      # clean, and a passing run shows the CI's dashboard alone.
+      - shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMPARED: ${{ github.repository }}/dependency-graph/compare/${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+        run: |
+          $pages = gh api "repos/$env:COMPARED" --paginate --slurp
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $added = ($pages | ConvertFrom-Json) | ForEach-Object { $_ } | Where-Object change_type -eq 'added'
+          $found = foreach ($package in $added) {
+            foreach ($advisory in $package.vulnerabilities) {
+              "| ``$($package.name)`` $($package.version) | $($package.ecosystem) | $($advisory.severity) | [$($advisory.advisory_ghsa_id)]($($advisory.advisory_url)) |"
+            }
+          }
+          if (-not $found) {
+            "No package this pull request adds has a known vulnerability."
+            exit 0
+          }
+          @('### ❌ Dependency review', '', '| Package | Ecosystem | Severity | Advisory |', '| --- | --- | --- | --- |') + $found + '' |
+            Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          exit 1

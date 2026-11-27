@@ -70,6 +70,15 @@ jobs:
           }
           "::notice::Skipped. $why"
           "Skipped. $why" >> $env:GITHUB_STEP_SUMMARY
+      # What a person checks on the installed build before it goes out, in the summary the owner reads while the run waits
+      # for approval.
+      - if: steps.check.outputs.ready == 'true' && (github.event_name == 'push' || inputs.lever == 'release')
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.check.outputs.ready == 'true' && (github.event_name == 'push' || inputs.lever == 'release')
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/release-checks.ps1 | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
   build:
     needs: ready
