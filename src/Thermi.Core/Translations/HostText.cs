@@ -75,4 +75,16 @@ public enum HostText
 
     /// <summary>The text of that notice, within 255 characters: where to turn it off, and that a click on it does.</summary>
     ClickThroughOnText,
+
+    /// <summary>The title of the notice that the GNOME Shell extension, which shows the overlays on GNOME, cannot show them.</summary>
+    GnomeExtensionTitle,
+
+    /// <summary>That notice when the extension is not installed: GNOME has just asked to install it.</summary>
+    GnomeExtensionMissing,
+
+    /// <summary>That notice when the extension installed speaks another version of thermi's.</summary>
+    GnomeExtensionOtherVersion,
+
+    /// <summary>That notice when the extension is installed but off or broken.</summary>
+    GnomeExtensionOff,
 }

@@ -4,6 +4,7 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
+using Serilog.Formatting.Display;
 
 namespace Thermi.App.Logging;
 
@@ -36,9 +37,13 @@ internal static class ThermiLog
     // The agents' commands are many short processes at once: they share one file, of what went wrong and what they changed.
     public static string AgentsPath { get; } = Path.Combine(Folder, "thermi-agents.log");
 
-    public static ILoggerFactory Create(string path, TimeProvider time, bool trace)
+    /// <summary>
+    /// The log at <paramref name="path"/>; with <paramref name="trace"/>, each message to <paramref name="echo"/> too, a
+    /// line each, which a test waits on.
+    /// </summary>
+    public static ILoggerFactory Create(string path, TimeProvider time, bool trace, TextWriter? echo = null)
     {
-        var logger = new LoggerConfiguration()
+        var configuration = new LoggerConfiguration()
             .MinimumLevel.Is(trace ? LogEventLevel.Debug : LogEventLevel.Information)
             .Enrich.With(new Stamp(time))
             .WriteTo.File(
@@ -49,8 +54,13 @@ internal static class ThermiLog
                 rollOnFileSizeLimit: true,
                 retainedFileCountLimit: Files,
                 // Still shared: a second thermi that only brings the open window to the front writes a line or two.
-                shared: true)
-            .CreateLogger();
+                shared: true);
+        if (trace && echo is not null)
+        {
+            configuration = configuration.WriteTo.Sink(new Echo(echo));
+        }
+
+        var logger = configuration.CreateLogger();
         return new SerilogLoggerFactory(logger, dispose: true);
     }
 
@@ -112,6 +122,21 @@ internal static class ThermiLog
             logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("Time", time.GetLocalNow()));
             logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("Counter", Counter(time)));
             logEvent.AddPropertyIfAbsent(_process);
+        }
+    }
+
+    // Each message alone on its line, flushed at once, so a reader of the stream sees it as it happens.
+    private sealed class Echo(TextWriter writer) : ILogEventSink
+    {
+        private readonly MessageTemplateTextFormatter _format = new("{Message:lj}{NewLine}", CultureInfo.InvariantCulture);
+
+        public void Emit(LogEvent logEvent)
+        {
+            lock (_format)
+            {
+                _format.Format(logEvent, writer);
+                writer.Flush();
+            }
         }
     }
 }

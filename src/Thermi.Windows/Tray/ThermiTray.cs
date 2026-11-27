@@ -189,7 +189,7 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
         var texts = Translations;
         var numbers = Actions.Culture;
         var hotkey = config.Hotkeys?.Toggle;
-        var one = notice.Overlays.Count == 1 ? ThermiMenus.NameOf(config, notice.Overlays[0], texts) : "";
+        var one = notice.Overlays.Count == 1 ? MenuTexts.NameOf(config, notice.Overlays[0], texts) : "";
         var (title, text) = notice.Kind switch
         {
             NoticeKind.FirstRun => (texts.Of(HostText.FirstRunTitle), texts.Of(HostText.FirstRun)),

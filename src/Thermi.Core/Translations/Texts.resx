@@ -21,6 +21,18 @@
   <data name="HostText.ClickThroughOnText" xml:space="preserve">
     <value>To change it, right-click thermi's icon here or open Settings. Click this notice to undo.</value>
   </data>
+  <data name="HostText.GnomeExtensionTitle" xml:space="preserve">
+    <value>thermi cannot show its overlays</value>
+  </data>
+  <data name="HostText.GnomeExtensionMissing" xml:space="preserve">
+    <value>GNOME shows them through thermi&apos;s extension: install it in the window GNOME opened, or from extensions.gnome.org.</value>
+  </data>
+  <data name="HostText.GnomeExtensionOtherVersion" xml:space="preserve">
+    <value>The thermi extension installed is for another version of thermi: update it from extensions.gnome.org.</value>
+  </data>
+  <data name="HostText.GnomeExtensionOff" xml:space="preserve">
+    <value>Turn on the thermi extension in GNOME&apos;s Extensions app.</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Lock position</value>
   </data>
