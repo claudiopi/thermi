@@ -12,20 +12,24 @@ internal static class LinuxFixes
     private const string SystemdRun = "/usr/bin/systemd-run";
     private const string Pkexec = "/usr/bin/pkexec";
 
+    private const string Fallback = "thermi-overlay.service";
+
     // What a desktop hands its programs to show on it, which a user manager that no graphical session started may not have.
     private static readonly string[] Shown = ["WAYLAND_DISPLAY", "DISPLAY", "XAUTHORITY", "XDG_CURRENT_DESKTOP", "XDG_SESSION_TYPE"];
 
     /// <summary>
     /// Starts the overlay as the person: its user unit, which runs only in a graphical session systemd knows of; where none
     /// is, as on a Sway or Hyprland that starts no graphical-session.target, <paramref name="thermi"/> as a unit of its own
-    /// that sees the window's desktop. False when neither started.
+    /// that sees the window's desktop and comes back if it fails, as the user unit does. True too when that one already
+    /// runs; false when neither started.
     /// </summary>
-    public static async Task<bool> StartOverlay(string? thermi = null) =>
+    public static async Task<bool> StartOverlay(string thermi) =>
         await RunAsync(UserUnit.Systemctl, ["--user", "start", UserUnit.Name])
+        || await RunAsync(UserUnit.Systemctl, ["--user", "--quiet", "is-active", Fallback])
         || await RunAsync(SystemdRun, [
-            "--user", "--collect", "--quiet", "--unit=thermi-overlay", "--slice=app.slice",
+            "--user", "--collect", "--quiet", $"--unit={Fallback}", "--slice=app.slice", "--property=Restart=on-failure", "--property=RestartSec=2",
             .. Shown.Where(name => Environment.GetEnvironmentVariable(name) is not null).Select(name => $"--setenv={name}"),
-            thermi ?? Environment.ProcessPath ?? "/usr/bin/thermi"]);
+            thermi]);
 
     /// <summary>Starts the sensor service's socket behind polkit's prompt: false when the person declined or it failed.</summary>
     public static Task<bool> StartService() => RunAsync(Pkexec, [UserUnit.Systemctl, "start", "thermi-sensors.socket"]);

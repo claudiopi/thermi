@@ -1,7 +1,10 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
 using Thermi.Cli.Agents;
+using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Agents;
 
@@ -9,7 +12,8 @@ namespace Thermi.Linux.Agents;
 /// Start at sign-in on Linux, for the window's switch and thermi-cli's <c>start-with-windows</c> alike: the overlay's user
 /// unit, <c>thermi.service</c>, as the person's own <c>systemctl --user</c> enables, disables and reads it, so an enable of
 /// systemd's, theirs or an administrator's for everyone, reads the same in both. The package enables it for no one
-/// (docs/adr/0019-linux.md). A switch systemctl refused is an error, never one that only looks set.
+/// (docs/adr/0019-linux.md); thermi's first start in each person's session does, once (<see cref="EnableOnce"/>). A switch
+/// systemctl refused is an error, never one that only looks set.
 /// </summary>
 /// <param name="systemctl">The program asked, by its full path, never one found on the PATH.</param>
 internal sealed class UserUnit(string systemctl = UserUnit.Systemctl) : IStartAtSignIn
@@ -32,7 +36,34 @@ internal sealed class UserUnit(string systemctl = UserUnit.Systemctl) : IStartAt
         }
     }
 
+    /// <summary>Where <see cref="EnableOnce"/> marks that it turned start at sign-in on: beside the settings.</summary>
+    public static string Marker { get; } = Path.Combine(Path.GetDirectoryName(ConfigStore.DefaultPath)!, "start-at-sign-in");
+
     public bool On => Run("is-enabled") == 0;
+
+    /// <summary>
+    /// Turns start at sign-in on at thermi's first start in a person's session, as Windows' installer does: once, so a
+    /// person who turned it off finds it off at every start after. <paramref name="marker"/> says it was done; a user
+    /// manager that would not enable it leaves none, and the next start tries again.
+    /// </summary>
+    public void EnableOnce(string marker, ILogger log)
+    {
+        if (System.IO.File.Exists(marker))
+        {
+            return;
+        }
+
+        try
+        {
+            Set(on: true);
+            Directory.CreateDirectory(Path.GetDirectoryName(marker)!);
+            System.IO.File.WriteAllBytes(marker, []);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            log.SignInNotEnabled(ex);
+        }
+    }
 
     public void Set(bool on)
     {

@@ -20,9 +20,9 @@ internal static class LinuxAbout
 
     public static bool Installed => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
 
-    public static UpdateLine Updates() => SystemRepository.Line(Installed ? Read().Channel : null);
+    public static UpdateLine Updates() => SystemRepository.Line(Read());
 
-    public static AboutFacts Read() => new(BuildVersion.Of(typeof(LinuxAbout).Assembly), SystemRepository.Channel(Text(AptSources), Text(DnfRepo)), "system");
+    public static AboutFacts Read() => SystemRepository.About(BuildVersion.Of(typeof(LinuxAbout).Assembly), Installed, Text(AptSources), Text(DnfRepo));
 
     private static string? Text(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
 }

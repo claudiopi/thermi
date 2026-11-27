@@ -2522,7 +2522,7 @@
     <value>Reiniciar para actualizar</value>
   </data>
   <data name="WindowText.UpdatesFromSystem" xml:space="preserve">
-    <value>Se actualiza con el sistema</value>
+    <value>Se actualiza con las actualizaciones del sistema</value>
   </data>
   <data name="WindowText.UpdatesBeta" xml:space="preserve">
     <value>{0} · Canal beta</value>

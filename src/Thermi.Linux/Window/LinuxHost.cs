@@ -125,7 +125,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     // As a systemd user unit, which ends it with the session; thermi.service also restarts it if it fails.
     public async Task<bool> StartOverlay()
     {
-        var started = await LinuxFixes.StartOverlay();
+        var started = await LinuxFixes.StartOverlay(Environment.ProcessPath ?? "/usr/bin/thermi");
         if (!started)
         {
             OverlayNotStarted(_log);
@@ -218,7 +218,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
         catch (GLib.GException)
         {
-            // Declined, offline, or the prompt outlasted the call: what the Shell has now says which.
+            // Declined or offline: what the Shell has now says which.
         }
 
         _extension = ExtensionOf();

@@ -1,3 +1,4 @@
+using Thermi.Linux.Agents;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
 using Thermi.Linux.Window;
@@ -50,8 +51,9 @@ public sealed class OverlayLinkTests
     }
 
     // The window's Start starts the overlay's user unit, as a sign-in does, or, on a desktop that starts no graphical
-    // session's target for systemd, as Sway and Hyprland may not, the overlay as a unit of its own; and Exit thermi ends the
-    // overlay it finds: the stand-in gives its name up only by ending.
+    // session's target for systemd, as Sway and Hyprland may not, the overlay as a unit of its own, never both; either
+    // comes back if it fails, and a second Start finds it running. Exit thermi ends the overlay it finds: the stand-in gives
+    // its name up only by ending.
     [Theory(Timeout = Bound.Test)] // Rows: the graphical session's target up, and down.
     [InlineData(true)]
     [InlineData(false)]
@@ -70,10 +72,21 @@ public sealed class OverlayLinkTests
             await units.SystemctlAsync(["stop", "graphical-session.target"], cancel);
         }
 
-        var started = await LinkAsync(session, "start", cancel, overlay);
+        var started = await LinkAsync(session, "start", cancel, overlay) && await LinkAsync(session, "start", cancel, overlay);
+        string[] both = [UserUnit.Name, "thermi-overlay.service"];
+        var ran = new List<string>();
+        foreach (var unit in both)
+        {
+            if (await units.SystemctlAsync(["is-active", unit], cancel) == "active")
+            {
+                ran.Add(unit);
+            }
+        }
+
+        var restarts = await units.SystemctlAsync(["show", "-p", "Restart", "--value", .. ran], cancel);
         var ended = !await LinkAsync(session, "quit", cancel);
 
-        Assert.Equal((true, true), (started, ended));
+        Assert.Equal((true, both[graphical ? 0 : 1], "on-failure", true), (started, string.Join(' ', ran), restarts, ended));
     }
 
     /// <summary>
@@ -87,7 +100,7 @@ public sealed class OverlayLinkTests
         using var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
         var context = GLib.MainContext.Default();
         using var link = new OverlayLink(bus, () => { });
-        if (what == "start" && !await LinuxFixes.StartOverlay(thermi).ConfigureAwait(false))
+        if (what == "start" && !await LinuxFixes.StartOverlay(thermi ?? throw new ArgumentNullException(nameof(thermi))).ConfigureAwait(false))
         {
             return 1;
         }

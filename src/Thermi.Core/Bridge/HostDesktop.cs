@@ -68,7 +68,7 @@ public sealed record HostDesktop(
     /// The texts each OS but Windows says in its own words, which name Windows or its tools: each of Windows' keys, with the
     /// key of the words that stand for it there.
     /// </summary>
-    public static IReadOnlyDictionary<HostOs, IReadOnlyDictionary<string, string>> OwnTexts { get; } =
+    private static IReadOnlyDictionary<HostOs, IReadOnlyDictionary<string, string>> OwnTexts { get; } =
         new Dictionary<HostOs, IReadOnlyDictionary<string, string>>
         {
             [HostOs.Linux] = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -87,7 +87,7 @@ public sealed record HostDesktop(
         };
 
     /// <summary>The texts that name the taskbar, in the words of each other bar, as <see cref="OwnTexts"/> holds an OS's.</summary>
-    public static IReadOnlyDictionary<DesktopBar, IReadOnlyDictionary<string, string>> BarTexts { get; } =
+    private static IReadOnlyDictionary<DesktopBar, IReadOnlyDictionary<string, string>> BarTexts { get; } =
         new Dictionary<DesktopBar, IReadOnlyDictionary<string, string>>
         {
             [DesktopBar.TopBar] = BarWords(

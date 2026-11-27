@@ -2476,7 +2476,7 @@
     <value>Restart to update</value>
   </data>
   <data name="WindowText.UpdatesFromSystem" xml:space="preserve">
-    <value>Updates come with the system's</value>
+    <value>Updates come with the system's updates</value>
   </data>
   <data name="WindowText.UpdatesBeta" xml:space="preserve">
     <value>{0} · Beta channel</value>

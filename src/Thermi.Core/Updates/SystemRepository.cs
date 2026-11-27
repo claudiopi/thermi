@@ -1,3 +1,5 @@
+using Thermi.Core.Agents;
+
 namespace Thermi.Core.Updates;
 
 /// <summary>
@@ -17,11 +19,15 @@ public static class SystemRepository
     }
 
     /// <summary>
-    /// What About says of updates on Linux: they come with the system's, on <paramref name="channel"/>, the one the
-    /// repository names; a build run from the repo, with no channel, updates from nothing.
+    /// What About and status say on Linux: a build the packages installed updates with the system, on the channel its
+    /// repository names; one run from anywhere else, as from the repo, updates from nothing and follows no channel.
     /// </summary>
-    public static UpdateLine Line(string? channel) =>
-        channel is null ? new(UpdateLineKind.NotUpdating, Beta: false) : new(UpdateLineKind.FromSystem, Beta: channel == "beta");
+    public static AboutFacts About(string? version, bool installed, string? aptSources, string? dnfRepo) =>
+        installed ? new(version, Channel(aptSources, dnfRepo), "system") : new(version, Channel: null, Updates: null);
+
+    /// <summary>What About's line says of <paramref name="about"/>.</summary>
+    public static UpdateLine Line(AboutFacts about) =>
+        about.Updates is null ? new(UpdateLineKind.NotUpdating, Beta: false) : new(UpdateLineKind.FromSystem, Beta: about.Channel == "beta");
 
     private static string? Field(string? text, string name) => text?.Split('\n').Select(line => line.Trim())
         .FirstOrDefault(line => line.StartsWith(name, StringComparison.Ordinal))?[name.Length..].Trim();
