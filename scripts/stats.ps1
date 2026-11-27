@@ -34,6 +34,7 @@ $entries = @($entries | Where-Object { $_ })
 $commit = if ($github) { $github.commit } else { git -C $root rev-parse --short HEAD }
 $before = $entries | Where-Object { $_.commit -ne $commit } | Select-Object -Last 1
 $specs = @(Read-Specs $root $run)
+$code = @(Read-Code $root)
 
 # This run's numbers, as the history keeps them; what it did not measure carries main's last.
 function Get-Entry {
@@ -54,6 +55,9 @@ function Get-Entry {
         doctor = (Get-DoctorScore $run).Score
         ciSeconds = if ($github) { $github.wallSeconds } else { @($run.Steps | ForEach-Object { $_.seconds } | Sort-Object)[-1] }
         msiX64 = $x64.megabytes
+        codeProduct = ($code | Where-Object { -not $_.Test } | Measure-Object Lines -Sum).Sum
+        codeTests = ($code | Where-Object { $_.Test } | Measure-Object Lines -Sum).Sum
+        code = ($code | Measure-Object Lines -Sum).Sum
         passed = if ($github) { $github.passed }
     }
 }
@@ -87,12 +91,14 @@ function Write-Kpis {
             "$(if ($slowest) { "slowest: $(Get-JobLabel $slowest.name) · " })$(Format-Delta $now.ciSeconds $before.ciSeconds -Duration)")
     )
     $second = @(
-        ,@('📋 Specs', "$done / $($specs.Count)", "done · $passing of $(@($specs.Steps).Count) acceptance checks pass")
-        ,@('🐞 Open bugs', "$($github.openBugs ?? '–')", 'issues labeled bug')
+        ,@('📝 Lines of code', (Format-Count $now.code),
+            "$(Format-Thousands $now.codeProduct) product · $(Format-Thousands $now.codeTests) tests · $(Format-Delta $now.code $before.code)")
+        ,@('📋 Specs', "$done / $($specs.Count)", "done · $passing / $(@($specs.Steps).Count) checks pass")
+        ,@('🐞 Open bugs', "$($github.openBugs ?? '–')", 'open `bug` issues')
         ,@('📦 x64 installer', (Format-Megabytes $now.msiX64),
             "Arm64 $(Format-Megabytes $arm.megabytes) · $(Format-Delta $now.msiX64 $before.msiX64 -Decimals 1 -Unit ' MB')")
-        ,@('🔐 Security', $(switch ($security) { 'success' { '✅ clean' } $null { '–' } default { "❌ $security" } }), 'leaked secrets · vulnerable packages')
-        ,@('🔄 Dependencies', "$($github.updates ?? '–')", 'update PRs open · Renovate opens them')
+        ,@('🔐 Security', $(switch ($security) { 'success' { '✅ clean' } $null { '–' } default { "❌ $security" } }), 'secrets · vulnerable packages')
+        ,@('🔄 Dependencies', "$($github.updates ?? '–')", 'open Renovate PRs')
     )
     foreach ($row in $first, $second) {
         '| ' + (($row | ForEach-Object { $_[0] }) -join ' | ') + ' |'
@@ -133,6 +139,33 @@ function Write-Coverage {
     ''
 }
 
+# Non-blank lines by project and language, the product's and the tests' apart.
+function Write-Code {
+    $languages = 'C#', 'TypeScript', 'PowerShell', 'JS'
+    '## 📝 Code by project'
+    ''
+    "| Project | $($languages -join ' | ') | Lines |"
+    "| --- |$(' --: |' * ($languages.Count + 1))"
+    foreach ($test in $false, $true) {
+        $kind = @($code | Where-Object { $_.Test -eq $test })
+        foreach ($project in $kind | Group-Object Project) {
+            $name = if ($test) { "``$($project.Name)`` · tests" } else { "``$($project.Name)``" }
+            "| $name | $(Format-Languages $project.Group $languages) |"
+        }
+        "| **$(if ($test) { 'Tests' } else { 'Product' })** | $(Format-Languages $kind $languages -Bold) |"
+    }
+    ''
+}
+
+function Format-Languages([object[]]$Files, [string[]]$Languages, [switch]$Bold) {
+    $mark = if ($Bold) { '**' } else { '' }
+    $cells = foreach ($language in $Languages) {
+        $sum = ($Files | Where-Object Language -eq $language | Measure-Object Lines -Sum).Sum
+        if ($sum) { "$mark$(Format-Count $sum)$mark" } else { '' }
+    }
+    ($cells + "$mark$(Format-Count ($Files | Measure-Object Lines -Sum).Sum)$mark") -join ' | '
+}
+
 function Write-Specs {
     '## 📋 Specs'
     ''
@@ -153,9 +186,7 @@ function Write-Specs {
 function Write-BugHunt {
     '## 🐛 Bug hunt'
     ''
-    '> A tool plants thousands of small bugs, one at a time, and measures the share the tests catch: a `<` turned into `<=`,'
-    '> a line removed. **Caught** is the share some test notices; **missed** are the ones none did. Coverage says which lines'
-    '> the tests run; this says whether they would notice those lines going wrong. It runs each night.'
+    '> Each night small bugs are planted in the code, one at a time; **caught** is the share some test notices.'
     ''
     if (-not $run.BugHunt) {
         "No Bug hunt has run yet: [run it]($repo/actions/workflows/mutation.yml) by hand, or wait for the night."
@@ -179,7 +210,7 @@ function Write-BugHunt {
 
 function Write-Trend {
     $last = @($entries | Where-Object { $_.commit -ne $commit } | Select-Object -Last ($trend - 1)) + $now
-    "## 📈 Trend · up to the last $trend pushes to ``main``, this run last"
+    "## 📈 Trend · the last $trend pushes to ``main``"
     ''
     '| Metric | Trend | Now |'
     '| --- | --- | --: |'
@@ -190,6 +221,7 @@ function Write-Trend {
         ,@('React Doctor', 'doctor', { "$($args[0] ?? '–')" })
         ,@('CI time', 'ciSeconds', { Format-Duration $args[0] })
         ,@('x64 installer', 'msiX64', { Format-Megabytes $args[0] })
+        ,@('Lines of code', 'code', { Format-Count $args[0] })
     )
     foreach ($metric in $metrics) {
         $values = @($last | ForEach-Object { $_[$metric[1]] })
@@ -199,40 +231,37 @@ function Write-Trend {
 }
 
 # The CI's jobs by how long each ran, or here the check's steps.
+# The CI's jobs by how long each ran, with how each ended, then the slowest steps of the check's jobs; here the check's
+# steps alone.
 function Write-Time {
     '## ⏱️ Where the time goes'
     ''
-    $timed = if ($github.jobs) { $github.jobs | ForEach-Object { @{ Name = Get-JobLabel $_.name; Seconds = $_.seconds } } }
-        else { $run.Steps | ForEach-Object { $_.steps } | Where-Object { $_.Seconds -gt 0 } | ForEach-Object { @{ Name = $_.Name; Seconds = $_.Seconds } } }
+    $steps = @($run.Steps | ForEach-Object { $job = $_.title; $_.steps | ForEach-Object { $_ + @{ Job = $job } } } | Where-Object { $_.Seconds -gt 0 })
+    $icons = @{ success = '✅'; failure = '❌'; cancelled = '🚫'; skipped = '⏭️'; ok = '✅'; fail = '❌'; info = '📊' }
+    $timed = if ($github.jobs) { $github.jobs | ForEach-Object { @{ Name = Get-JobLabel $_.name; Seconds = $_.seconds; Result = $_.result } } }
+        else { $steps | ForEach-Object { @{ Name = $_.Name; Seconds = $_.Seconds; Result = $_.Status } } }
     if (-not $timed) { 'Nothing was timed.'; ''; return }
-    $longest = @($timed | ForEach-Object { $_.Seconds } | Sort-Object)[-1]
-    '| Job | | Time |'
+    Write-Timed $timed $(if ($github.jobs) { 'Job' } else { 'Step' }) $icons
+    if (-not $github.jobs -or -not $steps) { return }
+    '| Slowest steps | Job | Time |'
     '| --- | --- | --: |'
-    foreach ($each in $timed | Sort-Object { $_.Seconds } -Descending) {
-        "| $($each.Name) | $(Get-Bar (100 * $each.Seconds / [Math]::Max(1, $longest)) 20) | $(Format-Duration $each.Seconds) |"
+    foreach ($step in $steps | Sort-Object { $_.Seconds } -Descending | Select-Object -First 8) {
+        "| $($icons[$step.Status]) $($step.Name) | $($step.Job) | $(Format-Duration $step.Seconds) |"
     }
     ''
 }
 
-# What only a person can see, which the tests leave to them before each release, with the requirements that name it.
-function Write-ReleaseChecks {
-    '## 🧰 Release checks · by a person, before each release'
-    ''
-    $checks = @(Read-ReleaseChecks $root)
-    if (-not $checks) { "``docs/RELEASES.md`` lists none yet."; return }
-    '| Check | Area | Requirements it covers |'
-    '| --- | --- | --- |'
-    foreach ($check in $checks) {
-        $covers = foreach ($spec in $specs | Where-Object { $_.ReleaseChecks.ContainsKey($check.Name) }) {
-            "$($spec.Id) $(($spec.ReleaseChecks[$check.Name] | Select-Object -Unique) -join ', ')"
-        }
-        "| $($check.Name) | $($check.Area) | $(if ($covers) { $covers -join ' · ' } else { '–' }) |"
+function Write-Timed([object[]]$Timed, [string]$What, [hashtable]$Icons) {
+    $longest = @($Timed | ForEach-Object { $_.Seconds } | Sort-Object)[-1]
+    "| | $What | | Time |"
+    '| :-: | --- | --- | --: |'
+    foreach ($each in $Timed | Sort-Object { $_.Seconds } -Descending) {
+        "| $($Icons[$each.Result]) | $($each.Name) | $(Get-Bar (100 * $each.Seconds / [Math]::Max(1, $longest)) 20) | $(Format-Duration $each.Seconds) |"
     }
     ''
-    "_``docs/RELEASES.md`` says how to run each on the release's installed build._"
 }
 
-function Write-Rest {
+function Write-Doctor {
     '## ⚛️ React Doctor'
     ''
     $doctor = Get-DoctorScore $run
@@ -243,18 +272,6 @@ function Write-Rest {
         "| ``Thermi.Settings.Web`` | $(Get-Dot $doctor.Score 100 90) **$($doctor.Score)**/100 | $(Get-Bar $doctor.Score) | $issues |"
     }
     else { "The page's half did not run." }
-    ''
-    Write-ReleaseChecks
-    ''
-    '## 🖥️ Tested on'
-    ''
-    '| PC | Recorded | Recordings the tests replay |'
-    '| --- | --- | --: |'
-    foreach ($pc in Read-RecordedPcs $root) {
-        $rights = @(if ($pc.Admin) { 'as administrator' }) + @(if ($pc.NoAdmin) { 'without admin rights' })
-        "| $($pc.Name) | $($rights -join ' and ') | $($pc.Recordings) |"
-    }
-    "| [Report yours →]($repo/issues/new?template=hardware-report.yml) | a ``thermi-sensors --dump`` and a screenshot | |"
     ''
 }
 
@@ -269,12 +286,13 @@ $markdown = @(
     ''
     Write-Kpis
     Write-Coverage
+    Write-Code
     Write-Specs
     Write-BugHunt
     Write-Trend
     Write-Time
-    Write-Rest
-    "_🤖 Run it on your PC with ``pwsh scripts/stats.ps1`` after a check · the history lives in the ``stats`` branch, which feeds the README's badges._"
+    Write-Doctor
+    "_What a person checks before each release: [docs/RELEASES.md]($repo/blob/main/docs/RELEASES.md#before-each-release)._"
 ) -join "`n"
 
 if ($Out) { Set-Content $Out $markdown -Encoding utf8 } else { $markdown }

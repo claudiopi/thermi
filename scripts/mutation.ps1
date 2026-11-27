@@ -301,5 +301,6 @@ finally {
         '-Shard' { "🐛 Bug hunt · Thermi.Core and Thermi.Cli, share $value", 'BugHuntShare' }
         default { '🐛 Bug hunt · Thermi.Core and Thermi.Cli', 'BugHunt' }
     }
-    Write-Summary $title $name
+    # A share's summary shows only when it fails: the gate's tells the run's score.
+    Write-Summary $title $name -Always:($mode -ne '-Shard')
 }

@@ -261,19 +261,15 @@ jobs:
           . ./scripts/publish.ps1
           . ./scripts/summary.ps1
           $version = @(([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version | Where-Object { $_ })[0]
-          $rows = '### 📦 MSIs', '', '| | MSI | Size |', '| :-: | --- | --: |'
           $files = @()
           foreach ($processor in 'x64', 'arm64') {
             Publish-Thermi "artifacts/ci-msi-$processor" $processor $version
             Build-Msi "artifacts/ci-msi-$processor" $processor $version "thermi-$version-$processor.msi"
             Build-Msi "artifacts/ci-msi-$processor" $processor $version "thermi-$version-$processor-user.msi" -PerUser
             foreach ($msi in "thermi-$version-$processor.msi", "thermi-$version-$processor-user.msi") {
-              $megabytes = (Get-Item $msi).Length / 1MB
-              $rows += '| ✅ | `{0}` | {1:n1} MB |' -f $msi, $megabytes
-              $files += @{ name = $msi; processor = $processor; perUser = $msi -like '*-user.msi'; megabytes = $megabytes }
+              $files += @{ name = $msi; processor = $processor; perUser = $msi -like '*-user.msi'; megabytes = (Get-Item $msi).Length / 1MB }
             }
           }
-          $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
           Save-Stats 'msi' @{ files = $files }
       # What the job measured, for the 📊 Stats dashboard.
       - if: always()
@@ -304,9 +300,10 @@ jobs:
   security:
     uses: ./.github/workflows/security.yml
 
-  # The run's dashboard in its summary, from what each job measured, whichever failed: scripts/stats.ps1. On a push to
-  # main it also adds the run to the stats branch's history, which the README's badges read. Data a job left missing
-  # shows as missing; a broken script fails it, and so the gate.
+  # The run's dashboard, the only summary of a run that passes, as the other jobs write theirs only when they fail:
+  # scripts/stats.ps1, from what each job measured, whichever failed. On a push to main it also adds the run to the stats
+  # branch's history, which the README's badges read. Data a job left missing shows as missing; a broken script fails
+  # it, and so the gate.
   stats:
     name: 📊 Stats dashboard
     if: ${{ !cancelled() }}
@@ -360,18 +357,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      # One row per job, each of which wrote its own table: what ran, what it measured and how long it took.
-      - shell: pwsh
-        env:
-          NEEDS: ${{ toJSON(needs) }}
-        run: |
-          $icons = @{ success = '✅'; failure = '❌'; cancelled = '🚫'; skipped = '⏭️' }
-          $rows = (ConvertFrom-Json $env:NEEDS).PSObject.Properties | ForEach-Object { "| $($icons[$_.Value.result]) | $($_.Name) | $($_.Value.result) |" }
-          @('### CI gate', '', '| | Job | Result |', '| :-: | --- | --- |') + $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
+      # Only when it fails, its own table of each job's result, as the dashboard may be the job that failed.
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
           needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.web.result != 'success' ||
           needs.web-linux.result != 'success' ||
           needs.msi.result != 'success' || needs.security.result != 'success' || needs.stats.result != 'success' ||
           (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
-        run: exit 1
+        shell: pwsh
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          $icons = @{ success = '✅'; failure = '❌'; cancelled = '🚫'; skipped = '⏭️' }
+          $rows = (ConvertFrom-Json $env:NEEDS).PSObject.Properties | ForEach-Object { "| $($icons[$_.Value.result]) | $($_.Name) | $($_.Value.result) |" }
+          @('### ❌ CI gate', '', '| | Job | Result |', '| :-: | --- | --- |') + $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          exit 1

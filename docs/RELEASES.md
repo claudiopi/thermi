@@ -105,7 +105,7 @@ Why some of it is this way:
 
 The specs are proven by tests alone. What only a person can see, on the development PC and its installed build, is checked here before a version goes to stable; none of it holds back a spec, and a spec's requirement names the check that covers what its tests cannot (`docs/specs/README.md`). What needs other hardware, such as Windows 10, Arm64 or a laptop, comes from [Hardware reports](https://github.com/claudiopi/thermi/issues/new?template=hardware-report.yml) instead.
 
-Run them on the release's build, installed. A check that fails is a bug: it starts with a test that reproduces it, where one can (`docs/BUGS.md`).
+Run them on the release's build, installed; its Release run lists them in its summary, from `scripts/release-checks.ps1`. A check that fails is a bug: it starts with a test that reproduces it, where one can (`docs/BUGS.md`).
 
 ### Install and start
 
