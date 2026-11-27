@@ -8,6 +8,7 @@ They never touch the person's desktop: each compositor and process a test starts
 | --- | --- |
 | `Acceptance` | The tests spec 006's acceptance steps name. |
 | `Desktops` | A headless desktop of the test's own, and what a person and the desktop do on it. |
+| `Window` | What the settings window asks of the person's session on its own: starting at sign-in. |
 
 Entry points worth knowing:
 

@@ -27,6 +27,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly ILogger _log;
     private readonly Gio.DBusConnection? _bus;
     private readonly DesktopPortal _portal;
+    private readonly SignInUnit _signInUnit = new();
     private readonly WindowScreens _screens;
     private WindowTheme _theme;
     private ExtensionState? _extension;
@@ -58,11 +59,17 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public bool StartsAtSignIn
     {
-        get => _signIn ??= LinuxFixes.StartsAtSignIn();
+        get => _signIn ??= _signInUnit.On;
         set
         {
-            LinuxFixes.StartAtSignIn(value);
-            _signIn = null;
+            try
+            {
+                _signInUnit.Set(value);
+            }
+            finally
+            {
+                _signIn = null;
+            }
         }
     }
 

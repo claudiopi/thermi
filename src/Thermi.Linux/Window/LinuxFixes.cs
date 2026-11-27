@@ -6,8 +6,7 @@ namespace Thermi.Linux.Window;
 /// <summary>
 /// What the window fixes on Linux, each behind the desktop's own prompt: thermi's GNOME Shell extension, installed from
 /// extensions.gnome.org through the Shell, which asks the person and loads it at once, or turned on; and the stopped
-/// sensor service, whose socket polkit's prompt starts. thermi itself never runs as root. And starting at sign-in, which
-/// is the overlay's user unit being enabled (docs/adr/0019-linux.md).
+/// sensor service, whose socket polkit's prompt starts. thermi itself never runs as root.
 /// </summary>
 internal static class LinuxFixes
 {
@@ -19,7 +18,7 @@ internal static class LinuxFixes
     private const string Shell = "org.gnome.Shell";
     private const string ShellPath = "/org/gnome/Shell";
     private const string Extensions = "org.gnome.Shell.Extensions";
-    private const string Systemctl = "/usr/bin/systemctl";
+    private const string Systemctl = SignInUnit.Systemctl;
     private const string Pkexec = "/usr/bin/pkexec";
 
     // GNOME Shell's own numbers for an extension's state; one it lacks is not installed.
@@ -84,10 +83,6 @@ internal static class LinuxFixes
     /// <summary>Starts the sensor service's socket behind polkit's prompt: false when the person declined or it failed.</summary>
     public static Task<bool> StartService() => RunAsync(Pkexec, [Systemctl, "start", "thermi-sensors.socket"]);
 
-    public static bool StartsAtSignIn() => Run(Systemctl, ["--user", "--quiet", "is-enabled", OverlayUnit]);
-
-    public static void StartAtSignIn(bool on) => _ = Run(Systemctl, ["--user", "--quiet", on ? "enable" : "disable", OverlayUnit]);
-
     // By its full path, never a program found on the PATH; one that is not there fails.
     private static async Task<bool> RunAsync(string program, IReadOnlyList<string> args)
     {
@@ -101,20 +96,6 @@ internal static class LinuxFixes
 
             await process.WaitForExitAsync();
             return process.ExitCode == 0;
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            return false;
-        }
-    }
-
-    private static bool Run(string program, IReadOnlyList<string> args)
-    {
-        try
-        {
-            using var process = Process.Start(Info(program, args));
-            process?.WaitForExit();
-            return process?.ExitCode == 0;
         }
         catch (System.ComponentModel.Win32Exception)
         {
