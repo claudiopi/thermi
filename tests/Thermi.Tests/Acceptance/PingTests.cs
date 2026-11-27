@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.App.Ping;
 using Thermi.Core.Agents;
@@ -73,13 +74,23 @@ public sealed class PingTests
     }
 
     // Nothing leaves the PC until an item reads the ping, or warns by it; then one echo a second at most goes to the host the
-    // settings name, or to 1.1.1.1, each waited for a second. An echo cut off as its process stops throws nothing out of the
-    // reader and counts for nothing, and once none has ended for two seconds the last one no longer reads.
+    // settings name, or to 1.1.1.1, each waited for a second. Each change of what they get back is one log line, an error
+    // after a status that reads the same too. An echo cut off as its process stops throws nothing out of the reader and
+    // counts for nothing, and once none has ended for two seconds the last one no longer reads.
     [Fact]
     public async Task EchoesGoOutOnlyWhileAnItemReadsThePing()
     {
         var time = new FakeTimeProvider();
-        var fake = new FakeEcho(_ => Task.FromResult((IPStatus.Success, 12L))) { Clock = time };
+        var mode = "reply";
+        var fake = new FakeEcho(_ => Volatile.Read(ref mode) switch
+        {
+            "unreachable" => Task.FromResult((IPStatus.DestinationHostUnreachable, 0L)),
+            "throws" => throw new InvalidOperationException("No ping names this."),
+            _ => Task.FromResult((IPStatus.Success, 12L)),
+        })
+        {
+            Clock = time,
+        };
         var log = new ListLogger();
         var reader = new PingReader(fake, time, log);
         var config = new ThermiConfig();
@@ -93,8 +104,14 @@ public sealed class PingTests
         await AdvanceUntilAsync(time, () => fake.Sent.Count == 2);
         config = Pinging with { PingHost = "example.com" };
         await AdvanceUntilAsync(time, () => fake.Sent.Count == 3 && reader.Latest is { RoundTrip: 12 });
+        Volatile.Write(ref mode, "unreachable");
+        await AdvanceUntilAsync(time, () => fake.Sent.Count == 4 && reader.Latest is { Failure: PingFailure.Unreachable });
+        Volatile.Write(ref mode, "throws");
+        await AdvanceUntilAsync(time, () => fake.Sent.Count == 5);
+        Volatile.Write(ref mode, "reply");
+        await AdvanceUntilAsync(time, () => fake.Sent.Count == 6 && reader.Latest is { RoundTrip: 12 });
         fake.Hangs = true;
-        await AdvanceUntilAsync(time, () => fake.Sent.Count == 4);
+        await AdvanceUntilAsync(time, () => fake.Sent.Count == 7);
         await stop.CancelAsync();
         await running;
         var cut = reader.Latest;
@@ -102,31 +119,39 @@ public sealed class PingTests
         var stale = reader.Latest;
         reader.Follow(null);
 
-        Assert.Equal([PingSensors.DefaultHost, PingSensors.DefaultHost, "example.com", "example.com"], fake.Sent.Select(each => each.Host));
+        Assert.Equal([PingSensors.DefaultHost, PingSensors.DefaultHost, .. Enumerable.Repeat("example.com", 5)], fake.Sent.Select(each => each.Host));
         Assert.All(fake.Sent, each => Assert.Equal(PingReader.Period, each.Timeout));
         Assert.All(fake.Sent.Zip(fake.Sent.Skip(1)), pair => Assert.True(pair.Second.At - pair.First.At >= PingReader.Period));
         Assert.Equal((12d, PingFailure.Waiting, null), (cut?.RoundTrip, stale?.Failure, reader.Latest));
-        Assert.Equal([$"Ping {PingSensors.DefaultHost}: replies", "Ping example.com: replies"], log.Entries.Select(entry => entry.Message));
+        Assert.Equal(
+            [$"Ping {PingSensors.DefaultHost}: replies", "Ping example.com: replies", "Ping example.com: Unreachable", "Ping example.com failed",
+                "Ping example.com: replies"],
+            log.Entries.Select(entry => entry.Message));
     }
 
-    // A one-shot read with a ping item says what its first echo did, here a host that never answers, never that it waits.
-    [Fact]
-    public async Task AReadSaysWhatThePingsFirstEchoDid()
+    // A one-shot read with a ping item says what its first echo did, a host that never answers or an error, never that it
+    // waits. The agents' log is what agents changed, which each call's echoes would push out of the window's view of it,
+    // so it holds only an error, the CLI's one trace of it.
+    [Theory] // Rows: an echo that ends with a status, and one that throws
+    [InlineData("never", "ping-timed-out", 0)]
+    [InlineData("throws", "ping-unreachable", 1)]
+    public async Task AReadSaysWhatThePingsFirstEchoDid(string echo, string why, int warnings)
     {
-        var never = new FakeEcho(stop => Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, stop)
+        var fake = new FakeEcho(echo == "throws" ? Answer("throws") : stop => Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, stop)
             .ContinueWith(_ => (IPStatus.Success, 0L), TaskScheduler.Default));
-        using var rig = new AgentRig { Echo = never };
+        using var rig = new AgentRig { Echo = fake };
         rig.Folder.Write(ThermiConfigJson.Write(Pinging));
 
         var end = await rig.RunAsync("read", Metrics.Ping.Id);
 
-        Assert.Equal("ping-timed-out", (string?)end.Json["values"]![0]!["why"]);
-        // The agents' log is what agents changed, which a ping's echoes would push out of the window's view of it.
-        Assert.DoesNotContain(rig.Folder.Log.Entries, entry => entry.Message.Contains(PingSensors.DefaultHost, StringComparison.Ordinal));
+        var pinged = rig.Folder.Log.Entries.Where(entry => entry.Message.Contains(PingSensors.DefaultHost, StringComparison.Ordinal)).ToList();
+        Assert.Equal(why, (string?)end.Json["values"]![0]!["why"]);
+        Assert.Equal(Enumerable.Repeat(LogLevel.Warning, warnings), pinged.Select(entry => entry.Level));
     }
 
     // The host typed, as the window and thermi-cli's edit send it: a name or an address is kept trimmed, empty goes back to
-    // 1.1.1.1, anything else is refused and changes nothing, undo takes a change back, and a ping item's chart starts again.
+    // 1.1.1.1, anything else is refused and changes nothing, undo takes a change back, and a ping item's chart starts again,
+    // but for the same host, as 1.1.1.1 written out is the default's.
     [Theory] // Rows: each a kind of host, and what is none
     [InlineData("\"192.168.1.1\"", "192.168.1.1")]
     [InlineData("\" eu.game-server.example \"", "eu.game-server.example")]
@@ -161,10 +186,14 @@ public sealed class PingTests
         chart.Follow(before, _ => null);
         time.Advance(TimeSpan.FromSeconds(1));
         var ping = new Dictionary<string, Reading>(StringComparer.Ordinal) { [Metrics.Ping.Id] = new(SensorKind.Latency, 20) };
-        chart.Items.Add(before.Overlays[0], ping, before.PingHost);
+        chart.Items.Add(before.Overlays[0], ping, PingSensors.HostOf(before));
         var drawn = chart.Of(Metrics.Ping.Id).OfType<double>().Count();
         chart.Follow(edit.Config, _ => null);
-        Assert.Equal((1, 0), (drawn, chart.Of(Metrics.Ping.Id).OfType<double>().Count()));
+        var restarted = chart.Of(Metrics.Ping.Id).OfType<double>().Count();
+        time.Advance(TimeSpan.FromSeconds(1));
+        chart.Items.Add(edit.Config.Overlays[0], ping, PingSensors.HostOf(edit.Config));
+        chart.Follow(edit.Config, _ => null);
+        Assert.Equal((1, 0, 1), (drawn, restarted, chart.Of(Metrics.Ping.Id).OfType<double>().Count()));
     }
 
     private static Func<CancellationToken, Task<(IPStatus Status, long RoundTrip)>> Answer(string echo) => echo switch
