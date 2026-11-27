@@ -1,51 +1,64 @@
+import {
+  AddRegular,
+  ArrowClockwiseRegular,
+  ArrowRedoRegular,
+  ArrowUndoRegular,
+  CheckmarkCircleFilled,
+  ChevronDownRegular,
+  ChevronRightRegular,
+  ChevronUpRegular,
+  CopyRegular,
+  DeleteRegular,
+  DesktopRegular,
+  DismissRegular,
+  EditRegular,
+  EyeOffRegular,
+  EyeRegular,
+  InfoRegular,
+  MergeRegular,
+  MoreHorizontalRegular,
+  NavigationRegular,
+  SearchRegular,
+  SettingsRegular,
+  type FluentIcon,
+} from '@fluentui/react-icons';
 import { makeStyles, mergeClasses } from '@fluentui/react-components';
 
-// Windows 11's own icon font, which every Windows 11 has, so the page loads no icon of its own.
-const glyphs = {
-  add: '',
-  chevronDown: '',
-  chevronUp: '',
-  chevronRight: '',
-  close: '',
-  delete: '',
-  menu: '',
-  more: '',
-  redo: '',
-  reset: '',
-  search: '',
-  settings: '',
-  success: '',
-  undo: '',
-  hide: '',
-  info: '',
-  show: '',
-  copy: '',
-  edit: '',
-  merge: '',
-  monitor: '',
-} as const;
+// Fluent's own icons, which its controls draw too, in the page's script: Windows' icon font is on no other OS.
+const icons = {
+  add: AddRegular,
+  chevronDown: ChevronDownRegular,
+  chevronUp: ChevronUpRegular,
+  chevronRight: ChevronRightRegular,
+  close: DismissRegular,
+  delete: DeleteRegular,
+  menu: NavigationRegular,
+  more: MoreHorizontalRegular,
+  redo: ArrowRedoRegular,
+  reset: ArrowClockwiseRegular,
+  search: SearchRegular,
+  settings: SettingsRegular,
+  success: CheckmarkCircleFilled,
+  undo: ArrowUndoRegular,
+  hide: EyeOffRegular,
+  info: InfoRegular,
+  show: EyeRegular,
+  copy: CopyRegular,
+  edit: EditRegular,
+  merge: MergeRegular,
+  monitor: DesktopRegular,
+} satisfies Record<string, FluentIcon>;
 
-export type IconName = keyof typeof glyphs;
+export type IconName = keyof typeof icons;
 
 const useStyles = makeStyles({
-  icon: {
-    fontFamily: '"Segoe Fluent Icons", "Segoe MDL2 Assets"',
-    fontStyle: 'normal',
-    fontWeight: 'normal',
-    lineHeight: '1',
-    display: 'inline-grid',
-    placeItems: 'center',
-    speak: 'never',
-  },
+  // Centered on the line of the text beside it.
+  icon: { flexShrink: 0, verticalAlign: 'middle' },
 });
 
-/** An icon of Windows' icon font, which Narrator never reads: the control around it has the name. */
+/** An icon, which a screen reader never reads: the control around it has the name. */
 export function Icon({ name, className }: { name: IconName; className?: string }) {
   const styles = useStyles();
-  return (
-    // eslint-disable-next-line no-restricted-syntax -- its style sets the icon font upright, so no italic face is loaded.
-    <i className={mergeClasses(styles.icon, className)} aria-hidden="true">
-      {glyphs[name]}
-    </i>
-  );
+  const Drawn = icons[name];
+  return <Drawn className={mergeClasses(styles.icon, className)} aria-hidden="true" />;
 }

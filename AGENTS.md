@@ -74,7 +74,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | What every OS's host shares, `Thermi.Core`, `Thermi.App`, `Thermi.Cli` and `Thermi.Client`, targets plain `net10.0` and builds on no Windows-only project and no `*.Linux` one. | `RepoRulesTests` |
 | Each file of a `*.Windows` project uses a Windows-only API, or a type of its project that does, or is listed in the rule with why it stays; and each file of a `*.Linux` project likewise a Linux-only one: GirCore's GTK, WebKit, Cairo, Pango and D-Bus, `/sys` and `/proc`, a Unix socket and its peer's credentials, systemd, NVML or `gtk4-layer-shell`. | `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
-| The page has no `<i>` but the icon's: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
+| The page has no `<i>`: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
 | The page scores 100 with react-doctor: a warning fails the check as an error does. | `--blocking warning` in the page's `doctor` script |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | The README quotes no count or score a run measures, which goes stale: its badges and each CI run's dashboard show them. | `RepoRulesTests` |
