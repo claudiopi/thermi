@@ -54,7 +54,10 @@ internal static class TestShell
         var extensions = Path.Combine(session.Variables["XDG_DATA_HOME"], "gnome-shell", "extensions");
         var tests = Directory.CreateDirectory(Path.Combine(extensions, Uuid)).FullName;
         await File.WriteAllTextAsync(Path.Combine(tests, "extension.js"), Code, cancel).ConfigureAwait(false);
-        var metadata = new JsonObject { ["uuid"] = Uuid, ["name"] = "thermi's tests", ["description"] = "thermi's tests", ["shell-version"] = Versions() };
+        // The tests' extension loads on the Shell that runs, whichever thermi's lists.
+        var running = await session.RunAsync("gnome-shell", ["--version"], cancel: cancel).ConfigureAwait(false);
+        var major = running.Out.Trim().Split(' ')[^1].Split('.')[0];
+        var metadata = new JsonObject { ["uuid"] = Uuid, ["name"] = "thermi's tests", ["description"] = "thermi's tests", ["shell-version"] = new JsonArray(major) };
         await File.WriteAllTextAsync(Path.Combine(tests, "metadata.json"), metadata.ToJsonString(), cancel).ConfigureAwait(false);
         List<string> enabled = [Uuid];
         if (extension is not null)
@@ -77,8 +80,4 @@ internal static class TestShell
             throw new InvalidOperationException($"The Shell's extensions were not enabled: {set.Error}");
         }
     }
-
-    // The tests' extension loads on every Shell thermi's does.
-    private static JsonArray Versions() =>
-        [.. JsonNode.Parse(File.ReadAllText(Path.Combine(Thermi, "metadata.json")))!["shell-version"]!.AsArray().Select(version => version!.DeepClone())];
 }
