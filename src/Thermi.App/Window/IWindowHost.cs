@@ -66,8 +66,8 @@ internal interface IWindowHost
     /// <summary>Starts the overlay, which the window's process never is.</summary>
     void StartOverlay();
 
-    /// <summary>Opens the settings file, its folder, the log or a page of thermi's in the desktop's own program.</summary>
-    void Open(Opened what, string settingsPath, ILogger log);
+    /// <summary>Opens a file or a link in the desktop's own program for it; one it cannot open is logged.</summary>
+    void Open(string target, ILogger log);
 
     /// <summary>Puts <paramref name="text"/> on the clipboard: false when the desktop refused it.</summary>
     bool Copy(string text);

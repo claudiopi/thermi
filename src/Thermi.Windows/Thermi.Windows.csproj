@@ -50,7 +50,7 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
-  <Import Project="SettingsPage.targets" />
+  <Import Project="..\SettingsPage.targets" />
   <Import Project="..\Launchers.targets" />
 
   <!-- thermi-cli.exe: a second apphost of thermi.dll, of the console subsystem, so every shell waits for it and gets its

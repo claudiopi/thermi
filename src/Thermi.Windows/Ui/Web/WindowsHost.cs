@@ -92,7 +92,7 @@ internal sealed class WindowsHost(WindowStart start) : IWindowHost
         }
     }
 
-    public void Open(Opened what, string settingsPath, ILogger log) => WindowLinks.Open(what, settingsPath, log);
+    public void Open(string target, ILogger log) => WindowLinks.OpenUrl(target, log);
 
     public bool Copy(string text) => ClipboardData.WriteText(Window, text);
 

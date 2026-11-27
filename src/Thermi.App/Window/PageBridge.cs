@@ -23,6 +23,9 @@ namespace Thermi.App.Window;
 /// </summary>
 internal class PageBridge : IWindowBridge, IDisposable
 {
+    /// <summary>thermi's repository, where About's pages and its downloads are.</summary>
+    public const string Repository = "https://github.com/claudiopi/thermi";
+
     // The version the build stamps, from Directory.Build.props.
     private static readonly string Version =
         typeof(PageBridge).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
@@ -174,7 +177,7 @@ internal class PageBridge : IWindowBridge, IDisposable
 
     public Task Open(Opened what)
     {
-        _host.Open(what, _start.SettingsPath, _start.Log);
+        _host.Open(LinkOf(what, _start.SettingsPath), _start.Log);
         return Task.CompletedTask;
     }
 
@@ -322,6 +325,16 @@ internal class PageBridge : IWindowBridge, IDisposable
             _views.Dispose();
         }
     }
+
+    // The settings file and the agents' log open in their editor, and About's pages in the browser.
+    private static string LinkOf(Opened what, string settingsPath) => what switch
+    {
+        Opened.SettingsFile => settingsPath,
+        Opened.AgentsLog => AgentsLog.Newest(ThermiLog.AgentsPath),
+        Opened.Source => Repository,
+        Opened.Report => $"{Repository}/issues/new/choose",
+        Opened.Notices or _ => $"{Repository}/blob/main/THIRD-PARTY-NOTICES.md",
+    };
 
     // What reads the readings waits for the first ones, as PageWatch says.
     private Task<T> Ready<T>(Func<T> read) => _watch.AfterFirst(read);

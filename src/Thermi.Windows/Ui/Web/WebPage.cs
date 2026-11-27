@@ -29,10 +29,6 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
     /// <summary>How many times in a minute a failed renderer loads the page again before the window gives up and closes.</summary>
     public const int MostReloads = 3;
 
-    // A second line of defense behind the page's own policy in index.html, which keeps the only style it allows, the
-    // empty element Fluent fills: this one, sent with every file, forbids any other origin even if that one changed.
-    private const string Policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'none'; " +
-        "form-action 'none'; frame-ancestors 'none'; object-src 'none'";
 
     /// <summary>Raised once the page has loaded, before its first frame shows.</summary>
     public event EventHandler? Loaded;
@@ -219,13 +215,13 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
     private static CoreWebView2WebResourceResponse Serve(CoreWebView2Environment environment, string uri)
     {
         var path = Uri.TryCreate(uri, UriKind.Absolute, out var parsed) ? parsed.AbsolutePath.TrimStart('/') : "";
-        path = path.Length == 0 ? "index.html" : path;
-        if (TypeOf(path) is not { } type || typeof(WebPage).Assembly.GetManifestResourceStream($"web/{path}") is not { } file)
+        path = path.Length == 0 ? PageFiles.Index : path;
+        if (PageFiles.TypeOf(path) is not { } type || typeof(WebPage).Assembly.GetManifestResourceStream($"web/{path}") is not { } file)
         {
             return environment.CreateWebResourceResponse(null, 404, "Not Found", "");
         }
 
-        var headers = $"Content-Type: {type}\r\nContent-Security-Policy: {Policy}\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store";
+        var headers = $"Content-Type: {type}\r\nContent-Security-Policy: {PageFiles.Policy}\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store";
         return environment.CreateWebResourceResponse(file, 200, "OK", headers);
     }
 
@@ -239,20 +235,6 @@ internal sealed class WebPage(IWindowBridge bridge, ILogger log, TimeProvider ti
         : kind is CoreWebView2ProcessFailedKind.BrowserProcessExited ? PageRecovery.Close
         : PageRecovery.None;
 
-    /// <summary>The type a file of the page is served as, or null for one the host does not know, which it does not serve.</summary>
-    internal static string? TypeOf(string path) => Path.GetExtension(path).ToLowerInvariant() switch
-    {
-        ".html" => "text/html; charset=utf-8",
-        ".js" => "text/javascript",
-        ".css" => "text/css",
-        ".svg" => "image/svg+xml",
-        ".png" => "image/png",
-        ".ico" => "image/x-icon",
-        ".woff" => "font/woff",
-        ".woff2" => "font/woff2",
-        ".json" => "application/json",
-        _ => null,
-    };
 
     private void Failed(CoreWebView2 view, CoreWebView2ProcessFailedKind kind)
     {

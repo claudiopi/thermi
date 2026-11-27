@@ -1,33 +1,16 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Thermi.App.Logging;
-using Thermi.Core.Bridge;
+using Thermi.App.Window;
 using Thermi.Windows.Logging;
 
 namespace Thermi.Windows.Ui.Web;
 
-/// <summary>What the window opens outside itself: the settings file and the agents' log in their editor, and About's pages in the browser.</summary>
+/// <summary>How the window opens a file or a link outside itself, as Windows' shell does.</summary>
 internal static class WindowLinks
 {
-    private const string Repository = "https://github.com/claudiopi/thermi";
-
     /// <summary>Where thermi is downloaded, for a fix this install cannot run itself.</summary>
-    public const string Downloads = Repository + "/releases/latest";
-
-    /// <summary>Opens <paramref name="what"/> as Windows opens a file or a link; one it cannot open is logged.</summary>
-    public static void Open(Opened what, string settingsPath, ILogger log)
-    {
-        var target = what switch
-        {
-            Opened.SettingsFile => settingsPath,
-            Opened.AgentsLog => AgentsLog.Newest(ThermiLog.AgentsPath),
-            Opened.Source => Repository,
-            Opened.Report => $"{Repository}/issues/new/choose",
-            Opened.Notices or _ => $"{Repository}/blob/main/THIRD-PARTY-NOTICES.md",
-        };
-        OpenUrl(target, log);
-    }
+    public const string Downloads = PageBridge.Repository + "/releases/latest";
 
     /// <summary>Opens <paramref name="target"/> as Windows opens a file or a link; one it cannot open is logged.</summary>
     public static void OpenUrl(string target, ILogger log)
