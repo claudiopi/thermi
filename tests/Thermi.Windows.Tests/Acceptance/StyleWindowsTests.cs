@@ -4,7 +4,6 @@ using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
-using Thermi.Core.Tray;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
@@ -59,8 +58,9 @@ public sealed class StyleWindowsTests
         Assert.True(fill.Count > line.Count, "More of the graph is its light fill than its line.");
     }
 
-    // An agent's picture (thermi-cli preview) is the overlay asked, at its size times the scale, as a PNG of that size; laid
-    // on the taskbar's color, as a person sees it there, since a client shows it on a backdrop of its own.
+    // An agent's picture (thermi-cli preview) is the overlay asked, at its size times the scale, as a PNG of the size its
+    // measure said; laid on the taskbar's color, or high contrast's, as a person sees it there, since a client shows it on a
+    // backdrop of its own.
     [Fact]
     public void AnAgentsPictureIsTheOverlayOnTheTaskbar()
     {
@@ -76,8 +76,10 @@ public sealed class StyleWindowsTests
         var light = Desktop.LightTaskbar();
         var look = OverlayLook.Of(config.Overlays[1].Style, light, Desktop.HighContrast());
         var size = painter.Measure(Preview.Shown(config, [snapshot], CpuWatch.ReadBaseClock(), overlay: 1), look, 3);
-        Assert.Equal((size.Width, size.Height, size.Width, size.Height), (picture.Width, picture.Height, decoded.Width, decoded.Height));
-        Assert.Equal(PainterShapes.Drawn(Taskbar.Of(light).Background).ToArgb(), decoded.GetPixel(0, 0).ToArgb());
+        Assert.Equal(
+            (size.Width, size.Height, size.Width, size.Height, (size.Width, size.Height)),
+            (picture.Width, picture.Height, decoded.Width, decoded.Height, Preview.Measure(config, 1, snapshot, 1.5f)));
+        Assert.Equal(PainterShapes.Drawn(Desktop.Backdrop(light)).ToArgb(), decoded.GetPixel(0, 0).ToArgb());
     }
 
     // The admin recording's CPU temperature, 77 °C, metered by itself: a meter of five segments 12 px wide at 100 %, the

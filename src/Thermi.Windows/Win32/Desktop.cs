@@ -6,6 +6,7 @@ using Microsoft.Win32;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
+using Thermi.Core.Tray;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
@@ -55,6 +56,12 @@ internal static class Desktop
                 SystemColor(SYS_COLOR_INDEX.COLOR_HOTLIGHT))
             : null;
     }
+
+    /// <summary>
+    /// The color a picture of the overlay is laid on, as the taskbar it shows over: the taskbar's of the mode
+    /// <paramref name="light"/> says, or high contrast's window color while it is on, as the overlay paints in its colors.
+    /// </summary>
+    public static Rgb Backdrop(bool light) => HighContrast()?.Window ?? Taskbar.Of(light).Background;
 
     /// <summary>Whether Windows' animation effects are on, without which nothing on the overlay moves by itself.</summary>
     public static unsafe bool Animations()

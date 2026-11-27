@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Thermi.Cli.Commands;
+using Thermi.Core.Agents;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Cli.Agents;
@@ -25,13 +26,15 @@ internal static class McpTools
         "find_cpu_fan loads every core for up to 30 s: run it only when the person asks. When the person lets agents only read, in thermi's " +
         "Settings under AI agents, every change is refused: say so, and leave turning it back on to them.";
 
-    private const string PreviewSaid =
-        "Paints an overlay as it draws the readings now, on the taskbar's color, at most 2000 px a side, to see what a change of the " +
+    private static readonly string Scales = string.Create(CultureInfo.InvariantCulture, $"{AgentCommandLine.MinScale} to {AgentCommandLine.MaxScale}");
+
+    private static readonly string ScaleRange = $"scale is {Scales}.";
+
+    private static readonly string PreviewSaid =
+        $"Paints an overlay as it draws the readings now, on the taskbar's color, at its size times the scale, {Scales} and 1 when none, " +
+        $"or smaller to stay within {PreviewAnswer.Longest.ToString(CultureInfo.InvariantCulture)} px a side, to see what a change of the " +
         "settings looks like. It is one reading: a graph shows one second, a minimum, maximum, average or smoothed value shows the value " +
         "of now, an item naming the busiest process shows none, and an item shown only on alert shows only if it alerts now.";
-
-    private static readonly string ScaleRange =
-        string.Create(CultureInfo.InvariantCulture, $"scale is {AgentCommandLine.MinScale} to {AgentCommandLine.MaxScale}.");
 
     public static async Task<int> ServeAsync(AgentCommands commands, Stream input, Stream output, ILoggerFactory logs, CancellationToken stop)
     {
@@ -93,7 +96,7 @@ internal static class McpTools
     // The model sees the picture as an image, the command's own PNG; an error is text, as the other tools'.
     private static McpServerTool Preview(AgentCommands commands) => McpServerTool.Create(
         async ([Description("The overlay, counted from 0 as config counts it; the first when none.")] int? overlay = null,
-            [Description("Its size times this, 0.25 to 8.")] double? scale = null,
+            [Description("Its size times this, in the range the tool's description gives.")] double? scale = null,
             CancellationToken stop = default) =>
             scale is { } times && !(times >= AgentCommandLine.MinScale && times <= AgentCommandLine.MaxScale)
                 ? Result(new AgentReply(AgentExit.BadArguments, Error: ScaleRange))

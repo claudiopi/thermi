@@ -4,9 +4,10 @@
     {
       "id": "A1",
       "covers": [
-        "R1"
+        "R1",
+        "R33"
       ],
-      "description": "Given the built thermi-cli, when it is run with monitors from PowerShell, cmd and Git Bash, each without Start-Process, then the shell waits for it, its JSON is what the shell captured, and its exit code is the shell's; with no command, it prints its help on stderr, exits 2 and starts no overlay.",
+      "description": "Given the built thermi-cli, when it is run with monitors from PowerShell, cmd and Git Bash, each without Start-Process, then the shell waits for it, its JSON is what the shell captured, and its exit code is the shell's; with no command, it prints its help on stderr, exits 2 and starts no overlay; and preview of a saved snapshot writes its PNG and exits 0.",
       "check": "TheCliWaitsAndAnswersInEveryShell",
       "passes": true
     },
@@ -251,7 +252,7 @@
         "R20",
         "R33"
       ],
-      "description": "Given a recording and settings with two overlays of different sizes, whose agents only read, when preview runs for the second at a scale, then it exits 0 with the picture the host painted of that overlay, from those settings and the snapshot read, at that scale, or at the largest that keeps it within 2000 px for the largest overlay at the largest scale, with its width, height and the scale used, and the answer validates against its JSON Schema.",
+      "description": "Given a recording and settings with two overlays of different sizes, whose agents only read, when preview runs for the second at a scale, then it exits 0 with the picture the host painted of that overlay, from those settings and the snapshot read, at that scale, the smallest included, or at the largest that keeps it within 2000 px for the largest overlay at the largest scale, measured again where its size does not shrink in step, with its width, height and the scale used, and the answer validates against its JSON Schema.",
       "check": "AgentsSeeTheOverlay",
       "passes": true
     },
@@ -260,7 +261,7 @@
       "covers": [
         "R33"
       ],
-      "description": "Given a recording and settings with two overlays of different sizes, when Windows paints an agent's picture of the second at a scale, then it is a PNG that decodes to the size the overlay's painter measures for that overlay at its size times the scale, laid on the taskbar's color.",
+      "description": "Given a recording and settings with two overlays of different sizes, when Windows paints an agent's picture of the second at a scale, then it is a PNG that decodes to the size the overlay's painter measures for that overlay at its size times the scale, the size the agents' measure says, laid on the taskbar's color, or high contrast's.",
       "check": "AnAgentsPictureIsTheOverlayOnTheTaskbar",
       "passes": true
     }

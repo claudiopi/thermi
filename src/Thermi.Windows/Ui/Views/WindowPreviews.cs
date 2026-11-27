@@ -62,7 +62,7 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
         using var measure = new Painter();
         var scale = measure.Fitting(items, drawn.Look, OverlayWindow.ScaleOf(96, one, drawn.Screens), Snaps.Most(one, drawn.Screens));
         var bitmap = Painted(items, drawn.Stopped, drawn.Look, scale, texts);
-        var taskbar = OnTaskbar(one, drawn.Screens, bitmap.Size) ? Taskbar.Of(light).Background.ToString() : null;
+        var taskbar = OnTaskbar(one, drawn.Screens, bitmap.Size) ? Desktop.Backdrop(light).ToString() : null;
 
         // Painted again at the scale that fits, as the overlay paints itself smaller beside another; rounding up may leave a
         // pixel over, which another round takes off.

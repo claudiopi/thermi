@@ -1,6 +1,7 @@
 using System.Globalization;
 using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
+using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
@@ -42,7 +43,8 @@ internal sealed partial class AgentCommands
     {
         try
         {
-            var scale = Fitted(settings, overlay, snapshot, asked);
+            var most = (PreviewAnswer.Longest, PreviewAnswer.Longest);
+            var scale = ScaleFit.Within(asked, most, each => environment.Measure(settings, overlay, snapshot, each));
             var painted = environment.Paint(settings, overlay, snapshot, scale);
             var answer = new PreviewAnswer(overlay, scale, painted.Width, painted.Height, Convert.ToBase64String(painted.Png));
             return (new AgentReply(AgentExit.Done, AgentJson.Write(answer)), painted.Png);
@@ -51,26 +53,5 @@ internal sealed partial class AgentCommands
         {
             return (new AgentReply(AgentExit.Refused, Error: $"The overlay could not be painted: {ex.Message}"), null);
         }
-    }
-
-    // Smaller where the scale asked is past the longest side, as measured before a pixel is drawn; rounding up may leave a
-    // pixel over, which another round takes off.
-    private float Fitted(ThermiConfig settings, int overlay, Snapshot snapshot, float asked)
-    {
-        var scale = asked;
-        var longest = Longest(settings, overlay, snapshot, scale);
-        while (longest > PreviewAnswer.Longest)
-        {
-            scale *= (float)PreviewAnswer.Longest / longest;
-            longest = Longest(settings, overlay, snapshot, scale);
-        }
-
-        return scale;
-    }
-
-    private int Longest(ThermiConfig settings, int overlay, Snapshot snapshot, float scale)
-    {
-        var (width, height) = environment.Measure(settings, overlay, snapshot, scale);
-        return Math.Max(width, height);
     }
 }

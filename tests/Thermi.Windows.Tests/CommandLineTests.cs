@@ -205,7 +205,6 @@ public sealed class CommandLineTests : IDisposable
     [Theory]
     [InlineData(2, "--overlay takes a whole number from 1 up.", "settings", "--overlay", "0")]
     [InlineData(2, "not-there.json", "preview", "not-there.json", "o.png", "1", "own-settings.json")]
-    [InlineData(2, "scale takes a number from 0.25 to 8, such as 1.5.", "preview", TestRecordings.Admin, "o.png", "1,5", "own-settings.json")]
     [InlineData(2, "is not a snapshot saved with thermi-sensors --dump.", "preview", "own-junk.json", "o.png", "1", "own-settings.json")]
     [InlineData(1, "could not be written: Could not find a part of the path", "preview", TestRecordings.Admin, "own-missing-folder", "1", "own-settings.json")]
     public async Task WhatItCannotDoIsSaidOnStandardErrorWithItsExitCode(int expectedCode, string expected, params string[] args)

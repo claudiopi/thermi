@@ -27,9 +27,8 @@ internal static class PainterFit
 
     /// <summary>
     /// <paramref name="scale"/>, or the smaller one at which the items fit within <paramref name="most"/>, as an overlay
-    /// that would show larger than its monitor's work area; without one, <paramref name="scale"/> unmeasured. Text does
-    /// not shrink quite in step with the scale, so it measures again until they fit. The painter keeps the last answer for
-    /// what it measured, so an overlay that paints the same items each second measures them once.
+    /// that would show larger than its monitor's work area; without one, <paramref name="scale"/> unmeasured. The painter
+    /// keeps the last answer for what it measured, so an overlay that paints the same items each second measures them once.
     /// </summary>
     public static float Fitting(this Painter painter, IReadOnlyList<OverlayItem> items, OverlayLook look, float scale, (int Width, int Height)? most)
     {
@@ -46,17 +45,11 @@ internal static class PainterFit
             return fitted.Scale;
         }
 
-        for (var round = 0; round < 4; round++)
+        scale = ScaleFit.Within(scale, (width, height), each =>
         {
-            Size size = painter.Measure(items, look, scale);
-            if (size.Width <= width && size.Height <= height)
-            {
-                break;
-            }
-
-            scale *= Math.Min((float)width / size.Width, (float)height / size.Height);
-        }
-
+            Size size = painter.Measure(items, look, each);
+            return (size.Width, size.Height);
+        });
         painter.Fitted = (measured, scale);
         return scale;
     }

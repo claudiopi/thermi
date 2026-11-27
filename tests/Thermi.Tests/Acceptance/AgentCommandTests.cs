@@ -149,23 +149,29 @@ public sealed class AgentCommandTests : IDisposable
 
     // The host paints; the command chooses what: the overlay asked, of the settings as read, for the snapshot of now, at the
     // scale asked, or at the largest that keeps it within the longest side an agent gets, which an overlay of the largest
-    // size at the largest scale is past. It only reads, so agents that only read see it too.
+    // size at the largest scale is past, measuring again where a margin does not shrink with it. The smallest scale is one
+    // to ask. It only reads, so agents that only read see it too.
     [Theory]
-    [InlineData(2, 1.5f, 1.5f)]
-    [InlineData(4, 8f, 5f)]
-    public async Task AgentsSeeTheOverlay(double size, float asked, float used)
+    [InlineData(2, 0.25f, 0, 0.25f)]
+    [InlineData(4, 8f, 0, 5f)]
+    [InlineData(4, 8f, 4, 4.98877f)]
+    public async Task AgentsSeeTheOverlay(double size, float asked, int margin, float used)
     {
         var two = OverlayEdits.Add(new ThermiConfig()).Config;
         var config = two with { Overlays = [two.Overlays[0], two.Overlays[1] with { Size = size }], Agents = AgentAccess.Read };
         _rig.Folder.Write(ThermiConfigJson.Write(config));
+        _rig.Margin = margin;
 
         var end = await _rig.RunAsync("preview", "--overlay", "1", "--scale", asked.ToString(CultureInfo.InvariantCulture));
 
-        var painted = AgentRig.Painted(config, 1, TestRecordings.Read(TestRecordings.Admin), used);
+        Assert.Equal(0, end.Exit);
+        var scale = (float)end.Json["scale"]!;
+        Assert.Equal(used, scale, 0.0001f);
+        var painted = AgentRig.Painted(config, 1, TestRecordings.Read(TestRecordings.Admin), scale, margin);
         Assert.InRange(Math.Max(painted.Width, painted.Height), 1, 2000);
         Assert.Equal(
-            (0, 1, used, painted.Width, painted.Height, Convert.ToBase64String(painted.Png)),
-            (end.Exit, (int?)end.Json["overlay"], (float?)end.Json["scale"], (int?)end.Json["width"], (int?)end.Json["height"], (string?)end.Json["png"]));
+            (1, painted.Width, painted.Height, Convert.ToBase64String(painted.Png)),
+            ((int?)end.Json["overlay"], (int?)end.Json["width"], (int?)end.Json["height"], (string?)end.Json["png"]));
         var schema = Path.Combine(TestFiles.Root, "docs", "agents", "schema", "preview.schema.json");
         Assert.Empty(SchemaCheck.Findings(JsonNode.Parse(await File.ReadAllTextAsync(schema, TestContext.Current.CancellationToken))!, end.Json, "preview"));
     }

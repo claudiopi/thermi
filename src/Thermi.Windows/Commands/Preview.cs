@@ -19,7 +19,7 @@ namespace Thermi.Windows.Commands;
 /// <summary>
 /// <c>thermi preview</c>: the first overlay painted for a saved snapshot into a PNG, as the overlay would draw it, and
 /// <c>thermi-cli preview</c>'s picture of any overlay. A snapshot that is none exits with 2, as any argument that makes no
-/// sense; a picture Windows would not write exits with 1. Either says why on stderr.
+/// sense; a picture Windows would not paint or write exits with 1. Either says why on stderr.
 /// </summary>
 internal static class Preview
 {
@@ -37,14 +37,27 @@ internal static class Preview
             return 2;
         }
 
-        using var bitmap = Painted(config, 0, series, request.Scale);
-        return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
+        Bitmap bitmap;
+        try
+        {
+            bitmap = Said(() => Painted(config, 0, series, request.Scale));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await SayAsync($"The overlay could not be painted: {ex.Message}");
+            return 1;
+        }
+
+        using (bitmap)
+        {
+            return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
+        }
     }
 
     /// <summary>
-    /// An agent's picture: <paramref name="overlay"/> painted for one snapshot, as a PNG file holds it, laid on the
-    /// taskbar's color, as a person sees it there: a client shows it on a backdrop of its own, where a clear background
-    /// would leave light text on white.
+    /// An agent's picture: <paramref name="overlay"/> painted for one snapshot, as a PNG file holds it, laid on
+    /// <see cref="Desktop.Backdrop"/>, as a person sees it there: a client shows it on a backdrop of its own, where a clear
+    /// background would leave light text on white.
     /// </summary>
     public static OverlayPng Png(ThermiConfig config, int overlay, Snapshot snapshot, float scale) => Said(() =>
     {
@@ -52,7 +65,7 @@ internal static class Preview
         using var laid = new Bitmap(painted.Width, painted.Height, PixelFormat.Format32bppArgb);
         using (var graphics = Graphics.FromImage(laid))
         {
-            graphics.Clear(PainterShapes.Drawn(Taskbar.Of(Desktop.LightTaskbar()).Background));
+            graphics.Clear(PainterShapes.Drawn(Desktop.Backdrop(Desktop.LightTaskbar())));
             graphics.DrawImage(painted, new Rectangle(0, 0, painted.Width, painted.Height));
         }
 
@@ -70,8 +83,8 @@ internal static class Preview
         return (size.Width, size.Height);
     });
 
-    // GDI+ says a picture it has no memory for as an argument it does not take, or as memory it ran out of; an agent's
-    // command says why instead of ending with it.
+    // GDI+ says a picture it has no memory for as an argument it does not take, or as memory it ran out of; a command says
+    // why instead of ending with it.
     private static T Said<T>(Func<T> paint)
     {
         try
@@ -80,7 +93,7 @@ internal static class Preview
         }
         catch (Exception ex) when (ex is ExternalException or ArgumentException or OutOfMemoryException)
         {
-            throw new InvalidOperationException($"Windows could not paint it: {ex.Message}", ex);
+            throw new InvalidOperationException(ex.Message, ex);
         }
     }
 

@@ -123,6 +123,9 @@ internal sealed class AgentRig : IDisposable
     /// <summary>Whether the host fails to paint a picture.</summary>
     public bool Unpaintable { get; set; }
 
+    /// <summary>The pixels the host's picture has past those that grow with the scale.</summary>
+    public int Margin { get; set; }
+
     /// <summary>Where the commands log, the folder's own list when null.</summary>
     public ILogger? Log { get; set; }
 
@@ -170,13 +173,14 @@ internal sealed class AgentRig : IDisposable
 
     /// <summary>
     /// The rig's picture of an overlay: in place of pixels, which each OS's painter makes, what it was asked to paint, and
-    /// a size that grows with the overlay's own and the scale.
+    /// a size that grows with the overlay's own and the scale, plus <paramref name="margin"/> pixels that do not, as text
+    /// does not shrink quite in step with the scale.
     /// </summary>
-    public static OverlayPng Painted(ThermiConfig settings, int overlay, Snapshot snapshot, float scale)
+    public static OverlayPng Painted(ThermiConfig settings, int overlay, Snapshot snapshot, float scale, int margin = 0)
     {
         var size = settings.Overlays[overlay].Size * scale;
         var asked = string.Create(CultureInfo.InvariantCulture, $"overlay {overlay} of {settings.Overlays.Count}, {snapshot.Sensors.Count} sensors, {size}");
-        return new OverlayPng(Encoding.UTF8.GetBytes(asked), (int)Math.Round(100 * size), (int)Math.Round(20 * size));
+        return new OverlayPng(Encoding.UTF8.GetBytes(asked), (int)Math.Round(100 * size) + margin, (int)Math.Round(20 * size) + margin);
     }
 
     public void Dispose() => Folder.Dispose();
@@ -222,11 +226,11 @@ internal sealed class AgentRig : IDisposable
 
         // As GDI+ fails when it runs out of memory for a picture.
         public OverlayPng Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) =>
-            rig.Unpaintable ? throw new InvalidOperationException("Out of memory.") : Painted(settings, overlay, snapshot, scale);
+            rig.Unpaintable ? throw new InvalidOperationException("Out of memory.") : Painted(settings, overlay, snapshot, scale, rig.Margin);
 
         public (int Width, int Height) Measure(ThermiConfig settings, int overlay, Snapshot snapshot, float scale)
         {
-            var painted = Painted(settings, overlay, snapshot, scale);
+            var painted = Painted(settings, overlay, snapshot, scale, rig.Margin);
             return (painted.Width, painted.Height);
         }
 

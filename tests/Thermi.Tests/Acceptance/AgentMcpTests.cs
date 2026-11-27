@@ -55,13 +55,14 @@ public sealed class AgentMcpTests : IDisposable
             Assert.True(JsonNode.DeepEquals(JsonNode.Parse((await _rig.RunAsync("sensors", "--type", "temperature")).Out), JsonNode.Parse(sensors)));
             Assert.True((await session.CallAsync("read", new() { ["seconds"] = 61 })).Error);
 
-            // The model sees the overlay: the command's own picture, as an image.
+            // The model sees the overlay: the command's own picture, as an image, at a scale from the smallest to the largest.
             var picture = await session.Client.CallToolAsync(
-                "preview", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
+                "preview", new Dictionary<string, object?> { ["scale"] = 0.25 }, cancellationToken: TestContext.Current.CancellationToken);
             var image = Assert.IsType<ImageContentBlock>(Assert.Single(picture.Content));
-            var png = (string?)(await _rig.RunAsync("preview")).Json["png"];
+            var png = (string?)(await _rig.RunAsync("preview", "--scale", "0.25")).Json["png"];
             Assert.Equal(("image/png", png), (image.MimeType, Encoding.UTF8.GetString(image.Data.Span)));
-            Assert.True((await session.CallAsync("preview", new() { ["scale"] = 9 })).Error);
+            Assert.True(
+                (await session.CallAsync("preview", new() { ["scale"] = 9 })).Error && (await session.CallAsync("preview", new() { ["scale"] = 0.2 })).Error);
 
             var tooHigh = McpSession.Json("""{"kind":"threshold","item":"cpu.temperature","warning":95,"critical":90}""");
             var (refused, why) = await session.CallAsync("edit", new() { ["edit"] = tooHigh });

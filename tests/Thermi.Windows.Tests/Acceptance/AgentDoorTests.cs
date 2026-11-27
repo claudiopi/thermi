@@ -58,8 +58,17 @@ public sealed class AgentDoorTests : IDisposable
         Assert.Equal(AgentSchema.Current, (int)answer["schema"]!);
         Assert.NotEmpty(answer["monitors"]!.AsArray());
 
-        // The door runs the agents' commands alone, and its help goes where no JSON is read.
+        // The door runs the agents' commands and preview alone, a saved snapshot's picture too, and its help goes where no
+        // JSON is read.
         Assert.Equal(2, (await DesktopProcess.RunAsync(Cli, ["elevated", "start-sensors"], TimeSpan.FromSeconds(60), _folder.Profile)).Code);
+        var png = Path.Combine(folder, "preview.png");
+        var saved = await DesktopProcess.RunAsync(Cli, ["preview", TestRecordings.Path(TestRecordings.Admin), png], TimeSpan.FromSeconds(60), _folder.Profile);
+        Assert.Equal(0, saved.Code);
+        using (var picture = new System.Drawing.Bitmap(png))
+        {
+            Assert.True(picture.Width > 0);
+        }
+
         var (helped, help) = await DesktopProcess.RunAsync(Cli, ["--help"], TimeSpan.FromSeconds(60), _folder.Profile);
         Assert.Equal(0, helped);
         Assert.Contains("monitors", help, StringComparison.Ordinal);
