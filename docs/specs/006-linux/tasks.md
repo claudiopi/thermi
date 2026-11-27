@@ -37,8 +37,8 @@
 ## B5. The settings window
 
 - [x] T21. The bridge's client over WebKit's messages, and the page's Playwright tests on WebKit. (R18)
-- [ ] T22. The window's process on GTK 4 and WebKitGTK, opened every way, with its previews painted by Cairo. (R18)
-- [ ] T23. The desktop's scheme, accent and contrast, Start at sign-in, and Linux's fixes through polkit and the Shell, in every translation. (R19)
+- [x] T22. The window's process on GTK 4 and WebKitGTK, opened every way, with its previews painted by Cairo. (R18)
+- [x] T23. The desktop's scheme, accent and contrast, Start at sign-in, and Linux's fixes through polkit and the Shell, in every translation. (R19)
 
 ## B6. Tray, hotkeys and notices
 
