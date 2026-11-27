@@ -86,7 +86,7 @@ public sealed class DesktopTests
         var back = await desktop.ScreenshotAsync(cancel);
         // Closed as the desktop closes a window: Esc belongs to the page, which closes its menus and dialogs with it. WebKit's
         // own processes, the page's and the network's, are the window's too, and go with it.
-        var processes = Spawned(window.Process).Prepend(window.Process).Select(Process.GetProcessById).ToList();
+        var processes = ProcessTree.Under(window.Process).Prepend(window.Process).Select(Process.GetProcessById).ToList();
         await desktop.Input.PressAsync("Alt_L+F4", cancel);
         foreach (var process in processes)
         {
@@ -272,41 +272,6 @@ public sealed class DesktopTests
     }
 
     // Opens the settings window as <paramref name="open"/> does, once the window says it showed.
-    // Every process under root, as the kernel's table says each one's parent: the field after the name in
-    // /proc/<pid>/stat, whose name may hold spaces and ends at its last parenthesis.
-    private static List<int> Spawned(int root)
-    {
-        var parents = new Dictionary<int, int>();
-        foreach (var folder in Directory.EnumerateDirectories("/proc"))
-        {
-            if (int.TryParse(Path.GetFileName(folder), out var pid) && File.Exists(Path.Combine(folder, "stat")))
-            {
-                try
-                {
-                    var stat = File.ReadAllText(Path.Combine(folder, "stat"));
-                    parents[pid] = int.Parse(stat[(stat.LastIndexOf(')') + 2)..].Split(' ')[1], System.Globalization.CultureInfo.InvariantCulture);
-                }
-                catch (IOException)
-                {
-                    // It ended while the table was read.
-                }
-            }
-        }
-
-        var found = new List<int>();
-        var next = new Queue<int>([root]);
-        while (next.TryDequeue(out var parent))
-        {
-            foreach (var child in parents.Where(pair => pair.Value == parent).Select(pair => pair.Key))
-            {
-                found.Add(child);
-                next.Enqueue(child);
-            }
-        }
-
-        return found;
-    }
-
     private static async Task<Traced> OpenedAsync(SessionProcess thermi, Func<Task> open, CancellationToken cancel)
     {
         var shown = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
