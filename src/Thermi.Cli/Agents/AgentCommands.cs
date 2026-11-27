@@ -183,9 +183,9 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
 
         if (overlay < 0 || overlay >= settings.Config.Overlays.Count)
         {
-            return new AgentReply(
-                AgentExit.BadArguments,
-                Error: string.Create(CultureInfo.InvariantCulture, $"The settings have overlays 0 to {settings.Config.Overlays.Count - 1}; config lists them."));
+            var last = settings.Config.Overlays.Count - 1;
+            var said = string.Create(CultureInfo.InvariantCulture, $"The settings have overlays 0 to {last}; config lists them.");
+            return new AgentReply(AgentExit.BadArguments, Error: said);
         }
 
         var feed = environment.Sensors();
