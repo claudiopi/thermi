@@ -163,8 +163,9 @@ function Invoke-Linux($Scope) {
         Save-Stats 'packages' @{ files = @($packed | ForEach-Object { @{ name = $_.Name; megabytes = $_.Length / 1MB } }) }
     }
     # The Linux tests measure what they run of thermi, thermi-sensors and Thermi.App in their own process, as the Windows
-    # tests do on Windows: shown, not gated.
-    $linuxCoverage = '--coverlet', '--coverlet-include', '[thermi]*', '--coverlet-include', '[thermi-sensors]*', '--coverlet-include', '[Thermi.App]*',
+    # tests do on Windows: shown, not gated. Each filter is one argument with its option: PowerShell on Linux expands a
+    # program's argument that matches files, as [thermi]* matches tests and thermi.slnx.
+    $linuxCoverage = '--coverlet', '--coverlet-include=[thermi]*', '--coverlet-include=[thermi-sensors]*', '--coverlet-include=[Thermi.App]*',
         '--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', 'Thermi.Linux.Tests'
     Invoke-Together @(foreach ($project in $projects) {
             if ($project -eq 'tests/Thermi.Tests') {
