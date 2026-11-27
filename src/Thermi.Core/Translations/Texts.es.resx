@@ -2549,4 +2549,41 @@
   <data name="Refusal.AgentsOnlyByPerson" xml:space="preserve">
     <value>Solo una persona permite que los agentes cambien la configuración, en Configuración de thermi, en Agentes de IA.</value>
   </data>
+  <data name="NameText.TopBar" xml:space="preserve">
+    <value>Barra superior</value>
+  </data>
+  <data name="NameText.Panel" xml:space="preserve">
+    <value>Panel</value>
+    <comment>The same word in Spanish.</comment>
+  </data>
+  <data name="NameText.BottomEdge" xml:space="preserve">
+    <value>Borde inferior</value>
+  </data>
+  <data name="PlaceText.OnTopBar" xml:space="preserve">
+    <value>en la barra superior</value>
+  </data>
+  <data name="PlaceText.OnPanel" xml:space="preserve">
+    <value>en el panel</value>
+  </data>
+  <data name="PlaceText.AtBottomEdge" xml:space="preserve">
+    <value>en el borde inferior</value>
+  </data>
+  <data name="OverlayPageText.TopBarHint" xml:space="preserve">
+    <value>Arrástrala a cualquier lugar de la barra superior</value>
+  </data>
+  <data name="OverlayPageText.PanelHint" xml:space="preserve">
+    <value>Arrástrala a cualquier lugar del panel</value>
+  </data>
+  <data name="OverlayPageText.BottomEdgeHint" xml:space="preserve">
+    <value>Arrástrala a cualquier lugar del borde inferior</value>
+  </data>
+  <data name="OverlayPageText.MatchTopBar" xml:space="preserve">
+    <value>Como la barra superior</value>
+  </data>
+  <data name="OverlayPageText.MatchPanel" xml:space="preserve">
+    <value>Como el panel</value>
+  </data>
+  <data name="OverlayPageText.MatchDesktop" xml:space="preserve">
+    <value>Como el escritorio</value>
+  </data>
 </root>

@@ -52,6 +52,8 @@ export interface FakeState {
   finder: FinderView;
   finderPick: string | null;
   texts: Record<string, string>;
+  /** The texts the desktop says in its own words, which C# gives the page in place of the language's. */
+  words: Record<string, string>;
   /** Every translation, each named in its own language. */
   languages: Language[];
   /** What the window was opened on, as a double-click on a value asks, or null. */
@@ -64,6 +66,8 @@ export interface FakeState {
   os: string;
   /** The desktop's accent, as Linux's settings portal gives it, or null. */
   accent: string | null;
+  /** The bar an overlay snaps onto as onto the taskbar, as C# names it, whose words name it. */
+  bar: string;
   /** Whether the desktop is in high contrast, as Linux's settings portal says. */
   contrast: boolean;
   /** Where thermi's GNOME Shell extension is in a GNOME session, as C# names it, or null for none. */

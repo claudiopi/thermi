@@ -90,6 +90,8 @@ export type Combine = 'max' | 'average' | 'sum';
 
 export type CornerStyle = 'round' | 'soft' | 'square';
 
+export type DesktopBar = 'taskbar' | 'top-bar' | 'panel' | 'none';
+
 export interface DesktopPick {
   overlay: number;
   item: string | null;
@@ -450,6 +452,7 @@ export interface WindowStatus {
   accent: string | null;
   extension: ExtensionState | null;
   contrast: boolean;
+  bar: DesktopBar;
 }
 
 export type WindowTheme = 'system' | 'light' | 'dark';

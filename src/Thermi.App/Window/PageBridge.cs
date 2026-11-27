@@ -47,7 +47,7 @@ internal class PageBridge : IWindowBridge, IDisposable
         _host = host;
         _start = start;
         _editor = editor;
-        _texts = start.Texts;
+        _texts = host.Desktop.Words(start.Texts);
         _lightTaskbar = host.LightTaskbar();
         _sensors = new ReadSensors(start.Sensors, start.Log);
         var readings = new Readings(start.Time);
@@ -376,7 +376,7 @@ internal class PageBridge : IWindowBridge, IDisposable
     {
         if (!_start.Pseudo)
         {
-            _texts = Core.Translations.Texts.For(_editor.Config.Language, CultureInfo.CurrentUICulture);
+            _texts = _host.Desktop.Words(Core.Translations.Texts.For(_editor.Config.Language, CultureInfo.CurrentUICulture));
         }
 
         _watch.Edited();

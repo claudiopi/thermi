@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using Thermi.Core.Bridge;
 using Thermi.Core.Translations;
 
@@ -24,11 +25,14 @@ internal static class TextKeys
         }
 
         text.Append(";\n");
-        // Each OS's own words, by the OS as the bridge names it, which the page reads every text through.
+        // Each OS's and each bar's own words, by the OS or the bar as the bridge's status names it. C# gives the page its
+        // texts in them, so only the page's tests, which give the texts as C# would, read this.
         text.Append("\nexport const ownTexts: Readonly<Record<string, Readonly<Partial<Record<TextKey, TextKey>>>>> = {\n");
-        foreach (var (os, own) in HostDesktop.OwnTexts.OrderBy(each => each.Key))
+        var desktops = HostDesktop.OwnTexts.Select(each => (Name: BridgeCalls.NameOf(each.Key.ToString()), Own: each.Value))
+            .Concat(HostDesktop.BarTexts.Select(each => (Name: JsonNamingPolicy.KebabCaseLower.ConvertName(each.Key.ToString()), Own: each.Value)));
+        foreach (var (os, own) in desktops.OrderBy(each => each.Name, StringComparer.Ordinal))
         {
-            text.Append("  ").Append(BridgeCalls.NameOf(os.ToString())).Append(": {\n");
+            text.Append("  '").Append(os).Append("': {\n");
             foreach (var (windows, words) in own.OrderBy(each => each.Key, StringComparer.Ordinal))
             {
                 text.Append("    '").Append(windows).Append("': '").Append(words).Append("',\n");

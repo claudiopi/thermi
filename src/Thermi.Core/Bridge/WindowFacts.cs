@@ -49,6 +49,9 @@ public sealed record WindowStatus(
     /// itself, and a host whose web view cannot, as Linux's WebKitGTK, says it here.
     /// </summary>
     public bool Contrast { get; init; }
+
+    /// <summary>The bar an overlay snaps onto as onto the taskbar, which the texts that name it say in its words.</summary>
+    public DesktopBar Bar { get; init; }
 }
 
 /// <summary>The steps Undo and Redo would take, worded as "Critical 84 → 85 °C", or null when there is none.</summary>

@@ -32,7 +32,8 @@ internal static class WindowProcess
     {
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);
         var log = logs.CreateLogger("Thermi.Ui");
-        return await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, args, new SensorReader(time, logs.CreateLogger<SensorReader>(), new SensorSocket(time)), time, log));
+        var sensors = new SensorReader(time, logs.CreateLogger<SensorReader>(), new SensorSocket(time));
+        return await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, args, sensors, time, log));
     }
 
     // The settings are read before the window opens, for its language and its overlays, and every write that waits goes

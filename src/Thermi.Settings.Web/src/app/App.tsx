@@ -312,7 +312,7 @@ export function App() {
     shown = <Window data={data} />;
   }
   return (
-    <TextsProvider texts={data?.texts ?? {}} os={data?.status.os ?? 'windows'}>
+    <TextsProvider texts={data?.texts ?? {}}>
       <ErrorBoundary>{shown}</ErrorBoundary>
     </TextsProvider>
   );

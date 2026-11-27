@@ -44,7 +44,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     /// <summary>Runs when the desktop changed its scheme, accent or contrast, or the extension came or went.</summary>
     public Action? DesktopChanged { get; set; }
 
-    public HostDesktop Desktop => new(HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast);
+    public HostDesktop Desktop =>
+        new(HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast, HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")));
 
     // Linux's packages install the sensors for everyone, and starting them asks through polkit's own prompt.
     public bool ForEveryone => true;

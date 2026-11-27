@@ -2502,4 +2502,40 @@
   <data name="Refusal.AgentsOnlyByPerson" xml:space="preserve">
     <value>Only a person lets agents change settings, in thermi&apos;s Settings, under AI agents.</value>
   </data>
+  <data name="NameText.TopBar" xml:space="preserve">
+    <value>Top bar</value>
+  </data>
+  <data name="NameText.Panel" xml:space="preserve">
+    <value>Panel</value>
+  </data>
+  <data name="NameText.BottomEdge" xml:space="preserve">
+    <value>Bottom edge</value>
+  </data>
+  <data name="PlaceText.OnTopBar" xml:space="preserve">
+    <value>on the top bar</value>
+  </data>
+  <data name="PlaceText.OnPanel" xml:space="preserve">
+    <value>on the panel</value>
+  </data>
+  <data name="PlaceText.AtBottomEdge" xml:space="preserve">
+    <value>at the bottom edge</value>
+  </data>
+  <data name="OverlayPageText.TopBarHint" xml:space="preserve">
+    <value>Drag it anywhere along the top bar</value>
+  </data>
+  <data name="OverlayPageText.PanelHint" xml:space="preserve">
+    <value>Drag it anywhere along the panel</value>
+  </data>
+  <data name="OverlayPageText.BottomEdgeHint" xml:space="preserve">
+    <value>Drag it anywhere along the bottom edge</value>
+  </data>
+  <data name="OverlayPageText.MatchTopBar" xml:space="preserve">
+    <value>Match top bar</value>
+  </data>
+  <data name="OverlayPageText.MatchPanel" xml:space="preserve">
+    <value>Match panel</value>
+  </data>
+  <data name="OverlayPageText.MatchDesktop" xml:space="preserve">
+    <value>Match desktop</value>
+  </data>
 </root>

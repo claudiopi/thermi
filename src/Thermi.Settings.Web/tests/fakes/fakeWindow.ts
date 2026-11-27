@@ -27,6 +27,7 @@ export function installFakeWindow(): void {
     os: state.os === 'linux' ? 'linux' : 'windows',
     accent: state.accent,
     contrast: state.contrast,
+    bar: state.bar === 'top-bar' || state.bar === 'panel' || state.bar === 'none' ? state.bar : 'taskbar',
     extension: state.os === 'linux' && (state.extension === 'missing' || state.extension === 'disabled') ? state.extension : null,
     hotkeys: roles.filter(
       (role) =>

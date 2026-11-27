@@ -136,7 +136,7 @@ function installFake(initial: FakeState): void {
       const value = state.service === 'running' ? (state.sensors.find((sensor) => sensor.id === id)?.value ?? null) : null;
       return Array.from({ length: 600 }, () => value);
     },
-    texts: async () => state.texts,
+    texts: async () => ({ ...state.texts, ...state.words }),
     monitors: async () => state.monitors,
     places: async () => state.places,
     report: async () => undefined,
