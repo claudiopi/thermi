@@ -145,7 +145,7 @@ sequenceDiagram
 | `src/Thermi.Linux` | `thermi` and `thermi-cli`, as you, the overlay in the graphical session's user unit | The overlay on Linux: Core's overlays painted with Cairo and Pango on one GLib main loop, shown on GNOME through the Shell's extension over D-Bus, with its tray icons and hotkeys, and elsewhere on layer surfaces or X11's windows, its icons as StatusNotifierItems and its hotkeys through the GlobalShortcuts portal or X11's grab; its notices as the desktop's notifications; `thermi settings`, the settings window that hosts the page in WebKitGTK on GTK 4; `thermi preview`; and what an agent's command reaches on Linux. |
 | `src/Thermi.Gnome` | an extension inside GNOME Shell | Shows the pictures `thermi` paints above every window and the top bar, its icons in the top bar, the Shell's own menus, takes its hotkeys, and sends back the pointer, the presses and the monitors. It decides nothing. |
 | `src/Thermi.Settings.Web` | the page in WebView2 on Windows, in WebKitGTK on Linux | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
-| `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core. |
+| `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core, then installs and builds the page once for every host, which only takes its `dist`. |
 | `src/Thermi.Client` | a library other programs ship | The .NET SDK of the agents' contract. |
 | `src/Thermi.Trust` | a library | Windows' own trust checks: admin-only folders, Authenticode, signed catalogs. |
 | `src/Thermi.Releases` | `thermi-releases.exe`, the owner | Signs the update channels' manifests. |
