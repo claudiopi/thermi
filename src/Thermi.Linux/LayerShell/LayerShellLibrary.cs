@@ -32,6 +32,10 @@ internal static partial class LayerShellLibrary
 {
     private const string Library = "libgtk4-layer-shell.so.0";
 
+    // Hyprland lets go of every button held as a surface takes the keyboard exclusively, which ends the press that took it
+    // and the grab of the menu it opens; it gives the keyboard to one that takes it on demand once the pointer moves on it.
+    private static readonly bool OnDemand = Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE") is { Length: > 0 };
+
     // dlopen's flags: resolve now, and give its symbols to every library loaded after, GTK's Wayland calls among them.
     private const int Now = 2;
     private const int Global = 0x100;
@@ -63,8 +67,8 @@ internal static partial class LayerShellLibrary
     /// <summary>-1 to be placed on the whole monitor, over the panels' zones; 0 to be kept off them.</summary>
     public static void SetExclusiveZone(Gtk.Window window, int zone) => SetExclusiveZone(window.Handle, zone);
 
-    /// <summary>The keyboard only while <paramref name="exclusive"/>, as a press holds the overlay; none otherwise.</summary>
-    public static void SetKeyboard(Gtk.Window window, bool exclusive) => SetKeyboardMode(window.Handle, exclusive ? 1 : 0);
+    /// <summary>The keyboard only while <paramref name="taken"/>, as a press holds the overlay; none otherwise.</summary>
+    public static void SetKeyboard(Gtk.Window window, bool taken) => SetKeyboardMode(window.Handle, !taken ? 0 : OnDemand ? 2 : 1);
 
     [LibraryImport("libc", EntryPoint = "dlopen", StringMarshalling = StringMarshalling.Utf8)]
     private static partial nint Open(string file, int flags);

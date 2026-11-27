@@ -119,7 +119,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
         if (_shown.TryGetValue(id, out var shown))
         {
             var window = shown.Window;
-            LayerShellLibrary.SetKeyboard(window.Window, exclusive: true);
+            LayerShellLibrary.SetKeyboard(window.Window, taken: true);
             window.Menu(
                 rows,
                 anchor,
@@ -235,7 +235,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
         LayerShellLibrary.SetAnchor(window, Edge.Top, anchored: true);
         LayerShellLibrary.SetAnchor(window, Edge.Left, anchored: true);
         LayerShellLibrary.SetExclusiveZone(window, -1);
-        LayerShellLibrary.SetKeyboard(window, exclusive: false);
+        LayerShellLibrary.SetKeyboard(window, taken: false);
     }
 
     // On the monitor the corner is on, a whole logical pixel in, and the rest as the picture's own pixels inside the
@@ -283,21 +283,21 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
     private void Probe()
     {
         _monitors = GdkMonitors.All();
-        foreach (var gone in _probes.Keys.Except(_monitors).ToList())
+        foreach (var gone in _probes.Keys.Union(_rooms.Keys).Except(_monitors).ToList())
         {
             _probes.Remove(gone, out var probe);
             probe?.Dispose();
             _rooms.Remove(gone);
         }
 
-        foreach (var monitor in _monitors.Where(each => !_probes.ContainsKey(each)))
+        foreach (var monitor in _monitors.Where(each => !_probes.ContainsKey(each) && !_rooms.ContainsKey(each)))
         {
             if (_watched.Add(monitor))
             {
-                monitor.OnNotify += (_, _) => _probes.GetValueOrDefault(monitor)?.Measure();
+                monitor.OnNotify += (_, _) => Measure(monitor);
             }
 
-            _probes[monitor] = new LayerProbe(monitor, Measured);
+            _probes[monitor] = new LayerProbe(monitor, Measured, Restless);
         }
 
         Ready = Ready && _monitors.Count > 0;
@@ -315,6 +315,29 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
         }
 
         Tell();
+    }
+
+    // A monitor whose restless probe went is measured by a new one, which goes as the last did.
+    private void Measure(Gdk.Monitor monitor)
+    {
+        if (_probes.TryGetValue(monitor, out var probe))
+        {
+            probe.Measure();
+        }
+        else if (_monitors.Contains(monitor))
+        {
+            _probes[monitor] = new LayerProbe(monitor, Measured, Restless);
+        }
+    }
+
+    // The room it measured stays, as measured again only as its monitor changes.
+    private void Restless(LayerProbe probe)
+    {
+        if (_probes.GetValueOrDefault(probe.Monitor) == probe)
+        {
+            _probes.Remove(probe.Monitor);
+            probe.Dispose();
+        }
     }
 
     // Once every monitor is measured: the first time, the surfaces arrived; after, the monitors changed, if they did.
@@ -353,6 +376,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
             }
         }
     }
+
     public IReadOnlyList<ShellMonitor> Monitors() =>
         [.. GdkMonitors.Read(_monitors, monitor => _rooms.GetValueOrDefault(monitor), primary: null)];
 }

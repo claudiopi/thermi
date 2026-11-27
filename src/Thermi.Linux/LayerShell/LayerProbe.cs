@@ -12,14 +12,19 @@ namespace Thermi.Linux.LayerShell;
 /// surface kept off the panels, slides out to the monitor's corner, as far as the room on the left and the top. Where
 /// neither tells, the room is taken to be on the left and the top. Nothing of it shows or takes the pointer. It stays as
 /// long as its monitor: a panel that maps after thermi, as plasmashell or a bar Sway's config starts, one that grows,
-/// moves or hides itself changes the size of the surface kept off the panels, and the room is measured again.
+/// moves or hides itself changes the size of the surface kept off the panels, and the room is measured again. A compositor
+/// that gives it its size again for each of its frames, as Hyprland, would keep it drawing: it is told restless, and goes.
 /// </summary>
 internal sealed class LayerProbe : IDisposable
 {
     // GLib's priority of idle callbacks, past GDK's redraw: a frame drawn of a new size is sent before one runs.
     private const int AfterFrame = 200;
 
+    // The sizes given it, past a measure told, that a compositor giving sizes only as they change never gives.
+    private const int Restless = 30;
+
     private readonly Action<LayerProbe> _measured;
+    private readonly Action<LayerProbe> _restless;
     private readonly List<Gtk.DrawingArea> _areas = [];
     private readonly List<Gdk.Surface> _popups = [];
     private readonly Gtk.Window _keptOff;
@@ -29,14 +34,15 @@ internal sealed class LayerProbe : IDisposable
     private (int X, int Y, int Width, int Height)? _shrunk;
     private (int X, int Y)? _slid;
     private int _asking;
+    private int _given = -1;
 
     // Each measure counts, so what an earlier one still waits for, as a panel changes again, tells nothing.
     private int _round;
 
-    public LayerProbe(Gdk.Monitor monitor, Action<LayerProbe> measured)
+    public LayerProbe(Gdk.Monitor monitor, Action<LayerProbe> measured, Action<LayerProbe> restless)
     {
         Monitor = monitor;
-        _measured = measured;
+        (_measured, _restless) = (measured, restless);
         _keptOff = Surface(zone: 0, size =>
         {
             _inside = size;
@@ -67,7 +73,7 @@ internal sealed class LayerProbe : IDisposable
 
         Drop();
         var round = ++_round;
-        (_asking, _shrunk, _slid) = (2, null, null);
+        (_asking, _shrunk, _slid, _given) = (2, null, null, -1);
         Pop(_keptOff, Gdk.Gravity.SouthEast, Gdk.AnchorHints.Slide, round, told => _slid = told is var (x, y, _, _) ? (x, y) : null);
         Pop(_over, Gdk.Gravity.NorthWest, Gdk.AnchorHints.Resize, round, told => _shrunk = told);
     }
@@ -155,7 +161,14 @@ internal sealed class LayerProbe : IDisposable
                 });
             }
         };
-        window.OnRealize += (_, _) => PictureWindow.TakeNoPointer(window);
+        window.OnRealize += (_, _) =>
+        {
+            PictureWindow.TakeNoPointer(window);
+            if (window.GetSurface() is { } surface)
+            {
+                surface.OnLayout += (_, _) => Given();
+            }
+        };
         window.Present();
         return window;
     }
@@ -214,9 +227,23 @@ internal sealed class LayerProbe : IDisposable
                     // A popup left on a surface keeps GTK from taking the next size the compositor gives it, as a panel
                     // comes or goes.
                     Drop();
+                    _given = 0;
                     _measured(this);
                 }
 
+                return false;
+            });
+        }
+    }
+
+    // Told out of GDK's own signal, which a probe disposed in it would leave holding a freed surface.
+    private void Given()
+    {
+        if (_given >= 0 && ++_given == Restless)
+        {
+            GLib.Functions.IdleAdd(0, () =>
+            {
+                _restless(this);
                 return false;
             });
         }

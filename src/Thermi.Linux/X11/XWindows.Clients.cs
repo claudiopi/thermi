@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using GObject.Internal;
 
 namespace Thermi.Linux.X11;
 
@@ -128,16 +127,6 @@ internal static partial class XWindows
             TrapPopIgnored(display.Handle);
         }
     }
-
-    [LibraryImport(Gdk, EntryPoint = "gdk_x11_monitor_get_output")]
-    private static partial nuint Output(ObjectHandle monitor);
-
-    [LibraryImport(Xlib, EntryPoint = "XGetGeometry")]
-    private static partial int GetGeometry(
-        nint display, nuint drawable, out nuint root, out int x, out int y, out uint width, out uint height, out uint border, out uint depth);
-
-    [LibraryImport(Xlib, EntryPoint = "XTranslateCoordinates")]
-    private static partial int TranslateCoordinates(nint display, nuint from, nuint to, int x, int y, out int toX, out int toY, out nuint child);
 
     [LibraryImport(Xrandr, EntryPoint = "XRRGetOutputProperty")]
     private static partial int OutputProperty(

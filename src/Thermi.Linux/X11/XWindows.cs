@@ -219,6 +219,9 @@ internal static partial class XWindows
     [LibraryImport(Gdk, EntryPoint = "gdk_x11_monitor_get_workarea")]
     private static partial void WorkArea(ObjectHandle monitor, out Rectangle area);
 
+    [LibraryImport(Gdk, EntryPoint = "gdk_x11_monitor_get_output")]
+    private static partial nuint Output(ObjectHandle monitor);
+
     [LibraryImport(Gdk, EntryPoint = "gdk_x11_display_error_trap_push")]
     private static partial void TrapPush(ObjectHandle display);
 
@@ -272,6 +275,13 @@ internal static partial class XWindows
     [LibraryImport(Xlib, EntryPoint = "XQueryPointer")]
     private static partial int QueryPointer(
         nint display, nuint window, out nuint root, out nuint child, out int rootX, out int rootY, out int x, out int y, out uint keys);
+
+    [LibraryImport(Xlib, EntryPoint = "XGetGeometry")]
+    private static partial int GetGeometry(
+        nint display, nuint drawable, out nuint root, out int x, out int y, out uint width, out uint height, out uint border, out uint depth);
+
+    [LibraryImport(Xlib, EntryPoint = "XTranslateCoordinates")]
+    private static partial int TranslateCoordinates(nint display, nuint from, nuint to, int x, int y, out int toX, out int toY, out nuint child);
 
     [LibraryImport(Xext, EntryPoint = "XShapeCombineRectangles")]
     private static partial void ShapeRectangles(
