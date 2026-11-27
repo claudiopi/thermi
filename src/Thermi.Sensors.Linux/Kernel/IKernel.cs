@@ -21,8 +21,11 @@ internal interface IKernel
     /// <summary>The clocks and the address now, or null when a replay recorded none.</summary>
     Moment? Now();
 
-    /// <summary>What NVML says of each NVIDIA GPU, or null when NVIDIA's driver is not installed.</summary>
+    /// <summary>What NVML says of each NVIDIA GPU, or null when NVIDIA's driver is not installed; NVML starts if it is not.</summary>
     IReadOnlyList<GpuAnswer>? Nvml();
+
+    /// <summary>Shuts NVML down, whose open handles keep NVIDIA's cards awake; the next <see cref="Nvml"/> starts it again.</summary>
+    void LetGoOfNvml();
 
     /// <summary>Moves to the next second's answers, before each read of the sensors.</summary>
     void Next();

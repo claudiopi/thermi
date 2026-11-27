@@ -70,6 +70,8 @@ internal sealed partial class RecordingKernel(IKernel kernel, string tree) : IKe
         return gpus;
     }
 
+    public void LetGoOfNvml() => kernel.LetGoOfNvml();
+
     public void Next()
     {
         Flush();

@@ -49,6 +49,11 @@ internal sealed class RecordedKernel : IKernel
 
     public IReadOnlyList<GpuAnswer>? Nvml() => KernelJson.ReadNvml(Answer(KernelJson.NvmlFile));
 
+    public void LetGoOfNvml()
+    {
+        // A replay holds nothing open.
+    }
+
     public void Next()
     {
         _second = (_second + 1) % _seconds;

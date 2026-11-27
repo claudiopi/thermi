@@ -8,8 +8,9 @@ namespace Thermi.Sensors.Linux.Reading;
 /// The GPUs: NVIDIA's through NVML, as LibreHardwareMonitor names their sensors on Windows, and AMD's and Intel's from
 /// their <c>hwmon</c> chip, whose names the kernel gives (<c>edge</c>, <c>junction</c>, <c>PPT</c>), and their card under
 /// <c>/sys/class/drm</c>, which tells how busy each is and its memory. NVIDIA's own driver leaves its cards out of both.
-/// NVML is asked nothing while every card of that driver sleeps, as a laptop's card does while its graphics chip draws
-/// alone: a query would wake it, and keep it awake, each second.
+/// A card that sleeps, as a laptop's does while its graphics chip draws alone, is left asleep: NVML is shut while every
+/// card of NVIDIA's driver sleeps, as its open handles keep a card awake and a query wakes one, and a card of AMD's or
+/// Intel's reads as missing, as amdgpu's reads wake it on kernels before 6.13.
 /// </summary>
 internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
 {
@@ -25,22 +26,30 @@ internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
     public IEnumerable<RawSensor> Read()
     {
         var sensors = new List<RawSensor>();
-        foreach (var (gpu, index) in (NvidiaSleeps() ? [] : kernel.Nvml() ?? []).Select((gpu, index) => (gpu, index)))
+        if (NvidiaSleeps())
         {
-            sensors.AddRange(Nvidia(gpu, string.Create(CultureInfo.InvariantCulture, $"/gpu-nvidia/{index}")));
+            kernel.LetGoOfNvml();
+        }
+        else
+        {
+            foreach (var (gpu, index) in (kernel.Nvml() ?? []).Select((gpu, index) => (gpu, index)))
+            {
+                sensors.AddRange(Nvidia(gpu, string.Create(CultureInfo.InvariantCulture, $"/gpu-nvidia/{index}")));
+            }
         }
 
         foreach (var card in _cards)
         {
             var id = $"/{card.HardwareType.Replace("Gpu", "gpu-", StringComparison.Ordinal).ToLowerInvariant()}/{card.Device}";
+            var asleep = Asleep($"{Drm}/{card.Folder}/device");
             foreach (var chip in card.Chips)
             {
-                sensors.AddRange(Hwmon.Read(kernel, chip, id, card.HardwareType, card.Name));
+                sensors.AddRange(Hwmon.Read(kernel, chip, id, card.HardwareType, card.Name, asleep));
             }
 
             double? Value(string file)
             {
-                return Counters.Number(kernel.Read($"{Drm}/{card.Folder}/device/{file}"));
+                return asleep ? null : Counters.Number(kernel.Read($"{Drm}/{card.Folder}/device/{file}"));
             }
 
             sensors.Add(new($"{id}/load/0", card.HardwareType, card.Name, "Load", "GPU Core", Value("gpu_busy_percent")));
@@ -57,8 +66,10 @@ internal sealed class GpuReader(IKernel kernel, IReadOnlyList<Chip> chips)
         var cards = kernel.List(NvidiaCards)
             .Where(entry => entry.Length > 0 && char.IsAsciiHexDigit(entry[0]) && entry.Contains(':', StringComparison.Ordinal))
             .ToList();
-        return cards.Count > 0 && cards.All(card => kernel.Read($"{NvidiaCards}/{card}/power/runtime_status")?.Trim() == "suspended");
+        return cards.Count > 0 && cards.All(card => Asleep($"{NvidiaCards}/{card}"));
     }
+
+    private bool Asleep(string device) => kernel.Read($"{device}/power/runtime_status")?.Trim() == "suspended";
 
     private static IEnumerable<RawSensor> Nvidia(GpuAnswer gpu, string id)
     {

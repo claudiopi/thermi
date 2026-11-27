@@ -23,6 +23,8 @@ internal sealed partial class StandInKernel(IKernel kernel) : IKernel
 
     public IReadOnlyList<GpuAnswer>? Nvml() => kernel.Nvml();
 
+    public void LetGoOfNvml() => kernel.LetGoOfNvml();
+
     public void Next() => kernel.Next();
 
     private string StandIn(string name)

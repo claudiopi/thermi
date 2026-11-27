@@ -5,14 +5,18 @@ namespace Thermi.Sensors.Linux.Kernel;
 
 /// <summary>
 /// The live system's answers: its files from <c>/</c>, its clocks from <paramref name="time"/>, the default route's
-/// address, and NVML when NVIDIA's driver is installed, loaded once and closed with it.
+/// address, and NVML when NVIDIA's driver is installed, started when a read asks it and shut when the readers let go of
+/// it or the kernel closes.
 /// </summary>
 internal sealed class LiveKernel(TimeProvider time) : IKernel, IDisposable
 {
     // A link of /sys leads to another and on, as a hwmon chip's device does, a few deep; far past that is a loop.
     private const int MaxLinks = 40;
 
-    private readonly Lazy<NvmlLibrary?> _nvml = new(NvmlLibrary.Open);
+    private NvmlLibrary? _nvml;
+
+    // NVIDIA's driver was not there to start, which a service's life does not change.
+    private bool _noNvml;
 
     public string? Read(string path)
     {
@@ -74,20 +78,29 @@ internal sealed class LiveKernel(TimeProvider time) : IKernel, IDisposable
 
     Moment? IKernel.Now() => Now();
 
-    public IReadOnlyList<GpuAnswer>? Nvml() => _nvml.Value?.Read();
+    public IReadOnlyList<GpuAnswer>? Nvml()
+    {
+        if (_nvml is null && !_noNvml)
+        {
+            _nvml = NvmlLibrary.Open();
+            _noNvml = _nvml is null;
+        }
+
+        return _nvml?.Read();
+    }
+
+    public void LetGoOfNvml()
+    {
+        _nvml?.Dispose();
+        _nvml = null;
+    }
 
     public void Next()
     {
         // The live system is always at its own second.
     }
 
-    public void Dispose()
-    {
-        if (_nvml.IsValueCreated)
-        {
-            _nvml.Value?.Dispose();
-        }
-    }
+    public void Dispose() => LetGoOfNvml();
 
     private static string? Target(string path)
     {

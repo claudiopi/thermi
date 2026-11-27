@@ -75,9 +75,10 @@ internal static partial class Hwmon
 
     /// <summary>
     /// Each input's sensor, under <paramref name="device"/>'s id, as <paramref name="hardwareType"/> and
-    /// <paramref name="hardware"/>; a board's temperature of a sensor not connected reads missing, as Core says.
+    /// <paramref name="hardware"/>; a board's temperature of a sensor not connected reads missing, as Core says, and so does
+    /// every input of a device <paramref name="asleep"/>, whose files are left unread.
     /// </summary>
-    public static IEnumerable<RawSensor> Read(IKernel kernel, Chip chip, string device, string hardwareType, string hardware) =>
+    public static IEnumerable<RawSensor> Read(IKernel kernel, Chip chip, string device, string hardwareType, string hardware, bool asleep = false) =>
         chip.Inputs.Select(input =>
         {
             var sensor = new RawSensor(
@@ -86,7 +87,7 @@ internal static partial class Hwmon
                 hardware,
                 input.Type,
                 input.Name,
-                Counters.Number(kernel.Read(input.File)) * input.Scale);
+                asleep ? null : Counters.Number(kernel.Read(input.File)) * input.Scale);
             return SensorMap.NotConnected(sensor) ? sensor with { Value = null } : sensor;
         });
 
