@@ -52,7 +52,7 @@ internal sealed class ThermiDesk : IDisposable
         }
 #pragma warning restore CA2000
         var hotkeys = Hotkeys;
-        _objects.Serve(ShellLink.Name, OverlayObject.Path, new OverlayObject(() => hotkeys.Status));
+        _objects.Serve(ShellLink.Name, OverlayObject.Path, new OverlayObject(() => hotkeys.Status, () => State()));
         var told = new NoticeHost(parts.Settings, parts.Visibility, parts.Culture, parts.RequestPaint)
         {
             Settle = parts.Settle,
@@ -66,6 +66,9 @@ internal sealed class ThermiDesk : IDisposable
     public DesktopHotkeys Hotkeys { get; }
 
     public ThermiNotices Notices { get; }
+
+    /// <summary>What the overlay tells agents now, as its <see cref="OverlayObject"/> answers it.</summary>
+    public Func<OverlayState> State { get; init; } = () => new OverlayState(false, []);
 
     /// <summary>
     /// The surfaces came up, GNOME's extension again with none of thermi's icons or hotkeys: the next paint sends each again.

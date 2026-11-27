@@ -70,8 +70,8 @@ internal sealed class ShellLink : IDisposable
 
     /// <summary>
     /// The path of thermi's objects: the extension's, on the Shell's connection, and the overlay's actions, on its own under
-    /// <see cref="Name"/>, where the settings window activates <c>quit</c> through <c>org.gtk.Actions</c>, and
-    /// <c>thermi-cli</c> reads <see cref="Overlay.OverlayState"/>.
+    /// <see cref="Name"/>, where the settings window activates <c>quit</c> through <c>org.gtk.Actions</c>; the
+    /// <see cref="Overlay.OverlayObject"/> is below it.
     /// </summary>
     public const string ObjectPath = "/io/github/claudiopi/thermi";
 

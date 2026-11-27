@@ -42,7 +42,6 @@ internal sealed class OverlayHost : IDisposable
     private readonly HighContrastColors? _highContrast = DesktopLooks.HighContrast();
     private readonly double? _baseClock = DesktopLooks.BaseClock();
     private readonly GLib.MainLoop _loop = GLib.MainLoop.New(null, false);
-    private readonly Gio.SimpleAction _state = OverlayState.NewAction();
     private ShellScreens _screens = new([], new Dictionary<(int X, int Y), string>());
     private readonly TraceEvents _trace;
     private long? _readAt;
@@ -91,7 +90,7 @@ internal sealed class OverlayHost : IDisposable
             WindowFailed = () => _desk!.Notices.WindowFailed(),
         };
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
-        _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start);
+        _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start) { State = () => new OverlayState(_surfaces.Ready, _screens.Screens) };
     }
 
     private Settings Settings => _parts.Settings;
@@ -115,9 +114,6 @@ internal sealed class OverlayHost : IDisposable
         _surfaces.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
         _surfaces.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
         _surfaces.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
-        // The extension's coming and going changes whether the overlays show, once the surfaces heard it.
-        _link.Ready += _ => Post(Tell);
-        _link.Gone += () => Post(Tell);
         _feed.Received += (_, _) => Post(Record);
         Settings.Changed += (_, _) => Post(SettingsChanged);
         using var watcher = Settings.Watch(Log);
@@ -129,7 +125,6 @@ internal sealed class OverlayHost : IDisposable
         quit.OnActivate += (_, _) => Safe(_loop.Quit, Log.ChoiceFailed);
         using var actions = Gio.SimpleActionGroup.New();
         actions.AddAction(quit);
-        actions.AddAction(_state);
         var exported = _bus.ExportActionGroup(ShellLink.ObjectPath, actions);
         _loop.Run();
         _bus.UnexportActionGroup(exported);
@@ -144,7 +139,6 @@ internal sealed class OverlayHost : IDisposable
         _surfaces.Dispose();
         _link.Dispose();
         _notices.Dispose();
-        _state.Dispose();
         _loop.Dispose();
     }
 
@@ -180,12 +174,8 @@ internal sealed class OverlayHost : IDisposable
     private void Monitors(IReadOnlyList<ShellMonitor> monitors)
     {
         _screens = new ShellScreens(monitors, _kind == SurfaceKind.Shell ? ShellScreens.Names(_bus) : new Dictionary<(int X, int Y), string>());
-        Tell();
         Repaint();
     }
-
-    // What agents read of the overlay, which changes only with the monitors and with the surfaces' coming and going.
-    private void Tell() => new OverlayState(_surfaces.Ready, _screens.Screens).Tell(_state);
 
     private void Tick()
     {
