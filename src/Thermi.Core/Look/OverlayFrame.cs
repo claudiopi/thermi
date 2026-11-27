@@ -26,13 +26,14 @@ public sealed record OverlayFrame(IReadOnlyList<OverlayItem> Items, OverlayLook 
 
     /// <summary>
     /// Whether this frame needs a draw after <paramref name="last"/>, the last one drawn or null before any: unless both
-    /// show the same, it does. A frame after a moving one draws too, so the last of a glow or a drag never stays.
+    /// show the same, it does. A frame after a moving one draws too, so the last of a glow or a drag never stays. The scale
+    /// is compared bit for bit: the same sums give the same bits, and any other scale draws other pixels.
     /// </summary>
     public bool Differs(OverlayFrame? last) =>
         last is null
         || Moving
         || last.Moving
-        || !Scale.Equals(last.Scale)
+        || BitConverter.SingleToInt32Bits(Scale) != BitConverter.SingleToInt32Bits(last.Scale)
         || Alpha != last.Alpha
         || Stopped != last.Stopped
         || Marks != last.Marks
