@@ -168,6 +168,9 @@ public interface IWindowBridge
 
     Task StartOverlay();
 
+    /// <summary>Moves, maximizes, minimizes or closes the window from the page's own caption, where the OS draws none.</summary>
+    Task Caption(CaptionAction action);
+
     /// <summary>Keeps the broken settings file beside it and writes the last settings read well.</summary>
     Task Restore();
 

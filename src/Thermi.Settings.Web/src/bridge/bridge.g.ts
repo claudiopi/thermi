@@ -24,6 +24,8 @@ export interface AgentsView {
   changes: AgentChangeView[];
 }
 
+export type CaptionAction = 'move' | 'title-double-click' | 'minimize' | 'maximize' | 'close';
+
 export interface CatalogGroup {
   id: string;
   name: string;
@@ -431,6 +433,10 @@ export interface WarnByChoice {
   name: string;
 }
 
+export interface WindowCaption {
+  maximized: boolean;
+}
+
 export interface WindowChange {
   sensors: boolean;
 }
@@ -453,6 +459,7 @@ export interface WindowStatus {
   extension: ExtensionState | null;
   contrast: boolean;
   bar: DesktopBar;
+  caption: WindowCaption | null;
 }
 
 export type WindowTheme = 'system' | 'light' | 'dark';
@@ -514,6 +521,7 @@ export interface Bridge {
   startService(): Promise<boolean>;
   installExtension(): Promise<boolean>;
   startOverlay(): Promise<void>;
+  caption(action: CaptionAction): Promise<void>;
   restore(): Promise<void>;
   startWithWindows(): Promise<boolean>;
   setStartWithWindows(on: boolean): Promise<void>;

@@ -222,6 +222,7 @@ internal sealed class BridgeEnums : JsonConverterFactory
 [JsonSerializable(typeof(Undone))]
 [JsonSerializable(typeof(WindowStatus))]
 [JsonSerializable(typeof(UndoSteps))]
+[JsonSerializable(typeof(CaptionAction))]
 [JsonSerializable(typeof(About))]
 [JsonSerializable(typeof(Agents.AgentsView))]
 [JsonSerializable(typeof(Opened))]

@@ -52,6 +52,10 @@ public sealed record WindowStatus(
 
     /// <summary>The bar an overlay snaps onto as onto the taskbar, which the texts that name it say in its words.</summary>
     public DesktopBar Bar { get; init; }
+
+    /// <summary>The caption buttons the page draws, as <see cref="HostDesktop.Caption"/> says, or null where the OS draws them.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public WindowCaption? Caption { get; init; }
 }
 
 /// <summary>The steps Undo and Redo would take, worded as "Critical 84 → 85 °C", or null when there is none.</summary>

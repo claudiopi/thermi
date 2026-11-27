@@ -68,6 +68,8 @@ export interface FakeState {
   accent: string | null;
   /** The bar an overlay snaps onto as onto the taskbar, as C# names it, whose words name it. */
   bar: string;
+  /** Whether the window is maximized, which the caption the page draws on Linux says. */
+  maximized: boolean;
   /** Whether the desktop is in high contrast, as Linux's settings portal says. */
   contrast: boolean;
   /** Where thermi's GNOME Shell extension is in a GNOME session, as C# names it, or null for none. */

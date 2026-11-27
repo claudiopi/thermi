@@ -78,6 +78,10 @@ test.describe('TheWindowFollowsTheLinuxDesktop', () => {
         return same;
       });
       expect(system).toBe(scheme.contrast);
+      // The desktop draws no caption around the page, which draws Windows' own buttons in its title row.
+      await page.getByRole('button', { name: text('WindowText.Maximize') }).click();
+      await expect(page.getByRole('button', { name: text('WindowText.RestoreDown') })).toBeVisible();
+      await expect(page.getByRole('button', { name: text('WindowText.Minimize') })).toBeVisible();
       await page.keyboard.press('Control+Comma');
       await expect(page.getByRole('switch', { name: text('UiText.StartAtSignIn') })).toBeVisible();
       await expect(page.getByRole('button', { name: text('WindowText.InstallDriver') })).toHaveCount(0);

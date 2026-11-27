@@ -262,6 +262,12 @@ internal class PageBridge : IWindowBridge, IDisposable
     public Task<FinderView> Finder() =>
         Task.FromResult(_finder.View(_sensors.Latest, _texts, CultureInfo.CurrentCulture, _editor.Config.SensorNames));
 
+    public Task Caption(CaptionAction action)
+    {
+        _host.Caption(action);
+        return Task.CompletedTask;
+    }
+
     public Task StartOverlay()
     {
         _host.StartOverlay();

@@ -19,9 +19,6 @@ internal sealed class SettingsWindow : IDisposable
 
     private const string Origin = Scheme + "://app/";
 
-    // GTK draws the window's title bar above the page, so the page's title row keeps no room for Windows' caption buttons.
-    private const string Caption = ":root { --thermi-caption-width: 0px; }";
-
     // GNOME maximizes a new window that covers more than 80 % of its work area, which GTK does not know: of the whole
     // monitor, 75 % leaves room for a top bar.
     private const double MostOfTheScreen = 0.75;
@@ -36,7 +33,12 @@ internal sealed class SettingsWindow : IDisposable
     private readonly ILogger _log;
     private readonly TraceEvents? _trace;
     private readonly string? _item;
+    private readonly Gtk.EventControllerLegacy _presses;
     private bool _shown;
+
+    // The last press in the window, which a move from the page's title row starts from, as one from a title bar would. GTK
+    // frees the event once dispatched, before the page asks, so only what the move needs of it is kept.
+    private (Gdk.Device Device, double X, double Y, uint Time)? _press;
 
     // item: the one the window opens on, which the trace says once it shows.
     public SettingsWindow(Gtk.Application app, PageBridge bridge, LinuxHost host, ILogger log, TraceEvents? trace, string? item)
@@ -48,6 +50,8 @@ internal sealed class SettingsWindow : IDisposable
         _item = item;
         _window = Gtk.ApplicationWindow.New(app);
         _window.SetTitle("thermi");
+        _presses = Gtk.EventControllerLegacy.New();
+        Captioned(bridge);
         var first = FirstScreen(host.Screens());
         var size = WindowRoom.First(ThermiConfig.New, [first], [], MostOfTheScreen);
         var (least, lowest) = WindowRoom.Minimum(first.Work);
@@ -58,7 +62,6 @@ internal sealed class SettingsWindow : IDisposable
         var content = _view.GetUserContentManager();
         content.AddScript(
             WebKit.UserScript.New(BridgeCalls.Client, WebKit.UserContentInjectedFrames.TopFrame, WebKit.UserScriptInjectionTime.Start, null, null));
-        content.AddStyleSheet(WebKit.UserStyleSheet.New(Caption, WebKit.UserContentInjectedFrames.TopFrame, WebKit.UserStyleLevel.User, null, null));
         content.RegisterScriptMessageHandler(BridgeCalls.WebKitHandler, null);
         content.OnScriptMessageReceived += Received;
         _view.OnLoadChanged += (_, e) => Loaded(e.LoadEvent);
@@ -67,6 +70,7 @@ internal sealed class SettingsWindow : IDisposable
         _bridge.Picked += OnPicked;
         host.Window = _window;
         host.DesktopChanged = bridge.DesktopChanged;
+        host.Captioned = Caption;
         _window.SetChild(_view);
         _view.LoadUri(Origin + PageFiles.Index);
     }
@@ -86,6 +90,7 @@ internal sealed class SettingsWindow : IDisposable
         _bridge.Readings -= OnReadings;
         _bridge.Picked -= OnPicked;
         _view.Dispose();
+        _presses.Dispose();
         _window.Dispose();
     }
 
@@ -183,6 +188,89 @@ internal sealed class SettingsWindow : IDisposable
         }
 
         request.FinishWithResponse(response);
+    }
+
+    // A hidden title bar of GTK's own leaves the page's title row the window's caption, as on Windows, while GTK keeps the
+    // desktop's shadow and the edges to resize from; the page's caption buttons say whether it is maximized.
+    private void Captioned(PageBridge bridge)
+    {
+        var none = Gtk.Box.New(Gtk.Orientation.Horizontal, 0);
+        none.SetVisible(false);
+        _window.SetTitlebar(none);
+        _presses.SetPropagationPhase(Gtk.PropagationPhase.Capture);
+        _presses.OnEvent += (_, _) => Pressed();
+        _window.AddController(_presses);
+        _window.OnNotify += (_, e) =>
+        {
+            if (e.Pspec.GetName() == "maximized")
+            {
+                bridge.DesktopChanged();
+            }
+        };
+    }
+
+    // Watches each press on its way to the page, which still takes it.
+    private bool Pressed()
+    {
+        // GirCore reads no event out of the signal's arguments, so it comes from the controller, and as a plain event.
+        var press = _presses.GetCurrentEvent();
+        if (press?.GetEventType() == Gdk.EventType.ButtonPress && press.GetDevice() is { } device && press.GetPosition(out var x, out var y))
+        {
+            _press = (device, x, y, press.GetTime());
+        }
+
+        return false;
+    }
+
+    // What a title bar does, from the page's own: a move starts from the press that asked for it, in the surface's pixels,
+    // as the press has them; a double-click does what the desktop's settings say.
+    private void Caption(CaptionAction action)
+    {
+        var top = _window.GetSurface() as Gdk.Toplevel;
+        switch (action)
+        {
+            case CaptionAction.Move when top is not null && _press is { } press:
+                top.BeginMove(press.Device, Gdk.Constants.BUTTON_PRIMARY, press.X, press.Y, press.Time);
+                break;
+            case CaptionAction.Move:
+                break;
+            case CaptionAction.TitleDoubleClick:
+                TitleClicked(top, Gtk.Settings.GetDefault()?.GtkTitlebarDoubleClick);
+                break;
+            case CaptionAction.Minimize:
+                _window.Minimize();
+                break;
+            case CaptionAction.Maximize:
+                TitleClicked(top, "toggle-maximize");
+                break;
+            case CaptionAction.Close:
+                _window.Close();
+                break;
+            default:
+                break;
+        }
+    }
+
+    // GTK's names for what a title bar's double-click does, as GNOME's settings choose it.
+    private void TitleClicked(Gdk.Toplevel? top, string? does)
+    {
+        switch (does)
+        {
+            case "toggle-maximize" when _window.IsMaximized():
+                _window.Unmaximize();
+                break;
+            case "toggle-maximize":
+                _window.Maximize();
+                break;
+            case "minimize":
+                _window.Minimize();
+                break;
+            case "lower":
+                top?.Lower();
+                break;
+            default:
+                break;
+        }
     }
 
     // Shown once the page has loaded, so its first frame is already in the window's mode.

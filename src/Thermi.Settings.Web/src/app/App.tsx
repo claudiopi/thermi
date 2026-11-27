@@ -235,6 +235,7 @@ function Window({ data }: { data: WindowData }) {
     <div className={`t-window t-${width}${listOpen && narrow ? ' t-list-open' : ''}`} onDragOver={dragOver} onDrop={drop}>
       <TitleRow
         mark={data.view.mark}
+        caption={data.status.caption}
         narrow={narrow}
         listOpen={listOpen}
         onShowList={() => (listOpen ? closeList() : openList())}

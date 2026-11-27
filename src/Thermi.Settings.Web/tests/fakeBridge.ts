@@ -194,6 +194,13 @@ function installFake(initial: FakeState): void {
       changed();
       return true;
     },
+    // The window's own state, which only the maximize button changes in a page.
+    caption: async (action) => {
+      if (action === 'maximize') {
+        state.maximized = !state.maximized;
+        changed();
+      }
+    },
     startOverlay: async () => {
       state.overlayRunning = true;
       changed();

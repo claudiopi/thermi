@@ -62,6 +62,9 @@ internal interface IWindowHost
     /// <summary>Starts the overlay, which the window's process never is.</summary>
     void StartOverlay();
 
+    /// <summary>Does what the page's own caption asks of the window, where the OS draws none.</summary>
+    void Caption(CaptionAction action);
+
     /// <summary>Opens a file or a link in the desktop's own program for it; one it cannot open is logged.</summary>
     void Open(string target, ILogger log);
 

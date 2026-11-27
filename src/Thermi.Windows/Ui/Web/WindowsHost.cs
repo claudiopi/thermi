@@ -109,6 +109,11 @@ internal sealed class WindowsHost(WindowStart start) : IWindowHost
     // Windows' overlay needs no extension.
     public Task<bool> InstallExtension() => Task.FromResult(false);
 
+    public void Caption(CaptionAction action)
+    {
+        // Windows draws and answers the caption itself, and the page draws none to ask with.
+    }
+
     public UpdateLine Updates() => _updates.Line();
 
     public void CheckUpdates() => _updates.Ask();

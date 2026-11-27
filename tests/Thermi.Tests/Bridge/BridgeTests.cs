@@ -28,6 +28,7 @@ public sealed class BridgeTests
     [InlineData(
         """{"id":10,"method":"preview","args":[0,0]}""",
         """{"id":10,"result":{"png":"data:image/png;base64,","width":120,"height":38,"taskbar":null}}""")]
+    [InlineData("""{"id":11,"method":"caption","args":["title-double-click"]}""", """{"id":11,"result":null}""")]
     [InlineData("""{"id":12,"method":"chart","args":["none"]}""", """{"id":12,"error":"*"}""")]
     [InlineData("""{"id":13,"method":"deleteLook","args":["none"]}""", """{"id":13,"error":"Boom"}""")]
     [InlineData("""{"method":"undo","args":[]}""", """{"id":null,"error":"Boom"}""")]

@@ -27,6 +27,8 @@ export function installFakeWindow(): void {
     os: state.os === 'linux' ? 'linux' : 'windows',
     accent: state.accent,
     contrast: state.contrast,
+    // Windows draws its own caption buttons over the page; on Linux the page draws them.
+    caption: state.os === 'linux' ? { maximized: state.maximized } : null,
     bar: state.bar === 'top-bar' || state.bar === 'panel' || state.bar === 'none' ? state.bar : 'taskbar',
     extension: state.os === 'linux' && (state.extension === 'missing' || state.extension === 'disabled') ? state.extension : null,
     hotkeys: roles.filter(

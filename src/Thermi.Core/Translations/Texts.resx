@@ -2538,4 +2538,13 @@
   <data name="OverlayPageText.MatchDesktop" xml:space="preserve">
     <value>Match desktop</value>
   </data>
+  <data name="WindowText.Minimize" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="WindowText.Maximize" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+  <data name="WindowText.RestoreDown" xml:space="preserve">
+    <value>Restore down</value>
+  </data>
 </root>

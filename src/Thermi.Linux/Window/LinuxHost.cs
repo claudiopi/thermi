@@ -41,11 +41,15 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public Gtk.Window? Window { get; set; }
 
+    /// <summary>Does what the page's caption asks, as the window that holds the press it came from answers it.</summary>
+    public Action<CaptionAction>? Captioned { get; set; }
+
     /// <summary>Runs when the desktop changed its scheme, accent or contrast, or the extension came or went.</summary>
     public Action? DesktopChanged { get; set; }
 
     public HostDesktop Desktop =>
-        new(HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast, HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")));
+        new(HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast, HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")),
+            Window?.IsMaximized() ?? false);
 
     // Linux's packages install the sensors for everyone, and starting them asks through polkit's own prompt.
     public bool ForEveryone => true;
@@ -135,6 +139,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
         Window?.Close();
     }
+
+    public void Caption(CaptionAction action) => Captioned?.Invoke(action);
 
     public void StartOverlay()
     {

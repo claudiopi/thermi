@@ -20,6 +20,9 @@ import {
   NavigationRegular,
   SearchRegular,
   SettingsRegular,
+  SquareMultipleRegular,
+  SquareRegular,
+  SubtractRegular,
   type FluentIcon,
 } from '@fluentui/react-icons';
 import { makeStyles, mergeClasses } from '@fluentui/react-components';
@@ -47,6 +50,9 @@ const icons = {
   edit: EditRegular,
   merge: MergeRegular,
   monitor: DesktopRegular,
+  minimize: SubtractRegular,
+  maximize: SquareRegular,
+  restore: SquareMultipleRegular,
 } satisfies Record<string, FluentIcon>;
 
 export type IconName = keyof typeof icons;

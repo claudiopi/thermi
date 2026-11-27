@@ -29,12 +29,32 @@ public enum DesktopBar
     None,
 }
 
+/// <summary>What the page's own caption asks of the window, where the OS draws none.</summary>
+public enum CaptionAction
+{
+    /// <summary>A press on the title row: the window follows the pointer, as from a title bar, snapping where the desktop snaps.</summary>
+    Move,
+
+    /// <summary>A double-click on the title row, which does what the desktop's settings say a title bar's does.</summary>
+    TitleDoubleClick,
+
+    Minimize,
+
+    /// <summary>Maximizes the window, or restores it when it is maximized.</summary>
+    Maximize,
+    Close,
+}
+
+/// <summary>The caption buttons the page draws where the OS draws none, and whether the window is maximized, which they say.</summary>
+public sealed record WindowCaption(bool Maximized);
+
 /// <summary>
 /// What the window's host says of its desktop: its OS; its accent as <c>#rrggbb</c>, or null where the page keeps its own;
-/// in a GNOME session, where thermi's extension is, else null; whether it is in high contrast; and its bar. Core decides
-/// from it which fixes the window offers and the words it says them in.
+/// in a GNOME session, where thermi's extension is, else null; whether it is in high contrast; its bar; and whether the
+/// window is maximized. Core decides from it which fixes the window offers, the words it says them in and its caption.
 /// </summary>
-public sealed record HostDesktop(HostOs Os, string? Accent = null, ExtensionState? Extension = null, bool Contrast = false, DesktopBar Bar = DesktopBar.Taskbar)
+public sealed record HostDesktop(
+    HostOs Os, string? Accent = null, ExtensionState? Extension = null, bool Contrast = false, DesktopBar Bar = DesktopBar.Taskbar, bool Maximized = false)
 {
     public static HostDesktop Windows { get; } = new(HostOs.Windows);
 
@@ -78,11 +98,23 @@ public sealed record HostDesktop(HostOs Os, string? Accent = null, ExtensionStat
     public ExtensionState? ExtensionFix =>
         Os == HostOs.Linux && Extension is ExtensionState.Missing or ExtensionState.Disabled ? Extension : null;
 
+    /// <summary>The caption buttons the page draws: none on Windows, which draws its own over the page.</summary>
+    public WindowCaption? Caption => Os == HostOs.Windows ? null : new WindowCaption(Maximized);
+
     /// <summary>Why a sensor reads nothing, as this desktop says it: where no driver is offered, a zero is nothing read.</summary>
     public NoValue? Why(NoValue? why) => why == NoValue.DriverMayBeMissing && !OffersDriver ? NoValue.ReadsNothing : why;
 
     public WindowStatus Of(WindowStatus status) =>
-        status with { Driver = status.Driver && OffersDriver, Os = Os, Accent = Accent, Extension = ExtensionFix, Contrast = Contrast, Bar = Bar };
+        status with
+        {
+            Driver = status.Driver && OffersDriver,
+            Os = Os,
+            Accent = Accent,
+            Extension = ExtensionFix,
+            Contrast = Contrast,
+            Bar = Bar,
+            Caption = Caption,
+        };
 
     /// <summary>The bar of a Linux desktop, by the names its <c>XDG_CURRENT_DESKTOP</c> lists: GNOME's top bar, a barless one's none, else a panel.</summary>
     public static DesktopBar BarOf(string? desktops)

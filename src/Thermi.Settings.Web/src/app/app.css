@@ -69,6 +69,46 @@
   app-region: no-drag;
 }
 
+/* The caption buttons the page draws where the OS draws none, in the room Windows' own take, as Windows draws them. */
+.t-caption {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+}
+
+.t-caption-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--thermi-caption-width, 138px) / 3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--thermi-text);
+  font-size: 16px;
+}
+
+.t-caption-button:hover {
+  background: var(--thermi-subtle-hover);
+}
+
+.t-caption-close:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+.t-contrast .t-caption-button:hover {
+  background: Highlight;
+  color: HighlightText;
+}
+
+/* Windows' caption buttons stay live over a dialog's smoke, and so do the page's own. */
+body:has([data-modal]) .t-title > .t-caption {
+  pointer-events: auto;
+}
+
 /* A dialog's smoke starts under the row, beside Windows' caption buttons that the page cannot dim; the row gets a smoke of
    its own up to those buttons and takes no clicks while it shows, so only the caption buttons read as live. */
 body:has([data-modal]) .t-title > * {

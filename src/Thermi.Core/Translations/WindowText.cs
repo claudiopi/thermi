@@ -132,4 +132,11 @@ public enum WindowText
     WebViewMissing,
     PageEndedTitle,
     PageEnded,
+
+    /// <summary>The caption buttons the page draws where the OS draws none, as Windows names its own.</summary>
+    Minimize,
+    Maximize,
+
+    /// <summary>The maximize button of a maximized window, which brings it back to its size.</summary>
+    RestoreDown,
 }
