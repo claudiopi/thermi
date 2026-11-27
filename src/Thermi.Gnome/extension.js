@@ -23,12 +23,12 @@ const XML = `<node><interface name="${SHELL}">
   <method name="Hide"><arg type="u" direction="in"/></method>
   <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
     <arg type="a(issbbb)" direction="in"/></method>
-  <method name="Monitors"><arg type="a(ddddddbb)" direction="out"/></method>
+  <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
   <signal name="Ready"><arg type="u"/></signal>
   <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
     <arg type="u"/><arg type="d"/><arg type="d"/></signal>
   <signal name="Key"><arg type="u"/><arg type="s"/></signal>
-  <signal name="MonitorsChanged"><arg type="a(ddddddbb)"/></signal>
+  <signal name="MonitorsChanged"><arg type="a(ddddddbbdddd)"/></signal>
   <signal name="Chosen"><arg type="u"/><arg type="i"/></signal>
 </interface></node>`;
 
@@ -76,6 +76,7 @@ export default class ThermiExtension extends Extension {
         Main.layoutManager.connectObject('monitors-changed', () => this._monitorsChanged(), this);
         global.display.connectObject('in-fullscreen-changed', () => this._monitorsChanged(), this);
         Main.layoutManager.panelBox.connectObject('notify::visible', () => this._monitorsChanged(), this);
+        [Main.panel._centerBox, Main.panel._rightBox].forEach(box => box.connectObject('notify::allocation', () => this._monitorsChanged(), this));
         global.stage.connectObject('captured-event', (stage, event) => this._captured(event), this);
         this._service.emit_signal('Ready', new GLib.Variant('(u)', [this.Protocol]));
     }
@@ -85,6 +86,7 @@ export default class ThermiExtension extends Extension {
         Main.layoutManager.disconnectObject(this);
         global.display.disconnectObject(this);
         Main.layoutManager.panelBox.disconnectObject(this);
+        [Main.panel._centerBox, Main.panel._rightBox].forEach(box => box.disconnectObject(this));
         global.stage.disconnectObject(this);
         Gio.bus_unwatch_name(this._watch);
         this._service.unexport();
@@ -116,14 +118,23 @@ export default class ThermiExtension extends Extension {
         this._answer(invocation, () => this._menu(...args));
     }
 
+    // Each monitor, with the top bar's height on the one that shows it, and the left and right edges of the bar's centre box,
+    // the clock, and its right box, the system menu, which no overlay covers.
     Monitors() {
         const panel = Main.layoutManager.panelBox;
-        return Main.layoutManager.monitors.map(monitor => [
-            monitor.x, monitor.y, monitor.width, monitor.height, monitor.geometry_scale,
-            monitor.index === Main.layoutManager.primaryIndex && panel.visible ? panel.height : 0,
-            monitor.index === Main.layoutManager.primaryIndex,
-            global.display.get_monitor_in_fullscreen(monitor.index),
-        ]);
+        const kept = [Main.panel._centerBox, Main.panel._rightBox].flatMap(box => {
+            const [left] = box.get_transformed_position();
+            const [width] = box.get_transformed_size();
+            return [left, left + width];
+        });
+        return Main.layoutManager.monitors.map(monitor => {
+            const bar = monitor.index === Main.layoutManager.primaryIndex && panel.visible;
+            return [
+                monitor.x, monitor.y, monitor.width, monitor.height, monitor.geometry_scale, bar ? panel.height : 0,
+                monitor.index === Main.layoutManager.primaryIndex, global.display.get_monitor_in_fullscreen(monitor.index),
+                ...bar ? kept : [0, 0, 0, 0],
+            ];
+        });
     }
 
     // Only thermi's overlay, the name's owner, changes what shows; any other caller, or a call out of the protocol's
@@ -259,7 +270,7 @@ export default class ThermiExtension extends Extension {
     }
 
     _monitorsChanged() {
-        this._emit('MonitorsChanged', '(a(ddddddbb))', [this.Monitors()]);
+        this._emit('MonitorsChanged', '(a(ddddddbbdddd))', [this.Monitors()]);
     }
 
     _emit(name, type, values) {

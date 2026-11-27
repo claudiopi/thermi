@@ -9,7 +9,7 @@ thermi's GNOME Shell extension, in JavaScript, for GNOME Shell 46 to 51 (`docs/a
 | Each overlay's picture, premultiplied ARGB, its size, place and scale, and the boxes that take the pointer, where it draws | `thermi` (`Show`, `Move`, `Hide`) |
 | A menu's rows, each under the row it opens from | `thermi` (`Menu`) |
 | The pointer on an overlay, the keys pressed while it holds one, the row chosen | the extension (`Pointer`, `Key`, `Chosen`) |
-| The monitors, their scales and top bar, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |
+| The monitors, their scales and top bar with its clock and system menu, which no overlay covers, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |
 | That it came up, with its protocol's version | the extension (`Ready`) |
 
 The overlay holds `ShellLink.Name` on the session's bus, apart from thermi's own id, which the settings window holds; when that name goes, the overlay is gone, and the extension takes down all it showed.
