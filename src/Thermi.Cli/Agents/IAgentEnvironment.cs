@@ -54,4 +54,7 @@ internal interface IAgentEnvironment
 
     /// <summary>Whether this desktop can show an overlay at all, which every Windows desktop can.</summary>
     bool OverlayCanShow() => true;
+
+    /// <summary>What About says of the version, the channel and the updates, which status says too where the host gives it.</summary>
+    AboutFacts About() => AboutFacts.None;
 }

@@ -1,0 +1,73 @@
+# The thermi package, .deb and .rpm (docs/adr/0019-linux.md): the overlay and its settings window, which run
+# thermi-sensors' thermi.dll, their user unit, the launcher's entry and its icons, and the GNOME Shell extension.
+# scripts/linux-packages.ps1 runs nfpm on it with the ${THERMI_...} below in place: the version, the processor, the key,
+# and the folders it staged the build in.
+name: thermi
+version: ${THERMI_VERSION}
+version_schema: none
+arch: ${THERMI_ARCH}
+platform: linux
+section: utils
+priority: optional
+maintainer: thermi <17047466+claudiopi@users.noreply.github.com>
+vendor: thermi
+homepage: https://github.com/claudiopi/thermi
+license: MIT
+description: |-
+  A light, always-on-top hardware monitor
+  CPU, GPU, RAM, fans, voltages, drives and network in a small overlay above every window, placed anywhere on screen,
+  with a settings window to shape it. AI agents read it and configure it through thermi-cli and MCP.
+
+contents:
+  - src: ${THERMI_FILES}/thermi/usr/lib/thermi/thermi
+    dst: /usr/lib/thermi/thermi
+  - src: /usr/lib/thermi/thermi
+    dst: /usr/bin/thermi
+    type: symlink
+  - src: ${THERMI_FILES}/thermi/usr/lib/systemd/user/thermi.service
+    dst: /usr/lib/systemd/user/thermi.service
+  - src: ${THERMI_FILES}/thermi/usr/share/applications/io.github.claudiopi.thermi.desktop
+    dst: /usr/share/applications/io.github.claudiopi.thermi.desktop
+  - src: ${THERMI_FILES}/thermi/usr/share/icons/
+    dst: /usr/share/icons/
+    type: tree
+  - src: ${THERMI_FILES}/thermi/usr/share/gnome-shell/extensions/thermi@claudiopi.github.io/
+    dst: /usr/share/gnome-shell/extensions/thermi@claudiopi.github.io/
+    type: tree
+  - src: ${THERMI_FILES}/thermi/usr/share/doc/thermi/
+    dst: /usr/share/doc/thermi/
+    type: tree
+
+scripts:
+  postinstall: ${THERMI_STAGE}/scripts/thermi/postinstall.sh
+  preremove: ${THERMI_STAGE}/scripts/thermi/preremove.sh
+
+# The same version of the sensors, whose thermi.dll the overlay runs; GTK 4, WebKitGTK, Cairo and Pango, which it draws
+# and shows the window with; and gtk4-layer-shell, which its surface needs on KDE Plasma, Hyprland and Sway alone.
+overrides:
+  deb:
+    depends:
+      - thermi-sensors (= ${THERMI_VERSION})
+      - libgtk-4-1
+      - libwebkitgtk-6.0-4
+      - libpangocairo-1.0-0
+      - libcairo2
+      - libglib2.0-0t64 | libglib2.0-0
+    recommends:
+      - libgtk4-layer-shell0
+  rpm:
+    depends:
+      - thermi-sensors = ${THERMI_VERSION}
+      - gtk4
+      - webkitgtk6.0
+      - pango
+      - cairo
+      - glib2
+    recommends:
+      - gtk4-layer-shell
+
+rpm:
+  group: Applications/System
+  summary: A light, always-on-top hardware monitor
+  signature:
+    key_file: ${THERMI_KEY}

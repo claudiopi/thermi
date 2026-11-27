@@ -10,4 +10,6 @@ What spec 006 asks of it (`docs/specs/006-linux/spec.md`): the overlay reads the
 | `Desktop` | The session's D-Bus, and the monitors as GNOME lays them out. |
 | `Sensors` | The service's socket: the system's, else where it is missing the user's own, of a `thermi-sensors --console`, each trusted only from who should serve it; `THERMI_SENSORS_SOCKET` names one to read alone. |
 
+The `thermi` package's files, beside the code in `Packaging`, are the overlay's user unit, its launcher's entry, the package's `nfpm.yaml` and scripts, and the AUR's `PKGBUILD` for both packages; `scripts/linux-packages.ps1` packs them with the overlay, its icons and the GNOME Shell extension.
+
 It targets plain `net10.0`, marked for Linux in `Program.cs`.

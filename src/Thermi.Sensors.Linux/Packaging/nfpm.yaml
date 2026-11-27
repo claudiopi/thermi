@@ -1,0 +1,78 @@
+# The thermi-sensors package, .deb and .rpm (docs/adr/0019-linux.md): the service, its units, its user and its rule, and
+# thermi-cli on every PATH, for a box with no screen too. scripts/linux-packages.ps1 runs nfpm on it with the
+# ${THERMI_...} below in place: the version, the processor, the key, and the folders it staged the build in.
+name: thermi-sensors
+version: ${THERMI_VERSION}
+version_schema: none
+arch: ${THERMI_ARCH}
+platform: linux
+section: utils
+priority: optional
+maintainer: thermi <17047466+claudiopi@users.noreply.github.com>
+vendor: thermi
+homepage: https://github.com/claudiopi/thermi
+license: MIT
+description: |-
+  thermi's sensor service and thermi-cli
+  The service thermi reads its sensors from: the CPU, the GPU, the board's chips, the drives and the network, once a
+  second while someone listens, as a user of its own with no capability. thermi-cli gives them to AI agents and other
+  programs as JSON.
+
+contents:
+  - src: ${THERMI_FILES}/thermi-sensors/usr/lib/thermi/
+    dst: /usr/lib/thermi/
+    type: tree
+  - src: /usr/lib/thermi/thermi-cli
+    dst: /usr/bin/thermi-cli
+    type: symlink
+  - src: ${THERMI_FILES}/thermi-sensors/usr/lib/systemd/system/thermi-sensors.service
+    dst: /usr/lib/systemd/system/thermi-sensors.service
+  - src: ${THERMI_FILES}/thermi-sensors/usr/lib/systemd/system/thermi-sensors.socket
+    dst: /usr/lib/systemd/system/thermi-sensors.socket
+  - src: ${THERMI_FILES}/thermi-sensors/usr/lib/sysusers.d/thermi-sensors.conf
+    dst: /usr/lib/sysusers.d/thermi-sensors.conf
+  - src: ${THERMI_FILES}/thermi-sensors/usr/lib/udev/rules.d/60-thermi-sensors.rules
+    dst: /usr/lib/udev/rules.d/60-thermi-sensors.rules
+  - src: ${THERMI_FILES}/thermi-sensors/usr/share/doc/thermi-sensors/
+    dst: /usr/share/doc/thermi-sensors/
+    type: tree
+  # The public key thermi's repository is signed with, which the repository the post-install adds names.
+  - src: ${THERMI_STAGE}/key/thermi.asc
+    dst: /usr/share/keyrings/thermi.asc
+    packager: deb
+  - src: ${THERMI_STAGE}/key/thermi.asc
+    dst: /etc/pki/rpm-gpg/RPM-GPG-KEY-thermi
+    packager: rpm
+
+scripts:
+  postinstall: ${THERMI_STAGE}/scripts/thermi-sensors/postinstall.sh
+  preremove: ${THERMI_STAGE}/scripts/thermi-sensors/preremove.sh
+  postremove: ${THERMI_STAGE}/scripts/thermi-sensors/postremove.sh
+
+# Self-contained .NET needs the C and C++ runtimes and, for thermi-cli's texts, ICU, which each release of a distribution
+# ships under its own name; thermi-cli reads GNOME's monitors through GLib where it is.
+overrides:
+  deb:
+    depends:
+      - libc6
+      - libgcc-s1
+      - libstdc++6
+      - libicu78 | libicu77 | libicu76 | libicu75 | libicu74 | libicu72
+      - systemd
+    recommends:
+      - libglib2.0-0t64 | libglib2.0-0
+  rpm:
+    depends:
+      - glibc
+      - libgcc
+      - libstdc++
+      - libicu
+      - systemd
+    recommends:
+      - glib2
+
+rpm:
+  group: Applications/System
+  summary: thermi's sensor service and thermi-cli
+  signature:
+    key_file: ${THERMI_KEY}

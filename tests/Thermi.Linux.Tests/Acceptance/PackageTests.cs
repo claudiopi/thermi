@@ -34,6 +34,7 @@ public sealed class PackageTests
         signal.pause()
         """;
 
+
     public enum Distribution
     {
         Ubuntu2404,
@@ -44,11 +45,11 @@ public sealed class PackageTests
     }
 
     [Theory]
-    [InlineData(Distribution.Ubuntu2404, Skip = "Waiting for its code")]
-    [InlineData(Distribution.Ubuntu2604, Skip = "Waiting for its code")]
-    [InlineData(Distribution.Debian13, Skip = "Waiting for its code")]
-    [InlineData(Distribution.Fedora, Skip = "Waiting for its code")]
-    [InlineData(Distribution.Arch, Skip = "Waiting for its code")]
+    [InlineData(Distribution.Ubuntu2404)]
+    [InlineData(Distribution.Ubuntu2604)]
+    [InlineData(Distribution.Debian13)]
+    [InlineData(Distribution.Fedora)]
+    [InlineData(Distribution.Arch)]
     public async Task ThePackagesInstallWhatTheySay(Distribution row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -69,6 +70,8 @@ public sealed class PackageTests
         var left = await pc.RunAsync("systemctl is-active thermi-sensors.socket thermi-sensors.service || true; pgrep -x thermi-sensors || true", cancel);
         await pc.OfflineAsync(cancel);
         await pc.MustAsync($"{tool.Install("thermi-sensors", offline: true)} && {tool.Install("thermi", offline: true)}", cancel);
+        // Installed again after a removal, which left apt its files' record, the socket listens as on a first install.
+        var listens = await pc.RunAsync("systemctl is-active thermi-sensors.socket", cancel);
         await pc.MustAsync("mkdir -p /home/person/.config/thermi && echo '{}' > /home/person/.config/thermi/config.json", cancel);
         await pc.MustAsync(tool.Remove(), cancel);
         var kept = await pc.RunAsync("cat /home/person/.config/thermi/config.json", cancel);
@@ -79,14 +82,15 @@ public sealed class PackageTests
         Assert.Empty(SensorsFiles.Concat(ThermiFiles).Except(files, StringComparer.Ordinal));
         // Nothing the packages started runs after their removal: neither unit, nor any process of the service's.
         Assert.Equal(["inactive", "inactive"], left.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.Equal("active", listens.Out.Trim());
         Assert.True(signed.Exit == 0, $"No signed repository of thermi's: {signed.Error}");
         Assert.True(arm64.Exit == 0, $"No arm64 package of the same version: {arm64.Error}");
         Assert.Equal("{}", kept.Out.Trim());
     }
 
     [Theory]
-    [InlineData(Distribution.Ubuntu2604, Skip = "Waiting for its code")]
-    [InlineData(Distribution.Fedora, Skip = "Waiting for its code")]
+    [InlineData(Distribution.Ubuntu2604)]
+    [InlineData(Distribution.Fedora)]
     public async Task UpdatesComeFromThermisRepository(Distribution row)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -96,9 +100,11 @@ public sealed class PackageTests
         await File.WriteAllTextAsync(Path.Combine(session.Home, "hold.py"), Holder, cancel);
         await using var pc = await Container.BootAsync(session, tool.Image, session.Home, cancel);
         var levers = new Levers(session, channel);
-        await levers.RunAsync(["publish", "1.0.0", "--channel", "stable"], cancel);
+        // The build and a newer one, each published as the release workflow publishes a version from the packages it packed.
+        var (first, next) = (Built.PackedVersion(Built.Packages), Built.PackedVersion(Built.Newer));
+        await levers.RunAsync(["publish", first, "--channel", "stable"], cancel);
         // The first version from the channel's own files, which adds the repository, then pointed at the channel the test serves.
-        await pc.MustAsync($"{tool.Prepare()} && {tool.InstallFromChannel("thermi-sensors", "1.0.0")} && {tool.Served()}", cancel);
+        await pc.MustAsync($"{tool.Prepare()} && {tool.InstallFromChannel("thermi-sensors", first)} && {tool.Served()}", cancel);
         const string Serving = "systemctl show -p MainPID --value thermi-sensors.service";
         // The holder alone runs in the background, its output to the pipe the shell reads once, so the shell ends.
         await pc.MustAsync(
@@ -107,7 +113,7 @@ public sealed class PackageTests
             cancel);
         var before = (await pc.MustAsync(Serving, cancel)).Trim();
 
-        await levers.RunAsync(["publish", "1.1.0", "--channel", "stable"], cancel);
+        await levers.RunAsync(["publish", next, "--channel", "stable"], cancel, Built.Newer);
         var newer = await UpdatedAsync(pc, tool, cancel);
         // The old service is gone, though a client held it, and the one that serves now runs the new files.
         var restarted = await pc.MustAsync(
@@ -118,18 +124,24 @@ public sealed class PackageTests
         var runs = await pc.MustAsync("/usr/lib/thermi/thermi-sensors --version", cancel);
         await levers.RunAsync(["disable", "--channel", "stable"], cancel);
         var disabled = await UpdatedAsync(pc, tool, cancel);
+        // Refused, a repository leaves the version the PC holds, and the system's updater says why; whether it ends with 0
+        // differs by tool.
         await levers.ServeForeignAsync(cancel);
         var foreign = await pc.RunAsync(tool.Update(), cancel);
+        var keptFromForeign = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
         await levers.ServeOlderAsync(cancel);
         var older = await pc.RunAsync(tool.Update(), cancel);
+        var keptFromOlder = (await pc.MustAsync(tool.Version("thermi-sensors"), cancel)).Trim();
 
-        Assert.StartsWith("1.1.0", newer, StringComparison.Ordinal);
+        Assert.StartsWith(next, newer, StringComparison.Ordinal);
         Assert.Equal("/usr/lib/thermi/thermi-sensors", restarted.Trim());
         Assert.NotEqual(newer, rolledBack);
-        Assert.StartsWith("1.0.0", runs.Trim(), StringComparison.Ordinal);
+        Assert.StartsWith(first, runs.Trim(), StringComparison.Ordinal);
         Assert.Equal(rolledBack, disabled);
-        Assert.NotEqual(0, foreign.Exit);
-        Assert.NotEqual(0, older.Exit);
+        Assert.Equal(rolledBack, keptFromForeign);
+        Assert.Matches(tool.Unsigned, foreign.Out + foreign.Error);
+        Assert.Equal(rolledBack, keptFromOlder);
+        Assert.Matches(tool.NothingNewer, older.Out + older.Error);
     }
 
     [Fact(Skip = "Waiting for its code")]
@@ -205,11 +217,18 @@ public sealed class PackageTests
         /// <summary>The distribution's package of Python, which a test's own client runs on.</summary>
         public string Python => Format == "deb" ? "python3-minimal" : "python3";
 
-        /// <summary>What a PC holds before thermi's packages: apt's lists, or on Arch the packages built from the PKGBUILD.</summary>
-        public string Prepare() => Format == "pkg.tar.zst"
-            ? $"{Container.Installs(Image, "base-devel")} && useradd -m builder && cp -r {Container.Packages}/aur {Aur} && chown -R builder {Aur}"
-                + $" && su builder -c 'cd {Aur} && makepkg --nodeps --noconfirm'"
-            : Format == "deb" ? "apt-get update" : "true";
+        /// <summary>
+        /// What a PC holds before thermi's packages: apt's lists; su, which Fedora's image lacks and a PC has; or on Arch
+        /// the packages built from the PKGBUILD.
+        /// </summary>
+        public string Prepare() => Format switch
+        {
+            "pkg.tar.zst" => $"{Container.Installs(Image, "base-devel")} && useradd -m builder"
+                + $" && cp -r {Container.Packages}/aur {Aur} && chown -R builder {Aur}"
+                + $" && su builder -c 'cd {Aur} && makepkg --nodeps --noconfirm'",
+            "deb" => "apt-get update",
+            _ => Container.Installs(Image, "util-linux"),
+        };
 
         // Debian names a package's architecture amd64, Fedora x86_64; a file, with its libraries from the distribution's
         // repositories, or from what the PC already holds once its network is cut.
@@ -264,20 +283,26 @@ public sealed class PackageTests
 
         public string Update() => Format == "deb" ? "apt-get update && apt-get upgrade -y" : "dnf upgrade -y --refresh";
 
+        /// <summary>What the system's updater says of a repository whose signature it refused.</summary>
+        public string Unsigned => Format == "deb" ? "NO_PUBKEY|is not signed" : "(?i)signature";
+
+        /// <summary>What the system's updater says when it finds nothing newer than what the PC holds.</summary>
+        public string NothingNewer => Format == "deb" ? @"\b0 upgraded\b" : "Nothing to do";
+
         // The repository the package added, pointed at the levers' channel the test serves.
         public string Served() => Format == "deb"
             ? $"sed -i 's|^URIs:.*|URIs: file://{Container.Work}/channel/apt|' /etc/apt/sources.list.d/thermi.sources"
-            : $"sed -i 's|^baseurl=.*|baseurl=file://{Container.Work}/channel/rpm|' /etc/yum.repos.d/thermi.repo";
+            : $"sed -i 's|^baseurl=.*|baseurl=file://{Container.Work}/channel/rpm/stable|' /etc/yum.repos.d/thermi.repo";
     }
 
     /// <summary>The owner's levers of spec 004 on a channel's repositories, as the release workflow pulls them.</summary>
     private sealed class Levers(OwnSession session, string channel)
     {
-        public async Task RunAsync(IEnumerable<string> args, CancellationToken cancel)
+        public async Task RunAsync(IEnumerable<string> args, CancellationToken cancel, string? packages = null)
         {
             var pulled = await session.RunAsync(
                 "pwsh",
-                ["-NoProfile", "-File", Path.Combine(Built.Root, "scripts", "updates.ps1"), .. args, "--packages", Built.Packages,
+                ["-NoProfile", "-File", Path.Combine(Built.Root, "scripts", "updates.ps1"), .. args, "--packages", packages ?? Built.Packages,
                     "--repository", channel],
                 cancel: cancel);
             Assert.True(pulled.Exit == 0, pulled.Error);
