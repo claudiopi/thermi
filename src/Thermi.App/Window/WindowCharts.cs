@@ -20,7 +20,8 @@ namespace Thermi.App.Window;
 /// <param name="chart">The overlay's ten minutes, and the window's own history of its items.</param>
 /// <param name="sensors">The readings now and whether the service runs.</param>
 /// <param name="readings">What the window has read since it opened.</param>
-internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISensorFeed sensors, Readings readings)
+/// <param name="host">Whose desktop says whether a CPU read as zeros points to thermi's driver.</param>
+internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISensorFeed sensors, Readings readings, IWindowHost host)
 {
     private readonly Dictionary<string, string> _pushed = new(StringComparer.Ordinal);
 
@@ -234,7 +235,7 @@ internal sealed class WindowCharts(WindowEditor editor, ChartHistory chart, ISen
     private ChartEmpty? EmptyOf(WarnByConfig meter, int values) =>
         sensors.State == ServiceState.Stopped ? ChartEmpty.Stopped
         : values > 0 ? null
-        : OnCpu(meter) && SensorMap.DriverMayBeMissing(readings.Known(sensors.Latest)) ? ChartEmpty.Driver
+        : OnCpu(meter) && host.Desktop.NeedsDriver(readings.Known(sensors.Latest)) ? ChartEmpty.Driver
         : ChartEmpty.None;
 
     private bool OnCpu(WarnByConfig meter) =>

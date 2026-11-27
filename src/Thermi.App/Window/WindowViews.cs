@@ -140,7 +140,7 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
         sensor.Name.From,
         sensor.Reading.Kind,
         sensor.Reading.Usable is null ? null : Text(sensor.Reading, format),
-        sensor.Why,
+        host.Desktop.Why(sensor.Why),
         readings.History.LastMinute(sensor.Id),
         SensorNames.NoteOf(sensor.Name, format.Texts, format.Numbers),
         Tip(sensor.Name, format),
