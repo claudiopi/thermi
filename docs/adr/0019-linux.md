@@ -1,6 +1,6 @@
 # 0019. thermi on Linux: hwmon, a socket-started service, a surface per desktop, WebKitGTK and package repositories
 
-**Status**: Proposed
+**Status**: Accepted
 
 ## Context
 

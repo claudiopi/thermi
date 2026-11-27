@@ -40,10 +40,12 @@ public sealed partial class RepoRulesTests
         AssertNone(unnamed);
     }
 
-    // A project is a folder with a .NET, WiX or npm project file of its own.
+    // A project is a folder with a .NET, WiX or npm project file of its own, or a GNOME Shell extension's metadata beside
+    // its code.
     private static IEnumerable<string> ProjectFolders() =>
         RepoFiles([".csproj", ".wixproj", ".json"])
-            .Where(path => Path.GetExtension(path) != ".json" || Path.GetFileName(path) == "package.json")
+            .Where(path => Path.GetExtension(path) != ".json" || Path.GetFileName(path) == "package.json"
+                || (Path.GetFileName(path) == "metadata.json" && File.Exists(Path.Combine(Path.GetDirectoryName(path)!, "extension.js"))))
             .Select(path => Path.GetDirectoryName(path)!)
             .Distinct(StringComparer.OrdinalIgnoreCase);
 

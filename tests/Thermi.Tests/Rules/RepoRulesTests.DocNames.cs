@@ -8,7 +8,7 @@ namespace Thermi.Tests.Rules;
 /// </summary>
 public sealed partial class RepoRulesTests
 {
-    private static readonly string[] SearchedCode = [".cs", ".ts", ".tsx", ".ps1", ".wxs", ".csproj", ".props", ".targets", ".resx", ".txt", ".yml"];
+    private static readonly string[] SearchedCode = [".cs", ".ts", ".tsx", ".js", ".ps1", ".wxs", ".csproj", ".props", ".targets", ".resx", ".txt", ".yml"];
     private static readonly string[] NamedFiles = [".cs", ".ts", ".tsx", ".ps1", ".wxs", ".csproj", ".wixproj", ".props", ".targets", ".resx", ".md"];
     private static readonly string[] OutsideNames = ["System", "Microsoft", "Windows", "Serilog", "ModelContextProtocol", "LibreHardwareMonitor"];
 
