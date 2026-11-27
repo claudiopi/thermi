@@ -308,4 +308,5 @@ public sealed class OverlayPaceTests : IDisposable
         using var png = new MemoryStream();
         picture?.Save(png, System.Drawing.Imaging.ImageFormat.Png);
         return Convert.ToBase64String(png.ToArray());
+    }
 }
