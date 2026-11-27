@@ -313,10 +313,12 @@ internal sealed class SettingsWindow : IDisposable
 
     private void OnChanged(object? sender, WindowChangeEventArgs change) => Send(nameof(IWindowBridge.Changed), change);
 
-    // A window the desktop hides draws no readings, and reads the latest once it shows.
+    // A window minimized, or one the compositor suspended as nobody sees it, draws no readings, as WebView2 pauses a minimized
+    // one: WebKit hides its page then, which reads the latest once it shows again.
     private void OnReadings(object? sender, WindowReadingsEventArgs readings)
     {
-        if (_window.IsVisible())
+        if (_window.IsVisible() && _window.GetSurface() is Gdk.Toplevel { } top
+            && !top.GetState().HasFlag(Gdk.ToplevelState.Minimized) && !top.GetState().HasFlag(Gdk.ToplevelState.Suspended))
         {
             Send(nameof(IWindowBridge.Readings), readings);
         }
