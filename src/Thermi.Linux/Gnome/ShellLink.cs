@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.Gestures;
+using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Gnome;
@@ -187,13 +190,24 @@ internal sealed class ShellLink : IDisposable
     /// <summary>Shows an overlay's picture at <paramref name="opacity"/>, from 0 to 1, as its fade near the pointer.</summary>
     public Task Fade(uint overlay, double opacity) => Own("Fade", GLib.Variant.NewUint32(overlay), GLib.Variant.NewDouble(opacity));
 
-    /// <summary>Shows a menu of <paramref name="rows"/> at a point of the stage, as the Shell's own popup menu.</summary>
-    public Task Menu(uint overlay, double x, double y, IReadOnlyList<ShellRow> rows) =>
-        Own("Menu", GLib.Variant.NewUint32(overlay), GLib.Variant.NewDouble(x), GLib.Variant.NewDouble(y), RowsOf(rows));
+    /// <summary>
+    /// Shows a menu of <paramref name="rows"/> as the Shell's own popup menu, against <paramref name="anchor"/>, a box of
+    /// the stage, on its <paramref name="side"/>, or on the other where it does not fit there.
+    /// </summary>
+    public Task Menu(uint overlay, PillBox anchor, MenuSide side, IReadOnlyList<ShellRow> rows) =>
+        Own(
+            "Menu",
+            GLib.Variant.NewUint32(overlay),
+            GLib.Variant.NewDouble(anchor.Left),
+            GLib.Variant.NewDouble(anchor.Top),
+            GLib.Variant.NewDouble(anchor.Width),
+            GLib.Variant.NewDouble(anchor.Height),
+            GLib.Variant.NewString(side == MenuSide.Above ? "above" : "below"),
+            RowsOf(rows));
 
     /// <summary>A menu's rows as the protocol carries them.</summary>
     public static GLib.Variant RowsOf(IReadOnlyList<ShellRow> rows) =>
-        GLib.Variant.NewArray(GLib.VariantType.New("(issbbb)"), [.. rows.Select(row => GLib.Variant.NewTuple(
+        GLib.Variant.NewArray(GLib.VariantType.New("(issbbbbb)"), [.. rows.Select(row => GLib.Variant.NewTuple(
         [
             GLib.Variant.NewInt32(row.Parent),
             GLib.Variant.NewString(row.Text),
@@ -201,7 +215,26 @@ internal sealed class ShellLink : IDisposable
             GLib.Variant.NewBoolean(row.Checked),
             GLib.Variant.NewBoolean(row.Grayed),
             GLib.Variant.NewBoolean(row.Starts),
+            GLib.Variant.NewBoolean(row.Default),
+            GLib.Variant.NewBoolean(row.Radio),
         ]))]);
+
+    /// <summary>Shows the pointer as <paramref name="shape"/> over the overlay's boxes, by its CSS name.</summary>
+    public Task Cursor(uint overlay, PointerShape shape) =>
+        Own("Cursor", GLib.Variant.NewUint32(overlay), GLib.Variant.NewString(shape switch
+        {
+            PointerShape.Default => "default",
+            PointerShape.NotAllowed => "not-allowed",
+            PointerShape.Resize => "nwse-resize",
+            _ => throw new ArgumentOutOfRangeException(nameof(shape), shape, "No pointer is that."),
+        }));
+
+    /// <summary>Puts <paramref name="png"/> on the clipboard as a picture.</summary>
+    public async Task Copy(byte[] png)
+    {
+        using var bytes = GLib.Bytes.New(png);
+        await Own("Copy", GLib.Variant.NewFromBytes(GLib.VariantType.New("ay"), bytes, true));
+    }
 
     /// <summary>Has the extension tell the pointer anywhere while <paramref name="on"/>, as a Pointer of kind <c>near</c>.</summary>
     public Task Watch(bool on) => Own("Watch", GLib.Variant.NewBoolean(on));

@@ -47,6 +47,9 @@ internal sealed record ShellRow(int Parent, string Text, string? Note, bool Chec
 {
     /// <summary>Whether the row is the menu's default, which shows bold, as Windows' menus show theirs.</summary>
     public bool Default { get; init; }
+
+    /// <summary>Whether the row's check shows as a radio, one of a group of which one is chosen, as Windows shows Graph's and Size's.</summary>
+    public bool Radio { get; init; }
 }
 
 /// <summary>Where the extension stands for thermi: running with thermi's protocol, of another, or not running.</summary>

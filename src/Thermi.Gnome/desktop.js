@@ -15,9 +15,10 @@ import {PATH, Refused, answer, fillMenu, refusePicture, refuseRows, refuseUnless
 const DESKTOP = 'io.github.claudiopi.thermi.Desktop';
 const XML = `<node><interface name="${DESKTOP}">
   <method name="Icons"><arg type="a(ssayiiid)" direction="in"/></method>
-  <method name="IconMenu"><arg type="s" direction="in"/><arg type="a(issbbb)" direction="in"/></method>
+  <method name="IconMenu"><arg type="s" direction="in"/><arg type="a(issbbbbb)" direction="in"/></method>
   <method name="Hotkeys"><arg type="as" direction="in"/><arg type="ab" direction="out"/></method>
   <signal name="IconPressed"><arg type="s"/><arg type="u"/><arg type="u"/></signal>
+  <signal name="IconKey"><arg type="s"/><arg type="s"/></signal>
   <signal name="IconChosen"><arg type="s"/><arg type="i"/></signal>
   <signal name="Hotkey"><arg type="u"/></signal>
 </interface></node>`;
@@ -29,6 +30,9 @@ const MOST_ICON_SIDE = 512;
 const MOST_KEY = 1024;
 const MOST_HOTKEYS = 8;
 const MOST_ACCELERATOR = 64;
+
+// The keys on an icon the top bar's focus is on that are thermi's, as a click or a right click is: by their names.
+const ICON_KEYS = new Set(['Return', 'KP_Enter', 'ISO_Enter', 'space', 'KP_Space', 'Menu']);
 
 export class ThermiDesktop {
     constructor(owner) {
@@ -132,9 +136,20 @@ export class ThermiDesktop {
             this._service?.emit_signal('IconPressed', new GLib.Variant('(suu)', [id, event.get_button(), event.get_time()]));
             return Clutter.EVENT_STOP;
         };
+        // A key of thermi's goes to it by its name; any other moves the top bar's focus, as on the Shell's own.
+        const key = event => {
+            const name = Clutter.keyval_name(event.get_key_symbol());
+            if (!ICON_KEYS.has(name))
+                return Clutter.EVENT_PROPAGATE;
+            this._service?.emit_signal('IconKey', new GLib.Variant('(ss)', [id, name]));
+            return Clutter.EVENT_STOP;
+        };
         button.thermiTake = event => event.type() === Clutter.EventType.BUTTON_PRESS ? press(event) : Clutter.EVENT_PROPAGATE;
-        button.connect('event', (actor, event) =>
-            event.type() === Clutter.EventType.BUTTON_PRESS && under(event) === button ? press(event) : Clutter.EVENT_PROPAGATE);
+        button.connect('event', (actor, event) => {
+            if (event.type() === Clutter.EventType.KEY_PRESS)
+                return key(event);
+            return event.type() === Clutter.EventType.BUTTON_PRESS && under(event) === button ? press(event) : Clutter.EVENT_PROPAGATE;
+        });
         Main.panel.addToStatusArea(`thermi-${id}`, button, index, 'right');
         const icon = {button, picture};
         this._icons.set(id, icon);
@@ -149,12 +164,13 @@ export class ThermiDesktop {
             return;
         const menu = new PopupMenu.PopupMenu(icon.button, 0.5, St.Side.TOP);
         fillMenu(menu, rows, index => this._service?.emit_signal('IconChosen', new GLib.Variant('(si)', [id, index])));
-        // The menu goes once it closed, after its choice was sent.
+        // The menu goes once it closed, after its choice was sent. None takes its place: the Shell's stand-in menu is the
+        // button itself, which the button hides as it hides any menu it is given.
         menu.connect('open-state-changed', (_, open) => {
             if (!open && icon.button.menu === menu) {
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                     if (icon.button.menu === menu && !menu.isOpen)
-                        icon.button.setMenu(new PopupMenu.PopupDummyMenu(icon.button));
+                        icon.button.setMenu(null);
                     return GLib.SOURCE_REMOVE;
                 });
             }

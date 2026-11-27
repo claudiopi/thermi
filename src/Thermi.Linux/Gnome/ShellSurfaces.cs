@@ -1,10 +1,15 @@
+using Thermi.App.Gestures;
+using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Linux.Overlay;
 
 namespace Thermi.Linux.Gnome;
 
 /// <summary>
 /// GNOME's surfaces: the Shell's extension, once it runs thermi's protocol, as <see cref="ExtensionArrival"/> says. The
-/// extension grabs the pointer and Esc itself on a press, and tells the pointer anywhere while thermi watches it.
+/// extension grabs the pointer and Esc itself on a press, tells a press another grab took as a <see cref="ShellPointer"/>
+/// of kind <c>cancel</c>, so <see cref="IOverlaySurfaces.Lost"/> stays unheard, and tells the pointer anywhere while
+/// thermi watches it.
 /// </summary>
 internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : IOverlaySurfaces
 {
@@ -67,7 +72,13 @@ internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : 
 
     public Task Fade(uint id, double opacity) => link.Fade(id, opacity);
 
-    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows) => link.Menu(id, x, y, rows);
+    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows) => link.Menu(id, new PillBox(x, y, 0, 0), MenuSide.Below, rows);
+
+    public Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side) => link.Menu(id, anchor, side, rows);
+
+    public void Cursor(uint id, PointerShape shape) => _ = link.Cursor(id, shape);
+
+    public Task Copy(byte[] png) => link.Copy(png);
 
     public void HoldKeys(uint id, bool held)
     {

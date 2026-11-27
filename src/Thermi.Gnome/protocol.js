@@ -63,7 +63,8 @@ export function refusePicture(pixels, width, height, stride, scale) {
     refuseUnless(finite(scale) && scale > 0 && scale <= MOST_SCALE, 'No scale is that.');
 }
 
-// Each row is (its submenu's row, an earlier one, or -1, text, note, checked, grayed, starts a group).
+// Each row is (its submenu's row, an earlier one, or -1, text, note, checked, grayed, starts a group, the menu's default,
+// a radio of a group).
 export function refuseRows(rows) {
     refuseUnless(rows.length <= MOST_ROWS && rows.every(([parent], index) => parent === -1 || (parent >= 0 && parent < index)),
         'No menu has those rows.');
@@ -87,19 +88,23 @@ export function setPicture(shown, pixels, width, height, stride) {
 }
 
 // Fills a menu with the rows; choosing one calls chosen with its index. A screen reader reads each menu as the menu it
-// is, which the Shell's own box no longer says.
+// is, which the Shell's own box no longer says. The default row reads bold, and a radio's choice shows a dot, as Windows'
+// menus show theirs.
 export function fillMenu(menu, rows, chosen) {
     menu.box.accessible_role = Atk.Role.MENU;
     const parents = new Map([[-1, menu]]);
-    rows.forEach(([parent, text, note, checked, grayed, starts], index) => {
+    rows.forEach(([parent, text, note, checked, grayed, starts, isDefault, radio], index) => {
         const into = parents.get(parent);
         if (starts && into.numMenuItems > 0)
             into.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const opens = rows.some(row => row[0] === index);
         const item = opens ? new PopupMenu.PopupSubMenuMenuItem(text) : new PopupMenu.PopupMenuItem(text);
+        if (isDefault)
+            item.label.style = 'font-weight: bold;';
         if (note)
             item.add_child(new St.Label({text: note, x_expand: true, x_align: Clutter.ActorAlign.END}));
-        item.setOrnament(checked ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE);
+        const mark = radio ? PopupMenu.Ornament.DOT : PopupMenu.Ornament.CHECK;
+        item.setOrnament(checked ? mark : PopupMenu.Ornament.NONE);
         item.setSensitive(!grayed);
         if (opens) {
             parents.set(index, item.menu);

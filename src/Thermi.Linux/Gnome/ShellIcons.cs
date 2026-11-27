@@ -6,7 +6,9 @@ namespace Thermi.Linux.Gnome;
 
 /// <summary>
 /// thermi's icons in GNOME's top bar, through its extension: the first button's press is a click or a double-click, and
-/// the third button's opens the menu, whose rows thermi sends. <c>call</c> logs a call the Shell did not take.
+/// the third button's opens the menu, whose rows thermi sends; on an icon the top bar's focus is on, the Menu key opens it
+/// too, and Enter and Space are a click, as Windows' tray takes them, never part of a double-click. <c>call</c> logs a
+/// call the Shell did not take.
 /// </summary>
 internal sealed class ShellIcons : ITrayIcons
 {
@@ -21,6 +23,7 @@ internal sealed class ShellIcons : ITrayIcons
     {
         (_desktop, _clicks, _call) = (desktop, new TrayClicks(pointer), call);
         desktop.IconPressed = Press;
+        desktop.IconKey = (name, key) => Pressed(name, key == "Menu" ? TrayPress.Menu : TrayPress.Activate);
         desktop.IconChosen = (name, row) => Chosen(name, row);
     }
 

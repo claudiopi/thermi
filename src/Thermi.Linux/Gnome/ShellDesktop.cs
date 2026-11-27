@@ -20,6 +20,7 @@ internal sealed class ShellDesktop : IDisposable
     private static readonly Dictionary<string, string> Shapes = new(StringComparer.Ordinal)
     {
         ["IconPressed"] = "(suu)",
+        ["IconKey"] = "(ss)",
         ["IconChosen"] = "(si)",
         ["Hotkey"] = "(u)",
     };
@@ -39,6 +40,9 @@ internal sealed class ShellDesktop : IDisposable
 
     /// <summary>An icon pressed, by its key: its button, and when, in milliseconds.</summary>
     public Action<string, uint, uint> IconPressed { get; set; } = (_, _, _) => { };
+
+    /// <summary>A key pressed on an icon the top bar's focus is on, by the icon's key and the key's name, as "Return" or "Menu".</summary>
+    public Action<string, string> IconKey { get; set; } = (_, _) => { };
 
     /// <summary>A row of an icon's menu chosen, by its place in the rows the menu was shown with.</summary>
     public Action<string, int> IconChosen { get; set; } = (_, _) => { };
@@ -105,6 +109,9 @@ internal sealed class ShellDesktop : IDisposable
         {
             case "IconPressed":
                 IconPressed(first.GetString(out _), args.GetChildValue(1).GetUint32(), args.GetChildValue(2).GetUint32());
+                break;
+            case "IconKey":
+                IconKey(first.GetString(out _), args.GetChildValue(1).GetString(out _));
                 break;
             case "IconChosen":
                 IconChosen(first.GetString(out _), args.GetChildValue(1).GetInt32());

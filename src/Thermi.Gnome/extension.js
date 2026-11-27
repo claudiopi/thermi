@@ -1,13 +1,15 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {boxShape, isShape, leftShape, showShape} from './cursor.js';
 import {ThermiDesktop} from './desktop.js';
+import {closeMenu, openMenu, refuseMenu} from './overlayMenu.js';
 import {PointerWatch} from './pointerWatch.js';
-import {OVERLAY, PATH, answer, fillMenu, finite, refusePicture, refuseRows, refuseUnless, setPicture, under} from './protocol.js';
+import {OVERLAY, PATH, answer, finite, refusePicture, refuseUnless, setPicture, under} from './protocol.js';
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
 // the pointer, the monitors and the menu's choice back; its icons in the top bar and its hotkeys are desktop.js'. It
@@ -23,7 +25,10 @@ const XML = `<node><interface name="${SHELL}">
   <method name="Hide"><arg type="u" direction="in"/></method>
   <method name="Fade"><arg type="u" direction="in"/><arg type="d" direction="in"/></method>
   <method name="Menu"><arg type="u" direction="in"/><arg type="d" direction="in"/><arg type="d" direction="in"/>
-    <arg type="a(issbbb)" direction="in"/></method>
+    <arg type="d" direction="in"/><arg type="d" direction="in"/><arg type="s" direction="in"/>
+    <arg type="a(issbbbbb)" direction="in"/></method>
+  <method name="Cursor"><arg type="u" direction="in"/><arg type="s" direction="in"/></method>
+  <method name="Copy"><arg type="ay" direction="in"/></method>
   <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
   <method name="Watch"><arg type="b" direction="in"/></method>
   <method name="Activation"><arg type="u" direction="in"/><arg type="s" direction="out"/></method>
@@ -35,10 +40,15 @@ const XML = `<node><interface name="${SHELL}">
   <signal name="Chosen"><arg type="u"/><arg type="i"/></signal>
 </interface></node>`;
 
-// What a call may ask, far past what thermi asks, so no call can fill the Shell: overlays and the boxes that take the
-// pointer.
+// What a call may ask, far past what thermi asks, so no call can fill the Shell: overlays, the boxes that take the
+// pointer, and a picture's bytes for the clipboard, which start as every PNG does.
 const MOST_OVERLAYS = 64;
 const MOST_BOXES = 512;
+const MOST_PNG = 16 * 1024 * 1024;
+const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+// GNOME 50 runs on Wayland alone, and no longer has the call that asks.
+const ON_X11 = Meta.is_wayland_compositor ? !Meta.is_wayland_compositor() : false;
 
 export default class ThermiExtension extends Extension {
     enable() {
@@ -106,6 +116,17 @@ export default class ThermiExtension extends Extension {
 
     MenuAsync(args, invocation) {
         this._answer(invocation, () => this._menu(...args));
+    }
+
+    CursorAsync(args, invocation) {
+        this._answer(invocation, () => this._cursor(...args));
+    }
+
+    CopyAsync([png], invocation) {
+        this._answer(invocation, () => {
+            refuseUnless(png.length <= MOST_PNG && PNG.every((byte, at) => png[at] === byte), 'No PNG is that.');
+            St.Clipboard.get_default().set_content(St.ClipboardType.CLIPBOARD, 'image/png', new GLib.Bytes(png));
+        });
     }
 
     WatchAsync(args, invocation) {
@@ -194,41 +215,32 @@ export default class ThermiExtension extends Extension {
         if (!shown)
             return;
         this._release(shown);
-        this._closeMenu(shown);
+        closeMenu(shown);
+        leftShape(shown.shape);
         shown.anchor?.destroy();
         shown.picture.destroy();
         shown.clicks.forEach(click => click.destroy());
         this._overlays.delete(overlay);
     }
 
-    // A choice sends the row's index. The menu takes the pointer, so a press that holds the overlay lets it go first.
-    _menu(overlay, x, y, rows) {
-        refuseUnless(finite(x, y), 'No place is that.');
-        refuseRows(rows);
+    // The shape stays the overlay's, so boxes made again take it too.
+    _cursor(overlay, shape) {
+        refuseUnless(isShape(shape), 'No pointer is that.');
+        const shown = this._overlays.get(overlay);
+        if (!shown)
+            return;
+        shown.shape = shape;
+        showShape(shown.clicks, shape);
+    }
+
+    // The menu takes the pointer, so a press that holds the overlay lets it go first.
+    _menu(overlay, x, y, width, height, side, rows) {
+        refuseMenu(x, y, width, height, side, rows);
         const shown = this._overlays.get(overlay);
         if (!shown)
             return;
         this._release(shown);
-        this._closeMenu(shown);
-        shown.anchor ??= this._anchor();
-        shown.anchor.set_position(x, y);
-        const menu = new PopupMenu.PopupMenu(shown.anchor, 0, St.Side.TOP);
-        const manager = new PopupMenu.PopupMenuManager(shown.anchor);
-        manager.addMenu(menu);
-        Main.uiGroup.add_child(menu.actor);
-        fillMenu(menu, rows, index => this._emit('Chosen', '(ui)', [overlay, index]));
-        // A menu closes before its choice is sent, and is destroyed once it is.
-        menu.connect('open-state-changed', (_, open) => {
-            if (!open && menu === shown.menu && !shown.closing) {
-                shown.closing = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    shown.closing = 0;
-                    return this._closeMenu(shown);
-                });
-            }
-        });
-        shown.menu = menu;
-        shown.manager = manager;
-        menu.open();
+        openMenu(shown, [x, y, width, height], side, rows, index => this._emit('Chosen', '(ui)', [overlay, index]));
     }
 
     _monitorsChanged() {
@@ -239,14 +251,15 @@ export default class ThermiExtension extends Extension {
         this._service?.emit_signal(name, new GLib.Variant(type, values));
     }
 
-    // The picture draws and takes no click, so one passes to what is under it, and leaves the input region as it is.
+    // The picture draws and takes no click, so one passes to what is under it, and leaves the input region as it is. It
+    // shows over a full-screen window too: thermi hides it there or not, as its settings say, from what Monitors tells.
     _add(overlay) {
         const picture = new St.Widget({reactive: false});
         try {
-            Main.layoutManager.addTopChrome(picture, {trackFullscreen: true, affectsInputRegion: false});
+            Main.layoutManager.addTopChrome(picture, {affectsInputRegion: false});
         } catch {
             // Newer Shells take no affectsInputRegion here, and on Wayland a widget that is not reactive passes clicks anyway.
-            Main.layoutManager.addTopChrome(picture, {trackFullscreen: true});
+            Main.layoutManager.addTopChrome(picture);
         }
 
         const shown = {picture, clicks: []};
@@ -254,27 +267,13 @@ export default class ThermiExtension extends Extension {
         return shown;
     }
 
-    _anchor() {
-        const anchor = new St.Widget({width: 1, height: 1, reactive: false});
-        Main.layoutManager.addTopChrome(anchor, {trackFullscreen: true});
-        return anchor;
-    }
-
-    _closeMenu(shown) {
-        if (shown.closing)
-            GLib.source_remove(shown.closing);
-        const menu = shown.menu;
-        Object.assign(shown, {closing: 0, menu: null});
-        menu?.destroy();
-        return GLib.SOURCE_REMOVE;
-    }
-
-    // A box of the picture where thermi takes the pointer. A press of the first button holds it until its release, wherever
-    // the pointer goes then, and Esc while it holds lets thermi take back the drag; no other key is thermi's.
+    // A box of the picture where thermi takes the pointer, in the shape thermi last said. A press of the first button holds
+    // it until its release, wherever the pointer goes then, and Esc while it holds lets thermi take back the drag; no other
+    // key is thermi's. Another grab that takes the pointer from the press, as a modal dialog's or the lock's, ends it.
     _clickable(overlay, [x, y, width, height]) {
         const click = new St.Widget({reactive: true, width, height});
         click.thermiAt = [x, y];
-        Main.layoutManager.addTopChrome(click, {trackFullscreen: true});
+        Main.layoutManager.addTopChrome(click);
         const pointer = (kind, event, button = 0, [dx, dy] = [0, 0]) => {
             const [px, py] = event.get_coords();
             this._emit('Pointer', '(usdduuudd)', [overlay, kind, px, py, button, event.get_state(), event.get_time(), dx, dy]);
@@ -284,11 +283,8 @@ export default class ThermiExtension extends Extension {
         const ours = event => this._overlays.get(overlay)?.grab || under(event) === click;
         const press = event => {
             const shown = this._overlays.get(overlay);
-            if (shown && !shown.grab && event.get_button() === Clutter.BUTTON_PRIMARY) {
-                shown.focus = global.stage.get_key_focus();
-                shown.grab = global.stage.grab(click);
-                global.stage.set_key_focus(click);
-            }
+            if (shown && !shown.grab && event.get_button() === Clutter.BUTTON_PRIMARY)
+                this._hold(overlay, shown, click);
             return pointer('press', event, event.get_button());
         };
         // Clutter tells each turn of the wheel twice, as itself and as the other kind's emulation of it: thermi takes it once.
@@ -310,7 +306,12 @@ export default class ThermiExtension extends Extension {
             return pointer('release', event, event.get_button());
         });
         click.connect('motion-event', (actor, event) => ours(event) ? pointer('motion', event) : Clutter.EVENT_PROPAGATE);
-        click.connect('leave-event', (actor, event) => pointer('leave', event));
+        click.connect('leave-event', (actor, event) => {
+            const shown = this._overlays.get(overlay);
+            if (!shown?.grab)
+                leftShape(shown?.shape);
+            return pointer('leave', event);
+        });
         click.connect('scroll-event', (actor, event) => ours(event) ? scroll(event) : Clutter.EVENT_PROPAGATE);
         click.connect('key-press-event', (actor, event) => {
             if (!this._overlays.get(overlay)?.grab || event.get_key_symbol() !== Clutter.KEY_Escape)
@@ -318,7 +319,32 @@ export default class ThermiExtension extends Extension {
             this._emit('Key', '(us)', [overlay, 'Escape']);
             return Clutter.EVENT_STOP;
         });
+        const shape = this._overlays.get(overlay)?.shape;
+        if (shape)
+            boxShape(click, shape);
         return click;
+    }
+
+    // On Wayland a grab's actor takes the keys the stage has no actor of its own for, so the focused window keeps its
+    // focus; X11 sends them to the Shell only once its stage has the focus, which goes back at the release.
+    _hold(overlay, shown, click) {
+        const grab = global.stage.grab(click);
+        shown.grab = grab;
+        grab.connect('notify::revoked', () => {
+            if (shown.grab === grab && grab.is_revoked())
+                this._lose(overlay, shown);
+        });
+        if (ON_X11) {
+            shown.focus = global.stage.get_key_focus();
+            global.stage.set_key_focus(click);
+        }
+    }
+
+    // A press another grab took ends as Esc ends it, where the pointer is now.
+    _lose(overlay, shown) {
+        this._release(shown);
+        const [x, y, mods] = global.get_pointer();
+        this._emit('Pointer', '(usdduuudd)', [overlay, 'cancel', x, y, 0, mods, global.get_current_time(), 0, 0]);
     }
 
     // Once a grab ends, a menu's or a drag's, GNOME 50 can send the next press or turn of the wheel to the actor the pointer
