@@ -44,8 +44,11 @@ internal enum ExtensionState
 /// </summary>
 internal sealed class ShellLink : IDisposable
 {
-    /// <summary>The name thermi takes on the session's bus, one overlay per session.</summary>
-    public const string Name = "io.github.claudiopi.thermi";
+    /// <summary>
+    /// The name thermi's overlay takes on the session's bus, one per session: thermi's own id is the settings window's, a
+    /// GTK application.
+    /// </summary>
+    public const string Name = "io.github.claudiopi.thermi.Overlay";
 
     /// <summary>The extension's uuid, as extensions.gnome.org knows it.</summary>
     public const string Uuid = "thermi@claudiopi.github.io";
@@ -55,7 +58,7 @@ internal sealed class ShellLink : IDisposable
 
     private const string Shell = "org.gnome.Shell";
     private const string ObjectPath = "/io/github/claudiopi/thermi";
-    private const string Interface = Name + ".Shell";
+    private const string Interface = "io.github.claudiopi.thermi.Shell";
     private const int Timeout = 5000;
 
     private readonly Gio.DBusConnection _bus;

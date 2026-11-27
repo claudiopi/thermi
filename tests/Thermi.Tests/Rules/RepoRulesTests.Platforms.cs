@@ -41,6 +41,7 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
         ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
         ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
+        ["Thermi.Linux/Overlay/OverlayNotices.cs"] = "Core's notices of the overlays as the desktop's own, by the action ids of their buttons",
         ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on GNOME share on the host's GLib main loop, the Shell's link among it",
         ["Thermi.Linux/Overlay/ShellOverlay.cs"] = "an overlay painted by Linux's Cairo painter and shown through the GNOME Shell's extension",
     };

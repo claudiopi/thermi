@@ -32,7 +32,7 @@ internal static class Preview
     }
 
     internal static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock) =>
-        SnapshotPreview.Shown(config, series, baseClock, Desktop.LightTaskbar());
+        SnapshotPreview.Shown(config, series, baseClock, Desktop.LightTaskbar()).Items;
 
     /// <summary>Why goes to <paramref name="said"/>, the terminal's error output when none is given.</summary>
     internal static Task<int> WriteAsync(string path, Action<Stream> save, TextWriter? said = null) => SnapshotPreview.WriteAsync(path, save, said ?? Said());

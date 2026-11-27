@@ -28,6 +28,9 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
 
     public TimeProvider Time => time;
 
+    /// <summary>Whether it writes: a process it starts is then traced too, on the same standard error.</summary>
+    public bool On => writer is not null;
+
     public void Write(string name, string? about = null)
     {
         if (writer is null)

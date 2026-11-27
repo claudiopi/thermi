@@ -114,6 +114,12 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit)
             args.AddRange([ThermiCommandLine.ItemOption, item]);
         }
 
+        // The window writes its events on the standard error it inherits, thermi's, so one reader hears both.
+        if (parts.Traced)
+        {
+            args.Add(ThermiCommandLine.TraceOption);
+        }
+
         Start(Environment.ProcessPath ?? "thermi", args);
     }
 

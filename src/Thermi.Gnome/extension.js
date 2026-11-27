@@ -10,9 +10,9 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
 // the pointer, the monitors and the menu's choice back. It decides nothing. The protocol's version is metadata.json's
 // thermi-protocol, which thermi checks before it shows anything through it.
-const THERMI = 'io.github.claudiopi.thermi';
+const OVERLAY = 'io.github.claudiopi.thermi.Overlay';
 const PATH = '/io/github/claudiopi/thermi';
-const SHELL = `${THERMI}.Shell`;
+const SHELL = 'io.github.claudiopi.thermi.Shell';
 const XML = `<node><interface name="${SHELL}">
   <property name="Protocol" type="u" access="read"/>
   <method name="Show"><arg type="u" direction="in"/><arg type="ay" direction="in"/><arg type="i" direction="in"/>
@@ -39,7 +39,7 @@ export default class ThermiExtension extends Extension {
         this._overlays = new Map();
         this._service = Gio.DBusExportedObject.wrapJSObject(XML, this);
         this._service.export(Gio.DBus.session, PATH);
-        this._watch = Gio.bus_watch_name(Gio.BusType.SESSION, THERMI, Gio.BusNameWatcherFlags.NONE, null, () => this._clear());
+        this._watch = Gio.bus_watch_name(Gio.BusType.SESSION, OVERLAY, Gio.BusNameWatcherFlags.NONE, null, () => this._clear());
         Main.layoutManager.connectObject('monitors-changed', () => this._monitorsChanged(), this);
         global.display.connectObject('in-fullscreen-changed', () => this._monitorsChanged(), this);
         Main.layoutManager.panelBox.connectObject('notify::visible', () => this._monitorsChanged(), this);

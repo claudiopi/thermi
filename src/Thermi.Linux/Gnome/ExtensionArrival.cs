@@ -28,7 +28,7 @@ internal sealed class ExtensionArrival
     public ExtensionArrival(ShellLink link, DesktopNotices notices, Func<Texts> texts, ILogger log)
     {
         (_link, _notices, _texts, _log) = (link, notices, texts, log);
-        notices.Invoked = Clicked;
+        notices.Invoked += Clicked;
     }
 
     /// <summary>Whether the extension runs thermi's protocol now.</summary>

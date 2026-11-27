@@ -33,6 +33,7 @@ internal sealed class OverlayHost : IDisposable
     private readonly OverlayParts _parts;
     private readonly DesktopNotices _notices;
     private readonly ExtensionArrival _arrival;
+    private readonly OverlayNotices _told;
     private readonly OverlayMenu _menu;
     private readonly List<ShellOverlay> _overlays = [];
     private readonly HighContrastColors? _highContrast = DesktopLooks.HighContrast();
@@ -64,10 +65,12 @@ internal sealed class OverlayHost : IDisposable
             Menu = (overlay, x, y, item) => _menu!.Show(overlay, x, y, item, feed.State, feed.Latest),
             Settle = Settle,
             Dropped = Dropped,
+            Traced = trace.On,
         };
         _menu = new OverlayMenu(_parts, _loop.Quit);
         _notices = new DesktopNotices(bus);
         _arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log);
+        _told = new OverlayNotices(_parts, _notices, () => TextsOf(settings.Config));
     }
 
     private Settings Settings => _parts.Settings;
@@ -174,10 +177,10 @@ internal sealed class OverlayHost : IDisposable
         Repaint(second: true);
     }
 
-    // The first is the file's first read; each after, a change saved, which a drop of this overlay's may wait on.
+    // The first is the file's first read; each after, a change saved: a drop's, when one waits on it, or else an edit.
     private void SettingsChanged()
     {
-        _editOwed |= _loaded;
+        _editOwed |= _loaded && !_droppedOnSave;
         _loaded = true;
         _droppedOwed |= _droppedOnSave;
         _droppedOnSave = false;
@@ -224,6 +227,7 @@ internal sealed class OverlayHost : IDisposable
         var shown = _parts.Visibility.Decide(config, fullScreen);
         var sent = _overlays.Select((overlay, at) => shown[at] == OverlayShown.Shown ? overlay.Show(scene, Boxes()) : overlay.Hide()).ToList();
         Announce(sent, second);
+        _told.Update(config);
     }
 
     // Each event --trace owes, once the Shell shows what the paint sent.

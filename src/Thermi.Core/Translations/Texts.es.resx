@@ -39,6 +39,18 @@
   <data name="HostText.GnomeExtensionUpdate" xml:space="preserve">
     <value>Actualizar</value>
   </data>
+  <data name="HostText.NoticeShowIt" xml:space="preserve">
+    <value>Mostrarla</value>
+  </data>
+  <data name="HostText.NoticeShowThem" xml:space="preserve">
+    <value>Mostrarlas</value>
+  </data>
+  <data name="HostText.NoticeUndo" xml:space="preserve">
+    <value>Deshacer</value>
+  </data>
+  <data name="HostText.NoticeGotIt" xml:space="preserve">
+    <value>Entendido</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Bloquear la posición</value>
   </data>

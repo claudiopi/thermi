@@ -24,6 +24,9 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, TimeProvi
 
     public OverlayVisibility Visibility { get; } = new();
 
+    /// <summary>Whether thermi runs under <c>--trace</c>, which the settings window it starts then runs under too.</summary>
+    public bool Traced { get; init; }
+
     public Action RequestPaint { get; init; } = () => { };
 
     /// <summary>Opens the settings window on an overlay, by its place, and an item of it, or none.</summary>

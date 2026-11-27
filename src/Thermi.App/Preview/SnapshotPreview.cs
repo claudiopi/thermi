@@ -24,10 +24,10 @@ internal static class SnapshotPreview
     }
 
     /// <summary>
-    /// The first overlay's items for the last snapshot of a series, a second each, as the overlay shows them after it read
-    /// them all: its graphs drawing the series, the driver's marker and throttling included.
+    /// The first overlay as it shows after it read a series, a second each: its graphs drawing the series, the driver's
+    /// marker and throttling included. No snapshot at all is the service stopped.
     /// </summary>
-    public static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock, bool lightTaskbar)
+    public static OverlayScene Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock, bool lightTaskbar)
     {
         var clock = new SecondsClock();
         var history = new ItemHistory(clock);
@@ -38,20 +38,34 @@ internal static class SnapshotPreview
         }
 
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);
-        var input = new TrayInput(series[^1], ServiceState.Running, CultureInfo.CurrentCulture, texts, lightTaskbar, "")
+        var input = new TrayInput(
+            series.Count > 0 ? series[^1] : null,
+            series.Count > 0 ? ServiceState.Running : ServiceState.Stopped,
+            CultureInfo.CurrentCulture,
+            texts,
+            lightTaskbar,
+            "")
         {
             BaseClock = baseClock,
             History = history,
         };
-        return ThermiMark.Overlay(config, 0, input, windowOpenedOnce: true).Items;
+        return ThermiMark.Overlay(config, 0, input, windowOpenedOnce: true);
     }
 
-    /// <summary>A snapshot saved with <c>thermi-sensors --dump</c>, or a series of them a line each; null, with why, otherwise.</summary>
+    /// <summary>
+    /// A snapshot saved with <c>thermi-sensors --dump</c>, or a series of them a line each, or none in an empty file, for
+    /// the sensors stopped; null, with why, otherwise.
+    /// </summary>
     public static async Task<IReadOnlyList<Snapshot>?> ReadAsync(string path, TextWriter said)
     {
         try
         {
             var text = await File.ReadAllTextAsync(path);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return [];
+            }
+
             if (SnapshotJson.Read(text.ReplaceLineEndings("")) is { } snapshot)
             {
                 return [snapshot];
