@@ -68,7 +68,7 @@ internal static class ThermiMenus
             }
 
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | StateOf(row), id, text);
-            if ((row.Graph is not null || row.Entry == MenuEntry.Size) && row.Checked)
+            if (row.Radio && row.Checked)
             {
                 PInvoke.CheckMenuRadioItem(menu, (uint)id, (uint)id, (uint)id, (uint)MENU_ITEM_FLAGS.MF_BYCOMMAND);
             }

@@ -66,8 +66,8 @@ internal static class DesktopLooks
     }
 
     /// <summary>
-    /// The accent a drop's marks draw in: high contrast's highlight, or GNOME's and KDE's default blue, as no desktop's
-    /// own accent reaches every one of them alike.
+    /// The accent the overlay's marks draw in where the settings portal says none: high contrast's highlight, or GNOME's and
+    /// KDE's default blue.
     /// </summary>
     public static Rgb Accent(HighContrastColors? highContrast) => highContrast?.Highlight ?? new Rgb(0x35, 0x84, 0xe4);
 

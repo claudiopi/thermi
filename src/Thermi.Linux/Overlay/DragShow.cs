@@ -10,8 +10,8 @@ namespace Thermi.Linux.Overlay;
 
 /// <summary>
 /// What a Linux desktop shows of an overlay's drag: the pill a hold lifted, carried as a picture of its own above the
-/// snap marks, drawn at the scale of the monitor its corner is over, as the overlays are, and the marks. No surface lets
-/// thermi change the pointer's shape, so a refused drop shows as its marks.
+/// snap marks, drawn at the scale of the monitor its corner is over, as the overlays are, and the marks. The pointer says a
+/// refused drop as App's <see cref="OverlayPress.Shape"/> says it, which <see cref="OverlayPointer"/> sets after each event.
 /// </summary>
 internal sealed class DragShow(OverlayParts parts, ShellScreens stage, Func<double, Picture>? carried) : IDragShow
 {
@@ -68,7 +68,7 @@ internal sealed class DragShow(OverlayParts parts, ShellScreens stage, Func<doub
 
     public void Refuse(bool refused)
     {
-        // The marks say where a drop goes, and a refused one lights none.
+        // The pointer's shape follows the drag after each event, which says it refuses.
     }
 
     // Clutter's, GDK's and X11's Alt alike: the first modifier past Shift, Lock and Control.

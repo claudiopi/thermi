@@ -8,7 +8,7 @@ namespace Thermi.Linux.Tests.Acceptance;
 /// What a person does to the overlay with the pointer on Linux (<c>docs/specs/006-linux/spec.md</c>, R11 and R23): drags
 /// and snaps, across restarts and monitor changes, and the desktop gestures of spec 002.
 /// </summary>
-public sealed class GestureTests
+public sealed partial class GestureTests
 {
     // The first is the primary monitor, where the top bar or the panel is.
     private static readonly TestMonitor[] TwoMonitors = [new(1920, 1080), new(1920, 1080)];
@@ -21,6 +21,9 @@ public sealed class GestureTests
         Gnome,
         KWin,
         X11,
+
+        /// <summary>GNOME, with the overlay of a person's own settings and the gestures they reported doing nothing.</summary>
+        PersonsGnome,
     }
 
     [Theory(Timeout = Bound.Test)]
@@ -66,9 +69,16 @@ public sealed class GestureTests
     [InlineData(Desktop.Gnome)]
     [InlineData(Desktop.KWin)]
     [InlineData(Desktop.X11)]
+    [InlineData(Desktop.PersonsGnome)]
     public async Task DesktopGesturesWorkOnLinux(Desktop row)
     {
         var cancel = TestContext.Current.CancellationToken;
+        if (row == Desktop.PersonsGnome)
+        {
+            await PersonsOwnAsync(cancel);
+            return;
+        }
+
         await using var desktop = await TestDesktop.StartAsync(KindOf(row), [TwoMonitors[0]], cancel);
         var first = Scene.PanelOverlay;
         var second = Scene.Overlay with { Position = Scene.OnWindow };
@@ -109,7 +119,24 @@ public sealed class GestureTests
         Assert.Equal(0, changed);
         Assert.Equal(ThermiConfigJson.Write(joined), ThermiConfigJson.Write(kept));
         Assert.Equal(first.Size + (2 * OverlaySizes.Step), grown.Overlays[0].Size, 6);
+        if (row is Desktop.KWin or Desktop.X11)
+        {
+            await InFrontAsync(desktop, thermi, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), cancel);
+        }
+
         await FadesAsync(desktop, thermi, row, cancel);
+    }
+
+    // Behind another program's window, a double-click on an overlay opens the settings window in front of it, with the
+    // token the desktop gave the click, as GNOME's does in the settings window's own test.
+    private static async Task InFrontAsync(TestDesktop desktop, SessionProcess thermi, (int X, int Y) on, CancellationToken cancel)
+    {
+        _ = await TestWindow.OpenAsync(desktop.Session, fullScreen: false, cancel);
+        await Accessible.ActiveAsync(desktop.Session, TestWindow.Title, cancel);
+        var shown = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
+        await desktop.Input.DoubleClickAsync(on.X, on.Y, cancel);
+        await shown;
+        await Accessible.ActiveAsync(desktop.Session, "thermi", cancel);
     }
 
     // A drag by the pointer, pressed, moved and let go, once thermi says what it left is saved and on screen.
@@ -170,7 +197,7 @@ public sealed class GestureTests
 
     private static DesktopKind KindOf(Desktop row) => row switch
     {
-        Desktop.Gnome => DesktopKind.Gnome,
+        Desktop.Gnome or Desktop.PersonsGnome => DesktopKind.Gnome,
         Desktop.KWin => DesktopKind.KWin,
         Desktop.X11 => DesktopKind.X11,
         _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown desktop."),

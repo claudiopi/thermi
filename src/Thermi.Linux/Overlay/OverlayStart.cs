@@ -32,6 +32,7 @@ internal static class OverlayStart
         return await ThermiLog.RunLoggedAsync(log, async () =>
         {
             var kind = DesktopSession.Start();
+            FoundSurfaces.Write(kind);
             new UserUnit().EnableOnce(UserUnit.Marker, log);
             // GirCore hands the session's one connection out as one object, which lives as long as the process.
             var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);

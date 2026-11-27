@@ -1,6 +1,8 @@
 using System.Drawing;
 using Thermi.App.Gestures;
+using Thermi.App.Overlay;
 using Thermi.Core.Editing;
+using Thermi.Core.Messages;
 using Thermi.Core.Painting;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
@@ -10,9 +12,10 @@ namespace Thermi.Linux.Overlay;
 
 /// <summary>
 /// The pointer on one overlay, as the surfaces tell it: a press holds it, a move past the drag distance drags it, a hold
-/// on a pill lifts the pill, the release drops what is held, Esc puts it back, a double-click opens the settings, and Ctrl
-/// and the wheel resize it. What each does is App's <see cref="OverlayPress"/>, as on Windows; this says where the
-/// pointer is and moves what it drags.
+/// on a pill lifts the pill, the release drops what is held, Esc or another grab puts it back, a click selects in the open
+/// window, a double-click opens it, the right button's release opens the menu, and Ctrl and the wheel resize it. What each
+/// does is App's <see cref="OverlayPress"/>, as on Windows; this says where the pointer is, moves what it drags, and
+/// tells the tooltips, the window and the pointer's shape where it rests.
 /// </summary>
 internal sealed class OverlayPointer : IPressHost, IDisposable
 {
@@ -28,6 +31,11 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
     private (uint Time, Position At)? _clicked;
     private ShellScreens? _screens;
     private ITimer? _wake;
+    private PointerShape _shape;
+    private bool _menu;
+
+    // A release whose press this overlay took: the press that closes an open menu is the menu's, and its release opens none.
+    private bool _rightPressed;
 
     public OverlayPointer(int index, OverlayParts parts, DesktopOverlay overlay)
     {
@@ -62,52 +70,65 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
         }
 
         var overlay = config.Overlays[_index];
+        if (pointer.Kind is "press" or "motion")
+        {
+            MenuClosed();
+        }
+
+        Took(pointer, overlay, (cursor, corner), screens);
+        Shape(pointer.Kind == "leave" ? PointerShape.Default : _press.Shape(overlay, Drawn, Scale, corner));
+    }
+
+    private void Took(ShellPointer pointer, OverlayConfig overlay, (Position Cursor, Position Corner) at, ShellScreens screens)
+    {
+        var cursor = at.Cursor;
         switch (pointer.Kind)
         {
-            case "press" when pointer.Button == 1 && Twice(pointer.Time, cursor, screens):
-                Let();
-                _clicked = null;
-                if (!_press.DoubleClickedCorner(overlay, new Size(_overlay.Size.Width, _overlay.Size.Height), Scale, corner))
-                {
-                    _parts.OpenSettings(_index, ItemAt(cursor), pointer.Time);
-                }
-
-                break;
             case "press" when pointer.Button == 1:
-                Pressed(overlay, cursor, corner, screens);
-                _clicked = (pointer.Time, cursor);
+                Pressed(pointer.Time, overlay, at, screens);
                 break;
             case "press" when pointer.Button == 3:
-                _parts.Menu(_index, pointer.X, pointer.Y, ItemAt(cursor));
+                _rightPressed = true;
+                break;
+            case "release" when pointer.Button == 3 && _rightPressed && _held is null:
+                _rightPressed = false;
+                Menu(cursor);
                 break;
             case "motion" when _held is { } press:
                 _dragged = Snaps.Dragged(press, cursor, Distance(screens), overlay.Locked);
                 _press.Move(_dragged ?? press.Overlay, _dragged);
                 break;
+            case "motion":
+                Rests(cursor);
+                break;
             case "release" when _held is { } press && pointer.Button == 1:
-                var written = _press.Release(press, Distance(screens));
-                (_held, _dragged) = (null, null);
-                _parts.Dropped(written);
+                Released(press, overlay, cursor, pointer.Time, screens);
                 break;
             case "scroll":
                 _ = _press.Wheel((pointer.Modifiers & Control) != 0, (int)Math.Round(-pointer.Dy * OverlaySizes.Notch), screens.Screens);
+                break;
+            case "leave":
+                Left();
+                break;
+            case "cancel":
+                Cancel();
                 break;
             default:
                 break;
         }
     }
 
-    /// <summary>Esc while the overlay is held: the drag ends where it began, and nothing is written.</summary>
+    /// <summary>Esc, or another grab taking the pointer, while the overlay is held: the drag ends where it began, writing nothing.</summary>
     public void Cancel()
     {
-        if (_held is not { } press || _screens is not { } screens)
+        if (_held is null)
         {
             return;
         }
 
+        _press.Cancel();
         Let();
-        _overlay.MoveTo(press.Overlay, screens);
-        _parts.RequestPaint();
+        _overlay.Tips.Quiet(Hush.Press, quiet: false);
         _parts.Dropped(false);
     }
 
@@ -116,6 +137,16 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
     {
         (_held, _dragged) = (null, null);
         _press.Let();
+    }
+
+    /// <summary>The menu the overlay opened closed, its row chosen or not: its tooltips may show again.</summary>
+    public void MenuClosed()
+    {
+        if (_menu)
+        {
+            _menu = false;
+            _overlay.Tips.Quiet(Hush.Menu, quiet: false);
+        }
     }
 
     public void Dispose()
@@ -165,21 +196,99 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
     // The overlay's pixels at 100 % to thermi's, as Core's corner and drags measure them.
     private float Scale => _overlay.Painted is { } painted ? (float)(painted.Scale * painted.ToThermi) : 1;
 
+    private Size Drawn => new(_overlay.Size.Width, _overlay.Size.Height);
+
+    // A second press soon after the first, where it was, is a double-click, which opens the settings but on the corner.
+    private void Pressed(uint time, OverlayConfig overlay, (Position Cursor, Position Corner) at, ShellScreens screens)
+    {
+        if (!Twice(time, at.Cursor, screens))
+        {
+            Pressed(overlay, at.Cursor, at.Corner, screens);
+            _clicked = (time, at.Cursor);
+            return;
+        }
+
+        Let();
+        _clicked = null;
+        if (!_press.DoubleClickedCorner(overlay, Drawn, Scale, at.Corner))
+        {
+            _parts.OpenSettings(_index, ItemAt(at.Cursor), time);
+        }
+    }
+
     private void Pressed(OverlayConfig overlay, Position cursor, Position corner, ShellScreens screens)
     {
         Let();
+        _overlay.Tips.Quiet(Hush.Press, quiet: true);
         _held = new Press(cursor, corner);
         if (_overlay.Painted is null || _overlay.OnPicture(cursor) is not var (x, y))
         {
             return;
         }
 
-        var size = new Size(_overlay.Size.Width, _overlay.Size.Height);
-        _press.Press(overlay, size, Scale, screens.Screens, _overlay.Places.Pressed(x, y), corner, carried => new DragShow(_parts, screens, carried switch
+        _press.Press(overlay, Drawn, Scale, screens.Screens, _overlay.Places.Pressed(x, y), corner, carried => new DragShow(_parts, screens, carried switch
         {
             null => null,
             var each => monitor => _overlay.Carried(each.Item, each.Alone, monitor),
         }));
+    }
+
+    // A release that moved past the drag distance drops; one that did not is a click, which the open window selects, as
+    // Windows' does. A drop leaves the pointer on a value, whose tooltip waits until it leaves or a while passes.
+    private void Released(Press press, OverlayConfig overlay, Position cursor, uint time, ShellScreens screens)
+    {
+        var dragged = Snaps.Dragged(press, cursor, Distance(screens), overlay.Locked) is not null;
+        if (!dragged)
+        {
+            _parts.Channel.Click = time;
+            _parts.Window.Selected(new Select(_index + 1, ItemAt(cursor), SelectHow.Click));
+        }
+
+        var written = _press.Release(press, Distance(screens));
+        (_held, _dragged) = (null, null);
+        if (dragged)
+        {
+            _parts.Quiet.Dropped();
+            _overlay.Tips.After(_parts.Quiet);
+        }
+
+        _overlay.Tips.Quiet(Hush.Press, quiet: false);
+        _parts.Dropped(written);
+    }
+
+    // The menu opens as the right button lets go, as Windows' does, beside the overlay; its tooltips wait until it closes.
+    private void Menu(Position cursor)
+    {
+        _menu = true;
+        _overlay.Tips.Quiet(Hush.Menu, quiet: true);
+        _parts.Menu(_index, cursor, ItemAt(cursor));
+    }
+
+    // The pointer resting on the overlay: the value under it shows its tooltip in time, and the open window marks it.
+    private void Rests(Position cursor)
+    {
+        if (_overlay.OnPicture(cursor) is var (x, y))
+        {
+            _overlay.Tips.Point(x, y);
+        }
+
+        _parts.Window.Point(_index, ItemAt(cursor));
+    }
+
+    private void Left()
+    {
+        _rightPressed = false;
+        _overlay.Tips.Left();
+        _parts.Window.Point(_index, null);
+    }
+
+    private void Shape(PointerShape shape)
+    {
+        if (shape != _shape)
+        {
+            _shape = shape;
+            _parts.Surfaces.Cursor((uint)_index, shape);
+        }
     }
 
     // A second press soon after the first, where it was: a double-click, which opens the settings.

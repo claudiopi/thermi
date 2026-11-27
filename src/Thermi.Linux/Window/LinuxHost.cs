@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.Link;
 using Thermi.App.Logging;
 using Thermi.App.Painting;
 using Thermi.App.Window;
 using Thermi.Core.Agents;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
+using Thermi.Core.Messages;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Updates;
@@ -25,6 +27,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly Gnome.ShellLink? _link;
     private readonly WindowScreens _screens;
     private readonly OverlayLink _overlay;
+    private readonly BusObjects? _objects;
+    private WindowEnd? _windowEnd;
     private WindowTheme _theme;
     private ExtensionState? _extension;
 
@@ -41,6 +45,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _extension = ExtensionOf();
         _screens = new WindowScreens(bus, _link, Turn.Post, () => DesktopChanged?.Invoke());
         _overlay = new OverlayLink(bus, () => DesktopChanged?.Invoke());
+        _objects = bus is null ? null : new BusObjects(bus, Turn.Post, log);
     }
 
     public Gtk.Window? Window { get; set; }
@@ -112,10 +117,30 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         // The overlay's hotkeys are the desktop's own on Linux, which a field of the page does not take while it listens.
     }
 
-    public void Editing(int? overlay, string? selected, string? pointed)
+    public void Editing(int? overlay, string? selected, string? pointed) => _windowEnd?.Editing(overlay, selected, pointed);
+
+    /// <summary>
+    /// The window's end of its link with the overlay hears it on the bus from now on, and asks it for its ten minutes; a
+    /// message the overlay lets the window come in front for brings it there with the desktop's token.
+    /// </summary>
+    public void Listen(WindowEnd link, Action<string> front)
     {
-        // The overlay marks what the window edits through its own surface's protocol, which the window does not speak.
+        _windowEnd = link;
+        _objects?.Serve(WindowProcess.Id, WindowObject.Path, new WindowObject(
+            (message, token) =>
+            {
+                link.Received(message);
+                if (token.Length > 0)
+                {
+                    front(token);
+                }
+            },
+            () => MessageDropped(_log)));
+        _overlay.Send(new HistoryAsked());
     }
+
+    /// <summary>What the page edits, selects and points at, told to the running overlay, which marks it.</summary>
+    public void Tell(Edited edited) => _overlay.Send(edited);
 
     public void ExitThermi()
     {
@@ -251,6 +276,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public void Dispose()
     {
+        _objects?.Dispose();
         _portal.Dispose();
         _link?.Dispose();
         _overlay.Dispose();
@@ -296,6 +322,9 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Neither the overlay's user unit nor a unit of its own started")]
     private static partial void OverlayNotStarted(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A message from the overlay could not be read: it is dropped")]
+    private static partial void MessageDropped(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The desktop did not open {Target}")]
     private static partial void OpenRefused(ILogger logger, string target, Exception error);

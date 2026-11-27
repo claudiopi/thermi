@@ -17,6 +17,10 @@ StartLimitBurst=5
 ExecStart=/usr/bin/thermi
 Restart=on-failure
 RestartSec=2
+# A loop that hangs, painting nothing and answering no one, misses the second its watchdog hears, and the overlay is
+# killed and started again, as a crash is.
+WatchdogSec=30
+NotifyAccess=main
 Slice=app.slice
 
 [Install]

@@ -92,6 +92,9 @@ public sealed record MenuRow(MenuEntry Entry, bool Checked = false, bool Default
     public string? Hotkey { get; init; }
 
     public IReadOnlyList<MenuRow> Entries { get; init; } = [];
+
+    /// <summary>Whether the row is one choice of a group, Graph's or Size's presets, of which the checked one is chosen: a radio.</summary>
+    public bool Radio => Graph is not null || (Entry == MenuEntry.Size && Entries.Count == 0);
 }
 
 /// <summary>

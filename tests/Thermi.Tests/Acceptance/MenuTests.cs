@@ -247,6 +247,15 @@ public sealed class MenuTests
         Assert.Equal(marked, string.Join('|', AccessKeys.Mark([.. entries.Select(entry => entry.TrimStart('-'))], grayed)));
     }
 
+    // Every OS's menu shows the choices of a group of which one is chosen as radios, as Windows shows them: Graph's styles
+    // and Size's presets, never their submenus, a step or a toggle.
+    [Fact]
+    public void GraphsAndSizesChoicesAreRadios()
+    {
+        var rows = Menus.OfOverlay(ThermiConfig.New, 0, new MenuState(false, false, ServiceState.Running, null, [], false), null);
+        Assert.Equal("Auto+ None Bars Line | 75 100+ 125 150 200", Describe([.. rows.SelectMany(row => row.Entries.Prepend(row)).Where(row => row.Radio)]));
+    }
+
     private static string Describe(IReadOnlyList<MenuRow> rows) => string.Join(' ', rows.Select((row, at) => string.Concat(
         row.Starts && at > 0 ? "| " : "",
         row.Graph?.ToString() ?? (row is { Entry: MenuEntry.Size, Size: { } size } ? Percent(size) : row.Entry.ToString()),

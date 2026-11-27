@@ -32,7 +32,11 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     // GNOME Shell's state of an extension that is on and running.
     private const int Active = 1;
 
+    // How long the overlay's last answer serves, as the MCP server's commands come one after another for as long as it runs.
+    private static readonly TimeSpan Asked = TimeSpan.FromSeconds(1);
+
     private readonly UserUnit _unit = new();
+    private (long At, OverlayState? State)? _asked;
 
     public string SettingsPath => ConfigStore.DefaultPath;
 
@@ -59,11 +63,12 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     public bool RunsInstalled() => LinuxAbout.Installed;
 
     // The monitors as the overlay places the overlays on them, so an agent's place is the overlay's pixel on every desktop.
-    public IReadOnlyList<Screen> Screens() => OverlayState.Ask()?.Screens ?? [];
+    public IReadOnlyList<Screen> Screens() => State()?.Screens ?? [];
 
-    public AgentProblem? WhyNoScreens() => Overlay()
-        ? OverlayState.Ask() is { CanShow: false, Screens.Count: 0 } ? AgentProblem.OverlayCannotShow : null
-        : AgentProblem.OverlayNotRunning;
+    // The state the monitors were just read from: only an overlay that does not answer is asked whether it runs.
+    public AgentProblem? WhyNoScreens() => State() is { } state
+        ? state is { CanShow: false, Screens.Count: 0 } ? AgentProblem.OverlayCannotShow : null
+        : Overlay() ? null : AgentProblem.OverlayNotRunning;
 
     public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 
@@ -78,15 +83,28 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public AgentOs Os => AgentOs.Linux;
 
-    // The running overlay says whether its surfaces show. With none, GNOME shows it only through thermi's extension, on;
-    // whether another desktop can, through layer-shell or X11, only the overlay's own surfaces find, so it says yes.
-    public bool OverlayCanShow() => OverlayState.Ask() is { } state
+    // The running overlay says whether its surfaces show. With none, one that ran here and found none, as on Weston, says
+    // no; GNOME shows it only through thermi's extension, on; whether another desktop can, through layer-shell or X11, only
+    // the overlay's own surfaces find, so it says yes.
+    public bool OverlayCanShow() => State() is { } state
         ? state.CanShow
-        : !DesktopSession.IsGnome()
-            || (SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
-                is { } info
-                && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } shown
-                && (int)shown == Active);
+        : FoundSurfaces.Read() is not (SurfaceKind.None or SurfaceKind.NoDisplay)
+            && (!DesktopSession.IsGnome()
+                || (SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
+                    is { } info
+                    && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } shown
+                    && (int)shown == Active));
 
     public AboutFacts About() => LinuxAbout.Read();
+
+    // A command asks the screens, then why there are none, or whether the overlay can show: one answer serves them all.
+    private OverlayState? State()
+    {
+        if (_asked is not { } asked || time.GetElapsedTime(asked.At) > Asked)
+        {
+            _asked = asked = (time.GetTimestamp(), OverlayState.Ask());
+        }
+
+        return asked.State;
+    }
 }

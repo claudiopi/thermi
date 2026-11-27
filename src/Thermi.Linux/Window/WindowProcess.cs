@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
+using Thermi.App.Link;
 using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.App.Window;
@@ -93,6 +94,9 @@ internal static class WindowProcess
         using var window = new SettingsWindow(app, bridge, host, start.Log, trace, start.Item);
         editor.Changed += (_, _) => window.Theme(editor.Config.WindowTheme);
         window.Theme(editor.Config.WindowTheme);
+        using var link = new WindowEnd(chart, editor, bridge.Pick, bridge.Tell, start.Time, host.Tell);
+        window.Follow(link.Shown);
+        host.Listen(link, window.Front);
         var first = true;
         void Arrived(object? sender, EventArgs e)
         {

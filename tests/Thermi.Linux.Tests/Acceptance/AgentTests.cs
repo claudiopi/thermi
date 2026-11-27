@@ -165,11 +165,24 @@ public sealed class AgentTests
         }
     }
 
-    // On GNOME without thermi's extension, status says the overlay cannot show there.
+    // On GNOME without thermi's extension, and in a Wayland session with neither GNOME Shell nor layer surfaces, where the
+    // overlay its sign-in started ended at once, status says the overlay cannot show there.
     private static async Task CannotShowAsync(CancellationToken cancel)
     {
-        await using var bare = await TestDesktop.StartAsync(DesktopKind.Gnome, [new TestMonitor(1920, 1080)], extension: null, cancel);
+        await CannotShowOnAsync(DesktopKind.Gnome, extension: null, cancel);
+        await CannotShowOnAsync(DesktopKind.BareWayland, TestShell.Thermi, cancel);
+    }
+
+    private static async Task CannotShowOnAsync(DesktopKind kind, string? extension, CancellationToken cancel)
+    {
+        await using var bare = await TestDesktop.StartAsync(kind, [new TestMonitor(1920, 1080)], extension, cancel);
         await SensorFeed.ServeAsync(bare.Session, SensorFeed.Desktop, cancel);
+        if (kind == DesktopKind.BareWayland)
+        {
+            var thermi = await bare.Session.StartAsync(Built.Program("thermi"), [], null, cancel);
+            await thermi.WaitForExitAsync(cancel);
+        }
+
         var status = JsonNode.Parse((await bare.Session.RunAsync("thermi-cli", ["status", "--schema", "1"], cancel: cancel)).Out)!;
         Assert.Contains(status["problems"]!.AsArray(), problem => (string?)problem!["code"] == "overlay-cannot-show");
     }

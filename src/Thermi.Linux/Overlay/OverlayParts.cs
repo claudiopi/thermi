@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Gestures;
+using Thermi.App.Link;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -9,6 +10,7 @@ using Thermi.Core.Settings;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Logging;
+using Thermi.Linux.Overlay.Link;
 
 namespace Thermi.Linux.Overlay;
 
@@ -20,54 +22,54 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, IOverlayS
 
     public ItemHistory History { get; } = new(Time);
 
-    /// <summary>The last desktop gesture or menu edit, which the overlay's menu offers to take back.</summary>
-    public GestureUndo Gestures { get; } = new(Time, _ => { });
+    /// <summary>What carries the overlay's end of its link with the settings window.</summary>
+    public required WindowChannel Channel { get; init; }
+
+    /// <summary>The overlay's end of its link with the settings window: whether it is open, what it edits, what it is told.</summary>
+    public OverlayEnd Window => field ??= new OverlayEnd(Channel, Settings, History, () => RequestPaint());
+
+    /// <summary>The last desktop gesture or menu edit, which the overlay's menu offers to take back, and an open window takes as a step.</summary>
+    public GestureUndo Gestures => field ??= new GestureUndo(Time, Window.Gestured);
 
     public OverlayVisibility Visibility { get; } = new();
 
     /// <summary>The overlay a drag is over now, and where a drop would join it, which that overlay marks.</summary>
     public DropPreview Preview { get; } = new();
 
-    /// <summary>The person's drag threshold and double-click time, which a press on an overlay keeps to.</summary>
+    /// <summary>The quiet after the last drop, which holds every overlay's tooltips until the pointer leaves it.</summary>
+    public DropQuiet Quiet { get; } = new(Time);
+
+    /// <summary>The person's drag threshold, double-click time and whether things animate, which the overlays keep to.</summary>
     public PointerSettings Pointer { get; } = new();
 
     /// <summary>Where the pointer was last told, in thermi's pixels, and its keys; none until a surface tells it.</summary>
     public (Position At, uint Keys)? Cursor { get; set; }
 
-    /// <summary>The accent a drop's marks draw in.</summary>
-    public Rgb Accent { get; init; } = DesktopLooks.Accent(null);
+    /// <summary>The desktop's look now, as its settings portal says it, which every paint reads.</summary>
+    public DesktopLook Look { get; set; } = new(null, DesktopLooks.Accent(null), Dark: true);
 
-    /// <summary>Whether thermi runs under <c>--trace</c>, which the settings window it starts then runs under too.</summary>
-    public bool Traced { get; init; }
+    /// <summary>Whether the overlays' menus mark access keys, as GTK's do, and the Shell's, which has none, do not.</summary>
+    public bool MarksAccessKeys { get; init; }
 
     public Action RequestPaint { get; init; } = () => { };
 
     /// <summary>Runs on the main loop's thread once it is free, from any thread.</summary>
     public Action<Action> Post { get; init; } = action => action();
 
+    /// <summary>The monitors as the surfaces last told them.</summary>
+    public Func<ShellScreens> Screens { get; init; } = () => new ShellScreens([], new Dictionary<(int X, int Y), string>());
+
     /// <summary>Opens the settings window on an overlay, by its place, and an item of it, or none, on a click at a time of the desktop's.</summary>
     public Action<int, string?, uint> OpenSettings { get; init; } = (_, _, _) => { };
 
-    /// <summary>
-    /// The desktop's token for a program the overlay starts on a click at a time of the desktop's, or now for 0, or empty: the
-    /// window it shows with it comes in front, as the desktop lets one its own launcher started.
-    /// </summary>
-    public Func<uint, Task<string>> Activation { get; init; } = _ => Task.FromResult("");
-
-    /// <summary>Shows an overlay's menu at a point of the stage, on an item or, null, its edge.</summary>
-    public Action<int, double, double, string?> Menu { get; init; } = (_, _, _, _) => { };
+    /// <summary>Shows an overlay's menu beside it, the pointer at a point of the screen, on an item or, null, its edge.</summary>
+    public Action<int, Position, string?> Menu { get; init; } = (_, _, _) => { };
 
     /// <summary>A gesture's or a menu's settings, with the overlays it pushed along a taskbar keeping their places, or refused.</summary>
     public Func<ThermiConfig, ThermiConfig, EditResult> Settle { get; init; } = (_, after) => new EditResult(after);
 
     /// <summary>A drag or a hold ended, true when it wrote the settings, whose save then says it is done.</summary>
     public Action<bool> Dropped { get; init; } = _ => { };
-
-    /// <summary>thermi is opening the settings window, which ends its first start.</summary>
-    public Action WindowOpening { get; init; } = () => { };
-
-    /// <summary>The settings window could not start, or ended with an error: the person is told.</summary>
-    public Action WindowFailed { get; init; } = () => { };
 
     /// <summary>Each overlay's box on the screen, by its place, null for one not shown.</summary>
     public Func<IReadOnlyList<PixelRect?>> Shown { get; init; } = () => [];
@@ -94,3 +96,6 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, IOverlayS
         TaskContinuationOptions.None,
         TaskScheduler.Default);
 }
+
+/// <summary>The desktop's look as the overlays draw it: high contrast's colors or none, the accent, and whether its apps are dark.</summary>
+internal sealed record DesktopLook(HighContrastColors? HighContrast, Rgb Accent, bool Dark);

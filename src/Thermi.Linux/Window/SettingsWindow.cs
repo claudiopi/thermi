@@ -85,6 +85,25 @@ internal sealed class SettingsWindow : IDisposable
         _trace?.Write(TraceEvents.WindowShown, item);
     }
 
+    /// <summary>
+    /// Comes in front with <paramref name="token"/>, the desktop's for the click on the overlay that asked for it, as a
+    /// window its own launcher started does.
+    /// </summary>
+    public void Front(string token)
+    {
+        _window.SetStartupId(token);
+        _window.Present();
+    }
+
+    /// <summary>Tells <paramref name="shown"/> whether the window shows each time it is minimized or shown again.</summary>
+    public void Follow(Action<bool> shown) => _window.OnNotify += (_, e) =>
+    {
+        if (e.Pspec.GetName() == "suspended")
+        {
+            shown(!_window.IsSuspended());
+        }
+    };
+
     public void Dispose()
     {
         _bridge.Changed -= OnChanged;

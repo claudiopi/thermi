@@ -1,15 +1,14 @@
-using System.Diagnostics;
+using System.Text;
 using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
-using Thermi.Cli.Commands;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Linux.Gnome;
-using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Overlay;
 
@@ -18,8 +17,9 @@ internal sealed record ShownMenu(IReadOnlyList<MenuRow> All, IReadOnlyList<Shell
 
 /// <summary>
 /// An overlay's menu as the desktop's own, the Shell's popup menu on GNOME and GTK's elsewhere: Core's rows, each with the
-/// text every OS's menu gives it, flattened with the row each sits under, and the row chosen done by
-/// <see cref="MenuChoices"/>, as on every OS. The overlay reaches no clipboard, so its menu offers no copy of it.
+/// text every OS's menu gives it, flattened with the row each sits under, the default row bold and, in GTK's, each row's
+/// access key, as Windows' menus mark them; shown beside the overlay where Core's <see cref="MenuSpots"/> says, and the
+/// row chosen done by <see cref="MenuChoices"/>, as on every OS.
 /// </summary>
 internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList<DesktopOverlay> overlays, Func<ShellScreens> screens) : IMenuHost
 {
@@ -37,10 +37,6 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         ("", "resources"),
     ];
 
-    // Where a program reads the token it was started with, as a launcher sets them: Wayland's and X11's. GIO, GTK and Qt
-    // read both.
-    private static readonly string[] Tokens = ["XDG_ACTIVATION_TOKEN", "DESKTOP_STARTUP_ID"];
-
     private ShownMenu _shown = new([], [], null);
 
     public Settings Settings => parts.Settings;
@@ -51,11 +47,24 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
 
     public int Overlays => overlays.Count;
 
-    /// <summary>Shows overlay <paramref name="overlay"/>'s menu at a point of the stage, on <paramref name="item"/> or its edge.</summary>
-    public void Show(int overlay, double x, double y, string? item, ServiceState service, Snapshot? known)
+    /// <summary>
+    /// Shows overlay <paramref name="overlay"/>'s menu beside it, below or above as its screen has room, at the pointer's x,
+    /// a point of thermi's pixels, on <paramref name="item"/> or its edge, so it covers none of its pills.
+    /// </summary>
+    public void Show(int overlay, Position cursor, string? item, ServiceState service, Snapshot? known)
     {
+        if (overlay >= overlays.Count || overlays[overlay].Box is not { } box)
+        {
+            return;
+        }
+
         _shown = Rows(overlay, item, fromTray: false, service, known);
-        _ = parts.Call(parts.Surfaces.Menu((uint)overlay, x, y, _shown.Rows));
+        var stage = screens();
+        var screen = stage.Screens.FirstOrDefault(each => each.Bounds.Contains(cursor))?.Bounds ?? box;
+        var spot = MenuSpots.Beside(box, cursor, screen);
+        var (left, top) = stage.Stage(new Position(spot.Anchor.Left, spot.Anchor.Top));
+        var (right, bottom) = stage.Stage(new Position(spot.Anchor.Right, spot.Anchor.Bottom));
+        _ = parts.Call(parts.Surfaces.Menu((uint)overlay, _shown.Rows, PillBox.FromEdges(left, top, right, bottom), spot.Side));
     }
 
     /// <summary>
@@ -70,18 +79,28 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         var looks = MenuChoices.Looks(Settings);
         var state = new MenuState(parts.Visibility.HideOverlays, Settings.Problem is not null, service, undo is null ? null : TimeSpan.Zero, looks, false)
         {
-            CanCopy = false,
+            Screens = screens().Screens,
+            CanCopy = shown is { } on && overlays[on].Painted is not null,
         };
         var texts = Texts.For(config.Language, System.Globalization.CultureInfo.CurrentUICulture);
         var place = new MenuPlace(config, texts, parts.Culture, shown) { UndoText = undo is { } offered ? texts.Of(offered) : null, Known = known };
         var all = new List<MenuRow>();
         var rows = new List<ShellRow>();
-        Flatten(shown is { } at ? Menus.OfOverlay(config, at, state, item, fromTray) : Menus.Thermis(config, state), -1, place, all, rows);
+        var menu = shown is { } at ? Menus.OfOverlay(config, at, state, item, fromTray) : Menus.Thermis(config, state);
+        Flatten(menu, -1, place, (all, rows), keys: !fromTray && parts.MarksAccessKeys);
         return new ShownMenu(all, rows, shown);
     }
 
     /// <summary>The row at <paramref name="index"/> of the overlay's menu last shown was chosen.</summary>
-    public void Chosen(int index) => Choose(_shown, index);
+    public void Chosen(int index)
+    {
+        if (_shown.Overlay is { } overlay && overlay < overlays.Count)
+        {
+            overlays[overlay].Pointer.MenuClosed();
+        }
+
+        Choose(_shown, index);
+    }
 
     /// <summary>The row at <paramref name="index"/> of <paramref name="menu"/> was chosen.</summary>
     public void Choose(ShownMenu menu, int index)
@@ -94,22 +113,35 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
 
     public EditResult Settle(ThermiConfig before, ThermiConfig after) => parts.Settle(before, after);
 
-    /// <summary>Opens the settings window, a process of its own, on an overlay and an item of it.</summary>
+    /// <summary>Opens the settings window on an overlay and an item of it, or brings the open one there.</summary>
     public void OpenSettings(int overlay, string? item) => OpenSettings(overlay, item, Now);
 
     /// <summary>Opens the settings window as the menu's choice does, on a click at a time of the desktop's.</summary>
-    public void OpenSettings(int overlay, string? item, uint time) => Open(overlay, item is null ? [] : [ThermiCommandLine.ItemOption, item], time);
+    public void OpenSettings(int overlay, string? item, uint time)
+    {
+        parts.Channel.Click = time;
+        parts.Window.OpenWindow(overlay, item);
+    }
 
-    public void OpenSize(int overlay) => Open(overlay, [ThermiCommandLine.SizeOption], Now);
+    public void OpenSize(int overlay)
+    {
+        parts.Channel.Click = Now;
+        parts.Window.OpenSize(overlay);
+    }
 
-    // The sensors' service is the system's, which its package starts; copying the picture is never offered.
+    // The sensors' service is the system's, which its package starts.
     public void Reach(MenuEntry entry, int overlay)
     {
         if (entry == MenuEntry.TaskManager)
         {
             var desktops = (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries);
             var own = TaskManagers.Where(each => desktops.Contains(each.Desktop, StringComparer.OrdinalIgnoreCase));
-            _ = StartedAsync(own.Concat(TaskManagers).Select(each => each.Program).FirstOrDefault(Installed) ?? TaskManagers[0].Program);
+            parts.Channel.Click = Now;
+            parts.Channel.Start(own.Concat(TaskManagers).Select(each => each.Program).FirstOrDefault(Installed) ?? TaskManagers[0].Program);
+        }
+        else if (entry == MenuEntry.CopyImage && overlay < overlays.Count && overlays[overlay].Png() is { } png)
+        {
+            _ = parts.Call(parts.Surfaces.Copy(png));
         }
     }
 
@@ -129,97 +161,49 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
 
     public void RequestPaint() => parts.RequestPaint();
 
-    private void Open(int overlay, string[] on, uint time)
+    // The tray marks no access keys: its menu escapes every "_" of a text, as the protocol of the desktop's tray reads it.
+    private static void Flatten(IReadOnlyList<MenuRow> rows, int parent, MenuPlace place, (List<MenuRow> All, List<ShellRow> Shown) to, bool keys)
     {
-        parts.WindowOpening();
-        List<string> args = ["settings", ThermiCommandLine.OverlayOption, $"{overlay + 1}", .. on];
-
-        // The window writes its events on the standard error it inherits, thermi's, so one reader hears both.
-        if (parts.Traced)
+        var texts = rows.Select(row => MenuTexts.TextOf(row, place, parent >= 0)).ToList();
+        var marked = keys ? [.. AccessKeys.Mark(texts, [.. rows.Select(row => row.Heading)]).Select(Underlined)] : texts;
+        for (var at = 0; at < rows.Count; at++)
         {
-            args.Add(ThermiCommandLine.TraceOption);
-        }
-
-        _ = WindowAsync(Environment.ProcessPath ?? "thermi", args, time);
-    }
-
-    // A window that dies, as it opens or later, would otherwise leave the person a click that did nothing. A second
-    // request ends at once with 0, once the first window took it.
-    private async Task WindowAsync(string program, IEnumerable<string> args, uint time)
-    {
-        using var window = await StartAsync(program, args, time).ConfigureAwait(false);
-        if (window is null)
-        {
-            parts.Post(parts.WindowFailed);
-            return;
-        }
-
-        await window.WaitForExitAsync().ConfigureAwait(false);
-        if (window.ExitCode != 0)
-        {
-            parts.Log.WindowEnded(window.ExitCode);
-            parts.Post(parts.WindowFailed);
-        }
-    }
-
-    private static void Flatten(IReadOnlyList<MenuRow> rows, int parent, MenuPlace place, List<MenuRow> all, List<ShellRow> shown)
-    {
-        foreach (var row in rows)
-        {
-            all.Add(row);
-            var text = MenuTexts.TextOf(row, place, parent >= 0);
-            shown.Add(new ShellRow(parent, text, MenuTexts.Beside(row, place.Texts), row.Checked, row.Heading, row.Starts));
+            var row = rows[at];
+            to.All.Add(row);
+            to.Shown.Add(new ShellRow(parent, marked[at], MenuTexts.Beside(row, place.Texts), row.Checked, row.Heading, row.Starts)
+            {
+                Default = row.Default,
+                Radio = row.Radio,
+            });
             if (row.Entries.Count > 0)
             {
-                Flatten(row.Entries, all.Count - 1, place with { Overlay = row.Overlay ?? place.Overlay }, all, shown);
+                Flatten(row.Entries, to.All.Count - 1, place with { Overlay = row.Overlay ?? place.Overlay }, to, keys);
             }
         }
     }
 
-    private static bool Installed(string program) =>
-        (Environment.GetEnvironmentVariable("PATH") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries)
-            .Any(folder => File.Exists(Path.Combine(folder, program)));
-
-    private async Task StartedAsync(string program)
+    // Windows' "&" before an access key as GTK's "_", whose own "_" is doubled, so it shows as one.
+    private static string Underlined(string marked)
     {
-        using var started = await StartAsync(program, [], Now).ConfigureAwait(false);
-    }
-
-    // The program comes in front with the desktop's token for the click, and never with the one thermi was started with,
-    // long spent.
-    private async Task<Process?> StartAsync(string program, IEnumerable<string> args, uint time)
-    {
-        var start = new ProcessStartInfo(program, args) { UseShellExecute = false };
-        var token = "";
-        try
+        var text = new StringBuilder(marked.Length + 2);
+        var at = 0;
+        while (at < marked.Length)
         {
-            token = await parts.Activation(time).ConfigureAwait(false);
-        }
-        catch (GLib.GException ex)
-        {
-            parts.Log.ShellCallFailed(ex);
-        }
-
-        foreach (var name in Tokens)
-        {
-            if (token.Length > 0)
+            if (marked[at] == '&' && at + 1 < marked.Length)
             {
-                start.Environment[name] = token;
+                var key = marked[at + 1];
+                text.Append(key == '&' ? "&" : $"_{key}");
+                at += 2;
             }
             else
             {
-                start.Environment.Remove(name);
+                text.Append(marked[at] == '_' ? "__" : marked[at].ToString());
+                at++;
             }
         }
 
-        try
-        {
-            return Process.Start(start);
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
-        {
-            parts.Log.StartFailed(program, ex);
-            return null;
-        }
+        return text.ToString();
     }
+
+    private static bool Installed(string program) => GLib.Functions.FindProgramInPath(program) is not null;
 }

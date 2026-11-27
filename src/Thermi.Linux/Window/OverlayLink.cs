@@ -1,3 +1,4 @@
+using Thermi.Core.Messages;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Overlay;
 
@@ -60,6 +61,32 @@ internal sealed class OverlayLink : IDisposable
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Tells the running overlay <paramref name="message"/>, as Core encodes it, off the window's thread, so a busy overlay
+    /// never holds the page; none runs, none hears it.
+    /// </summary>
+    public void Send(WindowMessage message)
+    {
+        if (_bus is not { } bus || !Running)
+        {
+            return;
+        }
+
+        var payload = Convert.ToBase64String(WindowMessages.Encode(message));
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var args = GLib.Variant.NewTuple([GLib.Variant.NewString(payload)]);
+                using var _ = await bus.CallAsync(ShellLink.Name, OverlayObject.Path, OverlayObject.Name, OverlayObject.Message, args).ConfigureAwait(false);
+            }
+            catch (GLib.GException)
+            {
+                // An overlay that ends as the window tells it hears nothing more, and one that starts asks again.
+            }
+        });
     }
 
     public void Quit()

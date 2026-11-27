@@ -14,6 +14,8 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, each faded by the opacity of its window's drawing area and its menu GTK's own popover, and the surfaces and popups that measure each monitor's work area on every edge. |
 | `Logging` | The overlay's log events. |
 | `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, the `quit` it exports, and what it answers its own programs on the session's bus, as the hotkeys the desktop refused. |
+| `Overlay/Link` | The running overlay's links past its surfaces: its end of the settings window's messages over the session's bus, a second start's request to open the window, the desktop's look it follows, and systemd's watchdog. |
+| `Overlay/Tips` | Each value's tooltip as a picture of its own on the desktop's surfaces, where App's tooltips place it. |
 | `Packaging` | What the packages install beside thermi for the desktop: the systemd user unit that runs the overlay in the person's graphical session, and the app launcher's entry. |
 | `Painting` | The overlay and the tray's icons painted with Cairo and Pango, from Core's look, layout and shapes, as Windows' GDI+ painter does. |
 | `Tray` | thermi's icons as Core's tray decides them, in GNOME's top bar or as StatusNotifierItems with their dbusmenu menus, and its notices as the desktop's notifications, each button doing what it does on Windows. |

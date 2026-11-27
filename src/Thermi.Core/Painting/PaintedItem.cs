@@ -43,7 +43,7 @@ public static class PaintedPlaces
         var items = places.Where(place => place.Id.Length > 0).ToList();
         if (alone is not null && items.Find(place => place.Id == alone)?.Pill is { } own && own.Contains(x, y))
         {
-            return new DropTarget(onto, items.Find(place => place.Pill == own && place.Item.Left + (place.Item.Width / 2) > x)?.Id, InPill: true);
+            return new DropTarget(onto, items.Find(place => place.Pill == own && place.Alone.Left + (place.Alone.Width / 2) > x)?.Id, InPill: true);
         }
 
         var after = items.Find(place => vertical ? place.Pill.Top + (place.Pill.Height / 2) > y : place.Pill.Left + (place.Pill.Width / 2) > x);

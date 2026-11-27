@@ -1,5 +1,7 @@
 using Thermi.App.Gestures;
+using Thermi.App.Link;
 using Thermi.App.Logging;
+using Thermi.App.Overlay;
 using Thermi.Core.Look;
 using Thermi.Core.Painting;
 using Thermi.Core.Placement;
@@ -7,6 +9,7 @@ using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Linux.Gnome;
+using Thermi.Linux.Overlay.Tips;
 using Thermi.Linux.Painting;
 
 namespace Thermi.Linux.Overlay;
@@ -23,13 +26,16 @@ internal sealed record PaintedLook(IReadOnlyList<OverlayItem> Items, OverlayLook
 /// <summary>
 /// One overlay through the desktop's surfaces (docs/adr/0019-linux.md): it paints with Cairo at its monitor's scale,
 /// places itself where Core's snaps and the taskbar row say, in thermi's pixels, takes the pointer only where it draws, and
-/// fades near the pointer where the surfaces tell it. Its pointer's gestures are <see cref="OverlayPointer"/>'s.
+/// fades near the pointer where the surfaces tell it. Its pointer's gestures are <see cref="OverlayPointer"/>'s, its
+/// tooltips App's <see cref="OverlayTips"/>, and its glow and OLED care its own <see cref="OverlayClock"/>'s.
 /// </summary>
 internal sealed class DesktopOverlay : IDisposable
 {
     private readonly int _index;
     private readonly OverlayParts _parts;
     private readonly Painter _painter = new(reuse: true);
+    private readonly OverlayClock _clock;
+    private ITimer? _frame;
 
     // What the surfaces show of the overlay now, so a paint that changes nothing of it sends nothing, and is done once
     // what was sent shows, as a drop whose picture its drag sent last is.
@@ -45,12 +51,16 @@ internal sealed class DesktopOverlay : IDisposable
     public DesktopOverlay(int index, OverlayParts parts)
     {
         (_index, _parts) = (index, parts);
+        _clock = new OverlayClock(parts.Time);
+        Tips = new OverlayTips(new TipShow(index, parts, this), TimeSpan.FromMilliseconds(parts.Pointer.DoubleClick));
         Pointer = new OverlayPointer(index, parts, this);
     }
 
     private const int Opaque = 255;
 
     public OverlayPointer Pointer { get; }
+
+    public OverlayTips Tips { get; }
 
     /// <summary>Where the overlay shows, in thermi's pixels; null while hidden.</summary>
     public PixelRect? Box { get; private set; }
@@ -76,24 +86,22 @@ internal sealed class DesktopOverlay : IDisposable
         var overlay = Pointer.Drag?.Shown(config.Overlays[_index]) ?? config.Overlays[_index];
         var screens = scene.Screens.Screens;
         var monitor = Snaps.ScreenOf(overlay, screens)?.Scale ?? scene.Screens.Scale;
-        var drawn = ThermiMark.Overlay(config, _index, scene.Input, windowOpenedOnce: true);
+        var drawn = ThermiMark.Overlay(config, _index, scene.Input, _parts.Window.OpenedOnce);
         var texts = scene.Input.Texts;
         var items = drawn.WithProblem(scene.Problem, texts);
-        var look = OverlayLook.Of(overlay.Style, Desktop.DesktopLooks.LightPanels, scene.HighContrast);
+        var marks = _parts.Window.Marks(_index, _parts.Window.Editing(config.Overlays.Count), overlay, Desktop.DesktopLooks.LightPanels);
+        var plain = OverlayLook.Of(overlay.Style, Desktop.DesktopLooks.LightPanels, scene.HighContrast);
+        var look = EditLooks.Applied(plain, marks.Fade, Pointer.HeldAt is not null);
         var scale = monitor * Snaps.SizeShown(overlay, screens);
+        var glow = _clock.Glow(items, _parts.Pointer.Animations);
 #pragma warning disable CA2000 // The painter reuses the surface while its size holds, and disposes it itself.
         var picture = drawn.SensorsStopped
             ? _painter.PaintStopped(texts.Of(OverlayText.SensorsStopped), look, scale, items)
-            : _painter.Paint(items, look, scale);
+            : _painter.Paint(items, look, scale, glow);
 #pragma warning restore CA2000
         var toThermi = scene.Screens.Scale / monitor;
         Painted = drawn.SensorsStopped ? null : new PaintedLook(items, look, scale, toThermi);
-        Mark(picture, look, scale);
-
-        // A click takes the overlay only on its pills, and passes through to what is under it where it draws nothing.
-        IReadOnlyList<PillBox> clicks = overlay.ClickThrough
-            ? []
-            : [.. _painter.Clickable.Select(box => new PillBox(box.Left / monitor, box.Top / monitor, box.Width / monitor, box.Height / monitor))];
+        Mark(picture, look, scale, (items, marks));
         Monitor = monitor;
         Size = ((int)Math.Round(picture.Width * toThermi), (int)Math.Round(picture.Height * toThermi));
         var at = Pointer.HeldAt
@@ -102,9 +110,42 @@ internal sealed class DesktopOverlay : IDisposable
         At = at;
         Box = new PixelRect(at.X, at.Y, at.X + Size.Width, at.Y + Size.Height);
         _fadeScale = scale * toThermi;
-        var sent = Send(picture, scene.Screens.Stage(at), clicks);
+        Next(overlay);
+        Tips.Update(config, _index, scene.Input, drawn, Places);
+        var sent = Send(picture, scene.Screens.Stage(at), Clicks(overlay, picture, scale));
         _ = Fade(overlay);
+        Tips.After(_parts.Quiet);
         return sent;
+    }
+
+    // A click takes the overlay only on its pills, and passes through to what is under it where it draws nothing, but for
+    // a floating overlay's resizing corner, which takes a press across its whole square, as Windows' does, where a round
+    // pill draws nothing.
+    private List<PillBox> Clicks(OverlayConfig overlay, Picture picture, double scale)
+    {
+        if (overlay.ClickThrough)
+        {
+            return [];
+        }
+
+        var monitor = Monitor;
+        var clicks = _painter.Clickable.Select(box => new PillBox(box.Left / monitor, box.Top / monitor, box.Width / monitor, box.Height / monitor)).ToList();
+        if (OverlayPress.Resizable(overlay))
+        {
+            var side = Math.Min(Math.Ceiling(OverlayPress.CornerSize * scale), Math.Min(picture.Width, picture.Height));
+            clicks.Add(new PillBox((picture.Width - side) / monitor, (picture.Height - side) / monitor, side / monitor, side / monitor));
+        }
+
+        return clicks;
+    }
+
+    // The overlay paints again for its own clock alone, a glow's next frame, as the readings' second paints it otherwise.
+    private void Next(OverlayConfig overlay)
+    {
+        _frame?.Dispose();
+        _frame = _clock.Glowing && _clock.Next(overlay) is { } next
+            ? _parts.Time.CreateTimer(_ => _parts.RequestPaint(), null, next, Timeout.InfiniteTimeSpan)
+            : null;
     }
 
     /// <summary>
@@ -114,7 +155,7 @@ internal sealed class DesktopOverlay : IDisposable
     public Task Fade(OverlayConfig overlay)
     {
         var opacity = Box is { } box && _parts.Cursor is { } cursor
-            ? PointerFade.Opacity(overlay, box, cursor.At, _fadeScale, windowOpen: false, Pointer.Holds)
+            ? PointerFade.Opacity(overlay, box, cursor.At, _fadeScale, _parts.Window.WindowOpen, Pointer.Holds)
             : 1;
         var alpha = (int)Math.Round(opacity * Opaque);
         if (alpha == _alpha)
@@ -175,6 +216,9 @@ internal sealed class DesktopOverlay : IDisposable
         }
 
         Box = null;
+        Tips.Left();
+        _frame?.Dispose();
+        _frame = null;
         Pointer.Let();
         Forget();
         return _parts.Call(_parts.Surfaces.Hide((uint)_index));
@@ -185,7 +229,7 @@ internal sealed class DesktopOverlay : IDisposable
     {
         var screens = scene.Screens.Screens;
         var monitor = Snaps.ScreenOf(overlay, screens)?.Scale ?? scene.Screens.Scale;
-        var drawn = ThermiMark.Overlay(scene.Config, _index, scene.Input, windowOpenedOnce: true);
+        var drawn = ThermiMark.Overlay(scene.Config, _index, scene.Input, _parts.Window.OpenedOnce);
         var look = OverlayLook.Of(overlay.Style, Desktop.DesktopLooks.LightPanels, scene.HighContrast);
         var (width, height) = _painter.Measure(drawn.Items, look, monitor * Snaps.SizeShown(overlay, screens));
         var toThermi = scene.Screens.Scale / monitor;
@@ -227,21 +271,40 @@ internal sealed class DesktopOverlay : IDisposable
         return painter.Paint(items, painted.Look with { Orientation = Orientation.Horizontal, Background = 1, Opacity = 1 }, painted.Scale / Monitor * monitor);
     }
 
+    /// <summary>
+    /// The overlay as it last painted, afresh, without the marks of a drag or the open window, as "Copy as image" puts it on
+    /// the clipboard, in PNG; null before its first paint or while it stands for the stopped sensors.
+    /// </summary>
+    public byte[]? Png()
+    {
+        if (Painted is not { } painted)
+        {
+            return null;
+        }
+
+        using var painter = new Painter();
+        using var picture = painter.Paint(painted.Items, painted.Look, painted.Scale);
+        return picture.Png();
+    }
+
     public void Dispose()
     {
         Forget();
         Pointer.Dispose();
+        Tips.Dispose();
+        _frame?.Dispose();
         _painter.Dispose();
     }
 
-    // The gap a lifted pill leaves, and where a drop onto this overlay joins it.
-    private void Mark(Picture picture, OverlayLook look, double scale)
+    // The open window's marks on the values it edits, the gap a lifted pill leaves, and where a drop onto this overlay joins it.
+    private void Mark(Picture picture, OverlayLook look, double scale, (IReadOnlyList<OverlayItem> Items, WindowMarks Window) marks)
     {
         if (Painted is null)
         {
             return;
         }
 
+        EditBars.Draw(picture, Places, marks.Items, (marks.Window.Selected, marks.Window.Pointed), _parts.Look.Accent, scale);
         if (Pointer.Drag is { Lifted: true } drag)
         {
             DropMarks.Gap(picture, new PillBox(drag.Gap.X, drag.Gap.Y, drag.Gap.Width, drag.Gap.Height), scale);
@@ -251,7 +314,7 @@ internal sealed class DesktopOverlay : IDisposable
         if (preview.Onto == _index)
         {
             var within = preview.InPill ? Pointer.Drag?.Carried?.Item : null;
-            DropMarks.RingAndBar(picture, Places, (preview.Before, within), look.Orientation == Orientation.Vertical, _parts.Accent, scale);
+            DropMarks.RingAndBar(picture, Places, (preview.Before, within), look.Orientation == Orientation.Vertical, _parts.Look.Accent, scale);
         }
     }
 

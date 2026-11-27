@@ -41,9 +41,10 @@ public sealed class PaintedShapesTests
         })));
     }
 
-    // Two items in a pill from 0 to 100, a and b, b's value alone from 60, a's label from 0 to 20, and c in a pill from 110 to
-    // 160: what a press finds, as its item, l when on its pill's label, and where a drop there joins, - for after the last.
-    [Theory] // Rows: on a label, past it, the edge, a drop past a pill's middle, past the last, along a standing overlay, within its own pill
+    // Two items in a pill from 0 to 100, a and b, a's label from 0 to 20, what each lifts alone from 20 and 60, and c in a
+    // pill from 110 to 160: what a press finds, as its item, l when on its pill's label, and where a drop there joins, - for
+    // after the last; within its own pill, before the item whose part past the label has its middle past the drop.
+    [Theory] // Rows: on a label, past it, the edge, a drop past a pill's middle, past the last, standing, within its pill, before a lifted part's middle
     [InlineData(10, 10, null, false, "a l > a")]
     [InlineData(70, 10, null, false, "b > c")]
     [InlineData(105, 10, null, false, "- > c")]
@@ -51,12 +52,18 @@ public sealed class PaintedShapesTests
     [InlineData(150, 2, null, true, "c > a")]
     [InlineData(80, 10, "b", false, "b > - in")]
     [InlineData(10, 10, "b", false, "a l > a in")]
+    [InlineData(30, 10, "b", false, "a > a in")]
     public void APressAndADropFindWhatIsThere(double x, double y, string? alone, bool vertical, string expected)
     {
         var first = new PillBox(0, 0, 100, 20);
         PaintedItem[] places =
         [
-            new("a", new PillBox(0, 0, 50, 20), new PillBox(25, 0, 25, 20)) { Pill = first, Label = new PillBox(0, 0, 20, 20) },
+            new("a", new PillBox(0, 0, 50, 20), new PillBox(25, 0, 25, 20))
+            {
+                Pill = first,
+                Label = new PillBox(0, 0, 20, 20),
+                Alone = new PillBox(20, 0, 30, 20),
+            },
             new("b", new PillBox(50, 0, 50, 20), new PillBox(60, 0, 40, 20)) { Pill = first, Alone = new PillBox(60, 0, 40, 20) },
             new("c", new PillBox(110, 0, 50, 20), new PillBox(120, 0, 40, 20)) { Pill = new PillBox(110, 0, 50, 20) },
             new("", new PillBox(100, 0, 10, 20), default),

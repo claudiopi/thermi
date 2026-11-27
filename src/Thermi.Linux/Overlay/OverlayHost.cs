@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Thermi.App.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
-using Thermi.Core.Look;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -14,6 +13,7 @@ using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.LayerShell;
 using Thermi.Linux.Logging;
+using Thermi.Linux.Overlay.Link;
 using Thermi.Linux.X11;
 
 namespace Thermi.Linux.Overlay;
@@ -39,7 +39,9 @@ internal sealed class OverlayHost : IDisposable
     private readonly ThermiDesk _desk;
     private readonly OverlayMenu _menu;
     private readonly List<DesktopOverlay> _overlays = [];
-    private readonly HighContrastColors? _highContrast = DesktopLooks.HighContrast();
+    private readonly WindowChannel _channel;
+    private readonly OverlayLinks _links;
+    private readonly bool _firstStart;
     private readonly double? _baseClock = DesktopLooks.BaseClock();
     private readonly GLib.MainLoop _loop = GLib.MainLoop.New(null, false);
     private ShellScreens _screens = new([], new Dictionary<(int X, int Y), string>());
@@ -66,33 +68,51 @@ internal sealed class OverlayHost : IDisposable
         _link = new ShellLink(bus, log);
         _notices = new DesktopNotices(bus, log);
         var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log, Post);
-        _surfaces = kind switch
-        {
-            SurfaceKind.Layer => new LayerSurfaces(log),
-            SurfaceKind.X11 => new X11Surfaces(),
-            SurfaceKind.Shell or SurfaceKind.None or SurfaceKind.NoDisplay => new ShellSurfaces(_link, arrival),
-            _ => new ShellSurfaces(_link, arrival),
-        };
+        _surfaces = SurfacesOf(kind, _link, arrival, log);
+        _firstStart = start.FirstStart;
+        _channel = ChannelOf(bus, log, trace.On);
         _parts = new OverlayParts(settings, _link, _surfaces, time, CultureInfo.CurrentCulture, log)
         {
+            Channel = _channel,
+            MarksAccessKeys = kind is SurfaceKind.Layer or SurfaceKind.X11,
             RequestPaint = () => Post(Repaint),
             Post = Post,
+            Screens = () => _screens,
             OpenSettings = (overlay, item, at) => _menu!.OpenSettings(overlay, item, at),
-            Activation = _surfaces.ActivationAsync,
-            Menu = (overlay, x, y, item) => _menu!.Show(overlay, x, y, item, feed.State, feed.Latest),
+            Menu = (overlay, cursor, item) => _menu!.Show(overlay, cursor, item, feed.State, feed.Latest),
             Settle = Settle,
             Dropped = Dropped,
             Shown = Boxes,
             JoinAt = (onto, cursor, alone) => onto < _overlays.Count ? _overlays[onto].JoinAt(cursor, alone) : default,
             Trace = Traced,
-            Accent = DesktopLooks.Accent(_highContrast),
-            Traced = trace.On,
-            WindowOpening = () => _desk!.Notices.WindowOpened(),
-            WindowFailed = () => _desk!.Notices.WindowFailed(),
         };
+        _links = new OverlayLinks(bus, _parts);
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
-        _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start) { State = () => new OverlayState(_surfaces.Ready, _screens.Screens) };
+        _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start)
+        {
+            State = () => new OverlayState(_surfaces.Ready, _screens.Screens),
+            Heard = _links.Heard,
+            Open = _links.Open,
+        };
+        _channel.Changed = _links.WindowChanged;
+        _channel.Opening = _desk.Notices.WindowOpened;
+        _channel.Failed = _desk.Notices.WindowFailed;
     }
+
+    private static IOverlaySurfaces SurfacesOf(SurfaceKind kind, ShellLink link, ExtensionArrival arrival, ILogger log) => kind switch
+    {
+        SurfaceKind.Layer => new LayerSurfaces(log),
+        SurfaceKind.X11 => new X11Surfaces(),
+        SurfaceKind.Shell or SurfaceKind.None or SurfaceKind.NoDisplay => new ShellSurfaces(link, arrival),
+        _ => new ShellSurfaces(link, arrival),
+    };
+
+    private WindowChannel ChannelOf(Gio.DBusConnection bus, ILogger log, bool traced) => new(bus, log)
+    {
+        Activation = _surfaces.ActivationAsync,
+        Post = Post,
+        Traced = traced,
+    };
 
     private Settings Settings => _parts.Settings;
 
@@ -100,13 +120,15 @@ internal sealed class OverlayHost : IDisposable
 
     /// <summary>
     /// Runs until "Exit thermi", from the menu or from the settings window's <c>quit</c>, which only the person's own session
-    /// bus reaches: 0, or 0 at once when another overlay of the session runs.
+    /// bus reaches: 0, or 0 at once when another overlay of the session runs, which opens the settings window, as a second
+    /// start does on Windows.
     /// </summary>
     public int Run()
     {
         if (!_link.Own())
         {
             Log.AlreadyRunning();
+            _ = OverlayLinks.HandOver(_bus, Log);
             return 0;
         }
 
@@ -114,7 +136,9 @@ internal sealed class OverlayHost : IDisposable
         _surfaces.MonitorsChanged += monitors => Safe(() => Monitors(monitors), Log.MonitorsFailed);
         _surfaces.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
         _surfaces.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
+        _surfaces.Lost += overlay => Safe(() => Key(overlay, "Escape"), Log.PointerFailed);
         _surfaces.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
+        _links.Start(_firstStart);
         _feed.Received += (_, _) => Post(Record);
         Settings.Changed += (_, _) => Post(SettingsChanged);
         using var watcher = Settings.Watch(Log);
@@ -137,6 +161,8 @@ internal sealed class OverlayHost : IDisposable
     {
         _overlays.ForEach(overlay => overlay.Dispose());
         _desk.Dispose();
+        _links.Dispose();
+        _channel.Dispose();
         _surfaces.Dispose();
         _link.Dispose();
         _notices.Dispose();
@@ -179,6 +205,12 @@ internal sealed class OverlayHost : IDisposable
     }
 
     private void Tick()
+    {
+        _links.Tick();
+        PaintIfLate();
+    }
+
+    private void PaintIfLate()
     {
         if (_readAt is not { } read || _parts.Time.GetElapsedTime(read) >= Late)
         {
@@ -311,10 +343,11 @@ internal sealed class OverlayHost : IDisposable
         {
             History = _parts.History,
             HideOverlays = _parts.Visibility.HideOverlays,
-            HighContrast = _highContrast is not null,
+            HighContrast = _parts.Look.HighContrast is not null,
+            WindowOpen = _parts.Window.WindowOpen,
             BaseClock = _baseClock,
         };
-        return new OverlayPaint(config, Settings.Problem, _screens, input, _highContrast);
+        return new OverlayPaint(config, Settings.Problem, _screens, input, _parts.Look.HighContrast);
     }
 
     private List<PixelRect?> Boxes() => [.. _overlays.Select(overlay => overlay.Box)];
