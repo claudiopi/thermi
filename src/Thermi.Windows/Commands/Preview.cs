@@ -1,9 +1,11 @@
 using System.Drawing.Imaging;
+using System.Globalization;
 using Thermi.App.Preview;
 using Thermi.Cli.Commands;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Core.Translations;
 using Thermi.Windows.Painting;
 using Thermi.Windows.Updates;
 using Thermi.Windows.Win32;
@@ -11,23 +13,28 @@ using Windows.Win32.System.Console;
 
 namespace Thermi.Windows.Commands;
 
-/// <summary><c>thermi preview</c> on Windows: <see cref="SnapshotPreview"/> painted with GDI+, on the desktop's taskbar and contrast.</summary>
+/// <summary>
+/// <c>thermi preview</c> on Windows: <see cref="SnapshotPreview"/> painted with GDI+, on the desktop's taskbar and contrast;
+/// an empty snapshot file paints "Sensors stopped", as the overlay shows it.
+/// </summary>
 internal static class Preview
 {
     public static async Task<int> RunAsync(PreviewRequest request, TimeProvider time)
     {
         var config = await SnapshotPreview.SettingsAsync(request.SettingsPath, time, ThermiPaths.RunsInstalled);
-        if (await SnapshotPreview.ReadAsync(request.Snapshot, Said()) is not { Count: > 0 } series)
+        if (await SnapshotPreview.ReadAsync(request.Snapshot, Said()) is not { } series)
         {
             return 2;
         }
 
         var overlay = config.Overlays[0];
         using var painter = new Painter();
-        using var bitmap = painter.Paint(
-            Shown(config, series, CpuWatch.ReadBaseClock()),
-            OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast()),
-            request.Scale * (float)overlay.Size);
+        var shown = SnapshotPreview.Shown(config, series, CpuWatch.ReadBaseClock(), Desktop.LightTaskbar());
+        var look = OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast());
+        var scale = request.Scale * (float)overlay.Size;
+        using var bitmap = shown.SensorsStopped
+            ? painter.PaintStopped(Texts.For(config.Language, CultureInfo.CurrentUICulture).Of(OverlayText.SensorsStopped), look, scale, shown.Items)
+            : painter.Paint(shown.Items, look, scale);
         return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
     }
 

@@ -113,7 +113,7 @@ internal static class ThermiCommandLine
     {
         var snapshot = new Argument<FileInfo>("snapshot")
         {
-            Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds.",
+            Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds; an empty file paints the sensors stopped.",
         }.AcceptExistingOnly();
         var png = new Argument<string>("png") { Description = "Where the picture goes." };
         var scale = new Argument<float>("scale") { Arity = ArgumentArity.ZeroOrOne, CustomParser = Scale, DefaultValueFactory = _ => 1 };

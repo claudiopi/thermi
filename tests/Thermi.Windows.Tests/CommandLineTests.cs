@@ -137,13 +137,15 @@ public sealed class CommandLineTests : IDisposable
     }
 
     // thermi.exe is a windowed program, so what it says goes to stderr only when someone reads it: here, a pipe. Arguments
-    // that make no sense exit with 2, a snapshot that is none too, as the user's input; a picture Windows would not write,
-    // here into a folder that is not there, is a run that failed, with 1.
+    // that make no sense exit with 2, a snapshot that is none too, as the user's input, where an empty one is the sensors
+    // stopped, which it paints, as on every OS; a picture Windows would not write, here into a folder that is not there, is
+    // a run that failed, with 1.
     [Theory]
     [InlineData(2, "--overlay takes a whole number from 1 up.", "settings", "--overlay", "0")]
     [InlineData(2, "not-there.json", "preview", "not-there.json", "o.png", "1", "own-settings.json")]
     [InlineData(2, "scale takes a number from 0.25 to 8, such as 1.5.", "preview", TestRecordings.Admin, "o.png", "1,5", "own-settings.json")]
     [InlineData(2, "is not a snapshot saved with thermi-sensors --dump.", "preview", "own-junk.json", "o.png", "1", "own-settings.json")]
+    [InlineData(0, "", "preview", "own-empty.json", "own-picture.png", "1", "own-settings.json")]
     [InlineData(1, "could not be written: Could not find a part of the path", "preview", TestRecordings.Admin, "own-missing-folder", "1", "own-settings.json")]
     public async Task WhatItCannotDoIsSaidOnStandardErrorWithItsExitCode(int expectedCode, string expected, params string[] args)
     {
@@ -153,19 +155,23 @@ public sealed class CommandLineTests : IDisposable
         Assert.Contains(expected, said, StringComparison.Ordinal);
     }
 
-    // The test's own files stand in for the words that name them: its settings, a file that is no snapshot, and a picture
-    // in a folder that is not there.
+    // The test's own files stand in for the words that name them: its settings, a file that is no snapshot, an empty one,
+    // a picture in its folder, and one in a folder that is not there.
     private async Task<(int Code, string Said)> RunAsync(string[] args)
     {
         var folder = Path.GetDirectoryName(_folder.File)!;
         var junk = Path.Combine(folder, "junk.json");
         await File.WriteAllTextAsync(junk, "{ \"not\": \"a snapshot\" }", TestContext.Current.CancellationToken);
+        var empty = Path.Combine(folder, "empty.json");
+        await File.WriteAllTextAsync(empty, "", TestContext.Current.CancellationToken);
         string[] words =
         [
             .. args.Select(argument => argument switch
             {
                 "own-settings.json" => _folder.File,
                 "own-junk.json" => junk,
+                "own-empty.json" => empty,
+                "own-picture.png" => Path.Combine(folder, "o.png"),
                 "own-missing-folder" => Path.Combine(folder, "not-there", "o.png"),
                 TestRecordings.Admin => TestRecordings.Path(TestRecordings.Admin),
                 _ => argument,
