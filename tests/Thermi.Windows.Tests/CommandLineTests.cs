@@ -199,7 +199,7 @@ public sealed class CommandLineTests : IDisposable
     public void ThermiAndThermiCliHaveOnePreview()
     {
         var now = Assert.IsType<AgentRequest>(ThermiCommands.Parse(["preview", "--overlay", "1", "--scale", "2"], out _));
-        Assert.Equal((AgentVerb.Preview, (int?)1, 2f), (now.Verb, now.Overlay, now.Scale));
+        Assert.Equal((AgentVerb.Preview, 1, 2f), (now.Verb, now.Overlay, now.Scale));
 
         Assert.Null(ThermiCommands.Parse(["preview", Snapshot, "o.png", "--scale", "2"], out var errors));
         Assert.NotEmpty(errors);
