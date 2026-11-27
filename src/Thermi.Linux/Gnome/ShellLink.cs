@@ -73,6 +73,8 @@ internal sealed class ShellLink : IDisposable
 
     public const string Shell = "org.gnome.Shell";
     public const string Interface = "io.github.claudiopi.thermi.Shell";
+
+    private const string ExtensionsFace = "org.gnome.Shell.Extensions";
     private const int Timeout = 5000;
 
     // Each signal's shape in this protocol, as extension.js declares it.
@@ -185,7 +187,7 @@ internal sealed class ShellLink : IDisposable
     public void Install() => _ = InstallAsync();
 
     /// <summary>Asks the Shell to install the extension, as <see cref="Install"/> does, and waits for the person's answer.</summary>
-    public Task<GLib.Variant> InstallAsync() => Extensions("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
+    public Task<GLib.Variant> InstallAsync() => Unbounded("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
 
     public Task<GLib.Variant> EnableAsync() => Extensions("EnableExtension", GLib.Variant.NewString(Uuid));
 
@@ -194,8 +196,7 @@ internal sealed class ShellLink : IDisposable
 
     public Task<GLib.Variant> CheckForUpdatesAsync() => Extensions("CheckForUpdates");
 
-    private Task<GLib.Variant> Extensions(string method, params GLib.Variant[] args) =>
-        Call("org.gnome.Shell.Extensions", "/org/gnome/Shell", "org.gnome.Shell.Extensions", method, args);
+    private Task<GLib.Variant> Extensions(string method, params GLib.Variant[] args) => Call(ExtensionsFace, "/org/gnome/Shell", ExtensionsFace, method, args);
 
     /// <summary>Shows an overlay's picture with its top-left corner at (<paramref name="x"/>, <paramref name="y"/>) of the stage.</summary>
     public async Task Show(uint overlay, ShellPicture picture, double x, double y)
@@ -263,6 +264,14 @@ internal sealed class ShellLink : IDisposable
 
     private Task<GLib.Variant> Call(string destination, string path, string face, string method, params GLib.Variant[] args) =>
         _bus.CallAsync(destination, path, face, method, GLib.Variant.NewTuple(args));
+
+    // GirCore's CallAsync gives a call D-Bus's default 25 s, which GNOME's prompt to install outlasts while the person
+    // reads it: this call has no timeout, and waits on a thread of its own, as only the blocking call takes one.
+    private Task<GLib.Variant> Unbounded(string method, params GLib.Variant[] args)
+    {
+        var call = GLib.Variant.NewTuple(args);
+        return Task.Run(() => _bus.CallSync(ExtensionsFace, "/org/gnome/Shell", ExtensionsFace, method, call, null, Gio.DBusCallFlags.None, int.MaxValue, null));
+    }
 
     // An extension of another protocol may send any shape: a signal is read only in the shape this protocol gives it, and a
     // Ready of another shape is another protocol's, whose number this one cannot read.

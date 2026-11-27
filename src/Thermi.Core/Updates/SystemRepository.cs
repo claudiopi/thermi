@@ -16,6 +16,13 @@ public static class SystemRepository
         return named?.TrimEnd('/').EndsWith("beta", StringComparison.Ordinal) == true ? "beta" : "stable";
     }
 
+    /// <summary>
+    /// What About says of updates on Linux: they come with the system's, on <paramref name="channel"/>, the one the
+    /// repository names; a build run from the repo, with no channel, updates from nothing.
+    /// </summary>
+    public static UpdateLine Line(string? channel) =>
+        channel is null ? new(UpdateLineKind.NotUpdating, Beta: false) : new(UpdateLineKind.FromSystem, Beta: channel == "beta");
+
     private static string? Field(string? text, string name) => text?.Split('\n').Select(line => line.Trim())
         .FirstOrDefault(line => line.StartsWith(name, StringComparison.Ordinal))?[name.Length..].Trim();
 }

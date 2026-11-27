@@ -12,7 +12,7 @@ public sealed class PortalTests
     /// <summary>The tests' own program, started in a session with it, watches the portal as the window does (<see cref="WatchAsync"/>).</summary>
     public const string Watch = "--portal";
 
-    // Owns the portal's name and answers ReadOne from its settings; a line "<key> <type> <value>" on its input changes one,
+    // Owns the portal's name and answers ReadOne from its settings, the a{sv} its argument writes in GVariant's text; a line "<key> <type> <value>" on its input changes one,
     // as GVariant's text writes the value, and says so as the portal does.
     private const string Portal = """
         import sys, gi
@@ -22,7 +22,9 @@ public sealed class PortalTests
           <signal name="SettingChanged"><arg type="s"/><arg type="s"/><arg type="v"/></signal>
         </interface></node>'''
         PATH, FACE, APPEARANCE = '/org/freedesktop/portal/desktop', 'org.freedesktop.portal.Settings', 'org.freedesktop.appearance'
-        settings = {'color-scheme': GLib.Variant('u', 0), 'accent-color': GLib.Variant('(ddd)', (-1.0, -1.0, -1.0)), 'contrast': GLib.Variant('u', 0)}
+        given = GLib.Variant.parse(GLib.VariantType.new('a{sv}'), sys.argv[1], None, None)
+        entries = [given.get_child_value(at) for at in range(given.n_children())]
+        settings = {entry.get_child_value(0).get_string(): entry.get_child_value(1).get_variant() for entry in entries}
         state = {}
         def call(bus, sender, path, interface, method, args, invocation):
             space, key = args.unpack()
@@ -50,25 +52,47 @@ public sealed class PortalTests
     [Fact(Timeout = Bound.Test)]
     public async Task TheWindowFollowsTheDesktopsLookAsItChanges()
     {
-        var cancel = TestContext.Current.CancellationToken;
+        var seen = await WatchedAsync(
+            "{'color-scheme': <uint32 0>, 'accent-color': <(-1.0, -1.0, -1.0)>, 'contrast': <uint32 0>}",
+            ["color-scheme u 1", "accent-color (ddd) (0.2, 0.5, 1.0)", "contrast u 1", "color-scheme u 2"],
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(["none none False", "dark none False", "dark #3380ff False", "dark #3380ff True", "light #3380ff True"], seen);
+    }
+
+    // What the window cannot read says nothing, and never ends it: no portal at all; one that lacks a key, then changes
+    // one into another shape; and one whose every value is of another shape than the portal's documented one.
+    [Theory(Timeout = Bound.Test)] // Rows: no portal, a key missing, and values in other shapes.
+    [InlineData(null, new string[0], "none none False")]
+    [InlineData("{'color-scheme': <uint32 1>, 'contrast': <uint32 1>}", new[] { "accent-color s 'blue'", "contrast s 'yes'" }, "dark none True|dark none True|dark none False")]
+    [InlineData("{'color-scheme': <'dark'>, 'accent-color': <uint32 3>, 'contrast': <'yes'>}", new string[0], "none none False")]
+    public async Task WhatThePortalDoesNotSayIsNothing(string? settings, string[] changes, string seen) =>
+        Assert.Equal(seen.Split('|'), await WatchedAsync(settings, changes, TestContext.Current.CancellationToken));
+
+    // The window's lines as it starts and after each change, the portal of the test's own starting from settings, if any.
+    private static async Task<List<string?>> WatchedAsync(string? settings, string[] changes, CancellationToken cancel)
+    {
         await using var session = new OwnSession();
         var script = Path.Combine(session.Home, "portal.py");
         await File.WriteAllTextAsync(script, Portal, cancel);
-        var portal = await session.StartAsync("python3", [script], cancel: cancel);
-        await portal.ReadyAsync(cancel);
+        var portal = settings is null ? null : await session.StartAsync("python3", [script, settings], cancel: cancel);
+        if (portal is not null)
+        {
+            await portal.ReadyAsync(cancel);
+        }
+
         var window = await session.StartAsync(Built.Program("Thermi.Linux.Tests"), [Watch], cancel: cancel);
         List<string?> seen = [await window.Out.ReadLineAsync(cancel)];
-
-        foreach (var change in new[] { "color-scheme u 1", "accent-color (ddd) (0.2, 0.5, 1.0)", "contrast u 1", "color-scheme u 2" })
+        foreach (var change in changes)
         {
-            await portal.Input.WriteLineAsync(change.AsMemory(), cancel);
+            await portal!.Input.WriteLineAsync(change.AsMemory(), cancel);
             await portal.Input.FlushAsync(cancel);
             seen.Add(await window.Out.ReadLineAsync(cancel));
         }
 
         window.Kill();
-        portal.Kill();
-        Assert.Equal(["none none False", "dark none False", "dark #3380ff False", "dark #3380ff True", "light #3380ff True"], seen);
+        portal?.Kill();
+        return seen;
     }
 
     /// <summary>
@@ -78,7 +102,8 @@ public sealed class PortalTests
     public static int WatchAsync()
     {
         Gio.Module.Initialize();
-        using var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
+        // The session's one connection, which the window never closes.
+        var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
         var loop = GLib.MainLoop.New(null, false);
         DesktopPortal? portal = null;
         void Say()
@@ -88,7 +113,7 @@ public sealed class PortalTests
                 $"{portal!.Scheme switch { true => "dark", false => "light", null => "none" }} {portal.Accent ?? "none"} {portal.HighContrast}"));
         }
 
-        using var watched = new DesktopPortal(bus, Say);
+        using var watched = new DesktopPortal(bus, Say, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
         portal = watched;
         Say();
         loop.Run();

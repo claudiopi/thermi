@@ -8,6 +8,17 @@ internal static class DesktopLooks
 {
     private const string BaseFrequency = "/sys/devices/system/cpu/cpu0/cpufreq/base_frequency";
 
+    /// <summary>The settings portal every desktop answers, and its namespace of the desktop's look.</summary>
+    public const string Portal = "org.freedesktop.portal.Desktop";
+
+    public const string PortalPath = "/org/freedesktop/portal/desktop";
+
+    public const string PortalFace = "org.freedesktop.portal.Settings";
+
+    public const string Appearances = "org.freedesktop.appearance";
+
+    private const int PortalTimeout = 1000;
+
     // GNOME's top bar is dark in both schemes, and the panels of KDE Plasma and wlroots' bars follow no setting a
     // program can read alike, so the overlay's pills are a dark panel's.
     public const bool LightPanels = false;
@@ -40,31 +51,45 @@ internal static class DesktopLooks
     /// </summary>
     public static HighContrastColors? HighContrast() => AsksHighContrast() ? Contrasted : null;
 
+    // The session's one connection, which GirCore hands out as one object: disposing it would close it for the overlay too.
     private static bool AsksHighContrast()
     {
         try
         {
-            // The session's one connection, which GirCore hands out as one object: disposing it would close it for the overlay too.
-            var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
-            using var call = GLib.Variant.NewTuple([GLib.Variant.NewString("org.freedesktop.appearance"), GLib.Variant.NewString("contrast")]);
-            using var answer = bus.CallSync(
-                "org.freedesktop.portal.Desktop",
-                "/org/freedesktop/portal/desktop",
-                "org.freedesktop.portal.Settings",
-                "ReadOne",
-                call,
-                null,
-                Gio.DBusCallFlags.None,
-                1000,
-                null);
-            using var value = answer.GetChildValue(0).GetVariant();
-            return value.GetUint32() == 1;
+            using var contrast = Appearance(Gio.Functions.BusGetSync(Gio.BusType.Session, null), "contrast");
+            return ContrastOf(contrast);
         }
         catch (GLib.GException)
         {
             return false;
         }
     }
+
+    /// <summary>
+    /// The desktop's choice of <paramref name="key"/> in its appearance, as the settings portal answers it; null where the
+    /// portal is not there, does not know the key or answers in another shape.
+    /// </summary>
+    public static GLib.Variant? Appearance(Gio.DBusConnection bus, string key)
+    {
+        try
+        {
+            using var call = GLib.Variant.NewTuple([GLib.Variant.NewString(Appearances), GLib.Variant.NewString(key)]);
+            using var answer = bus.CallSync(Portal, PortalPath, PortalFace, "ReadOne", call, null, Gio.DBusCallFlags.None, PortalTimeout, null);
+            if (answer.GetTypeString() != "(v)")
+            {
+                return null;
+            }
+
+            using var boxed = answer.GetChildValue(0);
+            return boxed.GetVariant();
+        }
+        catch (GLib.GException)
+        {
+            return null;
+        }
+    }
+
+    public static bool ContrastOf(GLib.Variant? value) => value?.GetTypeString() == "u" && value.GetUint32() == 1;
 
     /// <summary>
     /// Whether a newer settings file is a rollback this process should take back: never on Linux, whose packages are its

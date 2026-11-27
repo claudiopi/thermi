@@ -10,7 +10,7 @@ They never touch the person's desktop: each compositor and process a test starts
 | `Desktops` | A headless desktop of the test's own, and what a person and the desktop do on it. |
 | `Gnome` | What thermi's GNOME Shell extension takes from the session's bus and the pointer, with a stand-in for thermi. |
 | `Readers` | The service's readers over trees made for hardware the recorded PCs lack. |
-| `Window` | What the settings window asks of the person's session on its own: starting at sign-in. |
+| `Window` | What the settings window asks of the person's session on its own: starting at sign-in, the desktop's look from its portal, and starting and ending the overlay. |
 
 Entry points worth knowing:
 

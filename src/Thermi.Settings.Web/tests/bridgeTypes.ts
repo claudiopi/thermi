@@ -2,7 +2,10 @@
 
 import type {
   AgentsView,
+  DesktopBar,
   DesktopPick,
+  ExtensionState,
+  HostOs,
   FinderView,
   Language,
   Mark,
@@ -15,6 +18,7 @@ import type {
   Settings,
   Style,
   UndoSteps,
+  WindowCaption,
   WornLook,
 } from '../src/bridge/bridge.g';
 
@@ -54,8 +58,6 @@ export interface FakeState {
   finder: FinderView;
   finderPick: string | null;
   texts: Record<string, string>;
-  /** The texts the desktop says in its own words, which C# gives the page in place of the language's. */
-  words: Record<string, string>;
   /** Every translation, each named in its own language. */
   languages: Language[];
   /** What the window was opened on, as a double-click on a value asks, or null. */
@@ -89,12 +91,28 @@ export interface OracleCall {
 }
 
 /**
- * A call whose answer holds whatever came before it, which the oracle keeps apart from any start: the bridge's search,
- * or the fake catalog's, which Core answers from the sensors, the language and the names it gives.
+ * A call whose answer holds whatever came before it, which the oracle keeps apart from any start: the bridge's search;
+ * the fake catalog's, which Core answers from the sensors, the language and the names it gives; and the fake window's
+ * desktop, which Core answers from what the host says of it and the language.
  */
 export interface PureCall {
-  method: 'search' | 'catalogSearch';
+  method: 'search' | 'catalogSearch' | 'desktop';
   args: unknown[];
+}
+
+/**
+ * What Core decides of a desktop: the fields of the window's status it sets, whether it offers the driver, and the texts
+ * it says in the desktop's own words, by the key of each. The bridge leaves out a field that is null.
+ */
+export interface DesktopAnswer {
+  offersDriver: boolean;
+  os: HostOs;
+  accent?: string;
+  extension?: ExtensionState;
+  contrast: boolean;
+  bar: DesktopBar;
+  caption?: WindowCaption;
+  words: Record<string, string>;
 }
 
 /** What Core's catalog search finds: each device, with what matched of its name, and its sensors in order with theirs. */

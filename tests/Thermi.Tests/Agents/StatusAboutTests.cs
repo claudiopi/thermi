@@ -1,10 +1,12 @@
+using System.Globalization;
 using Thermi.Core.Agents;
 using Thermi.Core.Tray;
+using Thermi.Core.Translations;
 using Thermi.Core.Updates;
 
 namespace Thermi.Tests.Agents;
 
-/// <summary>What status says of the version, the channel and the updates on Linux, from the repository's file the packages wrote.</summary>
+/// <summary>What status and About say of the version, the channel and the updates on Linux, from the repository's file the packages wrote.</summary>
 public sealed class StatusAboutTests
 {
     [Theory]
@@ -23,5 +25,20 @@ public sealed class StatusAboutTests
         var answer = AgentStatus.Of(facts);
 
         Assert.Equal(("1.2.3", channel, "system"), (answer.Version, answer.Channel, answer.Updates));
+    }
+
+    // About on Linux says what status says: updates come with the system's, on the channel the repository names; a build
+    // run from the repo updates from nothing. Each language says it.
+    [Theory] // Rows: the beta channel, the stable one, and a build from the repo.
+    [InlineData("beta", UpdateLineKind.FromSystem, true)]
+    [InlineData("stable", UpdateLineKind.FromSystem, false)]
+    [InlineData(null, UpdateLineKind.NotUpdating, false)]
+    public void AboutOnLinuxSaysUpdatesComeFromTheSystem(string? channel, UpdateLineKind kind, bool beta)
+    {
+        var line = SystemRepository.Line(channel);
+
+        Assert.Equal((kind, beta), (line.Kind, line.Beta));
+        Assert.All(Texts.Languages, language =>
+            Assert.NotEmpty(UpdateStatus.Say(line, Texts.Of(language), CultureInfo.GetCultureInfo(language), TimeZoneInfo.Utc)));
     }
 }

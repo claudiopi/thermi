@@ -8,6 +8,7 @@ using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Updates;
+using Thermi.Linux.Agents;
 using Thermi.Linux.Desktop;
 
 namespace Thermi.Linux.Window;
@@ -19,9 +20,8 @@ namespace Thermi.Linux.Window;
 internal sealed partial class LinuxHost : IWindowHost, IDisposable
 {
     private readonly ILogger _log;
-    private readonly Gio.DBusConnection? _bus;
     private readonly DesktopPortal _portal;
-    private readonly Agents.UserUnit _signInUnit = new();
+    private readonly UserUnit _signInUnit = new();
     private readonly Gnome.ShellLink? _link;
     private readonly WindowScreens _screens;
     private readonly OverlayLink _overlay;
@@ -32,12 +32,12 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     public LinuxHost(ILogger log)
     {
         _log = log;
-        _bus = Connect();
-        _portal = new DesktopPortal(_bus, Changed);
-        _link = _bus is null ? null : new Gnome.ShellLink(_bus, log) { StateChanged = () => Turn.Post(Changed) };
+        var bus = Connect();
+        _portal = new DesktopPortal(bus, Changed, log);
+        _link = bus is null ? null : new Gnome.ShellLink(bus, log) { StateChanged = () => Turn.Post(Changed) };
         _extension = ExtensionOf();
-        _screens = new WindowScreens(_bus, _link, Turn.Post, () => DesktopChanged?.Invoke());
-        _overlay = new OverlayLink(_bus, () => DesktopChanged?.Invoke());
+        _screens = new WindowScreens(bus, _link, Turn.Post, () => DesktopChanged?.Invoke());
+        _overlay = new OverlayLink(bus, () => DesktopChanged?.Invoke());
     }
 
     public Gtk.Window? Window { get; set; }
@@ -71,13 +71,16 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    /// <summary>The theme Settings chose, or the desktop's scheme while it chose none, which WebKit's page follows.</summary>
+    /// <summary>
+    /// The theme Settings chose, or the desktop's scheme while it chose none or the desktop asks for high contrast, which
+    /// WebKit's page follows; a desktop that prefers no scheme is light, as GNOME's default.
+    /// </summary>
     public void Theme(WindowTheme theme)
     {
         _theme = theme;
         if (Gtk.Settings.GetDefault() is { } settings)
         {
-            settings.GtkApplicationPreferDarkTheme = theme == WindowTheme.Dark || (theme == WindowTheme.System && _portal.Scheme == true);
+            settings.GtkApplicationPreferDarkTheme = WindowThemes.Dark(theme, lightApps: _portal.Scheme != true, _portal.HighContrast);
         }
     }
 
@@ -119,7 +122,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public void Caption(CaptionAction action) => Captioned?.Invoke(action);
 
-    // The overlay runs as the person's systemd user unit, which restarts it if it fails and ends it with the session.
+    // As a systemd user unit, which ends it with the session; thermi.service also restarts it if it fails.
     public async Task<bool> StartOverlay()
     {
         var started = await LinuxFixes.StartOverlay();
@@ -222,7 +225,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         return fix == ExtensionState.OtherVersion || _extension == ExtensionState.Enabled;
     }
 
-    public UpdateLine Updates() => new(UpdateLineKind.NotUpdating, Beta: false);
+    public UpdateLine Updates() => LinuxAbout.Updates();
 
     public void CheckUpdates()
     {
@@ -246,7 +249,6 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _portal.Dispose();
         _link?.Dispose();
         _overlay.Dispose();
-        _bus?.Dispose();
     }
 
     private static Gtk.FileDialog Dialog(string kind, string extension)
@@ -262,6 +264,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         return dialog;
     }
 
+    // The session's one connection, which GirCore hands out as one object to every part of the process: it stays open.
     private static Gio.DBusConnection? Connect()
     {
         try

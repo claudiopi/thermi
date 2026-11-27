@@ -24,9 +24,6 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     /// <summary>The GNOME Shell extension that shows the overlay on GNOME.</summary>
     public const string Extension = "thermi@claudiopi.github.io";
 
-    // Where the packages install thermi; a build run from anywhere else is no installed one.
-    private const string InstallFolder = "/usr/lib/thermi/";
-
     // flock's EWOULDBLOCK, which .NET gives as the error's code when another process holds the file.
     private const int WouldBlock = 11;
 
@@ -58,7 +55,7 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     // Root writes into the user's folders would leave files the user cannot change, so as root it only reads.
     public bool Raised() => SocketFeed.OwnUserId() == 0;
 
-    public bool RunsInstalled() => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
+    public bool RunsInstalled() => LinuxAbout.Installed;
 
     // GNOME's monitors as the overlay reads them, from thermi's extension, so an agent's place is the overlay's pixel. Another
     // desktop's are what the overlay's own surfaces find, layer-shell's or X11's; until they answer here, none.

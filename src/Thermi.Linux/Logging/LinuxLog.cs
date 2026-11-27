@@ -38,4 +38,7 @@ internal static partial class LinuxLog
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The GNOME Shell extension's {Signal} could not be read")]
     public static partial void ShellSignalFailed(this ILogger logger, string signal, Exception error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The settings portal's {Signal} could not be read")]
+    public static partial void PortalSignalFailed(this ILogger logger, string signal, Exception error);
 }

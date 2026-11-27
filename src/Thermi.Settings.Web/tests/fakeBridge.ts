@@ -136,7 +136,7 @@ function installFake(initial: FakeState): void {
       const value = state.service === 'running' ? (state.sensors.find((sensor) => sensor.id === id)?.value ?? null) : null;
       return Array.from({ length: 600 }, () => value);
     },
-    texts: async () => ({ ...state.texts, ...state.words }),
+    texts: async () => state.texts,
     monitors: async () => state.monitors,
     places: async () => state.places,
     report: async () => undefined,
@@ -186,11 +186,12 @@ function installFake(initial: FakeState): void {
       changed(true);
       return true;
     },
+    // An extension of another version takes the Shell's update only at the next sign-in, so it stays as it was.
     installExtension: async () => {
       if (state.extensionAnswer === 'refused') {
         return false;
       }
-      state.extension = 'enabled';
+      state.extension = state.extension === 'other-version' ? state.extension : 'enabled';
       changed();
       return true;
     },

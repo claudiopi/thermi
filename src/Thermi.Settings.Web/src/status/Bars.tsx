@@ -204,7 +204,6 @@ function ExtensionBar({ fix }: { fix: ExtensionState | null }) {
   );
 }
 
-/** The overlay's bar while it is not running, with Start; a Start that started nothing says so and offers it again. */
 function OverlayBar() {
   const t = useText();
   const [failed, setFailed] = useState(false);

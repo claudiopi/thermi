@@ -1,7 +1,6 @@
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Placement;
-using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 
@@ -10,8 +9,9 @@ namespace Thermi.Tests.Bridge;
 /// <summary>The fixes and words the window offers, as Core decides them from what its host says of the desktop.</summary>
 public sealed class HostDesktopTests
 {
-    // A CPU missing its readings: Windows offers the driver and says why; Linux, which reads them with none, offers no
-    // driver and says nothing was read, and in GNOME offers the extension's fix while it is missing, off or of another version.
+    // A CPU missing its readings: Windows offers the driver; Linux, which reads them with none, offers no driver, and in
+    // GNOME offers the extension's fix while it is missing, off or of another version. What each says of the CPU's
+    // readings is DriverTests'.
     [Theory] // Rows: Windows, and each state of the extension on Linux.
     [InlineData(HostOs.Windows, ExtensionState.Missing, true, null)]
     [InlineData(HostOs.Linux, ExtensionState.Missing, false, ExtensionState.Missing)]
@@ -25,8 +25,6 @@ public sealed class HostDesktopTests
         var status = desktop.Of(new WindowStatus(Overlay: true, Driver: true, [], [], null));
 
         Assert.Equal((os, "#e95420", true, driver, fix), (status.Os, status.Accent, status.Contrast, status.Driver, status.Extension));
-        Assert.Equal(driver ? NoValue.DriverMayBeMissing : NoValue.ReadsNothing, desktop.Why(NoValue.DriverMayBeMissing));
-        Assert.Equal(NoValue.Stopped, desktop.Why(NoValue.Stopped));
     }
 
     // The overlay made on the taskbar takes the name of the bar it sits on, as each Linux desktop calls its own, and a

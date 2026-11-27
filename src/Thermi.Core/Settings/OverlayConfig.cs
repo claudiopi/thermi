@@ -283,7 +283,7 @@ public enum AgentAccess
 public static class WindowThemes
 {
     /// <summary>
-    /// Whether the window is dark: as chosen, or as Windows' apps are for <see cref="WindowTheme.System"/> and under high
+    /// Whether the window is dark: as chosen, or as the desktop's apps are for <see cref="WindowTheme.System"/> and under high
     /// contrast, whose colors win over any choice.
     /// </summary>
     public static bool Dark(WindowTheme chosen, bool lightApps, bool highContrast) =>
