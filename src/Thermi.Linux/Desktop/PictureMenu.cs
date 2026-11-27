@@ -111,7 +111,7 @@ internal sealed class PictureMenu
         });
     }
 
-    // A grayed row with its note at its end, read by a screen reader as the menu's entry it is.
+    // Read by a screen reader as the menu's entry it is.
     private static Gtk.Box Noted(string text, string note)
     {
         using var value = new GObject.Value(Gtk.AccessibleRole.MenuItem);

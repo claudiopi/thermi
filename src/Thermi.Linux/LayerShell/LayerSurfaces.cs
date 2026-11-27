@@ -234,8 +234,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
         return ((shown.Window, monitor), shows);
     }
 
-    // Each monitor measured again, as one came or went: the overlays show once every monitor is, and none shows while
-    // there is no monitor.
+    // Each monitor measured again, as one came or went: the overlays show once every monitor is.
     private void Probe()
     {
         _probes.ForEach(probe => probe.Dispose());

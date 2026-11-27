@@ -25,10 +25,6 @@ internal static class GdkMonitors
         return [.. Enumerable.Range(0, (int)list.GetNItems()).Select(at => list.GetObject((uint)at)).OfType<Gdk.Monitor>()];
     }
 
-    /// <summary>
-    /// Each monitor as the overlays place themselves on it, with the logical pixels along each edge that
-    /// <paramref name="room"/> says the panels keep, and <paramref name="primary"/> the primary one.
-    /// </summary>
     public static IReadOnlyList<ShellMonitor> Read(IReadOnlyList<Gdk.Monitor> monitors, Func<Gdk.Monitor, PanelRoom> room, Gdk.Monitor? primary)
     {
         var ids = MonitorIds.Unique([.. monitors.Select(monitor => (Name(monitor), monitor.GetConnector() ?? ""))]);
@@ -45,7 +41,6 @@ internal static class GdkMonitors
         })];
     }
 
-    // A monitor without a maker's or a model's name either, as a virtual one, is named by its connector alone.
     private static string Name(Gdk.Monitor monitor)
     {
         var connector = monitor.GetConnector() ?? "monitor";
@@ -58,7 +53,6 @@ internal static class GdkMonitors
         return maker.Length + model.Length > 0 ? MonitorIds.OfGnome(maker, model, "", connector) : connector;
     }
 
-    // The kernel's copy of the EDID of the monitor on a connector, as card1-DP-1's; none where no card has that connector.
     private static byte[] Edid(string connector)
     {
         try

@@ -26,7 +26,6 @@ internal sealed record OverlayState(bool CanShow, IReadOnlyList<Screen> Screens)
             ? Of(answer)
             : null;
 
-    /// <summary>The state as the answer's tuple.</summary>
     public GLib.Variant Variant() => GLib.Variant.NewTuple(
     [
         GLib.Variant.NewBoolean(CanShow),

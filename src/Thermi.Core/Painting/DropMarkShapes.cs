@@ -12,13 +12,10 @@ public static class DropMarkShapes
     private const double Ring = 2;
     private const double BarWidth = 4;
 
-    /// <summary>The ring's line at <paramref name="scale"/>.</summary>
     public static double RingLine(double scale) => Ring * scale;
 
-    /// <summary>The slot's outline at <paramref name="scale"/>: a pixel at least.</summary>
     public static double SlotLine(double scale) => Math.Max(1, scale);
 
-    /// <summary>The empty slot a lifted pill at <paramref name="pill"/> leaves, inside the pill by its outline.</summary>
     public static PillBox Slot(PillBox pill, double scale)
     {
         var line = SlotLine(scale);
@@ -47,7 +44,6 @@ public static class DropMarkShapes
             : Before(pills, at.Before, size, vertical, thick, RingLine(scale));
     }
 
-    /// <summary>The bar's thickness at <paramref name="scale"/>, which rounds its ends.</summary>
     public static double BarThickness(double scale) => BarWidth * scale;
 
     private static PillBox Before(List<PaintedItem> pills, string? before, (double Width, double Height) size, bool vertical, double thick, double ring)
@@ -66,6 +62,5 @@ public static class DropMarkShapes
         return new PillBox(Math.Clamp(x - (thick / 2), pill.Left, pill.Right - thick), pill.Top, thick, pill.Height);
     }
 
-    // Kept inside the ring, at either end.
     private static double Edge(double at, double length, double thick, double ring) => Math.Clamp(at, ring, Math.Max(ring, length - ring - thick));
 }
