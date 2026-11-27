@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Thermi.Core.Agents;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using Thermi.Linux.Tests.Desktops;
-using Thermi.Linux.Tray;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
@@ -130,7 +130,7 @@ public sealed partial class DesktopTests
     private static async Task<long> PaintedAsync(TestDesktop desktop, string snapshot, Icon icon, CancellationToken cancel)
     {
         var session = desktop.Session;
-        var item = icon.Id.StartsWith(TrayKeys.Item, StringComparison.Ordinal) ? icon.Id[TrayKeys.Item.Length..] : icon.Id;
+        var item = icon.Id.StartsWith(AgentReads.ItemPrefix, StringComparison.Ordinal) ? icon.Id[AgentReads.ItemPrefix.Length..] : icon.Id;
         var painted = await PreviewAsync(session, snapshot, item, cancel);
         var (width, height) = await Pictures.SizeAsync(session, icon.Picture, cancel);
         Assert.Equal((width, height), await Pictures.SizeAsync(session, painted, cancel));

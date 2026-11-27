@@ -6,10 +6,12 @@ namespace Thermi.Linux.Tray;
 /// <summary>
 /// One of thermi's icons as a StatusNotifierItem, as KDE Plasma's tray and the other freedesktop trays show it: its
 /// picture, its tooltip and its id, the icon's key, so a tray keeps its place across starts; its menu is a
-/// <see cref="TrayMenu"/> at <see cref="TrayMenu.Path"/>. A left click opens the menu, as on Windows: the item is a menu,
-/// which the tray shows itself, and a tray that calls Activate or ContextMenu instead asks thermi for that menu alike.
+/// <see cref="TrayMenu"/> at <see cref="TrayMenu.Path"/>, which a tray opens itself on a right click. A left click does what it does on
+/// Windows: where it opens the menu, as on thermi's icon while the overlays show, the item says it is a menu, which the
+/// tray opens on that click too; elsewhere the tray calls Activate, which <c>activated</c> takes, and ContextMenu, from a
+/// tray that draws no menu of its own, is the menu's press.
 /// </summary>
-internal sealed class StatusNotifierItem(TrayPicture shows, Action<TrayPress> pressed) : IBusObject
+internal sealed class StatusNotifierItem(TrayPicture shows, Action activated, Action<TrayPress> pressed) : IBusObject
 {
     /// <summary>Where every tray looks for an item registered by its bus name.</summary>
     public const string Path = "/StatusNotifierItem";
@@ -17,6 +19,8 @@ internal sealed class StatusNotifierItem(TrayPicture shows, Action<TrayPress> pr
     public const string NewIcon = "NewIcon";
 
     public const string NewToolTip = "NewToolTip";
+
+    public const string NewStatus = "NewStatus";
 
     private const string Pixmaps = "a(iiay)";
 
@@ -45,16 +49,19 @@ internal sealed class StatusNotifierItem(TrayPicture shows, Action<TrayPress> pr
         "IconPixmap" => Pixmap(),
         "OverlayIconPixmap" or "AttentionIconPixmap" => GLib.Variant.NewArray(GLib.VariantType.New("(iiay)"), []),
         "ToolTip" => ToolTip(),
-        "ItemIsMenu" => GLib.Variant.NewBoolean(true),
+        "ItemIsMenu" => GLib.Variant.NewBoolean(Shows.ClickIsMenu),
         "Menu" => GLib.Variant.NewObjectPath(TrayMenu.Path),
         _ => GLib.Variant.NewString(""),
     };
 
     public GLib.Variant? Call(string method, GLib.Variant args)
     {
-        // A click, left or right, opens the menu, as ItemIsMenu asks; a middle click and the wheel do nothing on Windows'
-        // tray either.
-        if (method is "Activate" or "ContextMenu")
+        // A middle click and the wheel do nothing on Windows' tray either.
+        if (method == "Activate")
+        {
+            activated();
+        }
+        else if (method == "ContextMenu")
         {
             pressed(TrayPress.Menu);
         }

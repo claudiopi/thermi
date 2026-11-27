@@ -28,8 +28,10 @@ internal sealed class XfceDesktop
         await File.WriteAllTextAsync(Path.Combine(channels.FullName, "xfce4-panel.xml"), Panel(edge), cancel).ConfigureAwait(false);
         // Xfce's programs keep their settings in xfconfd, which the session's bus starts when they ask.
         session.Activates("org.xfce.Xfconf");
+        using var saved = Saved(channels.FullName);
         await XServers.StartXorgAsync(session, monitors, cancel).ConfigureAwait(false);
         await session.StartAsync("xfwm4", [], cancel: cancel).ConfigureAwait(false);
+        await saved.SavedAsync(cancel).ConfigureAwait(false);
         var desktop = new XfceDesktop(session);
         await desktop.PanelAsync(() => Task.CompletedTask, monitors, bare: true, cancel).ConfigureAwait(false);
         return desktop;
@@ -115,6 +117,52 @@ internal sealed class XfceDesktop
     }
 
     // _NET_WORKAREA(CARDINAL) = x, y, width, height, as many times as there are workspaces.
+    // xfwm4 writes its defaults into its empty channel as it starts, which xfconfd saves to its file a moment later: the
+    // desktop is up once it did, so no save of it lands in the session's folder as the session deletes it.
+    private static ChannelSave Saved(string channels) => new(channels, "xfwm4.xml");
+
+    private sealed class ChannelSave : IDisposable
+    {
+        private readonly FileSystemWatcher _watcher;
+        private readonly TaskCompletionSource _saved = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly string _file;
+
+        public ChannelSave(string folder, string name)
+        {
+            _file = Path.Combine(folder, name);
+            _watcher = new FileSystemWatcher(folder) { NotifyFilter = NotifyFilters.FileName };
+            _watcher.Renamed += (_, args) => Seen(args.Name);
+            _watcher.Created += (_, args) => Seen(args.Name);
+            _watcher.EnableRaisingEvents = true;
+
+            void Seen(string? file)
+            {
+                if (file == name)
+                {
+                    _saved.TrySetResult();
+                }
+            }
+        }
+
+        public async Task SavedAsync(CancellationToken cancel)
+        {
+            if (File.Exists(_file))
+            {
+                return;
+            }
+
+            try
+            {
+                await _saved.Task.WaitAsync(Bound.Line, TimeProvider.System, cancel).ConfigureAwait(false);
+            }
+            catch (TimeoutException late)
+            {
+                throw new TimeoutException($"xfconfd saved no {_file} in {Bound.Line.TotalSeconds:0} s.", late);
+            }
+        }
+
+        public void Dispose() => _watcher.Dispose();
+    }
     private static (int, int, int, int)? WorkArea(string line)
     {
         if (!line.StartsWith("_NET_WORKAREA(", StringComparison.Ordinal) || line.Split('=') is not [_, var values])

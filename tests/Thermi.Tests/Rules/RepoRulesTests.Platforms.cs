@@ -64,7 +64,8 @@ public sealed partial class RepoRulesTests
         ["libX11.so.6"] = "Xlib's few calls for an overlay's window on X11, which has no introspection data",
         ["libgtk-4.so.1"] = "GDK's X11 calls, gdk_x11_*, which GTK's introspection data leaves out",
         ["libXext.so.6"] = "X11's input shape of an overlay's window, which GDK 4 does not set from its input region",
-        ["libxcb.so.1"] = "XCB's few calls to grab thermi's hotkeys on X11, on a connection of their own, which has no introspection data",
+        ["libxcb.so.1"] = "XCB's few calls to grab hotkeys and watch the root window on X11, on connections of thermi's own; it has no introspection data",
+        ["libXrandr.so.2"] = "RandR's EDID of a monitor's output on X11, which GDK does not tell, for its id",
     };
 
     // CsWin32 generates every Win32 declaration from a NativeMethods.txt, and GirCore every GObject library's; one written by

@@ -6,6 +6,7 @@ using Thermi.Core;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
+using Thermi.Linux.Desktop;
 using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Hotkeys;
@@ -21,8 +22,14 @@ internal interface IHotkeyGrab : IDisposable
     /// <summary>Whether taking them asks the person, as a portal's dialog does, so nothing on screen waits for it.</summary>
     bool AsksThePerson => false;
 
+    /// <summary>Whether the desktop refused every hotkey the last take asked for: it has no way to give them, or the person said no.</summary>
+    bool Refused => false;
+
     /// <summary>Lets the hotkeys taken before go and takes these, a null for none: which of them are thermi's now.</summary>
     Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys);
+
+    /// <summary>Takes these, as <see cref="Take(IReadOnlyList{Hotkey?})"/>, giving up on what still waits once <paramref name="cancel"/> is.</summary>
+    Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys, CancellationToken cancel) => Take(hotkeys);
 }
 
 /// <summary>What <see cref="DesktopHotkeys"/> reaches in its host: the settings, the overlays' visibility and the values' history.</summary>
@@ -34,14 +41,21 @@ internal sealed record HotkeyHost(Settings Settings, OverlayVisibility Visibilit
 /// <summary>
 /// The four hotkeys of the settings, taken on the desktop each time they change, and what each does when pressed, as on
 /// Windows (<see cref="HotkeyPresses"/>). One that another program holds is refused: thermi logs it, and under
-/// <c>--trace</c> says <c>hotkey-refused</c> with its role as the settings name it.
+/// <c>--trace</c> says <c>hotkey-refused</c> with its role as the settings name it; a desktop that refuses them all says
+/// so to the window too (<see cref="HotkeyFailures.DesktopRefused"/>). One take runs at a time, the next once it is done, and
+/// a portal's dialog is waited on for <see cref="Answer"/> at most.
 /// </summary>
 internal sealed class DesktopHotkeys : IDisposable
 {
     private readonly IHotkeyGrab _grab;
+    /// <summary>How long the person may leave a portal's dialog unanswered, past which thermi takes it for a no.</summary>
+    public static readonly TimeSpan Answer = TimeSpan.FromMinutes(5);
+
     private readonly HotkeyHost _host;
     private HotkeysConfig? _tried;
     private bool _taken;
+    private bool _taking;
+    private bool _again;
 
     public DesktopHotkeys(IHotkeyGrab grab, HotkeyHost host)
     {
@@ -64,7 +78,13 @@ internal sealed class DesktopHotkeys : IDisposable
         }
 
         (_tried, _taken) = (config.Hotkeys, true);
-        var taking = TakeAsync(config.Hotkeys);
+        if (_taking)
+        {
+            _again = true;
+            return Task.CompletedTask;
+        }
+
+        var taking = TakeAllAsync();
         return _grab.AsksThePerson ? Task.CompletedTask : taking;
     }
 
@@ -72,6 +92,26 @@ internal sealed class DesktopHotkeys : IDisposable
     public void Forget() => _taken = false;
 
     public void Dispose() => _grab.Dispose();
+
+    // A portal binds each take in a session of its own, which the next one closes: hotkeys that change during a take are taken
+    // once it is done, the last of them only.
+    private async Task TakeAllAsync()
+    {
+        _taking = true;
+        try
+        {
+            do
+            {
+                _again = false;
+                await TakeAsync(_tried);
+            }
+            while (_again);
+        }
+        finally
+        {
+            _taking = false;
+        }
+    }
 
     private async Task TakeAsync(HotkeysConfig? hotkeys)
     {
@@ -82,7 +122,14 @@ internal sealed class DesktopHotkeys : IDisposable
         IReadOnlyList<bool> taken;
         try
         {
-            taken = await _grab.Take(parsed);
+            using var bound = new CancellationTokenSource(Answer, _host.Trace.Time);
+            var asking = _grab.Take(parsed, bound.Token);
+            var answered = asking.IsCompleted;
+            taken = await asking;
+            if (!answered)
+            {
+                await Callbacks.OnMainLoop();
+            }
         }
         catch (GLib.GException ex)
         {
@@ -97,7 +144,7 @@ internal sealed class DesktopHotkeys : IDisposable
             return;
         }
 
-        var failures = HotkeyFailures.None;
+        var failures = _grab.Refused ? HotkeyFailures.DesktopRefused : HotkeyFailures.None;
         for (var at = 0; at < Core.Hotkeys.Roles.Count; at++)
         {
             var role = Core.Hotkeys.Roles[at];

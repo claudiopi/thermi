@@ -44,7 +44,7 @@ internal sealed class ThermiDesk : IDisposable
         }
         else
         {
-            Tray = new DesktopTray(new StatusNotifierIcons(bus, _objects, parts.Log), tray);
+            Tray = new DesktopTray(new StatusNotifierIcons(bus, _objects, parts.Log, parts.Pointer, parts.Time), tray);
             IHotkeyGrab grab = start.Kind == SurfaceKind.X11
                 ? new X11Hotkeys(parts.Log)
                 : new PortalHotkeys(() => Texts.For(parts.Settings.Config.Language, CultureInfo.CurrentUICulture), parts.Log);

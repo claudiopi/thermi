@@ -102,7 +102,7 @@ internal sealed class OverlayHost : IDisposable
     private static IOverlaySurfaces SurfacesOf(SurfaceKind kind, ShellLink link, ExtensionArrival arrival, ILogger log) => kind switch
     {
         SurfaceKind.Layer => new LayerSurfaces(log),
-        SurfaceKind.X11 => new X11Surfaces(),
+        SurfaceKind.X11 => new X11Surfaces(log),
         SurfaceKind.Shell or SurfaceKind.None or SurfaceKind.NoDisplay => new ShellSurfaces(link, arrival),
         _ => new ShellSurfaces(link, arrival),
     };

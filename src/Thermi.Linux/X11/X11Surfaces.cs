@@ -1,3 +1,7 @@
+using Microsoft.Extensions.Logging;
+using Thermi.App.Gestures;
+using Thermi.Core.Look;
+using Thermi.Core.Placement;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Overlay;
@@ -9,18 +13,21 @@ namespace Thermi.Linux.X11;
 /// window manager keeps above the others, off the taskbar and the pager, and gives no keyboard. It is a dock, as a panel
 /// is, not a utility window: window managers keep a utility window out of the panels' room, so an overlay could not sit on
 /// a panel, while a dock with no strut of its own reserves nothing. Nor is it kept above, which would hold it above a
-/// window gone full screen too, while a dock stays above every other window and under that one. The panels' struts make
-/// each monitor's work area, as the window manager says it.
+/// window gone full screen too, while a dock stays above every other window and under that one; a panel that rises above
+/// it, as a dock that maps after it or one the person clicks, is put back under it. The panels' struts make each monitor's
+/// work area, as the window manager says it, and a monitor the active window covers is full screen, read as the root
+/// window tells each changes (<see cref="RootWatch"/>). The window manager's close, as a pager's or a task switcher's, quits
+/// thermi, as Windows' overlay quits on its close.
 /// </summary>
-internal sealed class X11Surfaces : IOverlaySurfaces
+internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
 {
     // Thermi reads the pointer as often on Windows while an overlay may fade.
     private const uint WatchEvery = 100;
 
     private readonly Dictionary<uint, Shown> _shown = [];
     private IReadOnlyList<ShellMonitor> _known = [];
+    private RootWatch? _root;
     private uint _watching;
-    private uint _checking;
     private (double X, double Y)? _pointer;
     private uint? _held;
 
@@ -38,32 +45,42 @@ internal sealed class X11Surfaces : IOverlaySurfaces
 
     public Action<uint, int> Chosen { get; set; } = (_, _) => { };
 
+    public Action<uint> Lost { get; set; } = _ => { };
+
     public void Start()
     {
-        if (Gdk.Display.GetDefault()?.GetMonitors() is { } list)
+        if (Gdk.Display.GetDefault() is { } display)
         {
-            list.OnItemsChanged += (_, _) => Changed();
+            display.GetMonitors().OnItemsChanged += (_, _) => Changed();
+            _root = new RootWatch(log, () => XWindows.Active(display))
+            {
+                Panels = Changed,
+                Active = Changed,
+                Stacked = () => Restack(display),
+            };
         }
 
-        // A panel that comes, goes or grows changes its struts, which GTK 4 tells no one: they are read again each second,
-        // a few properties' read.
-        _checking = GLib.Functions.TimeoutAddSeconds(0, 1, () =>
-        {
-            if (!Monitors().SequenceEqual(_known))
-            {
-                Changed();
-            }
-
-            return true;
-        });
         _known = Monitors();
         Arrived();
     }
 
     private void Changed()
     {
-        _known = Monitors();
-        MonitorsChanged(_known);
+        var now = Monitors();
+        if (!now.SequenceEqual(_known))
+        {
+            _known = now;
+            MonitorsChanged(now);
+        }
+    }
+
+    private void Restack(Gdk.Display display)
+    {
+        var ours = _shown.Values.Select(shown => shown.Id).OfType<uint>().ToList();
+        if (ours.Count > 0 && XWindows.Covered(display, ours))
+        {
+            XWindows.Raise(display, ours);
+        }
     }
 
     public Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => Task.FromResult<IReadOnlyList<ShellMonitor>>(Monitors());
@@ -94,10 +111,12 @@ internal sealed class X11Surfaces : IOverlaySurfaces
         return Task.CompletedTask;
     }
 
+    // The keyboard a press took goes back before its window goes, which GTK would give to no one.
     public Task Hide(uint id)
     {
         if (_shown.Remove(id, out var shown))
         {
+            shown.Hold(held: false);
             shown.Window.Dispose();
         }
 
@@ -106,14 +125,30 @@ internal sealed class X11Surfaces : IOverlaySurfaces
 
     public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
 
+    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows) => Menu(id, rows, new PillBox(x, y, 1, 1), MenuSide.Below);
+
     // GTK grabs the keyboard for its menu itself, as the window takes none on a click.
-    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows)
+    public Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side)
     {
         if (_shown.TryGetValue(id, out var shown))
         {
-            shown.Window.Menu(rows, x, y, row => Chosen(id, row), () => { });
+            shown.Window.Menu(rows, anchor, side == MenuSide.Below ? Gtk.PositionType.Bottom : Gtk.PositionType.Top, row => Chosen(id, row), () => { });
         }
 
+        return Task.CompletedTask;
+    }
+
+    public void Cursor(uint id, PointerShape shape)
+    {
+        if (_shown.TryGetValue(id, out var shown))
+        {
+            shown.Window.Cursor(shape);
+        }
+    }
+
+    public Task Copy(byte[] png)
+    {
+        PictureWindow.Copy(png);
         return Task.CompletedTask;
     }
 
@@ -144,11 +179,7 @@ internal sealed class X11Surfaces : IOverlaySurfaces
     public void Dispose()
     {
         Watch(false);
-        if (_checking != 0)
-        {
-            _ = GLib.Functions.SourceRemove(_checking);
-        }
-
+        _root?.Dispose();
         foreach (var shown in _shown.Values)
         {
             shown.Window.Dispose();
@@ -164,7 +195,13 @@ internal sealed class X11Surfaces : IOverlaySurfaces
             return [];
         }
 
-        return [.. GdkMonitors.Read(GdkMonitors.All(), PanelStruts.Of(display), XWindows.Primary(display))];
+        var covered = XWindows.FullScreen(display);
+        bool FullScreen(Gdk.Monitor monitor)
+        {
+            return covered is var (x, y, width, height) && monitor.Geometry.ContainsPoint((int)(x + (width / 2)), (int)(y + (height / 2)));
+        }
+
+        return [.. GdkMonitors.Read(GdkMonitors.All(), PanelStruts.Of(display), XWindows.Primary(display), FullScreen, XWindows.Edid)];
     }
 
     // The pointer anywhere, told only when it moved, as a Pointer on no overlay.
@@ -204,17 +241,28 @@ internal sealed class X11Surfaces : IOverlaySurfaces
                     _mapped = true;
                     Move(raise: false);
                 };
-            })
+            }, leaveLoses: false)
             {
                 Pointer = each => surfaces.Pointer(Rooted(each)),
                 // GTK gives a window it shows the keyboard, as the lifted pill's while a press holds an overlay's: Esc on
                 // any of thermi's windows is the held one's.
                 Key = (on, key) => surfaces.Key(surfaces._held ?? on, key),
+                Lost = on => surfaces.Lost(on),
+                Closed = Quit,
             };
             Window.Shaped = Shape;
         }
 
         public PictureWindow Window { get; }
+
+        // The overlay's quit, over the session bus, as the settings window asks it.
+        private static void Quit()
+        {
+            var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
+            Gio.DBusActionGroup.Get(bus, ShellLink.Name, ShellLink.ObjectPath).ActivateAction("quit", null);
+        }
+
+        public uint? Id => _mapped && Window.Window.GetSurface() is { } surface ? XWindows.Id(surface) : null;
 
         // The window moves only once the window manager moves it, after thermi asked, while GDK tells a point from the
         // window's corner as the X server had it: a drag would count its move twice, so past a press, which no move is

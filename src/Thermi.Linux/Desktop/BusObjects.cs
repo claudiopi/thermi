@@ -86,7 +86,8 @@ internal interface IBusObject
 /// The objects thermi serves at names of its own on the session's bus, as a tray asks its icons: GirCore cannot hand GDBus a
 /// table of callbacks, so each call to one of those objects is taken off the bus as it comes, answered on the GLib main loop,
 /// and the calls of D-Bus' own interfaces, a property's or the introspection's, answered for every object alike. A call of
-/// another shape, or to no object, is refused with D-Bus' error, never thrown.
+/// another shape, or to no object, is refused with D-Bus' error, never thrown. GDBus answers the introspection of the paths
+/// above them, for the objects it exports itself, so its answer gets their nodes too, as a tool finds them by walking down.
 /// </summary>
 internal sealed class BusObjects : IDisposable
 {
@@ -105,6 +106,7 @@ internal sealed class BusObjects : IDisposable
     private readonly Action<Action> _post;
     private readonly ILogger _log;
     private readonly ConcurrentDictionary<(string Name, string Path), IBusObject> _objects = new();
+    private readonly ConcurrentDictionary<(string Caller, uint Serial), IReadOnlyList<string>> _above = new();
     private readonly uint _filter;
 
     public BusObjects(Gio.DBusConnection bus, Action<Action> post, ILogger log)
@@ -128,6 +130,18 @@ internal sealed class BusObjects : IDisposable
     // another path of a name of thermi's goes on to GDBus, which answers the objects it exports itself, as the overlay's actions.
     private Gio.DBusMessage? Filter(Gio.DBusConnection connection, Gio.DBusMessage message, bool incoming)
     {
+        var caller = (incoming ? message.GetSender() : message.GetDestination()) ?? "";
+        if (!incoming && message.GetMessageType() == Gio.DBusMessageType.MethodReturn && _above.TryRemove((caller, message.GetReplySerial()), out var nodes))
+        {
+            return WithNodes(message, nodes);
+        }
+
+        if (incoming && message.GetMember() == "Introspect" && message.GetDestination() is { } asked
+            && Below(asked, message.GetPath() ?? "") is { Count: > 0 } below)
+        {
+            _above[(caller, message.GetSerial())] = below;
+        }
+
         if (!incoming || message.GetMessageType() != Gio.DBusMessageType.MethodCall || message.GetDestination() is not { } name
             || !_objects.ContainsKey((name, message.GetPath() ?? "")))
         {
@@ -194,6 +208,48 @@ internal sealed class BusObjects : IDisposable
         return reply;
     }
 
+    // The nodes right below a path GDBus answers for, of the objects served at the name asked, or at any of thermi's names when
+    // asked at its connection's unique name.
+    private List<string> Below(string name, string path)
+    {
+        var above = path == "/" ? "/" : path + "/";
+        return [.. _objects.Keys
+            .Where(key => (key.Name == name || name.StartsWith(':')) && key.Path.StartsWith(above, StringComparison.Ordinal))
+            .Where(_ => !_objects.ContainsKey((name, path)))
+            .Select(key => key.Path[above.Length..].Split('/')[0])
+            .Distinct(StringComparer.Ordinal)];
+    }
+
+    // GDBus' answer, sent once the filter returns it, with a node of its own for each of those below that it lacks.
+    private static Gio.DBusMessage WithNodes(Gio.DBusMessage reply, IReadOnlyList<string> nodes)
+    {
+        if (reply.GetBody() is not { } body || body.GetTypeString() != "(s)")
+        {
+            return reply;
+        }
+
+        var xml = Of(body, 0);
+        var end = xml.LastIndexOf("</node>", StringComparison.Ordinal);
+        var added = string.Concat(nodes.Where(node => !xml.Contains($"<node name=\"{node}\"", StringComparison.Ordinal))
+            .Select(node => $"<node name=\"{node}\"/>"));
+        if (end < 0 || added.Length == 0)
+        {
+            return reply;
+        }
+
+        try
+        {
+            var copy = reply.Copy();
+            copy.SetBody(Tuple(GLib.Variant.NewString(xml.Insert(end, added))));
+            return copy;
+        }
+        catch (GLib.GException)
+        {
+            // GDBus' thread calls the filter from native code, which a throw would end: its answer goes as it was.
+            return reply;
+        }
+    }
+
     private static string Of(GLib.Variant args, int at) => args.GetChildValue((nuint)at).GetString(out _);
 
     private static GLib.Variant Tuple(GLib.Variant value) => GLib.Variant.NewTuple([value]);
@@ -214,6 +270,21 @@ internal sealed class BusObjects : IDisposable
 /// </summary>
 internal static class Callbacks
 {
+    /// <summary>
+    /// Done on the GLib main loop's thread once it is free: awaited after a call that answered on another thread, as GirCore's
+    /// and a signal's tasks do, it brings what follows back to the thread every object of GTK's and thermi's is used on.
+    /// </summary>
+    public static Task OnMainLoop()
+    {
+        var back = new TaskCompletionSource();
+        GLib.Functions.IdleAdd(0, () =>
+        {
+            back.SetResult();
+            return false;
+        });
+        return back.Task;
+    }
+
     public static void Safely(Action action, Action<Exception> failed)
     {
         try

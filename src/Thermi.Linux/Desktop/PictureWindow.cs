@@ -1,3 +1,5 @@
+using Thermi.App.Gestures;
+using Thermi.Core.Look;
 using Thermi.Linux.Gnome;
 
 namespace Thermi.Linux.Desktop;
@@ -5,73 +7,78 @@ namespace Thermi.Linux.Desktop;
 /// <summary>
 /// A GTK window that shows one of thermi's pictures pixel for pixel, as a layer surface or an X11 window makes it: no
 /// frame, nothing drawn where the picture draws nothing, and the pointer taken only on the picture's boxes. It tells the
-/// pointer and Esc on it in the stage's logical pixels, from where its surface's corner is on the stage.
+/// pointer and Esc on it in the stage's logical pixels (<see cref="PicturePointer"/>), from where its surface's corner is
+/// on the stage. A request to close it, from the desktop, goes to <see cref="Closed"/>, and the window stays.
 /// </summary>
 internal sealed class PictureWindow : IDisposable
 {
     private const string Style = "thermi-overlay";
-    private const uint Escape = 0xff1b;
 
     // A scale of eighths, as Wayland's fractional scales are 120ths that compositors keep to quarters or eighths, falls
     // on a whole pixel within 8 logical ones.
     private const int Steps = 8;
 
-    // The pointer's events as the extension names them.
-    private static readonly Dictionary<Gdk.EventType, string> Kinds = new()
-    {
-        [Gdk.EventType.ButtonPress] = "press",
-        [Gdk.EventType.ButtonRelease] = "release",
-        [Gdk.EventType.MotionNotify] = "motion",
-        [Gdk.EventType.Scroll] = "scroll",
-    };
-
     private static bool _styled;
 
-    private readonly uint _id;
     private readonly Gtk.DrawingArea _area = Gtk.DrawingArea.New();
     private readonly List<TaskCompletionSource> _waiting = [];
+    private readonly PicturePointer _pointer;
     private bool _drawn;
-    private (double X, double Y) _heardAt;
     private Cairo.ImageSurface? _image;
     private (int X, int Y) _offset;
+    private (double X, double Y)? _moved;
     private double _scale = 1;
-    private IReadOnlyList<Core.Look.PillBox> _clicks = [];
+    private IReadOnlyList<PillBox> _clicks = [];
     private Action _unmenu = () => { };
 
-    public PictureWindow(uint id, Action<Gtk.Window> made)
+    /// <summary>The window of picture <paramref name="id"/>; a leave during a press loses it where <paramref name="leaveLoses"/>.</summary>
+    public PictureWindow(uint id, Action<Gtk.Window> made, bool leaveLoses)
     {
-        _id = id;
         Unpainted(Window);
         Window.SetDecorated(false);
         Window.SetResizable(false);
         Window.SetTitle("thermi");
         _area.SetDrawFunc(Draw);
         Window.SetChild(_area);
-        var events = Gtk.EventControllerLegacy.New();
-        // GirCore reads no GdkEvent from a signal's arguments, only from the controller.
-        events.OnEvent += (controller, _) => controller.GetCurrentEvent() is { } heard && Heard(heard);
-        Window.AddController(events);
-        // GTK tells a pointer's coming and going only to a motion controller: where it came is its first point on the window.
-        var crossing = Gtk.EventControllerMotion.New();
-        crossing.OnEnter += (controller, args) => Crossed(controller, "motion", (args.X, args.Y));
-        crossing.OnLeave += (controller, _) => Crossed(controller, "leave", _heardAt);
-        Window.AddController(crossing);
+        _pointer = new PicturePointer(id, Window, () => Origin, leaveLoses);
         Window.OnRealize += (_, _) => Region();
+        Window.OnCloseRequest += (_, _) =>
+        {
+            Closed();
+            return true;
+        };
         made(Window);
     }
 
     /// <summary>Where the window's corner is on the stage, in logical pixels, from which its pointer is told.</summary>
     public (double X, double Y) Origin { get; set; }
 
+    // As a layer surface's margins, the corner moves with the next frame: the pointer is told from there once the compositor
+    // took it, so a drag counts no move before it happened.
+    public void MoveTo((double X, double Y) origin) => (_moved, Origin) = _waiting.Count > 0 ? (origin, Origin) : (((double X, double Y)?)null, origin);
+
     public Gtk.Window Window { get; } = Gtk.Window.New();
 
-    public Action<ShellPointer> Pointer { get; set; } = _ => { };
+    public Action<ShellPointer> Pointer { get => _pointer.Pointer; set => _pointer.Pointer = value; }
 
-    public Action<uint, string> Key { get; set; } = (_, _) => { };
+    public Action<uint, string> Key { get => _pointer.Key; set => _pointer.Key = value; }
+
+    /// <summary>A press on the window lost the pointer to another grab.</summary>
+    public Action<uint> Lost { get => _pointer.Lost; set => _pointer.Lost = value; }
+
+    /// <summary>The desktop asked the window to close, as a window manager's close does on X11, or a compositor that closed its surface.</summary>
+    public Action Closed { get; set; } = () => { };
+
+    /// <summary>Called each time the boxes that take the pointer change, as an X11 window's shape follows them.</summary>
+    public Action Shaped { get; set; } = () => { };
+
+    /// <summary>The picture's opacity, 1 whole.</summary>
+    public double Opacity => _area.GetOpacity();
 
     /// <summary>
     /// Shows <paramref name="picture"/> <paramref name="offset"/> pixels in from the window's corner, so it lands on a
-    /// pixel of its own where the window's corner can only be on a logical one; done once the compositor showed it.
+    /// pixel of its own where the window's corner can only be on a logical one; done once the compositor showed it. The
+    /// picture's pixels are copied: the caller keeps its own.
     /// </summary>
     public Task Show(ShellPicture picture, (int X, int Y) offset)
     {
@@ -86,6 +93,33 @@ internal sealed class PictureWindow : IDisposable
 
         _image.MarkDirty();
         (_scale, _clicks) = (picture.Scale, picture.Clicks);
+        return Showing(offset);
+    }
+
+    /// <summary>Shows what <paramref name="other"/> shows, its pixels copied, as a picture goes on to another window.</summary>
+    public Task ShowLike(PictureWindow other, (int X, int Y) offset)
+    {
+        if (other._image is not { } image)
+        {
+            return Task.CompletedTask;
+        }
+
+        _image?.Dispose();
+        _image = new Cairo.ImageSurface(Cairo.Format.Argb32, image.Width, image.Height);
+        using (var cr = new Cairo.Context(_image))
+        {
+            cr.SetSourceSurface(image, 0, 0);
+            cr.Operator = Cairo.Operator.Source;
+            cr.Paint();
+        }
+
+        _image.MarkDirty();
+        (_scale, _clicks) = (other._scale, other._clicks);
+        return Showing(offset);
+    }
+
+    private Task Showing((int X, int Y) offset)
+    {
         var shown = Place(offset);
         if (!Window.GetVisible())
         {
@@ -115,6 +149,30 @@ internal sealed class PictureWindow : IDisposable
     {
         _area.SetOpacity(opacity);
         return _image is null ? Task.CompletedTask : Drawn();
+    }
+
+    /// <summary>Draws nothing from now on, while it stays to take the rest of a press that began on it.</summary>
+    public void Blank() => _area.SetOpacity(0);
+
+    /// <summary>The pointer over the window as <paramref name="shape"/> says, by the names every cursor theme has.</summary>
+    public void Cursor(PointerShape shape) => Window.SetCursorFromName(shape switch
+    {
+        PointerShape.NotAllowed => "not-allowed",
+        PointerShape.Resize => "nwse-resize",
+        PointerShape.Default or _ => null,
+    });
+
+    /// <summary>Puts a PNG on the desktop's clipboard, which GTK serves to whoever pastes it while thermi runs.</summary>
+    public static void Copy(byte[] png)
+    {
+        if (Gdk.Display.GetDefault() is not { } display)
+        {
+            return;
+        }
+
+        using var bytes = GLib.Bytes.New(png);
+        using var texture = Gdk.Texture.NewFromBytes(bytes);
+        display.GetClipboard().SetTexture(texture);
     }
 
     // Done once a frame drawn from now shows: GTK 4 draws a window's own opacity as whole, so the picture's area fades.
@@ -173,17 +231,34 @@ internal sealed class PictureWindow : IDisposable
         window.GetSurface()?.SetInputRegion(region);
     }
 
+    // The box on the window a menu points at: a popup is pointed only at its own surface, inside it.
+    private Gdk.Rectangle Pointing(PillBox anchor)
+    {
+        var (width, height) = (Math.Max(_area.GetContentWidth(), 1), Math.Max(_area.GetContentHeight(), 1));
+        var (left, top) = (
+            Math.Clamp((int)Math.Round(anchor.Left - Origin.X), 0, width - 1), Math.Clamp((int)Math.Round(anchor.Top - Origin.Y), 0, height - 1));
+        return new Gdk.Rectangle
+        {
+            X = left,
+            Y = top,
+            Width = Math.Clamp((int)Math.Round(anchor.Width), 1, width - left),
+            Height = Math.Clamp((int)Math.Round(anchor.Height), 1, height - top),
+        };
+    }
+
     /// <summary>
-    /// Shows a menu of <paramref name="rows"/> at a point of the stage, as GTK's own, in place of one open;
-    /// <paramref name="closed"/> follows once it closes, chosen or not.
+    /// Shows a menu of <paramref name="rows"/> against <paramref name="anchor"/>, a box of the stage, on its
+    /// <paramref name="side"/>, as GTK's own, in place of one open; <paramref name="closed"/> follows once it closes, chosen
+    /// or not.
     /// </summary>
-    public void Menu(IReadOnlyList<ShellRow> rows, double x, double y, Action<int> chosen, Action closed)
+    public void Menu(IReadOnlyList<ShellRow> rows, PillBox anchor, Gtk.PositionType side, Action<int> chosen, Action closed)
     {
         _unmenu();
         var menu = PictureMenu.New(rows, chosen);
         menu.SetParent(_area);
-        using var at = new Gdk.Rectangle { X = (int)Math.Round(x - Origin.X), Y = (int)Math.Round(y - Origin.Y), Width = 1, Height = 1 };
+        using var at = Pointing(anchor);
         menu.SetPointingTo(at);
+        menu.SetPosition(side);
         var open = true;
         void Unmenu()
         {
@@ -274,6 +349,7 @@ internal sealed class PictureWindow : IDisposable
     // What waits for the pictures shown may show others, which then wait for a frame of their own.
     private void Shown()
     {
+        (Origin, _moved) = (_moved ?? Origin, null);
         var waiting = _waiting.ToList();
         _waiting.Clear();
         foreach (var done in waiting)
@@ -295,15 +371,6 @@ internal sealed class PictureWindow : IDisposable
             return (left, top, (int)Math.Ceiling(box.Left + box.Width + x) - left, (int)Math.Ceiling(box.Top + box.Height + y) - top);
         })];
     }
-
-    /// <summary>The picture's opacity, 1 whole.</summary>
-    public double Opacity => _area.GetOpacity();
-
-    /// <summary>Draws nothing from now on, while it stays to take the rest of a press that began on it.</summary>
-    public void Blank() => _area.SetOpacity(0);
-
-    /// <summary>Called each time the boxes that take the pointer change, as an X11 window's shape follows them.</summary>
-    public Action Shaped { get; set; } = () => { };
 
     private void Region()
     {
@@ -328,48 +395,5 @@ internal sealed class PictureWindow : IDisposable
         using var region = Gdk.Functions.CairoRegionCreateFromSurface(mask);
         surface.SetInputRegion(region);
         Shaped();
-    }
-
-    private void Crossed(Gtk.EventController crossing, string kind, (double X, double Y) at)
-    {
-        _heardAt = at;
-        Pointer(new ShellPointer(_id, kind, Origin.X + at.X, Origin.Y + at.Y, 0, (uint)crossing.GetCurrentEventState(), crossing.GetCurrentEventTime(), 0, 0));
-    }
-
-    private bool Heard(Gdk.Event heard)
-    {
-        // GirCore gives every event as a Gdk.Event, never as its kind's class, so each kind's details are read through
-        // that kind's calls on the event's handle.
-        var type = heard.GetEventType();
-        if (type == Gdk.EventType.KeyPress && Gdk.Internal.KeyEvent.GetKeyval(heard.Handle) == Escape)
-        {
-            Key(_id, "Escape");
-            return true;
-        }
-
-        // A turn of the wheel on Wayland tells no point: it is where the pointer last was on the window.
-        var (x, y) = _heardAt = heard.GetPosition(out var px, out var py) ? (px, py) : _heardAt;
-        if (!Kinds.TryGetValue(type, out var kind))
-        {
-            return false;
-        }
-
-        var button = type is Gdk.EventType.ButtonPress or Gdk.EventType.ButtonRelease ? Gdk.Internal.ButtonEvent.GetButton(heard.Handle) : 0;
-        var (dx, dy) = type == Gdk.EventType.Scroll ? Turned(heard.Handle) : (0, 0);
-        Pointer(new ShellPointer(_id, kind, Origin.X + x, Origin.Y + y, button, (uint)heard.GetModifierState(), heard.GetTime(), dx, dy));
-        return false;
-    }
-
-    // A wheel's notch as a turn of one, up negative, as the extension tells it; a smooth scroll as its deltas.
-    private static (double, double) Turned(nint scroll)
-    {
-        var direction = Gdk.Internal.ScrollEvent.GetDirection(scroll);
-        if (direction == Gdk.ScrollDirection.Smooth)
-        {
-            Gdk.Internal.ScrollEvent.GetDeltas(scroll, out var x, out var y);
-            return (x, y);
-        }
-
-        return direction == Gdk.ScrollDirection.Up ? (0, -1) : direction == Gdk.ScrollDirection.Down ? (0, 1) : (0, 0);
     }
 }

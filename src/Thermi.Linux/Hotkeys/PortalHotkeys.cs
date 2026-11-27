@@ -10,14 +10,16 @@ namespace Thermi.Linux.Hotkeys;
 /// thermi's hotkeys through the desktop's GlobalShortcuts portal, as KDE Plasma and Hyprland offer it: thermi asks for each
 /// with its combination as the one it prefers, the desktop asks the person once, and says which it bound. Taking them
 /// again closes the session the last ones were bound in and binds the new ones in a session of their own. A desktop with
-/// no such portal, or a person who said no, takes none. It asks on a connection of its own: the portal takes a program's
-/// id only before its first call, and GTK's own calls on the shared one come first.
+/// no such portal, as Sway, or a person who said no or never answered, refuses them all (<see cref="Refused"/>). It asks on
+/// a connection of its own: the portal takes a program's id only before its first call, and GTK's own calls on the shared
+/// one come first. The portal answers on GDBus' thread, so each answer is taken back to the main loop's before thermi reads it.
 /// </summary>
 internal sealed class PortalHotkeys : IHotkeyGrab
 {
     private const string Portal = "org.freedesktop.portal.Desktop";
     private const string Desktop = "/org/freedesktop/portal/desktop";
     private const string Shortcuts = "org.freedesktop.portal.GlobalShortcuts";
+    private const string Request = "org.freedesktop.portal.Request";
 
     // thermi's id, its launcher's name, by which a desktop keeps what the person allowed it across starts.
     private const string AppId = "io.github.claudiopi.thermi";
@@ -45,7 +47,11 @@ internal sealed class PortalHotkeys : IHotkeyGrab
 
     public bool AsksThePerson => true;
 
-    public async Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys)
+    public bool Refused { get; private set; }
+
+    public Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys) => Take(hotkeys, CancellationToken.None);
+
+    public async Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys, CancellationToken cancel)
     {
         await RegisterAsync();
         if (_session is { } last)
@@ -54,15 +60,19 @@ internal sealed class PortalHotkeys : IHotkeyGrab
             await CloseAsync(last);
         }
 
+        Refused = false;
+
         var wanted = hotkeys.Select((hotkey, at) => (Role: KeyNames.RoleOf(Core.Hotkeys.Roles[at]), Hotkey: hotkey, Text: Descriptions[at])).ToList();
         if (wanted.All(each => each.Hotkey is null))
         {
             return [.. hotkeys.Select(_ => true)];
         }
 
-        var created = await RequestAsync("CreateSession", token => [Options(("session_handle_token", GLib.Variant.NewString(token)), Handle(token))]);
+        var created = await RequestAsync(
+            "CreateSession", token => [Options(("session_handle_token", GLib.Variant.NewString(token)), Handle(token))], cancel);
         if (created?.LookupValue("session_handle", null)?.GetString(out _) is not { } session)
         {
+            Refused = true;
             return [.. hotkeys.Select(hotkey => hotkey is null)];
         }
 
@@ -76,8 +86,9 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         ]));
         var shortcuts = GLib.Variant.NewArray(GLib.VariantType.New("(sa{sv})"), [.. asked]);
         _session = session;
-        var bound = await RequestAsync("BindShortcuts", token =>
-            [GLib.Variant.NewObjectPath(session), shortcuts, GLib.Variant.NewString(""), Options(Handle(token))]);
+        var bound = await RequestAsync(
+            "BindShortcuts", token => [GLib.Variant.NewObjectPath(session), shortcuts, GLib.Variant.NewString(""), Options(Handle(token))], cancel);
+        Refused = bound is null;
         var ids = bound?.LookupValue("shortcuts", GLib.VariantType.New("a(sa{sv})")) is { } taken
             ? Enumerable.Range(0, (int)taken.NChildren()).Select(at => taken.GetChildValue((nuint)at).GetChildValue(0).GetString(out _)).ToHashSet()
             : [];
@@ -100,16 +111,18 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         _bus.Dispose();
     }
 
-    private async Task CloseAsync(string session)
+    private async Task CloseAsync(string path, string face = "org.freedesktop.portal.Session")
     {
         try
         {
-            await _bus.CallAsync(Portal, session, "org.freedesktop.portal.Session", "Close");
+            await _bus.CallAsync(Portal, path, face, "Close");
         }
         catch (GLib.GException)
         {
             // The portal closed it already, as it does when the person revokes it.
         }
+
+        await Callbacks.OnMainLoop();
     }
 
     // A program outside a sandbox says who it is before its first call, which a portal older than the registry ignores; the
@@ -132,22 +145,25 @@ internal sealed class PortalHotkeys : IHotkeyGrab
             // Older portals know thermi by its process instead.
         }
 
+        await Callbacks.OnMainLoop();
         _shortcuts = Listen(Desktop, Shortcuts);
         _shortcuts.OnGSignal += (_, heard) =>
             Callbacks.Safely(() => Activated(heard.SignalName, heard.Parameters), ex => _log.SignalFailed(heard.SignalName, ex));
     }
 
     // A portal's call answers with a request, whose Response comes later at a path thermi's token names: listened to before
-    // the call, so it cannot come first. The results, or null where the person said no or the desktop has no such portal.
-    private async Task<GLib.Variant?> RequestAsync(string method, Func<string, GLib.Variant[]> args)
+    // the call, so it cannot come first. The results, or null where the person said no, or never answered before
+    // <paramref name="cancel"/>, as the request is closed then, or the desktop has no such portal.
+    private async Task<GLib.Variant?> RequestAsync(string method, Func<string, GLib.Variant[]> args, CancellationToken cancel)
     {
         var token = $"thermi{++_tokens}";
         var sender = _bus.GetUniqueName()!.TrimStart(':').Replace('.', '_');
+        var path = $"{Desktop}/request/{sender}/{token}";
         var answered = new TaskCompletionSource<GLib.Variant>(TaskCreationOptions.RunContinuationsAsynchronously);
         Gio.DBusProxy? request = null;
         try
         {
-            request = Listen($"{Desktop}/request/{sender}/{token}", "org.freedesktop.portal.Request");
+            request = Listen(path, Request);
             request.OnGSignal += (_, heard) =>
             {
                 if (heard.SignalName == "Response")
@@ -156,11 +172,19 @@ internal sealed class PortalHotkeys : IHotkeyGrab
                 }
             };
             await _bus.CallAsync(Portal, Desktop, Shortcuts, method, GLib.Variant.NewTuple(args(token)));
-            var response = await answered.Task;
+            var response = await answered.Task.WaitAsync(cancel);
+            await Callbacks.OnMainLoop();
             return response.GetTypeString() == "(ua{sv})" && response.GetChildValue(0).GetUint32() == 0 ? response.GetChildValue(1) : null;
         }
         catch (GLib.GException)
         {
+            await Callbacks.OnMainLoop();
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            await Callbacks.OnMainLoop();
+            await CloseAsync(path, Request);
             return null;
         }
         finally

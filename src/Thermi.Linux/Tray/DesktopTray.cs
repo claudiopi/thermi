@@ -25,7 +25,7 @@ internal sealed record TrayHost(Settings Settings, OverlayVisibility Visibility,
 /// <summary>
 /// thermi's icon and the items' tray icons on Linux, as Windows' tray shows them: Core's <see cref="TrayScene"/> painted
 /// by the <see cref="TrayPainter"/>, each painted again only when <see cref="TrayRefresh"/> says it changed, and a press
-/// on one doing what <see cref="TrayPresses"/> says, as on Windows. Each icon is known by its key (<see cref="TrayKeys"/>).
+/// on one doing what <see cref="TrayPresses"/> says, as on Windows. Each icon is known by its name, <see cref="TrayIcon.Name"/>.
 /// </summary>
 internal sealed class DesktopTray : IDisposable
 {
@@ -36,6 +36,7 @@ internal sealed class DesktopTray : IDisposable
     private TrayRefresh _refresh = new();
     private IReadOnlyList<TrayIcon> _shown = [];
     private double _scale;
+    private bool _clickIsMenu;
 
     public DesktopTray(ITrayIcons icons, TrayHost host)
     {
@@ -54,12 +55,13 @@ internal sealed class DesktopTray : IDisposable
         var icons = TrayScene.Of(config, input);
         var update = _refresh.Next(icons);
         var rescaled = Math.Abs(scale - _scale) > 0.001;
-        if (!rescaled && update.Redrawn.Count == 0 && update.Retipped.Count == 0 && update.Removed.Count == 0)
+        var clickIsMenu = !_host.Visibility.HideOverlays;
+        if (!rescaled && clickIsMenu == _clickIsMenu && update.Redrawn.Count == 0 && update.Retipped.Count == 0 && update.Removed.Count == 0)
         {
             return Task.CompletedTask;
         }
 
-        _scale = scale;
+        (_scale, _clickIsMenu) = (scale, clickIsMenu);
         var redrawn = rescaled ? icons : update.Redrawn;
         foreach (var icon in redrawn)
         {
@@ -70,10 +72,11 @@ internal sealed class DesktopTray : IDisposable
         update.Removed.ToList().ForEach(Drop);
         var tips = _shown.ToDictionary(icon => icon.Id, icon => icon.Tooltip);
         _shown = icons;
-        return _icons.Show([.. icons.Select(icon => new TrayPicture(TrayKeys.Of(icon), icon.Tooltip, _pictures[icon.Id], scale)
+        return _icons.Show([.. icons.Select(icon => new TrayPicture(icon.Name, icon.Tooltip, _pictures[icon.Id], scale)
         {
             Redrawn = redrawn.Contains(icon),
             Retipped = !tips.TryGetValue(icon.Id, out var tip) || tip != icon.Tooltip,
+            ClickIsMenu = icon.ItemId is null && clickIsMenu,
         })]);
     }
 
@@ -98,7 +101,7 @@ internal sealed class DesktopTray : IDisposable
         }
     }
 
-    private TrayIcon? Shown(string key) => _shown.FirstOrDefault(icon => TrayKeys.Of(icon) == key);
+    private TrayIcon? Shown(string key) => _shown.FirstOrDefault(icon => icon.Name == key);
 
     private void Pressed(string key, TrayPress press)
     {

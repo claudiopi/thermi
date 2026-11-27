@@ -1,30 +1,22 @@
 using Thermi.App.Gestures;
-using Thermi.Core.Tray;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Painting;
 
 namespace Thermi.Linux.Tray;
 
 /// <summary>
-/// A tray icon as painted: its key, the same on every start, its tooltip, which a screen reader reads too, and its picture
-/// at the scale it was painted for; and whether this refresh redrew the picture or changed the tooltip, which is all a
-/// tray is told again.
+/// A tray icon as painted: its key, the icon's name, the same on every start, its tooltip, which a screen reader reads too,
+/// and its picture at the scale it was painted for; whether this refresh redrew the picture or changed the tooltip, which
+/// is all a tray is told again; and whether a left click on it opens its menu, as thermi's own does but while the
+/// overlays are hidden, which that click shows.
 /// </summary>
 internal sealed record TrayPicture(string Key, string Tooltip, Picture Picture, double Scale)
 {
     public bool Redrawn { get; init; } = true;
 
     public bool Retipped { get; init; } = true;
-}
 
-/// <summary>
-/// Each icon's key on a tray: an item's is its id after <see cref="Item"/>, so no item, whatever its id, takes thermi's own.
-/// </summary>
-internal static class TrayKeys
-{
-    public const string Item = "item:";
-
-    public static string Of(TrayIcon icon) => icon.ItemId is null ? TrayScene.ThermisId : Item + icon.ItemId;
+    public bool ClickIsMenu { get; init; }
 }
 
 /// <summary>

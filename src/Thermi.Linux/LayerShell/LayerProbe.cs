@@ -10,8 +10,9 @@ namespace Thermi.Linux.LayerShell;
 /// compositor keeps popups in: KWin keeps them off the panels, so one the monitor's size on a surface over the whole
 /// monitor shrinks to the work area; Sway keeps them on the monitor, so one the monitor's size, ending at the corner of the
 /// surface kept off the panels, slides out to the monitor's corner, as far as the room on the left and the top. Where
-/// neither tells, the room is taken to be on the left and the top. Nothing of it shows or takes the pointer, and it goes
-/// once measured.
+/// neither tells, the room is taken to be on the left and the top. Nothing of it shows or takes the pointer. It stays as
+/// long as its monitor: a panel that maps after thermi, as plasmashell or a bar Sway's config starts, one that grows,
+/// moves or hides itself changes the size of the surface kept off the panels, and the room is measured again.
 /// </summary>
 internal sealed class LayerProbe : IDisposable
 {
@@ -19,32 +20,57 @@ internal sealed class LayerProbe : IDisposable
     private const int AfterFrame = 200;
 
     private readonly Action<LayerProbe> _measured;
-    private readonly List<IDisposable> _owned = [];
+    private readonly List<Gtk.DrawingArea> _areas = [];
     private readonly List<Gdk.Surface> _popups = [];
+    private readonly Gtk.Window _keptOff;
+    private readonly Gtk.Window _over;
     private (int Width, int Height)? _inside;
+    private bool _overShown;
     private (int X, int Y, int Width, int Height)? _shrunk;
     private (int X, int Y)? _slid;
-    private int _asking = 2;
+    private int _asking;
+
+    // Each measure counts, so what an earlier one still waits for, as a panel changes again, tells nothing.
+    private int _round;
 
     public LayerProbe(Gdk.Monitor monitor, Action<LayerProbe> measured)
     {
         Monitor = monitor;
         _measured = measured;
-        Surface(zone: 0, (window, size) =>
+        _keptOff = Surface(zone: 0, size =>
         {
             _inside = size;
-            Pop(window, Gdk.Gravity.SouthEast, Gdk.AnchorHints.Slide, told => _slid = told is var (x, y, _, _) ? (x, y) : null);
+            Measure();
         });
-        Surface(zone: -1, (window, _) => Pop(window, Gdk.Gravity.NorthWest, Gdk.AnchorHints.Resize, told => _shrunk = told));
+        _over = Surface(zone: -1, _ =>
+        {
+            _overShown = true;
+            Measure();
+        });
     }
 
     public Gdk.Monitor Monitor { get; }
 
     /// <summary>
-    /// The room the panels keep along each edge, in the monitor's logical pixels, once measured, and whether the compositor
-    /// told which edges it is on, or it was taken to be on the left and the top.
+    /// The room the panels keep along each edge, in the monitor's logical pixels, as last measured, and whether the
+    /// compositor told which edges it is on, or it was taken to be on the left and the top.
     /// </summary>
     public (PanelRoom Room, bool Told) Found => RoomOf((Monitor.Geometry.Width, Monitor.Geometry.Height), _inside ?? (0, 0), _shrunk, _slid);
+
+    /// <summary>Measures the room again, as the monitor changed; told once measured, in place of a measure still under way.</summary>
+    public void Measure()
+    {
+        if (_inside is null || !_overShown)
+        {
+            return;
+        }
+
+        Drop();
+        var round = ++_round;
+        (_asking, _shrunk, _slid) = (2, null, null);
+        Pop(_keptOff, Gdk.Gravity.SouthEast, Gdk.AnchorHints.Slide, round, told => _slid = told is var (x, y, _, _) ? (x, y) : null);
+        Pop(_over, Gdk.Gravity.NorthWest, Gdk.AnchorHints.Resize, round, told => _shrunk = told);
+    }
 
     // The room on each edge of a monitor, from the size a surface kept off the panels is given, the popup on the whole
     // monitor as the compositor shrunk it, and the place the popup ending at the corner of the surface kept off the panels
@@ -68,6 +94,19 @@ internal sealed class LayerProbe : IDisposable
 
     public void Dispose()
     {
+        _round++;
+        Drop();
+        _keptOff.Destroy();
+        _keptOff.Dispose();
+        _over.Destroy();
+        _over.Dispose();
+
+        _areas.ForEach(area => area.Dispose());
+        _areas.Clear();
+    }
+
+    private void Drop()
+    {
         foreach (var popup in _popups)
         {
             // GDK's destroy drops a reference of its own, besides the one GirCore's wrapper gives back as it is disposed: without
@@ -81,27 +120,15 @@ internal sealed class LayerProbe : IDisposable
         }
 
         _popups.Clear();
-        foreach (var each in _owned)
-        {
-            if (each is Gtk.Window window)
-            {
-                window.Destroy();
-            }
-
-            each.Dispose();
-        }
-
-        _owned.Clear();
     }
 
-    // A layer surface anchored to every edge, over the panels' zones or kept off them, told its size once, and once it shows
-    // a frame, which a popup needs of its surface, given to what asks a popup of it.
-    private void Surface(int zone, Action<Gtk.Window, (int Width, int Height)> sized)
+    // A layer surface anchored to every edge, over the panels' zones or kept off them, told its size each time it changes,
+    // once it shows a frame of that size, which a popup needs of its surface.
+    private Gtk.Window Surface(int zone, Action<(int Width, int Height)> sized)
     {
         var window = Gtk.Window.New();
         var area = Gtk.DrawingArea.New();
-        _owned.Add(window);
-        _owned.Add(area);
+        _areas.Add(area);
         LayerShellLibrary.Init(window);
         LayerShellLibrary.SetNamespace(window, "thermi-probe");
         LayerShellLibrary.SetLayer(window, Layer.Background);
@@ -114,31 +141,32 @@ internal sealed class LayerProbe : IDisposable
         LayerShellLibrary.SetExclusiveZone(window, zone);
         PictureWindow.Unpainted(window);
         window.SetChild(area);
-        var asked = false;
+        (int Width, int Height)? last = null;
         area.OnResize += (_, size) =>
         {
-            if (size.Width > 0 && size.Height > 0 && !asked)
+            var at = (size.Width, size.Height);
+            if (size.Width > 0 && size.Height > 0 && at != last)
             {
-                asked = true;
-                var at = (size.Width, size.Height);
+                last = at;
                 GLib.Functions.IdleAdd(AfterFrame, () =>
                 {
-                    sized(window, at);
+                    sized(at);
                     return false;
                 });
             }
         };
         window.OnRealize += (_, _) => PictureWindow.TakeNoPointer(window);
         window.Present();
+        return window;
     }
 
     // A popup the monitor's size from the surface's top-left corner, its own corner there, moved as the hints let the
     // compositor; told where it went and how big, or null where it never shows. It is never drawn, so it never shows.
-    private void Pop(Gtk.Window window, Gdk.Gravity corner, Gdk.AnchorHints hints, Action<(int X, int Y, int Width, int Height)?> told)
+    private void Pop(Gtk.Window window, Gdk.Gravity corner, Gdk.AnchorHints hints, int round, Action<(int X, int Y, int Width, int Height)?> told)
     {
         if (window.GetSurface() is not { } parent)
         {
-            Answered(() => told(null));
+            Answered(round, () => told(null));
             return;
         }
 
@@ -154,7 +182,7 @@ internal sealed class LayerProbe : IDisposable
             {
                 heard = true;
                 var at = (Gdk.Internal.Popup.GetPositionX(handle), Gdk.Internal.Popup.GetPositionY(handle), args.Width, args.Height);
-                Answered(() => told(at));
+                Answered(round, () => told(at));
             }
         };
         using var anchor = new Gdk.Rectangle { X = 0, Y = 0, Width = 1, Height = 1 };
@@ -163,19 +191,32 @@ internal sealed class LayerProbe : IDisposable
         if (!Gdk.Internal.Popup.Present(handle, Monitor.Geometry.Width, Monitor.Geometry.Height, layout.Handle))
         {
             heard = true;
-            Answered(() => told(null));
+            Answered(round, () => told(null));
         }
     }
 
-    // Told once both popups were, out of the signal that told the last, as what is told disposes the popups.
-    private void Answered(Action answer)
+    // Told once both popups of this round were, out of the signal that told the last, which a popup disposed in it would
+    // leave holding a freed one.
+    private void Answered(int round, Action answer)
     {
+        if (round != _round)
+        {
+            return;
+        }
+
         answer();
         if (--_asking == 0)
         {
             GLib.Functions.IdleAdd(AfterFrame, () =>
             {
-                _measured(this);
+                if (round == _round)
+                {
+                    // A popup left on a surface keeps GTK from taking the next size the compositor gives it, as a panel
+                    // comes or goes.
+                    Drop();
+                    _measured(this);
+                }
+
                 return false;
             });
         }

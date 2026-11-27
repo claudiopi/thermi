@@ -26,7 +26,7 @@ internal sealed record NoticeHost(Settings Settings, OverlayVisibility Visibilit
 /// thermi's notices as the desktop's own notifications, each once, whose buttons do what they do on Windows, through
 /// <see cref="NoticeChoices"/>: Core's notices of the first start, of hidden overlays and of click-through; "Notify me when
 /// critical"'s, after its 10 s; that the settings window ended with an error; and that no overlay can show on this desktop.
-/// Each button is known by its action id.
+/// Each button is known by its action id, and a click on one of Core's notices itself does what its first button does.
 /// </summary>
 internal sealed class ThermiNotices
 {
@@ -37,6 +37,9 @@ internal sealed class ThermiNotices
     public const string GotIt = "got-it";
     public const string Critical = "critical";
     public const string OpenAgain = "open-again";
+
+    /// <summary>A click on the notice itself, past its buttons, as the freedesktop notifications name it.</summary>
+    public const string Body = "default";
 
     private static readonly (NoticeButtons Button, string Action, HostText Label)[] Buttons =
     [
@@ -89,7 +92,8 @@ internal sealed class ThermiNotices
         (string, string)[] buttons = notice.Kind is NoticeKind.FirstRun or NoticeKind.FirstRunDriver
             ? [(FirstRun, texts.Of(HostText.NoticeOpenSettings))]
             : [.. Buttons.Where(each => notice.Buttons.HasFlag(each.Button)).Select(each => (each.Action, texts.Of(each.Label)))];
-        _ = Tell(notice, title, text, buttons);
+        // A click on the notice does what its first button does, as on Windows; a server shows no button for it.
+        _ = Tell(notice, title, text, [.. buttons, (Body, "")]);
     }
 
     /// <summary>"Notify me when critical": a fresh snapshot, once a second, and the notice of each item critical long enough.</summary>
@@ -124,7 +128,7 @@ internal sealed class ThermiNotices
             return;
         }
 
-        var button = Buttons.FirstOrDefault(each => each.Action == action).Button;
+        var button = action == Body ? NoticeChoices.Clicked(notice) : Buttons.FirstOrDefault(each => each.Action == action).Button;
         if (NoticeChoices.Choose(notice, button, _notices.Showing, _host.Settings, _host.Visibility, _host.Settle, Open))
         {
             _host.RequestPaint();

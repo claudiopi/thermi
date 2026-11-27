@@ -1,3 +1,4 @@
+using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using Thermi.Linux.Tests.Desktops;
 using Thermi.Linux.Tray;
@@ -20,10 +21,21 @@ public sealed partial class DesktopTests
         GLib.MainLoop().run()
         """;
 
-    [Fact(Timeout = Bound.Test)]
-    public async Task NoticesAreTheDesktopsNotifications()
+    public enum NoticeCase
     {
-        var cancel = TestContext.Current.CancellationToken;
+        Gnome,
+        X11,
+    }
+
+    [Theory(Timeout = Bound.Test)]
+    [InlineData(NoticeCase.Gnome)]
+    [InlineData(NoticeCase.X11)]
+    public Task NoticesAreTheDesktopsNotifications(NoticeCase row) =>
+        row == NoticeCase.X11 ? NoticesOffGnomeAsync(TestContext.Current.CancellationToken) : NoticesOnGnomeAsync(TestContext.Current.CancellationToken);
+
+    // On GNOME, the Shell's: thermi's first start, a critical item and the missing extension.
+    private static async Task NoticesOnGnomeAsync(CancellationToken cancel)
+    {
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], extension: null, cancel);
         var session = desktop.Session;
         var notices = await NoticeWatch.StartAsync(desktop, cancel);
@@ -62,6 +74,33 @@ public sealed partial class DesktopTests
         Assert.All(["first-run", "install-extension", "critical", ThermiNotices.OpenAgain], action => Assert.Equal(1, notices.Count(action)));
         Assert.Equal("thermi", hot.App);
         Assert.True(hot.At - first.At > NotifyMe.After.TotalSeconds - 1, $"The critical notice came {hot.At - first.At} s after the first second.");
+    }
+
+    // Off GNOME, a server of the test's own: the hotkeys hide the overlays and turn click-through on, each told as a notice, and
+    // a button of the first and a click on the second itself do what they do on Windows.
+    private static async Task NoticesOffGnomeAsync(CancellationToken cancel)
+    {
+        await using var desktop = await TestDesktop.StartAsync(DesktopKind.X11, [Monitor], cancel);
+        var hotkeys = new HotkeysConfig { Toggle = "Ctrl+Shift+J", ClickThrough = "Ctrl+Shift+L" };
+        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [Scene.Overlay with { Position = Scene.OnWindow }], Hotkeys = hotkeys }, cancel);
+        var notices = await NoticeWatch.StartAsync(desktop, cancel);
+        await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
+        var thermi = await desktop.ShowThermiAsync([], cancel);
+
+        var hidden = notices.NextAsync(ThermiNotices.ShowIt, cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+j", cancel);
+        var shown = Traced.NextAsync(thermi.Error, Traced.Shown, cancel);
+        await notices.ClickAsync(await hidden, ThermiNotices.ShowIt, cancel);
+        await shown;
+        var through = notices.NextAsync(ThermiNotices.Undo, cancel);
+        var turnedOn = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+l", cancel);
+        await turnedOn;
+        var undone = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
+        await notices.ClickAsync(await through, ThermiNotices.Body, cancel);
+        await undone;
+
+        Assert.False((await Settings.ReadAsync(desktop.Session, cancel)).Overlays[0].ClickThrough);
     }
 
     private static async Task<SessionProcess> SquatAsync(OwnSession session, CancellationToken cancel)

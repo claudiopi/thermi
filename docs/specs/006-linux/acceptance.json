@@ -181,7 +181,7 @@
       "covers": [
         "R22"
       ],
-      "description": "Given the desktop's own notifications, watched by the test (on GNOME the Shell's, elsewhere a server of the test's own), when thermi starts the first time, an item with Notify me when critical stays critical for 10 s and the extension is missing, then each notice is one notification, once, and its buttons do what they do on Windows; a settings window that dies as a button opens it is told as a notice, with its log, whose button opens it again.",
+      "description": "Given the desktop's own notifications, watched by the test (on GNOME the Shell's, elsewhere a server of the test's own), when thermi starts the first time, an item with Notify me when critical stays critical for 10 s and the extension is missing, then each notice is one notification, once, and its buttons do what they do on Windows; a settings window that dies as a button opens it is told as a notice, with its log, whose button opens it again. Off GNOME, the hotkeys that hide the overlays and turn click-through on tell their notices, and a button of one and a click on the other itself do what they do on Windows.",
       "check": "NoticesAreTheDesktopsNotifications",
       "passes": true
     },

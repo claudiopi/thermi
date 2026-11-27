@@ -61,25 +61,33 @@ public sealed class TrayItemTests
         Assert.Equal("refused thermi", called.Out.Trim());
     }
 
-    // A left click opens thermi's menu, as on Windows: the icon says it is a menu, which a tray then opens itself on that
-    // click; one that calls Activate or ContextMenu instead gets the same menu's rows.
+    // A left click on thermi's icon does what it does on Windows: it opens the menu, which the icon says it is so a tray
+    // opens it itself, but while the overlays are hidden, when it shows them, through the Activate the tray calls then.
     [Fact(Timeout = Bound.Test)]
-    public async Task ALeftClickOpensThermisMenu()
+    public async Task ALeftClickShowsTheOverlaysItHid()
     {
         var cancel = TestContext.Current.CancellationToken;
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.X11, [new TestMonitor(1280, 720)], cancel);
         var session = desktop.Session;
         var tray = await TrayWatcher.ServeAsync(session, cancel);
-        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [Scene.Overlay with { Position = Scene.OnWindow }] }, cancel);
-        await desktop.ShowThermiAsync([], cancel);
+        var hotkeys = new HotkeysConfig { Toggle = "Ctrl+Shift+J" };
+        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [Scene.Overlay with { Position = Scene.OnWindow }], Hotkeys = hotkeys }, cancel);
+        var thermi = await desktop.ShowThermiAsync([], cancel);
         var icon = await tray.NextAsync(cancel);
+        var menuShown = await tray.PropertyAsync(icon, "ItemIsMenu", cancel);
+        var hidden = Traced.NextAsync(thermi.Error, Traced.Hidden, cancel);
+        await desktop.Input.PressAsync("Control_L+Shift_L+j", cancel);
+        await hidden;
+        await Traced.NextAsync(thermi.Error, Traced.Paint, cancel);
+        var menuHidden = await tray.PropertyAsync(icon, "ItemIsMenu", cancel);
 
+        var shown = Traced.NextAsync(thermi.Error, Traced.Shown, cancel);
         var activated = await session.RunAsync(
             "gdbus", ["call", "--session", "--dest", icon.Name, "--object-path", icon.Path, "--method", "org.kde.StatusNotifierItem.Activate", "0", "0"],
             cancel: cancel);
+        await shown;
 
         Assert.Equal(0, activated.Exit);
-        Assert.Equal("(<true>,)", await tray.PropertyAsync(icon, "ItemIsMenu", cancel));
-        Assert.True(await tray.MenuEntriesAsync(icon, cancel) > 0);
+        Assert.Equal(("(<true>,)", "(<false>,)"), (menuShown, menuHidden));
     }
 }

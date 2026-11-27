@@ -64,14 +64,17 @@ internal sealed class TestDesktop : IAsyncDisposable
     /// <summary>The pointer and the keyboard, through the desktop's own input for tests.</summary>
     public DesktopInput Input => new(Kind, Session, Scale);
 
-    /// <summary>The desktop, with its panel along <paramref name="panel"/> where it starts bare: X11's, KWin's or Sway's.</summary>
+    /// <summary>
+    /// The desktop, with its panel along <paramref name="panel"/> where it starts bare: X11's, KWin's or Sway's; with none for
+    /// null, on KWin and Sway, as a panel that starts later.
+    /// </summary>
     public static Task<TestDesktop> StartAsync(
-        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel, PanelEdge panel = PanelEdge.Top) =>
+        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel, PanelEdge? panel = PanelEdge.Top) =>
         StartAsync(kind, monitors, TestShell.Thermi, cancel, panel);
 
     /// <summary>A desktop whose GNOME Shell loads <paramref name="extension"/> in place of thermi's, or none when null.</summary>
     public static async Task<TestDesktop> StartAsync(
-        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel, PanelEdge panel = PanelEdge.Top)
+        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel, PanelEdge? panel = PanelEdge.Top)
     {
 #pragma warning disable CA2000 // The desktop owns the session, and ends it with itself, as when its start fails below.
         var desktop = new TestDesktop(kind, new OwnSession(), monitors.Max(monitor => monitor.Scale));
@@ -83,7 +86,7 @@ internal sealed class TestDesktop : IAsyncDisposable
                 DesktopKind.Gnome or DesktopKind.GnomeX11 => desktop.StartGnomeAsync(monitors, extension, cancel),
                 DesktopKind.KWin => desktop.StartKWinAsync(monitors, panel, cancel),
                 DesktopKind.Sway => desktop.StartSwayAsync(monitors, panel, cancel),
-                DesktopKind.X11 => desktop.StartXfceAsync(monitors, panel, cancel),
+                DesktopKind.X11 => desktop.StartXfceAsync(monitors, panel ?? throw new ArgumentNullException(nameof(panel), "Xfce has its panel."), cancel),
                 DesktopKind.BareWayland => desktop.StartWestonAsync(monitors[0], cancel),
                 _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown desktop."),
             }).ConfigureAwait(false);
@@ -279,7 +282,7 @@ internal sealed class TestDesktop : IAsyncDisposable
     // X11 windows. KWin starts the one program it is given, a whole command line, once Wayland serves; it lets in
     // kscreen-doctor without asking once it checks no permission, as its own tests run it. A bare KWin has no panel: the
     // tests show their own.
-    private async Task StartKWinAsync(IReadOnlyList<TestMonitor> monitors, PanelEdge panel, CancellationToken cancel)
+    private async Task StartKWinAsync(IReadOnlyList<TestMonitor> monitors, PanelEdge? panel, CancellationToken cancel)
     {
         // No animation: a window that fades in shows half drawn after its first frame. No screen lock: KWin locks after
         // five minutes without input, and a test may wait that long on a slow machine.
@@ -319,7 +322,7 @@ internal sealed class TestDesktop : IAsyncDisposable
     // output per monitor at its scale, side by side, and its bar at the top of the first, or the tests' panel along another
     // edge, without Xwayland; its config's
     // last line says it is ready, once the session's Wayland display names Sway's socket, which Sway names itself.
-    private async Task StartSwayAsync(IReadOnlyList<TestMonitor> monitors, PanelEdge panel, CancellationToken cancel)
+    private async Task StartSwayAsync(IReadOnlyList<TestMonitor> monitors, PanelEdge? panel, CancellationToken cancel)
     {
         await XServers.StartXvfbAsync(Session, monitors, cancel).ConfigureAwait(false);
         var config = Path.Combine(Session.Home, "sway.config");
@@ -348,7 +351,7 @@ internal sealed class TestDesktop : IAsyncDisposable
         };
         await (await Session.StartAsync("sway", ["--config", config], nested, cancel).ConfigureAwait(false)).ReadyAsync(cancel).ConfigureAwait(false);
         await XServers.PlaceNestedAsync(Session, monitors, swapped: false, cancel).ConfigureAwait(false);
-        _panel = await TestPanel.ShowAsync(Session, panel == PanelEdge.Top ? null : panel, cancel).ConfigureAwait(false);
+        _panel = await TestPanel.ShowAsync(Session, panel is PanelEdge.Top ? null : panel, cancel).ConfigureAwait(false);
     }
 
     private async Task StartXfceAsync(IReadOnlyList<TestMonitor> monitors, PanelEdge panel, CancellationToken cancel)

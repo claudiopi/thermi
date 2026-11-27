@@ -11,7 +11,8 @@ namespace Thermi.Linux.Tray;
 /// thermi's icons in the tray of every desktop but GNOME, as StatusNotifierItems registered with the session's
 /// <c>org.kde.StatusNotifierWatcher</c>. Each icon has a bus name of its own, which thermi lets go as the icon goes: a
 /// watcher forgets an item only as its name goes, and thermi's process holds every icon. A watcher that comes later, or
-/// again, as a tray starts after thermi, has every icon registered again.
+/// again, as a tray starts after thermi, has every icon registered again. A tray tells a left click with no time, so it is
+/// timed as it comes, and two on one icon within the person's double-click time are a double-click.
 /// </summary>
 internal sealed class StatusNotifierIcons : ITrayIcons
 {
@@ -23,11 +24,14 @@ internal sealed class StatusNotifierIcons : ITrayIcons
     private readonly ILogger _log;
     private readonly Dictionary<string, (string BusName, StatusNotifierItem Item)> _items = new(StringComparer.Ordinal);
     private readonly Gio.DBusProxy _daemon;
+    private readonly TrayClicks _clicks;
+    private readonly TimeProvider _time;
     private int _named;
 
-    public StatusNotifierIcons(Gio.DBusConnection bus, BusObjects objects, ILogger log)
+    public StatusNotifierIcons(Gio.DBusConnection bus, BusObjects objects, ILogger log, PointerSettings pointer, TimeProvider time)
     {
-        (_bus, _objects, _log) = (bus, objects, log);
+        (_bus, _objects, _log, _time) = (bus, objects, log, time);
+        _clicks = new TrayClicks(pointer);
         // A proxy hears the bus' signals, as GirCore cannot call back a subscription of the connection's own.
         const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
         _daemon = Gio.DBusProxy.NewSync(bus, Flags, null, Bus, "/org/freedesktop/DBus", Bus, null);
@@ -56,14 +60,21 @@ internal sealed class StatusNotifierIcons : ITrayIcons
         {
             if (_items.TryGetValue(icon.Key, out var shown))
             {
+                var menuChanged = shown.Item.Shows.ClickIsMenu != icon.ClickIsMenu;
                 shown.Item.Shows = icon;
+                // A tray reads every property again on any of the item's signals, ItemIsMenu with them.
+                if (menuChanged)
+                {
+                    _objects.Emit(StatusNotifierItem.Path, StatusNotifierItem.NewStatus, shown.Item, GLib.Variant.NewTuple([GLib.Variant.NewString("Active")]));
+                }
+
                 Announce(icon.Redrawn, StatusNotifierItem.NewIcon, shown.Item);
                 Announce(icon.Retipped, StatusNotifierItem.NewToolTip, shown.Item);
                 continue;
             }
 
             var name = string.Create(CultureInfo.InvariantCulture, $"org.kde.StatusNotifierItem-{Environment.ProcessId}-{++_named}");
-            var item = new StatusNotifierItem(icon, press => Pressed(icon.Key, press));
+            var item = new StatusNotifierItem(icon, () => Pressed(icon.Key, _clicks.Click(icon.Key, Now())), press => Pressed(icon.Key, press));
             _objects.Serve(name, StatusNotifierItem.Path, item);
             _objects.Serve(name, TrayMenu.Path, new TrayMenu(() => MenuOf(icon.Key), row => Chosen(icon.Key, row)));
             _items[icon.Key] = (name, item);
@@ -75,8 +86,12 @@ internal sealed class StatusNotifierIcons : ITrayIcons
 
     public void OpenMenu(string key)
     {
-        // The tray opens the menu itself, from the item's Menu, as ItemIsMenu asks of it.
+        // A tray opens an icon's menu itself, from the item's Menu: on a right click, and on a left click where ItemIsMenu says
+        // so. dbusmenu's ItemActivationRequested would open every icon's, as they share one path of one connection.
     }
+
+    // Milliseconds, as a click's time is told elsewhere.
+    private uint Now() => (uint)(_time.GetTimestamp() * 1000 / _time.TimestampFrequency);
 
     public void Dispose()
     {
