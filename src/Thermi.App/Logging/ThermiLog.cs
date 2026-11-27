@@ -26,7 +26,7 @@ internal static class ThermiLog
     private const string Line =
         "{Time:yyyy-MM-dd HH:mm:ss.fff zzz} {Counter:l} {ProcessId} {Level:u3} {SourceContext:l}: {Message:lj}{NewLine}{Exception}";
 
-    public static string Folder { get; } = Path.Combine(UserFolders.Local, "thermi");
+    public static string Folder { get; } = Path.Combine(OperatingSystem.IsLinux() ? UserFolders.State : UserFolders.Local, "thermi");
 
     // A file per process: two processes rolling one shared file by its size race to rename it, and lose lines or files.
     public static string OverlayPath { get; } = Path.Combine(Folder, "thermi.log");

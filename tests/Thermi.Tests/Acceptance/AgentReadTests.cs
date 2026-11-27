@@ -60,7 +60,7 @@ public sealed class AgentReadTests
         Assert.Equal(["no.such"], some.Unknown);
 
         // Over a series an address keeps no minimum or average; a sensor an earlier sample had and these lack reads as missing.
-        var facts = new WindowsFacts(TimeSpan.FromHours(1), SystemSensors.AddressOf([192, 168, 1, 2]), DateTimeOffset.UnixEpoch);
+        var facts = new SystemFacts(TimeSpan.FromHours(1), SystemSensors.AddressOf([192, 168, 1, 2]), DateTimeOffset.UnixEpoch);
         var networked = SystemSensors.With(snapshot, facts);
         var dropped = snapshot.Sensors[0].Id;
         var later = networked with { Sensors = [.. networked.Sensors.Where(sensor => sensor.Id != dropped)] };

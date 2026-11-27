@@ -58,7 +58,7 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
 
     // The window's load: a thermi cpu-load of its own, at idle priority, so the PC stays as it was for the person using it.
     public Action<CancellationToken> Load { get; init; } =
-        stop => CpuLoad.Start(ThermiPaths.Own, (int)FanFinder.MaxRun.TotalSeconds, stop);
+        stop => CpuLoad.Start(ThermiPaths.Own, CpuLoad.Arguments((int)FanFinder.MaxRun.TotalSeconds), stop);
 
     public string FinderRan { get; init; } = Path.Combine(UserFolders.Local, "thermi", "fan-finder-ran.txt");
 

@@ -13,7 +13,7 @@ public sealed class VoltageTests
 
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
 
-    private static readonly WindowsFacts Facts = new(TimeSpan.Zero, null, DateTimeOffset.UnixEpoch);
+    private static readonly SystemFacts Facts = new(TimeSpan.Zero, null, DateTimeOffset.UnixEpoch);
 
     // A8 of spec 005: the recorded desktop as administrator, and without admin rights, as the readers take them.
     [Fact]

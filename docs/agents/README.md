@@ -50,7 +50,7 @@ An edit is a JSON object with its `kind`; its fields are in `src/Thermi.Core/Bri
 | `threshold` | `{"kind": "threshold", "item", "warning", "critical"}` sets an item's lines at once; null takes one out, and one left out stays. |
 | `place` | `{"kind": "place", "overlay", "x", "y"}` leaves an overlay where a drag let go at that point would. |
 
-An edit made while the overlay or the window writes the file keeps both changes. Each change an agent makes goes to `%LOCALAPPDATA%\thermi\thermi-agents.log`, and the settings as they were before its last change stay beside them, in `config.before-agent.json`.
+An edit made while the overlay or the window writes the file keeps both changes. Each change an agent makes goes to `%LOCALAPPDATA%\thermi\thermi-agents.log`, on Linux `~/.local/state/thermi/thermi-agents.log`, and the settings as they were before its last change stay beside them, in `config.before-agent.json`.
 
 ## The contract
 

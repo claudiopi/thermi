@@ -7,6 +7,9 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>thermi</AssemblyName>
     <RootNamespace>Thermi.Linux</RootNamespace>
+    <!-- Published self-contained for the PC's processor into the packages; both are restored, so the lock file holds what a
+         publish for either needs. -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +18,7 @@
 
   <ItemGroup>
     <PackageReference Include="GirCore.Gdk-4.0" />
+    <PackageReference Include="GirCore.Gio-2.0" />
     <PackageReference Include="GirCore.PangoCairo-1.0" />
   </ItemGroup>
 
@@ -23,5 +27,7 @@
     <ProjectReference Include="..\Thermi.Cli\Thermi.Cli.csproj" />
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
   </ItemGroup>
+
+  <Import Project="..\ThermiCli.targets" />
 
 </Project>

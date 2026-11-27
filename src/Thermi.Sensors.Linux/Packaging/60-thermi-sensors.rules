@@ -1,0 +1,3 @@
+# The CPU's energy counters, which the kernel lets only root read since a side channel was found in them: readable by
+# thermi's sensors' group too, and no one else, for the CPU's power. Its value is only how much energy the package used.
+SUBSYSTEM=="powercap", KERNEL=="intel-rapl:*", RUN+="/usr/bin/chgrp thermi /sys%p/energy_uj", RUN+="/usr/bin/chmod 0440 /sys%p/energy_uj"

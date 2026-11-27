@@ -1,0 +1,14 @@
+# thermi's sensors, started on the first connection to their socket (docs/adr/0019-linux.md). Any local user may read
+# it, as the overlay, its window and thermi-cli of every user do; the service never reads what a client writes.
+[Unit]
+Description=thermi's sensors, on their socket
+Documentation=https://github.com/claudiopi/thermi
+
+[Socket]
+ListenStream=/run/thermi/sensors.sock
+SocketMode=0666
+DirectoryMode=0755
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

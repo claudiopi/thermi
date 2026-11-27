@@ -2401,6 +2401,39 @@
   <data name="AgentText.NotRunningFix" xml:space="preserve">
     <value>Pedile a la persona que inicie thermi desde el menú Inicio. No lo inicies vos.</value>
   </data>
+  <data name="AgentText.FramesNotReadCause" xml:space="preserve">
+    <value>Los FPS y el tiempo de cuadro no se leen en Linux: sus ítems se leen como faltantes y no ocupan lugar en el overlay.</value>
+  </data>
+  <data name="AgentText.FramesNotReadFix" xml:space="preserve">
+    <value>No hay nada que arreglar: las demás métricas se leen como siempre.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowCause" xml:space="preserve">
+    <value>El overlay no puede mostrarse en este escritorio: necesita GNOME con la extensión de thermi, un escritorio con layer-shell, o X11.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFix" xml:space="preserve">
+    <value>Pedile a la persona que active la extensión de GNOME de thermi, o que entre a un escritorio que pueda mostrarlo. Los sensores se siguen leyendo.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedFixLinux" xml:space="preserve">
+    <value>Pedile a la persona que corra sudo systemctl enable --now thermi-sensors.socket, o que vuelva a instalar el paquete de thermi. No lo inicies vos.</value>
+  </data>
+  <data name="AgentText.ServiceStaleFixLinux" xml:space="preserve">
+    <value>Esperá unos segundos y volvé a leer; systemd reinicia el servicio si sigue trabado.</value>
+  </data>
+  <data name="AgentText.PipeTakenCauseLinux" xml:space="preserve">
+    <value>Otro programa sirve el socket donde deberían estar los sensores de thermi, así que sus lecturas no son confiables.</value>
+  </data>
+  <data name="AgentText.PipeTakenFixLinux" xml:space="preserve">
+    <value>Pedile a la persona que detenga el programa que sirve /run/thermi/sensors.sock, o que reinicie el PC.</value>
+  </data>
+  <data name="AgentText.DriverMissingFixLinux" xml:space="preserve">
+    <value>Pedile a la persona que revise que esté cargado el módulo del kernel para los sensores del CPU: k10temp en AMD, coretemp en Intel. Una máquina virtual no tiene ninguno para cargar.</value>
+  </data>
+  <data name="AgentText.DriverMissingCauseLinux" xml:space="preserve">
+    <value>La CPU no tiene temperatura: no está cargado el módulo del kernel que la lee, o thermi corre en una máquina virtual, que no tiene.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenFixLinuxSensorsOnly" xml:space="preserve">
+    <value>Pedile a la persona que arregle o borre el archivo de configuración de thermi, ~/.config/thermi/config.json.</value>
+  </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>Esta compilación no se actualiza sola</value>
   </data>

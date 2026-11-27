@@ -63,6 +63,9 @@ internal sealed class OwnSession : IAsyncDisposable
                 ["DISPLAY"] = X11Display,
                 ["DBUS_SESSION_BUS_ADDRESS"] = BusAddress,
                 ["LANG"] = "C.UTF-8",
+                // thermi reads the service's socket first, which a PC with thermi installed serves: the session's
+                // programs read the session's own, which SensorFeed serves, alone.
+                ["THERMI_SENSORS_SOCKET"] = Path.Combine(RuntimeFolder, "thermi", "sensors.sock"),
             };
             // The build's programs need .NET, which a PC may hold where only this variable says.
             if (Environment.GetEnvironmentVariable("DOTNET_ROOT") is { Length: > 0 } dotnet)

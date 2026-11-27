@@ -1,6 +1,6 @@
 using LibreHardwareMonitor.Hardware;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
-using Thermi.Sensors.Windows.Pipe;
 using Thermi.Sensors.Windows.Service;
 
 namespace Thermi.Sensors.Windows.Reading;
@@ -34,7 +34,7 @@ internal sealed class LhmSensorSource(TimeProvider time, Action<string, TimeSpan
     private readonly ReadPace _reads = new(time, TimeSpan.Zero);
     private readonly ReadPace _drives = new(time, StorageEvery);
     private readonly ReadPace _rescans = new(time, RescanEvery);
-    private readonly DeviceUpdates _updates = new(time, slow, SensorPipeServer.End, patience);
+    private readonly DeviceUpdates _updates = new(time, slow, SnapshotBroadcast.End, patience);
     private readonly UpdateThreads _threads = new();
     private bool _open;
 

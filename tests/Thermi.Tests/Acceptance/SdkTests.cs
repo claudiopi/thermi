@@ -37,7 +37,8 @@ public sealed class SdkTests
         }
     }
 
-    // Spec 003, R22: thermi-cli on PATH first, else where an install for everyone or for one person alone puts it.
+    // Spec 003, R22: thermi-cli on PATH first, else where an install for everyone or for one person alone puts it; and on
+    // Linux, spec 006's R15, where the packages put it.
     [Fact]
     public void TheSdkFindsThermiCliWhereEitherInstallPutsIt()
     {
@@ -71,6 +72,7 @@ public sealed class SdkTests
             }
 
             Assert.Equal([null, .. installs.Reverse().Select(folder => Path.Combine(folder, name))], found);
+            Assert.Equal([ThermiClient.LinuxInstall], ThermiClient.InstallsOn(windows: false, programFiles, local));
         }
         finally
         {

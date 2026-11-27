@@ -53,30 +53,7 @@
   <Import Project="SettingsPage.targets" />
   <Import Project="..\Launchers.targets" />
 
-  <!-- thermi-cli.exe: a second apphost of thermi.dll, of the console subsystem, so every shell waits for it and gets its
-       output and exit code, which a windowed program gives none (docs/adr/0013-agents-cli-and-mcp.md). It goes wherever
-       thermi.exe goes: the build's output, a referencing project's and the publish folder. -->
-  <Target Name="ThermiCliFiles" BeforeTargets="AssignTargetPaths" DependsOnTargets="_GetAppHostPaths" Condition="'$(AppHostSourcePath)' != ''">
-    <PropertyGroup>
-      <ThermiCliPath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)cli/thermi-cli.exe'))</ThermiCliPath>
-    </PropertyGroup>
-    <ItemGroup>
-      <None Include="$(ThermiCliPath)" Link="thermi-cli.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    </ItemGroup>
-  </Target>
-
-  <UsingTask TaskName="CreateAppHost" AssemblyFile="$(MicrosoftNETBuildTasksAssembly)" />
-  <Target Name="ThermiCliAppHost" AfterTargets="_CreateAppHost" BeforeTargets="CopyFilesToOutputDirectory" DependsOnTargets="ThermiCliFiles"
-          Inputs="@(IntermediateAssembly);$(AppHostSourcePath)" Outputs="$(ThermiCliPath)" Condition="'$(AppHostSourcePath)' != ''">
-    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(ThermiCliPath)'))" />
-    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
-                   AppHostDestinationPath="$(ThermiCliPath)"
-                   AppBinaryName="$(AssemblyName)$(TargetExt)"
-                   IntermediateAssembly="@(IntermediateAssembly->'%(FullPath)')"
-                   WindowsGraphicalUserInterface="false"
-                   Retries="$(CopyRetryCount)"
-                   RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)" />
-  </Target>
+  <Import Project="..\ThermiCli.targets" />
 
   <!-- thermi-cli's launcher, made as Launchers.targets makes thermi.exe's: the top of the install folder, which the PATH
        names, keeps a thermi-cli that starts the version the launchers point at. -->

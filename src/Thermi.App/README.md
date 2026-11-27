@@ -1,10 +1,11 @@
 # Thermi.App
 
-What the overlay and the settings window decide beyond Core that needs a package, as the logs do, or the file system and its waits, which any OS's host shares: the settings file every process writes and the settings as a host holds them, the fan finder's run, what a desktop gesture leaves, and the settings window's edits and readings. It targets plain `net10.0`, so no Windows type gets in (`RepoRulesTests`), and its types are internal, seen by the hosts and the tests its project names. Core keeps what needs neither; `docs/adr/0018-shared-and-windows-projects.md` says how a host for another OS takes the rest.
+What the overlay and the settings window decide beyond Core that needs a package, as the logs do, or the file system and its waits, which any OS's host shares: the settings file every process writes and the settings as a host holds them, the sensor service's client, the fan finder's run, what a desktop gesture leaves, and the settings window's edits and readings. It targets plain `net10.0`, so no Windows type gets in (`RepoRulesTests`), and its types are internal, seen by the hosts and the tests its project names. Core keeps what needs neither; `docs/adr/0018-shared-and-windows-projects.md` says how a host for another OS takes the rest.
 
 | Folder | What lives there |
 | --- | --- |
 | `SettingsFile` | `config.json` read and written under its mutex, the settings a host holds over it, the edits that wait to be written, and watching the file. |
+| `Sensors` | The client of the sensor service every OS's overlay, window and `thermi-cli` share: it connects, trusts or refuses who serves, reads the lines, and connects again when they stop. Each OS says how it connects. |
 | `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
 | `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, a drop's write, a menu row's choice, and the last gesture's undo. |
 | `Window` | The settings window's logic over the settings: its edits and undo, the sensors' readings and charts it keeps, and how it reads each snapshot. |

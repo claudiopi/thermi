@@ -159,6 +159,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y --no-install-recommends gnome-shell gjs mutter dbus-x11 dbus-user-session
           at-spi2-core gir1.2-atspi-2.0 python3-gi libgtk-4-1 imagemagick xvfb xwayland xdotool x11-utils gnome-system-monitor
           fonts-dejavu-core
+      # The shells thermi-cli is run from in the tests, beside bash.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish
       # The tests' own user manager runs in a scope the runner's own delegates, which only a lingering user has.
       - run: sudo loginctl enable-linger "$(id -un)"
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Linux

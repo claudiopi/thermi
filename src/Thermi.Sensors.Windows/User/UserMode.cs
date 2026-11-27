@@ -4,6 +4,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using Thermi.Core.Frames;
 using Thermi.Core.Install;
+using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Updates;
 using Thermi.Sensors.Windows.Install;
@@ -34,7 +35,7 @@ internal static class UserMode
     /// How long the host stays once its last client left: a switch's watchdog reads the new host and leaves before the
     /// overlay comes back to it.
     /// </summary>
-    public static readonly TimeSpan Linger = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan Linger = SnapshotBroadcast.Linger;
 
     // ADR 0008's codes, each an event of its own, since an event carries no data to parse.
     private static readonly int[] Codes = [UpdateSchedule.QuietCode, UpdateSchedule.CheckCode, UpdateSchedule.RestartCode, InstallForEveryone.Code];

@@ -25,6 +25,8 @@
     <PackageVersion Include="Serilog.Extensions.Logging" Version="11.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.4.0" />
+    <!-- GObject's libraries for .NET, generated from their introspection data (docs/adr/0019-linux.md). -->
+    <PackageVersion Include="GirCore.Gio-2.0" Version="0.8.1" />
     <PackageVersion Include="System.CommandLine" Version="3.0.0" />
     <PackageVersion Include="System.ServiceProcess.ServiceController" Version="10.0.15" />
   </ItemGroup>

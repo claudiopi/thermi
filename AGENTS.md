@@ -9,7 +9,7 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | Path | What lives there |
 | --- | --- |
 | `src/Thermi.Core` | Everything that does not need Windows: readings, sensor mapping, config and layout. No dependencies. |
-| `src/Thermi.App` | What the overlay and the window share across OSes beyond Core, needing a package or the file system: the settings file and the settings a host holds, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, and the logs. `net10.0`. |
+| `src/Thermi.App` | What the overlay and the window share across OSes beyond Core, needing a package or the file system: the settings file and the settings a host holds, the sensor client that reads the service's feed, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, and the logs. `net10.0`. |
 | `src/Thermi.Cli` | `thermi-cli`'s commands and its MCP server, the same commands over stdio, for any OS: what an OS answers comes in through `IAgentEnvironment`. `net10.0`. |
 | `src/Thermi.Windows` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
@@ -54,6 +54,9 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | `pwsh scripts/updates.ps1 <command>` | Packs a version and its MSIs, makes keys, and pulls the update channels' levers: `docs/RELEASES.md`. |
 | `thermi-sensors --dump <file> [--seconds <n>]` | Saves what the sensors read now, or a series of one snapshot a second, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case. |
 | `thermi-sensors --frames <file> --seconds <n>` | As administrator, records every present for n seconds, to replay frames in tests. It never records a process's name. |
+| `thermi-sensors --tree <folder> [--seconds <n>]` | On Linux, copies the files under `/sys` and `/proc` the sensors read, and NVML's answers, a folder a second, for tests to replay. Run it with `sudo` for the service's view, or as yourself for a plain user's. |
+| `thermi-sensors --root <tree> [--dump <file>]` | On Linux, reads a saved tree in place of the kernel's files: with `--dump`, to see what the service makes of it; with `--console`, to serve it. |
+| `thermi-sensors --console` | On Linux, serves the readings on a socket of your own, `$XDG_RUNTIME_DIR/thermi/sensors.sock`, which thermi reads where the service's is missing or stopped. |
 | `thermi preview <snapshot> <png> [scale] [settings]` | Paints the first overlay for a saved snapshot, at a scale from 0.25 to 8, without showing it; an empty file paints the sensors stopped, and a file that is no snapshot says why and exits with 2. In PowerShell, wrap it in `Start-Process -Wait`. |
 | `thermi settings [--overlay <n>]` | Opens the settings window on overlay n, from 1. `--pseudo` makes its texts 40 % longer; `--trace` logs each paint and input to `%LOCALAPPDATA%\thermi`. |
 

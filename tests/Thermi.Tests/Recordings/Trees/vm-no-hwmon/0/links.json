@@ -1,0 +1,13 @@
+{
+  "/sys/block/loop0": "/sys/devices/virtual/block/loop0",
+  "/sys/block/loop1": "/sys/devices/virtual/block/loop1",
+  "/sys/block/loop2": "/sys/devices/virtual/block/loop2",
+  "/sys/block/loop3": "/sys/devices/virtual/block/loop3",
+  "/sys/block/loop4": "/sys/devices/virtual/block/loop4",
+  "/sys/block/loop5": "/sys/devices/virtual/block/loop5",
+  "/sys/block/loop6": "/sys/devices/virtual/block/loop6",
+  "/sys/block/loop7": "/sys/devices/virtual/block/loop7",
+  "/sys/block/vda": "/sys/devices/pci0000:00/0000:00:01.3/0000:04:00.0/virtio2/block/vda",
+  "/sys/block/vda/device": "/sys/devices/pci0000:00/0000:00:01.3/0000:04:00.0/virtio2",
+  "/sys/class/net/enp1s0/device": "/sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/virtio0"
+}
