@@ -33,18 +33,19 @@ internal sealed partial class OverlayWindow
         };
 
     // Placed first as the last paint's size, which a frame of the same items, look and scale keeps, so a frame that only
-    // moves still paints.
+    // moves still paints. The last one is where the window is now, since something else may have moved it, as Windows does
+    // with a monitor that goes, and only a paint puts it back.
     private void Show(OverlayFrame frame, OverlayConfig overlay, Rgb accent, Func<Size, Position> place)
     {
         frame = _painted is { } last ? frame with { At = place(last.Size) } : frame;
-        if (OnScreen && !frame.Differs(_frame))
+        if (OnScreen && _frame is { } shown && !frame.Differs(shown with { At = WindowPosition() }))
         {
             return;
         }
 
         var bitmap = Painted(frame, overlay, accent);
-        _frame = frame with { At = place(bitmap.Size) };
-        _picture.Show(Hwnd, bitmap, _frame.At, _fade.Alpha);
+        _frame = frame;
+        _picture.Show(Hwnd, bitmap, place(bitmap.Size), _fade.Alpha);
     }
 
     private Bitmap Painted(OverlayFrame frame, OverlayConfig overlay, Rgb accent)
