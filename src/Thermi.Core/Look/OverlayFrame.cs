@@ -1,14 +1,13 @@
-using Thermi.Core.Look;
 using Thermi.Core.Settings;
 
-namespace Thermi.App.Painting;
+namespace Thermi.Core.Look;
 
 /// <summary>
-/// What one paint of an overlay shows, by what draws it. A layered window keeps its picture until it is given another,
-/// so a paint that would show what the last one showed is left out: at rest most seconds bring the same numbers, and each
-/// paint costs the overlay its drawing and the desktop's compositor a new picture.
+/// What one draw of an overlay shows, by what draws it. A layered window keeps its picture until it is given another,
+/// so a draw that would show what the last one showed is left out: at rest most seconds bring the same numbers, and each
+/// draw costs the overlay its drawing and the desktop's compositor a new picture.
 /// </summary>
-internal sealed record OverlayFrame(IReadOnlyList<OverlayItem> Items, OverlayLook Look, float Scale, Position At)
+public sealed record OverlayFrame(IReadOnlyList<OverlayItem> Items, OverlayLook Look, float Scale, Position At)
 {
     /// <summary>The overlay's settings, which say what else it draws, as the corner that resizes it.</summary>
     public OverlayConfig? Overlay { get; init; }
@@ -26,14 +25,17 @@ internal sealed record OverlayFrame(IReadOnlyList<OverlayItem> Items, OverlayLoo
     public bool Moving { get; init; }
 
     /// <summary>
-    /// Whether this frame needs a paint after <paramref name="last"/>, the last one painted or null before any: unless
-    /// both show the same, it does. A frame after a moving one paints too, so the last of a glow or a drag never stays.
+    /// Whether this frame needs a draw after <paramref name="last"/>, the last one drawn or null before any: unless both
+    /// show the same, it does. A frame after a moving one draws too, so the last of a glow or a drag never stays.
     /// </summary>
     public bool Differs(OverlayFrame? last) =>
         last is null
         || Moving
         || last.Moving
-        || (Scale, Alpha, Stopped, Marks) != (last.Scale, last.Alpha, last.Stopped, last.Marks)
+        || !Scale.Equals(last.Scale)
+        || Alpha != last.Alpha
+        || Stopped != last.Stopped
+        || Marks != last.Marks
         || At != last.At
         || Look != last.Look
         || !Equals(Overlay, last.Overlay)

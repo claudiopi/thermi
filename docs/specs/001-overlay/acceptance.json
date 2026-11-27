@@ -124,7 +124,7 @@
       "covers": [
         "R10"
       ],
-      "description": "Given an overlay on a recording, when Windows says the session locked or its display went off and warmer readings come for three seconds, then the overlay paints nothing and its history takes them; when Windows says it is unlocked or the display is back, then it shows the last reading before any tick.",
+      "description": "Given an overlay on a recording with a full-screen app in front and a value critical with Notify me, when Windows says the session locked or its display went off, the app leaves the front and warmer readings come, then the overlay draws nothing, its history takes them and the notice comes; when Windows says it is unlocked or the display is back, then it shows the last reading before any tick; a dimmed display keeps drawing.",
       "check": "AnOverlayNobodySeesPaintsNothingAndShowsTheLastReadingOnceSeen",
       "passes": true
     },

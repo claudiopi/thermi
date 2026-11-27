@@ -41,8 +41,12 @@ internal sealed class FakeTray(bool record = true)
     /// <summary>An icon under <paramref name="id"/> that a thermi which ended without removing it left behind.</summary>
     public void Leave(Guid id) => _shown[id] = Leftover;
 
+    /// <summary>A session somebody always sees, with no input ever, whose own word a host under test never hears.</summary>
+    public static SessionSight Watched { get; } = new(_ => new Unheard(), () => false, () => TimeSpan.MaxValue);
+
+    /// <summary>A host's environment of this tray, with no app in front and the session always seen, whatever the PC's own are.</summary>
     public HostEnvironment Environment(string windowMutex, Action<int>? openSettings = null) =>
-        new(windowMutex, ExePath, Notify) { OpenSettings = openSettings };
+        new(windowMutex, ExePath, Notify) { OpenSettings = openSettings, Foreground = () => null, Sight = Watched };
 
     private bool Notify(NOTIFY_ICON_MESSAGE message, in NOTIFYICONDATAW data)
     {
@@ -75,5 +79,13 @@ internal sealed class FakeTray(bool record = true)
 
         _shown[id] = tip ?? kept;
         return true;
+    }
+
+    private sealed class Unheard : IDisposable
+    {
+        public void Dispose()
+        {
+            // Nothing was registered with Windows, so nothing is let go.
+        }
     }
 }

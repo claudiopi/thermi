@@ -9,7 +9,8 @@ namespace Thermi.Windows.Win32;
 /// work areas and the taskbars are read each time, and a monitor gone or a taskbar on one it does not hold lists the
 /// monitors again.
 /// </summary>
-internal sealed class DesktopReads
+/// <param name="highContrast">How high contrast is read: Windows' own, unless a test counts the reads.</param>
+internal sealed class DesktopReads(Func<HighContrastColors?>? highContrast = null)
 {
     private IReadOnlyList<ListedMonitor>? _monitors;
     private bool? _lightTaskbar;
@@ -42,7 +43,7 @@ internal sealed class DesktopReads
     {
         if (!_highContrast.Read)
         {
-            _highContrast = (Desktop.HighContrast(), true);
+            _highContrast = ((highContrast ?? Desktop.HighContrast)(), true);
         }
 
         return _highContrast.Colors;

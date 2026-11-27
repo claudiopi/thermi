@@ -95,6 +95,10 @@ internal static partial class LogEvents
     [LoggerMessage(Level = LogLevel.Debug, Message = "paint")]
     public static partial void Painted(this ILogger logger);
 
+    /// <summary>An overlay drew a new picture, which a paint that would show the same leaves out.</summary>
+    [LoggerMessage(Level = LogLevel.Debug, Message = "draw")]
+    public static partial void Drew(this ILogger logger);
+
     [LoggerMessage(Level = LogLevel.Debug, Message = "open settings")]
     public static partial void OpeningSettings(this ILogger logger);
 

@@ -2,7 +2,7 @@
 
 **Status**: done
 
-**Budget**: 59 .NET and 0 page cases
+**Budget**: 60 .NET and 0 page cases
 
 A service reads the PC's sensors with administrator rights from boot, and an overlay, running as the user, shows them in a strip above the taskbar or anywhere on screen, refreshed every second. thermi began as the one program to replace two monitoring tools and the scheduled tasks that kept them above the taskbar, so it has to be trusted all day: a value it cannot read shows as missing, nothing it reads can crash it, and it costs next to nothing at rest.
 
@@ -30,7 +30,7 @@ A service reads the PC's sensors with administrator rights from boot, and an ove
 - R7. Settings live in a JSON file the user can edit; changes apply at once, and a broken file is reported and never overwritten.
 - R9. At rest the overlay uses under 0.5 % of one core and 48 MB of private memory (`docs/adr/0001-architecture.md`).
   Release check: Costs at rest.
-- R10. While the session is locked or its display is off, the overlay paints nothing and still reads the sensors, so its history, "Notify me" and the agents stay right; as soon as it is unlocked or the display comes back, it shows the last reading, without waiting for the next.
+- R10. While the session is locked, behind its screen saver, or its display is off (dimmed still shows), the overlay paints nothing and still reads the sensors, so its history, "Notify me" and the agents stay right; as soon as it is unlocked or the display comes back, it shows the last reading, without waiting for the next.
   Release check: On top, hidden and shown.
 - R11. The overlay paints only when what it shows changes: a value, a level, a line's point, its look, scale, place, opacity or the window's marks. A glow and a drag paint every frame they need, and a value that changes shows within the second it comes.
 

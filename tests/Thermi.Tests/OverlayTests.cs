@@ -1,5 +1,4 @@
 using System.Globalization;
-using Thermi.App.Painting;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -220,7 +219,7 @@ public sealed class OverlayTests
 
     // A layered window keeps its picture, so a second that shows what the last one showed, its line read again included,
     // paints nothing; anything else a paint shows paints, and so does each frame of a glow or a drag and the one after.
-    [Theory] // Rows: each a part of what a paint shows, an operand of one || that Stryker cannot tell apart
+    [Theory] // Rows: each a part of what a draw shows, compared on its own, which only its row tells apart
     [InlineData("nothing", false)]
     [InlineData("a value", true)]
     [InlineData("a line's point", true)]

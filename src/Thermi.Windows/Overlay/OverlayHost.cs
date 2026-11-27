@@ -58,7 +58,7 @@ internal sealed partial class OverlayHost : IDisposable
     private readonly WNDPROC _procedure;
     private HotkeyRegistry? _hotkeys;
 
-    // Whether a full-screen app was in front on any monitor at the last paint.
+    // Whether a full-screen app was in front on any monitor at the last paint, or the last tick while nobody sees the overlays.
     private bool _fullScreen;
 
     public OverlayHost(Settings settings, Func<Snapshot?> latest, CultureInfo culture, TimeProvider time, ILogger log, HostEnvironment? environment = null)
@@ -69,7 +69,7 @@ internal sealed partial class OverlayHost : IDisposable
         _environment = environment ?? HostEnvironment.Default;
         _procedure = WndProc;
         _paints = new Throttle<bool>(Settings.Interval, _ => PInvoke.PostMessage(Hwnd, PaintNow, 0, 0), time);
-        _desktop = new DesktopReads();
+        _desktop = _environment.Reads();
         var history = new Core.Look.ItemHistory(time);
         _link = new WindowLink(new LinkParts(settings, history, _environment, time, log, RequestPaint));
         _actions = new OverlayActions(culture, time, RequestPaint, _link.OpenWindow, () => PInvoke.DestroyWindow(Hwnd), _environment.Cursor)
@@ -294,6 +294,7 @@ internal sealed partial class OverlayHost : IDisposable
             _hotkeys?.Rest(false);
         }
 
+        LookAgain();
         Raise();
         if (_readAt is not { } read || _actions.Time.GetElapsedTime(read) >= Late)
         {
@@ -332,7 +333,7 @@ internal sealed partial class OverlayHost : IDisposable
         _cpu.Sample(ValueTooltips.WantsBusiest(config, snapshot));
 
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint
-        // found it: one a second at least, so asking Windows again for each reading would only repeat it.
+        // or tick found it: one a second at least, so asking Windows again for each reading would only repeat it.
         Tray?.Critical(config, snapshot, _fullScreen);
         _readAt = _actions.Time.GetTimestamp();
         RequestPaint();
@@ -351,8 +352,7 @@ internal sealed partial class OverlayHost : IDisposable
         var screens = _desktop.Screens();
         var scene = Scene(config, screens);
         var editing = _link.Editing(config.Overlays.Count);
-        var fullScreen = OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState());
-        _fullScreen = fullScreen.Any(full => full);
+        var fullScreen = FullScreen(config, screens);
         var shown = _visibility.Decide(config, fullScreen);
         for (var at = 0; at < _overlays.Count; at++)
         {
@@ -375,7 +375,7 @@ internal sealed partial class OverlayHost : IDisposable
     {
         while (_overlays.Count < config.Overlays.Count)
         {
-            _overlays.Add(new OverlayWindow(_overlays.Count, _settings, _actions));
+            _overlays.Add(new OverlayWindow(_overlays.Count, _settings, _actions, _log));
         }
 
         while (_overlays.Count > config.Overlays.Count)
