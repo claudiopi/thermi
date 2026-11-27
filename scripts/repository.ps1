@@ -23,11 +23,13 @@ which apt, dnf and pacman all sort above every version published. The indexes ar
 # As long as a manifest of spec 004: the monthly signing keeps both well inside it.
 $Lifetime = [TimeSpan]::FromDays(45)
 
-# How apt's Release writes a date.
-$DateFormat = "ddd, dd MMM yyyy HH:mm:ss 'UTC'"
+# How apt-ftparchive writes a Release's dates, in UTC, which restore reads.
+$DateFormat = "ddd, dd MMM yyyy HH:mm:ss '+0000'"
 
 # The index tools' image, pinned, from which a PC without the tools runs them.
 $IndexImage = 'debian@sha256:3cda3ca472ce45507a5109c6a3907093e24d9ae67d55954c9a07a45665dafba2'
+# createrepo_c reads rpm's own rpmrc, which librpm only recommends.
+$IndexTools = 'apt-utils', 'createrepo-c', 'rpm-common'
 
 # The lever's options, --name value, with a version alone as publish's first word.
 function Read-LeverOptions([string[]]$Arguments) {
@@ -155,9 +157,7 @@ function Write-Index([hashtable]$Lever, [pscustomobject]$State, [string]$Folder)
         Copy-Item (Join-Path $Lever.Repository $package.path) $target
     }
     New-Item -ItemType Directory -Force $stage | Out-Null
-    $now = [DateTimeOffset]::UtcNow
-    $dates = @($now, ($now + $Lifetime) | ForEach-Object { $_.ToString($DateFormat, [Globalization.CultureInfo]::InvariantCulture) })
-    Invoke-IndexTools $stage $channel $dates
+    Invoke-IndexTools $stage $channel ([int]$Lifetime.TotalSeconds)
     foreach ($index in "apt/dists/$channel", "rpm/$channel/repodata") {
         New-Item -ItemType Directory -Force (Split-Path (Join-Path $Folder $index)) | Out-Null
         Copy-Item (Join-Path $stage $index) (Join-Path $Folder $index) -Recurse -Force
@@ -172,24 +172,25 @@ function Write-Index([hashtable]$Lever, [pscustomobject]$State, [string]$Folder)
 
 # scripts/linux-index.sh with this PC's apt-ftparchive and createrepo_c, else in an image of its own with both, made once
 # from the pinned Debian, as this user, so what it writes is this user's.
-function Invoke-IndexTools([string]$Stage, [string]$Channel, [string[]]$Dates) {
+function Invoke-IndexTools([string]$Stage, [string]$Channel, [int]$Seconds) {
     $script = Join-Path $PSScriptRoot 'linux-index.sh'
     if ((Get-Command apt-ftparchive -ErrorAction SilentlyContinue) -and (Get-Command createrepo_c -ErrorAction SilentlyContinue)) {
-        sh $script $Stage $Channel @Dates
+        sh $script $Stage $Channel $Seconds
     }
     else {
-        $image = "thermi-index:$($IndexImage.Substring($IndexImage.Length - 12))"
+        $named = [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes("$IndexImage $IndexTools"))
+        $image = "thermi-index:$([Convert]::ToHexStringLower($named).Substring(0, 12))"
         docker image inspect $image *> $null
         if ($LASTEXITCODE -ne 0) {
             $maker = "thermi-index-make-$PID"
-            docker run --name $maker $IndexImage sh -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends apt-utils createrepo-c' | Out-Null
+            docker run --name $maker $IndexImage sh -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends $IndexTools" | Out-Null
             $made = $LASTEXITCODE
             if ($made -eq 0) { docker commit $maker $image | Out-Null }
             docker rm --force $maker | Out-Null
             if ($made -ne 0) { throw 'The index tools were not installed in their image.' }
         }
         docker run --rm --name "thermi-index-$PID" --user "$(id -u):$(id -g)" --volume "${Stage}:/work" --volume "${script}:/linux-index.sh:ro" `
-            $image sh /linux-index.sh /work $Channel @Dates
+            $image sh /linux-index.sh /work $Channel $Seconds
     }
     if ($LASTEXITCODE -ne 0) { throw "The $Channel channel's indexes were not written." }
 }

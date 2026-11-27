@@ -362,7 +362,7 @@ jobs:
           global-json-file: global.json
       # The tools the repositories' indexes are written with (scripts/linux-index.sh).
       - if: steps.ready.outputs.repository == 'true'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm-common
       - if: steps.ready.outputs.repository == 'true'
         shell: pwsh
         env:
@@ -512,7 +512,7 @@ jobs:
           global-json-file: global.json
       # The tools the repositories' indexes are written with (scripts/linux-index.sh).
       - if: steps.ready.outputs.repository == 'true'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm-common
       - if: steps.ready.outputs.repository == 'true'
         shell: pwsh
         run: ./scripts/channel-sync.ps1 down -Linux
