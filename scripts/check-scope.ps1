@@ -119,7 +119,8 @@ function Get-Scope([string]$Root, [string[]]$Changed) {
         if ($owners) { foreach ($owner in $owners) { [void]$touched.Add($owner) } }
         elseif ($file.StartsWith($page, [StringComparison]::OrdinalIgnoreCase)) { $scope.Web = $pageChanged = $true }
         elseif (Test-Like $file $windowsReads) { [void]$touched.Add('Thermi.Windows.Tests') }
-        elseif (Test-Like $file $linuxReads) { [void]$touched.Add('Thermi.Linux.Tests') }
+        # The extension is linted with the page's ESLint, in the page's half.
+        elseif (Test-Like $file $linuxReads) { [void]$touched.Add('Thermi.Linux.Tests'); $scope.Web = $true }
         elseif ($file -like 'src/Thermi.Installer/*') { $scope.Restore = $scope.Notices = $true }
         elseif ($file -eq 'tests/test-count.json') { $scope.Web = $true }
         elseif (-not (Test-Like $file ($rulesOnly + $notices))) { return Get-Scope $Root $null }

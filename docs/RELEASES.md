@@ -50,6 +50,7 @@ A release needs accounts and keys only the owner can hold. Do each step once, in
 | 6. The repository's variables | All four at once: `THERMI_UPDATES_FROM`, `THERMI_UPDATES_RELEASE_PUB`, `THERMI_UPDATES_BACKUP_PUB`, `THERMI_UPDATES_SIGNERS`. | From then on every merge runs the release workflow. |
 | 7. Branch protection | A ruleset on `main`: changes only through a pull request, squash-merged, with the one required status check `CI gate`, and no one may bypass it. `CI gate` passes only when every job of `.github/workflows/ci.yml` passed: Core's tests and the build's checks, the Windows tests, the Windows tests that run alone, Core's tests on Linux, the Linux tests, the page, the MSIs, the PR's title, and `.github/workflows/security.yml`'s: no secret in the history, no package with a known vulnerability, and none added by the PR. Branches need not be up to date before merging, or Renovate's auto-merges wait forever. | The repository's settings, under Rules. Jobs can change without touching it. |
 | 8. Renovate | The free Mend Renovate app, installed on this repository alone, and Allow auto-merge on, with squash merging the only method allowed. | `renovate.json` drives it: it opens the dependency PRs and auto-merges build tools' and actions' once `CI gate` passes. |
+| 9. The GNOME extension | An account on extensions.gnome.org. Upload `src/Thermi.Gnome` zipped, its files at the zip's root, under the uuid `thermi@claudiopi.github.io` that `metadata.json` names, and wait for GNOME's review, which takes days. Upload it again for each release that changes `extension.js` or the Shell versions, before the release goes out. | The site serves it to `thermi`, which asks GNOME to install it on first start. A release whose extension speaks another protocol than the one on the site shows nothing until the site's is updated, with a notice that says so. |
 
 Why some of it is this way:
 
@@ -58,6 +59,7 @@ Why some of it is this way:
 - The thumbprint is what `(Get-AuthenticodeSignature <signed file>).SignerCertificate.GetCertHashString('SHA256')` shows. It is a thumbprint, not a name, because SignPath Foundation's certificate carries the same name for every project it signs. Ask SignPath whether the certificate is thermi's own: a shared one means the catalog proves only that SignPath signed the files.
 - When the certificate is renewed, list both thumbprints, separated by a semicolon, in a release made before the old one's last day. A PC that skips that release refuses every later one until a later MSI is installed on it.
 - The MSI is built with WiX 5, which needs no account or fee.
+- GNOME lets no program draw above its top bar, so the overlay on GNOME needs the extension, which GNOME installs only from extensions.gnome.org and after its own review. The site keeps each version it approved, so a person on an older GNOME gets the newest that names their Shell.
 
 ## The release workflow
 
