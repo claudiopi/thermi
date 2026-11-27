@@ -88,13 +88,12 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void EveryProjectHasAReadme()
     {
-        var projects = RepoFiles([".csproj"]).Concat(RepoFiles([".json"]).Where(path => Path.GetFileName(path) == "package.json"))
-            .Select(Path.GetDirectoryName).ToList();
+        var projects = ProjectFolders().ToList();
         Assert.NotEmpty(projects);
 
         AssertNone(projects
-            .Where(folder => !SaysSomething(Path.Combine(folder!, "README.md")))
-            .Select(folder => Relative(folder!)));
+            .Where(folder => !SaysSomething(Path.Combine(folder, "README.md")))
+            .Select(Relative));
     }
 
     [Fact]
@@ -126,23 +125,6 @@ public sealed partial class RepoRulesTests
     // A WPF namespace; Windows Forms shares the prefix but is not WPF.
     [GeneratedRegex(@"\bSystem\.Windows\b(?!\.Forms\b)", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Wpf();
-
-    // CsWin32 generates every Win32 declaration from a NativeMethods.txt; one written by hand is a layout nobody checks.
-    [Fact]
-    public void NoWin32CallIsDeclaredByHand()
-    {
-        var declared = RepoFiles([".cs"])
-            .SelectMany(path => File.ReadLines(path)
-                .Select((line, index) => (line, number: index + 1))
-                .Where(entry => HandImport().IsMatch(entry.line))
-                .Select(entry => $"{Relative(path)}:{entry.number} declares a Win32 call by hand: list it in NativeMethods.txt"));
-
-        AssertNone(declared);
-    }
-
-    // The attribute anywhere in a line: qualified, with its Attribute suffix, or after another one in the same brackets.
-    [GeneratedRegex(@"\b(?:DllImport|LibraryImport)(?:Attribute)?\s*\(", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex HandImport();
 
     [Fact]
     public void DocsOnlyCitePathsThatExist()

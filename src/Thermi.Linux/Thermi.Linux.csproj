@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- thermi on Linux, as the person: the overlay, the settings window in WebKitGTK and thermi-cli
+       (docs/adr/0019-linux.md). Plain net10.0, marked for Linux in Program.cs. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>thermi</AssemblyName>
+    <RootNamespace>Thermi.Linux</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Thermi.Linux.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Thermi.App\Thermi.App.csproj" />
+    <ProjectReference Include="..\Thermi.Cli\Thermi.Cli.csproj" />
+    <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+  </ItemGroup>
+
+</Project>

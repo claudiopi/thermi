@@ -19,8 +19,12 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 | `src/Thermi.Trust` | The checks the window's fixes and the updater make with Windows' own means before they trust a file: a folder only administrators change, Authenticode signatures, signed catalogs and a held switch lock. |
 | `src/Thermi.Releases` | `thermi-releases`, the owner's levers on the update channels, which sign each channel's manifest. |
 | `src/Thermi.Installer` | The MSI, built with WiX 5 from a published version. |
+| `src/Thermi.Sensors.Linux` | `thermi-sensors` on Linux: the service that reads `hwmon`, NVML, `/proc` and `/sys` as a user of its own, started by its socket. |
+| `src/Thermi.Linux` | `thermi` and `thermi-cli` on Linux, as the person: the overlay painted by Cairo and Pango on each desktop's surface, the settings window in WebKitGTK, and the agents' environment. |
+| `src/Thermi.Gnome` | The GNOME Shell extension, in JavaScript: shows on GNOME what `thermi` paints, above every window and the top bar. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |
+| `tests/Thermi.Linux.Tests` | Tests that need Linux: the service on recorded trees, its socket, and thermi against compositors of the tests' own. |
 | `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |
 | `docs/QUICKSTART.md`, `docs/ARCHITECTURE.md` | What thermi is, as a story, and how it is built, with the real names. |
 | `docs/agents` | The contract `thermi-cli` answers AI agents and other programs, with its JSON Schemas. |
@@ -34,7 +38,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 
 | Command | What it does, and when |
 | --- | --- |
-| `pwsh scripts/check.ps1` | The one check: restore, format, build, notices, test count, tests and coverage, then the page's build, lint, react-doctor, unit, dead-code and Playwright tests. Here it runs only what the change can affect since this worktree's last green check, or since it left `main` (`-Base <branch>` for another), with the .NET half and the page's side by side. `-Full` runs every step, as the CI does. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. |
+| `pwsh scripts/check.ps1` | The one check: restore, format, build, notices, test count, tests and coverage, then the page's build, lint, react-doctor, unit, dead-code and Playwright tests. Here it runs only what the change can affect since this worktree's last green check, or since it left `main` (`-Base <branch>` for another), with the .NET half and the page's side by side. `-Full` runs every step, as the CI does. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. On Linux it builds and runs `tests/Thermi.Tests` and `tests/Thermi.Linux.Tests` (`-Part LinuxCore`, `-Part Linux`). |
 | `pwsh scripts/check.ps1 -Mutation` | The same, then the Bug hunt: Stryker plants small bugs in Core, the CLI and the page's logic, one at a time, and scores the share their tests catch, with the rows that catch and run nothing of their own (`scripts/redundant.ps1`). Slow: run it when you change Core, the CLI, the page's logic or their tests. The CI runs it each night. |
 | `pwsh scripts/stats.ps1` | Prints the CI's dashboard for the last check here: counts, coverage, the Bug hunt if it ran, specs, timings, each against `main`'s last from the `stats` branch. The CI writes it into each run's summary. |
 | `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. Set `THERMI_WEB_PORT` to another port than 4173 if something else holds it. |
@@ -67,8 +71,8 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Code lines up to 160 characters (generated `.g.ts` aside). | `RepoRulesTests` |
 | Code lives in folders by topic, at most 12 C# files directly in any folder, and a namespace follows its folder. | `RepoRulesTests`, IDE0130 |
 | `Thermi.Core` depends on nothing, Windows included. | its target framework, `RepoRulesTests` |
-| What every OS's host shares, `Thermi.Core`, `Thermi.App`, `Thermi.Cli` and `Thermi.Client`, targets plain `net10.0` and builds on no Windows-only project. | `RepoRulesTests` |
-| Each file of a `*.Windows` project uses a Windows-only API, or a type of its project that does, or is listed in the rule with why it stays. | `RepoRulesTests` |
+| What every OS's host shares, `Thermi.Core`, `Thermi.App`, `Thermi.Cli` and `Thermi.Client`, targets plain `net10.0` and builds on no Windows-only project and no `*.Linux` one. | `RepoRulesTests` |
+| Each file of a `*.Windows` project uses a Windows-only API, or a type of its project that does, or is listed in the rule with why it stays; and each file of a `*.Linux` project likewise a Linux-only one: GirCore's GTK, WebKit, Cairo, Pango and D-Bus, `/sys` and `/proc`, a Unix socket and its peer's credentials, systemd, NVML or `gtk4-layer-shell`. | `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
 | The page has no `<i>` but the icon's: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
 | The page scores 100 with react-doctor: a warning fails the check as an error does. | `--blocking warning` in the page's `doctor` script |
@@ -81,8 +85,8 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | The settings change shape only with a new format version and its migration, or with the reason an earlier version reads them as they are, recorded in `tests/Thermi.Tests/Configs/shapes.json`; what a version does not know it keeps. | `RepoRulesTests`, `UnknownFields` |
 | Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
 | Every class logs through an injected `ILogger`, each event a `[LoggerMessage]`; no static log, `Trace` or `Debug`. | `BannedSymbols.txt`, CA1848, CA2254 |
-| Win32 calls are generated by CsWin32 from `NativeMethods.txt`, never declared by hand. | `RepoRulesTests` |
-| No test shows a window or starts a process on the user's desktop: windows are made under `TestWindows.OnOwnDesktop`, processes start through `DesktopProcess`, both on a desktop of the tests' own. | `RepoRulesTests` |
+| Win32 calls are generated by CsWin32 from `NativeMethods.txt`, never declared by hand. On Linux, GirCore generates GTK's, WebKit's, Cairo's, Pango's and D-Bus's; only NVML's and `gtk4-layer-shell`'s are declared by hand, their libraries listed in the rule with why. | `RepoRulesTests` |
+| No test shows a window or starts a process on the user's desktop: windows are made under `TestWindows.OnOwnDesktop`, processes start through `DesktopProcess`, both on a desktop of the tests' own. On Linux, every process, a compositor among them, starts through `OwnSession`, with a runtime folder, Wayland and X11 displays and a D-Bus session bus of the test's own, never the person's. | `RepoRulesTests` |
 | No test writes to Windows' Event Log: only the sinks each program's Main hands down reach it, and no test names one. | `RepoRulesTests` |
 | No TODOs in code: open an issue. | MA0026 |
 | Comments say why, never what. No process history (issue numbers, "for now") in production code. | `RepoRulesTests`, comment-trimmer |

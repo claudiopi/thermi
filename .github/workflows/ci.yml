@@ -119,6 +119,49 @@ jobs:
           path: TestResults/app/*.json
           if-no-files-found: ignore
 
+  # Thermi.Tests on Linux: Core, the CLI and the repo rules hold on every OS that thermi runs on, as Linux's .NET reads
+  # paths, cultures and files its own way.
+  linux-core:
+    name: 🐧 Thermi.Tests on Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part LinuxCore
+      # What the job measured, for the 📊 Stats dashboard.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-linux-core
+          path: TestResults/stats
+          if-no-files-found: ignore
+
+  # The tests that need Linux: the sensor service, its socket, and thermi against compositors of the tests' own.
+  linux:
+    name: 🐧 Linux tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Linux
+      # What the job measured, for the 📊 Stats dashboard.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-linux
+          path: TestResults/stats
+          if-no-files-found: ignore
+
   # The settings window's page: its build with its type check, the test count, lint, react-doctor, unit tests, dead code
   # and the page's tests with axe in the Edge that Windows ships, so no browser is downloaded.
   web:
@@ -217,7 +260,7 @@ jobs:
   stats:
     name: 📊 Stats dashboard
     if: ${{ !cancelled() }}
-    needs: [core, windows, windows-alone, web, msi, pr-title, security]
+    needs: [core, windows, windows-alone, linux-core, linux, web, msi, pr-title, security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -263,7 +306,7 @@ jobs:
   ci-gate:
     name: CI gate
     if: always()
-    needs: [core, windows, windows-alone, web, msi, pr-title, security, stats]
+    needs: [core, windows, windows-alone, linux-core, linux, web, msi, pr-title, security, stats]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -277,7 +320,7 @@ jobs:
           @('### CI gate', '', '| | Job | Result |', '| :-: | --- | --- |') + $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
-          needs.web.result != 'success' || needs.msi.result != 'success' || needs.security.result != 'success' ||
+          needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.web.result != 'success' || needs.msi.result != 'success' || needs.security.result != 'success' ||
           needs.stats.result != 'success' ||
           (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
         run: exit 1

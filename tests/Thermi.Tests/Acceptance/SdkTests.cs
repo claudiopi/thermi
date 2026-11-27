@@ -48,13 +48,14 @@ public sealed class SdkTests
             var programFiles = Path.Combine(root, "Program Files");
             var local = Path.Combine(root, "Local");
             string[] installs = [onPath, Path.Combine(programFiles, "thermi"), Path.Combine(local, "Programs", "thermi")];
+            var name = ThermiClient.Cli;
             var found = new List<string?>();
             for (var first = installs.Length; first >= 0; first--)
             {
                 foreach (var (folder, at) in installs.Select((folder, at) => (folder, at)))
                 {
                     Directory.CreateDirectory(folder);
-                    var cli = Path.Combine(folder, "thermi-cli.exe");
+                    var cli = Path.Combine(folder, name);
                     if (at >= first)
                     {
                         File.WriteAllText(cli, "");
@@ -68,7 +69,7 @@ public sealed class SdkTests
                 found.Add(ThermiClient.Locate(onPath + Path.PathSeparator + Path.Combine(root, "none"), programFiles, local));
             }
 
-            Assert.Equal([null, .. installs.Reverse().Select(folder => Path.Combine(folder, "thermi-cli.exe"))], found);
+            Assert.Equal([null, .. installs.Reverse().Select(folder => Path.Combine(folder, name))], found);
         }
         finally
         {

@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Agents;
@@ -68,7 +69,7 @@ public sealed class AgentSettingsTests : IDisposable
         config = StyleEdits.Wear(config, overlay: null, saved.Named("Calm")!).Config;
         Assert.Equal(ThermiConfigJson.Write(config), ThermiConfigJson.Write(_rig.Folder.Read()));
 
-        using (File.Open(Path.Combine(Looks, "Calm" + StyleFile.Extension), FileMode.Open, FileAccess.Read, FileShare.Read))
+        using (Unrenamable(Path.Combine(Looks, "Calm" + StyleFile.Extension)))
         {
             Assert.Equal(4, (await _rig.RunAsync("look", "rename", "Calm", "Quiet")).Exit);
         }
@@ -76,14 +77,9 @@ public sealed class AgentSettingsTests : IDisposable
         Assert.Equal(["@Mine", "Calm", "Loud"], saved.List().Select(style => style.Name));
 
         // A rename the settings cannot follow, the file read-only, gives the look its old name back, as it was written.
-        File.SetAttributes(_rig.Folder.File, FileAttributes.ReadOnly);
-        try
+        using (Unwritable(_rig.Folder.File))
         {
             Assert.Equal(4, (await _rig.RunAsync("look", "rename", "calm", "Quiet")).Exit);
-        }
-        finally
-        {
-            File.SetAttributes(_rig.Folder.File, FileAttributes.Normal);
         }
 
         Assert.Equal(["@Mine", "Calm", "Loud"], saved.List().Select(style => style.Name));
@@ -228,5 +224,35 @@ public sealed class AgentSettingsTests : IDisposable
         _rig.SensorsOnly = true;
         var refused = await _rig.RunAsync("start-with-windows", "off");
         Assert.Equal((1, false, true), (refused.Exit, (bool)refused.Json["overlay"]!, _rig.Startup.On));
+    }
+
+    // A file the OS will not let anyone rename: held open on Windows, which then refuses a move; on Linux, which moves any
+    // file of a folder it may write, whatever the file's own mode, one of a folder that grants no writing.
+    private static IDisposable Unrenamable(string file) =>
+        OperatingSystem.IsWindows() ? File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read) : Unwritable(file);
+
+    // A file the OS will not let anyone write or replace: read-only on Windows; on Linux, one of a folder that grants no writing.
+    private static Restored Unwritable(string file)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            File.SetAttributes(file, FileAttributes.ReadOnly);
+            return new Restored(() => File.SetAttributes(file, FileAttributes.Normal));
+        }
+
+        return ReadOnlyFolder(Path.GetDirectoryName(file)!);
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    private static Restored ReadOnlyFolder(string folder)
+    {
+        var mode = File.GetUnixFileMode(folder);
+        File.SetUnixFileMode(folder, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        return new Restored(() => File.SetUnixFileMode(folder, mode));
+    }
+
+    private sealed class Restored(Action restore) : IDisposable
+    {
+        public void Dispose() => restore();
     }
 }

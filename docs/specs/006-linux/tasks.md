@@ -1,12 +1,12 @@
 # 006-linux: Tasks
 
-**Status**: approved; 0 of 30 tasks; current block B1.
+**Status**: approved; 3 of 30 tasks; current block B2.
 
 ## B1. The ground
 
-- [ ] T1. ADR 0019 accepted, and the rules of `AGENTS.md` that name Windows extended to Linux: a `*.Linux` project's files use a Linux-only API, the native calls declared by hand are listed with why, Linux's tests stay off the person's desktop. (R4, R8)
-- [ ] T2. The Ubuntu jobs in `.github/workflows/ci.yml`, required by `CI gate`, running Core's tests on Linux first. (R1)
-- [ ] T3. The acceptance tests, written red and skipped. (all)
+- [x] T1. ADR 0019 accepted, and the rules of `AGENTS.md` that name Windows extended to Linux: a `*.Linux` project's files use a Linux-only API, the native calls declared by hand are listed with why, Linux's tests stay off the person's desktop. (R4, R8)
+- [x] T2. The Ubuntu jobs in `.github/workflows/ci.yml`, required by `CI gate`, running Core's tests on Linux first. (R1)
+- [x] T3. The acceptance tests, written red and skipped. (all)
 
 ## B2. The sensors
 

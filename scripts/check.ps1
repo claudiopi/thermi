@@ -7,6 +7,7 @@
     Here it runs only what the change can affect (scripts/check-scope.ps1), with the .NET half and the page's side by side
     and the steps that need nothing of each other at once; -Full runs every step. The CI runs every step of this same
     script, each part in a job of its own, so nothing merges red.
+    On Linux it builds and runs Thermi.Tests and the Linux tests.
     Prints one line per step; on failure, only the errors and how to fix them.
 #>
 param(
@@ -17,8 +18,9 @@ param(
     # (scripts/redundant.ps1).
     [switch]$Mutation,
     # One part alone. DotNet is Core, Windows and WindowsAlone: Core's tests with the build's own checks, the Windows tests
-    # that run in parallel, and those that run alone. The CI runs each part in a job of its own.
-    [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web')]
+    # that run in parallel, and those that run alone. On Linux it is LinuxCore and Linux: Thermi.Tests and the Linux tests,
+    # and there is no page's half, whose tests run in the Edge that Windows ships. The CI runs each part in a job of its own.
+    [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web', 'LinuxCore', 'Linux')]
     [string]$Part = 'All',
     # Every step, as the CI runs them, whatever the change.
     [switch]$Full,
@@ -41,6 +43,9 @@ $appResults = Join-Path $results 'app'
 $appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors', 'Thermi.App' }
 $everything = $Ci -or $Full
 $half = if ($Part -eq 'Web') { 'web' } else { 'dotnet' }
+# Each OS builds its own projects: the Windows ones target Windows, and the Linux tests start what only Linux has.
+if ($IsWindows -and $Part -in 'LinuxCore', 'Linux') { throw "-Part $Part runs on Linux." }
+if (-not $IsWindows -and $Part -in 'Core', 'Windows', 'WindowsAlone') { throw "-Part $Part runs on Windows." }
 Set-Location $root
 
 . (Join-Path $PSScriptRoot 'check-lock.ps1')
@@ -51,7 +56,7 @@ Set-Location $root
 # An installed thermi (the one you use every day) runs from elsewhere and is left alone.
 function Stop-RepoThermi {
     Get-Process thermi -ErrorAction SilentlyContinue |
-        Where-Object { $_.Path -and $_.Path.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase) } |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$root$([IO.Path]::DirectorySeparatorChar)", [StringComparison]::OrdinalIgnoreCase) } |
         ForEach-Object {
             Write-Host "stop thermi.exe $($_.Id), built from this repo"
             Stop-Process -Id $_.Id -Force
@@ -67,8 +72,11 @@ function Invoke-DotNet($Scope) {
     $core = $Part -in 'All', 'DotNet', 'Core'
     $windows = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'Windows'
     $alone = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'WindowsAlone'
-    # Core's job builds all, for the count lists both test projects; the Windows jobs build what their tests run.
-    $built = if (-not $core) { 'tests/Thermi.Windows.Tests' } elseif ($Scope.WindowsTests -or $Scope.TestCount) { 'thermi.slnx' } else { 'tests/Thermi.Tests' }
+    # Core's job builds all, for the count lists every test project and the Linux projects build here too; the Windows jobs
+    # build what their tests run.
+    $built = if (-not $core) { 'tests/Thermi.Windows.Tests' }
+        elseif ($Scope.WindowsTests -or $Scope.LinuxTests -or $Scope.TestCount) { 'thermi.slnx' }
+        else { 'tests/Thermi.Tests' }
     # Thermi.Windows' build writes what the page builds from and builds it, so the page's half waits for it.
     $script:buildsPage = $built -ne 'tests/Thermi.Tests'
     if ($Part -eq 'All' -and -not $buildsPage) { Start-WebHalf }
@@ -130,6 +138,20 @@ function Invoke-DotNet($Scope) {
     }
 }
 
+# The .NET half on Linux: Thermi.Tests, whose Core and rules hold on every OS, and the Linux tests, each project restored
+# and built alone, as the Windows projects build on Windows only.
+function Invoke-Linux($Scope) {
+    $projects = @(if ($Part -in 'All', 'DotNet', 'LinuxCore') { 'tests/Thermi.Tests' }) +
+        @(if ($Scope.LinuxTests -and $Part -in 'All', 'DotNet', 'Linux') { 'tests/Thermi.Linux.Tests' })
+    $locked = @(if ($Ci) { '--locked-mode' })
+    Invoke-Step 'restore' { foreach ($project in $projects) { dotnet restore $project @locked; if ($LASTEXITCODE -ne 0) { break } } }
+    Invoke-Step 'build Release' { foreach ($project in $projects) { dotnet build $project -c Release --no-restore; if ($LASTEXITCODE -ne 0) { break } } }
+    Invoke-Together @(foreach ($project in $projects) {
+            $name = if ($project -eq 'tests/Thermi.Tests') { 'tests on Linux' } else { 'Linux tests' }
+            New-Step $name 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results
+        })
+}
+
 # The page's half, of the same check, in a process of its own beside this one, once the .NET build wrote what the page
 # builds from; its lines print as they come.
 function Start-WebHalf {
@@ -188,6 +210,9 @@ try {
     if ($half -eq 'web') {
         if ($scope.Web) { Invoke-Web }
     }
+    elseif (-not $IsWindows) {
+        if ($scope.CoreTests) { Invoke-Linux $scope }
+    }
     elseif ($scope.CoreTests) {
         Invoke-DotNet $scope
     }
@@ -206,6 +231,7 @@ finally {
     if (-not $Ci) { Exit-Check }
     $titles = @{
         All = 'Check'; DotNet = '.NET'; Core = 'Build and Thermi.Tests'; Windows = 'Windows tests'; WindowsAlone = 'Windows tests alone'; Web = 'Settings page'
+        LinuxCore = 'Thermi.Tests on Linux'; Linux = 'Linux tests'
     }
     Write-Summary $titles[$Part] $Part
 }

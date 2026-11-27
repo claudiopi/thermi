@@ -26,10 +26,10 @@ public sealed class AdminOnDemandTests
     [InlineData(User, Folder + @"\0.9.1\thermi-sensors.exe", 0x2000, 0x2000, 0, false)]
     public void TheOverlayReadsTheServiceOrTheUsersOwnHost(string owner, string image, int integrity, int label, int own, bool trusted)
     {
-        var server = new PipeServer(owner, image, integrity, label);
+        var server = new PipeServer(owner, WindowsPaths.Native(image), integrity, label);
 
         Assert.Equal(("thermi-sensors", "thermi-sensors-" + User), (UserHost.Pipe(true, User), UserHost.Pipe(false, User)));
-        Assert.Equal(trusted, UserHost.Trusts(server, User, Folder, own));
+        Assert.Equal(trusted, UserHost.Trusts(server, User, WindowsPaths.Native(Folder), own));
     }
 
     // Only an install under the user's own local app data is a per-user one, which updates itself and offers to install for
@@ -44,8 +44,10 @@ public sealed class AdminOnDemandTests
     {
         const string Local = @"users\ana\AppData\Local";
 
-        Assert.Equal(perUser, UserHost.PerUserInstall(top, Local));
-        Assert.Equal(offered, UserHost.InstallsForEveryone(top, Local, UserHost.Pipe(serviceRead, User)));
+        var (install, local) = (WindowsPaths.Native(top), WindowsPaths.Native(Local));
+
+        Assert.Equal(perUser, UserHost.PerUserInstall(install, local));
+        Assert.Equal(offered, UserHost.InstallsForEveryone(install, local, UserHost.Pipe(serviceRead, User)));
     }
 
     // The wait before the next host: 2 s, doubling to a minute after hosts that ended within 10 s, and none under the lock.
