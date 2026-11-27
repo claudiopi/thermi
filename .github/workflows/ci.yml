@@ -153,6 +153,8 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+      # The tests' own user manager runs in a scope the runner's own delegates, which only a lingering user has.
+      - run: sudo loginctl enable-linger "$(id -un)"
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Linux
       # What the job measured, for the 📊 Stats dashboard.
       - if: always()
@@ -320,7 +322,7 @@ jobs:
           @('### CI gate', '', '| | Job | Result |', '| :-: | --- | --- |') + $rows + '' | Add-Content $env:GITHUB_STEP_SUMMARY -Encoding utf8
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
-          needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.web.result != 'success' || needs.msi.result != 'success' || needs.security.result != 'success' ||
-          needs.stats.result != 'success' ||
+          needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.web.result != 'success' ||
+          needs.msi.result != 'success' || needs.security.result != 'success' || needs.stats.result != 'success' ||
           (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
         run: exit 1

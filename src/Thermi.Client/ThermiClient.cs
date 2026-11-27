@@ -16,7 +16,7 @@ public sealed class ThermiClient
     public const string InstallUrl = "https://github.com/claudiopi/thermi/releases";
 #pragma warning restore S1075
 
-    internal static readonly string Cli = OperatingSystem.IsWindows() ? "thermi-cli.exe" : "thermi-cli";
+    private static readonly string Cli = OperatingSystem.IsWindows() ? "thermi-cli.exe" : "thermi-cli";
 
     private readonly Func<string?> _find;
     private readonly ICli _cli;

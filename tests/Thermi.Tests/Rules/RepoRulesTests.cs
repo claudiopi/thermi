@@ -22,7 +22,7 @@ public sealed partial class RepoRulesTests
     private static readonly string[] SkippedFolders =
         ["bin", "obj", ".git", ".vs", "TestResults", "artifacts", "worktrees", "node_modules", "dist", "test-results", "playwright-report"];
 
-    private static readonly string[] CodeExtensions = [".cs", ".ps1", ".ts", ".tsx"];
+    private static readonly string[] CodeExtensions = [".cs", ".ps1", ".ts", ".tsx", ".js", ".mjs"];
 
     private static readonly string[] TextExtensions =
         [".cs", ".ps1", ".ts", ".tsx", ".html", ".md", ".json", ".yml", ".props", ".csproj", ".xml", ".resx", ".txt", ".globalconfig"];
@@ -78,7 +78,7 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void ProductionCommentsHoldNoHistoryAndNoLongBlocks()
     {
-        var findings = RepoFiles([".cs"])
+        var findings = RepoFiles([".cs", ".js"])
             .Where(path => Relative(path).StartsWith("src", StringComparison.Ordinal))
             .SelectMany(path => CommentFindings(Relative(path), File.ReadAllLines(path)));
 
