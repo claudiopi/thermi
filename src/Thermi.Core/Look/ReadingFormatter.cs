@@ -162,7 +162,7 @@ public static class ReadingFormatter
             SensorKind.Duration => (value / 3600, 1, texts.Of(UnitText.Hours), ""),
             SensorKind.Time or SensorKind.Address => (value, 0, "", ""),
 
-            // Its item's label says FPS, so the number stands alone.
+            // Its item's label says FPS, and a low's tag which low, so the number has no unit.
             SensorKind.FrameRate => (value, 0, "", ""),
             SensorKind.FrameTime => (value, 1, "ms", ""),
 

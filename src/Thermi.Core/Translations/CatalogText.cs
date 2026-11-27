@@ -55,14 +55,17 @@ public enum CatalogText
     /// <summary>A catalog row's reason: any other sensor without a value.</summary>
     RowReadsNothing,
 
-    /// <summary>A catalog row's note: the game's FPS or frame time, which read only while an app in front presents frames.</summary>
+    /// <summary>A catalog row's note: a sensor of the game's, which reads only while an app in front presents frames.</summary>
     RowNoFrames,
 
-    /// <summary>A catalog row's reason: the game's FPS or frame time while the sensor service cannot read frames.</summary>
+    /// <summary>A catalog row's reason: a sensor of the game's while the sensor service cannot read frames.</summary>
     RowFramesUnread,
 
-    /// <summary>A catalog row's reason: the game's FPS or frame time in a per-user install, which reads frames once installed for everyone.</summary>
+    /// <summary>A catalog row's reason: a sensor of the game's in a per-user install, which reads frames once installed for everyone.</summary>
     RowFramesNeedInstallForEveryone,
+
+    /// <summary>A catalog row's reason: a low of the game's from a sensor service of an earlier version, which sends none.</summary>
+    RowNoLows,
 
     /// <summary>Under a catalog row: the items that already show it.</summary>
     ShownAs,

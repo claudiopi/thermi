@@ -144,7 +144,10 @@ public sealed class FrameTally
     /// Closes the second that ends <paramref name="at"/>, on the trace's clock, and gives its rates, the busiest first; the
     /// first second is taken as one second long.
     /// </summary>
-    public IReadOnlyList<FrameRate> Close(double at)
+    public IReadOnlyList<FrameRate> Close(double at) => [.. Tally(at).Select(slot => WithLows(slot.Rate, slot.Waits))];
+
+    // The lows are sorted out of the lock, so the trace's thread waits only while each slot's waits are copied.
+    private List<(FrameRate Rate, (double[] Pooled, int Count) Waits)> Tally(double at)
     {
         lock (_gate)
         {
@@ -183,8 +186,30 @@ public sealed class FrameTally
             return
             [
                 .. rates.OrderByDescending(rate => rate.Frames).ThenBy(rate => rate.Rate.Process).Take(Slots)
-                    .Select(rate => rate.Track.WithLows(rate.Rate, at)),
+                    .Select(rate => (rate.Rate, rate.Track.Waits())),
             ];
+        }
+    }
+
+    /// <summary>
+    /// The rate with its lows: the frames a second of its frame at the 99th and the 99.9th percentile of frame time, by
+    /// nearest rank. A slot presented steadily up to 5 s ago, so its minute holds a wait at least.
+    /// </summary>
+    private static FrameRate WithLows(FrameRate rate, (double[] Pooled, int Count) waits)
+    {
+        var (sorted, count) = waits;
+        try
+        {
+            Array.Sort(sorted, 0, count);
+            return rate with
+            {
+                OnePercentLow = Second / sorted[count - (count / 100) - 1],
+                PointOnePercentLow = Second / sorted[count - (count / 1000) - 1],
+            };
+        }
+        finally
+        {
+            ArrayPool<double>.Shared.Return(sorted);
         }
     }
 
@@ -201,7 +226,7 @@ public sealed class FrameTally
         // When the process last presented as each rank of source told.
         private readonly double?[] _lastOf = new double?[Ranks];
 
-        // The waits between its frames as the counted source told them, and when each ended, for its lows.
+        // The waits between its frames of the last minute as the counted source told them, and when each ended, for its lows.
         private readonly Queue<(double At, double Wait)> _waits = new();
 
         // The rank the last second with frames took.
@@ -232,10 +257,19 @@ public sealed class FrameTally
             var longest = 0.0;
             foreach (var (time, _) in taken.Where(present => present.Rank == rank))
             {
-                var wait = time - (previous ?? time);
-                longest = Math.Max(longest, wait);
-                Keep(time, wait);
+                // A first frame has no wait before it.
+                if (previous is { } before)
+                {
+                    longest = Math.Max(longest, time - before);
+                    Keep(time, Math.Min(time - before, LongestFrame));
+                }
+
                 previous = time;
+            }
+
+            while (_waits.TryPeek(out var oldest) && oldest.At <= at - LowsOver)
+            {
+                _waits.Dequeue();
             }
 
             taken.ForEach(present => _lastOf[present.Rank] = present.At);
@@ -243,52 +277,21 @@ public sealed class FrameTally
             return (counts[rank], longest, _lastOf[rank] ?? previous);
         }
 
-        /// <summary>
-        /// The rate with its lows: the frames a second of its frame at the 99th and the 99.9th percentile of frame time, by
-        /// nearest rank, among those that ended in the minute up to <paramref name="at"/>; none without such frames.
-        /// </summary>
-        public FrameRate WithLows(FrameRate rate, double at)
+        /// <summary>Its waits of the last minute, in an array of the shared pool that <see cref="WithLows"/> returns.</summary>
+        public (double[] Pooled, int Count) Waits()
         {
-            while (_waits.TryPeek(out var oldest) && oldest.At <= at - LowsOver)
+            var waits = ArrayPool<double>.Shared.Rent(_waits.Count);
+            var count = 0;
+            foreach (var (_, wait) in _waits)
             {
-                _waits.Dequeue();
+                waits[count++] = wait;
             }
 
-            if (_waits.Count == 0)
-            {
-                return rate;
-            }
-
-            var sorted = ArrayPool<double>.Shared.Rent(_waits.Count);
-            try
-            {
-                var count = 0;
-                foreach (var (_, wait) in _waits)
-                {
-                    sorted[count++] = wait;
-                }
-
-                Array.Sort(sorted, 0, count);
-                return rate with
-                {
-                    OnePercentLow = Second / sorted[count - (count / 100) - 1],
-                    PointOnePercentLow = Second / sorted[count - (count / 1000) - 1],
-                };
-            }
-            finally
-            {
-                ArrayPool<double>.Shared.Return(sorted);
-            }
+            return (waits, count);
         }
 
-        // A first frame has no wait before it, and two told at the same time no gap between them.
         private void Keep(double at, double wait)
         {
-            if (wait <= 0)
-            {
-                return;
-            }
-
             _waits.Enqueue((at, wait));
             if (_waits.Count > LowsKept)
             {

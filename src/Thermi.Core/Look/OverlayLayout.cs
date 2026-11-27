@@ -1,3 +1,4 @@
+using Thermi.Core.Frames;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -114,12 +115,13 @@ public static class OverlayLayout
 
     /// <summary>
     /// What an item shows when it is not its value now, said after its value on the overlay and in the window: its minimum,
-    /// maximum or average, or its smoothing; null for the value now.
+    /// maximum or average, or its smoothing; null for the value now. A low of the game's says which first, since its pill
+    /// labels it FPS as it does FPS.
     /// </summary>
     public static string? TagOf(ItemConfig item, IFormatProvider culture, Texts? texts = null)
     {
         var said = texts ?? Texts.English;
-        return item.Stat switch
+        var stat = item.Stat switch
         {
             ItemStat.Min => said.Of(OverlayText.MinTag),
             ItemStat.Max => said.Of(OverlayText.MaxTag),
@@ -128,6 +130,8 @@ public static class OverlayLayout
             ItemStat.Now => null,
             _ => null,
         };
+        var low = GameSensors.LowOf(item) is { } which ? said.Of(which) : null;
+        return low is null ? stat : stat is null ? low : $"{low} {stat}";
     }
 
     /// <summary>Each item's label as the overlay shows it, as <see cref="LabelOf"/> gives it, an item without one taking the label before it.</summary>
