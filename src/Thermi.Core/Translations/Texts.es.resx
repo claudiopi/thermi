@@ -2101,6 +2101,12 @@
   <data name="WindowText.ExtensionDisabledMore" xml:space="preserve">
     <value>El overlay aparece en cuanto se active.</value>
   </data>
+  <data name="WindowText.ExtensionOtherVersion" xml:space="preserve">
+    <value>La extensión de thermi para GNOME Shell es de otra versión de thermi.</value>
+  </data>
+  <data name="WindowText.ExtensionOtherVersionMore" xml:space="preserve">
+    <value>GNOME aplica su actualización en tu próximo inicio de sesión.</value>
+  </data>
   <data name="WindowText.EnableExtension" xml:space="preserve">
     <value>Activarla</value>
   </data>

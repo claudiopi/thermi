@@ -11,11 +11,12 @@ namespace Thermi.Tests.Bridge;
 public sealed class HostDesktopTests
 {
     // A CPU missing its readings: Windows offers the driver and says why; Linux, which reads them with none, offers no
-    // driver and says nothing was read, and in GNOME offers the extension's fix while it is missing or off.
+    // driver and says nothing was read, and in GNOME offers the extension's fix while it is missing, off or of another version.
     [Theory] // Rows: Windows, and each state of the extension on Linux.
     [InlineData(HostOs.Windows, ExtensionState.Missing, true, null)]
     [InlineData(HostOs.Linux, ExtensionState.Missing, false, ExtensionState.Missing)]
     [InlineData(HostOs.Linux, ExtensionState.Disabled, false, ExtensionState.Disabled)]
+    [InlineData(HostOs.Linux, ExtensionState.OtherVersion, false, ExtensionState.OtherVersion)]
     [InlineData(HostOs.Linux, ExtensionState.Enabled, false, null)]
     public void EachDesktopOffersItsOwnFixes(HostOs os, ExtensionState? extension, bool driver, ExtensionState? fix)
     {

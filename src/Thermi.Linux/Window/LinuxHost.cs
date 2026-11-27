@@ -22,6 +22,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly Gio.DBusConnection? _bus;
     private readonly DesktopPortal _portal;
     private readonly SignInUnit _signInUnit = new();
+    private readonly Gnome.ShellLink? _link;
     private readonly WindowScreens _screens;
     private readonly OverlayLink _overlay;
     private WindowTheme _theme;
@@ -33,8 +34,9 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _log = log;
         _bus = Connect();
         _portal = new DesktopPortal(Changed);
-        _extension = LinuxFixes.ExtensionState(_bus);
-        _screens = new WindowScreens(_bus, Turn.Post, () => DesktopChanged?.Invoke(), log);
+        _link = _bus is null ? null : new Gnome.ShellLink(_bus, log) { StateChanged = () => Turn.Post(Changed) };
+        _extension = ExtensionOf();
+        _screens = new WindowScreens(_bus, _link, Turn.Post, () => DesktopChanged?.Invoke());
         _overlay = new OverlayLink(_bus, () => DesktopChanged?.Invoke());
     }
 
@@ -183,11 +185,34 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public Task<bool> StartService() => LinuxFixes.StartService();
 
+    /// <summary>
+    /// Installs the extension behind GNOME's prompt, turns it on, or asks the Shell for its update, which it applies at the
+    /// next sign-in: true once it runs, or the update was asked; false when the person declined or the Shell failed.
+    /// </summary>
     public async Task<bool> InstallExtension()
     {
-        var installed = await LinuxFixes.InstallExtension(_bus, _extension);
-        _extension = LinuxFixes.ExtensionState(_bus);
-        return installed;
+        if (_link is null || _extension is not { } fix)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var answer = await (fix switch
+            {
+                ExtensionState.Missing => _link.InstallAsync(),
+                ExtensionState.Disabled => _link.EnableAsync(),
+                ExtensionState.OtherVersion or ExtensionState.Enabled => _link.CheckForUpdatesAsync(),
+                _ => _link.CheckForUpdatesAsync(),
+            });
+        }
+        catch (GLib.GException)
+        {
+            // Declined, offline, or the prompt outlasted the call: what the Shell has now says which.
+        }
+
+        _extension = ExtensionOf();
+        return fix == ExtensionState.OtherVersion || _extension == ExtensionState.Enabled;
     }
 
     public UpdateLine Updates() => new(UpdateLineKind.NotUpdating, Beta: false);
@@ -212,8 +237,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     public void Dispose()
     {
         _portal.Dispose();
+        _link?.Dispose();
         _overlay.Dispose();
-        _screens.Dispose();
         _bus?.Dispose();
     }
 
@@ -269,10 +294,22 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     [LoggerMessage(Level = LogLevel.Warning, Message = "The desktop did not open {Target}")]
     private static partial void OpenRefused(ILogger logger, string target, Exception error);
 
-    // The desktop's look changed: the extension is asked again with it, as a sign-in or the Shell may have changed it.
+    // Where thermi's extension is in a GNOME session, as the overlay reads it; outside GNOME there is none to fix.
+    private ExtensionState? ExtensionOf() =>
+        _link is null || !(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Contains("GNOME", StringComparison.OrdinalIgnoreCase) ? null
+        : _link.State() switch
+        {
+            Gnome.ExtensionState.Missing => ExtensionState.Missing,
+            Gnome.ExtensionState.Off => ExtensionState.Disabled,
+            Gnome.ExtensionState.OtherVersion => ExtensionState.OtherVersion,
+            Gnome.ExtensionState.Ours or Gnome.ExtensionState.Starting => ExtensionState.Enabled,
+            _ => null,
+        };
+
+    // The desktop's look or the extension changed: the extension is asked again, as a sign-in or the Shell may have changed it.
     private void Changed()
     {
-        _extension = LinuxFixes.ExtensionState(_bus);
+        _extension = ExtensionOf();
         Theme(_theme);
         DesktopChanged?.Invoke();
     }

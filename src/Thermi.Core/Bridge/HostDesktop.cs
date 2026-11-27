@@ -16,6 +16,9 @@ public enum ExtensionState
 {
     Missing,
     Disabled,
+
+    /// <summary>Installed for another version of thermi, whose protocol this one does not speak: an update fixes it.</summary>
+    OtherVersion,
     Enabled,
 }
 
@@ -104,9 +107,8 @@ public sealed record HostDesktop(
     /// </summary>
     public bool OffersDriver => Os == HostOs.Windows;
 
-    /// <summary>The extension's fix: installing it while it is missing, turning it on while it is off, or none.</summary>
-    public ExtensionState? ExtensionFix =>
-        Os == HostOs.Linux && Extension is ExtensionState.Missing or ExtensionState.Disabled ? Extension : null;
+    /// <summary>The extension's fix: installing it while it is missing, turning it on while it is off, updating one of another version, or none.</summary>
+    public ExtensionState? ExtensionFix => Os == HostOs.Linux && Extension is not (null or ExtensionState.Enabled) ? Extension : null;
 
     /// <summary>The caption buttons the page draws: none on Windows, which draws its own over the page.</summary>
     public WindowCaption? Caption => Os == HostOs.Windows ? null : new WindowCaption(Maximized);

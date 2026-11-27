@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Thermi.Core.Placement;
 using Thermi.Linux.Gnome;
 
@@ -9,14 +8,14 @@ namespace Thermi.Linux.Window;
 /// the top bar as their taskbar and the names a snap keeps, so a spot picked on the map is the overlay's own; elsewhere,
 /// or before the Shell answers, GDK's, with no bar. Used on GTK's loop alone.
 /// </summary>
-internal sealed class WindowScreens : IDisposable
+internal sealed class WindowScreens
 {
     private readonly Gio.DBusConnection? _bus;
     private readonly ShellLink? _link;
     private readonly Action<Action> _post;
     private ShellScreens? _shell;
 
-    public WindowScreens(Gio.DBusConnection? bus, Action<Action> post, Action changed, ILogger log)
+    public WindowScreens(Gio.DBusConnection? bus, ShellLink? link, Action<Action> post, Action changed)
     {
         _bus = bus;
         _post = post;
@@ -25,18 +24,17 @@ internal sealed class WindowScreens : IDisposable
             monitors.OnItemsChanged += (_, _) => changed();
         }
 
-        if (bus is null)
+        if (link is null)
         {
             return;
         }
 
-        _link = new ShellLink(bus, log) { MonitorsChanged = monitors => Taken(monitors, changed) };
+        _link = link;
+        _link.MonitorsChanged = monitors => Taken(monitors, changed);
         _ = ReadAsync(changed);
     }
 
     public IReadOnlyList<Screen> Screens => _shell is { Monitors.Count: > 0 } shell ? shell.Screens : OfGdk();
-
-    public void Dispose() => _link?.Dispose();
 
     private static List<Screen> OfGdk()
     {

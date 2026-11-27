@@ -184,15 +184,20 @@ function ExtensionBar({ fix }: { fix: ExtensionState | null }) {
     setRefused(false);
     setRefused(!((await bridge()?.installExtension().catch(() => false)) ?? false));
   };
-  const missing = fix === 'missing';
+  const words = {
+    missing: ['WindowText.ExtensionMissing', 'WindowText.ExtensionMissingMore', 'WindowText.InstallExtension'],
+    disabled: ['WindowText.ExtensionDisabled', 'WindowText.ExtensionDisabledMore', 'WindowText.EnableExtension'],
+    'other-version': ['WindowText.ExtensionOtherVersion', 'WindowText.ExtensionOtherVersionMore', 'HostText.GnomeExtensionUpdate'],
+  } as const;
+  const [title, message, button] = words[fix];
   return (
     <InfoBar
       intent={refused ? 'error' : 'warning'}
-      title={t(refused ? 'WindowText.ExtensionRefused' : missing ? 'WindowText.ExtensionMissing' : 'WindowText.ExtensionDisabled')}
-      message={t(missing ? 'WindowText.ExtensionMissingMore' : 'WindowText.ExtensionDisabledMore')}
+      title={t(refused ? 'WindowText.ExtensionRefused' : title)}
+      message={t(message)}
       actions={
         <Button ref={refused ? focusOnMount : null} onClick={() => void install()}>
-          {t(refused ? 'WindowText.TryAgain' : missing ? 'WindowText.InstallExtension' : 'WindowText.EnableExtension')}
+          {t(refused ? 'WindowText.TryAgain' : button)}
         </Button>
       }
     />

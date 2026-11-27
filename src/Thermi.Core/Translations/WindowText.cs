@@ -65,13 +65,15 @@ public enum WindowText
     ServiceStoppedMore,
     StartIt,
 
-    /// <summary>The GNOME Shell extension's bar, while it is missing or off, and when GNOME did not install or turn it on.</summary>
+    /// <summary>The GNOME Shell extension's bar, while it is missing, off or of another version, and when GNOME did not fix it.</summary>
     ExtensionMissing,
     ExtensionMissingMore,
     InstallExtension,
     ExtensionDisabled,
     ExtensionDisabledMore,
     EnableExtension,
+    ExtensionOtherVersion,
+    ExtensionOtherVersionMore,
     ExtensionRefused,
 
     /// <summary>The rest of its sentence instead, while another program holds the pipe the service would serve.</summary>
