@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=thermi
+Exec=thermi settings
+Icon=io.github.claudiopi.thermi
+Terminal=false
+Categories=System;Monitor;
+StartupNotify=true

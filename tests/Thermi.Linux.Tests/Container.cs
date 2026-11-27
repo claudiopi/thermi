@@ -100,16 +100,17 @@ internal sealed class Container(OwnSession session, string id, IReadOnlyList<str
 
     // systemd runs in a container with a cgroup namespace of its own and /run in memory. Docker mounts that namespace's
     // cgroups read only, where systemd cannot make its units' groups, so the container mounts them again writable: only
-    // its own groups, never the PC's, with no device or other privilege of the PC's. Booted, systemd says READY=1 on the
-    // socket its environment names, as it tells any container manager.
+    // its own groups, never the PC's, with no device or other privilege of the PC's. Its root reads which file a service's
+    // process runs, as a PC's root does, which takes the right to trace the container's own processes. Booted, systemd says
+    // READY=1 on the socket its environment names, as it tells any container manager.
     private static async Task<Container> BootedAsync(OwnSession session, string booting, string work, string[] owned, CancellationToken cancel)
     {
         var socket = $"ready-{Guid.NewGuid():N}";
         var ready = await Readiness.ListenAsync(session, Path.Combine(work, socket), cancel).ConfigureAwait(false);
         string[] options =
         [
-            "--cgroupns=private", "--tmpfs", "/run", "--tmpfs", "/run/lock", "--cap-add", "SYS_ADMIN", "--security-opt", "apparmor=unconfined",
-            "--env", $"NOTIFY_SOCKET={Work}/{socket}",
+            "--cgroupns=private", "--tmpfs", "/run", "--tmpfs", "/run/lock", "--cap-add", "SYS_ADMIN", "--cap-add", "SYS_PTRACE",
+            "--security-opt", "apparmor=unconfined", "--env", $"NOTIFY_SOCKET={Work}/{socket}",
         ];
         string[] boot = ["/bin/sh", "-c", "mount -o remount,rw /sys/fs/cgroup && exec /lib/systemd/systemd"];
         var booted = await RunAsync(session, booting, work, options, boot, owned, cancel).ConfigureAwait(false);

@@ -1,0 +1,17 @@
+# thermi's overlay, as the person, in their graphical session (docs/adr/0019-linux.md). The package installs it as a
+# user unit and enables it for every user; "Exit thermi" ends it with 0, which leaves it stopped until the next sign-in,
+# and a crash or a kill starts it again.
+[Unit]
+Description=thermi, the hardware monitor's overlay
+Documentation=https://github.com/claudiopi/thermi
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/thermi
+Restart=on-failure
+RestartSec=2
+Slice=app.slice
+
+[Install]
+WantedBy=graphical-session.target

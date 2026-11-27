@@ -111,7 +111,7 @@
       ],
       "description": "Given both packages built for amd64 and arm64 from one build, when the amd64 ones are installed in clean containers (a table of Ubuntu 24.04, Ubuntu 26.04, Debian 13, Fedora, Arch through the AUR's PKGBUILD), thermi-sensors alone and then thermi, and removed, then each installs what spec.md lists and nothing else is downloaded but the distribution's libraries; thermi-cli runs after the first alone; the .deb and the .rpm add thermi's signed repository; and their removal leaves each person's settings.",
       "check": "ThePackagesInstallWhatTheySay",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A13",

@@ -146,9 +146,19 @@ function Invoke-Linux($Scope) {
     $locked = @(if ($Ci) { '--locked-mode' })
     Invoke-Step 'restore' { foreach ($project in $projects) { dotnet restore $project @locked; if ($LASTEXITCODE -ne 0) { break } } }
     Invoke-Step 'build Release' { foreach ($project in $projects) { dotnet build $project -c Release --no-restore; if ($LASTEXITCODE -ne 0) { break } } }
-    # The Linux tests install the packages, as a person does, in containers of each distribution.
+    # The Linux tests install the packages, as a person does, in containers of each distribution, and update them to a
+    # newer build's, packed with the same key, as the next release would be.
     if ($projects -contains 'tests/Thermi.Linux.Tests') {
-        Invoke-Step 'Linux packages' { pwsh -NoProfile -File (Join-Path $PSScriptRoot 'linux-packages.ps1') }
+        $packages = Join-Path $root 'artifacts' 'linux'
+        $props = [xml](Get-Content (Join-Path $root 'Directory.Build.props') -Raw)
+        $version = [System.Management.Automation.SemanticVersion]@($props.Project.PropertyGroup.Version | Where-Object { $_ })[0]
+        Invoke-Step 'Linux packages' { pwsh -NoProfile -File (Join-Path $PSScriptRoot 'linux-packages.ps1') -Output $packages }
+        Invoke-Step 'Linux packages, newer' {
+            pwsh -NoProfile -File (Join-Path $PSScriptRoot 'linux-packages.ps1') -Version "$($version.Major).$($version.Minor).$($version.Patch + 1)" `
+                -Output (Join-Path $packages 'newer') -Key (Join-Path $packages 'key' 'thermi.key.asc')
+        }
+        # The levers given the newer packages sign with the build's own key, as they do given the build's.
+        Copy-Item (Join-Path $packages 'key') (Join-Path $packages 'newer') -Recurse -Force
     }
     Invoke-Together @(foreach ($project in $projects) {
             $name = if ($project -eq 'tests/Thermi.Tests') { 'tests on Linux' } else { 'Linux tests' }

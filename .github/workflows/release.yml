@@ -2,8 +2,9 @@ name: "🚀 Release · signed installers and updates"
 
 # thermi's update channels (docs/adr/0008-updates.md, docs/RELEASES.md). Each merge to main goes to beta as
 # <version>-beta.<run>; the owner releases Directory.Build.props' version to stable, with its MSIs, and pulls the other
-# levers by hand; each month both channels are signed again before their manifests expire. Every job that signs waits
-# for the owner's approval in the release environment.
+# levers by hand; each month both channels are signed again before their manifests expire. The Linux packages of each
+# version go to the same channel of thermi's apt and dnf repositories, and a release to the AUR, the levers acting on
+# them too (docs/adr/0019-linux.md). Every job that signs waits for the owner's approval in the release environment.
 on:
   push:
     branches: [main]
@@ -58,8 +59,10 @@ jobs:
           THERMI_UPDATES_SIGNERS: ${{ vars.THERMI_UPDATES_SIGNERS }}
           THERMI_UPDATES_RELEASE_PUB: ${{ vars.THERMI_UPDATES_RELEASE_PUB }}
           THERMI_UPDATES_BACKUP_PUB: ${{ vars.THERMI_UPDATES_BACKUP_PUB }}
+          THERMI_REPOSITORY_PUB: ${{ vars.THERMI_REPOSITORY_PUB }}
+          AUR_HOST_KEY: ${{ vars.AUR_HOST_KEY }}
         run: |
-          $names = 'THERMI_UPDATES_FROM', 'THERMI_UPDATES_SIGNERS', 'THERMI_UPDATES_RELEASE_PUB', 'THERMI_UPDATES_BACKUP_PUB'
+          $names = 'THERMI_UPDATES_FROM', 'THERMI_UPDATES_SIGNERS', 'THERMI_UPDATES_RELEASE_PUB', 'THERMI_UPDATES_BACKUP_PUB', 'THERMI_REPOSITORY_PUB', 'AUR_HOST_KEY'
           $missing = @($names | Where-Object { -not [Environment]::GetEnvironmentVariable($_) })
           "ready=$($missing.Count -eq 0)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
           if (-not $missing) { exit 0 }
@@ -316,6 +319,82 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
 
+  # The same version's Linux packages, signed with thermi's repository key, published to the channel's apt and dnf
+  # repositories under linux/ (docs/adr/0019-linux.md); a release also goes to the AUR as thermi-bin.
+  linux:
+    needs: [ready, build]
+    if: needs.ready.outputs.ready == 'true' && (github.event_name == 'push' || inputs.lever == 'release')
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - shell: pwsh
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          FROM: ${{ vars.THERMI_UPDATES_FROM }}
+          THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
+        run: |
+          $key = Join-Path $env:RUNNER_TEMP 'repository.key.asc'
+          [IO.File]::WriteAllText($key, $env:THERMI_REPOSITORY_KEY)
+          pwsh -NoProfile -File scripts/linux-packages.ps1 -Version $env:VERSION -Key $key -UpdatesFrom $env:FROM -Output out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            out/*.deb
+            out/*.rpm
+            out/*.tar.gz
+      - shell: pwsh
+        run: ./scripts/channel-sync.ps1 down -Linux
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      - shell: pwsh
+        env:
+          THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
+          THERMI_REPOSITORY_PUB: ${{ vars.THERMI_REPOSITORY_PUB }}
+          VERSION: ${{ needs.build.outputs.version }}
+          CHANNEL: ${{ github.event_name == 'push' && 'beta' || 'stable' }}
+        run: |
+          pwsh scripts/updates.ps1 publish $env:VERSION --channel $env:CHANNEL --packages out --repository channels/linux
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - shell: pwsh
+        run: ./scripts/channel-sync.ps1 up -Linux
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      # Once its tarballs are served: the AUR's PKGBUILD, with the .SRCINFO the AUR reads, which only makepkg writes.
+      - if: inputs.lever == 'release'
+        shell: bash
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_HOST_KEY: ${{ vars.AUR_HOST_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur && chmod 600 ~/.ssh/aur
+          printf 'aur.archlinux.org %s\n' "$AUR_HOST_KEY" > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          git clone ssh://aur@aur.archlinux.org/thermi-bin.git aur
+          cp out/aur/PKGBUILD out/aur/*.install aur/
+          docker run --rm --name "thermi-aur-$GITHUB_RUN_ID" -v "$PWD/aur:/aur" archlinux:latest \
+            bash -c 'useradd -m builder && chown -R builder /aur && su builder -c "cd /aur && makepkg --printsrcinfo > .SRCINFO" && chown -R '"$(id -u):$(id -g)"' /aur'
+          git -C aur add PKGBUILD .SRCINFO ./*.install
+          git -C aur -c user.name='thermi releases' -c user.email='17047466+claudiopi@users.noreply.github.com' commit -m "thermi $VERSION"
+          git -C aur push origin HEAD:master
+
   # A lever on a channel, by hand, or each month a new signature on both before their manifests expire.
   lever:
     needs: ready
@@ -356,6 +435,54 @@ jobs:
           }
       - shell: pwsh
         run: ./scripts/channel-sync.ps1 up
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+
+  # The same lever on the Linux repositories, or each month a new signature on both before their Release files expire.
+  linux-lever:
+    needs: ready
+    if: needs.ready.outputs.ready == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.lever != 'release'))
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - shell: pwsh
+        run: ./scripts/channel-sync.ps1 down -Linux
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      - shell: pwsh
+        env:
+          THERMI_REPOSITORY_KEY: ${{ secrets.THERMI_REPOSITORY_KEY }}
+          THERMI_REPOSITORY_PUB: ${{ vars.THERMI_REPOSITORY_PUB }}
+          LEVER: ${{ github.event_name == 'schedule' && 'refresh' || inputs.lever }}
+          CHANNEL: ${{ inputs.channel }}
+          FROM: ${{ vars.THERMI_UPDATES_FROM }}
+        run: |
+          # The repositories have no rollout: a promotion reaches every PC. A channel nothing was published to has nothing to sign.
+          $levers = switch ($env:LEVER) {
+            'refresh' {
+              @($env:CHANNEL ? $env:CHANNEL : @('stable', 'beta')) | Where-Object { Test-Path "channels/linux/history/$_.json" } |
+                ForEach-Object { , @('sign', '--channel', $_) }
+            }
+            'promote' { , @('promote', '--from', 'beta', '--to', 'stable') }
+            default { , @($env:LEVER, '--channel', $env:CHANNEL, '--updates-from', $env:FROM) }
+          }
+          foreach ($lever in $levers) {
+            pwsh scripts/updates.ps1 @lever --repository channels/linux
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - shell: pwsh
+        run: ./scripts/channel-sync.ps1 up -Linux
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
