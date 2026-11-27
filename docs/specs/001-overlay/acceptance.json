@@ -142,7 +142,7 @@
       "covers": [
         "R13"
       ],
-      "description": "Given settings with a ping item and a host that never answers, when an agent reads the ping once, then it says the echo timed out, not that it waits or is off, and the agents' log holds nothing of it.",
+      "description": "Given settings with a ping item and a host that never answers, or an echo that throws, when an agent reads the ping once, then it says the echo timed out or the host is unreachable, not that it waits or is off, and the agents' log holds only the error.",
       "check": "AReadSaysWhatThePingsFirstEchoDid",
       "passes": true
     },
@@ -160,8 +160,8 @@
       "covers": [
         "R12"
       ],
-      "description": "Given a ping item and no fresh snapshot of the service's, when echoes end, then each is news the overlay records, with the ping's value.",
-      "check": "WithTheServiceSilentEachEchoIsNews",
+      "description": "Given a ping item and the service silent, or sending, when echoes end, then each is news the overlay records, with the ping's value, or only the service's snapshots are.",
+      "check": "EachEchoIsNewsOnlyWhileTheServiceIsSilent",
       "passes": true
     },
     {
@@ -169,7 +169,7 @@
       "covers": [
         "R12"
       ],
-      "description": "Given no ping item, when an agent lists the sensors and adds an item of the ping's, then the list holds it and the edit adds it, which pings 1.1.1.1.",
+      "description": "Given no ping item and the service running, or stopped, when an agent lists the sensors, adds an item of the ping's and sets its host, then the list holds it while the service runs, the edits are made, and no edit sends an echo.",
       "check": "AnAgentAddsAPingItemAsItsSensorsListIt",
       "passes": true
     },
@@ -180,6 +180,33 @@
       ],
       "description": "Given a watch of the ping with no ping item, when the settings gain one with a host of its own, then no echo went out before, and the watch's later lines read the round trip of echoes to that host.",
       "check": "AWatchPingsAsTheSettingsItReadsSay",
+      "passes": true
+    },
+    {
+      "id": "A32",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given an item of the ping, one that warns by it, and a ping item that warns by another reading, when the host changes, then each starts again only what reads the ping: its minute, its meter's ten minutes, or both.",
+      "check": "ANewHostStartsAgainOnlyWhatReadsThePing",
+      "passes": true
+    },
+    {
+      "id": "A33",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a smoothed item and a ping item, when the item reads nothing for seconds while the ping reads on, then its average counts none of those seconds.",
+      "check": "AnItemThatReadNothingCountsNothing",
+      "passes": true
+    },
+    {
+      "id": "A34",
+      "covers": [
+        "R12"
+      ],
+      "description": "Given a settings window that read seconds of a ping item, when its host changes, then the item's chart starts again, with none of the old host's round trips.",
+      "check": "AWindowsChartStartsAgainForANewHost",
       "passes": true
     }
   ]

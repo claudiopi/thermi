@@ -61,7 +61,7 @@ internal sealed partial class AgentCommands
         // The reading is taken before the edit waits its turn, so a service that does not answer holds up no other change; it
         // holds the ping's sensor, as the window's does, with no echo sent.
         var (samples, _, _) = await AgentSamples.TakeAsync(Sensors(() => null), 1, time, stop);
-        var snapshot = samples.Count > 0 ? samples[^1] : new Snapshot([]);
+        var snapshot = samples.Count > 0 ? samples[^1] : NoService();
         return await OneAtATimeAsync(() => EditOfAsync(json, snapshot), stop);
     }
 

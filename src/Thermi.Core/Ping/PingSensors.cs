@@ -83,10 +83,15 @@ public static class PingSensors
     public static string? HostOf(ThermiConfig? config) =>
         config is not null && config.Overlays.Any(overlay => overlay.Items.Any(Reads)) ? config.PingHost ?? DefaultHost : null;
 
-    /// <summary>Whether an item reads the ping: its metric, or its sensor, alone or among those it combines, or what it warns by.</summary>
-    public static bool Reads(ItemConfig item) =>
-        item.Metric == Metrics.Ping.Id || item.Sensor == Id || (item.Sensors?.Contains(Id, StringComparer.Ordinal) ?? false)
-        || item.WarnBy?.Metric == Metrics.Ping.Id || item.WarnBy?.Sensor == Id;
+    /// <summary>Whether an item reads the ping, as what it shows or what it warns by.</summary>
+    public static bool Reads(ItemConfig item) => Shows(item) || WarnsBy(item);
+
+    /// <summary>Whether what an item shows is the ping: its metric, or its sensor, alone or among those it combines.</summary>
+    public static bool Shows(ItemConfig item) =>
+        item.Metric == Metrics.Ping.Id || item.Sensor == Id || (item.Sensors?.Contains(Id, StringComparer.Ordinal) ?? false);
+
+    /// <summary>Whether an item warns by the ping, whatever it shows.</summary>
+    public static bool WarnsBy(ItemConfig item) => item.WarnBy?.Metric == Metrics.Ping.Id || item.WarnBy?.Sensor == Id;
 
     /// <summary>Whether <paramref name="host"/> is a host to ping: a DNS name or an IPv4 or IPv6 address, of up to 253 characters.</summary>
     public static bool IsHost(string host) =>

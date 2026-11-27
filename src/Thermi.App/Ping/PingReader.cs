@@ -22,7 +22,7 @@ internal sealed class PingReader(IEcho echo, TimeProvider time, ILogger log)
 
     private volatile Func<ThermiConfig?> _settings = () => null;
     private volatile Heard? _heard;
-    private (string Host, string Outcome)? _said;
+    private (string Host, string Outcome, bool Threw)? _said;
 
     /// <summary>Raised on the reader's thread as each echo ends.</summary>
     public event EventHandler? Answered;
@@ -124,12 +124,12 @@ internal sealed class PingReader(IEcho echo, TimeProvider time, ILogger log)
     // Once a second for hours, so only a change of what it gets back is worth a line, an error's stack included.
     private void Say(string host, string outcome, Exception? error)
     {
-        if (_said == (host, outcome))
+        if (_said == (host, outcome, error is not null))
         {
             return;
         }
 
-        _said = (host, outcome);
+        _said = (host, outcome, error is not null);
         if (error is null)
         {
             log.PingChanged(host, outcome);

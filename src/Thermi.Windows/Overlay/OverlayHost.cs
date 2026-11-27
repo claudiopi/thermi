@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Thermi.App.SettingsFile;
 using Thermi.Core;
 using Thermi.Core.Messages;
+using Thermi.Core.Ping;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Tray;
@@ -122,7 +123,10 @@ internal sealed class OverlayHost : IDisposable
     /// </summary>
     public static long? AskHotkeyStatus() => HiddenWindow.Ask(ClassName, HotkeyStatusMessage);
 
-    /// <summary>A fresh snapshot came, on any thread: each overlay adds it to its history on the window's thread.</summary>
+    /// <summary>
+    /// A fresh snapshot came, or with none an echo ended, on any thread: each overlay adds what it shows to its history on the
+    /// window's thread.
+    /// </summary>
     public void Arrived() => Post(SnapshotArrived);
 
     public void Start()
@@ -326,7 +330,7 @@ internal sealed class OverlayHost : IDisposable
         }
 
         var config = _settings.Config;
-        _actions.History.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))], config.PingHost);
+        _actions.History.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(snapshot, overlay)))], PingSensors.HostOf(config));
         _cpu.Sample(ValueTooltips.WantsBusiest(config, snapshot));
 
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint

@@ -1,4 +1,5 @@
 using Thermi.Core.Messages;
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 
@@ -27,7 +28,7 @@ public sealed class ChartHistory(TimeProvider time)
     /// </summary>
     public void Follow(ThermiConfig config, Func<ItemConfig, IReadOnlyList<double?>?> read)
     {
-        foreach (var item in Items.Follow(config.Overlays.SelectMany(overlay => overlay.Items), config.PingHost))
+        foreach (var item in Items.Follow(config.Overlays.SelectMany(overlay => overlay.Items), PingSensors.HostOf(config)))
         {
             if (read(item) is { } values)
             {

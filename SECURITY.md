@@ -36,7 +36,7 @@ In scope:
 - Posing as the sensor service or as a user's own sensor process, reading another user's readings beyond what the pipe shares with every user of the PC, keeping another session from its readings, or crashing the service.
 - `thermi-cli` and its MCP server reading or writing anything beyond thermi's settings and saved looks, running anything elevated, or reaching another user's files.
 - The settings window's page and its bridge, and how thermi reads its settings, look files and command line.
-- Anything thermi sends off the PC beyond the anonymous update check and the downloads of updates, the machine installer and the driver's installer.
+- Anything thermi sends off the PC beyond the anonymous update check, the downloads of updates, the machine installer and the driver's installer, and the ping's echoes, one a second to the host the person picks, only while an item of any overlay, shown or hidden, reads it (`docs/adr/0020-ping.md`).
 
 Out of scope:
 

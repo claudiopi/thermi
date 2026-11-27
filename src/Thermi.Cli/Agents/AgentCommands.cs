@@ -2,13 +2,13 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.App.Ping;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
+using Thermi.Core.Ping;
 using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -163,8 +163,11 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             : Unread(state, taken, null);
     }
 
-    // A read pings as the overlay would, while the settings it reads hold a ping item, and says what the first echo did; what
-    // the echoes get back is not logged, as the agents' log is what agents changed.
+    // What an edit reads with the service stopped: no sensor but the ping's, which needs no service, where the host pings.
+    private Snapshot NoService() => environment.Echo is null ? new Snapshot([]) : PingSensors.With(new Snapshot([]), null);
+
+    // A read pings as the overlay would, while the settings it reads hold a ping item, and says what the first echo did; only
+    // an echo's error is logged, as the agents' log is what agents changed, and a line of each call's outcome would push it out.
     private ISensorFeed Sensors(Func<ThermiConfig?> settings)
     {
         if (environment.Echo is not { } echo)
@@ -172,7 +175,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             return environment.Sensors();
         }
 
-        var feed = new PingFeed(environment.Sensors(), new PingReader(echo, time, NullLogger.Instance));
+        var feed = new PingFeed(environment.Sensors(), new PingReader(echo, time, new Failures(environment.Log)));
         feed.Follow(settings);
         return feed;
     }
@@ -215,5 +218,22 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
     {
         using var store = new ConfigStore(environment.SettingsPath, time, environment.RunsInstalled);
         return await store.ReadOnlyAsync();
+    }
+
+    // The agents' log as the ping's reader writes it: its errors, never each change of what the echoes get back.
+    private sealed class Failures(ILogger log) : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => log.BeginScope(state);
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning && log.IsEnabled(logLevel);
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(logLevel))
+            {
+                log.Log(logLevel, eventId, state, exception, formatter);
+            }
+        }
     }
 }

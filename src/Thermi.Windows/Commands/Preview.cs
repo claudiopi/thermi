@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
+using Thermi.Core.Ping;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -55,7 +56,7 @@ internal static class Preview
         for (var second = 0; second < series.Count; second++)
         {
             clock.Second = second;
-            history.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(series[second], overlay)))], config.PingHost);
+            history.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(series[second], overlay)))], PingSensors.HostOf(config));
         }
 
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);

@@ -61,9 +61,10 @@ public sealed class ItemHistory(TimeProvider time)
             _sources.Remove(id);
         }
 
+        // An item that read nothing this second, as while only the ping reads with the service stopped, counts nothing.
         foreach (var item in overlays.SelectMany(overlay => overlay.Overlay.Items))
         {
-            if (Smoothed(item) is { } value)
+            if (values[item.Id] != Nothing && Smoothed(item) is { } value)
             {
                 Count(item.Id, value);
             }
@@ -114,9 +115,9 @@ public sealed class ItemHistory(TimeProvider time)
     private static (string Value, string Meter) SourceOf(ItemConfig item, string? pingHost)
     {
         var sensors = item.Sensors is { } each ? string.Join(',', each) : null;
-        var host = PingSensors.Reads(item) ? pingHost : null;
-        var value = string.Join('|', item.Metric, item.Auto, item.Sensor, sensors, item.Combine, host);
-        return (value, item.WarnBy is { } other ? string.Join('|', "by", other.Metric, other.Sensor, other.Auto, host) : value);
+        var value = string.Join('|', item.Metric, item.Auto, item.Sensor, sensors, item.Combine, PingSensors.Shows(item) ? pingHost : null);
+        var byHost = PingSensors.WarnsBy(item) ? pingHost : null;
+        return (value, item.WarnBy is { } other ? string.Join('|', "by", other.Metric, other.Sensor, other.Auto, byHost) : value);
     }
 
     /// <summary>After a reset, so an open window starts its minimums, maximums and averages again with the overlay's.</summary>
