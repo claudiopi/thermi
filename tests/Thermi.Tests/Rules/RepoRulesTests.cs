@@ -39,7 +39,7 @@ public sealed partial class RepoRulesTests
                 .Where(each => each.line.Length > MaxLineLength)
                 .Select(each => $"{Relative(path)}:{each.index + 1} is {each.line.Length} characters wide, more than {MaxLineLength}"));
 
-        AssertNone(tooWide);
+        AssertNone(tooWide, "break each line before it; a long string goes over several lines, joined with +");
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed partial class RepoRulesTests
             .Where(file => file.lines > MaxLinesPerFile)
             .Select(file => $"{Relative(file.path)} has {file.lines} lines");
 
-        AssertNone(tooLong);
+        AssertNone(tooLong, $"split each into files by topic, each at most {MaxLinesPerFile} lines, as a partial class or a type of its own");
     }
 
     // A folder of loose files hides its topics: past a dozen, a reader scans the list instead of finding the folder.
@@ -82,7 +82,7 @@ public sealed partial class RepoRulesTests
             .Where(path => Relative(path).StartsWith("src", StringComparison.Ordinal))
             .SelectMany(path => CommentFindings(Relative(path), File.ReadAllLines(path)));
 
-        AssertNone(findings);
+        AssertNone(findings, "keep only the why, as .claude/agents/comment-trimmer.md says");
     }
 
     [Fact]
@@ -101,9 +101,11 @@ public sealed partial class RepoRulesTests
     public void CoreDependsOnNothing()
     {
         var project = File.ReadAllText(Path.Combine(Root, "src", "Thermi.Core", "Thermi.Core.csproj"));
+        string[] references = ["PackageReference", "ProjectReference"];
 
-        Assert.DoesNotContain("PackageReference", project, StringComparison.Ordinal);
-        Assert.DoesNotContain("ProjectReference", project, StringComparison.Ordinal);
+        AssertNone(
+            references.Where(reference => project.Contains(reference, StringComparison.Ordinal)).Select(reference => $"Thermi.Core.csproj has a {reference}"),
+            "Core depends on nothing: code that needs a package goes in src/Thermi.App");
     }
 
     // The window is a web page in WebView2 (docs/adr/0007-settings-window-in-webview2-and-react.md): no project builds on
@@ -120,7 +122,7 @@ public sealed partial class RepoRulesTests
             .Where(path => File.ReadAllText(path).Contains("<UseWPF>", StringComparison.Ordinal))
             .Select(path => $"{Relative(path)} turns WPF on");
 
-        AssertNone(code.Concat(projects));
+        AssertNone(code.Concat(projects), "the settings window is the page in src/Thermi.Settings.Web; a native window uses Win32 through CsWin32");
     }
 
     // A WPF namespace; Windows Forms shares the prefix but is not WPF.
@@ -162,7 +164,7 @@ public sealed partial class RepoRulesTests
                     : !Ancestors(Path.GetDirectoryName(code)!).Concat(folders).Any(folder => Exists(folder, cited)))
                 .Select(cited => $"{Relative(code)} cites {cited}"));
 
-        AssertNone(broken.Concat(stale));
+        AssertNone(broken.Concat(stale), "fix each path, or drop it with what it named");
     }
 
     private static IEnumerable<string> Ancestors(string folder)
@@ -184,9 +186,9 @@ public sealed partial class RepoRulesTests
             .SelectMany(path => File.ReadLines(path)
                 .Select((line, index) => (line, number: index + 1))
                 .Where(entry => AbsoluteLocalPath().IsMatch(entry.line))
-                .Select(entry => $"{Relative(path)}:{entry.number}"));
+                .Select(entry => $"{Relative(path)}:{entry.number} holds an absolute local path"));
 
-        AssertNone(leaks);
+        AssertNone(leaks, "write it from the repo's root, or through a variable such as %LOCALAPPDATA%");
     }
 
     // A public repo's recordings and snapshots are read by anyone, so they name no PC, person or network: an adapter's id is
@@ -227,7 +229,7 @@ public sealed partial class RepoRulesTests
                     || (entry.line.Contains("SuppressMessage(", StringComparison.Ordinal) && !entry.line.Contains("Justification", StringComparison.Ordinal)))
                 .Select(entry => $"{Relative(path)}:{entry.number} suppresses a warning without saying why"));
 
-        AssertNone(silent);
+        AssertNone(silent, "say why on the same line: a // comment after the pragma, or the attribute's Justification");
     }
 
     // Rules are turned off only in Thermi.globalconfig, each with its reason on the line above.
@@ -246,7 +248,7 @@ public sealed partial class RepoRulesTests
         var unexplained = config
             .Select((line, index) => (line, index))
             .Where(entry => entry.line.EndsWith("= none", StringComparison.Ordinal) && (entry.index == 0 || !config[entry.index - 1].StartsWith('#')))
-            .Select(entry => $"Thermi.globalconfig:{entry.index + 1} turns a rule off without a reason on the line above");
+            .Select(entry => $"Thermi.globalconfig:{entry.index + 1} turns a rule off without a reason on the line above: add it, as a # line");
 
         AssertNone(noWarn.Concat(nuget).Concat(unexplained));
     }
@@ -259,7 +261,7 @@ public sealed partial class RepoRulesTests
             .Where(file => !File.ReadLines(file).Any(line => line.StartsWith("model:", StringComparison.Ordinal)))
             .Select(file => $"{Relative(file)} has no model: line");
 
-        AssertNone(unpinned);
+        AssertNone(unpinned, "add one to its front matter, as the other briefs there have");
     }
 
     [GeneratedRegex(@"\bNU\d{4}\b", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
@@ -275,7 +277,7 @@ public sealed partial class RepoRulesTests
                 .Where(path => !Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file)!, path)).StartsWith(Root, StringComparison.OrdinalIgnoreCase))
                 .Select(path => $"{Relative(file)} points outside the repo: {path}"));
 
-        AssertNone(escapes);
+        AssertNone(escapes, "point inside the repo, or take what lies outside as a package from nuget.org");
     }
 
     // A relative path in a build file that climbs at least one folder, like "..\..\src\x.csproj".
@@ -347,10 +349,15 @@ public sealed partial class RepoRulesTests
             ]));
     }
 
-    // Assert.Empty truncates long messages; a broken rule must say exactly where.
-    private static void AssertNone(IEnumerable<string> violations)
+    // Assert.Empty truncates long messages; a broken rule must say exactly where, and how to fix it when each line does not.
+    private static void AssertNone(IEnumerable<string> violations, string? fix = null)
     {
         var all = violations.ToList();
+        if (all.Count > 0 && fix is not null)
+        {
+            all.Add($"To fix it: {fix}.");
+        }
+
         Assert.True(all.Count == 0, string.Join(Environment.NewLine, all));
     }
 

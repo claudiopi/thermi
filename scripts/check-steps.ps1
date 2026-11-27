@@ -10,6 +10,21 @@ $measuredLine = '^(summary: |Score: \d+ / 100)'
 # The Windows tests' collection whose test spins every core: it runs after the rest, which would only measure its load.
 $underLoad = 'FullLoadTests'
 
+$oneTest = 'Run one test while you fix it: pwsh scripts/test.ps1 --project tests/{0} --filter-method "*<name>*"'
+$stepFixes = @{
+    'restore' = ('A lock file out of date: dotnet restore thermi.slnx --force-evaluate, and src/Thermi.Installer alike, then commit them. ' +
+        'A vulnerable package: update it in Directory.Packages.props.')
+    'build Release' = 'Fix what each error names; a rule is turned off only in Thermi.globalconfig, with the reason above it.'
+    'tests and coverage' = $oneTest -f 'Thermi.Tests'
+    'Windows tests' = $oneTest -f 'Thermi.Windows.Tests'
+    'Windows tests alone' = $oneTest -f 'Thermi.Windows.Tests'
+    'Windows tests under load' = $oneTest -f 'Thermi.Windows.Tests'
+    'web typecheck and build' = ("A type error in src/Thermi.Settings.Web/src/bridge's .g.ts files comes from Core: build thermi.slnx, " +
+        'which writes them again; never edit them by hand.')
+    'web lint' = 'Fix what ESLint can with: npm run lint --prefix src/Thermi.Settings.Web -- --fix'
+    'web page tests' = 'Run one test while you fix it: pwsh scripts/test.ps1 -Web tests/<file>.spec.ts -g "<title>"'
+}
+
 function Invoke-Step([string]$Name, [scriptblock]$Command, [scriptblock]$Explain) {
     $watch = [Diagnostics.Stopwatch]::StartNew()
     $output = & $Command 2>&1 | ForEach-Object { "$_" }
@@ -57,6 +72,7 @@ function Write-Step([string]$Name, [int]$Code, [string[]]$Output, [double]$Secon
     Write-Host "FAIL $Name"
     Show-Errors $Output
     if ($Explain) { & $Explain }
+    elseif ($stepFixes[$Name]) { Write-Host "  $($stepFixes[$Name])" }
     $false
 }
 
