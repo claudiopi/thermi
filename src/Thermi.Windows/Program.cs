@@ -42,7 +42,7 @@ internal static class Program
             return 2;
         }
 
-        // The console door runs the agents' commands alone: never the overlay, the window or the elevated mode.
+        // The console door runs the agents' commands and preview alone: never the overlay, the window or the elevated mode.
         var door = ThermiCommands.IsConsoleDoor(Environment.ProcessPath);
 
         // Before any window, WebView2 or file: an install's start of the overlay can still come with an elevated client's
@@ -59,10 +59,12 @@ internal static class Program
         {
             AgentRequest agent => await RunAgentAsync(agent, time),
             BuiltInRequest builtIn => await AnswerAsync(builtIn, door),
+
+            // preview is one command, its saved snapshot's form too, so the door runs it as its help lists it.
+            PreviewRequest preview => await Preview.RunAsync(preview, time),
             _ when door => await HelpAsync(),
             OverlayRequest overlay => await RunOverlayAsync(overlay.Trace, time),
             SettingsRequest window => await RunWindowAsync(window, time),
-            PreviewRequest preview => await Preview.RunAsync(preview, time),
             CpuLoadRequest load => await CpuLoad.RunAsync(load.Seconds, time),
             ElevatedRequest elevated => await RunElevatedAsync(elevated.Verb, time),
             _ => 2,

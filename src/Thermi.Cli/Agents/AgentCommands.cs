@@ -84,6 +84,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
         AgentVerb.Monitors =>
             Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
         AgentVerb.Looks => Task.FromResult(Looks()),
+        AgentVerb.Preview => PreviewAsync(request, stop),
         AgentVerb.Edit => EditAsync(request.Text ?? "", stop),
         AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request), stop),
         AgentVerb.FindCpuFan => FindCpuFanAsync(request.Switch == true, stop),

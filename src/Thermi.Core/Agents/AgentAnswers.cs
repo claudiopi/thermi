@@ -72,3 +72,17 @@ public sealed record ReadAnswer(IReadOnlyList<ValueAnswer> Values, IReadOnlyList
     /// <summary>When the last sample was read.</summary>
     public DateTimeOffset? At { get; init; }
 }
+
+/// <summary>
+/// An overlay painted as it draws the readings of now: <see cref="Png"/> is the picture in base64, <see cref="Width"/> by
+/// <see cref="Height"/> pixels, of the overlay counted from 0 as the settings list them, at <see cref="Scale"/> times its
+/// size, the scale asked or the largest that keeps its longest side within <see cref="Longest"/>, which for an overlay of
+/// many items may be under the smallest scale one may ask.
+/// </summary>
+public sealed record PreviewAnswer(int Overlay, float Scale, int Width, int Height, string Png)
+{
+    /// <summary>The longest side of a picture, in pixels: past it, an image is one an agent's model refuses or shrinks.</summary>
+    public const int Longest = 2000;
+
+    public int Schema { get; init; } = AgentSchema.Current;
+}

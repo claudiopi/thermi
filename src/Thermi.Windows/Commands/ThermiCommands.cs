@@ -21,7 +21,7 @@ internal sealed record SettingsRequest(int Overlay, bool Trace, bool Pseudo) : I
 
 /// <summary>
 /// <c>thermi preview &lt;snapshot&gt; &lt;png&gt; [scale] [settings]</c>: the overlay painted from a saved snapshot, or the
-/// last of a series with its graphs, never shown.
+/// last of a series with its graphs, never shown. With no snapshot, <c>preview</c> is the agents' picture of the readings now.
 /// </summary>
 internal sealed record PreviewRequest(string Snapshot, string Png, float Scale, string? SettingsPath) : IThermiRequest;
 
@@ -44,12 +44,6 @@ internal static class ThermiCommands
 
     public const int MaxLoadSeconds = 600;
 
-    // A preview's bitmap grows with the square of its scale: past 8 it is 64 times the overlay's pixels for no reader's
-    // gain, and under a quarter its text is a few pixels high.
-    public const float MinScale = 0.25f;
-
-    public const float MaxScale = 8;
-
     /// <summary>The console door's name, the apphost every shell waits for, beside the windowed <c>thermi.exe</c>.</summary>
     public const string ConsoleDoor = "thermi-cli";
 
@@ -67,15 +61,7 @@ internal static class ThermiCommands
         var item = new Option<string?>(ItemOption) { Description = "The id of the item to select." };
         var size = new Option<bool>(SizeOption) { Description = "Goes to the overlay's Size row." };
         var settings = new Command("settings", "Opens the settings window.") { overlay, item, size };
-        var snapshot = new Argument<FileInfo>("snapshot")
-        {
-            Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds.",
-        }.AcceptExistingOnly();
-        var png = new Argument<string>("png") { Description = "Where the picture goes." };
-        var scale = new Argument<float>("scale") { Arity = ArgumentArity.ZeroOrOne, CustomParser = Scale, DefaultValueFactory = _ => 1 };
-        // A settings file that is not there paints the defaults, and is not created.
-        var file = new Argument<string?>("settings") { Arity = ArgumentArity.ZeroOrOne, Description = "A settings file other than the user's." };
-        var preview = new Command("preview", "Paints the overlay for a saved snapshot, without showing it.") { snapshot, png, scale, file };
+        var preview = PreviewCommand(out var previewed);
         var seconds = new Argument<int>("seconds") { CustomParser = Whole(1, MaxLoadSeconds) };
         var cpuLoad = new Command("cpu-load", "Loads every core at idle priority, to record how the fans answer.") { seconds };
         var verb = new Argument<string>("verb").AcceptOnlyFromAmong([.. Elevated.Verbs]);
@@ -88,12 +74,56 @@ internal static class ThermiCommands
                 Item = it.GetValue(item),
                 SizeRow = it.GetValue(size),
             },
-            [preview] = it => new PreviewRequest(it.GetValue(snapshot)!.FullName, it.GetValue(png)!, it.GetValue(scale), it.GetValue(file)),
+            [preview] = previewed,
             [cpuLoad] = it => new CpuLoadRequest(it.GetValue(seconds)),
             [elevated] = it => new ElevatedRequest(it.GetValue(verb)!),
         };
         return AgentCommandLine.Parse(
             root, requests, args, parsed => OnlyItsVerb(parsed, elevated, args), parsed => new OverlayRequest(parsed.GetValue(trace)), out errors);
+    }
+
+    // A saved snapshot's picture into a PNG file; with none named, the agents' picture of the readings now, whose options it
+    // takes, so thermi and thermi-cli have one preview.
+    private static Command PreviewCommand(out Func<ParseResult, IThermiRequest> request)
+    {
+        var snapshot = new Argument<FileInfo>("snapshot")
+        {
+            Arity = ArgumentArity.ZeroOrOne,
+            Description = "A snapshot saved with thermi-sensors --dump, or a series saved with --seconds; the readings of now when none.",
+        }.AcceptExistingOnly();
+        var png = new Argument<string>("png") { Arity = ArgumentArity.ZeroOrOne, Description = "Where the picture goes." };
+        var scale = new Argument<float>("scale") { Arity = ArgumentArity.ZeroOrOne, CustomParser = AgentCommandLine.Scale, DefaultValueFactory = _ => 1 };
+
+        // A settings file that is not there paints the defaults, and is not created.
+        var file = new Argument<string?>("settings") { Arity = ArgumentArity.ZeroOrOne, Description = "A settings file other than the user's." };
+        var preview = new Command("preview", "Paints an overlay for a saved snapshot into a PNG, without showing it, or as it draws the readings now.")
+        {
+            snapshot, png, scale, file, AgentCommandLine.PreviewOverlay, AgentCommandLine.PreviewScale,
+        };
+        preview.Validators.Add(result => OfSaved(result, snapshot, png));
+        request = it => it.GetValue(snapshot) is { } saved
+            ? new PreviewRequest(saved.FullName, it.GetValue(png)!, it.GetValue(scale), it.GetValue(file))
+            : AgentCommandLine.Previewed(it);
+        return preview;
+    }
+
+    // A saved snapshot's picture goes into its png, at the scale after it; the options are those of the picture of now.
+    private static void OfSaved(CommandResult result, Argument<FileInfo> snapshot, Argument<string> png)
+    {
+        if (result.GetResult(snapshot) is not { Tokens.Count: > 0 })
+        {
+            return;
+        }
+
+        if (result.GetResult(png) is not { Tokens.Count: > 0 })
+        {
+            result.AddError("A saved snapshot's picture needs the png it goes to.");
+        }
+
+        if (result.GetResult(AgentCommandLine.PreviewOverlay) is { Implicit: false } || result.GetResult(AgentCommandLine.PreviewScale) is { Implicit: false })
+        {
+            result.AddError("--overlay and --scale paint the readings of now; a saved snapshot's scale follows its png.");
+        }
     }
 
     // The mode thermi starts behind a UAC prompt, with its verb and nothing else (docs/adr/0010-driver-and-service-from-the-window.md).
@@ -124,24 +154,4 @@ internal static class ThermiCommands
         result.AddError(string.Create(CultureInfo.InvariantCulture, $"{result.Argument.Name} takes a whole number from {range}."));
         return 0;
     };
-
-    private static float Scale(ArgumentResult result)
-    {
-        if (result.Tokens is [])
-        {
-            return 1;
-        }
-
-        // The range also leaves out NaN and the infinities, which every comparison with them refuses.
-        if (result.Tokens is [var token]
-            && float.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            && value >= MinScale
-            && value <= MaxScale)
-        {
-            return value;
-        }
-
-        result.AddError(string.Create(CultureInfo.InvariantCulture, $"scale takes a number from {MinScale} to {MaxScale}, such as 1.5."));
-        return 1;
-    }
 }

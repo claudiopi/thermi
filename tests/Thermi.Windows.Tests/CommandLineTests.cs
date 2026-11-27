@@ -179,18 +179,24 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(new PreviewRequest(Snapshot, "o.png", scale, settings), ThermiCommands.Parse(["preview", Snapshot, .. args], out _));
     }
 
-    // A comma is no decimal point, and a scale past 8 or under a quarter is a typo, never a picture worth painting.
+    // A saved snapshot's picture needs its png and takes no more than its scale and settings after it, nor the options of
+    // the picture of now; a bad scale is the parser's, tested where it lives (AgentCommandTests).
     [Theory]
-    [InlineData("o.png", "1,5")]
-    [InlineData("o.png", "NaN")]
-    [InlineData("o.png", "0.2")]
-    [InlineData("o.png", "8.5")]
     [InlineData("o.png", "1", "c.json", "more")]
+    [InlineData("o.png", "--scale", "2")]
     [InlineData]
-    public void APreviewWithoutItsFilesOrWithABadScaleExitsWithTwo(params string[] args)
+    public void APreviewWithoutItsFilesOrWithTheOptionsOfNowExitsWithTwo(params string[] args)
     {
         Assert.Null(ThermiCommands.Parse(["preview", Snapshot, .. args], out var errors));
         Assert.NotEmpty(errors);
+    }
+
+    // thermi and thermi-cli have one preview: with no snapshot, it is the agents' picture of the readings now.
+    [Fact]
+    public void ThermiAndThermiCliHaveOnePreview()
+    {
+        var now = Assert.IsType<AgentRequest>(ThermiCommands.Parse(["preview", "--overlay", "1", "--scale", "2"], out _));
+        Assert.Equal((AgentVerb.Preview, 1, 2f), (now.Verb, now.Overlay, now.Scale));
     }
 
     // thermi.exe is a windowed program, so what it says goes to stderr only when someone reads it: here, a pipe. Arguments
@@ -199,7 +205,6 @@ public sealed class CommandLineTests : IDisposable
     [Theory]
     [InlineData(2, "--overlay takes a whole number from 1 up.", "settings", "--overlay", "0")]
     [InlineData(2, "not-there.json", "preview", "not-there.json", "o.png", "1", "own-settings.json")]
-    [InlineData(2, "scale takes a number from 0.25 to 8, such as 1.5.", "preview", TestRecordings.Admin, "o.png", "1,5", "own-settings.json")]
     [InlineData(2, "is not a snapshot saved with thermi-sensors --dump.", "preview", "own-junk.json", "o.png", "1", "own-settings.json")]
     [InlineData(1, "could not be written: Could not find a part of the path", "preview", TestRecordings.Admin, "own-missing-folder", "1", "own-settings.json")]
     public async Task WhatItCannotDoIsSaidOnStandardErrorWithItsExitCode(int expectedCode, string expected, params string[] args)

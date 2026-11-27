@@ -1,7 +1,9 @@
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Agents;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -15,9 +17,9 @@ using Windows.Win32.System.Console;
 namespace Thermi.Windows.Commands;
 
 /// <summary>
-/// <c>thermi preview</c>: the first overlay painted for a saved snapshot into a PNG, as the overlay would draw it. A
-/// snapshot that is none exits with 2, as any argument that makes no sense; a picture Windows would not write exits with 1.
-/// Either says why on stderr.
+/// <c>thermi preview</c>: the first overlay painted for a saved snapshot into a PNG, as the overlay would draw it, and
+/// <c>thermi-cli preview</c>'s picture of any overlay. A snapshot that is none exits with 2, as any argument that makes no
+/// sense; a picture Windows would not paint or write exits with 1. Either says why on stderr.
 /// </summary>
 internal static class Preview
 {
@@ -35,27 +37,88 @@ internal static class Preview
             return 2;
         }
 
-        var overlay = config.Overlays[0];
-        using var painter = new Painter();
-        using var bitmap = painter.Paint(
-            Shown(config, series, CpuWatch.ReadBaseClock()),
-            OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast()),
-            request.Scale * (float)overlay.Size);
-        return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
+        Bitmap bitmap;
+        try
+        {
+            bitmap = Said(() => Painted(config, 0, series, request.Scale));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await SayAsync($"The overlay could not be painted: {ex.Message}");
+            return 1;
+        }
+
+        using (bitmap)
+        {
+            return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
+        }
     }
 
     /// <summary>
-    /// The first overlay's items for the last snapshot of a series, a second each, as the overlay shows them after it read
-    /// them all: its graphs drawing the series, the driver's marker and throttling included.
+    /// An agent's picture: <paramref name="overlay"/> painted for one snapshot, as a PNG file holds it, laid on
+    /// <see cref="Desktop.Backdrop"/>, as a person sees it there: a client shows it on a backdrop of its own, where a clear
+    /// background would leave light text on white.
     /// </summary>
-    internal static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock)
+    public static OverlayPng Png(ThermiConfig config, int overlay, Snapshot snapshot, float scale) => Said(() =>
+    {
+        using var painted = Painted(config, overlay, [snapshot], scale);
+        using var laid = new Bitmap(painted.Width, painted.Height, PixelFormat.Format32bppArgb);
+        using (var graphics = Graphics.FromImage(laid))
+        {
+            graphics.Clear(PainterShapes.Drawn(Desktop.Backdrop(Desktop.LightTaskbar())));
+            graphics.DrawImage(painted, new Rectangle(0, 0, painted.Width, painted.Height));
+        }
+
+        using var png = new MemoryStream();
+        laid.Save(png, ImageFormat.Png);
+        return new OverlayPng(png.ToArray(), laid.Width, laid.Height);
+    });
+
+    /// <summary>The size <see cref="Png"/> paints at, measured without painting.</summary>
+    public static (int Width, int Height) Measure(ThermiConfig config, int overlay, Snapshot snapshot, float scale) => Said(() =>
+    {
+        var one = config.Overlays[overlay];
+        using var painter = new Painter();
+        var size = painter.Measure(Shown(config, [snapshot], CpuWatch.ReadBaseClock(), overlay), Look(one), scale * (float)one.Size);
+        return (size.Width, size.Height);
+    });
+
+    // GDI+ says a picture it has no memory for as an argument it does not take, or as memory it ran out of; a command says
+    // why instead of ending with it.
+    private static T Said<T>(Func<T> paint)
+    {
+        try
+        {
+            return paint();
+        }
+        catch (Exception ex) when (ex is ExternalException or ArgumentException or OutOfMemoryException)
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    private static Bitmap Painted(ThermiConfig config, int overlay, IReadOnlyList<Snapshot> series, float scale)
+    {
+        var one = config.Overlays[overlay];
+        using var painter = new Painter();
+        return painter.Paint(Shown(config, series, CpuWatch.ReadBaseClock(), overlay), Look(one), scale * (float)one.Size);
+    }
+
+    // In the light or dark and the high contrast the desktop has now, as the overlay paints itself.
+    private static OverlayLook Look(OverlayConfig overlay) => OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast());
+
+    /// <summary>
+    /// An overlay's items, the first's when none is named, for the last snapshot of a series, a second each, as the overlay
+    /// shows them after it read them all: its graphs drawing the series, the driver's marker and throttling included.
+    /// </summary>
+    internal static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock, int overlay = 0)
     {
         var clock = new SecondsClock();
         var history = new ItemHistory(clock);
         for (var second = 0; second < series.Count; second++)
         {
             clock.Second = second;
-            history.Add([.. config.Overlays.Select(overlay => (overlay, SensorMap.Read(series[second], overlay)))]);
+            history.Add([.. config.Overlays.Select(each => (each, SensorMap.Read(series[second], each)))]);
         }
 
         var texts = Texts.For(config.Language, CultureInfo.CurrentUICulture);
@@ -64,7 +127,7 @@ internal static class Preview
             BaseClock = baseClock,
             History = history,
         };
-        return ThermiMark.Overlay(config, 0, input, windowOpenedOnce: true).Items;
+        return ThermiMark.Overlay(config, overlay, input, windowOpenedOnce: true).Items;
     }
 
     /// <summary>

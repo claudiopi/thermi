@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Thermi.App.SettingsFile;
@@ -9,6 +10,7 @@ using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Tests.Agents;
+using Thermi.Tests.Contract;
 
 namespace Thermi.Tests.Acceptance;
 
@@ -29,20 +31,28 @@ public sealed class AgentCommandTests : IDisposable
         Done,
         Stopped,
         Broken,
+        Unpainted,
     }
 
     // The ways each command ends that no test of its own already holds: an edit's 0, 1 and 4, a look's, a read's past
     // 60 seconds, the start at sign-in's, monitors' and looks' 0, status's with the service stopped and a write's on a
-    // broken file are theirs.
+    // broken file are theirs. A picture the host could not paint is said on stderr alone, as an elevated write's refusal.
     [Theory]
     [InlineData(Ending.Done, 0, "status", "--schema", "1")]
     [InlineData(Ending.Done, 2, "read", "no.such.metric")]
     [InlineData(Ending.Done, 2, "watch", "no.such.metric")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
+    [InlineData(Ending.Done, 2, "preview", "--overlay", "1")]
+    [InlineData(Ending.Done, 2, "preview", "--scale", "1,5")]
+    [InlineData(Ending.Done, 2, "preview", "--scale", "0.2")]
+    [InlineData(Ending.Done, 2, "preview", "--scale", "8.5")]
+    [InlineData(Ending.Unpainted, 1, "preview")]
     [InlineData(Ending.Stopped, 3, "read")]
     [InlineData(Ending.Stopped, 3, "sensors")]
+    [InlineData(Ending.Stopped, 3, "preview")]
     [InlineData(Ending.Broken, 4, "config")]
+    [InlineData(Ending.Broken, 4, "preview")]
     public async Task EveryCommandEndsWithItsCode(Ending ending, int exit, params string[] args)
     {
         if (ending == Ending.Stopped)
@@ -55,6 +65,7 @@ public sealed class AgentCommandTests : IDisposable
             _rig.Folder.Write("{ \"version\": ");
         }
 
+        _rig.Unpaintable = ending == Ending.Unpainted;
         var end = await _rig.RunAsync(args);
 
         Assert.Equal(exit, end.Exit);
@@ -65,7 +76,7 @@ public sealed class AgentCommandTests : IDisposable
             Assert.Equal(AgentSchema.Current, (int)end.Json["schema"]!);
         }
 
-        Assert.Equal(exit is 0 or 1 || args[0] == "config", end.Out.Length > 0);
+        Assert.Equal((exit is 0 or 1 && ending != Ending.Unpainted) || args[0] == "config", end.Out.Length > 0);
     }
 
     // From an elevated terminal, a command that may write the settings, a look, the finder's mark or the start at sign-in
@@ -134,6 +145,35 @@ public sealed class AgentCommandTests : IDisposable
                 Assert.Equal((0, WithoutTime(alone.Out)), (beside.Exit, WithoutTime(beside.Out)));
             }
         }
+    }
+
+    // The host paints; the command chooses what: the overlay asked, of the settings as read, for the snapshot of now, at the
+    // scale asked, or at the largest that keeps it within the longest side an agent gets, which an overlay of the largest
+    // size at the largest scale is past, measuring again where a margin does not shrink with it. The smallest scale is one
+    // to ask. It only reads, so agents that only read see it too.
+    [Theory]
+    [InlineData(2, 0.25f, 0, 0.25f)]
+    [InlineData(4, 8f, 0, 5f)]
+    [InlineData(4, 8f, 4, 4.98877f)]
+    public async Task AgentsSeeTheOverlay(double size, float asked, int margin, float used)
+    {
+        var two = OverlayEdits.Add(new ThermiConfig()).Config;
+        var config = two with { Overlays = [two.Overlays[0], two.Overlays[1] with { Size = size }], Agents = AgentAccess.Read };
+        _rig.Folder.Write(ThermiConfigJson.Write(config));
+        _rig.Margin = margin;
+
+        var end = await _rig.RunAsync("preview", "--overlay", "1", "--scale", asked.ToString(CultureInfo.InvariantCulture));
+
+        Assert.Equal(0, end.Exit);
+        var scale = (float)end.Json["scale"]!;
+        Assert.Equal(used, scale, 0.0001f);
+        var painted = AgentRig.Painted(config, 1, TestRecordings.Read(TestRecordings.Admin), scale, margin);
+        Assert.InRange(Math.Max(painted.Width, painted.Height), 1, 2000);
+        Assert.Equal(
+            (1, painted.Width, painted.Height, Convert.ToBase64String(painted.Png)),
+            ((int?)end.Json["overlay"], (int?)end.Json["width"], (int?)end.Json["height"], (string?)end.Json["png"]));
+        var schema = Path.Combine(TestFiles.Root, "docs", "agents", "schema", "preview.schema.json");
+        Assert.Empty(SchemaCheck.Findings(JsonNode.Parse(await File.ReadAllTextAsync(schema, TestContext.Current.CancellationToken))!, end.Json, "preview"));
     }
 
     [Fact]

@@ -1,17 +1,19 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Thermi.Cli.Commands;
+using Thermi.Core.Agents;
 using Thermi.Core.Sensors;
 
 namespace Thermi.Cli.Agents;
 
 /// <summary>
 /// <c>thermi-cli mcp</c>: the agents' commands as an MCP server's tools, through the official SDK, each answering its
-/// command's JSON, and a refusal, a bad argument or a service that does not read as a tool error that says why. The
-/// session's edits can be undone, only where what they wrote is still there.
+/// command's JSON but <c>preview</c>, whose picture is an image, and a refusal, a bad argument or a service that does not
+/// read as a tool error that says why. The session's edits can be undone, only where what they wrote is still there.
 /// </summary>
 internal static class McpTools
 {
@@ -19,9 +21,20 @@ internal static class McpTools
         "thermi reads this PC's sensors through its own service, as the user, and configures its overlay. Values read in fixed units " +
         "(°C, %, MHz, W, RPM, GB, B/s, fps, ms, V); a value that cannot be read is null with why, never 0. An item's level is normal, " +
         "warning or critical, by the thresholds the person set. When status names a problem, tell the person its fix: never start the " +
-        "service or install the driver yourself. Edits follow the settings window's rules, and undo takes back this session's own. " +
+        "service or install the driver yourself. Edits follow the settings window's rules, and undo takes back this session's own; " +
+        "preview shows an overlay as it looks after them. " +
         "find_cpu_fan loads every core for up to 30 s: run it only when the person asks. When the person lets agents only read, in thermi's " +
         "Settings under AI agents, every change is refused: say so, and leave turning it back on to them.";
+
+    private static readonly string Scales = string.Create(CultureInfo.InvariantCulture, $"{AgentCommandLine.MinScale} to {AgentCommandLine.MaxScale}");
+
+    private static readonly string ScaleRange = $"scale is {Scales}.";
+
+    private static readonly string PreviewSaid =
+        $"Paints an overlay as it draws the readings now, on the taskbar's color, at its size times the scale, {Scales} and 1 when none, " +
+        $"or smaller to stay within {PreviewAnswer.Longest.ToString(CultureInfo.InvariantCulture)} px a side, to see what a change of the " +
+        "settings looks like. It is one reading: a graph shows one second, a minimum, maximum, average or smoothed value shows the value " +
+        "of now, an item naming the busiest process shows none, and an item shown only on alert shows only if it alerts now.";
 
     public static async Task<int> ServeAsync(AgentCommands commands, Stream input, Stream output, ILoggerFactory logs, CancellationToken stop)
     {
@@ -45,7 +58,8 @@ internal static class McpTools
             return Result(await commands.RunAsync(request, stop));
         }
 
-        return [.. Reads(Run), .. Changes(Run), Stepped("undo", "Takes back this session's last edit, where what it wrote is still there.", commands.UndoAsync),
+        return [.. Reads(Run), Preview(commands), .. Changes(Run),
+            Stepped("undo", "Takes back this session's last edit, where what it wrote is still there.", commands.UndoAsync),
             Stepped("redo", "Makes again the edit undo took back last.", commands.RedoAsync)];
     }
 
@@ -78,6 +92,21 @@ internal static class McpTools
             (CancellationToken stop) => run(new AgentRequest(AgentVerb.Looks), stop),
             Reading("looks", "The saved looks' names."));
     }
+
+    // The model sees the picture as an image, the command's own PNG; an error is text, as the other tools'.
+    private static McpServerTool Preview(AgentCommands commands) => McpServerTool.Create(
+        async ([Description("The overlay, counted from 0 as config counts it; the first when none.")] int? overlay = null,
+            [Description("Its size times this, in the range the tool's description gives.")] double? scale = null,
+            CancellationToken stop = default) =>
+            scale is { } times && !(times >= AgentCommandLine.MinScale && times <= AgentCommandLine.MaxScale)
+                ? Result(new AgentReply(AgentExit.BadArguments, Error: ScaleRange))
+                : Pictured(await commands.PictureAsync(new AgentRequest(AgentVerb.Preview) { Overlay = overlay, Scale = (float)(scale ?? 1) }, stop)),
+        Reading("preview", PreviewSaid));
+
+    private static CallToolResult Pictured((AgentReply Reply, byte[]? Png) picture) =>
+        picture.Png is { } png
+            ? new CallToolResult { IsError = false, Content = [ImageContentBlock.FromBytes(png, "image/png")] }
+            : Result(picture.Reply);
 
     private static IEnumerable<McpServerTool> Changes(Func<AgentRequest, CancellationToken, Task<CallToolResult>> run)
     {

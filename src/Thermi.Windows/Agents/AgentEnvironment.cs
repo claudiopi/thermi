@@ -7,6 +7,7 @@ using Thermi.Cli.Agents;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Install;
 using Thermi.Windows.Overlay;
@@ -20,7 +21,8 @@ namespace Thermi.Windows.Agents;
 /// <summary>
 /// What an agent's command reaches on Windows, each part of which a test may replace: the sensors read from the pipe as the
 /// overlay reads them, the service's registration and the installer's key, the overlay's mutex, UAC's raised token, the
-/// Run key, the monitors and taskbars, the keyboard layouts' AltGr keys and a <c>thermi cpu-load</c> of its own.
+/// Run key, the monitors and taskbars, the keyboard layouts' AltGr keys, a <c>thermi cpu-load</c> of its own and the
+/// overlay's painter, as <c>thermi preview</c> paints with it.
 /// </summary>
 internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> Sensors, StartWithWindows Startup, ILogger Log) : IAgentEnvironment
 {
@@ -60,6 +62,10 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     public Action<CancellationToken> Load { get; init; } =
         stop => CpuLoad.Start(ThermiPaths.Own, (int)FanFinder.MaxRun.TotalSeconds, stop);
 
+    public Func<ThermiConfig, int, Snapshot, float, OverlayPng> Paint { get; init; } = Preview.Png;
+
+    public Func<ThermiConfig, int, Snapshot, float, (int Width, int Height)> Measure { get; init; } = Preview.Measure;
+
     public string FinderRan { get; init; } = Path.Combine(UserFolders.Local, "thermi", "fan-finder-ran.txt");
 
     IStartAtSignIn IAgentEnvironment.Startup => Startup;
@@ -93,6 +99,11 @@ internal sealed record AgentEnvironment(string SettingsPath, Func<ISensorFeed> S
     IReadOnlySet<int> IAgentEnvironment.AltGrKeys() => AltGrKeys();
 
     void IAgentEnvironment.Load(CancellationToken stop) => Load(stop);
+
+    OverlayPng IAgentEnvironment.Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) => Paint(settings, overlay, snapshot, scale);
+
+    (int Width, int Height) IAgentEnvironment.Measure(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) =>
+        Measure(settings, overlay, snapshot, scale);
 
     // Only a share or a lock another process holds: any other failure is no run under way elsewhere.
     bool IAgentEnvironment.HeldElsewhere(IOException error) =>
