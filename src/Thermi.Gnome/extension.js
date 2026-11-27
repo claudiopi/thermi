@@ -6,7 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {ThermiDesktop} from './desktop.js';
-import {OVERLAY, PATH, answer, fillMenu, finite, refusePicture, refuseRows, refuseUnless, setPicture} from './protocol.js';
+import {OVERLAY, PATH, answer, fillMenu, finite, inside, refusePicture, refuseRows, refuseUnless, setPicture} from './protocol.js';
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
 // the pointer, the monitors and the menu's choice back; its icons in the top bar and its hotkeys are desktop.js'. It
@@ -240,10 +240,7 @@ export default class ThermiExtension extends Extension {
         const ours = event => {
             if (this._overlays.get(overlay)?.grab)
                 return true;
-            const [px, py] = event.get_coords();
-            const [left, top] = click.get_transformed_position();
-            const [wide, high] = click.get_transformed_size();
-            return px >= left && py >= top && px < left + wide && py < top + high;
+            return inside(click, event);
         };
         click.connect('button-press-event', (actor, event) => {
             if (!ours(event))

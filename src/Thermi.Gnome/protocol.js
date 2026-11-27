@@ -21,6 +21,14 @@ const MOST_ROWS = 256;
 
 export const finite = (...numbers) => numbers.every(Number.isFinite);
 
+// Whether the event happened inside the actor, wherever the Shell delivered it.
+export function inside(actor, event) {
+    const [x, y] = event.get_coords();
+    const [left, top] = actor.get_transformed_position();
+    const [wide, high] = actor.get_transformed_size();
+    return x >= left && y >= top && x < left + wide && y < top + high;
+}
+
 // A call thermi's protocol does not have: refused before it changes anything.
 class Refused extends Error {}
 

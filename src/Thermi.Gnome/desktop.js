@@ -7,7 +7,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import {PATH, answer, fillMenu, refusePicture, refuseRows, refuseUnless, setPicture} from './protocol.js';
+import {PATH, answer, fillMenu, inside, refusePicture, refuseRows, refuseUnless, setPicture} from './protocol.js';
 
 // thermi's icons in the top bar and its hotkeys: each icon shows the picture thermi paints for it and passes its presses
 // back, its menu is the rows thermi sends, and each hotkey is grabbed through the Shell as its own are, a press of one
@@ -98,8 +98,10 @@ export class ThermiDesktop {
         const picture = new St.Widget({y_align: Clutter.ActorAlign.CENTER});
         button.add_child(picture);
         // A press of the icon is thermi's, which answers with a menu; one while the menu is open closes it, as the Shell's do.
+        // Only one inside it counts: once a menu that held the pointer closes, GNOME 50 can hand the next press to the actor
+        // the pointer was on before.
         button.connect('event', (actor, event) => {
-            if (event.type() !== Clutter.EventType.BUTTON_PRESS || button.menu?.isOpen)
+            if (event.type() !== Clutter.EventType.BUTTON_PRESS || button.menu?.isOpen || !inside(button, event))
                 return Clutter.EVENT_PROPAGATE;
             this._service?.emit_signal('IconPressed', new GLib.Variant('(suu)', [id, event.get_button(), event.get_time()]));
             return Clutter.EVENT_STOP;
