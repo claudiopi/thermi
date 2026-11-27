@@ -176,6 +176,8 @@ function Invoke-Web {
     $steps = @(
         New-Step 'web test count' 'pwsh', '-NoProfile', '-File', 'scripts/test-count.ps1', '-Part', 'Web'
         New-Step 'web lint' ($npm + 'lint')
+        # The GNOME Shell extension, by its own config, which needs no packages of its own.
+        New-Step 'gnome extension lint' 'node', (Join-Path $web 'node_modules' 'eslint' 'bin' 'eslint.js'), '--max-warnings', '0', 'src/Thermi.Gnome'
         New-Step 'web doctor' ($npm + 'doctor')
         New-Step 'web unit tests' ($npm + 'test:unit')
         New-Step 'web dead code' ($npm + 'deadcode') -Explain { Write-Host '  Delete what nothing uses, or say in knip.jsonc why it stays.' }

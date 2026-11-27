@@ -44,7 +44,8 @@ internal static class DesktopLooks
     {
         try
         {
-            using var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
+            // The session's one connection, which GirCore hands out as one object: disposing it would close it for the overlay too.
+            var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
             using var call = GLib.Variant.NewTuple([GLib.Variant.NewString("org.freedesktop.appearance"), GLib.Variant.NewString("contrast")]);
             using var answer = bus.CallSync(
                 "org.freedesktop.portal.Desktop",

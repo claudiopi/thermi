@@ -141,6 +141,8 @@ sequenceDiagram
 | `src/Thermi.App` | a library, any OS | What the overlay and the window share beyond Core, needing a package or the file system: the settings file under its mutex, the settings a host holds, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, and the logs. |
 | `src/Thermi.Cli` | a library, any OS | `thermi-cli`'s commands and its MCP server, over what each OS answers in `IAgentEnvironment`. |
 | `src/Thermi.Windows` | `thermi.exe` and `thermi-cli.exe`, as you | The overlay and tray, `thermi preview`, the settings window that hosts the page, and what an agent's command reaches on Windows. |
+| `src/Thermi.Linux` | `thermi`, as you, in the graphical session's user unit | The overlay on Linux: Core's overlays painted with Cairo and Pango on one GLib main loop, shown on GNOME through the Shell's extension over D-Bus; and `thermi preview`. |
+| `src/Thermi.Gnome` | an extension inside GNOME Shell | Shows the pictures `thermi` paints above every window and the top bar, the Shell's own menus, and sends back the pointer and the monitors. It decides nothing. |
 | `src/Thermi.Settings.Web` | the page in WebView2 | The settings window's page, in React and Fluent UI. It holds no logic: it reads and edits through the bridge. |
 | `src/Thermi.Settings.Types` | the build | Writes the page's TypeScript and the agents' JSON Schemas from Core. |
 | `src/Thermi.Client` | a library other programs ship | The .NET SDK of the agents' contract. |

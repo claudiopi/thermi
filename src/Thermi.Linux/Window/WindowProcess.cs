@@ -4,15 +4,16 @@ using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Finder;
 using Thermi.App.Logging;
+using Thermi.App.Sensors;
 using Thermi.App.SettingsFile;
 using Thermi.App.Window;
 using Thermi.Cli.Commands;
 using Thermi.Core.Bridge;
 using Thermi.Core.Look;
 using Thermi.Core.Messages;
-using Thermi.Core.Pipe;
 using Thermi.Core.Translations;
 using Thermi.Linux.Desktop;
+using Thermi.Linux.Sensors;
 
 namespace Thermi.Linux.Window;
 
@@ -27,16 +28,16 @@ internal static class WindowProcess
     /// <summary>The window's id on the session's bus and the desktop's, which its launcher's file is named after.</summary>
     public const string Id = "io.github.claudiopi.thermi";
 
-    public static async Task<int> RunAsync(SettingsRequest request, IReadOnlyList<string> args, ISensorFeed sensors, TimeProvider time)
+    public static async Task<int> RunAsync(SettingsRequest request, IReadOnlyList<string> args, TimeProvider time)
     {
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);
         var log = logs.CreateLogger("Thermi.Ui");
-        return await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, args, sensors, time, log));
+        return await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, args, new SensorReader(time, logs.CreateLogger<SensorReader>(), new SensorSocket(time)), time, log));
     }
 
     // The settings are read before the window opens, for its language and its overlays, and every write that waits goes
     // out once it has closed. The sensors are read only while it is open. GTK registers, runs and ends on one thread.
-    private static async Task<int> ShowAsync(SettingsRequest request, IReadOnlyList<string> args, ISensorFeed sensors, TimeProvider time, ILogger log)
+    private static async Task<int> ShowAsync(SettingsRequest request, IReadOnlyList<string> args, SensorReader sensors, TimeProvider time, ILogger log)
     {
         WebKit.Module.Initialize();
         using var store = new ConfigStore(ConfigStore.DefaultPath, time, DesktopLooks.RunsInstalled);
@@ -88,7 +89,7 @@ internal static class WindowProcess
         var chart = new ChartHistory(start.Time);
         using var host = new LinuxHost(start.Log);
         using var bridge = new PageBridge(host, start, editor, chart, Turn.Post);
-        var trace = asked.Trace ? new TraceEvents(Console.Error, start.Time) : null;
+        var trace = asked.Trace ? new TraceEvents(start.Time, Console.Error) : null;
         using var window = new SettingsWindow(app, bridge, host, start.Log, trace, start.Item);
         editor.Changed += (_, _) => window.Theme(editor.Config.WindowTheme);
         window.Theme(editor.Config.WindowTheme);

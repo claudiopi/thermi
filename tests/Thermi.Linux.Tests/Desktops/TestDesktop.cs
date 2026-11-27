@@ -61,10 +61,11 @@ internal sealed class TestDesktop : IAsyncDisposable
         </channel>
         """;
 
-    private TestDesktop(DesktopKind kind, OwnSession session)
+    private TestDesktop(DesktopKind kind, OwnSession session, double scale)
     {
         Kind = kind;
         Session = session;
+        Scale = scale;
     }
 
     /// <summary>The name thermi's overlay takes on the session's bus, as one GTK application per session does.</summary>
@@ -74,8 +75,11 @@ internal sealed class TestDesktop : IAsyncDisposable
 
     public OwnSession Session { get; }
 
+    /// <summary>The largest scale of the desktop's monitors, the screenshots' pixels to a logical one.</summary>
+    public double Scale { get; }
+
     /// <summary>The pointer and the keyboard, through the desktop's own input for tests.</summary>
-    public DesktopInput Input => new(Kind, Session);
+    public DesktopInput Input => new(Kind, Session, Scale);
 
     public static Task<TestDesktop> StartAsync(DesktopKind kind, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel) =>
         StartAsync(kind, monitors, TestShell.Thermi, cancel);
@@ -84,7 +88,7 @@ internal sealed class TestDesktop : IAsyncDisposable
     public static async Task<TestDesktop> StartAsync(DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel)
     {
 #pragma warning disable CA2000 // The desktop owns the session, and ends it with itself, as when its start fails below.
-        var desktop = new TestDesktop(kind, new OwnSession());
+        var desktop = new TestDesktop(kind, new OwnSession(), monitors.Max(monitor => monitor.Scale));
 #pragma warning restore CA2000
         try
         {

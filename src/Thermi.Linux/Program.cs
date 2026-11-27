@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Runtime.Versioning;
 using Thermi.Cli.Commands;
 using Thermi.Linux.Commands;
+using Thermi.Linux.Overlay;
 
 [assembly: SupportedOSPlatform("linux")]
 
@@ -32,7 +33,8 @@ internal static class Program
         {
             BuiltInRequest builtIn => await builtIn.Parsed.InvokeAsync(),
             PreviewRequest preview => await Preview.RunAsync(preview, time),
-            SettingsRequest settings => await Window.WindowProcess.RunAsync(settings, args, new Window.QuietFeed(), time),
+            OverlayRequest overlay => await OverlayStart.RunAsync(overlay, time),
+            SettingsRequest settings => await Window.WindowProcess.RunAsync(settings, args, time),
             _ => await NotHereAsync(),
         };
     }

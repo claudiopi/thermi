@@ -52,7 +52,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
                 break;
             case MenuEntry.ShowHiddenOverlays or MenuEntry.ShowOverlay or MenuEntry.HideThisOverlay or MenuEntry.ClickThrough or MenuEntry.Lock
                 or MenuEntry.Graph or MenuEntry.Vertical or MenuEntry.Look or MenuEntry.Size or MenuEntry.Bigger or MenuEntry.Smaller:
-                Write(row, EditOf(row, On(target), target ?? 0));
+                Write(row, MenuEdits.EditOf(row, On(target), target ?? 0, Looks()));
                 break;
             case MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull or MenuEntry.Overlay or MenuEntry.Update or MenuEntry.SizeOnTaskbar:
             default:
@@ -64,27 +64,7 @@ internal sealed class TrayChoices(TrayParts parts, ILogger log)
 
     public IReadOnlyList<StyleConfig> Looks() => new SavedStyles(ConfigStore.StylesFolder(Settings.FilePath)).List();
 
-    private IReadOnlyList<int> On(int? target) =>
-        target is { } one ? [one] : [.. Enumerable.Range(0, Math.Min(Settings.Config.Overlays.Count, parts.Overlays.Count))];
-
-    private Func<ThermiConfig, ThermiConfig>? EditOf(MenuRow row, IReadOnlyList<int> on, int at) => row.Entry switch
-    {
-        MenuEntry.ShowHiddenOverlays or MenuEntry.ShowOverlay or MenuEntry.HideThisOverlay => config =>
-            on.Aggregate(config, (current, each) => OverlayEdits.SetHidden(current, each, row.Entry == MenuEntry.HideThisOverlay).Config),
-        MenuEntry.ClickThrough => config => on.Aggregate(config, (current, each) => OverlayEdits.SetClickThrough(current, each, !row.Checked).Config),
-        MenuEntry.Lock => config => on.Aggregate(config, (current, each) => OverlayEdits.SetLocked(current, each, !row.Checked).Config),
-        MenuEntry.Graph when row.Graph is { } graph => config => OverlayEdits.SetGraph(config, at, graph).Config,
-        MenuEntry.Vertical => config =>
-            StyleEdits.Restyle(config, at, style => style with { Orientation = row.Checked ? Orientation.Horizontal : Orientation.Vertical }).Config,
-        MenuEntry.Look when (row.Look is null ? new StyleConfig() : Looks().FirstOrDefault(look => look.Name == row.Look)) is { } look => config =>
-            StyleEdits.Choose(config, at, look).Config,
-        MenuEntry.Size or MenuEntry.Bigger or MenuEntry.Smaller when row.Size is { } size => config => OverlayEdits.SetSize(config, at, size).Config,
-        MenuEntry.SettingsBroken or MenuEntry.StartSensors or MenuEntry.ShowOverlays or MenuEntry.UndoGesture or MenuEntry.Settings
-            or MenuEntry.TaskManager or MenuEntry.CopyImage or MenuEntry.HideOverlays or MenuEntry.ResetMinMax or MenuEntry.Overlay
-            or MenuEntry.Update or MenuEntry.Exit or MenuEntry.EditItem or MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull
-            or MenuEntry.SizeCustom or MenuEntry.SizeOnTaskbar => null,
-        _ => null,
-    };
+    private IReadOnlyList<int> On(int? target) => MenuEdits.On(target, Math.Min(Settings.Config.Overlays.Count, parts.Overlays.Count));
 
     // Writes only the difference, so what another process wrote meanwhile stays.
     private void Write(MenuRow row, Func<ThermiConfig, ThermiConfig>? edit)

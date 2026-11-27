@@ -120,6 +120,8 @@ function Get-Scope([string]$Root, [string[]]$Changed) {
         foreach ($owner in $owners) { [void]$touched.Add($owner) }
         $linuxRead = Test-Like $file $linuxReads
         if ($linuxRead) { [void]$touched.Add('Thermi.Linux.Tests') }
+        # The extension is linted with the page's ESLint, in the page's half.
+        if ($file -like 'src/Thermi.Gnome/*') { $scope.Web = $true }
         if ($owners -or $linuxRead) { continue }
         if ($file.StartsWith($page, [StringComparison]::OrdinalIgnoreCase)) { $scope.Web = $pageChanged = $true }
         elseif (Test-Like $file $windowsReads) { [void]$touched.Add('Thermi.Windows.Tests') }

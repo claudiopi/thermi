@@ -5,9 +5,10 @@ namespace Thermi.Linux.Tests.Desktops;
 /// <summary>
 /// A person's pointer and keyboard on a test's desktop, through each desktop's own input for tests: GNOME Shell's virtual
 /// devices, run in the Shell over its session bus; Sway's seat commands and a virtual keyboard; and XTEST on an X11 desktop
-/// and in KWin's Xwayland.
+/// and in KWin's Xwayland. Points are the screenshots' pixels, which Mutter and Sway take as logical ones divided by
+/// <paramref name="scale"/>.
 /// </summary>
-internal sealed class DesktopInput(DesktopKind kind, OwnSession session)
+internal sealed class DesktopInput(DesktopKind kind, OwnSession session, double scale = 1)
 {
     public async Task ClickAsync(int x, int y, CancellationToken cancel, int button = 1)
     {
@@ -38,13 +39,22 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session)
     /// Presses the pointer at a point and holds it until <paramref name="held"/> ends, as a person waits for the pill to
     /// lift, then drops it at another: the test waits for what thermi says it did, armed before the press, never for a time.
     /// </summary>
-    public async Task HoldAndDropAsync((int X, int Y) from, (int X, int Y) to, Func<CancellationToken, Task> held, CancellationToken cancel)
+    public Task HoldAndDropAsync((int X, int Y) from, (int X, int Y) to, Func<CancellationToken, Task> held, CancellationToken cancel) =>
+        HoldAsync(from, to, held, _ => Task.CompletedTask, cancel);
+
+    /// <summary>
+    /// As <see cref="HoldAndDropAsync"/>, with <paramref name="there"/> run once the pointer reached <paramref name="to"/>,
+    /// still pressed, as a person presses Esc before letting go.
+    /// </summary>
+    public async Task HoldAsync(
+        (int X, int Y) from, (int X, int Y) to, Func<CancellationToken, Task> held, Func<CancellationToken, Task> there, CancellationToken cancel)
     {
         await MoveAsync(from.X, from.Y, cancel).ConfigureAwait(false);
         await ButtonAsync(1, pressed: true, cancel).ConfigureAwait(false);
         await held(cancel).ConfigureAwait(false);
         await MoveAsync((from.X + to.X) / 2, (from.Y + to.Y) / 2, cancel).ConfigureAwait(false);
         await MoveAsync(to.X, to.Y, cancel).ConfigureAwait(false);
+        await there(cancel).ConfigureAwait(false);
         await ButtonAsync(1, pressed: false, cancel).ConfigureAwait(false);
     }
 
@@ -55,26 +65,35 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session)
         await KeyAsync(holding, pressed: true, cancel).ConfigureAwait(false);
         for (var notch = 0; notch < Math.Abs(notches); notch++)
         {
-            // X11's buttons 4 and 5 are the wheel's turns up and down, as every desktop here reads them.
-            await ButtonAsync(notches > 0 ? 4 : 5, pressed: true, cancel).ConfigureAwait(false);
-            await ButtonAsync(notches > 0 ? 4 : 5, pressed: false, cancel).ConfigureAwait(false);
+            // X11's buttons 4 and 5 are the wheel's turns up and down, as Sway and XTEST read them; Mutter's virtual pointer
+            // takes a wheel's turn as a discrete scroll of its own, and a button 4 as a button.
+            var up = notches > 0;
+            await RunAsync(
+                $"pointer.notify_discrete_scroll(global.get_current_time(), Clutter.ScrollDirection.{(up ? "UP" : "DOWN")}, Clutter.ScrollSource.WHEEL)",
+                ("swaymsg", [$"seat - cursor press button{(up ? 4 : 5)}; seat - cursor release button{(up ? 4 : 5)}"]),
+                ["click", up ? "4" : "5"],
+                cancel).ConfigureAwait(false);
         }
 
         await KeyAsync(holding, pressed: false, cancel).ConfigureAwait(false);
     }
 
-    /// <summary>A key pressed and let go, by its X11 keysym's name, as Escape or Super_L.</summary>
+    /// <summary>A key pressed and let go, by its X11 keysym's name, as Escape or Super_L, or keys held together, as Control_L+z.</summary>
     public async Task PressAsync(string key, CancellationToken cancel)
     {
         await KeyAsync(key, pressed: true, cancel).ConfigureAwait(false);
         await KeyAsync(key, pressed: false, cancel).ConfigureAwait(false);
     }
 
-    public Task MoveAsync(int x, int y, CancellationToken cancel) => RunAsync(
-        $"pointer.notify_absolute_motion(global.get_current_time(), {x}, {y})",
-        ("swaymsg", [$"seat - cursor set {x} {y}"]),
-        ["mousemove", $"{x}", $"{y}"],
-        cancel);
+    public Task MoveAsync(int x, int y, CancellationToken cancel)
+    {
+        var (logicalX, logicalY) = (Logical(x), Logical(y));
+        return RunAsync(
+            $"pointer.notify_absolute_motion(global.get_current_time(), {logicalX}, {logicalY})",
+            ("swaymsg", [$"seat - cursor set {logicalX} {logicalY}"]),
+            ["mousemove", $"{x}", $"{y}"],
+            cancel);
+    }
 
     /// <summary>
     /// A line of the Shell's own JavaScript, run with the virtual pointer and keyboard of the Shell's seat as
@@ -91,15 +110,37 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session)
         [pressed ? "mousedown" : "mouseup", $"{button}"],
         cancel);
 
-    private Task KeyAsync(string? key, bool pressed, CancellationToken cancel) => key is null ? Task.CompletedTask : RunAsync(
-        $"keyboard.notify_keyval(global.get_current_time(), Clutter.KEY_{key}, Clutter.KeyState.{(pressed ? "PRESSED" : "RELEASED")})",
-        ("wtype", [pressed ? "-P" : "-p", key]),
-        [pressed ? "keydown" : "keyup", key],
-        cancel);
+    // xdotool takes keys held together as one; the Shell and wtype a key at a time, pressed in order and let go in reverse.
+    private async Task KeyAsync(string? key, bool pressed, CancellationToken cancel)
+    {
+        if (key is null)
+        {
+            return;
+        }
 
+        var keys = key.Split('+');
+        foreach (var each in pressed ? keys : keys.Reverse())
+        {
+            await RunAsync(
+                $"keyboard.notify_keyval(global.get_current_time(), Clutter.KEY_{each}, Clutter.KeyState.{(pressed ? "PRESSED" : "RELEASED")})",
+                ("wtype", [pressed ? "-P" : "-p", each]),
+                [pressed ? "keydown" : "keyup", key],
+                cancel).ConfigureAwait(false);
+            if (kind is DesktopKind.KWin or DesktopKind.X11)
+            {
+                break;
+            }
+        }
+    }
+
+    private string Logical(int pixels) =>
+        kind is DesktopKind.Gnome or DesktopKind.Sway ? (pixels / scale).ToString("0.##", CultureInfo.InvariantCulture) : $"{pixels}";
+
+    // The Shell's Eval runs in a module that imports no Clutter, so the line takes GJS's own.
     private static (string, string[]) Shell(string line)
     {
-        var script = "const seat = Clutter.get_default_backend().get_default_seat();"
+        var script = "const Clutter = imports.gi.Clutter;"
+            + "const seat = Clutter.get_default_backend().get_default_seat();"
             + "const pointer = global.thermiPointer ??= seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);"
             + "const keyboard = global.thermiKeyboard ??= seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);"
             + line;
@@ -118,12 +159,15 @@ internal sealed class DesktopInput(DesktopKind kind, OwnSession session)
         },
         cancel);
 
+    // The Shell's Eval answers (false, 'why') when the line threw, and gdbus still exits 0.
     private async Task RunAsync((string Program, string[] Args) command, CancellationToken cancel)
     {
         var ran = await session.RunAsync(command.Program, command.Args, cancel: cancel).ConfigureAwait(false);
-        if (ran.Exit != 0)
+        var threw = command.Program == "gdbus" && !ran.Out.TrimStart().StartsWith("(true", StringComparison.Ordinal);
+        if (ran.Exit != 0 || threw)
         {
-            throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"{kind} took no input from {command.Program}: {ran.Error}"));
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"{kind} took no input from {command.Program}: {ran.Error}{ran.Out}"));
         }
     }
 }

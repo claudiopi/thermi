@@ -36,8 +36,12 @@ public sealed partial class RepoRulesTests
     private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
     {
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
+        ["Thermi.Linux/Gnome/ExtensionArrival.cs"] = "what thermi does on GNOME while its Shell extension is missing, off or of another version",
+        ["Thermi.Linux/Logging/LinuxLog.cs"] = "the overlay's log events on Linux, which only its host raises",
+        ["Thermi.Linux/Overlay/OverlayMenu.cs"] = "an overlay's menu as the GNOME Shell's rows, and the Linux programs its choices start",
+        ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on GNOME share on the host's GLib main loop, the Shell's link among it",
+        ["Thermi.Linux/Overlay/ShellOverlay.cs"] = "an overlay painted by Linux's Cairo painter and shown through the GNOME Shell's extension",
         ["Thermi.Linux/Window/WindowPainter.cs"] = "the window's previews painted by Linux's Cairo painter, as Windows' Painter paints them with GDI+",
-        ["Thermi.Linux/Window/QuietFeed.cs"] = "what the window reads where the service's socket is not read: no reading, as a stopped service",
     };
 
     // The libraries a Linux project calls by hand, and why: GirCore generates the rest from GObject's introspection data
