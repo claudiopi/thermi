@@ -30,8 +30,8 @@ internal readonly record struct PanelRoom(double Left, double Top, double Right,
 /// <summary>
 /// The pointer on an overlay's boxes, as the extension sends it: what it did, where on the stage, its button and keys
 /// held, and when, in milliseconds. What it did is <c>press</c>, <c>motion</c>, <c>release</c>, <c>scroll</c>, or
-/// <c>cancel</c> when another grab, as the overview's or a modal dialog's, took the pointer from a press, which ends it
-/// as Esc does.
+/// <c>cancel</c> when another grab, as a modal dialog's or the lock screen's, took the pointer from a press, which ends it
+/// as Esc does. The overview does not open while a press holds, so it never takes one.
 /// </summary>
 internal sealed record ShellPointer(uint Overlay, string Kind, double X, double Y, uint Button, uint Modifiers, uint Time, double Dx, double Dy);
 

@@ -79,7 +79,7 @@ public sealed class ExtensionTests
             `${top >= 519 ? 'below' : top + height <= 501 ? 'above' : 'over'} ${weight('Default') > weight('Other') ? 'bold' : 'plain'}`'''
         MARKS = '''const open = Main.uiGroup.get_children().find(actor => actor.visible && actor.has_style_class_name?.('popup-menu-boxpointer'));
             const label = (actor, text) => actor.text === text ? actor : actor.get_children().map(child => label(child, text)).find(found => found);
-            ['Chosen', 'Not chosen', 'Checked'].map(text => label(open, text).get_parent()._ornamentIcon.icon_name || 'none').join(' ')'''
+            label(open, TEXT).get_parent()._ornamentIcon.icon_name || 'none' '''
         COPY = '''const St = imports.gi.St; const Gio = imports.gi.Gio;
             St.Clipboard.get_default().get_content(St.ClipboardType.CLIPBOARD, 'image/png', (clipboard, bytes) => {
                 global.thermiCopied = bytes ? [...bytes.get_data()] : [];
@@ -98,10 +98,10 @@ public sealed class ExtensionTests
             frame()
             return evaluate(MENU)
 
-        def marked():
+        def marked(text):
             call(*menu(1, -1, rows=[row('Chosen', checked=True, radio=True), row('Not chosen', radio=True), row('Checked', checked=True)]))
             frame()
-            return evaluate(MARKS)
+            return evaluate(MARKS.replace('TEXT', json.dumps(text)))
 
         def copied():
             call('Copy', GLib.Variant('(ay)', (PNG,)))
@@ -153,13 +153,19 @@ public sealed class ExtensionTests
             call(*show(1))
             frame()
             rows = {'shapes': shapes, 'menu-below': lambda: opened('below'), 'menu-above': lambda: opened('above'),
-                    'radio': marked, 'copy': copied, 'full-screen': full_screen, 'icon-menu': icon_after_its_menu}
+                    'radio-chosen': lambda: marked('Chosen'), 'radio-unchosen': lambda: marked('Not chosen'), 'copy': copied,
+                    'full-screen': full_screen, 'icon-menu': icon_after_its_menu}
             print(rows[sys.argv[2]](), flush=True)
         else:
             focus = lambda: print('focus', evaluate('String(global.stage.key_focus)'), flush=True)
+            pressed = {}
             def heard(connection, sender, path, interface, signal, args):
                 values = args.unpack()
                 print(signal, *(values[1:5] if signal == 'Pointer' else values[1:]), flush=True)
+                if signal == 'Pointer' and values[1] == 'press':
+                    pressed['at'] = values[6]
+                if signal == 'Pointer' and values[1] == 'cancel':
+                    print('cancel', 'after its press' if 0 < pressed['at'] <= values[6] else f'at {values[6]}', flush=True)
                 if signal == 'Pointer' and values[1] == 'press' and values[4] == 1:
                     focus()
                 if signal == 'Pointer' and values[1] == 'press' and values[4] == 3:
@@ -232,7 +238,8 @@ public sealed class ExtensionTests
     [InlineData("menu-below", "below bold")]
     [InlineData("menu-above", "above bold")]
     [InlineData("copy", "image/png same")]
-    [InlineData("radio", "ornament-dot-checked-symbolic none ornament-check-symbolic")]
+    [InlineData("radio-chosen", "ornament-dot-checked-symbolic")]
+    [InlineData("radio-unchosen", "ornament-dot-unchecked-symbolic")]
     [InlineData("full-screen", "shown")]
     [InlineData("icon-menu", "shown")]
     public async Task WhatThermiAsksShowsAsTheShellsOwn(string row, string shown)
@@ -272,7 +279,7 @@ public sealed class ExtensionTests
         await input.ClickAsync(500, 500, cancel);
         await input.ClickAsync(OnOverlay.X, OnOverlay.Y, cancel);
         await last;
-        var cancelled = caller.Out.NextAsync(line => line.StartsWith("Pointer cancel", StringComparison.Ordinal), cancel);
+        var cancelled = caller.Out.NextAsync(line => line.StartsWith("cancel", StringComparison.Ordinal), cancel);
         await input.HoldAsync(OnOverlay, OnOverlay, Lose, there => input.ShellAsync("Main.popModal(global.thermiModal)", there), cancel);
 
         var lines = caller.Out.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -280,6 +287,7 @@ public sealed class ExtensionTests
         Assert.Equal(["Key Escape"], keys);
         Assert.DoesNotContain(lines, line => line.StartsWith("Pointer press 500", StringComparison.Ordinal));
         Assert.Single(lines.Where(line => line.StartsWith("focus", StringComparison.Ordinal)).Distinct());
+        Assert.Contains("cancel after its press", lines);
 
         async Task Keys(CancellationToken held)
         {

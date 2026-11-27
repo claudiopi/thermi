@@ -74,7 +74,7 @@ internal interface IOverlaySurfaces : IDisposable
     Task Copy(byte[] png) => Task.CompletedTask;
 
     /// <summary>
-    /// A press on a picture, by its id, lost the pointer to another grab, as the overview or a modal dialog takes it: the
+    /// A press on a picture, by its id, lost the pointer to another grab, as a modal dialog or the lock screen takes it: the
     /// press ends as Esc ends it. A surface whose pointer kinds tell it, as GNOME's <c>cancel</c>, never raises it, so it
     /// keeps no listener.
     /// </summary>

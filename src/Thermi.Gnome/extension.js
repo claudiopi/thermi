@@ -344,7 +344,10 @@ export default class ThermiExtension extends Extension {
     _lose(overlay, shown) {
         this._release(shown);
         const [x, y, mods] = global.get_pointer();
-        this._emit('Pointer', '(usdduuudd)', [overlay, 'cancel', x, y, 0, mods, global.get_current_time(), 0, 0]);
+        // No event is underway as a grab is revoked, so the time is the clock events are stamped with: milliseconds of
+        // the monotonic clock, in 32 bits as theirs.
+        const time = global.get_current_time() || Math.floor(GLib.get_monotonic_time() / 1000) % 2 ** 32;
+        this._emit('Pointer', '(usdduuudd)', [overlay, 'cancel', x, y, 0, mods, time, 0, 0]);
     }
 
     // Once a grab ends, a menu's or a drag's, GNOME 50 can send the next press or turn of the wheel to the actor the pointer

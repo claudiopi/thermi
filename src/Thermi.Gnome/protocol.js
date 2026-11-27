@@ -87,6 +87,13 @@ export function setPicture(shown, pixels, width, height, stride) {
     }
 }
 
+// A radio shows an empty circle where it is not chosen, as the Shell's own radio groups do, so its group's rows stay in line.
+function ornamentOf(checked, radio) {
+    if (radio)
+        return checked ? PopupMenu.Ornament.DOT : PopupMenu.Ornament.NO_DOT;
+    return checked ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE;
+}
+
 // Fills a menu with the rows; choosing one calls chosen with its index. A screen reader reads each menu as the menu it
 // is, which the Shell's own box no longer says. The default row reads bold, and a radio's choice shows a dot, as Windows'
 // menus show theirs.
@@ -103,8 +110,7 @@ export function fillMenu(menu, rows, chosen) {
             item.label.style = 'font-weight: bold;';
         if (note)
             item.add_child(new St.Label({text: note, x_expand: true, x_align: Clutter.ActorAlign.END}));
-        const mark = radio ? PopupMenu.Ornament.DOT : PopupMenu.Ornament.CHECK;
-        item.setOrnament(checked ? mark : PopupMenu.Ornament.NONE);
+        item.setOrnament(ornamentOf(checked, radio));
         item.setSensitive(!grayed);
         if (opens) {
             parents.set(index, item.menu);
