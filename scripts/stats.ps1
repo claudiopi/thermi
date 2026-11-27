@@ -34,6 +34,7 @@ $entries = @($entries | Where-Object { $_ })
 $commit = if ($github) { $github.commit } else { git -C $root rev-parse --short HEAD }
 $before = $entries | Where-Object { $_.commit -ne $commit } | Select-Object -Last 1
 $specs = @(Read-Specs $root $run)
+$code = @(Read-Code $root)
 
 # This run's numbers, as the history keeps them; what it did not measure carries main's last.
 function Get-Entry {
@@ -54,6 +55,9 @@ function Get-Entry {
         doctor = (Get-DoctorScore $run).Score
         ciSeconds = if ($github) { $github.wallSeconds } else { @($run.Steps | ForEach-Object { $_.seconds } | Sort-Object)[-1] }
         msiX64 = $x64.megabytes
+        codeProduct = ($code | Where-Object { -not $_.Test } | Measure-Object Lines -Sum).Sum
+        codeTests = ($code | Where-Object { $_.Test } | Measure-Object Lines -Sum).Sum
+        code = ($code | Measure-Object Lines -Sum).Sum
         passed = if ($github) { $github.passed }
     }
 }
@@ -87,6 +91,8 @@ function Write-Kpis {
             "$(if ($slowest) { "slowest: $(Get-JobLabel $slowest.name) · " })$(Format-Delta $now.ciSeconds $before.ciSeconds -Duration)")
     )
     $second = @(
+        ,@('📝 Lines of code', (Format-Count $now.code),
+            "$(Format-Thousands $now.codeProduct) product · $(Format-Thousands $now.codeTests) tests · $(Format-Delta $now.code $before.code)")
         ,@('📋 Specs', "$done / $($specs.Count)", "done · $passing of $(@($specs.Steps).Count) acceptance checks pass")
         ,@('🐞 Open bugs', "$($github.openBugs ?? '–')", 'issues labeled bug')
         ,@('📦 x64 installer', (Format-Megabytes $now.msiX64),
@@ -131,6 +137,33 @@ function Write-Coverage {
     $baseline = Get-Sum $run.Tests baseline
     "| **Total** | **$(Format-Count $now.tests)** of the ratchet's $(Format-Count $baseline) |"
     ''
+}
+
+# Non-blank lines by project and language, the product's and the tests' apart.
+function Write-Code {
+    $languages = 'C#', 'TypeScript', 'PowerShell', 'JS'
+    '## 📝 Code by project'
+    ''
+    "| Project | $($languages -join ' | ') | Lines |"
+    "| --- |$(' --: |' * ($languages.Count + 1))"
+    foreach ($test in $false, $true) {
+        $kind = @($code | Where-Object { $_.Test -eq $test })
+        foreach ($project in $kind | Group-Object Project) {
+            $name = if ($test) { "``$($project.Name)`` · tests" } else { "``$($project.Name)``" }
+            "| $name | $(Format-Languages $project.Group $languages) |"
+        }
+        "| **$(if ($test) { 'Tests' } else { 'Product' })** | $(Format-Languages $kind $languages -Bold) |"
+    }
+    ''
+}
+
+function Format-Languages([object[]]$Files, [string[]]$Languages, [switch]$Bold) {
+    $mark = if ($Bold) { '**' } else { '' }
+    $cells = foreach ($language in $Languages) {
+        $sum = ($Files | Where-Object Language -eq $language | Measure-Object Lines -Sum).Sum
+        if ($sum) { "$mark$(Format-Count $sum)$mark" } else { '' }
+    }
+    ($cells + "$mark$(Format-Count ($Files | Measure-Object Lines -Sum).Sum)$mark") -join ' | '
 }
 
 function Write-Specs {
@@ -190,6 +223,7 @@ function Write-Trend {
         ,@('React Doctor', 'doctor', { "$($args[0] ?? '–')" })
         ,@('CI time', 'ciSeconds', { Format-Duration $args[0] })
         ,@('x64 installer', 'msiX64', { Format-Megabytes $args[0] })
+        ,@('Lines of code', 'code', { Format-Count $args[0] })
     )
     foreach ($metric in $metrics) {
         $values = @($last | ForEach-Object { $_[$metric[1]] })
@@ -284,6 +318,7 @@ $markdown = @(
     ''
     Write-Kpis
     Write-Coverage
+    Write-Code
     Write-Specs
     Write-BugHunt
     Write-Trend

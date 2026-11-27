@@ -5,6 +5,8 @@ function Format-Count($Value) { if ($null -eq $Value) { '–' } else { '{0:n0}' 
 
 function Format-Percent($Value, [int]$Decimals = 1) { if ($null -eq $Value) { '–' } else { "{0:n$Decimals} %" -f [double]$Value } }
 
+function Format-Thousands($Value) { if ($null -eq $Value) { '–' } else { '{0:n1}k' -f ([double]$Value / 1000) } }
+
 function Format-Megabytes($Value) { if ($null -eq $Value) { '–' } else { '{0:n1} MB' -f [double]$Value } }
 
 function Format-Duration($Seconds) {

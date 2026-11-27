@@ -61,6 +61,21 @@ function Read-Specs([string]$Root, $Run) {
     }
 }
 
+# The code the repo holds, from git's own list, so nothing built, installed or recorded counts: each file's non-blank
+# lines, its project (its folder under src or tests, or scripts), and whether it is a test, as the tests' projects and the
+# page's tests and unit tests are. What a build writes from Core, as the page's .g.ts, is left out.
+function Read-Code([string]$Root) {
+    $languages = @{ '.cs' = 'C#'; '.ts' = 'TypeScript'; '.tsx' = 'TypeScript'; '.ps1' = 'PowerShell'; '.js' = 'JS'; '.mjs' = 'JS'; '.cjs' = 'JS' }
+    foreach ($path in git -C $Root ls-files) {
+        $language = $languages[[IO.Path]::GetExtension($path)]
+        if (-not $language -or $path -like '*.g.ts') { continue }
+        $parts = $path -split '/'
+        $test = $parts[0] -eq 'tests' -or $path -match '^src/[^/]+/tests/|\.test\.tsx?$'
+        $lines = @([IO.File]::ReadAllLines((Join-Path $Root $path)) | Where-Object { $_.Trim() }).Count
+        [pscustomobject]@{ Project = $(if ($parts[0] -eq 'scripts') { 'scripts' } else { $parts[1] }); Test = $test; Language = $language; Lines = $lines }
+    }
+}
+
 # The checks a person runs before each release, from docs/RELEASES.md's tables under "Before each release": each
 # check's name in bold, under the heading of its area.
 function Read-ReleaseChecks([string]$Root) {
