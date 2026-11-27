@@ -27,6 +27,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly ILogger _log;
     private readonly Gio.DBusConnection? _bus;
     private readonly DesktopPortal _portal;
+    private readonly WindowScreens _screens;
     private WindowTheme _theme;
     private ExtensionState? _extension;
     private bool? _signIn;
@@ -37,6 +38,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _bus = Connect();
         _portal = new DesktopPortal(Changed);
         _extension = LinuxFixes.ExtensionState(_bus);
+        _screens = new WindowScreens(_bus, Turn.Post, () => DesktopChanged?.Invoke());
     }
 
     public Gtk.Window? Window { get; set; }
@@ -74,30 +76,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         }
     }
 
-    public IReadOnlyList<Screen> Screens()
-    {
-        if (Gdk.Display.GetDefault()?.GetMonitors() is not { } monitors)
-        {
-            return [];
-        }
-
-        var screens = new List<Screen>();
-        for (uint at = 0; at < monitors.GetNItems(); at++)
-        {
-            if (monitors.GetObject(at) is Gdk.Monitor monitor)
-            {
-                monitor.GetGeometry(out var area);
-                using var box = area;
-                var scale = monitor.GetScale();
-                var bounds = new PixelRect(
-                    (int)(box.X * scale), (int)(box.Y * scale), (int)((box.X + box.Width) * scale), (int)((box.Y + box.Height) * scale));
-                var name = monitor.GetConnector() ?? at.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                screens.Add(new Screen(name, at == 0, bounds, bounds, scale));
-            }
-        }
-
-        return screens;
-    }
+    public IReadOnlyList<Screen> Screens() => _screens.Screens;
 
     public bool LightTaskbar() => DesktopLooks.LightPanels;
 
@@ -244,6 +223,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     public void Dispose()
     {
         _portal.Dispose();
+        _screens.Dispose();
         _bus?.Dispose();
     }
 

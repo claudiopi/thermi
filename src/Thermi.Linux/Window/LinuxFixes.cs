@@ -12,7 +12,7 @@ namespace Thermi.Linux.Window;
 internal static class LinuxFixes
 {
     /// <summary>The extension's id, as its <c>metadata.json</c> in <c>src/Thermi.Gnome</c> says.</summary>
-    public const string Extension = "thermi@claudiopi.github.io";
+    public const string Extension = Gnome.ShellLink.Uuid;
 
     public const string OverlayUnit = "thermi.service";
 

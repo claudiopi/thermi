@@ -1,5 +1,6 @@
 using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
+using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -39,5 +40,17 @@ public sealed class HostDesktopTests
         var desktop = new HostDesktop(HostOs.Linux, Bar: HostDesktop.BarOf(desktops));
 
         Assert.Equal(name, Names.OfOverlays(new ThermiConfig(), desktop.Words(Texts.English))[0]);
+    }
+
+    // The map draws a monitor's taskbar along the edge it lies on: GNOME's top bar along the top, Windows' along the bottom.
+    [Theory] // Rows: a bar at each edge.
+    [InlineData(0, 48, BarEdge.Top)]
+    [InlineData(1032, 1080, BarEdge.Bottom)]
+    public void AMonitorsTaskbarLiesAlongTheEdgeItTouches(int top, int bottom, BarEdge edge)
+    {
+        var bounds = new PixelRect(0, 0, 1920, 1080);
+        var screen = new Screen("one", Primary: true, bounds, bounds, 1) { Taskbar = bounds with { Top = top, Bottom = bottom } };
+
+        Assert.Equal(edge, MonitorView.Of(screen).Edge);
     }
 }

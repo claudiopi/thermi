@@ -56,6 +56,7 @@ function startOf(change: Partial<FakeState>): FakeState {
         workArea: { x: 0, y: 0, width: 2560, height: 1392 },
         scale: 1.5,
         taskbar: true,
+        edge: 'bottom',
       },
       {
         id: secondMonitor,
@@ -64,6 +65,7 @@ function startOf(change: Partial<FakeState>): FakeState {
         workArea: { x: 2560, y: 0, width: 1920, height: 1032 },
         scale: 1,
         taskbar: true,
+        edge: 'bottom',
       },
     ],
     places: [],

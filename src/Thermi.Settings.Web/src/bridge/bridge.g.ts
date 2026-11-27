@@ -24,6 +24,8 @@ export interface AgentsView {
   changes: AgentChangeView[];
 }
 
+export type BarEdge = 'bottom' | 'top';
+
 export type CaptionAction = 'move' | 'title-double-click' | 'minimize' | 'maximize' | 'close';
 
 export interface CatalogGroup {
@@ -252,6 +254,7 @@ export interface Monitor {
   scale: number;
   taskbar: boolean;
   floats?: TaskbarFloat;
+  edge?: BarEdge;
 }
 
 export type NameFrom = 'library' | 'likely' | 'own';
