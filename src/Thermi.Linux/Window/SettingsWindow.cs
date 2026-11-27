@@ -219,7 +219,6 @@ internal sealed class SettingsWindow : IDisposable
         };
     }
 
-    // Watches each press on its way to the page, which still takes it.
     private bool Pressed()
     {
         // GirCore reads no event out of the signal's arguments, so it comes from the controller, and as a plain event.

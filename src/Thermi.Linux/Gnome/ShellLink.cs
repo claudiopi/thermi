@@ -180,7 +180,6 @@ internal sealed class ShellLink : IDisposable
     /// <summary>Asks the Shell to install the extension, as <see cref="Install"/> does, and waits for the person's answer.</summary>
     public Task<GLib.Variant> InstallAsync() => Extensions("InstallRemoteExtension", GLib.Variant.NewString(Uuid));
 
-    /// <summary>Asks the Shell to turn the extension on.</summary>
     public Task<GLib.Variant> EnableAsync() => Extensions("EnableExtension", GLib.Variant.NewString(Uuid));
 
     /// <summary>Asks the Shell to fetch the updates of its extensions, which it applies at the next sign-in.</summary>

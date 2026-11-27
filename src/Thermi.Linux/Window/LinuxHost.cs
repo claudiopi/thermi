@@ -294,7 +294,6 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     [LoggerMessage(Level = LogLevel.Warning, Message = "The desktop did not open {Target}")]
     private static partial void OpenRefused(ILogger logger, string target, Exception error);
 
-    // Where thermi's extension is in a GNOME session, as the overlay reads it; outside GNOME there is none to fix.
     private ExtensionState? ExtensionOf() =>
         _link is null || !(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Contains("GNOME", StringComparison.OrdinalIgnoreCase) ? null
         : _link.State() switch

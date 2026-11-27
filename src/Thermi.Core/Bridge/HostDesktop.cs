@@ -116,7 +116,6 @@ public sealed record HostDesktop(
     /// <summary>Why a sensor reads nothing, as this desktop says it: where no driver is offered, a zero is nothing read.</summary>
     public NoValue? Why(NoValue? why) => why == NoValue.DriverMayBeMissing && !OffersDriver ? NoValue.ReadsNothing : why;
 
-    /// <summary>Whether a CPU's zeros point to thermi's driver here: only where the desktop offers one.</summary>
     public bool NeedsDriver(Snapshot snapshot) => OffersDriver && SensorMap.DriverMayBeMissing(snapshot);
 
     /// <summary>Why the fan finder cannot start, as this desktop says it: where no driver is offered, the board shows no fans.</summary>

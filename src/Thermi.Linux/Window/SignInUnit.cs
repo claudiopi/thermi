@@ -26,7 +26,6 @@ internal sealed class SignInUnit(string systemctl = SignInUnit.Systemctl) : ISta
         }
     }
 
-    // A program that is not there fails as systemctl would.
     private int Run(string verb)
     {
         try
