@@ -381,7 +381,6 @@
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
-/* GNOME's top bar, along its monitor's top. */
 .t-mon-bar-top {
   inset: 0 0 auto;
   border-top: 0;

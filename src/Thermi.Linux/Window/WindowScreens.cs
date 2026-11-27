@@ -15,9 +15,6 @@ internal sealed class WindowScreens : IDisposable
     private readonly Action<Action> _post;
     private ShellScreens? _shell;
 
-    /// <param name="bus">The session's bus, where the Shell answers; none, and the monitors are GDK's.</param>
-    /// <param name="post">Runs an action on GTK's loop, where the Shell's answer is taken.</param>
-    /// <param name="changed">Runs on GTK's loop when the monitors or their bars changed.</param>
     public WindowScreens(Gio.DBusConnection? bus, Action<Action> post, Action changed)
     {
         _bus = bus;
