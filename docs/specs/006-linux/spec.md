@@ -45,7 +45,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 
 ### The settings window
 
-- R18. The settings window of spec 002 runs on Linux, in a process of its own, with the same page and every requirement of spec 002 but those it names Windows' and those R19 gives their Linux form. It opens from the overlay's menu, thermi's icon, a double-click on a value, `thermi settings` and the desktop's app launcher; one window exists; and closing it leaves no process behind.
+- R18. The settings window of spec 002 runs on Linux, in a process of its own, with the same page and every requirement of spec 002 but those it names Windows' and those R19 gives their Linux form. It opens from the overlay's menu, thermi's icon, a double-click on a value, `thermi settings` and the desktop's app launcher; opened from the overlay, it comes in front of the windows over it, as on Windows; one window exists; and closing it leaves no process behind.
   Release check: Open the window every way on Linux.
 - R19. On Linux, the window follows the desktop's light or dark scheme, its accent and high contrast unless Settings chose its own theme; "Start with Windows" reads "Start at sign-in"; the fixes it offers are those of Linux: installing or enabling the GNOME extension, and starting a stopped service through the desktop's own prompt for administrator rights, with no driver to install; and the page reads well and reads aloud with Orca as with Narrator. Its texts are in every translation.
   Release check: Orca, themes and the window's frame on Linux.
