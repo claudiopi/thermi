@@ -10,7 +10,10 @@ namespace Thermi.Linux.Gnome;
 /// </summary>
 internal sealed record ShellMonitor(double X, double Y, double Width, double Height, double Scale, double Bar, bool Primary, bool FullScreen)
 {
-    /// <summary>The monitor's name as GTK tells it off GNOME; on GNOME, Mutter's display config names it, and this is null.</summary>
+    /// <summary>
+    /// The monitor's name off GNOME, as GNOME would name it (<see cref="Desktop.GdkMonitors"/>); null on GNOME, whose
+    /// extension does not tell it, and where <see cref="ShellScreens.Names"/> reads it from Mutter's display config.
+    /// </summary>
     public string? Id { get; init; }
 
     /// <summary>The room the panels keep along each of the monitor's edges, where a desktop tells them all; null for <see cref="Bar"/> alone.</summary>

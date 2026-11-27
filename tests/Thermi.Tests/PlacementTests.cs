@@ -22,6 +22,14 @@ public sealed class PlacementTests
         Assert.Equal(ids.Split(';'), MonitorIds.Unique([.. read]));
     }
 
+    // Off GNOME, a Linux desktop names a monitor from its EDID as Mutter does, which GNOME's snaps saved: the product's
+    // name with its spaces, the serial's text, else its number in hex; no EDID, no name, which the desktop's own then gives.
+    [Theory] // Rows: each a fallback of Mutter's, in its order.
+    [InlineData("12345 7XQ9K13", "DEL-DELL U2723QE-7XQ9K13")]
+    [InlineData("12345 blank", "DEL-DELL U2723QE-0x00003039")]
+    [InlineData("none", null)]
+    public void OffGnomeAMonitorIsNamedAsGnomeNamesIt(string edid, string? id) => Assert.Equal(id, MonitorIds.OfGnome(Edid(edid), "DP-1"));
+
     private static byte[] Edid(string written) => written.Split(' ') switch
     {
         ["none"] => [],

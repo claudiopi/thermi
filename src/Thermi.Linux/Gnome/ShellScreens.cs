@@ -36,7 +36,7 @@ internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOn
                 }
 
                 var (connector, vendor, product, serial) = (Field(0), Field(1), Field(2), Field(3));
-                var id = serial.Length > 0 ? $"{vendor}-{product}-{serial}" : $"{vendor}-{product}@{connector}";
+                var id = MonitorIds.OfGnome(vendor, product, serial, connector);
                 return (At: (each.GetChildValue(0).GetInt32(), each.GetChildValue(1).GetInt32()), Id: id, Connector: connector);
             }).ToList();
             var unique = MonitorIds.Unique([.. found.Select(each => (each.Id, each.Connector))]);

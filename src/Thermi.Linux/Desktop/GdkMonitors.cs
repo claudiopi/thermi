@@ -4,12 +4,17 @@ using Thermi.Linux.Gnome;
 namespace Thermi.Linux.Desktop;
 
 /// <summary>
-/// The monitors as GTK finds them on a desktop other than GNOME, in the stage's logical pixels: each named by its maker
-/// and model, and its connector when two are alike, so a snap follows its monitor as the monitors move. The first is the
-/// primary one where the desktop says none.
+/// The monitors as GTK finds them on a desktop other than GNOME, in the stage's logical pixels: each named as GNOME's
+/// display config names it, by its EDID's maker, product and serial (<see cref="MonitorIds.OfGnome(ReadOnlySpan{byte}, string)"/>),
+/// so a snap follows its monitor as the monitors move and as the desktop changes. GDK tells no serial, on Wayland or X11,
+/// so the EDID is the kernel's, by the monitor's connector; a monitor without one there, as a compositor's virtual one, is
+/// named by GDK's maker and model and its connector, as GNOME names one without a serial. The first is the primary one
+/// where the desktop says none.
 /// </summary>
 internal static class GdkMonitors
 {
+    private const string Drm = "/sys/class/drm";
+
     public static IReadOnlyList<Gdk.Monitor> All()
     {
         if (Gdk.Display.GetDefault()?.GetMonitors() is not { } list)
@@ -40,7 +45,30 @@ internal static class GdkMonitors
         })];
     }
 
-    // A monitor without a maker's or a model's name, as a virtual one, is named by its connector alone.
-    private static string Name(Gdk.Monitor monitor) =>
-        $"{monitor.GetManufacturer()}-{monitor.GetModel()}" is var name && name != "-" ? name : monitor.GetConnector() ?? "monitor";
+    // A monitor without a maker's or a model's name either, as a virtual one, is named by its connector alone.
+    private static string Name(Gdk.Monitor monitor)
+    {
+        var connector = monitor.GetConnector() ?? "monitor";
+        if (MonitorIds.OfGnome(Edid(connector), connector) is { } named)
+        {
+            return named;
+        }
+
+        var (maker, model) = (monitor.GetManufacturer() ?? "", monitor.GetModel() ?? "");
+        return maker.Length + model.Length > 0 ? MonitorIds.OfGnome(maker, model, "", connector) : connector;
+    }
+
+    // The kernel's copy of the EDID of the monitor on a connector, as card1-DP-1's; none where no card has that connector.
+    private static byte[] Edid(string connector)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(Drm, $"card*-{connector}").Select(card => Path.Combine(card, "edid")).FirstOrDefault(File.Exists)
+                is { } edid ? File.ReadAllBytes(edid) : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
 }
