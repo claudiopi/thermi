@@ -24,16 +24,16 @@ A version that fails on a PC is never taken there again: its service served noth
 
 ### On Linux
 
-On Linux the system's own updater updates thermi, from thermi's apt and dnf repositories, static files under the server's `linux/` (`docs/adr/0019-linux.md`). The `.deb` and the `.rpm` add the stable one with the key it is signed with, and a person who wants beta changes `Suites:` in `/etc/apt/sources.list.d/thermi.sources` or the end of `baseurl=` in `/etc/yum.repos.d/thermi.repo`. `scripts/linux-packages.ps1` packs a version, and given `--repository <folder>` the same levers act on the repositories instead, through `scripts/repository.ps1`, signing with the OpenPGP key in `--key` or `THERMI_REPOSITORY_KEY`:
+On Linux the system's own updater updates thermi, from thermi's apt and dnf repositories, static files under the server's `linux/` (`docs/adr/0019-linux.md`). The `.deb` and the `.rpm` add the stable one with the key it is signed with, and a person who wants beta changes `Suites:` in `/etc/apt/sources.list.d/thermi.sources` or the end of `baseurl=` in `/etc/yum.repos.d/thermi.repo`. `scripts/linux-packages.ps1` packs a version. Given `--repository <folder>`, the levers of `scripts/updates.ps1` act on the repositories instead, through `scripts/repository.ps1`: each writes the channel's indexes with apt-ftparchive and createrepo_c, from a Debian container where the PC has neither, and signs them with the OpenPGP key in `--key` or `THERMI_REPOSITORY_KEY`. The release workflow pulls them between `scripts/channel-sync.ps1 down -Linux` and `up -Linux`:
 
 | Lever | What PCs do |
 | --- | --- |
 | `publish <v> --channel beta --packages <folder>` | Take the version with their next update. A version not above every one the channel published is refused. |
 | `promote [--from beta --to stable]` | Stable takes beta's version, every PC at once: the repositories have no rollout. |
-| `rollback --channel stable` | Take the version before, packed again as `<highest>+really<version>`, which sorts above every version published, so the system's updater installs it. |
+| `rollback --channel stable` | Take the version before, packed again from its tarball as `<highest>.really<version>`, which sorts above every version published, so the system's updater installs it. The AUR keeps the release it has: there, a rollback is a release of the version before by hand. |
 | `disable --channel stable` | Find nothing to take until the next publish. |
-| `sign --channel stable` | Nothing new: the same offer signed again, as apt refuses a `Release` 45 days after it is signed. |
-| `restore --before-last --channel stable` | The offer before the last, served again as it was signed then. |
+| `sign --channel stable` | Nothing new: the same offer signed again, as apt refuses a `Release` 45 days after it is signed. The workflow's `refresh` and its monthly signing pull it. |
+| `restore --before-last --channel stable` | The offer before the last, served again as it was signed then, or signed again if that is a week from expiring. Only on your PC: the workflow has no such lever. |
 | `status` | What the channel offers. |
 
 ## Trying it on Linux
@@ -45,7 +45,7 @@ sudo apt install ./artifacts/linux/thermi-sensors_0.9.0_amd64.deb ./artifacts/li
 pwsh scripts/updates.ps1 serve --folder <a folder holding <repositories> as linux>
 ```
 
-Given a build's packages, the levers sign with its own key, which those packages trust.
+Given a build's packages, the levers sign with its own key, which those packages trust. Removing the `.rpm` leaves its key in rpm's own database, as every repository's does; `rpm -e gpg-pubkey-<id>` takes it out.
 
 ## Trying it on this PC
 
@@ -93,7 +93,7 @@ Why some of it is this way:
 - Each merge to main goes to beta as `<version>-beta.<run>`.
 - Run by hand with `release`, it puts `Directory.Build.props`' version on stable at the rollout given, with its MSIs on a GitHub release. With `promote`, `rollback`, `disable` or `refresh` it pulls that lever.
 - On the first of each month it signs both channels again, before their manifests expire.
-- Each job that signs waits for your approval: a beta asks twice, a release three times.
+- Each job that signs waits for your approval: a beta asks three times, a release four, a lever by hand and the monthly signing twice, Linux's job among them.
 - `scripts/channel-sync.ps1` moves the channels between the run and the bucket, the zips before the manifests, and writes a manifest only if the bucket still holds what the run fetched. Of two runs at once, the second fails and is run again.
 - Right after a stable release, raise `Directory.Build.props`' version: a beta of the version released is older than it, and the channel refuses it.
 - The Linux packages of the same version go to the same channel of the repositories, and a release's `PKGBUILD` to the AUR once its tarballs are served; each lever by hand acts on the repositories too, `refresh` as `sign`, and the monthly signing signs them again. `scripts/channel-sync.ps1 -Linux` moves them, the packages first and the indexes after the histories.
