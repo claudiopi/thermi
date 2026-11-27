@@ -173,8 +173,8 @@ public sealed partial class RepoRulesTests
 
     // A public repo's recordings and snapshots are read by anyone, so they name no PC, person or network: an adapter's id is
     // its interface's GUID, so a recording's adapters carry made-up ones, 00000000-0000-4000-8000-000000000001 on. A Linux
-    // tree's files are the kernel's, of any name, and all are read. A folder that moved fails here too, or this would pass
-    // without reading a thing.
+    // tree's files are the kernel's, of any name, and all are read, and so are their paths, which name a device as the
+    // kernel does, a colon kept as %3A. A folder that moved fails here too, or this would pass without reading a thing.
     [Fact]
     public void RecordedDataNamesNoMachinePersonOrNetwork()
     {
@@ -188,14 +188,18 @@ public sealed partial class RepoRulesTests
         Assert.Contains(data, path => Relative(path).StartsWith(trees, StringComparison.Ordinal) && Path.GetExtension(path).Length == 0);
         Assert.Contains(data, path => Path.GetFileName(path) == "edits.json");
 
+        var paths = data.Where(path => Relative(path).StartsWith(trees, StringComparison.Ordinal))
+            .SelectMany(path => PersonalData().Matches(Uri.UnescapeDataString(Relative(path)))
+                .Select(match => $"{Relative(path)} is named for {match.Value}: replace it with a made-up one"));
         AssertNone(data.SelectMany(path => PersonalData().Matches(File.ReadAllText(path))
-            .Select(match => $"{Relative(path)} holds {match.Value}: replace it with a made-up one")));
+            .Select(match => $"{Relative(path)} holds {match.Value}: replace it with a made-up one")).Concat(paths));
     }
 
-    // Real GUIDs, MACs, IPv4s (loopback and documentation ranges aside), Windows' and Linux's user folders, default PC
-    // names and identity fields.
+    // Real GUIDs, MACs, Linux's adapters named by theirs, IPv4s (loopback and documentation ranges aside), Windows' and
+    // Linux's user folders, default PC names and identity fields.
     [GeneratedRegex(
         @"(?!00000000-0000-4000-8000-)[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}(?![0-9A-F])|\b(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}\b"
+        + @"|\b(?:enx|wlx)[0-9A-F]{12}\b"
         + @"|\b(?!127\.|192\.0\.2\.|198\.51\.100\.|203\.0\.113\.)(?:\d{1,3}\.){3}\d{1,3}\b|[A-Z]:(?:\\|/)+Users(?:\\|/)+(?!Public\b)\w|/home/\w"
         + @"|\b(?:DESKTOP|LAPTOP)-[A-Z0-9]{7}\b|""(?:machine|computer|host|user)_?name""|""(?:ssid|serial|serialNumber|serial_number)""",
         RegexOptions.IgnoreCase,

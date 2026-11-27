@@ -20,7 +20,7 @@ internal sealed class RecordedKernel : IKernel
             .Count(folder => int.TryParse(Path.GetFileName(folder), NumberStyles.None, CultureInfo.InvariantCulture, out _));
         if (_seconds == 0)
         {
-            throw new ArgumentException($"{tree} holds no recorded second: record one with thermi-sensors --tree.", nameof(tree));
+            throw new InvalidDataException($"{tree} holds no recorded second: record one with thermi-sensors --tree.");
         }
     }
 

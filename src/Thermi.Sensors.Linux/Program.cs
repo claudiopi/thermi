@@ -53,7 +53,17 @@ internal static class Program
         }
 
         using var live = root is null ? new LiveKernel(time) : null;
-        IKernel kernel = live ?? (IKernel)new RecordedKernel(root!);
+        IKernel kernel;
+        try
+        {
+            kernel = live ?? (IKernel)new RecordedKernel(root!);
+        }
+        catch (InvalidDataException ex)
+        {
+            await error.WriteLineAsync(ex.Message);
+            return 2;
+        }
+
         return request is SensorRecord recording
             ? await RecordAsync(kernel, recording, time, stop)
             : await ServeAsync(new LinuxSensors(kernel), (SensorServe)request, time, output, error, stop);
@@ -62,8 +72,9 @@ internal static class Program
     // A dump names no address of the PC's, as a tree does not, so a bug report shares none.
     private static async Task<int> RecordAsync(IKernel kernel, SensorRecord record, TimeProvider time, CancellationToken stop)
     {
-        using var tree = record.Tree is null ? null : new RecordingKernel(kernel, record.Tree);
-        var sensors = new LinuxSensors(tree ?? kernel, scrubbed: true);
+        var standIns = new StandInKernel(kernel);
+        using var tree = record.Tree is null ? null : new RecordingKernel(standIns, record.Tree);
+        var sensors = new LinuxSensors(tree ?? (IKernel)standIns, scrubbed: true);
         await using var writer = record.Dump is null ? TextWriter.Null : new StreamWriter(record.Dump);
         await SeriesRecorder.RecordAsync(_ => Task.FromResult(sensors.Read()), writer, record.Seconds, time, stop);
         return 0;
