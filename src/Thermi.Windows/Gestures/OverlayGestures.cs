@@ -1,4 +1,5 @@
 using System.Drawing;
+using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
@@ -345,13 +346,9 @@ internal sealed class OverlayGestures(int index, Settings settings, OverlayActio
             rest = painter.Measure([.. painted.Items.Where(each => !ids.Contains(each.Id))], painted.Look, painted.Scale);
         }
 
-        var before = settings.Config;
-        var drop = DesktopGestures.Separate(before, index, pill, shown, (made.Width, made.Height), (rest.Width, rest.Height), screens);
-        var after = drop.Result.Refused is null ? actions.Settle(before, drop.Result.Config).Config : before;
-        if (ConfigEdits.Replay(before, after) is { } change)
+        var drop = DesktopGestures.Separate(settings.Config, index, pill, shown, (made.Width, made.Height), (rest.Width, rest.Height), screens);
+        if (DropWrite.Write(settings, index, drop, actions.Settle, move: null, actions.Gestures, OverlayText.UndoSeparate))
         {
-            settings.Edit(change);
-            actions.Gestures?.Add(drop.Kind, before, after, OverlayText.UndoSeparate);
             actions.RequestPaint();
         }
     }

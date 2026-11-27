@@ -6,7 +6,7 @@ What the overlay and the settings window decide beyond Core that needs a package
 | --- | --- |
 | `SettingsFile` | `config.json` read and written under its mutex, the settings a host holds over it, the edits that wait to be written, and watching the file. |
 | `Finder` | The fan finder's run, the window's and an agent's alike, and the CPU load it asks for, in a process of its own. |
-| `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, and the last gesture's undo. |
+| `Gestures` | What a desktop gesture leaves for every overlay: where a drop joins the overlay under it, a drop's write, a menu row's choice, and the last gesture's undo. |
 | `Window` | The settings window's logic over the settings: its edits and undo, the sensors' readings and charts it keeps, and how it reads each snapshot. |
 | `Sensors` | Reading the sensor host's snapshots, from Windows' pipe or Linux's socket, and trying again while it is gone. |
 | `Preview` | What `thermi preview` does around each OS's painter: the settings and snapshots it reads, the items it paints, the PNG written whole or not at all. |

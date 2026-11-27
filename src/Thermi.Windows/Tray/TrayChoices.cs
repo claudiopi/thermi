@@ -1,89 +1,47 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
-using Thermi.Core.Messages;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Logging;
-using Thermi.Windows.Overlay;
 
 namespace Thermi.Windows.Tray;
 
-/// <summary>
-/// What a row chosen in thermi's menu or an overlay's does: in an overlay's menu or submenu it acts on that overlay, in
-/// thermi's menu on all. Each edit is one undoable step, as a desktop gesture is.
-/// </summary>
-internal sealed class TrayChoices(TrayParts parts, ILogger log)
+/// <summary>What a row chosen in thermi's menu or an overlay's reaches on Windows, past what <see cref="MenuChoices"/> does on every OS.</summary>
+internal sealed class TrayChoices(TrayParts parts, ILogger log) : IMenuHost
 {
-    private Settings Settings => parts.Settings;
+    public Settings Settings => parts.Settings;
 
-    private OverlayActions Actions => parts.Actions;
+    public GestureUndo? Gestures => parts.Actions.Gestures;
 
-    public void Choose(MenuRow row, int? menuOverlay)
-    {
-        var target = row.Overlay ?? menuOverlay;
-        switch (row.Entry)
-        {
-            case MenuEntry.SettingsBroken or MenuEntry.Settings or MenuEntry.EditItem:
-                Actions.OpenSettings(target ?? 0, row.Item);
-                break;
-            case MenuEntry.SizeCustom:
-                Actions.OpenSize(target ?? 0);
-                break;
-            case MenuEntry.StartSensors or MenuEntry.TaskManager or MenuEntry.CopyImage:
-                Reach(row.Entry, target ?? 0);
-                break;
-            case MenuEntry.ShowOverlays or MenuEntry.HideOverlays:
-                parts.Visibility.HideOverlays = row.Entry == MenuEntry.HideOverlays;
-                break;
-            case MenuEntry.UndoGesture:
-                parts.Overlays[target ?? 0].UndoGesture();
-                break;
-            case MenuEntry.Separate when row.Item is { } item && (target ?? 0) < parts.Overlays.Count:
-                parts.Overlays[target ?? 0].Separate(item);
-                break;
-            case MenuEntry.ResetMinMax:
-                Actions.History.Reset(On(target).Select(at => Settings.Config.Overlays[at]));
-                break;
-            case MenuEntry.Exit:
-                Actions.Exit();
-                break;
-            case MenuEntry.ShowHiddenOverlays or MenuEntry.ShowOverlay or MenuEntry.HideThisOverlay or MenuEntry.ClickThrough or MenuEntry.Lock
-                or MenuEntry.Graph or MenuEntry.Vertical or MenuEntry.Look or MenuEntry.Size or MenuEntry.Bigger or MenuEntry.Smaller:
-                Write(row, MenuEdits.EditOf(row, On(target), target ?? 0, Looks()));
-                break;
-            case MenuEntry.Separate or MenuEntry.GraphOwn or MenuEntry.SeparateFull or MenuEntry.Overlay or MenuEntry.Update or MenuEntry.SizeOnTaskbar:
-            default:
-                break;
-        }
+    public ItemHistory History => parts.Actions.History;
 
-        Actions.RequestPaint();
-    }
+    public int Overlays => parts.Overlays.Count;
 
-    public IReadOnlyList<StyleConfig> Looks() => new SavedStyles(ConfigStore.StylesFolder(Settings.FilePath)).List();
+    public void Choose(MenuRow row, int? menuOverlay) => MenuChoices.Choose(this, row, menuOverlay);
 
-    private IReadOnlyList<int> On(int? target) => MenuEdits.On(target, Math.Min(Settings.Config.Overlays.Count, parts.Overlays.Count));
+    public IReadOnlyList<StyleConfig> Looks() => MenuChoices.Looks(Settings);
 
-    // Writes only the difference, so what another process wrote meanwhile stays.
-    private void Write(MenuRow row, Func<ThermiConfig, ThermiConfig>? edit)
-    {
-        var before = Settings.Config;
-        var after = edit is null ? before : Actions.Settle(before, edit(before)).Config;
-        if (ConfigEdits.Replay(before, after) is not { } change)
-        {
-            return;
-        }
+    public EditResult Settle(ThermiConfig before, ThermiConfig after) => parts.Actions.Settle(before, after);
 
-        Settings.Edit(change);
-        if (Menus.UndoOf(row) is { } undo)
-        {
-            Actions.Gestures?.Add(GestureKind.Menu, before, after, undo);
-        }
-    }
+    public void OpenSettings(int overlay, string? item) => parts.Actions.OpenSettings(overlay, item);
 
-    private void Reach(MenuEntry entry, int overlay)
+    public void OpenSize(int overlay) => parts.Actions.OpenSize(overlay);
+
+    public void UndoGesture(int overlay) => parts.Overlays[overlay].UndoGesture();
+
+    public void Separate(int overlay, string item) => parts.Overlays[overlay].Separate(item);
+
+    public void HideOverlays(bool hidden) => parts.Visibility.HideOverlays = hidden;
+
+    public void Exit() => parts.Actions.Exit();
+
+    public void RequestPaint() => parts.Actions.RequestPaint();
+
+    public void Reach(MenuEntry entry, int overlay)
     {
         if (entry == MenuEntry.StartSensors)
         {
