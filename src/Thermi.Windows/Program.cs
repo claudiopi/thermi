@@ -238,7 +238,9 @@ internal static class Program
             (hidden, dragging) = (false, true);
         }
 
-        return new SessionFacts(host is null || HostEnvironment.Default.WindowOpen(), dragging, Desktop.SinceInput(), Desktop.Locked(), hidden);
+        // No answer of the last input counts as input just now, so an update waits rather than interrupt.
+        var sinceInput = Desktop.SinceInput() ?? TimeSpan.Zero;
+        return new SessionFacts(host is null || HostEnvironment.Default.WindowOpen(), dragging, sinceInput, Desktop.Locked(), hidden);
     }
 
     // As the tray's "Exit thermi": the host closes on its own thread, its settings saved.

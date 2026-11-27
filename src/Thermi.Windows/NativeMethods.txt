@@ -50,6 +50,7 @@ WM_TIMER
 WM_DISPLAYCHANGE
 WM_SETTINGCHANGE
 WM_DWMCOLORIZATIONCOLORCHANGED
+WM_SYSCOLORCHANGE
 WM_CONTEXTMENU
 WM_HOTKEY
 WM_SETFOCUS
@@ -68,6 +69,18 @@ MODIFIERKEYS_FLAGS
 TrackMouseEvent
 WM_POWERBROADCAST
 PBT_APMRESUMEAUTOMATIC
+// Nobody sees the overlays while the session is locked or its display is off
+WTSRegisterSessionNotification
+WTSUnRegisterSessionNotification
+NOTIFY_FOR_THIS_SESSION
+WM_WTSSESSION_CHANGE
+WTS_SESSION_LOCK
+WTS_SESSION_UNLOCK
+RegisterPowerSettingNotification
+UnregisterPowerSettingNotification
+GUID_SESSION_DISPLAY_STATUS
+PBT_POWERSETTINGCHANGE
+POWERBROADCAST_SETTING
 // The values' tooltips and the glow's frames
 InitCommonControlsEx
 TTTOOLINFOW

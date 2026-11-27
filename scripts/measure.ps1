@@ -10,7 +10,9 @@ idle under 1 % with its page's renderer (spec 002's R191; WebView2's browser, GP
 and 3 % of one core (docs/adr/0011-sensor-service-memory-budget.md). It measures what runs; with -Window it
 opens the window of -Exe first, waits for it to settle and closes it after, if it opened it. Nothing is edited, and the
 window reads the real settings as smoke-window.ps1's does. The service runs as LocalSystem, so its CPU is read from the
-performance counters, which need no administrator; the others from their processes. Exits 1 when a budget is broken.
+performance counters, which need no administrator; the others from their processes. Exits 1 when a budget is broken,
+or when the session was locked, behind its screen saver or switched away as the run started or ended, since the overlay
+then draws nothing. Start it in front of a display that is on: one already off is not caught.
 #>
 param(
     # The thermi.exe whose overlay and window are measured; by default the one installed.
@@ -28,6 +30,23 @@ $budgets = @{ Overlay = 0.5; Window = 1.0 }
 $megabytes = @{ Overlay = 48 }
 $serviceMegabytes = 80
 $serviceCpu = 3.0
+
+# The overlay draws nothing while nobody sees it, so a run behind a lock or a screen saver, or with the display off,
+# would measure less than it costs: the display is kept from going off while it runs, and a session away as it starts
+# or ends fails it. A display already off as it starts, or a lock that comes and goes within the run, is not caught.
+Add-Type -Namespace ThermiMeasure -Name Session -MemberDefinition (
+    '[DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int state);' +
+    '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint flags);')
+$notPresent = 1
+$displayOn = 0x80000002u
+$asBefore = 0x80000000u
+
+function Assert-Seen([string]$When) {
+    $state = 0
+    if ([ThermiMeasure.Session]::SHQueryUserNotificationState([ref]$state) -eq 0 -and $state -eq $notPresent) {
+        throw "The session was locked, behind its screen saver or switched away $When, and the overlay drew nothing: measure in front of it."
+    }
+}
 
 function Get-Thermi {
     $all = Get-CimInstance Win32_Process
@@ -88,6 +107,8 @@ if ($Window -and -not (Get-Thermi).Window) {
 }
 
 try {
+    Assert-Seen 'as it started'
+    $null = [ThermiMeasure.Session]::SetThreadExecutionState($displayOn)
     $found = Get-Thermi
     if ($Window -and -not $found.Window) { throw "No settings window of $Exe opened." }
     $instance = if ($found.Service) { Get-Instance $found.Service }
@@ -103,6 +124,7 @@ try {
     }
     $elapsed = $clock.Elapsed.TotalSeconds
     $after = @{}; foreach ($part in $parts) { $after[$part] = Get-Cpu $found.$part }
+    Assert-Seen 'as it ended'
 
     $rows = foreach ($part in $parts) {
         if ($found.$part.Count -eq 0) { continue }
@@ -130,6 +152,7 @@ try {
     if ($rows | Where-Object { -not $_.Within }) { exit 1 }
 }
 finally {
+    $null = [ThermiMeasure.Session]::SetThreadExecutionState($asBefore)
     if ($opened -and -not $opened.HasExited) {
         $opened.Refresh()
         $opened.CloseMainWindow() | Out-Null

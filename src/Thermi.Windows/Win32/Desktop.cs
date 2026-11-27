@@ -84,21 +84,20 @@ internal static class Desktop
 
     /// <summary>
     /// How long the session has gone without a key or the mouse. Windows counts it in its tick count, which no
-    /// <see cref="TimeProvider"/> gives, so the two are compared as they come.
+    /// <see cref="TimeProvider"/> gives, so the two are compared as they come. Null when Windows does not answer.
     /// </summary>
-    public static TimeSpan SinceInput()
+    public static TimeSpan? SinceInput()
     {
         var input = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
-        return PInvoke.GetLastInputInfo(ref input) ? TimeSpan.FromMilliseconds(unchecked((uint)Environment.TickCount - input.dwTime)) : TimeSpan.Zero;
+        return PInvoke.GetLastInputInfo(ref input) ? TimeSpan.FromMilliseconds(unchecked((uint)Environment.TickCount - input.dwTime)) : null;
     }
 
     /// <summary>Whether the session is locked, its screen saver on, or switched away from: nobody sees its overlays.</summary>
-    public static bool Locked() =>
-        PInvoke.SHQueryUserNotificationState(out var state).Succeeded && state == QUERY_USER_NOTIFICATION_STATE.QUNS_NOT_PRESENT;
+    public static bool Locked() => UserState() == NotificationState.Away;
 
     /// <summary>
     /// What Windows says the user is doing: an exclusive full-screen Direct3D app, or presentation mode, which its own
-    /// notifications stay quiet for; anything else, or no answer, is <see cref="NotificationState.Normal"/>.
+    /// notifications stay quiet for, or nobody there; anything else, or no answer, is <see cref="NotificationState.Normal"/>.
     /// </summary>
     public static NotificationState UserState()
     {
@@ -109,6 +108,7 @@ internal static class Desktop
 
         return state == QUERY_USER_NOTIFICATION_STATE.QUNS_RUNNING_D3D_FULL_SCREEN ? NotificationState.Direct3DFullScreen
             : state == QUERY_USER_NOTIFICATION_STATE.QUNS_PRESENTATION_MODE ? NotificationState.Presentation
+            : state == QUERY_USER_NOTIFICATION_STATE.QUNS_NOT_PRESENT ? NotificationState.Away
             : NotificationState.Normal;
     }
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
+using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Windows.Commands;
 using Thermi.Windows.Tray;
@@ -37,6 +38,15 @@ internal sealed record HostEnvironment(string WindowMutex, string ExePath, Notif
     public Action<int>? OpenSettings { get; init; }
 
     public Func<Position> Cursor { get; init; } = Desktop.Cursor;
+
+    /// <summary>The window in front, which the full-screen rule and "Notify me" read.</summary>
+    public Func<ForegroundWindow?> Foreground { get; init; } = Desktop.Foreground;
+
+    /// <summary>Whether anybody can see the session, which a test answers for itself and never hears from the real one.</summary>
+    public SessionSight Sight { get; init; } = SessionSight.Real;
+
+    /// <summary>What the host reads from Windows and keeps until Windows says it changed.</summary>
+    public Func<DesktopReads> Reads { get; init; } = () => new DesktopReads();
 
     /// <summary>
     /// "Start sensors", behind its UAC prompt: the elevated mode's exit code, or null when the prompt was refused.

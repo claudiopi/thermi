@@ -1,5 +1,13 @@
 using Microsoft.Extensions.Logging;
+using Thermi.App.SettingsFile;
+using Thermi.Core.Look;
+using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
+using Thermi.Windows.Win32;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Thermi.Windows.Tests.Acceptance;
 
@@ -80,5 +88,225 @@ public sealed class OverlayPaceTests : IDisposable
         });
 
         Assert.Equal((0, 8), (paintsReading, paintsStopped));
+    }
+
+    // Nobody sees the overlay while the session is locked or its display is off: the readings that come meanwhile go into
+    // its history and its notices, which a full-screen app gone from the front no longer holds, and draw nothing; as soon
+    // as somebody can see it again it shows the last one, before any tick. A dimmed display still shows it.
+    [Theory] // Rows: each a word of its own that Windows sends, read apart
+    [InlineData("locked", false)]
+    [InlineData("display off", false)]
+    [InlineData("display dimmed", true)]
+    public async Task AnOverlayNobodySeesPaintsNothingAndShowsTheLastReadingOnceSeen(string unseen, bool seen)
+    {
+        var hot = OverlayConfig.DefaultItems[0] with { Threshold = new Threshold(critical: 1), Notify = true };
+        var overlay = new OverlayConfig { Items = [hot, .. OverlayConfig.DefaultItems.Skip(1)] };
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [overlay] });
+        var sight = new Sight(_folder.Clock);
+        var log = new ListLogger(LogLevel.Debug);
+        var now = HostRun.Recorded;
+        var (draws, notices, shown, history) = (-1, -1, new List<string>(), new List<IReadOnlyList<double?>>());
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var host = new OverlayHost(settings, () => now, HostRun.English, _folder.Clock, log, sight.Of(_tray.Environment(_windowMutex)));
+            host.Start();
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
+            shown.Add(Picture(host));
+            history.Add(host.History.TenMinutes(hot.Id));
+            sight.Front = Sight.FullScreen();
+            Seconds(host, 1, () => { });
+            sight.Front = null;
+            sight.Tell(host, unseen, seen: false);
+            var before = Draws(log);
+            now = HostRun.Warmer;
+            Seconds(host, 12, host.Arrived);
+            (draws, notices) = (Draws(log) - before, _tray.Calls.Count(call => call.Notice.Length > 0));
+            shown.Add(Picture(host));
+            history.Add(host.History.TenMinutes(hot.Id));
+            sight.Tell(host, unseen, seen: true);
+            _folder.Clock.Advance(Settings.Interval);
+            HostRun.Pump(host);
+            shown.Add(Picture(host));
+        });
+
+        Assert.Equal((seen, seen, 1), (draws > 0, shown[0] != shown[1], notices));
+        Assert.NotEqual(shown[0], shown[2]);
+        Assert.NotEqual(history[0], history[1]);
+    }
+
+    // Windows tells of no screen saver, and a word of the display coming back or of an unlock may be missed: the tick finds
+    // them within a second, by a key or the mouse past a moment after the display went off or the lock came, and a lock
+    // holds while Windows says nobody is there. Nothing draws while nobody sees, and one draw shows the overlay again, even
+    // with nothing new, since the compositor may have dropped its picture meanwhile.
+    [Theory] // Rows: each a way the overlay learns it is seen again, read apart
+    [InlineData("screen saver", true)]
+    [InlineData("a key let go just after the display went off, and one later", true)]
+    [InlineData("unlocked", false)]
+    [InlineData("unlocked, from a lock the tick reads no sign of", true)]
+    [InlineData("unlocked, after a key while Windows says nobody is there", true)]
+    [InlineData("a key once Windows no longer says nobody is there, with no unlock", true)]
+    public async Task TheTickFindsWhetherAnybodySeesTheOverlayAndOneDrawShowsItAgain(string how, bool warmer)
+    {
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [new OverlayConfig { Graph = GraphStyle.None }] });
+        var sight = new Sight(_folder.Clock);
+        var log = new ListLogger(LogLevel.Debug);
+        var now = HostRun.Recorded;
+        var (unseen, again, shown) = (-1, -1, new List<string>());
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var host = new OverlayHost(settings, () => now, HostRun.English, _folder.Clock, log, sight.Of(_tray.Environment(_windowMutex)));
+            host.Start();
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
+            Seconds(host, 1, host.Arrived);
+            shown.Add(Picture(host));
+            sight.Leave(host, how);
+            Seconds(host, 1, host.Arrived);
+            var before = Draws(log);
+            now = warmer ? HostRun.Warmer : now;
+            Seconds(host, 3, () =>
+            {
+                sight.Meanwhile(how);
+                host.Arrived();
+            });
+            unseen = Draws(log) - before;
+            sight.Return(host, how);
+            Seconds(host, 1, host.Arrived);
+            again = Draws(log) - before - unseen;
+            shown.Add(Picture(host));
+        });
+
+        Assert.Equal((0, 1, warmer), (unseen, again, shown[0] != shown[1]));
+    }
+
+    // An overlay "When to show" hides keeps what it last drew through a lock, which the tray copies as an image.
+    [Fact]
+    public async Task AnOverlayHiddenByWhenToShowKeepsItsPictureThroughALock()
+    {
+        var overlay = new OverlayConfig { Visibility = Visibility.HideInFullscreen };
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [overlay] });
+        var sight = new Sight(_folder.Clock);
+        var environment = sight.Of(_tray.Environment(_windowMutex));
+        var shown = new List<string>();
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var host = new OverlayHost(settings, () => HostRun.Recorded, HostRun.English, _folder.Clock, _folder.Log, environment);
+            host.Start();
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
+            sight.Front = Sight.FullScreen();
+            Seconds(host, 1, host.Arrived);
+            shown.Add(Picture(host));
+            sight.Tell(host, "locked", seen: false);
+            Seconds(host, 1, host.Arrived);
+            sight.Tell(host, "locked", seen: true);
+            Seconds(host, 1, host.Arrived);
+            shown.Add(Picture(host));
+        });
+
+        Assert.Equal((true, shown[0]), (shown[0].Length > 0, shown[1]));
+    }
+
+    // A window something else moved, as Windows does with a monitor that goes, draws though it shows nothing new, and the
+    // draw puts it back where it belongs.
+    [Fact]
+    public async Task AWindowSomethingElseMovedIsDrawnBackWhereItBelongs()
+    {
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [new OverlayConfig { Graph = GraphStyle.None }] });
+        var log = new ListLogger(LogLevel.Debug);
+        var (moved, back) = (-1, false);
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var host = new OverlayHost(settings, () => HostRun.Recorded, HostRun.English, _folder.Clock, log, _tray.Environment(_windowMutex));
+            host.Start();
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
+            Seconds(host, 2, host.Arrived);
+            var before = Draws(log);
+            var window = host.Overlays[0].Hwnd;
+            PInvoke.GetWindowRect(window, out var placed);
+            const SET_WINDOW_POS_FLAGS Moved = SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE;
+            PInvoke.SetWindowPos(window, HWND.Null, placed.left + 50, placed.top - 50, 0, 0, Moved);
+            Seconds(host, 1, host.Arrived);
+            moved = Draws(log) - before;
+            back = PInvoke.GetWindowRect(window, out var after) && (after.left, after.top) == (placed.left, placed.top);
+        });
+
+        Assert.Equal((1, true), (moved, back));
+    }
+
+    // High contrast and the animation effects are kept as Windows first answered, whatever paints between, until it says a
+    // setting or a system color changed: then the overlay follows them, in its colors, or in the glow of a first critical.
+    [Theory] // Rows: each a message of its own the host reads apart, or a read of its own it forgets
+    [InlineData("high contrast", 0u, false)]
+    [InlineData("high contrast", PInvoke.WM_SETTINGCHANGE, true)]
+    [InlineData("high contrast", PInvoke.WM_SYSCOLORCHANGE, true)]
+    [InlineData("animations", 0u, false)]
+    [InlineData("animations", PInvoke.WM_SETTINGCHANGE, true)]
+    public async Task WhatWindowsSaysOfItsLookIsKeptUntilItSaysItChanged(string read, uint message, bool follows)
+    {
+        var flat = new OverlayConfig { Graph = GraphStyle.None };
+        var hot = OverlayConfig.DefaultItems[0];
+        var celsius = SensorMap.Read(HostRun.Recorded, flat)[Metrics.CpuTemperature.Id].Value!.Value;
+        var overlay = flat with { Items = [hot with { Threshold = new Threshold(critical: celsius + 1.5) }] };
+        var settings = await _folder.LoadedAsync(new ThermiConfig { Language = "en", Overlays = [overlay] });
+        var (contrast, animations, now) = ((HighContrastColors?)null, false, HostRun.Recorded);
+        var environment = _tray.Environment(_windowMutex) with { Reads = () => new DesktopReads(() => contrast, () => animations) };
+        var log = new ListLogger(LogLevel.Debug);
+        var (shown, glowing) = (new List<string>(), false);
+
+        TestWindows.OnOwnDesktop(() =>
+        {
+            using var host = new OverlayHost(settings, () => now, HostRun.English, _folder.Clock, log, environment);
+            host.Start();
+            HostRun.Until(host, _folder.Clock, () => host.Overlays.Count == 1);
+            Seconds(host, 1, host.Arrived);
+            shown.Add(Picture(host));
+            (contrast, animations) = read == "high contrast" ? (Contrast, false) : (null, true);
+            Seconds(host, 3, host.Arrived);
+            shown.Add(Picture(host));
+            if (message != 0)
+            {
+                // Sent, not posted: Windows refuses to post a setting change, whose lParam may point to a string.
+                PInvoke.SendMessage(host.Hwnd, message, 0, 0);
+            }
+
+            Seconds(host, 1, host.Arrived);
+            shown.Add(Picture(host));
+            var before = Draws(log);
+            now = HostRun.Warmer;
+            Seconds(host, 2, host.Arrived);
+            glowing = Draws(log) - before > 1;
+        });
+
+        Assert.Equal((true, follows), (shown[0] == shown[1], read == "high contrast" ? shown[1] != shown[2] : glowing));
+    }
+
+    // Colors no overlay's own look has, so a picture in them is another.
+    private static HighContrastColors Contrast { get; } = new(Rgb.Parse("#FFFF00"), Rgb.Parse("#0000FF"), Rgb.Parse("#FF00FF"), Rgb.Parse("#00FF00"));
+
+    private static int Draws(ListLogger log) => log.Entries.Count(entry => entry.Message == "draw");
+
+    // Seconds on the clock, each with what comes in it and the tick, and the paints they ask for let out.
+    private void Seconds(OverlayHost host, int seconds, Action each)
+    {
+        for (var second = 0; second < seconds; second++)
+        {
+            _folder.Clock.Advance(TimeSpan.FromSeconds(1));
+            each();
+            HostRun.Tick(host);
+        }
+
+        _folder.Clock.Advance(Settings.Interval);
+        HostRun.Pump(host);
+    }
+
+    private static string Picture(OverlayHost host)
+    {
+        using var picture = host.Overlays[0].Picture();
+        using var png = new MemoryStream();
+        picture?.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+        return Convert.ToBase64String(png.ToArray());
     }
 }

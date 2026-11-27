@@ -9,7 +9,7 @@ It depends on nothing, Windows included: its target framework is `net10.0`, and 
 | `Sensors` | Snapshots, metrics, the sensor map with its "zero means not read" rule, the window's catalog and history, and the fan finder. |
 | `Settings` | The settings file: its records, JSON, migration from older versions, rules and thresholds. |
 | `Editing` | Every edit, the gate that refuses a bad one with a `Refusal`, and undo. |
-| `Look` | What the overlay draws: layout, look, formatting, saved styles, item history, charts. |
+| `Look` | What the overlay draws: layout, look, formatting, saved styles, item history, charts, and whether a draw would show anything new. |
 | `Placement` | Where an overlay goes: snaps, the taskbar row, desktop gestures, monitor ids, OLED care, visibility. |
 | `Search` | The window's one search. |
 | `Frames` | Presents counted into frame rates, and the game in front. |

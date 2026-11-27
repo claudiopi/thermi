@@ -118,6 +118,33 @@
       "description": "Given an overlay of several pills, when it is pressed on one and dragged past the drag distance and let go, then it follows the cursor whole, stays where it was let go, and the settings file holds that spot.",
       "check": "ADragMovesTheOverlayAndWritesWhereItWasDropped",
       "passes": true
+    },
+    {
+      "id": "A23",
+      "covers": [
+        "R10"
+      ],
+      "description": "Given an overlay on a recording with a full-screen app in front and a value critical with Notify me, when Windows says the session locked or its display went off, the app leaves the front and warmer readings come, then the overlay draws nothing, its history takes them and the notice comes; when Windows says it is unlocked or the display is back, then it shows the last reading before any tick; a dimmed display keeps drawing.",
+      "check": "AnOverlayNobodySeesPaintsNothingAndShowsTheLastReadingOnceSeen",
+      "passes": true
+    },
+    {
+      "id": "A24",
+      "covers": [
+        "R11"
+      ],
+      "description": "Given what an overlay painted last from a recording, when the next second shows the same, its line read again included, then it paints nothing; when a table of changes comes (a value, a line's point, the look, the place or the window's mark), or a glow runs or has just ended, then it paints.",
+      "check": "TheOverlayPaintsOnlyWhenWhatItShowsChanges",
+      "passes": true
+    },
+    {
+      "id": "A35",
+      "covers": [
+        "R10"
+      ],
+      "description": "Given an overlay on a recording, when its screen saver starts, of which Windows says nothing, its display goes off, or it locks, also with no sign of the lock in Windows' notification state, and warmer readings come, then it draws nothing; when the screen saver ends, a key or the mouse comes after the display went off, or it unlocks, then it draws once within a second, even with nothing new.",
+      "check": "TheTickFindsWhetherAnybodySeesTheOverlayAndOneDrawShowsItAgain",
+      "passes": true
     }
   ]
 }

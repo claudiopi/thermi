@@ -23,7 +23,7 @@ namespace Thermi.Windows.Overlay;
 /// the paint throttle every overlay shares, keeps one <see cref="OverlayWindow"/> per overlay of the settings, and shows
 /// each as Core's <see cref="OverlayVisibility"/> says.
 /// </summary>
-internal sealed class OverlayHost : IDisposable
+internal sealed partial class OverlayHost : IDisposable
 {
     internal const nuint TickTimer = 1;
 
@@ -58,7 +58,7 @@ internal sealed class OverlayHost : IDisposable
     private readonly WNDPROC _procedure;
     private HotkeyRegistry? _hotkeys;
 
-    // Whether a full-screen app was in front on any monitor at the last paint.
+    // Whether a full-screen app was in front on any monitor at the last paint, or the last tick while nobody sees the overlays.
     private bool _fullScreen;
 
     public OverlayHost(Settings settings, Func<Snapshot?> latest, CultureInfo culture, TimeProvider time, ILogger log, HostEnvironment? environment = null)
@@ -69,7 +69,7 @@ internal sealed class OverlayHost : IDisposable
         _environment = environment ?? HostEnvironment.Default;
         _procedure = WndProc;
         _paints = new Throttle<bool>(Settings.Interval, _ => PInvoke.PostMessage(Hwnd, PaintNow, 0, 0), time);
-        _desktop = new DesktopReads();
+        _desktop = _environment.Reads();
         var history = new Core.Look.ItemHistory(time);
         _link = new WindowLink(new LinkParts(settings, history, _environment, time, log, RequestPaint));
         _actions = new OverlayActions(culture, time, RequestPaint, _link.OpenWindow, () => PInvoke.DestroyWindow(Hwnd), _environment.Cursor)
@@ -132,6 +132,7 @@ internal sealed class OverlayHost : IDisposable
         Hwnd = HiddenWindow.Create(ClassName);
         _hotkeys = new HotkeyRegistry(Hwnd);
         _hotkeys.Register(_settings.Config.Hotkeys);
+        WatchSight();
         Tray = new ThermiTray(new TrayParts(Hwnd, _settings, _visibility, _overlays, _actions, _environment, Service), _log);
         _link.Start(FirstStart);
 
@@ -164,6 +165,7 @@ internal sealed class OverlayHost : IDisposable
         _hotkeys?.Dispose();
         if (!Hwnd.IsNull)
         {
+            ForgetSight();
             PInvoke.DestroyWindow(Hwnd);
             Hwnd = HWND.Null;
         }
@@ -233,7 +235,7 @@ internal sealed class OverlayHost : IDisposable
         {
             Tray?.Event(message, (uint)(lParam & 0xFFFF));
         }
-        else
+        else if (!Heard(message, wParam, lParam))
         {
             return HandleOwn(message, wParam);
         }
@@ -264,9 +266,9 @@ internal sealed class OverlayHost : IDisposable
                 Pressed((int)wParam);
                 return true;
 
-            // The taskbar's light or dark mode and the work area come as a setting change, the accent as DWM's, and the
-            // overlays and icons follow them at once.
-            case PInvoke.WM_DISPLAYCHANGE or PInvoke.WM_SETTINGCHANGE or PInvoke.WM_DWMCOLORIZATIONCOLORCHANGED:
+            // The taskbar's mode, high contrast, the animation effects and the work area come as a setting change, high
+            // contrast's colors as a system color's, the accent as DWM's, and the overlays and icons follow them at once.
+            case PInvoke.WM_DISPLAYCHANGE or PInvoke.WM_SETTINGCHANGE or PInvoke.WM_SYSCOLORCHANGE or PInvoke.WM_DWMCOLORIZATIONCOLORCHANGED:
                 _desktop.Forget();
                 RequestPaint();
                 return true;
@@ -292,7 +294,7 @@ internal sealed class OverlayHost : IDisposable
             _hotkeys?.Rest(false);
         }
 
-        Raise();
+        LookAgain();
         if (_readAt is not { } read || _actions.Time.GetElapsedTime(read) >= Late)
         {
             RequestPaint();
@@ -330,7 +332,7 @@ internal sealed class OverlayHost : IDisposable
         _cpu.Sample(ValueTooltips.WantsBusiest(config, snapshot));
 
         // "Notify me" waits out a full-screen app in front on any monitor, as a game or a presentation, as the last paint
-        // found it: one a second at least, so asking Windows again for each reading would only repeat it.
+        // or tick found it: one a second at least, so asking Windows again for each reading would only repeat it.
         Tray?.Critical(config, snapshot, _fullScreen);
         _readAt = _actions.Time.GetTimestamp();
         RequestPaint();
@@ -338,7 +340,7 @@ internal sealed class OverlayHost : IDisposable
 
     private void Repaint()
     {
-        if (!_settings.Loaded)
+        if (!_settings.Loaded || !Seen)
         {
             return;
         }
@@ -349,8 +351,7 @@ internal sealed class OverlayHost : IDisposable
         var screens = _desktop.Screens();
         var scene = Scene(config, screens);
         var editing = _link.Editing(config.Overlays.Count);
-        var fullScreen = OverlayVisibility.FullScreen(config, screens, Desktop.Foreground(), Desktop.UserState());
-        _fullScreen = fullScreen.Any(full => full);
+        var fullScreen = FullScreen(config, screens);
         var shown = _visibility.Decide(config, fullScreen);
         for (var at = 0; at < _overlays.Count; at++)
         {
@@ -373,7 +374,7 @@ internal sealed class OverlayHost : IDisposable
     {
         while (_overlays.Count < config.Overlays.Count)
         {
-            _overlays.Add(new OverlayWindow(_overlays.Count, _settings, _actions));
+            _overlays.Add(new OverlayWindow(_overlays.Count, _settings, _actions, _log));
         }
 
         while (_overlays.Count > config.Overlays.Count)
@@ -384,11 +385,11 @@ internal sealed class OverlayHost : IDisposable
     }
 
     private OverlayScene Scene(Core.Settings.ThermiConfig config, IReadOnlyList<Screen> screens) =>
-        new(config, _settings.Problem, _latest(), screens, _desktop.LightTaskbar(), Desktop.HighContrast(), _link.WindowOpen)
+        new(config, _settings.Problem, _latest(), screens, _desktop.LightTaskbar(), _desktop.HighContrast(), _link.WindowOpen)
         {
             WindowsAccent = _desktop.Accent(),
             Service = Service(),
-            Animate = Desktop.Animations(),
+            Animate = _desktop.Animations(),
             LightApps = _desktop.LightApps(),
             OpenedOnce = _link.OpenedOnce,
             Cpu = _cpu,
